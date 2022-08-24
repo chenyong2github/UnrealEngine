@@ -582,6 +582,40 @@ FPCGElementPtr FPCGGraphExecutor::GetFetchInputElement()
 }
 
 #if WITH_EDITOR
+
+FPCGTaskId FPCGGraphExecutor::ScheduleDebugWithTaskCallback(UPCGComponent* InComponent, TFunction<void(FPCGTaskId/* TaskId*/, const UPCGNode*/* Node*/, const FPCGDataCollection&/* TaskOutput*/)> TaskCompleteCallback)
+{
+	FPCGTaskId FinalTaskID = Schedule(InComponent, {});
+	TArray<FPCGGraphTask> CompiledTasks = GraphCompiler->GetCompiledTasks(InComponent->GetGraph(), /*bIsTopGraph=*/true);
+	CompiledTasks.Pop(); // Remove the final task
+
+	// Set up all final dependencies for the entire execution
+	TArray<FPCGTaskId> FinalDependencies;
+	FinalDependencies.Reserve(CompiledTasks.Num() + 1);
+	FinalDependencies.Add(FinalTaskID);
+
+	for (const FPCGGraphTask& CompiledTask : CompiledTasks)
+	{
+		// Schedule the output capture hooks
+		FPCGTaskId CaptureTaskId = ScheduleGeneric([this, TaskCompleteCallback, CompiledTask]
+		{
+			FPCGDataCollection TaskOutputData;
+			if (CompiledTask.Node && GetOutputData(CompiledTask.NodeId, TaskOutputData))
+			{
+				TaskCompleteCallback(CompiledTask.NodeId, CompiledTask.Node, TaskOutputData);
+			}
+
+			return true;
+		}, {CompiledTask.NodeId});
+
+		// Add these tasks to the final dependencies
+		FinalDependencies.Add(CaptureTaskId);
+	}
+
+	// Finally, add a task to wait on the graph itself plus the capture tasks
+	return ScheduleGeneric([] { return true; }, FinalDependencies);
+}
+
 void FPCGGraphExecutor::AddToDirtyActors(AActor* Actor)
 {
 	ActorsListLock.Lock();

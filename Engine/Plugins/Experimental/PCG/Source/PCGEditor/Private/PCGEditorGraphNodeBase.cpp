@@ -132,7 +132,7 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaDeterminism", LOCTEXT("DeterminismHeader", "Determinism"));
-		Section.AddMenuEntry(FPCGEditorCommands::Get().RunDeterminismTest,
+		Section.AddMenuEntry(FPCGEditorCommands::Get().RunDeterminismNodeTest,
 			LOCTEXT("Determinism_RunTest", "Validate Determinism on Selection"),
 			LOCTEXT("Determinism_RunTestToolTip", "Run a test to validate the selected nodes for determinism."));
 	}

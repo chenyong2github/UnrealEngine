@@ -79,6 +79,8 @@ public:
 	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
 
 #if WITH_EDITOR
+	FPCGTaskId ScheduleDebugWithTaskCallback(UPCGComponent* InComponent, TFunction<void(FPCGTaskId, const UPCGNode*, const FPCGDataCollection&)> TaskCompleteCallback);
+
 	void AddToDirtyActors(AActor* Actor);
 	void AddToUnusedActors(const TSet<FWorldPartitionReference>& UnusedActors);
 
@@ -166,10 +168,10 @@ protected:
 	// Important note: generic elements must always be run on the main thread
 	// as most of these will impact the editor in some way (loading, unloading, saving)
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsCancellable() const { return false; }
+	virtual bool IsCancellable() const override { return false; }
 
 #if WITH_EDITOR
-	virtual bool ShouldLog() const { return false; }
+	virtual bool ShouldLog() const override { return false; }
 #endif
 
 private:

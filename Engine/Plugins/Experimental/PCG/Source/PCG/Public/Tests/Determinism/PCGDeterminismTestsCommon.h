@@ -29,7 +29,7 @@ enum class EDeterminismLevel : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FDeterminismNodeTestResult
+struct FDeterminismNodeTestResult // TODO: Refactor the names since this isn't always a node any longer
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,6 @@ struct FDeterminismNodeTestResult
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Determinism)
 	FString NodeName = TEXT("Unnamed");
 
-	// TODO: Add the seed to the UI widget
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Determinism)
 	int32 Seed = -1;
 
@@ -85,6 +84,8 @@ namespace PCGDeterminismTests
 		const FVector LargeVector = FVector::OneVector * LargeDistance;
 
 		const FName TestPinName = TEXT("Test");
+		const FName GraphResultName = TEXT("Graph Result");
+
 		/** A little bigger than the typical largest volumes */
 		const FBox TestingVolume = FBox(-1.2 * LargeVector, 1.2 * LargeVector);
 	}
@@ -133,6 +134,11 @@ namespace PCGDeterminismTests
 
 	/** Validates if a PCGNode is deterministic */
 	PCG_API void RunDeterminismTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult, const FNodeTestInfo& TestToRun);
+
+#if WITH_EDITOR
+	/** Validates if a PCGGraph is deterministic */
+	PCG_API void RunDeterminismTest(const UPCGGraph* InPCGGraph, UPCGComponent* InPCGComponent, FDeterminismNodeTestResult& OutResult);
+#endif
 
 	/** Validates all the generic determinism tests for any given node */
 	PCG_API bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult);

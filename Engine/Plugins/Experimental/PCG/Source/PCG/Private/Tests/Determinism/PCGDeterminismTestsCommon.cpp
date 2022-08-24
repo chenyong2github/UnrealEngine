@@ -3,6 +3,7 @@
 
 #include "PCGComponent.h"
 #include "PCGData.h"
+#include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGNode.h"
 #include "PCGPin.h"
@@ -12,6 +13,8 @@
 #include "Data/PCGSplineData.h"
 #include "Data/PCGSurfaceData.h"
 #include "Data/PCGVolumeData.h"
+#include "Graph/PCGGraphCache.h"
+#include "Graph/PCGGraphExecutor.h"
 
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -54,6 +57,151 @@ namespace PCGDeterminismTests
 				bTestWasSuccessful ? EDeterminismLevel::Basic : EDeterminismLevel::NoDeterminism);
 		}
 	}
+
+#if WITH_EDITOR
+	void RunDeterminismTest(const UPCGGraph* InPCGGraph, UPCGComponent* InPCGComponent, FDeterminismNodeTestResult& OutResult)
+	{
+		if (!InPCGGraph || !InPCGComponent)
+		{
+			OutResult.DataTypesTested = EPCGDataType::None;
+			OutResult.bFlagRaised = true;
+			OutResult.AdditionalDetails.Add(TEXT("Invalid Graph/Component"));
+			return;
+		}
+
+		// Clone the actor and component
+		AActor* PCGActor = InPCGComponent->GetOwner();
+		check(PCGActor);
+
+		AActor* PCGActorCopy = DuplicateObject<AActor>(PCGActor, GetTransientPackage());
+		PCGActorCopy->SetFlags(RF_Transient);
+		UPCGComponent* PCGComponentCopy = PCGActorCopy->FindComponentByClass<UPCGComponent>();
+		check(PCGComponentCopy);
+
+		// TODO: Update this to a public setter
+		PCGComponentCopy->bIsPartitioned = false;
+
+		FPCGGraphExecutor Executor = FPCGGraphExecutor(PCGComponentCopy);
+
+		// TODO: Record data types tested
+
+		auto ScheduleAndWaitForExecution = [&Executor](FPCGTaskId FinalTaskID)
+		{
+			// TODO: Consider randomizing/iterating through possible input orders
+			bool bTasksComplete = false;
+
+			// Clear the cache between runs
+			Executor.GetCache().ClearCache();
+
+			// Schedule final task for waiting
+			Executor.ScheduleGeneric([&bTasksComplete]
+			{
+				bTasksComplete = true;
+				return true;
+			}, {FinalTaskID});
+
+			// Run first iteration
+			while (!bTasksComplete)
+			{
+				Executor.Execute();
+			}
+		};
+
+		TMap<FPCGTaskId, TTuple<const UPCGNode*, const FPCGDataCollection>> IntermediateOutputArray;
+
+		// TODO: TaskId may not remain robust in the future
+		auto RecordMappedOutput = [&IntermediateOutputArray](FPCGTaskId TaskId, const UPCGNode* Node, const FPCGDataCollection& NodeOutput)
+		{
+			check(Node);
+			// TODO: Ensure this is threadsafe if it needs to be
+			IntermediateOutputArray.Add(TaskId, MakeTuple(Node, NodeOutput));
+		};
+
+		// Schedule the graph execution
+		FPCGTaskId FinalTaskID = Executor.ScheduleDebugWithTaskCallback(PCGComponentCopy, RecordMappedOutput);
+		ScheduleAndWaitForExecution(FinalTaskID);
+
+		// Copy the first array over, so it can be used again
+		TMap<FPCGTaskId, TTuple<const UPCGNode*, const FPCGDataCollection>> FirstIntermediateOutputArray = IntermediateOutputArray;
+
+		// Clean up generated content
+		IntermediateOutputArray.Empty();
+		PCGComponentCopy->Cleanup();
+
+		// Run again
+		FinalTaskID = Executor.ScheduleDebugWithTaskCallback(PCGComponentCopy, RecordMappedOutput);
+		ScheduleAndWaitForExecution(FinalTaskID);
+
+		// Early out for mismatched outputs
+		if (IntermediateOutputArray.Num() != FirstIntermediateOutputArray.Num())
+		{
+			OutResult.bFlagRaised = true;
+			UpdateTestResults(Defaults::GraphResultName, OutResult, EDeterminismLevel::NoDeterminism);
+			OutResult.AdditionalDetails.Add(TEXT("Number of outputs differ"));
+			return;
+		}
+
+		// Begin output evaluation...
+		EDeterminismLevel HighestDeterminismLevel = EDeterminismLevel::OrderIndependent;
+
+		for (const TTuple<FPCGTaskId, TTuple<const UPCGNode*, const FPCGDataCollection>>& TaskOutputMapping : FirstIntermediateOutputArray)
+		{
+			const FPCGTaskId TaskIdKey = TaskOutputMapping.Key;
+			const TTuple<const UPCGNode*, const FPCGDataCollection> NodeDataTuple = TaskOutputMapping.Value;
+			const UPCGNode* NodePtr = NodeDataTuple.Get<0>();
+			const FString NodeNameString = NodePtr->GetName();
+
+			UE_LOG(LogPCG, Log, TEXT("[%s] Evaluating Node [%d]..."), *InPCGGraph->GetName(), *NodeNameString);
+
+			const FPCGDataCollection& FirstOutput = NodeDataTuple.Get<1>();
+			const FPCGDataCollection& SecondOutput = IntermediateOutputArray[TaskIdKey].Get<1>();
+
+			// Check for identical outputs
+			if (HighestDeterminismLevel == EDeterminismLevel::OrderIndependent)
+			{
+				if (!DataCollectionsAreIdentical(FirstOutput, SecondOutput))
+				{
+					// Not identical, downgrade to consistent
+					HighestDeterminismLevel = EDeterminismLevel::OrderConsistent;
+					UE_LOG(LogPCG, Log, TEXT("[%s] Node failed \"independent\" test. Downgrading to \"consistent\""), *NodeNameString);
+					OutResult.AdditionalDetails.Emplace(TEXT("Downgraded to order consistent at node: ") + NodeNameString);
+				}
+			}
+
+			// Check for consistent outputs
+			if (HighestDeterminismLevel == EDeterminismLevel::OrderConsistent)
+			{
+				TArray<int32> IndexOffsets;
+				if (!DataCollectionsMatch(FirstOutput, SecondOutput, IndexOffsets) && !DataCollectionsAreConsistent(FirstOutput, SecondOutput, IndexOffsets.Num()))
+				{
+					// Not consistent, downgrade to orthogonal
+					HighestDeterminismLevel = EDeterminismLevel::OrderOrthogonal;
+					UE_LOG(LogPCG, Log, TEXT("[%s] Node failed \"consistent\" test. Downgrading to \"orthogonal\""), *NodeNameString);
+					OutResult.AdditionalDetails.Emplace(TEXT("Downgraded to order orthogonal at node: ") + NodeNameString);
+				}
+			}
+
+			// Highest possible is orthogonal, if not, then fail test
+			if (HighestDeterminismLevel == EDeterminismLevel::OrderOrthogonal)
+			{
+				if (!DataCollectionsContainSameData(FirstOutput, SecondOutput))
+				{
+					// Not orthogonal, fail test
+					HighestDeterminismLevel = EDeterminismLevel::NoDeterminism;
+					UE_LOG(LogPCG, Log, TEXT("[%s] Node failed \"orthogonal\" test. Test failed."), *NodeNameString);
+					OutResult.AdditionalDetails.Emplace(TEXT("Determinism test failed at node: ") + NodeNameString);
+					break;
+				}
+			}
+		}
+
+		// Clean up PCG generated
+		PCGComponentCopy->Cleanup();
+
+		// Finalize the results
+		UpdateTestResults(Defaults::GraphResultName, OutResult, HighestDeterminismLevel);
+	}
+#endif
 
 	bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult)
 	{
@@ -684,7 +832,16 @@ namespace PCGDeterminismTests
 
 	bool SurfaceDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData)
 	{
+		const UPCGSurfaceData* FirstSurfaceData = CastChecked<const UPCGSurfaceData>(FirstData);
+		const UPCGSurfaceData* SecondSurfaceData = CastChecked<const UPCGSurfaceData>(SecondData);
+
 		// TODO: Implement Surface Data comparison as needed in the future
+		// In the meantime, at least check if they are the same object
+		if (FirstSurfaceData == SecondSurfaceData)
+		{
+			return true;
+		}
+
 		UE_LOG(LogPCG, Warning, TEXT("Surface comparison not fully implemented."));
 
 		return false;
@@ -726,6 +883,7 @@ namespace PCGDeterminismTests
 	bool SampledSpatialDataIsIdentical(const UPCGSpatialData* FirstSpatialData, const UPCGSpatialData* SecondSpatialData)
 	{
 		// At this point, bounds has already been checked for equality
+		// TODO: Change this testing volume relative to the bounds of the two datas
 		const FBox SampleBounds = Defaults::TestingVolume;
 		const FVector SampleExtent = SampleBounds.GetExtent();
 

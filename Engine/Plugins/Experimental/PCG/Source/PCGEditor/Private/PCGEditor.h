@@ -55,7 +55,7 @@ public:
 	// ~End IToolkit interface
 
 	// ~Begin FEditorUndoClient interface
-	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject *, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// ~End FEditorUndoClient interface
@@ -101,10 +101,15 @@ private:
 	/** Stop inspecting the current inspected node */
 	void OnStopInspectNode();
 
-	/** Can determinism be tested on this node */
-	bool CanRunDeterminismTests() const;
-	/** Summon the Determinism tab */
-	void OnDeterminismTests();
+	/** Can determinism be tested on the selected node(s) */
+	bool CanRunDeterminismNodeTest() const;
+	/** Run the determinism test on the selected node(s) */
+	void OnDeterminismNodeTest();
+
+	/** Can determinism be tested on the current graph */
+	bool CanRunDeterminismGraphTest() const;
+	/** Run the determinism test on the current graph */
+	void OnDeterminismGraphTest();
 
 	/** Whether or not an execution mode is active for the selected nodes */
 	bool IsExecutionModeActive(EPCGSettingsExecutionMode InExecutionMode) const;

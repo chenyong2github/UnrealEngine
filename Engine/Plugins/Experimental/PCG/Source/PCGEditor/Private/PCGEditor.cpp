@@ -315,6 +315,13 @@ void FPCGEditor::RegisterToolbar() const
 				InSection.AddEntry(FToolMenuEntry::InitWidget("SelectedDebugObjectWidget", SNew(SPCGEditorGraphDebugObjectWidget, Context->PCGEditor.Pin()), FText::GetEmpty()));	
 			}
 		}));
+
+		Section.AddSeparator(NAME_None);
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			 PCGEditorCommands.RunDeterminismGraphTest,
+			 TAttribute<FText>(),
+			 TAttribute<FText>(),
+			 FSlateIcon(FAppStyle::GetAppStyleSetName(), "BlueprintDebugger.TabIcon")));
 	}
 }
 
@@ -336,6 +343,11 @@ void FPCGEditor::BindCommands()
 		PCGEditorCommands.ForceGraphRegeneration,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnForceGraphRegeneration_Clicked));
 
+	ToolkitCommands->MapAction(
+		PCGEditorCommands.RunDeterminismGraphTest,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDeterminismGraphTest),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismGraphTest));
+
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.CollapseNodes,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnCollapseNodesInSubgraph),
@@ -350,9 +362,9 @@ void FPCGEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnStopInspectNode));
 
 	GraphEditorCommands->MapAction(
-		PCGEditorCommands.RunDeterminismTest,
-		FExecuteAction::CreateSP(this, &FPCGEditor::OnDeterminismTests),
-		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismTests));
+		PCGEditorCommands.RunDeterminismNodeTest,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDeterminismNodeTest),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismNodeTest));
 
 	GraphEditorCommands->MapAction(
 		PCGEditorCommands.ExecutionModeEnabled,
@@ -411,24 +423,22 @@ void FPCGEditor::OnForceGraphRegeneration_Clicked()
 	}
 }
 
-bool FPCGEditor::CanRunDeterminismTests() const
+bool FPCGEditor::CanRunDeterminismNodeTest() const
 {
 	check(GraphEditorWidget.IsValid());
 
-	bool bValidObjectFound = false;
 	for (const UObject* Object : GraphEditorWidget->GetSelectedNodes())
 	{
 		if (Cast<const UPCGEditorGraphNodeBase>(Object) && !Cast<const UPCGEditorGraphNodeInput>(Object) && !Cast<const UPCGEditorGraphNodeOutput>(Object))
 		{
-			bValidObjectFound = true;
-			break;
+			return true;
 		}
 	}
 
-	return bValidObjectFound;
+	return false;
 }
 
-void FPCGEditor::OnDeterminismTests()
+void FPCGEditor::OnDeterminismNodeTest()
 {
 	check(GraphEditorWidget.IsValid());
 
@@ -516,6 +526,50 @@ void FPCGEditor::OnDeterminismTests()
 		DeterminismWidget->AddColumn(Test.Value);
 	}
 
+	DeterminismWidget->AddDetailsColumn();
+	DeterminismWidget->RefreshItems();
+
+	// Give focus to the Determinism Output Tab
+	if (TabManager.IsValid())
+	{
+		TabManager->TryInvokeTab(FPCGEditor_private::DeterminismID);
+	}
+}
+
+bool FPCGEditor::CanRunDeterminismGraphTest() const
+{
+	return PCGEditorGraph && PCGComponentBeingDebugged;
+}
+
+void FPCGEditor::OnDeterminismGraphTest()
+{
+	check(GraphEditorWidget.IsValid());
+
+	if (!DeterminismWidget.IsValid() || !DeterminismWidget->WidgetIsConstructed() || !PCGGraphBeingEdited || !PCGComponentBeingDebugged)
+	{
+		return;
+	}
+
+	if (PCGComponentBeingDebugged->GetGraph() != PCGGraphBeingEdited)
+	{
+		// TODO: Should we alert the user more directly or disable this altogether?
+		UE_LOG(LogPCGEditor, Warning, TEXT("Running Determinism on a PCG Component with different/no attached PCG Graph"));
+	}
+
+	DeterminismWidget->ClearItems();
+	DeterminismWidget->BuildBaseColumns();
+
+	FTestColumnInfo ColumnInfo({PCGDeterminismTests::Defaults::GraphResultName, NSLOCTEXT("PCGDeterminism", "Result", "Result"), 120.f, HAlign_Center});
+	DeterminismWidget->AddColumn(ColumnInfo);
+
+	TSharedPtr<FDeterminismNodeTestResult> TestResult = MakeShared<FDeterminismNodeTestResult>();
+	TestResult->NodeTitle = TEXT("Full Graph Test");
+	TestResult->NodeName = PCGGraphBeingEdited->GetName();
+	TestResult->Seed = PCGComponentBeingDebugged->Seed;
+
+	PCGDeterminismTests::RunDeterminismTest(PCGGraphBeingEdited, PCGComponentBeingDebugged, *TestResult);
+
+	DeterminismWidget->AddItem(TestResult);
 	DeterminismWidget->AddDetailsColumn();
 	DeterminismWidget->RefreshItems();
 
