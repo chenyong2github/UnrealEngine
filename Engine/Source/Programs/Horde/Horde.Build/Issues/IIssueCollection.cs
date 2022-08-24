@@ -420,9 +420,9 @@ namespace Horde.Build.Issues
 		/// <summary>
 		/// Finds the suspects for an issue
 		/// </summary>
-		/// <param name="issue">The issue to retrieve suspects for</param>
+		/// <param name="issueId">The issue to retrieve suspects for</param>
 		/// <returns>List of suspects</returns>
-		Task<List<IIssueSuspect>> FindSuspectsAsync(IIssue issue);
+		Task<List<IIssueSuspect>> FindSuspectsAsync(int issueId);
 
 		/// <summary>
 		/// Searches for open issues
@@ -596,6 +596,17 @@ namespace Horde.Build.Issues
 	public static class IssueCollectionExtensions
 	{
 		/// <summary>
+		/// Find suspects for the given issue
+		/// </summary>
+		/// <param name="issueCollection"></param>
+		/// <param name="issue"></param>
+		/// <returns></returns>
+		public static Task<List<IIssueSuspect>> FindSuspectsAsync(this IIssueCollection issueCollection, IIssue issue)
+		{
+			return issueCollection.FindSuspectsAsync(issue.Id);
+		}
+
+		/// <summary>
 		/// Find steps for the given spans
 		/// </summary>
 		/// <param name="issueCollection"></param>
@@ -640,7 +651,5 @@ namespace Horde.Build.Issues
 
 			return await issueCollection.FindIssuesAsync(ids: issueIds, ownerId: ownerId, resolved: resolved, promoted: promoted, index: index, count: count);
 		}
-
-
 	}
 }

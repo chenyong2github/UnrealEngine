@@ -777,6 +777,9 @@ namespace Horde.Build.Notifications.Sinks
 					text = $"~{text}~";
 				}
 
+				// Get the suspects for the issue
+				List<IIssueSuspect> suspects = await _issueService.Collection.FindSuspectsAsync(issue);
+
 				(MessageStateDocument state, bool isNew) = await SendOrUpdateMessageAsync(triageChannel, eventId, null, text);
 				if (isNew)
 				{
@@ -817,16 +820,6 @@ namespace Horde.Build.Notifications.Sinks
 						message.Blocks.Add(new SectionBlock(new TextObject("```...```")));
 					}
 
-					ActionsBlock actions = message.AddActions();
-					actions.AddButton("Assign to Me", value: $"issue_{issue.Id}_ack", style: ButtonStyle.Primary);
-					actions.AddButton("Not Me", value: $"issue_{issue.Id}_decline", style: ButtonStyle.Danger);
-					actions.AddButton("Mark Fixed", value: $"issue_{issue.Id}_markfixed");
-
-					if (workflow.TriageInstructions != null)
-					{
-						message.AddSection(workflow.TriageInstructions);
-					}
-
 					string? summaryTs = await _slackClient.PostMessageAsync(triageChannel, state.Ts, message);
 
 					// Permalink to the summary text so we link inside the thread rather than just to the original message
@@ -836,9 +829,67 @@ namespace Horde.Build.Notifications.Sinks
 						permalink = await _slackClient.GetPermalinkAsync(state.Channel, summaryTs);
 					}
 
-					// Get the suspects for the issue
-					List<IIssueSuspect> suspects = await _issueService.Collection.FindSuspectsAsync(issue);
+					await SetMessageTimestampAsync(state.Id, state.Channel, state.Ts, permalink);
+				}
 
+				// Post a message containing the controls and status
+				{
+					SlackMessage message = new SlackMessage();
+
+					if (workflow.TriageInstructions != null)
+					{
+						message.AddSection(workflow.TriageInstructions);
+					}
+
+					ActionsBlock actions = message.AddActions();
+					actions.AddButton("Assign to Me", value: $"issue_{issue.Id}_ack", style: ButtonStyle.Primary);
+					actions.AddButton("Not Me", value: $"issue_{issue.Id}_decline", style: ButtonStyle.Danger);
+					actions.AddButton("Mark Fixed", value: $"issue_{issue.Id}_markfixed");
+
+					string? context = null;
+					if (issue.OwnerId != null)
+					{
+						string user = await FormatNameAsync(issue.OwnerId.Value);
+						if (issue.AcknowledgedAt == null)
+						{
+							context = $"Assigned to {user} (unacknowledged).";
+						}
+						else
+						{
+							context = $"Acknowledged by {user}.";
+						}
+					}
+					else if(suspects.Any(x => x.DeclinedAt != null))
+					{
+						HashSet<UserId> userIds = new HashSet<UserId>();
+						foreach (IIssueSuspect suspect in suspects)
+						{
+							if (suspect.DeclinedAt != null)
+							{
+								userIds.Add(suspect.AuthorId);
+							}
+						}
+
+						List<string> users = new List<string>();
+						foreach (UserId userId in userIds)
+						{
+							users.Add(await FormatNameAsync(userId));
+						}
+						users.Sort(StringComparer.OrdinalIgnoreCase);
+
+						context = $"Declined by {StringUtils.FormatList(users)}.";
+					}
+
+					if (context != null)
+					{
+						message.AddContext(context);
+					}
+
+					await SendOrUpdateMessageAsync(triageChannel, state.Ts, $"{eventId}_buttons", null, message);
+				}
+
+				if (isNew)
+				{
 					// If it has an owner, show that
 					HashSet<UserId> inviteUserIds = new HashSet<UserId>();
 					if (issue.OwnerId != null)
@@ -873,8 +924,6 @@ namespace Horde.Build.Notifications.Sinks
 							await _slackClient.PostMessageAsync(triageChannel, state.Ts, suspectMessage);
 						}
 					}
-
-					await SetMessageTimestampAsync(state.Id, state.Channel, state.Ts, permalink);
 
 					if (_environment.IsProduction() && workflow.AllowMentions)
 					{
@@ -1215,6 +1264,19 @@ namespace Horde.Build.Notifications.Sinks
 			else
 			{
 				return $"<{_externalIssueService.GetIssueUrl(key)}|{key}>";
+			}
+		}
+
+		async Task<string> FormatNameAsync(UserId userId, bool allowMentions)
+		{
+			IUser? user = await _userCollection.GetUserAsync(userId);
+			if (user == null)
+			{
+				return $"User {userId}";
+			}
+			else
+			{
+				return user.Name;
 			}
 		}
 
@@ -1921,6 +1983,11 @@ namespace Horde.Build.Notifications.Sinks
 
 		private async Task<(MessageStateDocument, bool)> SendOrUpdateMessageAsync(string recipient, string eventId, UserId? userId, SlackMessage message)
 		{
+			return await SendOrUpdateMessageAsync(recipient, null, eventId, userId, message);
+		}
+
+		private async Task<(MessageStateDocument, bool)> SendOrUpdateMessageAsync(string recipient, string? threadTs, string eventId, UserId? userId, SlackMessage message)
+		{
 			string requestDigest = ContentHash.MD5(JsonSerializer.Serialize(message, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull })).ToString();
 
 			MessageStateDocument? prevState = await GetMessageStateAsync(recipient, eventId);
@@ -1935,14 +2002,28 @@ namespace Horde.Build.Notifications.Sinks
 				_logger.LogInformation("Sending new slack message to {SlackUser} (msg: {MessageId})", recipient, state.Id);
 
 				state.Channel = recipient;
-				state.Ts = await _slackClient.PostMessageAsync(recipient, message);
+				if (threadTs == null)
+				{
+					state.Ts = await _slackClient.PostMessageAsync(recipient, message);
+				}
+				else
+				{
+					state.Ts = await _slackClient.PostMessageAsync(recipient, threadTs, message);
+				}
 
 				await SetMessageTimestampAsync(state.Id, state.Channel, state.Ts);
 			}
 			else if (!String.IsNullOrEmpty(state.Ts))
 			{
 				_logger.LogInformation("Updating existing slack message {MessageId} for user {SlackUser} ({Channel}, {MessageTs})", state.Id, recipient, state.Channel, state.Ts);
-				await _slackClient.UpdateMessageAsync(state.Channel, state.Ts, message);
+				if (threadTs == null)
+				{
+					await _slackClient.UpdateMessageAsync(state.Channel, state.Ts, message);
+				}
+				else
+				{
+					await _slackClient.UpdateMessageAsync(state.Channel, state.Ts, threadTs, message);
+				}
 			}
 			return (state, isNew);
 		}
@@ -2122,7 +2203,7 @@ namespace Horde.Build.Notifications.Sinks
 					if (payload.View != null && payload.View.State != null && payload.View.CallbackId != null)
 					{
 						Match? match;
-						if(TryMatch(payload.View.CallbackId, @"^issue_(\d+)_markfixed_([a-fA-F0-9]{24})$", out match))
+						if (TryMatch(payload.View.CallbackId, @"^issue_(\d+)_markfixed_([a-fA-F0-9]{24})$", out match))
 						{
 							int issueId = Int32.Parse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 							UserId userId = match.Groups[2].Value.ToObjectId<IUser>();
@@ -2141,6 +2222,12 @@ namespace Horde.Build.Notifications.Sinks
 								await _issueService.UpdateIssueAsync(issueId, fixChange: fixChange, resolvedById: userId);
 								_logger.LogInformation("Marked issue {IssueId} fixed by user {UserId} in {Change}", issueId, userId, fixChange);
 							}
+						}
+						else if (TryMatch(payload.View.CallbackId, @"^issue_(\d+)_ack_([a-fA-F0-9]{24})$", out match))
+						{
+							int issueId = Int32.Parse(match.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
+							UserId userId = match.Groups[2].Value.ToObjectId<IUser>();
+							await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: userId);
 						}
 					}
 				}
@@ -2216,10 +2303,54 @@ namespace Horde.Build.Notifications.Sinks
 
 			if (String.Equals(verb, "ack", StringComparison.Ordinal))
 			{
+				IIssue? issue = await _issueService.Collection.GetIssueAsync(issueId);
+				if (issue == null)
+				{
+					_logger.LogWarning("Unable to find issue {IssueId}", issueId);
+					return;
+				}
+
+				if (issue.OwnerId != null && issue.OwnerId != user.Id)
+				{
+					IUser? owner = await _userCollection.GetUserAsync(issue.OwnerId.Value);
+					if (owner != null)
+					{
+						SlackView view = new SlackView($"Issue {issueId}");
+						view.CallbackId = $"issue_{issueId}_ack_{user.Id}";
+						view.AddSection($"This issue is current assigned to {owner.Name}. Assign it to yourself?");
+						view.Close = "Cancel";
+						view.Submit = "Assign to Me";
+
+						await _slackClient.OpenViewAsync(triggerId, view);
+						return;
+					}
+				}
+
 				await _issueService.UpdateIssueAsync(issueId, acknowledged: true, ownerId: user.Id);
 			}
 			else if (String.Equals(verb, "decline", StringComparison.Ordinal))
 			{
+				IIssue? issue = await _issueService.Collection.GetIssueAsync(issueId);
+				if (issue == null)
+				{
+					_logger.LogWarning("Unable to find issue {IssueId}", issueId);
+					return;
+				}
+
+				if (issue.OwnerId != user.Id)
+				{
+					List<IIssueSuspect> suspects = await _issueService.Collection.FindSuspectsAsync(issue);
+					if (!suspects.Any(x => x.AuthorId == user.Id))
+					{
+						SlackView view = new SlackView($"Issue {issueId}");
+						view.AddSection("You are not currently listed as a suspect for this issue.");
+						view.Close = "Cancel";
+
+						await _slackClient.OpenViewAsync(triggerId, view);
+						return;
+					}
+				}
+
 				await _issueService.UpdateIssueAsync(issueId, declinedById: user.Id);
 			}
 			else if (String.Equals(verb, "markfixed", StringComparison.Ordinal))

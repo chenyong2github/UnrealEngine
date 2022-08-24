@@ -684,9 +684,9 @@ namespace Horde.Build.Issues
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IIssueSuspect>> FindSuspectsAsync(IIssue issue)
+		public Task<List<IIssueSuspect>> FindSuspectsAsync(int issueId)
 		{
-			return _issueSuspects.Find(x => x.IssueId == issue.Id).ToListAsync<IssueSuspect, IIssueSuspect>();
+			return _issueSuspects.Find(x => x.IssueId == issueId).ToListAsync<IssueSuspect, IIssueSuspect>();
 		}
 
 		class ProjectedIssueId
@@ -852,6 +852,11 @@ namespace Horde.Build.Issues
 		public async Task<IIssue?> TryUpdateIssueAsync(IIssue issue, IssueSeverity? newSeverity = null, string? newSummary = null, string? newUserSummary = null, string? newDescription = null, bool? newManuallyPromoted = null, UserId? newOwnerId = null, UserId? newNominatedById = null, bool? newAcknowledged = null, UserId? newDeclinedById = null, int? newFixChange = null, UserId? newResolvedById = null, List<ObjectId>? newExcludeSpanIds = null, DateTime? newLastSeenAt = null, string? newExternaIssueKey = null, UserId? newQuarantinedById = null)
 		{
 			Issue issueDocument = (Issue)issue;
+
+			if (newDeclinedById != null && newDeclinedById == issueDocument.OwnerId)
+			{
+				newOwnerId = UserId.Empty;
+			}
 
 			DateTime utcNow = DateTime.UtcNow;
 
