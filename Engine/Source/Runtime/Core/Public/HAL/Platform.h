@@ -115,6 +115,10 @@
 	#define USING_ADDRESS_SANITISER 0
 #endif
 
+#ifndef PLATFORM_HAS_ASAN_INCLUDE
+	#define PLATFORM_HAS_ASAN_INCLUDE __has_include(<sanitizer/asan_interface.h>)
+#endif
+
 //---------------------------------------------------------
 // Include main platform setup header (XXX/XXXPlatform.h)
 //---------------------------------------------------------

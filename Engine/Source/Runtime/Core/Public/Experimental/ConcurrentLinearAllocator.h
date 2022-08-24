@@ -21,7 +21,7 @@
 #define SUPPORTS_VERY_LARGE_ALIGNMENTS 1
 #endif
 
-#if __has_include(<sanitizer/asan_interface.h>)
+#if PLATFORM_HAS_ASAN_INCLUDE
 #include <sanitizer/asan_interface.h>
 #if defined(__SANITIZE_ADDRESS__)
 #define IS_ASAN_ENABLED 1
