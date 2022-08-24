@@ -91,7 +91,7 @@ public:
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	virtual void OnTick(float DeltaTime) override;
 
-	virtual bool CanAccept() const override { return UMeshSelectionTool::CanAccept() || bHaveModifiedMaterials; }
+	virtual bool CanAccept() const override;
 
 	void RequestMaterialAction(EEditMeshMaterialsToolActions ActionType);
 
@@ -120,6 +120,7 @@ protected:
 
 	FMaterialSetKey InitialMaterialKey;
 	bool bHaveModifiedMaterials = false;
+	bool bShowingMaterialSetError = false;
 
 	virtual void ApplyShutdownAction(EToolShutdownType ShutdownType) override;
 

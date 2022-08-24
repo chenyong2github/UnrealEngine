@@ -947,7 +947,7 @@ void UDynamicMeshComponent::DisableSecondaryTriangleBuffers()
 
 void UDynamicMeshComponent::SetExternalDecomposition(TUniquePtr<FMeshRenderDecomposition> DecompositionIn)
 {
-	check(DecompositionIn->Num() > 0);
+	ensure(DecompositionIn->Num() > 0);
 	Decomposition = MoveTemp(DecompositionIn);
 	NotifyMeshUpdated();
 }

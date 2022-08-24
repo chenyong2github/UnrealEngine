@@ -308,6 +308,18 @@ void UEditMeshMaterialsTool::OnMaterialSetChanged()
 	MaterialProps->UpdateFromMaterialsList();
 
 	bHaveModifiedMaterials = true;
+
+	if (MaterialProps->Materials.Num() == 0)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("NoMaterialsMessage", "Material Set must contain at least one Material"), EToolMessageLevel::UserWarning);
+		bShowingMaterialSetError = true;
+	}
+	else if (bShowingMaterialSetError)
+	{
+		GetToolManager()->DisplayMessage({}, EToolMessageLevel::UserWarning);
+		bShowingMaterialSetError = false;
+	}
+
 }
 
 
@@ -322,6 +334,13 @@ void UEditMeshMaterialsTool::ExternalUpdateMaterialSet(const TArray<UMaterialInt
 	CurrentMaterials = MaterialProps->Materials;
 }
 
+
+
+bool UEditMeshMaterialsTool::CanAccept() const
+{ 
+	return  (CurrentMaterials.Num() > 0) &&
+		    (UMeshSelectionTool::CanAccept() || bHaveModifiedMaterials); 
+}
 
 
 void UEditMeshMaterialsTool::ApplyShutdownAction(EToolShutdownType ShutdownType)
