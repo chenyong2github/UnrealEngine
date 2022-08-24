@@ -1798,6 +1798,9 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 		}
 	}
 
+	// Skip optional final keyword
+	MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
+
 	// Parse the inheritance list
 	ParseInheritance(TEXT("struct"), [](const TCHAR* StructName, bool bIsSuperClass) {}); // Eat the results, already been parsed
 
@@ -9098,6 +9101,8 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 		Throwf(TEXT("When compiling struct definition for '%s', attempting to strip prefix results in an empty name. Did you leave off a prefix?"), *StructNameInScript);
 	}
 
+	// Skip optional final keyword
+	MatchIdentifier(TEXT("final"), ESearchCase::CaseSensitive);
 
 	// Create the structure definition
 	TSharedRef<FUnrealScriptStructDefinitionInfo> StructDef = MakeShareable(new FUnrealScriptStructDefinitionInfo(SourceFile, InLineNumber, *StructNameInScript, FName(StructNameStripped, FNAME_Add)));

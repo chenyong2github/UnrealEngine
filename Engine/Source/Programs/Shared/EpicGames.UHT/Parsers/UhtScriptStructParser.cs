@@ -106,6 +106,9 @@ namespace EpicGames.UHT.Parsers
 						topScope.TokenReader.LogError($"When compiling struct definition for '{scriptStruct.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
 					}
 
+					// Skip optional final keyword
+					topScope.TokenReader.Optional("final");
+
 					// Parse the inheritance
 					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out UhtToken superIdentifier, out List<UhtToken[]>? baseIdentifiers);
 					scriptStruct.SuperIdentifier = superIdentifier;
