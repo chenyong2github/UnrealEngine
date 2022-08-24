@@ -150,14 +150,14 @@ void UCameraComponent::OnRegister()
 	Super::OnRegister();
 }
 
+#if WITH_EDITOR
 void UCameraComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-#if WITH_EDITORONLY_DATA	
 	UpdateDrawFrustum();
-#endif
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
+#endif
 
 #if WITH_EDITORONLY_DATA
 
