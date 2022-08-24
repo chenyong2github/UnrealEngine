@@ -2166,6 +2166,13 @@ bool UNiagaraScript::ShouldCacheShadersForCooking(const ITargetPlatform* TargetP
 			}
 		}
 
+		// currently only scripts that are associated with a system are appropriate for caching.  Standalone scripts or scripts
+		// associated with standalone emitters are not required on cooked platforms.
+		if (GetTypedOuter<UNiagaraSystem>() == nullptr)
+		{
+			return false;
+		}
+
 		FVersionedNiagaraEmitter OuterEmitter = GetOuterEmitter();
 		FVersionedNiagaraEmitterData* EmitterData = OuterEmitter.GetEmitterData();
 		if (EmitterData != nullptr && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim && OuterEmitter.Emitter->NeedsLoadForTargetPlatform(TargetPlatform))
