@@ -139,3 +139,12 @@ FModifierStackEntry* UVCamModifier::GetCorrespondingStackEntry() const
 
 	return StackEntry;
 }
+
+UWorld* UVCamModifier::GetWorld() const
+{
+	if (UVCamComponent* ParentComponent = GetOwningVCamComponent())
+	{
+		return ParentComponent->GetWorld();
+	}
+	return nullptr;
+}

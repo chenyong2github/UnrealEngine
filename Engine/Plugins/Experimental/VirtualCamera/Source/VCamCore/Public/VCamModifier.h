@@ -67,6 +67,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VCam Connection Points")
 	TMap<FName, FVCamModifierConnectionPoint> ConnectionPoints;
+
+	virtual UWorld* GetWorld() const override;
 	
 private:
 	FModifierStackEntry* GetCorrespondingStackEntry() const;
