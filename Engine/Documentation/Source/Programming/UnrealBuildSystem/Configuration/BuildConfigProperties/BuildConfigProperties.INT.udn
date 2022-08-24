@@ -86,6 +86,8 @@ $ NumIncludedBytesPerUnityCPP : An approximate number of bytes of C++ code to ta
 
 $ bStressTestUnity : Whether to stress test the C++ unity build robustness by including all C++ files files in a project from a single unified file.
 
+$ bDetailedUnityFiles : Whether to add additional information to the unity files, such as '_of_X' in the file name.
+
 $ bDisableDebugInfo : Whether to globally disable debug info generation; see DebugInfoHeuristics.cs for per-config and per-platform options.
 
 $ bDisableDebugInfoForGeneratedCode : Whether to disable debug info generation for generated files. This improves link times for modules that have a lot of generated glue code.
@@ -95,6 +97,12 @@ $ bOmitPCDebugInfoInDevelopment : Whether to disable debug info on PC/Mac in dev
 $ bUsePDBFiles : Whether PDB files should be used for Visual C++ builds.
 
 $ bUsePCHFiles : Whether PCH files should be used.
+
+$ bDeterministic : Set flags require for determinstic linking (experimental, may not be fully supported). Deterministic compiling is controlled via ModuleRules.
+
+$ bForceDeterministic : Force set flags require for determinstic compiling and linking (experimental, may not be fully supported). This setting is only recommended for testing, instead:
+        * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
+        * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
 
 $ bPreprocessDepends : Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
 
@@ -231,8 +239,6 @@ $ bClangTimeTrace : (Experimental) Appends the -ftime-trace argument to the comm
 $ bCompilerTrace : Outputs compile timing information so that it can be analyzed.
 
 $ bShowIncludes : Print out files that are included by each source file
-
-$ bDeterministic : Set flags require for determinstic compiles (experimental)
 
 ### ModuleConfiguration
 
