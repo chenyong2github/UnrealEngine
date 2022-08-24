@@ -649,7 +649,13 @@ UNiagaraDataInterface* UNiagaraFunctionLibrary::GetDataInterface(UClass* DIClass
 	}
 
 	UNiagaraDataInterface* UntypedDI = OverrideParameters.GetDataInterface(*Index);
-	if (UntypedDI != nullptr && UntypedDI->IsA(DIClass))
+	if (UntypedDI == nullptr)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("OverrideParameter\"%s\" DataInterface is nullptr."), *OverrideName.ToString());
+		return nullptr;
+	}
+
+	if (UntypedDI->IsA(DIClass))
 	{
 		return UntypedDI;
 	}
