@@ -369,13 +369,6 @@ namespace UnrealBuildTool
 		public bool bShowIncludes = false;
 
 		/// <summary>
-		/// Set flags require for determinstic compiles (experimental)
-		/// </summary>
-		[CommandLine("-Deterministic")]
-		[XmlConfigFile(Category = "WindowsPlatform")]
-		public bool bDeterministic = false;
-
-		/// <summary>
 		/// Bundle a working version of dbghelp.dll with the application, and use this to generate minidumps. This works around a bug with the Windows 10 Fall Creators Update (1709)
 		/// where rich PE headers larger than a certain size would result in corrupt minidumps.
 		/// </summary>
@@ -666,11 +659,6 @@ namespace UnrealBuildTool
 		public bool bShowIncludes
 		{
 			get { return Inner.bShowIncludes; }
-		}
-
-		public bool bDeterministic
-		{
-			get { return Inner.bDeterministic; }
 		}
 
 		public string GetVisualStudioCompilerVersionName()

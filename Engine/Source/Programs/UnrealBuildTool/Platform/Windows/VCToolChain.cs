@@ -466,11 +466,15 @@ namespace UnrealBuildTool
 			}
 
 			// Experimental deterministic compile support
-			if (Target.WindowsPlatform.bDeterministic)
+			if (CompileEnvironment.bDeterministic)
 			{
 				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					Arguments.Add("/experimental:deterministic");
+				}
+				else if (Target.WindowsPlatform.Compiler.IsClang())
+				{
+					Arguments.Add("/Brepro");
 				}
 			}
 
@@ -925,6 +929,12 @@ namespace UnrealBuildTool
 					}
 				}
 
+				// Warn if __DATE__ or __TIME__ are used as they prevent reproducible builds
+				if (CompileEnvironment.bDeterministic)
+				{
+					Arguments.Add("-Wdate-time -Wno-error=date-time");
+				}
+
 				// This is disabled because clang explicitly warns about changing pack alignment in a header and not
 				// restoring it afterwards, which is something we do with the Pre/PostWindowsApi.h headers.
 				Arguments.Add("-Wno-pragma-pack");
@@ -1114,12 +1124,16 @@ namespace UnrealBuildTool
 			// Don't embed the full PDB path; we want to be able to move binaries elsewhere. They will always be side by side.
 			Arguments.Add("/PDBALTPATH:%_PDB%");
 
-			// Experimental deterministic compile support
-			if (Target.WindowsPlatform.bDeterministic)
+			// Experimental deterministic link support
+			if (LinkEnvironment.bDeterministic)
 			{
 				if (Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					Arguments.Add("/experimental:deterministic");
+				}
+				else if (Target.WindowsPlatform.Compiler.IsClang())
+				{
+					Arguments.Add("/Brepro");
 				}
 			}
 

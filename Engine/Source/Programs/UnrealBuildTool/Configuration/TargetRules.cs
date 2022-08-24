@@ -1471,6 +1471,23 @@ namespace UnrealBuildTool
 		public bool bUsePCHFiles = true;
 
 		/// <summary>
+		/// Set flags require for determinstic linking (experimental, may not be fully supported).
+		/// Deterministic compiling is controlled via ModuleRules.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bDeterministic = false;
+
+		/// <summary>
+		/// Force set flags require for determinstic compiling and linking (experimental, may not be fully supported).
+		/// This setting is only recommended for testing, instead:
+		/// * Set bDeterministic on a per module basis in ModuleRules to control deterministic compiling.
+		/// * Set bDeterministic on a per target basis in TargetRules to control deterministic linking.
+		/// </summary>
+		[CommandLine("-Deterministic")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bForceDeterministic = false;
+
+		/// <summary>
 		/// Whether to just preprocess source files for this target, and skip compilation
 		/// </summary>
 		[CommandLine("-Preprocess")]
@@ -3106,6 +3123,16 @@ namespace UnrealBuildTool
 		public bool bUsePCHFiles
 		{
 			get { return Inner.bUsePCHFiles; }
+		}
+
+		public bool bDeterministic
+		{
+			get { return Inner.bDeterministic; }
+		}
+
+		public bool bForceDeterministic
+		{
+			get { return Inner.bForceDeterministic; }
 		}
 
 		public bool bPreprocessOnly

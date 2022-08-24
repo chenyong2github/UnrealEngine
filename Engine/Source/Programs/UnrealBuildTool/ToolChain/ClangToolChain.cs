@@ -550,6 +550,12 @@ namespace UnrealBuildTool
 				Arguments.Add("-Werror=deprecated-declarations");
 			}
 
+			// Warn if __DATE__ or __TIME__ are used as they prevent reproducible builds
+			if (CompileEnvironment.bDeterministic)
+			{
+				Arguments.Add("-Wdate-time -Wno-error=date-time"); // https://clang.llvm.org/docs/DiagnosticsReference.html#wdate-time
+			}
+
 			// https://clang.llvm.org/docs/DiagnosticsReference.html#wshadow
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{

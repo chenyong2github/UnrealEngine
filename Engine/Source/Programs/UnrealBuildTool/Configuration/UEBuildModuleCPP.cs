@@ -1490,6 +1490,7 @@ namespace UnrealBuildTool
 			Result.StaticAnalyzerAdditionalCheckers = Rules.StaticAnalyzerAdditionalCheckers;
 			Result.bEnableUndefinedIdentifierWarnings = Rules.bEnableUndefinedIdentifierWarnings;
 			Result.IncludeOrderVersion = Rules.IncludeOrderVersion;
+			Result.bDeterministic |= Rules.bDeterministic;
 
 			// If the module overrides the C++ language version, override it on the compile environment
 			if (Rules.CppStandard != CppStandardVersion.Default)

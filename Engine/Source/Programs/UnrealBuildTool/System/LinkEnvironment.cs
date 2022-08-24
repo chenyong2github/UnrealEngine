@@ -257,6 +257,11 @@ namespace UnrealBuildTool
 		public bool bIgnoreUnresolvedSymbols;
 
 		/// <summary>
+		/// Set flags for determinstic compiles (experimental).
+		/// </summary>
+		public bool bDeterministic = false;
+
+		/// <summary>
 		/// Whether to log detailed timing information
 		/// </summary>
 		public bool bPrintTimingInfo;
@@ -373,6 +378,7 @@ namespace UnrealBuildTool
 			bUsePDBFiles = Other.bUsePDBFiles;
 			bUseFastPDBLinking = Other.bUseFastPDBLinking;
 			bIgnoreUnresolvedSymbols = Other.bIgnoreUnresolvedSymbols;
+			bDeterministic = Other.bDeterministic;
 			bPrintTimingInfo = Other.bPrintTimingInfo;
 			PackagePath = Other.PackagePath;
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;

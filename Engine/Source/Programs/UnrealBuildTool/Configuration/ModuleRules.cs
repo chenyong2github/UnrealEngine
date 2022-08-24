@@ -746,6 +746,11 @@ namespace UnrealBuildTool
 		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
 
 		/// <summary>
+		/// Set flags for determinstic compiles (experimental, may not be fully supported). Deterministic linking is controlled via TargetRules.
+		/// </summary>
+		public bool bDeterministic = false;
+
+		/// <summary>
 		/// Use run time type information
 		/// </summary>
 		public bool bUseRTTI = false;

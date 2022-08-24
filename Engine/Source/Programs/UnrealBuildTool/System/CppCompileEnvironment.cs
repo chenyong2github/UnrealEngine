@@ -472,6 +472,11 @@ namespace UnrealBuildTool
 		public EngineIncludeOrderVersion IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 
 		/// <summary>
+		/// Set flags for determinstic compiles (experimental).
+		/// </summary>
+		public bool bDeterministic = false;
+
+		/// <summary>
 		/// Directory where to put crash report files for platforms that support it
 		/// </summary>
 		public string? CrashDiagnosticDirectory;
@@ -563,6 +568,7 @@ namespace UnrealBuildTool
 			CStandard = Other.CStandard;
 			bEnableCoroutines = Other.bEnableCoroutines;
 			IncludeOrderVersion = Other.IncludeOrderVersion;
+			bDeterministic = Other.bDeterministic;
 			CrashDiagnosticDirectory = Other.CrashDiagnosticDirectory;
 		}
 	}
