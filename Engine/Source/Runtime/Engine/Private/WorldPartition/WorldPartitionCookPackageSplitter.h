@@ -7,6 +7,7 @@
 #include "CookPackageSplitter.h"
 #include "Engine/World.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "WorldPartition/Cook/WorldPartitionCookPackageContext.h"
 
 class FWorldPartitionCookPackageSplitter : public FGCObject, public ICookPackageSplitter
 {
@@ -35,8 +36,13 @@ private:
 
 	const UWorld* ValidateDataObject(const UObject* SplitData);
 	UWorld* ValidateDataObject(UObject* SplitData);
+
+	void BuildPackagesToGenerateList(TArray<ICookPackageSplitter::FGeneratedPackage>& PackagesToGenerate) const;
+	bool MapGeneratePackageToCookPackage(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages);
 	
 	TObjectPtr<UWorld> ReferencedWorld = nullptr;
+
+	FWorldPartitionCookPackageContext CookContext;
 
 	bool bInitializedWorldPartition = false;
 	bool bForceInitializedWorld = false;

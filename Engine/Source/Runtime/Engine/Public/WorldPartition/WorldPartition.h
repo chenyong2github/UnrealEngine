@@ -13,6 +13,7 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/ActorDescContainer.h"
+#include "WorldPartition/Cook/WorldPartitionCookPackageGenerator.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
@@ -73,7 +74,7 @@ public:
 #endif
 
 UCLASS(AutoExpandCategories=(WorldPartition))
-class ENGINE_API UWorldPartition final : public UActorDescContainer
+class ENGINE_API UWorldPartition final : public UActorDescContainer, public IWorldPartitionCookPackageGenerator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -146,14 +147,22 @@ public:
 	FName GetWorldPartitionEditorName() const;
 
 	// Streaming generation
-	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
+	bool GenerateStreaming();
+	bool GenerateContainerStreaming(const UActorDescContainer* ActorDescContainer, TArray<FString>* OutPackagesToGenerate = nullptr);
 	void FlushStreaming();
 
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
-	// Cooking
-	bool PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages);
-	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UPackage*>& OutModifiedPackages);
+	// Begin Cooking
+	void BeginCook(IWorldPartitionCookPackageContext& CookContext);
+
+	//~ Begin IWorldPartitionCookPackageGenerator Interface 
+	virtual bool GatherPackagesToCook(IWorldPartitionCookPackageContext& CookContext) override;
+	virtual bool PopulateGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages) override;
+	virtual bool PopulateGeneratedPackageForCook(IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& InPackagesToCool, TArray<UPackage*>& OutModifiedPackages) override;
+	//~ End IWorldPartitionCookPackageGenerator Interface 
+
+	// End Cooking
 
 	UE_DEPRECATED(5.1, "GetWorldBounds is deprecated, use GetEditorWorldBounds or GetRuntimeWorldBounds instead.")
 	FBox GetWorldBounds() const { return GetRuntimeWorldBounds(); }

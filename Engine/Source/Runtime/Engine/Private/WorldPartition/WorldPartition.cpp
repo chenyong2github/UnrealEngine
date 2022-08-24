@@ -52,6 +52,8 @@
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/Cook/WorldPartitionCookPackage.h"
+#include "WorldPartition/Cook/WorldPartitionCookPackageContextInterface.h"
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
 #include "IDocumentation.h"
@@ -1223,16 +1225,38 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
-bool UWorldPartition::PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages)
+void UWorldPartition::BeginCook(IWorldPartitionCookPackageContext& CookContext)
 {
-	check(RuntimeHash);
-	return RuntimeHash->PopulateGeneratorPackageForCook(InGeneratedPackages, OutModifiedPackages);
+	CookContext.RegisterPackageCookPackageGenerator(this);
 }
 
-bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UPackage*>& OutModifiedPackages)
+bool UWorldPartition::GatherPackagesToCook(IWorldPartitionCookPackageContext& CookContext)
+{
+	TArray<FString> PackagesToCook;
+	if (GenerateContainerStreaming(this, &PackagesToCook))
+	{
+		FString PackageName = GetPackage()->GetName();
+		for (const FString& PackageToCook : PackagesToCook)
+		{
+			CookContext.AddLevelStreamingPackageToGenerate(this, PackageName, PackageToCook);
+		}
+	
+		return true;
+	}
+
+	return false;
+}
+
+bool UWorldPartition::PopulateGeneratorPackageForCook(IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
 {
 	check(RuntimeHash);
-	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath, OutModifiedPackages);
+	return RuntimeHash->PopulateGeneratorPackageForCook(InPackagesToCook, OutModifiedPackages);
+}
+
+bool UWorldPartition::PopulateGeneratedPackageForCook(IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& InPackagesToCook, TArray<UPackage*>& OutModifiedPackages)
+{
+	check(RuntimeHash);
+	return RuntimeHash->PopulateGeneratedPackageForCook(InPackagesToCook, OutModifiedPackages);
 }
 
 TArray<FBox> UWorldPartition::GetUserLoadedEditorRegions() const

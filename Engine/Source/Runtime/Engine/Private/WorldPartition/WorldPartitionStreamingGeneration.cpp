@@ -856,7 +856,12 @@ private:
 	TUniquePtr<FStreamingGenerationContext> StreamingGenerationContext;
 };
 
-bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
+bool UWorldPartition::GenerateStreaming()
+{
+	return GenerateContainerStreaming(this);
+}
+
+bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InActorDescContainer, TArray<FString>* OutPackagesToGenerate /* = nullptr */)
 {
 	FActorDescList* ModifiedActorsDescList = nullptr;
 
