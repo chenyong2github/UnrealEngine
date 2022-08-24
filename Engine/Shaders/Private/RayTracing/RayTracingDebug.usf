@@ -341,7 +341,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugPickingRGS)
 		Ray,
 		Payload);
 
-	FRayTracingPickingFeedback PickingFeedback = (FRayTracingPickingFeedback)0xFFFFFFFF;
+	FRayTracingPickingFeedback PickingFeedback = (FRayTracingPickingFeedback)0xFFFFFFFFu;
 
 	if (Payload.IsHit())
 	{
