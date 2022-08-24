@@ -31,7 +31,7 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	TObjectPtr<UIKRetargeter> IKRetargeterAsset = nullptr;
 
 	/** connect a custom retarget profile to modify the retargeter's settings at runtime.*/
-	UPROPERTY(BlueprintReadWrite, transient, Category=Settings, meta=(PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, transient, Category=Settings, meta=(PinHiddenByDefault))
 	FRetargetProfile CustomRetargetProfile;
 
 	/* Toggle whether to print warnings about missing or incorrectly configured retarget configurations. */
