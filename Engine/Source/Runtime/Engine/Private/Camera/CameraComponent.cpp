@@ -55,9 +55,8 @@ UCameraComponent::UCameraComponent(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITORONLY_DATA
 	bTickInEditor = true;
-#endif
-	
 	PrimaryComponentTick.bCanEverTick = true;
+#endif
 }
 
 void UCameraComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
