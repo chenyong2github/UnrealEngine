@@ -1540,6 +1540,25 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 							Controller->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
 						}
 
+						// Try to find a deprecated template
+						if (UnitNode->GetScriptStruct() == nullptr && !UnitNode->TemplateNotation.IsNone())
+						{
+							const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(UnitNode->TemplateNotation, true);
+							FRigVMTemplate::FTypeMap TypeMap;
+							for (URigVMPin* Pin : UnitNode->GetPins())
+							{
+								check(!Pin->IsWildCard());
+								TypeMap.Add(Pin->GetFName(), Pin->GetTypeIndex());
+							}
+
+							int32 Permutation;
+							if (Template->FullyResolve(TypeMap, Permutation))
+							{
+								const FRigVMFunction* Function = Template->GetPermutation(Permutation);
+								UnitNode->ResolvedFunctionName = Function->GetName();
+							}
+						}
+
 						if (UnitNode->GetScriptStruct() == nullptr)
 						{
 							static const TCHAR UnresolvedUnitNodeMessage[] = TEXT("Node %s could not be resolved.");

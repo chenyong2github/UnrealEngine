@@ -188,7 +188,7 @@ public:
 	const TChunkedArray<FRigVMFunction>& GetFunctions() const;
 
 	// Returns a template pointer given its notation (or nullptr)
-	const FRigVMTemplate* FindTemplate(const FName& InNotation) const;
+	const FRigVMTemplate* FindTemplate(const FName& InNotation, bool bIncludeDeprecated = false) const;
 
 	// Returns all current rigvm functions
 	const TChunkedArray<FRigVMTemplate>& GetTemplates() const;
@@ -265,8 +265,11 @@ private:
 	// We use TChunkedArray because we need the memory locations to be stable, since we only ever add and never remove.
 	TChunkedArray<FRigVMFunction> Functions;
 
-	// memory for all templates
+	// memory for all non-deprecated templates
 	TChunkedArray<FRigVMTemplate> Templates;
+
+	// memory for all deprecated templates
+	TChunkedArray<FRigVMTemplate> DeprecatedTemplates;
 
 	// memory for all dispatch factories
 	TArray<FRigVMDispatchFactory*> Factories;
@@ -274,8 +277,11 @@ private:
 	// name lookup for functions
 	TMap<FName, int32> FunctionNameToIndex;
 
-	// name lookup for templates
+	// name lookup for non-deprecated templates
 	TMap<FName, int32> TemplateNotationToIndex;
+
+	// name lookup for deprecated templates
+	TMap<FName, int32> DeprecatedTemplateNotationToIndex;
 
 	// Maps storing the default types per type category
 	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<TRigVMTypeIndex>> TypesPerCategory;

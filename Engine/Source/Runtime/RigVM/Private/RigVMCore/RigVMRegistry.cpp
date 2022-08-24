@@ -771,11 +771,10 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 	FString TemplateMetadata;
 	if (InStruct->GetStringMetaDataHierarchical(TemplateNameMetaName, &TemplateMetadata))
 	{
-		if(InStruct->HasMetaData(FRigVMStruct::DeprecatedMetaName))
-		{
-			return;
-		}
-
+		bool bIsDeprecated = InStruct->HasMetaData(FRigVMStruct::DeprecatedMetaName);
+		TChunkedArray<FRigVMTemplate>& TemplateArray = (bIsDeprecated) ? DeprecatedTemplates : Templates;
+		TMap<FName, int32>& NotationToIndex = (bIsDeprecated) ? DeprecatedTemplateNotationToIndex : TemplateNotationToIndex;
+		
 		FString MethodName;
 		if (FString(InName).Split(TEXT("::"), nullptr, &MethodName))
 		{
@@ -785,10 +784,10 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 			{
 				bool bWasMerged = false;
 
-				const int32* ExistingTemplateIndexPtr = TemplateNotationToIndex.Find(Template.GetNotation());
+				const int32* ExistingTemplateIndexPtr = NotationToIndex.Find(Template.GetNotation());
 				if(ExistingTemplateIndexPtr)
 				{
-					FRigVMTemplate& ExistingTemplate = Templates[*ExistingTemplateIndexPtr];
+					FRigVMTemplate& ExistingTemplate = TemplateArray[*ExistingTemplateIndexPtr];
 					if (ExistingTemplate.Merge(Template))
 					{
 						Functions[Function.Index].TemplateIndex = ExistingTemplate.Index;
@@ -798,13 +797,13 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 
 				if (!bWasMerged)
 				{
-					Template.Index = Templates.Num();
+					Template.Index = TemplateArray.Num();
 					Functions[Function.Index].TemplateIndex = Template.Index;
-					Templates.AddElement(Template);
+					TemplateArray.AddElement(Template);
 					
 					if(ExistingTemplateIndexPtr == nullptr)
 					{
-						TemplateNotationToIndex.Add(Template.GetNotation(), Template.Index);
+						NotationToIndex.Add(Template.GetNotation(), Template.Index);
 					}
 				}
 			}
@@ -920,7 +919,7 @@ const TChunkedArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const
 	return Functions;
 }
 
-const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation) const
+const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation, bool bIncludeDeprecated) const
 {
 	if (InNotation.IsNone())
 	{
@@ -949,6 +948,14 @@ const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation) cons
 				TGuardValue<bool> ReEntryGuard(IsDispatchingFunction, true);
 				return Factory->GetTemplate();
 			}
+		}
+	}
+
+	if (bIncludeDeprecated)
+	{
+		if(const int32* TemplateIndexPtr = DeprecatedTemplateNotationToIndex.Find(InNotation))
+		{
+			return &DeprecatedTemplates[*TemplateIndexPtr];
 		}
 	}
 
