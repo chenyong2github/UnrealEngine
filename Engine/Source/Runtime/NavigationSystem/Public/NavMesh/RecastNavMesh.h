@@ -898,13 +898,14 @@ public:
 
 	bool HasValidNavmesh() const;
 
+	/** Dtor */
+	virtual ~ARecastNavMesh();
+
 #if WITH_RECAST
 	//----------------------------------------------------------------------//
 	// Life cycle & serialization
 	//----------------------------------------------------------------------//
 public:
-	/** Dtor */
-	virtual ~ARecastNavMesh();
 
 	//~ Begin UObject Interface
 	virtual void PostInitProperties() override;

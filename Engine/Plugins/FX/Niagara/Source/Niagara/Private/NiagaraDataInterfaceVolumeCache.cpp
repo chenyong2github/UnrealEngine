@@ -104,7 +104,7 @@ bool UNiagaraDataInterfaceVolumeCache::Equals(const UNiagaraDataInterface* Other
 	return OtherTyped != nullptr && VolumeCache == OtherTyped->VolumeCache;
 }
 
-inline int32 UNiagaraDataInterfaceVolumeCache::PerInstanceDataSize() const 
+int32 UNiagaraDataInterfaceVolumeCache::PerInstanceDataSize() const 
 { 
 	return sizeof(FVolumeCacheInstanceData_GameThread); 
 }

@@ -635,6 +635,9 @@ private:
 	// Check to see if the declaration is a constructor
 	static bool CheckForConstructor(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
 
+	// Check to see if the declaration is a destructor
+	static bool CheckForDestructor(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
+
 	// Check to see if the declaration is a serialize
 	static bool CheckForSerialize(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
 

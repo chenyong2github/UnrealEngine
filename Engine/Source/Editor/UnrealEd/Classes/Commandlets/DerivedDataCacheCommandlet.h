@@ -16,6 +16,7 @@ class UDerivedDataCacheCommandlet : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
 	UDerivedDataCacheCommandlet(FVTableHelper& Helper); // Declare the FVTableHelper constructor manually so that we can forward-declare-only TUniquePtrs in the header without getting compile error in generated cpp
+	~UDerivedDataCacheCommandlet(); // Same reason as ctor above
 
 	//~ Begin UCommandlet Interface
 	virtual int32 Main(const FString& Params) override;

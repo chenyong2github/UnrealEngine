@@ -120,6 +120,10 @@ UDerivedDataCacheCommandlet::UDerivedDataCacheCommandlet(FVTableHelper& Helper)
 {
 }
 
+UDerivedDataCacheCommandlet::~UDerivedDataCacheCommandlet()
+{
+}
+
 UDerivedDataCacheCommandlet::UDerivedDataCacheCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

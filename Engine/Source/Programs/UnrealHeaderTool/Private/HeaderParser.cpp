@@ -5224,6 +5224,9 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		if (CheckForConstructor(StructDef, Declaration))
 		{
 		}
+		else if (CheckForDestructor(StructDef, Declaration))
+		{
+		}
 		else if (TopNest->NestType == ENestType::Class)
 		{
 			if (CheckForSerialize(StructDef, Declaration))
@@ -5373,6 +5376,45 @@ bool FHeaderParser::CheckForConstructor(FUnrealStructDefinitionInfo& StructDef, 
 	{
 		ClassDef.MarkConstructorDeclared();
 	}
+
+	return false;
+}
+
+bool FHeaderParser::CheckForDestructor(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration)
+{
+	FUnrealClassDefinitionInfo& ClassDef = StructDef.AsClassChecked();
+
+	if (ClassDef.IsDestructorDeclared())
+	{
+		return false;
+	}
+
+	FTokenReplay Tokens(Declaration.Tokens);
+
+	FToken Token;
+	if (!Tokens.GetToken(Token))
+	{
+		return false;
+	}
+
+	while (Token.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive) || Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
+	}
+
+	if (!Token.IsSymbol('~'))
+	{
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+
+	if (!Token.IsIdentifier(*ClassDef.GetAlternateNameCPP(), ESearchCase::IgnoreCase))
+	{
+		return false;
+	}
+
+	ClassDef.MarkDestructorDeclared();
 
 	return false;
 }

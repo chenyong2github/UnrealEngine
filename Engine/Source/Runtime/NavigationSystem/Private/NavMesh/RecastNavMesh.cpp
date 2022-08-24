@@ -259,6 +259,10 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 	}
 }
 
+ARecastNavMesh::~ARecastNavMesh()
+{
+}
+
 #else // WITH_RECAST
 
 #include "Detour/DetourNavMesh.h"

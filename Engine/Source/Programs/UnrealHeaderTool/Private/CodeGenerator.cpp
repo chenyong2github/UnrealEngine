@@ -3047,6 +3047,14 @@ void ExportCopyConstructorDefinition(FOutputDevice& Out, const TCHAR* API, const
 	Out.Logf(TEXT("public:\r\n"));
 }
 
+void ExportDestructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
+{
+	if (!ClassDef.IsDestructorDeclared())
+	{
+		Out.Logf(TEXT("\t %s_API virtual ~%s();\r\n"), API, ClassCPPName);
+	}
+}
+
 /**
  * Generates vtable helper caller and eventual constructor body.
  *
@@ -3090,6 +3098,7 @@ void ExportStandardConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionI
 
 	ExportVTableHelperCtorAndCaller(Out, ClassDef, API, ClassCPPName);
 	ExportCopyConstructorDefinition(Out, API, ClassCPPName);
+	ExportDestructorDefinition(Out, ClassDef, API, ClassCPPName);
 }
 
 /**
@@ -3190,6 +3199,7 @@ void ExportEnhancedConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionI
 	ExportConstructorDefinition(Out, ClassDef, API, ClassCPPName);
 	ExportVTableHelperCtorAndCaller(Out, ClassDef, API, ClassCPPName);
 	ExportDefaultConstructorCallDefinition(Out, ClassDef, ClassCPPName);
+	ExportDestructorDefinition(Out, ClassDef, API, ClassCPPName);
 }
 
 /**
@@ -3223,6 +3233,11 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 	if (!ClassDef.IsCustomVTableHelperConstructorDeclared())
 	{
 		Out.Logf(TEXT("\tDEFINE_VTABLE_PTR_HELPER_CTOR(%s);" LINE_TERMINATOR_ANSI), *ClassCPPName);
+	}
+
+	if (!ClassDef.IsDestructorDeclared())
+	{
+		Out.Logf(TEXT("\t%s::~%s() {}" LINE_TERMINATOR_ANSI), *ClassCPPName, *ClassCPPName);
 	}
 
 	OutGeneratedHeaderText.Log(Macroize(*StdMacroName, *StdMacro));

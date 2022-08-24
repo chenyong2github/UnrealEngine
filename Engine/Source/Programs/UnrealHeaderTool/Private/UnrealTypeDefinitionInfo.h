@@ -3300,6 +3300,21 @@ public:
 	}
 
 	/**
+	 * Return true if the custom vtable helper destructor is declared
+	 */
+	bool IsDestructorDeclared() const
+	{
+		return bDestructorDeclared;
+	}
+	/**
+	 * Mark that the destructor has been declared
+	 */
+	void MarkDestructorDeclared()
+	{
+		bDestructorDeclared = true;
+	}
+
+	/**
 	 * Return true if the custom vtable helper constructor is declared
 	 */
 	bool IsCustomVTableHelperConstructorDeclared() const
@@ -3509,6 +3524,9 @@ private:
 
 	/** Is ObjectInitializer constructor (i.e. a constructor with only one parameter of type FObjectInitializer) declared? */
 	bool bObjectInitializerConstructorDeclared = false;
+
+	/** Is destructor declared? */
+	bool bDestructorDeclared = false;
 
 	/** Is custom VTable helper constructor declared? */
 	bool bCustomVTableHelperConstructorDeclared = false;

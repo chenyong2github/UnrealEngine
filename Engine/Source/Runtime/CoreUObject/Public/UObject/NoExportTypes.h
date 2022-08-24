@@ -2592,6 +2592,7 @@ public:
 
 	UObject(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	UObject(FVTableHelper& Helper);
+	~UObject();
 	
 	/**
 	 * Executes some portion of the ubergraph.
