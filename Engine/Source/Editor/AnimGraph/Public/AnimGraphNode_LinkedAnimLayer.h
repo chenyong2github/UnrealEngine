@@ -75,8 +75,8 @@ protected:
 	virtual UClass* GetTargetSkeletonClass() const override;
 
 	// Begin UAnimGraphNode_LinkedAnimGraphBase
-	virtual FAnimNode_LinkedAnimLayer* GetLinkedAnimGraphNode() override { return &Node;  }
-	virtual const FAnimNode_LinkedAnimLayer* GetLinkedAnimGraphNode() const override { return &Node; }
+	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() override;
+	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const override;
 	virtual bool OnShouldFilterInstanceBlueprint(const FAssetData& AssetData) const override;
 	virtual FString GetCurrentInstanceBlueprintPath() const override;
 	virtual bool IsStructuralProperty(FProperty* InProperty) const override;
