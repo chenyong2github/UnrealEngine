@@ -25,6 +25,7 @@
 #include "VulkanRenderpass.h"
 #include "VulkanTransientResourceAllocator.h"
 #include "VulkanExtensions.h"
+#include "VulkanRayTracing.h"
 
 static_assert(sizeof(VkStructureType) == sizeof(int32), "ZeroVulkanStruct() assumes VkStructureType is int32!");
 
@@ -979,6 +980,10 @@ void FVulkanCommandListContext::RHIBeginFrame()
 	++GVulkanRHIDeletionFrameNumber;
 
 	GpuProfiler.BeginFrame();
+
+#if VULKAN_RHI_RAYTRACING
+	Device->GetRayTracingCompactionRequestHandler()->Update(*this);
+#endif // D3D12_RHI_RAYTRACING
 }
 
 

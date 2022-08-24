@@ -22,6 +22,7 @@ class FOLDVulkanQueryPool;
 
 #if VULKAN_RHI_RAYTRACING
 class FVulkanBasicRaytracingPipeline;
+class FVulkanRayTracingCompactionRequestHandler;
 #endif
 
 #define VULKAN_USE_DEBUG_NAMES 1
@@ -287,6 +288,8 @@ public:
 		check(OptionalDeviceExtensions.HasRaytracingExtensions() || (Device == VK_NULL_HANDLE));
 		return RayTracingProperties;
 	}
+	
+	FVulkanRayTracingCompactionRequestHandler* GetRayTracingCompactionRequestHandler() { return RayTracingCompactionRequestHandler; }
 
 	void InitializeRayTracing();
 	void CleanUpRayTracing();
@@ -530,6 +533,7 @@ private:
 #if VULKAN_RHI_RAYTRACING
 	FRayTracingProperties RayTracingProperties;
 	FVulkanBasicRaytracingPipeline* BasicRayTracingPipeline = nullptr;
+	FVulkanRayTracingCompactionRequestHandler* RayTracingCompactionRequestHandler = nullptr;
 #endif // VULKAN_RHI_RAYTRACING
 
 	VkPhysicalDeviceFeatures PhysicalFeatures;

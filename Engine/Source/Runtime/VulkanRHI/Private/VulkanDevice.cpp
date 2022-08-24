@@ -15,6 +15,7 @@
 #include "VulkanLLM.h"
 #include "VulkanTransientResourceAllocator.h"
 #include "VulkanExtensions.h"
+#include "VulkanRayTracing.h"
 
 TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar(
 	TEXT("r.Vulkan.AllowAsyncCompute"),
@@ -1125,6 +1126,11 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 
 		DefaultTexture = new FVulkanTexture(*this, Desc, nullptr);
 	}
+
+#if VULKAN_RHI_RAYTRACING
+	check(RayTracingCompactionRequestHandler == nullptr);
+	RayTracingCompactionRequestHandler = new FVulkanRayTracingCompactionRequestHandler(this);
+#endif
 
 	FVulkanPlatform::SetupImageMemoryRequirementWorkaround(*this);
 }

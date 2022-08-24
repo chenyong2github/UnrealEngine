@@ -72,11 +72,15 @@ public:
 
 	using FRHIRayTracingGeometry::Initializer;
 	using FRHIRayTracingGeometry::SizeInfo;
+	
+	void RemoveCompactionRequest();
+	void CompactAccelerationStructure(FVulkanCmdBuffer& CmdBuffer, uint64 InSizeAfterCompaction);
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
 	VkDeviceAddress Address = 0;
 	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
-
+	bool bHasPendingCompactionRequests = false;
+	uint64 AccelerationStructureCompactedSize = 0;
 private:
 	FVulkanDevice* const Device = nullptr;
 };
@@ -160,4 +164,48 @@ private:
 
 	FVulkanRayTracingPipelineState* Occlusion = nullptr;
 };
+
+class FVulkanRayTracingCompactedSizeQueryPool : public FVulkanQueryPool
+{
+public:
+	FVulkanRayTracingCompactedSizeQueryPool(FVulkanDevice* InDevice, uint32 InMaxQueries)
+		: FVulkanQueryPool(InDevice, nullptr, InMaxQueries, VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, false)
+	{}
+
+	void EndBatch(FVulkanCmdBuffer* InCmdBuffer);
+	bool TryGetResults(uint32 NumResults);
+	void Reset(FVulkanCmdBuffer* InCmdBuffer);
+
+	FVulkanCmdBuffer* CmdBuffer = nullptr;
+	uint64 FenceSignaledCounter = 0;
+};
+
+// Manages all the pending BLAS compaction requests
+class FVulkanRayTracingCompactionRequestHandler : public VulkanRHI::FDeviceChild
+{
+public:
+	UE_NONCOPYABLE(FVulkanRayTracingCompactionRequestHandler)
+
+	FVulkanRayTracingCompactionRequestHandler(FVulkanDevice* const InDevice);
+	~FVulkanRayTracingCompactionRequestHandler()
+	{
+		check(PendingRequests.IsEmpty());
+		delete QueryPool;
+	}
+
+	void RequestCompact(FVulkanRayTracingGeometry* InRTGeometry);
+	bool ReleaseRequest(FVulkanRayTracingGeometry* InRTGeometry);
+
+	void Update(FVulkanCommandListContext& InCommandContext);
+
+private:
+
+	FCriticalSection CS;
+	TArray<FVulkanRayTracingGeometry*> PendingRequests;
+	TArray<FVulkanRayTracingGeometry*> ActiveRequests;
+	TArray<VkAccelerationStructureKHR> ActiveBLASes;
+
+	FVulkanRayTracingCompactedSizeQueryPool* QueryPool = nullptr;
+};
+
 #endif // VULKAN_RHI_RAYTRACING
