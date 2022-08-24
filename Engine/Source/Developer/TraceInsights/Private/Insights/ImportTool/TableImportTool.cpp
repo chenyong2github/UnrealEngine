@@ -139,6 +139,7 @@ void FTableImportTool::TableImportServiceCallback(FName TableViewID, TSharedPtr<
 	if (TableViewPtr)
 	{
 		TSharedPtr<SUntypedTableTreeView> TableView = TableViewPtr->TableTreeView;
+		TableView->ClearCurrentOperationNameOverride();
 		TableView->UpdateSourceTable(Table);
 	}
 }
@@ -161,6 +162,8 @@ TSharedRef<SDockTab> FTableImportTool::SpawnTab_TableImportTreeView(const FSpawn
 			SAssignNew(TableTreeView, SUntypedTableTreeView, UntypedTable)
 			.RunInAsyncMode(true)
 		];
+
+	TableTreeView->SetCurrentOperationNameOverride(LOCTEXT("TableImportMessage", "Importing Data"));
 
 	FOpenImportedTableTabData OpenTabData;
 	OpenTabData.TableTreeView = TableTreeView;

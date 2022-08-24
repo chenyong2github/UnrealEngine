@@ -110,7 +110,17 @@ float SAsyncOperationStatus::ComputeOpacity() const
 
 FText SAsyncOperationStatus::GetText() const
 {
-	return LOCTEXT("DefaultText", "Computing");
+	TSharedPtr<IAsyncOperationStatusProvider> StatusProviderSharedPtr = StatusProvider.Pin();
+	FText OperationName = StatusProviderSharedPtr->GetCurrentOperationName();
+
+	if (OperationName.IsEmpty())
+	{
+		return LOCTEXT("DefaultText", "Computing");
+	}
+	else
+	{
+		return OperationName;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

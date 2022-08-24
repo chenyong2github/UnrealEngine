@@ -141,6 +141,56 @@ void SUntypedTableTreeView::RebuildTree(bool bResync)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool SUntypedTableTreeView::IsRunning() const
+{
+	return !CurrentOperationNameOverride.IsEmpty() || STableTreeView::IsRunning();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double SUntypedTableTreeView::GetAllOperationsDuration()
+{
+	if (!CurrentOperationNameOverride.IsEmpty())
+	{
+		CurrentOperationStopwatch.Update();
+		return CurrentOperationStopwatch.GetAccumulatedTime();
+	}
+	
+	return STableTreeView::GetAllOperationsDuration();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SUntypedTableTreeView::GetCurrentOperationName() const
+{
+	if (!CurrentOperationNameOverride.IsEmpty())
+	{
+		return CurrentOperationNameOverride;
+	}
+
+	return STableTreeView::GetCurrentOperationName();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SUntypedTableTreeView::SetCurrentOperationNameOverride(const FText& InOperationName)
+{
+	CurrentOperationStopwatch.Start();
+	CurrentOperationNameOverride = InOperationName;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SUntypedTableTreeView::ClearCurrentOperationNameOverride()
+{
+	CurrentOperationStopwatch.Stop();
+	CurrentOperationStopwatch.Reset();
+
+	CurrentOperationNameOverride = FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace Insights
 
 #undef LOCTEXT_NAMESPACE
