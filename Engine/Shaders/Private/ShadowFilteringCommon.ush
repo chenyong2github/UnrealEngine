@@ -7,7 +7,7 @@
 #pragma once
 
 #include "PixelQuadMessagePassing.ush"
-
+#include "FastMath.ush"
 
 struct FPCFSamplerSettings
 {
@@ -145,18 +145,6 @@ float PCF1x1(float2 Fraction, float4 Values00)
 	float2 HorizontalLerp00 = lerp(Values00.wx, Values00.zy, Fraction.xx);
 
 	return lerp(HorizontalLerp00.x, HorizontalLerp00.y, Fraction.y);
-}
-
-// Use fast approximation of exp(x)
-// http://www.humus.name/Articles/Persson_LowLevelThinking.pdf p.27
-float4 FastExp(float4 x)
-{
-	return exp2(1.442695f * x);
-}
-
-float3 FastExp(float3 x)
-{
-	return exp2(1.442695f * x);
 }
 
 float4 CalculateOcclusion(float4 ShadowmapDepth, FPCFSamplerSettings Settings)
