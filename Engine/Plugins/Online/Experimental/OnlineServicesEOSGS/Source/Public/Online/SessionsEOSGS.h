@@ -20,7 +20,6 @@ class FOnlineSessionIdRegistryEOSGS : public FOnlineSessionIdRegistryLAN
 {
 public:
 	static FOnlineSessionIdRegistryEOSGS& Get();
-
 private:
 	FOnlineSessionIdRegistryEOSGS();
 };
@@ -95,6 +94,26 @@ public:
 	TSharedPtr<FSessionDetailsHandleEOSGS> SessionDetailsHandle;
 };
 
+struct FUpdateSessionJoinabilityImpl
+{
+	static constexpr TCHAR Name[] = TEXT("UpdateSessionJoinabilityImpl");
+
+	struct Params
+	{
+		/** Name for the session, needed to start or end it */
+		FName SessionName;
+
+		/** Whether players (registered or not) are accepted as new members in the session. */
+		bool bAllowNewMembers;
+	};
+
+	struct Result
+	{
+	};
+};
+
+typedef FUpdateSessionJoinabilityImpl::Params FUpdateSessionJoinabilityParams;
+
 struct FUpdateSessionImpl
 {
 	static constexpr TCHAR Name[] = TEXT("UpdateSessionImpl");
@@ -103,6 +122,27 @@ struct FUpdateSessionImpl
 	{
 		/** Handle for the session modification operation */
 		TSharedRef<FSessionModificationHandleEOSGS> SessionModificationHandle;
+
+		/** If set, it will use the values set in the struct to update the session's joinability */
+		TOptional<FUpdateSessionJoinabilityParams> UpdateJoinabilitySettings;
+	};
+
+	struct Result
+	{
+	};
+};
+
+struct FSendSingleSessionInviteImpl
+{
+	static constexpr TCHAR Name[] = TEXT("SendSingleSessionInviteImpl");
+
+	struct Params
+	{
+		FOnlineAccountIdHandle LocalUserId;
+
+		FName SessionName;
+
+		FOnlineAccountIdHandle TargetUserId;
 	};
 
 	struct Result
@@ -165,6 +205,8 @@ protected:
 	void HandleSessionInviteAccepted(const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data);
 	void HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcceptedCallbackInfo* Data);
 
+	void SetJoinInProgressAllowed(EOS_HSessionModification& SessionModHandle, bool bIsJoinInProgressAllowed);
+	void SetInvitesAllowed(EOS_HSessionModification& SessionModHandle, bool bAreInvitesAllowed);
 	void SetPermissionLevel(EOS_HSessionModification& SessionModHandle, const ESessionJoinPolicy& JoinPolicy);
 	void SetBucketId(EOS_HSessionModification& SessionModHandle, const FString& NewBucketId);
 	void SetMaxPlayers(EOS_HSessionModification& SessionModHandle, const uint32& NewMaxPlayers);
@@ -180,13 +222,31 @@ protected:
 	 * Writes all values in the passed SessionSettings to the SessionModificationHandle
 	 */
 	void WriteCreateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FSessionSettings& SessionSettings);
+
 	/**
 	 * Writes only the new values for all updated settings to the SessionModificationHandle
 	 */
 	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FName& SessionName, const FSessionSettingsUpdate& NewSettings);
+
+	/**
+	 * Writes all relevant values set in the FindSessions parameters into the SessionSearchHandle
+	 */
+	void WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params);
+
+	/**
+	 * Internal method used by both CreateSession and UpdateSession to process a session update at the API level
+	 */
 	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
 
-	void WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params);
+	/**
+	 * Internal method called after UpdateSessionImpl to update joinability options for a session
+	 */
+	TFuture<TDefaultErrorResult<FUpdateSessionJoinabilityImpl>> UpdateSessionJoinabilityImpl(FUpdateSessionJoinabilityImpl::Params&& Params);
+
+	/**
+	 * Internal method called by SendSessionInvite for every user
+	 */
+	TOnlineAsyncOpHandle<FSendSingleSessionInviteImpl> SendSingleSessionInviteImpl(FSendSingleSessionInviteImpl::Params&& Params);
 
 	static FOnlineSessionIdHandle CreateSessionId(const FString& SessionId);
 	FOnlineSessionInviteIdHandle CreateSessionInviteId(const FString& SessionInviteId) const;
@@ -223,11 +283,28 @@ protected:
 
 namespace Meta {
 
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionJoinabilityImpl::Params)
+	ONLINE_STRUCT_FIELD(FUpdateSessionJoinabilityImpl::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FUpdateSessionJoinabilityImpl::Params, bAllowNewMembers)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUpdateSessionJoinabilityImpl::Result)
+END_ONLINE_STRUCT_META()		
+		
 BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Params)
 	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Params, SessionModificationHandle)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSendSingleSessionInviteImpl::Params)
+	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, TargetUserId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSendSingleSessionInviteImpl::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FBuildSessionFromDetailsHandle::Params)
