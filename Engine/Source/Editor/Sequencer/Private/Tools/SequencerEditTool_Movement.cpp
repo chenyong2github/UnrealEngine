@@ -12,6 +12,7 @@
 #include "MVVM/Views/ITrackAreaHotspot.h"
 #include "SequencerHotspots.h"
 #include "MVVM/ViewModels/VirtualTrackArea.h"
+#include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "SequencerSettings.h"
 #include "Tools/EditToolDragOperations.h"
 #include "IKeyArea.h"
