@@ -1338,6 +1338,7 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 
 	// Set this back to Stopped or else it will keep the editor viewport controls permanently hidden
 	TempSequencer->SetPlaybackStatus( EMovieScenePlayerStatus::Stopped );
+	TempSequencer->Close();
 
 	if ( GEditor && GIsEditor && AssetEditorSubsystem )
 	{
