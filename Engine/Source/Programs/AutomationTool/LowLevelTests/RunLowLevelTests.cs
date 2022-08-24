@@ -157,6 +157,9 @@ namespace LowLevelTests
 
 		public string Tags;
 
+		[AutoParam(0)]
+		public int Sleep;
+
 		public string Build;
 
 		[AutoParam("")]
@@ -227,13 +230,15 @@ namespace LowLevelTests
 		public IAppInstance Instance { get; protected set; }
 		private LowLevelTestsBuildSource BuildSource { get; set; }
 		private string Tags { get; set; }
+		private int Sleep { get; set; }
 
 		public UnrealDeviceReservation UnrealDeviceReservation { get; private set; }
 
-		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource, string InTags)
+		public LowLevelTestsSession(LowLevelTestsBuildSource InBuildSource, string InTags, int InSleep)
 		{
 			BuildSource = InBuildSource;
 			Tags = InTags;
+			Sleep = InSleep;
 			UnrealDeviceReservation = new UnrealDeviceReservation();
 		}
 
@@ -257,7 +262,7 @@ namespace LowLevelTests
 
 			// TargetDevice<Platform> classes have a hard dependency on UnrealAppConfig instead of IAppConfig.
 			// More refactoring needed to support non-packaged applications that can be run natively from a path on the device.
-			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig(Tags);
+			UnrealAppConfig AppConfig = BuildSource.GetUnrealAppConfig(Tags, Sleep);
 
 			IEnumerable<ITargetDevice> DevicesToInstallOn = UnrealDeviceReservation.ReservedDevices.ToArray();
 			ITargetDevice Device = DevicesToInstallOn.Where(D => D.IsConnected && D.Platform == BuildSource.Platform).First();
@@ -274,7 +279,7 @@ namespace LowLevelTests
 			{
 				InstallSuccess = false;
 
-				Log.Info("Failed to install low level tests app onto device {0}: {1}", Device, Ex);
+				Log.Info("Failed to install low level tests app onto device {0}: {1}", Device, Ex.ToString());
 
 				UnrealDeviceReservation.MarkProblemDevice(Device);
 				IDeviceUsageReporter.RecordEnd(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Failure);
@@ -555,7 +560,7 @@ namespace LowLevelTests
 				.First();
 		}
 
-		public UnrealAppConfig GetUnrealAppConfig(string InTags)
+		public UnrealAppConfig GetUnrealAppConfig(string InTags, int InSleep)
 		{
 			if (CachedConfig == null)
 			{
@@ -571,16 +576,20 @@ namespace LowLevelTests
 				// Set reporting options, filters etc
 				if (TestApp == "LowLevelTests" || TestApp == "LowLevelTestsTests")
 				{
-					CachedConfig.CommandLineParams.Add("d", "yes");
+					CachedConfig.CommandLineParams.AddRawCommandline("--durations=yes");
 				}
-				CachedConfig.CommandLineParams.Add("r", "console");
-				CachedConfig.CommandLineParams.Add("o", LowLevelTestsReporting.GetTargetReportPath(Platform, TestApp, BuildPath));
-				CachedConfig.CommandLineParams.Add("-#", null, true);
+				CachedConfig.CommandLineParams.AddRawCommandline("--reporter=console");
+				CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--out={0}", LowLevelTestsReporting.GetTargetReportPath(Platform, TestApp, BuildPath)));
+				CachedConfig.CommandLineParams.AddRawCommandline("--filenames-as-tags");
 				if (!string.IsNullOrEmpty(InTags))
 				{
 					CachedConfig.CommandLineParams.Add(InTags, null, true);
 				}
-				CachedConfig.CommandLineParams.Add("--debug", null, true);
+				if (InSleep > 0)
+				{
+					CachedConfig.CommandLineParams.AddRawCommandline(String.Format("--sleep={0}", InSleep));
+				}
+				CachedConfig.CommandLineParams.AddRawCommandline("--debug");
 			}
 			return CachedConfig;
 		}

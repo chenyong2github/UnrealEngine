@@ -24,246 +24,242 @@
 namespace UE::LowLevelTests
 {
 
-static ITestRunner* GTestRunner;
+	static ITestRunner* GTestRunner;
 
-ITestRunner* ITestRunner::Get()
-{
-	return GTestRunner;
-}
-
-ITestRunner::ITestRunner()
-{
-	check(!GTestRunner);
-	GTestRunner = this;
-}
-
-ITestRunner::~ITestRunner()
-{
-	check(GTestRunner == this);
-	GTestRunner = nullptr;
-}
-
-class FTestRunner final : public ITestRunner
-{
-public:
-	FTestRunner();
-
-	void ParseCommandLine(TConstArrayView<const ANSICHAR*> Args);
-
-	void GlobalSetup() const;
-	void GlobalTeardown() const;
-	void Terminate() const;
-
-	int32 RunCatchSession() const;
-
-	bool HasGlobalSetup() const final { return bGlobalSetup; }
-	bool HasLogOutput() const final { return bLogOutput || bDebugMode; }
-	bool IsDebugMode() const final { return bDebugMode; }
-
-private:
-	static TArray<FName> GetGlobalModuleNames()
+	ITestRunner* ITestRunner::Get()
 	{
-		TArray<FName> ModuleNames;
-		FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
-		return ModuleNames;
+		return GTestRunner;
 	}
 
-	TArray<const ANSICHAR*> CatchArgs;
-	FStringBuilderBase ExtraArgs;
-	FString BaseModuleName;
-	bool bGlobalSetup = true;
-	bool bLogOutput = false;
-	bool bDebugMode = false;
-	bool bMultiThreaded = false;
-	bool bWaitForInputToTerminate = false;
-};
-
-FTestRunner::FTestRunner()
-{
-	// Start setting up the Game Thread.
-	GGameThreadId = FPlatformTLS::GetCurrentThreadId();
-	GIsGameThreadIdInitialized = true;
-}
-
-void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
-{
-	bool bExtraArg = false;
-	for (FAnsiStringView Arg : Args)
+	ITestRunner::ITestRunner()
 	{
-		if (bExtraArg)
+		check(!GTestRunner);
+		GTestRunner = this;
+	}
+
+	ITestRunner::~ITestRunner()
+	{
+		check(GTestRunner == this);
+		GTestRunner = nullptr;
+	}
+
+	class FTestRunner final : public ITestRunner
+	{
+	public:
+		FTestRunner();
+
+		void ParseCommandLine(TConstArrayView<const ANSICHAR*> Args);
+
+		void SleepOnInit() const;
+
+		void GlobalSetup() const;
+		void GlobalTeardown() const;
+		void Terminate() const;
+
+		int32 RunCatchSession() const;
+
+		bool HasGlobalSetup() const final { return bGlobalSetup; }
+		bool HasLogOutput() const final { return bLogOutput || bDebugMode; }
+		bool IsDebugMode() const final { return bDebugMode; }
+
+	private:
+		static TArray<FName> GetGlobalModuleNames()
 		{
-			if (const int32 SpaceIndex = String::FindFirstChar(Arg, ' '); SpaceIndex != INDEX_NONE)
+			TArray<FName> ModuleNames;
+			FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
+			return ModuleNames;
+		}
+
+		TArray<const ANSICHAR*> CatchArgs;
+		FStringBuilderBase ExtraArgs;
+		bool bGlobalSetup = true;
+		bool bLogOutput = false;
+		bool bDebugMode = false;
+		bool bMultiThreaded = false;
+		bool bWaitForInputToTerminate = false;
+		int32 SleepOnInitMilliseconds = 0;
+	};
+
+	FTestRunner::FTestRunner()
+	{
+		// Start setting up the Game Thread.
+		GGameThreadId = FPlatformTLS::GetCurrentThreadId();
+		GIsGameThreadIdInitialized = true;
+	}
+
+	void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
+	{
+		bool bExtraArg = false;
+		for (FAnsiStringView Arg : Args)
+		{
+			if (bExtraArg)
 			{
-				if (const int32 EqualIndex = String::FindFirstChar(Arg, '='); EqualIndex != INDEX_NONE && EqualIndex < SpaceIndex)
+				if (const int32 SpaceIndex = String::FindFirstChar(Arg, ' '); SpaceIndex != INDEX_NONE)
 				{
-					ExtraArgs.Append(Arg.Left(EqualIndex + 1));
-					Arg.RightChopInline(EqualIndex + 1);
+					if (const int32 EqualIndex = String::FindFirstChar(Arg, '='); EqualIndex != INDEX_NONE && EqualIndex < SpaceIndex)
+					{
+						ExtraArgs.Append(Arg.Left(EqualIndex + 1));
+						Arg.RightChopInline(EqualIndex + 1);
+					}
+					ExtraArgs.AppendChar('"').Append(Arg).AppendChar('"').AppendChar(' ');
 				}
-				ExtraArgs.AppendChar('"').Append(Arg).AppendChar('"').AppendChar(' ');
+				else
+				{
+					ExtraArgs.Append(Arg).AppendChar(' ');
+				}
+			}
+			else if (Arg == ANSITEXTVIEW("--"))
+			{
+				bExtraArg = true;
+			}
+			else if (Arg.StartsWith(ANSITEXTVIEW("--sleep=")))
+			{
+				SleepOnInitMilliseconds = std::atoi(Arg.LeftChop(7).GetData());
+			}
+			else if (Arg == ANSITEXTVIEW("--global-setup"))
+			{
+				bGlobalSetup = true;
+			}
+			else if (Arg == ANSITEXTVIEW("--no-global-setup"))
+			{
+				bGlobalSetup = false;
+			}
+			else if (Arg == ANSITEXTVIEW("--log"))
+			{
+				bLogOutput = true;
+			}
+			else if (Arg == ANSITEXTVIEW("--no-log"))
+			{
+				bLogOutput = false;
+			}
+			else if (Arg == ANSITEXTVIEW("--debug"))
+			{
+				bDebugMode = true;
+			}
+			else if (Arg == ANSITEXTVIEW("--mt"))
+			{
+				bMultiThreaded = true;
+			}
+			else if (Arg == ANSITEXTVIEW("--no-mt"))
+			{
+				bMultiThreaded = false;
+			}
+			else if (Arg == ANSITEXTVIEW("--wait"))
+			{
+				bWaitForInputToTerminate = true;
+			}
+			else if (Arg == ANSITEXTVIEW("--no-wait"))
+			{
+				bWaitForInputToTerminate = true;
 			}
 			else
 			{
-				ExtraArgs.Append(Arg).AppendChar(' ');
+				CatchArgs.Add(Arg.GetData());
 			}
 		}
-		else if (Arg == ANSITEXTVIEW("--"))
-		{
-			bExtraArg = true;
-		}
-		else if (Arg == ANSITEXTVIEW("--global-setup"))
-		{
-			bGlobalSetup = true;
-		}
-		else if (Arg == ANSITEXTVIEW("--no-global-setup"))
-		{
-			bGlobalSetup = false;
-		}
-		else if (Arg == ANSITEXTVIEW("--log"))
-		{
-			bLogOutput = true;
-		}
-		else if (Arg == ANSITEXTVIEW("--no-log"))
-		{
-			bLogOutput = false;
-		}
-		else if (Arg == ANSITEXTVIEW("--debug"))
-		{
-			bDebugMode = true;
-		}
-		else if (Arg == ANSITEXTVIEW("--mt"))
-		{
-			bMultiThreaded = true;
-		}
-		else if (Arg == ANSITEXTVIEW("--no-mt"))
-		{
-			bMultiThreaded = false;
-		}
-		else if (Arg == ANSITEXTVIEW("--wait"))
-		{
-			bWaitForInputToTerminate = true;
-		}
-		else if (Arg == ANSITEXTVIEW("--no-wait"))
-		{
-			bWaitForInputToTerminate = true;
-		}
-		else if (Arg.StartsWith(ANSITEXTVIEW("--base-global-module=")))
-		{
-			BaseModuleName = FString(Arg.RightChop(ANSITEXTVIEW("--base-global-module=").Len()));
-		}
-		else
-		{
-			CatchArgs.Add(Arg.GetData());
-		}
+
+		// Break in the debugger on failed assertions when attached.
+		CatchArgs.Add("--break");
 	}
 
-	// Break in the debugger on failed assertions when attached.
-	CatchArgs.Add("--break");
-}
-
-void FTestRunner::GlobalSetup() const
-{
-	if (!bGlobalSetup)
+	void FTestRunner::SleepOnInit() const
 	{
-		return;
+		if (SleepOnInitMilliseconds)
+		{
+			// Sleep to allow sync with Gauntlet.
+			FPlatformProcess::Sleep(SleepOnInitMilliseconds * 1000);
+		}
 	}
 
-	FCommandLine::Set(*ExtraArgs);
+	void FTestRunner::GlobalSetup() const
+	{
+		if (!bGlobalSetup)
+		{
+			return;
+		}
 
-	// Finish setting up the Game Thread, which requires the command line.
-	FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
-	FPlatformProcess::SetupGameThread();
+		FCommandLine::Set(*ExtraArgs);
 
-	// Always set up GError to handle FatalError, failed assertions, and crashes and other fatal errors.
+		// Finish setting up the Game Thread, which requires the command line.
+		FPlatformProcess::SetThreadAffinityMask(FPlatformAffinity::GetMainGameMask());
+		FPlatformProcess::SetupGameThread();
+
+		// Always set up GError to handle FatalError, failed assertions, and crashes and other fatal errors.
 #if WITH_APPLICATION_CORE
-	GError = FPlatformApplicationMisc::GetErrorOutputDevice();
+		GError = FPlatformApplicationMisc::GetErrorOutputDevice();
 #else
-	GError = FPlatformOutputDevices::GetError();
+		GError = FPlatformOutputDevices::GetError();
 #endif
 
-	if (bLogOutput || bDebugMode)
-	{
-		// Set up GWarn to handle Error, Warning, Display; but only when log output is enabled.
-	#if WITH_APPLICATION_CORE
-		GWarn = FPlatformApplicationMisc::GetFeedbackContext();
-	#else
-		GWarn = FPlatformOutputDevices::GetFeedbackContext();
-	#endif
-
-		// Set up default output devices to handle Log, Verbose, VeryVerbose.
-		FPlatformOutputDevices::SetupOutputDevices();
-
-		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
-	}
-
-	if (!BaseModuleName.IsEmpty())
-	{
-		FModuleManager::Get().LoadModule(*BaseModuleName);
-	}
-
-	for (FName ModuleName : GetGlobalModuleNames())
-	{
-		if (ILowLevelTestsModule* Module = FModuleManager::LoadModulePtr<ILowLevelTestsModule>(ModuleName))
+		if (bLogOutput || bDebugMode)
 		{
-			Module->GlobalSetup();
+			// Set up GWarn to handle Error, Warning, Display; but only when log output is enabled.
+#if WITH_APPLICATION_CORE
+			GWarn = FPlatformApplicationMisc::GetFeedbackContext();
+#else
+			GWarn = FPlatformOutputDevices::GetFeedbackContext();
+#endif
+
+			// Set up default output devices to handle Log, Verbose, VeryVerbose.
+			FPlatformOutputDevices::SetupOutputDevices();
+
+			FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
 		}
-	}
-}
 
-void FTestRunner::GlobalTeardown() const
-{
-	if (!bGlobalSetup)
-	{
-		return;
-	}
-
-	for (FName ModuleName : GetGlobalModuleNames())
-	{
-		if (ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName))
+		for (FName ModuleName : GetGlobalModuleNames())
 		{
-			Module->GlobalTeardown();
-			if (Module->SupportsAutomaticShutdown())
+			if (ILowLevelTestsModule* Module = FModuleManager::LoadModulePtr<ILowLevelTestsModule>(ModuleName))
 			{
-				Module->ShutdownModule();
+				Module->GlobalSetup();
 			}
 		}
 	}
 
-	if (!BaseModuleName.IsEmpty())
+	void FTestRunner::GlobalTeardown() const
 	{
-		FModuleManager::Get().UnloadModule(*BaseModuleName);
+		if (!bGlobalSetup)
+		{
+			return;
+		}
+
+		for (FName ModuleName : GetGlobalModuleNames())
+		{
+			if (ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName))
+			{
+				Module->GlobalTeardown();
+				if (Module->SupportsAutomaticShutdown())
+				{
+					Module->ShutdownModule();
+				}
+			}
+		}
+
+		CleanupPlatform();
+
+		FCommandLine::Reset();
 	}
 
-	CleanupPlatform();
-
-	FCommandLine::Reset();
-}
-
-void FTestRunner::Terminate() const
-{
+	void FTestRunner::Terminate() const
+	{
 #if PLATFORM_DESKTOP
-	if (bWaitForInputToTerminate)
-	{
-		std::cout << "Press enter to exit..." << std::endl;
-		std::cin.ignore();
-	}
+		if (bWaitForInputToTerminate)
+		{
+			std::cout << "Press enter to exit..." << std::endl;
+			std::cin.ignore();
+		}
 #endif
-}
+	}
 
-int32 FTestRunner::RunCatchSession() const
-{
-	return Catch::Session().run(CatchArgs.Num(), CatchArgs.GetData());
-}
+	int32 FTestRunner::RunCatchSession() const
+	{
+		return Catch::Session().run(CatchArgs.Num(), CatchArgs.GetData());
+	}
 
 } // UE::LowLevelTests
 
 int RunTests(int32 ArgC, const ANSICHAR* ArgV[])
 {
 	UE::LowLevelTests::FTestRunner TestRunner;
-
-#ifdef SLEEP_ON_INIT
-	// Sleep to allow sync with Gauntlet.
-	FPlatformProcess::Sleep(5.0f);
-#endif
 
 	// Read command-line from file (if any). Some platforms do this earlier.
 #ifndef PLATFORM_SKIP_ADDITIONAL_ARGS
@@ -279,6 +275,9 @@ int RunTests(int32 ArgC, const ANSICHAR* ArgV[])
 #endif
 
 	TestRunner.ParseCommandLine(MakeArrayView(ArgV, ArgC));
+
+	TestRunner.SleepOnInit();
+	
 	TestRunner.GlobalSetup();
 
 	ON_SCOPE_EXIT
