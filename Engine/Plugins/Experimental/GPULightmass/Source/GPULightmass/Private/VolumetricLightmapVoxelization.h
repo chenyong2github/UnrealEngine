@@ -311,9 +311,57 @@ class FGatherBrickRequestsCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, VolumeSize)
 		SHADER_PARAMETER(int32, BrickSize)
+		SHADER_PARAMETER(int32, MipLevel)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 		SHADER_PARAMETER_UAV(RWBuffer<int>, BrickAllocatorParameters)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, BrickRequestsUnsorted)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestKeys)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestSortedIndices)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FWriteSortedBrickRequestsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FWriteSortedBrickRequestsCS);
+	SHADER_USE_PARAMETER_STRUCT(FWriteSortedBrickRequestsCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) && RHISupportsRayTracingShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, BrickRequestsUnsorted)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestSortedIndices)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestSortedIndicesInverse)
 		SHADER_PARAMETER_UAV(RWBuffer<uint4>, BrickRequests)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FPermuteVoxelizeVolumeCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPermuteVoxelizeVolumeCS);
+	SHADER_USE_PARAMETER_STRUCT(FPermuteVoxelizeVolumeCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData) && RHISupportsRayTracingShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector, VolumeSize)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, BrickRequestSortedIndicesInverse)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -364,17 +412,17 @@ class FStitchBorderCS : public FGlobalShader
 		SHADER_PARAMETER(int32, NumTotalBricks)
 		SHADER_PARAMETER(int32, BrickBatchOffset)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint4>, IndirectionTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, ValidityMask)
 		SHADER_PARAMETER_UAV(RWBuffer<uint4>, BrickRequests)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, AmbientVector)
-		SHADER_PARAMETER_UAV(RWTexture3D<float3>, OutAmbientVector)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0R)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1R)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0G)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSkyBentNormal)
-		SHADER_PARAMETER_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, OutAmbientVector)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients0R)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients1R)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients0G)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSkyBentNormal)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -396,24 +444,26 @@ class FFinalizeBrickResultsCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, NumTotalBricks)
 		SHADER_PARAMETER(int32, BrickBatchOffset)
+		SHADER_PARAMETER(int32, NumTotalPassesToRender)
 		SHADER_PARAMETER_UAV(RWBuffer<uint4>, BrickRequests)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, AmbientVector)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients0R)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients1R)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients0G)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients1G)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients0B)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SHCoefficients1B)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, SkyBentNormal)
-		SHADER_PARAMETER_TEXTURE(Texture3D<float>, DirectionalLightShadowing)
-		SHADER_PARAMETER_UAV(RWTexture3D<float3>, OutAmbientVector)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0R)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1R)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0G)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
-		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSkyBentNormal)
-		SHADER_PARAMETER_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, AmbientVector)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SHCoefficients0R)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SHCoefficients1R)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SHCoefficients0G)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SHCoefficients1G)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SHCoefficients0B)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SHCoefficients1B)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, SkyBentNormal)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float>, DirectionalLightShadowing)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, OutAmbientVector)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients0R)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients1R)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients0G)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients1G)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients0B)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSHCoefficients1B)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, OutSkyBentNormal)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, ValidityMask)
 	END_SHADER_PARAMETER_STRUCT()
 };

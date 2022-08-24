@@ -450,18 +450,23 @@ void PathTracingKernel(
 				float DistanceFraction = CellArea / (2 * PI * DistanceFromTexelToHit * DistanceFromTexelToHit);
 			
 				// We accept a cache entry, if:
-				// 1) We're outside of IC building passes. An entry with low sample count means we just need that much - still, we're going to require a minimum of 8 samples to remove outliers
-				// 2) The entry has been built by other lightmap tiles and contains more samples than we will ever need.
+				// 1) The entry has been built by other lightmap tiles and contains more samples than we will ever need.
+				// 2) We're outside of IC building passes. An entry with low sample count means we just need that much - still, we're going to require a minimum of 4 samples to remove outliers from potential cache thrashing
 
 				bool bShouldAcceptCacheEntry = false;
 
-			#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
-				// Surface lightmaps
-				bShouldAcceptCacheEntry = RenderPassIndex >= GetIrradianceCachingQuality() || RecordIrradianceAndSampleCount.w >= TotalSamplesOverAllICPasses * DistanceFraction;
-			#else
-				// Volumetric lightmaps
-				bShouldAcceptCacheEntry = RenderPassIndex >= GetIrradianceCachingQuality();
-			#endif
+				uint SampleCountThreshold;
+
+				if (RenderPassIndex < GetIrradianceCachingQuality())
+				{
+					SampleCountThreshold = TotalSamplesOverAllICPasses * DistanceFraction;
+				}
+				else
+				{
+					SampleCountThreshold = 4;
+				}
+
+				bShouldAcceptCacheEntry = RecordIrradianceAndSampleCount.w >= SampleCountThreshold;
 				
 			#if IC_BACKFACE_DETECTION
 				// Reject the entry if it can see back faces
@@ -501,30 +506,27 @@ void PathTracingKernel(
 				// Failed query.
 				if (Bounce == 1)
 				{
-					if (!bGeometryQuerySuccessful)
+					// Prevent modification to the cache outside IC building passes
+					if (RenderPassIndex < GetIrradianceCachingQuality())
 					{
-						bool bShouldPlaceNewEntry = false;
-					
-					#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
-						// Surface lightmaps are relatively high density. Only use the very first few passes to place new entries to reduce cache thrashing
-						bShouldPlaceNewEntry = RenderPassIndex < 16;
-					#else
-						// Always place new entry for volumetric lightmaps
-						bShouldPlaceNewEntry = true;
-					#endif
-						
-						if (bShouldPlaceNewEntry)
+						if (!bGeometryQuerySuccessful)
 						{
-							bShouldEmitGeometryHitPoint = true;
-							IrradianceCacheFinalGatherHitPoint.WorldPosition = HitPosition;
-							IrradianceCacheFinalGatherHitPoint.WorldNormal = Payload.WorldNormal;
-							NewEntrySize = IrradianceCachingParameters.Spacing;
-							break;
+							// Only use the very first few passes to place new entries to reduce cache thrashing
+							bool bShouldPlaceNewEntry = RenderPassIndex < 16;
+
+							if (bShouldPlaceNewEntry)
+							{
+								bShouldEmitGeometryHitPoint = true;
+								IrradianceCacheFinalGatherHitPoint.WorldPosition = HitPosition;
+								IrradianceCacheFinalGatherHitPoint.WorldNormal = Payload.WorldNormal;
+								NewEntrySize = IrradianceCachingParameters.Spacing;
+								break;
+							}
 						}
-					}
-					else
-					{
-						NearestCacheEntryID = NearestRecordIndex;
+						else
+						{
+							NearestCacheEntryID = NearestRecordIndex;
+						}
 					}
 				}
 			}
@@ -1219,7 +1221,7 @@ void VolumetricLightmapPathTracingMainRG()
 	uint CellIndex = DispatchRaysIndex().x % BrickVolumeSize;
 	uint3 CellPosInBrick = ComputeBrickLayoutPosition(CellIndex, uint3(5, 5, 5));
 	uint PaddedBrickSize = 4 + 1;
-	uint3 VoxelPos = ComputeBrickLayoutPosition(BrickIndex, uint3(256, 256, 256)) * PaddedBrickSize + CellPosInBrick;
+	uint3 VoxelPos = ComputeBrickLayoutPosition(DispatchRaysIndex().x / BrickVolumeSize, uint3(256, 256, 256)) * PaddedBrickSize + CellPosInBrick;
 	
 	bool bIsValidSample = true;	
 	

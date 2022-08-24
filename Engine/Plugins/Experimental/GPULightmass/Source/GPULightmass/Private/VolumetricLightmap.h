@@ -14,6 +14,8 @@ namespace GPULightmass
 class FVolumetricLightmapRenderer
 {
 public:
+	const int32 BrickBatchSize = 256;
+	
 	FVolumetricLightmapRenderer(FSceneRenderState* Scene);
 
 	void VoxelizeScene();
@@ -44,6 +46,7 @@ private:
 
 	FRWBuffer BrickAllocatorParameters;
 	FRWBuffer BrickRequests;
+	TRefCountPtr<IPooledRenderTarget> ValidityBrickData;
 };
 
 }

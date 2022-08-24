@@ -258,10 +258,7 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 		TilesVisibleLastFewFrames.AddDefaulted(60);
 	}
 
-	if (Scene->Settings->bVisualizeIrradianceCache)
-	{
-		IrradianceCacheVisualizationDelegateHandle = GetRendererModule().RegisterPostOpaqueRenderDelegate(FPostOpaqueRenderDelegate::CreateRaw(this, &FLightmapRenderer::RenderIrradianceCacheVisualization));
-	}
+	IrradianceCacheVisualizationDelegateHandle = GetRendererModule().RegisterPostOpaqueRenderDelegate(FPostOpaqueRenderDelegate::CreateRaw(this, &FLightmapRenderer::RenderIrradianceCacheVisualization));
 }
 
 FLightmapRenderer::~FLightmapRenderer()
@@ -1511,6 +1508,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 	if (bIsCompilingShaders)
 	{
+		PendingTileRequests.Empty();
 		return;
 	}
 	
@@ -3703,16 +3701,6 @@ void FLightmapRenderer::BackgroundTick()
 		// Purge resources when 'realtime' is not checked on editor viewport to avoid leak & slowing down
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	}
-
-	if (Scene->Settings->bVisualizeIrradianceCache && !IrradianceCacheVisualizationDelegateHandle.IsValid())
-	{
-		IrradianceCacheVisualizationDelegateHandle = GetRendererModule().RegisterPostOpaqueRenderDelegate(FPostOpaqueRenderDelegate::CreateRaw(this, &FLightmapRenderer::RenderIrradianceCacheVisualization));
-	}
-	else if (!Scene->Settings->bVisualizeIrradianceCache && IrradianceCacheVisualizationDelegateHandle.IsValid())
-	{
-		GetRendererModule().RemovePostOpaqueRenderDelegate(IrradianceCacheVisualizationDelegateHandle);
-		IrradianceCacheVisualizationDelegateHandle.Reset();
-	}
 }
 
 void FLightmapRenderer::BumpRevision()
@@ -3782,6 +3770,11 @@ void FLightmapRenderer::DeduplicateRecordedTileRequests()
 
 void FLightmapRenderer::RenderIrradianceCacheVisualization(FPostOpaqueRenderParameters& Parameters)
 {
+	if (!Scene->Settings->bVisualizeIrradianceCache)
+	{
+		return;
+	}
+	
 	FRDGBuilder& GraphBuilder = *Parameters.GraphBuilder;
 	const ERHIFeatureLevel::Type FeatureLevel = Scene->FeatureLevel;
 
