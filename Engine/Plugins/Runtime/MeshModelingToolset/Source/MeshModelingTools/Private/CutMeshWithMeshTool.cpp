@@ -70,7 +70,7 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	// disable output options
 	// (this property set is not registered yet in SetupProperties() above)
 	SetToolPropertySourceEnabled(HandleSourcesProperties, false);
-
+	SetToolPropertySourceEnabled(OutputTypeProperties, false);
 
 	FComponentMaterialSet AllMaterialSet;
 	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(Targets.Num());
@@ -377,6 +377,7 @@ void UCutMeshWithMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 			NewMeshObjectParams.BaseName = UseBaseName;
 			NewMeshObjectParams.Materials = GetOutputMaterials();
 			NewMeshObjectParams.SetMesh(&IntersectionMesh);
+			// note: CutMeshWithMeshTool does not support converting types currently
 			UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[0], NewMeshObjectParams);
 			FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 			if (Result.IsOK() && Result.NewActor != nullptr)

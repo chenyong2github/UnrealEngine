@@ -23,11 +23,11 @@ class MESHMODELINGTOOLS_API UCutMeshWithMeshToolProperties : public UInteractive
 	GENERATED_BODY()
 public:
 	/** Try to fill holes created by the Boolean operation, e.g. due to numerical errors */
-	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Boolean)
 	bool bTryFixHoles = false;
 
 	/** Try to collapse extra edges created by the Boolean operation */
-	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Boolean)
 	bool bTryCollapseEdges = true;
 
 	/** Threshold to determine whether a triangle in one mesh is inside or outside of the other */
