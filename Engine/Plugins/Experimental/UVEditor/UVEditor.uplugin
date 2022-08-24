@@ -36,6 +36,11 @@
 			"Enabled": true
 		},
 		{
+			"Name": "MeshModelingToolset",
+			"Enabled": true,
+			"TargetAllowList": [ "Editor" ]
+		},
+		{
 			"Name": "MeshModelingToolsetExp",
 			"Enabled": true,
 			"TargetAllowList": [ "Editor" ]
