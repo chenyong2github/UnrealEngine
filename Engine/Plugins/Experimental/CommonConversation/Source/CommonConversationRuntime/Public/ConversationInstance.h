@@ -47,6 +47,8 @@ public:
 
 	void ServerAdvanceConversation(const FAdvanceConversationRequest& InChoicePicked);
 
+	virtual void OnInvalidBranchChoice(const FAdvanceConversationRequest& InChoicePicked);
+
 	void ServerAbortConversation();
 
 	void ServerRefreshConversationChoices();
