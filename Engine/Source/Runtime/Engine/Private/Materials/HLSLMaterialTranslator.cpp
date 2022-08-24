@@ -11603,18 +11603,14 @@ int32 FHLSLMaterialTranslator::PerInstanceFadeAmount()
  */
 int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 DefaultValueIndex)
 {
-	if (ShaderFrequency != SF_Vertex)
+	if (DefaultValueIndex == INDEX_NONE)
 	{
-		//return NonVertexShaderExpressionError();
-		// Only works with Nanite - TODO: Edge case the error
-		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
-		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
+		return INDEX_NONE;
 	}
-	else
-	{
-		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
-		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
-	}
+
+	// The case where ShaderFrequency is not SF_Vertex only works with Nanite - TODO: Edge case the error
+	MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
 }
 
 /**
@@ -11625,18 +11621,14 @@ int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 Defa
  */
 int32 FHLSLMaterialTranslator::PerInstanceCustomData3Vector(int32 DataIndex, int32 DefaultValueIndex)
 {
-	if (ShaderFrequency != SF_Vertex)
+	if (DefaultValueIndex == INDEX_NONE)
 	{
-		//return NonVertexShaderExpressionError();
-		// Only works with Nanite - TODO: Edge case the error
-		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
-		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetPerInstanceCustomData3Vector(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
+		return INDEX_NONE;
 	}
-	else
-	{
-		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
-		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetPerInstanceCustomData3Vector(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
-	}
+
+	// The case when ShaderFrequency is not SF_Vertex only works with Nanite - TODO: Edge case the error
+	MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetPerInstanceCustomData3Vector(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
 }
 
 /**
