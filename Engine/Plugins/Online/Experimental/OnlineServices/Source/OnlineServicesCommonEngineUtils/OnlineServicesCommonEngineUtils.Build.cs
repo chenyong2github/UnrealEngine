@@ -8,8 +8,6 @@ public class OnlineServicesCommonEngineUtils : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		bUseUnity = false; // set false to catch non-unity compile issues while prototyping
-
 		if (Target.bCompileAgainstEngine)
 		{
 			PublicDependencyModuleNames.AddRange(
