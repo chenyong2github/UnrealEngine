@@ -8948,7 +8948,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseClassDeclaration(co
 
 	if (ClassNameWithoutPrefixStr.IsEmpty())
 	{
-		Throwf(TEXT("When compiling class definition for '%s', attempting to strip prefix results in an empty name. Did you leave off a prefix?"), *ClassNameWithoutPrefixStr);
+		Throwf(TEXT("When compiling class definition for '%s', attempting to strip prefix results in an empty name. Did you leave off a prefix?"), *ClassName);
 	}
 
 	// Skip optional final keyword
