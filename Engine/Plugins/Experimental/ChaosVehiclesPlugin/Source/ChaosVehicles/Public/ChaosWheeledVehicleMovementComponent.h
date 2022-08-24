@@ -40,8 +40,6 @@ struct CHAOSVEHICLES_API FWheeledVehicleDebugParams
 
 	float OverlapTestExpansionXY = 100.f;
 	float OverlapTestExpansionZ = 50.f;
-
-	//bool DisableSuspensionConstraint = false;
 };
 
 /**
@@ -627,6 +625,9 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	bool bWheelFrictionEnabled;
 
+	UPROPERTY(EditAnywhere, Category = WheelSetup)
+	bool bLegacyWheelFrictionPosition;
+
 	/** Wheels to create */
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TArray<FChaosWheelSetup> WheelSetups;
@@ -722,7 +723,8 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	//////////////////////////////////////////////////////////////////////////
 	// Public
 
-	virtual void Serialize(FArchive & Ar) override;
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 
 	// Get output data from Physics Thread
 	virtual void ParallelUpdate(float DeltaSeconds);

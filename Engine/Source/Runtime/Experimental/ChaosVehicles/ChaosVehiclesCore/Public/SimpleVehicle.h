@@ -40,6 +40,7 @@ public:
 	, bMechanicalSimEnabled(true)
 	, bWheelFrictionEnabled(true)
 	, NumDrivenWheels(0)
+	, bLegacyWheelFrictionPosition(false)
 	{
 
 	}
@@ -185,6 +186,7 @@ public:
 	bool bMechanicalSimEnabled;
 	bool bWheelFrictionEnabled;
 	uint32 NumDrivenWheels;
+	bool bLegacyWheelFrictionPosition;
 };
 
 

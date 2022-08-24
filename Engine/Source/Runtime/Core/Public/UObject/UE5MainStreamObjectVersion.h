@@ -271,6 +271,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Add damage propagation settings to geometry collections
 		GeometryCollectionDamagePropagationData,
 
+		// Wheel friction forces are now applied at tire contact point
+		VehicleFrictionForcePositionChange,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
