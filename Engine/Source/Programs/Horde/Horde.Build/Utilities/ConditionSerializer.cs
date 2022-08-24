@@ -27,7 +27,7 @@ namespace Horde.Build.Utilities
 			if(context.Reader.CurrentBsonType == BsonType.Null)
 			{
 				context.Reader.ReadNull();
-				return null!
+				return null!;
 			}
 			return Condition.Parse(context.Reader.ReadString());
 		}
