@@ -13,7 +13,6 @@ struct FGeometry;
 
 class FPaintArgs;
 class FSlateWindowElementList;
-class FTrackAreaViewModel;
 
 namespace UE::Sequencer
 {
