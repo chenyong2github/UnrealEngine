@@ -206,7 +206,7 @@ struct FSimulationParameters
 		, UseCCD(false)
 		, LinearDamping(0.01f)
 		, AngularDamping(0)
-		, bUseDamagePropagation(true)
+		, bUseDamagePropagation(false)
 		, BreakDamagePropagationFactor(1.0f)
 		, ShockDamagePropagationFactor(0.0f)
 		, SimulationFilterData()
