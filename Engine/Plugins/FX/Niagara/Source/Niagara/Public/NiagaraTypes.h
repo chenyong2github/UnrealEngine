@@ -1626,6 +1626,11 @@ public:
 	virtual FString GetReferencerName() const;
 
 private:
+	friend class FLazySingleton;
+
+	FNiagaraTypeRegistry();
+	virtual ~FNiagaraTypeRegistry();
+
 	RegisteredTypesArray RegisteredTypes;
 
 	TArray<FNiagaraTypeDefinition> RegisteredUserVariableTypes;

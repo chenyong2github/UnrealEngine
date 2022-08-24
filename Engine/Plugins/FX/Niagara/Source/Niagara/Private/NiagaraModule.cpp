@@ -4,6 +4,7 @@
 #include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraTypes.h"
+#include "NiagaraDebugVis.h"
 #include "NiagaraEvents.h"
 #include "NiagaraSettings.h"
 #include "NiagaraDataInterfaceCurlNoise.h"
@@ -89,6 +90,17 @@ void INiagaraModule::OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable)
 		//FFXBudget::SetEnabled(true);
 		UE_LOG(LogNiagara, Warning, TEXT("Niagara has enabled fx.Niagara.UseGlobalFXBudget but fx.Budget.Enabled is false so global FX budgetting will still be disabled. Consider also enabling fx.Budget.Enabled."));
 	}
+}
+
+// these two globals are intended to help ensure that a global variable is accessible to natvis (as defined in Niagara.natvis)
+// while debugging.  GCoreTypeRegistrySingletonPtr is the pointer to the actual data stored within the TLazySingleton<FNiagaraTypeRegistry>
+// while GTypeRegistrySingletonPtr can be declared in each module to ensure that it can be accessed while debugging any Niagara
+// module.  See UE4_VISUALIZERS_HELPERS.  Note that currently it seems like we can effectively debug NiagaraEditor/NiagaraShader without
+// further declarations, which is nice, so will be leaving it as it is.
+namespace NiagaraDebugVisHelper
+{
+	const FNiagaraTypeRegistry* GCoreTypeRegistrySingletonPtr = nullptr;
+	const FNiagaraTypeRegistry*& GTypeRegistrySingletonPtr = GCoreTypeRegistrySingletonPtr;
 }
 
 FNiagaraVariable INiagaraModule::Engine_DeltaTime;
@@ -1418,6 +1430,17 @@ void FNiagaraTypeRegistry::AddReferencedObjects(FReferenceCollector& Collector)
 FString FNiagaraTypeRegistry::GetReferencerName() const
 {
 	return TEXT("FNiagaraTypeRegistry");
+}
+
+FNiagaraTypeRegistry::FNiagaraTypeRegistry()
+{
+	NiagaraDebugVisHelper::GCoreTypeRegistrySingletonPtr = this;
+
+}
+
+FNiagaraTypeRegistry::~FNiagaraTypeRegistry()
+{
+	NiagaraDebugVisHelper::GCoreTypeRegistrySingletonPtr = nullptr;
 }
 
 FNiagaraTypeRegistry& FNiagaraTypeRegistry::Get()
