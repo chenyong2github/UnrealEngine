@@ -350,6 +350,7 @@ void FConstraintChannelHelper::SmartComponentConstraintKey(
 				FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(Actor, PropertyChain);
 				FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
 				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
+				InSequencer->RequestEvaluate();
 			}
 		}
 	}
