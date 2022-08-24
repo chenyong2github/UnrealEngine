@@ -828,6 +828,7 @@ namespace Horde.Build
 
 				// Register the custom serializers
 				BsonSerializer.RegisterSerializer(new RefIdBsonSerializer());
+				BsonSerializer.RegisterSerializer(new ConditionSerializer());
 				BsonSerializer.RegisterSerializationProvider(new BsonSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new StringIdSerializationProvider());
 				BsonSerializer.RegisterSerializationProvider(new ObjectIdSerializationProvider());

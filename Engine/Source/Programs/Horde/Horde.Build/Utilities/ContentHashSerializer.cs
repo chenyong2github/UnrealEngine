@@ -7,7 +7,7 @@ using MongoDB.Bson.Serialization;
 namespace Horde.Build.Utilities
 {
 	/// <summary>
-	/// Serializer for JobStepRefId objects
+	/// Serializer for ContentHash objects
 	/// </summary>
 	public sealed class ContentHashSerializer : IBsonSerializer<ContentHash>
 	{
