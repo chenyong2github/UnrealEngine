@@ -41,7 +41,7 @@ namespace EpicGames.OIDC
 
 		private static FileInfo GetStorePath()
 		{
-			return new FileInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "oidc-token", "oidcTokenStore.dat"));
+			return new FileInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnrealEngine", "Common", "OidcToken", "oidcTokenStore.dat"));
 		}
 
 		private void ReadStoreFromDisk()
