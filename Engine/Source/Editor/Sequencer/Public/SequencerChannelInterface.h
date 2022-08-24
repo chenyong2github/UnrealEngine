@@ -145,13 +145,14 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	 *
 	 * @param InChannel          The channel to draw extra display information for
 	 * @param InOwner            The owning movie scene section for this channel
-	 * @param InKeyGeometry      Allocated geometry to draw in
-	 * @param Painter			 The painter to add the created geometry to
+	 * @param PaintArgs          Paint arguments containing the draw element list, time-to-pixel converter and other structures
+	 * @param LayerId            The slate layer to paint onto
+	 * @return The new slate layer ID for subsequent elements to paint onto
 	 */
-	virtual void DrawExtra_Raw(FMovieSceneChannel* InChannel,const UMovieSceneSection* InOwner, const FGeometry& InKeyGeometry,FSequencerSectionPainter& Painter) const
+	virtual int32 DrawExtra_Raw(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId) const override
 	{
 		using namespace Sequencer;
-		DrawExtra(static_cast<ChannelType*>(InChannel), InOwner, InKeyGeometry, Painter);
+		return DrawExtra(static_cast<ChannelType*>(InChannel), InOwner, PaintArgs, LayerId);
 	}
 
 

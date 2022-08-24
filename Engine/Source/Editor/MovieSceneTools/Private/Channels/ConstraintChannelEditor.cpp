@@ -5,7 +5,6 @@
 #include "ConstraintChannel.h"
 
 #include "KeyBarCurveModel.h"
-#include "SequencerSectionPainter.h"
 #include "TimeToPixel.h"
 #include "Fonts/FontMeasure.h"
 #include "Styling/AppStyle.h"
@@ -203,21 +202,21 @@ TArray<FKeyBarCurveModel::FBarRange> FConstraintChannelEditor::GetBarRanges(
 	return Ranges;
 }
 
-void DrawExtra(
+int32 DrawExtra(
 	FMovieSceneConstraintChannel* Channel,
 	const UMovieSceneSection* Owner,
-	const FGeometry& AllottedGeometry,
-	FSequencerSectionPainter& Painter)
+	const FSequencerChannelPaintArgs& PaintArgs,
+	int32 LayerId)
 {
 	if (!Owner || !Channel)
 	{
-		return;
+		return LayerId;
 	}
 	TArray<FKeyBarCurveModel::FBarRange> Ranges = FConstraintChannelEditor::GetBarRanges(Channel,Owner);
 
 	if (Ranges.IsEmpty())
 	{
-		return;
+		return LayerId;
 	}
 	
 	// draw bars + labels
@@ -227,12 +226,11 @@ void DrawExtra(
 	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
 	const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-	const FVector2D& LocalSize = AllottedGeometry.GetLocalSize();
+	const FVector2D LocalSize = PaintArgs.Geometry.GetLocalSize();
 	static constexpr float LaneTop = 0;
 
-	const FTimeToPixel& TimeToPixel = Painter.GetTimeConverter();
-	const double InputMin = TimeToPixel.PixelToSeconds(0.f);
-	const double InputMax = TimeToPixel.PixelToSeconds(Painter.SectionGeometry.GetLocalSize().X);
+	const double InputMin = PaintArgs.TimeToPixel.PixelToSeconds(0.f);
+	const double InputMax = PaintArgs.TimeToPixel.PixelToSeconds(LocalSize.X);
 
 	// label data
 	const FConstraintChannelLabelBuilder LabelBuilder(Owner, Channel);
@@ -252,27 +250,27 @@ void DrawExtra(
 			UpperSeconds = InputMax;
 		}
 
-		const double BoxStart = TimeToPixel.SecondsToPixel(LowerSeconds);
-		const double BoxEnd = TimeToPixel.SecondsToPixel(UpperSeconds);
+		const double BoxStart = PaintArgs.TimeToPixel.SecondsToPixel(LowerSeconds);
+		const double BoxEnd = PaintArgs.TimeToPixel.SecondsToPixel(UpperSeconds);
 		const double BoxSize = BoxEnd - BoxStart;
 
 		const FVector2D Size = FVector2D(BoxSize, LocalSize.Y);
 		const FVector2D Translation = FVector2D(BoxStart, LaneTop);
-		const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(Translation));
+		const FPaintGeometry BoxGeometry = PaintArgs.Geometry.ToPaintGeometry(Size, FSlateLayoutTransform(Translation));
 		
-		FSlateDrawElement::MakeBox(Painter.DrawElements, Painter.LayerId, BoxGeometry, WhiteBrush, DrawEffects, Range.Color);
+		FSlateDrawElement::MakeBox(PaintArgs.DrawElements, LayerId, BoxGeometry, WhiteBrush, DrawEffects, Range.Color);
 
 		// draw label
 		if (LabelBuilder.bValid)
 		{
 			const double LabelPos = BoxStart + LabelPixelOffset;
 			const FVector2D Position(LabelPos, LaneTop + (LocalSize.Y - TextSize.Y) * .5f);
-			const FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(Position));
+			const FPaintGeometry LabelGeometry = PaintArgs.Geometry.ToPaintGeometry(FSlateLayoutTransform(Position));
 
 			const double LabelMaxSize = BoxSize-LabelPixelOffset;
 			if (TextSize.X < LabelMaxSize)
 			{
-				FSlateDrawElement::MakeText(Painter.DrawElements, Painter.LayerId, LabelGeometry, Label, FontInfo);				
+				FSlateDrawElement::MakeText(PaintArgs.DrawElements, LayerId, LabelGeometry, Label, FontInfo);				
 			}
 			else
 			{
@@ -280,11 +278,13 @@ void DrawExtra(
 				const int32 End = FontMeasure->FindLastWholeCharacterIndexBeforeOffset(Label, FontInfo, FMath::RoundToInt(LabelMaxSize));
 				if (End >= 0)
 				{
-					FSlateDrawElement::MakeText(Painter.DrawElements, Painter.LayerId, LabelGeometry, Label.ToString(), 0, End, FontInfo);
+					FSlateDrawElement::MakeText(PaintArgs.DrawElements, LayerId, LabelGeometry, Label.ToString(), 0, End, FontInfo);
 				}
 			}
 		}
 	}
+
+	return LayerId + 1;
 }
 
 FKeyHandle AddOrUpdateKey(

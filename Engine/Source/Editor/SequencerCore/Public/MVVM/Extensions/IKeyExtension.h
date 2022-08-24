@@ -49,8 +49,6 @@ public:
 
 	virtual bool GetFixedExtents(double& OutFixedMin, double& OutFixedMax) const = 0;
 
-	virtual int32 CustomPaint(const FGeometry& KeyGeometry, int32 LayerId) const = 0;
-
 	virtual void DrawKeys(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams) = 0;
 
 	virtual TUniquePtr<FCurveModel> CreateCurveModel() = 0;

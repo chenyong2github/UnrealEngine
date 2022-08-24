@@ -21,8 +21,9 @@ void DrawKeys(FMovieSceneChannel* Channel, TArrayView<const FKeyHandle> InHandle
 	}
 }
 /* Most channels do nothing*/
-void DrawExtra(FMovieSceneChannel* InChannel, const UMovieSceneSection* Owner, const FGeometry& KeyGeometry,FSequencerSectionPainter& Painter)
+int32 DrawExtra(FMovieSceneChannel* InChannel, const UMovieSceneSection* Owner, const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId)
 {
+	return LayerId;
 }
 
 

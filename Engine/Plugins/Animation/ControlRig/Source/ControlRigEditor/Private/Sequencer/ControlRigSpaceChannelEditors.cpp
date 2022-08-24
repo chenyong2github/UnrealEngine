@@ -1415,7 +1415,7 @@ int32 FControlRigSpaceChannelHelpers::GetNumFloatChannels(const ERigControlType 
 	return 0;
 }
 
-void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Owner,const FGeometry& AllottedGeometry, FSequencerSectionPainter& Painter)
+int32 DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Owner, const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId)
 {
 	using namespace UE::Sequencer;
 
@@ -1428,12 +1428,11 @@ void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSect
 		const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
 		const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 
-		const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
+		const FVector2D LocalSize = PaintArgs.Geometry.GetLocalSize();
 		const float LaneTop = 0;
 
-		const FTimeToPixel& TimeToPixel = Painter.GetTimeConverter();
-		const double InputMin = TimeToPixel.PixelToSeconds(0.f);
-		const double InputMax = TimeToPixel.PixelToSeconds(Painter.SectionGeometry.GetLocalSize().X);
+		const double InputMin = PaintArgs.TimeToPixel.PixelToSeconds(0.f);
+		const double InputMax = PaintArgs.TimeToPixel.PixelToSeconds(LocalSize.X);
 
 		int32 LastLabelPos = -1;
 		for (int32 Index = 0; Index < Ranges.Num(); ++Index)
@@ -1463,17 +1462,17 @@ void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSect
 			if (CurveColor != FLinearColor::White)
 			{
 				const double LowerSecondsForBox = (Index == 0 && LowerSeconds > InputMin) ? InputMin : LowerSeconds;
-				const double BoxPos = TimeToPixel.SecondsToPixel(LowerSecondsForBox);
+				const double BoxPos = PaintArgs.TimeToPixel.SecondsToPixel(LowerSecondsForBox);
 
-				const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(
-					FVector2D(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y),
+				const FPaintGeometry BoxGeometry = PaintArgs.Geometry.ToPaintGeometry(
+					FVector2D(PaintArgs.Geometry.GetLocalSize().X, PaintArgs.Geometry.GetLocalSize().Y),
 					FSlateLayoutTransform(FVector2D(BoxPos, LaneTop))
 				);
 
-				FSlateDrawElement::MakeBox(Painter.DrawElements, Painter.LayerId, BoxGeometry, WhiteBrush, DrawEffects, CurveColor);
+				FSlateDrawElement::MakeBox(PaintArgs.DrawElements, LayerId, BoxGeometry, WhiteBrush, DrawEffects, CurveColor);
 			}
 			const double LowerSecondsForLabel = (InputMin > LowerSeconds) ? InputMin : LowerSeconds;
-			double LabelPos = TimeToPixel.SecondsToPixel(LowerSecondsForLabel) + 10;
+			double LabelPos = PaintArgs.TimeToPixel.SecondsToPixel(LowerSecondsForLabel) + 10;
 
 			const FText Label = FText::FromName(Range.Name);
 			const FVector2D TextSize = FontMeasure->Measure(Label, FontInfo);
@@ -1482,15 +1481,17 @@ void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSect
 				LabelPos = (LabelPos < LastLabelPos) ? LastLabelPos + 5 : LabelPos;
 			}
 			LastLabelPos = LabelPos + TextSize.X + 15;
-			const FVector2D Position(LabelPos, LaneTop + (AllottedGeometry.GetLocalSize().Y - TextSize.Y) * .5f);
+			const FVector2D Position(LabelPos, LaneTop + (PaintArgs.Geometry.GetLocalSize().Y - TextSize.Y) * .5f);
 
-			const FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(
+			const FPaintGeometry LabelGeometry = PaintArgs.Geometry.ToPaintGeometry(
 				FSlateLayoutTransform(Position)
 			);
 
-			FSlateDrawElement::MakeText(Painter.DrawElements, Painter.LayerId, LabelGeometry, Label, FontInfo, DrawEffects, FLinearColor::White);
-		}	
+			FSlateDrawElement::MakeText(PaintArgs.DrawElements, LayerId, LabelGeometry, Label, FontInfo, DrawEffects, FLinearColor::White);
+		}
 	}
+
+	return LayerId + 1;
 }
 
 void DrawKeys(FMovieSceneControlRigSpaceChannel* Channel, TArrayView<const FKeyHandle> InKeyHandles, const UMovieSceneSection* InOwner, TArrayView<FKeyDrawParams> OutKeyDrawParams)

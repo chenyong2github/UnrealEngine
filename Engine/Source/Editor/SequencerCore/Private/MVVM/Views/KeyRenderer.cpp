@@ -632,15 +632,8 @@ int32 FKeyRenderer::DrawCurve(const FKeyBatchParameters& Params, const FGeometry
 		CurveThickness
 	);
 
-	++LayerId;
-
 	PaintArgs.DrawElements->PopClip();
-	for (const FCachedKeyDrawInformation& CachedKeyDrawInfo : KeyDrawInfo)
-	{
-		LayerId = CachedKeyDrawInfo.DrawExtra(AllottedGeometry, LayerId);
-	}
-
-	return LayerId;
+	return LayerId + 1;
 }
 
 int32 FKeyRenderer::Draw(const FKeyBatchParameters& Params, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, const FKeyRendererPaintArgs& PaintArgs, int32 LayerId) const
@@ -811,16 +804,6 @@ int32 FKeyRenderer::Draw(const FKeyBatchParameters& Params, const FGeometry& All
 	}
 
 	return LayerId + 2;
-}
-
-int32 FKeyRenderer::FCachedKeyDrawInformation::DrawExtra(const FGeometry& AllottedGeometry, int32 LayerId) const
-{
-	TViewModelPtr<IKeyExtension> KeyExtension = WeakKeyExtension.Pin();
-	if (KeyExtension)
-	{
-		return KeyExtension->CustomPaint(AllottedGeometry, LayerId);
-	}
-	return LayerId;
 }
 
 EViewDependentCacheFlags FKeyRenderer::FCachedKeyDrawInformation::UpdateViewIndependentData()

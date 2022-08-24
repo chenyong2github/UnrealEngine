@@ -229,15 +229,6 @@ private:
 		 */
 		void CacheViewDependentData(const FKeyBatchParameters& Params);
 
-
-		/**
-		 * Draw additional content in addition to keys for a particular IKeyArea
-		 *
-		 * @param Painter			 The painter to add the created geometry
-		 * @param KeyGeometry		 Allocated geometry to draw in
-		 */
-		int32 DrawExtra(const FGeometry& KeyGeometry, int32 LayerId) const;
-
 	public:
 
 		/** Index into the array views for the next unhandled key */

@@ -12,8 +12,9 @@
 struct FGeometry;
 struct FKeyDrawParams;
 struct FKeyHandle;
-struct FMovieSceneClipboardEnvironment;
+struct FSequencerChannelPaintArgs;
 struct FSequencerPasteEnvironment;
+struct FMovieSceneClipboardEnvironment;
 
 class SWidget;
 class ISequencer;
@@ -26,7 +27,6 @@ class ISectionLayoutBuilder;
 class FMovieSceneClipboardBuilder;
 class FMovieSceneClipboardKeyTrack;
 class FTrackInstancePropertyBindings;
-class FSequencerSectionPainter;
 
 /** Utility struct representing a number of selected keys on a single channel */
 struct FExtendKeyMenuParams
@@ -171,9 +171,10 @@ struct ISequencerChannelInterface
 	 *
 	 * @param InChannel          The channel to draw extra display information for
 	 * @param InOwner            The owning movie scene section for this channel
-	 * @param InKeyGeometry      Allocated geometry to draw in
-	 * @param Painter			 The painter to add the created geometry to
+	 * @param PaintArgs          Paint arguments containing the draw element list, time-to-pixel converter and other structures
+	 * @param LayerId            The slate layer to paint onto
+	 * @return The new slate layer ID for subsequent elements to paint onto
 	 */
-	virtual void DrawExtra_Raw(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FGeometry& InKeyGeometry, FSequencerSectionPainter& Painter) const = 0;
+	virtual int32 DrawExtra_Raw(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId) const = 0;
 
 };

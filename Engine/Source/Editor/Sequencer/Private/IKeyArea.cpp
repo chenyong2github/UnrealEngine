@@ -143,15 +143,16 @@ TSharedPtr<FStructOnScope> IKeyArea::GetKeyStruct(FKeyHandle KeyHandle) const
 	return nullptr;
 }
 
-void IKeyArea::DrawExtra(FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry) const
+int32 IKeyArea::DrawExtra(const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId) const
 {
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
 	if (EditorInterface)
 	{
 		FMovieSceneChannel* Channel = ChannelHandle.Get();
 		const UMovieSceneSection* OwningSection = GetOwningSection();
-		EditorInterface->DrawExtra_Raw(Channel,OwningSection, KeyGeometry,Painter);
+		return EditorInterface->DrawExtra_Raw(Channel, OwningSection, PaintArgs, LayerId);
 	}
+	return LayerId;
 }
 
 void IKeyArea::DrawKeys(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams)

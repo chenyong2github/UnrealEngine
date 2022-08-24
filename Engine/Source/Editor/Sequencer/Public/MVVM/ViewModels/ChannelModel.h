@@ -20,6 +20,7 @@
 
 struct FMovieSceneChannel;
 struct FMovieSceneChannelHandle;
+struct FSequencerChannelPaintArgs;
 
 class IKeyArea;
 class ISequencerSection;
@@ -74,6 +75,8 @@ public:
 	/** Returns the desired sizing for the track area row */
 	FOutlinerSizing GetDesiredSizing() const;
 
+	int32 CustomPaint(const FSequencerChannelPaintArgs& CustomPaintArgs, int32 LayerId) const;
+
 	/*~ ITrackLaneExtension */
 	TSharedPtr<ITrackLaneWidget> CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams) override;
 	FTrackLaneVirtualAlignment ArrangeVirtualTrackLaneView() const override;
@@ -81,7 +84,6 @@ public:
 	/*~ IKeyExtension */
 	bool UpdateCachedKeys(TSharedPtr<FCachedKeys>& OutCachedKeys) const override;
 	bool GetFixedExtents(double& OutFixedMin, double& OutFixedMax) const override;
-	int32 CustomPaint(const FGeometry& KeyGeometry, int32 LayerId) const override;
 	void DrawKeys(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams) override;
 	TUniquePtr<FCurveModel> CreateCurveModel() override;
 

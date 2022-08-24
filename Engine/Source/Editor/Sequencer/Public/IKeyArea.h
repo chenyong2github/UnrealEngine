@@ -15,6 +15,7 @@ struct FRichCurve;
 struct FKeyDrawParams;
 struct FMovieSceneChannel;
 struct FMovieSceneChannelProxy;
+struct FSequencerChannelPaintArgs;
 struct FSequencerPasteEnvironment;
 struct ISequencerChannelInterface;
 struct FMovieSceneChannelMetaData;
@@ -248,16 +249,14 @@ public:
 	 */
 	void CopyKeys(FMovieSceneClipboardBuilder& ClipboardBuilder, TArrayView<const FKeyHandle> KeyMask) const;
 
-
-
 	/**
 	 * Draw additional content in addition to keys for a particular IKeyArea
 	 *
-	 * @param Painter			 The painter to add the created geometry
-	 * @param KeyGeometry		 Allocated geometry to draw in
+	 * @param PaintArgs	       Paint arguments containing the draw element list, time-to-pixel converter and other structures
+	 * @param LayerId          The slate layer to paint onto
+	 * @return The new slate layer ID for subsequent elements to paint onto
 	 */
-	void DrawExtra(FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry) const;
-
+	int32 DrawExtra(const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId) const;
 
 	/**
 	 * Paste the specified key track into this key area

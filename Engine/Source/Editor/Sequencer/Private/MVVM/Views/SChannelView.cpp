@@ -13,6 +13,7 @@
 #include "ISequencerSection.h"
 #include "SequencerAddKeyOperation.h"
 #include "SSequencerSection.h"
+#include "SequencerChannelTraits.h"
 
 #include "ScopedTransaction.h"
 
@@ -441,6 +442,21 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 		RelativeTimeToPixel.PixelToFrame(BottomRight.X)
 	);
 
+	TViewModelPtr<FChannelModel> Channel = Model.ImplicitCast();
+	if (Channel)
+	{
+		FSequencerChannelPaintArgs ChannelPaintArgs = {
+			OutDrawElements,
+			Args,
+			AllottedGeometry,
+			MyCullingRect,
+			InWidgetStyle,
+			RelativeTimeToPixel,
+			bParentEnabled
+		};
+		LayerId = Channel->CustomPaint(ChannelPaintArgs, LayerId);
+	}
+
 	FSequencerKeyRendererInterface KeyRenderInterface(SectionObject, Sequencer.Get(), TrackArea->GetHotspot());
 	FChannelViewKeyCachedState NewCachedState(VisibleRange, TrackArea->GetHotspot(), Model, Sequencer.Get());
 
@@ -464,7 +480,6 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 		PaintArgs.KeyBarColor = KeyBarColor.Get();
 	}
 
-	TViewModelPtr<FChannelModel> Channel = Model.ImplicitCast();
 	if (Sequencer->GetSequencerSettings()->GetShowChannelColors() && Channel)
 	{
 		if (TOptional<FLinearColor> ChannelColor = Channel->GetKeyArea()->GetColor())

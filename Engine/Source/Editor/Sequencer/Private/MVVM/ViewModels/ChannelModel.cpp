@@ -24,6 +24,7 @@
 #include "SequencerNodeTree.h"
 #include "SKeyAreaEditorSwitcher.h"
 #include "SequencerSectionPainter.h"
+#include "SequencerChannelTraits.h"
 #include "SSequencerSection.h"
 #include "Channels/MovieSceneChannel.h"
 #include "CurveModel.h"
@@ -178,9 +179,9 @@ bool FChannelModel::GetFixedExtents(double& OutFixedMin, double& OutFixedMax) co
 	return false;
 }
 
-int32 FChannelModel::CustomPaint(const FGeometry& KeyGeometry, int32 LayerId) const
+int32 FChannelModel::CustomPaint(const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId) const
 {
-	return LayerId;
+	return KeyArea->DrawExtra(PaintArgs, LayerId);
 }
 
 void FChannelModel::DrawKeys(TArrayView<const FKeyHandle> InKeyHandles, TArrayView<FKeyDrawParams> OutKeyDrawParams)

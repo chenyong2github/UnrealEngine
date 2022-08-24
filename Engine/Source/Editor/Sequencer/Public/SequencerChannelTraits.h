@@ -12,6 +12,7 @@
 #include "Widgets/SNullWidget.h"
 #include "ISequencer.h"
 #include "MovieSceneSection.h"
+#include "TimeToPixel.h"
 
 /** Utility struct representing a number of selected keys on a single channel */
 template<typename ChannelType>
@@ -25,6 +26,20 @@ struct TExtendKeyMenuParams
 
 	/** An array of key handles to operante on */
 	TArray<FKeyHandle> Handles;
+};
+
+struct FSequencerChannelPaintArgs
+{
+	FSlateWindowElementList& DrawElements;
+
+	const FPaintArgs& WidgetPaintArgs;
+	const FGeometry& Geometry;
+	const FSlateRect& MyCullingRect;
+	const FWidgetStyle& WidgetStyle;
+
+	FTimeToPixel TimeToPixel;
+
+	bool bParentEnabled = true;
 };
 
 /**
@@ -256,10 +271,11 @@ namespace Sequencer
 	 *
 	 * @param InChannel          The channel to draw extra display information for
 	 * @param InOwner            The owning movie scene section for this channel
-	 * @param InKeyGeometry      Allocated geometry to draw in
-	 * @param Painter			 The painter to add the created geometry to
+	 * @param PaintArgs          Paint arguments containing the draw element list, time-to-pixel converter and other structures
+	 * @param LayerId            The slate layer to paint onto
+	 * @return The new slate layer ID for subsequent elements to paint onto
 	 */
-	SEQUENCER_API void DrawExtra(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FGeometry& KeyGeometry, FSequencerSectionPainter& Painter);
+	SEQUENCER_API int32 DrawExtra(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId);
 
 	/**
 	 * Copy the specified keys from a channel

@@ -21,11 +21,11 @@ void DrawKeys(
 	const UMovieSceneSection* InOwner,
 	TArrayView<FKeyDrawParams> OutKeyDrawParams);
 
-void DrawExtra(
+int32 DrawExtra(
 	FMovieSceneConstraintChannel* Channel,
 	const UMovieSceneSection* Owner,
-	const FGeometry& AllottedGeometry,
-	FSequencerSectionPainter& Painter);
+	const FSequencerChannelPaintArgs& PaintArgs,
+	int32 LayerId);
 
 /** Overrides for adding or updating a key for non-standard channels */
 FKeyHandle AddOrUpdateKey(

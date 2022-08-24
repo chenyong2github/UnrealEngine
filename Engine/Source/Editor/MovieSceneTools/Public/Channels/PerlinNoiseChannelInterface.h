@@ -11,7 +11,6 @@
 #include "Modules/ModuleManager.h"
 #include "MovieSceneSection.h"
 #include "PropertyEditorModule.h"
-#include "SequencerSectionPainter.h"
 #include "TimeToPixel.h"
 #include "ToolMenus.h"
 #include "Widgets/Input/NumericTypeInterface.h"
@@ -195,36 +194,37 @@ struct TPerlinNoiseChannelInterface : ISequencerChannelInterface
 		return nullptr;
 	}
 
-	virtual void DrawExtra_Raw(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FGeometry& InKeyGeometry, FSequencerSectionPainter& Painter) const override
+	virtual int32 DrawExtra_Raw(FMovieSceneChannel* InChannel, const UMovieSceneSection* InOwner, const FSequencerChannelPaintArgs& PaintArgs, int32 LayerId) const override
 	{
 		using namespace UE::Sequencer;
 
 		FColor FillColor(0, 0, 0, 51);
-		FTimeToPixel TimeToPixelConverter = Painter.GetTimeConverter();
 		ChannelType* TypedChannel = static_cast<ChannelType*>(InChannel);
 
 		TArray<FVector2D> CurvePoints;
-		CurvePoints.Reserve(InKeyGeometry.Size.X / 2.0);
+		CurvePoints.Reserve(PaintArgs.Geometry.Size.X / 2.0);
 
 		const double Amplitude = TypedChannel->GetParams().Amplitude;
-		const double YOffset = InKeyGeometry.Size.Y / 2.0;
-		const double YScale = (Amplitude != 0) ? (InKeyGeometry.Size.Y / Amplitude / 2.0) : 1;
+		const double YOffset = PaintArgs.Geometry.Size.Y / 2.0;
+		const double YScale = (Amplitude != 0) ? (PaintArgs.Geometry.Size.Y / Amplitude / 2.0) : 1;
 
-		for (double X = 0; X < InKeyGeometry.Size.X; X += 2.f)
+		for (double X = 0; X < PaintArgs.Geometry.Size.X; X += 2.f)
 		{
-			double Seconds = TimeToPixelConverter.PixelToSeconds(X);
+			double Seconds = PaintArgs.TimeToPixel.PixelToSeconds(X);
 			double Y = (double)TypedChannel->Evaluate(Seconds);
 			CurvePoints.Add(FVector2D(X, (Y * YScale) + YOffset));
 		}
 
 		FSlateDrawElement::MakeLines(
-				Painter.DrawElements,
-				Painter.LayerId++,
-				InKeyGeometry.ToPaintGeometry(),
+				PaintArgs.DrawElements,
+				LayerId,
+				PaintArgs.Geometry.ToPaintGeometry(),
 				CurvePoints,
 				ESlateDrawEffect::PreMultipliedAlpha,
 				FillColor,
 				true);
+
+		return LayerId + 1;
 	}
 };
 
