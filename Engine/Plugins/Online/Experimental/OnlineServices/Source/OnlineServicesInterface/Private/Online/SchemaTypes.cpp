@@ -97,6 +97,7 @@ const TCHAR* LexToString(ESchemaAttributeFlags SchemaAttributeFlags)
 	case ESchemaAttributeFlags::None:		return TEXT("None");
 	case ESchemaAttributeFlags::Searchable:	return TEXT("Searchable");
 	case ESchemaAttributeFlags::Public:		return TEXT("Public");
+	case ESchemaAttributeFlags::Private:	return TEXT("Private");
 	}
 }
 
@@ -113,6 +114,10 @@ void LexFromString(ESchemaAttributeFlags& OutSchemaAttributeFlags, const TCHAR* 
 	else if (FCString::Stricmp(InStr, TEXT("Public")) == 0)
 	{
 		OutSchemaAttributeFlags = ESchemaAttributeFlags::Public;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Private")) == 0)
+	{
+		OutSchemaAttributeFlags = ESchemaAttributeFlags::Private;
 	}
 	else if (FCString::Stricmp(InStr, TEXT("SchemaCompatibilityId")) == 0)
 	{
@@ -171,6 +176,7 @@ const TCHAR* LexToString(ESchemaServiceAttributeFlags SchemaAttributeFlags)
 	case ESchemaServiceAttributeFlags::None:		return TEXT("None");
 	case ESchemaServiceAttributeFlags::Searchable:	return TEXT("Searchable");
 	case ESchemaServiceAttributeFlags::Public:		return TEXT("Public");
+	case ESchemaServiceAttributeFlags::Private:		return TEXT("Private");
 	}
 }
 
@@ -187,6 +193,10 @@ void LexFromString(ESchemaServiceAttributeFlags& OutSchemaAttributeFlags, const 
 	else if (FCString::Stricmp(InStr, TEXT("Public")) == 0)
 	{
 		OutSchemaAttributeFlags = ESchemaServiceAttributeFlags::Public;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Private")) == 0)
+	{
+		OutSchemaAttributeFlags = ESchemaServiceAttributeFlags::Private;
 	}
 	else
 	{
@@ -319,7 +329,7 @@ bool FSchemaVariant::GetBoolean() const
 	}
 }
 
-FString FSchemaVariant::GetString() const
+const FString& FSchemaVariant::GetString() const
 {
 	if (ensure(VariantType == ESchemaAttributeType::String))
 	{
@@ -327,7 +337,8 @@ FString FSchemaVariant::GetString() const
 	}
 	else
 	{
-		return FString();
+		static FString EmptyString;
+		return EmptyString;
 	}
 }
 

@@ -92,11 +92,15 @@ enum class ESchemaAttributeFlags : uint8
 	  */
 	Public = 1 << 1,
 	/**
+	  * Attribute is visible to members only.
+	  */
+	Private = 1 << 2,
+	/**
 	  * If multiple schema are supported using the same service interface, a base schema must exist
 	  * with a field marked as schema compatibility id. This field will allow remote clients to
 	  * determine what schema should be used to handle attributes.
 	  */
-	SchemaCompatibilityId = 1 << 2,
+	SchemaCompatibilityId = 1 << 3,
 };
 ENUM_CLASS_FLAGS(ESchemaAttributeFlags);
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESchemaAttributeFlags SchemaAttributeFlags);
@@ -148,6 +152,10 @@ enum class ESchemaServiceAttributeFlags : uint8
 	  * Attribute is publicly visible.
 	  */
 	Public = 1 << 1,
+	/**
+	  * Attribute is visible to members only.
+	  */
+	Private = 1 << 2,
 };
 ENUM_CLASS_FLAGS(ESchemaServiceAttributeFlags);
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESchemaServiceAttributeFlags SchemaServiceAttributeFlags);
@@ -190,10 +198,12 @@ public:
 	FSchemaVariant& operator=(FSchemaVariant&&);
 	FSchemaVariant& operator=(const FSchemaVariant&) = default;
 
-	template<typename ValueType>
-	FSchemaVariant(const ValueType& InData) { Set(InData); }
-	template<typename ValueType>
-	FSchemaVariant(ValueType&& InData) { Set(MoveTemp(InData)); }
+	FSchemaVariant(const TCHAR* InData) { Set(InData); }
+	FSchemaVariant(const FString& InData) { Set(InData); }
+	FSchemaVariant(FString&& InData) { Set(MoveTemp(InData)); }
+	FSchemaVariant(int64 InData) { Set(InData); }
+	FSchemaVariant(double InData) { Set(InData); }
+	FSchemaVariant(bool InData) { Set(InData); }
 	void Set(const TCHAR* AsString);
 	void Set(const FString& AsString);
 	void Set(FString&& AsString);
@@ -206,7 +216,7 @@ public:
 	int64 GetInt64() const;
 	double GetDouble() const;
 	bool GetBoolean() const;
-	FString GetString() const;
+	const FString& GetString() const;
 
 	FString ToLogString() const;
 
@@ -217,7 +227,10 @@ public:
 	ESchemaAttributeType VariantType = ESchemaAttributeType::None;
 };
 
-// Don't allow implicit conversion to FSchemaVariant when calling LexToString.
+/**
+  * Adaptor for handling LexToString with a schema variant.
+  * The adapter prevents unintentional implicit conversion of types to FSchemaVariant when calling LexToString.
+  */
 template <typename T> class FLexToStringAdaptor;
 template <>
 class FLexToStringAdaptor<FSchemaVariant>
@@ -308,6 +321,9 @@ struct FSchemaAttributeDescriptor
 	int32 MaxSize = 0;
 };
 
+/**
+  * Describes a category within a schema.
+  */
 struct FSchemaCategoryDescriptor
 {
 	/**
@@ -323,7 +339,7 @@ struct FSchemaCategoryDescriptor
 	  */
 	FSchemaServiceDescriptorId ServiceDescriptorId;
 	/**
-	  * Attribute definitions.
+	  * Attribute descriptors.
 	  */
 	TArray<FSchemaAttributeDescriptor> Attributes;
 };
@@ -378,11 +394,10 @@ struct FSchemaServiceAttributeDefinition
 	  */
 	ESchemaServiceAttributeSupportedTypeFlags Type;
 	/**
-	  * Declares the maximum allowed size for the service attribute.
-	  *
-	  * Applicable when using a variable sized type such as String.
+	  * Additional behavior required by the attribute. Examples include making an attribute
+	  * public, private or available to search.
 	  */
-	ESchemaAttributeFlags Flags = ESchemaAttributeFlags::None;
+	ESchemaServiceAttributeFlags Flags = ESchemaServiceAttributeFlags::None;
 	/**
 	  * Declares the maximum allowed size for the service attribute.
 	  *
@@ -410,7 +425,7 @@ struct FSchemaAttributeDefinition
 	ESchemaAttributeType Type = ESchemaAttributeType::None;
 	/**
 	  * Additional behavior required by the attribute. Examples include making an attribute
-	  * public or available to search.
+	  * public, private or available to search.
 	  */
 	ESchemaAttributeFlags Flags;
 	/**
@@ -425,6 +440,10 @@ struct FSchemaAttributeDefinition
 	FSchemaServiceAttributeId ServiceAttributeId;
 };
 
+/**
+  * The runtime definition of a schema category.
+  * The contained data can be used for validation and translation.
+  */
 struct FSchemaCategoryDefinition
 {
 	/**
@@ -433,6 +452,18 @@ struct FSchemaCategoryDefinition
 	  * Example: "Lobby" vs "LobbyMember"
 	  */
 	FSchemaCategoryId Id;
+	/**
+	  * The Id of the attribute containing the schema compatibility id.
+	  * Changes to the schema compatibility attribute are not allowed externally. This id is used
+	  * to fail attempted external changes.
+	  */
+	FSchemaAttributeId SchemaCompatibilityAttributeId;
+	/**
+	  * The Id of the service attribute containing the schema compatibility id.
+	  * This Id is used to detect the schema to use when handling search results and to handle
+	  * schema changes when the remote owner makes a change.
+	  */
+	FSchemaServiceAttributeId SchemaCompatibilityServiceAttributeId;
 	/**
 	  * Mapping of schema attribute ids to attribute definitions.
 	  */
@@ -469,8 +500,7 @@ struct FSchemaDefinition
 };
 
 /**
-  * The runtime definition of a schema.
-  * The contained data can be used for validation and translation.
+  * The set of data used to write a variant to a service.
   */
 struct FSchemaServiceAttributeData
 {
@@ -484,25 +514,9 @@ struct FSchemaServiceAttributeData
 	  */
 	ESchemaAttributeFlags Flags = ESchemaAttributeFlags::None;
 	/**
-	  * The attribute data.
+	  * The attribute value.
 	  */
-	FSchemaVariant Data;
-};
-
-/**
-  * The runtime definition of a schema.
-  * The contained data can be used for validation and translation.
-  */
-struct FSchemaAttributeData
-{
-	/**
-	  * The id to associate with this attribute.
-	  */
-	FSchemaAttributeId Id;
-	/**
-	  * The attribute data.
-	  */
-	FSchemaVariant Data;
+	FSchemaVariant Value;
 };
 
 /**
@@ -511,17 +525,13 @@ struct FSchemaAttributeData
 struct FSchemaServiceChanges
 {
 	/**
-	  * Added attributes and their values.
+	  * Added or changed attributes and their values.
 	  */
-	TMap<FSchemaServiceAttributeId, FSchemaServiceAttributeData> AddedAttributes;
+	TMap<FSchemaServiceAttributeId, FSchemaServiceAttributeData> UpdatedAttributes;
 	/**
-	  * Removed attributes with their previous values.
+	  * Removed attribute ids.
 	  */
 	TSet<FSchemaAttributeId> RemovedAttributes;
-	/**
-	  * Changed attributes with their old and new values.
-	  */
-	TMap<FSchemaServiceAttributeId, TPair<FSchemaServiceAttributeData, FSchemaServiceAttributeData>> ChangedAttributes;
 };
 
 /**
@@ -530,17 +540,21 @@ struct FSchemaServiceChanges
 struct FSchemaApplicationChanges
 {
 	/**
-	  * Added attributes and their values.
+	  * Change to schema id.
 	  */
-	TMap<FSchemaAttributeId, FSchemaAttributeData> AddedAttributes;
+	TOptional<FSchemaId> SchemaId;
 	/**
-	  * Removed attributes.
+	  * Added attributes.
 	  */
-	TSet<FSchemaAttributeId> RemovedAttributes;
+	TMap<FSchemaAttributeId, FSchemaVariant> AddedAttributes;
 	/**
 	  * Changed attributes with their old and new values.
 	  */
-	TMap<FSchemaAttributeId, TPair<FSchemaAttributeData, FSchemaAttributeData>> ChangedAttributes;
+	TMap<FSchemaAttributeId, TPair<FSchemaVariant, FSchemaVariant>> ChangedAttributes;
+	/**
+	  * Removed attribute ids.
+	  */
+	TSet<FSchemaAttributeId> RemovedAttributes;
 };
 
 #if 0 // todo
@@ -568,18 +582,16 @@ struct FSchemaCategoryInstanceChangeSchema
 };
 #endif
 
-struct FSchemaCategoryInstanceApplyApplicationChanges
+struct FSchemaCategoryInstanceApplyApplicationDelta
 {
-	static constexpr TCHAR Name[] = TEXT("ApplyApplicationChanges");
+	static constexpr TCHAR Name[] = TEXT("ApplyApplicationDelta");
 
 	struct Params
 	{
 		/** Attributes notified from the application. */
-		TArray<FSchemaAttributeData> MutatedAttributes;
+		TMap<FSchemaAttributeId, FSchemaVariant> UpdatedAttributes;
 		/** Removed attributes notified from the application. */
-		TArray<FSchemaAttributeId> RemovedAttributes;
-		/** Whether the attributes represent a full snapshot or a delta from a prior update. */
-		bool bIsDelta = false;
+		TSet<FSchemaAttributeId> RemovedAttributes;
 	};
 
 	struct Result
@@ -592,18 +604,14 @@ struct FSchemaCategoryInstanceApplyApplicationChanges
 	};
 };
 
-struct FSchemaCategoryInstanceApplyServiceChanges
+struct FSchemaCategoryInstanceApplyServiceSnapshot
 {
-	static constexpr TCHAR Name[] = TEXT("ApplyServiceChanges");
+	static constexpr TCHAR Name[] = TEXT("ApplyServiceSnapshot");
 
 	struct Params
 	{
-		/** Attributes notified from the service. */
-		TArray<FSchemaServiceAttributeData> MutatedAttributes;
-		/** Removed attributes notified from the service. */
-		TArray<FSchemaAttributeId> RemovedAttributes;
-		/** Whether the attributes represent a full snapshot or a delta from a prior update. */
-		bool bIsDelta = false;
+		/** Full attribute snapshot from the service. */
+		TMap<FSchemaServiceAttributeId, FSchemaVariant> Attributes;
 	};
 
 	struct Result
