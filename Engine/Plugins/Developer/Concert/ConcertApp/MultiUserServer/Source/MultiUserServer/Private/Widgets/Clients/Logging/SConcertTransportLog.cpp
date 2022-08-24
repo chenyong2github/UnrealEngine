@@ -28,6 +28,7 @@ const FName SConcertTransportLog::FirstColumnId("AvatarColourColumnId");
 SConcertTransportLog::~SConcertTransportLog()
 {
 	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().RemoveAll(this);
+	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().RemoveAll(this);
 }
 
 void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer)
@@ -86,6 +87,24 @@ void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConce
 	
 	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().AddSP(this, &SConcertTransportLog::OnConcertLoggingEnabledChanged);
 	OnConcertLoggingEnabledChanged(ConcertTransportEvents::IsLoggingEnabled());
+}
+
+bool SConcertTransportLog::CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const
+{
+	return PagedLogList->GetFilteredLogsWithId(MessageId).ContainsByPredicate([Filter](const TSharedPtr<FConcertLogEntry>& LogEntry)
+	{
+		return Filter(*LogEntry);
+	});
+}
+
+void SConcertTransportLog::ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const
+{
+	// Could be optimised further by having FPagedFilteredConcertLogList cache the index but it's fine - ScrollToLog is called very infrequently (when the user presses a button)
+	const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId, Filter](const TSharedPtr<FConcertLogEntry>& Entry)
+	{
+		return Entry->Log.MessageId == MessageId && Filter(*Entry);
+	});
+	ScrollToLog(Index);
 }
 
 TSharedRef<SWidget> SConcertTransportLog::CreateTableView()
@@ -179,6 +198,8 @@ TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedP
 	
 	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef(), HighlightText.ToSharedRef())
 		.AvatarColor(AvatarColor)
+		.CanScrollToAckLog(this, &SConcertTransportLog::CanScrollToAckLog)
+		.CanScrollToAckedLog(this, &SConcertTransportLog::CanScrollToAckedLog)
 		.ScrollToAckLog(this, &SConcertTransportLog::ScrollToAckLog)
 		.ScrollToAckedLog(this, &SConcertTransportLog::ScrollToAckedLog);
 }
@@ -345,22 +366,48 @@ void SConcertTransportLog::OnConcertLoggingEnabledChanged(bool bNewEnabled)
 	}
 }
 
+bool SConcertTransportLog::CanScrollToAckLog(const FGuid& MessageId) const
+{
+	return CanScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+	{
+		return SharedCanScrollToAckLog(MessageId, Entry);
+	});
+}
+
+bool SConcertTransportLog::CanScrollToAckedLog(const FGuid& MessageId) const
+{
+	return CanScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+	{
+		return SharedCanScrollToAckedLog(MessageId, Entry);
+	});
+}
+
 void SConcertTransportLog::ScrollToAckLog(const FGuid& MessageId) const
 {
-	const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId](const TSharedPtr<FConcertLogEntry>& Entry)
+	ScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
 	{
-		return Entry->Log.MessageId == MessageId && Entry->Log.MessageAction == EConcertLogMessageAction::Process;
+		return SharedCanScrollToAckLog(MessageId, Entry);
 	});
-	ScrollToLog(Index);
 }
 
 void SConcertTransportLog::ScrollToAckedLog(const FGuid& MessageId) const
 {
-	const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId](const TSharedPtr<FConcertLogEntry>& Entry)
+	ScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
 	{
-		return Entry->Log.MessageId == MessageId && Entry->Log.MessageAction == EConcertLogMessageAction::Send;
+		return SharedCanScrollToAckedLog(MessageId, Entry);
 	});
-	ScrollToLog(Index);
+}
+
+bool SConcertTransportLog::SharedCanScrollToAckLog(const FGuid& MessageId, const FConcertLogEntry& Entry)
+{
+	// MessageId is shared by some logs: there is a log for receiving one one for processing for example.
+	return Entry.Log.MessageId == MessageId && Entry.Log.MessageAction == EConcertLogMessageAction::Process;
+}
+
+bool SConcertTransportLog::SharedCanScrollToAckedLog(const FGuid& MessageId, const FConcertLogEntry& Entry)
+{
+	// MessageId is shared by some logs: there is a log for receiving one one for sending for example.
+	return Entry.Log.MessageId == MessageId && Entry.Log.MessageAction == EConcertLogMessageAction::Send;
 }
 
 void SConcertTransportLog::ScrollToLog(const int32 LogIndex) const
@@ -370,10 +417,6 @@ void SConcertTransportLog::ScrollToLog(const int32 LogIndex) const
 		PagedLogList->SetPage(*PageIndex);
 		LogView->RequestNavigateToItem(PagedLogList->GetFilteredLogs()[LogIndex]);
 		LogView->SetSelection(PagedLogList->GetFilteredLogs()[LogIndex]);
-	}
-	else
-	{
-		// TODO: Tell the user. Ideally the button calling would be disabled but that requires an optmised search algorithm for checking whether an item is currently filtered out or not.
 	}
 }
 

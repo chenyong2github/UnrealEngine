@@ -14,10 +14,13 @@ class SConcertTransportLogRow : public SMultiColumnTableRow<TSharedPtr<FConcertL
 public:
 
 	DECLARE_DELEGATE_OneParam(FScrollToLog, const FGuid& /*MessageId*/);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FCanScrollToLog, const FGuid& /*MessageId*/);
 
 	SLATE_BEGIN_ARGS(SConcertTransportLogRow)
 	{}
 		SLATE_ARGUMENT(FLinearColor, AvatarColor)
+		SLATE_EVENT(FCanScrollToLog, CanScrollToAckLog)
+		SLATE_EVENT(FCanScrollToLog, CanScrollToAckedLog)
 		SLATE_EVENT(FScrollToLog, ScrollToAckLog)
 		SLATE_EVENT(FScrollToLog, ScrollToAckedLog)
 	SLATE_END_ARGS()
@@ -38,6 +41,8 @@ private:
 	TSharedPtr<FText> HighlightText;
 
 	FLinearColor AvatarColor;
+	FCanScrollToLog CanScrollToAckLogFunc;
+	FCanScrollToLog CanScrollToAckedLogFunc;
 	FScrollToLog ScrollToAckLogFunc;
 	FScrollToLog ScrollToAckedLogFunc;
 

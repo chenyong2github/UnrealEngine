@@ -35,10 +35,10 @@ private:
 	TSharedRef<FConcertFrontendLogFilter_TextSearch> TextSearchFilter;
 
 	/** AllFrontendFilters without special filters we have as propteries above, such as TextSearchFilter. */
-	TArray<TSharedRef<FConcertFrontendLogFilter>> CustomFilters;
+	TArray<TSharedRef<FConcertFrontendLogFilter>> FrontendFilters;
 	
 	/** Filters that are combined using logical AND. */
-	TArray<TSharedRef<FConcertLogFilter>> AllFrontendFilters;
+	TArray<TSharedRef<FConcertLogFilter>> AllFilters;
 
 	/** Builds the widgets that go under the text */
 	TSharedRef<SWidget> BuildCustomFilterListWidget() const;

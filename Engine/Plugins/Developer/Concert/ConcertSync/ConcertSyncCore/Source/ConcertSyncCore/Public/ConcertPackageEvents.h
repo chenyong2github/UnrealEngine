@@ -43,7 +43,7 @@ namespace UE::ConcertSyncCore::ConcertPackageEvents
 		FGuid MessageId;
 	};
 
-	struct FConcertRejectSendPackageParams : FConcertBaseSendPackageParams
+	struct FConcertRejectSendPackageParams : FConcertFinishSendPackageParams
 	{};
 	
 	DECLARE_MULTICAST_DELEGATE_OneParam(FConcertBeginSendPackageDelegate, const FConcertBeginSendPackageParams&);

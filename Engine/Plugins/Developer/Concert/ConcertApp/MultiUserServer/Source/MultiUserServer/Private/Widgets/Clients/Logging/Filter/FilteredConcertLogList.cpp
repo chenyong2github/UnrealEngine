@@ -39,6 +39,7 @@ void FFilteredConcertLogList::OnLowestLogEntryChanged(FConcertLogID NewLowestVal
 	{
 		// Worst case this is O(n^2) - usually a thought O(cn) with small c)...
 		// Not much we without rewriting SListView to use something other than TArray
+		RemoveMessageIdToLogEntry(FilteredLogs[i]);
 		FilteredLogs.RemoveAt(i);
 		--i;
 	}
@@ -48,6 +49,7 @@ void FFilteredConcertLogList::OnNewLogEntryAdded(const TSharedRef<FConcertLogEnt
 {
 	if (!Filter || Filter->PassesFilter(*NewLogEntry))
 	{
+		MessageIdToLogs.FindOrAdd(NewLogEntry->Log.MessageId).AddUnique(NewLogEntry);
 		FilteredLogs.Emplace(NewLogEntry);
 		OnLogListChanged().Broadcast(GetFilteredLogs());
 	}
@@ -55,16 +57,36 @@ void FFilteredConcertLogList::OnNewLogEntryAdded(const TSharedRef<FConcertLogEnt
 
 void FFilteredConcertLogList::RebuildFilteredResult()
 {
+	MessageIdToLogs.Reset();
 	FilteredLogs.Reset();
 	LogSource->ForEachLog([this](const TSharedPtr<FConcertLogEntry>& LogEntry)
 	{
 		if (!Filter || Filter->PassesFilter(*LogEntry))
 		{
+			MessageIdToLogs.FindOrAdd(LogEntry->Log.MessageId).AddUnique(LogEntry);
 			FilteredLogs.Emplace(LogEntry);
 		}
 	});
 
 	OnLogListChanged().Broadcast(GetFilteredLogs());
+}
+
+void FFilteredConcertLogList::RemoveMessageIdToLogEntry(const TSharedPtr<FConcertLogEntry>& Log)
+{
+	TArray<TSharedPtr<FConcertLogEntry>>* Entries = MessageIdToLogs.Find(Log->Log.MessageId);
+	if (!Entries)
+	{
+		return;
+	}
+	
+	if (Entries->Num() == 1)
+	{
+		MessageIdToLogs.Remove(Log->Log.MessageId);
+	}
+	else
+	{
+		Entries->RemoveSingle(Log);
+	}
 }
 
 FPagedFilteredConcertLogList::FPagedFilteredConcertLogList(TSharedRef<IConcertLogSource> LogSource, TSharedPtr<FConcertLogFilter> OptionalFilter, uint16 InitialLogsPerPage)

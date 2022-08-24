@@ -17,18 +17,18 @@
 
 FConcertLogFilter_FrontendRoot::FConcertLogFilter_FrontendRoot(TSharedRef<FConcertLogTokenizer> Tokenizer, TArray<TSharedRef<FConcertFrontendLogFilter>> InCustomFilters, const TArray<TSharedRef<FConcertLogFilter>>& NonVisualFilters)
 	: TextSearchFilter(MakeShared<FConcertFrontendLogFilter_TextSearch>(MoveTemp(Tokenizer)))
-	, CustomFilters(MoveTemp(InCustomFilters))
-	, AllFrontendFilters(CustomFilters)
+	, FrontendFilters(MoveTemp(InCustomFilters))
+	, AllFilters(FrontendFilters)
 {
-	AllFrontendFilters.Reserve(CustomFilters.Num() + 1 + NonVisualFilters.Num());
+	AllFilters.Reserve(FrontendFilters.Num() + 1 + NonVisualFilters.Num());
 	
-	AllFrontendFilters.Add(TextSearchFilter);
+	AllFilters.Add(TextSearchFilter);
 	for (const TSharedRef<FConcertLogFilter>& NonVisualFilter : NonVisualFilters)
 	{
-		AllFrontendFilters.Add(NonVisualFilter);
+		AllFilters.Add(NonVisualFilter);
 	}
 	
-	for (const TSharedRef<FConcertLogFilter>& Filter : AllFrontendFilters)
+	for (const TSharedRef<FConcertLogFilter>& Filter : AllFilters)
 	{
 		Filter->OnChanged().AddLambda([this]()
 		{
@@ -59,7 +59,7 @@ TSharedRef<SWidget> FConcertLogFilter_FrontendRoot::BuildFilterWidgets() const
 bool FConcertLogFilter_FrontendRoot::PassesFilter(const FConcertLogEntry& InItem) const
 {
 	return Algo::AllOf(
-		AllFrontendFilters,
+		AllFilters,
 		[&InItem](const TSharedRef<FConcertLogFilter>& AndFilter){ return AndFilter->PassesFilter(InItem); }
 		);
 }
@@ -69,7 +69,7 @@ TSharedRef<SWidget> FConcertLogFilter_FrontendRoot::BuildCustomFilterListWidget(
 	TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
 
 	bool bIsFirst = true;
-	for (const TSharedRef<FConcertFrontendLogFilter>& Filter : CustomFilters)
+	for (const TSharedRef<FConcertFrontendLogFilter>& Filter : FrontendFilters)
 	{
 		const FMargin Margin = bIsFirst ? FMargin() : FMargin(8, 0, 0, 0);
 		bIsFirst = false;

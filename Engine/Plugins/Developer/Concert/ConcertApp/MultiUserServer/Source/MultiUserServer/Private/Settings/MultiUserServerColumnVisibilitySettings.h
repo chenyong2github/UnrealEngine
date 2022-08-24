@@ -45,6 +45,10 @@ public:
 	const FColumnVisibilitySnapshot& GetTransportLogColumnVisibility() const { return TransportLogColumnVisibility; }
 	void SetTransportLogColumnVisibility(FColumnVisibilitySnapshot NewValue) { TransportLogColumnVisibility = MoveTemp(NewValue); OnTransportLogColumnVisibilityEvent.Broadcast(TransportLogColumnVisibility); }
 	FOnColumnVisibilitySnapshotChanged& OnTransportLogColumnVisibility() { return OnTransportLogColumnVisibilityEvent; }
+
+	const FColumnVisibilitySnapshot& GetPackageTransmissionColumnVisibility() const { return PackageTransmissionColumnVisibility; }
+	void SetPackageTransmissionColumnVisibility(FColumnVisibilitySnapshot NewValue) { PackageTransmissionColumnVisibility = MoveTemp(NewValue); OnPackageTransmissionColumnVisibilityChangedEvent.Broadcast(PackageTransmissionColumnVisibility); }
+	FOnColumnVisibilitySnapshotChanged& OnOnPackageTransmissionColumnVisibilityChanged() { return OnPackageTransmissionColumnVisibilityChangedEvent; }
 	
 private:
 	
@@ -71,4 +75,8 @@ private:
 	UPROPERTY(Config)
 	FColumnVisibilitySnapshot TransportLogColumnVisibility;
 	FOnColumnVisibilitySnapshotChanged OnTransportLogColumnVisibilityEvent;
+
+	UPROPERTY(Config)
+	FColumnVisibilitySnapshot PackageTransmissionColumnVisibility;
+	FOnColumnVisibilitySnapshotChanged OnPackageTransmissionColumnVisibilityChangedEvent;
 };

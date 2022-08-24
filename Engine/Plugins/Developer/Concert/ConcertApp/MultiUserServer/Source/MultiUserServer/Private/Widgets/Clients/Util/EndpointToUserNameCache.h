@@ -37,6 +37,9 @@ public:
 	/** Translates a Concert endpoint Id to the corresponding messaging node Id */
 	TOptional<FNodeEndpointId> TranslateEndpointIdToNodeId(const FGuid& EndpointId) const;
 
+	/** Gets either the client's name or "Server" depending on type of endpoint this is */
+	FString GetEndpointDisplayString(const FGuid& EndpointId) const;
+
 private:
 
 	/** Used to unsubscribe when we're destroyed */

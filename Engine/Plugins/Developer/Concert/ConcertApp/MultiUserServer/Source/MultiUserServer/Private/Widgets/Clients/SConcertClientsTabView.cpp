@@ -2,12 +2,12 @@
 
 #include "SConcertClientsTabView.h"
 
-#include "ConcertUtil.h"
-#include "IConcertServer.h"
 #include "IConcertSyncServer.h"
 #include "Logging/Filter/ConcertLogFilter_FrontendRoot.h"
 #include "Logging/Source/GlobalLogSource.h"
 #include "Logging/Util/ConcertLogTokenizer.h"
+#include "PackageTransmission/PackageTransmissionTabController.h"
+#include "PackageTransmission/Model/PackageTransmissionModel.h"
 #include "Util/EndpointToUserNameCache.h"
 #include "Widgets/Clients/Browser/SConcertNetworkBrowser.h"
 #include "Widgets/Clients/Browser/Models/ClientBrowserModel.h"
@@ -24,6 +24,7 @@
 
 const FName SConcertClientsTabView::ClientBrowserTabId("ClientBrowserTabId");
 const FName SConcertClientsTabView::GlobalLogTabId("GlobalLogTabId");
+const FName SConcertClientsTabView::PackageTransmissionTabId("PackageTransmissionTabId");
 
 void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusBarID, TSharedRef<IConcertSyncServer> InServer, TSharedRef<FGlobalLogSource> InLogBuffer)
 {
@@ -31,6 +32,7 @@ void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusB
 	LogBuffer = MoveTemp(InLogBuffer);
 	ClientInfoCache = MakeShared<FEndpointToUserNameCache>(Server->GetConcertServer());
 	LogTokenizer = MakeShared<FConcertLogTokenizer>(ClientInfoCache.ToSharedRef());
+	PackageTransmissionModel = MakeShared<UE::MultiUserServer::FPackageTransmissionModel>(Server.ToSharedRef());
 	
 	SConcertTabViewWithManagerBase::Construct(
 		SConcertTabViewWithManagerBase::FArguments()
@@ -40,7 +42,7 @@ void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusB
 		{
 			CreateTabs(InTabManager, InLayout, InArgs);
 		}))
-		.LayoutName("ConcertClientsTabView_v0.1"),
+		.LayoutName("ConcertClientsTabView_v0.2"),
 		InStatusBarID
 	);
 }
@@ -93,6 +95,24 @@ void SConcertClientsTabView::OpenClientLogTab(const FGuid& ClientMessageNodeId) 
 	}
 }
 
+bool SConcertClientsTabView::CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc, FText& ErrorMessage) const
+{
+	const bool bCanScrollToLog = GlobalTransportLog->CanScrollToLog(MessageId, FilterFunc);
+	if (!bCanScrollToLog)
+	{
+		ErrorMessage = LOCTEXT("ScrollToLog.LogNotAvailable", "The log is filtered out.");
+		return false;
+	}
+
+	return true;
+}
+
+void SConcertClientsTabView::ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
+{
+	OpenGlobalLogTab();
+	GlobalTransportLog->ScrollToLog(MessageId, FilterFunc);
+}
+
 void SConcertClientsTabView::OpenGlobalLogTab() const
 {
 	GetTabManager()->TryInvokeTab(GlobalLogTabId);
@@ -118,6 +138,15 @@ TSharedPtr<SDockTab> SConcertClientsTabView::GetGlobalLogTab() const
 
 void SConcertClientsTabView::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs)
 {
+	MainPackageTransmissionTab = MakeShared<UE::MultiUserServer::FPackageTransmissionTabController>(
+		PackageTransmissionTabId,
+		InTabManager,
+		PackageTransmissionModel.ToSharedRef(),
+		ClientInfoCache.ToSharedRef(),
+		UE::MultiUserServer::FCanScrollToLog::CreateSP(this, &SConcertClientsTabView::CanScrollToLog),
+		UE::MultiUserServer::FScrollToLog::CreateSP(this, &SConcertClientsTabView::ScrollToLog)
+		);
+	
 	InTabManager->RegisterTabSpawner(ClientBrowserTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnClientBrowserTab))
 		.SetDisplayName(LOCTEXT("ClientBrowserTabLabel", "Clients"));
 	InTabManager->RegisterTabSpawner(GlobalLogTabId, FOnSpawnTab::CreateSP(this, &SConcertClientsTabView::SpawnGlobalLogTab))
@@ -128,14 +157,27 @@ void SConcertClientsTabView::CreateTabs(const TSharedRef<FTabManager>& InTabMana
 				->SetOrientation(Orient_Vertical)
 				->Split
 				(
-					FTabManager::NewStack()
+					FTabManager::NewSplitter()
 					->SetSizeCoefficient(0.5f)
-					->AddTab(ClientBrowserTabId, ETabState::OpenedTab)
+					->SetOrientation(Orient_Horizontal)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.65f)
+						->AddTab(ClientBrowserTabId, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.35f)
+						->AddTab(PackageTransmissionTabId, ETabState::OpenedTab)
+							
+					)
 				)
 				->Split
 				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.5f)
+				FTabManager::NewStack()
+					->SetSizeCoefficient(0.6f)
 					->AddTab(GlobalLogTabId, ETabState::OpenedTab)
 				)
 		);
@@ -167,7 +209,7 @@ TSharedRef<SDockTab> SConcertClientsTabView::SpawnGlobalLogTab(const FSpawnTabAr
 		.Label(LOCTEXT("GlobalLogTabLabel", "Global Log"))
 		.TabRole(PanelTab)
 		[
-			SNew(SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
+			SAssignNew(GlobalTransportLog, SConcertTransportLog, LogBuffer.ToSharedRef(), ClientInfoCache.ToSharedRef(), LogTokenizer.ToSharedRef())
 			.Filter(UE::MultiUserServer::MakeGlobalLogFilter(LogTokenizer.ToSharedRef()))
 		]; 
 }

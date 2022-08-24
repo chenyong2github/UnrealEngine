@@ -106,6 +106,21 @@ TOptional<FEndpointToUserNameCache::FNodeEndpointId> FEndpointToUserNameCache::T
 	return {};
 }
 
+FString FEndpointToUserNameCache::GetEndpointDisplayString(const FGuid& EndpointId) const
+{
+	if (IsServerEndpoint(EndpointId))
+	{
+		return FString("Server");		
+	}
+
+	if (const TOptional<FConcertClientInfo> ClientInfo = GetClientInfo(EndpointId))
+	{
+		return ClientInfo->DisplayName;
+	}
+	
+	return EndpointId.ToString(EGuidFormats::DigitsWithHyphens);
+}
+
 void FEndpointToUserNameCache::OnLiveSessionCreated(bool bSuccess, const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession)
 {
 	RegisterLiveSession(InLiveSession);

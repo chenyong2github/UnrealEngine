@@ -5,6 +5,8 @@
 #include "ConcertServerStyle.h"
 #include "Util/ConcertLogTokenizer.h"
 #include "SConcertTransportLog.h"
+#include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
 #include "Session/Activity/PredefinedActivityColumns.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -25,6 +27,8 @@ void SConcertTransportLogRow::Construct(const FArguments& InArgs, TSharedPtr<FCo
 	HighlightText = MoveTemp(InHighlightText);
 	
 	AvatarColor = InArgs._AvatarColor;
+	CanScrollToAckLogFunc = InArgs._CanScrollToAckLog;
+	CanScrollToAckedLogFunc = InArgs._CanScrollToAckedLog;
 	ScrollToAckLogFunc = InArgs._ScrollToAckLog;
 	ScrollToAckedLogFunc = InArgs._ScrollToAckedLog;
 	check(ScrollToAckLogFunc.IsBound() && ScrollToAckedLogFunc.IsBound());
@@ -91,26 +95,6 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckColumn(const FName& Proper
 {
 	return SNew(SOverlay)
 
-		.ToolTipText_Lambda([this]()
-		{
-			switch (LogEntry->LogMetaData.AckState)
-			{
-				case EConcertLogAckState::Ack: 
-					return LOCTEXT("Ack.Scroll", "This is an ACK. Press to jump to the log this log ACKs.");
-				case EConcertLogAckState::AckReceived: 
-					return LOCTEXT("Acked.Scroll", "ACK received. Press to jump to the log that ACKs this log");
-				case EConcertLogAckState::AckFailure: 
-					return LOCTEXT("AckFailure", "No ACK received: retries exhausted.");
-				case EConcertLogAckState::NotNeeded:
-					return LOCTEXT("Received", "No ACK needed.");
-				case EConcertLogAckState::InProgress:
-					return LOCTEXT("InProgress", "Awaiting ACK...");
-			default:
-				checkNoEntry();
-				return FText::GetEmpty();
-			}
-		})
-
 		+SOverlay::Slot()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
@@ -161,6 +145,7 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckInProgressWidget() const
 					? EVisibility::Visible
 					: EVisibility::Hidden;
 			})
+			.ToolTipText(LOCTEXT("InProgress", "Awaiting ACK..."))
 		];
 }
 
@@ -168,6 +153,10 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckSuccessWidget() const
 {
 	return SNew(SButton)
 		.ContentPadding(0.f)
+		.IsEnabled_Lambda([this]()
+		{
+			return LogEntry->LogMetaData.AckingMessageId.IsSet() && CanScrollToAckLogFunc.Execute(*LogEntry->LogMetaData.AckingMessageId);
+		})
 		.OnPressed_Lambda([this]()
 		{
 			if (LogEntry->LogMetaData.AckingMessageId.IsSet())
@@ -180,6 +169,12 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckSuccessWidget() const
 			return LogEntry->LogMetaData.AckState == EConcertLogAckState::AckReceived
 				? EVisibility::Visible
 				: EVisibility::Hidden;
+		})
+		.ToolTipText_Lambda([this]()
+		{
+			return LogEntry->LogMetaData.AckingMessageId.IsSet() && CanScrollToAckLogFunc.Execute(*LogEntry->LogMetaData.AckingMessageId)
+				? LOCTEXT("Acked.Scroll.Enabled", "ACK received. Press to jump to the log that ACKs this log")
+				: LOCTEXT("Acked.Scroll.Disabled", "ACK received\nThis button is disabled because the corresponding ACK log is filtered out.");
 		})
 		[
 			SNew(SImage)
@@ -198,7 +193,8 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckFailureWidget() const
 			return LogEntry->LogMetaData.AckState == EConcertLogAckState::AckFailure
 				? EVisibility::Visible
 				: EVisibility::Hidden;
-		});
+		})
+		.ToolTipText(LOCTEXT("AckFailure", "No ACK received: retries exhausted."));
 }
 
 TSharedRef<SWidget> SConcertTransportLogRow::CreateAckNotNeededWidget() const
@@ -210,13 +206,31 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckNotNeededWidget() const
 			return LogEntry->LogMetaData.AckState == EConcertLogAckState::NotNeeded
 				? EVisibility::Visible
 				: EVisibility::Hidden;
-		});
+		})
+		.ToolTipText(LOCTEXT("Received", "No ACK needed."));
 }
 
 TSharedRef<SWidget> SConcertTransportLogRow::CreateAckWidget() const
 {
 	return SNew(SComboButton)
 		.HasDownArrow(false)
+		.ToolTipText_Lambda([this]()
+		{
+			const bool bIsEnabled = LogEntry->LogMetaData.AckedMessageId && Algo::AnyOf(*LogEntry->LogMetaData.AckedMessageId, [this](const FGuid& MessageId)
+				{
+				return CanScrollToAckedLogFunc.Execute(MessageId);
+			});
+			return bIsEnabled
+				? LOCTEXT("Ack.Scroll.Disabled", "This is an ACK. Press to jump to the log this log ACKs.")
+				: LOCTEXT("Ack.Scroll.Enabled", "This is an ACK.\nThis button is disabled because all logs this log ACKs are filtered out.");
+		})
+		.IsEnabled_Lambda([this]()
+		{
+			return LogEntry->LogMetaData.AckedMessageId && Algo::AnyOf(*LogEntry->LogMetaData.AckedMessageId, [this](const FGuid& MessageId)
+			{
+				return CanScrollToAckedLogFunc.Execute(MessageId);
+			});
+		})
 		.OnGetMenuContent_Lambda([this]()
 		{
 			FMenuBuilder MenuBuilder(true, nullptr);
@@ -224,14 +238,14 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateAckWidget() const
 			{
 				MenuBuilder.AddMenuEntry(
 					FText::FromString(MessageId.ToString(EGuidFormats::DigitsWithHyphens)),
-					FText::GetEmpty(),
+					CanScrollToAckedLogFunc.Execute(MessageId) ? FText() : LOCTEXT("Ack.Scroll.ComoboEntry.Disabled", "This log is filtered out."),
 					FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([this, MessageId]()
 						{
 							ScrollToAckedLogFunc.Execute(MessageId);
 						}),
-						FCanExecuteAction::CreateLambda([] { return true; })),
+						FCanExecuteAction::CreateLambda([this, MessageId] { return CanScrollToAckedLogFunc.Execute(MessageId); })),
 					NAME_None,
 					EUserInterfaceActionType::Button
 				);

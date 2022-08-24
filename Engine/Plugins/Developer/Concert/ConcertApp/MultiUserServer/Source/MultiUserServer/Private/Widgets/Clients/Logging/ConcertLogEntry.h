@@ -57,3 +57,5 @@ struct FConcertLogEntry
 	/** Additional data to display in the UI */
 	FConcertLogMetadata LogMetaData;
 };
+
+using FConcertLogEntryFilterFunc = TFunctionRef<bool(const FConcertLogEntry&)>;

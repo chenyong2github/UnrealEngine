@@ -21,6 +21,11 @@ public:
 
 	bool IsBufferFull() const { return LogSource->IsBufferFull(); }
 	const TArray<TSharedPtr<FConcertLogEntry>>& GetFilteredLogs() const { return FilteredLogs; }
+	TArray<TSharedPtr<FConcertLogEntry>> GetFilteredLogsWithId(const FGuid& MessageId) const
+	{
+		const TArray<TSharedPtr<FConcertLogEntry>>* Result = MessageIdToLogs.Find(MessageId);
+		return Result ? *Result : TArray<TSharedPtr<FConcertLogEntry>>{};
+	}
 
 protected:
 
@@ -36,6 +41,9 @@ private:
 
 	/** Contains the items of LogSource with Filter applied. */
 	TArray<TSharedPtr<FConcertLogEntry>> FilteredLogs;
+
+	/** Binds message IDs to the logs that have that ID. Logs can share the same ID but have different MessageActions. */
+	TMap<FGuid, TArray<TSharedPtr<FConcertLogEntry>>> MessageIdToLogs;
 	
 	/** Called when the content of FilteredResult changes */
 	FOnLogListChanged OnLogListChangedEvent;
@@ -43,6 +51,8 @@ private:
 	void OnLowestLogEntryChanged(FConcertLogID NewLowestValidID);
 	void OnNewLogEntryAdded(const TSharedRef<FConcertLogEntry>& NewLogEntry);
 	void RebuildFilteredResult();
+
+	void RemoveMessageIdToLogEntry(const TSharedPtr<FConcertLogEntry>& Log);
 };
 
 /** Further sorts the results of FFilteredConcertLogList::Filter into pages, i.e. buckets of logs, useful for limiting elements in a table view. */

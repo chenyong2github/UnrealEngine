@@ -60,12 +60,12 @@ FString FConcertLogTokenizer::TokenizeCustomPayloadUncompressedByteSize(const FC
 
 FString FConcertLogTokenizer::TokenizeOriginEndpointId(const FConcertLog& Data) const
 {
-	return GetEndpointDisplayString(Data.OriginEndpointId);
+	return EndpointInfoGetter->GetEndpointDisplayString(Data.OriginEndpointId);
 }
 
 FString FConcertLogTokenizer::TokenizeDestinationEndpointId(const FConcertLog& Data) const
 {
-	return GetEndpointDisplayString(Data.DestinationEndpointId);
+	return EndpointInfoGetter->GetEndpointDisplayString(Data.DestinationEndpointId);
 }
 
 FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const void* ContainerPtr, const FProperty& ConcertLogProperty) const
@@ -76,19 +76,4 @@ FString FConcertLogTokenizer::TokenizeUsingPropertyExport(const void* ContainerP
 	const bool bSuccess = ConcertLogProperty.ExportText_Direct(Exported, ValuePtr, DeltaPtr, nullptr, PPF_ExternalEditor);
 	check(bSuccess);
 	return Exported;
-}
-
-FString FConcertLogTokenizer::GetEndpointDisplayString(const FGuid& EndpointId) const
-{
-	if (EndpointInfoGetter->IsServerEndpoint(EndpointId))
-	{
-		return FString("Server");		
-	}
-
-	if (const TOptional<FConcertClientInfo> ClientInfo = EndpointInfoGetter->GetClientInfo(EndpointId))
-	{
-		return ClientInfo->DisplayName;
-	}
-	
-	return EndpointId.ToString(EGuidFormats::DigitsWithHyphens);
 }

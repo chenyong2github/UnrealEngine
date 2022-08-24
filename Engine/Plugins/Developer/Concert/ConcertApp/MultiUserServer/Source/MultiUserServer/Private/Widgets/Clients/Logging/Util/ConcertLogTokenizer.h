@@ -37,8 +37,6 @@ private:
 
 	/** Used so we can look up client and server info (even after client has disconnected) */
 	TSharedRef<FEndpointToUserNameCache> EndpointInfoGetter;
-
-	FString GetEndpointDisplayString(const FGuid& EndpointId) const;
 	
 	FString TokenizeUsingPropertyExport(const void* ContainerPtr, const FProperty& ConcertLogProperty) const;
 };

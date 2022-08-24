@@ -41,6 +41,9 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer);
 
+	bool CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const;
+	void ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const;
+	
 private:
 	
 	/** Used to overlay EnableLoggingPrompt over the tabs */
@@ -84,7 +87,12 @@ private:
 	
 	void OnConcertLoggingEnabledChanged(bool bNewEnabled);
 
+	bool CanScrollToAckLog(const FGuid& MessageId) const;
+	bool CanScrollToAckedLog(const FGuid& MessageId) const;
 	void ScrollToAckLog(const FGuid& MessageId) const;
 	void ScrollToAckedLog(const FGuid& MessageId) const;
+	static bool SharedCanScrollToAckLog(const FGuid& MessageId, const FConcertLogEntry& Entry);
+	static bool SharedCanScrollToAckedLog(const FGuid& MessageId, const FConcertLogEntry& Entry);
+	
 	void ScrollToLog(const int32 LogIndex) const;
 };

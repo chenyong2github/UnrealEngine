@@ -3,13 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Logging/ConcertLogEntry.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertTabViewWithManagerBase.h"
+
+class SConcertTransportLog;
 
 namespace UE
 {
 	namespace MultiUserServer
 	{
+		class FPackageTransmissionTabController;
+		class FPackageTransmissionModel;
 		class SConcertNetworkBrowser;
 	}
 }
@@ -33,6 +38,7 @@ public:
 	
 	static const FName ClientBrowserTabId;
 	static const FName GlobalLogTabId;
+	static const FName PackageTransmissionTabId;
 
 	SLATE_BEGIN_ARGS(SConcertClientsTabView)
 	{}
@@ -46,6 +52,11 @@ public:
 	void OpenGlobalLogTab() const;
 	void CloseGlobalLogTab() const;
 	void OpenClientLogTab(const FGuid& ClientMessageNodeId) const;
+
+	/** Whether it is possible to call ScrollToLog. */
+	bool CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc, FText& ErrorMessage) const;
+	/** Scrolls to the log in the global log tab. */
+	void ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const;
 	
 	bool IsGlobalLogOpen() const;
 	TSharedPtr<SDockTab> GetGlobalLogTab() const;
@@ -61,13 +72,15 @@ private:
 	TSharedPtr<FEndpointToUserNameCache> ClientInfoCache;
 	/** Used by various systems to convert logs to text */
 	TSharedPtr<FConcertLogTokenizer> LogTokenizer;
+	
+	/** Knows about when packages are sent and received by the server */
+	TSharedPtr<UE::MultiUserServer::FPackageTransmissionModel> PackageTransmissionModel;
+	TSharedPtr<UE::MultiUserServer::FPackageTransmissionTabController> MainPackageTransmissionTab;
 
 	TSharedPtr<UE::MultiUserServer::SConcertNetworkBrowser> ClientBrowser;
-	
-	/** Used to overlay EnableLoggingPrompt over the tabs */
-	TSharedPtr<SOverlay> EnableLoggingPromptOverlay;
-	/** Reminds the user to enable logging */
-	TSharedPtr<SPromptConcertLoggingEnabled> EnableLoggingPrompt;
+
+	/** The widget inside of the global log tab */
+	TSharedPtr<SConcertTransportLog> GlobalTransportLog;
 	
 	void CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs);
 	TSharedRef<SDockTab> SpawnClientBrowserTab(const FSpawnTabArgs& InTabArgs);

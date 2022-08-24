@@ -422,7 +422,8 @@ void FConcertServerWorkspace::HandlePackageUpdateEvent(const FConcertSessionCont
 	{
 		if (Event.Package.HasPackageData())
 		{
-			UE::ConcertSyncCore::ConcertPackageEvents::OnRejectRemoteSendPackage().Broadcast({{ Event.TransmissionId, Event.Package.Info, Context.SourceEndpointId }});
+			const UE::ConcertSyncCore::ConcertPackageEvents::FConcertRejectSendPackageParams Params {{{ Event.TransmissionId, Event.Package.Info, Context.SourceEndpointId }, Context.MessageId}};
+			UE::ConcertSyncCore::ConcertPackageEvents::OnRejectRemoteSendPackage().Broadcast(Params);
 		}
 		
 		// If the client didn't have the lock, then queue a rejection event so that the client will re-load the head-revision of the package

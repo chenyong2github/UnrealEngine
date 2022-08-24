@@ -35,6 +35,10 @@ UMultiUserServerColumnVisibilitySettings::UMultiUserServerColumnVisibilitySettin
 	{
 		SaveConfig();
 	});
+	OnOnPackageTransmissionColumnVisibilityChanged().AddLambda([this](const FColumnVisibilitySnapshot&)
+	{
+		SaveConfig();
+	});
 
 	FCoreDelegates::OnPreExit.AddLambda([]()
 	{
