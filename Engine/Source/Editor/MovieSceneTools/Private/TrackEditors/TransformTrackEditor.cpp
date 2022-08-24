@@ -1013,7 +1013,7 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 			}
 
 			FTransform CurrentTransform(
-				FRotator(CurrentTransformChannels[3], CurrentTransformChannels[4], CurrentTransformChannels[5]),
+				FRotator(CurrentTransformChannels[4], CurrentTransformChannels[5], CurrentTransformChannels[3]), // pitch yaw roll
 				FVector(CurrentTransformChannels[0], CurrentTransformChannels[1], CurrentTransformChannels[2]),
 				FVector(CurrentTransformChannels[6], CurrentTransformChannels[7], CurrentTransformChannels[8]));
 
