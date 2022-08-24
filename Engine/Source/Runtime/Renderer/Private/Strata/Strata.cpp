@@ -34,6 +34,12 @@ static TAutoConsoleVariable<int32> CVarStrataBytePerPixel(
 	TEXT("Strata allocated byte per pixel to store materials data. Higher value means more complex material can be represented."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarStrataShadingQuality(
+	TEXT("r.Strata.ShadingQuality"),
+	1,
+	TEXT("Defube Strata shading quality (1: accurate lighting, 2: approximate lighting). This variable is read-only."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarStrataRoughDiffuse(
 	TEXT("r.Strata.RoughDiffuse"),
 	1,
