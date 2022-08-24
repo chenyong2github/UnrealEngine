@@ -1069,7 +1069,7 @@ MaterialX::InputPtr UInterchangeMaterialXTranslator::GetStandardSurfaceInput(Mat
 
 	if(!Input)
 	{
-		Input = Document->getNodeDef(mx::NodeDefinition::StandardSurface)->getInput(InputName);
+		Input = Document->getNodeDef(mx::NodeDefinition::StandardSurface)->getActiveInput(InputName);
 	}
 
 	return Input;
@@ -1081,7 +1081,7 @@ MaterialX::InputPtr UInterchangeMaterialXTranslator::GetPointLightInput(Material
 
 	if(!Input)
 	{
-		Input = Document->getNodeDef(mx::NodeDefinition::PointLight)->getInput(InputName);
+		Input = Document->getNodeDef(mx::NodeDefinition::PointLight)->getActiveInput(InputName);
 	}
 
 	return Input;
@@ -1093,7 +1093,7 @@ MaterialX::InputPtr UInterchangeMaterialXTranslator::GetDirectionalLightInput(Ma
 
 	if(!Input)
 	{
-		Input = Document->getNodeDef(mx::NodeDefinition::DirectionalLight)->getInput(InputName);
+		Input = Document->getNodeDef(mx::NodeDefinition::DirectionalLight)->getActiveInput(InputName);
 	}
 
 	return Input;
@@ -1105,7 +1105,7 @@ MaterialX::InputPtr UInterchangeMaterialXTranslator::GetSpotLightInput(MaterialX
 
 	if(!Input)
 	{
-		Input = Document->getNodeDef(mx::NodeDefinition::SpotLight)->getInput(InputName);
+		Input = Document->getNodeDef(mx::NodeDefinition::SpotLight)->getActiveInput(InputName);
 	}
 
 	return Input;
