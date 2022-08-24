@@ -12,7 +12,7 @@
  * Fast multi-producer/single-consumer unbounded concurrent queue.
  * Based on http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue
  */
-template<typename T>
+template<typename T, typename AllocatorType = FMemory>
 class TMpscQueue final
 {
 public:
@@ -22,7 +22,7 @@ public:
 
 	TMpscQueue()
 	{
-		FNode* Sentinel = new FNode;
+		FNode* Sentinel = new(AllocatorType::Malloc(sizeof(FNode), alignof(FNode))) FNode;
 		Head.store(Sentinel, std::memory_order_relaxed);
 		Tail = Sentinel;
 	}
@@ -32,7 +32,7 @@ public:
 		FNode* Next = Tail->Next.load(std::memory_order_relaxed);
 
 		// sentinel's value is already destroyed
-		delete Tail;
+		AllocatorType::Free(Tail);
 
 		while (Next != nullptr)
 		{
@@ -40,14 +40,14 @@ public:
 			Next = Tail->Next.load(std::memory_order_relaxed);
 
 			DestructItem((ElementType*)&Tail->Value);
-			delete Tail;
+			AllocatorType::Free(Tail);
 		}
 	}
 
 	template <typename... ArgTypes>
 	void Enqueue(ArgTypes&&... Args)
 	{
-		FNode* New = new FNode;
+		FNode* New = new(AllocatorType::Malloc(sizeof(FNode), alignof(FNode))) FNode;
 		new (&New->Value) ElementType(Forward<ArgTypes>(Args)...);
 
 		FNode* Prev = Head.exchange(New, std::memory_order_acq_rel);
@@ -67,7 +67,7 @@ public:
 		TOptional<ElementType> Res{ MoveTemp(*ValuePtr) };
 		DestructItem(ValuePtr);
 
-		delete Tail; // current sentinel
+		AllocatorType::Free(Tail); // current sentinel
 
 		Tail = Next; // new sentinel
 		return Res;

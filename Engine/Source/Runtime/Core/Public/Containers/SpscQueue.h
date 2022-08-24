@@ -12,7 +12,7 @@
  * Fast single-producer/single-consumer unbounded concurrent queue. Doesn't free memory until destruction but recycles consumed items.
  * Based on http://www.1024cores.net/home/lock-free-algorithms/queues/unbounded-spsc-queue
  */
-template<typename T>
+template<typename T, typename AllocatorType = FMemory>
 class TSpscQueue final
 {
 public:
@@ -22,7 +22,7 @@ public:
 
 	TSpscQueue()
 	{
-		FNode* Node = new FNode;
+		FNode* Node = new(AllocatorType::Malloc(sizeof(FNode), alignof(FNode))) FNode;
 		Tail.store(Node, std::memory_order_relaxed);
 		Head = First = TailCopy = Node;
 	}
@@ -38,7 +38,7 @@ public:
 		{
 			FNode* Next = Node->Next.load(std::memory_order_relaxed);
 			bContinue = Node != LocalTail;
-			delete Node;
+			AllocatorType::Free(Node);
 			Node = Next;
 		} while (bContinue);
 
@@ -47,7 +47,7 @@ public:
 		{
 			FNode* Next = Node->Next.load(std::memory_order_relaxed);
 			DestructItem((ElementType*)&Node->Value);
-			delete Node;
+			AllocatorType::Free(Node);
 			Node = Next;
 		}
 	}
@@ -56,7 +56,7 @@ public:
 	void Enqueue(ArgTypes&&... Args)
 	{
 		FNode* Node = AllocNode();
-		new (&Node->Value) ElementType(Forward<ArgTypes>(Args)...);
+		new(&Node->Value) ElementType(Forward<ArgTypes>(Args)...);
 
 		Head->Next.store(Node, std::memory_order_release);
 		Head = Node;
@@ -147,7 +147,7 @@ private:
 			return AllocFromCache();
 		}
 
-		return new FNode();
+		return new(AllocatorType::Malloc(sizeof(FNode), alignof(FNode))) FNode();
 	}
 
 private:
