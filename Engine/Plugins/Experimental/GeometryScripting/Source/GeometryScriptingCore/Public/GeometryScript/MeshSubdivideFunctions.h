@@ -29,9 +29,7 @@ public:
 UENUM(BlueprintType)
 enum class EAdaptiveTessellatePatternType : uint8
 {
-	Uniform = 0,
-	InnerUniform = 1,
-	ConcentricRings = 2
+	ConcentricRings = 0
 };
 
 
