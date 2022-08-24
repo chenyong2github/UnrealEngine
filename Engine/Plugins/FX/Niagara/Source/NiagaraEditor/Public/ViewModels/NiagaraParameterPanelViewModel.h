@@ -253,9 +253,15 @@ public:
 
 	const TArray<FNiagaraParameterPanelItem>& GetCachedViewedParameterItems() const;
 
+	virtual bool CanSummonHierarchyView() const { return false; };
+
+	virtual void SummonHierarchyView() const {}
+	
 	void SelectParameterItemByName(const FName ParameterName, const bool bRequestRename);
 
-
+	// TODO (me) Remove again when the user parameter tab goes live, since this is only used for the "Edit Hierarchy" button
+	virtual TSharedRef<SWidget> GenerateAdjacentWidget() { return SNullWidget::NullWidget; }
+	
 	FOnParameterPanelViewModelExternalSelectionChanged& GetOnExternalSelectionChangedDelegate() { return OnParameterPanelViewModelExternalSelectionChangedDelegate; };
 
 	FOnSelectParameterItemByName& GetOnSelectParameterItemByNameDelegate() { return OnSelectParameterItemByNameDelegate; };
@@ -345,6 +351,8 @@ public:
 
 	virtual TSharedPtr<SWidget> CreateContextMenuForItems(const TArray<FNiagaraParameterPanelItem>& Items, const TSharedPtr<FUICommandList>& ToolkitCommands) override;
 
+	virtual TSharedRef<SWidget> GenerateAdjacentWidget() override;
+	
 	virtual FNiagaraParameterUtilities::EParameterContext GetParameterContext() const override;
 
 	virtual TArray<FNiagaraVariable> GetEditableStaticSwitchParameters() const override;
@@ -376,6 +384,7 @@ public:
 
 	virtual bool GetSectionEnabled(FText Section) const override;
 
+	bool IsUserSectionActive() const { return ActiveSectionIndex == UserOnlyIdx && UserOnlyIdx != -1; }
 
 	virtual bool GetShowSections() const override { return true; }
 	virtual bool GetNamespaceActive(const FName& InNamespace) const override { return true; }
@@ -389,6 +398,9 @@ public:
 	virtual bool UsesCategoryFilteringForInitialExpansion() const override { return true; }
 
 	virtual void PreSectionChange(const TArray<FNiagaraParameterPanelCategory>& ExpandedItems) override;
+	virtual bool CanSummonHierarchyView() const override { return true; }
+
+	virtual void SummonHierarchyView() const override;
 private:
 
 	bool  ShouldRouteThroughScratchParameterMap(const FNiagaraParameterPanelCategory* Category = nullptr, const FNiagaraVariableBase* Variable = nullptr);

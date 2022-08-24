@@ -23,6 +23,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemScriptViewModel.h"
+#include "NiagaraSystemEditorData.h"
 #include "NiagaraTypes.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
@@ -33,16 +34,17 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
+#include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
 #include "Widgets/SNiagaraDebugger.h"
 #include "Widgets/SNiagaraParameterMenu.h"
 #include "Widgets/SNiagaraParameterPanel.h"
+#include "Widgets/Input/SButton.h"
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SNullWidget.h"
-
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
@@ -1467,6 +1469,28 @@ TSharedPtr<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateContextM
 	return SNullWidget::NullWidget;
 }
 
+TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::GenerateAdjacentWidget()
+{
+	if(SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		return SNew(SButton)
+		.Visibility_Lambda([this]()
+		{
+			return IsUserSectionActive() ? EVisibility::Visible : EVisibility::Collapsed;
+		})
+		.OnClicked(FOnClicked::CreateLambda([this]()
+		{
+			SummonHierarchyView();
+			return FReply::Handled();
+		}))
+		[
+			SNew(STextBlock).Text(FText::FromString("Edit Hierarchy"))
+		];
+	}
+
+	return SNullWidget::NullWidget;
+}
+
 FNiagaraParameterUtilities::EParameterContext FNiagaraSystemToolkitParameterPanelViewModel::GetParameterContext() const
 {
 	return FNiagaraParameterUtilities::EParameterContext::System;
@@ -1777,6 +1801,11 @@ TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParam
 	return MenuWidget;
 }
 
+void FNiagaraSystemToolkitParameterPanelViewModel::SummonHierarchyView() const
+{
+	SystemViewModel->FocusTab("NiagaraSystemEditor_UserParameters");
+}
+
 TArray<FNiagaraVariable> FNiagaraSystemToolkitParameterPanelViewModel::GetEditableStaticSwitchParameters() const
 {
 	TArray<FNiagaraVariable> OutStaticSwitchParameters;
@@ -1930,19 +1959,7 @@ TArray<FNiagaraParameterPanelItem> FNiagaraSystemToolkitParameterPanelViewModel:
 		ParamStore->GetParameters(Vars);
 		for (const FNiagaraVariable& Var : Vars)
 		{
-			UNiagaraScriptVariable* ScriptVar;
-			if (TObjectPtr<UNiagaraScriptVariable> const* ScriptVarPtr = ParameterToScriptVariableMap.Find(Var))
-			{
-				ScriptVar = *ScriptVarPtr;
-			}
-			else
-			{
-				// Create a new UNiagaraScriptVariable to represent this parameter for the lifetime of the ParameterPanelViewModel.
-				ScriptVar = NewObject<UNiagaraScriptVariable>(GetTransientPackage());
-				ScriptVar->AddToRoot();
-				ScriptVar->Init(Var, FNiagaraVariableMetaData());
-				TransientParameterToScriptVarMap.Add(Var, ScriptVar);
-			}
+			UNiagaraScriptVariable* ScriptVar = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(Var, SystemViewModel);
 
 			FNiagaraParameterPanelItem Item = FNiagaraParameterPanelItem();
 			Item.ScriptVariable = ScriptVar;
@@ -2420,7 +2437,7 @@ void FNiagaraSystemToolkitParameterPanelViewModel::OnParameterRemovedExternally(
 	// User and System need to be checked for all graphs as they could be used anywhere.
 	else if (InOldVar.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
 		InOldVar.IsInNameSpace(FNiagaraConstants::SystemNamespaceString))
-	{
+	{		
 		TArray<UNiagaraGraph*> Graphs;
 		Graphs.Add(SystemScriptGraph.Get());
 

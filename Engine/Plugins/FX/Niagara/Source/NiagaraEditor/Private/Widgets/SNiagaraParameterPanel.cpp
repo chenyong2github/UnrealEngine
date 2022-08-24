@@ -75,7 +75,6 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 		FilterCategoryExpandedDelegate.BindRaw(ParameterPanelViewModel.Get(), &INiagaraImmutableParameterPanelViewModel::IsCategoryExpandedByDefault);
 	}
 
-
 	SAssignNew(ItemSelector, SNiagaraParameterPanelSelector)
 	.PreserveSelectionOnRefresh(true)
 	.PreserveExpansionOnRefresh(true)
@@ -103,7 +102,11 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.CategoryBorderBackgroundPadding(FMargin(0.0f, 3.0f))
 	.OnGetKeyForItem(this, &SNiagaraParameterPanel::OnGetKeyForItem)
 	.OnGetKeyForCategory(this, &SNiagaraParameterPanel::OnGetKeyForCategory)
-	.ExpandInitially(false);
+	.ExpandInitially(false)
+	.SearchBoxAdjacentContent()
+	[
+		ParameterPanelViewModel->GenerateAdjacentWidget()
+	];
 
 	// Finalize the widget
 	ChildSlot
@@ -404,7 +407,10 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
 	.ParameterText(FText::FromName(Item.GetVariable().GetName()))
 	.HighlightText(ItemSelector.ToSharedRef(), &SNiagaraParameterPanelSelector::GetFilterTextNoRef)
-	.ToolTipText(Item.ScriptVariable->Metadata.Description)
+	.ToolTipText_Lambda([Item]
+	{
+		return Item.ScriptVariable->Metadata.Description;
+	})
 	.OnTextCommitted(this, &SNiagaraParameterPanel::OnParameterNameTextCommitted, Item)
 	.OnVerifyTextChanged(this, &SNiagaraParameterPanel::OnParameterNameTextVerifyChanged, Item)
 	.IsSelected(ItemSelector.ToSharedRef(), &SNiagaraParameterPanelSelector::IsItemSelected, Item)

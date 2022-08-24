@@ -4,6 +4,7 @@
 
 #include "NiagaraEditorDataBase.h"
 #include "NiagaraEditorData.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 #include "NiagaraSystemEditorData.generated.h"
 
 class UNiagaraStackEditorData;
@@ -50,6 +51,7 @@ class NIAGARAEDITOR_API UNiagaraSystemEditorData : public UNiagaraEditorDataBase
 {
 	GENERATED_BODY()
 
+	DECLARE_MULTICAST_DELEGATE(FOnUserParameterScriptVariablesSynced)
 public:
 	UNiagaraSystemEditorData(const FObjectInitializer& ObjectInitializer);
 
@@ -87,13 +89,25 @@ public:
 
 	void SynchronizeOverviewGraphWithSystem(UNiagaraSystem& OwnerSystem);
 
+	void SyncUserScriptVariables(UNiagaraSystem* System);
+	FOnUserParameterScriptVariablesSynced& OnUserParameterScriptVariablesSynced() { return OnUserParameterScriptVariablesSyncedDelegate; }
+	
+	UNiagaraScriptVariable* FindOrAddUserScriptVariable(FNiagaraVariable UserParameter, UNiagaraSystem& System);
+	UNiagaraScriptVariable* FindUserScriptVariable(FGuid UserParameterGuid);
+	bool RenameUserScriptVariable(FNiagaraVariable OldVariable, FName NewName);
+	bool RemoveUserScriptVariable(FNiagaraVariable Variable);
+
 	// If true then the preview viewport's orbit setting is saved in the asset data
 	UPROPERTY()
 	bool bSetOrbitModeByAsset = false;
 
 	UPROPERTY()
 	bool bSystemViewportInOrbitMode = true;
-
+	
+	/** Contains the root ids for organizing user parameters. */
+	UPROPERTY()
+	TObjectPtr<UNiagaraHierarchyRoot> UserParameterHierarchy;
+	
 private:
 	void UpdatePlaybackRangeFromEmitters(UNiagaraSystem& OwnerSystem);
 
@@ -122,4 +136,9 @@ private:
 
 	UPROPERTY()
 	bool bSystemIsPlaceholder;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UNiagaraScriptVariable>> UserParameterMetaData;
+	
+	FOnUserParameterScriptVariablesSynced OnUserParameterScriptVariablesSyncedDelegate;
 };

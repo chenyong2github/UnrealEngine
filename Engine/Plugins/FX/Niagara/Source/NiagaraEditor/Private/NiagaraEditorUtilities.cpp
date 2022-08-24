@@ -69,6 +69,7 @@
 #include "Widgets/SNiagaraPinTypeSelector.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -2190,6 +2191,21 @@ bool FNiagaraEditorUtilities::AddParameter(FNiagaraVariable& NewParameterVariabl
 	return bSuccess;
 }
 
+TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::GetScriptVariableForUserParameter(const FNiagaraVariable& UserParameter, TSharedPtr<FNiagaraSystemViewModel> SystemViewModel)
+{
+	return Cast<UNiagaraSystemEditorData>(SystemViewModel->GetSystem().GetEditorData())->FindOrAddUserScriptVariable(UserParameter, SystemViewModel->GetSystem());
+}
+
+TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::GetScriptVariableForUserParameter(const FNiagaraVariable& UserParameter, UNiagaraSystem& System)
+{
+	return Cast<UNiagaraSystemEditorData>(System.GetEditorData())->FindOrAddUserScriptVariable(UserParameter, System);
+}
+
+TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::FindScriptVariableForUserParameter(const FGuid& UserParameterGuid, UNiagaraSystem& System)
+{
+	return Cast<UNiagaraSystemEditorData>(System.GetEditorData())->FindUserScriptVariable(UserParameterGuid);
+}
+
 void FNiagaraEditorUtilities::ShowParentEmitterInContentBrowser(TSharedRef<FNiagaraEmitterViewModel> Emitter)
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -3708,20 +3724,15 @@ bool FNiagaraParameterUtilities::TestCanRenameWithMessage(FName ParameterName, F
 	return false;
 }
 
-TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVariable Variable, bool bShowValue)
+TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVariable Variable, bool bAddTypeIcon, bool bShowValue)
 {
 	FNiagaraTypeDefinition Type = Variable.GetType();
 	const FLinearColor TypeColor = UEdGraphSchema_Niagara::GetTypeColor(Type);
 	TSharedPtr<INiagaraEditorTypeUtilities> TypeUtilities = FNiagaraEditorModule::Get().GetTypeUtilities(Type);
 
-	FText			   IconToolTip = FText::GetEmpty();
-	FSlateBrush const* IconBrush = FAppStyle::Get().GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
-	FSlateColor        IconColor = FSlateColor(TypeColor);
-	FString			   IconDocLink, IconDocExcerpt;
-	FSlateBrush const* SecondaryIconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
-	FSlateColor        SecondaryIconColor = IconColor;
-
 	TSharedPtr<SHorizontalBox> ParameterContainer;
+	
+	SHorizontalBox::FSlot* TypeIconSlot;
 	TSharedRef<SVerticalBox> ParameterWidget = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -3731,16 +3742,7 @@ TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVaria
 			.AutoWidth()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			[
-				SNew(SNiagaraIconWidget)
-				.IconToolTip(IconToolTip)
-				.IconBrush(IconBrush)
-				.IconColor(IconColor)
-				.DocLink(IconDocLink)
-				.DocExcerpt(IconDocExcerpt)
-				.SecondaryIconBrush(SecondaryIconBrush) 
-				.SecondaryIconColor(SecondaryIconColor)
-			]
+			.Expose(TypeIconSlot)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Center)
@@ -3753,6 +3755,26 @@ TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVaria
 			]
 		];
 
+	if(bAddTypeIcon)
+	{
+		FText			   IconToolTip = FText::GetEmpty();
+		FSlateBrush const* IconBrush = FAppStyle::Get().GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+		FSlateColor        IconColor = FSlateColor(TypeColor);
+		FString			   IconDocLink, IconDocExcerpt;
+		FSlateBrush const* SecondaryIconBrush = FAppStyle::GetBrush(TEXT("NoBrush"));
+		FSlateColor        SecondaryIconColor = IconColor;
+		
+		TypeIconSlot->AttachWidget(
+			SNew(SNiagaraIconWidget)
+			   .IconToolTip(IconToolTip)
+			   .IconBrush(IconBrush)
+			   .IconColor(IconColor)
+			   .DocLink(IconDocLink)
+			   .DocExcerpt(IconDocExcerpt)
+			   .SecondaryIconBrush(SecondaryIconBrush) 
+			   .SecondaryIconColor(SecondaryIconColor));
+	}
+	
 	if(bShowValue && Variable.IsDataAllocated())
 	{
 		const FText ValueText = TypeUtilities->GetStackDisplayText(Variable);
@@ -3799,7 +3821,7 @@ TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariab
 	FSlateColor        SecondaryIconColor = IconColor;
 
 	TSharedPtr<SHorizontalBox> ParameterContainer;
-	TSharedRef<SWidget> TooltipContent = GetParameterWidget(Variable, bShowValue);
+	TSharedRef<SWidget> TooltipContent = GetParameterWidget(Variable, true, bShowValue);
 
 	TSharedPtr<SVerticalBox> InnerContainer;
 	// we construct a tooltip widget that shows the parameter the value is associated with

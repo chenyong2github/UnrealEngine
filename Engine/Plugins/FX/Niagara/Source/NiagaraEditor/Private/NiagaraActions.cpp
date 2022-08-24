@@ -630,7 +630,7 @@ TSharedPtr<SWidget> FNiagaraParameterDragOperation::GetDefaultDecorator() const
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			FNiagaraParameterUtilities::GetParameterWidget(StaticCastSharedPtr<FNiagaraParameterAction>(SourceAction)->GetParameter(), false)
+			FNiagaraParameterUtilities::GetParameterWidget(StaticCastSharedPtr<FNiagaraParameterAction>(SourceAction)->GetParameter(), true, false)
 		]
 		+ SVerticalBox::Slot()
 		.AutoHeight()

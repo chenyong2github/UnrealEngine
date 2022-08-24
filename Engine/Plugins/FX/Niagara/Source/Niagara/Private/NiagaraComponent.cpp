@@ -2763,9 +2763,9 @@ void UNiagaraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	{
 		ApplyOverridesToParameterStore();
 	}
-
+	
 	ReinitializeSystem();
-
+	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 

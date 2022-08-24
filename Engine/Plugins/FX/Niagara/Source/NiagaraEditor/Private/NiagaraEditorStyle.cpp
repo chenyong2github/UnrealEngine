@@ -681,6 +681,30 @@ void FNiagaraEditorStyle::InitScalabilityIcons()
 	Set("NiagaraEditor.Scalability.Preview.ResetPlatform", new IMAGE_BRUSH("Icons/Scalability/ResetPreviewPlatform", Icon20x20));
 }
 
+void FNiagaraEditorStyle::InitHierarchyEditor()
+{
+	const FTextBlockStyle NormalText = FAppStyle::GetWidgetStyle<FTextBlockStyle>("NormalText");
+	FSlateFontInfo CategoryFont = FAppStyle::Get().GetFontStyle(TEXT("DetailsView.CategoryFontStyle"));
+	CategoryFont.Size = 11;
+	// const FEditableTextBoxStyle NormalEditableTextBox = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+	const FEditableTextBoxStyle NormalEditableTextBox = FAppStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+	
+	FEditableTextBoxStyle CategoryEditableText = FEditableTextBoxStyle(NormalEditableTextBox)
+		.SetFont(CategoryFont)
+		.SetForegroundColor(FStyleColors::AccentWhite);
+	
+	FTextBlockStyle CategoryText = FTextBlockStyle(NormalText)
+		.SetFont(CategoryFont);
+	FInlineEditableTextBlockStyle HierarchyCategoryTextStyle = FInlineEditableTextBlockStyle()
+		.SetTextStyle(CategoryText)
+		.SetEditableTextBoxStyle(CategoryEditableText);
+	
+	Set("NiagaraEditor.HierarchyEditor.Category", HierarchyCategoryTextStyle);
+
+	Set("NiagaraEditor.Stack.DropTarget.BorderVertical", new IMAGE_BRUSH("Icons/StackDropTargetBorder_Vertical", FVector2D(2, 8), FLinearColor::White, ESlateBrushTileType::Vertical));
+	Set("NiagaraEditor.Stack.DropTarget.BorderHorizontal", new IMAGE_BRUSH("Icons/StackDropTargetBorder_Horizontal", FVector2D(8, 2), FLinearColor::White, ESlateBrushTileType::Horizontal));
+}
+
 FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle")
 {
 	SetContentRoot(FPaths::EnginePluginsDir() / TEXT("FX/Niagara/Content/Slate"));
@@ -715,7 +739,9 @@ FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle"
 	InitScalabilityIcons();
 	InitViewportStyle();
 	InitScratchStyle();
+	InitHierarchyEditor();
 }
+
 void FNiagaraEditorStyle::InitScratchStyle()
 {
 	const FTextBlockStyle NormalText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");

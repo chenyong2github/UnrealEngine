@@ -80,7 +80,7 @@ FNiagaraSystemToolkitMode_Default::FNiagaraSystemToolkitMode_Default(TWeakPtr<FN
 				)
 			)
 		);
-
+	
 	ExtendToolbar();
 }
 

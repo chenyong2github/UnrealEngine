@@ -16,7 +16,6 @@
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "ViewModels/NiagaraParameterDefinitionsSubscriberViewModel.h"
 
-
 struct FAssetData;
 struct FEdGraphEditAction;
 struct FNiagaraEmitterHandle;
@@ -50,6 +49,7 @@ class UNiagaraSystem;
 class UNiagaraSystemEditorData;
 class UNiagaraSystemEditorDocumentsViewModel;
 class UNiagaraSystemSelectionViewModel;
+class UNiagaraUserParametersHierarchyViewModel;
 
 
 /** Defines different editing modes for this system view model. */
@@ -385,6 +385,8 @@ public:
 
 	NIAGARAEDITOR_API UNiagaraSystemScalabilityViewModel* GetScalabilityViewModel();
 
+	NIAGARAEDITOR_API UNiagaraUserParametersHierarchyViewModel* GetUserParametersHierarchyViewModel();
+	
 	TArray<float> OnGetPlaybackSpeeds() const;
 	
 	/** Duplicates a set of emitters and refreshes everything.*/
@@ -715,6 +717,8 @@ private:
 
 	UNiagaraSystemScalabilityViewModel* ScalabilityViewModel;
 
+	UNiagaraUserParametersHierarchyViewModel* UserParametersHierarchyViewModel;
+	
 	TWeakPtr<INiagaraParameterPanelViewModel> ParameterPanelViewModel;
 
 	TSharedPtr<FNiagaraPlaceholderDataInterfaceManager> PlaceholderDataInterfaceManager;

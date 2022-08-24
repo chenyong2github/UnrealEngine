@@ -39,17 +39,24 @@
 #include "GameDelegates.h"
 #include "NiagaraEditorStyle.h"
 #include "IDetailChildrenBuilder.h"
+#include "IDetailGroup.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
 #include "NiagaraEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "INiagaraEditorTypeUtilities.h"
+#include "NiagaraConstants.h"
+#include "NiagaraScriptVariable.h"
+#include "NiagaraSystemEditorData.h"
 #include "Widgets/Layout/SBox.h"
 #include "UObject/WeakObjectPtr.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/SNiagaraDebugger.h"
+#include "Widgets/SNiagaraParameterName.h"
+#include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraComponentDetails"
 
@@ -180,8 +187,8 @@ public:
 			}
 		}
 	}
-
-	void OnParameterChanged()
+	
+	void OnParameterChanged(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		if (bResettingToDefault)
 		{
@@ -195,7 +202,7 @@ public:
 
 			for (TSharedPtr<IPropertyHandle> PropertyHandle : PropertyHandles)
 			{
-				PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+				PropertyHandle->NotifyPostChange(PropertyChangedEvent.ChangeType);
 			}
 		}
 	}
@@ -251,6 +258,7 @@ public:
 	const FNiagaraVariableBase& Key() const { return ParameterKey; }
 	FNiagaraVariant& Value() { return ParameterValue; }
 
+	TWeakObjectPtr<UNiagaraComponent> GetComponent() const { return Component; }
 
 private:
 	TWeakObjectPtr<UNiagaraComponent> Component;
@@ -259,6 +267,254 @@ private:
 	FNiagaraVariant ParameterValue;
 	FSimpleDelegate OnRebuild;
 	bool bResettingToDefault;
+};
+
+void AddRowForUserParameter(TSharedPtr<FNiagaraParameterProxy> ParameterProxy, IDetailChildrenBuilder& ChildrenBuilder, TMap<FName, TWeakPtr<FStructOnScope>>& ParameterNameToDisplayStruct)
+{
+	FNiagaraVariable Parameter = ParameterProxy->Key();
+	IDetailPropertyRow* Row = nullptr;
+
+ 	TSharedPtr<SWidget> CustomValueWidget;
+			
+	if (Parameter.IsDataInterface())
+	{
+		// if no changes are made, then it'll just be the same as the asset
+		TArray<UObject*> Objects { ParameterProxy->Value().GetDataInterface() };
+	
+		FAddPropertyParams Params = FAddPropertyParams()
+			.UniqueId(Parameter.GetName())
+			.AllowChildren(true)
+			.CreateCategoryNodes(true);
+	
+		Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
+
+		CustomValueWidget =
+			SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(FText::FromString(FName::NameToDisplayString(Parameter.GetType().GetClass()->GetName(), false)));
+	}
+	else if(Parameter.IsUObject())
+	{
+		TArray<UObject*> Objects { ParameterProxy->Value().GetUObject() };
+
+		// How do I set this up so I can have this pick actors from the level?
+
+		FAddPropertyParams Params = FAddPropertyParams()
+			.UniqueId(Parameter.GetName())
+			.AllowChildren(false) // Don't show the material's properties
+			.CreateCategoryNodes(false);
+
+		Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
+
+		CustomValueWidget = SNew(SObjectPropertyEntryBox)
+			.ObjectPath(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetCurrentAssetPath)
+			.AllowedClass(Parameter.GetType().GetClass())
+			.OnObjectChanged(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnAssetSelectedFromPicker)
+			.AllowClear(false)
+			.DisplayUseSelected(true)
+			.DisplayBrowse(true)
+			.DisplayThumbnail(true)
+			.NewAssetFactories(TArray<UFactory*>());
+	}
+	else
+	{
+		FNiagaraTypeDefinition Type = Parameter.GetType();
+		UStruct* Struct = Type.GetStruct();
+			
+		if (Type == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+			static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
+			Struct = VectorStruct;
+		}
+			
+		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Struct, ParameterProxy->Value().GetBytes()));
+
+		FAddPropertyParams Params = FAddPropertyParams()
+			.UniqueId(Parameter.GetName());
+
+		Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Params);
+		FNiagaraVariable UserParameter = Parameter;
+		FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserParameter);
+		ParameterNameToDisplayStruct.Add(UserParameter.GetName(), TWeakPtr<FStructOnScope>(StructOnScope));
+	}
+
+	TSharedPtr<SWidget> DefaultNameWidget;
+	TSharedPtr<SWidget> DefaultValueWidget;
+	
+	if(Parameter.IsInNameSpace(FNiagaraConstants::UserNamespaceString))
+	{
+		Parameter.SetName(FName(Parameter.GetName().ToString().RightChop(5)));
+	}
+	
+	Row->DisplayName(FText::FromName(Parameter.GetName()));
+
+	FDetailWidgetRow& CustomWidget = Row->CustomWidget(true);
+
+	FNiagaraVariable UserParameter = Parameter;
+	ParameterProxy->GetComponent()->GetAsset()->GetExposedParameters().RedirectUserVariable(UserParameter);
+	UNiagaraScriptVariable* ScriptVariable = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(UserParameter, *ParameterProxy->GetComponent()->GetAsset());
+		
+	FText Tooltip = FText::GetEmpty();
+	if(ScriptVariable && !ScriptVariable->Metadata.Description.IsEmpty())
+	{
+		Tooltip = ScriptVariable->Metadata.Description;
+	}
+		
+	Row->GetDefaultWidgets(DefaultNameWidget, DefaultValueWidget, CustomWidget);
+
+	Row->GetPropertyHandle()->SetOnPropertyValuePreChange(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterPreChange));
+	Row->GetPropertyHandle()->SetOnChildPropertyValuePreChange(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterPreChange));
+	Row->GetPropertyHandle()->SetOnPropertyValueChangedWithData(TDelegate<void(const FPropertyChangedEvent&)>::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterChanged));
+	Row->GetPropertyHandle()->SetOnChildPropertyValueChangedWithData(TDelegate<void(const FPropertyChangedEvent&)>::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterChanged));
+	Row->GetPropertyHandle()->SetOnPropertyResetToDefault(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnResetToDefault));
+	
+	CustomWidget
+		.NameContent()
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 2.0f))
+			[
+				SNew(STextBlock)
+				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+				.Text(FText::FromName(Parameter.GetName()))
+				.ToolTipText(Tooltip)
+			]
+		];
+
+	TSharedPtr<SWidget> ValueWidget = DefaultValueWidget;
+	if (CustomValueWidget.IsValid())
+	{
+		ValueWidget = CustomValueWidget;
+	}
+	
+	CustomWidget
+	.ValueContent()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.Padding(4.0f)
+		[
+			// Add in the parameter editor factoried above.
+			ValueWidget.ToSharedRef()
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			// Add in the "reset to default" buttons
+			SNew(SButton)
+			.OnClicked(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnResetToDefaultClicked)
+			.Visibility(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetResetToDefaultVisibility)
+			.ContentPadding(FMargin(5.f, 0.f))
+			.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
+			.ButtonStyle(FAppStyle::Get(), "NoBorder")
+			.Content()
+			[
+				SNew(SImage)
+				.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+			]
+		]
+	];
+}
+
+class FNiagaraUserParameterCategoryBuilder : public IDetailCustomNodeBuilder, public TSharedFromThis<FNiagaraUserParameterCategoryBuilder>
+{
+public:
+	FNiagaraUserParameterCategoryBuilder(UNiagaraComponent* InComponent, const UNiagaraHierarchyCategory* InNiagaraHierarchyCategory, FName InCustomBuilderRowName,
+		TArray<TSharedPtr<FNiagaraParameterProxy>>& InParameterProxies, TMap<FName, TWeakPtr<FStructOnScope>>& InParameterNameToDisplayStruct,
+		TArray<TSharedPtr<IPropertyHandle>> InOverridePropertyHandles) : ParameterProxies(InParameterProxies), ParameterNameToDisplayStruct(InParameterNameToDisplayStruct)
+	{
+		HierarchyCategory = InNiagaraHierarchyCategory;
+		OverridePropertyHandles = InOverridePropertyHandles;
+		CustomBuilderRowName = InCustomBuilderRowName;
+
+		Component = InComponent;
+		bDelegatesInitialized = false;
+	}
+	
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override
+	{
+		NodeRow.NameContent()
+		[
+			SNew(STextBlock)
+			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+			.Text(FText::FromName(CustomBuilderRowName))
+			.ToolTipText(HierarchyCategory->GetTooltip())
+		];
+
+		NodeRow.FilterString(FText::FromName(CustomBuilderRowName));
+	}
+	virtual void Tick(float DeltaTime) override {}
+	virtual bool RequiresTick() const override { return false; }
+	virtual bool InitiallyCollapsed() const override { return false; }
+
+	virtual FName GetName() const  override
+	{
+		return CustomBuilderRowName;
+	}
+	
+	virtual void GenerateChildContent(IDetailChildrenBuilder& ChildrenBuilder) override
+	{
+		TArray<const UNiagaraHierarchyUserParameter*> ContainedParameters;
+		TArray<const UNiagaraHierarchyCategory*> ContainedCategories;
+
+		for(const UNiagaraHierarchyItemBase* Child : HierarchyCategory->GetChildren())
+		{
+			if(const UNiagaraHierarchyUserParameter* UserParameter = Cast<UNiagaraHierarchyUserParameter>(Child))
+			{
+				ContainedParameters.Add(UserParameter);
+			}
+		}
+
+		for(UNiagaraHierarchyItemBase* Child : HierarchyCategory->GetChildren())
+		{
+			if(UNiagaraHierarchyCategory* Category = Cast<UNiagaraHierarchyCategory>(Child))
+			{
+				ContainedCategories.Add(Category);
+			}
+		}
+
+		for(const UNiagaraHierarchyCategory* Category : ContainedCategories)
+		{
+			if(Category->DoesOneChildExist<UNiagaraHierarchyUserParameter>())
+			{
+				ChildrenBuilder.AddCustomBuilder(MakeShared<FNiagaraUserParameterCategoryBuilder>(
+					Component.Get(),Category, Category->GetCategoryName(),
+					ParameterProxies, ParameterNameToDisplayStruct,
+					OverridePropertyHandles));
+			}
+		}
+		
+		for(const UNiagaraHierarchyUserParameter* HierarchyUserParameter : ContainedParameters)
+		{
+			FNiagaraVariable Parameter = HierarchyUserParameter->GetUserParameter();
+			FNiagaraVariant ParameterValue = GetCurrentParameterValue(Parameter, Component.Get());
+			if (!ParameterValue.IsValid())
+			{
+				continue;
+			}
+		
+			if (Parameter.IsDataInterface())
+			{
+				ParameterValue = FNiagaraVariant(DuplicateObject(ParameterValue.GetDataInterface(), Component.Get()));
+			}
+			
+			TSharedPtr<FNiagaraParameterProxy> ParameterProxy = ParameterProxies.Add_GetRef(MakeShareable(new FNiagaraParameterProxy(Component, Parameter, ParameterValue, OnRebuildChildren, OverridePropertyHandles)));
+			AddRowForUserParameter(ParameterProxy, ChildrenBuilder, ParameterNameToDisplayStruct);
+		}
+	}
+
+private:
+	bool bDelegatesInitialized;
+	TWeakObjectPtr<UNiagaraComponent> Component;
+	TWeakObjectPtr<const UNiagaraHierarchyCategory> HierarchyCategory;
+	TArray<TSharedPtr<IPropertyHandle>> OverridePropertyHandles;
+	TArray<TSharedPtr<FNiagaraParameterProxy>>& ParameterProxies;
+	TMap<FName, TWeakPtr<FStructOnScope>>& ParameterNameToDisplayStruct;
+	FSimpleDelegate OnRebuildChildren;
+	FName CustomBuilderRowName;
 };
 
 class FNiagaraComponentNodeBuilder : public IDetailCustomNodeBuilder, public TSharedFromThis<FNiagaraComponentNodeBuilder>
@@ -291,7 +547,7 @@ public:
 		OnRebuildChildren = InOnRegenerateChildren;
 	}
 
-	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) {}
+	virtual void GenerateHeaderRowContent(FDetailWidgetRow& NodeRow) override;
 	virtual void Tick(float DeltaTime) override {}
 	virtual bool RequiresTick() const override { return false; }
 	virtual bool InitiallyCollapsed() const { return false; }
@@ -314,171 +570,164 @@ public:
 
 		ParameterProxies.Reset();
 
-		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-
 		UNiagaraSystem* SystemAsset = Component->GetAsset();
 		if (SystemAsset == nullptr)
 		{
 			return;
 		}
-
+		
 		TArray<FNiagaraVariable> UserParameters;
 		SystemAsset->GetExposedParameters().GetUserParameters(UserParameters);
-
+		
 		ParameterProxies.Reserve(UserParameters.Num());
 
 		ParameterNameToDisplayStruct.Empty();
-		for (const FNiagaraVariable& Parameter : UserParameters)
+		TMap<const UNiagaraHierarchySection*, TArray<const UNiagaraHierarchyCategory*>> SectionCategoryMap;
+
+		UNiagaraHierarchyRoot* Root = Cast<UNiagaraSystemEditorData>(SystemAsset->GetEditorData())->UserParameterHierarchy;
+		for(const UNiagaraHierarchyItemBase* Child : Root->GetChildren())
 		{
-			TSharedPtr<SWidget> NameWidget;
-
-			NameWidget =
-				SNew(STextBlock)
-				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-				.Text(FText::FromName(Parameter.GetName()));
-
-			IDetailPropertyRow* Row = nullptr;
-
-			TSharedPtr<SWidget> CustomValueWidget;
-			
-			FNiagaraVariant ParameterValue = GetCurrentParameterValue(Parameter, Component.Get());
-			if (!ParameterValue.IsValid())
+			if(const UNiagaraHierarchyCategory* HierarchyCategory = Cast<UNiagaraHierarchyCategory>(Child))
 			{
-				continue;
-			}
-
-			if (Parameter.IsDataInterface())
-			{
-				ParameterValue = FNiagaraVariant(DuplicateObject(ParameterValue.GetDataInterface(), Component.Get()));
-			}
-
-			TSharedPtr<FNiagaraParameterProxy> ParameterProxy = ParameterProxies.Add_GetRef(MakeShareable(new FNiagaraParameterProxy(Component, Parameter, ParameterValue, OnRebuildChildren, OverridePropertyHandles)));
-				
-			if (Parameter.IsDataInterface())
-			{
-				// duplicate the DI here so that if it is changed, the component's SetParameterOverride will override the value
-				// if no changes are made, then it'll just be the same as the asset
-				TArray<UObject*> Objects { ParameterProxy->Value().GetDataInterface() };
-
-				FAddPropertyParams Params = FAddPropertyParams()
-					.UniqueId(Parameter.GetName())
-					.AllowChildren(true)
-					.CreateCategoryNodes(false);
-
-				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params); 
-
-				CustomValueWidget =
-					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-					.Text(FText::FromString(FName::NameToDisplayString(Parameter.GetType().GetClass()->GetName(), false)));
-			}
-			else if (Parameter.IsUObject())
-			{
-				TArray<UObject*> Objects { ParameterProxy->Value().GetUObject() };
-
-				// How do I set this up so I can have this pick actors from the level?
-
-				FAddPropertyParams Params = FAddPropertyParams()
-					.UniqueId(Parameter.GetName())
-					.AllowChildren(false) // Don't show the material's properties
-					.CreateCategoryNodes(false);
-
-				Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
-
-				CustomValueWidget = SNew(SObjectPropertyEntryBox)
-					.ObjectPath(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetCurrentAssetPath)
-					.AllowedClass(Parameter.GetType().GetClass())
-					.OnObjectChanged(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnAssetSelectedFromPicker)
-					.AllowClear(false)
-					.DisplayUseSelected(true)
-					.DisplayBrowse(true)
-					.DisplayThumbnail(true)
-					.NewAssetFactories(TArray<UFactory*>());
-			}
-			else
-			{
-				FNiagaraTypeDefinition Type = Parameter.GetType();
-				UStruct* Struct = Type.GetStruct();
-				if (Type == FNiagaraTypeDefinition::GetPositionDef())
+				if(HierarchyCategory->GetSection() != nullptr)
 				{
-					static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
-					static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
-					Struct = VectorStruct;
+					SectionCategoryMap.FindOrAdd(HierarchyCategory->GetSection()).Add(HierarchyCategory);	
 				}
-				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Struct, ParameterProxy->Value().GetBytes()));
+			}
+		}
 
-				FAddPropertyParams Params = FAddPropertyParams()
-					.UniqueId(Parameter.GetName());
+		// we create a custom row for user param sections here, but only if we have at least one section specified
+		if(SectionCategoryMap.Num() > 0)
+		{
+			TSharedRef<SHorizontalBox> SectionsBox = SNew(SHorizontalBox);
+			
+			for(auto& SectionCategories : SectionCategoryMap)
+			{
+				const UNiagaraHierarchySection* Section = SectionCategories.Key;
+				TArray<const UNiagaraHierarchyCategory*>& HierarchyCategories = SectionCategories.Value;
+				
+				if(HierarchyCategories.Num() > 0)
+				{
+					bool bDoesUserParamExist = false;
+					for(const UNiagaraHierarchyCategory* Category : HierarchyCategories)
+					{
+						bDoesUserParamExist |= Category->DoesOneChildExist<UNiagaraHierarchyUserParameter>(true);
 
-				Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Params);
+						if(bDoesUserParamExist)
+						{
+							break;
+						}
+					}
 
-				FNiagaraVariable UserParameter = Parameter;
-				FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserParameter);
-				ParameterNameToDisplayStruct.Add(UserParameter.GetName(), TWeakPtr<FStructOnScope>(StructOnScope));
+					if(bDoesUserParamExist)
+					{
+						SectionsBox->AddSlot()
+						.AutoWidth()
+						.Padding(FMargin(2.f))
+						[
+							SNew(SBox)
+							.Padding(FMargin(0.f, 4.f, 0.f, 0.f))
+							[
+								SNew(SCheckBox)
+								.Style(FAppStyle::Get(), "DetailsView.SectionButton")
+								.OnCheckStateChanged(this, &FNiagaraComponentNodeBuilder::OnActiveSectionChanged, Section)
+								.IsChecked(this, &FNiagaraComponentNodeBuilder::IsSectionActive, Section)
+								[
+									SNew(STextBlock)
+									.TextStyle(FAppStyle::Get(), "SmallText")
+									.Text(Section->GetSectionNameAsText())
+									.ToolTipText(Section->GetTooltip())
+								]
+							]
+						];
+					}
+				}
 			}
 
-			check(Row && ParameterProxy.IsValid() && ParameterProxy->Value().IsValid());
-
-			TSharedPtr<SWidget> DefaultNameWidget;
-			TSharedPtr<SWidget> DefaultValueWidget;
-
-			Row->DisplayName(FText::FromName(Parameter.GetName()));
-
-			FDetailWidgetRow& CustomWidget = Row->CustomWidget(true);
-
-			Row->GetDefaultWidgets(DefaultNameWidget, DefaultValueWidget, CustomWidget);
-
-			Row->GetPropertyHandle()->SetOnPropertyValuePreChange(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterPreChange));
-			Row->GetPropertyHandle()->SetOnChildPropertyValuePreChange(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterPreChange));
-			Row->GetPropertyHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterChanged));
-			Row->GetPropertyHandle()->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnParameterChanged));
-			Row->GetPropertyHandle()->SetOnPropertyResetToDefault(FSimpleDelegate::CreateSP(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnResetToDefault));
-
-			CustomWidget
-				.NameContent()
+			// if we have at least one custom section, we add a default "All" section
+			if(SectionsBox->GetChildren()->Num() > 0)
+			{
+				SectionsBox->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(2.f))
 				[
 					SNew(SBox)
-					.Padding(FMargin(0.0f, 2.0f))
+					.Padding(FMargin(0.f, 4.f, 0.f, 0.f))
 					[
-						NameWidget.ToSharedRef()
-					]
-				];
-
-			TSharedPtr<SWidget> ValueWidget = DefaultValueWidget;
-			if (CustomValueWidget.IsValid())
-			{
-				ValueWidget = CustomValueWidget;
-			}
-
-			CustomWidget
-				.ValueContent()
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Fill)
-					.Padding(4.0f)
-					[
-						// Add in the parameter editor factoried above.
-						ValueWidget.ToSharedRef()
-					]
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						// Add in the "reset to default" buttons
-						SNew(SButton)
-						.OnClicked(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::OnResetToDefaultClicked)
-						.Visibility(ParameterProxy.ToSharedRef(), &FNiagaraParameterProxy::GetResetToDefaultVisibility)
-						.ContentPadding(FMargin(5.f, 0.f))
-						.ToolTipText(LOCTEXT("ResetToDefaultToolTip", "Reset to Default"))
-						.ButtonStyle(FAppStyle::Get(), "NoBorder")
-						.Content()
+						SNew(SCheckBox)
+						.Style(FAppStyle::Get(), "DetailsView.SectionButton")
+						.OnCheckStateChanged(this, &FNiagaraComponentNodeBuilder::OnActiveSectionChanged, (const UNiagaraHierarchySection*) nullptr)
+						.IsChecked(this, &FNiagaraComponentNodeBuilder::IsSectionActive, (const UNiagaraHierarchySection*) nullptr)
 						[
-							SNew(SImage)
-							.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+							SNew(STextBlock)
+							.TextStyle(FAppStyle::Get(), "SmallText")
+							.Text(FText::FromString("All"))
 						]
 					]
 				];
+				
+				FDetailWidgetRow& Row = ChildrenBuilder.AddCustomRow(FText::FromString("Parameter Sections"));
+				Row.WholeRowContent()
+				[
+					SectionsBox
+				];
+			}
+		}
+
+		// we add the categories now if the active section is set to all (nullptr) or if the section it belongs to is active
+		for(const UNiagaraHierarchyItemBase* Child : Root->GetChildren())
+		{
+			if(const UNiagaraHierarchyCategory* HierarchyCategory = Cast<UNiagaraHierarchyCategory>(Child))
+			{
+				if(HierarchyCategory->DoesOneChildExist<UNiagaraHierarchyUserParameter>(true) && (ActiveSection == nullptr || HierarchyCategory->GetSection() == ActiveSection))
+				{
+					ChildrenBuilder.AddCustomBuilder(MakeShared<FNiagaraUserParameterCategoryBuilder>(
+						Component.Get(), HierarchyCategory, HierarchyCategory->GetCategoryName(),
+						ParameterProxies, ParameterNameToDisplayStruct,
+						OverridePropertyHandles));
+				}
+			}
+		}
+
+		// at last we add all parameters that haven't been setup at all, if the active section is set to "All"
+		if(ActiveSection == nullptr)
+		{
+			TArray<FNiagaraVariable> LeftoverUserParameters;
+			SystemAsset->GetExposedParameters().GetUserParameters(LeftoverUserParameters);
+
+			TArray<UNiagaraHierarchyUserParameter*> HierarchyUserParameters;
+			Root->GetChildrenOfType<>(HierarchyUserParameters, true);
+
+			TArray<FNiagaraVariable> RedirectedUserParameters;
+			for(FNiagaraVariable& Parameter : LeftoverUserParameters)
+			{
+				SystemAsset->GetExposedParameters().RedirectUserVariable(Parameter);
+			}
+			
+			for(UNiagaraHierarchyUserParameter* HierarchyUserParameter : HierarchyUserParameters)
+			{
+				if(LeftoverUserParameters.Contains(HierarchyUserParameter->GetUserParameter()))
+				{
+					LeftoverUserParameters.Remove(HierarchyUserParameter->GetUserParameter());
+				}
+			}
+
+			for(FNiagaraVariable& LeftoverUserParameter : LeftoverUserParameters)
+			{
+				FNiagaraVariant ParameterValue = GetCurrentParameterValue(LeftoverUserParameter, Component.Get());
+				if (!ParameterValue.IsValid())
+				{
+					continue;
+				}
+			
+				if (LeftoverUserParameter.IsDataInterface())
+				{
+					ParameterValue = FNiagaraVariant(DuplicateObject(ParameterValue.GetDataInterface(), Component.Get()));
+				}
+				
+				TSharedPtr<FNiagaraParameterProxy> ParameterProxy = ParameterProxies.Add_GetRef(MakeShareable(new FNiagaraParameterProxy(Component, LeftoverUserParameter, ParameterValue, OnRebuildChildren, OverridePropertyHandles)));
+				AddRowForUserParameter(ParameterProxy, ChildrenBuilder, ParameterNameToDisplayStruct);
+			}
 		}
 	}
 
@@ -518,6 +767,17 @@ private:
 		}
 	}
 
+	void OnActiveSectionChanged(ECheckBoxState State, const UNiagaraHierarchySection* NewSelection)
+	{
+		ActiveSection = NewSelection;
+		OnRebuildChildren.Execute();
+	}
+
+	ECheckBoxState IsSectionActive(const UNiagaraHierarchySection* Section) const
+	{
+		return ActiveSection == Section ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
 private:
 	bool bDelegatesInitialized;
 	TWeakObjectPtr<UNiagaraComponent> Component;
@@ -526,7 +786,13 @@ private:
 	TArray<TSharedPtr<FNiagaraParameterProxy>> ParameterProxies;
 	TMap<FName, TWeakPtr<FStructOnScope>> ParameterNameToDisplayStruct;
 	FName CustomBuilderRowName;
+	const UNiagaraHierarchySection* ActiveSection = nullptr;
+	TArray<UNiagaraHierarchySection*> AvailableSections;
 };
+
+void FNiagaraComponentNodeBuilder::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
+{
+}
 
 TSharedRef<IDetailCustomization> FNiagaraComponentDetails::MakeInstance()
 {
@@ -580,7 +846,6 @@ void FNiagaraComponentDetails::OnWorldDestroyed(class UWorld* InWorld)
 
 void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	Builder = &DetailBuilder;
@@ -640,13 +905,13 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 
 		FGameDelegates::Get().GetEndPlayMapDelegate().AddRaw(this, &FNiagaraComponentDetails::OnPiEEnd);
 			
-		IDetailCategoryBuilder& InputParamCategory = DetailBuilder.EditCategory(ParamCategoryName, LOCTEXT("ParamCategoryName", "Override Parameters"), ECategoryPriority::Important);
+		IDetailCategoryBuilder& InputParamCategory = DetailBuilder.EditCategory(ParamCategoryName, LOCTEXT("ParamCategoryName", "User Parameters"), ECategoryPriority::Important);
 		InputParamCategory.AddCustomBuilder(MakeShared<FNiagaraComponentNodeBuilder>(Component.Get(), PropertyHandles, ParamCategoryName));
 	}
 	else if (ObjectsCustomized.Num() > 1)
 	{
-		IDetailCategoryBuilder& InputParamCategory = DetailBuilder.EditCategory(ParamCategoryName, LOCTEXT("ParamCategoryName", "Override Parameters"));
-		InputParamCategory.AddCustomRow(LOCTEXT("ParamCategoryName", "Override Parameters"))
+		IDetailCategoryBuilder& InputParamCategory = DetailBuilder.EditCategory(ParamCategoryName, LOCTEXT("ParamCategoryName", "User Parameters"));
+		InputParamCategory.AddCustomRow(LOCTEXT("ParamCategoryName", "User Parameters"))
 			.WholeRowContent()
 			[
 				SNew(STextBlock)

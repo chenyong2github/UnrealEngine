@@ -112,3 +112,19 @@ private:
 
 	static const FName DefaultValueCategoryName;
 };
+
+/** This customization sets up a custom details panel for script variables found in the hierarchy editor. */
+class FNiagaraScriptVariableHierarchyDetails : public IDetailCustomization
+{
+public:
+ 
+	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
+	static TSharedRef<IDetailCustomization> MakeInstance();
+ 
+	FNiagaraScriptVariableHierarchyDetails();
+	virtual ~FNiagaraScriptVariableHierarchyDetails() override {}
+ 
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+};
+

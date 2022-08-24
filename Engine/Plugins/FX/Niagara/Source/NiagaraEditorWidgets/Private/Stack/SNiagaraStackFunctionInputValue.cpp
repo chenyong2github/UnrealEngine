@@ -15,6 +15,7 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraScriptVariable.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraSystem.h"
 #include "ScopedTransaction.h"
@@ -50,6 +51,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraCommon.h"
+#include "NiagaraScriptVariable.h"
 #include "NiagaraSettings.h"
 #include "SNiagaraParameterDropTarget.h"
 #include "Stack/SNiagaraStackIndent.h"
@@ -251,10 +253,32 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Linked:
 	{
-		return SNew(SNiagaraParameterName)
+		TSharedRef<SWidget> ParameterWidget = SNew(SNiagaraParameterName)
 			.ReadOnlyTextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.ParameterName(this, &SNiagaraStackFunctionInputValue::GetLinkedValueHandleName)
 			.OnDoubleClicked(this, &SNiagaraStackFunctionInputValue::OnLinkedInputDoubleClicked);
+
+		if(FunctionInput->GetLinkedValueHandle().IsUserHandle())
+		{
+			FNiagaraParameterHandle ParameterHandle = FunctionInput->GetLinkedValueHandle();
+			TArray<FNiagaraVariable> UserParameters;
+			FunctionInput->GetSystemViewModel()->GetSystem().GetExposedParameters().GetUserParameters(UserParameters);
+			FNiagaraVariable* MatchingVariable = UserParameters.FindByPredicate([ParameterHandle](const FNiagaraVariable& Variable)
+			{
+				return Variable.GetName().ToString() == ParameterHandle.GetName().ToString();
+			});
+
+			if(MatchingVariable)
+			{
+				FText Tooltip = FNiagaraEditorUtilities::GetScriptVariableForUserParameter(*MatchingVariable, FunctionInput->GetSystemViewModel())->Metadata.Description;
+				if(!Tooltip.IsEmpty())
+				{
+					ParameterWidget->SetToolTipText(Tooltip);
+				}
+			}
+		}
+			
+		return ParameterWidget; 
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Data:
 	{

@@ -61,6 +61,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
+#include "ViewModels/HierarchyEditor/NiagaraUserParametersHierarchyViewModel.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
@@ -146,6 +147,9 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 
 	ScalabilityViewModel = NewObject<UNiagaraSystemScalabilityViewModel>(GetTransientPackage());
 	ScalabilityViewModel->Initialize(this->AsShared());
+
+	UserParametersHierarchyViewModel = NewObject<UNiagaraUserParametersHierarchyViewModel>(GetTransientPackage());
+	UserParametersHierarchyViewModel->Initialize(this->AsShared());
 	
 	PlaceholderDataInterfaceManager = MakeShared<FNiagaraPlaceholderDataInterfaceManager>(this->AsShared());
 
@@ -262,6 +266,12 @@ void FNiagaraSystemViewModel::Cleanup()
 	if(ScalabilityViewModel != nullptr)
 	{
 		ScalabilityViewModel = nullptr;
+	}
+	
+	if(UserParametersHierarchyViewModel != nullptr)
+	{
+		UserParametersHierarchyViewModel->Finalize();
+		UserParametersHierarchyViewModel = nullptr;
 	}
 
 	if (PlaceholderDataInterfaceManager.IsValid())
@@ -731,6 +741,10 @@ void FNiagaraSystemViewModel::AddReferencedObjects(FReferenceCollector& Collecto
 	{
 		Collector.AddReferencedObject(ScalabilityViewModel);
 	}
+	if (UserParametersHierarchyViewModel != nullptr)
+	{
+		Collector.AddReferencedObject(UserParametersHierarchyViewModel);
+	}
 }
 
 void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
@@ -989,6 +1003,11 @@ UNiagaraSystemScalabilityViewModel* FNiagaraSystemViewModel::GetScalabilityViewM
 	return ScalabilityViewModel;
 }
 
+UNiagaraUserParametersHierarchyViewModel* FNiagaraSystemViewModel::GetUserParametersHierarchyViewModel()
+{
+	return UserParametersHierarchyViewModel;
+}
+
 TArray<float> FNiagaraSystemViewModel::OnGetPlaybackSpeeds() const
 {
 	return GetDefault<UNiagaraEditorSettings>()->GetPlaybackSpeeds();
@@ -1033,8 +1052,10 @@ bool FNiagaraSystemViewModel::RenameParameter(const FNiagaraVariable TargetParam
 		else
 		{
 			// Otherwise it's safe to rename.
+			GetEditorData().RenameUserScriptVariable(TargetParameter, NewName);
 			ExposedParametersStore->RenameParameter(TargetParameter, NewName);
 		}
+		
 		bExposedParametersRename = true;
 	}
 

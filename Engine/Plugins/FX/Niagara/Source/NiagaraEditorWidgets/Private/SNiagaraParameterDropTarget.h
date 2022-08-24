@@ -16,7 +16,6 @@
 class NIAGARAEDITORWIDGETS_API SNiagaraParameterDropTarget : public SDropTarget
 {
 public:
-    DECLARE_DELEGATE_OneParam(FOnDragOperationDragged, TSharedPtr<FDragDropOperation>)
     SLATE_BEGIN_ARGS(SNiagaraParameterDropTarget)
 	    : _DropTargetArgs(SDropTarget::FArguments())
 		, _TargetParameter(TOptional<FNiagaraVariable>())

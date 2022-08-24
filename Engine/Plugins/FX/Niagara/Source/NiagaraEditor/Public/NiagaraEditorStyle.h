@@ -51,6 +51,7 @@ private:
 	void InitScalabilityColors();
 	void InitScalabilityIcons();
 	void InitScratchStyle();
+	void InitHierarchyEditor();
 
 	static TSharedPtr<FNiagaraEditorStyle> NiagaraEditorStyle;
 };
