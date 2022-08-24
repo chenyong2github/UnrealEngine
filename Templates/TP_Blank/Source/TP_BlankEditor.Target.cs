@@ -9,6 +9,7 @@ public class TP_BlankEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.Latest;
-		ExtraModuleNames.AddRange( new string[] { "TP_Blank" } );
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+		ExtraModuleNames.Add("TP_Blank");
 	}
 }
