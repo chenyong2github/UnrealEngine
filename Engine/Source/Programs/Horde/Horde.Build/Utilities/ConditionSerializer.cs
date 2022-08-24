@@ -24,7 +24,7 @@ namespace Horde.Build.Utilities
 		/// <inheritdoc/>
 		public Condition Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
 		{
-			if (context.Reader.CurrentBsonType == BsonType.Null)
+			if (context.Reader.ReadBsonType() == BsonType.Null)
 			{
 				return null!;
 			}
