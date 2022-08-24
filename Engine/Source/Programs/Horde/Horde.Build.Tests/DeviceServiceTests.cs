@@ -136,6 +136,8 @@ namespace Horde.Build.Tests
 			// create a reservation
 			GetLegacyReservationResponse reservation = ResultToValue(await DeviceController!.CreateDeviceReservationV1Async(request));			
 			Assert.AreEqual(1, reservation.DeviceNames.Length);
+			Assert.AreEqual("hello2", reservation.JobName);
+			Assert.AreEqual("abcd", reservation.StepId);
 
 			// get the device in the reservation, and make sure it is the right platform
 			GetLegacyDeviceResponse device = ResultToValue(await DeviceController!.GetDeviceV1Async(reservation.DeviceNames[0]));
@@ -155,6 +157,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(telemetry[0].Telemetry.Count, 1);
 			Assert.AreEqual(telemetry[0].Telemetry[0].StreamId, "ue5-main");
 			Assert.AreEqual(telemetry[0].Telemetry[0].StepId, "abcd");
+			Assert.AreEqual(telemetry[0].Telemetry[0].JobName, "hello2");
 		}
 
 		[TestMethod]

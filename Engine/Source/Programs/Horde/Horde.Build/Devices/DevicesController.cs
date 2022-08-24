@@ -656,6 +656,8 @@ namespace Horde.Build.Devices
 					Devices = reservation.Devices.Select(x => x.ToString()).ToList(),
 					JobId = reservation.JobId?.ToString(),
 					StepId = reservation.StepId?.ToString(),
+					JobName = reservation.JobName?.ToString(),
+					StepName = reservation.StepName?.ToString(),
 					UserId = reservation.UserId?.ToString(),
 					Hostname = reservation.Hostname,
 					ReservationDetails = reservation.ReservationDetails,
@@ -965,6 +967,10 @@ namespace Horde.Build.Devices
 			response.HostName = request.Hostname;
 			response.StartDateTime = reservation.CreateTimeUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
 			response.Duration = $"{request.Duration}";
+			response.JobId = reservation.JobId;
+			response.StepId = reservation.StepId;
+			response.JobName = reservation.JobName;
+			response.StepName = reservation.StepName;
 
 			return new JsonResult(response, new JsonSerializerOptions() { PropertyNamingPolicy = null });
 

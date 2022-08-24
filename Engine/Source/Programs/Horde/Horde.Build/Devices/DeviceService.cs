@@ -407,17 +407,35 @@ namespace Horde.Build.Devices
 		public async Task<IDeviceReservation?> TryCreateReservationAsync(DevicePoolId pool, List<DeviceRequestData> request, string? hostname = null, string? reservationDetails = null, string? jobId = null, string? stepId = null)
 		{
 			string? streamId = null;
+			string? jobName = null;
+			string? stepName = null;
 
 			if (jobId != null)
 			{
 				IJob? job = await _jobService.GetJobAsync(new JobId(jobId));
 				if (job != null)
-				{
+				{					
 					streamId = job.StreamId.ToString();
+					jobName = job.Name;
+
+					if (stepId != null)
+					{
+						SubResourceId id = SubResourceId.Parse(stepId);
+						IGraph graph = await _jobService.GetGraphAsync(job);
+						foreach (IJobStepBatch batch in job.Batches)
+						{
+							IJobStep? step;							
+							if (batch.TryGetStep(id, out step))
+							{
+								stepName = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
+								break;
+							}
+						}
+					}
 				}
 			}
 
-			return await _devices.TryAddReservationAsync(pool, request, hostname, reservationDetails, streamId, jobId, stepId);
+			return await _devices.TryAddReservationAsync(pool, request, hostname, reservationDetails, streamId, jobId, stepId, jobName, stepName);
 		}
 
 		/// <summary>

@@ -50,6 +50,16 @@ namespace Horde.Build.Devices
 		public string? StepId { get; }
 
 		/// <summary>
+		/// Job name holding reservation
+		/// </summary>
+		public string? JobName { get; }
+
+		/// <summary>
+		/// Job step name holding reservation
+		/// </summary>
+		public string? StepName { get; }
+
+		/// <summary>
 		/// Reservations held by a user, requires a token
 		/// </summary>
 		public UserId? UserId { get; }
@@ -227,9 +237,19 @@ namespace Horde.Build.Devices
 		public string? JobId { get; }
 
 		/// <summary>
+		/// The job name which utilized device
+		/// </summary>
+		public string? JobName { get; }
+
+		/// <summary>
 		/// The job's step id
 		/// </summary>
 		public string? StepId { get; }
+
+		/// <summary>
+		/// The job name which utilized device
+		/// </summary>
+		public string? StepName { get; }
 
 		/// <summary>
 		/// Reservation Id (transient, reservations are deleted upon expiration)

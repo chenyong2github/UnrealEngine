@@ -113,6 +113,12 @@ namespace Horde.Build.Devices
 			[BsonIgnoreIfNull]
 			public string? StepId { get; set; }
 
+			[BsonIgnoreIfNull]
+			public string? JobName { get; set; }
+
+			[BsonIgnoreIfNull]
+			public string? StepName { get; set; }
+
 			/// <summary>
 			/// Reservations held by a user, requires a token like download code
 			/// </summary>
@@ -151,7 +157,7 @@ namespace Horde.Build.Devices
 
 			}
 
-			public DeviceReservationDocument(ObjectId id, DevicePoolId poolId, List<DeviceId> devices, List<string> requestedDevicePlatforms, DateTime createTimeUtc, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId)
+			public DeviceReservationDocument(ObjectId id, DevicePoolId poolId, List<DeviceId> devices, List<string> requestedDevicePlatforms, DateTime createTimeUtc, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId, string? jobName, string? stepName)
 			{
 				Id = id;
 				PoolId = poolId;
@@ -164,6 +170,8 @@ namespace Horde.Build.Devices
 				StreamId = streamId;
 				JobId = jobId;
 				StepId = stepId;
+				JobName = jobName;
+				StepName = stepName;
 
 				LegacyGuid = Guid.NewGuid().ToString();
 			}
@@ -282,10 +290,22 @@ namespace Horde.Build.Devices
 			public string? JobId { get; set; }
 
 			/// <summary>
+			/// The job name
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public string? JobName { get; set; }
+
+			/// <summary>
 			/// The job's step id
 			/// </summary>
 			[BsonIgnoreIfNull, BsonElement("step")]
 			public string? StepId { get; set; }
+
+			/// <summary>
+			/// The step name
+			/// </summary>
+			[BsonIgnoreIfNull]
+			public string? StepName { get; set; }
 
 			/// <summary>
 			/// Reservation Id (transient, reservations are deleted upon expiration)
@@ -316,7 +336,7 @@ namespace Horde.Build.Devices
 			{
 			}
 
-			public DeviceTelemetryDocument(DeviceId deviceId, ObjectId? reservationId = null, DateTime? reservationStartTime = null, string? streamId = null, string? jobId = null, string? stepId = null)
+			public DeviceTelemetryDocument(DeviceId deviceId, ObjectId? reservationId = null, DateTime? reservationStartTime = null, string? streamId = null, string? jobId = null, string? stepId = null, string? jobName = null, string? stepName = null)
 			{
 				TelemetryId = ObjectId.GenerateNewId();
 				CreateTimeUtc = DateTime.UtcNow;
@@ -328,6 +348,8 @@ namespace Horde.Build.Devices
 				StreamId = streamId;
 				JobId = jobId;
 				StepId = stepId;
+				JobName = jobName;
+				StepName = stepName;
 			}
 
 		}
@@ -772,7 +794,7 @@ namespace Horde.Build.Devices
 		}
 
 		/// <inheritdoc/>
-		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId)
+		public async Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId, string? jobName, string? stepName)
 		{
 
 			if (request.Count == 0)
@@ -898,14 +920,14 @@ namespace Horde.Build.Devices
 			List<string> requestedPlatforms = deviceIds.Select(x => platformRequestMap[x]).ToList();
 
 			// Create new reservation
-			DeviceReservationDocument newReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), poolId, deviceIds, requestedPlatforms, reservationTimeUtc, hostname, reservationDetails, streamId, jobId, stepId);
+			DeviceReservationDocument newReservation = new DeviceReservationDocument(ObjectId.GenerateNewId(), poolId, deviceIds, requestedPlatforms, reservationTimeUtc, hostname, reservationDetails, streamId, jobId, stepId, jobName, stepName);
 			await _reservations.InsertOneAsync(newReservation);
 
 			// Create device telemetry data for reservation
 			List<DeviceTelemetryDocument> telemetry = new List<DeviceTelemetryDocument>();
 			foreach (DeviceId deviceId in deviceIds)
 			{
-				telemetry.Add(new DeviceTelemetryDocument(deviceId, newReservation.Id, newReservation.CreateTimeUtc, streamId, jobId, stepId));
+				telemetry.Add(new DeviceTelemetryDocument(deviceId, newReservation.Id, newReservation.CreateTimeUtc, streamId, jobId, stepId, jobName, stepName));
 			}
 
 			if (telemetry.Count > 0)

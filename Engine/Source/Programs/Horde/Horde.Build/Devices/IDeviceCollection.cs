@@ -186,7 +186,9 @@ namespace Horde.Build.Devices
 		/// <param name="streamId">The Stream Id associated with the job</param>
 		/// <param name="jobId">The Job Id associated with the job</param>
 		/// <param name="stepId">The Step Id associated with the job</param>
-		Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId);
+		/// <param name="jobName">The Job name associated with the job</param>
+		/// <param name="stepName">The Step name associated with the job</param>		
+		Task<IDeviceReservation?> TryAddReservationAsync(DevicePoolId poolId, List<DeviceRequestData> request, string? hostname, string? reservationDetails, string? streamId, string? jobId, string? stepId, string? jobName, string? stepName);
 
 		/// <summary>
 		/// Gets a reservation by guid for legacy clients

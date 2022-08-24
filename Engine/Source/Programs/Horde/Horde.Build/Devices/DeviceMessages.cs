@@ -521,6 +521,16 @@ namespace Horde.Build.Devices
 		public string? StepId { get; set; }
 
 		/// <summary>
+		/// Job mame holding reservation
+		/// </summary>
+		public string? JobName { get; set; }
+
+		/// <summary>
+		/// Job step holding reservation
+		/// </summary>
+		public string? StepName { get; set; }
+
+		/// <summary>
 		/// Reservations held by a user, requires a token
 		/// </summary>
 		public string? UserId { get; set; }
@@ -568,9 +578,19 @@ namespace Horde.Build.Devices
 		public string? JobId { get; set; }
 
 		/// <summary>
+		/// The job name which utilized device
+		/// </summary>
+		public string? JobName { get; set; }
+
+		/// <summary>
 		/// The job's step id
 		/// </summary>
 		public string? StepId { get; set; }
+
+		/// <summary>
+		/// The job name which utilized device
+		/// </summary>
+		public string? StepName { get; set; }
 
 		/// <summary>
 		/// If this telemetry has a reservation, the start time of the reservation
@@ -597,6 +617,8 @@ namespace Horde.Build.Devices
 			StreamId = data.StreamId;
 			JobId = data.JobId;
 			StepId = data.StepId;
+			JobName = data.JobName;
+			StepName = data.StepName;
 			ReservationStartUtc = data.ReservationStartUtc;
 			ReservationFinishUtc = data.ReservationFinishUtc;
 			ProblemTimeUtc = data.ProblemTimeUtc;
@@ -813,6 +835,16 @@ namespace Horde.Build.Devices
 		/// The StepId of reservation request 
 		/// </summary>
 		public string? StepId { get; set; } = null;
+
+		/// <summary>
+		/// The job name of reservation request 
+		/// </summary>
+		public string? JobName { get; set; } = null;
+
+		/// <summary>
+		/// The step name of reservation request 
+		/// </summary>
+		public string? StepName { get; set; } = null;
 
 		/// <summary>
 		/// The legacy guid of the reservation
