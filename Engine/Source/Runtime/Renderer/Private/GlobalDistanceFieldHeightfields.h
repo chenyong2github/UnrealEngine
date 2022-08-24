@@ -15,8 +15,8 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWMarkedHeightfieldPageBuffer)
 		RDG_BUFFER_ACCESS(PageUpdateIndirectArgBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageUpdateTileBuffer)
-		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterScale)
-		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterBias)
+		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterScale)
+		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterBias)
 		SHADER_PARAMETER(FVector3f, PageWorldExtent)
 		SHADER_PARAMETER(FVector3f, InvPageGridResolution)
 		SHADER_PARAMETER(FIntVector, PageGridResolution)
@@ -29,6 +29,9 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, HeightfieldDescriptions)
 		SHADER_PARAMETER(uint32, NumHeightfields)
 		SHADER_PARAMETER(float, HeightfieldThickness)
+
+		SHADER_PARAMETER(FVector3f, ViewTilePosition)
+		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -127,11 +130,11 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, PageTableLayerTexture)
 		SHADER_PARAMETER(FVector3f, InvPageGridResolution)
 		SHADER_PARAMETER(FIntVector, PageGridResolution)
-		SHADER_PARAMETER(FVector3f, PageCoordToVoxelCenterScale)
-		SHADER_PARAMETER(FVector3f, PageCoordToVoxelCenterBias)
-		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterScale)
-		SHADER_PARAMETER(FVector3f, PageCoordToPageWorldCenterBias)
-		SHADER_PARAMETER(FVector4f, ClipmapVolumeWorldToUVAddAndMul)
+		SHADER_PARAMETER(FVector3f, PageCoordToVoxelTranslatedCenterScale)
+		SHADER_PARAMETER(FVector3f, PageCoordToVoxelTranslatedCenterBias)
+		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterScale)
+		SHADER_PARAMETER(FVector3f, PageCoordToPageTranslatedWorldCenterBias)
+		SHADER_PARAMETER(FVector4f, ClipmapVolumeTranslatedWorldToUVAddAndMul)
 		SHADER_PARAMETER(float, ClipmapVoxelExtent)
 		SHADER_PARAMETER(float, InfluenceRadius)
 		SHADER_PARAMETER(uint32, PageTableClipmapOffsetZ)
@@ -142,6 +145,9 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, HeightfieldDescriptions)
 		SHADER_PARAMETER(uint32, NumHeightfields)
 		SHADER_PARAMETER(float, HeightfieldThickness)
+
+		SHADER_PARAMETER(FVector3f, ViewTilePosition)
+		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FCompositeCoverageAtlas : SHADER_PERMUTATION_BOOL("COMPOSITE_COVERAGE_ATLAS");

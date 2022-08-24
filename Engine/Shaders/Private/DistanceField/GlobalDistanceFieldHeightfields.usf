@@ -16,12 +16,12 @@ StructuredBuffer<uint> PageUpdateTileBuffer;
 StructuredBuffer<uint> ComposeTileBuffer;
 Texture3D<uint> PageTableLayerTexture;
 
-float3 PageCoordToPageWorldCenterScale;
-float3 PageCoordToPageWorldCenterBias;
-float3 PageCoordToVoxelCenterScale;
-float3 PageCoordToVoxelCenterBias;
+float3 PageCoordToPageTranslatedWorldCenterScale;
+float3 PageCoordToPageTranslatedWorldCenterBias;
+float3 PageCoordToVoxelTranslatedCenterScale;
+float3 PageCoordToVoxelTranslatedCenterBias;
 float3 PageWorldExtent;
-float4 ClipmapVolumeWorldToUVAddAndMul;
+float4 ClipmapVolumeTranslatedWorldToUVAddAndMul;
 float3 InvPageGridResolution;
 uint3 PageGridResolution;
 uint PageTableClipmapOffsetZ;
@@ -29,12 +29,14 @@ float ClipmapVoxelExtent;
 float InfluenceRadius;
 float HeightfieldThickness;
 
+float3 ViewTilePosition;
+float3 RelativePreViewTranslation;
+
 uint3 PageGridCoordToPageTableTextureCoord(uint3 PageGridCoord)
 {
-	float3 PageWorldCenter = PageGridCoord * PageCoordToPageWorldCenterScale + PageCoordToPageWorldCenterBias;
+	float3 PageTranslatedWorldCenter = PageGridCoord * PageCoordToPageTranslatedWorldCenterScale + PageCoordToPageTranslatedWorldCenterBias;
 
-	float4 WorldToUVAddAndMul = ClipmapVolumeWorldToUVAddAndMul;
-	float3 ClipmapUV = frac(PageWorldCenter * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz);
+	float3 ClipmapUV = frac(PageTranslatedWorldCenter * ClipmapVolumeTranslatedWorldToUVAddAndMul.www + ClipmapVolumeTranslatedWorldToUVAddAndMul.xyz);
 
 	int3 PageTableTextureCoord = clamp(saturate(ClipmapUV) * PageGridResolution, 0, PageGridResolution - 1) + int3(0, 0, PageTableClipmapOffsetZ);
 	return PageTableTextureCoord;
@@ -48,6 +50,8 @@ void MarkHeightfieldPagesCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+	const FLWCVector3 PreViewTranslation = MakeLWCVector3(-ViewTilePosition, RelativePreViewTranslation);
+
 	uint3 VoxelCoord = uint3(GroupThreadId.xy, 0);
 	uint ThreadIndex = GroupThreadId.x + GroupThreadId.y * THREADGROUP_SIZE_X;
 	uint IndexInPageBuffer = GroupId.x;
@@ -58,8 +62,9 @@ void MarkHeightfieldPagesCS(
 	PageGridCoord.y = (PackedPageGridCoord >> 8) & 0xFF;
 	PageGridCoord.z = (PackedPageGridCoord >> 16) & 0xFF;
 
-	float3 PageWorldCenter = PageGridCoord * PageCoordToPageWorldCenterScale + PageCoordToPageWorldCenterBias;
-	float3 VoxelWorldCenter = PageWorldCenter - PageWorldExtent + VoxelCoord * 2.0f * PageWorldExtent;
+	float3 PageTranslatedWorldCenter = PageGridCoord * PageCoordToPageTranslatedWorldCenterScale + PageCoordToPageTranslatedWorldCenterBias;
+	float3 VoxelTranslatedWorldCenter = PageTranslatedWorldCenter - PageWorldExtent + VoxelCoord * 2.0f * PageWorldExtent;
+	FLWCVector3 VoxelWorldCenter = LWCSubtract(VoxelTranslatedWorldCenter, PreViewTranslation);
 
 	GroupMarkedPage[ThreadIndex] = 0;
 
@@ -68,7 +73,7 @@ void MarkHeightfieldPagesCS(
 	LOOP
 	for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
 	{
-		float3 LocalPosition = mul(float4(VoxelWorldCenter, 1), GetWorldToLocal(HeightfieldIndex)).xyz;
+		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(HeightfieldIndex));
 		float4 MinMaxHeightfieldUV;
 		float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
@@ -79,7 +84,7 @@ void MarkHeightfieldPagesCS(
 		}
 	}
 
-	float3 LocalPosition = mul(float4(VoxelWorldCenter, 1), GetWorldToLocal(ValidHeightfieldIndex)).xyz;
+	float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(ValidHeightfieldIndex));
 	float4 MinMaxHeightfieldUV;
 	float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
@@ -87,15 +92,16 @@ void MarkHeightfieldPagesCS(
 	{
 		float3 WorldHeightfieldNormal;
 		float HeightfieldVisibility;
-		float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+		FLWCVector3 WorldHeightfieldPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+		float3 TranslatedWorldHeightfieldPosition = LWCToFloat(LWCAdd(WorldHeightfieldPosition, PreViewTranslation));
 
 		if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
 		{
-			float3 WorldPositionNearestZ = VoxelWorldCenter;
-			WorldPositionNearestZ.z = clamp(WorldHeightfieldShadingPosition.z, VoxelWorldCenter.z, VoxelWorldCenter.z + GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS * 2.0f * ClipmapVoxelExtent);				
+			float3 TranslatedWorldPositionNearestZ = VoxelTranslatedWorldCenter;
+			TranslatedWorldPositionNearestZ.z = clamp(TranslatedWorldHeightfieldPosition.z, VoxelTranslatedWorldCenter.z, VoxelTranslatedWorldCenter.z + GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS * 2.0f * ClipmapVoxelExtent);
 
 			// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-			float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPositionNearestZ - WorldHeightfieldShadingPosition);
+			float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, TranslatedWorldPositionNearestZ - TranslatedWorldHeightfieldPosition);
 
 			// Limit negative region of a heightfield to a user defined thickness  
 			const float MinInteriorDistance = -HeightfieldThickness;
@@ -211,6 +217,8 @@ void ComposeHeightfieldsIntoPagesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+	const FLWCVector3 PreViewTranslation = MakeLWCVector3(-ViewTilePosition, RelativePreViewTranslation);
+
 	uint PackedPageTile = ComposeTileBuffer[GroupId.x];
 
 	uint3 PageGridCoord;
@@ -221,7 +229,8 @@ void ComposeHeightfieldsIntoPagesCS(
 	uint3 TexelCoordInPage = uint3(GroupThreadId.xy, 0);
 
 	float3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - GLOBAL_DISTANCE_FIELD_PAGE_BORDER;
-	float3 VoxelWorldCenter = PageCoord * PageCoordToVoxelCenterScale + PageCoordToVoxelCenterBias;
+	float3 VoxelTranslatedWorldCenter = PageCoord * PageCoordToVoxelTranslatedCenterScale + PageCoordToVoxelTranslatedCenterBias;
+	FLWCVector3 VoxelWorldCenter = LWCSubtract(VoxelTranslatedWorldCenter, PreViewTranslation);
 
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
 	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
@@ -233,7 +242,7 @@ void ComposeHeightfieldsIntoPagesCS(
 	LOOP
 	for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
 	{
-		float3 LocalPosition = mul(float4(VoxelWorldCenter, 1), GetWorldToLocal(HeightfieldIndex)).xyz;
+		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(HeightfieldIndex));
 		float4 MinMaxHeightfieldUV;
 		float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
@@ -246,7 +255,7 @@ void ComposeHeightfieldsIntoPagesCS(
 
 	if (ValidHeightfieldIndex < NumHeightfields)
 	{
-		float3 LocalPosition = mul(float4(VoxelWorldCenter, 1), GetWorldToLocal(ValidHeightfieldIndex)).xyz;
+		float3 LocalPosition = LWCMultiply(VoxelWorldCenter, GetWorldToLocal(ValidHeightfieldIndex));
 		float4 MinMaxHeightfieldUV;
 		float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
@@ -254,7 +263,8 @@ void ComposeHeightfieldsIntoPagesCS(
 		{
 			float3 WorldHeightfieldNormal;
 			float HeightfieldVisibility;
-			float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+			FLWCVector3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
+			float3 TranslatedWorldHeightfieldShadingPosition = LWCToFloat(LWCAdd(WorldHeightfieldShadingPosition, PreViewTranslation));
 
 			if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
 			{
@@ -262,10 +272,10 @@ void ComposeHeightfieldsIntoPagesCS(
 				LOOP
 				for (uint ZIndex = 0; ZIndex < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS; ++ZIndex)
 				{
-					float3 WorldPosition = VoxelWorldCenter.xyz + float3(0.0f, 0.0f, ZIndex * PageCoordToVoxelCenterScale.z);
+					float3 TranslatedWorldPosition = VoxelTranslatedWorldCenter.xyz + float3(0.0f, 0.0f, ZIndex * PageCoordToVoxelTranslatedCenterScale.z);
 
 					// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-					float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
+					float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, TranslatedWorldPosition - TranslatedWorldHeightfieldShadingPosition);
 
 					// Limit negative region of a heightfield to a user defined thickness  
 					const float MinInteriorDistance = -HeightfieldThickness;

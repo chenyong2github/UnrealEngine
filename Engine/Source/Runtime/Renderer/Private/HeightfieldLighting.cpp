@@ -18,7 +18,7 @@ HeightfieldLighting.cpp
 #include "PipelineStateCache.h"
 
 // In float4's, must match usf
-static const int32 HEIGHTFIELD_DATA_STRIDE = 10;
+static const int32 HEIGHTFIELD_DATA_STRIDE = 11;
 
 void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, TArray<FVector4f, SceneRenderingAllocator>& HeightfieldDescriptionData)
 {
@@ -42,12 +42,21 @@ void FillHeightfieldDescriptionData(const TArray<FHeightfieldComponentDescriptio
 
 		HeightfieldDescriptionData.Add(FVector4f(Description.HeightfieldRect.Size().X, Description.HeightfieldRect.Size().Y, 1.f / Description.HeightfieldRect.Size().X, 1.f / Description.HeightfieldRect.Size().Y));
 
-		const FMatrix44f LocalToWorldT = FMatrix44f(Description.LocalToWorld.GetTransposed());
-		const FMatrix44f WorldToLocalT = FMatrix44f(Description.LocalToWorld.Inverse().GetTransposed());
+		const FLargeWorldRenderPosition WorldPosition(Description.LocalToWorld.GetOrigin());
+		const FVector TilePositionOffset = WorldPosition.GetTileOffset();
+
+		// Inverse on FMatrix44f can generate NaNs if the source matrix contains large scaling, so do it in double precision.
+		const FMatrix LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrixDouble(TilePositionOffset, Description.LocalToWorld);
+
+		HeightfieldDescriptionData.Add(WorldPosition.GetTile());
+
+		const FMatrix44f WorldToLocalT = FMatrix44f(LocalToRelativeWorld.Inverse().GetTransposed());
 
 		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[0]);
 		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[1]);
 		HeightfieldDescriptionData.Add(*(FVector4f*)&WorldToLocalT.M[2]);
+
+		const FMatrix44f LocalToWorldT = FMatrix44f(LocalToRelativeWorld.GetTransposed());
 
 		HeightfieldDescriptionData.Add(*(FVector4f*)&LocalToWorldT.M[0]);
 		HeightfieldDescriptionData.Add(*(FVector4f*)&LocalToWorldT.M[1]);

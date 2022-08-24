@@ -14,7 +14,7 @@ uint NumHeightfields;
 Buffer<float4> HeightfieldDescriptions;
 
 // In float4's, must match C++
-#define HEIGHTFIELD_DATA_STRIDE 10
+#define HEIGHTFIELD_DATA_STRIDE 11
 
 float4 GetHeightfieldScaleBias(uint Index, out bool bHasSubsections)
 {
@@ -40,27 +40,35 @@ float2 GetHeightfieldSizeInv(uint Index)
 	return HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 2].zw;
 }
 
-float4x4 GetWorldToLocal(uint Index)
+FLWCInverseMatrix GetWorldToLocal(uint Index)
 {
-	float4 M0 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 3];
-	float4 M1 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 4];
-	float4 M2 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 5];
+	float3 TilePosition = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 3].xyz;
 
-	return transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4 M0 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 4];
+	float4 M1 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 5];
+	float4 M2 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 6];
+
+	float4x4 RelativeWorldToLocal = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	return MakeLWCInverseMatrix4x3(TilePosition, RelativeWorldToLocal);
 }
 
-float4x4 GetLocalToWorld(uint Index)
+FLWCMatrix GetLocalToWorld(uint Index)
 {
-	float4 M0 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 6];
-	float4 M1 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 7];
-	float4 M2 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 8];
+	float3 TilePosition = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 3].xyz;
 
-	return transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	float4 M0 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 7];
+	float4 M1 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 8];
+	float4 M2 = HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 9];
+
+	float4x4 LocalToRelativeWorld = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	return MakeLWCMatrix(TilePosition, LocalToRelativeWorld);
 }
 
 float4 GetVisibilityMask(uint Index)
 {
-	return HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 9];
+	return HeightfieldDescriptions[Index * HEIGHTFIELD_DATA_STRIDE + 10];
 }
 
 float2 GetHeightfieldUV(uint HeightfieldIndex, float2 LocalPosition, out float4 MinMaxHeightfieldUV)
@@ -93,7 +101,7 @@ float2 GetVisibilityUV(uint HeightfieldIndex, float2 LocalPosition)
 	return LocalPosition * GetHeightfieldSizeInv(HeightfieldIndex);
 }
 
-float3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV, out float3 WorldNormal, out float Visibility)
+FLWCVector3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV, out float3 WorldNormal, out float Visibility)
 {
 	//@todo - don't call GetHeightfieldScaleBias twice
 	bool bHasSubsections;
@@ -109,13 +117,13 @@ float3 GetHeightfieldWorldPositionAndNormal(uint HeightfieldIndex, float2 LocalP
 	float4 SampleVisibility = Texture2DSampleLevel(VisibilityTexture, VisibilitySampler, VisibilityUV, 0);
 	Visibility = 1.f - dot(SampleVisibility, GetVisibilityMask(HeightfieldIndex));
 
-	float3 HeightfieldShadingPosition = float3(LocalPosition, HeightfieldHeight);
-	float3 WorldHeightfieldShadingPosition = mul(float4(HeightfieldShadingPosition, 1), GetLocalToWorld(HeightfieldIndex)).xyz;
+	float3 HeightfieldLocalPosition = float3(LocalPosition, HeightfieldHeight);
+	FLWCVector3 HeightfieldWorldPosition = LWCMultiply(HeightfieldLocalPosition, GetLocalToWorld(HeightfieldIndex));
 
-	return WorldHeightfieldShadingPosition;
+	return HeightfieldWorldPosition;
 }
 
-float3 GetHeightfieldWorldPosition(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV)
+FLWCVector3 GetHeightfieldWorldPosition(uint HeightfieldIndex, float2 LocalPosition, float2 HeightfieldUV)
 {
 	float3 WorldNormal;
 	float Visibility;
