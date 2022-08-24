@@ -18,6 +18,7 @@
 #include "Math/RangeBound.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/FrameNumber.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "Misc/FrameRate.h"
 #include "Misc/FrameTime.h"
 #include "Misc/Optional.h"
@@ -38,7 +39,6 @@
 #include "Generators/MovieSceneEasingFunction.h"
 #include "KeyParams.h"
 #include "Misc/FrameTime.h"
-#include "Misc/QualifiedFrameTime.h"
 #include "MovieScene.h"
 #include "MovieSceneFrameMigration.h"
 #include "MovieSceneFwd.h"
@@ -788,3 +788,19 @@ protected:
 	/** Defines whether the channel proxy can change over the lifetime of the section */
 	mutable EMovieSceneChannelProxyType ChannelProxyType;
 };
+
+template<typename SectionParams>
+inline FFrameNumber GetFirstLoopStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const SectionParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)
+{
+	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
+	const float AnimPosition = (TrimTime.Time - StartFrame) / TrimTime.Rate * AnimPlayRate;
+	const float SeqLength = Params.GetSequenceLength() - FrameRate.AsSeconds(Params.StartFrameOffset + Params.EndFrameOffset) / AnimPlayRate;
+
+	FFrameNumber NewOffset = FrameRate.AsFrameNumber(FMath::Fmod(AnimPosition, SeqLength));
+	NewOffset += Params.FirstLoopStartFrameOffset;
+
+	const FFrameNumber SeqLengthInFrames = FrameRate.AsFrameNumber(SeqLength);
+	NewOffset = NewOffset % SeqLengthInFrames;
+
+	return NewOffset;
+}

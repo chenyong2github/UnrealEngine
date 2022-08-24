@@ -11,17 +11,165 @@
 #include "Chaos/CacheManagerCustomization.h"
 #include "Chaos/CacheCollectionFactory.h"
 #include "Chaos/CacheCollection.h"
+#include "Sequencer/TakeRecorderChaosCacheSource.h"
 #include "CoreMinimal.h"
 #include "Engine/Selection.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "ToolMenus.h"
 #include "LevelEditor.h"
+#include "ISequencerModule.h"
+#include "Sequencer/ChaosCacheTrackEditor.h"
+#include "ITakeRecorderModule.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SceneOutlinerPublicTypes.h"
+#include "ActorTreeItem.h"
+#include "SceneOutlinerModule.h"
 
 IMPLEMENT_MODULE(IChaosCachingEditorPlugin, ChaosCachingEditor)
 
 #define LOCTEXT_NAMESPACE "CacheEditorPlugin"
+
+static void AddChaosCacheSource(UTakeRecorderSources* Sources,  const FName& SubjectName)
+{
+	FScopedTransaction Transaction(LOCTEXT("AddChaosCacheSource","Add Chaos Cache Source"));
+
+	Sources->Modify();
+
+	UTakeRecorderChaosCacheSource* NewSource = Sources->AddSource<UTakeRecorderChaosCacheSource>();
+}
+
+void AddChaosCacheSources(
+	UTakeRecorderSources* TakeRecorderSources,
+	TArrayView<AActor* const> ActorsToRecord)
+{
+	if (ActorsToRecord.Num() > 0)
+	{
+		FScopedTransaction Transaction(FText::Format(
+			LOCTEXT("AddSources", "Add Recording {0}|plural(one=Source, other=Sources)"), ActorsToRecord.Num()));
+		TakeRecorderSources->Modify();
+
+		for (AActor* Actor : ActorsToRecord)
+		{
+			if (Actor->IsA<AChaosCacheManager>())
+			{
+				UTakeRecorderChaosCacheSource* NewSource = TakeRecorderSources->AddSource<UTakeRecorderChaosCacheSource>();
+				NewSource->ChaosCacheManager = Cast<AChaosCacheManager>(Actor);
+
+				// Send a PropertyChangedEvent so the class catches the callback and rebuilds the property map.
+				FPropertyChangedEvent PropertyChangedEvent(UTakeRecorderChaosCacheSource::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UTakeRecorderChaosCacheSource, ChaosCacheManager)), EPropertyChangeType::ValueSet);
+				NewSource->PostEditChangeProperty(PropertyChangedEvent);
+			}
+		}
+	}
+}
+
+static void PopulateChaosCacheSubMenu(FMenuBuilder& MenuBuilder, UTakeRecorderSources* Sources)
+{
+	TSet<const AActor*> CacheActors;
+	
+	for (UTakeRecorderSource* Source : Sources->GetSources())
+	{
+		const UTakeRecorderChaosCacheSource* ChaosCache   = Cast<UTakeRecorderChaosCacheSource>(Source);
+		if (ChaosCache && ChaosCache->ChaosCacheManager.IsValid())
+		{
+			CacheActors.Add(ChaosCache->ChaosCacheManager.Get());
+		}
+	}
+	
+	auto OutlinerFilterPredicate = [InExistingActors = MoveTemp(CacheActors)](const AActor* InActor)
+	{
+		return !InExistingActors.Contains(InActor) && InActor->IsA<AChaosCacheManager>();
+	};
+	
+	// Set up a menu entry to add the selected actor(s) to the sequencer
+	TArray<AActor*> SelectedActors;
+	GEditor->GetSelectedActors()->GetSelectedObjects(SelectedActors);
+	SelectedActors.RemoveAll([&](const AActor* In){ return !OutlinerFilterPredicate(In); });
+	
+	FText SelectedLabel;
+	if (SelectedActors.Num() == 1)
+	{
+		SelectedLabel = FText::Format(LOCTEXT("AddSpecificActor", "Add '{0}'"), FText::FromString(SelectedActors[0]->GetActorLabel()));
+	}
+	else if (SelectedActors.Num() > 1)
+	{
+		SelectedLabel = FText::Format(LOCTEXT("AddCurrentActorSelection", "Add Current Selection ({0} actors)"), FText::AsNumber(SelectedActors.Num()));
+	}
+	
+	if (!SelectedLabel.IsEmpty())
+	{
+		MenuBuilder.AddMenuEntry(
+			SelectedLabel,
+			FText(),
+			FSlateIcon(),
+			FExecuteAction::CreateLambda([Sources, SelectedActors]{
+				AddChaosCacheSources(Sources, SelectedActors);
+			})
+		);
+	}
+	
+	MenuBuilder.BeginSection("ChooseActorSection", LOCTEXT("ChooseActor", "Choose Actor:"));
+	{
+		// Set up a menu entry to add any arbitrary actor to the sequencer
+		FSceneOutlinerInitializationOptions InitOptions;
+		{
+			// We hide the header row to keep the UI compact.
+			InitOptions.bShowHeaderRow = false;
+			InitOptions.bShowSearchBox = true;
+			InitOptions.bShowCreateNewFolder = false;
+			InitOptions.bFocusSearchBoxWhenOpened = true;
+	
+			// Only want the actor label column
+			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
+	
+			// Only display actors that are not possessed already
+			InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda(OutlinerFilterPredicate));
+		}
+	
+		// actor selector to allow the user to choose an actor
+		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+		TSharedRef< SWidget > MiniSceneOutliner =
+			SNew(SBox)
+			.MaxDesiredHeight(400.0f)
+			.WidthOverride(300.0f)
+			[
+				SceneOutlinerModule.CreateActorPicker(
+					InitOptions,
+					FOnActorPicked::CreateLambda([Sources](AActor* Actor){
+						// Create a new binding for this actor
+						FSlateApplication::Get().DismissAllMenus();
+						AddChaosCacheSources(Sources, MakeArrayView(&Actor, 1));
+					})
+				)
+			];
+	
+		MenuBuilder.AddWidget(MiniSceneOutliner, FText::GetEmpty(), true);
+	}
+	MenuBuilder.EndSection();
+}
+
+static void PopulateSourcesMenu(FMenuBuilder& MenuBuilder, UTakeRecorderSources* Sources)
+{
+	FName ExtensionName = "ChaosCacheSourceSubMenu";
+
+	MenuBuilder.AddSubMenu(
+		NSLOCTEXT("TakeRecorderSources", "ChaosCacheList_Label", "From ChaosCache"),
+		NSLOCTEXT("TakeRecorderSources", "ChaosCacheList_Tip", "Add a new recording source from a Chaos Cache Subject"),
+		FNewMenuDelegate::CreateStatic(PopulateChaosCacheSubMenu, Sources),
+		FUIAction(),
+		ExtensionName,
+		EUserInterfaceActionType::Button
+	);
+}
+
+static void ExtendSourcesMenu(TSharedRef<FExtender> Extender, UTakeRecorderSources* Sources)
+{
+	Extender->AddMenuExtension("Sources", EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateStatic(PopulateSourcesMenu, Sources));
+}
+
+static const FName MovieSceneTrackRecorderFactoryName("MovieSceneTrackRecorderFactory");
 
 void IChaosCachingEditorPlugin::StartupModule()
 {
@@ -44,6 +192,14 @@ void IChaosCachingEditorPlugin::StartupModule()
 	PropertyModule.RegisterCustomClassLayout("ChaosCacheCollection", FOnGetDetailCustomizationInstance::CreateStatic(&FCacheCollectionDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("ChaosCacheManager", FOnGetDetailCustomizationInstance::CreateStatic(&FCacheManagerDetails::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("ObservedComponent", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FObservedComponentDetails::MakeInstance));
+	
+	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+	TrackEditorBindingHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FChaosCacheTrackEditor::CreateTrackEditor));
+	
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	SourcesMenuExtension = TakeRecorderModule.RegisterSourcesMenuExtension(FOnExtendSourcesMenu::CreateStatic(ExtendSourcesMenu));
+	
+	IModularFeatures::Get().RegisterModularFeature(MovieSceneTrackRecorderFactoryName, &MovieSceneChaosCacheTrackRecorder);
 }
 
 void IChaosCachingEditorPlugin::ShutdownModule()
@@ -70,6 +226,20 @@ void IChaosCachingEditorPlugin::ShutdownModule()
 		IAssetTools&       AssetTools       = AssetToolsModule.Get();
 
 		AssetTools.UnregisterAssetTypeActions(AssetTypeActions_ChaosCacheCollection->AsShared());
+
+		ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
+		if (SequencerModulePtr)
+		{
+			SequencerModulePtr->UnRegisterTrackEditor(TrackEditorBindingHandle);
+		}
+
+		ITakeRecorderModule* TakeRecorderModule = FModuleManager::Get().GetModulePtr<ITakeRecorderModule>("TakeRecorder");
+		if (TakeRecorderModule)
+		{
+			TakeRecorderModule->UnregisterSourcesMenuExtension(SourcesMenuExtension);
+		}
+
+		IModularFeatures::Get().UnregisterModularFeature(MovieSceneTrackRecorderFactoryName, &MovieSceneChaosCacheTrackRecorder);
 	}
 }
 
@@ -170,7 +340,7 @@ void IChaosCachingEditorPlugin::OnCreateCacheManager()
 
 				check(Manager);
 
-				FObservedComponent* Existing = Manager->ObservedComponents.FindByPredicate([PrimitiveComp](const FObservedComponent& InItem) {
+				const FObservedComponent* Existing = Manager->GetObservedComponents().FindByPredicate([PrimitiveComp](const FObservedComponent& InItem) {
 					return InItem.GetComponent() == PrimitiveComp;
 				});
 

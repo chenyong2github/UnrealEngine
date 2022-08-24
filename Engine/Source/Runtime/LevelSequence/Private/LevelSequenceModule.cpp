@@ -320,7 +320,7 @@ FDelegateHandle FLevelSequenceModule::RegisterObjectSpawner(FOnCreateMovieSceneO
 	return OnCreateMovieSceneObjectSpawnerDelegates.Last().GetHandle();
 }
 
-void FLevelSequenceModule::UnregisterObjectSpawner(FDelegateHandle InHandle)
+void FLevelSequenceModule::UnregisterObjectSpawner(FDelegateHandle InHandle) 
 {
 	OnCreateMovieSceneObjectSpawnerDelegates.RemoveAll([=](const FOnCreateMovieSceneObjectSpawner& Delegate) { return Delegate.GetHandle() == InHandle; });
 }
@@ -337,7 +337,7 @@ void FLevelSequenceModule::GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneO
 	// @TODO: we could also sort by most-derived type here to allow for type specific behaviors
 	OutSpawners.Sort([](TSharedRef<IMovieSceneObjectSpawner> LHS, TSharedRef<IMovieSceneObjectSpawner> RHS)
 	{
-		return LHS->IsEditor() > RHS->IsEditor();
+		return (LHS->IsEditor() > RHS->IsEditor()) || ( (LHS->IsEditor() == RHS->IsEditor()) && (LHS->GetSpawnerPriority() > RHS->GetSpawnerPriority()));
 	});
 }
 

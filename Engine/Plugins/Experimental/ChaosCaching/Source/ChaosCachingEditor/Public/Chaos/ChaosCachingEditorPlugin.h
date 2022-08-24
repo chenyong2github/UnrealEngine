@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Sequencer/MovieSceneChaosCacheTrackRecorder.h"
 
 class FAssetTypeActions_ChaosCacheCollection;
 
@@ -52,4 +53,8 @@ private:
 
 	FAssetTypeActions_ChaosCacheCollection* AssetTypeActions_ChaosCacheCollection;
 	FDelegateHandle StartupHandle;
+	FDelegateHandle TrackEditorBindingHandle;
+	FDelegateHandle SourcesMenuExtension;
+
+	FMovieSceneChaosCacheTrackRecorderFactory MovieSceneChaosCacheTrackRecorder;
 };

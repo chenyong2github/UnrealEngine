@@ -25,7 +25,18 @@ namespace UnrealBuildTool.Rules
 					"PhysicsCore",
 					"ChaosCaching",
 					"GeometryCollectionEngine",
-					"LevelEditor"
+					"LevelEditor",
+					"LevelSequence",
+                    "MovieScene",
+                    "MovieSceneTools",
+                    "MovieSceneTracks",
+                    "Sequencer",
+                    "TimeManagement",
+					"EditorFramework",
+					"TakesCore",
+					"TakeRecorder",
+					"SceneOutliner",
+					"TakeTrackRecorders",
 				});
 
 			SetupModulePhysicsSupport(Target);

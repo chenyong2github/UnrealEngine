@@ -32,22 +32,6 @@ TOptional<FFrameTime> UMovieSceneGroomCacheSection::GetOffsetTime() const
 	return TOptional<FFrameTime>(Params.FirstLoopStartFrameOffset);
 }
 
-FFrameNumber GetFirstLoopStartOffsetAtTrimTime(FQualifiedFrameTime TrimTime, const FMovieSceneGroomCacheParams& Params, FFrameNumber StartFrame, FFrameRate FrameRate)
-{
-	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) ? 1.0f : Params.PlayRate;
-	const float AnimPosition = (TrimTime.Time - StartFrame) / TrimTime.Rate * AnimPlayRate;
-	const float SeqLength = Params.GetSequenceLength() - FrameRate.AsSeconds(Params.StartFrameOffset + Params.EndFrameOffset) / AnimPlayRate;
-
-	FFrameNumber NewOffset = FrameRate.AsFrameNumber(FMath::Fmod(AnimPosition, SeqLength));
-	NewOffset += Params.FirstLoopStartFrameOffset;
-
-	const FFrameNumber SeqLengthInFrames = FrameRate.AsFrameNumber(SeqLength);
-	NewOffset = NewOffset % SeqLengthInFrames;
-
-	return NewOffset;
-}
-
-
 TOptional<TRange<FFrameNumber> > UMovieSceneGroomCacheSection::GetAutoSizeRange() const
 {
 	FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
