@@ -16,6 +16,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 #include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Styling/SlateTypes.h"
@@ -3167,6 +3168,11 @@ enum class InternalSavePackageResult : int8
 	Error,
 };
 
+static void PrepareSavePackages(const TArray<UPackage*>& PackagesToSave)
+{
+	ResetLoaders(MakeArrayView<UObject*>((UObject**)PackagesToSave.GetData(), PackagesToSave.Num()));
+}
+
 /**
  * Actually save a package. Prompting for Save as if necessary
  *
@@ -3550,6 +3556,7 @@ static void InternalNotifyNoPackagesSaved(const bool bUseDialog)
 static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bool bUseDialog, TArray<UPackage*>& OutFailedPackages)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(InternalSavePackagesFast);
+	UE_SCOPED_TIMER(TEXT("InternalSavePackagesFast"), LogFileHelpers, Log);
 
 	bool bReturnCode = true;
 
@@ -3611,6 +3618,8 @@ static bool InternalSavePackagesFast(const TArray<UPackage*>& PackagesToSave, bo
 	{
 		ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
 	}
+
+	PrepareSavePackages(FinalPackagesToSave);
 
 	for (UPackage* Package : FinalPackagesToSave)
 	{
@@ -3942,6 +3951,8 @@ bool FEditorFileUtils::SaveCurrentLevel()
  */
 FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArray<UPackage*>& FinalSaveList, bool bUseDialog, TArray<UPackage*>& OutFailedPackages)
 {
+	UE_SCOPED_TIMER(TEXT("InternalPromptForCheckoutAndSave"), LogFileHelpers, Log);
+
 	FEditorFileUtils::EPromptReturnCode ReturnResponse = FEditorFileUtils::PR_Success;
 	const FScopedBusyCursor BusyCursor;
 	FSaveErrorOutputDevice SaveErrors;
@@ -3997,6 +4008,8 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 			ObjectTools::CleanupAfterSuccessfulDelete(PackagesToClean, true);
 			SlowTask.EnterProgressFrame(PackagesToClean.Num());
 		}
+
+		PrepareSavePackages(PackagesToSave);
 
 		for (UPackage* Package : PackagesToSave)
 		{
