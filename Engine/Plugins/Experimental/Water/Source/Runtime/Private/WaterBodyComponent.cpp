@@ -909,7 +909,7 @@ ALandscapeProxy* UWaterBodyComponent::FindLandscape() const
 			if (It->GetWorld() == GetWorld())
 			{
 				FBox Box = It->GetComponentsBoundingBox();
-				if (Box.IsInsideXY(Location))
+				if (Box.IsInsideOrOnXY(Location))
 				{
 					Landscape = *It;
 					return Landscape.Get();
