@@ -385,6 +385,16 @@ namespace Horde.Build.Server
 		public string? TriageAlias { get; set; }
 
 		/// <summary>
+		/// Alias to ping if an issue has not been resolved for a certain amount of time
+		/// </summary>
+		public string? EscalateAlias { get; set; }
+
+		/// <summary>
+		/// Times after an issue has been opened to escalate to the alias above, in minutes. Continues to notify on the last interval once reaching the end of the list.
+		/// </summary>
+		public List<int> EscalateTimes { get; } = new List<int>{ 120 };
+
+		/// <summary>
 		/// Maximum number of people to mention on a triage thread
 		/// </summary>
 		public int MaxMentions { get; set; } = 5;
