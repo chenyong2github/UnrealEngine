@@ -201,7 +201,7 @@ protected:
  * 
  * @note Currently does not support interpolation of the GenericAttributes besides Skin Weights.
  */
-class DYNAMICMESH_API FAdaptiveTessellate
+class DYNAMICMESH_API FSelectiveTessellate
 {
 public:
 
@@ -273,7 +273,7 @@ public:
 	 * be changed.
      * //TODO: Add an option to turn off making the backup copy of the input mesh in case the computation fails.
 	 */
-	FAdaptiveTessellate(FDynamicMesh3* OutMesh) 
+	FSelectiveTessellate(FDynamicMesh3* OutMesh) 
 	:
 	ResultMesh(OutMesh), bInPlace(true)
 	{
@@ -282,13 +282,13 @@ public:
 	/** 
 	 * Tessellate the mesh and write the result into another mesh. This will overwrite any data stored in the OutMesh. 
 	 */
-	FAdaptiveTessellate(const FDynamicMesh3* Mesh, FDynamicMesh3* OutMesh) 
+	FSelectiveTessellate(const FDynamicMesh3* Mesh, FDynamicMesh3* OutMesh) 
 	:
 	ResultMesh(OutMesh), Mesh(Mesh), bInPlace(false)
 	{
 	}
 	
-	virtual ~FAdaptiveTessellate() 
+	virtual ~FSelectiveTessellate() 
 	{
 	}
 

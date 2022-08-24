@@ -24,17 +24,17 @@ public:
 
 
 //
-// Adaptive Tessellate options
+// Selective Tessellate options
 //
 UENUM(BlueprintType)
-enum class EAdaptiveTessellatePatternType : uint8
+enum class ESelectiveTessellatePatternType : uint8
 {
 	ConcentricRings = 0
 };
 
 
-USTRUCT(BlueprintType, meta = (DisplayName = "Adaptive Tessellate Options"))
-struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptAdaptiveTessellateOptions
+USTRUCT(BlueprintType, meta = (DisplayName = "Selective Tessellate Options"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptSelectiveTessellateOptions
 {
 	GENERATED_BODY()
 public:
@@ -79,12 +79,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Subdivide", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
-	ApplyAdaptiveTessellation(
+	ApplySelectiveTessellation(
 		UDynamicMesh* TargetMesh,
 		FGeometryScriptMeshSelection Selection,
-		FGeometryScriptAdaptiveTessellateOptions Options,
+		FGeometryScriptSelectiveTessellateOptions Options,
 		int TessellationLevel = 1,
-		EAdaptiveTessellatePatternType PatternType = EAdaptiveTessellatePatternType::ConcentricRings,
+		ESelectiveTessellatePatternType PatternType = ESelectiveTessellatePatternType::ConcentricRings,
 		UGeometryScriptDebug* Debug = nullptr);
 
 };

@@ -375,10 +375,10 @@ namespace DisplaceMeshToolLocals{
 			{
 				if (Parameters.ActiveMaterialID.IsSet())
 				{
-					TUniquePtr<FTessellationPattern> Pattern = FAdaptiveTessellate::CreateConcentricRingsPatternFromMaterial(ResultMesh.Get(), SubdivisionsCount, Parameters.ActiveMaterialID.GetValue());;
+					TUniquePtr<FTessellationPattern> Pattern = FSelectiveTessellate::CreateConcentricRingsPatternFromMaterial(ResultMesh.Get(), SubdivisionsCount, Parameters.ActiveMaterialID.GetValue());;
 					
 					FDynamicMesh3 OutMesh;
-					FAdaptiveTessellate Tessellator(ResultMesh.Get(), &OutMesh);
+					FSelectiveTessellate Tessellator(ResultMesh.Get(), &OutMesh);
 					Tessellator.Progress = ProgressCancel;
 					Tessellator.SetPattern(Pattern.Get());
 

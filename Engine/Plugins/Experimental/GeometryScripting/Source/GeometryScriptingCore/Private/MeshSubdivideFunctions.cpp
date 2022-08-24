@@ -129,12 +129,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyUniformTessell
 }
 
 
-UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessellation(
+UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplySelectiveTessellation(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptMeshSelection Selection,
-	FGeometryScriptAdaptiveTessellateOptions Options,
+	FGeometryScriptSelectiveTessellateOptions Options,
 	int TessellationLevel,
-	EAdaptiveTessellatePatternType PatternType,
+	ESelectiveTessellatePatternType PatternType,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -146,7 +146,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessel
 	{
 		return TargetMesh;
 	}
-	if (PatternType != EAdaptiveTessellatePatternType::ConcentricRings)
+	if (PatternType != ESelectiveTessellatePatternType::ConcentricRings)
 	{
 		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyAdapativeTessellation_InvalidPatternTypeNew", "ApplyAdapativeTessellation: Only ConcentricRings pattern is currently supported"));
 		return TargetMesh;
@@ -159,7 +159,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessel
 	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
 	{	
 		FDynamicMesh3 TessellatedMesh;
-		FAdaptiveTessellate Tessellator(&EditMesh, &TessellatedMesh);
+		FSelectiveTessellate Tessellator(&EditMesh, &TessellatedMesh);
 
 		TArray<int32> Triangles;
 		Selection.ConvertToMeshIndexArray(EditMesh, Triangles, EGeometryScriptIndexType::Triangle);
@@ -169,11 +169,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSubdivideFunctions::ApplyAdaptiveTessel
 		}
 
 		TUniquePtr<FTessellationPattern> Pattern; 
-		if (PatternType == EAdaptiveTessellatePatternType::ConcentricRings)
+		if (PatternType == ESelectiveTessellatePatternType::ConcentricRings)
 		{
 			Pattern = (Triangles.Num() > 0) ?
-				FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel, Triangles)
-				: FAdaptiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel);
+				FSelectiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel, Triangles)
+				: FSelectiveTessellate::CreateConcentricRingsTessellationPattern(&EditMesh, TessellationLevel);
 		}
 		else
 		{
