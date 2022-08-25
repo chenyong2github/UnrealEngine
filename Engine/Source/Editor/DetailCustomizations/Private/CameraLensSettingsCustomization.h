@@ -29,7 +29,7 @@ public:
 	FCameraLensSettingsCustomization();
 
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
-
+	
 	/** IPropertyTypeCustomization instance */
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 	virtual void CustomizeChildren( TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils ) override;
@@ -47,6 +47,8 @@ protected:
 	TSharedPtr<class SComboBox< TSharedPtr<FString> > > PresetComboBox;
 	TArray< TSharedPtr< FString > >						PresetComboList;
 
+	void BuildPresetComboList();
+	
 	void OnPresetChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	TSharedRef<SWidget> MakePresetComboWidget(TSharedPtr<FString> InItem);
 

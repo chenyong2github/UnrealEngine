@@ -28,9 +28,9 @@ class SWidget;
 
 #define LOCTEXT_NAMESPACE "CameraLensSettingsCustomization"
 
-FCameraLensSettingsCustomization::FCameraLensSettingsCustomization()
+void FCameraLensSettingsCustomization::BuildPresetComboList()
 {
-	TArray<FNamedLensPreset> const& Presets = UCineCameraComponent::GetLensPresets();
+	TArray<FNamedLensPreset> const& Presets = UCineCameraSettings::GetLensPresets();
 
 	int32 const NumPresets = Presets.Num();
 	// first create preset combo list
@@ -46,6 +46,11 @@ FCameraLensSettingsCustomization::FCameraLensSettingsCustomization()
 	}
 }
 
+FCameraLensSettingsCustomization::FCameraLensSettingsCustomization()
+{
+	BuildPresetComboList();
+}
+
 TSharedRef<IPropertyTypeCustomization> FCameraLensSettingsCustomization::MakeInstance()
 {
 	return MakeShareable(new FCameraLensSettingsCustomization);
@@ -57,24 +62,34 @@ void FCameraLensSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 		NameContent()
 		[
 			StructPropertyHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		.MaxDesiredWidth(0.f)
-		[
-			SAssignNew(PresetComboBox, SComboBox< TSharedPtr<FString> >)
-			.OptionsSource(&PresetComboList)
-			.OnGenerateWidget(this, &FCameraLensSettingsCustomization::MakePresetComboWidget)
-			.OnSelectionChanged(this, &FCameraLensSettingsCustomization::OnPresetChanged)
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			.ContentPadding(2)
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text(this, &FCameraLensSettingsCustomization::GetPresetComboBoxContent)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.ToolTipText(this, &FCameraLensSettingsCustomization::GetPresetComboBoxContent)
-			]
 		];
+
+	// We only want the dropdown list outside of the settings class as the settings class is the thing
+	// defining the presets we use for the dropdown
+	const bool bInSettingsClass = StructPropertyHandle->GetOuterBaseClass() == UCineCameraSettings::StaticClass();
+
+	if (!bInSettingsClass)
+	{
+		HeaderRow.
+			ValueContent()
+			.MaxDesiredWidth(0.f)
+			[
+				SAssignNew(PresetComboBox, SComboBox< TSharedPtr<FString> >)
+				.OptionsSource(&PresetComboList)
+				.OnGenerateWidget(this, &FCameraLensSettingsCustomization::MakePresetComboWidget)
+				.OnSelectionChanged(this, &FCameraLensSettingsCustomization::OnPresetChanged)
+				.OnComboBoxOpening(this, &FCameraLensSettingsCustomization::BuildPresetComboList)
+				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				.ContentPadding(2)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(this, &FCameraLensSettingsCustomization::GetPresetComboBoxContent)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.ToolTipText(this, &FCameraLensSettingsCustomization::GetPresetComboBoxContent)
+				]
+			];
+	}
 }
 
 
@@ -129,7 +144,7 @@ void FCameraLensSettingsCustomization::OnPresetChanged(TSharedPtr<FString> NewSe
 		FString const NewPresetName = *NewSelection.Get();
 
 		// search presets for one that matches
-		TArray<FNamedLensPreset> const& Presets = UCineCameraComponent::GetLensPresets();
+		TArray<FNamedLensPreset> const& Presets = UCineCameraSettings::GetLensPresets();
 		int32 const NumPresets = Presets.Num();
 		for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 		{
@@ -195,7 +210,7 @@ TSharedPtr<FString> FCameraLensSettingsCustomization::GetPresetString() const
 	DiaphragmBladeCountHandle->GetValue(DiaphragmBladeCount);
 
 	// search presets for one that matches
-	TArray<FNamedLensPreset> const& Presets = UCineCameraComponent::GetLensPresets();
+	TArray<FNamedLensPreset> const& Presets = UCineCameraSettings::GetLensPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{

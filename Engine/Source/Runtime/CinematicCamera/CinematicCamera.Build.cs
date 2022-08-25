@@ -10,7 +10,10 @@ public class CinematicCamera : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"DeveloperSettings",
                 "Engine",
+                "Slate",
+                "SlateCore"
 			}
 		);
 

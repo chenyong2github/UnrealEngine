@@ -37,21 +37,17 @@ UCineCameraComponent::UCineCameraComponent()
 
 	bConstrainAspectRatio = true;
 
-	// Certain default values are set by a config, so Use the archetype to set them in the constructor, so they can be overridden in the editor.
-	UCineCameraComponent* Template = Cast<UCineCameraComponent>(GetArchetype());
 	
-	// Null check here because CDO has no Archetype
-	if (Template)
-	{
-		// default filmback, lens and crop
-		SetFilmbackPresetByNameInternal(Template->DefaultFilmbackPreset, Filmback);
-		SetFilmbackPresetByNameInternal(Template->DefaultFilmbackPresetName_DEPRECATED, FilmbackSettings_DEPRECATED);
-		SetLensPresetByNameInternal(Template->DefaultLensPresetName);
-		SetCropPresetByNameInternal(Template->DefaultCropPresetName);
-		// other lens defaults
-		CurrentAperture = Template->DefaultLensFStop;
-		CurrentFocalLength = Template->DefaultLensFocalLength;
-	}
+	const UCineCameraSettings* CineCameraSettings = GetDefault<UCineCameraSettings>();
+	check(CineCameraSettings);
+	// default filmback
+	SetFilmbackPresetByNameInternal(CineCameraSettings->DefaultFilmbackPreset, Filmback);
+	SetFilmbackPresetByNameInternal(CineCameraSettings->DefaultFilmbackPreset, FilmbackSettings_DEPRECATED);
+	SetLensPresetByNameInternal(CineCameraSettings->DefaultLensPresetName);
+	// other lens defaults
+	CurrentAperture = CineCameraSettings->DefaultLensFStop;
+	CurrentFocalLength = CineCameraSettings->DefaultLensFocalLength;
+
 
 	RecalcDerivedData();
 
@@ -76,6 +72,8 @@ UCineCameraComponent::UCineCameraComponent()
 
 void UCineCameraComponent::Serialize(FArchive& Ar)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	
 	Ar.UsingCustomVersion(FCineCameraObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
@@ -89,7 +87,7 @@ void UCineCameraComponent::Serialize(FArchive& Ar)
 			UCineCameraComponent* Template = Cast<UCineCameraComponent>(GetArchetype());
 			if (Template)
 			{
-				TArray<FNamedFilmbackPreset> const& Presets = UCineCameraComponent::GetFilmbackPresets();
+				TArray<FNamedFilmbackPreset> const& Presets = UCineCameraSettings::GetFilmbackPresets();
 				int32 const NumPresets = Presets.Num();
 				for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 				{
@@ -116,6 +114,8 @@ void UCineCameraComponent::Serialize(FArchive& Ar)
 			Filmback = FilmbackSettings_DEPRECATED;
 		}
 	}
+	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UCineCameraComponent::PostInitProperties()
@@ -311,7 +311,7 @@ float UCineCameraComponent::GetVerticalFieldOfView() const
 
 FString UCineCameraComponent::GetFilmbackPresetName() const
 {
-	TArray<FNamedFilmbackPreset> const& Presets = UCineCameraComponent::GetFilmbackPresets();
+	TArray<FNamedFilmbackPreset> const& Presets = UCineCameraSettings::GetFilmbackPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{
@@ -325,6 +325,16 @@ FString UCineCameraComponent::GetFilmbackPresetName() const
 	return FString();
 }
 
+FString UCineCameraComponent::GetDefaultFilmbackPresetName() const
+{
+	// Try to get the default from the CineCameraSettings object but fallback to an empty string on failure
+	if (const UCineCameraSettings* CineCameraSettings = GetDefault<UCineCameraSettings>())
+	{
+		return CineCameraSettings->DefaultFilmbackPreset;
+	}
+	return FString();
+}
+
 void UCineCameraComponent::SetFilmbackPresetByName(const FString& InPresetName)
 {
 	SetFilmbackPresetByNameInternal(InPresetName, Filmback);
@@ -334,7 +344,7 @@ void UCineCameraComponent::SetFilmbackPresetByName(const FString& InPresetName)
 
 void UCineCameraComponent::SetFilmbackPresetByNameInternal(const FString& InPresetName, FCameraFilmbackSettings& InOutFilmbackSettings)
 {
-	TArray<FNamedFilmbackPreset> const& Presets = UCineCameraComponent::GetFilmbackPresets();
+	TArray<FNamedFilmbackPreset> const& Presets = UCineCameraSettings::GetFilmbackPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{
@@ -349,7 +359,7 @@ void UCineCameraComponent::SetFilmbackPresetByNameInternal(const FString& InPres
 
 FString UCineCameraComponent::GetLensPresetName() const
 {
-	TArray<FNamedLensPreset> const& Presets = UCineCameraComponent::GetLensPresets();
+	TArray<FNamedLensPreset> const& Presets = UCineCameraSettings::GetLensPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{
@@ -372,7 +382,7 @@ void UCineCameraComponent::SetLensPresetByName(const FString& InPresetName)
 
 void UCineCameraComponent::SetLensPresetByNameInternal(const FString& InPresetName)
 {
-	TArray<FNamedLensPreset> const& Presets = UCineCameraComponent::GetLensPresets();
+	TArray<FNamedLensPreset> const& Presets = UCineCameraSettings::GetLensPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{
@@ -387,7 +397,7 @@ void UCineCameraComponent::SetLensPresetByNameInternal(const FString& InPresetNa
 
 FString UCineCameraComponent::GetCropPresetName() const
 {
-	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraSettings::GetCropPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{
@@ -410,7 +420,7 @@ void UCineCameraComponent::SetCropPresetByName(const FString& InPresetName)
 
 void UCineCameraComponent::SetCropPresetByNameInternal(const FString& InPresetName)
 {
-	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraSettings::GetCropPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{
@@ -433,31 +443,25 @@ float UCineCameraComponent::GetWorldToMetersScale() const
 // static
 TArray<FNamedFilmbackPreset> UCineCameraComponent::GetFilmbackPresetsCopy()
 {
-	return GetDefault<UCineCameraComponent>()->FilmbackPresets;
+	return UCineCameraSettings::GetFilmbackPresets();
 }
 
 // static
 TArray<FNamedLensPreset> UCineCameraComponent::GetLensPresetsCopy()
 {
-	return GetDefault<UCineCameraComponent>()->LensPresets;
+	return UCineCameraSettings::GetLensPresets();
 }
 
 // static
 TArray<FNamedFilmbackPreset> const& UCineCameraComponent::GetFilmbackPresets()
 {
-	return GetDefault<UCineCameraComponent>()->FilmbackPresets;
+	return UCineCameraSettings::GetFilmbackPresets();
 }
 
 // static
 TArray<FNamedLensPreset> const& UCineCameraComponent::GetLensPresets()
 {
-	return GetDefault<UCineCameraComponent>()->LensPresets;
-}
-
-// static
-TArray<FNamedPlateCropPreset> const& UCineCameraComponent::GetCropPresets()
-{
-	return GetDefault<UCineCameraComponent>()->CropPresets;
+	return UCineCameraSettings::GetLensPresets();
 }
 
 void UCineCameraComponent::RecalcDerivedData()
@@ -555,7 +559,7 @@ FText UCineCameraComponent::GetFilmbackText() const
 	const float SensorHeight = Filmback.SensorHeight;
 
 	// Search presets for one that matches
-	const FNamedFilmbackPreset* Preset = UCineCameraComponent::GetFilmbackPresets().FindByPredicate([&](const FNamedFilmbackPreset& InPreset) {
+	const FNamedFilmbackPreset* Preset = UCineCameraSettings::GetFilmbackPresets().FindByPredicate([&](const FNamedFilmbackPreset& InPreset) {
 		return InPreset.FilmbackSettings.SensorWidth == SensorWidth && InPreset.FilmbackSettings.SensorHeight == SensorHeight;
 	});
 

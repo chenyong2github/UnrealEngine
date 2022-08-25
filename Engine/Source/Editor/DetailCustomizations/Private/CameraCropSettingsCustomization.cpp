@@ -6,13 +6,13 @@
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "ScopedTransaction.h"
-#include "CineCameraComponent.h"
+#include "CineCameraSettings.h"
 
 #define LOCTEXT_NAMESPACE "CameraCropSettingsCustomization"
 
 FCameraCropSettingsCustomization::FCameraCropSettingsCustomization()
 {
-	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraSettings::GetCropPresets();
 
 	int32 const NumPresets = Presets.Num();
 	// first create preset combo list
@@ -34,28 +34,35 @@ TSharedRef<IPropertyTypeCustomization> FCameraCropSettingsCustomization::MakeIns
 
 void FCameraCropSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	HeaderRow.
-		NameContent()
-		[
-			StructPropertyHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		.MaxDesiredWidth(0.f)
-		[
-			SAssignNew(PresetComboBox, SComboBox< TSharedPtr<FString> >)
-			.OptionsSource(&PresetComboList)
-			.OnGenerateWidget(this, &FCameraCropSettingsCustomization::MakePresetComboWidget)
-			.OnSelectionChanged(this, &FCameraCropSettingsCustomization::OnPresetChanged)
-			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-			.ContentPadding(2)
-			.Content()
+	// We only want the dropdown list outside of the settings class as the settings class is the thing
+	// defining the presets we use for the dropdown
+	const bool bInSettingsClass = StructPropertyHandle->GetOuterBaseClass() == UCineCameraSettings::StaticClass();
+
+	if (!bInSettingsClass)
+	{
+		HeaderRow.
+			NameContent()
 			[
-				SNew(STextBlock)
-				.Text(this, &FCameraCropSettingsCustomization::GetPresetComboBoxContent)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.ToolTipText(this, &FCameraCropSettingsCustomization::GetPresetComboBoxContent)
+				StructPropertyHandle->CreatePropertyNameWidget()
 			]
-		];
+			.ValueContent()
+			.MaxDesiredWidth(0.f)
+			[
+				SAssignNew(PresetComboBox, SComboBox< TSharedPtr<FString> >)
+				.OptionsSource(&PresetComboList)
+				.OnGenerateWidget(this, &FCameraCropSettingsCustomization::MakePresetComboWidget)
+				.OnSelectionChanged(this, &FCameraCropSettingsCustomization::OnPresetChanged)
+				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				.ContentPadding(2)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(this, &FCameraCropSettingsCustomization::GetPresetComboBoxContent)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.ToolTipText(this, &FCameraCropSettingsCustomization::GetPresetComboBoxContent)
+				]
+			];
+	}
 }
 
 
@@ -98,7 +105,7 @@ void FCameraCropSettingsCustomization::OnPresetChanged(TSharedPtr<FString> NewSe
 		FString const NewPresetName = *NewSelection.Get();
 
 		// search presets for one that matches
-		TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+		TArray<FNamedPlateCropPreset> const& Presets = UCineCameraSettings::GetCropPresets();
 		int32 const NumPresets = Presets.Num();
 		for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 		{
@@ -132,7 +139,7 @@ TSharedPtr<FString> FCameraCropSettingsCustomization::GetPresetString() const
  	AspectRatioHandle->GetValue(AspectRatio);
  
 	// search presets for one that matches
-	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraComponent::GetCropPresets();
+	TArray<FNamedPlateCropPreset> const& Presets = UCineCameraSettings::GetCropPresets();
 	int32 const NumPresets = Presets.Num();
 	for (int32 PresetIdx = 0; PresetIdx < NumPresets; ++PresetIdx)
 	{

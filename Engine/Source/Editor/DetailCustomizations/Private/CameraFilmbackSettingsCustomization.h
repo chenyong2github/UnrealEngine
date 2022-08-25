@@ -42,6 +42,8 @@ protected:
 	TSharedPtr<class SComboBox< TSharedPtr<FString> > > PresetComboBox;
 	TArray< TSharedPtr< FString > >						PresetComboList;
 
+	void BuildPresetComboList();
+
 	bool IsPresetEnabled() const;
 	void OnPresetChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	TSharedRef<SWidget> MakePresetComboWidget(TSharedPtr<FString> InItem);
