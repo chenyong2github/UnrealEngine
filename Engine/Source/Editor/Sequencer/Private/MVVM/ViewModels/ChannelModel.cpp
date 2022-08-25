@@ -136,7 +136,7 @@ bool FChannelModel::UpdateCachedKeys(TSharedPtr<FCachedKeys>& OutCachedKeys) con
 			UMovieSceneSection* Section = InChannel->GetSection();
 			if (!Section || !CachedSignature.IsValid() || Section->GetSignature() != CachedSignature)
 			{
-				CachedSignature = Section ? Section->GetSignature() : FGuid();
+				CachedSignature = Section && InChannel->GetKeyArea() && InChannel->GetKeyArea()->ResolveChannel() ? Section->GetSignature() : FGuid();
 
 				KeyTimes.Reset();
 				KeyHandles.Reset();
