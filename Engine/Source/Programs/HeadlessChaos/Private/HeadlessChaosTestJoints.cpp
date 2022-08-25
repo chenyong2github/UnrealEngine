@@ -5,7 +5,6 @@
 
 #include "Modules/ModuleManager.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/PBDRigidParticles.h"
@@ -42,9 +41,8 @@ namespace ChaosTest {
 
 		FJointConstraintsTest(const int32 NumIterations, const FReal Gravity)
 			: Base(NumIterations, Gravity)
-			, JointsRule(Joints)
 		{
-			Evolution.AddConstraintRule(&JointsRule);
+			Evolution.AddConstraintContainer(Joints);
 		}
 
 		FPBDJointConstraintHandle* AddJoint(const TVec2<FGeometryParticleHandle*>& InConstrainedParticleIndices, const FVec3& InLocation)
@@ -77,7 +75,6 @@ namespace ChaosTest {
 
 		// Solver state
 		FPBDJointConstraints Joints;
-		TPBDConstraintIslandRule<FPBDJointConstraints> JointsRule;
 	};
 
 	/**
@@ -499,8 +496,7 @@ namespace ChaosTest {
 
 		FPBDRigidSpringConstraints JointConstraints;
 		JointConstraints.AddConstraint(ConstrainedParticles, Points, 1.0f, 0.0f, (Points[0] - Points[1]).Size());
-		Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidSpringConstraints> JointRule(JointConstraints);
-		Evolution.AddConstraintRule(&JointRule);
+		Evolution.AddConstraintContainer(JointConstraints);
 
 		const FReal Dt = 0.01f;
 		for (int32 i = 0; i < 100; ++i)
@@ -541,8 +537,7 @@ namespace ChaosTest {
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));
 
 			Chaos::FPBDRigidDynamicSpringConstraints SpringConstraints(MoveTemp(Constraints));
-			Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidDynamicSpringConstraints> SpringRule(SpringConstraints);
-			Evolution.AddConstraintRule(&SpringRule);
+			Evolution.AddConstraintContainer(SpringConstraints);
 
 			const FReal Dt = 0.01f;
 			for (int32 i = 0; i < 200; ++i)
@@ -572,8 +567,7 @@ namespace ChaosTest {
 			Evolution.SetPhysicsMaterial(&Box2, MakeSerializable(PhysicalMaterial));
 
 			Chaos::FPBDRigidDynamicSpringConstraints SpringConstraints(MoveTemp(Constraints), 400);
-			Chaos::TPBDConstraintIslandRule<Chaos::FPBDRigidDynamicSpringConstraints> SpringRule(SpringConstraints);
-			Evolution.AddConstraintRule(&SpringRule);
+			Evolution.AddConstraintContainer(SpringConstraints);
 
 			const FReal Dt = 0.01f;
 			for (int32 i = 0; i < 200; ++i)

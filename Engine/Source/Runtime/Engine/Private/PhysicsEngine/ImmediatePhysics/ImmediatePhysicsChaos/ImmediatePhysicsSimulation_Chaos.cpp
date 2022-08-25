@@ -19,7 +19,6 @@
 #include "Chaos/MassConditioning.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
@@ -52,6 +51,7 @@ int32 ChaosImmediate_Evolution_Iterations = -1;				// Legacy
 int32 ChaosImmediate_Evolution_PushOutIterations = -1;		// Legacy
 Chaos::FRealSingle ChaosImmediate_Evolution_BoundsExtension = 0.0f;
 int32 ChaosImmediate_DisableInactiveByIndex = 1;
+int32 ChaosImmediate_Evolution_NumCollisionsPerBlock = 50;
 FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.Chaos.ImmPhys.StepTime"), ChaosImmediate_Evolution_StepTime, TEXT("Override step time (if not zero)"));
 FAutoConsoleVariableRef CVarChaosImmPhysNumSteps(TEXT("p.Chaos.ImmPhys.NumSteps"), ChaosImmediate_Evolution_NumSteps, TEXT("Override num steps (if not zero)"));
 FAutoConsoleVariableRef CVarChaosImmPhysInitialStepTime(TEXT("p.Chaos.ImmPhys.InitialStepTime"), ChaosImmediate_Evolution_InitialStepTime, TEXT("Initial step time (then calculated from rolling average)"));
@@ -63,6 +63,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysIterations(TEXT("p.Chaos.ImmPhys.Iterati
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutIterations(TEXT("p.Chaos.ImmPhys.PushOutIterations"), ChaosImmediate_Evolution_PushOutIterations, TEXT("[Legacy Solver] Override number of solver push-out loops (if >= 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysBoundsExtension(TEXT("p.Chaos.ImmPhys.BoundsExtension"), ChaosImmediate_Evolution_BoundsExtension, TEXT("Bounds are grown by this fraction of their size (should be >= 0.0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysDisableInactiveByIndex(TEXT("p.Chaos.ImmPhys.DisableInactiveByIndex"), ChaosImmediate_DisableInactiveByIndex, TEXT("Disable bodies that are no longer active based on the index, rather than just count."));
+FAutoConsoleVariableRef CVarChaosImmPhysNumCollisionsPerBlock(TEXT("p.Chaos.ImmPhys.NumCollisionsPerBlock"), ChaosImmediate_Evolution_NumCollisionsPerBlock, TEXT("The number of collision in a block in the collision pool. Higher values give better cache efficieny but waste memory if you do not need that many"));
 
 Chaos::FRealSingle ChaosImmediate_Evolution_SimSpaceCentrifugalAlpha = 1.0f;
 Chaos::FRealSingle ChaosImmediate_Evolution_SimSpaceCoriolisAlpha = 0.5f;
@@ -167,12 +168,6 @@ FAutoConsoleVariableRef  CVarChaosImmPhysParticleInertiaConditioningRotationRati
 
 Chaos::FRealSingle ChaosImmediate_MaxInvInertiaComponentRatio = 0;
 FAutoConsoleVariableRef  CVarChaosImmPhysInertiaConditioningMaxInvInertiaComponentRatio(TEXT("p.Chaos.ImmPhys.InertiaConditioning.MaxInvInertiaComponentRatio"), ChaosImmediate_MaxInvInertiaComponentRatio, TEXT("An input to inertia conditioning system. The largest inertia component must be at least least multiple of the smallest component"));
-
-//
-// Select the solver technique to use until we settle on the final one...
-//
-int32 ChaosImmediate_SolverType = (int32)Chaos::EConstraintSolverType::QuasiPbd;
-FAutoConsoleVariableRef CVarChaosImmPhysSolverType(TEXT("p.Chaos.ImmPhys.SolverType"), ChaosImmediate_SolverType, TEXT("0 = None; 1 = GbfPbd; 2 = Pbd; 3 = QuasiPbd"));
 
 // Whether to use the linear joint solver which is significantly faster than the non-linear one but less accurate. Only applies to the QuasiPBD Solver
 int32 ChaosImmediate_Joint_UseLinearSolver = -1;
@@ -304,12 +299,10 @@ namespace ImmediatePhysics_Chaos
 		FImplementation()
 			: Particles(UniqueIndices)
 			, Joints()
-			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr)
+			, Collisions(Particles, CollidedParticles, ParticleMaterials, PerParticleMaterials, nullptr, ChaosImmediate_Evolution_NumCollisionsPerBlock, 2000)
 			, BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr)
 			, NarrowPhase(FReal(0), FReal(0), Collisions.GetConstraintAllocator())
 			, CollisionDetector(BroadPhase, NarrowPhase, Collisions)
-			, JointsRule(0, Joints)
-			, CollisionsRule(1, Collisions)
 			, Evolution(Particles, ParticlePrevXs, ParticlePrevRs, CollisionDetector, FReal(0))
 			, NumActiveDynamicActorHandles(0)
 			, SimulationSpace()
@@ -324,8 +317,8 @@ namespace ImmediatePhysics_Chaos
 			Particles.GetParticleHandles().AddArray(&ParticlePrevXs);
 			Particles.GetParticleHandles().AddArray(&ParticlePrevRs);
 
-			Evolution.AddConstraintRule(&CollisionsRule);
-			Evolution.AddConstraintRule(&JointsRule);
+			Evolution.AddConstraintContainer(Collisions, ChaosImmediate_Collision_Priority);
+			Evolution.AddConstraintContainer(Joints, 0);
 		}
 
 		~FImplementation()
@@ -348,8 +341,6 @@ namespace ImmediatePhysics_Chaos
 		Chaos::FBasicBroadPhase BroadPhase;
 		Chaos::FNarrowPhase NarrowPhase;
 		Chaos::FBasicCollisionDetector CollisionDetector;
-		Chaos::TSimpleConstraintRule<Chaos::FPBDJointConstraints> JointsRule;
-		Chaos::TSimpleConstraintRule<Chaos::FPBDCollisionConstraints> CollisionsRule;
 		Chaos::FPBDMinEvolution Evolution;
 
 		/** Mapping from entity index to handle */
@@ -388,8 +379,6 @@ namespace ImmediatePhysics_Chaos
 
 		// RBAN collision customization
 		Implementation->Collisions.DisableHandles();
-		Implementation->Collisions.SetSolverType(EConstraintSolverType::StandardPbd);
-		Implementation->Joints.SetSolverType(EConstraintSolverType::StandardPbd);
 
 		Implementation->NarrowPhase.GetContext().GetSettings().bFilteringEnabled = false;
 		Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifoldReuse = false;
@@ -790,36 +779,6 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
-	void FSimulation::SetLegacySolverSettings(const int32 SolverIts, const int32 JointIts, const int32 CollisionIts, const int32 SolverPushOutIts, const int32 JointPushOutIts, const int32 CollisionPushOutIts)
-	{
-		if (SolverIts >= 0)
-		{
-			Implementation->Evolution.SetNumIterations(SolverIts);
-		}
-		if (SolverPushOutIts >= 0)
-		{
-			Implementation->Evolution.SetNumPushOutIterations(SolverPushOutIts);
-		}
-
-		if (JointIts >= 0)
-		{
-			Implementation->Joints.SetNumPairIterations(JointIts);
-		}
-		if (JointPushOutIts >= 0)
-		{
-			Implementation->Joints.SetNumPushOutPairIterations(JointPushOutIts);
-		}
-
-		if (CollisionIts >= 0)
-		{
-			Implementation->Collisions.SetPairIterations(CollisionIts);
-		}
-		if (CollisionPushOutIts >= 0)
-		{
-			Implementation->Collisions.SetPushOutPairIterations(CollisionPushOutIts);
-		}
-	}
-
 	void FSimulation::DebugDraw()
 	{
 		DebugDrawStaticParticles();
@@ -854,31 +813,14 @@ namespace ImmediatePhysics_Chaos
 
 		// TEMP: overrides
 		{
-			const EConstraintSolverType SolverType = (EConstraintSolverType)FMath::Clamp(ChaosImmediate_SolverType, int32(EConstraintSolverType::None), int32(EConstraintSolverType::QuasiPbd));
-			Implementation->Evolution.SetSolverType(SolverType);
-			Implementation->Collisions.SetSolverType(SolverType);
-			Implementation->Joints.SetSolverType(SolverType);
-			if (SolverType == EConstraintSolverType::QuasiPbd)
-			{
-				SetSolverSettings(
-					ChaosImmediate_Evolution_FixedStepTime,
-					ChaosImmediate_Collision_CullDistance,
-					ChaosImmediate_Collision_MaxDepenetrationVelocity,
-					ChaosImmediate_Joint_UseLinearSolver,
-					ChaosImmediate_Evolution_PositionIterations,
-					ChaosImmediate_Evolution_VelocityIterations,
-					ChaosImmediate_Evolution_ProjectionIterations);
-			}
-			else
-			{
-				SetLegacySolverSettings(
-					ChaosImmediate_Evolution_Iterations,
-					ChaosImmediate_Joint_PairIterations,
-					ChaosImmediate_Collision_PairIterations,
-					ChaosImmediate_Evolution_PushOutIterations,
-					ChaosImmediate_Joint_PushOutPairIterations,
-					0);
-			}
+			SetSolverSettings(
+				ChaosImmediate_Evolution_FixedStepTime,
+				ChaosImmediate_Collision_CullDistance,
+				ChaosImmediate_Collision_MaxDepenetrationVelocity,
+				ChaosImmediate_Joint_UseLinearSolver,
+				ChaosImmediate_Evolution_PositionIterations,
+				ChaosImmediate_Evolution_VelocityIterations,
+				ChaosImmediate_Evolution_ProjectionIterations);
 
 			FPBDJointSolverSettings JointsSettings = Implementation->Joints.GetSettings();
 			JointsSettings.SwingTwistAngleTolerance = ChaosImmediate_Joint_SwingTwistAngleTolerance;
@@ -905,31 +847,19 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.LinearDriveDampingOverride = ChaosImmediate_Joint_LinearDriveDamping;
 			JointsSettings.AngularDriveStiffnessOverride = ChaosImmediate_Joint_AngularDriveStiffness;
 			JointsSettings.AngularDriveDampingOverride = ChaosImmediate_Joint_AngularDriveDamping;
-			if (SolverType == EConstraintSolverType::QuasiPbd)
-			{
-				// NOTE: bUseLinearSolver is set via SetSolverSettings above for QPBD
-				JointsSettings.NumShockPropagationIterations = ChaosImmediate_Joint_NumShockPropagationIterations;
-			}
-			else
-			{
-				JointsSettings.NumShockPropagationIterations = 0;
-				JointsSettings.bUseLinearSolver = false;
-			}
+			JointsSettings.NumShockPropagationIterations = ChaosImmediate_Joint_NumShockPropagationIterations;
 			Implementation->Joints.SetSettings(JointsSettings);
 
-			if (SolverType == EConstraintSolverType::QuasiPbd)
-			{
-				Implementation->Collisions.SetPositionFrictionIterations(ChaosImmediate_Collision_NumPositionFrictionIterations);
-				Implementation->Collisions.SetVelocityFrictionIterations(ChaosImmediate_Collision_NumVelocityFrictionIterations);
-				Implementation->Collisions.SetPositionShockPropagationIterations(ChaosImmediate_Collision_NumPositionShockPropagationIterations);
-				Implementation->Collisions.SetVelocityShockPropagationIterations(ChaosImmediate_Collision_NumVelocityShockPropagationIterations);
-			}
+			Implementation->Collisions.SetPositionFrictionIterations(ChaosImmediate_Collision_NumPositionFrictionIterations);
+			Implementation->Collisions.SetVelocityFrictionIterations(ChaosImmediate_Collision_NumVelocityFrictionIterations);
+			Implementation->Collisions.SetPositionShockPropagationIterations(ChaosImmediate_Collision_NumPositionShockPropagationIterations);
+			Implementation->Collisions.SetVelocityShockPropagationIterations(ChaosImmediate_Collision_NumVelocityShockPropagationIterations);
 
 			Implementation->Collisions.SetRestitutionEnabled(ChaosImmediate_Collision_RestitutionEnabled != 0);
 			Implementation->Collisions.SetRestitutionThreshold(ChaosImmediate_Collision_RestitutionThresholdMultiplier * InGravity.Size());
 			Implementation->Collisions.SetCollisionsEnabled(ChaosImmediate_Collision_Enabled != 0);
 
-			Implementation->CollisionsRule.SetPriority(ChaosImmediate_Collision_Priority);
+			Implementation->Evolution.SetConstraintContainerPriority(Implementation->Collisions.GetContainerId(), ChaosImmediate_Collision_Priority);
 
 			Implementation->NarrowPhase.GetContext().GetSettings().bAllowManifoldReuse = false;
 			Implementation->NarrowPhase.GetContext().GetSettings().bDeferNarrowPhase = (ChaosImmediate_Collision_DeferNarrowPhase != 0);

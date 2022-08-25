@@ -205,6 +205,21 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::RemoveNode(const N
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
+int32 FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::GetNodeItemLevel(const NodeType& NodeItem) const
+{
+	if (const int32* PNodeIndex = ItemNodes.Find(NodeItem))
+	{
+		const int32 NodeIndex = *PNodeIndex;
+		if (GraphNodes.IsValidIndex(NodeIndex))
+		{
+			const FGraphNode& GraphNode = GraphNodes[NodeIndex];
+			return GraphNode.LevelIndex;
+		}
+	}
+	return 0;
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
 void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ResetEdges()
 {
 	if (Owner != nullptr)
@@ -516,7 +531,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::InitSorting()
 }
 	
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
-void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateLevels(const int32 NodeIndex, const int32 ContainerId)
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateLevels(const int32 NodeIndex)
 {
 	if(GraphNodes.IsValidIndex(NodeIndex))
 	{
@@ -530,8 +545,8 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateLevels(const
 			ensure(!GraphEdge.bValidEdge || GraphIslands.IsValidIndex(GraphEdge.IslandIndex));
 #endif
 
-			// Do nothing if the edge is not coming from the same container or if the island is sleeping 
-			if (GraphEdge.bValidEdge && (GraphEdge.ItemContainer == ContainerId) && (GraphEdge.LevelIndex == INDEX_NONE) && !GraphIslands[GraphEdge.IslandIndex].bIsSleeping)
+			// Do nothing if the edge is assigned a level or if the island is sleeping 
+			if (GraphEdge.bValidEdge && (GraphEdge.LevelIndex == INDEX_NONE) && !GraphIslands[GraphEdge.IslandIndex].bIsSleeping)
 			{
 				const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
 							GraphEdge.SecondNode : GraphEdge.FirstNode;
@@ -553,7 +568,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateLevels(const
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
-void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeLevels(const int32 ContainerId)
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeLevels()
 {
 	// First enqueue all the static/kinematic nodes for levels 0
 	NodeQueue.Reset();
@@ -565,7 +580,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeLevels(cons
 			if(!GraphNode.bValidNode)
 			{
 				GraphNode.LevelIndex = 0;
-				UpdateLevels(NodeIndex, ContainerId);
+				UpdateLevels(NodeIndex);
 			}
 		}
 	}
@@ -577,13 +592,13 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeLevels(cons
 		NodeIndex = NodeQueue.First();
 		NodeQueue.PopFirst();
 
-		UpdateLevels(NodeIndex, ContainerId);
+		UpdateLevels(NodeIndex);
 	}
 
 	// An isolated island that is only dynamics will not have been processed above, put everything without a level into level zero
 	for(auto& GraphEdge : GraphEdges)
 	{
-		if(GraphEdge.bValidEdge && (GraphEdge.ItemContainer == ContainerId))
+		if(GraphEdge.bValidEdge)
 		{
 			GraphEdge.LevelIndex = FGenericPlatformMath::Max(GraphEdge.LevelIndex, 0);
 		}
@@ -621,7 +636,7 @@ int32 FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::PickColor(const F
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
-void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateColors(const int32 NodeIndex, const int32 ContainerId, const int32 MinEdges)
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateColors(const int32 NodeIndex, const int32 MinEdges)
 {
 	if (GraphNodes.IsValidIndex(NodeIndex))
 	{
@@ -638,7 +653,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateColors(const
 #endif
 
 			// Do nothing if the edge is not coming from the same container or if the island is sleeping 
-			if (GraphEdge.bValidEdge && (GraphEdge.ItemContainer == ContainerId) && (GraphEdge.ColorIndex == INDEX_NONE) &&
+			if (GraphEdge.bValidEdge && (GraphEdge.ColorIndex == INDEX_NONE) &&
 				!GraphIslands[GraphEdge.IslandIndex].bIsSleeping && (GraphIslands[GraphEdge.IslandIndex].NumEdges > MinEdges))
 			{
 				// Get the opposite node index for the given edge
@@ -659,7 +674,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateColors(const
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType, typename OwnerType>
-void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeColors(const int32 ContainerId, const int32 MinEdges)
+void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeColors(const int32 MinEdges)
 {
 	GraphCounter = (GraphCounter + 1) % MaxCount;
 
@@ -680,7 +695,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ComputeColors(cons
 					NodeIndex = NodeQueue.First();
 					NodeQueue.PopFirst();
 
-					UpdateColors(NodeIndex, ContainerId, MinEdges);
+					UpdateColors(NodeIndex, MinEdges);
 				}
 			}
 		}
@@ -959,6 +974,6 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::ResetIslands()
 	}
 }
 
-template class FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIslandSolver*, FPBDIslandManager>;
+template class FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIsland*, FPBDIslandManager>;
 template class FIslandGraph<int32, int32, int32, TNullIslandGraphOwner<int32, int32>>;
 }

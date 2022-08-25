@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDPositionConstraints.h"
-#include "Chaos/Evolution/SolverDatas.h"
+#include "Chaos/Island/IslandManager.h"
 
 namespace Chaos
 {
@@ -10,48 +10,61 @@ namespace Chaos
 		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
-	void FPBDPositionConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	void FPBDPositionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
 	{
-		ConcreteContainer()->PreGatherInput(Dt, ConstraintIndex, SolverData);
+		IslandManager.AddContainerConstraints(*this);
 	}
 
-	void FPBDPositionConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
+	void FPBDPositionConstraints::AddBodies(FSolverBodyContainer& SolverBodyContainer)
 	{
-		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
-	}
-	
-	void FPBDPositionConstraints::SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData)
-	{
-		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
+		{
+			AddBodies(ConstraintIndex, SolverBodyContainer);
+		}
 	}
 
-	void FPBDPositionConstraints::PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData)
+	void FPBDPositionConstraints::ScatterOutput(const FReal Dt)
 	{
-		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
-
-		ConstraintSolverBodies[ConstraintIndex] = SolverData.GetBodyContainer().FindOrAdd(ConstrainedParticles[ConstraintIndex], Dt);
-	}
-
-	void FPBDPositionConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-	{
-	}
-	
-	void FPBDPositionConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
 			ConstraintSolverBodies[ConstraintIndex] = nullptr;
 		}
 	}
 
-	bool FPBDPositionConstraints::ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
+	void FPBDPositionConstraints::ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
 	{
-		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
 			ApplySingle(Dt, ConstraintIndex);
 		}
+	}
 
-		// @todo(chaos): early iteration termination in FPBDPositionConstraints
-		return true;
+	void FPBDPositionConstraints::AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer)
+	{
+		for (int32 ConstraintIndex : ConstraintIndices)
+		{
+			AddBodies(ConstraintIndex, SolverBodyContainer);
+		}
+	}
+
+	void FPBDPositionConstraints::ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt)
+	{
+		for (int32 ConstraintIndex : ConstraintIndices)
+		{
+			ConstraintSolverBodies[ConstraintIndex] = nullptr;
+		}
+	}
+
+	void FPBDPositionConstraints::ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		for (int32 ConstraintIndex : ConstraintIndices)
+		{
+			ApplySingle(Dt, ConstraintIndex);
+		}
+	}
+
+	void FPBDPositionConstraints::AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer)
+	{
+		ConstraintSolverBodies[ConstraintIndex] = SolverBodyContainer.FindOrAdd(ConstrainedParticles[ConstraintIndex]);
 	}
 }

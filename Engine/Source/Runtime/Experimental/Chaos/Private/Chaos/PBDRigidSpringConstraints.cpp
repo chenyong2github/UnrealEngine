@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/PBDRigidSpringConstraints.h"
-#include "Chaos/Evolution/SolverDatas.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/Utilities.h"
 
@@ -37,23 +37,12 @@ namespace Chaos
 		ConcreteContainer()->SetRestLength(ConstraintIndex, SpringLength);
 	}
 
-	void FPBDRigidSpringConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		ConcreteContainer()->PreGatherInput(Dt, ConstraintIndex, SolverData);
-	}
-
-	void FPBDRigidSpringConstraintHandle::GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-	{
-		ConcreteContainer()->GatherInput(Dt, ConstraintIndex, Particle0Level, Particle1Level, SolverData);
-	}
-
-
 	//
 	// Container Impl
 	//
 
 	FPBDRigidSpringConstraints::FPBDRigidSpringConstraints()
-		: FPBDIndexedConstraintContainer(FConstraintContainerHandle::StaticType())
+		: TPBDIndexedConstraintContainer<FPBDRigidSpringConstraints>(FConstraintContainerHandle::StaticType())
 	{}
 
 	FPBDRigidSpringConstraints::~FPBDRigidSpringConstraints()
@@ -135,62 +124,74 @@ namespace Chaos
 		return SpringSettings[ConstraintIndex].Stiffness * Delta / CombinedInvMass;
 	}
 
-	void FPBDRigidSpringConstraints::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	void FPBDRigidSpringConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
+	{
+		IslandManager.AddContainerConstraints(*this);
+	}
+
+	void FPBDRigidSpringConstraints::AddBodies(FSolverBodyContainer& SolverBodyContainer)
 	{
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
-			PreGatherInput(Dt, ConstraintIndex, SolverData);
+			AddBodies(ConstraintIndex, SolverBodyContainer);
 		}
 	}
 
-	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
+	void FPBDRigidSpringConstraints::ScatterOutput(const FReal Dt)
 	{
 		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
-			GatherInput(Dt, ConstraintIndex, INDEX_NONE, INDEX_NONE, SolverData);
+			ConstraintSolverBodies[ConstraintIndex] =
+			{
+				nullptr,
+				nullptr
+			};
 		}
 	}
 
-	bool FPBDRigidSpringConstraints::ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
+	void FPBDRigidSpringConstraints::ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
 	{
-		return ApplyPhase1Serial(Dt, It, NumIts, SolverData);
-	}
-
-	void FPBDRigidSpringConstraints::SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData)
-	{
-		SolverData.GetConstraintIndices(ContainerId).Reset(NumIslandConstraints);
-	}
-
-	void FPBDRigidSpringConstraints::PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData)
-	{
-		SolverData.GetConstraintIndices(ContainerId).Add(ConstraintIndex);
-	
-		ConstraintSolverBodies[ConstraintIndex] =
-		{
-			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][0], Dt),
-			SolverData.GetBodyContainer().FindOrAdd(Constraints[ConstraintIndex][1], Dt)
-		};
-	}
-
-	void FPBDRigidSpringConstraints::GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-	{
-	}
-
-	void FPBDRigidSpringConstraints::ScatterOutput(FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
-		{
-			ConstraintSolverBodies[ConstraintIndex] = { nullptr, nullptr };
-		}
-	}
-
-	bool FPBDRigidSpringConstraints::ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
-	{
-		for (int32 ConstraintIndex : SolverData.GetConstraintIndices(ContainerId))
+		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints(); ++ConstraintIndex)
 		{
 			ApplyPhase1Single(Dt, ConstraintIndex);
 		}
-		return true;
+	}
+
+	void FPBDRigidSpringConstraints::AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer)
+	{
+		for (int32 ConstraintIndex : ConstraintIndices)
+		{
+			AddBodies(ConstraintIndex, SolverBodyContainer);
+		}
+	}
+
+	void FPBDRigidSpringConstraints::ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt)
+	{
+		for (int32 ConstraintIndex : ConstraintIndices)
+		{
+			ConstraintSolverBodies[ConstraintIndex] = 
+			{ 
+				nullptr, 
+				nullptr 
+			};
+		}
+	}
+
+	void FPBDRigidSpringConstraints::ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		for (int32 ConstraintIndex : ConstraintIndices)
+		{
+			ApplyPhase1Single(Dt, ConstraintIndex);
+		}
+	}
+
+	void FPBDRigidSpringConstraints::AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer)
+	{
+		ConstraintSolverBodies[ConstraintIndex] =
+		{
+			SolverBodyContainer.FindOrAdd(Constraints[ConstraintIndex][0]),
+			SolverBodyContainer.FindOrAdd(Constraints[ConstraintIndex][1])
+		};
 	}
 
 	void FPBDRigidSpringConstraints::ApplyPhase1Single(const FReal Dt, int32 ConstraintIndex) const

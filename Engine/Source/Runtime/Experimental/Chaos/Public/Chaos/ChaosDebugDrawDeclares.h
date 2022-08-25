@@ -16,11 +16,14 @@ namespace Chaos
 
 	class FPBDConstraintColor;
 
-	class FPBDConstraintGraph;
-
 	class FPBDJointConstraintHandle;
 
 	class FPBDJointConstraints;
 
+	class FPBDIslandManager;
+
 	class FSimulationSpace;
+
+
+	using FPBDConstraintGraph = FPBDIslandManager;
 }

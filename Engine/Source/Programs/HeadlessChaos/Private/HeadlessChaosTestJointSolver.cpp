@@ -106,10 +106,11 @@ namespace ChaosTest
 				Body1.UpdateRotationDependentState();
 			}
 
+			Solver.SetSolverBodies(&Body0, &Body1);
+
 			// Apply Constraints
 			Solver.Init(
 				Dt,
-				{&Body0, &Body1},
 				SolverSettings,
 				JointSettings,
 				Connector0,

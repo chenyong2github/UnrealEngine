@@ -61,14 +61,15 @@ namespace Chaos
 		return true;
 	}
 
-	TUniquePtr<FPBDCollisionConstraint> CreateShapePairConstraint(
+	FPBDCollisionConstraintPtr CreateShapePairConstraint(
 		FGeometryParticleHandle* Particle0,
 		const FPerShapeData* InShape0,
 		FGeometryParticleHandle* Particle1,
 		const FPerShapeData* InShape1,
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
-		const bool bUseManifold)
+		const bool bUseManifold,
+		FCollisionConstraintAllocator& Allocator)
 	{
 		const FImplicitObject* Implicit0 = InShape0->GetLeafGeometry();
 		const FBVHParticles* BVHParticles0 = FConstGenericParticleHandle(Particle0)->CollisionParticles().Get();
@@ -77,10 +78,10 @@ namespace Chaos
 		const FBVHParticles* BVHParticles1 = FConstGenericParticleHandle(Particle1)->CollisionParticles().Get();
 		const FRigidTransform3& ShapeRelativeTransform1 = (FRigidTransform3)InShape1->GetLeafRelativeTransform();
 
-		return FPBDCollisionConstraint::Make(Particle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
+		return Allocator.CreateCollisionConstraint(Particle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
 
-	TUniquePtr<FPBDCollisionConstraint> CreateImplicitPairConstraint(
+	FPBDCollisionConstraintPtr CreateImplicitPairConstraint(
 		FGeometryParticleHandle* Particle0,
 		const FImplicitObject* Implicit0,
 		const FPerShapeData* Shape0,
@@ -93,9 +94,10 @@ namespace Chaos
 		const FRigidTransform3& ShapeRelativeTransform1,
 		const FReal CullDistance,
 		const EContactShapesType ShapePairType,
-		const bool bUseManifold)
+		const bool bUseManifold,
+		FCollisionConstraintAllocator& Allocator)
 	{
-		return FPBDCollisionConstraint::Make(Particle0, Implicit0, Shape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
+		return Allocator.CreateCollisionConstraint(Particle0, Implicit0, Shape0, BVHParticles0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType);
 	}
 
 
@@ -258,9 +260,9 @@ namespace Chaos
 	void FSingleShapePairCollisionDetector::CreateConstraint(const FReal CullDistance, FCollisionContext& Context)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
-		check(Constraint == nullptr);
+		check(!Constraint.IsValid());
 
-		Constraint = CreateShapePairConstraint(Particle0, Shape0, Particle1, Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds);
+		Constraint = CreateShapePairConstraint(Particle0, Shape0, Particle1, Shape1, CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, MidPhase.GetCollisionAllocator());
 
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = false;
@@ -278,7 +280,7 @@ namespace Chaos
 			return GenerateCollisionProbeImpl(CullDistance, Dt, Context);
 		}
 
-		if (Constraint == nullptr)
+		if (!Constraint.IsValid())
 		{
 			// Lazy creation of the constraint. If a shape pair never gets within CullDistance of each
 			// other, we never allocate a constraint for them. Once they overlap, we reuse the constraint
@@ -287,7 +289,7 @@ namespace Chaos
 			CreateConstraint(CullDistance, Context);
 		}
 
-		if (Constraint != nullptr)
+		if (Constraint.IsValid())
 		{
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraint);
 
@@ -366,13 +368,13 @@ namespace Chaos
 			return GenerateCollisionProbeImpl(CullDistance, Dt, Context);
 		}
 
-		if (Constraint == nullptr)
+		if (!Constraint.IsValid())
 		{
 			// Lazy creation of the constraint. 
 			CreateConstraint(CullDistance, Context);
 		}
 
-		if (Constraint != nullptr)
+		if (Constraint.IsValid())
 		{
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraintCCD);
 
@@ -430,12 +432,12 @@ namespace Chaos
 		// Same as regular constraint generation, but always defer narrow phase.
 		// Don't do any initial constraint computations.
 
-		if (Constraint == nullptr)
+		if (!Constraint.IsValid())
 		{
 			CreateConstraint(CullDistance, Context);
 		}
 
-		if (Constraint != nullptr)
+		if (Constraint.IsValid())
 		{
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraintProbe);
 
@@ -449,7 +451,7 @@ namespace Chaos
 
 	void FSingleShapePairCollisionDetector::WakeCollision(const int32 SleepEpoch)
 	{
-		if ((Constraint != nullptr) && IsUsedSince(SleepEpoch))
+		if (Constraint.IsValid() && IsUsedSince(SleepEpoch))
 		{
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
 			// If a particle changed to kinematic, all constraints without a dynamic should have been removed
@@ -473,9 +475,9 @@ namespace Chaos
 	{
 		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 
-		if (Constraint == nullptr)
+		if (!Constraint.IsValid())
 		{
-			Constraint = MakeUnique<FPBDCollisionConstraint>();
+			Constraint = MidPhase.GetCollisionAllocator().CreateCollisionConstraint();
 			Constraint->GetContainerCookie().MidPhase = &MidPhase;
 			Constraint->GetContainerCookie().bIsMultiShapePair = false;
 			Constraint->GetContainerCookie().CreationEpoch = CurrentEpoch;
@@ -483,7 +485,7 @@ namespace Chaos
 
 		// Copy the constraint over the existing one, taking care to leave the cookie intact
 		const FPBDCollisionConstraintContainerCookie Cookie = Constraint->GetContainerCookie();
-		*(Constraint.Get()) = SourceConstraint;
+		*Constraint = SourceConstraint;
 		Constraint->GetContainerCookie() = Cookie;
 
 		// Add the constraint to the active list
@@ -662,10 +664,10 @@ namespace Chaos
 
 	FPBDCollisionConstraint* FMultiShapePairCollisionDetector::FindConstraint(const FCollisionParticlePairConstraintKey& Key)
 	{
-		TUniquePtr<FPBDCollisionConstraint>* Constraint = Constraints.Find(Key.GetKey());
-		if (Constraint != nullptr)
+		FPBDCollisionConstraintPtr* PConstraint = Constraints.Find(Key.GetKey());
+		if (PConstraint != nullptr)
 		{
-			return (*Constraint).Get();
+			return (*PConstraint).Get();
 		}
 		return nullptr;
 	}
@@ -687,7 +689,7 @@ namespace Chaos
 		const FCollisionParticlePairConstraintKey& Key)
 	{
 		PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_CreateConstraint);
-		TUniquePtr<FPBDCollisionConstraint> Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold);
+		FPBDCollisionConstraintPtr Constraint = CreateImplicitPairConstraint(InParticle0, Implicit0, InShape0, BVHParticles0, ShapeRelativeTransform0, InParticle1, Implicit1, InShape1, BVHParticles1, ShapeRelativeTransform1, CullDistance, ShapePairType, bUseManifold, MidPhase.GetCollisionAllocator());
 
 		Constraint->GetContainerCookie().MidPhase = &MidPhase;
 		Constraint->GetContainerCookie().bIsMultiShapePair = true;
@@ -701,7 +703,7 @@ namespace Chaos
 		const int32 CurrentEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 		for (auto& KVP : Constraints)
 		{
-			TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
+			FPBDCollisionConstraintPtr& Constraint = KVP.Value;
 			if (Constraint->GetContainerCookie().LastUsedEpoch >= SleepEpoch)
 			{
 				Constraint->GetContainerCookie().LastUsedEpoch = CurrentEpoch;
@@ -736,7 +738,7 @@ namespace Chaos
 		for (auto& KVP : Constraints)
 		{
 			const uint32 Key = KVP.Key;
-			TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
+			FPBDCollisionConstraintPtr& Constraint = KVP.Value;
 			if (Constraint->GetContainerCookie().LastUsedEpoch < CurrentEpoch)
 			{
 				Pruned.Add(Key);
@@ -1044,7 +1046,7 @@ namespace Chaos
 		bool bInGraph = false;
 		VisitConstCollisions([&bInGraph](const FPBDCollisionConstraint& Constraint)
 		{
-			if (Constraint.ConstraintGraphIndex() != INDEX_NONE)
+			if (Constraint.GetConstraintGraphIndex() != INDEX_NONE)
 			{
 				bInGraph = true;
 				return ECollisionVisitorResult::Stop;

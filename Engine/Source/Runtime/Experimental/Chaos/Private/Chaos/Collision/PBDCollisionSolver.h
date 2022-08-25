@@ -18,11 +18,6 @@ CHAOS_API DECLARE_LOG_CATEGORY_EXTERN(LogChaosCollision, Log, All);
 
 namespace Chaos
 {
-	namespace Collisions
-	{
-		struct FContactIterationParameters;
-		struct FContactParticleParameters;
-	}
 	class FManifoldPoint;
 	class FPBDCollisionSolver;
 	class FPBDCollisionConstraint;

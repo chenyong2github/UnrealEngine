@@ -109,7 +109,7 @@ namespace Chaos
 		return false;
 	}
 
-	void FPBDCollisionConstraint::MakeInline(
+	void FPBDCollisionConstraint::Make(
 		FGeometryParticleHandle* Particle0,
 		const FImplicitObject* Implicit0,
 		const FPerShapeData* Shape0,
@@ -135,28 +135,6 @@ namespace Chaos
 		OutConstraint.Simplicial[1] = Simplicial1;
 
 		OutConstraint.Setup(ECollisionCCDType::Disabled, ShapesType, ImplicitLocalTransform0, ImplicitLocalTransform1, InCullDistance, bInUseManifold);
-	}
-
-	TUniquePtr<FPBDCollisionConstraint> FPBDCollisionConstraint::Make(
-		FGeometryParticleHandle* Particle0,
-		const FImplicitObject* Implicit0,
-		const FPerShapeData* Shape0,
-		const FBVHParticles* Simplicial0,
-		const FRigidTransform3& ImplicitLocalTransform0,
-		FGeometryParticleHandle* Particle1,
-		const FImplicitObject* Implicit1,
-		const FPerShapeData* Shape1,
-		const FBVHParticles* Simplicial1,
-		const FRigidTransform3& ImplicitLocalTransform1,
-		const FReal InCullDistance,
-		const bool bInUseManifold,
-		const EContactShapesType ShapesType)
-	{
-		FPBDCollisionConstraint* Constraint = new FPBDCollisionConstraint(Particle0, Implicit0, Shape0, Simplicial0, Particle1, Implicit1, Shape1, Simplicial1);
-		
-		Constraint->Setup(ECollisionCCDType::Disabled, ShapesType, ImplicitLocalTransform0, ImplicitLocalTransform1, InCullDistance, bInUseManifold);
-
-		return TUniquePtr<FPBDCollisionConstraint>(Constraint);
 	}
 
 	FPBDCollisionConstraint FPBDCollisionConstraint::MakeTriangle(const FImplicitObject* Implicit0)
@@ -208,7 +186,6 @@ namespace Chaos
 		, LastShapeWorldPositionDelta()
 		, LastShapeWorldRotationDelta()
 		, SolverBodies{ nullptr, nullptr }
-		, SolverIndex(INDEX_NONE)
 		, GJKWarmStartData()
 		, SavedManifoldPoints()
 		, ManifoldPoints()
@@ -249,7 +226,6 @@ namespace Chaos
 		, LastShapeWorldPositionDelta()
 		, LastShapeWorldRotationDelta()
 		, SolverBodies{ nullptr, nullptr }
-		, SolverIndex(INDEX_NONE)
 		, GJKWarmStartData()
 		, SavedManifoldPoints()
 		, ManifoldPoints()
@@ -260,7 +236,7 @@ namespace Chaos
 	{
 #if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 		// Make sure we have been dropped by the graph
-		ensure(ConstraintGraphIndex() == INDEX_NONE);
+		ensure(GetConstraintGraphIndex() == INDEX_NONE);
 #endif
 	}
 

@@ -152,7 +152,6 @@ namespace ChaosTest {
 		Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().GetSettings().bDeferNarrowPhase = false;
 		Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().GetSettings().bAllowManifolds = true;
 		Evolution.GetCollisionConstraints().SetDetectorSettings(Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().GetSettings());
-		Evolution.GetCollisionConstraints().SetSolverType(EConstraintSolverType::QuasiPbd);
 	}
 
 	template<typename T_SOLVER>

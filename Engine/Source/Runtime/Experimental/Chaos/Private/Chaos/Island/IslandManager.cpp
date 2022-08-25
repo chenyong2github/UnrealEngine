@@ -14,32 +14,30 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+namespace Chaos
+{
+
 /** Cvar to enable/disable the island sleeping */
 bool bChaosSolverSleepEnabled = true;
 FAutoConsoleVariableRef CVarChaosSolverSleepEnabled(TEXT("p.Chaos.Solver.SleepEnabled"), bChaosSolverSleepEnabled, TEXT(""));
-
-/** Cvar to control the number of island groups used in the solver. The total number will be NumThreads * IslandGroupsMultiplier */
-Chaos::FRealSingle GChaosSolverIslandGroupsMultiplier = 1;
-FAutoConsoleVariableRef CVarSolverIslandGroupsMultiplier(TEXT("p.Chaos.Solver.IslandGroupsMultiplier"), GChaosSolverIslandGroupsMultiplier, TEXT("Total number of island groups in the solver will be NumThreads * IslandGroupsMultiplier.[def:1]"));
 
 /** Cvar to override the sleep counter threshold if necessary */
 int32 ChaosSolverCollisionDefaultSleepCounterThresholdCVar = 20;
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultSleepCounterThreshold(TEXT("p.ChaosSolverCollisionDefaultSleepCounterThreshold"), ChaosSolverCollisionDefaultSleepCounterThresholdCVar, TEXT("Default counter threshold for sleeping.[def:20]"));
 
 /** Cvar to override the sleep linear threshold if necessary */
-Chaos::FRealSingle ChaosSolverCollisionDefaultLinearSleepThresholdCVar = 0.001f; // .001 unit mass cm
+FRealSingle ChaosSolverCollisionDefaultLinearSleepThresholdCVar = 0.001f; // .001 unit mass cm
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultLinearSleepThreshold"), ChaosSolverCollisionDefaultLinearSleepThresholdCVar, TEXT("Default linear threshold for sleeping.[def:0.001]"));
 
 /** Cvar to override the sleep angular threshold if necessary */
-Chaos::FRealSingle ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
+FRealSingle ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:0.0087]"));
 
 bool bChaosSolverValidateGraph = (CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED != 0);
 FAutoConsoleVariableRef CVarChaosSolverValidateGraph(TEXT("p.Chaos.Solver.ValidateGraph"), bChaosSolverValidateGraph, TEXT(""));
 
-namespace Chaos
-{
-	extern int32 GSingleThreadedPhysics;
+extern int32 GSingleThreadedPhysics;
+
 	
 /** Check if a particle is dynamic or sleeping */
 FORCEINLINE bool IsDynamicParticle(const FGeometryParticleHandle* ParticleHandle)
@@ -108,81 +106,6 @@ inline bool IsIslandSleeping(const FReal MaxLinearSpeed2, const FReal MaxAngular
 	return false;
 }
 
-	
-/**  Update all the island particles/constraints sleep state to be consistent with the island one */
-inline void UpdateSleepState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Particles)
-{
-	if(IslandSolver)
-	{
-		// Sleeping flag has already been computed by the island graph 
-		const bool bIsSleeping = IslandSolver->IsSleeping();
-		
-		bool bNeedRebuild = false;
-		for (auto& IslandParticle : IslandSolver->GetParticles())
-		{
-			if(IslandParticle->CastToRigidParticle() && !IslandParticle->CastToRigidParticle()->Disabled())
-			{
-				// If not sleeping we activate the sleeping particles
-				if (!bIsSleeping && IslandParticle->Sleeping())
-				{
-					Particles.ActivateParticle(IslandParticle, true);
-
-					// When we wake particles, we have skipped their integrate step which causes some issues:
-					//	- we have zero velocity (no gravity or external forces applied)
-					//	- the world transforms cached in the ShapesArray will be at the last post-integrate positions
-					//	  which doesn't match what the velocity is telling us
-					// This causes problems for the solver - essentially we have an "initial overlap" situation.
-					// @todo(chaos): We could just run (partial) integrate here for this particle, but we don't know about the Evolution - fix this
-					for (const TUniquePtr<FPerShapeData>& Shape : IslandParticle->ShapesArray())
-					{
-						Shape->UpdateLeafWorldTransform(IslandParticle);
-					}
-
-					bNeedRebuild = true;
-				}
-				// If sleeping we deactivate the dynamic particles
-				else if (bIsSleeping && !IslandParticle->Sleeping())
-				{
-					Particles.DeactivateParticle(IslandParticle, true);
-					bNeedRebuild = true;
-				}
-			}
-		}
-		if(bNeedRebuild)
-		{
-			Particles.RebuildViews();
-		}
-		// Island constraints are updating their sleeping flag + awaken one 
-		for (auto& IslandConstraint : IslandSolver->GetConstraints())
-		{
-			if (FConstraintHandle* ConstraintHandle = IslandConstraint.Get())
-			{
-				ConstraintHandle->SetIsSleeping(bIsSleeping);
-			}
-		}
-	}
-}
-
-/** Update all the island particles sync state to be consistent with the island one */
-inline void UpdateSyncState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Particles)
-{
-	if(IslandSolver)
-	{
-		bool bNeedsResim = false;
-		for (auto& IslandParticle : IslandSolver->GetParticles())
-		{
-			//if even one particle is soft/hard desync we must resim the entire island (when resim is used)
-			//seems cheap enough so just always do it, if slow pass resim template in here
-			if (IslandParticle->SyncState() != ESyncState::InSync)
-			{
-				bNeedsResim = true;
-				break;
-			}
-		}
-		IslandSolver->SetNeedsResim(bNeedsResim);
-	}
-}
-
 /** Add all the graph particle and constraints to the solver islands*/
 inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 {
@@ -190,10 +113,10 @@ inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 	{
 		if (IslandGraph->GraphIslands.IsValidIndex(IslandIndex))
 		{
-			FPBDIslandSolver* IslandSolver = IslandGraph->GraphIslands[IslandIndex].IslandItem;
-			if (!IslandSolver->IsSleeping() || IslandSolver->SleepingChanged())
+			FPBDIsland* Island = IslandGraph->GraphIslands[IslandIndex].IslandItem;
+			if (!Island->IsSleeping() || Island->SleepingChanged())
 			{
-				IslandSolver->AddParticle(GraphNode.NodeItem);
+				Island->AddParticle(GraphNode.NodeItem);
 			}
 		}
 	};
@@ -201,9 +124,12 @@ inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 	{
 		GraphNode.NodeIslands.Reset();
 
-		// If the node is valid : only one island
+		// If the node is valid : one and only one island
 		if (GraphNode.bValidNode)
 		{
+#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
+			ensure(GraphNode.IslandIndex != INDEX_NONE);
+#endif
 			AddNodeToIsland(GraphNode.IslandIndex, GraphNode);
 			GraphNode.NodeIslands.Add(GraphNode.IslandIndex);
 		}
@@ -213,7 +139,13 @@ inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 			// First we compute the unique particle set of islands
 			for (auto& NodeEdge : GraphNode.NodeEdges)
 			{
-				GraphNode.NodeIslands.Add(IslandGraph->GraphEdges[NodeEdge].IslandIndex);
+				// The check for INDEX_NONE here filters out kinematic-kinematic constraints which may still
+				// be in the graph (a dynamic was converted to kinematic)
+				const int32 EdgeIslandIndex = IslandGraph->GraphEdges[NodeEdge].IslandIndex;
+				if (EdgeIslandIndex != INDEX_NONE)
+				{
+					GraphNode.NodeIslands.Add(IslandGraph->GraphEdges[NodeEdge].IslandIndex);
+				}
 			}
 			// Loop over the set of islands and add the particle to the solver island
 			for (auto& NodeIsland : GraphNode.NodeIslands)
@@ -229,24 +161,33 @@ inline void PopulateIslands(FPBDIslandManager::GraphType* IslandGraph)
 	{
 		if (IslandGraph->GraphIslands.IsValidIndex(GraphEdge.IslandIndex))
 		{
-			FPBDIslandSolver* IslandSolver = IslandGraph->GraphIslands[GraphEdge.IslandIndex].IslandItem;
+			FPBDIsland* Island = IslandGraph->GraphIslands[GraphEdge.IslandIndex].IslandItem;
 
 			// Note: we also populate the island if the sleeping state just changed. This is because we use this
 			// data to sync the constraint's sleeping state in SyncIslands.
 			// @todo(chaos): This is not great - we need a more robust way to sync the sleep state of islands/constraints
-			if (!IslandSolver->IsSleeping() || IslandSolver->SleepingChanged())
+			if (!Island->IsSleeping() || Island->SleepingChanged())
 			{
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
 				ensure(GraphEdge.bValidEdge);
 #endif
-				IslandSolver->AddConstraint(GraphEdge.EdgeItem);
+				// The sub sort key is for consistent ordering of constraints when both Level and Color are the same.
+				// Without this the ordering within a level/color would depend on the order they were added to the graph
+				// which depends on collision detection order, which is multi-threaded and not deterministic (by default).
+				// The sort key is based on Particle's NodeIndex because particles remain in the graph with the same index 
+				// as long as they are active. We need to pack the key into 32 bits so we truncate the particle indices. 
+				// This should matter only very rarely. If we hit a conflict we may see a slight non-deterministic behaviour 
+				// difference because the solve  order may vary from frame to frame, but it will still solve ok.
+				// DESYNC WARNING! See above
+				const uint32 SubSortKey = (((uint32(GraphEdge.FirstNode) & 0xFFFF) << 16) | (uint32(GraphEdge.SecondNode) & 0xFFFF));
+				Island->AddConstraint(GraphEdge.EdgeItem, GraphEdge.LevelIndex, GraphEdge.ColorIndex, SubSortKey);
 			}
 		}
 	}
 }
 	
 /** Compute sleeping thresholds given a solver island  */
-inline bool ComputeSleepingThresholds(FPBDIslandSolver* IslandSolver,
+inline bool ComputeSleepingThresholds(FPBDIsland* Island,
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterialAttributes,
 	const THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, FReal& LinearSleepingThreshold,
 	FReal& AngularSleepingThreshold, FReal& MaxLinearSpeed2, FReal& MaxAngularSpeed2, int32& SleepCounterThreshold)
@@ -258,8 +199,9 @@ inline bool ComputeSleepingThresholds(FPBDIslandSolver* IslandSolver,
 	SleepCounterThreshold = 0;
 
 	bool bHaveSleepThreshold = false;
-	for (FGeometryParticleHandle* ParticleHandle : IslandSolver->GetParticles())
+	for (FPBDIslandParticle& IslandParticle : Island->GetParticles())
 	{
+		FGeometryParticleHandle* ParticleHandle = IslandParticle.GetParticle();
 		if (ParticleHandle)
 		{
 			if (FPBDRigidParticleHandle* PBDRigid = ParticleHandle->CastToRigidParticle())
@@ -301,26 +243,25 @@ inline bool ComputeSleepingThresholds(FPBDIslandSolver* IslandSolver,
 }
 
 FPBDIslandManager::FPBDIslandManager() 
-	: IslandSolvers()
+	: Islands()
 	, IslandGraph(MakeUnique<GraphType>())
+	, MaxNumConstraintContainers(0)
 	, MaxParticleIndex(INDEX_NONE)
 	, bIslandsPopulated(false)
 	, bEndTickCalled(true)
 {
 	IslandGraph->SetOwner(this);
-
-	InitializeGroups();
 }
 
 FPBDIslandManager::FPBDIslandManager(const TParticleView<FPBDRigidParticles>& PBDRigids) 
-	: IslandSolvers()
+	: Islands()
 	, IslandGraph(MakeUnique<GraphType>())
+	, MaxNumConstraintContainers(0)
 	, MaxParticleIndex(INDEX_NONE)
 	, bIslandsPopulated(false)
 	, bEndTickCalled(true)
 {
 	InitializeGraph(PBDRigids);
-	InitializeGroups();
 }
 
 FPBDIslandManager::~FPBDIslandManager()
@@ -332,27 +273,14 @@ void FPBDIslandManager::Reset()
 	RemoveConstraints();
 	RemoveParticles();
 
-	IslandSolvers.Reset();
-
-	for (auto& IslandGroup : IslandGroups)
-	{
-		IslandGroup->NumConstraints() = 0;
-	}
+	Islands.Reset();
 }
 
-void FPBDIslandManager::InitializeGroups()
+void FPBDIslandManager::AddConstraintContainer(FPBDConstraintContainer& ConstraintContainer)
 {
-	// @todo(chaos): is the number of worker threads a good indicator of how many threads we get in the solver loop? (Currently uses ParallelFor)
-	// Check for use of the "-onethread" command line arg, and physics threading disabled (GetNumWorkerThreads() is not affected by these)
-	const int32 NumWorkerThreads = (FApp::ShouldUseThreadingForPerformance() && !GSingleThreadedPhysics) ? FMath::Min(FTaskGraphInterface::Get().GetNumWorkerThreads(), Chaos::MaxNumWorkers) : 0;
-	const int32 MaxIslandGroups = FMath::Max(1, FMath::CeilToInt32(FReal(NumWorkerThreads) * GChaosSolverIslandGroupsMultiplier));
+	const int32 ContainerId = ConstraintContainer.GetContainerId();
 
-	IslandGroups.SetNum(MaxIslandGroups, false);
-	
-	for(int32 GroupIndex = 0, NumGroups = IslandGroups.Num(); GroupIndex < NumGroups; ++GroupIndex)
-	{
-		IslandGroups[GroupIndex] = MakeUnique<FPBDIslandGroup>(GroupIndex);
-	}
+	MaxNumConstraintContainers = FMath::Max(MaxNumConstraintContainers, ContainerId + 1);
 }
 
 void FPBDIslandManager::InitializeGraph(const TParticleView<FPBDRigidParticles>& PBDRigids)
@@ -413,12 +341,12 @@ void FPBDIslandManager::InitializeGraph(const TParticleView<FPBDRigidParticles>&
 
 void FPBDIslandManager::EndTick()
 {
-	// IslandSolvers are transient for use during the solver phase - clear them at the end of the frame
-	for (auto& IslandSolver : IslandSolvers)
+	// Islands are transient for use during the solver phase - clear them at the end of the frame
+	for (auto& Island : Islands)
 	{
-		IslandSolver->ClearParticles();
-		IslandSolver->ClearConstraints();
-		IslandSolver->ResetSleepingChanged();
+		Island->ClearParticles();
+		Island->ClearConstraints();
+		Island->ResetSleepingChanged();
 	}
 
 	// We can no longer use the Island's particle and constraint lists
@@ -433,13 +361,9 @@ void FPBDIslandManager::RemoveParticles()
 
 	IslandGraph->ResetNodes();
 
-	for (auto& IslandSolver : IslandSolvers)
+	for (auto& Island : Islands)
 	{
-		IslandSolver->ClearParticles();
-	}
-	for (auto& IslandGroup : IslandGroups)
-	{
-		IslandGroup->NumParticles() = 0;
+		Island->ClearParticles();
 	}
 }
 
@@ -447,13 +371,9 @@ void FPBDIslandManager::RemoveConstraints()
 {
 	IslandGraph->ResetEdges();
 
-	for(auto& IslandSolver : IslandSolvers)
+	for(auto& Island : Islands)
 	{
-		IslandSolver->ClearConstraints();
-	}
-	for(auto& IslandGroup : IslandGroups)
-	{
-		IslandGroup->NumConstraints() = 0;
+		Island->ClearConstraints();
 	}
 }
 
@@ -462,7 +382,7 @@ int32 FPBDIslandManager::ReserveParticles(const int32 NumParticles)
 	const int32 MaxIndex = IslandGraph->MaxNumNodes();
 	IslandGraph->ReserveNodes(NumParticles);
 	
-	IslandSolvers.Reserve(NumParticles);
+	Islands.Reserve(NumParticles);
 	IslandIndexing.Reserve(NumParticles);
 	
 	return FMath::Max(0,NumParticles - MaxIndex);
@@ -583,7 +503,7 @@ void FPBDIslandManager::RemoveConstraint(const uint32 ContainerId, FConstraintHa
 {
 	if (ConstraintHandle)
 	{
-		const int32 EdgeIndex = ConstraintHandle->ConstraintGraphIndex();
+		const int32 EdgeIndex = ConstraintHandle->GetConstraintGraphIndex();
 		if (IslandGraph->GraphEdges.IsValidIndex(EdgeIndex))
 		{
 			IslandGraph->RemoveEdge(EdgeIndex);
@@ -623,7 +543,7 @@ void FPBDIslandManager::RemoveParticleConstraints(FGeometryParticleHandle* Parti
 							{
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
 								// All constraints should know their graph index
-								ensure(GraphEdge.EdgeItem->ConstraintGraphIndex() != INDEX_NONE);
+								ensure(GraphEdge.EdgeItem->GetConstraintGraphIndex() != INDEX_NONE);
 #endif
 
 								RemoveConstraint(ContainerId, GraphEdge.EdgeItem.Get());
@@ -661,11 +581,7 @@ void FPBDIslandManager::EnableParticle(FGeometryParticleHandle* ChildParticle, c
 				// and using the parent island index. if the island index we directly
 				// update the solver island without waiting the next sync
 				IslandIndex = ParentPBDRigid->IslandIndex();
-				ChildPBDRigid->SetSleeping(ParentPBDRigid->Sleeping());	
-				if (IslandSolvers.IsValidIndex(IslandIndex))
-				{
-					IslandSolvers[IslandIndex]->AddParticle(ChildParticle);
-				}
+				ChildPBDRigid->SetSleeping(ParentPBDRigid->Sleeping());	// @todo(chaos): this feels dodgy
 			}
 			// We add the child particle to the graph 
 			AddParticle(ChildParticle, IslandIndex);
@@ -682,19 +598,24 @@ void FPBDIslandManager::DisableParticle(FGeometryParticleHandle* ParticleHandle)
 	}
 }
 
+int32 FPBDIslandManager::GetParticleLevel(FGeometryParticleHandle* ParticleHandle) const
+{
+	return IslandGraph->GetNodeItemLevel(ParticleHandle);
+}
+
 void FPBDIslandManager::ResetIslands(const TParticleView<FPBDRigidParticles>& PBDRigids)
 {
 	// @todo 
 }
 
-inline bool SolverIslandSortPredicate(const TUniquePtr<FPBDIslandSolver>& SolverIslandL, const TUniquePtr<FPBDIslandSolver>& SolverIslandR)
+inline bool SolverIslandSortPredicate(const TUniquePtr<FPBDIsland>& SolverIslandL, const TUniquePtr<FPBDIsland>& SolverIslandR)
 {
-	return SolverIslandL->NumConstraints() < SolverIslandR->NumConstraints();
+	return SolverIslandL->GetNumConstraints() < SolverIslandR->GetNumConstraints();
 }
 	
-void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumContainers)
+void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles)
 {
-	IslandSolvers.Reserve(IslandGraph->MaxNumIslands());
+	Islands.Reserve(IslandGraph->MaxNumIslands());
 	IslandIndexing.SetNum(IslandGraph->MaxNumIslands(),false);
 	SortedIslands.SetNum(IslandGraph->MaxNumIslands(),false);
 	int32 LocalIsland = 0;
@@ -709,43 +630,39 @@ void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumCo
 
 			// If the island item is not set on the graph we check if the solver island
 			// at the right index is already there. If not we create a new solver island.
-			if(!IslandSolvers.IsValidIndex(IslandIndex))
+			if(!Islands.IsValidIndex(IslandIndex))
 			{
-				IslandSolvers.EmplaceAt(IslandIndex, MakeUnique<FPBDIslandSolver>(this, LocalIsland));
+				Islands.EmplaceAt(IslandIndex, MakeUnique<FPBDIsland>(MaxNumConstraintContainers));
 			}
-			FPBDIslandSolver*& IslandSolver = IslandGraph->GraphIslands[IslandIndex].IslandItem;
-			IslandSolver = IslandSolvers[IslandIndex].Get();
-			IslandSolver->ResizeConstraintsCounts(NumContainers);
+			FPBDIsland*& Island = IslandGraph->GraphIslands[IslandIndex].IslandItem;
+			Island = Islands[IslandIndex].Get();
 			
 			// We then transfer the persistent flag and the graph dense index to the solver island
-			IslandSolver->SetIsPersistent(IslandGraph->GraphIslands[IslandIndex].bIsPersistent);
-			IslandSolver->SetIsSleeping(IslandGraph->GraphIslands[IslandIndex].bIsSleeping);
-			IslandSolver->GetIslandIndex() = LocalIsland;
+			Island->SetIsPersistent(IslandGraph->GraphIslands[IslandIndex].bIsPersistent);
+			Island->SetIsSleeping(IslandGraph->GraphIslands[IslandIndex].bIsSleeping);
+			Island->SetIslandIndex(LocalIsland);
 
 			// We update the IslandIndexing to retrieve the graph sparse and persistent index from the dense one.
 			IslandIndexing[LocalIsland] = IslandIndex;
 			SortedIslands[LocalIsland] = IslandIndex;
 			LocalIsland++;
 
-			// Clear the island solver ready for repopulation . This leaves the sleeping islands empty, but they 
-			// are not used until they wake at which point they will be filled again.
-			IslandSolver->ReserveParticles(IslandGraph->GraphIslands[IslandIndex].NumNodes);
-			IslandSolver->ReserveConstraints(IslandGraph->GraphIslands[IslandIndex].NumEdges);
+			Island->ReserveParticles(IslandGraph->GraphIslands[IslandIndex].NumNodes);
 
 			// Reset of the sleep counter if the island is :
 			// - Non persistent since we are starting incrementing the counter once the island is persistent and if values below the threshold
 			// - Sleeping since as soon as it wakes up we could start incrementing the counter as well
 			// - Just woken because we may not have been asleep for a whole frame to hit the
-			if (!IslandSolver->IsPersistent() || IslandSolver->IsSleeping() || IslandSolver->SleepingChanged())
+			if (!Island->IsPersistent() || Island->IsSleeping() || Island->SleepingChanged())
 			{ 
-				IslandSolver->SetSleepCounter(0);
+				Island->SetSleepCounter(0);
 			}
 			// We reset the persistent flag to be true on the island graph. 
 			IslandGraph->GraphIslands[IslandIndex].bIsPersistent = true;
 		}
-		else if (IslandSolvers.IsValidIndex(IslandIndex))
+		else if (Islands.IsValidIndex(IslandIndex))
 		{
-			IslandSolvers.RemoveAt(IslandIndex);
+			Islands.RemoveAt(IslandIndex);
 		}
 	}
 
@@ -754,13 +671,13 @@ void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumCo
 
 	PopulateIslands(IslandGraph.Get());
 
-	// Update of the sync and sleep state for each islands
-	for(auto& IslandSolver : IslandSolvers)
+	// Update of the sync and sleep state for each island
+	for(auto& Island : Islands)
 	{
-		if(!IslandSolver->IsSleeping() || IslandSolver->SleepingChanged())
+		if(!Island->IsSleeping() || Island->SleepingChanged())
 		{
-			UpdateSyncState(IslandSolver.Get(), Particles);
-			UpdateSleepState(IslandSolver.Get(), Particles);
+			Island->UpdateSyncState(Particles);
+			Island->PropagateSleepState(Particles);
 		}
 	}
 
@@ -770,78 +687,34 @@ void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles, const int32 NumCo
 
 	// We can now safely use the GetIslandParticles and GetIslandConstraints accessors
 	bIslandsPopulated = true;
-
-	// Build all the island groups
-	BuildGroups(NumContainers);
-
 }
 
-void FPBDIslandManager::BuildGroups(const int32 NumContainers)
-{
-	// No Need to sort for now since it is adding a cost for not improving much the end result
-	TSparseArray<TUniquePtr<FPBDIslandSolver>>& LocalIslands = IslandSolvers;
-	SortedIslands.Sort([&LocalIslands](const int32 IslandIndexA, const int32 IslandIndexB) -> bool
-		{ return LocalIslands[IslandIndexA]->NumConstraints() > LocalIslands[IslandIndexB]->NumConstraints();});
-
-	int32 NumConstraints = 0;
-	for (TUniquePtr<FPBDIslandSolver>& IslandSolver : IslandSolvers)
-	{
-		if (!IslandSolver->IsSleeping())
-		{
-			NumConstraints += IslandSolver->NumConstraints();
-		}
-	}
-	
-	const int32 NumGroups = IslandGroups.Num();
-	const int32 GroupSize = NumConstraints / NumGroups + 1;
-
-	for(TUniquePtr<FPBDIslandGroup>& IslandGroup : IslandGroups)
-	{
-		IslandGroup->InitGroup();
-		IslandGroup->ResizeConstraintsCounts(NumContainers);
-	}
-
-	int32 GroupIndex = 0;
-	int32 GroupOffset = 0;
-	for(int32& SortedIndex : SortedIslands)
-	{
-		if( FPBDIslandSolver* IslandSolver = IslandSolvers[SortedIndex].Get())
-		{
-			if (!IslandSolver->IsSleeping())
-			{
-				checkf(GroupIndex < NumGroups, TEXT("Index %d is less than NumGroups %d"), GroupIndex, NumGroups);
-				IslandGroups[GroupIndex]->AddIsland(IslandSolver);
-				IslandGroups[GroupIndex]->NumParticles() += IslandSolver->NumParticles();
-				IslandGroups[GroupIndex]->NumConstraints() += IslandSolver->NumConstraints();
-
-				check(IslandSolver->NumContainerIds() == IslandGroups[GroupIndex]->NumContainerIds());
-				for(int32 ContainerIndex = 0; ContainerIndex < IslandSolver->NumContainerIds(); ++ContainerIndex)
-				{
-					IslandGroups[GroupIndex]->ConstraintCount(ContainerIndex) +=
-						IslandSolver->ConstraintCount(ContainerIndex);
-				}
-			
-				IslandSolver->SetGroupIndex(GroupIndex);
-				GroupOffset += IslandSolver->NumConstraints();
-
-				// @todo: In theory we should never need the second check	
-				if(GroupOffset > GroupSize && (GroupIndex + 1) < NumGroups)
-				{
-					GroupIndex++;
-					GroupOffset = 0;
-				}
-			}
-		}
-	}
-}
-	
-void FPBDIslandManager::UpdateIslands(const TParticleView<FPBDRigidParticles>& PBDRigids, FPBDRigidsSOAs& Particles, const int32 NumContainers)
+void FPBDIslandManager::UpdateGraph()
 {
 	// Merge the graph islands if required
 	IslandGraph->UpdateGraph();
+}
+
+void FPBDIslandManager::UpdateIslands(FPBDRigidsSOAs& Particles)
+{
+	// Assign levels, colors, etc
+	IslandGraph->InitSorting();
+	IslandGraph->ComputeLevels();
+	//IslandGraph->ComputeColors();
 	
 	// Sync the graph islands with the solver islands objects
-	SyncIslands(Particles, NumContainers);
+	SyncIslands(Particles);
+
+	// Sort each island's constraints based on level, color, etc
+	for (TUniquePtr<FPBDIsland>& Island : Islands)
+	{
+		if (!Island->IsSleeping())
+		{
+			// Sort constraints based on level
+			// @todo(chaos): can we eliminate this step? We effectively did it already above
+			Island->SortConstraints();
+		}
+	}
 
 	ValidateIslands();
 }
@@ -870,8 +743,8 @@ bool FPBDIslandManager::SleepInactive(const int32 IslandIndex,
 {
 	// Only the persistent islands could start sleeping
 	const int32 GraphIndex = GetGraphIndex(IslandIndex);
-	if (!bChaosSolverSleepEnabled || !IslandSolvers.IsValidIndex(GraphIndex) ||
-		(IslandSolvers.IsValidIndex(GraphIndex) && !IslandSolvers[GraphIndex]->IsPersistent()) )
+	if (!bChaosSolverSleepEnabled || !Islands.IsValidIndex(GraphIndex) ||
+		(Islands.IsValidIndex(GraphIndex) && !Islands[GraphIndex]->IsPersistent()) )
 	{
 		return false;
 	}
@@ -880,15 +753,15 @@ bool FPBDIslandManager::SleepInactive(const int32 IslandIndex,
 	int32 SleepCounterThreshold = 0, NumDynamicParticles = 0;
 
 	// Compute of the linear/angular velocities + thresholds to make islands sleeping 
-	if (ComputeSleepingThresholds(IslandSolvers[GraphIndex].Get(), PerParticleMaterialAttributes,
+	if (ComputeSleepingThresholds(Islands[GraphIndex].Get(), PerParticleMaterialAttributes,
 		SolverPhysicsMaterials, LinearSleepingThreshold, AngularSleepingThreshold,
 		MaxLinearSpeed2, MaxAngularSpeed2, SleepCounterThreshold))
 	{
-		int32 SleepCounter = IslandSolvers[GraphIndex]->GetSleepCounter();
+		int32 SleepCounter = Islands[GraphIndex]->GetSleepCounter();
 		const bool bSleepingIsland = IsIslandSleeping(MaxLinearSpeed2, MaxAngularSpeed2, LinearSleepingThreshold,
 			AngularSleepingThreshold, SleepCounterThreshold, SleepCounter);
 		
-		IslandSolvers[GraphIndex]->SetSleepCounter(SleepCounter);
+		Islands[GraphIndex]->SetSleepCounter(SleepCounter);
 
 		return bSleepingIsland;
 	}
@@ -909,38 +782,22 @@ void FPBDIslandManager::SetIslandSleeping(FPBDRigidsSOAs& Particles, const int32
 	// NOTE: This Sleep function is called from the graph update to set the state of the 
 	// island and all particles in it.
 	const int32 GraphIndex = GetGraphIndex(IslandIndex);
-	if (IslandSolvers.IsValidIndex(GraphIndex))
+	if (Islands.IsValidIndex(GraphIndex))
 	{
-		const bool bWasSleeping = IslandSolvers[GraphIndex]->IsSleeping();
+		const bool bWasSleeping = Islands[GraphIndex]->IsSleeping();
 		if (bWasSleeping != bIsSleeping)
 		{
-			IslandSolvers[GraphIndex]->SetIsSleeping(bIsSleeping);
 			IslandGraph->GraphIslands[GraphIndex].bIsSleeping = bIsSleeping;
-			UpdateSleepState(IslandSolvers[GraphIndex].Get(),Particles);
+			Islands[GraphIndex]->SetIsSleeping(bIsSleeping);
+			Islands[GraphIndex]->PropagateSleepState(Particles);
 		}
 
 		// Reset the sleep counter with every wake call, even if already awake
 		if (!bIsSleeping)
 		{
-			IslandSolvers[GraphIndex]->SetSleepCounter(0);
+			Islands[GraphIndex]->SetSleepCounter(0);
 		}
 	}
-}
-	
-const TArray<FGeometryParticleHandle*>& FPBDIslandManager::GetIslandParticles(const int32 IslandIndex) const
-{
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-	ensure(bIslandsPopulated);
-#endif
-	return IslandSolvers[GetGraphIndex(IslandIndex)]->GetParticles();
-}
-
-const TArray<FConstraintHandleHolder>& FPBDIslandManager::GetIslandConstraints(const int32 IslandIndex) const
-{
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-	ensure(bIslandsPopulated);
-#endif
-	return IslandSolvers[GetGraphIndex(IslandIndex)]->GetConstraints();
 }
 
 TArray<int32> FPBDIslandManager::FindParticleIslands(const FGeometryParticleHandle* ParticleHandle) const
@@ -998,7 +855,7 @@ TArray<int32> FPBDIslandManager::FindParticleIslands(const FGeometryParticleHand
 
 int32 FPBDIslandManager::GetConstraintIsland(const FConstraintHandle* ConstraintHandle) const
 {
-	const int32 EdgeIndex = ConstraintHandle->ConstraintGraphIndex();
+	const int32 EdgeIndex = ConstraintHandle->GetConstraintGraphIndex();
 	if (IslandGraph->GraphEdges.IsValidIndex(EdgeIndex))
 	{
 		int32 GraphIslandIndex = IslandGraph->GraphEdges[EdgeIndex].IslandIndex;
@@ -1013,7 +870,7 @@ int32 FPBDIslandManager::GetConstraintIsland(const FConstraintHandle* Constraint
 
 bool FPBDIslandManager::IslandNeedsResim(const int32 IslandIndex) const
 {
-	return IslandSolvers[GetGraphIndex(IslandIndex)]->NeedsResim();
+	return Islands[GetGraphIndex(IslandIndex)]->NeedsResim();
 }
 
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
@@ -1094,13 +951,16 @@ bool FPBDIslandManager::DebugCheckConstraintNotInGraph(const FConstraintHandle* 
 
 	for (int32 IslandIndex = 0; IslandIndex < NumIslands(); ++IslandIndex)
 	{
-		const FPBDIslandSolver* IslandSolver = GetSolverIsland(IslandIndex);
-		for (const FConstraintHandleHolder& HandleHolder : IslandSolver->GetConstraints())
+		const FPBDIsland* Island = GetIsland(IslandIndex);
+		for (int32 ContainerIndex = 0; ContainerIndex < Island->GetNumConstraintContainers(); ++ContainerIndex)
 		{
-			if (HandleHolder.Get() == ConstraintHandle)
+			for (const FPBDIslandConstraint& Constraint : Island->GetConstraints(ContainerIndex))
 			{
-				bSuccess = false;
-				ensure(false);
+				if (Constraint.GetConstraint() == ConstraintHandle)
+				{
+					bSuccess = false;
+					ensure(false);
+				}
 			}
 		}
 	}
@@ -1177,24 +1037,29 @@ void FPBDIslandManager::DebugCheckParticleIslands(const FGeometryParticleHandle*
 		TArray<int32> NodeSolverIslands;
 		for (int32 IslandIndex = 0; IslandIndex < NumIslands(); ++IslandIndex)
 		{
-			const FPBDIslandSolver* IslandSolver = GetSolverIsland(IslandIndex);
-			for (const FGeometryParticleHandle* IslandParticleHandle : IslandSolver->GetParticles())
+			const FPBDIsland* Island = GetIsland(IslandIndex);
+			for (const FPBDIslandParticle& IslandParticle : Island->GetParticles())
 			{
+				const FGeometryParticleHandle* IslandParticleHandle = IslandParticle.GetParticle();
+
 				if (IslandParticleHandle == ParticleHandle)
 				{
 					NodeSolverIslands.AddUnique(IslandIndex);
 				}
 			}
-			for (const FConstraintHandleHolder& HandleHolder : IslandSolver->GetConstraints())
+			for (int32 ContainerIndex = 0; ContainerIndex < Island->GetNumConstraintContainers(); ++ContainerIndex)
 			{
-				if ((HandleHolder.GetParticle0() == ParticleHandle) || (HandleHolder.GetParticle1() == ParticleHandle))
+				for (const FPBDIslandConstraint& IslandConstraint : Island->GetConstraints(ContainerIndex))
 				{
-					NodeSolverIslands.AddUnique(IslandIndex);
+					if ((IslandConstraint.GetConstraint()->GetConstrainedParticles()[0] == ParticleHandle) || (IslandConstraint.GetConstraint()->GetConstrainedParticles()[1] == ParticleHandle))
+					{
+						NodeSolverIslands.AddUnique(IslandIndex);
+					}
 				}
 			}
 		}
 
-		// NOTE: Particles are always assigneed to an island, but if we do not have any constraints, the node may not be in the IslandSolver
+		// NOTE: Particles are always assigneed to an island, but if we do not have any constraints, the node may not be in the Island
 		if (FConstGenericParticleHandle(ParticleHandle)->IsDynamic())
 		{
 			// Dynamic particles should be in 1 island
@@ -1226,12 +1091,18 @@ void FPBDIslandManager::DebugCheckConstraintIslands(const FConstraintHandle* Con
 	TArray<int32> EdgeSolverIslands;
 	for (int32 SolverIslandIndex = 0; SolverIslandIndex < NumIslands(); ++SolverIslandIndex)
 	{
-		const FPBDIslandSolver* IslandSolver = GetSolverIsland(SolverIslandIndex);
-		for (const FConstraintHandleHolder& HandleHolder : IslandSolver->GetConstraints())
+		const FPBDIsland* Island = GetIsland(SolverIslandIndex);
+		for (int32 ContainerIndex = 0; ContainerIndex < Island->GetNumConstraintContainers(); ++ContainerIndex)
 		{
-			if (HandleHolder.Get() == ConstraintHandle)
+			for (const FPBDIslandConstraint& IslandConstraint : Island->GetConstraints(ContainerIndex))
 			{
-				EdgeSolverIslands.AddUnique(SolverIslandIndex);
+				// Make sure all the constraints are in the correct list according to type
+				ensure(ContainerIndex == IslandConstraint.GetConstraint()->GetContainerId());
+
+				if (IslandConstraint.GetConstraint() == ConstraintHandle)
+				{
+					EdgeSolverIslands.AddUnique(SolverIslandIndex);
+				}
 			}
 		}
 	}

@@ -6,7 +6,6 @@
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDRigidParticles.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Transform.h"
 #include "Chaos/Framework/DebugSubstep.h"
@@ -15,6 +14,7 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/Island/IslandGroupManager.h"
 #include "Chaos/Defines.h"
 #include "Chaos/PendingSpatialData.h"
 #include "ProfilingDebugging/CsvProfiler.h"
@@ -341,11 +341,14 @@ public:
 	CHAOS_API FPBDRigidsSOAs& GetParticles() { return Particles; }
 	CHAOS_API const FPBDRigidsSOAs& GetParticles() const { return Particles; }
 
-	CHAOS_API void AddConstraintRule(FPBDConstraintGraphRule* ConstraintRule)
+	// NOTE: we do not currently support removing containers. In a few places we assume the ContainerId is equal to the array index.
+	CHAOS_API void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0)
 	{
-		uint32 ContainerId = (uint32)ConstraintRules.Num();
-		ConstraintRules.Add(ConstraintRule);
-		ConstraintRule->BindToGraph(ConstraintGraph, ContainerId);
+		const int32 ContainerId = ConstraintContainers.Add(&InContainer);
+		InContainer.SetContainerId(ContainerId);
+
+		GetConstraintGraph().AddConstraintContainer(InContainer);
+		IslandGroupManager.AddConstraintContainer(InContainer, Priority);
 	}
 
 	CHAOS_API void SetNumPositionIterations(int32 InNumIterations)
@@ -568,9 +571,9 @@ public:
 			RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
 		}
 
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* Container : ConstraintContainers)
 		{
-			ConstraintRule->DisconnectConstraints(RemovedParticles);
+			Container->DisconnectConstraints(RemovedParticles);
 		}
 	}
 
@@ -583,9 +586,12 @@ public:
 	{
 		RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
 
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FConstraintHandle* Constraint : ParticleHandle->ParticleConstraints())
 		{
-			ConstraintRule->SetConstraintsEnabled(ParticleHandle, false);
+			if (Constraint->IsEnabled())
+			{
+				Constraint->SetEnabled(false);
+			}
 		}
 	}
 
@@ -600,9 +606,12 @@ public:
 	/** Enable constraints from the enabled particles; constraints will only become enabled if their particle end points are valid */
 	CHAOS_API void EnableConstraints(FGeometryParticleHandle* ParticleHandle)
 	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FConstraintHandle* Constraint : ParticleHandle->ParticleConstraints())
 		{
-			ConstraintRule->SetConstraintsEnabled(ParticleHandle, true);
+			if (!Constraint->IsEnabled())
+			{
+				Constraint->SetEnabled(true);
+			}
 		}
 	}
 
@@ -630,9 +639,9 @@ public:
 		}
 
 		// Remove all constraints from the containers
-		for(FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* Container : ConstraintContainers)
 		{
-			ConstraintRule->ResetConstraints();
+			Container->ResetConstraints();
 		}
 	}
 
@@ -661,44 +670,29 @@ public:
 	{
 		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledDynamicView());
 
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* Container : ConstraintContainers)
 		{
-			ConstraintRule->AddToGraph();
+			Container->AddConstraintsToGraph(ConstraintGraph);
 		}
 
 		ConstraintGraph.ResetIslands(Particles.GetNonDisabledDynamicView());
-
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->InitializeAccelerationStructures();
-		}
 	}
 
 	void PrepareTick()
 	{
 		Collisions::ResetChaosCollisionCounters();
 
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* Container : ConstraintContainers)
 		{
-			ConstraintRule->PrepareTick();
+			Container->PrepareTick();
 		}
 	}
 
 	void UnprepareTick()
 	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* Container : ConstraintContainers)
 		{
-			ConstraintRule->UnprepareTick();
-		}
-	}
-
-	void UpdateAccelerationStructures(const FReal Dt, const int32 Island)
-	{
-		CSV_SCOPED_TIMING_STAT(Chaos, UpdateAccelerationStructures);
-
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->UpdateAccelerationStructures(Dt, Island);
+			Container->UnprepareTick();
 		}
 	}
 
@@ -828,6 +822,8 @@ public:
 
 	CHAOS_API const FPBDConstraintGraph& GetConstraintGraph() const { return ConstraintGraph; }
 	CHAOS_API FPBDConstraintGraph& GetConstraintGraph() { return ConstraintGraph; }
+	CHAOS_API const FPBDIslandGroupManager& GetIslandGroupManager() const { return IslandGroupManager; }
+
 
 	void SetResim(bool bInResim) { bIsResim = bInResim; }
 	const bool IsResimming() const { return bIsResim; }
@@ -873,9 +869,9 @@ protected:
 	int32 NumConstraints() const
 	{
 		int32 NumConstraints = 0;
-		for (const FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		for (const FPBDConstraintContainer* Container : ConstraintContainers)
 		{
-			NumConstraints += ConstraintRule->NumConstraints();
+			NumConstraints += Container->GetNumConstraints();
 		}
 		return NumConstraints;
 	}
@@ -905,53 +901,34 @@ protected:
 
 	void UpdateConstraintPositionBasedState(FReal Dt)
 	{
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		// If any constraint container state depends on particle state, it gets updated here.
+		// E.g., we can create constraints between close particles etc. Collision detection 
+		// could be called from here, but currently is called explicitly elsewhere
+		for (FPBDConstraintContainer* ConstraintContainer : ConstraintContainers)
 		{
-			ConstraintRule->UpdatePositionBasedState(Dt);
+			ConstraintContainer->UpdatePositionBasedState(Dt);
 		}
 	}
 
 	void CreateConstraintGraph()
 	{
+		// Add new particles to the graph
 		ConstraintGraph.InitializeGraph(Particles.GetNonDisabledDynamicView());
 
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		// Add all constraints to graph (all constraints except sleeping collisions are removed every tick)
+		for (FPBDConstraintContainer* ConstraintContainer : ConstraintContainers)
 		{
-			ConstraintRule->AddToGraph();
+			ConstraintContainer->AddConstraintsToGraph(ConstraintGraph);
 		}
 
-		// Apply rules in priority order
-		// @todo(ccaulfield): only really needed when list or priorities change
-		PrioritizedConstraintRules = ConstraintRules;
-		PrioritizedConstraintRules.StableSort();
+		// Process the addidions
+		ConstraintGraph.UpdateGraph();
 	}
 
 	void CreateIslands()
 	{
-		ConstraintGraph.UpdateIslands(Particles.GetNonDisabledDynamicView(), Particles, ConstraintRules.Num());
-
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->InitializeAccelerationStructures();
-		}
-	}
-	
-	/** Sort constraints if necessary */
-	void SortConstraints()
-	{
-		bool bNeedsSorting = false;
-		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-		{
-			bNeedsSorting |= ConstraintRule->IsSortingEnabled();
-		}
-		if(bNeedsSorting)
-		{
-			ConstraintGraph.GetIslandGraph()->InitSorting();
-			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
-			{
-				ConstraintRule->SortConstraints();
-			}
-		}
+		// Package the constraints and particles into islands
+		ConstraintGraph.UpdateIslands(Particles);
 	}
 	
 	void FlushInternalAccelerationQueue();
@@ -965,9 +942,9 @@ protected:
 	FUpdatePositionRule ParticleUpdatePosition;
 	FKinematicUpdateRule KinematicUpdate;
 	FCaptureRewindRule CaptureRewindData;
-	TArray<FPBDConstraintGraphRule*> ConstraintRules;
-	TArray<FPBDConstraintGraphRule*> PrioritizedConstraintRules;
-	FPBDConstraintGraph ConstraintGraph;
+	TArray<FPBDConstraintContainer*> ConstraintContainers;
+	FPBDIslandManager ConstraintGraph;
+	FPBDIslandGroupManager IslandGroupManager;
 	TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
 	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
 	TArrayCollectionArray<int32> ParticleDisableCount;

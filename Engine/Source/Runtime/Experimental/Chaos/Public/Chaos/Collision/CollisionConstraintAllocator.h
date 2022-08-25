@@ -8,6 +8,7 @@
 #include "Chaos/Collision/CollisionKeys.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Collision/ParticlePairMidPhase.h"
+#include "Chaos/ObjectPool.h"
 #include "Chaos/ParticleHandle.h"
 #include "ChaosStats.h"
 
@@ -37,21 +38,66 @@ namespace Chaos
 	 * The Midphase list is pruned at the end of each tick so if particles are destroyed or a particle pair is no longer 
 	 * overlapping.
 	 * 
+	 * NOTE: To reduce RBAN memory use, we do not create any collision blocks until the first call to CreateCollisionConstraint
 	*/
 	class CHAOS_API FCollisionConstraintAllocator
 	{
 	public:
-		FCollisionConstraintAllocator()
+		FCollisionConstraintAllocator(const int32 NumCollisionsPerBlock = 1000)
 			: ParticlePairMidPhases()
 			, ActiveConstraints()
 			, ActiveSweptConstraints()
 			, CurrentEpoch(0)
 			, bInCollisionDetectionPhase(false)
+			, ConstraintPool(NumCollisionsPerBlock, 0)
 		{
 		}
 
 		~FCollisionConstraintAllocator()
 		{
+			// Explicit clear so we don't have to worry about destruction order of pool and midphases
+			Reset();
+			ensure(ConstraintPool.GetNumAllocated() == 0);
+		}
+
+		FPBDCollisionConstraintPtr CreateCollisionConstraint()
+		{
+			// NOTE: Called from the CollisionDetection parellel-for loop.
+			FPBDCollisionConstraint* Constraint;
+			{
+				FScopeLock Lock(&ConstraintPoolCS);
+				Constraint = ConstraintPool.Alloc();
+			}
+
+			// NOTE: Collision constraints are never destroyed in parallel, so the deleter does not require a lock
+			// (See PruneExpiredItems which destroys midphases that own collisions - it is called synchronously).
+			return FPBDCollisionConstraintPtr(Constraint, FPBDCollisionConstraintDeleter(ConstraintPool));
+		}
+
+		FPBDCollisionConstraintPtr CreateCollisionConstraint(
+			FGeometryParticleHandle* Particle0,
+			const FImplicitObject* Implicit0,
+			const FPerShapeData* Shape0,
+			const FBVHParticles* Simplicial0,
+			const FRigidTransform3& ShapeRelativeTransform0,
+			FGeometryParticleHandle* Particle1,
+			const FImplicitObject* Implicit1,
+			const FPerShapeData* Shape1,
+			const FBVHParticles* Simplicial1,
+			const FRigidTransform3& ShapeRelativeTransform1,
+			const FReal CullDistance,
+			const bool bUseManifold,
+			const EContactShapesType ShapePairType)
+		{
+			// NOTE: Called from the CollisionDetection parellel-for loop.
+			FPBDCollisionConstraintPtr Constraint = CreateCollisionConstraint();
+
+			if (Constraint.IsValid())
+			{
+				FPBDCollisionConstraint::Make(Particle0, Implicit0, Shape0, Simplicial0, ShapeRelativeTransform0, Particle1, Implicit1, Shape1, Simplicial1, ShapeRelativeTransform1, CullDistance, bUseManifold, ShapePairType, *Constraint);
+			}
+
+			return Constraint;
 		}
 		
 		/**
@@ -452,6 +498,9 @@ namespace Chaos
 		
 		// The set of mid phases created this tick (i.e., for particle pairs that were not in the map)
 		mutable TLockFreePointerListLIFO<FParticlePairMidPhase> NewParticlePairMidPhases;
+
+		FPBDCollisionConstraintPool ConstraintPool;
+		mutable FCriticalSection ConstraintPoolCS;
 	};
 
 
@@ -469,10 +518,10 @@ namespace Chaos
 	{
 		for (auto& KVP : Constraints)
 		{
-			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
+			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
 
 			// If we only want active constraints, check the timestamp
-			if ((Constraint != nullptr) && (!bOnlyActive || (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)))
+			if (Constraint.IsValid() && (!bOnlyActive || (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)))
 			{
 				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
 				{
@@ -488,10 +537,10 @@ namespace Chaos
 	{
 		for (auto& KVP : Constraints)
 		{
-			const TUniquePtr<FPBDCollisionConstraint>& Constraint = KVP.Value;
+			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
 
 			// If we only want active constraints, check the timestamp
-			if ((Constraint != nullptr) && (!bOnlyActive || (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)))
+			if (Constraint.IsValid() && (!bOnlyActive || (Constraint->GetContainerCookie().LastUsedEpoch >= LastEpoch)))
 			{
 				if (!bOnlyActive || (Visitor(*Constraint) == ECollisionVisitorResult::Stop))
 				{

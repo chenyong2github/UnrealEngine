@@ -130,7 +130,6 @@ namespace ChaosTest
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		//Solver->GetEvolution()->GetCollisionConstraints().SetSolverType(EConstraintSolverType::GbfPbd);
 
 		// create a static floor and two boxes falling onto it.
 		// One box has separation modified to float 5 units above floor.
@@ -227,7 +226,6 @@ namespace ChaosTest
 		auto* Solver = Module->CreateSolver(nullptr, /*AsyncDt=*/-1);
 		InitSolverSettings(Solver);
 		Solver->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
-		//Solver->GetEvolution()->GetCollisionConstraints().SetSolverType(EConstraintSolverType::GbfPbd);
 
 		// create a static floor and two boxes falling onto it.
 		// One box has normal modified to be parallel to floor, should fall through floor due to non-upward normal.

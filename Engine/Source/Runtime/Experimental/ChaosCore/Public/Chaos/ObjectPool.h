@@ -147,6 +147,14 @@ namespace Chaos
 		}
 
 		/**
+		 * Get the max number of items per block
+		*/
+		int32 GetNumPerBlock() const
+		{
+			return NumPerBlock;
+		}
+
+		/**
 		 * Get the allocated (total) size of all blocks in the pool
 		 */
 		int32 GetAllocatedSize() const
@@ -224,6 +232,14 @@ namespace Chaos
 		}
 
 		/**
+		 * Get the number of allocated items.
+		*/
+		int32 GetNumAllocated() const
+		{
+			return GetCapacity() - GetNumFree();
+		}
+
+		/**
 		 * Gets the number of free items the pool has remaining
 		 * @return Number of free items
 		 */
@@ -267,7 +283,7 @@ namespace Chaos
 		// will need to destruct any non-free objects). This is specialized so that if the type
 		// is trivially destructible we can avoid adding the extra member.
 		template<typename T_>
-		struct alignas(ItemAlign) TItem<T_, typename TRequiresDestructor<T_>>
+		struct alignas(ItemAlign) TItem<T_, TRequiresDestructor<T_>>
 		{
 			TItem()
 				: NextFree(INDEX_NONE)
@@ -295,7 +311,7 @@ namespace Chaos
 
 		// Size of the item, plus padding up to the correct alignment so we can allocate the whole
 		// block with the correct size.
-		constexpr static int32 PaddedItemSize = Align(sizeof(FItem), ItemAlign);
+		constexpr static int32 PaddedItemSize = Align(int32(sizeof(FItem)), ItemAlign);
 
 		// A block is an area of memory large enough to hold NumInBlock items, correctly aligned and
 		// provide items on demand to the pool
@@ -465,7 +481,7 @@ namespace Chaos
 		 */
 		template<
 			typename ObjectType_ = ObjectType, 
-			typename TTrivialDestruct<ObjectType_>* = nullptr, 
+			TTrivialDestruct<ObjectType_>* = nullptr, 
 			typename... TArgs>
 		static ObjectType* Construct(ObjectType* At, TArgs&&... Args)
 		{
@@ -484,7 +500,7 @@ namespace Chaos
 		 */
 		template<
 			typename ObjectType_ = ObjectType, 
-			typename TRequiresDestructor<ObjectType_>* = nullptr, 
+			TRequiresDestructor<ObjectType_>* = nullptr, 
 			typename... TArgs>
 		static ObjectType* Construct(ObjectType* At, TArgs&&... Args)
 		{
@@ -505,7 +521,7 @@ namespace Chaos
 		 */
 		template<
 			typename ObjectType_ = ObjectType, 
-			typename TRequiresDestructor<ObjectType_>* = nullptr>
+			TRequiresDestructor<ObjectType_>* = nullptr>
 		static void ConditionalDestruct(ObjectType* At)
 		{
 			checkSlow(At);
@@ -527,7 +543,7 @@ namespace Chaos
 		 */
 		template<
 			typename ObjectType_ = ObjectType, 
-			typename TTrivialDestruct<ObjectType_>* = nullptr>
+			TTrivialDestruct<ObjectType_>* = nullptr>
 		static void ConditionalDestruct(ObjectType*)
 		{}
 
@@ -536,5 +552,36 @@ namespace Chaos
 		int32 NumPerBlock = 0;
 		int32 Capacity = 0;
 		int32 FreeCount = 0;
+	};
+
+
+	/**
+	 * A deleter for use with TUniquePtr and a TObjectPool item
+	 */
+	template<typename ObjectType>
+	class TObjectPoolDeleter
+	{
+	public:
+		TObjectPoolDeleter()
+			: Pool(nullptr)
+		{
+		}
+
+		TObjectPoolDeleter(TObjectPool<ObjectType>& InPool)
+			: Pool(&InPool)
+		{
+		}
+
+		void operator()(ObjectType* Object)
+		{
+			if (Object != nullptr)
+			{
+				check(Pool != nullptr);
+				Pool->Free(Object);
+			}
+		}
+
+	private:
+		TObjectPool<ObjectType>* Pool;
 	};
 }

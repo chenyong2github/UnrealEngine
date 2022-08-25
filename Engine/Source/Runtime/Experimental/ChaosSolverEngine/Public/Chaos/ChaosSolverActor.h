@@ -108,8 +108,6 @@ public:
 	FSolverTrailingFilterSettings TrailingFilterSettings_DEPRECATED;
 	UPROPERTY()
 	float MassScale_DEPRECATED;
-	UPROPERTY()
-	bool bGenerateContactGraph_DEPRECATED;
 	/** End deprecated properties */
 	
 	UPROPERTY(EditAnywhere, Category = Settings)

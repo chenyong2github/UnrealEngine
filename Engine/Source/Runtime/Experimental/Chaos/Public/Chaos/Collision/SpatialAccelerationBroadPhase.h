@@ -206,7 +206,7 @@ namespace Chaos
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);
 				{
-					SCOPE_CYCLE_COUNTER(STAT_Collisions_AABBTree);
+					//SCOPE_CYCLE_COUNTER(STAT_Collisions_AABBTree);
 					if (bBody1Bounded)
 					{
 						// @todo(chaos): cache this on the particle?
@@ -234,7 +234,7 @@ namespace Chaos
 					}
 				}
 
-				SCOPE_CYCLE_COUNTER(STAT_Collisions_Filtering);
+				//SCOPE_CYCLE_COUNTER(STAT_Collisions_Filtering);
 				const int32 NumPotentials = PotentialIntersections.Num();
 				int32 NumIntoNarrowPhase = 0;
 				TArray<FParticlePairMidPhase*> MidPhasePairs;

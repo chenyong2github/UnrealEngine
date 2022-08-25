@@ -201,6 +201,11 @@ public:
 	void RemoveNode(const NodeType& NodeItem);
 
 	/**
+	 * Get the level of the specified node item (distance from a kinematic node)
+	 */
+	int32 GetNodeItemLevel(const NodeType& NodeItem) const;
+
+	/**
 	 * Reserve a number of edges in memory before adding them later
 	 * @param NumEdges Number of edges to be reserved in memory
 	 */
@@ -304,34 +309,28 @@ public:
 	void InitSorting();
 
 	/**
-	* Given a constraint containerId compute all the islands/edges/nodes levels
-	* @param ContainerId Constraint container id that will be compared to the item container
+	* Compute all the islands/edges/nodes levels
 	*/
-	void ComputeLevels(const int32 ContainerId);
+	void ComputeLevels();
 	
 	/**
-	* Given a constraint containerId and a node index update all the islands/edges/nodes levels and push the connected nodes
-	* into the node queue
+	* Update all the islands/edges/nodes levels and push the connected nodes into the node queue
 	* @param NodeIndex Node index that we are currently iterating over
-	* @param ContainerId Constraint container id that will be compared to the item container
 	*/
-	void UpdateLevels(const int32 NodeIndex, const int32 ContainerId);
+	void UpdateLevels(const int32 NodeIndex);
 
 	/**
-	* Given a constraint containerId compute all the islands/edges/nodes colors
-	* @param ContainerId Constraint container id that will be compared to the item container
+	* Compute all the islands/edges/nodes colors
 	* @param MinEdges Minimum number of edges to compute coloring
 	*/
-	void ComputeColors(const int32 ContainerId, const int32 MinEdges);
+	void ComputeColors(const int32 MinEdges);
 
 	/**
-	* Given a constraint containerId and a node index update all the islands/edges/nodes colors and push the connected nodes
-	* into the node queue
+	* Update all the islands/edges/nodes colors and push the connected nodes into the node queue
 	* @param NodeIndex Node index that we are currently iterating over
-	* @param ContainerId Constraint container id that will be compared to the item container
 	* @param MinEdges Minimum number of edges to compute coloring
 	*/
-	void UpdateColors(const int32 NodeIndex, const int32 ContainerId,  const int32 MinEdges);
+	void UpdateColors(const int32 NodeIndex, const int32 MinEdges);
 
 	/**
 	* Pick the first available color that is not used yet by the current graph node and the edge opposite one

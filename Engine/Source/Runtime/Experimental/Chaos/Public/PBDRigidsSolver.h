@@ -12,7 +12,6 @@
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/PBDJointConstraints.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Transform.h"
@@ -113,13 +112,7 @@ namespace Chaos
 		typedef FPBDRigidDynamicSpringConstraints FRigidDynamicSpringConstraints;
 		typedef FPBDPositionConstraints FPositionConstraints;
 
-		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
-		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
-		typedef TPBDConstraintIslandRule<FPositionConstraints> FPositionConstraintsRule;
-		typedef TPBDConstraintIslandRule<FPBDSuspensionConstraints> FSuspensionConstraintsRule;
-
 		using FJointConstraints = FPBDJointConstraints;
-		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
 		//
 		// Execution API
 		//
@@ -180,7 +173,6 @@ namespace Chaos
 		void SetProjectionIterations(const int32 InNumIterations) { GetEvolution()->SetNumProjectionIterations(InNumIterations); }
 		void SetCollisionCullDistance(const FReal InCullDistance) { GetEvolution()->GetNarrowPhase().SetBoundsExpansion(InCullDistance); }
 		void SetCollisionMaxPushOutVelocity(const FReal InMaxPushOutVelocity) { GetEvolution()->GetCollisionConstraints().SetMaxPushOutVelocity(InMaxPushOutVelocity); }
-		void SetUseContactGraph(const bool bInUseContactGraph) { GetEvolution()->GetCollisionConstraintsRule().SetUseContactGraph(bInUseContactGraph); }
 
 		/**/
 		void SetGenerateCollisionData(bool bDoGenerate) { GetEventFilters()->SetGenerateCollisionEvents(bDoGenerate); }

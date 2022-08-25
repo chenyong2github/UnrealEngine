@@ -204,11 +204,6 @@ namespace Chaos
 	public:
 		FPBDJointSolverSettings();
 
-		// Iterations
-		// @todo(chaos): remove pair iteration counts when legacy PBD solver is removed (RBAN-only)
-		int32 ApplyPairIterations;
-		int32 ApplyPushOutPairIterations;
-
 		// Tolerances
 		FReal SwingTwistAngleTolerance;
 		FReal PositionTolerance;

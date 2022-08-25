@@ -66,9 +66,9 @@ namespace Chaos
 			{
 				return true;
 			}
-			if (TypeID.BaseType != nullptr)
+			if (BaseType != nullptr)
 			{
-				return IsA(*TypeID.BaseType);
+				return BaseType->IsA(TypeID);
 			}
 			return false;
 		}
@@ -95,7 +95,7 @@ namespace Chaos
 
 		FConstraintHandle() 
 			: ConstraintContainer(nullptr)
-			, GraphIndex(INDEX_NONE) 
+			, GraphIndex(INDEX_NONE)
 		{
 		}
 
@@ -124,19 +124,19 @@ namespace Chaos
 			return ConstraintContainer;
 		}
 
-		int32 ConstraintGraphIndex() const
+		bool IsInConstraintGraph() const
+		{
+			return (GraphIndex != INDEX_NONE);
+		}
+
+		int32 GetConstraintGraphIndex() const
 		{
 			return GraphIndex;
 		}
 
-		void SetConstraintGraphIndex(int32 InIndex)
+		void SetConstraintGraphIndex(const int32 InIndex)
 		{
 			GraphIndex = InIndex;
-		}
-
-		bool IsInConstraintGraph() const
-		{
-			return (GraphIndex != INDEX_NONE);
 		}
 
 		virtual TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const = 0;
@@ -182,7 +182,6 @@ namespace Chaos
 
 		FPBDConstraintContainer* ConstraintContainer;
 		
-		// @todo(chaos): move constraint graph index to base constraint container
 		int32 GraphIndex;
 	};
 
@@ -249,110 +248,6 @@ namespace Chaos
 		}
 	};
 
-	/**
-	 * Base class for handles to constraints in an index-based container
-	 */
-	class CHAOS_API FIndexedConstraintHandle : public FConstraintHandle
-	{
-	public:
-		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
-
-		FIndexedConstraintHandle() 
-			: FConstraintHandle()
-			, ConstraintIndex(INDEX_NONE)
-		{
-		}
-
-		FIndexedConstraintHandle(FPBDConstraintContainer* InContainer, int32 InConstraintIndex)
-			: FConstraintHandle(InContainer)
-			, ConstraintIndex(InConstraintIndex)
-		{
-		}
-
-		virtual ~FIndexedConstraintHandle()
-		{
-		}
-
-		virtual bool IsValid() const override
-		{
-			return (ConstraintIndex != INDEX_NONE) && FConstraintHandle::IsValid();
-		}
-
-		int32 GetConstraintIndex() const
-		{
-			return ConstraintIndex;
-		}
-
-		static const FConstraintHandleTypeID& StaticType()
-		{
-			static FConstraintHandleTypeID STypeID(TEXT("FIndexedConstraintHandle"), &FConstraintHandle::StaticType());
-			return STypeID;
-		}
-
-	protected:
-		friend class FPBDIndexedConstraintContainer;
-
-		int32 ConstraintIndex;
-	};
-
-
-	/**
-	 * Utility base class for ConstraintHandles. Provides basic functionality common to most constraint containers.
-	 */
-	template<typename T_CONTAINER>
-	class CHAOS_API TIndexedContainerConstraintHandle : public FIndexedConstraintHandle
-	{
-	public:
-		using Base = FIndexedConstraintHandle;
-		using FGeometryParticleHandle = typename Base::FGeometryParticleHandle;
-		using FConstraintContainer = T_CONTAINER;
-
-		TIndexedContainerConstraintHandle()
-			: FIndexedConstraintHandle()
-		{
-		}
-		
-		TIndexedContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
-			: FIndexedConstraintHandle(InConstraintContainer, InConstraintIndex)
-		{
-		}
-
-		inline virtual void SetEnabled(bool bInEnabled) override
-		{
-			if (ConcreteContainer() != nullptr)
-			{
-				ConcreteContainer()->SetConstraintEnabled(ConstraintIndex, bInEnabled);
-			}
-		}
-
-		inline virtual bool IsEnabled() const override
-		{
-			if (ConcreteContainer() != nullptr)
-			{
-				return ConcreteContainer()->IsConstraintEnabled(ConstraintIndex);
-			}
-			return false;
-		}
-
-		// @todo(chaos): Make this a virtual on FConstraintContainer and move to base class
-		void RemoveConstraint()
-		{
-			ConcreteContainer()->RemoveConstraint(ConstraintIndex);
-		}
-
-	protected:
-		FConstraintContainer* ConcreteContainer()
-		{
-			return static_cast<FConstraintContainer*>(ConstraintContainer);
-		}
-
-		const FConstraintContainer* ConcreteContainer() const
-		{
-			return static_cast<const FConstraintContainer*>(ConstraintContainer);
-		}
-
-		using Base::ConstraintIndex;
-	};
 
 
 	/**

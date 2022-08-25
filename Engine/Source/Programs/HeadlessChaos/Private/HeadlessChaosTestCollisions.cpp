@@ -182,14 +182,9 @@ namespace ChaosTest {
 		{
 			INVARIANT_XR_START(Box);
 			const int32 NumIts = 8;
-			for (int32 It = 0; It < NumIts; ++It)
-			{
-				Collisions.Apply(Dt, It, NumIts);
-			}
+			Collisions.Apply(Dt, NumIts);
 			INVARIANT_XR_END(Box);
 		}
-
-		Collisions.SetImplicitVelocities(Dt);
 
 		{
 			RESET_PQ(Box);
@@ -197,10 +192,7 @@ namespace ChaosTest {
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
 				const int32 NumIts = 1;
-				for (int32 It = 0; It < NumIts; ++It)
-				{
-					Collisions.ApplyPushOut(Dt, It, NumIts);
-				}
+				Collisions.ApplyPushOut(Dt, NumIts);
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -264,15 +256,9 @@ namespace ChaosTest {
 
 		{
 			INVARIANT_XR_START(Box);
-			Collisions.Apply(Dt, 0, 1);
+			Collisions.Apply(Dt, 1);
 			INVARIANT_XR_END(Box);
 		}
-
-		Collisions.SetImplicitVelocities(Dt);
-
-		// 0 restitution so expecting 0 velocity
-		//EXPECT_TRUE(Box->V().Equals(FVec3(0)));
-		//EXPECT_TRUE(Box->W().Equals(FVec3(0)));
 
 		{
 			RESET_PQ(Box);
@@ -280,10 +266,7 @@ namespace ChaosTest {
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
 				const int32 NumIts = 10;
-				for (int32 It = 0; It < NumIts; ++It)
-				{
-					Collisions.ApplyPushOut(Dt, It, NumIts);
-				}
+				Collisions.ApplyPushOut(Dt, NumIts);
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -340,11 +323,9 @@ namespace ChaosTest {
 
 		{
 			INVARIANT_XR_START(Box);
-			Collisions.Apply(Dt, 0, 1);
+			Collisions.Apply(Dt, 1);
 			INVARIANT_XR_END(Box);
 		}
-
-		Collisions.SetImplicitVelocities(Dt);
 
 		{
 			RESET_PQ(Box);
@@ -352,10 +333,7 @@ namespace ChaosTest {
 				INVARIANT_XR_START(Box);
 				INVARIANT_VW_START(Box);
 				const int32 NumIts = 10;
-				for (int32 It = 0; It < NumIts; ++It)
-				{
-					Collisions.ApplyPushOut(Dt, It, NumIts);
-				}
+				Collisions.ApplyPushOut(Dt, NumIts);
 				INVARIANT_XR_END(Box);
 				INVARIANT_VW_END(Box);
 			}
@@ -418,21 +396,16 @@ namespace ChaosTest {
 
 		{
 			INVARIANT_XR_START(Box);
-			Collisions.Apply(Dt, 0, 1);
+			Collisions.Apply(Dt, 1);
 			INVARIANT_XR_END(Box);
 		}
-
-		Collisions.SetImplicitVelocities(Dt);
 
 		{
 			RESET_PQ(Box);
 			{
 				INVARIANT_XR_START(Box);
 				const int32 NumIts = 10;
-				for (int32 It = 0; It < NumIts; ++It)
-				{
-					Collisions.ApplyPushOut(Dt, It, NumIts);
-				}
+				Collisions.ApplyPushOut(Dt, NumIts);
 				INVARIANT_XR_END(Box);
 			}
 		}
@@ -503,13 +476,11 @@ namespace ChaosTest {
 		EXPECT_NEAR(Constraint.CalculateWorldContactNormal().Z, FReal(1), KINDA_SMALL_NUMBER);
 		{
 			INVARIANT_XR_START(DynamicCube);
-			Collisions.Apply(Dt, 0, 1);
+			Collisions.Apply(Dt, 1);
 			INVARIANT_XR_END(DynamicCube);
 		}
 
-		Collisions.SetImplicitVelocities(Dt);
-
-		Collisions.ApplyPushOut(Dt, 0, 1);
+		Collisions.ApplyPushOut(Dt, 1);
 
 		Collisions.ScatterOutput(Dt);
 
@@ -576,12 +547,10 @@ namespace ChaosTest {
 		{
 			INVARIANT_XR_START(Box2);
 			INVARIANT_XR_START(StaticBox);
-			Collisions.Apply(Dt, 0, 1);
+			Collisions.Apply(Dt, 1);
 			INVARIANT_XR_END(Box2);
 			INVARIANT_XR_END(StaticBox);
 		}
-
-		Collisions.SetImplicitVelocities(Dt);
 
 		RESET_PQ(Box2);
 		{
@@ -589,10 +558,7 @@ namespace ChaosTest {
 			//INVARIANT_XR_START(StaticBox);
 			//INVARIANT_VW_START(Box2);
 			const int32 NumIts = 10;
-			for (int32 It = 0; It < NumIts; ++It)
-			{
-				Collisions.ApplyPushOut(Dt, It, NumIts);
-			}
+			Collisions.ApplyPushOut(Dt, NumIts);
 			//INVARIANT_XR_END(Box2);
 			//INVARIANT_XR_END(StaticBox);
 			//INVARIANT_VW_END(Box2);
@@ -605,116 +571,6 @@ namespace ChaosTest {
 
 		EXPECT_FALSE(Box2->P().Equals(StartingPoint)); // moved
 		EXPECT_FALSE(Box2->Q().Equals(FQuat::Identity)); // and rotated
-	}
-
-	void CollisionPGS()
-	{
-#if CHAOS_PARTICLEHANDLE_TODO
-		TSet<int32> ActiveIndices;
-		TArray<TSet<int32>> IslandParticles;
-		TArray<int32> IslandSleepCounts;
-		TArrayCollectionArray<bool> Collided;
-		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
-		PhysicsMaterial->Friction = (FReal)0;
-		PhysicsMaterial->Restitution = (FReal)0;
-		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
-		TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
-		Chaos::FPBDRigidParticles Particles;
-		Particles.AddArray(&Collided);
-		Particles.AddArray(&PhysicsMaterials);
-
-		int32 BoxId1 = AppendParticleBox<FReal>(Particles);
-		Particles.X(BoxId1) = FVec3(0.f, 0.f, 0.5f);
-		Particles.R(BoxId1) = FRotation3(FQuat::Identity);
-		Particles.V(BoxId1) = FVec3(0.f, 0.f, -10.f);
-		PhysicsMaterials[BoxId1]  = MakeSerializable(PhysicsMaterial);
-
-		int32 BoxId2 = AppendParticleBox<FReal>(Particles);
-		Particles.X(BoxId2) = FVec3(0.f, 0.f, 0.5f);
-		Particles.R(BoxId2) = FRotation3(FQuat::Identity);
-		Particles.V(BoxId2) = FVec3(0.f, 0.f, -10.f);
-		PhysicsMaterials[BoxId2]  = MakeSerializable(PhysicsMaterial);
-
-		int32 FloorId = AppendStaticAnalyticFloor<FReal>(Particles);
-
-		ActiveIndices.Add(BoxId1);
-		ActiveIndices.Add(BoxId2);
-		ActiveIndices.Add(FloorId);
-
-		TArray<int32> Indices = ActiveIndices.Array();
-
-		FPBDCollisionConstraintPGS CollisionConstraints(Particles, Indices, Collided, PhysicsMaterials);
-		FRigidBodyContactConstraintPGS Constraint1;
-		Constraint1.ParticleIndex = BoxId1;
-		Constraint1.LevelsetIndex = BoxId2;
-		FRigidBodyContactConstraintPGS Constraint2;
-		Constraint2.ParticleIndex = BoxId1;
-		Constraint2.LevelsetIndex = FloorId;
-		FRigidBodyContactConstraintPGS Constraint3;
-		Constraint3.ParticleIndex = BoxId2;
-		Constraint3.LevelsetIndex = FloorId;
-		CollisionConstraints.Constraints.Add(Constraint1);
-		CollisionConstraints.Constraints.Add(Constraint2);
-		CollisionConstraints.Constraints.Add(Constraint3);
-		CollisionConstraints.Apply(Particles, 1.f, { 0, 1, 2 });
-		EXPECT_LT(FMath::Abs(Particles.V(BoxId1)[2]), 1e-3);
-		EXPECT_LT(FMath::Abs(Particles.V(BoxId2)[2]), 1e-3);
-#endif
-	}
-
-	void CollisionPGS2()
-	{
-#if CHAOS_PARTICLEHANDLE_TODO
-		TSet<int32> ActiveIndices;
-		TArray<TSet<int32>> IslandParticles;
-		TArray<int32> IslandSleepCounts;
-		TArrayCollectionArray<bool> Collided;
-		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
-		PhysicsMaterial->Friction = (FReal)0;
-		PhysicsMaterial->Restitution = (FReal)0;
-		TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
-		TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
-		Chaos::FPBDRigidParticles Particles;
-		Particles.AddArray(&Collided);
-		Particles.AddArray(&PhysicsMaterials);
-
-		int32 BoxId1 = AppendParticleBox<FReal>(Particles);
-		Particles.X(BoxId1) = FVec3(0.f, 0.f, 0.5f);
-		Particles.R(BoxId1) = FRotation3(FQuat::Identity);
-		Particles.V(BoxId1) = FVec3(0.f, 0.f, -10.f);
-		PhysicsMaterials[BoxId1] = MakeSerializable(PhysicsMaterial);
-
-		int32 BoxId2 = AppendParticleBox<FReal>(Particles);
-		Particles.X(BoxId2) = FVec3(0.f, 0.f, 0.5f);
-		Particles.R(BoxId2) = FRotation3(FQuat::Identity);
-		Particles.V(BoxId2) = FVec3(0.f, 0.f, -10.f);
-		PhysicsMaterials[BoxId2] = MakeSerializable(PhysicsMaterial);
-
-		int32 FloorId = AppendStaticAnalyticFloor<FReal>(Particles);
-
-		ActiveIndices.Add(BoxId1);
-		ActiveIndices.Add(BoxId2);
-		ActiveIndices.Add(FloorId);
-
-		TArray<int32> Indices = ActiveIndices.Array();
-
-		FPBDCollisionConstraintPGS CollisionConstraints(Particles, Indices, Collided, PhysicsMaterials);
-		FRigidBodyContactConstraintPGS Constraint1;
-		Constraint1.ParticleIndex = BoxId1;
-		Constraint1.LevelsetIndex = BoxId2;
-		FRigidBodyContactConstraintPGS Constraint2;
-		Constraint2.ParticleIndex = BoxId1;
-		Constraint2.LevelsetIndex = FloorId;
-		FRigidBodyContactConstraintPGS Constraint3;
-		Constraint3.ParticleIndex = BoxId2;
-		Constraint3.LevelsetIndex = FloorId;
-		CollisionConstraints.Constraints.Add(Constraint2);
-		CollisionConstraints.Constraints.Add(Constraint3);
-		CollisionConstraints.Constraints.Add(Constraint1);
-		CollisionConstraints.Apply(Particles, 1.f, { 0, 1, 2 });
-		EXPECT_LT(FMath::Abs(Particles.V(BoxId1)[2] - 0.5), 1e-3);
-		EXPECT_LT(FMath::Abs(Particles.V(BoxId2)[2] + 0.5), 1e-3);
-#endif
 	}
 }
 

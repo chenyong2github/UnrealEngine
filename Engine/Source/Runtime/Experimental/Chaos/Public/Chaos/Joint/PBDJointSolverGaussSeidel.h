@@ -129,10 +129,15 @@ namespace Chaos
 
 		FPBDJointSolver();
 
+		void SetSolverBodies(FSolverBody* SolverBody0, FSolverBody* SolverBody1)
+		{
+			SolverBodies[0] = *SolverBody0;
+			SolverBodies[1] = *SolverBody1;
+		}
+
 		// Called once per frame to initialze the joint solver from the joint settings
 		void Init(
 			const FReal Dt,
-			const FSolverBodyPtrPair& SolverBodyPair,
 			const FPBDJointSolverSettings& SolverSettings,
 			const FPBDJointSettings& JointSettings,
 			const FRigidTransform3& XL0,

@@ -6,6 +6,7 @@
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
@@ -71,48 +72,84 @@ namespace Chaos
 		{
 		}
 
-		FPBDCollisionSolver& GetSolver() { return Solver; }
-		FPBDCollisionConstraint* GetConstraint() { return Constraint; }
+		FPBDCollisionSolver& GetSolver()
+		{ 
+			return Solver;
+		}
 
-		bool IsManifold() const { return bIsManifold; }
-		bool IsIncrementalManifold() const { return bIsIncrementalManifold; }
+		FPBDCollisionConstraint* GetConstraint()
+		{ 
+			return Constraint;
+		}
 
-		void PreGatherInput(
-			const FReal Dt,
-			FPBDCollisionConstraint& InConstraint,
-			FSolverBodyContainer& SolverBodyContainer)
+		void SetConstraint(FPBDCollisionConstraint& InConstraint)
 		{
 			Constraint = &InConstraint;
-			SolverBodyContainer.FindOrAdd(Constraint->GetParticle0(), Dt);
-			SolverBodyContainer.FindOrAdd(Constraint->GetParticle1(), Dt);
+		}
+
+		void SetBodies(FSolverBody& Body0, FSolverBody& Body1)
+		{
+			Solver.SetSolverBodies(Body0, Body1);
+
+			// We should try to remove this - the Constraint should not need to know about solver objects
+			Constraint->SetSolverBodies(&Body0, &Body1);
+		}
+
+		void Unbind()
+		{
+			if (Constraint != nullptr)
+			{
+				Constraint->SetSolverBodies(nullptr, nullptr);
+				Constraint = nullptr;
+			}
+			Solver.ResetSolverBodies();
+		}
+
+		void Reset()
+		{
+			Unbind();
+
+			bIsManifold = true;
+			bIsIncrementalManifold = false;
+			Solver.Reset();
+		}
+
+		bool IsManifold() const
+		{ 
+			return bIsManifold;
+		}
+		
+		bool IsIncrementalManifold() const
+		{ 
+			return bIsIncrementalManifold;
 		}
 
 		/**
 		 * @brief Modify solver stiffness when we have bodies with large mass differences
 		*/
 		FReal CalculateSolverStiffness(
-			const FSolverBody* Body0,
-			const FSolverBody* Body1,
+			const FSolverBody& Body0,
+			const FSolverBody& Body1,
 			const FReal MassRatio1,
 			const FReal MassRatio2)
 		{
 			// Adjust the solver stiffness if one body is more than MassRatio1 times the mass of the other and the heavier one is on top.
 			// Solver stiffness will be equal to 1 when the mass ratio is MassRatio1.
 			// Solver stiffness will be equal to 0 when the mass ratio is MassRatio2.
-			if (Body0->IsDynamic() && Body1->IsDynamic() && (MassRatio1 > 0) && (MassRatio2 > MassRatio1))
+			if (Body0.IsDynamic() && Body1.IsDynamic() && (MassRatio1 > 0) && (MassRatio2 > MassRatio1))
 			{
 				// Find heavy body and the mass ratio
 				const FSolverBody* HeavyBody;
 				FReal MassRatio;
-				if (Body0->InvM() < Body1->InvM())
+				if (Body0.InvM() < Body1.InvM())
 				{
-					HeavyBody = Body0;
-					MassRatio = Body1->InvM() / Body0->InvM();
+					HeavyBody = &Body0;
+					MassRatio = Body1.InvM() / Body0.InvM();
 				}
 				else
 				{
-					HeavyBody = Body1;
-					MassRatio = Body0->InvM() / Body1->InvM();
+					HeavyBody = &Body1;
+					MassRatio = Body0.InvM() / Body1.InvM();
 				}
 
 				if (MassRatio > MassRatio1)
@@ -125,7 +162,7 @@ namespace Chaos
 					if (FMath::Abs(WorldNormal.Z) > FReal(0.3))
 					{
 						// Which body is on the top? (Normal always points away from second body - see FContactPoint)
-						const FSolverBody* TopBody = (WorldNormal.Z > 0) ? Body0 : Body1;
+						const FSolverBody* TopBody = (WorldNormal.Z > 0) ? &Body0 : &Body1;
 						if (TopBody == HeavyBody)
 						{
 							// The heavy body is on top - reduce the solver stiffness
@@ -140,25 +177,13 @@ namespace Chaos
 			return Constraint->GetStiffness();
 		}
 
-		void BindBodies(
-			const FReal Dt,
-			const int32 Particle0Level,
-			const int32 Particle1Level,
-			FSolverBodyContainer& SolverBodyContainer,
+		void GatherInput(
+			const FReal InDt,
 			const FPBDCollisionSolverSettings& SolverSettings)
 		{
-			// Find the solver bodies for the particles we constrain. This will add them to the container
-			// if they aren't there already, and ensure that they are populated with the latest data.
-			FSolverBody* Body0 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle0(), Dt);
-			FSolverBody* Body1 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle1(), Dt);
-
-			Body0->SetLevel(Particle0Level);
-			Body1->SetLevel(Particle1Level);
-		
-			Solver.SetSolverBodies(*Body0, *Body1);
-
-			// We should try to remove this - the Constraint should not need to know about solver objects
-			Constraint->SetSolverBodies(Body0, Body1);
+			FSolverReal Dt = FSolverReal(InDt);
+			const FConstraintSolverBody& Body0 = Solver.SolverBody0();
+			const FConstraintSolverBody& Body1 = Solver.SolverBody1();
 
 			// Friction values. Static and Dynamic friction are applied in the position solve for most shapes.
 			// For quadratic shapes, we run dynamic friction in the velocity solve for better rolling behaviour.
@@ -188,7 +213,7 @@ namespace Chaos
 
 			Solver.SetFriction(PositionStaticFriction, PositionDynamicFriction, VelocityDynamicFriction);
 
-			const FReal SolverStiffness = CalculateSolverStiffness(Body0, Body1, Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1, Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2);
+			const FReal SolverStiffness = CalculateSolverStiffness(Body0.SolverBody(), Body1.SolverBody(), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1, Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2);
 			Solver.SetStiffness(FSolverReal(SolverStiffness));
 
 			Solver.SolverBody0().SetInvMScale(Constraint->GetInvMassScale0());
@@ -197,7 +222,7 @@ namespace Chaos
 			Solver.SolverBody1().SetInvIScale(Constraint->GetInvInertiaScale1());
 
 			bIsManifold = Constraint->GetUseManifold();
-			bIsIncrementalManifold = bIsManifold && Constraint->GetUseIncrementalCollisionDetection();
+			UpdateManifoldPoints(InDt);
 		}
 
 		void UpdateManifoldPoints(
@@ -348,10 +373,7 @@ namespace Chaos
 					Dt);
 			}
 
-			Constraint->SetSolverBodies(nullptr, nullptr);
-			Constraint->SetSolverIndex(INDEX_NONE);
-			Constraint = nullptr;
-			Solver.ResetSolverBodies();
+			Unbind();
 		}
 
 
@@ -369,63 +391,157 @@ namespace Chaos
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-	FPBDCollisionSolverContainer::FPBDCollisionSolverContainer()
-		: FConstraintSolverContainer()
+	FPBDCollisionContainerSolver::FPBDCollisionContainerSolver(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority)
+		: FConstraintContainerSolver(InPriority)
+		, ConstraintContainer(InConstraintContainer)
 		, bPerIterationCollisionDetection(false)
 		, bDeferredCollisionDetection(false)
 	{
 	}
 
-	FPBDCollisionSolverContainer::~FPBDCollisionSolverContainer()
+	FPBDCollisionContainerSolver::~FPBDCollisionContainerSolver()
 	{
 	}
 
-	void FPBDCollisionSolverContainer::Reset(const int32 MaxCollisions)
+	void FPBDCollisionContainerSolver::Reset(const int32 MaxCollisions)
 	{
-		CollisionSolvers.Reset(MaxCollisions);
-	}
-	
-	void FPBDCollisionSolverContainer::SetNum(const int32 MaxCollisions)
-	{
-		CollisionSolvers.SetNum(MaxCollisions, false);
+		CollisionSolvers.Reset(0);
+		CollisionSolvers.Reserve(MaxCollisions);
 	}
 
-	void FPBDCollisionSolverContainer::PreAddConstraintSolver(const FReal Dt, FPBDCollisionConstraint& Constraint, FSolverBodyContainer& SolverBodyContainer, int32& SolverIndex)
+	void FPBDCollisionContainerSolver::AddConstraints()
 	{
-		// This container is required to allocate pointers that are valid for the whole tick,
-		// so we cannot allow the container to resize during the tick. See Reset()
-		check(SolverIndex < CollisionSolvers.Num());
-		Constraint.SetSolverIndex(SolverIndex);
-
-		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
-		CollisionSolver.GetSolver().Reset();
-
-		CollisionSolver.PreGatherInput(Dt, Constraint, SolverBodyContainer);
-
-		++SolverIndex;
-	}
-
-	void FPBDCollisionSolverContainer::AddConstraintSolver(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, const FPBDCollisionSolverSettings& SolverSettings)
-	{
-		// This container is required to allocate pointers that are valid for the whole tick,
-		// so we cannot allow the container to resize during the tick. See Reset()
-		const int32 SolverIndex = Constraint.GetSolverIndex();
-		check(SolverIndex < CollisionSolvers.Num());
-
-		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
-		check(CollisionSolver.GetConstraint() == &Constraint);
-
-		CollisionSolver.BindBodies(Dt, Particle0Level, Particle1Level, SolverBodyContainer, SolverSettings);
-
-		if (!bDeferredCollisionDetection)
+		for (FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintContainer.GetConstraintHandles())
 		{
-			CollisionSolver.UpdateManifoldPoints(Dt);
+			FPBDCollisionConstraint& Constraint = ConstraintHandle->GetContact();
+
+			AddConstraint(Constraint);
+		}
+	}
+
+	void FPBDCollisionContainerSolver::AddConstraints(const TArrayView<FPBDIslandConstraint>& IslandConstraints)
+	{
+		for (FPBDIslandConstraint& IslandConstraint : IslandConstraints)
+		{
+			// @todo(chaos): unsafe version of As
+			FPBDCollisionConstraint& Constraint = IslandConstraint.GetConstraint()->As<FPBDCollisionConstraintHandle>()->GetContact();
+
+			AddConstraint(Constraint);
+		}
+	}
+
+	void FPBDCollisionContainerSolver::AddConstraint(FPBDCollisionConstraint& Constraint)
+	{
+		FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[CollisionSolvers.AddDefaulted()];
+		CollisionSolver.Reset();
+		CollisionSolver.SetConstraint(Constraint);
+	}
+
+
+	void FPBDCollisionContainerSolver::AddBodies(FSolverBodyContainer& SolverBodyContainer)
+	{
+		for (FPBDCollisionSolverAdapter& CollisionSolver : CollisionSolvers)
+		{
+			FPBDCollisionConstraint* Constraint = CollisionSolver.GetConstraint();
+			check(Constraint != nullptr);
+
+			// Find the solver bodies for the particles we constrain. This will add them to the container
+			// if they aren't there already, and ensure that they are populated with the latest data.
+			FSolverBody* Body0 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle0());
+			FSolverBody* Body1 = SolverBodyContainer.FindOrAdd(Constraint->GetParticle1());
+			check(Body0 != nullptr);
+			check(Body1 != nullptr);
+
+			CollisionSolver.SetBodies(*Body0, *Body1);
+		}
+	}
+
+	void FPBDCollisionContainerSolver::GatherInput(const FReal Dt)
+	{
+		if (bDeferredCollisionDetection)
+		{
+			return;
 		}
 
-		bPerIterationCollisionDetection |= (!CollisionSolver.IsManifold() || CollisionSolver.IsIncrementalManifold());
+		for (FPBDCollisionSolverAdapter& CollisionSolver : CollisionSolvers)
+		{
+			CollisionSolver.GatherInput(Dt, ConstraintContainer.GetSolverSettings());
+
+			// We need to run collision every iteration if we are not using manifolds, or are using incremental manifolds
+			if (!CollisionSolver.IsManifold() || CollisionSolver.IsIncrementalManifold())
+			{
+				bPerIterationCollisionDetection = true;
+			}
+		}
 	}
 
-	void FPBDCollisionSolverContainer::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionContainerSolver::GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex)
+	{
+		if (bDeferredCollisionDetection)
+		{
+			return;
+		}
+
+		check(BeginIndex >= 0);
+		check(EndIndex <= NumSolvers());
+
+		bool bWantPerIterationCollisionDetection = false;
+		for (int32 ConstraintIndex = BeginIndex; ConstraintIndex < EndIndex; ++ConstraintIndex)
+		{
+			FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[ConstraintIndex];
+			
+			CollisionSolver.GatherInput(Dt, ConstraintContainer.GetSolverSettings());
+
+			// We need to run collision every iteration if we are not using manifolds, or are using incremental manifolds
+			if (!CollisionSolver.IsManifold() || CollisionSolver.IsIncrementalManifold())
+			{
+				bWantPerIterationCollisionDetection = true;
+			}
+		}
+
+		if (bWantPerIterationCollisionDetection)
+		{
+			// We should lock here? We only ever set to true or do nothing so I think it doesn't matter if this happens on multiple threads...
+			bPerIterationCollisionDetection = true;
+		}
+	}
+
+	void FPBDCollisionContainerSolver::ScatterOutput(const FReal Dt)
+	{
+		for (FPBDCollisionSolverAdapter& CollisionSolver : CollisionSolvers)
+		{
+			CollisionSolver.ScatterOutput(Dt);
+		}
+	}
+
+	void FPBDCollisionContainerSolver::ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex)
+	{
+		check(BeginIndex >= 0);
+		check(EndIndex <= NumSolvers());
+
+		for (int32 ConstraintIndex = BeginIndex; ConstraintIndex < EndIndex; ++ConstraintIndex)
+		{
+			FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[ConstraintIndex];
+			CollisionSolver.ScatterOutput(Dt);
+		}
+	}
+
+	void FPBDCollisionContainerSolver::ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		SolvePositionImpl(Dt, It, NumIts, 0, CollisionSolvers.Num(), ConstraintContainer.GetSolverSettings());
+	}
+
+	void FPBDCollisionContainerSolver::ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		SolveVelocityImpl(Dt, It, NumIts, 0, CollisionSolvers.Num(), ConstraintContainer.GetSolverSettings());
+	}
+
+	void FPBDCollisionContainerSolver::ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts)
+	{
+		// Not supported for collisions
+	}
+
+	void FPBDCollisionContainerSolver::UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		// If this is the first shock propagation iteration, enable it on each solver
 		const bool bEnableShockPropagation = (It == NumIts - SolverSettings.NumPositionShockPropagationIterations);
@@ -438,7 +554,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionSolverContainer::UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionContainerSolver::UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		// Set/reset the shock propagation based on current iteration. The position solve may
 		// have left the bodies with a mass scale and we want to change or reset it.
@@ -459,28 +575,8 @@ namespace Chaos
 		}
 	}
 
-	bool FPBDCollisionSolverContainer::SolvePositionSerial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
-	{
-		return SolvePositionImpl(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings, false);
-	}
-
-	bool FPBDCollisionSolverContainer::SolveVelocitySerial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
-	{
-		return SolveVelocityImpl(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings, false);
-	}
-
-	bool FPBDCollisionSolverContainer::SolvePositionParallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
-	{
-		return SolvePositionImpl(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings, true);
-	}
-
-	bool FPBDCollisionSolverContainer::SolveVelocityParallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
-	{
-		return SolveVelocityImpl(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings, true);
-	}
-
 	// @todo(chaos): parallel version of SolvePosition
-	bool FPBDCollisionSolverContainer::SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings, const bool bParallel)
+	bool FPBDCollisionContainerSolver::SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 		if (!bChaos_PBDCollisionSolver_Position_SolveEnabled)
@@ -508,16 +604,16 @@ namespace Chaos
 		// Apply the position correction
 		if (bApplyStaticFriction)
 		{
-			return SolvePositionWithFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut, bParallel);
+			return SolvePositionWithFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
 		}
 		else
 		{
-			return SolvePositionNoFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut, bParallel);
+			return SolvePositionNoFrictionImpl(Dt, BeginIndex, EndIndex, MaxPushOut);
 		}
 	}
 
 	// Solve position with friction (last few iterations each tick)
-	bool FPBDCollisionSolverContainer::SolvePositionWithFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut, const bool bParallel)
+	bool FPBDCollisionContainerSolver::SolvePositionWithFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
 	{
 		if (EndIndex == BeginIndex)
 		{
@@ -526,20 +622,16 @@ namespace Chaos
 		const FSolverReal Dt = FSolverReal(InDt);
 		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
 
-		InnerPhysicsParallelForRange(EndIndex - BeginIndex, [&](int32 StartRangeIndex, int32 EndRangeIndex)
+		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
-			int32 LocalStartIndex = StartRangeIndex + BeginIndex;
-			int32 LocalEndIndex = EndRangeIndex + BeginIndex;
-			for (int32 SolverIndex = LocalStartIndex; SolverIndex < LocalEndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
-			}
-		}, Chaos::LargeBatchSize, !bParallel);
+			CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
+		}
+
 		return true;
 	}
 
 	// Solve position without friction (first few iterations each tick)
-	bool FPBDCollisionSolverContainer::SolvePositionNoFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut, const bool bParallel)
+	bool FPBDCollisionContainerSolver::SolvePositionNoFrictionImpl(const FReal InDt, const int32 BeginIndex, const int32 EndIndex, const FReal InMaxPushOut)
 	{
 		if (EndIndex == BeginIndex)
 		{
@@ -548,19 +640,15 @@ namespace Chaos
 		const FSolverReal Dt = FSolverReal(InDt);
 		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
 
-		InnerPhysicsParallelForRange(EndIndex - BeginIndex, [&](int32 StartRangeIndex, int32 EndRangeIndex)
+		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
 		{
-			int32 LocalStartIndex = StartRangeIndex + BeginIndex;
-			int32 LocalEndIndex = EndRangeIndex + BeginIndex;
-			for (int32 SolverIndex = LocalStartIndex; SolverIndex < LocalEndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
-			}
-		}, Chaos::LargeBatchSize, !bParallel);
+			CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
+		}
+
 		return true;
 	}
 
-	bool FPBDCollisionSolverContainer::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings, const bool bParallel)
+	bool FPBDCollisionContainerSolver::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
 		if (!bChaos_PBDCollisionSolver_Velocity_SolveEnabled)
@@ -586,33 +674,7 @@ namespace Chaos
 		return bNeedsAnotherIteration;
 	}
 
-	void FPBDCollisionSolverContainer::ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex)
-	{
-		return ScatterOutputImpl(Dt, BeginIndex, EndIndex, false);
-	}
-
-	void FPBDCollisionSolverContainer::ScatterOutputImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const bool bParallel)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_Scatter);
-		check(BeginIndex >= 0);
-		check(EndIndex <= CollisionSolvers.Num());
-		if (EndIndex == BeginIndex)
-		{
-			return;
-		}
-
-		InnerPhysicsParallelForRange(EndIndex - BeginIndex, [&](int32 LocalStartIndex, int32 LocalEndIndex)
-		{
-			int32 LoopStartIndex = LocalStartIndex + BeginIndex;
-			int32 LoopEndIndex = LocalEndIndex + BeginIndex;
-			for (int32 SolverIndex = LoopStartIndex; SolverIndex < LoopEndIndex; ++SolverIndex)
-			{
-				CollisionSolvers[SolverIndex].ScatterOutput(Dt);
-			}
-		}, Chaos::LargeBatchSize);
-	}
-
-	void FPBDCollisionSolverContainer::UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
+	void FPBDCollisionContainerSolver::UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
 	{
 		const FSolverReal Dt = FSolverReal(InDt);
 

@@ -24,14 +24,15 @@ namespace Chaos
 		}
 	}
 
-	int32 FSolverBodyContainer::AddParticle(FGenericParticleHandle InParticle, const FReal Dt)
+	int32 FSolverBodyContainer::AddParticle(FGenericParticleHandle InParticle)
 	{
 		// No array resizing allowed (we want fixed pointers)
 		check(NumItems() < MaxItems());
-		return SolverBodies.Emplace(FSolverBodyAdapter(InParticle, Dt));
+
+		return SolverBodies.AddElement(FSolverBodyAdapter(InParticle));
 	}
 
-	FSolverBody* FSolverBodyContainer::FindOrAdd(FGenericParticleHandle InParticle, const FReal Dt)
+	FSolverBody* FSolverBodyContainer::FindOrAdd(FGenericParticleHandle InParticle)
 	{
 		// For dynamic bodies, we store a cookie on the Particle that holds the solver body index
 		// For kinematics we cannot do this because the kinematic may be in multiple islands and 
@@ -43,7 +44,8 @@ namespace Chaos
 			if (InParticle->IsDynamic())
 			{
 				// First time we have seen this particle, so add it
-				ItemIndex = AddParticle(InParticle, Dt);
+				check(!bLocked);
+				ItemIndex = AddParticle(InParticle);
 				InParticle->SetSolverBodyIndex(ItemIndex);
 			}
 			else // Not Dynamic
@@ -56,20 +58,48 @@ namespace Chaos
 				else
 				{
 					// First time we have seen this particle, so add it
-					ItemIndex = AddParticle(InParticle, Dt);
+					check(!bLocked);
+					ItemIndex = AddParticle(InParticle);
 					ParticleToIndexMap.Add(InParticle, ItemIndex);
 				}
 			}			
 		}
 	
 		check(ItemIndex != INDEX_NONE);
-		return &SolverBodies[ItemIndex].GetSolverBody();
+		
+		FSolverBody* SolverBody = &SolverBodies[ItemIndex].GetSolverBody();
+
+		return SolverBody;
+	}
+
+	void FSolverBodyContainer::GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex)
+	{
+		check((BeginIndex >= 0) && (BeginIndex <= EndIndex));
+		check((EndIndex >= 0) && (EndIndex <= SolverBodies.Num()));
+
+		for (int32 SolverBodyIndex = BeginIndex; SolverBodyIndex < EndIndex; ++SolverBodyIndex)
+		{
+			FSolverBodyAdapter& SolverBody = SolverBodies[SolverBodyIndex];
+			SolverBody.GatherInput(Dt);
+		}
 	}
 
 	void FSolverBodyContainer::ScatterOutput()
 	{
 		for (FSolverBodyAdapter& SolverBody : SolverBodies)
 		{
+			SolverBody.ScatterOutput();
+		}
+	}
+
+	void FSolverBodyContainer::ScatterOutput(const int32 BeginIndex, const int32 EndIndex)
+	{
+		check((BeginIndex >= 0) && (BeginIndex <= EndIndex));
+		check((EndIndex >= 0) && (EndIndex <= SolverBodies.Num()));
+
+		for (int32 SolverBodyIndex = BeginIndex; SolverBodyIndex < EndIndex; ++SolverBodyIndex)
+		{
+			FSolverBodyAdapter& SolverBody = SolverBodies[SolverBodyIndex];
 			SolverBody.ScatterOutput();
 		}
 	}

@@ -5,7 +5,6 @@
 
 #include "Chaos/Island/IslandManager.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDNullConstraints.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/Utilities.h"
@@ -24,13 +23,12 @@ namespace ChaosTest
 			, PhysicalMaterials()
 			, Evolution(Particles, PhysicalMaterials)
 			, Constraints()
-			, ConstraintsRule(Constraints)
 			, TickCount(0)
 		{
 			IslandManager = &Evolution.GetConstraintGraph();
 
 			// Bind the constraints to the evolution
-			Evolution.AddConstraintRule(&ConstraintsRule);
+			Evolution.AddConstraintContainer(Constraints);
 
 			Evolution.GetGravityForces().SetAcceleration(FVec3(0));
 
@@ -76,7 +74,7 @@ namespace ChaosTest
 				bIsSleeping = true;
 				for (int32 IslandIndex = 0; IslandIndex < IslandManager->NumIslands(); ++IslandIndex)
 				{
-					bIsSleeping = bIsSleeping && IslandManager->GetSolverIsland(IslandIndex)->IsSleeping();
+					bIsSleeping = bIsSleeping && IslandManager->GetIsland(IslandIndex)->IsSleeping();
 				}
 			}
 
@@ -89,10 +87,7 @@ namespace ChaosTest
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		FPBDRigidsEvolutionGBF Evolution;
 
-		// Create a constraint container and bind it to the evolution
 		FPBDNullConstraints Constraints;
-		TPBDConstraintIslandRule<FPBDNullConstraints> ConstraintsRule;
-
 		TArray<FPBDRigidParticleHandle*> ParticleHandles;
 		TArray<FPBDNullConstraintHandle*> ConstraintHandles;
 		FPBDIslandManager* IslandManager;
@@ -145,17 +140,17 @@ namespace ChaosTest
 
 		// All constraints in graph in 1 island that is awake
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_NE(Test.ConstraintHandles[0]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[2]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_NE(Test.ConstraintHandles[0]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[2]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 
 		// Make all the particles sleep
 		Test.AdvanceUntilSleeping();
 
 		// Island should be asleep
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_TRUE(Test.IslandManager->GetIsland(0)->IsSleeping());
 	}
 
 	// Sleep all particles in the scene and ensure that the island manager puts the island to sleep
@@ -174,10 +169,10 @@ namespace ChaosTest
 
 		// All constraints in graph in 1 island that is awake
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_NE(Test.ConstraintHandles[0]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[2]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_NE(Test.ConstraintHandles[0]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[2]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 
 		// Make all the particles sleep
 		for (FPBDRigidParticleHandle* ParticleHandle : Test.ParticleHandles)
@@ -189,7 +184,7 @@ namespace ChaosTest
 
 		// Island should be asleep
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_TRUE(Test.IslandManager->GetIsland(0)->IsSleeping());
 	}
 
 	// Start with an island containing 4 particle connected in a chain, then make the middle two kinematic.
@@ -208,9 +203,9 @@ namespace ChaosTest
 
 		// All constraints in graph in 1 island
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_NE(Test.ConstraintHandles[0]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[2]->ConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[0]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[2]->GetConstraintGraphIndex(), INDEX_NONE);
 
 		// Convert a particle B and C to kinematic to split the islands: A-B, C-D
 		Test.Evolution.SetParticleObjectState(Test.ParticleHandles[1], EObjectStateType::Kinematic);
@@ -219,9 +214,9 @@ namespace ChaosTest
 		Test.Advance();
 
 		// Constraint[1] is not in the graph or an island
-		EXPECT_NE(Test.ConstraintHandles[0]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_EQ(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);	// Not in graph
-		EXPECT_NE(Test.ConstraintHandles[2]->ConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[0]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_EQ(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);	// Not in graph
+		EXPECT_NE(Test.ConstraintHandles[2]->GetConstraintGraphIndex(), INDEX_NONE);
 		EXPECT_TRUE(Test.IslandManager->DebugCheckConstraintNotInGraph(Test.ConstraintHandles[1]));
 
 		// Should now have 2 islands
@@ -240,20 +235,20 @@ namespace ChaosTest
 
 		// All constraints in graph in 1 island that is awake
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_NE(Test.ConstraintHandles[0]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[2]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_NE(Test.ConstraintHandles[0]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[2]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 
 		// Wait for the sleep state
 		Test.AdvanceUntilSleeping();
 
 		// Island should be asleep but still contain all the particles and constraints
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
-		EXPECT_NE(Test.ConstraintHandles[0]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
-		EXPECT_NE(Test.ConstraintHandles[2]->ConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_TRUE(Test.IslandManager->GetIsland(0)->IsSleeping());
+		EXPECT_NE(Test.ConstraintHandles[0]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[2]->GetConstraintGraphIndex(), INDEX_NONE);
 
 		// Convert a particle B and C to kinematic to split the islands: A-B, C-D
 		// NOTE: the island won't split until the island is woken
@@ -266,7 +261,7 @@ namespace ChaosTest
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
 
 		// The kinematic-kinematic constraint will still be in the graph, and still in its island (it will not be removed until the island wakes)
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
 		EXPECT_NE(Test.IslandManager->GetConstraintIsland(Test.ConstraintHandles[1]), INDEX_NONE);
 
 		// Wake a dynamic particle the island and we should get the split at the next update
@@ -278,7 +273,7 @@ namespace ChaosTest
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 2);
 
 		// The kinematic-kinematic constraint will still be in the graph, but not in any island
-		EXPECT_NE(Test.ConstraintHandles[1]->ConstraintGraphIndex(), INDEX_NONE);
+		EXPECT_NE(Test.ConstraintHandles[1]->GetConstraintGraphIndex(), INDEX_NONE);
 		EXPECT_EQ(Test.IslandManager->GetConstraintIsland(Test.ConstraintHandles[1]), INDEX_NONE);
 	}
 
@@ -346,7 +341,7 @@ namespace ChaosTest
 
 		// All particles in one awake island
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[0]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[1]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[2]).Num(), 1);
@@ -389,7 +384,7 @@ namespace ChaosTest
 
 		// All particles in one asleep island
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_TRUE(Test.IslandManager->GetIsland(0)->IsSleeping());
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[0]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[1]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[2]).Num(), 1);
@@ -441,7 +436,7 @@ namespace ChaosTest
 
 		// All particles in one awake island (D was awake so it would wake the island)
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[0]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[1]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[2]).Num(), 1);
@@ -494,7 +489,7 @@ namespace ChaosTest
 
 		// All particles in one awake island (B was awake so it would wake the island, even though A was set to sleeping)
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
-		EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+		EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[0]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[1]).Num(), 1);
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[2]).Num(), 1);
@@ -531,7 +526,7 @@ namespace ChaosTest
 		// Flag the island for wake up
 		if (Test.IslandManager->NumIslands() == 1)
 		{
-			EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+			EXPECT_TRUE(Test.IslandManager->GetIsland(0)->IsSleeping());
 			EXPECT_TRUE(false);	// Should be calling WakeIsland here
 			//Test.IslandManager->WakeIsland(Test.Particles, 0);
 		}
@@ -542,7 +537,7 @@ namespace ChaosTest
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
 		if (Test.IslandManager->NumIslands() == 1)
 		{
-			EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+			EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 		}
 		EXPECT_FALSE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
 		EXPECT_FALSE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());
@@ -574,7 +569,7 @@ namespace ChaosTest
 		// Flag the island for sleep
 		if (Test.IslandManager->NumIslands() == 1)
 		{
-			EXPECT_FALSE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+			EXPECT_FALSE(Test.IslandManager->GetIsland(0)->IsSleeping());
 			Test.IslandManager->SleepIsland(Test.Particles, 0);
 		}
 
@@ -584,7 +579,7 @@ namespace ChaosTest
 		EXPECT_EQ(Test.IslandManager->NumIslands(), 1);
 		if (Test.IslandManager->NumIslands() == 1)
 		{
-			EXPECT_TRUE(Test.IslandManager->GetSolverIsland(0)->IsSleeping());
+			EXPECT_TRUE(Test.IslandManager->GetIsland(0)->IsSleeping());
 		}
 		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[0])->Sleeping());
 		EXPECT_TRUE(FConstGenericParticleHandle(Test.ParticleHandles[1])->Sleeping());

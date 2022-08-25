@@ -119,12 +119,6 @@ TEST(CollisionTests, Collisions) {
 	SUCCEED();
 }
 
-TEST(CollisionTests, PGS) {
-	ChaosTest::CollisionPGS();
-	ChaosTest::CollisionPGS2();
-	SUCCEED();
-}
-
 TEST(Clustering, Clustering) {
 	ChaosTest::ImplicitCluster();
 	ChaosTest::FractureCluster();

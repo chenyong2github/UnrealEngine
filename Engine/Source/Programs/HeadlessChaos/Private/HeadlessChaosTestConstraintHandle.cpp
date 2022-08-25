@@ -2,7 +2,6 @@
 
 #include "HeadlessChaos.h"
 #include "HeadlessChaosTestUtility.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/PBDRigidParticles.h"
@@ -12,7 +11,6 @@
 #include "Chaos/Utilities.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/PBDPositionConstraints.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidSpringConstraints.h"
 #include "Chaos/PBDRigidDynamicSpringConstraints.h"

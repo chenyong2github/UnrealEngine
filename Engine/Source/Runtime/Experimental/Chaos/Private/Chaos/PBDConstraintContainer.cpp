@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/PBDConstraintContainer.h"
+#include "Chaos/Evolution/SolverConstraintContainer.h"
 
 namespace Chaos
 {
@@ -13,13 +14,4 @@ namespace Chaos
 	{
 	}
 
-	int32 FPBDIndexedConstraintContainer::GetConstraintIndex(const FIndexedConstraintHandle* ConstraintHandle) const
-	{
-		return ConstraintHandle->GetConstraintIndex();
-	}
-
-	void FPBDIndexedConstraintContainer::SetConstraintIndex(FIndexedConstraintHandle* ConstraintHandle, int32 ConstraintIndex) const
-	{
-		ConstraintHandle->ConstraintIndex = ConstraintIndex;
-	}
 }

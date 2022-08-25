@@ -4,189 +4,206 @@
 #include "Containers/Array.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/ConstraintHandle.h"
-#include "Chaos/Evolution/SolverDatas.h"
 
 namespace Chaos
 {
 	
-/** Forward Declaration */
-class FPBDIslandManager;
+	/** Forward Declaration */
+	class FPBDIslandManager;
+	class FPBDRigidsSOAs;
 
-/**
-* List of per island datas that will created bu the island manager
-*/
-class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
-{
+	/**
+	 * Data for a particle in an Island
+	*/
+	class CHAOS_API FPBDIslandParticle
+	{
+	public:
+		FPBDIslandParticle(FGeometryParticleHandle* InParticleHandle)
+			: ParticleHandle(InParticleHandle)
+		{
+		}
+
+		const FGeometryParticleHandle* GetParticle() const { return ParticleHandle; }
+		FGeometryParticleHandle* GetParticle() { return ParticleHandle; }
+
+	private:
+		FGeometryParticleHandle* ParticleHandle;
+	};
+
+	/**
+	* Data for a constraint in an island. This includes the Level and a sort key (which is build from the level and some 
+	* externally generated key that should be consistent between frames).
+	*/
+	class CHAOS_API FPBDIslandConstraint
+	{
+	public:
+		FPBDIslandConstraint(FConstraintHandle* InConstraintHandle, const int32 InLevel, const int32 InColor, const uint32 InSubSortKey)
+			: ConstraintHandle(InConstraintHandle)
+		{
+			// Sort by level, then sort key
+			SortKey = (uint64(InLevel) << 32) | uint64(InSubSortKey);
+		}
+
+		const FConstraintHandle* GetConstraint() const { return ConstraintHandle; }
+		FConstraintHandle* GetConstraint() { return ConstraintHandle; }
+
+		int32 GetLevel() const { return int32((SortKey >> 32) & 0xFFFFF); }
+		
+		int32 GetColor() const { return INDEX_NONE; }
+		
+		uint64 GetSortKey() const { return SortKey; }
+
+	private:
+		uint64 SortKey;
+		FConstraintHandle* ConstraintHandle;
+	};
+
+	/**
+	* A set of constraints and particles that form a connected set in the constraint graph. These constraints
+	* must be solved sequentially (if not colored). FPBDIsland objects are collected into 
+	*/
+	class CHAOS_API FPBDIsland
+	{
 	public:
 
-	/**
-	* Init the solver island with an island manager and an index
-	* @param IslandManager Island manager that is storing the solver islands
-	* @param IslandIndex Index of the solver island within that list
-	*/
-	FPBDIslandSolver(const FPBDIslandManager* IslandManager, const int32 IslandIndex);
+		/**
+		* Init the solver island with an island manager and an index
+		* @param IslandManager Island manager that is storing the solver islands
+		* @param IslandIndex Index of the solver island within that list
+		*/
+		FPBDIsland(const int32 MaxConstraintContainers);
 
-	/**
-	* Clear all the particles from the island
-	*/
-	void ClearParticles();
+		/**
+		 * The island index as seen by the systems external to the IslandManager.
+		 * The IslandManager uses this to index into the IslandIndexing array to get the
+		 * internal island index.
+		*/
+		int32 GetIslandIndex() const { return IslandIndex; }
 
-	/**
-	* Add particle to the island
-	* @param ParticleHandle ParticleHandle to be added
-	*/
-	void AddParticle(FGenericParticleHandle ParticleHandle);
+		/**
+		 * Set the external island index.
+		 * @see GetIslandIndex.
+		*/
+		void SetIslandIndex(const int32 InIslandIndex) { IslandIndex = InIslandIndex; }
 
-	/**
-	* Reset the particles list and reserve a number of particles in memory
-	* @param NumParticles Number of particles to be reserved
-	*/
-	void ReserveParticles(const int32 NumParticles);
+		/**
+		* Clear all the particles from the island
+		*/
+		void ClearParticles();
 
-	/**
-	* Remove particle from the island
-	* @param ParticleHandle ParticleHandle to be removed
-	*/
-	void RemoveParticle(FGenericParticleHandle ParticleHandle);
+		/**
+		* Add particle to the island
+		* @param ParticleHandle ParticleHandle to be added
+		*/
+		void AddParticle(FGenericParticleHandle ParticleHandle);
+
+		/**
+		* Reset the particles list and reserve a number of particles in memory
+		* @param NumParticles Number of particles to be reserved
+		*/
+		void ReserveParticles(const int32 NumParticles);
+
+		/**
+		* Update the particles island index to match the graph index
+		*/
+		void UpdateParticles();
 	
-	/**
-	* Update the particles island index to match the graph index
-	*/
-	void UpdateParticles();
+		/**
+		* Remove all the constraints from the solver island
+		*/
+		void ClearConstraints();
+
+		/**
+		* Add constraint to the island
+		* @param ConstraintHandle ConstraintHandle to be added
+		*/
+		void AddConstraint(FConstraintHandle* ConstraintHandle, const int32 Level, const int32 Color, const uint32 SubSortKey);
+
+		/**
+		* Sort the islands constraints
+		*/
+		void SortConstraints();
+
+		/**
+		* Return the list of particles within the solver island
+		*/
+		FORCEINLINE TArrayView<const FPBDIslandParticle> GetParticles() const { return MakeArrayView(IslandParticles); }
+		FORCEINLINE TArrayView<FPBDIslandParticle> GetParticles() { return MakeArrayView(IslandParticles); }
+
+		/**
+		* Return the list of constraints of the specified type within the island
+		*/
+		TArrayView<const FPBDIslandConstraint> GetConstraints(const int32 ContainerId) const { return MakeArrayView(IslandConstraintsByType[ContainerId]); }
+		TArrayView<FPBDIslandConstraint> GetConstraints(const int32 ContainerId) { return MakeArrayView(IslandConstraintsByType[ContainerId]); }
+
+		const int32 GetNumConstraintContainers() const { return IslandConstraintsByType.Num(); }
+
+		/**
+		* Get the number of particles within the island
+		*/
+		FORCEINLINE int32 GetNumParticles() const { return IslandParticles.Num(); }
+
+		/**
+		* Get the number of constraints (from the specified container) within the island
+		*/
+		FORCEINLINE int32 GetNumConstraints(const int32 ContainerId) const { return IslandConstraintsByType[ContainerId].Num(); }
+
+		/**
+		* Get the number of constraints (of all types) within the island
+		*/
+		FORCEINLINE int32 GetNumConstraints() const { return NumConstraints; }
+
+		/**
+		* Members accessors
+		*/
+		FORCEINLINE bool IsSleeping() const {return bIsSleeping;}
+		FORCEINLINE void SetIsSleeping(const bool bIsSleepingIn ) { bSleepingChanged = bSleepingChanged || (bIsSleeping != bIsSleepingIn); bIsSleeping = bIsSleepingIn; }
+		FORCEINLINE void ResetSleepingChanged() { bSleepingChanged = false; }
+		FORCEINLINE bool IsPersistent() const { return bIsPersistent; }
+		FORCEINLINE void SetIsPersistent(const bool bIsPersistentIn) { bIsPersistent = bIsPersistentIn; }
+		FORCEINLINE bool NeedsResim() const { return bNeedsResim; }
+		FORCEINLINE void SetNeedsResim(const bool bNeedsResimIn) { bNeedsResim = bNeedsResimIn; }
+		FORCEINLINE int32 GetSleepCounter() const { return SleepCounter; }
+		FORCEINLINE void SetSleepCounter(const int32 SleepCounterIn) { SleepCounter = SleepCounterIn; }
+		FORCEINLINE bool SleepingChanged() const { return bSleepingChanged; }
+		FORCEINLINE void SetIsUsingCache(const bool bIsUsingCacheIn ) { bIsUsingCache = bIsUsingCacheIn; }
+		FORCEINLINE bool IsUsingCache() const { return bIsUsingCache; }
 	
-	/**
-	* Reset the constraints list and reserve a number of constraints in memory 
-	* @param NumConstraints number of constraints to be reserved
-	*/
-	void ReserveConstraints(const int32 NumConstraints);
+		/**
+		 * Set the sleep state of all particles and constraints based on the island sleep state
+		*/
+		void PropagateSleepState(FPBDRigidsSOAs& Particles);
 
-	/**
-	* Remove all the constraints from the solver island
-	*/
-	void ClearConstraints();
+		void UpdateSyncState(FPBDRigidsSOAs& Particles);
 
-	/**
-	* Add constraint to the island
-	* @param ConstraintHandle ConstraintHandle to be added
-	*/
-	void AddConstraint(FConstraintHandle* ConstraintHandle);
-
-	/**
-	* Remove constraint from the island
-	* @param ConstraintHandle ConstraintHandle to be removed
-	*/
-	void RemoveConstraint(FConstraintHandle* ConstraintHandle);
-
-	/**
-	* Sort the islands constraints
-	*/
-	void SortConstraints();
-
-	/**
-	 * Set the island group index
-	 */
-	FORCEINLINE void SetGroupIndex(const int32 GroupIndex) { IslandGroup = GroupIndex; }
-	
-	/**
-	* Get the island group index
-	*/
-	FORCEINLINE const int32& GetGroupIndex() const { return IslandGroup; }
-
-	/**
-	* Return the list of particles within the solver island
-	*/
-	FORCEINLINE const TArray<FGeometryParticleHandle*>& GetParticles() const { return IslandParticles; }
-
-	/**
-	* Return the list of constraints within the island
-	*/
-	FORCEINLINE const TArray<FConstraintHandleHolder>& GetConstraints() const { return IslandConstraints; }
-
-	/**
-	* Get the number of particles within the island
-	*/
-	FORCEINLINE int32 NumParticles() const {return IslandParticles.Num(); }
-
-	/**
-	* Get the number of constraints within the island
-	*/
-	FORCEINLINE int32 NumConstraints() const {return IslandConstraints.Num(); }
-	
-	/**
-	* Members accessors
-	*/
-	FORCEINLINE bool IsSleeping() const {return bIsSleeping;}
-	FORCEINLINE void SetIsSleeping(const bool bIsSleepingIn ) { bSleepingChanged = bSleepingChanged || (bIsSleeping != bIsSleepingIn); bIsSleeping = bIsSleepingIn; }
-	FORCEINLINE void ResetSleepingChanged() { bSleepingChanged = false; }
-	FORCEINLINE bool IsPersistent() const { return bIsPersistent; }
-	FORCEINLINE void SetIsPersistent(const bool bIsPersistentIn) { bIsPersistent = bIsPersistentIn; }
-	FORCEINLINE bool NeedsResim() const { return bNeedsResim; }
-	FORCEINLINE void SetNeedsResim(const bool bNeedsResimIn) { bNeedsResim = bNeedsResimIn; }
-	FORCEINLINE int32 GetSleepCounter() const { return SleepCounter; }
-	FORCEINLINE void SetSleepCounter(const int32 SleepCounterIn) { SleepCounter = SleepCounterIn; }
-	FORCEINLINE bool SleepingChanged() const { return bSleepingChanged; }
-	FORCEINLINE void SetIsUsingCache(const bool bIsUsingCacheIn ) { bIsUsingCache = bIsUsingCacheIn; }
-	FORCEINLINE bool IsUsingCache() const { return bIsUsingCache; }
-	
-	// template<typename ConstraintType>
-	// void GatherSolverInput(const FReal Dt, const int32 IslandIndex, const int32 ContainerId);
-	
 	private:
 
-	/** Island manager that is storing the IslandSolver */
-	const FPBDIslandManager* IslandManager = nullptr;
+		int32 IslandIndex;
 
-	/** Flag to check if an island is awake or sleeping */
-	bool bIsSleeping = false;
+		/** Flag to check if an island is awake or sleeping */
+		bool bIsSleeping = false;
 
-	/** Flag to check if an island need to be re-simulated or not */
-	bool bNeedsResim = false;
+		/** Flag to check if an island need to be re-simulated or not */
+		bool bNeedsResim = false;
 
-	/** Flag to check if an island is persistent over time */
-	bool bIsPersistent = true;
+		/** Flag to check if an island is persistent over time */
+		bool bIsPersistent = true;
 
-	/** Flag to check if the sleeping state has changed or not */
-	bool bSleepingChanged = false;
+		/** Flag to check if the sleeping state has changed or not */
+		bool bSleepingChanged = false;
 
-	/** Sleep counter to trigger island sleeping */
-	int32 SleepCounter = 0;
+		/** Sleep counter to trigger island sleeping */
+		int32 SleepCounter = 0;
 
-	/** List of all the island particles handles */
-	TArray<FGeometryParticleHandle*> IslandParticles;
+		/** List of all the island particles handles */
+		TArray<FPBDIslandParticle> IslandParticles;
 
-	/** List of all the island constraints handles */
-	TArray<FConstraintHandleHolder> IslandConstraints;
-
-	/** Island Group in which the solver belongs */
-	int32 IslandGroup = 0;
+		/** List of all the island constraints handles */
+		TArray<TArray<FPBDIslandConstraint>> IslandConstraintsByType;
+		int32 NumConstraints;
 	
-	/** Check if the island is using the cache or not */
-	bool bIsUsingCache = false;
+		/** Check if the island is using the cache or not */
+		bool bIsUsingCache = false;
 	
-};
-	
-// template<typename ConstraintType>
-// FORCEINLINE void FPBDIslandSolver::GatherSolverInput(const FReal Dt, const int32 IslandIndex, const int32 ContainerId)
-// {
-// 	using FConstraintContainerHandle = typename ConstraintType::FConstraintContainerHandle;
-// 	if(ConstraintContainers.IsValidIndex(ContainerId))
-// 	{
-// 		for (FConstraintHandle* ConstraintHandle : IslandConstraints)
-// 		{
-// 			if (ConstraintHandle->GetContainerId() == ContainerId)
-// 			{
-// 				FConstraintContainerHandle* Constraint = ConstraintHandle->As<FConstraintContainerHandle>();
-//
-// 				// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
-// 				// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-// 				if (Constraint->IsEnabled())
-// 				{
-// 					// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
-// 					Constraint->GatherInput(Dt, GraphIndex, INDEX_NONE, INDEX_NONE, *this);
-// 				}
-// 			}
-// 		}
-// 	}
-// }
-	
+	};
 }

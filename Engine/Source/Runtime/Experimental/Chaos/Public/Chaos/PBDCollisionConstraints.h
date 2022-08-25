@@ -23,17 +23,10 @@ class FImplicitObject;
 class FPBDCollisionConstraints;
 class FPBDRigidsSOAs;
 class FPBDCollisionConstraint;
-class FPBDIslandSolverData;
 
 using FRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
 using FRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>&)>;
 using FRigidBodyContactConstraintsPostApplyPushOutCallback = TFunction<void(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>&, bool)>;
-
-namespace Collisions
-{
-	struct FContactParticleParameters;
-	struct FContactIterationParameters;
-}
 
 /**
  * A container and solver for collision constraints.
@@ -53,17 +46,14 @@ public:
 
 	// For use by dependent types
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;		// Used by constraint rules
-	using FConstraintSolverContainerType = FPBDCollisionSolverContainer;	// Used by constraint rules
-	using FParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
 	FPBDCollisionConstraints(const FPBDRigidsSOAs& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
 		const THandleArray<FChaosPhysicsMaterial>* const SimMaterials,
-		const int32 ApplyPairIterations = 1, 
-		const int32 ApplyPushOutPairIterations = 1, 
-		const FReal RestitutionThreshold = 2000.0f);
+		const int32 NumCollisionsPerBlock = 1000,
+		const FReal RestitutionThreshold = FReal(2000));
 
 	virtual ~FPBDCollisionConstraints();
 
@@ -76,14 +66,6 @@ public:
 	 * Put the container in "no handles" mode for use with simple solver. Must be called when empty of constraints (ideally right after creation).
 	 */
 	void DisableHandles();
-
-	/**
-	 * Set the solver method to use
-	 */
-	void SetSolverType(EConstraintSolverType InSolverType)
-	{
-		SolverType = InSolverType;
-	}
 
 	/**
 	 * @brief Enable or disable determinism.
@@ -144,54 +126,26 @@ public:
 	*/
 	void DisableConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandle) {}
 
-	//
-	// General Rule API
-	//
-
-	void PrepareTick() {}
-
-	void UnprepareTick() {}
-
-	/**
-	 * Generate all contact constraints.
-	 */
-	void UpdatePositionBasedState(const FReal Dt);
 
 	//
-	// Simple Rule API
+	// FConstraintContainer Implementation
 	//
+	virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
+	virtual void ResetConstraints() override final { Reset(); }
+	virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
+	virtual void PrepareTick() override final {}
+	virtual void UnprepareTick() override final {}
 
-	void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
-	void GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
-	void ScatterOutput(const FReal Dt, FPBDIslandSolverData& SolverData);
+	virtual TUniquePtr<FConstraintContainerSolver> CreateSceneSolver(const int32 Priority) override final
+	{
+		return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+	}
 
-	bool ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
-	bool ApplyPhase2(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
-	bool ApplyPhase3(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
+	virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final
+	{
+		return MakeUnique<FPBDCollisionContainerSolver>(*this, Priority);
+	}
 
-	//
-	// Island Rule API
-	//
-
-	void SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData);
-	void PreGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, FPBDIslandSolverData& SolverData);
-	void GatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
-
-	bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
-	bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData);
-	bool ApplyPhase3Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return false; }
-
-	//
-	// Color Rule API
-	//
-
-	void ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
-
-	bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
-	bool ApplyPhase1Parallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
-	
-	bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
-	bool ApplyPhase2Parallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
 
 	//
 	// Member Access
@@ -215,26 +169,6 @@ public:
 	FReal GetRestitutionThreshold() const
 	{
 		return RestitutionThreshold;
-	}
-
-	void SetPairIterations(int32 InPairIterations)
-	{
-		MApplyPairIterations = InPairIterations;
-	}
-
-	int32 GetPairIterations() const
-	{
-		return MApplyPairIterations;
-	}
-
-	void SetPushOutPairIterations(int32 InPairIterations)
-	{
-		MApplyPushOutPairIterations = InPairIterations;
-	}
-
-	int32 GetPushOutPairIterations() const
-	{
-		return MApplyPushOutPairIterations;
 	}
 
 	void SetCollisionsEnabled(bool bInEnableCollisions)
@@ -321,22 +255,13 @@ public:
 	const FCollisionDetectorSettings& GetDetectorSettings() const { return DetectorSettings; }
 	void SetDetectorSettings(const FCollisionDetectorSettings& InSettings) { DetectorSettings = InSettings; }
 
+	const FPBDCollisionSolverSettings& GetSolverSettings() const { return SolverSettings; }
+
 protected:
 	FPBDCollisionConstraint& GetConstraint(int32 Index);
-	FPBDCollisionSolverContainer& GetConstraintSolverContainer(FPBDIslandSolverData& SolverData);
-
-	Collisions::FContactParticleParameters GetContactParticleParameters(const FReal Dt);
-	Collisions::FContactIterationParameters GetContactIterationParameters(const FReal Dt, const int32 Iteration, const int32 NumIterations, const int32 NumPairIterations, bool& bNeedsAnotherIteration);
 
 	// Call PruneParticleEdgeCollisions on all particles with ECollisionConstraintFlags::CCF_SmoothEdgeCollisions set in CollisionFlags
 	void PruneEdgeCollisions();
-
-	// The "Legacy" functions handle the older solver types (StandardPbd)
-	// @todo(chaos): remove legacy methods when the new solver is fully operational and used everywhere (RBAN may still optionally use StandardPbd)
-	void LegacyGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
-	void LegacyScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
-	bool LegacyApplyPhase1Serial(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
-	bool LegacyApplyPhase1Parallel(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
 
 private:
 
@@ -349,10 +274,6 @@ private:
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;
 	const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& MPerParticlePhysicsMaterials;
 	const THandleArray<FChaosPhysicsMaterial>* const SimMaterials;
-
-	// @todo(chaos): remove pair iteration counts when legacy PBD solver is removed (RBAN-only)
-	int32 MApplyPairIterations;
-	int32 MApplyPushOutPairIterations;
 
 	FReal RestitutionThreshold;
 	bool bEnableCollisions;
@@ -375,8 +296,6 @@ private:
 
 	// Settings for the low-level collision solvers
 	FPBDCollisionSolverSettings SolverSettings;
-
-	EConstraintSolverType SolverType;
 };
 
 //
@@ -433,16 +352,6 @@ inline FVec3 FPBDCollisionConstraintHandle::GetAccumulatedImpulse() const
 inline FParticlePair FPBDCollisionConstraintHandle::GetConstrainedParticles() const
 {
 	return { GetContact().GetParticle0(), GetContact().GetParticle1() };
-}
-
-inline void FPBDCollisionConstraintHandle::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
-{
-	ConcreteContainer()->PreGatherInput(Dt, GetContact(), SolverData);
-}
-
-inline void FPBDCollisionConstraintHandle::GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-{
-	ConcreteContainer()->GatherInput(Dt, GetContact(), Particle0Level, Particle1Level, SolverData);
 }
 
 inline FSolverBody* FPBDCollisionConstraintHandle::GetSolverBody0()

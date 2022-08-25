@@ -11,12 +11,12 @@
 #include "Chaos/Defines.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/GeometryQueries.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/CastingUtilities.h"
 #include "ChaosLog.h"
 #include "ChaosStats.h"
-#include "Chaos/Evolution/SolverDatas.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Algo/Sort.h"
 #include "Algo/StableSort.h"
@@ -100,18 +100,16 @@ namespace Chaos
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPhysicsMaterials,
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& InPerParticlePhysicsMaterials,
 		const THandleArray<FChaosPhysicsMaterial>* const InSimMaterials,
-		const int32 InApplyPairIterations /*= 1*/,
-		const int32 InApplyPushOutPairIterations /*= 1*/,
-		const FReal InRestitutionThreshold /*= (FReal)2000*/)
+		const int32 NumCollisionsPerBlock,
+		const FReal InRestitutionThreshold)
 		: FPBDConstraintContainer(FConstraintContainerHandle::StaticType())
 		, Particles(InParticles)
+		, ConstraintAllocator(NumCollisionsPerBlock)
 		, NumActivePointConstraints(0)
 		, MCollided(Collided)
 		, MPhysicsMaterials(InPhysicsMaterials)
 		, MPerParticlePhysicsMaterials(InPerParticlePhysicsMaterials)
 		, SimMaterials(InSimMaterials)
-		, MApplyPairIterations(InApplyPairIterations)
-		, MApplyPushOutPairIterations(InApplyPushOutPairIterations)
 		, RestitutionThreshold(InRestitutionThreshold)	// @todo(chaos): expose as property
 		, bEnableCollisions(true)
 		, bEnableRestitution(true)
@@ -122,7 +120,6 @@ namespace Chaos
 		, GravityDirection(FVec3(0,0,-1))
 		, GravitySize(980)
 		, SolverSettings()
-		, SolverType(EConstraintSolverType::QuasiPbd)
 	{
 	}
 
@@ -254,10 +251,6 @@ namespace Chaos
 		CollisionMaterial.ResetMaterialModifications();
 	}
 
-	void FPBDCollisionConstraints::UpdatePositionBasedState(const FReal Dt)
-	{
-	}
-
 	void FPBDCollisionConstraints::BeginFrame()
 	{
 		ConstraintAllocator.BeginFrame();
@@ -367,306 +360,15 @@ namespace Chaos
 		}
 	}
 
-	Collisions::FContactParticleParameters FPBDCollisionConstraints::GetContactParticleParameters(const FReal Dt)
+	void FPBDCollisionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
 	{
-		return { 
-			(CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride * Dt : RestitutionThreshold * Dt,
-			CollisionCanAlwaysDisableContacts ? true : (CollisionCanNeverDisableContacts ? false : bCanDisableContacts),
-			&MCollided,
-
-		};
-	}
-
-	Collisions::FContactIterationParameters FPBDCollisionConstraints::GetContactIterationParameters(const FReal Dt, const int32 Iteration, const int32 NumIterations, const int32 NumPairIterations, bool& bNeedsAnotherIteration)
-	{
-		return {
-			Dt, 
-			Iteration, 
-			NumIterations, 
-			NumPairIterations, 
-			SolverType, 
-			&bNeedsAnotherIteration
-		};
-	}
-
-	void FPBDCollisionConstraints::SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
+		for (FPBDCollisionConstraintHandle* ConstraintHandle : GetConstraints())
 		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.SetNum(NumIslandConstraints);
-			SolverContainer.SetIsDeferredCollisionDetection(DetectorSettings.bDeferNarrowPhase);
-		}
-		else
-		{
-			SolverData.GetConstraintHandles(ContainerId).Reset(NumIslandConstraints);
-		}
-	}
-
-	FPBDCollisionSolverContainer& FPBDCollisionConstraints::GetConstraintSolverContainer(FPBDIslandSolverData& SolverData)
-	{
-		check(SolverType == EConstraintSolverType::QuasiPbd);
-		return SolverData.GetConstraintContainer<FPBDCollisionSolverContainer>(ContainerId);
-	}
-
-	void FPBDCollisionConstraints::PreGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.PreAddConstraintSolver(Dt, Constraint, SolverData.GetBodyContainer(), SolverData.GetConstraintIndex(ContainerId));
-		}
-	}
-
-	void FPBDCollisionConstraints::GatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			// We shouldn't be adding disabled constraints to the solver list. The check needs to be at caller site or we should return success/fail - see TPBDConstraintColorRule::GatherSolverInput
-			check(Constraint.IsEnabled() && !Constraint.IsProbe());
-
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.AddConstraintSolver(Dt, Constraint, Particle0Level, Particle1Level, SolverData.GetBodyContainer(), SolverSettings);
-		}
-		else
-		{
-			LegacyGatherInput(Dt, Constraint, Particle0Level, Particle1Level, SolverData);
-		}
-	}
-
-	void FPBDCollisionConstraints::PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			for (FPBDCollisionConstraint* Constraint : GetConstraints())
+			if (ConstraintHandle->IsEnabled())
 			{
-				if (Constraint->IsEnabled())
-				{
-					PreGatherInput(Dt, *Constraint, SolverData);
-				}
+				IslandManager.AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 			}
 		}
-	}
-
-	void FPBDCollisionConstraints::GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			for (FPBDCollisionConstraint* Constraint : GetConstraints())
-			{
-				if (Constraint->IsEnabled() && !Constraint->IsProbe())
-				{
-					GatherInput(Dt, *Constraint, INDEX_NONE, INDEX_NONE, SolverData);
-				}
-			}
-		}
-		else
-		{
-			for (FPBDCollisionConstraint* Constraint : GetConstraints())
-			{
-				if (Constraint->IsEnabled() && !Constraint->IsProbe())
-				{
-					LegacyGatherInput(Dt, *Constraint, INDEX_NONE, INDEX_NONE, SolverData);
-				}
-			}
-		}
-	}
-
-	void FPBDCollisionConstraints::ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			GetConstraintSolverContainer(SolverData).ScatterOutput(Dt, BeginIndex, EndIndex);
-		}
-		else
-		{
-			LegacyScatterOutput(Dt, BeginIndex, EndIndex, SolverData);
-		}
-	}
-
-	void FPBDCollisionConstraints::ScatterOutput(const FReal Dt, FPBDIslandSolverData& SolverData)
-	{
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			SolverContainer.ScatterOutput(Dt, 0, SolverContainer.NumSolvers());
-		}
-		else
-		{
-			LegacyScatterOutput(Dt, 0, SolverData.GetConstraintHandles(ContainerId).Num(), SolverData);
-		}
-	}
-
-	// Simple Rule version
-	bool FPBDCollisionConstraints::ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolvePositionSerial(Dt, It, NumIts, 0, SolverContainer.NumSolvers(), SolverSettings);
-		}
-		else
-		{
-			return LegacyApplyPhase1Serial(Dt, It, NumIts, 0, SolverData.GetConstraintHandles(ContainerId).Num(), SolverData);
-		}
-	}
-
-	// Island Rule version
-	bool FPBDCollisionConstraints::ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolvePositionSerial(Dt, It, NumIts, 0, SolverContainer.NumSolvers(), SolverSettings);
-		}
-		else
-		{
-			return LegacyApplyPhase1Serial(Dt, It, NumIts, 0, SolverData.GetConstraintHandles(ContainerId).Num(), SolverData);
-		}
-	}
-
-	// Color Rule version
-	bool FPBDCollisionConstraints::ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolvePositionSerial(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
-		}
-		else
-		{
-			return LegacyApplyPhase1Serial(Dt, It, NumIts, BeginIndex, EndIndex, SolverData);
-		}
-	}
-
-	// Color Rule version
-	bool FPBDCollisionConstraints::ApplyPhase1Parallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolvePositionParallel(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
-		}
-		else
-		{
-			return LegacyApplyPhase1Parallel(Dt, It, NumIts, BeginIndex, EndIndex, SolverData);
-		}
-	}
-
-	// Simple Rule version
-	bool FPBDCollisionConstraints::ApplyPhase2(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolveVelocitySerial(Dt, It, NumIts, 0, SolverContainer.NumSolvers(), SolverSettings);
-		}
-
-		return false;
-	}
-
-	// Island Rule version
-	bool FPBDCollisionConstraints::ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolveVelocitySerial(Dt, It, NumIts, 0, SolverContainer.NumSolvers(), SolverSettings);
-		}
-
-		return false;
-	}
-
-	// Color Rule version
-	bool FPBDCollisionConstraints::ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolveVelocitySerial(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
-		}
-
-		return false;
-	}
-
-	// Color Rule version
-	bool FPBDCollisionConstraints::ApplyPhase2Parallel(const FReal Dt,  const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
-
-		if (SolverType == EConstraintSolverType::QuasiPbd)
-		{
-			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
-			return SolverContainer.SolveVelocityParallel(Dt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
-		}
-
-		return false;
-	}
-
-	void FPBDCollisionConstraints::LegacyGatherInput(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-	{
-		SolverData.GetConstraintHandles(ContainerId).Add(&Constraint);
-
-		FSolverBody* SolverBody0 = SolverData.GetBodyContainer().FindOrAdd(Constraint.Particle[0], Dt);
-		FSolverBody* SolverBody1 = SolverData.GetBodyContainer().FindOrAdd(Constraint.Particle[1], Dt);
-
-		SolverBody0->SetLevel(Particle0Level);
-		SolverBody1->SetLevel(Particle1Level);
-
-		Constraint.SetSolverBodies(SolverBody0, SolverBody1);
-
-		Constraint.AccumulatedImpulse = FVec3(0);
-	}
-
-	void FPBDCollisionConstraints::LegacyScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		for (int32 Index = BeginIndex; Index < EndIndex; ++Index)
-		{
-			FPBDCollisionConstraint* Constraint = SolverData.GetConstraintHandle<FPBDCollisionConstraint>(ContainerId,Index);
-			Constraint->SetSolverBodies(nullptr, nullptr);
-		}
-	}
-
-	bool FPBDCollisionConstraints::LegacyApplyPhase1Serial(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		bool bNeedsAnotherIteration = false;
-		if (MApplyPairIterations > 0)
-		{
-			NumActivePointConstraints = 0;
-			const Collisions::FContactParticleParameters ParticleParameters = GetContactParticleParameters(Dt);
-			const Collisions::FContactIterationParameters IterationParameters = GetContactIterationParameters(Dt, Iterations, NumIterations, MApplyPairIterations, bNeedsAnotherIteration);
-
-			for (int32 Index = BeginIndex; Index < EndIndex; ++Index)
-			{
-				FPBDCollisionConstraint* Constraint = SolverData.GetConstraintHandle<FPBDCollisionConstraint>(ContainerId,Index);
-
-				if ((!Constraint->GetDisabled()) && (!Constraint->GetIsProbe()))
-				{
-					Collisions::Apply(*Constraint, IterationParameters, ParticleParameters);
-					++NumActivePointConstraints;
-				}
-			}
-		}
-		return bNeedsAnotherIteration;
-	}
-
-	bool FPBDCollisionConstraints::LegacyApplyPhase1Parallel(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData)
-	{
-		return LegacyApplyPhase1Serial(Dt, Iterations, NumIterations, BeginIndex, EndIndex, SolverData);
 	}
 
 	const FPBDCollisionConstraint& FPBDCollisionConstraints::GetConstraint(int32 Index) const

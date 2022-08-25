@@ -1356,7 +1356,7 @@ namespace Chaos
 				{
 					FAABB3 IslandAABB = IslandBounds[IslandIndex];
 
-					const FColor IslandColor = GetIslandColor(IslandIndex, !Graph.GetSolverIsland(IslandIndex)->IsSleeping());
+					const FColor IslandColor = GetIslandColor(IslandIndex, !Graph.GetIsland(IslandIndex)->IsSleeping());
 					const FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
 					FDebugDrawQueue::GetInstance().DrawDebugBox(Bounds.Center(), 0.5f * Bounds.Extents(), SpaceTransform.GetRotation(), IslandColor, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, 3.0f * Settings.LineThickness);
 				}

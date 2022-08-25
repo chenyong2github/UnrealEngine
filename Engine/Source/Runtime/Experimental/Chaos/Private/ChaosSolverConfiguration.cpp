@@ -16,9 +16,9 @@ FChaosSolverConfiguration::FChaosSolverConfiguration()
 	, bGenerateCollisionData(false)
 	, bGenerateBreakData(false)
 	, bGenerateTrailingData(false)
-	, bGenerateContactGraph(true)
 	, Iterations_DEPRECATED(Chaos::FPBDRigidsEvolutionGBF::DefaultNumPositionIterations)
 	, PushOutIterations_DEPRECATED(Chaos::FPBDRigidsEvolutionGBF::DefaultNumVelocityIterations)
+	, bGenerateContactGraph_DEPRECATED(true)
 {
 }
 

@@ -53,13 +53,9 @@ namespace Chaos
 
 		using FGravityForces = FPerParticleGravity;
 		using FCollisionConstraints = FPBDCollisionConstraints;
-		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = FPerParticleExternalForces;
-		using FJointConstraintsRule = TPBDConstraintIslandRule<FPBDJointConstraints>;
-		using FSuspensionConstraintsRule = TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
 		using FJointConstraints = FPBDJointConstraints;
-		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
 
 		// Default iteration counts
 		static constexpr int32 DefaultNumPositionIterations = 8;
@@ -70,6 +66,7 @@ namespace Chaos
 		static constexpr FRealSingle DefaultCollisionCullDistance = 3.0f;
 		static constexpr FRealSingle DefaultCollisionMaxPushOutVelocity = 1000.0f;
 		static constexpr int32 DefaultRestitutionThreshold = 1000;
+		static constexpr int32 DefaultNumCollisionsPerBlock = 1000;
 
 		CHAOS_API FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
 		CHAOS_API ~FPBDRigidsEvolutionGBF();
@@ -87,16 +84,6 @@ namespace Chaos
 		FORCEINLINE void SetPreApplyCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PreApplyCallback = Cb;
-		}
-
-		FORCEINLINE void SetPostApplyCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
-		{
-			PostApplyCallback = Cb;
-		}
-
-		FORCEINLINE void SetPostApplyPushOutCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
-		{
-			PostApplyPushOutCallback = Cb;
 		}
 
 		FORCEINLINE void SetInternalParticleInitilizationFunction(const FPBDRigidsEvolutionInternalHandleCallback& Cb)
@@ -120,9 +107,6 @@ namespace Chaos
 		FORCEINLINE FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
 		FORCEINLINE const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }
 
-		FORCEINLINE FCollisionConstraintRule& GetCollisionConstraintsRule() { return CollisionRule; }
-		FORCEINLINE const FCollisionConstraintRule& GetCollisionConstraintsRule() const { return CollisionRule; }
-
 		FORCEINLINE FCollisionDetector& GetCollisionDetector() { return CollisionDetector; }
 		FORCEINLINE const FCollisionDetector& GetCollisionDetector() const { return CollisionDetector; }
 
@@ -139,10 +123,9 @@ namespace Chaos
 		FORCEINLINE const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
 
 		/**
-		 * Reload the particles cache within an island
-		 * @param Island Index of the island in which the cache will be used
+		 * Reload the particles cache for all particles where appropriate
 		 */
-		void ReloadParticlesCache(const int32 Island);
+		void ReloadParticlesCache();
 
 		/**
 		 * Build the list of disables particles and update the sleeping flag on the island
@@ -151,8 +134,6 @@ namespace Chaos
 		 * @param SleepedIslands List of islands sleeping state 
 		 */
 		void BuildDisabledParticles(const int32 Island, TArray<TArray<FPBDRigidParticleHandle*>>& DisabledParticles, TArray<bool>& SleepedIslands);
-
-		void DestroyConstraint(FConstraintHandle* Constraint);
 
 		void DestroyParticleCollisionsInAllocator(FGeometryParticleHandle* Particle);
 
@@ -304,26 +285,6 @@ namespace Chaos
 			}
 		}
 
-		// First phase of constraint solver
-		// For GBF this is the velocity solve phase
-		// For PBD/QuasiPBD this is the position solve phase
-		void ApplyConstraintsPhase1(const FReal Dt, int32 GroupIndex);
-
-		// Calculate the implicit velocites based on the change in position from ApplyConstraintsPhase1
-		void SetImplicitVelocities(const FReal Dt, int32 GroupIndex);
-		
-		// Second phase of constraint solver (after implicit velocity calculation following results of phase 1)
-		// For StandardPBD this does nothing
-		// For QuasiPBD this is the velocity solve phase
-		void ApplyConstraintsPhase2(const FReal Dt, int32 GroupIndex);
-
-		// Apply the accumulated corrections to the solver bodies
-		void ApplyCorrections(const FReal Dt, int32 GroupIndex);
-
-		// Third phase of constraint solver
-		// This is the projection phase (only joints implement this atm)
-		void ApplyConstraintsPhase3(const FReal Dt, int32 GroupIndex);
-
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
 		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
@@ -359,9 +320,6 @@ namespace Chaos
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FSubStepInfo& SubStepInfo);
 
-		void GatherSolverInput(FReal Dt, int32 GroupIndex);
-		void ScatterSolverOutput(FReal Dt, int32 GroupIndex);
-
 		void UpdateInertiaConditioning();
 
 		FEvolutionResimCache* GetCurrentStepResimCache()
@@ -372,13 +330,10 @@ namespace Chaos
 		FRigidClustering Clustering;
 
 		FPBDJointConstraints JointConstraints;
-		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
 		FPBDSuspensionConstraints SuspensionConstraints;
-		TPBDConstraintIslandRule<FPBDSuspensionConstraints> SuspensionConstraintRule;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
-		FCollisionConstraintRule CollisionRule;
 		FSpatialAccelerationBroadPhase BroadPhase;
 		FNarrowPhase NarrowPhase;
 		FSpatialAccelerationCollisionDetector CollisionDetector;
@@ -386,8 +341,6 @@ namespace Chaos
 		FPBDRigidsEvolutionCallback PostIntegrateCallback;
 		FPBDRigidsEvolutionCallback PostDetectCollisionsCallback;
 		FPBDRigidsEvolutionCallback PreApplyCallback;
-		FPBDRigidsEvolutionIslandCallback PostApplyCallback;
-		FPBDRigidsEvolutionIslandCallback PostApplyPushOutCallback;
 		FPBDRigidsEvolutionInternalHandleCallback InternalParticleInitilization;
 		FEvolutionResimCache* CurrentStepResimCacheImp;
 		const TArray<ISimCallbackObject*>* CollisionModifiers;

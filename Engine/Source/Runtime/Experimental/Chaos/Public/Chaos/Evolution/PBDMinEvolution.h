@@ -4,14 +4,16 @@
 #include "Chaos/Core.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Collision/CollisionApplyType.h"
+#include "Chaos/Evolution/ConstraintGroupSolver.h"
 #include "Chaos/Evolution/SimulationSpace.h"
-#include "Chaos/Evolution/SolverDatas.h"
+#include "Chaos/Evolution/SolverBodyContainer.h"
 #include "Chaos/ParticleHandleFwd.h"
 
 
 namespace Chaos
 {
 	class FBasicCollisionDetector;
+	class FConstraintContainerSolver;
 	class FPBDCollisionConstraints;
 	class FSimpleConstraintRule;
 	class FPBDRigidsSOAs;
@@ -27,23 +29,18 @@ namespace Chaos
 	class CHAOS_API FPBDMinEvolution
 	{
 	public:
-		// @todo(ccaulfield): make it so that CollisionDetection is plugged in with a constraint rule...
-
 		using FCollisionDetector = FBasicCollisionDetector;
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = FPBDRigidsSOAs;
 
 		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension);
+		~FPBDMinEvolution();
 
-		void AddConstraintRule(FSimpleConstraintRule* Rule);
+		void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0);
+		void SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority);
 
 		void Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt);
 		void AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction);
-
-		void SetSolverType(const EConstraintSolverType InSolverType)
-		{
-			SolverType = InSolverType;
-		}
 
 		void SetNumPositionIterations(const int32 NumIts)
 		{
@@ -60,18 +57,6 @@ namespace Chaos
 			NumProjectionIterations = NumIts;
 		}
 
-		// Legacy
-		void SetNumIterations(const int32 NumIts)
-		{
-			NumApplyIterations = NumIts;
-		}
-
-		// Legacy
-		void SetNumPushOutIterations(const int32 NumIts)
-		{
-			NumApplyPushOutIterations = NumIts;
-		}
-
 		void SetGravity(const FVec3& G)
 		{
 			Gravity = G;
@@ -80,26 +65,6 @@ namespace Chaos
 		void SetBoundsExtension(const FReal InBoundsExtension)
 		{
 			BoundsExtension = InBoundsExtension;
-		}
-
-		void SetPostIntegrateCallback(const FEvolutionCallback& Cb)
-		{
-			PostIntegrateCallback = Cb;
-		}
-
-		void SetPostDetectCollisionsCallback(const FEvolutionCallback& Cb)
-		{
-			PostDetectCollisionsCallback = Cb;
-		}
-
-		void SetPostApplyCallback(const FEvolutionCallback& Cb)
-		{
-			PostApplyCallback = Cb;
-		}
-
-		void SetPostApplyPushOutCallback(const FEvolutionCallback& Cb)
-		{
-			PostApplyPushOutCallback = Cb;
 		}
 
 		void SetSimulationSpace(const FSimulationSpace& InSimulationSpace)
@@ -132,9 +97,7 @@ namespace Chaos
 		void GatherInput(FReal Dt);
 		void ScatterOutput(FReal Dt);
 		void ApplyConstraintsPhase1(FReal Dt);
-		void UpdateVelocities(FReal Dt);
 		void ApplyConstraintsPhase2(FReal Dt);
-		void ApplyCorrections(FReal Dt);
 		void ApplyConstraintsPhase3(FReal Dt);
 
 		FRigidParticleSOAs& Particles;
@@ -143,13 +106,9 @@ namespace Chaos
 		TArrayCollectionArray<FVec3>& ParticlePrevXs;
 		TArrayCollectionArray<FRotation3>& ParticlePrevRs;
 
-		TArray<FSimpleConstraintRule*> ConstraintRules;
-		TArray<FSimpleConstraintRule*> PrioritizedConstraintRules;
-		FPBDIslandSolverData SolverData;
+		TArray<FPBDConstraintContainer*> ConstraintContainers;
+		FPBDSceneConstraintGroupSolver ConstraintSolver;
 
-		EConstraintSolverType SolverType;
-		int32 NumApplyIterations;
-		int32 NumApplyPushOutIterations;
 		int32 NumPositionIterations;
 		int32 NumVelocityIterations;
 		int32 NumProjectionIterations;
@@ -157,10 +116,5 @@ namespace Chaos
 		FVec3 Gravity;
 		FSimulationSpaceSettings SimulationSpaceSettings;
 		FSimulationSpace SimulationSpace;
-
-		FEvolutionCallback PostIntegrateCallback;
-		FEvolutionCallback PostDetectCollisionsCallback;
-		FEvolutionCallback PostApplyCallback;
-		FEvolutionCallback PostApplyPushOutCallback;
 	};
 }

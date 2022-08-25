@@ -27,11 +27,4 @@ namespace ChaosTest {
 	void CollisionCubeCubeRestitution();
 
 	void CollisionBoxToStaticBox();
-
-	void CollisionPGS();
-
-	void CollisionPGS2();
-
-	void CollisionBroadphaseVelocityExpansion();
-
 }

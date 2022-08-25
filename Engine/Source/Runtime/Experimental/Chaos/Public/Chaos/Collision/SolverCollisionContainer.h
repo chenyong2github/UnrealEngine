@@ -8,16 +8,14 @@
 
 namespace Chaos
 {
-	namespace Collisions
-	{
-		struct FContactParticleParameters;
-		struct FContactIterationParameters;
-	}
-
+	class FPBDIslandConstraint;
 	class FPBDCollisionConstraint;
+	class FPBDCollisionConstraints;
 	class FPBDCollisionSolver;
 	class FPBDCollisionSolverAdapter;
 	class FPBDCollisionSolverManifoldPoint;
+	class FPBDIsland;
+	class FSolverBody;
 	class FSolverBodyContainer;
 
 	/**
@@ -48,49 +46,52 @@ namespace Chaos
 	};
 
 	/**
-	 * @brief A container of low-level data used to solve collision constraints
+	 * The solver for a set of collision constraints. This collects all the data required to solve a set of collision
+	 * constraints into a contiguous, ordered buffer.
 	*/
-	class FPBDCollisionSolverContainer : public FConstraintSolverContainer
+	class FPBDCollisionContainerSolver : public FConstraintContainerSolver
 	{
 	public:
-		FPBDCollisionSolverContainer();
-		~FPBDCollisionSolverContainer();
+		FPBDCollisionContainerSolver(const FPBDCollisionConstraints& InConstraintContainer, const int32 InPriority);
+		~FPBDCollisionContainerSolver();
 
 		int32 NumSolvers() const { return CollisionSolvers.Num(); }
 
-		virtual void Reset(const int32 InMaxCollisions) override;
+		virtual void Reset(const int32 InMaxCollisions) override final;
 
-		/** 
-		 * Set the number of collision solvers in the container
-		 * @param MaxCollisions Max number of collision solvers
-		 */
-		void SetNum(const int32 MaxCollisions);
+		virtual int32 GetNumConstraints() const override final
+		{
+			return NumSolvers();
+		}
 
 		// Set whether we are using deferred collision detection
 		void SetIsDeferredCollisionDetection(const bool bDeferred) { bDeferredCollisionDetection = bDeferred; }
 
-		// Add a solver constraint for the specified constraint and gather the required solver data
-		void PreAddConstraintSolver(const FReal Dt, FPBDCollisionConstraint& Constraint, FSolverBodyContainer& SolverBodyContainer, int32& SolverIndex);
-		void AddConstraintSolver(const FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer, const FPBDCollisionSolverSettings& SolverSettings);
-
-		bool SolvePositionSerial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-		bool SolvePositionParallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-
-		bool SolveVelocitySerial(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-		bool SolveVelocityParallel(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-
-		void ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex);
+		//
+		// IslandGroup API
+		//
+		virtual void AddConstraints() override final;
+		virtual void AddConstraints(const TArrayView<FPBDIslandConstraint>& ConstraintHandles) override final;
+		virtual void AddBodies(FSolverBodyContainer& SolverBodyContainer) override final;
+		virtual void GatherInput(const FReal Dt) override final;
+		virtual void GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex) override final;
+		virtual void ScatterOutput(const FReal Dt) override final;
+		virtual void ScatterOutput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex) override final;
+		virtual void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
+		virtual void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
+		virtual void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) override final;
 
 	private:
+		void AddConstraint(FPBDCollisionConstraint& Constraint);
 		void UpdatePositionShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
 		void UpdateVelocityShockPropagation(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
-		bool SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings, const bool bParallel);
-		bool SolvePositionWithFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut, const bool bParallel);
-		bool SolvePositionNoFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut, const bool bParallel);
-		bool SolveVelocityImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings, const bool bParallel);
-		void ScatterOutputImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const bool bParallel);
+		bool SolvePositionImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
+		bool SolvePositionWithFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut);
+		bool SolvePositionNoFrictionImpl(const FReal Dt, const int32 BeginIndex, const int32 EndIndex, const FReal MaxPushOut);
+		bool SolveVelocityImpl(const FReal Dt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings);
 		void UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex);
 
+		const FPBDCollisionConstraints& ConstraintContainer;
 		TArray<FPBDCollisionSolverAdapter> CollisionSolvers;
 		bool bPerIterationCollisionDetection;
 		bool bDeferredCollisionDetection;

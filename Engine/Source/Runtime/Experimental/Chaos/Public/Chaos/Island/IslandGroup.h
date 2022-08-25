@@ -1,91 +1,72 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "Containers/Array.h"
-#include "Chaos/Evolution/SolverDatas.h"
+
+#include "Chaos/Evolution/ConstraintGroupSolver.h"
 
 namespace Chaos
 {
-	
-/** Forward Declaration */
-class FPBDIslandSolver;
-
-/**
-* Group of islands that will be used by evolution to run the solvers steps in parallel
-*/
-class CHAOS_API FPBDIslandGroup : public FPBDIslandSolverData
-{
-public:
+	class FPBDConstraintContainer;
+	class FPBDIsland;
+	class FPBDIslandManager;
 
 	/**
-	* Init the island group 
+	* A set of constraints that will ne solved in sequence on a single thread. This will usually be the constraints
+	* from several islands, but may be a sub set of constraints of a single island when coloring is enabled for
+	* that island.
 	*/
-	FPBDIslandGroup(const int32 GroupIndexIn);
+	class CHAOS_API FPBDIslandConstraintGroupSolver : public FPBDConstraintGroupSolver
+	{
+	public:
+		UE_NONCOPYABLE(FPBDIslandConstraintGroupSolver);
 
-	/**
-	* Init group members to their default values
-	*/
-	void InitGroup();
-	
-	/**
-	* Reset the islands list and reserve a number of islands in memory 
-	* @param NumIslands number of islands to be reserved
-	*/
-	void ReserveIslands(const int32 NumIslands);
+		/**
+		* Init the island group 
+		*/
+		FPBDIslandConstraintGroupSolver(FPBDIslandManager& InIslandManager);
 
-	/**
-	* Add island to the group
-	* @param IslandSolver Island Solver top be added
-	*/
-	void AddIsland(FPBDIslandSolver* IslandSolver);
+		/**
+		* Add island to the group
+		* @param Island Island to be added
+		*/
+		void AddIsland(FPBDIsland* Island);
 
-	/**
-	* Remove all islands from the group
-	*/
-	void ClearIslands();
+		/**
+		* Return the islands within the group
+		*/
+		FORCEINLINE const TArray<FPBDIsland*>& GetIslands() { return Islands; }
 
-	/**
-	* Check if the group is valid and contains islands
-	*/
-	FORCEINLINE bool IsValid() const { return (IslandSolvers.Num() > 0); }
+		/**
+		 * The number of particles (dynamics, kinematic and static) in the island.
+		*/
+		inline int32 GetNumParticles() const { return NumParticles; }
 
-	/**
-	* Get the number of islands within the group
-	*/
-	FORCEINLINE int32 NumIslands() const { return IslandSolvers.Num(); }
+		/**
+		 * The number of constraints of all types in the island.
+		*/
+		inline int32 GetNumConstraints() const { return NumConstraints; }
 
-	/**
-	* Return the islands within the group
-	*/
-	FORCEINLINE const TArray<FPBDIslandSolver*>& GetIslands() const { return IslandSolvers; }
+		/**
+		 * The number of constraints of the specific container type in the island.
+		*/
+		inline int32 GetNumConstraints(const int32 ContainerId) const { return NumContainerConstraints[ContainerId]; }
 
-	/**
-	* Return the islands within the group
-	*/
-	FORCEINLINE TArray<FPBDIslandSolver*>& GetIslands() { return IslandSolvers; }
+	protected:
+		// Base class overrides
+		virtual void SetConstraintSolverImpl(const int32 ContainerId) override final;
+		virtual void ResetImpl() override final;
+		virtual void AddConstraintsImpl() override final;
+		virtual void GatherBodiesImpl(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex) override final;
 
-	/**
-	* Accessors for the number of particles
-	*/
-	FORCEINLINE const int32& GetNumParticles() const  { return ParticlesCount; }
-	FORCEINLINE int32& NumParticles() {return ParticlesCount; }
+	private:
+		FPBDIslandManager& IslandManager;
 
-	/**
-	* Accessors for the number of constraints
-	*/
-	FORCEINLINE const int32& GetNumConstraints() const  { return ConstraintsCount; }
-	FORCEINLINE int32& NumConstraints() {return ConstraintsCount; }
-	
-private:
+		// Item counters used to initialize the solver containers
+		int32 NumParticles;
+		int32 NumConstraints;
+		TArray<int32> NumContainerConstraints;	// Per ContainerId
 
-	/** List of all the island constraints handles */
-	TArray<FPBDIslandSolver*> IslandSolvers;
-
-	/** Number of particles in this group */
-	int32 ParticlesCount = 0;
-
-	/** Number of constraints in this group */
-	int32 ConstraintsCount = 0;
-};
-	
+		TArray<FPBDIsland*> Islands;
+	};
 }

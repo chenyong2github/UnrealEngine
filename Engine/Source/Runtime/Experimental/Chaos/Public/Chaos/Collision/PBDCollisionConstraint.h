@@ -27,7 +27,7 @@ namespace Chaos
 	class FSingleShapePairCollisionDetector;
 	class FSolverBody;
 	class FSolverBodyContainer;
-	class FPBDCollisionSolverContainer;
+	class FPBDCollisionContainerSolver;
 	class FPerShapeData;
 
 	UE_DEPRECATED(4.27, "Use FPBDCollisionConstraint instead")
@@ -221,8 +221,8 @@ namespace Chaos
 	 * Each contact constraint contains a Manifold, which is a set of contact points that approximate the
 	 * contact patch between the two shapes.
 	 * 
-	 * Contact constraints are allocated on the heap and have permanent addresses. They use intrusive handles
-	 * to reduce unnecessary indirection.
+	 * Contact constraints are allocated on the heap (Asee FCollisionConstraintAllocator) and have permanent addresses. 
+	 * They use intrusive handles to reduce unnecessary indirection.
 	 * 
 	*/
 	class CHAOS_API FPBDCollisionConstraint final : public FPBDCollisionConstraintHandle
@@ -242,10 +242,10 @@ namespace Chaos
 
 		/**
 		 * @brief Create a contact constraint
-		 * Initializes a constraint stored inline in an object. Only intended to be called once.
+		 * Initializes a constraint stored inline in an object. Only intended to be called once right after construction.
 		 * Does not reinitialize all data so not intended to reset a constraint for reuse with different particles etc.
 		*/
-		static void MakeInline(
+		static void Make(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
 			const FPerShapeData* Shape0,
@@ -260,26 +260,6 @@ namespace Chaos
 			const bool bInUseManifold,
 			const EContactShapesType ShapesType,
 			FPBDCollisionConstraint& OutConstraint);
-
-		/**
-		 * @brief Create a contact constraint
-		 * Allocates a constraint on the heap, with a permanent address.
-		 * May return null if we hit the contact limit for the scene.
-		*/
-		static TUniquePtr<FPBDCollisionConstraint> Make(
-			FGeometryParticleHandle* Particle0,
-			const FImplicitObject* Implicit0,
-			const FPerShapeData* Shape0,
-			const FBVHParticles* Simplicial0,
-			const FRigidTransform3& ImplicitLocalTransform0,
-			FGeometryParticleHandle* Particle1,
-			const FImplicitObject* Implicit1,
-			const FPerShapeData* Shape1,
-			const FBVHParticles* Simplicial1,
-			const FRigidTransform3& ImplicitLocalTransform1,
-			const FReal InCullDistance,
-			const bool bInUseManifold,
-			const EContactShapesType ShapesType);
 
 		/**
 		 * @brief For use by the tri mesh and heighfield collision detection as a temporary measure
@@ -583,12 +563,6 @@ namespace Chaos
 			SolverBodies[1] = InSolverBody1;
 		}
 
-		int32 GetSolverIndex() const { return SolverIndex; }
-		void SetSolverIndex(int32 InSolverIndex)
-		{
-			SolverIndex = InSolverIndex;
-		}
-
 		/**
 		 * @brief Whether this constraint was fully restored from a previous tick, and the manifold should be reused as-is
 		*/
@@ -813,9 +787,6 @@ namespace Chaos
 
 		// These are only needed here while we still have the legacy solvers (not QuasiPBD)
 		FSolverBody* SolverBodies[2];
-
-		// Stores the index into the solver container for this constraint
-		int32 SolverIndex;
 
 		// Simplex data from the last call to GJK, used to warm-start GJK
 		FGJKSimplexData GJKWarmStartData;

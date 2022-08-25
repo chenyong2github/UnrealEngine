@@ -187,7 +187,8 @@ namespace Chaos
 	};
 
 	FPBDRigidsEvolutionBase::FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, bool InIsSingleThreaded)
-	    : Particles(InParticles)
+	    : IslandGroupManager(ConstraintGraph)
+		, Particles(InParticles)
 		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, InternalAcceleration(nullptr)
 		, AsyncInternalAcceleration(nullptr)

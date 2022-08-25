@@ -90,9 +90,6 @@ struct FChaosSolverConfiguration
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|GeneratedData", meta = (EditCondition = bGenerateTrailingData))
 	FSolverTrailingFilterSettings TrailingFilterSettings;
 
-	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Contacts")
-	bool bGenerateContactGraph;
-
 private:
 
 	// Renamed to PositionIterations
@@ -102,4 +99,8 @@ private:
 	// Renamed to VelocityIterations
 	UPROPERTY()
 	int32 PushOutIterations_DEPRECATED;
+
+	// No longer used
+	UPROPERTY()
+	bool bGenerateContactGraph_DEPRECATED;
 };

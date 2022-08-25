@@ -3,8 +3,9 @@
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairCollisionDetector.h"
+#include "Chaos/Evolution/SolverConstraintContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDConstraintRule.h"
+#include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/PerParticleAddImpulses.h"
 #include "Chaos/PerParticleEtherDrag.h"
@@ -42,9 +43,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Gather"), STAT_MinEvolution_Gather, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::Scatter"), STAT_MinEvolution_Scatter, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase1"), STAT_MinEvolution_ApplyConstraintsPhase1, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::UpdateVelocities"), STAT_MinEvolution_UpdateVelocites, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase2"), STAT_MinEvolution_ApplyConstraintsPhase2, STATGROUP_ChaosMinEvolution);
-	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyCorrections"), STAT_MinEvolution_ApplyCorrections, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::ApplyConstraintsPhase3"), STAT_MinEvolution_ApplyConstraintsPhase3, STATGROUP_ChaosMinEvolution);
 	DECLARE_CYCLE_STAT(TEXT("MinEvolution::DetectCollisions"), STAT_MinEvolution_DetectCollisions, STATGROUP_ChaosMinEvolution);
 
@@ -68,9 +67,6 @@ namespace Chaos
 		, CollisionDetector(InCollisionDetector)
 		, ParticlePrevXs(InPrevX)
 		, ParticlePrevRs(InPrevR)
-		, SolverType(EConstraintSolverType::QuasiPbd)
-		, NumApplyIterations(0)
-		, NumApplyPushOutIterations(0)
 		, NumPositionIterations(0)
 		, NumVelocityIterations(0)
 		, NumProjectionIterations(0)
@@ -80,14 +76,24 @@ namespace Chaos
 	{
 	}
 
-	void FPBDMinEvolution::AddConstraintRule(FSimpleConstraintRule* Rule)
+	FPBDMinEvolution::~FPBDMinEvolution()
 	{
-		check(Rule != nullptr);
-		if (Rule != nullptr)
-		{
-			const uint32 ContainerId = (uint32)ConstraintRules.Add(Rule);
-			Rule->BindToDatas(SolverData, ContainerId);
-		}
+	}
+
+	void FPBDMinEvolution::AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority)
+	{
+		// Do not add twice
+		check(InContainer.GetContainerId() == INDEX_NONE);
+
+		const int32 ContainerId = ConstraintContainers.Add(&InContainer);
+		InContainer.SetContainerId(ContainerId);
+
+		ConstraintSolver.SetConstraintSolver(ContainerId, InContainer.CreateSceneSolver(Priority));
+	}
+
+	void FPBDMinEvolution::SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority)
+	{
+		ConstraintSolver.SetConstraintSolverPriority(ContainerId, Priority);
 	}
 
 	void FPBDMinEvolution::Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt)
@@ -132,17 +138,7 @@ namespace Chaos
 
 		ApplyKinematicTargets(Dt, StepFraction);
 
-		if (PostIntegrateCallback != nullptr)
-		{
-			PostIntegrateCallback();
-		}
-
 		DetectCollisions(Dt);
-
-		if (PostDetectCollisionsCallback != nullptr)
-		{
-			PostDetectCollisionsCallback();
-		}
 
 		if (Dt > 0)
 		{
@@ -150,21 +146,7 @@ namespace Chaos
 
 			ApplyConstraintsPhase1(Dt);
 
-			if (PostApplyCallback != nullptr)
-			{
-				PostApplyCallback();
-			}
-
-			UpdateVelocities(Dt);
-
 			ApplyConstraintsPhase2(Dt);
-
-			if (PostApplyPushOutCallback != nullptr)
-			{
-				PostApplyPushOutCallback();
-			}
-
-			ApplyCorrections(Dt);
 
 			ApplyConstraintsPhase3(Dt);
 
@@ -177,9 +159,9 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_PrepareTick);
 
-		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* ConstraintContainer : ConstraintContainers)
 		{
-			ConstraintRule->PrepareTick();
+			ConstraintContainer->PrepareTick();
 		}
 	}
 
@@ -187,9 +169,9 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UnprepareTick);
 
-		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
+		for (FPBDConstraintContainer* ConstraintContainer : ConstraintContainers)
 		{
-			ConstraintRule->UnprepareTick();
+			ConstraintContainer->UnprepareTick();
 		}
 	}
 
@@ -394,13 +376,9 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_DetectCollisions);
 
-		// @todo(ccaulfield): doesn't need to be every frame
-		PrioritizedConstraintRules = ConstraintRules;
-		PrioritizedConstraintRules.StableSort();
-
-		for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
+		for (FPBDConstraintContainer* ConstraintContainer : ConstraintContainers)
 		{
-			ConstraintRule->UpdatePositionBasedState(Dt);
+			ConstraintContainer->UpdatePositionBasedState(Dt);
 		}
 
 		CollisionDetector.DetectCollisions(Dt, nullptr);
@@ -412,25 +390,19 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Gather);
 
-		SolverData.GetBodyContainer().Reset(Particles.GetAllParticlesView().Num());
-
-		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->GatherSolverInput(Dt);
-		}
+		ConstraintSolver.Reset();
+		ConstraintSolver.AddConstraintsAndBodies();
+		ConstraintSolver.GatherBodies(Dt);
+		ConstraintSolver.GatherConstraints(Dt);
 	}
 
 	void FPBDMinEvolution::ScatterOutput(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Scatter);
 
-		for (FSimpleConstraintRule* ConstraintRule : ConstraintRules)
-		{
-			ConstraintRule->ScatterSolverOutput(Dt);
-		}
+		ConstraintSolver.ScatterConstraints(Dt);
+		ConstraintSolver.ScatterBodies(Dt);
 
-		SolverData.GetBodyContainer().ScatterOutput();
-	
 		for (auto& Particle : Particles.GetActiveParticlesView())
 		{
 			Particle.Handle()->AuxilaryValue(ParticlePrevXs) = Particle.X();
@@ -444,92 +416,20 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase1);
 
-		const int32 NumIterationsPhase1 = (SolverType == EConstraintSolverType::QuasiPbd) ? NumPositionIterations : NumApplyIterations;
-
-		for (int32 i = 0; i < NumIterationsPhase1; ++i)
-		{
-			bool bNeedsAnotherIteration = Chaos_MinEvolution_ForceMaxConstraintIterations;
-			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
-			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyConstraints(Dt, i, NumIterationsPhase1);
-			}
-
-			if (!bNeedsAnotherIteration)
-			{
-				break;
-			}
-		}
-	}
-
-	void FPBDMinEvolution::UpdateVelocities(FReal Dt)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdateVelocites);
-
-		// @todo(chaos): clean this up - the two solvers calculate implicit velocity differently because 
-		// QPBD accumulates transform deltas and the StandardPBD applies transform changes directly
-		if (SolverType == EConstraintSolverType::StandardPbd)
-		{
-			for (FSolverBodyAdapter& SolverBody : SolverData.GetBodyContainer().GetBodies())
-			{
-				const FVec3 V = FVec3::CalculateVelocity(SolverBody.GetSolverBody().X(), SolverBody.GetSolverBody().P(), Dt);
-				const FVec3 W = FRotation3::CalculateAngularVelocity(SolverBody.GetSolverBody().R(), SolverBody.GetSolverBody().Q(), Dt);
-				SolverBody.GetSolverBody().SetV(V);
-				SolverBody.GetSolverBody().SetW(W);
-			}
-		}
-		else
-		{ 
-			SolverData.GetBodyContainer().SetImplicitVelocities(Dt);
-		}
+		ConstraintSolver.ApplyPositionConstraints(Dt, NumPositionIterations);
 	}
 
 	void FPBDMinEvolution::ApplyConstraintsPhase2(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase2);
 
-		const int32 NumIterationsPhase2 = (SolverType == EConstraintSolverType::QuasiPbd) ? NumVelocityIterations : 0;
-
-		for (int32 It = 0; It < NumIterationsPhase2; ++It)
-		{
-			bool bNeedsAnotherIteration = false;
-			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
-			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyPushOut(Dt, It, NumIterationsPhase2);
-			}
-
-			if (!bNeedsAnotherIteration)
-			{
-				break;
-			}
-		}
-	}
-
-	void FPBDMinEvolution::ApplyCorrections(FReal Dt)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyCorrections);
-
-		SolverData.GetBodyContainer().ApplyCorrections();
-		SolverData.GetBodyContainer().UpdateRotationDependentState();
+		ConstraintSolver.ApplyVelocityConstraints(Dt, NumVelocityIterations);
 	}
 
 	void FPBDMinEvolution::ApplyConstraintsPhase3(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_ApplyConstraintsPhase3);
 
-		const int32 NumIterationsPhase3 = (SolverType == EConstraintSolverType::QuasiPbd) ? NumProjectionIterations : NumApplyPushOutIterations;
-
-		for (int32 It = 0; It < NumIterationsPhase3; ++It)
-		{
-			bool bNeedsAnotherIteration = false;
-			for (FSimpleConstraintRule* ConstraintRule : PrioritizedConstraintRules)
-			{
-				bNeedsAnotherIteration |= ConstraintRule->ApplyProjection(Dt, It, NumIterationsPhase3);
-			}
-
-			if (!bNeedsAnotherIteration)
-			{
-				break;
-			}
-		}
+		ConstraintSolver.ApplyProjectionConstraints(Dt, NumProjectionIterations);
 	}
 }

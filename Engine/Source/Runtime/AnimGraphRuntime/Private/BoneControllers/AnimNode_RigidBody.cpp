@@ -849,14 +849,6 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SolverSettings.VelocityIterations,
 				SolverSettings.ProjectionIterations);
 
-			PhysicsSimulation->SetLegacySolverSettings(
-				SolverIterations.SolverIterations,
-				SolverIterations.JointIterations,
-				SolverIterations.CollisionIterations,
-				SolverIterations.SolverPushOutIterations,
-				SolverIterations.JointPushOutIterations,
-				SolverIterations.CollisionPushOutIterations);
-
 			if (!bUseDeferredSimulationTask)
 			{
 				RunPhysicsSimulation(DeltaSeconds, SimSpaceGravity);
@@ -1281,13 +1273,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 			SolverSettings.ProjectionIterations);
 
 		SolverIterations = UsePhysicsAsset->SolverIterations;
-		PhysicsSimulation->SetLegacySolverSettings(
-			SolverIterations.SolverIterations,
-			SolverIterations.JointIterations,
-			SolverIterations.CollisionIterations,
-			SolverIterations.SolverPushOutIterations,
-			SolverIterations.JointPushOutIterations,
-			SolverIterations.CollisionPushOutIterations);
 	}
 }
 

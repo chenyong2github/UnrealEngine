@@ -4,7 +4,6 @@
 #include "HeadlessChaosTestUtility.h"
 
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/Box.h"
 #include "Chaos/Sphere.h"
@@ -46,8 +45,7 @@ namespace ChaosTest {
 
 #if USE_CONSTRAINTS
 		FPBDJointConstraints Joints;
-		TPBDConstraintIslandRule<FPBDJointConstraints> JointsRule(Joints);
-		Evolution.AddConstraintRule(&JointsRule);
+		Evolution.AddConstraintContainer(Joints);
 
 		FPBDJointSettings JointSettings;
 		const FReal TwistLimit = 0.;

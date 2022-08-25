@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Chaos/Declares.h"
-#include "Chaos/ConstraintHandle.h"
+#include "Chaos/Evolution/IndexedConstraintContainer.h"
 #include "Chaos/ParticleHandleFwd.h"
 
 
@@ -35,11 +35,10 @@ namespace Chaos
 	/**
 	 * Constraint Container with minimal API required to test the Graph.
 	 */
-	class FPBDNullConstraints : public FPBDIndexedConstraintContainer
+	class FPBDNullConstraints : public TPBDIndexedConstraintContainer<FPBDNullConstraints>
 	{
 	public:
 		using FConstraintContainerHandle = FPBDNullConstraintHandle;
-		using FConstraintSolverContainerType = FConstraintSolverContainer;	// @todo(chaos): Add island solver for this constraint type
 
 		FPBDNullConstraints();
 
@@ -72,27 +71,34 @@ namespace Chaos
 			return Handles;
 		}
 
-		void PrepareTick() {}
-		void UnprepareTick() {}
-		void UpdatePositionBasedState(const FReal Dt) {}
+		//
+		// FConstraintContainer Implementation
+		//
+		virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
+		virtual void ResetConstraints() override final {}
+		virtual void AddConstraintsToGraph(FPBDIslandManager& IslandManager) override final;
+		virtual void PrepareTick() override final {}
+		virtual void UnprepareTick() override final {}
 
-		// Constraint Rule API
-		void SetNumIslandConstraints(const int32 NumIslandConstraints, FPBDIslandSolverData& SolverData) {}
+		//
+		// TSimpleConstraintContainerSolver API - used by RBAN solvers
+		//
+		void AddBodies(FSolverBodyContainer& SolverBodyContainer) {}
+		void GatherInput(const FReal Dt) {}
+		void ScatterOutput(const FReal Dt) {}
+		void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
+		void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
 
-		// Simple Constraint Rule API
-		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData) {}
-		void GatherInput(const FReal Dt, FPBDIslandSolverData& SolverData) {}
-		void ScatterOutput(const FReal Dt, FPBDIslandSolverData& SolverData) {}
-		bool ApplyPhase1(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return true; }
-		bool ApplyPhase2(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return true; }
-		bool ApplyPhase3(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return true; }
-
-		// Island Constraint Rule API
-		void PreGatherInput(const FReal Dt, const int32 ConstraintIndex, FPBDIslandSolverData& SolverData) {}
-		void GatherInput(const FReal Dt, const int32 ConstraintIndex, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData) {}
-		bool ApplyPhase1Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return true; }
-		bool ApplyPhase2Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return true; }
-		bool ApplyPhase3Serial(const FReal Dt, const int32 It, const int32 NumIts, FPBDIslandSolverData& SolverData) { return true; }
+		//
+		// TIndexedConstraintContainerSolver API - used by World solvers
+		//
+		void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer) {}
+		void GatherInput(const TArrayView<int32>& ConstraintIndices, const FReal Dt) {}
+		void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt) {}
+		void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
+		void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
+		void ApplyProjectionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
 
 		TArray<FPBDNullConstraint> Constraints;
 		TArray<FPBDNullConstraintHandle*> Handles;
@@ -132,16 +138,6 @@ namespace Chaos
 			return ConcreteContainer()->GetConstrainedParticles(GetConstraintIndex());
 		}
 
-		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData)
-		{
-			ConcreteContainer()->PreGatherInput(Dt, GetConstraintIndex(), SolverData);
-		}
-
-		void GatherInput(const FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData)
-		{
-			ConcreteContainer()->GatherInput(Dt, GetConstraintIndex(), Particle0Level, Particle1Level, SolverData);
-		}
-
 		static const FConstraintHandleTypeID& StaticType()
 		{
 			static FConstraintHandleTypeID STypeID(TEXT("FPBDNullConstraintHandle"), &FIndexedConstraintHandle::StaticType());
@@ -151,7 +147,7 @@ namespace Chaos
 
 
 	inline FPBDNullConstraints::FPBDNullConstraints()
-		: FPBDIndexedConstraintContainer(FPBDNullConstraintHandle::StaticType())
+		: TPBDIndexedConstraintContainer<FPBDNullConstraints>(FPBDNullConstraintHandle::StaticType())
 	{
 	}
 

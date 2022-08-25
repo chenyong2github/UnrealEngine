@@ -7,6 +7,7 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Collision/CollisionKeys.h"
 #include "Chaos/Collision/CollisionVisitor.h"
+#include "Chaos/ObjectPool.h"
 #include "Chaos/ParticleHandleFwd.h"
 
 #include "ProfilingDebugging/CsvProfiler.h"
@@ -20,6 +21,11 @@ namespace Chaos
 	class FPBDCollisionConstraints;
 	class FPerShapeData;
 	class FSingleShapePairCollisionDetector;
+
+	// Collision constraints are stored in an ObjectPool. @see FCollisionConstraintAllocator
+	using FPBDCollisionConstraintPool = TObjectPool<FPBDCollisionConstraint>;
+	using FPBDCollisionConstraintDeleter = TObjectPoolDeleter<FPBDCollisionConstraint>;
+	using FPBDCollisionConstraintPtr = TUniquePtr<FPBDCollisionConstraint, FPBDCollisionConstraintDeleter>;
 
 	/**
 	 * @brief Handles collision detection for a pair of simple shapes (i.e., not compound shapes)
@@ -58,7 +64,7 @@ namespace Chaos
 		*/
 		inline bool IsUsedSince(const int32 Epoch) const
 		{
-			return (Constraint != nullptr) && (LastUsedEpoch >= Epoch);
+			return Constraint.IsValid() && (LastUsedEpoch >= Epoch);
 		}
 
 		/**
@@ -120,7 +126,7 @@ namespace Chaos
 		void CreateConstraint(const FReal CullDistance, FCollisionContext& Context);
 
 		FParticlePairMidPhase& MidPhase;
-		TUniquePtr<FPBDCollisionConstraint> Constraint;
+		FPBDCollisionConstraintPtr Constraint;
 		FGeometryParticleHandle* Particle0;
 		FGeometryParticleHandle* Particle1;
 		const FPerShapeData* Shape0;
@@ -251,7 +257,7 @@ namespace Chaos
 		void PruneConstraints();
 
 		FParticlePairMidPhase& MidPhase;
-		TMap<uint32, TUniquePtr<FPBDCollisionConstraint>> Constraints;
+		TMap<uint32, FPBDCollisionConstraintPtr> Constraints;
 		TArray<FPBDCollisionConstraint*> NewConstraints;
 		FGeometryParticleHandle* Particle0;
 		FGeometryParticleHandle* Particle1;

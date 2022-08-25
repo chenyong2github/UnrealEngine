@@ -2,10 +2,11 @@
 #pragma once
 
 #include "Chaos/Island/IslandManager.h"
+
 namespace Chaos
 {
-	class CHAOS_API FPBDConstraintGraph : public FPBDIslandManager
-	{};
+	// @todo(chaos): deprecate FPBDConstraintGraph
+	using FPBDConstraintGraph = FPBDIslandManager;
 }
 
 

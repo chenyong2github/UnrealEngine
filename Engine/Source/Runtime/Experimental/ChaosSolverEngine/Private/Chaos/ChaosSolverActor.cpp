@@ -186,7 +186,6 @@ AChaosSolverActor::AChaosSolverActor(const FObjectInitializer& ObjectInitializer
 	, DoGenerateBreakingData_DEPRECATED(true)
 	, DoGenerateTrailingData_DEPRECATED(true)
 	, MassScale_DEPRECATED(1.f)
-	, bGenerateContactGraph_DEPRECATED(true)
 	, bHasFloor(true)
 	, FloorHeight(0.f)
 	, ChaosDebugSubstepControl()
@@ -366,7 +365,6 @@ void AChaosSolverActor::PostLoad()
 		Properties.BreakingFilterSettings = BreakingFilterSettings_DEPRECATED;
 		Properties.CollisionFilterSettings = CollisionFilterSettings_DEPRECATED;
 		Properties.TrailingFilterSettings = TrailingFilterSettings_DEPRECATED;
-		Properties.bGenerateContactGraph = bGenerateContactGraph_DEPRECATED;
 	}
 }
 

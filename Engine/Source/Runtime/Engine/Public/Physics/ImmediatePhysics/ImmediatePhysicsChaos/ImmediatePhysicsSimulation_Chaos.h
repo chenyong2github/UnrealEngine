@@ -86,15 +86,6 @@ namespace ImmediatePhysics_Chaos
 			const int32 VelocityIts,
 			const int32 ProjectionIts);
 
-		/** Set iteration counts for the legacy solver. A negative value with leave that iteration count unchanged */
-		void SetLegacySolverSettings(
-			const int32 SolverIts,
-			const int32 JointIts,
-			const int32 CollisionIts,
-			const int32 SolverPushOutIts,
-			const int32 JointPushOutIts,
-			const int32 CollisionPushOutIts);
-
 		/** Explicit debug draw path if the use case needs it to happen at a point outside of the simulation **/
 		void DebugDraw();
 

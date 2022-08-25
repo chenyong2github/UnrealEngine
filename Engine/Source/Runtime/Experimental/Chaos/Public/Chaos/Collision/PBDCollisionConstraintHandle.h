@@ -11,8 +11,7 @@ namespace Chaos
 {
 	class FPBDCollisionConstraints;
 	class FPBDCollisionConstraint;
-	class FPBDIslandSolverData;
-	class FPBDCollisionSolverContainer;
+	class FPBDCollisionContainerSolver;
 
 	/**
 	 * @brief Whether we should run CCD (swept collision) or not
@@ -76,21 +75,16 @@ namespace Chaos
 
 		ECollisionCCDType GetCCDType() const;
 
-		virtual void SetEnabled(bool InEnabled) override;
+		virtual void SetEnabled(bool InEnabled) override final;
 
-		virtual bool IsEnabled() const override;
+		virtual bool IsEnabled() const override final;
 
-		virtual bool IsProbe() const override;
-
-		//FVec3 GetContactLocation() const;
+		virtual bool IsProbe() const override final;
 
 		FVec3 GetAccumulatedImpulse() const;
 
 		// Declared final so that TPBDConstraintGraphRuleImpl::AddToGraph() does not need to hit vtable
 		virtual FParticlePair GetConstrainedParticles() const override final;
-
-		void PreGatherInput(const FReal Dt, FPBDIslandSolverData& SolverData);
-		void GatherInput(FReal Dt, const int32 Particle0Level, const int32 Particle1Level, FPBDIslandSolverData& SolverData);
 
 		FSolverBody* GetSolverBody0();
 		FSolverBody* GetSolverBody1();

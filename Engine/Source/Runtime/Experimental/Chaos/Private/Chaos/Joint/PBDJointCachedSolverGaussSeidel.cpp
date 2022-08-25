@@ -161,15 +161,11 @@ void FPBDJointCachedSolver::SetShockPropagationScales(const FReal InvMScale0, co
 
 void FPBDJointCachedSolver::Init(
 	const FReal Dt,
-	const FSolverBodyPtrPair& SolverBodyPair,
 	const FPBDJointSolverSettings& SolverSettings,
 	const FPBDJointSettings& JointSettings,
 	const FRigidTransform3& XL0,
 	const FRigidTransform3& XL1)
 {
-	SolverBodies[0] = *SolverBodyPair[0];
-	SolverBodies[1] = *SolverBodyPair[1];
-
 	LocalConnectorXs[0] = XL0;
 	LocalConnectorXs[1] = XL1;
 

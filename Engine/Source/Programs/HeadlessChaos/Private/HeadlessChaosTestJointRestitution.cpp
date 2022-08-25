@@ -20,8 +20,6 @@ namespace ChaosTest {
 		FJointChainTest<TEvolution> Test(NumSolverIterations, Gravity);
 
 		FPBDJointSolverSettings JointSolverSettings;
-		JointSolverSettings.ApplyPairIterations = 1;
-		JointSolverSettings.ApplyPushOutPairIterations = 1;
 		Test.Evolution.GetJointConstraints().SetSettings(JointSolverSettings);
 
 		Test.InitChain(2, FVec3(1,0,0));

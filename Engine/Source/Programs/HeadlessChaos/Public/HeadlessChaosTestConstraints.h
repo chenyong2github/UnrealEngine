@@ -33,6 +33,8 @@ namespace ChaosTest
 			PhysicalMaterial->DisabledAngularThreshold = 0;
 
 			Evolution.SetNumPositionIterations(NumIterations);
+			Evolution.SetNumVelocityIterations(1);
+			Evolution.SetNumProjectionIterations(1);
 			Evolution.GetGravityForces().SetAcceleration(Gravity * FVec3(0, 0, -1));
 		}
 

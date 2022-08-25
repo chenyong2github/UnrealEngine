@@ -89,15 +89,6 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 			SolverSettings.PositionIterations,
 			SolverSettings.VelocityIterations,
 			SolverSettings.ProjectionIterations);
-
-		Simulation->SetLegacySolverSettings(
-			SolverIterations.SolverIterations,
-			SolverIterations.JointIterations,
-			SolverIterations.CollisionIterations,
-			SolverIterations.SolverPushOutIterations,
-			SolverIterations.JointPushOutIterations,
-			SolverIterations.CollisionPushOutIterations
-		);
 	}
 
 	if (CurrentAsset != nullptr)

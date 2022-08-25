@@ -3,7 +3,6 @@
 
 #include "HeadlessChaosTestConstraints.h"
 #include "Chaos/ParticleHandle.h"
-#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/PBDRigidParticles.h"
