@@ -586,6 +586,45 @@ bool UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(FString& InName)
 		|| InName.RemoveFromStart(UE::ShaderCompilerCommon::kBindlessSamplerPrefix);
 }
 
+bool UE::ShaderCompilerCommon::ValidatePackedResourceCounts(FShaderCompilerOutput& Output, const FShaderCodePackedResourceCounts& PackedResourceCounts)
+{
+	if (Output.bSucceeded)
+	{
+		auto GetAllResourcesOfType = [&](EShaderParameterType InType)
+		{
+			const TArray<FString> AllNames = Output.ParameterMap.GetAllParameterNamesOfType(InType);
+			if (AllNames.IsEmpty())
+			{
+				return FString();
+			}
+			return FString::Join(AllNames, TEXT(", "));
+		};
+
+		if (EnumHasAnyFlags(PackedResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessResources) && PackedResourceCounts.NumSRVs > 0)
+		{
+			const FString Names = GetAllResourcesOfType(EShaderParameterType::SRV);
+			Output.Errors.Add(FString::Printf(TEXT("Shader is mixing bindless resources with non-bindless resources. %d SRV slots were detected: %s"), PackedResourceCounts.NumSRVs, *Names));
+			Output.bSucceeded = false;
+		}
+
+		if (EnumHasAnyFlags(PackedResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessResources) && PackedResourceCounts.NumUAVs > 0)
+		{
+			const FString Names = GetAllResourcesOfType(EShaderParameterType::UAV);
+			Output.Errors.Add(FString::Printf(TEXT("Shader is mixing bindless resources with non-bindless resources. %d UAV slots were detected: %s"), PackedResourceCounts.NumUAVs, *Names));
+			Output.bSucceeded = false;
+		}
+
+		if (EnumHasAnyFlags(PackedResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessSamplers) && PackedResourceCounts.NumSamplers > 0)
+		{
+			const FString Names = GetAllResourcesOfType(EShaderParameterType::Sampler);
+			Output.Errors.Add(FString::Printf(TEXT("Shader is mixing bindless samplers with non-bindless samplers. %d sampler slots were detected: %s"), PackedResourceCounts.NumSamplers, *Names));
+			Output.bSucceeded = false;
+		}
+	}
+
+	return Output.bSucceeded;
+}
+
 void HandleReflectedGlobalConstantBufferMember(
 	const FString& InMemberName,
 	uint32 ConstantBufferIndex,

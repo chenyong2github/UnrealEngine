@@ -886,41 +886,31 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			Output.bSucceeded = false;
 		}
 
-		const bool bBindlessResourcesUsed = ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING) != 0);
-		const bool bBindlessSamplersUsed = ((ShaderRequiresFlags & D3D_SHADER_REQUIRES_SAMPLER_DESCRIPTOR_HEAP_INDEXING) != 0);
+		FShaderCodePackedResourceCounts PackedResourceCounts{};
 
 		if (Output.bSucceeded)
 		{
-			auto GetAllResourcesOfType = [&](EShaderParameterType InType)
+			if (bGlobalUniformBufferUsed)
 			{
-				const TArray<FString> AllNames = Output.ParameterMap.GetAllParameterNamesOfType(InType);
-				if (AllNames.IsEmpty())
-				{
-					return FString();
-				}
-				return FString::Join(AllNames, TEXT(", "));
-			};
-
-			if (bBindlessResourcesUsed && NumSRVs > 0)
-			{
-				const FString Names = GetAllResourcesOfType(EShaderParameterType::SRV);
-				FilteredErrors.Add(FString::Printf(TEXT("Shader is mixing bindless resources with non-bindless resources. %d SRV slots were detected: %s"), NumSRVs, *Names));
-				Output.bSucceeded = false;
+				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::GlobalUniformBuffer;
 			}
 
-			if (bBindlessResourcesUsed && NumUAVs > 0)
+			if (ShaderRequiresFlags & D3D_SHADER_REQUIRES_RESOURCE_DESCRIPTOR_HEAP_INDEXING)
 			{
-				const FString Names = GetAllResourcesOfType(EShaderParameterType::UAV);
-				FilteredErrors.Add(FString::Printf(TEXT("Shader is mixing bindless resources with non-bindless resources. %d UAV slots were detected: %s"), NumUAVs, *Names));
-				Output.bSucceeded = false;
+				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::BindlessResources;
 			}
 
-			if (bBindlessSamplersUsed && NumSamplers > 0)
+			if (ShaderRequiresFlags & D3D_SHADER_REQUIRES_SAMPLER_DESCRIPTOR_HEAP_INDEXING)
 			{
-				const FString Names = GetAllResourcesOfType(EShaderParameterType::Sampler);
-				FilteredErrors.Add(FString::Printf(TEXT("Shader is mixing bindless samplers with non-bindless samplers. %d sampler slots were detected: %s"), NumSamplers, *Names));
-				Output.bSucceeded = false;
+				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::BindlessSamplers;
 			}
+
+			PackedResourceCounts.NumSamplers = static_cast<uint8>(NumSamplers);
+			PackedResourceCounts.NumSRVs = static_cast<uint8>(NumSRVs);
+			PackedResourceCounts.NumCBs = static_cast<uint8>(NumCBs);
+			PackedResourceCounts.NumUAVs = static_cast<uint8>(NumUAVs);
+
+			Output.bSucceeded = UE::ShaderCompilerCommon::ValidatePackedResourceCounts(Output, PackedResourceCounts);
 		}
 
 		// Save results if compilation and reflection succeeded
@@ -986,25 +976,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			};
 
 			//#todo-rco: Should compress ShaderCode?
-
-			FShaderCodePackedResourceCounts PackedResourceCounts{};
-			if (bGlobalUniformBufferUsed)
-			{
-				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::GlobalUniformBuffer;
-			}
-			if (bBindlessResourcesUsed)
-			{
-				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::BindlessResources;
-			}
-			if (bBindlessSamplersUsed)
-			{
-				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::BindlessSamplers;
-			}
-
-			PackedResourceCounts.NumSamplers = static_cast<uint8>(NumSamplers);
-			PackedResourceCounts.NumSRVs = static_cast<uint8>(NumSRVs);
-			PackedResourceCounts.NumCBs = static_cast<uint8>(NumCBs);
-			PackedResourceCounts.NumUAVs = static_cast<uint8>(NumUAVs);
 
 			GenerateFinalOutput(ShaderBlob,
 				Input, VendorExtensions,
