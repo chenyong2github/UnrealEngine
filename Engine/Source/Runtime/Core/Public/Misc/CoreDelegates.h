@@ -631,6 +631,10 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldLaunchUrl, const TCHAR* /* URL */);
 	static FShouldLaunchUrl ShouldLaunchUrl;
 
+	// Callback when the application has been activated by protocol (with optional user id, depending on the platform)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActivatedByProtocol, const FString& /* parameter */, FPlatformUserId /* user id = PLATFORMUSERID_NONE */ );
+	static FOnActivatedByProtocol OnActivatedByProtocol;
+
 	/** Sent when GC finish destroy takes more time than expected */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGCFinishDestroyTimeExtended, const FString&);
 	static FOnGCFinishDestroyTimeExtended OnGCFinishDestroyTimeExtended;
