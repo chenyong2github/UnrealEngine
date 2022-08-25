@@ -151,6 +151,7 @@ SLevelViewport::~SLevelViewport()
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( LevelEditorName );
 	LevelEditor.OnRedrawLevelEditingViewports().RemoveAll( this );
 	LevelEditor.OnActorSelectionChanged().RemoveAll( this );
+	LevelEditor.OnElementSelectionChanged().RemoveAll( this );
 	LevelEditor.OnMapChanged().RemoveAll( this );
 
 	if(UObjectInitialized())
