@@ -7,6 +7,7 @@
 #include "ComponentInstanceDataCache.h"
 
 #if WITH_EDITOR
+#include "TransactionCommon.h"
 #include "Misc/ITransactionObjectAnnotation.h"
 #endif
 
@@ -71,6 +72,8 @@ public:
 	//~ ITransactionObjectAnnotation interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual bool SupportsAdditionalObjectChanges() const override { return true; }
+	virtual void ComputeAdditionalObjectChanges(const ITransactionObjectAnnotation* OriginalAnnotation, TMap<UObject*, FTransactionObjectChange>& OutAdditionalObjectChanges) override;
 
 	bool HasInstanceData() const;
 
@@ -79,5 +82,16 @@ public:
 private:
 	FActorTransactionAnnotation();
 	FActorTransactionAnnotation(const AActor* InActor, FComponentInstanceDataCache&& InComponentInstanceData, const bool InCacheRootComponentData = true);
+	
+	struct FDiffableComponentInfo
+	{
+		FDiffableComponentInfo() = default;
+		explicit FDiffableComponentInfo(const UActorComponent* Component);
+
+		FActorComponentInstanceSourceInfo ComponentSourceInfo;
+		UE::Transaction::FDiffableObject DiffableComponent;
+	};
+
+	TArray<FDiffableComponentInfo> DiffableComponentInfos;
 };
 #endif // WITH_EDITOR
