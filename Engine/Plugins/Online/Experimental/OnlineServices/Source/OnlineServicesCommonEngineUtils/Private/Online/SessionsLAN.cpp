@@ -152,7 +152,6 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		}
 
 		TSharedRef<FSessionLAN> NewSessionLANRef = MakeShared<FSessionLAN>();
-		NewSessionLANRef->CurrentState = ESessionState::Valid;
 		NewSessionLANRef->OwnerUserId = OpParams.LocalUserId;
 		NewSessionLANRef->SessionId = FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).GetNextSessionId();
 		NewSessionLANRef->SessionSettings = OpParams.SessionSettings;
@@ -160,9 +159,20 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		// For LAN sessions, we'll add all the Session members manually instead of calling JoinSession since there is no API calls involved
 		NewSessionLANRef->SessionSettings.SessionMembers.Append(OpParams.LocalUsers);
 
-		LocalSessionsByName.Add(OpParams.SessionName, NewSessionLANRef);
+		// We save the local object for the session, and set up the appropriate references
+		AllSessionsById.Emplace(NewSessionLANRef->SessionId, NewSessionLANRef);
 
-		Op.SetResult(FCreateSession::Result{ NewSessionLANRef });
+		LocalSessionsByName.Emplace(OpParams.SessionName, NewSessionLANRef->SessionId);
+
+		NamedSessionUserMap.FindOrAdd(OpParams.LocalUserId).AddUnique(OpParams.SessionName);
+
+		if (NewSessionLANRef->SessionSettings.bPresenceEnabled)
+		{
+			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalUserId);
+			PresenceSessionId = NewSessionLANRef->SessionId;
+		}
+
+		Op.SetResult({ });
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -186,7 +196,10 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsLAN::UpdateSession(FUpdateSession:
 
 		// We'll check and update all settings one by one, with additional logic wherever required
 
-		TSharedRef<FSession>& FoundSession = LocalSessionsByName.FindChecked(OpParams.SessionName);
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ OpParams.SessionName });
+		check(GetMutableSessionByNameResult.IsOk());
+		
+		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 		const FSessionSettingsUpdate& UpdatedSettings = OpParams.Mutations;
 
@@ -211,9 +224,9 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsLAN::UpdateSession(FUpdateSession:
 		SessionSettings += UpdatedSettings;
 
 		// We set the result and fire the event
-		Op.SetResult(FUpdateSession::Result{ FoundSession });
+		Op.SetResult({ });
 
-		FSessionUpdated SessionUpdatedEvent{ FoundSession, UpdatedSettings };
+		FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, UpdatedSettings };
 		SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
 	})
 	.Enqueue(GetSerialQueue());
@@ -244,10 +257,9 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsLAN::FindSessions(FFindSessions::Pa
 			return;
 		}
 
-		CurrentSessionSearch = MakeShared<FFindSessions::Result>();
-		CurrentSessionSearchHandle = Op.AsShared();
+		CurrentSessionSearchHandlesUserMap.Emplace(OpParams.LocalUserId, Op.AsShared());
 
-		FindLANSessions();
+		FindLANSessions(OpParams.LocalUserId);
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -292,17 +304,28 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 		}
 
 		const TSharedRef<const FSession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
-		TSharedRef<FSession> NewSessionRef = ConstCastSharedRef<FSession>(FoundSession);
+		TSharedRef<FSession> NewSessionLANRef = ConstCastSharedRef<FSession>(FoundSession);
 
-		LocalSessionsByName.Add(OpParams.SessionName, NewSessionRef);
+		// We save the local object for the session, and set up the appropriate references
+		AllSessionsById.Emplace(NewSessionLANRef->SessionId, NewSessionLANRef);
 
-		Op.SetResult(FJoinSession::Result{ NewSessionRef });
+		LocalSessionsByName.Emplace(OpParams.SessionName, NewSessionLANRef->SessionId);
+
+		NamedSessionUserMap.FindOrAdd(OpParams.LocalUserId).AddUnique(OpParams.SessionName);
+
+		if (NewSessionLANRef->SessionSettings.bPresenceEnabled)
+		{
+			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalUserId);
+			PresenceSessionId = NewSessionLANRef->SessionId;
+		}
+
+		Op.SetResult(FJoinSession::Result{ });
 
 		TArray<FAccountId> LocalUserIds;
 		LocalUserIds.Reserve(OpParams.LocalUsers.Num());
 		OpParams.LocalUsers.GenerateKeyArray(LocalUserIds);
 
-		FSessionJoined SessionJoinedEvent = { MoveTemp(LocalUserIds), NewSessionRef };
+		FSessionJoined SessionJoinedEvent = { MoveTemp(LocalUserIds), NewSessionLANRef->SessionId };
 		
 		SessionEvents.OnSessionJoined.Broadcast(SessionJoinedEvent);
 	})
@@ -326,17 +349,20 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 			return;
 		}
 
-		// This scope guarantees that FoundSession can't be used after its removal
+		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ OpParams.SessionName });
+		if (GetSessionByNameResult.IsOk())
 		{
-			TSharedRef<FSession>& FoundSession = LocalSessionsByName.FindChecked(OpParams.SessionName);
+			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			// Only the host should stop the session at this point
-			if (FoundSession->OwnerUserId == OpParams.LocalUserId && FoundSession->SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
+			NamedSessionUserMap.FindChecked(OpParams.LocalUserId).Remove(OpParams.SessionName);
+
+			if (FoundSession->SessionSettings.bPresenceEnabled)
 			{
-				StopLANSession();
+				PresenceSessionsUserMap.Remove(OpParams.LocalUserId);
 			}
 
-			LocalSessionsByName.Remove(OpParams.SessionName);
+			ClearSessionByName(OpParams.SessionName);
+			ClearSessionById(FoundSession->SessionId);
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });
@@ -386,14 +412,14 @@ TOptional<FOnlineError> FSessionsLAN::TryHostLANSession()
 	return Result;
 }
 
-void FSessionsLAN::FindLANSessions()
+void FSessionsLAN::FindLANSessions(const FAccountId& LocalUserId)
 {
 	// Recreate the unique identifier for this client
 	GenerateNonce((uint8*)&LANSessionManager->LanNonce, 8);
 
 	// Bind delegates
-	FOnValidResponsePacketDelegate ResponseDelegate = FOnValidResponsePacketDelegate::CreateThreadSafeSP(this, &FSessionsLAN::OnValidResponsePacketReceived);
-	FOnSearchingTimeoutDelegate TimeoutDelegate = FOnSearchingTimeoutDelegate::CreateThreadSafeSP(this, &FSessionsLAN::OnLANSearchTimeout);
+	FOnValidResponsePacketDelegate ResponseDelegate = FOnValidResponsePacketDelegate::CreateThreadSafeSP(this, &FSessionsLAN::OnValidResponsePacketReceived, LocalUserId);
+	FOnSearchingTimeoutDelegate TimeoutDelegate = FOnSearchingTimeoutDelegate::CreateThreadSafeSP(this, &FSessionsLAN::OnLANSearchTimeout, LocalUserId);
 
 	FNboSerializeToBuffer Packet(LAN_BEACON_MAX_PACKET_SIZE);
 	LANSessionManager->CreateClientQueryPacket(Packet, LANSessionManager->LanNonce);
@@ -407,10 +433,9 @@ void FSessionsLAN::FindLANSessions()
 		}
 
 		// Trigger the delegate as having failed
-		CurrentSessionSearchHandle->SetError(Errors::RequestFailure()); // TODO: May need a new error type
+		CurrentSessionSearchHandlesUserMap.FindChecked(LocalUserId)->SetError(Errors::RequestFailure()); // TODO: May need a new error type
 
-		CurrentSessionSearch.Reset();
-		CurrentSessionSearchHandle.Reset();
+		CurrentSessionSearchHandlesUserMap.Remove(LocalUserId);
 
 		// If we were hosting public sessions before the search, we'll return the beacon to that state
 		if (PublicSessionsHosted > 0)
@@ -439,7 +464,7 @@ void FSessionsLAN::StopLANSession()
 void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce)
 {
 	// Iterate through all registered sessions and respond for each one that can be joinable
-	for (const TPair<FName, TSharedRef<FSession>>& Entry : LocalSessionsByName)
+	for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSession>>& Entry : AllSessionsById)
 	{
 		const TSharedRef<FSession>& Session = Entry.Value;
 
@@ -465,50 +490,35 @@ void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLen
 	}
 }
 
-void FSessionsLAN::OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength)
+void FSessionsLAN::OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength, const FAccountId LocalUserId)
 {
-	if (CurrentSessionSearch.IsValid())
+	if (TArray<FOnlineSessionIdHandle>* SearchResults = SearchResultsUserMap.Find(LocalUserId))
 	{
 		TSharedRef<FSessionLAN> Session = MakeShared<FSessionLAN>();
 
 		FNboSerializeFromBuffer Packet(PacketData, PacketLength);
 		ReadSessionFromPacket(Packet, *Session);
 
-		CurrentSessionSearch->FoundSessions.Add(Session);
+		SearchResults->Add(Session->SessionId);
 
-		TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>& UserMap = SessionSearchResultsUserMap.FindOrAdd(CurrentSessionSearchHandle->GetParams().LocalUserId);
-		UserMap.Emplace(Session->SessionId, Session);
+		AllSessionsById.Emplace(Session->SessionId, Session);
 	}
 }
 
-void FSessionsLAN::OnLANSearchTimeout()
+void FSessionsLAN::OnLANSearchTimeout(const FAccountId LocalUserId)
 {
 	if (LANSessionManager->GetBeaconState() == ELanBeaconState::Searching)
 	{
 		LANSessionManager->StopLANSession();
 	}
 
-	if (!CurrentSessionSearch.IsValid())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] Session search invalid"));
+	UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] %d sessions found!"), SearchResultsUserMap.FindChecked(LocalUserId).Num());
 
-		CurrentSessionSearchHandle->SetError(Errors::InvalidState());
-	}
+	TArray<FOnlineSessionIdHandle>& FoundSessionIds = SearchResultsUserMap.FindChecked(LocalUserId);
 
-	if (CurrentSessionSearch->FoundSessions.IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] Session search found no results"));
+	CurrentSessionSearchHandlesUserMap.FindChecked(LocalUserId)->SetResult({ FoundSessionIds });
 
-		CurrentSessionSearchHandle->SetError(Errors::NotFound());
-	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] %d sessions found!"), CurrentSessionSearch->FoundSessions.Num());
-
-	FFindSessions::Result Result = *CurrentSessionSearch;
-	CurrentSessionSearchHandle->SetResult(MoveTemp(Result));
-
-	CurrentSessionSearch.Reset();
-	CurrentSessionSearchHandle.Reset();
+	CurrentSessionSearchHandlesUserMap.Remove(LocalUserId);
 
 	// If we were hosting public sessions before the search, we'll return the beacon to that state
 	if (PublicSessionsHosted > 0)

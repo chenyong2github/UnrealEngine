@@ -54,18 +54,6 @@ struct FSessionMemberUpdate
 
 using FSessionMemberUpdatesMap = TMap<FAccountId, FSessionMemberUpdate>;
 
-enum class ESessionState : uint8
-{
-	Invalid,
-	Creating,
-	Joining,
-	Valid,
-	Leaving,
-	Destroying
-};
-ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionState Value);
-ONLINESERVICESINTERFACE_API void LexFromString(ESessionState& Value, const TCHAR* InStr);
-
 enum class ESessionJoinPolicy : uint8
 {
 	Public,
@@ -201,9 +189,6 @@ struct ONLINESERVICESINTERFACE_API FSession
 	/** The id for the session, platform dependent */
 	FOnlineSessionIdHandle SessionId;
 
-	/** The current state of the session */
-	ESessionState CurrentState = ESessionState::Invalid;
-
 	/** Set of session properties that can be altered by the session owner */
 	FSessionSettings SessionSettings;
 };
@@ -220,7 +205,7 @@ struct FSessionInvite
 	FOnlineSessionInviteIdHandle InviteId;
 
 	/* Pointer to the session information */
-	TSharedRef<const FSession> Session;
+	FOnlineSessionIdHandle SessionId;
 
 	// TODO: Default constructor will be deleted after we cache invites
 };
@@ -297,9 +282,7 @@ struct FCreateSession
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
 
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -321,9 +304,7 @@ struct FUpdateSession
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
 
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -379,7 +360,7 @@ struct FFindSessions
 
 	struct Result
 	{
-		TArray<TSharedRef<const FSession>> FoundSessions;
+		TArray<FOnlineSessionIdHandle> FoundSessionIds;
 	};
 };
 
@@ -407,9 +388,7 @@ struct FStartMatchmaking
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
 
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -434,9 +413,7 @@ struct FJoinSession
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
 
-		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -553,6 +530,9 @@ struct FRegisterPlayers
 
 	struct Params
 	{
+		/* The local user agent */
+		FAccountId LocalUserId;
+
 		/* The local name for the session. */
 		FName SessionName;
 
@@ -574,6 +554,9 @@ struct FUnregisterPlayers
 
 	struct Params
 	{
+		/* The local user agent */
+		FAccountId LocalUserId;
+
 		/* The local name for the session. */
 		FName SessionName;
 
@@ -597,9 +580,7 @@ struct FSessionJoined
 	TArray<FAccountId> LocalUserIds;
 
 	/* A shared reference to the session joined. */
-	TSharedRef<const FSession> Session;
-
-	FSessionJoined() = delete; // cannot default construct due to TSharedRef
+	FOnlineSessionIdHandle SessionId;
 };
 
 struct FSessionLeft
@@ -610,13 +591,11 @@ struct FSessionLeft
 
 struct FSessionUpdated
 {
-	/* Reference to the updated session object */
-	TSharedRef<const FSession> UpdatedSession;
+	/* Local name for the updated session object */
+	FName SessionName;
 
 	/* Updated session settings */
 	FSessionSettingsUpdate UpdatedSettings;
-
-	FSessionUpdated() = delete; // cannot default construct due to TSharedRef
 };
 
 struct FSessionInviteReceived
@@ -627,7 +606,7 @@ struct FSessionInviteReceived
 	/** The session invite the local user was sent, or the online error if there was a failure retrieving the session for it*/
 	TSharedRef<const FSessionInvite> SessionInvite;
 
-	FSessionInviteReceived() = delete; // cannot default construct due to TSharedRef
+	FSessionInviteReceived() = delete; // cannot default construct due to TSharedRef. TODO: Add a GetSessionInvite method and return an id here
 };
 
 /** Session join requested source */
@@ -646,13 +625,13 @@ struct FUISessionJoinRequested
 	/** The local user associated with the join request. */
 	FAccountId LocalUserId;
 
-	/** The session the local user requested to join, or the online error if there was a failure retrieving it */
-	TResult<TSharedRef<const FSession>, FOnlineError> Result;
+	/** The id for the session the local user requested to join, or the online error if there was a failure retrieving it */
+	TResult<FOnlineSessionIdHandle, FOnlineError> Result;
 
 	/** Join request source */
 	EUISessionJoinRequestedSource JoinRequestedSource = EUISessionJoinRequestedSource::Unspecified;
 
-	FUISessionJoinRequested() = delete; // cannot default construct due to TSharedRef
+	FUISessionJoinRequested() = delete; // cannot default construct due to TResult
 };
 
 class ISessions
@@ -910,14 +889,14 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FSession)
 	ONLINE_STRUCT_FIELD(FSession, OwnerUserId),
 	ONLINE_STRUCT_FIELD(FSession, SessionId),
-	ONLINE_STRUCT_FIELD(FSession, CurrentState),
 	ONLINE_STRUCT_FIELD(FSession, SessionSettings)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionInvite)
+	ONLINE_STRUCT_FIELD(FSessionInvite, RecipientId),
 	ONLINE_STRUCT_FIELD(FSessionInvite, SenderId),
 	ONLINE_STRUCT_FIELD(FSessionInvite, InviteId),
-	ONLINE_STRUCT_FIELD(FSessionInvite, Session)
+	ONLINE_STRUCT_FIELD(FSessionInvite, SessionId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAllSessions::Params)
@@ -929,7 +908,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionByName::Params)
 	ONLINE_STRUCT_FIELD(FGetSessionByName::Params, LocalName)
-	END_ONLINE_STRUCT_META()
+END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionByName::Result)
 	ONLINE_STRUCT_FIELD(FGetSessionByName::Result, Session)
@@ -952,7 +931,6 @@ BEGIN_ONLINE_STRUCT_META(FCreateSession::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateSession::Result)
-	ONLINE_STRUCT_FIELD(FCreateSession::Result, Session)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdateSession::Params)
@@ -962,7 +940,6 @@ BEGIN_ONLINE_STRUCT_META(FUpdateSession::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdateSession::Result)
-	ONLINE_STRUCT_FIELD(FUpdateSession::Result, Session)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLeaveSession::Params)
@@ -985,7 +962,7 @@ BEGIN_ONLINE_STRUCT_META(FFindSessions::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FFindSessions::Result)
-	ONLINE_STRUCT_FIELD(FFindSessions::Result, FoundSessions)
+	ONLINE_STRUCT_FIELD(FFindSessions::Result, FoundSessionIds)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Params)
@@ -997,7 +974,6 @@ BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Result)
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Result, Session)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Params)
@@ -1008,7 +984,6 @@ BEGIN_ONLINE_STRUCT_META(FJoinSession::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Result)
-	ONLINE_STRUCT_FIELD(FJoinSession::Result, Session)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAddSessionMembers::Params)
@@ -1057,6 +1032,7 @@ BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRegisterPlayers::Params)
+	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, TargetUsers),
 	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, bReserveSlot)
@@ -1066,6 +1042,7 @@ BEGIN_ONLINE_STRUCT_META(FRegisterPlayers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUnregisterPlayers::Params)
+	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, TargetUsers),
 	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, bRemoveUnregisteredPlayers)

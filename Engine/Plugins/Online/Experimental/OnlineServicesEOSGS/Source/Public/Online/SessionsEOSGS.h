@@ -129,6 +129,8 @@ struct FUpdateSessionImpl
 
 	struct Result
 	{
+		/** EOSGS Session Id for the created or modified session */
+		FString NewSessionId;
 	};
 };
 
@@ -252,19 +254,19 @@ protected:
 	FOnlineSessionInviteIdHandle CreateSessionInviteId(const FString& SessionInviteId) const;
 
 	/**
-	 * Builds a session from an invite id, using the class' Sessions Handle
-	 */
-	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromInvite(const FString& InInviteId) const;
-
-	/**
-	 * Builds a session from a UI event id, using the class' Sessions Handle
-	 */
-	TResult<TSharedRef<const FSession>, FOnlineError> BuildSessionFromUIEvent(const EOS_UI_EventId& UIEventId) const;
-
-	/**
 	 * Builds a session from an EOS Session Details Handle. Asynchronous due to the id resolution process
 	 */
 	TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> BuildSessionFromDetailsHandle(FBuildSessionFromDetailsHandle::Params&& Params);
+
+	/**
+	 * Builds a session from an invite id, calling BuildSessionFromDetailsHandle
+	 */
+	TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> BuildSessionFromInvite(const FAccountId& LocalUserId, const FString& InInviteId);
+
+	/**
+	 * Builds a session from a UI event id, calling BuildSessionFromDetailsHandle
+	 */
+	TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> BuildSessionFromUIEvent(const FAccountId& LocalUserId, const EOS_UI_EventId& UIEventId);
 
 private:
 	// FSessionsLAN
@@ -278,7 +280,7 @@ protected:
 	EOSEventRegistrationPtr OnSessionInviteAcceptedEventRegistration;
 	EOSEventRegistrationPtr OnJoinSessionAcceptedEventRegistration;
 
-	TSharedPtr<FSessionSearchHandleEOSGS> CurrentSessionSearchHandleEOSGS;
+	TMap<FAccountId, TSharedRef<FSessionSearchHandleEOSGS>> CurrentSessionSearchHandleEOSGSUserMap;
 };
 
 namespace Meta {
@@ -296,6 +298,7 @@ BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Result)
+	ONLINE_STRUCT_FIELD(FUpdateSessionImpl::Result, NewSessionId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSingleSessionInviteImpl::Params)

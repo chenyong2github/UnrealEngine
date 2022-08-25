@@ -127,6 +127,40 @@ public:
 	TOnlineBasicSessionInviteIdRegistry<FString> BasicRegistry;
 };
 
+struct FGetMutableSessionByName
+{
+	static constexpr TCHAR Name[] = TEXT("GetMutableSessionByName");
+
+	struct Params
+	{
+		FName LocalName;
+	};
+
+	struct Result
+	{
+		TSharedRef<FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
+	};
+};
+
+struct FGetMutableSessionById
+{
+	static constexpr TCHAR Name[] = TEXT("GetMutableSessionById");
+
+	struct Params
+	{
+		FOnlineSessionIdHandle IdHandle;
+	};
+
+	struct Result
+	{
+		TSharedRef<FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
+	};
+};
+
 class ONLINESERVICESCOMMON_API FSessionsCommon : public TOnlineComponent<ISessions>
 {
 public:
@@ -163,6 +197,12 @@ public:
 	virtual TOnlineEvent<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested() override;
 
 protected:
+	TOnlineResult<FGetMutableSessionByName> GetMutableSessionByName(FGetMutableSessionByName::Params&& Params) const;
+	TOnlineResult<FGetMutableSessionById> GetMutableSessionById(FGetMutableSessionById::Params&& Params) const;
+
+	void ClearSessionByName(const FName& SessionName);
+	void ClearSessionById(const FOnlineSessionIdHandle& SessionId);
+
 	TOnlineResult<FAddSessionMembers> AddSessionMembersImpl(const FAddSessionMembers::Params& Params);
 	TOnlineResult<FRemoveSessionMembers> RemoveSessionMembersImpl(const FRemoveSessionMembers::Params& Params);
 
@@ -198,7 +238,7 @@ protected:
 	FOnlineError CheckUnregisterPlayersState(const FUnregisterPlayers::Params& Params);
 
 private:
-	TOptional<FOnlineError> CheckSessionExistsByName(const FName& SessionName);
+	TOptional<FOnlineError> CheckSessionExistsByName(const FAccountId& LocalUserId, const FName& SessionName);
 
 protected:
 
@@ -211,15 +251,46 @@ protected:
 		TOnlineEventCallable<void(const FUISessionJoinRequested&)> OnUISessionJoinRequested;
 	} SessionEvents;
 
+	/** Map of named sessions a user is part of, indexed by user */
+	TMap<FAccountId, TArray<FName>> NamedSessionUserMap;
+
 	/** Map of sessions that local users are part of, indexed by their local name */
-	TMap<FName, TSharedRef<FSession>> LocalSessionsByName;
-	/** Cache for the last set of session search results, mapped per user */
-	TMap<FAccountId, TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>> SessionSearchResultsUserMap;
+	TMap<FName, FOnlineSessionIdHandle> LocalSessionsByName;
+
+	/** Map of sessions that local users have set as their presence session to appear in the platform UI. A user may not have set any session as their presence session. */
+	TMap<FAccountId, FOnlineSessionIdHandle> PresenceSessionsUserMap;
+
 	/** Cache for received session invites, mapped per user */
 	TMap<FAccountId, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
 
-	TSharedPtr<FFindSessions::Result> CurrentSessionSearch;
-	TSharedPtr<TOnlineAsyncOp<FFindSessions>> CurrentSessionSearchHandle;
+	/** Cache for the last set of session search results, mapped per user */
+	TMap<FAccountId, TArray<FOnlineSessionIdHandle>> SearchResultsUserMap;
+
+	/** Handle for an ongoing session search operation, mapped per user */
+	TMap<FAccountId, TSharedRef<TOnlineAsyncOp<FFindSessions>>> CurrentSessionSearchHandlesUserMap;
+
+	/** Set of every distinct FSession found, indexed by Id */
+	TMap<FOnlineSessionIdHandle, TSharedRef<FSession>> AllSessionsById;
 };
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FGetMutableSessionByName::Params)
+	ONLINE_STRUCT_FIELD(FGetMutableSessionByName::Params, LocalName)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetMutableSessionByName::Result)
+	ONLINE_STRUCT_FIELD(FGetMutableSessionByName::Result, Session)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetMutableSessionById::Params)
+	ONLINE_STRUCT_FIELD(FGetMutableSessionById::Params, IdHandle)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetMutableSessionById::Result)
+	ONLINE_STRUCT_FIELD(FGetMutableSessionById::Result, Session)
+END_ONLINE_STRUCT_META()
+
+/* Meta*/ }
 
 /* UE::Online */ }

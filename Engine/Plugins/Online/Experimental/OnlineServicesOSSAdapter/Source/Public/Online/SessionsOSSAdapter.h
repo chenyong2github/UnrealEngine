@@ -63,9 +63,6 @@ public:
 	virtual void Shutdown() override;
 
 	// ISessions
-	virtual TOnlineResult<FGetAllSessions> GetAllSessions(FGetAllSessions::Params&& Params) const override;
-	virtual TOnlineResult<FGetSessionByName> GetSessionByName(FGetSessionByName::Params&& Params) const override;
-	virtual TOnlineResult<FGetSessionById> GetSessionById(FGetSessionById::Params&& Params) const override;
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
@@ -92,7 +89,7 @@ private:
 	/** Builds a V2 Session data type from a V1 equivalent */
 	TSharedRef<FSession> BuildV2Session(const FOnlineSession* InSession) const;
 	/** Builds a V2 Session Search Results array from the passed V1 equivalent types */
-	TArray<TSharedRef<const FSession>> BuildV2SessionSearchResults(const TArray<FOnlineSessionSearchResult>& SessionSearchResults) const;
+	TArray<TSharedRef<FSession>> BuildV2SessionSearchResults(const TArray<FOnlineSessionSearchResult>& SessionSearchResults) const;
 
 	FOnlineSessionIdRegistryOSSAdapter& GetSessionIdRegistry() const;
 	FOnlineSessionInviteIdRegistryOSSAdapter& GetSessionInviteIdRegistry() const;
@@ -100,9 +97,6 @@ private:
 protected:
 	IOnlineSessionPtr SessionsInterface;
 	IOnlineIdentityPtr IdentityInterface;
-
-	/** Record of all names for registered sessions. Needed for session retrieval methods */
-	TSet<FName> RegisteredSessionNames;
 
 	/** Cache of session search information to be used by ongoing session searches, indexed per user. Entries are removed upon search completion. */
 	TMap<FAccountId, TSharedRef<FOnlineSessionSearch>> PendingV1SessionSearchesPerUser;

@@ -41,7 +41,7 @@ namespace UE::Online {
 	{
 		FGetAllSessions::Result Result;
 
-		for (const TPair<FName, TSharedRef<FSession>>& SessionPair : LocalSessionsByName)
+		for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSession>>& SessionPair : AllSessionsById)
 		{
 			Result.Sessions.Add(SessionPair.Value);
 		}
@@ -51,38 +51,28 @@ namespace UE::Online {
 
 	TOnlineResult<FGetSessionByName> FSessionsCommon::GetSessionByName(FGetSessionByName::Params&& Params) const
 	{
-		if (const TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.LocalName))
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.LocalName });
+		if (GetMutableSessionByNameResult.IsOk())
 		{
-			return TOnlineResult<FGetSessionByName>({ *FoundSession });
+			return TOnlineResult<FGetSessionByName>({ GetMutableSessionByNameResult.GetOkValue().Session });
 		}
 		else
 		{
-			return TOnlineResult<FGetSessionByName>(Errors::NotFound());
-		}
+			return TOnlineResult<FGetSessionByName>(GetMutableSessionByNameResult.GetErrorValue());
+		}	
 	}
 
 	TOnlineResult<FGetSessionById> FSessionsCommon::GetSessionById(FGetSessionById::Params&& Params) const
 	{
-		if (const TMap<FOnlineSessionIdHandle, TSharedRef<FSession>>* UserMap = SessionSearchResultsUserMap.Find(Params.LocalUserId))
+		TOnlineResult<FGetMutableSessionById> GetMutableSessionByIdResult = GetMutableSessionById({ Params.IdHandle });
+		if (GetMutableSessionByIdResult.IsOk())
 		{
-			if (const TSharedRef<FSession>* FoundSession = UserMap->Find(Params.IdHandle))
-			{
-				return TOnlineResult<FGetSessionById>({ *FoundSession });
-			}
+			return TOnlineResult<FGetSessionById>({ GetMutableSessionByIdResult.GetOkValue().Session });
 		}
-
-		if (const TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(Params.LocalUserId))
+		else
 		{
-			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
-			{
-				if (Entry.Value->Session->SessionId == Params.IdHandle)
-				{
-					return TOnlineResult<FGetSessionById>({ Entry.Value->Session });
-				}
-			}
+			return TOnlineResult<FGetSessionById>(GetMutableSessionByIdResult.GetErrorValue());
 		}
-
-		return TOnlineResult<FGetSessionById>({ Errors::NotFound() });
 	}
 
 	TOnlineAsyncOpHandle<FCreateSession> FSessionsCommon::CreateSession(FCreateSession::Params&& Params)
@@ -307,9 +297,88 @@ namespace UE::Online {
 		return SessionEvents.OnUISessionJoinRequested;
 	}
 
+	TOnlineResult<FGetMutableSessionByName> FSessionsCommon::GetMutableSessionByName(FGetMutableSessionByName::Params&& Params) const
+	{
+		if (const FOnlineSessionIdHandle* SessionIdHandle = LocalSessionsByName.Find(Params.LocalName))
+		{
+			check(AllSessionsById.Contains(*SessionIdHandle));
+
+			return TOnlineResult<FGetMutableSessionByName>({ AllSessionsById.FindChecked(*SessionIdHandle) });
+		}
+		else
+		{
+			return TOnlineResult<FGetMutableSessionByName>(Errors::NotFound());
+		}
+	}
+
+	TOnlineResult<FGetMutableSessionById> FSessionsCommon::GetMutableSessionById(FGetMutableSessionById::Params&& Params) const
+	{
+		if (const TSharedRef<FSession>* FoundSession = AllSessionsById.Find(Params.IdHandle))
+		{
+			return TOnlineResult<FGetMutableSessionById>({ *FoundSession });
+		}
+		else
+		{
+			return TOnlineResult<FGetMutableSessionById>(Errors::NotFound());
+		}
+	}
+
+	void FSessionsCommon::ClearSessionByName(const FName& SessionName)
+	{
+		for (const TPair<FAccountId, TArray<FName>>& Entry : NamedSessionUserMap)
+		{
+			if (Entry.Value.Contains(SessionName))
+			{
+				return;
+			}
+		}
+
+		// If no references were found, we'll remove the named session entry
+		LocalSessionsByName.Remove(SessionName);
+	}
+
+	void FSessionsCommon::ClearSessionById(const FOnlineSessionIdHandle& SessionId)
+	{
+		// PresenceSessionsUserMap is not evaluated, since any session there would also be in LocalSessionsByName
+		for (const TPair<FName, FOnlineSessionIdHandle>& Entry : LocalSessionsByName)
+		{
+			if (Entry.Value == SessionId)
+			{
+				return;
+			}
+		}
+
+		for (const TPair<FAccountId, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>>& Entry : SessionInvitesUserMap)
+		{
+			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& InviteMap : Entry.Value)
+			{
+				if (InviteMap.Value->SessionId == SessionId)
+				{
+					return;
+				}
+			}			
+		}
+
+		for (const TPair<FAccountId, TArray<FOnlineSessionIdHandle>>& Entry : SearchResultsUserMap)
+		{
+			if (Entry.Value.Contains(SessionId))
+			{
+				return;
+			}
+		}
+
+		// If no references were found, we'll remove the session entry
+		AllSessionsById.Remove(SessionId);
+	}
+
 	TOnlineResult<FAddSessionMembers> FSessionsCommon::AddSessionMembersImpl(const FAddSessionMembers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
+		if (GetMutableSessionByNameResult.IsError())
+		{
+			return TOnlineResult<FAddSessionMembers>(GetMutableSessionByNameResult.GetErrorValue());
+		}
+		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -344,7 +413,7 @@ namespace UE::Online {
 			}
 			else if (Params.bRegisterPlayers) // If it wasn't and the parameters dictate it, we'll register them with a reserved slot
 			{
-				FRegisterPlayers::Params RegisterPlayerParams = { Params.SessionName, { SessionMemberId }, true };
+				FRegisterPlayers::Params RegisterPlayerParams = { Params.LocalUserId, Params.SessionName, { SessionMemberId }, true };
 
 				TOnlineResult<FRegisterPlayers> Result = RegisterPlayersImpl(RegisterPlayerParams);
 				if (Result.IsError())
@@ -374,7 +443,12 @@ namespace UE::Online {
 
 	TOnlineResult<FRemoveSessionMembers> FSessionsCommon::RemoveSessionMembersImpl(const FRemoveSessionMembers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
+		if (GetMutableSessionByNameResult.IsError())
+		{
+			return TOnlineResult<FRemoveSessionMembers>(GetMutableSessionByNameResult.GetErrorValue());
+		}
+		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -382,7 +456,7 @@ namespace UE::Online {
 		{
 			if (Params.bUnregisterPlayers) // If the parameters dictate it, well unregister the player as well
 			{
-				FUnregisterPlayers::Params UnregisterPlayersParams = { Params.SessionName, { SessionMemberId }, false };
+				FUnregisterPlayers::Params UnregisterPlayersParams = { Params.LocalUserId, Params.SessionName, { SessionMemberId }, false };
 
 				TOnlineResult<FUnregisterPlayers> Result = UnregisterPlayersImpl(UnregisterPlayersParams);
 				if (Result.IsError())
@@ -416,7 +490,12 @@ namespace UE::Online {
 
 	TOnlineResult<FRegisterPlayers> FSessionsCommon::RegisterPlayersImpl(const FRegisterPlayers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
+		if (GetMutableSessionByNameResult.IsError())
+		{
+			return TOnlineResult<FRegisterPlayers>(GetMutableSessionByNameResult.GetErrorValue());
+		}
+		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -455,7 +534,12 @@ namespace UE::Online {
 
 	TOnlineResult<FUnregisterPlayers> FSessionsCommon::UnregisterPlayersImpl(const FUnregisterPlayers::Params& Params)
 	{
-		TSharedRef<FSession> FoundSession = LocalSessionsByName.FindChecked(Params.SessionName);
+		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ Params.SessionName });
+		if (GetMutableSessionByNameResult.IsError())
+		{
+			return TOnlineResult<FUnregisterPlayers>(GetMutableSessionByNameResult.GetErrorValue());
+		}
+		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -518,6 +602,13 @@ namespace UE::Online {
 			return Errors::InvalidParams();
 		}
 
+		if (!Params.LocalUsers.Contains(Params.LocalUserId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with name [%s]. Missing Session Member info for user [%s]"), *Params.SessionName.ToString(), *ToLogString(Params.LocalUserId));
+
+			return Errors::InvalidParams();
+		}
+
 		if (Params.SessionSettings.NumMaxPrivateConnections == 0 && Params.SessionSettings.NumMaxPublicConnections == 0)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with name [%s] with no valid NumMaxPrivateConnections [%d] or NumMaxPublicConnections [%d]"), *Params.SessionName.ToString(), Params.SessionSettings.NumMaxPrivateConnections, Params.SessionSettings.NumMaxPublicConnections);
@@ -530,7 +621,8 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckCreateSessionState(const FCreateSession::Params& Params)
 	{
-		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
+		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
+		if (GetSessionByNameResult.IsError())
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
 
@@ -539,13 +631,17 @@ namespace UE::Online {
 
 		if (Params.SessionSettings.bPresenceEnabled)
 		{
-			for (const TPair<FName, TSharedRef<FSession>>& Entry : LocalSessionsByName)
+			for (const TPair<FName, FOnlineSessionIdHandle>& Entry : LocalSessionsByName)
 			{
-				if (Entry.Value->SessionSettings.bPresenceEnabled)
+				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.LocalUserId, Entry.Value });
+				if (GetSessionByIdResult.IsOk())
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), *Entry.Key.ToString());
+					if (GetSessionByIdResult.GetOkValue().Session->SessionSettings.bPresenceEnabled)
+					{
+						UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), *Entry.Key.ToString());
 
-					return Errors::InvalidState();
+						return Errors::InvalidState();
+					}
 				}
 			}
 		}
@@ -572,9 +668,12 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckUpdateSessionState(const FUpdateSession::Params& Params)
 	{
-		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
+		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
+		if (GetSessionByNameResult.IsOk())
 		{
-			if (!FoundSession->Get().SessionSettings.bIsDedicatedServerSession)
+			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+
+			if (!FoundSession->SessionSettings.bIsDedicatedServerSession)
 			{
 				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalUserId))
 				{
@@ -588,7 +687,7 @@ namespace UE::Online {
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUpdateSessionState] Could not update session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
-			return Errors::NotFound();
+			return GetSessionByNameResult.GetErrorValue();
 		}
 
 		return Errors::Success();
@@ -617,7 +716,7 @@ namespace UE::Online {
 		}
 
 		// Ongoing search check
-		if (CurrentSessionSearch.IsValid())
+		if (const TSharedRef<TOnlineAsyncOp<FFindSessions>>* CurrentSessionSearchHandle = CurrentSessionSearchHandlesUserMap.Find(Params.LocalUserId))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckFindSessionsState] Could not find sessions, search already in progress"));
 
@@ -642,7 +741,8 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckStartMatchmakingState(const FStartMatchmaking::Params& Params)
 	{
 		// Check if a session with that name already exists
-		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
+		TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName);
+		if (!Result.IsSet()) // If CheckSessionExistsByName did not return an error, a session with that name already exists
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
 
@@ -707,7 +807,8 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckJoinSessionState(const FJoinSession::Params& Params)
 	{
 		// Check if a session with that name already exists
-		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
+		TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName);
+		if (!Result.IsSet()) // If CheckSessionExistsByName did not return an error, a session with that name already exists
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
 
@@ -743,13 +844,6 @@ namespace UE::Online {
 		TSharedRef<const FSession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
 		const FSessionSettings& SessionSettings = FoundSession->SessionSettings;
-
-		if (FoundSession->CurrentState != ESessionState::Valid)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session with invalid session state [%s]"), LexToString(FoundSession->CurrentState));
-
-			return Errors::InvalidParams();
-		}
 
 		for (const FAccountId& LocalUserId : LocalUserIds)
 		{
@@ -800,7 +894,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckAddSessionMembersState(const FAddSessionMembers::Params& Params)
 	{
-		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckAddSessionMembersState] Could not add session member to session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
@@ -814,7 +908,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckRemoveSessionMembersState(const FRemoveSessionMembers::Params& Params)
 	{
-		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckRemoveSessionMembersState] Could not remove session member from session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
@@ -827,11 +921,11 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckLeaveSessionState(const FLeaveSession::Params& Params)
 	{
 		// User login check for main caller, session check
-		if (!LocalSessionsByName.Contains(Params.SessionName))
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckLeaveSessionState] Could not leave session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
-			return Errors::NotFound();
+			return Result.GetValue();
 		}
 
 		IAuthPtr Auth = Services.GetAuthInterface();
@@ -853,9 +947,12 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckSendSessionInviteState(const FSendSessionInvite::Params& Params)
 	{
 		// User login check for main caller, session check
-		if (TSharedRef<FSession>* FoundSession = LocalSessionsByName.Find(Params.SessionName))
+		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
+		if (GetSessionByNameResult.IsOk())
 		{
-			if (!FoundSession->Get().SessionSettings.bIsDedicatedServerSession)
+			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+
+			if (!FoundSession->SessionSettings.bIsDedicatedServerSession)
 			{
 				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalUserId))
 				{
@@ -893,7 +990,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckRegisterPlayersState(const FRegisterPlayers::Params& Params)
 	{
-		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		if (TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckRegisterPlayersState] Could not register players in session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
@@ -907,7 +1004,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckUnregisterPlayersState(const FUnregisterPlayers::Params& Params)
 	{
-		if(TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionName))
+		if(TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalUserId, Params.SessionName))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckUnregisterPlayersState] Could not unregister players from session with name [%s]. Session not found"), *Params.SessionName.ToString());
 
@@ -918,13 +1015,14 @@ namespace UE::Online {
 	}
 
 	// TODO: Have all Check methods return TOptional too, change call sites, and write Macro for repeating code structure
-	TOptional<FOnlineError> FSessionsCommon::CheckSessionExistsByName(const FName& SessionName)
+	TOptional<FOnlineError> FSessionsCommon::CheckSessionExistsByName(const FAccountId& LocalUserId, const FName& SessionName)
 	{
 		TOptional<FOnlineError> Result;
 
-		if (!LocalSessionsByName.Contains(SessionName))
+		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ SessionName });
+		if (GetSessionByNameResult.IsError())
 		{
-			Result.Emplace(Errors::NotFound());
+			Result.Emplace(GetSessionByNameResult.GetErrorValue());
 		}
 
 		return Result;

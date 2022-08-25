@@ -4,53 +4,6 @@
 
 namespace UE::Online {
 
-const TCHAR* LexToString(ESessionState Value)
-{
-	switch (Value)
-	{
-	case ESessionState::Creating:	return TEXT("Creating");
-	case ESessionState::Joining:	return TEXT("Joining");
-	case ESessionState::Valid:		return TEXT("Valid");
-	case ESessionState::Leaving:	return TEXT("Leaving");
-	case ESessionState::Destroying:	return TEXT("Destroying");
-	default:						checkNoEntry(); // Intentional fallthrough
-	case ESessionState::Invalid:	return TEXT("Invalid");
-	}
-}
-
-void LexFromString(ESessionState& Value, const TCHAR* InStr)
-{
-	if (FCString::Stricmp(InStr, TEXT("Invalid")) == 0)
-	{
-		Value = ESessionState::Invalid;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Creating")) == 0)
-	{
-		Value = ESessionState::Creating;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Joining")) == 0)
-	{
-		Value = ESessionState::Joining;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Valid")) == 0)
-	{
-		Value = ESessionState::Valid;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Leaving")) == 0)
-	{
-		Value = ESessionState::Leaving;
-	}
-	else if (FCString::Stricmp(InStr, TEXT("Destroying")) == 0)
-	{
-		Value = ESessionState::Destroying;
-	}
-	else
-	{
-		checkNoEntry();
-		Value = ESessionState::Invalid;
-	}
-}
-
 const TCHAR* LexToString(ESessionJoinPolicy Value)
 {
 	switch (Value)
@@ -242,7 +195,6 @@ FSession::FSession()
 FSession::FSession(const FSession& InSession)
 	: OwnerUserId(InSession.OwnerUserId)
 	, SessionId(InSession.SessionId)
-	, CurrentState(InSession.CurrentState)
 	, SessionSettings(InSession.SessionSettings)
 {
 

@@ -219,7 +219,6 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSession& Session)
 {
 	// Session.OwnerUserId will be deserialized in implementations as user id types will vary
 	// Session.SessionId will be deserialized in implementations as user id types will vary
-	Session.CurrentState = ESessionState::Valid;
 	SerializeFromBuffer(Packet, Session.SessionSettings);
 }
 
