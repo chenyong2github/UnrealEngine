@@ -3,7 +3,8 @@
 import { AppInterface, Handler, WebRequest } from './webserver'
 import { setDefault } from './helper'
 
-const posted = new Map<string, number[]>()
+// channel -> target -> changes
+const posted = new Map<string, Map<string, number[]>>()
 
 
 export class DummySlackApp implements AppInterface {
@@ -14,17 +15,30 @@ export class DummySlackApp implements AppInterface {
 	@Handler('POST', '/api/*')
 	post(command: string) {
 		// @todo (maybe) construct app with logger
-		console.log('POST', command, this.req.reqData)
 
 		const data = this.req.reqData
 		if (!data) {
 			throw new Error('Nothing to post!')
 		}
 		const clMatch = data.match(/changes\/(\d+)\|\d+/)
-		if (clMatch) {
-			const channel = JSON.parse(data).channel
-			console.log(JSON.parse(data).channel, clMatch[1])
-			setDefault(posted, channel, []).push(parseInt(clMatch[1]))
+		const edgeMatch = data.match(/"(\w+) -> (\w+)"/)
+		if (clMatch && edgeMatch) {
+			let dataObj: any
+			try {
+				dataObj = JSON.parse(data)
+			}
+			catch (exc) {
+				console.log('Non-JSON sent to dummy-slack: ', data)
+				return
+			}
+
+			setDefault(
+				setDefault(posted, dataObj.channel, new Map),
+				edgeMatch[2], []
+			).push(parseInt(clMatch[1]))
+		}
+		else {
+			console.log('dummy-slack POST: cl or edge not found', command, this.req.reqData)
 		}
 
 		// look for color for block or resolve?
@@ -34,7 +48,6 @@ export class DummySlackApp implements AppInterface {
 
 	@Handler('GET', '/posted/*')
 	channelMessages(channel: string) {
-		console.log('GET POSTED!!!', channel, posted.size, posted.get(channel))
-		return posted.get(channel) || []
+		return [...(posted.get(channel) || [])]
 	}
 }

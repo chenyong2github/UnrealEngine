@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 import { P4Util } from '../framework'
-import { EdgeState } from '../BranchState'
 import { MultipleDevAndReleaseTestBase } from '../MultipleDevAndReleaseTestBase'
 
 
@@ -34,28 +33,11 @@ export class MultipleConflicts extends MultipleDevAndReleaseTestBase {
 			this.checkHeadRevision('Dev-Perkin', 'test.uasset', 2),
 			this.checkHeadRevision('Dev-Pootle', 'test.uasset', 2),
 			this.verifyAndPerformStomp('Main', 'Dev-Pootle', 'Pootle'),
-			async () => {
-				const edgeState: EdgeState = await this.getEdgeState('Main', 'Dev-Perkin')
-				const conflictCl = edgeState.conflict && edgeState.conflict.change
-				if (!conflictCl) {
-					throw new Error('no conflict cl in edge state')
-				}
-
-				const results = await Promise.all([
-					this.wasMessagePostedToSlack(this.botName.toLowerCase(), conflictCl),
-					this.wasMessagePostedToSlack('Pootle', conflictCl)
-				])
-				if (!results[0]) {
-					throw new Error('Expected message!') // todo: details
-				}
-
-				if (results[1]) {
-					throw new Error('Not expecting message!') // todo: details
-				}
-			}
+			this.ensureConflictMessagePostedToSlack('Main', 'Dev-Perkin'),
+			this.ensureNoConflictMessagePostedToSlack('Main', 'Dev-Perkin', 'Pootle')
 		])
 
-		// Give RM plenty of time to stomp and merge all those test.uasset revisions 
+		// Wait for RM to stomp and merge all those test.uasset revisions 
 		await this.waitForRobomergeIdle()
 
 		await Promise.all([
