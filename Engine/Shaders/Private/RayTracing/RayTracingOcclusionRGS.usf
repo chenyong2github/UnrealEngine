@@ -4,7 +4,7 @@
 #define RAY_TRACING_OCCLUSION_RGS_VERSION 0x8219847B
 
 // Strata use view's resources to read & trace shadow ray
-#define STRATA_USES_RESOURCE_MATERIALCONTAINER 1
+#define STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE 1
 
 #include "../Common.ush"
 #include "../MonteCarlo.ush"

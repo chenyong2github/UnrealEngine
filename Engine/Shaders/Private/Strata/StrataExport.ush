@@ -10,8 +10,8 @@
 #error MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING must be defined before including StrataExport.ush
 #endif
 
-#ifndef STRATA_USES_RESOURCE_MATERIALCONTAINER
-#define STRATA_USES_RESOURCE_MATERIALCONTAINER must be defined from Strata.ush before including StrataExport.ush
+#ifndef STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
+#error STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE must be defined from Strata.ush before including StrataExport.ush
 #endif
 
 #if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
@@ -96,7 +96,7 @@ float3 StrataGetBSDFPrecomputedLighting(
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 void PackStrataOut(
 	inout FRWStrataMaterialContainer StrataBuffer,
-#if STRATA_USES_RESOURCE_MATERIALCONTAINER
+#if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 	RWTexture2DArray<uint> ExtraMaterialDataUAV,
 #endif
 	float Dither,
@@ -146,7 +146,7 @@ void PackStrataOut(
 
 		const uint RootOperatorIndex = Strata.OperatorIndex;
 
-	#if STRATA_ADVANCED_DEBUG_ENABLED && STRATA_USES_RESOURCE_MATERIALCONTAINER
+	#if STRATA_ADVANCED_DEBUG_ENABLED && STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 		if (Settings.SliceStoringDebugStrataTree > -1)
 		{
 			StrataPackOutStrataTree(ExtraMaterialDataUAV, RootOperatorIndex, StrataTree, Settings.SliceStoringDebugStrataTree);

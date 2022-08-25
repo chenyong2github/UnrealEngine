@@ -70,8 +70,9 @@
 #define STRATA_USES_CONVERSION_FROM_LEGACY 0
 #endif
 
-#ifndef STRATA_USES_RESOURCE_MATERIALCONTAINER
-#define STRATA_USES_RESOURCE_MATERIALCONTAINER (!RAYCALLABLESHADER && !RAYHITGROUPSHADER && !RAYGENSHADER && !RAYMISSSHADER)
+// Strata packed data is read either from a view StrataMaterial resource (Texture2DArray) or a RayTracingPayload/
+#ifndef STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
+#define STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE (!RAYCALLABLESHADER && !RAYHITGROUPSHADER && !RAYGENSHADER && !RAYMISSSHADER)
 #endif
 
 #ifndef STRATA_FASTPATH 
@@ -1625,7 +1626,7 @@ struct FRWStrataMaterialContainerStruct
 //	RWTexture2DArray<uint> ExtraMaterialDataUAV; // If this is used, we cannot run shaders on debug...
 };
 
-#if STRATA_USES_RESOURCE_MATERIALCONTAINER
+#if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
 #define FRWStrataMaterialContainer	FRWStrataMaterialContainerStruct
 FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<uint> ExtraMaterialDataUAV)
@@ -1662,7 +1663,7 @@ void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, RWTexture2D
 
 #define STRATA_STORE_UINT1(x)	StrataStoreUint1(StrataBuffer, ExtraMaterialDataUAV, StrataAddressing, x)
 
-#else // STRATA_USES_RESOURCE_MATERIALCONTAINER
+#else // STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
 #define FRWStrataMaterialContainer FStrataRaytracingPayload
 
@@ -1686,7 +1687,7 @@ void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, inout FStra
 
 #define STRATA_STORE_UINT1(x) StrataStoreUint1(StrataBuffer, StrataAddressing, x)
 
-#endif // STRATA_USES_RESOURCE_MATERIALCONTAINER
+#endif // STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
 void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
@@ -1696,7 +1697,7 @@ void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrata
 ///////////////////////////////////////////////////////////////////////////////
 // Material buffer read
 
-#if STRATA_USES_RESOURCE_MATERIALCONTAINER
+#if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
 #define FStrataMaterialContainer Texture2DArray<uint>
 
@@ -1729,7 +1730,7 @@ uint StrataLoadTopLayerData(FStrataTopLayerDataContainer InTopLayerContainer, in
 	return InTopLayerContainer.Load(uint3(StrataAddressing.PixelCoords, 0));
 }
 
-#else // STRATA_USES_RESOURCE_MATERIALCONTAINER
+#else // STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
 #define FStrataMaterialContainer FStrataRaytracingPayload
 
@@ -1753,7 +1754,7 @@ uint StrataLoadTopLayerData(FStrataTopLayerDataContainer Container, inout FStrat
 	return Container.PackedTopLayerData;
 }
 
-#endif // STRATA_USES_RESOURCE_MATERIALCONTAINER
+#endif // STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
 ///////////////////////////////////////////////////////////////////////////////
 // Shared local bases
@@ -1847,7 +1848,7 @@ void SetCastContactShadow (inout FStrataPixelHeader Out, bool bIn)							{ Out.S
 void SetDynamicIndirectShadowCasterRepresentation(inout FStrataPixelHeader Out, bool bIn)	{ Out.State |= (bIn ? HEADER_MASK_HASDYNINDIRECTSHADOWCASTER : 0u); }
 void SetHasSubsurface(inout FStrataPixelHeader Out, bool bIn)								{ Out.State |= (bIn ? HEADER_MASK_HASSUBSURFACE : 0u); }
 
-#if STRATA_DEFERRED_SHADING
+#if STRATA_DEFERRED_SHADING && STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 // Some compiler complains that FStrataPixelHeader is not completely initialised, Initialise with dummy resource seems to work when unused in code.
 FStrataMaterialContainer DummyStrataBuffer;
 #endif
@@ -1862,7 +1863,9 @@ FStrataPixelHeader InitialiseStrataPixelHeader()
 	Out.IrradianceAO = InitIrradianceAndOcclusion();
 #endif
 #if STRATA_DEFERRED_SHADING
+#if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 	Out.StrataBuffer = DummyStrataBuffer;
+#endif
 	Out.SharedLocalBasesIndexOffset = 0;
 	Out.SharedLocalBasesTypes_PackedHeader = 0;
 	Out.PackedTopLayerData = 0;
