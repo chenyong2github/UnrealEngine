@@ -207,7 +207,15 @@ void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilde
 
 			Track->Modify();
 
-			NewSection->SetRange(TRange<FFrameNumber>(CurrentTime.Time.FrameNumber, PlaybackEnd));
+			FFrameNumber NewSectionRangeEnd = PlaybackEnd;
+			if (PlaybackEnd <= CurrentTime.Time.FrameNumber)
+			{
+				const FAnimatedRange ViewRange = Sequencer->GetViewRange();
+				const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+				NewSectionRangeEnd = (ViewRange.GetUpperBoundValue() * TickResolution).FloorToFrame();
+			}
+			
+			NewSection->SetRange(TRange<FFrameNumber>(CurrentTime.Time.FrameNumber, NewSectionRangeEnd));
 			NewSection->SetOverlapPriority(OverlapPriority);
 			NewSection->SetRowIndex(RowIndex);
 			NewSection->SetBlendType(BlendType);
