@@ -141,8 +141,6 @@ void UIKRig_PoleSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCon
 	}
 }
 
-#if WITH_EDITOR
-
 void UIKRig_PoleSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
 	if (UIKRig_PoleSolver* Settings = Cast<UIKRig_PoleSolver>(InSettings))
@@ -150,6 +148,18 @@ void UIKRig_PoleSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		Effector->Alpha = Settings->Effector->Alpha;
 	}
 }
+
+void UIKRig_PoleSolver::RemoveGoal(const FName& GoalName)
+{
+	if (Effector->GoalName == GoalName)
+	{
+		Effector->Modify();
+		Effector->GoalName = NAME_None;
+		Effector->BoneName = NAME_None;
+	}
+}
+
+#if WITH_EDITOR
 
 FText UIKRig_PoleSolver::GetNiceName() const
 {
@@ -190,16 +200,6 @@ void UIKRig_PoleSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 	Effector->Modify();
 	Effector->GoalName = NewGoal.GoalName;
 	Effector->BoneName = NewGoal.BoneName;
-}
-
-void UIKRig_PoleSolver::RemoveGoal(const FName& GoalName)
-{
-	if (Effector->GoalName == GoalName)
-	{
-		Effector->Modify();
-		Effector->GoalName = NAME_None;
-		Effector->BoneName = NAME_None;
-	}
 }
 
 void UIKRig_PoleSolver::RenameGoal(const FName& OldName, const FName& NewName)

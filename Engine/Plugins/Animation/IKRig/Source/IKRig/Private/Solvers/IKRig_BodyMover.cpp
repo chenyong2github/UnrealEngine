@@ -78,8 +78,6 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	IKRigSkeleton.PropagateGlobalPoseBelowBone(BodyBoneIndex);
 }
 
-#if WITH_EDITOR
-
 void UIKRig_BodyMover::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
 	if(UIKRig_BodyMover* Settings = Cast<UIKRig_BodyMover>(InSettings))
@@ -112,6 +110,21 @@ void UIKRig_BodyMover::UpdateSolverSettings(UIKRigSolver* InSettings)
 	}
 }
 
+void UIKRig_BodyMover::RemoveGoal(const FName& GoalName)
+{
+	// ensure goal even exists in this solver
+	const int32 GoalIndex = GetIndexOfGoal(GoalName);
+	if (GoalIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	// remove it
+	Effectors.RemoveAt(GoalIndex);
+}
+
+#if WITH_EDITOR
+
 FText UIKRig_BodyMover::GetNiceName() const
 {
 	return FText(LOCTEXT("SolverName", "Body Mover"));
@@ -140,19 +153,6 @@ void UIKRig_BodyMover::AddGoal(const UIKRigEffectorGoal& NewGoal)
 	NewEffector->GoalName = NewGoal.GoalName;
 	NewEffector->BoneName = NewGoal.BoneName;
 	Effectors.Add(NewEffector);
-}
-
-void UIKRig_BodyMover::RemoveGoal(const FName& GoalName)
-{
-	// ensure goal even exists in this solver
-	const int32 GoalIndex = GetIndexOfGoal(GoalName);
-	if (GoalIndex == INDEX_NONE)
-	{
-		return;
-	}
-
-	// remove it
-	Effectors.RemoveAt(GoalIndex);
 }
 
 void UIKRig_BodyMover::RenameGoal(const FName& OldName, const FName& NewName)

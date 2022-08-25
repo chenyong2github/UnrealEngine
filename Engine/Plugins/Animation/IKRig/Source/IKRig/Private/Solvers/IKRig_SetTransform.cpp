@@ -55,8 +55,6 @@ void UIKRig_SetTransform::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalC
 	IKRigSkeleton.PropagateGlobalPoseBelowBone(BoneIndex);
 }
 
-#if WITH_EDITOR
-
 void UIKRig_SetTransform::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
 	if (UIKRig_SetTransform* Settings = Cast<UIKRig_SetTransform>(InSettings))
@@ -66,6 +64,17 @@ void UIKRig_SetTransform::UpdateSolverSettings(UIKRigSolver* InSettings)
 		Effector->Alpha = Settings->Effector->Alpha;
 	}
 }
+
+void UIKRig_SetTransform::RemoveGoal(const FName& GoalName)
+{
+	if (Goal == GoalName)
+	{
+		Goal = NAME_None;
+		RootBone = NAME_None;
+	}	
+}
+
+#if WITH_EDITOR
 
 FText UIKRig_SetTransform::GetNiceName() const
 {
@@ -86,15 +95,6 @@ void UIKRig_SetTransform::AddGoal(const UIKRigEffectorGoal& NewGoal)
 {
 	Goal = NewGoal.GoalName;
 	RootBone = NewGoal.BoneName;
-}
-
-void UIKRig_SetTransform::RemoveGoal(const FName& GoalName)
-{
-	if (Goal == GoalName)
-	{
-		Goal = NAME_None;
-		RootBone = NAME_None;
-	}	
 }
 
 void UIKRig_SetTransform::RenameGoal(const FName& OldName, const FName& NewName)

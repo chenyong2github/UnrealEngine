@@ -227,14 +227,15 @@ public:
 
 	virtual FName GetRootBone() const override { return RootBone; };
 	virtual void GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) const override;
+
+	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
+	virtual void RemoveGoal(const FName& GoalName) override;
 	
 #if WITH_EDITOR
-	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
 	virtual FText GetNiceName() const override;
 	virtual bool GetWarningMessage(FText& OutWarningMessage) const override;
 	// goals
 	virtual void AddGoal(const UIKRigEffectorGoal& NewGoal) override;
-	virtual void RemoveGoal(const FName& GoalName) override;
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
 	virtual bool IsGoalConnected(const FName& GoalName) const override;

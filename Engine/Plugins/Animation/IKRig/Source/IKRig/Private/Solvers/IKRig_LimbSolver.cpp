@@ -128,8 +128,6 @@ void UIKRig_LimbSolver::Solve(FIKRigSkeleton& InOutRigSkeleton, const FIKRigGoal
 	}
 }
 
-#if WITH_EDITOR
-
 void UIKRig_LimbSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
 	if (UIKRig_LimbSolver* Settings = Cast<UIKRig_LimbSolver>(InSettings))
@@ -146,6 +144,18 @@ void UIKRig_LimbSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		EndBoneForwardAxis = Settings->EndBoneForwardAxis; 
 	}
 }
+
+void UIKRig_LimbSolver::RemoveGoal(const FName& GoalName)
+{
+	if (Effector->GoalName == GoalName)
+	{
+		Effector->Modify();
+		Effector->GoalName = NAME_None;
+		Effector->BoneName = NAME_None;
+	}
+}
+
+#if WITH_EDITOR
 
 FText UIKRig_LimbSolver::GetNiceName() const
 {
@@ -185,16 +195,6 @@ void UIKRig_LimbSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 	Effector->Modify();
 	Effector->GoalName = NewGoal.GoalName;
 	Effector->BoneName = NewGoal.BoneName;
-}
-
-void UIKRig_LimbSolver::RemoveGoal(const FName& GoalName)
-{
-	if (Effector->GoalName == GoalName)
-	{
-		Effector->Modify();
-		Effector->GoalName = NAME_None;
-		Effector->BoneName = NAME_None;
-	}
 }
 
 void UIKRig_LimbSolver::RenameGoal(const FName& OldName, const FName& NewName)
