@@ -132,3 +132,5 @@ void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::AddPropertiesToDet
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
