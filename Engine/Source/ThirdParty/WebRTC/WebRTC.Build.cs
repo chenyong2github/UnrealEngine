@@ -19,7 +19,9 @@ public class WebRTC : ModuleRules
 	{
 		get
 		{
-			return Target.Platform == UnrealTargetPlatform.Win64 || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix);
+			return false 
+				//    || Target.Platform == UnrealTargetPlatform.Win64 // uncomment to enable WebRtc 96 
+				   ;
 		}
 	}
 
