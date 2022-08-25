@@ -22,7 +22,6 @@
 #include "Math/NumericLimits.h"
 #include "BuoyancyManager.h"
 #include "WaterRuntimeSettings.h"
-#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "WaterViewExtension.h"
 
@@ -281,16 +280,12 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		// Store the buoyancy manager we create for future use.
 		BuoyancyManager = World->SpawnActor<ABuoyancyManager>(SpawnInfo);
 	}
-	UCollisionProfile::Get()->OnLoadProfileConfig.AddUObject(this, &UWaterSubsystem::OnLoadProfileConfig);
-	AddWaterCollisionProfile();
 }
 
 void UWaterSubsystem::Deinitialize()
 {
 	UWorld* World = GetWorld();
 	check(World != nullptr);
-
-	UCollisionProfile::Get()->OnLoadProfileConfig.RemoveAll(this);
 
 	FConsoleVariableDelegate NullCallback;
 	CVarShallowWaterSimulationRenderTargetSize->SetOnChangedCallback(NullCallback);
@@ -345,38 +340,6 @@ FWaterBodyManager& UWaterSubsystem::GetWaterBodyManagerInternal()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return WaterBodyManager;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void UWaterSubsystem::AddWaterCollisionProfile()
-{
-	// Make sure WaterCollisionProfileName is added to Engine's collision profiles
-	const FName WaterCollisionProfileName = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
-	FCollisionResponseTemplate WaterBodyCollisionProfile;
-	if (!UCollisionProfile::Get()->GetProfileTemplate(WaterCollisionProfileName, WaterBodyCollisionProfile))
-	{
-		WaterBodyCollisionProfile.Name = WaterCollisionProfileName;
-		WaterBodyCollisionProfile.CollisionEnabled = ECollisionEnabled::QueryOnly;
-		WaterBodyCollisionProfile.ObjectType = ECollisionChannel::ECC_WorldStatic;
-		WaterBodyCollisionProfile.bCanModify = false;
-		WaterBodyCollisionProfile.ResponseToChannels = FCollisionResponseContainer::GetDefaultResponseContainer();
-		WaterBodyCollisionProfile.ResponseToChannels.Camera = ECR_Ignore;
-		WaterBodyCollisionProfile.ResponseToChannels.Visibility = ECR_Ignore;
-		WaterBodyCollisionProfile.ResponseToChannels.WorldDynamic = ECR_Overlap;
-		WaterBodyCollisionProfile.ResponseToChannels.Pawn = ECR_Overlap;
-		WaterBodyCollisionProfile.ResponseToChannels.PhysicsBody = ECR_Overlap;
-		WaterBodyCollisionProfile.ResponseToChannels.Destructible = ECR_Overlap;
-		WaterBodyCollisionProfile.ResponseToChannels.Vehicle = ECR_Overlap;
-#if WITH_EDITORONLY_DATA
-		WaterBodyCollisionProfile.HelpMessage = TEXT("Default Water Collision Profile (Created by Water Plugin)");
-#endif
-		FCollisionProfilePrivateAccessor::AddProfileTemplate(WaterBodyCollisionProfile);
-	}
-}
-
-void UWaterSubsystem::OnLoadProfileConfig(UCollisionProfile* CollisionProfile)
-{
-	check(CollisionProfile == UCollisionProfile::Get());
-	AddWaterCollisionProfile();
 }
 
 bool UWaterSubsystem::IsShallowWaterSimulationEnabled() const

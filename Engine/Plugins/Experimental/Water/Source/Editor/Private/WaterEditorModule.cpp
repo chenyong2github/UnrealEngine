@@ -36,6 +36,8 @@
 #include "WaterBodyBrushCacheContainerThumbnailRenderer.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "WaterWavesEditorToolkit.h"
+#include "Engine/AssetManager.h"
+#include "WaterRuntimeSettings.h"
 
 #define LOCTEXT_NAMESPACE "WaterEditor"
 
@@ -79,12 +81,22 @@ void FWaterEditorModule::StartupModule()
 	}
 
 	UThumbnailManager::Get().RegisterCustomRenderer(UWaterBodyBrushCacheContainer::StaticClass(), UWaterBodyBrushCacheContainerThumbnailRenderer::StaticClass());
+
+	OnLoadCollisionProfileConfigHandle = UCollisionProfile::Get()->OnLoadProfileConfig.AddLambda([this](UCollisionProfile* CollisionProfile)
+		{
+			check(UCollisionProfile::Get() == CollisionProfile);
+			CheckForWaterCollisionProfile();
+		});
+
+	CheckForWaterCollisionProfile();
 }
 
 void FWaterEditorModule::ShutdownModule()
 {
 	if (UObjectInitialized())
 	{
+		UCollisionProfile::Get()->OnLoadProfileConfig.Remove(OnLoadCollisionProfileConfigHandle);
+
 		UThumbnailManager::Get().UnregisterCustomRenderer(UWaterBodyBrushCacheContainer::StaticClass());
 	}
 
@@ -251,6 +263,46 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 				WaterZoneActor->GetWaterMeshComponent()->FarDistanceMeshExtent = WaterMeshActorDefaults.FarDistanceMeshExtent;
 			}
 		}
+	}
+}
+
+void FWaterEditorModule::CheckForWaterCollisionProfile()
+{
+	// Make sure WaterCollisionProfileName is added to Engine's collision profiles
+	const FName WaterCollisionProfileName = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
+	FCollisionResponseTemplate WaterBodyCollisionProfile;
+	if (!UCollisionProfile::Get()->GetProfileTemplate(WaterCollisionProfileName, WaterBodyCollisionProfile))
+	{
+		FMessageLog("LoadErrors").Error()
+			->AddToken(FTextToken::Create(LOCTEXT("MissingWaterCollisionProfile", "Collision Profile settings do not include an entry for the Water Body Collision profile, which is required for water collision to function.")))
+			->AddToken(FActionToken::Create(LOCTEXT("AddWaterCollisionProfile", "Add entry to DefaultEngine.ini?"), FText(),
+				FOnActionTokenExecuted::CreateRaw(this, &FWaterEditorModule::AddWaterCollisionProfile), true));
+	}
+}
+
+void FWaterEditorModule::AddWaterCollisionProfile()
+{
+	// Make sure WaterCollisionProfileName is added to Engine's collision profiles
+	const FName WaterCollisionProfileName = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
+	FCollisionResponseTemplate WaterBodyCollisionProfile;
+	if (!UCollisionProfile::Get()->GetProfileTemplate(WaterCollisionProfileName, WaterBodyCollisionProfile))
+	{
+		WaterBodyCollisionProfile.Name = WaterCollisionProfileName;
+		WaterBodyCollisionProfile.CollisionEnabled = ECollisionEnabled::QueryOnly;
+		WaterBodyCollisionProfile.ObjectType = ECollisionChannel::ECC_WorldStatic;
+		WaterBodyCollisionProfile.bCanModify = false;
+		WaterBodyCollisionProfile.ResponseToChannels = FCollisionResponseContainer::GetDefaultResponseContainer();
+		WaterBodyCollisionProfile.ResponseToChannels.Camera = ECR_Ignore;
+		WaterBodyCollisionProfile.ResponseToChannels.Visibility = ECR_Ignore;
+		WaterBodyCollisionProfile.ResponseToChannels.WorldDynamic = ECR_Overlap;
+		WaterBodyCollisionProfile.ResponseToChannels.Pawn = ECR_Overlap;
+		WaterBodyCollisionProfile.ResponseToChannels.PhysicsBody = ECR_Overlap;
+		WaterBodyCollisionProfile.ResponseToChannels.Destructible = ECR_Overlap;
+		WaterBodyCollisionProfile.ResponseToChannels.Vehicle = ECR_Overlap;
+#if WITH_EDITORONLY_DATA
+		WaterBodyCollisionProfile.HelpMessage = TEXT("Default Water Collision Profile (Created by Water Plugin)");
+#endif
+		FCollisionProfilePrivateAccessor::AddProfileTemplate(WaterBodyCollisionProfile);
 	}
 }
 
