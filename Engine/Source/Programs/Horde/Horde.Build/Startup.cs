@@ -647,6 +647,7 @@ namespace Horde.Build
 			services.AddHostedService<ConformTaskSource>(provider => provider.GetRequiredService<ConformTaskSource>());
 			services.AddSingleton<ComputeService>();
 			services.AddSingleton<IComputeService, ComputeService>();
+			services.AddHostedService(provider => provider.GetRequiredService<ComputeService>());
 
 			services.AddSingleton<ITaskSource, UpgradeTaskSource>();
 			services.AddSingleton<ITaskSource, ShutdownTaskSource>();
