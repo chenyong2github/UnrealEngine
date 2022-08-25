@@ -86,6 +86,9 @@ public:
 	// Adds the Input Mapping Context from a modifier, if it exists, to the input system 
 	void AddInputMappingContext(const UVCamModifier* Modifier);
 
+	// Adds and explicitly provided Input Mapping Context to the input system
+	void AddInputMappingContext(UInputMappingContext* Context, int32 Priority);
+
 	// Sets if the VCamComponent will update every frame or not
 	UFUNCTION(BlueprintSetter)
 	void SetEnabled(bool bNewEnabled);

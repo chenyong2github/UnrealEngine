@@ -24,4 +24,11 @@ void UVCamWidget::InitializeConnections(UVCamComponent* VCam)
 		
 		OnConnectionUpdated(ConnectionName, bDidConnectSuccessfully, VCamConnection.ConnectionTargetSettings.TargetConnectionPoint, VCamConnection.ConnectedModifier, VCamConnection.ConnectedAction);
 	}
+
+	// Register for input with the VCam Component if desired
+	if (bRegisterForInput)
+	{
+		VCam->RegisterObjectForInput(this);
+		VCam->AddInputMappingContext(InputMappingContext, InputContextPriority);
+	}
 }

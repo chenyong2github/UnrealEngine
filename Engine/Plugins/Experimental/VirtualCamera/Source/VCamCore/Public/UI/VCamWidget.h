@@ -33,6 +33,26 @@ public:
 	TMap<FName, FVCamConnection> Connections;
 
 	/*
+	 * Determines whether this widget will be automatically registered to receive input when the connections are initialized
+	 *
+	 * Note: This property is only read during Initialize so toggling at runtime will not have any effect
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="VCam Input")
+	bool bRegisterForInput = true;
+
+	/*
+	 * If this widget is registered for input then this input mapping context will be added to the input system
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="VCam Input", meta=(EditCondition="bRegisterForInput"))
+	TObjectPtr<UInputMappingContext> InputMappingContext = nullptr;
+
+	/*
+	 * If this widget is registered for input then this property defines the priority that the input mapping context is added at
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="VCam Input", meta=(EditCondition="bRegisterForInput"))
+	int32 InputContextPriority = 0;
+	
+	/*
 	 * Event called when a specific connection has been updated
 	 * 
 	 * The connection is not guaranteed to succeed so "Did Connect Successfully" should be checked before using

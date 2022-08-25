@@ -412,6 +412,17 @@ void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 	}
 }
 
+void UVCamComponent::AddInputMappingContext(UInputMappingContext* Context, int32 Priority)
+{
+	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetEnhancedInputSubsystemInterface())
+	{
+		if (IsValid(Context))
+		{
+			EnhancedInputSubsystemInterface->AddMappingContext(Context, Priority);
+		}
+	}
+}
+
 
 void UVCamComponent::Update()
 {
