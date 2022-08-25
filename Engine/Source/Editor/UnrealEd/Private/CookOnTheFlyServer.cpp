@@ -5166,7 +5166,6 @@ void UCookOnTheFlyServer::PostGarbageCollectImpl(TArray<UObject*>& LocalGCKeepOb
 void UCookOnTheFlyServer::BeginDestroy()
 {
 	ShutdownCookOnTheFly();
-	ConditionalUninstallImportBehaviorCallback();
 
 	Super::BeginDestroy();
 }
@@ -6908,8 +6907,6 @@ void UCookOnTheFlyServer::OnRequestClusterCompleted(const UE::Cook::FRequestClus
 			}
 			PackageDatas->SetLogDiscoveredPackages(true); // Turn this on for the rest of the cook after the initial cluster
 		}
-
-		ConditionalInstallImportBehaviorCallback();
 	}
 }
 
@@ -8398,8 +8395,6 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 	{
 		PackageData->DestroyGeneratorPackage();
 	}
-
-	ConditionalUninstallImportBehaviorCallback();
 
 	if (IsCookByTheBookMode())
 	{
@@ -10699,86 +10694,6 @@ const UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::FindSaveContext(co
 	return nullptr;
 }
 
-void UCookOnTheFlyServer::ConditionalInstallImportBehaviorCallback()
-{
-	if (!bImportBehaviorCallbackInstalled && !IsCookingInEditor() && FEditorDomain::Get())
-	{
-		check(ActiveCOTFS == nullptr);
-		ActiveCOTFS = this;
-		UE::LinkerLoad::SetPropertyImportBehaviorCallback(&PropertyImportBehaviorCallback);
-		bImportBehaviorCallbackInstalled = true;
-	}
-}
-
-void UCookOnTheFlyServer::ConditionalUninstallImportBehaviorCallback()
-{
-	if (bImportBehaviorCallbackInstalled)
-	{
-		check(ActiveCOTFS == this);
-		UE::LinkerLoad::SetPropertyImportBehaviorCallback((UE::LinkerLoad::PropertyImportBehaviorFunction*)nullptr);
-		ActiveCOTFS = nullptr;
-		bImportBehaviorCallbackInstalled = false;
-	}
-}
-
-void UCookOnTheFlyServer::PropertyImportBehaviorCallback(const FObjectImport& Import, const FLinkerLoad& LinkerLoad, UE::LinkerLoad::EImportBehavior& OutBehavior)
-{
-	auto GetImportPackageName = [&LinkerLoad](const FObjectImport& Import)
-	{
-		const FObjectImport* CurrentResource = &Import;
-		for (int32 NumCycles = 0; NumCycles < LinkerLoad.ImportMap.Num(); ++NumCycles)
-		{
-			// If the import has a package name set, then that's the import package name,
-			if (CurrentResource->HasPackageName())
-			{
-				return CurrentResource->GetPackageName();
-			}
-			// If our outer is null, then we have a package
-			else if (CurrentResource->OuterIndex.IsNull())
-			{
-				return CurrentResource->ObjectName;
-			}
-			if (!CurrentResource->OuterIndex.IsImport())
-			{
-				return FName();
-			}
-			CurrentResource = &LinkerLoad.Imp(CurrentResource->OuterIndex);
-		}
-		return FName();
-	};
-
-	if (ActiveCOTFS != nullptr)
-	{
-		FName ImportPackageName = GetImportPackageName(Import);
-		if (!ImportPackageName.IsNone())
-		{
-			UE::Cook::FPackageData* PackageData = ActiveCOTFS->PackageDatas->FindPackageDataByPackageName(ImportPackageName);
-
-			if (PackageData && PackageData->IsInProgress())
-			{
-				OutBehavior = UE::LinkerLoad::EImportBehavior::Eager;
-			}
-			else
-			{
-				FNameBuilder ClassPathBuilder(Import.ClassPackage);
-				ClassPathBuilder.AppendChar(TEXT('.'));
-				ClassPathBuilder << Import.ClassName;
-				FName ClassPath(ClassPathBuilder.ToView());
-				UE::EditorDomain::FClassDigestMap& ClassDigests = UE::EditorDomain::GetClassDigests();
-				FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
-				UE::EditorDomain::FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassPath);
-				if (!ExistingData || !ExistingData->bTargetIterativeEnabled)
-				{
-					OutBehavior = UE::LinkerLoad::EImportBehavior::Eager;
-				}
-				else
-				{
-					OutBehavior = UE::LinkerLoad::EImportBehavior::LazyOnDemand;
-				}
-			}
-		}
-	}
-}
 
 void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString> CookCultures)
 {

@@ -19,11 +19,8 @@ enum class EImportBehavior : uint8
 	LazyOnDemand,
 };
 
-using PropertyImportBehaviorFunction = void(const FObjectImport& Import, const FLinkerLoad& LinkerLoad, EImportBehavior& OutBehavior);
 
-UE_API void SetPropertyImportBehaviorCallback(PropertyImportBehaviorFunction* Function);
-
-void GetPropertyImportLoadBehavior(const FObjectImport& Import, const FLinkerLoad& LinkerLoad, EImportBehavior& OutBehavior);
+EImportBehavior GetPropertyImportLoadBehavior(const FObjectImport& Import, const FLinkerLoad& LinkerLoad);
 }
 
 #undef UE_API

@@ -5549,15 +5549,12 @@ FArchive& FLinkerLoad::operator<<( FObjectPtr& ObjectPtr )
 	if (Index.IsImport())
 	{
 		using namespace UE::LinkerLoad;
-		EImportBehavior LoadBehavior = EImportBehavior::Eager;
-		GetPropertyImportLoadBehavior(Imp(Index), *this, LoadBehavior);
-		if (LoadBehavior == EImportBehavior::LazyOnDemand)
+		if (GetPropertyImportLoadBehavior(Imp(Index), *this) == EImportBehavior::LazyOnDemand)
 		{
 			const FObjectImport& Import = Imp(Index);
 			FObjectPathId ObjectPath;
 			FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
 			FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
-
 			ObjectPtr = FObjectPtr(ImportRef);
 
 			return *this;

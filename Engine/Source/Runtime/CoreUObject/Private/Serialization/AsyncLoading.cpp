@@ -26,6 +26,7 @@
 #include "UObject/CoreRedirects.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/PackageResourceManager.h"
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
@@ -6469,12 +6470,6 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncPackage::LoadImports);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_LoadImports);
-
-	if (FLinkerLoad::IsImportLazyLoadEnabled())
-	{
-		return EAsyncPackageState::Complete;
-	}
-
 	LastObjectWorkWasPerformedOn	= LinkerRoot;
 	LastTypeOfWorkPerformed			= TEXT("loading imports");
 
@@ -6503,6 +6498,17 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 		{
 			continue;
 		}
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		if (FLinkerLoad::IsImportLazyLoadEnabled())
+		{
+			using namespace UE::LinkerLoad;
+			if (GetPropertyImportLoadBehavior(*Import, *Linker) == EImportBehavior::LazyOnDemand)
+			{
+				continue;
+			}
+		}
+#endif
 
 		// Our import package name is the import name itself if import is a package, else the specified package name
 		const FLinkerInstancingContext& InstancingContext = Linker->GetInstancingContext();
@@ -6621,18 +6627,26 @@ EAsyncPackageState::Type FAsyncPackage::CreateImports()
 {
 	SCOPED_LOADTIMER(CreateImportsTime);
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateImports);
-
-	if (FLinkerLoad::IsImportLazyLoadEnabled())
-	{
-		return EAsyncPackageState::Complete;
-	}
-
 	// GC can't run in here
 	FGCScopeGuard GCGuard;
 
 	// Create imports.
 	while( ImportIndex < Linker->ImportMap.Num() && !IsTimeLimitExceeded() )
 	{
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		if (FLinkerLoad::IsImportLazyLoadEnabled())
+		{
+			FObjectImport& Import = Linker->ImportMap[ImportIndex];
+			using namespace UE::LinkerLoad;
+			if (GetPropertyImportLoadBehavior(Import, *Linker) == EImportBehavior::LazyOnDemand)
+			{
+				ImportIndex++;
+				continue;
+			}
+		}
+#endif
+
  		UObject* Object	= Linker->CreateImport( ImportIndex++ );
 		LastObjectWorkWasPerformedOn	= Object;
 		LastTypeOfWorkPerformed			= TEXT("creating imports for");
