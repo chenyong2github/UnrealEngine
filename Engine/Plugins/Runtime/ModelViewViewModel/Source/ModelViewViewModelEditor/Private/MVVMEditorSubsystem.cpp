@@ -153,7 +153,10 @@ namespace UE::MVVM::Private
 	{
 		if (UEdGraph* Graph = FindExistingConversionFunctionWrapper(WidgetBlueprint, WrapperName))
 		{
-			Graph->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty | REN_ForceNoResetLoaders);
+			Graph->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty | REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+			Graph->SetFlags(RF_Transient);
+			Graph->ClearFlags(RF_Public | RF_Standalone | RF_ArchetypeObject);
+			FLinkerLoad::InvalidateExport(Graph);
 			WidgetBlueprint->FunctionGraphs.RemoveSingle(Graph);
 		}
 	}

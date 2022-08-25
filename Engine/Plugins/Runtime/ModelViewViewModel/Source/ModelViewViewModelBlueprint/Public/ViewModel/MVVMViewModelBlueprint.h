@@ -9,6 +9,7 @@
 #include "MVVMViewModelBlueprint.generated.h"
 
 class FCompilerResultsLog;
+class UEdGraph;
 class UMVVMViewModelBlueprintGeneratedClass;
 
 
@@ -35,4 +36,9 @@ protected:
 	virtual bool SupportsEventGraphs() const override;
 	virtual bool SupportsDelegates() const override;
 	virtual bool SupportsAnimLayers() const override;
+
+public:
+	// Use during compilation to clean the automatically generated graph.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UEdGraph>> TemporaryGraph;
 };
