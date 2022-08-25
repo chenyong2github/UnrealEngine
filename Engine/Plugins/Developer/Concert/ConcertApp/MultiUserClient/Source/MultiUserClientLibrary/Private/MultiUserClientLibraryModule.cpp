@@ -13,8 +13,8 @@ public:
 		TArray<FCoreRedirect> Redirects;
 
 		Redirects.Emplace(ECoreRedirectFlags::Type_Package, TEXT("/Script/ConcertSyncClientLibrary"), TEXT("/Script/MultiUserClientLibrary"));
-		Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("ConcertSyncClientInfo"), TEXT("MultiUserClientInfo"));
-		Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("ConcertSyncClientStatics"), TEXT("MultiUserClientStatics"));
+		Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("ConcertSyncClientInfo"), TEXT("/Script/MultiUserClientLibrary.MultiUserClientInfo"));
+		Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("ConcertSyncClientStatics"), TEXT("/Script/MultiUserClientLibrary.MultiUserClientStatics"));
 		Redirects.Emplace(ECoreRedirectFlags::Type_Function, TEXT("MultiUserClientStatics.GetLocalConcertClientInfo"), TEXT("GetLocalMultiUserClientInfo"));
 		Redirects.Emplace(ECoreRedirectFlags::Type_Function, TEXT("MultiUserClientStatics.GetConcertClientInfoByName"), TEXT("GetMultiUserClientInfoByName"));
 		Redirects.Emplace(ECoreRedirectFlags::Type_Function, TEXT("MultiUserClientStatics.GetRemoteConcertClientInfos"), TEXT("GetRemoteMultiUserClientInfos"));

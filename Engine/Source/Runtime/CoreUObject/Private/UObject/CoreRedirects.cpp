@@ -1451,74 +1451,72 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 {
-	CLASS_REDIRECT("AIDebugComponent", "GameplayDebuggingComponent");
-	CLASS_REDIRECT("AnimTreeInstance", "AnimInstance");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm", "AnimCompress");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_Automatic", "AnimCompress_Automatic");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_BitwiseCompressOnly", "AnimCompress_BitwiseCompressOnly");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_LeastDestructive", "AnimCompress_LeastDestructive");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_PerTrackCompression", "AnimCompress_PerTrackCompression");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_RemoveEverySecondKey", "AnimCompress_RemoveEverySecondKey");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_RemoveLinearKeys", "AnimCompress_RemoveLinearKeys");
-	CLASS_REDIRECT("AnimationCompressionAlgorithm_RemoveTrivialKeys", "AnimCompress_RemoveTrivialKeys");
-	CLASS_REDIRECT("BlueprintActorBase", "Actor");
-	CLASS_REDIRECT("DefaultPawnMovement", "FloatingPawnMovement");
-	CLASS_REDIRECT("DirectionalLightMovable", "DirectionalLight");
-	CLASS_REDIRECT("DirectionalLightStatic", "DirectionalLight");
-	CLASS_REDIRECT("DirectionalLightStationary", "DirectionalLight");
-	CLASS_REDIRECT("DynamicBlockingVolume", "BlockingVolume");
-	CLASS_REDIRECT("DynamicPhysicsVolume", "PhysicsVolume");
-	CLASS_REDIRECT("DynamicTriggerVolume", "TriggerVolume");
-	CLASS_REDIRECT("GameInfo", "/Script/Engine.GameMode");
-	CLASS_REDIRECT("GameReplicationInfo", "/Script/Engine.GameState");
-	CLASS_REDIRECT("InterpActor", "StaticMeshActor");
+	// CLASS_REDIRECT("AnimTreeInstance", "/Script/Engine.AnimInstance"); // Leaving some of these disabled as they can cause issues with the reverse class lookup in asset registry scans 
+	CLASS_REDIRECT("AnimationCompressionAlgorithm", "/Script/Engine.AnimCompress");
+	CLASS_REDIRECT("AnimationCompressionAlgorithm_BitwiseCompressOnly", "/Script/Engine.AnimCompress_BitwiseCompressOnly");
+	CLASS_REDIRECT("AnimationCompressionAlgorithm_LeastDestructive", "/Script/Engine.AnimCompress_LeastDestructive");
+	CLASS_REDIRECT("AnimationCompressionAlgorithm_PerTrackCompression", "/Script/Engine.AnimCompress_PerTrackCompression");
+	CLASS_REDIRECT("AnimationCompressionAlgorithm_RemoveEverySecondKey", "/Script/Engine.AnimCompress_RemoveEverySecondKey");
+	CLASS_REDIRECT("AnimationCompressionAlgorithm_RemoveLinearKeys", "/Script/Engine.AnimCompress_RemoveLinearKeys");
+	CLASS_REDIRECT("AnimationCompressionAlgorithm_RemoveTrivialKeys", "/Script/Engine.AnimCompress_RemoveTrivialKeys");
+	// CLASS_REDIRECT("BlueprintActorBase", "/Script/Engine.Actor");
+	CLASS_REDIRECT("DefaultPawnMovement", "/Script/Engine.FloatingPawnMovement");
+	CLASS_REDIRECT("DirectionalLightMovable", "/Script/Engine.DirectionalLight");
+	CLASS_REDIRECT("DirectionalLightStatic", "/Script/Engine.DirectionalLight");
+	CLASS_REDIRECT("DirectionalLightStationary", "/Script/Engine.DirectionalLight");
+	CLASS_REDIRECT("DynamicBlockingVolume", "/Script/Engine.BlockingVolume");
+	CLASS_REDIRECT("DynamicPhysicsVolume", "/Script/Engine.PhysicsVolume");
+	CLASS_REDIRECT("DynamicTriggerVolume", "/Script/Engine.TriggerVolume");
+	// CLASS_REDIRECT("GameInfo", "/Script/Engine.GameMode");
+	// CLASS_REDIRECT("GameReplicationInfo", "/Script/Engine.GameState");
+	CLASS_REDIRECT("InterpActor", "/Script/Engine.StaticMeshActor");
 	CLASS_REDIRECT("K2Node_CallSuperFunction", "/Script/BlueprintGraph.K2Node_CallParentFunction");
-	CLASS_REDIRECT("MaterialSpriteComponent", "MaterialBillboardComponent");
-	CLASS_REDIRECT("MovementComp_Character", "CharacterMovementComponent");
-	CLASS_REDIRECT("MovementComp_Projectile", "ProjectileMovementComponent");
-	CLASS_REDIRECT("MovementComp_Rotating", "RotatingMovementComponent");
+	CLASS_REDIRECT("MaterialSpriteComponent", "/Script/Engine.MaterialBillboardComponent");
+	CLASS_REDIRECT("MovementComp_Character", "/Script/Engine.CharacterMovementComponent");
+	CLASS_REDIRECT("MovementComp_Projectile", "/Script/Engine.ProjectileMovementComponent");
+	CLASS_REDIRECT("MovementComp_Rotating", "/Script/Engine.RotatingMovementComponent");
 	CLASS_REDIRECT("NavAreaDefault", "/Script/NavigationSystem.NavArea_Default");
 	CLASS_REDIRECT("NavAreaDefinition", "/Script/NavigationSystem.NavArea");
 	CLASS_REDIRECT("NavAreaNull", "/Script/NavigationSystem.NavArea_Null");
-	CLASS_REDIRECT("PhysicsActor", "StaticMeshActor");
-	CLASS_REDIRECT("PhysicsBSJointActor", "PhysicsConstraintActor");
-	CLASS_REDIRECT("PhysicsHingeActor", "PhysicsConstraintActor");
-	CLASS_REDIRECT("PhysicsPrismaticActor", "PhysicsConstraintActor");
-	CLASS_REDIRECT("PlayerCamera", "PlayerCameraManager");
-	CLASS_REDIRECT("PlayerReplicationInfo", "/Script/Engine.PlayerState");
-	CLASS_REDIRECT("PointLightMovable", "PointLight");
-	CLASS_REDIRECT("PointLightStatic", "PointLight");
-	CLASS_REDIRECT("PointLightStationary", "PointLight");
-	CLASS_REDIRECT("RB_BSJointSetup", "PhysicsConstraintTemplate");
-	CLASS_REDIRECT("RB_BodySetup", "BodySetup");
-	CLASS_REDIRECT("RB_ConstraintActor", "PhysicsConstraintActor");
-	CLASS_REDIRECT("RB_ConstraintComponent", "PhysicsConstraintComponent");
-	CLASS_REDIRECT("RB_ConstraintSetup", "PhysicsConstraintTemplate");
-	CLASS_REDIRECT("RB_Handle", "PhysicsHandleComponent");
-	CLASS_REDIRECT("RB_HingeSetup", "PhysicsConstraintTemplate");
-	CLASS_REDIRECT("RB_PrismaticSetup", "PhysicsConstraintTemplate");
-	CLASS_REDIRECT("RB_RadialForceComponent", "RadialForceComponent");
-	CLASS_REDIRECT("RB_SkelJointSetup", "PhysicsConstraintTemplate");
-	CLASS_REDIRECT("RB_Thruster", "PhysicsThruster");
-	CLASS_REDIRECT("RB_ThrusterComponent", "PhysicsThrusterComponent");
-	CLASS_REDIRECT("SensingComponent", "PawnSensingComponent");
-	CLASS_REDIRECT("SingleAnimSkeletalActor", "SkeletalMeshActor");
-	CLASS_REDIRECT("SingleAnimSkeletalComponent", "SkeletalMeshComponent");
-	CLASS_REDIRECT("SkeletalMeshReplicatedComponent", "SkeletalMeshComponent");
-	CLASS_REDIRECT("SkeletalPhysicsActor", "SkeletalMeshActor");
-	CLASS_REDIRECT("SoundMode", "SoundMix");
-	CLASS_REDIRECT("SpotLightMovable", "SpotLight");
-	CLASS_REDIRECT("SpotLightStatic", "SpotLight");
-	CLASS_REDIRECT("SpotLightStationary", "SpotLight");
-	CLASS_REDIRECT("SpriteComponent", "BillboardComponent");
-	CLASS_REDIRECT("StaticMeshReplicatedComponent", "StaticMeshComponent");
-	CLASS_REDIRECT("VimBlueprint", "AnimBlueprint");
-	CLASS_REDIRECT("VimGeneratedClass", "AnimBlueprintGeneratedClass");
-	CLASS_REDIRECT("VimInstance", "AnimInstance");
-	CLASS_REDIRECT("WorldInfo", "WorldSettings");
+	CLASS_REDIRECT("PhysicsActor", "/Script/Engine.StaticMeshActor");
+	CLASS_REDIRECT("PhysicsBSJointActor", "/Script/Engine.PhysicsConstraintActor");
+	CLASS_REDIRECT("PhysicsHingeActor", "/Script/Engine.PhysicsConstraintActor");
+	CLASS_REDIRECT("PhysicsPrismaticActor", "/Script/Engine.PhysicsConstraintActor");
+	// CLASS_REDIRECT("PlayerCamera", "/Script/Engine.PlayerCameraManager");
+	// CLASS_REDIRECT("PlayerReplicationInfo", "/Script/Engine.PlayerState");
+	CLASS_REDIRECT("PointLightMovable", "/Script/Engine.PointLight");
+	CLASS_REDIRECT("PointLightStatic", "/Script/Engine.PointLight");
+	CLASS_REDIRECT("PointLightStationary", "/Script/Engine.PointLight");
+	CLASS_REDIRECT("RB_BSJointSetup", "/Script/Engine.PhysicsConstraintTemplate");
+	CLASS_REDIRECT("RB_BodySetup", "/Script/Engine.BodySetup");
+	CLASS_REDIRECT("RB_ConstraintActor", "/Script/Engine.PhysicsConstraintActor");
+	CLASS_REDIRECT("RB_ConstraintComponent", "/Script/Engine.PhysicsConstraintComponent");
+	CLASS_REDIRECT("RB_ConstraintSetup", "/Script/Engine.PhysicsConstraintTemplate");
+	CLASS_REDIRECT("RB_Handle", "/Script/Engine.PhysicsHandleComponent");
+	CLASS_REDIRECT("RB_HingeSetup", "/Script/Engine.PhysicsConstraintTemplate");
+	CLASS_REDIRECT("RB_PrismaticSetup", "/Script/Engine.PhysicsConstraintTemplate");
+	CLASS_REDIRECT("RB_RadialForceComponent", "/Script/Engine.RadialForceComponent");
+	CLASS_REDIRECT("RB_SkelJointSetup", "/Script/Engine.PhysicsConstraintTemplate");
+	CLASS_REDIRECT("RB_Thruster", "/Script/Engine.PhysicsThruster");
+	CLASS_REDIRECT("RB_ThrusterComponent", "/Script/Engine.PhysicsThrusterComponent");
+	CLASS_REDIRECT("SensingComponent", "/Script/AIModule.PawnSensingComponent");
+	CLASS_REDIRECT("SingleAnimSkeletalActor", "/Script/Engine.SkeletalMeshActor");
+	CLASS_REDIRECT("SingleAnimSkeletalComponent", "/Script/Engine.SkeletalMeshComponent");
+	CLASS_REDIRECT("SkeletalMeshReplicatedComponent", "/Script/Engine.SkeletalMeshComponent");
+	CLASS_REDIRECT("SkeletalPhysicsActor", "/Script/Engine.SkeletalMeshActor");
+	CLASS_REDIRECT("SoundMode", "/Script/Engine.SoundMix");
+	CLASS_REDIRECT("SpotLightMovable", "/Script/Engine.SpotLight");
+	CLASS_REDIRECT("SpotLightStatic", "/Script/Engine.SpotLight");
+	CLASS_REDIRECT("SpotLightStationary", "/Script/Engine.SpotLight");
+	CLASS_REDIRECT("SpriteComponent", "/Script/Engine.BillboardComponent");
+	CLASS_REDIRECT("StaticMeshReplicatedComponent", "/Script/Engine.StaticMeshComponent");
+	CLASS_REDIRECT("VimBlueprint", "/Script/Engine.AnimBlueprint");
+	CLASS_REDIRECT("VimGeneratedClass", "/Script/Engine.AnimBlueprintGeneratedClass");
+	CLASS_REDIRECT("VimInstance", "/Script/Engine.AnimInstance");
+	CLASS_REDIRECT("WorldInfo", "/Script/Engine.WorldSettings");
 	CLASS_REDIRECT_INSTANCES("NavAreaMeta", "/Script/NavigationSystem.NavArea_Default");
 
-	STRUCT_REDIRECT("VimDebugData", "AnimBlueprintDebugData");
+	STRUCT_REDIRECT("VimDebugData", "/Script/Engine.AnimBlueprintDebugData");
 
 	FUNCTION_REDIRECT("Actor.GetController", "Pawn.GetController");
 	FUNCTION_REDIRECT("Actor.GetTouchingActors", "Actor.GetOverlappingActors");
@@ -1659,15 +1657,8 @@ static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("BranchingPoint.Time", "BranchingPoint.DisplayTime");
 	PROPERTY_REDIRECT("CapsuleComponent.CapsuleHeight", "CapsuleComponent.CapsuleHalfHeight");
 	PROPERTY_REDIRECT("CharacterMovementComponent.AccelRate", "CharacterMovementComponent.MaxAcceleration");
-	PROPERTY_REDIRECT("CharacterMovementComponent.AirSpeed", "CharacterMovementComponent.MaxFlySpeed");
 	PROPERTY_REDIRECT("CharacterMovementComponent.BrakingDeceleration", "CharacterMovementComponent.BrakingDecelerationWalking");
 	PROPERTY_REDIRECT("CharacterMovementComponent.CrouchHeight", "CharacterMovementComponent.CrouchedHalfHeight");
-	PROPERTY_REDIRECT("CharacterMovementComponent.CrouchedPct", "CharacterMovementComponent.CrouchedSpeedMultiplier");
-	PROPERTY_REDIRECT("CharacterMovementComponent.CrouchedSpeedPercent", "CharacterMovementComponent.CrouchedSpeedMultiplier");
-	PROPERTY_REDIRECT("CharacterMovementComponent.GroundSpeed", "CharacterMovementComponent.MaxWalkSpeed");
-	PROPERTY_REDIRECT("CharacterMovementComponent.JumpZ", "CharacterMovementComponent.JumpZVelocity");
-	PROPERTY_REDIRECT("CharacterMovementComponent.WaterSpeed", "CharacterMovementComponent.MaxSwimSpeed");
-	PROPERTY_REDIRECT("CharacterMovementComponent.bOrientToMovement", "CharacterMovementComponent.bOrientRotationToMovement");
 	PROPERTY_REDIRECT("CollisionResponseContainer.Dynamic", "CollisionResponseContainer.WorldDynamic");
 	PROPERTY_REDIRECT("CollisionResponseContainer.RigidBody", "CollisionResponseContainer.PhysicsBody");
 	PROPERTY_REDIRECT("CollisionResponseContainer.Static", "CollisionResponseContainer.WorldStatic");
@@ -1713,7 +1704,6 @@ static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("PostProcessSettings.bOverride_EyeAdaptationMinBrightness", "PostProcessSettings.bOverride_AutoExposureMinBrightness");
 	PROPERTY_REDIRECT("PostProcessSettings.bOverride_EyeAdaptionSpeedDown", "PostProcessSettings.bOverride_AutoExposureSpeedDown");
 	PROPERTY_REDIRECT("PostProcessSettings.bOverride_EyeAdaptionSpeedUp", "PostProcessSettings.bOverride_AutoExposureSpeedUp");
-	PROPERTY_REDIRECT("ProjectileMovementComponent.Speed", "ProjectileMovementComponent.InitialSpeed");
 	PROPERTY_REDIRECT("SceneComponent.ModifyFrequency", "SceneComponent.Mobility");
 	PROPERTY_REDIRECT("SceneComponent.RelativeTranslation", "SceneComponent.RelativeLocation");
 	PROPERTY_REDIRECT("SceneComponent.bAbsoluteTranslation", "SceneComponent.bAbsoluteLocation");
@@ -1723,16 +1713,16 @@ static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("SlateBrush.TextureObject", "SlateBrush.ResourceObject");
 	PROPERTY_REDIRECT("WorldSettings.DefaultGameType", "WorldSettings.DefaultGameMode");
 
-	FCoreRedirect& PointLightComponent = CLASS_REDIRECT("PointLightComponent", "PointLightComponent");
+	FCoreRedirect& PointLightComponent = CLASS_REDIRECT("PointLightComponent", "/Script/Engine.PointLightComponent");
 	PointLightComponent.ValueChanges.Add(TEXT("PointLightComponent0"), TEXT("LightComponent0"));
 
-	FCoreRedirect& DirectionalLightComponent = CLASS_REDIRECT("DirectionalLightComponent", "DirectionalLightComponent");
+	FCoreRedirect& DirectionalLightComponent = CLASS_REDIRECT("DirectionalLightComponent", "/Script/Engine.DirectionalLightComponent");
 	DirectionalLightComponent.ValueChanges.Add(TEXT("DirectionalLightComponent0"), TEXT("LightComponent0"));
 
-	FCoreRedirect& SpotLightComponent = CLASS_REDIRECT("SpotLightComponent", "SpotLightComponent");
+	FCoreRedirect& SpotLightComponent = CLASS_REDIRECT("SpotLightComponent", "/Script/Engine.SpotLightComponent");
 	SpotLightComponent.ValueChanges.Add(TEXT("SpotLightComponent0"), TEXT("LightComponent0"));
 
-	FCoreRedirect& ETransitionGetterType = ENUM_REDIRECT("ETransitionGetterType", "ETransitionGetter");
+	FCoreRedirect& ETransitionGetterType = ENUM_REDIRECT("ETransitionGetterType", "/Script/AnimGraph.ETransitionGetter");
 	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_ArbitraryState_GetBlendWeight"), TEXT("ETransitionGetter::ArbitraryState_GetBlendWeight"));
 	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_CurrentState_ElapsedTime"), TEXT("ETransitionGetter::CurrentState_ElapsedTime"));
 	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_CurrentState_GetBlendWeight"), TEXT("ETransitionGetter::CurrentState_GetBlendWeight"));
@@ -1743,55 +1733,30 @@ static void RegisterNativeRedirects40(TArray<FCoreRedirect>& Redirects)
 	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetTimeFromEnd"), TEXT("ETransitionGetter::AnimationAsset_GetTimeFromEnd"));
 	ETransitionGetterType.ValueChanges.Add(TEXT("TGT_SequencePlayer_GetTimeFromEndFraction"), TEXT("ETransitionGetter::AnimationAsset_GetTimeFromEndFraction"));
 
-	FCoreRedirect& EModifyFrequency = ENUM_REDIRECT("EModifyFrequency", "EComponentMobility");
+	FCoreRedirect& EModifyFrequency = ENUM_REDIRECT("EModifyFrequency", "/Script/Engine.EComponentMobility");
 	EModifyFrequency.ValueChanges.Add(TEXT("MF_Dynamic"), TEXT("EComponentMobility::Movable"));
 	EModifyFrequency.ValueChanges.Add(TEXT("MF_OccasionallyModified"), TEXT("EComponentMobility::Stationary"));
 	EModifyFrequency.ValueChanges.Add(TEXT("MF_Static"), TEXT("EComponentMobility::Static"));
 
-	FCoreRedirect& EAttachLocationType = ENUM_REDIRECT("EAttachLocationType", "EAttachLocation");
+	FCoreRedirect& EAttachLocationType = ENUM_REDIRECT("EAttachLocationType", "/Script/Engine.EAttachLocation");
 	EAttachLocationType.ValueChanges.Add(TEXT("EAttachLocationType_AbsoluteWorld"), TEXT("EAttachLocation::KeepWorldPosition"));
 	EAttachLocationType.ValueChanges.Add(TEXT("EAttachLocationType_RelativeOffset"), TEXT("EAttachLocation::KeepRelativeOffset"));
 	EAttachLocationType.ValueChanges.Add(TEXT("EAttachLocationType_SnapTo"), TEXT("EAttachLocation::SnapToTarget"));
 
-	FCoreRedirect& EAxis = ENUM_REDIRECT("EAxis", "EAxis");
+	FCoreRedirect& EAxis = ENUM_REDIRECT("EAxis", "/Script/CoreUObject.EAxis");
 	EAxis.ValueChanges.Add(TEXT("AXIS_BLANK"), TEXT("EAxis::None"));
 	EAxis.ValueChanges.Add(TEXT("AXIS_NONE"), TEXT("EAxis::None"));
 	EAxis.ValueChanges.Add(TEXT("AXIS_X"), TEXT("EAxis::X"));
 	EAxis.ValueChanges.Add(TEXT("AXIS_Y"), TEXT("EAxis::Y"));
 	EAxis.ValueChanges.Add(TEXT("AXIS_Z"), TEXT("EAxis::Z"));
 
-	FCoreRedirect& EKeys = ENUM_REDIRECT("EKeys", "EKeys");
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_A"), TEXT("EKeys::Gamepad_FaceButton_Bottom"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_B"), TEXT("EKeys::Gamepad_FaceButton_Right"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_X"), TEXT("EKeys::Gamepad_FaceButton_Left"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_Y"), TEXT("EKeys::Gamepad_FaceButton_Top"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_Back"), TEXT("EKeys::Gamepad_Special_Left"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_Start"), TEXT("EKeys::Gamepad_Special_Right"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Down"), TEXT("EKeys::Gamepad_DPad_Down"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Left"), TEXT("EKeys::Gamepad_DPad_Left"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Right"), TEXT("EKeys::Gamepad_DPad_Right"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_DPad_Up"), TEXT("EKeys::Gamepad_DPad_Up"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftShoulder"), TEXT("EKeys::Gamepad_LeftShoulder"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftThumbstick"), TEXT("EKeys::Gamepad_LeftThumbstick"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftTrigger"), TEXT("EKeys::Gamepad_LeftTrigger"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftTriggerAxis"), TEXT("EKeys::Gamepad_LeftTriggerAxis"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftX"), TEXT("EKeys::Gamepad_LeftX"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_LeftY"), TEXT("EKeys::Gamepad_LeftY"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightShoulder"), TEXT("EKeys::Gamepad_RightShoulder"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightThumbstick"), TEXT("EKeys::Gamepad_RightThumbstick"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightTrigger"), TEXT("EKeys::Gamepad_RightTrigger"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightTriggerAxis"), TEXT("EKeys::Gamepad_RightTriggerAxis"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightX"), TEXT("EKeys::Gamepad_RightX"));
-	EKeys.ValueChanges.Add(TEXT("EKeys::XboxTypeS_RightY"), TEXT("EKeys::Gamepad_RightY"));
-
-	FCoreRedirect& EMaxConcurrentResolutionRule = ENUM_REDIRECT("EMaxConcurrentResolutionRule", "EMaxConcurrentResolutionRule");
+	FCoreRedirect& EMaxConcurrentResolutionRule = ENUM_REDIRECT("EMaxConcurrentResolutionRule", "/Script/Engine.EMaxConcurrentResolutionRule");
 	EMaxConcurrentResolutionRule.ValueChanges.Add(TEXT("EMaxConcurrentResolutionRule::StopFarthest"), TEXT("EMaxConcurrentResolutionRule::StopFarthestThenPreventNew"));
 
-
-	FCoreRedirect& EParticleEventType = ENUM_REDIRECT("EParticleEventType", "EParticleEventType");
+	FCoreRedirect& EParticleEventType = ENUM_REDIRECT("EParticleEventType", "/Script/Engine.EParticleEventType");
 	EParticleEventType.ValueChanges.Add(TEXT("EPET_Kismet"), TEXT("EPET_Blueprint"));
 
-	FCoreRedirect& ETranslucencyLightingMode = ENUM_REDIRECT("ETranslucencyLightingMode", "ETranslucencyLightingMode");
+	FCoreRedirect& ETranslucencyLightingMode = ENUM_REDIRECT("ETranslucencyLightingMode", "/Script/Engine.ETranslucencyLightingMode");
 	ETranslucencyLightingMode.ValueChanges.Add(TEXT("TLM_PerPixel"), TEXT("TLM_VolumetricDirectional"));
 	ETranslucencyLightingMode.ValueChanges.Add(TEXT("TLM_PerPixelNonDirectional"), TEXT("TLM_VolumetricNonDirectional"));
 }
@@ -1802,7 +1767,7 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 
 	CLASS_REDIRECT("K2Node_CastToInterface", "/Script/BlueprintGraph.K2Node_DynamicCast");
 	CLASS_REDIRECT("K2Node_MathExpression", "/Script/BlueprintGraph.K2Node_MathExpression");
-	CLASS_REDIRECT("EmitterSpawnable", "Emitter");
+	CLASS_REDIRECT("EmitterSpawnable", "/Script/Engine.Emitter");
 	CLASS_REDIRECT("SlateWidgetStyleAsset", "/Script/SlateCore.SlateWidgetStyleAsset");
 	CLASS_REDIRECT("SlateWidgetStyleContainerBase", "/Script/SlateCore.SlateWidgetStyleContainerBase");
 	CLASS_REDIRECT("SmartNavLinkComponent", "/Script/NavigationSystem.NavLinkCustomComponent");
@@ -1843,28 +1808,24 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("SplineMeshComponent.SplineXDir", "SplineMeshComponent.SplineUpDir");
 	PROPERTY_REDIRECT("TextureFactory.LightingModel", "TextureFactory.ShadingModel");
 
-	FCoreRedirect& EKinematicBonesUpdateToPhysics = ENUM_REDIRECT("EKinematicBonesUpdateToPhysics", "EKinematicBonesUpdateToPhysics");
+	FCoreRedirect& EKinematicBonesUpdateToPhysics = ENUM_REDIRECT("EKinematicBonesUpdateToPhysics", "/Script/Engine.EKinematicBonesUpdateToPhysics");
 	EKinematicBonesUpdateToPhysics.ValueChanges.Add(TEXT("EKinematicBonesUpdateToPhysics::SkipFixedAndSimulatingBones"), TEXT("EKinematicBonesUpdateToPhysics::SkipAllBones"));
 
-	FCoreRedirect& EMaterialLightingModel = ENUM_REDIRECT("EMaterialLightingModel", "EMaterialShadingModel");
+	FCoreRedirect& EMaterialLightingModel = ENUM_REDIRECT("EMaterialLightingModel", "/Script/Engine.EMaterialShadingModel");
 	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_DefaultLit"), TEXT("MSM_DefaultLit"));
 	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_PreintegratedSkin"), TEXT("MSM_PreintegratedSkin"));
 	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_Subsurface"), TEXT("MSM_Subsurface"));
 	EMaterialLightingModel.ValueChanges.Add(TEXT("MLM_Unlit"), TEXT("MSM_Unlit"));
 
-	FCoreRedirect& ESmartNavLinkDir = ENUM_REDIRECT("ESmartNavLinkDir", "ENavLinkDirection");
+	FCoreRedirect& ESmartNavLinkDir = ENUM_REDIRECT("ESmartNavLinkDir", "/Script/Engine.ENavLinkDirection");
 	ESmartNavLinkDir.ValueChanges.Add(TEXT("ESmartNavLinkDir::BothWays"), TEXT("ENavLinkDirection::BothWays"));
 	ESmartNavLinkDir.ValueChanges.Add(TEXT("ESmartNavLinkDir::OneWay"), TEXT("ENavLinkDirection::LeftToRight"));
-
-	FCoreRedirect& ESceneTextureId = ENUM_REDIRECT("ESceneTextureId", "ESceneTextureId");
-	ESceneTextureId.ValueChanges.Add(TEXT("PPI_LightingModel"), TEXT("PPI_ShadingModelColor"));
 
 	// 4.5
 
 	CLASS_REDIRECT("AIController", "/Script/AIModule.AIController");
 	CLASS_REDIRECT("AIResourceInterface", "/Script/AIModule.AIResourceInterface");
 	CLASS_REDIRECT("AISystem", "/Script/AIModule.AISystem");
-	CLASS_REDIRECT("AITypes", "/Script/AIModule.AITypes");
 	CLASS_REDIRECT("BTAuxiliaryNode", "/Script/AIModule.BTAuxiliaryNode");
 	CLASS_REDIRECT("BTCompositeNode", "/Script/AIModule.BTCompositeNode");
 	CLASS_REDIRECT("BTComposite_Selector", "/Script/AIModule.BTComposite_Selector");
@@ -1906,7 +1867,6 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("BehaviorTreeTypes", "/Script/AIModule.BehaviorTreeTypes");
 	CLASS_REDIRECT("BlackboardComponent", "/Script/AIModule.BlackboardComponent");
 	CLASS_REDIRECT("BlackboardData", "/Script/AIModule.BlackboardData");
-	CLASS_REDIRECT("BlackboardKeyAllTypes", "/Script/AIModule.BlackboardKeyAllTypes");
 	CLASS_REDIRECT("BlackboardKeyType", "/Script/AIModule.BlackboardKeyType");
 	CLASS_REDIRECT("BlackboardKeyType_Bool", "/Script/AIModule.BlackboardKeyType_Bool");
 	CLASS_REDIRECT("BlackboardKeyType_Class", "/Script/AIModule.BlackboardKeyType_Class");
@@ -1926,7 +1886,6 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("EQSRenderingComponent", "/Script/AIModule.EQSRenderingComponent");
 	CLASS_REDIRECT("EQSTestingPawn", "/Script/AIModule.EQSTestingPawn");
 	CLASS_REDIRECT("EnvQuery", "/Script/AIModule.EnvQuery");
-	CLASS_REDIRECT("EnvQueryAllItemTypes", "/Script/AIModule.EnvQueryAllItemTypes");
 	CLASS_REDIRECT("EnvQueryContext", "/Script/AIModule.EnvQueryContext");
 	CLASS_REDIRECT("EnvQueryContext_BlueprintBase", "/Script/AIModule.EnvQueryContext_BlueprintBase");
 	CLASS_REDIRECT("EnvQueryContext_Item", "/Script/AIModule.EnvQueryContext_Item");
@@ -1956,7 +1915,7 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("PathFollowingComponent", "/Script/AIModule.PathFollowingComponent");
 	CLASS_REDIRECT("PawnSensingComponent", "/Script/AIModule.PawnSensingComponent");
 
-	STRUCT_REDIRECT("SReply", "EventReply");
+	STRUCT_REDIRECT("SReply", "/Script/UMG.EventReply");
 
 	PROPERTY_REDIRECT("Actor.AddTickPrerequisiteActor.DependentActor", "PrerequisiteActor");
 	FUNCTION_REDIRECT("Actor.AttachRootComponentTo", "Actor.K2_AttachRootComponentTo");
@@ -1976,10 +1935,6 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	FUNCTION_REDIRECT("SkyLightComponent.SetBrightness", "SkyLightComponent.SetIntensity");
 
 	PROPERTY_REDIRECT("AnimCurveBase.CurveName", "LastObservedName");
-	PROPERTY_REDIRECT("CameraComponent.bUsePawnViewRotation", "CameraComponent.bUsePawnControlRotation");
-	PROPERTY_REDIRECT("CharacterMovementComponent.bCrouchMovesCharacterDown", "CharacterMovementComponent.bCrouchMaintainsBaseLocation");
-	PROPERTY_REDIRECT("SpringArmComponent.bUseControllerViewRotation", "SpringArmComponent.bUsePawnControlRotation");
-	PROPERTY_REDIRECT("SpringArmComponent.bUsePawnViewRotation", "SpringArmComponent.bUsePawnControlRotation");
 
 	// 4.6
 
@@ -2007,11 +1962,11 @@ static void RegisterNativeRedirects46(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("MaterialExpressionTerrainLayerCoords", "/Script/Landscape.MaterialExpressionLandscapeLayerCoords");
 	CLASS_REDIRECT("MaterialExpressionTerrainLayerSwitch", "/Script/Landscape.MaterialExpressionLandscapeLayerSwitch");
 	CLASS_REDIRECT("MaterialExpressionTerrainLayerWeight", "/Script/Landscape.MaterialExpressionLandscapeLayerWeight");
-	CLASS_REDIRECT("ReverbVolume", "AudioVolume");
-	CLASS_REDIRECT("ReverbVolumeToggleable", "AudioVolume");
+	CLASS_REDIRECT("ReverbVolume", "/Script/Engine.AudioVolume");
+	CLASS_REDIRECT("ReverbVolumeToggleable", "/Script/Engine.AudioVolume");
 
-	STRUCT_REDIRECT("KeyboardEvent", "KeyEvent");
-	STRUCT_REDIRECT("KeyboardFocusEvent", "FocusEvent");
+	STRUCT_REDIRECT("KeyboardEvent", "/Script/SlateCore.KeyEvent");
+	STRUCT_REDIRECT("KeyboardFocusEvent", "/Script/SlateCore.FocusEvent");
 
 	FUNCTION_REDIRECT("Actor.AddActorLocalOffset", "Actor.K2_AddActorLocalOffset");
 	FUNCTION_REDIRECT("Actor.AddActorLocalRotation", "Actor.K2_AddActorLocalRotation");
@@ -2067,7 +2022,7 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 
 	CLASS_REDIRECT("EdGraphNode_Comment", "/Script/UnrealEd.EdGraphNode_Comment");
 	CLASS_REDIRECT("K2Node_Comment", "/Script/UnrealEd.EdGraphNode_Comment");
-	CLASS_REDIRECT("VimBlueprintFactory", "AnimBlueprintFactory");
+	CLASS_REDIRECT("VimBlueprintFactory", "/Script/UnrealEd.AnimBlueprintFactory");
 
 	FUNCTION_REDIRECT("Actor.SetTickEnabled", "Actor.SetActorTickEnabled");
 	PROPERTY_REDIRECT("UserWidget.OnKeyboardFocusLost.InKeyboardFocusEvent", "InFocusEvent");
@@ -2082,7 +2037,7 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	PROPERTY_REDIRECT("MeshComponent.Materials", "MeshComponent.OverrideMaterials");
 	PROPERTY_REDIRECT("Pawn.AutoPossess", "Pawn.AutoPossessPlayer");
 
-	FCoreRedirect& ECollisionChannel = ENUM_REDIRECT("ECollisionChannel", "ECollisionChannel");
+	FCoreRedirect& ECollisionChannel = ENUM_REDIRECT("ECollisionChannel", "/Script/Engine.ECollisionChannel");
 	ECollisionChannel.ValueChanges.Add(TEXT("ECC_Default"), TEXT("ECC_Visibility"));
 	ECollisionChannel.ValueChanges.Add(TEXT("ECC_Dynamic"), TEXT("ECC_WorldDynamic"));
 	ECollisionChannel.ValueChanges.Add(TEXT("ECC_OverlapAll"), TEXT("ECC_OverlapAll_Deprecated"));
@@ -2104,7 +2059,6 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("EditorGameAgnosticSettings", "/Script/UnrealEd.EditorSettings");
 	CLASS_REDIRECT("FoliageType", "/Script/Foliage.FoliageType");
 	CLASS_REDIRECT("FoliageType_InstancedStaticMesh", "/Script/Foliage.FoliageType_InstancedStaticMesh");
-	CLASS_REDIRECT("FoliageVertexColorMask", "/Script/Foliage.FoliageVertexColorMask");
 	CLASS_REDIRECT("InstancedFoliageActor", "/Script/Foliage.InstancedFoliageActor");
 	CLASS_REDIRECT("InstancedFoliageSettings", "/Script/Foliage.FoliageType_InstancedStaticMesh");
 	CLASS_REDIRECT("InteractiveFoliageComponent", "/Script/Foliage.InteractiveFoliageComponent");
@@ -2113,19 +2067,19 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	
 	STRUCT_REDIRECT("ProceduralFoliageTypeData", "/Script/Foliage.FoliageTypeObject");
 
-	FCoreRedirect& EComponentCreationMethod = ENUM_REDIRECT("EComponentCreationMethod", "EComponentCreationMethod");
+	FCoreRedirect& EComponentCreationMethod = ENUM_REDIRECT("EComponentCreationMethod", "/Script/Engine.EComponentCreationMethod");
 	EComponentCreationMethod.ValueChanges.Add(TEXT("EComponentCreationMethod::ConstructionScript"), TEXT("EComponentCreationMethod::SimpleConstructionScript"));
 
-	FCoreRedirect& EConstraintTransform = ENUM_REDIRECT("EConstraintTransform", "EConstraintTransform");
+	FCoreRedirect& EConstraintTransform = ENUM_REDIRECT("EConstraintTransform", "/Script/Engine.EConstraintTransform");
 	EConstraintTransform.ValueChanges.Add(TEXT("EConstraintTransform::Absoluate"), TEXT("EConstraintTransform::Absolute"));
 
-	FCoreRedirect& ELockedAxis = ENUM_REDIRECT("ELockedAxis", "EDOFMode");
+	FCoreRedirect& ELockedAxis = ENUM_REDIRECT("ELockedAxis", "/Script/Engine.EDOFMode");
 	ELockedAxis.ValueChanges.Add(TEXT("Custom"), TEXT("EDOFMode::CustomPlane"));
 	ELockedAxis.ValueChanges.Add(TEXT("X"), TEXT("EDOFMode::YZPlane"));
 	ELockedAxis.ValueChanges.Add(TEXT("Y"), TEXT("EDOFMode::XZPlane"));
 	ELockedAxis.ValueChanges.Add(TEXT("Z"), TEXT("EDOFMode::XYPlane"));
 
-	FCoreRedirect& EEndPlayReason = ENUM_REDIRECT("EEndPlayReason", "EEndPlayReason");
+	FCoreRedirect& EEndPlayReason = ENUM_REDIRECT("EEndPlayReason", "/Script/Engine.EEndPlayReason");
 	EEndPlayReason.ValueChanges.Add(TEXT("EEndPlayReason::ActorDestroyed"), TEXT("EEndPlayReason::Destroyed"));
 
 	FUNCTION_REDIRECT("ActorComponent.ReceiveInitializeComponent", "ActorComponent.ReceiveBeginPlay");
@@ -2162,17 +2116,13 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("MovieScene", "/Script/MovieScene.MovieScene");
 	CLASS_REDIRECT("MovieScene3DTransformSection", "/Script/MovieSceneTracks.MovieScene3DTransformSection");
 	CLASS_REDIRECT("MovieScene3DTransformTrack", "/Script/MovieSceneTracks.MovieScene3DTransformTrack");
-	CLASS_REDIRECT("MovieSceneAnimationSection", "/Script/MovieSceneTracks.MovieSceneAnimationSection");
-	CLASS_REDIRECT("MovieSceneAnimationTrack", "/Script/MovieSceneTracks.MovieSceneAnimationTrack");
 	CLASS_REDIRECT("MovieSceneAudioSection", "/Script/MovieSceneTracks.MovieSceneAudioSection");
 	CLASS_REDIRECT("MovieSceneAudioTrack", "/Script/MovieSceneTracks.MovieSceneAudioTrack");
-	CLASS_REDIRECT("MovieSceneBindings", "/Script/MovieScene.MovieSceneBindings");
 	CLASS_REDIRECT("MovieSceneBoolTrack", "/Script/MovieSceneTracks.MovieSceneBoolTrack");
 	CLASS_REDIRECT("MovieSceneByteSection", "/Script/MovieSceneTracks.MovieSceneByteSection");
 	CLASS_REDIRECT("MovieSceneByteTrack", "/Script/MovieSceneTracks.MovieSceneByteTrack");
 	CLASS_REDIRECT("MovieSceneColorSection", "/Script/MovieSceneTracks.MovieSceneColorSection");
 	CLASS_REDIRECT("MovieSceneColorTrack", "/Script/MovieSceneTracks.MovieSceneColorTrack");
-	CLASS_REDIRECT("MovieSceneDirectorTrack", "/Script/MovieSceneTracks.MovieSceneDirectorTrack");
 	CLASS_REDIRECT("MovieSceneFloatSection", "/Script/MovieSceneTracks.MovieSceneFloatSection");
 	CLASS_REDIRECT("MovieSceneFloatTrack", "/Script/MovieSceneTracks.MovieSceneFloatTrack");
 	CLASS_REDIRECT("MovieSceneParticleSection", "/Script/MovieSceneTracks.MovieSceneParticleSection");
@@ -2180,11 +2130,6 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	CLASS_REDIRECT("MovieScenePropertyTrack", "/Script/MovieSceneTracks.MovieScenePropertyTrack");
 	CLASS_REDIRECT("MovieSceneSection", "/Script/MovieScene.MovieSceneSection");
 	CLASS_REDIRECT("MovieSceneTrack", "/Script/MovieScene.MovieSceneTrack");
-	CLASS_REDIRECT("MovieSceneVectorSection", "/Script/MovieSceneTracks.MovieSceneVectorSection");
-	CLASS_REDIRECT("MovieSceneVectorTrack", "/Script/MovieSceneTracks.MovieSceneVectorTrack");
-	CLASS_REDIRECT("RuntimeMovieScenePlayer", "/Script/MovieScene.RuntimeMovieScenePlayer");
-	CLASS_REDIRECT("SubMovieSceneSection", "/Script/MovieSceneTracks.SubMovieSceneSection");
-	CLASS_REDIRECT("SubMovieSceneTrack", "/Script/MovieSceneTracks.SubMovieSceneTrack");
 
 	PACKAGE_REDIRECT("/Script/MovieSceneCore", "/Script/MovieScene");
 	PACKAGE_REDIRECT("/Script/MovieSceneCoreTypes", "/Script/MovieSceneTracks");
@@ -2200,13 +2145,12 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 	STRUCT_REDIRECT("AnimNode_SpringBone", "/Script/AnimGraphRuntime.AnimNode_SpringBone");
 	STRUCT_REDIRECT("AnimNode_Trail", "/Script/AnimGraphRuntime.AnimNode_Trail");
 	STRUCT_REDIRECT("AnimNode_TwoBoneIK", "/Script/AnimGraphRuntime.AnimNode_TwoBoneIK");
-	STRUCT_REDIRECT("MovieSceneBoundObject", "/Script/MovieScene.MovieSceneBoundObject");
 	STRUCT_REDIRECT("MovieSceneEditorData", "/Script/MovieScene.MovieSceneEditorData");
 	STRUCT_REDIRECT("MovieSceneObjectBinding", "/Script/MovieScene.MovieSceneBinding");
 	STRUCT_REDIRECT("MovieScenePossessable", "/Script/MovieScene.MovieScenePossessable");
 	STRUCT_REDIRECT("MovieSceneSpawnable", "/Script/MovieScene.MovieSceneSpawnable");
-	STRUCT_REDIRECT("SpritePolygon", "SpriteGeometryShape");
-	STRUCT_REDIRECT("SpritePolygonCollection", "SpriteGeometryCollection");
+	STRUCT_REDIRECT("SpritePolygon", "/Script/Paper2D.SpriteGeometryShape");
+	STRUCT_REDIRECT("SpritePolygonCollection", "/Script/Paper2D.SpriteGeometryCollection");
 
 	FUNCTION_REDIRECT("GameplayStatics.PlayDialogueAttached", "GameplayStatics.SpawnDialogueAttached");
 	FUNCTION_REDIRECT("GameplayStatics.PlaySoundAttached", "GameplayStatics.SpawnSoundAttached");
@@ -2228,10 +2172,10 @@ static void RegisterNativeRedirects49(TArray<FCoreRedirect>& Redirects)
 
 	ENUM_REDIRECT("ECheckBoxState", "/Script/SlateCore.ECheckBoxState");
 	ENUM_REDIRECT("ESlateCheckBoxState", "/Script/SlateCore.ECheckBoxState");
-	ENUM_REDIRECT("EAxisOption", "/Script/AnimGraphRuntime.EAxisOption");
-	ENUM_REDIRECT("EBoneAxis", "/Script/AnimGraphRuntime.EBoneAxis");
+	ENUM_REDIRECT("EAxisOption", "/Script/Engine.EAxisOption");
+	ENUM_REDIRECT("EBoneAxis", "/Script/Engine.EBoneAxis");
 	ENUM_REDIRECT("EBoneModificationMode", "/Script/AnimGraphRuntime.EBoneModificationMode");
-	ENUM_REDIRECT("EComponentType", "/Script/AnimGraphRuntime.EComponentType");
+	ENUM_REDIRECT("EComponentType", "/Script/Engine.EComponentType");
 	ENUM_REDIRECT("EInterpolationBlend", "/Script/AnimGraphRuntime.EInterpolationBlend");
 }
 

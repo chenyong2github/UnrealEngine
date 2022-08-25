@@ -25,7 +25,6 @@ void FSmartObjectsModule::StartupModule()
 {
 	TArray<FCoreRedirect> Redirects;
 	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/SmartObjectsModule.SmartObjectBehaviorConfigBase"), TEXT("/Script/SmartObjectsModule.SmartObjectBehaviorDefinition"));
-	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("/Script/SmartObjectsModule.SmartObjectGameplayBehaviorConfig"), TEXT("/Script/SmartObjectsModule.SmartObjectGameplayBehaviorDefinition"));
 
 	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("/Script/SmartObjectsModule.SmartObjectSlot"), TEXT("/Script/SmartObjectsModule.SmartObjectSlotDefinition"));
 	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("SmartObjectSlot"), TEXT("/Script/SmartObjectsModule.SmartObjectSlotDefinition"));
