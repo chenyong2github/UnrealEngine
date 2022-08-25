@@ -97,7 +97,7 @@ bool FLobbySchemaRegistry::RegisterSchema(FLobbySchemaConfig LobbySchemaConfig)
 }
 
 
-FClientLobbyData::FClientLobbyData(FOnlineLobbyIdHandle LobbyId)
+FClientLobbyData::FClientLobbyData(FLobbyId LobbyId)
 	: PublicData(MakeShared<FLobby>())
 {
 	PublicData->LobbyId = LobbyId;

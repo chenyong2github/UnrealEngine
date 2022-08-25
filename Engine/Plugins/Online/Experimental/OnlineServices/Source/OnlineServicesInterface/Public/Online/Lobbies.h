@@ -64,7 +64,7 @@ struct FLobbyMember
 
 struct FLobby
 {
-	FOnlineLobbyIdHandle LobbyId;
+	FLobbyId LobbyId;
 	FAccountId OwnerAccountId;
 	FName LocalName;
 	FName SchemaName;
@@ -157,7 +157,7 @@ struct FFindLobbies
 		TOptional<FAccountId> TargetUser;
 
 		/** Find join info for the target lobby id. */
-		TOptional<FOnlineLobbyIdHandle> LobbyId;
+		TOptional<FLobbyId> LobbyId;
 	};
 
 	/** Output struct for Lobbies::FindLobbies */
@@ -196,7 +196,7 @@ struct FJoinLobby
 		FName LocalName;
 
 		/** The id of the lobby to be joined. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** Local users who will be joining the lobby. */
 		TArray<FJoinLobbyLocalUserData> LocalUsers;
@@ -221,7 +221,7 @@ struct FLeaveLobby
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby to leave. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 	};
 
 	/** Output struct for Lobbies::LeaveLobby */
@@ -241,7 +241,7 @@ struct FInviteLobbyMember
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby for which the invitation will be sent. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** Id of the player who will be sent the invitation. */
 		FAccountId TargetAccountId;
@@ -264,7 +264,7 @@ struct FDeclineLobbyInvitation
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby for which the invitations will be declined. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 	};
 
 	/** Output struct for Lobbies::DeclineLobbyInvitation */
@@ -284,7 +284,7 @@ struct FKickLobbyMember
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** The target user to be kicked. */
 		FAccountId TargetAccountId;
@@ -307,7 +307,7 @@ struct FPromoteLobbyMember
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** The target user to be promoted to owner. */
 		FAccountId TargetAccountId;
@@ -345,7 +345,7 @@ struct FModifyLobbyJoinPolicy
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** The new join policy setting. */
 		ELobbyJoinPolicy JoinPolicy = ELobbyJoinPolicy::InvitationOnly;
@@ -368,7 +368,7 @@ struct FModifyLobbyAttributes
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** New or changed lobby attributes. */
 		TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;
@@ -394,7 +394,7 @@ struct FModifyLobbyMemberAttributes
 		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 
 		/** New or changed lobby attributes. */
 		TMap<FLobbyAttributeId, FLobbyVariant> MutatedAttributes;

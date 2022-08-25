@@ -242,7 +242,7 @@ struct FApplyLobbyUpdateResult
 struct ONLINESERVICESCOMMON_API FClientLobbyData final
 {
 public:
-	FClientLobbyData(FOnlineLobbyIdHandle LobbyId);
+	FClientLobbyData(FLobbyId LobbyId);
 
 	TSharedRef<const FLobby> GetPublicDataPtr() const { return PublicData; }
 	const FLobby& GetPublicData() const { return *PublicData; }

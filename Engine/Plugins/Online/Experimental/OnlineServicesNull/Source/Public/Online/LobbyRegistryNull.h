@@ -12,22 +12,22 @@ class FOnlineLobbyIdRegistryNull : public IOnlineLobbyIdRegistry
 public:
 	static FOnlineLobbyIdRegistryNull& Get();
 
-	const FOnlineLobbyIdHandle* Find(FString LobbyId);
-	FOnlineLobbyIdHandle FindOrAdd(FString LobbyId);
-	FOnlineLobbyIdHandle GetNext();
+	const FLobbyId* Find(FString LobbyIdStr);
+	FLobbyId FindOrAdd(FString LobbyIdStr);
+	FLobbyId GetNext();
 
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const FOnlineLobbyIdHandle& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FOnlineLobbyIdHandle& Handle) const override;
-	virtual FOnlineLobbyIdHandle FromReplicationData(const TArray<uint8>& ReplicationString) override;
+	virtual FString ToLogString(const FLobbyId& LobbyId) const override;
+	virtual TArray<uint8> ToReplicationData(const FLobbyId& LobbyId) const override;
+	virtual FLobbyId FromReplicationData(const TArray<uint8>& ReplicationString) override;
 	// End IOnlineAccountIdRegistry
 
 	virtual ~FOnlineLobbyIdRegistryNull() = default;
 
 private:
-	const FString* GetInternal(const FOnlineLobbyIdHandle& Handle) const;
+	const FString* GetInternal(const FLobbyId& LobbyId) const;
 	TArray<FString> Ids;
-	TMap<FString, FOnlineLobbyIdHandle> StringToId; 
+	TMap<FString, FLobbyId> StringToId; 
 
 };
 

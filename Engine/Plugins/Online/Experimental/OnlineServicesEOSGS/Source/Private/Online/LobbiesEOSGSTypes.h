@@ -318,18 +318,18 @@ private:
 class FLobbyDataEOS final : public TSharedFromThis<FLobbyDataEOS>
 {
 public:
-	using FUnregisterFn = TFunction<void(FOnlineLobbyIdHandle)>;
+	using FUnregisterFn = TFunction<void(FLobbyId)>;
 
 	FLobbyDataEOS() = delete;
 
 	static TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> Create(
-		FOnlineLobbyIdHandle LobbyIdHandle,
+		FLobbyId LobbyId,
 		const TSharedRef<FLobbyDetailsEOS>& LobbyDetails,
 		FUnregisterFn UnregisterFn = FUnregisterFn());
 
 	~FLobbyDataEOS();
 
-	FOnlineLobbyIdHandle GetLobbyIdHandle() const { return ClientLobbyData->GetPublicData().LobbyId; }
+	FLobbyId GetLobbyIdHandle() const { return ClientLobbyData->GetPublicData().LobbyId; }
 	const TSharedRef<FClientLobbyData>& GetClientLobbyData() const { return ClientLobbyData; }
 	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyId(); }
 	const FString& GetLobbyId() const { return LobbyId; }
@@ -366,17 +366,17 @@ public:
 	FLobbyDataRegistryEOS(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites);
 
 	TSharedPtr<FLobbyDataEOS> Find(EOS_LobbyId EOSLobbyId) const;
-	TSharedPtr<FLobbyDataEOS> Find(FOnlineLobbyIdHandle LobbyIdHandle) const;
+	TSharedPtr<FLobbyDataEOS> Find(FLobbyId LobbyId) const;
 	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FindOrCreateFromLobbyDetails(FAccountId LocalAccountId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails);
 
 private:
 	void Register(const TSharedRef<FLobbyDataEOS>& LobbyIdHandleData);
-	void Unregister(FOnlineLobbyIdHandle LobbyIdHandle);
+	void Unregister(FLobbyId LobbyId);
 	FLobbyDataEOS::FUnregisterFn MakeUnregisterFn();
 
 	TSharedRef<FLobbyPrerequisitesEOS> Prerequisites;
 	TMap<FString, TWeakPtr<FLobbyDataEOS>> LobbyIdIndex;
-	TMap<FOnlineLobbyIdHandle, TWeakPtr<FLobbyDataEOS>> LobbyIdHandleIndex;
+	TMap<FLobbyId, TWeakPtr<FLobbyDataEOS>> LobbyIdHandleIndex;
 	uint32 NextHandleIndex = 1;
 };
 

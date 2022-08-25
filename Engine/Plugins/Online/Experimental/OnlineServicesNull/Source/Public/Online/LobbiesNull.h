@@ -62,7 +62,7 @@ private:
 	FOnlineServicesNull& Services;
 	
 	TMap<FName, TSharedRef<FLobbyNull>> NamedLobbies;
-	TMap<FOnlineLobbyIdHandle, TSharedRef<FLobbyNull>> AllLobbies; // todo: this should be moved to the lobby id registry (replication made this tricky to get implemented asap)
+	TMap<FLobbyId, TSharedRef<FLobbyNull>> AllLobbies; // todo: this should be moved to the lobby id registry (replication made this tricky to get implemented asap)
 	TSharedPtr<FFindLobbies::Result> CurrentLobbySearch;
 	TSharedPtr<TOnlineAsyncOp<FFindLobbies>> CurrentLobbySearchHandle;
 	FLANSession LANSessionManager;
@@ -98,7 +98,7 @@ private:
 		}
 	}
 
-	TSharedPtr<FLobbyNull> GetLobby(const FOnlineLobbyIdHandle LobbyId)
+	TSharedPtr<FLobbyNull> GetLobby(const FLobbyId LobbyId)
 	{
 		TSharedRef<FLobbyNull>* Lobby = AllLobbies.Find(LobbyId);
 		if(Lobby)
@@ -126,7 +126,7 @@ private:
 	}
 
 	// returns true if a named lobby was removed
-	bool RemoveLobbyFromId(const FOnlineLobbyIdHandle& LobbyId)
+	bool RemoveLobbyFromId(const FLobbyId& LobbyId)
 	{
 		TSharedPtr<FLobbyNull> Lobby = GetLobby(LobbyId);
 		if(Lobby)

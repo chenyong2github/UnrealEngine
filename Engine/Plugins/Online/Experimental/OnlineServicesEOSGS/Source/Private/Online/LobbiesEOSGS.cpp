@@ -1171,8 +1171,8 @@ void FLobbiesEOSGS::RemoveActiveLobby(FAccountId LocalAccountId, const TSharedRe
 
 void FLobbiesEOSGS::AddActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite)
 {
-	TMap<FOnlineLobbyIdHandle, TSharedRef<FLobbyInviteDataEOS>>& ActiveUserInvites = ActiveInvites.FindOrAdd(Invite->GetReceiver());
-	const FOnlineLobbyIdHandle LobbyId = Invite->GetLobbyData()->GetLobbyIdHandle();
+	TMap<FLobbyId, TSharedRef<FLobbyInviteDataEOS>>& ActiveUserInvites = ActiveInvites.FindOrAdd(Invite->GetReceiver());
+	const FLobbyId LobbyId = Invite->GetLobbyData()->GetLobbyIdHandle();
 
 	// Todo: Handle multiple invites for the same lobby.
 	if (ActiveUserInvites.Find(LobbyId) == nullptr)
@@ -1199,7 +1199,7 @@ void FLobbiesEOSGS::RemoveActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& In
 		});
 }
 
-TSharedPtr<FLobbyInviteDataEOS> FLobbiesEOSGS::GetActiveInvite(FAccountId TargetUser, FOnlineLobbyIdHandle TargetLobbyId)
+TSharedPtr<FLobbyInviteDataEOS> FLobbiesEOSGS::GetActiveInvite(FAccountId TargetUser, FLobbyId TargetLobbyId)
 {
 	const TSharedRef<FLobbyInviteDataEOS>* Result = ActiveInvites.FindOrAdd(TargetUser).Find(TargetLobbyId);
 	return Result ? *Result : TSharedPtr<FLobbyInviteDataEOS>();

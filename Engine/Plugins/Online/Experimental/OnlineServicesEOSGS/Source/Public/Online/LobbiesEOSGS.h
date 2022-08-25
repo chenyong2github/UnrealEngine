@@ -134,7 +134,7 @@ struct FLobbiesDeclineLobbyInvitationImpl
 		FAccountId LocalAccountId;
 
 		// Id of the lobby for which the invitations will be declined.
-		FOnlineLobbyIdHandle LobbyId;
+		FLobbyId LobbyId;
 	};
 
 	struct Result
@@ -299,7 +299,7 @@ protected:
 	// Todo: store list of invites per lobby.
 	void AddActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite);
 	void RemoveActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite);
-	TSharedPtr<FLobbyInviteDataEOS> GetActiveInvite(FAccountId TargetUser, FOnlineLobbyIdHandle TargetLobbyId);
+	TSharedPtr<FLobbyInviteDataEOS> GetActiveInvite(FAccountId TargetUser, FLobbyId TargetLobbyId);
 
 	// LobbyData will be fetched from the operation data if not set in Params.
 	TFuture<TDefaultErrorResult<FLobbiesJoinLobbyImpl>> JoinLobbyImpl(FLobbiesJoinLobbyImpl::Params&& Params);
@@ -326,7 +326,7 @@ protected:
 	TSharedPtr<FLobbyDataRegistryEOS> LobbyDataRegistry;
 
 	TMap<FAccountId, TSet<TSharedRef<FLobbyDataEOS>>> ActiveLobbies;
-	TMap<FAccountId, TMap<FOnlineLobbyIdHandle, TSharedRef<FLobbyInviteDataEOS>>> ActiveInvites;
+	TMap<FAccountId, TMap<FLobbyId, TSharedRef<FLobbyInviteDataEOS>>> ActiveInvites;
 	TMap<FAccountId, TSharedRef<FLobbySearchEOS>> ActiveSearchResults;
 };
 

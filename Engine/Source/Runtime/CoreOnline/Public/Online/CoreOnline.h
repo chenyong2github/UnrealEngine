@@ -307,14 +307,14 @@ private:
 };
 
 using FAccountId = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
-using FOnlineLobbyIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
+using FLobbyId = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
 using FOnlineSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSession>;
 using FOnlineSessionInviteIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSessionInvite>;
 using FOnlineVerifiedAuthTicketIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthTicket>;
 using FOnlineVerifiedAuthSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthSession>;
 
 COREONLINE_API FString ToLogString(const FAccountId& Id);
-COREONLINE_API FString ToLogString(const FOnlineLobbyIdHandle& Id);
+COREONLINE_API FString ToLogString(const FLobbyId& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionInviteIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthTicketIdHandle& Id);

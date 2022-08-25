@@ -114,7 +114,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 	{
 		FLobbyEvents LobbyEvents;
 		FLobbyEventCapture EventCapture(LobbyEvents);
-		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
+		FLobbyId LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
 		FAccountId User1(EOnlineServices::Null, 1);
@@ -267,7 +267,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 	{
 		FLobbyEvents LobbyEvents;
 		FLobbyEventCapture EventCapture(LobbyEvents);
-		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
+		FLobbyId LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
 		FAccountId User1(EOnlineServices::Null, 1);
@@ -454,7 +454,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 	{
 		FLobbyEvents LobbyEvents;
 		FLobbyEventCapture EventCapture(LobbyEvents);
-		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
+		FLobbyId LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
 		FAccountId User1(EOnlineServices::Null, 1);
@@ -597,7 +597,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 	{
 		FLobbyEvents LobbyEvents;
 		FLobbyEventCapture EventCapture(LobbyEvents);
-		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
+		FLobbyId LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
 		FAccountId User1(EOnlineServices::Null, 1);
@@ -776,7 +776,7 @@ bool FClientLobbyDataTest::RunTest(const FString& Parameters)
 	{
 		FLobbyEvents LobbyEvents;
 		FLobbyEventCapture EventCapture(LobbyEvents);
-		FOnlineLobbyIdHandle LobbyId(EOnlineServices::Null, 1);
+		FLobbyId LobbyId(EOnlineServices::Null, 1);
 		FClientLobbyData ClientData(LobbyId);
 
 		FAccountId User1(EOnlineServices::Null, 1);
@@ -1121,16 +1121,16 @@ TFuture<int> AwaitNextGameTick()
 	return AwaitSleepFor(0.f);
 }
 
-TFuture<TDefaultErrorResultInternal<FOnlineLobbyIdHandle>> AwaitInvitation(
+TFuture<TDefaultErrorResultInternal<FLobbyId>> AwaitInvitation(
 	FLobbyEvents& LobbyEvents,
 	FAccountId TargetAccountId,
-	FOnlineLobbyIdHandle LobbyId,
+	FLobbyId LobbyId,
 	float TimeoutSeconds)
 {
 	// todo: Make this nicer - current implementation has issue on shutdown.
 	struct AwaitInvitationState
 	{
-		TPromise<TDefaultErrorResultInternal<FOnlineLobbyIdHandle>> Promise;
+		TPromise<TDefaultErrorResultInternal<FLobbyId>> Promise;
 		FOnlineEventDelegateHandle OnLobbyInvitationAddedHandle;
 		FTSTicker::FDelegateHandle OnAwaitExpiredHandle;
 		bool bSignaled = false;
@@ -1674,7 +1674,7 @@ TOnlineAsyncOpHandle<FFunctionalTestLobbies> RunLobbyFunctionalTest(IAuth& AuthI
 		const FCreateLobby::Result& CreateLobbyResult = GetOpDataChecked<FCreateLobby::Result>(InAsyncOp, CreateLobbyKeyName);
 		return Private::AwaitInvitation(*LobbyEventsPtr, User2Info.AccountInfo->AccountId, CreateLobbyResult.Lobby->LobbyId, TestConfig->InvitationWaitSeconds);
 	})
-	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp, TDefaultErrorResultInternal<FOnlineLobbyIdHandle>&& Result)
+	.Then([](TOnlineAsyncOp<FFunctionalTestLobbies>& InAsyncOp, TDefaultErrorResultInternal<FLobbyId>&& Result)
 	{
 		if (Result.IsError())
 		{

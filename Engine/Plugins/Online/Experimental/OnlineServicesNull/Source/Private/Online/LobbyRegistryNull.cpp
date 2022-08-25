@@ -9,44 +9,44 @@ FOnlineLobbyIdRegistryNull& FOnlineLobbyIdRegistryNull::Get()
 	return Instance;
 }
 
-const FOnlineLobbyIdHandle* FOnlineLobbyIdRegistryNull::Find(FString LobbyId)
+const FLobbyId* FOnlineLobbyIdRegistryNull::Find(FString LobbyIdStr)
 {
-	return StringToId.Find(LobbyId);
+	return StringToId.Find(LobbyIdStr);
 }
 
-FOnlineLobbyIdHandle FOnlineLobbyIdRegistryNull::FindOrAdd(FString LobbyId)
+FLobbyId FOnlineLobbyIdRegistryNull::FindOrAdd(FString LobbyIdStr)
 {
-	const FOnlineLobbyIdHandle* Entry = StringToId.Find(LobbyId);
+	const FLobbyId* Entry = StringToId.Find(LobbyIdStr);
 	if (Entry)
 	{
 		return *Entry;
 	}
 
-	Ids.Add(LobbyId);
-	FOnlineLobbyIdHandle Handle(EOnlineServices::Null, Ids.Num());
-	StringToId.Add(LobbyId, Handle);
+	Ids.Add(LobbyIdStr);
+	FLobbyId LobbyId(EOnlineServices::Null, Ids.Num());
+	StringToId.Add(LobbyIdStr, LobbyId);
 
-	return Handle;
+	return LobbyId;
 }
 
-UE::Online::FOnlineLobbyIdHandle FOnlineLobbyIdRegistryNull::GetNext()
+UE::Online::FLobbyId FOnlineLobbyIdRegistryNull::GetNext()
 {
 	return FindOrAdd(FGuid::NewGuid().ToString());
 }
 
 
-const FString* FOnlineLobbyIdRegistryNull::GetInternal(const FOnlineLobbyIdHandle& Handle) const
+const FString* FOnlineLobbyIdRegistryNull::GetInternal(const FLobbyId& LobbyId) const
 {
-	if (Handle.GetOnlineServicesType() == EOnlineServices::Null && Handle.GetHandle() <= (uint32)Ids.Num())
+	if (LobbyId.GetOnlineServicesType() == EOnlineServices::Null && LobbyId.GetHandle() <= (uint32)Ids.Num())
 	{
-		return &Ids[Handle.GetHandle()-1];
+		return &Ids[LobbyId.GetHandle()-1];
 	}
 	return nullptr;
 }
 
-FString FOnlineLobbyIdRegistryNull::ToLogString(const FOnlineLobbyIdHandle& Handle) const
+FString FOnlineLobbyIdRegistryNull::ToLogString(const FLobbyId& LobbyId) const
 {
-	if (const FString* Id = GetInternal(Handle))
+	if (const FString* Id = GetInternal(LobbyId))
 	{
 		return *Id;
 	}
@@ -55,9 +55,9 @@ FString FOnlineLobbyIdRegistryNull::ToLogString(const FOnlineLobbyIdHandle& Hand
 }
 
 
-TArray<uint8> FOnlineLobbyIdRegistryNull::ToReplicationData(const FOnlineLobbyIdHandle& Handle) const
+TArray<uint8> FOnlineLobbyIdRegistryNull::ToReplicationData(const FLobbyId& LobbyId) const
 {
-	if (const FString* Id = GetInternal(Handle))
+	if (const FString* Id = GetInternal(LobbyId))
 	{
 		TArray<uint8> ReplicationData;
 		ReplicationData.Reserve(Id->Len());
@@ -68,14 +68,14 @@ TArray<uint8> FOnlineLobbyIdRegistryNull::ToReplicationData(const FOnlineLobbyId
 	return TArray<uint8>();;
 }
 
-FOnlineLobbyIdHandle FOnlineLobbyIdRegistryNull::FromReplicationData(const TArray<uint8>& ReplicationData)
+FLobbyId FOnlineLobbyIdRegistryNull::FromReplicationData(const TArray<uint8>& ReplicationData)
 {
 	FString Result = BytesToString(ReplicationData.GetData(), ReplicationData.Num());
 	if (Result.Len() > 0)
 	{
 		return FindOrAdd(Result);
 	}
-	return FOnlineLobbyIdHandle();
+	return FLobbyId();
 }
 
 } // namespace UE::Online

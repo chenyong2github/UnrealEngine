@@ -689,7 +689,7 @@ FLobbyDataEOS::FLobbyDataEOS(
 }
 
 TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::Create(
-	FOnlineLobbyIdHandle LobbyIdHandle,
+	FLobbyId LobbyId,
 	const TSharedRef<FLobbyDetailsEOS>& LobbyDetails,
 	FUnregisterFn UnregisterFn)
 {
@@ -700,7 +700,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::C
 	.Then(
 	[
 		Promise = MoveTemp(Promise),
-		LobbyIdHandle,
+		LobbyId,
 		LobbyDetails,
 		UnregisterFn = MoveTemp(UnregisterFn)
 	]
@@ -714,7 +714,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataEOS::C
 		}
 
 		TSharedRef<FClientLobbySnapshot> LobbySnapshot = Future.Get().GetOkValue();
-		TSharedRef<FClientLobbyData> LobbyData = MakeShared<FClientLobbyData>(LobbyIdHandle);
+		TSharedRef<FClientLobbyData> LobbyData = MakeShared<FClientLobbyData>(LobbyId);
 
 		// Fetch member data and apply them to the lobby.
 		TMap<FAccountId, TSharedRef<FClientLobbyMemberSnapshot>> MemberSnapshots;
@@ -753,9 +753,9 @@ TSharedPtr<FLobbyDataEOS> FLobbyDataRegistryEOS::Find(EOS_LobbyId EOSLobbyId) co
 	return Result ? Result->Pin() : TSharedPtr<FLobbyDataEOS>();
 }
 
-TSharedPtr<FLobbyDataEOS> FLobbyDataRegistryEOS::Find(FOnlineLobbyIdHandle LobbyIdHandle) const
+TSharedPtr<FLobbyDataEOS> FLobbyDataRegistryEOS::Find(FLobbyId LobbyId) const
 {
-	const TWeakPtr<FLobbyDataEOS>* Result = LobbyIdHandleIndex.Find(LobbyIdHandle);
+	const TWeakPtr<FLobbyDataEOS>* Result = LobbyIdHandleIndex.Find(LobbyId);
 	return Result ? Result->Pin() : TSharedPtr<FLobbyDataEOS>();
 }
 
@@ -770,7 +770,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegist
 	TPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> Promise;
 	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> Future = Promise.GetFuture();
 
-	const FOnlineLobbyIdHandle LobbyId = FOnlineLobbyIdHandle(EOnlineServices::Epic, NextHandleIndex++);
+	const FLobbyId LobbyId = FLobbyId(EOnlineServices::Epic, NextHandleIndex++);
 	FLobbyDataEOS::Create(LobbyId, LobbyDetails, MakeUnregisterFn())
 	.Then([WeakThis = AsWeak(), Promise = MoveTemp(Promise), LocalAccountId, LobbyDetails](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable
 	{
@@ -795,9 +795,9 @@ void FLobbyDataRegistryEOS::Register(const TSharedRef<FLobbyDataEOS>& LobbyIdHan
 	LobbyIdHandleIndex.Add(LobbyIdHandleData->GetLobbyIdHandle(), LobbyIdHandleData);
 }
 
-void FLobbyDataRegistryEOS::Unregister(FOnlineLobbyIdHandle LobbyIdHandle)
+void FLobbyDataRegistryEOS::Unregister(FLobbyId LobbyId)
 {
-	if (TSharedPtr<FLobbyDataEOS> HandleData = Find(LobbyIdHandle))
+	if (TSharedPtr<FLobbyDataEOS> HandleData = Find(LobbyId))
 	{
 		LobbyIdIndex.Remove(HandleData->GetLobbyId());
 		LobbyIdHandleIndex.Remove(HandleData->GetLobbyIdHandle());
@@ -806,7 +806,7 @@ void FLobbyDataRegistryEOS::Unregister(FOnlineLobbyIdHandle LobbyIdHandle)
 
 FLobbyDataEOS::FUnregisterFn FLobbyDataRegistryEOS::MakeUnregisterFn()
 {
-	return [WeakThis = AsWeak()](FOnlineLobbyIdHandle LobbyId)
+	return [WeakThis = AsWeak()](FLobbyId LobbyId)
 	{
 		if (TSharedPtr<FLobbyDataRegistryEOS> StrongThis = WeakThis.Pin())
 		{
@@ -832,7 +832,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> FLobbyInvi
 	TPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> Promise;
 	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> Future = Promise.GetFuture();
 
-	// Search for existing lobby data so that the LobbyIdHandle will match.
+	// Search for existing lobby data so that the LobbyId will match.
 	TSharedRef<FLobbyInviteIdEOS> InviteId = MakeShared<FLobbyInviteIdEOS>(InviteIdEOS);
 	LobbyDataRegistry->FindOrCreateFromLobbyDetails(LocalAccountId, LobbyDetails)
 	.Then([Promise = MoveTemp(Promise), InviteId, LocalAccountId, Sender, LobbyDetails](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable

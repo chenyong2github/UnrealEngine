@@ -410,7 +410,7 @@ FString ToLogString(const FAccountId& Id)
 	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
 }
 
-FString ToLogString(const FOnlineLobbyIdHandle& Id)
+FString ToLogString(const FLobbyId& Id)
 {
 	// todo: use registry.
 	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
