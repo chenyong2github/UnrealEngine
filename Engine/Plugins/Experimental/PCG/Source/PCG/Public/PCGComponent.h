@@ -192,6 +192,12 @@ public:
 	const FPCGDataCollection* GetInspectionData(const UPCGNode* InNode) const;
 #endif
 
+	/** Utility function (mostly for tests) to properly set the value of bIsPartitioned.
+	*   Will do an immediate cleanup first and then register/unregister the component to the subsystem.
+	*   It's your responsibility after to regenerate the graph if you want to.
+	*/
+	void SetIsPartitioned(bool bIsNowPartitioned);
+
 	bool IsPartitioned() const;
 	bool IsLocalComponent() const { return bIsComponentLocal; }
 

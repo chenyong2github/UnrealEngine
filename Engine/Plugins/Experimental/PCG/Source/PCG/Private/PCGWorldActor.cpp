@@ -98,13 +98,10 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 	{
 		return;
 	}
-
-	// First gather all the PCG components that linked to PCGPartitionActor
-	TSet<TObjectPtr<UPCGComponent>> AllPartitionedComponents;
 	
 	bool bAllSafeToDelete = true;
 
-	auto AddPartitionComponentAndCheckIfSafeToDelete = [&AllPartitionedComponents, &bAllSafeToDelete](AActor* Actor) -> bool
+	auto AddPartitionComponentAndCheckIfSafeToDelete = [&bAllSafeToDelete](AActor* Actor) -> bool
 	{
 		TObjectPtr<APCGPartitionActor> PartitionActor = CastChecked<APCGPartitionActor>(Actor);
 
@@ -112,14 +109,6 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 		{
 			bAllSafeToDelete = false;
 			return true;
-		}
-
-		for (UPCGComponent* PCGComponent : PartitionActor->GetAllOriginalPCGComponents())
-		{
-			if (PCGComponent)
-			{
-				AllPartitionedComponents.Add(PCGComponent);
-			}
 		}
 
 		return true;
@@ -136,11 +125,13 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 	}
 
 	// Then delete all PCGPartitionActors
-	PCGSubsystem->DeletePartitionActors();
+	PCGSubsystem->DeletePartitionActors(/*bDeleteOnlyUnused=*/false);
 
-	// And finally, refresh all components
-	for (TObjectPtr<UPCGComponent> PCGComponent : AllPartitionedComponents)
+	// And finally, refresh all components that are partitioned (registered to the PCGSubsystem)
+	// to let them recreate the needed PCG Partition Actors.
+	for (UPCGComponent* PCGComponent : PCGSubsystem->GetAllRegisteredComponents())
 	{
+		check(PCGComponent);
 		PCGComponent->DirtyGenerated();
 		PCGComponent->Refresh();
 	}

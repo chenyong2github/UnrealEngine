@@ -8,6 +8,7 @@
 #include "PCGPartitionActor.generated.h"
 
 class UPCGComponent;
+class UPCGSubsystem;
 class UBoxComponent;
 
 /** 
@@ -24,12 +25,15 @@ public:
 
 	//~Begin UObject Interface
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+	virtual void Destroyed() override;
 	//~End UObject Interface
 
 	//~Begin AActor Interface
 	virtual void BeginPlay();
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
+	virtual void PostRegisterAllComponents() override;
 #if WITH_EDITOR
 	virtual FBox GetStreamingBounds() const override;
 	virtual AActor* GetSceneOutlinerParent() const override;
@@ -51,7 +55,7 @@ public:
 
 	void AddGraphInstance(UPCGComponent* OriginalComponent);
 	bool RemoveGraphInstance(UPCGComponent* OriginalComponent);
-	bool CleanupDeadGraphInstances();
+	void CleanupDeadGraphInstances();
 
 #if WITH_EDITOR
 	/** To be called after the creation of a new actor to copy the GridSize property (Editor only) into the PCGGridSize property */
@@ -79,6 +83,8 @@ public:
 	FGuid PCGGuid;
 
 private:
+	UPCGSubsystem* GetSubsystem() const;
+
 	// TODO: Make these properties editor only (see comment before).
 	UPROPERTY()
 	TMap<TObjectPtr<UPCGComponent>, TObjectPtr<UPCGComponent>> OriginalToLocalMap;
@@ -96,5 +102,8 @@ private:
 	/** Box component to draw the Partition actor bounds in the Editor viewport */
 	UPROPERTY(Transient)
 	TObjectPtr<UBoxComponent> BoundsComponent;
+
+	/** Utility bool to check if PostCreation/PostLoad was called. */
+	bool bWasPostCreatedLoaded = false;
 #endif // WITH_EDITORONLY_DATA
 };

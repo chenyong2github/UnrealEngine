@@ -39,7 +39,21 @@ namespace PCGSubsystemConsole
 				}
 			}));
 }
+
+namespace PCGSubsystem
+{
+	FPCGTaskId ForEachIntersectingCell(FPCGGraphExecutor* GraphExecutor, UWorld* World, const FBox& InBounds, bool bCreateActor, bool bLoadCell, bool bSaveActors, TFunctionRef<FPCGTaskId(APCGPartitionActor*, const FBox&, const TArray<FPCGTaskId>&)> InOperation);
+}
 #endif
+
+UPCGSubsystem::UPCGSubsystem()
+	: Super()
+{
+	// TODO: For now we set our octree to be 2km wide, but it would be perhaps better to
+	// scale it to the size of our world.
+	constexpr FVector::FReal OctreeExtent = 200000; // 2km
+	PCGComponentOctree = FPCGComponentOctree(FVector::ZeroVector, OctreeExtent);
+}
 
 void UPCGSubsystem::Deinitialize()
 {
@@ -71,11 +85,6 @@ void UPCGSubsystem::PostInitialize()
 			});
 		}
 	}
-
-	// TODO: For now we set our octree to be 2km wide, but it would be perhaps better to
-	// scale it to the size of our world.
-	constexpr FVector::FReal OctreeExtent = 200000; // 2km
-	PCGComponentOctree = FPCGComponentOctree(FVector::ZeroVector, OctreeExtent);
 }
 
 void UPCGSubsystem::Tick(float DeltaSeconds)
@@ -145,11 +154,16 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 		return InvalidPCGTaskId;
 	}
 
-	// TODO: Merge both path
 #if WITH_EDITOR
 	if (PCGComponent->IsPartitioned() && !PCGHelpers::IsRuntimeOrPIE())
 	{
-		return ScheduleProcessGraph(PCGComponent, bSave);
+		// In this case create the PA and update the mapping
+		// Note: This is an immediate operation, as we need the PA for the generation.
+		auto ScheduleTask = [](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) { return InvalidPCGTaskId; };
+
+		PCGSubsystem::ForEachIntersectingCell(GraphExecutor, PCGComponent->GetWorld(), PCGComponent->GetGridBounds(), /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+
+		UpdateMappingPCGComponentPartitionActor(PCGComponent);
 	}
 #endif // WITH_EDITOR
 
@@ -158,14 +172,29 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 	// If the component is partitioned, we will forward the calls to its registered PCG Partition actors
 	if (PCGComponent->IsPartitioned())
 	{
+		auto LocalGenerateTask = [OriginalComponent = PCGComponent, &Dependencies](UPCGComponent* LocalComponent)
 		{
-			// TODO: Might be more interesting to copy the set and release the lock.
-			FReadScopeLock ReadLock(ComponentToPartitionActorsMapLock);
-			if (TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(PCGComponent))
+			// If the local component is currently generating, it's probably because it was requested by a refresh.
+			// Wait after this one instead
+			if (LocalComponent->IsGenerating())
 			{
-				AllTasks = ScheduleMultipleComponent(PCGComponent, *PartitionActorsPtr, Dependencies);
+				return LocalComponent->CurrentGenerationTask;
 			}
-		}
+
+			// Ensure that the PCG actor match our original
+			LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
+
+			if (LocalComponent->bGenerated && !OriginalComponent->bGenerated)
+			{
+				// Detected a mismatch between the original component and the local component.
+				// Request a cleanup first
+				LocalComponent->CleanupLocalImmediate(true);
+			}
+
+			return LocalComponent->GenerateInternal(/*bForce=*/ false, EPCGComponentGenerationTrigger::GenerateOnDemand, Dependencies);
+		};
+
+		AllTasks = DispatchToRegisteredLocalComponents(PCGComponent, LocalGenerateTask);
 	}
 	else
 	{
@@ -208,29 +237,24 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 		return InvalidPCGTaskId;
 	}
 
-	// TODO: Merge both path
-#if WITH_EDITOR
-	if (PCGComponent->IsPartitioned() && !PCGHelpers::IsRuntimeOrPIE())
-	{
-		return CleanupGraph(PCGComponent, PCGComponent->LastGeneratedBounds, bRemoveComponents, bSave);
-	}
-#endif // WITH_EDITOR
-
 	TArray<FPCGTaskId> AllTasks;
 
 	// If the component is partitioned, we will forward the calls to its registered PCG Partition actors
 	if (PCGComponent->IsPartitioned())
 	{
+		auto LocalCleanupTask = [bRemoveComponents, &Dependencies](UPCGComponent* LocalComponent)
 		{
-			// TODO: Might be more interesting to copy the set and release the lock.
-			FReadScopeLock ReadLock(ComponentToPartitionActorsMapLock);
-			TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(PCGComponent);
-
-			if (PartitionActorsPtr)
+			// If the local component is currently cleaning up, it's probably because it was requested by a refresh.
+			// Wait after this one instead
+			if (LocalComponent->IsCleaningUp())
 			{
-				AllTasks = ScheduleMultipleCleanup(PCGComponent, *PartitionActorsPtr, bRemoveComponents, Dependencies);
+				return LocalComponent->CurrentCleanupTask;
 			}
-		}
+
+			return LocalComponent->CleanupInternal(bRemoveComponents, /*bSave=*/ false, Dependencies);
+		};
+
+		AllTasks = DispatchToRegisteredLocalComponents(PCGComponent, LocalCleanupTask);
 	}
 	else
 	{
@@ -241,22 +265,39 @@ FPCGTaskId UPCGSubsystem::ScheduleCleanup(UPCGComponent* PCGComponent, bool bRem
 		}
 	}
 
+	TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
+	auto PostCleanupTask = [this, ComponentPtr]()
+	{
+		if (UPCGComponent* Component = ComponentPtr.Get())
+		{
+			Component->PostCleanupGraph();
+
+#if WITH_EDITOR
+			// If we are in Editor and partitioned, delete the mapping.
+			if (Component->IsPartitioned() && !PCGHelpers::IsRuntimeOrPIE())
+			{
+				DeleteMappingPCGComponentPartitionActor(Component);
+			}
+#endif // WITH_EDITOR
+		}
+
+		return true;
+	};
+
+	FPCGTaskId PostCleanupTaskId = InvalidPCGTaskId;
+
+	// If we have no tasks to do, just call PostCleanup immediatly
+	// otherwise wait for all the tasks to be done to call PostCleanup.
 	if (AllTasks.IsEmpty())
 	{
-		return InvalidPCGTaskId;
+		PostCleanupTask();
 	}
-	
-	TWeakObjectPtr<UPCGComponent> ComponentPtr(PCGComponent);
+	else
+	{
+		PostCleanupTaskId = GraphExecutor->ScheduleGeneric(PostCleanupTask, AllTasks);
+	}
 
-	return GraphExecutor->ScheduleGeneric([ComponentPtr]() 
-		{
-			if (UPCGComponent* Component = ComponentPtr.Get())
-			{
-				Component->PostCleanupGraph();
-			}
-
-			return true;
-		}, AllTasks);
+	return PostCleanupTaskId;
 }
 
 FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGComponent* SourceComponent, const TArray<FPCGTaskId>& Dependencies)
@@ -299,36 +340,23 @@ FPCGTaskId UPCGSubsystem::ScheduleGeneric(TFunction<bool()> InOperation, const T
 	return GraphExecutor->ScheduleGeneric(InOperation, TaskDependencies);
 }
 
-TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleComponent(UPCGComponent* OriginalComponent, TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TArray<FPCGTaskId>& Dependencies)
+TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
 {
-	TArray<FPCGTaskId> TaskIds;
-	for (APCGPartitionActor* PartitionActor : PartitionActors)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DispatchToRegisteredLocalComponents);
+
+	// TODO: Might be more interesting to copy the set and release the lock.
+	FReadScopeLock ReadLock(ComponentToPartitionActorsMapLock);
+	const TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(OriginalComponent);
+
+	if (!PartitionActorsPtr)
 	{
-		if (PartitionActor)
-		{
-			if (UPCGComponent* LocalComponent = PartitionActor->GetLocalComponent(OriginalComponent))
-			{
-				// Add check to avoid infinite loop
-				if (ensure(!LocalComponent->IsPartitioned()))
-				{
-					// Ensure that the PCG actor match our original
-					LocalComponent->SetPropertiesFromOriginal(OriginalComponent);
-
-					FPCGTaskId LocalTask = LocalComponent->GenerateInternal(/*bForce=*/ false, EPCGComponentGenerationTrigger::GenerateOnDemand, Dependencies);
-
-					if (LocalTask != InvalidPCGTaskId)
-					{
-						TaskIds.Add(LocalTask);
-					}
-				}
-			}
-		}
+		return TArray<FPCGTaskId>();
 	}
 
-	return TaskIds;
+	return DispatchToLocalComponents(OriginalComponent, *PartitionActorsPtr, InFunc);
 }
 
-TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleCleanup(UPCGComponent* OriginalComponent, TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
+TArray<FPCGTaskId> UPCGSubsystem::DispatchToLocalComponents(UPCGComponent* OriginalComponent, const TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
 {
 	TArray<FPCGTaskId> TaskIds;
 	for (APCGPartitionActor* PartitionActor : PartitionActors)
@@ -340,7 +368,7 @@ TArray<FPCGTaskId> UPCGSubsystem::ScheduleMultipleCleanup(UPCGComponent* Origina
 				// Add check to avoid infinite loop
 				if (ensure(!LocalComponent->IsPartitioned()))
 				{
-					FPCGTaskId LocalTask = LocalComponent->CleanupInternal(bRemoveComponents, /*bSave=*/ false, Dependencies);
+					FPCGTaskId LocalTask = InFunc(LocalComponent);
 
 					if (LocalTask != InvalidPCGTaskId)
 					{
@@ -360,56 +388,28 @@ bool UPCGSubsystem::GetOutputData(FPCGTaskId TaskId, FPCGDataCollection& OutData
 	return GraphExecutor->GetOutputData(TaskId, OutData);
 }
 
-void UPCGSubsystem::RegisterPCGComponent(UPCGComponent* InComponent)
+bool UPCGSubsystem::RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, bool bDoActorMapping)
 {
 	// Just make sure that we don't register components that are from the PCG Partition Actor
 	check(InComponent && InComponent->GetOwner() && !InComponent->GetOwner()->IsA<APCGPartitionActor>());
 
+	// If the component is not partitioned, don't register/update it.
+	if (!InComponent->IsPartitioned())
+	{
+		return false;
+	}
+
 	// Check also that the bounds are valid. If not early out.
 	if (!InComponent->GetGridBounds().IsValid)
 	{
-		UE_LOG(LogPCG, Error, TEXT("[RegisterPCGComponent] Component has invalid bounds, not registered."));
-		return;
+		UE_LOG(LogPCG, Error, TEXT("[RegisterOrUpdatePCGComponent] Component has invalid bounds, not registered nor updated."));
+		return false;
 	}
 
 	FBox Bounds(EForceInit::ForceInit);
+	bool bComponentHasChanged = false;
+	bool bComponentWasAdded = false;
 
-	{
-		FWriteScopeLock WriteLock(PCGVolumeOctreeLock);
-
-		// We should not register a component twice.
-		check(!ComponentToIdMap.Contains(InComponent));
-
-		FPCGComponentOctreeIDSharedRef IdShared = MakeShared<FPCGComponentOctreeID>();
-		FPCGComponentRef ComponentRef(InComponent, IdShared);
-		Bounds = ComponentRef.Bounds.GetBox();
-		check(Bounds.IsValid);
-		PCGComponentOctree.AddElement(ComponentRef);
-
-		// Store the shared ptr, because if we add/remove components in the octree, the id might change.
-		// We need to make sure that we always have the latest id for the given component.
-		ComponentToIdMap.Add(InComponent, MoveTemp(IdShared));
-	}
-
-	// After adding, do the mapping
-	{
-		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
-
-		TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors = ComponentToPartitionActorsMap.Emplace(InComponent);
-		FindAllIntersectingPartitionActors(Bounds, [&PartitionActors, InComponent](APCGPartitionActor* Actor)
-			{
-				PartitionActors.Add(Actor);
-				Actor->AddGraphInstance(InComponent);
-			});
-	}
-}
-
-void UPCGSubsystem::UpdatePCGComponentBounds(UPCGComponent* InComponent)
-{
-	check(InComponent);
-	FBox Bounds;
-
-	// Remove it and add it again to the octree
 	{
 		FWriteScopeLock WriteLock(PCGVolumeOctreeLock);
 
@@ -417,33 +417,71 @@ void UPCGSubsystem::UpdatePCGComponentBounds(UPCGComponent* InComponent)
 
 		if (!ElementIdPtr)
 		{
-			return;
+			// Does not exist yet, add it.
+			FPCGComponentOctreeIDSharedRef IdShared = MakeShared<FPCGComponentOctreeID>();
+			FPCGComponentRef ComponentRef(InComponent, IdShared);
+			Bounds = ComponentRef.Bounds.GetBox();
+			check(Bounds.IsValid);
+			PCGComponentOctree.AddElement(ComponentRef);
+
+			bComponentHasChanged = true;
+			bComponentWasAdded = true;
+
+			// Store the shared ptr, because if we add/remove components in the octree, the id might change.
+			// We need to make sure that we always have the latest id for the given component.
+			ComponentToIdMap.Add(InComponent, MoveTemp(IdShared));
 		}
-
-		FPCGComponentRef ComponentRef = PCGComponentOctree.GetElementById((*ElementIdPtr)->Id);
-		PCGComponentOctree.RemoveElement((*ElementIdPtr)->Id);
-
-		ComponentRef.UpdateBounds();
-		Bounds = ComponentRef.Bounds.GetBox();
-
-		PCGComponentOctree.AddElement(ComponentRef);
-	}
-
-	// Redo the mapping between components and PCG PartitionActors
-	{
-		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
-		TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(InComponent);
-		if (ensure(PartitionActorsPtr))
+		else
 		{
-			PartitionActorsPtr->Empty();
-			FindAllIntersectingPartitionActors(Bounds, [PartitionActorsPtr, InComponent](APCGPartitionActor* Actor)
-				{
-					PartitionActorsPtr->Add(Actor);
-					Actor->AddGraphInstance(InComponent);
-				});
+			// It already exists, update it if the bounds changed.
+
+			// Do a copy here.
+			FPCGComponentRef ComponentRef = PCGComponentOctree.GetElementById((*ElementIdPtr)->Id);
+			FBox PreviousBounds = ComponentRef.Bounds.GetBox();
+			ComponentRef.UpdateBounds();
+			Bounds = ComponentRef.Bounds.GetBox();
+			check(Bounds.IsValid);
+
+			// If bounds changed, remove and re-add to the octree
+			if (!PreviousBounds.Equals(Bounds))
+			{
+				PCGComponentOctree.RemoveElement((*ElementIdPtr)->Id);
+				PCGComponentOctree.AddElement(ComponentRef);
+				bComponentHasChanged = true;
+			}
 		}
 	}
 
+#if WITH_EDITOR
+	// In Editor only, we will create new partition actors depending on the new bounds
+	// TODO: For now it will always create the PA. But if we want to create them only when we generate, we need to make
+	// sure to update the runtime flow, for them to also create PA if they need to.
+	if (!PCGHelpers::IsRuntimeOrPIE())
+	{
+		auto ScheduleTask = [](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) { return InvalidPCGTaskId; };
+
+		PCGSubsystem::ForEachIntersectingCell(GraphExecutor, InComponent->GetWorld(), Bounds, /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+	}
+#endif // WITH_EDITOR
+
+	// After adding/updating, try to do the mapping (if we asked for it and the component changed)
+	if (bDoActorMapping)
+	{
+		if (bComponentHasChanged)
+		{
+			UpdateMappingPCGComponentPartitionActor(InComponent);
+		}
+	}
+	else
+	{
+		if (!bComponentWasAdded)
+		{
+			// If we do not want a mapping, delete the existing one
+			DeleteMappingPCGComponentPartitionActor(InComponent);
+		}
+	}
+
+	return bComponentHasChanged;
 }
 
 void UPCGSubsystem::UnregisterPCGComponent(UPCGComponent* InComponent)
@@ -478,24 +516,21 @@ void UPCGSubsystem::UnregisterPCGComponent(UPCGComponent* InComponent)
 	}
 
 	{
-		FReadScopeLock ReadLock(ComponentToPartitionActorsMapLock);
+		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
 		TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(InComponent);
-		if (ensure(PartitionActorsPtr))
+		if (PartitionActorsPtr)
 		{
 			for (APCGPartitionActor* Actor : *PartitionActorsPtr)
 			{
 				Actor->RemoveGraphInstance(InComponent);
 			}
-		}
-	}
 
-	{
-		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
-		ComponentToPartitionActorsMap.Remove(InComponent);
+			ComponentToPartitionActorsMap.Remove(InComponent);
+		}
 	}
 }
 
-void UPCGSubsystem::FindAllIntersectingComponents(const FBoxCenterAndExtent& InBounds, TFunction<void(UPCGComponent*)> InFunc) const
+void UPCGSubsystem::ForAllIntersectingComponents(const FBoxCenterAndExtent& InBounds, TFunction<void(UPCGComponent*)> InFunc) const
 {
 	FReadScopeLock ReadLock(PCGVolumeOctreeLock);
 
@@ -505,7 +540,7 @@ void UPCGSubsystem::FindAllIntersectingComponents(const FBoxCenterAndExtent& InB
 		});
 }
 
-void UPCGSubsystem::RegisterPartitionActor(APCGPartitionActor* Actor)
+void UPCGSubsystem::RegisterPartitionActor(APCGPartitionActor* Actor, bool bDoComponentMapping)
 {
 	check(Actor);
 
@@ -524,13 +559,17 @@ void UPCGSubsystem::RegisterPartitionActor(APCGPartitionActor* Actor)
 	// And then register itself to all the components that intersect with it
 	{
 		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
-		FindAllIntersectingComponents(FBoxCenterAndExtent(Actor->GetFixedBounds()), [this, Actor](UPCGComponent* Component)
+		ForAllIntersectingComponents(FBoxCenterAndExtent(Actor->GetFixedBounds()), [this, Actor, bDoComponentMapping](UPCGComponent* Component)
 			{
-				TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(Component);
-				if (ensure(PartitionActorsPtr))
+				// For each component, do the mapping if we ask it explicitly, or if the component is generated
+				if (bDoComponentMapping || Component->bGenerated)
 				{
-					Actor->AddGraphInstance(Component);
-					PartitionActorsPtr->Add(Actor);
+					TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(Component);
+					if (ensure(PartitionActorsPtr))
+					{
+						Actor->AddGraphInstance(Component);
+						PartitionActorsPtr->Add(Actor);
+					}
 				}
 			});
 	}
@@ -550,10 +589,10 @@ void UPCGSubsystem::UnregisterPartitionActor(APCGPartitionActor* Actor)
 	// And then unregister itself to all the components that intersect with it
 	{
 		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
-		FindAllIntersectingComponents(FBoxCenterAndExtent(Actor->GetFixedBounds()), [this, Actor](UPCGComponent* Component)
+		ForAllIntersectingComponents(FBoxCenterAndExtent(Actor->GetFixedBounds()), [this, Actor](UPCGComponent* Component)
 			{
 				TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(Component);
-				if (ensure(PartitionActorsPtr))
+				if (PartitionActorsPtr)
 				{
 					Actor->RemoveGraphInstance(Component);
 					PartitionActorsPtr->Remove(Actor);
@@ -562,7 +601,7 @@ void UPCGSubsystem::UnregisterPartitionActor(APCGPartitionActor* Actor)
 	}
 }
 
-void UPCGSubsystem::FindAllIntersectingPartitionActors(const FBox& InBounds, TFunction<void(APCGPartitionActor*)> InFunc) const
+void UPCGSubsystem::ForAllIntersectingPartitionActors(const FBox& InBounds, TFunction<void(APCGPartitionActor*)> InFunc) const
 {
 
 	// No PCGWorldActor just early out. Same for invalid bounds.
@@ -602,6 +641,95 @@ void UPCGSubsystem::FindAllIntersectingPartitionActors(const FBox& InBounds, TFu
 			}
 		}
 	}
+}
+
+void UPCGSubsystem::UpdateMappingPCGComponentPartitionActor(UPCGComponent* InComponent)
+{
+	check(InComponent);
+
+	// Get the bounds
+	FBox Bounds(EForceInit::ForceInit);
+	{
+		FReadScopeLock OctreeReadLock(PCGVolumeOctreeLock);
+
+		FPCGComponentOctreeIDSharedRef* ElementIdPtr = ComponentToIdMap.Find(InComponent);
+
+		if (ensure(ElementIdPtr))
+		{
+			const FPCGComponentRef& ComponentRef = PCGComponentOctree.GetElementById((*ElementIdPtr)->Id);
+			Bounds = ComponentRef.Bounds.GetBox();
+		}
+		else
+		{
+			return;
+		}
+	}
+
+	if (!Bounds.IsValid)
+	{
+		return;
+	}
+
+	{
+		FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
+
+		TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(InComponent);
+
+		if (!PartitionActorsPtr)
+		{
+			// Does not yet exists, add it
+			PartitionActorsPtr = &ComponentToPartitionActorsMap.Emplace(InComponent);
+			check(PartitionActorsPtr);
+		}
+
+		TSet<TObjectPtr<APCGPartitionActor>> NewMapping;
+		ForAllIntersectingPartitionActors(Bounds, [&NewMapping, InComponent](APCGPartitionActor* Actor)
+		{
+			Actor->AddGraphInstance(InComponent);
+			NewMapping.Add(Actor);
+		});
+
+		// Find the ones that were removed
+		TSet<TObjectPtr<APCGPartitionActor>> RemovedActors = PartitionActorsPtr->Difference(NewMapping);
+
+		for (APCGPartitionActor* RemovedActor : RemovedActors)
+		{
+			RemovedActor->RemoveGraphInstance(InComponent);
+		}
+
+		*PartitionActorsPtr = MoveTemp(NewMapping);
+	}
+}
+
+void UPCGSubsystem::DeleteMappingPCGComponentPartitionActor(UPCGComponent* InComponent)
+{
+	check(InComponent);
+
+	if (!InComponent->IsPartitioned())
+	{
+		return;
+	}
+
+	FWriteScopeLock WriteLock(ComponentToPartitionActorsMapLock);
+
+	TSet<TObjectPtr<APCGPartitionActor>>* PartitionActorsPtr = ComponentToPartitionActorsMap.Find(InComponent);
+	if (PartitionActorsPtr)
+	{
+		for (APCGPartitionActor* Actor : *PartitionActorsPtr)
+		{
+			Actor->RemoveGraphInstance(InComponent);
+		}
+
+		PartitionActorsPtr->Empty();
+	}
+}
+
+TSet<TObjectPtr<UPCGComponent>> UPCGSubsystem::GetAllRegisteredComponents() const
+{
+	TSet<TObjectPtr<UPCGComponent>> Components;
+	ComponentToIdMap.GetKeys(Components);
+
+	return Components;
 }
 
 #if WITH_EDITOR
@@ -946,29 +1074,16 @@ FPCGTaskId UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InB
 
 void UPCGSubsystem::DirtyGraph(UPCGComponent* Component, const FBox& InBounds, EPCGComponentDirtyFlag DirtyFlag)
 {
-	TWeakObjectPtr<UPCGComponent> ComponentPtr(Component);
+	check(Component);
 
-	auto ScheduleTask = [this, ComponentPtr, DirtyFlag](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) {
-		// In the specific case of the dirty, we want to bypass the execution queue, esp. since there's nothing happening here
-		// so we will run the command now, and not delay it.
-		check(ComponentPtr.Get() != nullptr && PCGActor != nullptr);
-		UPCGComponent* Component = ComponentPtr.Get();
-
-		if (!PCGActor || !Component)
-		{
-			return InvalidPCGTaskId;
-		}
-
-		if (UPCGComponent* LocalComponent = PCGActor->GetLocalComponent(Component))
-		{
-			LocalComponent->DirtyGenerated(DirtyFlag);
-		}
-
+	// Immediate operation
+	auto DirtyTask = [DirtyFlag](UPCGComponent* LocalComponent)
+	{
+		LocalComponent->DirtyGenerated(DirtyFlag);
 		return InvalidPCGTaskId;
 	};
 
-	// TODO: Could implement a "ForEachLoadedIntersectingCellImmediate" method to clarify this use case
-	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+	DispatchToRegisteredLocalComponents(Component, DirtyTask);
 }
 
 void UPCGSubsystem::CleanupPartitionActors(const FBox& InBounds)
@@ -1053,7 +1168,7 @@ void UPCGSubsystem::ClearPCGLink(UPCGComponent* InComponent, const FBox& InBound
 	}
 }
 
-void UPCGSubsystem::DeletePartitionActors()
+void UPCGSubsystem::DeletePartitionActors(bool bOnlyDeleteUnused)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DeletePartitionActors);
 
@@ -1122,13 +1237,42 @@ void UPCGSubsystem::DeletePartitionActors()
 		GEditor->SelectNone(true, true, false);
 	}
 
-	FWorldPartitionHelpers::ForEachActorDesc<APCGPartitionActor>(World->GetWorldPartition(), GatherAndDestroyActors);
+	if (bOnlyDeleteUnused)
+	{		
+		// Need to copy to avoid deadlock
+		TMap<FIntVector, TObjectPtr<APCGPartitionActor>> PartitionActorsMapCopy;
+		{
+			FReadScopeLock ReadLock(PartitionActorsMapLock);
+			PartitionActorsMapCopy = PartitionActorsMap;
+		}
 
-	// Also cleanup the remaining actors that don't have descriptors, if we have a loaded level
-	if (ULevel* Level = World->GetCurrentLevel())
+		for (const TPair<FIntVector, TObjectPtr<APCGPartitionActor>>& Item : PartitionActorsMapCopy)
+		{
+			if (APCGPartitionActor* PartitionActor = Item.Value)
+			{
+				bool bIntersectWithOneComponent = false;
+
+				auto FoundComponents = [&bIntersectWithOneComponent](UPCGComponent*) { bIntersectWithOneComponent = true; };
+
+				ForAllIntersectingComponents(PartitionActor->GetFixedBounds(), FoundComponents);
+
+				if (!bIntersectWithOneComponent)
+				{
+					GatherAndDestroyLoadedActors(PartitionActor);
+				}
+			}
+		}
+	}
+	else
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DeletePartitionActors::ForEachActorInLevel);
-		UPCGActorHelpers::ForEachActorInLevel<APCGPartitionActor>(Level, GatherAndDestroyLoadedActors);
+		FWorldPartitionHelpers::ForEachActorDesc<APCGPartitionActor>(World->GetWorldPartition(), GatherAndDestroyActors);
+
+		// Also cleanup the remaining actors that don't have descriptors, if we have a loaded level
+		if (ULevel* Level = World->GetCurrentLevel())
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DeletePartitionActors::ForEachActorInLevel);
+			UPCGActorHelpers::ForEachActorInLevel<APCGPartitionActor>(Level, GatherAndDestroyLoadedActors);
+		}
 	}
 
 	if (!ActorsNotSafeToBeDeleted.IsEmpty())
@@ -1202,37 +1346,6 @@ void UPCGSubsystem::ResetPartitionActorsMap()
 	PartitionActorsMapLock.WriteLock();
 	PartitionActorsMap.Empty();
 	PartitionActorsMapLock.WriteUnlock();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////
-FPCGTaskId UPCGSubsystem::SchedulePartitionGraph(UPCGComponent* Component)
-{
-	check(Component && Component->IsPartitioned());
-
-	const FBox PreviousBounds = Component->LastGeneratedBounds;
-	const FBox NewBounds = Component->GetGridBounds();
-
-	return ProcessGraph(Component, PreviousBounds, NewBounds, EOperation::Partition, /*bSave=*/false);
-}
-
-FPCGTaskId UPCGSubsystem::ScheduleUnpartitionGraph(UPCGComponent* Component)
-{
-	check(Component && Component->IsPartitioned());
-
-	const FBox PreviousBounds = Component->LastGeneratedBounds;
-	const FBox NewBounds = Component->GetGridBounds();
-
-	return ProcessGraph(Component, PreviousBounds, NewBounds, EOperation::Unpartition, /*bSave=*/false);
-}
-
-FPCGTaskId UPCGSubsystem::ScheduleProcessGraph(UPCGComponent* Component, bool bSave)
-{
-	check(Component && Component->IsPartitioned());
-
-	const FBox PreviousBounds = Component->LastGeneratedBounds;
-	const FBox NewBounds = Component->GetGridBounds();
-
-	return ProcessGraph(Component, PreviousBounds, NewBounds, EOperation::Generate, bSave);
 }
 
 #endif // WITH_EDITOR

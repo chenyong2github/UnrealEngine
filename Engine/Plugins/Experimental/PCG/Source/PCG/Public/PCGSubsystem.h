@@ -31,6 +31,8 @@ class PCG_API UPCGSubsystem : public UTickableWorldSubsystem
 	GENERATED_BODY()
 
 public:
+	UPCGSubsystem();
+
 	//~ Begin USubsystem Interface.
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface
@@ -74,28 +76,22 @@ public:
 	/** Gets the output data for a given task */
 	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
 
-	/** Register a new PCG Component, will be added to the octree. Returns an id that needs to be kept for update and removal. Thread safe */
-	void RegisterPCGComponent(UPCGComponent* InComponent);
-
-	/** Update a PCG Component, if it has changed its transform. Thread safe */
-	void UpdatePCGComponentBounds(UPCGComponent* InComponent);
+	/** Register a new PCG Component or update it, will be added to the octree if it doesn't exists yet. Returns true if it was added/updated. Thread safe */
+	bool RegisterOrUpdatePCGComponent(UPCGComponent* InComponent, bool bDoActorMapping = true);
 
 	/** Unregister a PCG Component, will be removed from the octree. Thread safe */
 	void UnregisterPCGComponent(UPCGComponent* InComponent);
 
-	/** Register a new Partition actor, will be added to a map and will query all intersecting volume to bind to them. Thread safe */
-	void RegisterPartitionActor(APCGPartitionActor* InActor);
+	/** Register a new Partition actor, will be added to a map and will query all intersecting volume to bind to them if asked. Thread safe */
+	void RegisterPartitionActor(APCGPartitionActor* InActor, bool bDoComponentMapping = true);
 
 	/** Unregister a Partition actor, will be removed from the map and remove itself to all intersecting volumes. Thread safe */
 	void UnregisterPartitionActor(APCGPartitionActor* InActor);
 
+	TSet<TObjectPtr<UPCGComponent>> GetAllRegisteredComponents() const;
+
 #if WITH_EDITOR
 public:
-	/** Operations to schedule a later operation, which enables to delay bounds querying */
-	FPCGTaskId SchedulePartitionGraph(UPCGComponent* Component);
-	FPCGTaskId ScheduleUnpartitionGraph(UPCGComponent* Component);
-	FPCGTaskId ScheduleProcessGraph(UPCGComponent* Component, bool bSave);
-
 	/** Schedules an operation to cleanup the graph in the given bounds */
 	FPCGTaskId CleanupGraph(UPCGComponent* Component, const FBox& InBounds, bool bRemoveComponents, bool bSave);
 
@@ -104,7 +100,7 @@ public:
 
 	/** Partition actors methods */
 	void CleanupPartitionActors(const FBox& InBounds);
-	void DeletePartitionActors();
+	void DeletePartitionActors(bool bOnlyDeleteUnused);
 
 	/** Propagate to the graph compiler graph changes */
 	void NotifyGraphChanged(UPCGGraph* InGraph);
@@ -139,17 +135,23 @@ private:
 #endif // WITH_EDITOR
 	
 private:
-	// Schedule multiple graphs
-	TArray<FPCGTaskId> ScheduleMultipleComponent(UPCGComponent* OriginalComponent, TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TArray<FPCGTaskId>& Dependencies);
+	/* Call the InFunc function to all local component registered to the original component. Return the list of all the tasks scheduled. Thread safe*/
+	TArray<FPCGTaskId> DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const;
 
-	// Schedule multiple cleanups
-	TArray<FPCGTaskId> ScheduleMultipleCleanup(UPCGComponent* OriginalComponent, TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies);
+	/* Call the InFunc function to all local component from the set of partition actors. Return the list of all the tasks scheduled. */
+	TArray<FPCGTaskId> DispatchToLocalComponents(UPCGComponent* OriginalComponent, const TSet<TObjectPtr<APCGPartitionActor>>& PartitionActors, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const;
 
 	/** Iterate other all the components which bounds intersect the box in param and call a callback. Thread safe */
-	void FindAllIntersectingComponents(const FBoxCenterAndExtent& InBounds, TFunction<void(UPCGComponent*)> InFunc) const;
+	void ForAllIntersectingComponents(const FBoxCenterAndExtent& InBounds, TFunction<void(UPCGComponent*)> InFunc) const;
 
 	/** Iterate other all the int coordinates given a box and call a callback. Thread safe */
-	void FindAllIntersectingPartitionActors(const FBox& InBounds, TFunction<void(APCGPartitionActor*)> InFunc) const;
+	void ForAllIntersectingPartitionActors(const FBox& InBounds, TFunction<void(APCGPartitionActor*)> InFunc) const;
+
+	/** Update the current mapping between a PCG component and its PCG Partition actors */
+	void UpdateMappingPCGComponentPartitionActor(UPCGComponent* InComponent);
+
+	/** Delete the current mapping between a PCG component and its PCG Partition actors */
+	void DeleteMappingPCGComponentPartitionActor(UPCGComponent* InComponent);
 	
 private:
 	APCGWorldActor* PCGWorldActor = nullptr;
@@ -160,7 +162,7 @@ private:
 #endif
 
 	FPCGComponentOctree PCGComponentOctree;
-	TMap<TObjectPtr<const UPCGComponent>, FPCGComponentOctreeIDSharedRef> ComponentToIdMap;
+	TMap<TObjectPtr<UPCGComponent>, FPCGComponentOctreeIDSharedRef> ComponentToIdMap;
 	mutable FRWLock PCGVolumeOctreeLock;
 
 	TMap<FIntVector, TObjectPtr<APCGPartitionActor>> PartitionActorsMap;

@@ -29,6 +29,11 @@ APCGPartitionActor::APCGPartitionActor(const FObjectInitializer& ObjectInitializ
 #endif // WITH_EDITOR
 }
 
+UPCGSubsystem* APCGPartitionActor::GetSubsystem() const 
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UPCGSubsystem>() : nullptr;
+}
+
 void APCGPartitionActor::PostLoad()
 {
 	Super::PostLoad();
@@ -43,17 +48,68 @@ void APCGPartitionActor::PostLoad()
 	CleanupDeadGraphInstances();
 
 #if WITH_EDITOR
-	if (BoundsComponent)
-	{
-		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
-	}
-
 	// Mark all our local components as local
 	for (UPCGComponent* LocalComponent : GetAllLocalPCGComponents())
 	{
 		LocalComponent->MarkAsLocalComponent();
 	}
+
+	bWasPostCreatedLoaded = true;
 #endif // WITH_EDITOR
+}
+
+void APCGPartitionActor::BeginDestroy()
+{
+#if WITH_EDITOR
+	if (!PCGHelpers::IsRuntimeOrPIE() && GetSubsystem() && PCGGridSize > 0)
+	{
+		GetSubsystem()->UnregisterPartitionActor(this);
+	}
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
+}
+
+void APCGPartitionActor::Destroyed()
+{
+#if WITH_EDITOR
+	if (!PCGHelpers::IsRuntimeOrPIE() && GetSubsystem() && PCGGridSize > 0)
+	{
+		GetSubsystem()->UnregisterPartitionActor(this);
+	}
+#endif // WITH_EDITOR
+
+	Super::Destroyed();
+}
+
+void APCGPartitionActor::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+#if WITH_EDITOR
+	if (BoundsComponent)
+	{
+		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
+	}
+#endif // WITH_EDITOR
+
+	// Make the Partition actor register itself to the PCG Subsystem
+	// Always do it at runtime, wait for the post load/creation in editor
+	// Only do the mapping if we are at runtime.
+
+	// Make sure the PCGGridSize is not 0, otherwise it will break everything
+
+	const bool bIsRuntimeOrPIE = PCGHelpers::IsRuntimeOrPIE();
+	if ((bIsRuntimeOrPIE 
+#if WITH_EDITOR
+		|| bWasPostCreatedLoaded
+#endif // WITH_EDITOR
+		) && ensure(PCGGridSize > 0))
+	{
+		UPCGSubsystem* Subsystem = GetSubsystem();
+		check(Subsystem);
+		Subsystem->RegisterPartitionActor(this, /*bDoComponentMapping*/ bIsRuntimeOrPIE);
+	}
 }
 
 void APCGPartitionActor::BeginPlay()
@@ -76,24 +132,12 @@ void APCGPartitionActor::BeginPlay()
 		}
 	}
 
-	// Make the Partition actor register itself to the PCG Subsystem
-	UWorld* World = GetWorld();
-	check(World);
-
-	UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>();
-	check(Subsystem);
-
-	Subsystem->RegisterPartitionActor(this);
-
 	Super::BeginPlay();
 }
 
 void APCGPartitionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UWorld* World = GetWorld();
-	check(World);
-
-	UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>();
+	UPCGSubsystem* Subsystem = GetSubsystem();
 	check(Subsystem);
 
 	Subsystem->UnregisterPartitionActor(this);
@@ -158,12 +202,32 @@ UPCGComponent* APCGPartitionActor::GetOriginalComponent(const UPCGComponent* Loc
 	return OriginalComponent ? (*OriginalComponent).Get() : nullptr;
 }
 
-bool APCGPartitionActor::CleanupDeadGraphInstances()
+void APCGPartitionActor::CleanupDeadGraphInstances()
 {
-	TSet<TObjectPtr<UPCGComponent>> DeadLocalInstances;
+	// First find if we have any local dead instance (= nullptr) hooked to an original component.
+	TSet<TObjectPtr<UPCGComponent>> DeadOriginalInstances;
+	for (const auto& OriginalToLocalItem : OriginalToLocalMap)
+	{
+		if (!OriginalToLocalItem.Value)
+		{
+			DeadOriginalInstances.Add(OriginalToLocalItem.Key);
+		}
+	}
 
-	// Note: since we might end up with multiple nulls in the original to local map
-	// it might not be very stable to use it; we'll use the 
+	if (!DeadOriginalInstances.IsEmpty())
+	{
+		Modify();
+
+		for (const TObjectPtr<UPCGComponent>& DeadInstance : DeadOriginalInstances)
+		{
+			OriginalToLocalMap.Remove(DeadInstance);
+		}
+
+		LocalToOriginalMap.Remove(nullptr);
+	}
+
+	// And do the same with dead original ones.
+	TSet<TObjectPtr<UPCGComponent>> DeadLocalInstances;
 	for (const auto& LocalToOriginalItem : LocalToOriginalMap)
 	{
 		if (!LocalToOriginalItem.Value)
@@ -172,28 +236,25 @@ bool APCGPartitionActor::CleanupDeadGraphInstances()
 		}
 	}
 
-	if (DeadLocalInstances.Num() == 0)
+
+	if (!DeadLocalInstances.IsEmpty())
 	{
-		return OriginalToLocalMap.IsEmpty();
-	}
+		Modify();
 
-	Modify();
-
-	for (const TObjectPtr<UPCGComponent>& DeadInstance : DeadLocalInstances)
-	{
-		LocalToOriginalMap.Remove(DeadInstance);
-
-		if (DeadInstance)
+		for (const TObjectPtr<UPCGComponent>& DeadInstance : DeadLocalInstances)
 		{
-			DeadInstance->CleanupLocal(/*bRemoveComponents=*/true);
-			DeadInstance->DestroyComponent();
+			LocalToOriginalMap.Remove(DeadInstance);
+
+			if (DeadInstance)
+			{
+				DeadInstance->CleanupLocalImmediate(/*bRemoveComponents=*/true);
+				DeadInstance->DestroyComponent();
+			}
 		}
+
+		// Remove all dead entries
+		OriginalToLocalMap.Remove(nullptr);
 	}
-
-	// Remove all dead entries
-	OriginalToLocalMap.Remove(nullptr);
-
-	return OriginalToLocalMap.IsEmpty();
 }
 
 void APCGPartitionActor::AddGraphInstance(UPCGComponent* OriginalComponent)
@@ -289,6 +350,14 @@ void APCGPartitionActor::PostCreation()
 	{
 		BoundsComponent->SetBoxExtent(GetFixedBounds().GetExtent());
 	}
+
+	// Make sure PCGGrid size if greater than 0, otherwise it will break everything
+	if (!PCGHelpers::IsRuntimeOrPIE() && GetSubsystem() && ensure(PCGGridSize > 0))
+	{
+		GetSubsystem()->RegisterPartitionActor(this, /*bDoComponentMapping=*/ false);
+	}
+
+	bWasPostCreatedLoaded = true;
 #endif // WITH_EDITOR
 }
 
@@ -297,7 +366,7 @@ bool APCGPartitionActor::IsSafeForDeletion() const
 	ensure(IsInGameThread());
 	for (TObjectPtr<UPCGComponent> PCGComponent : GetAllOriginalPCGComponents())
 	{
-		if (PCGComponent && PCGComponent->IsGenerating())
+		if (PCGComponent && (PCGComponent->IsGenerating() || PCGComponent->IsCleaningUp()))
 		{
 			return false;
 		}

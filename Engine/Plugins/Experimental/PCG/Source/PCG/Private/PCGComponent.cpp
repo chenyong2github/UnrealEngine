@@ -54,6 +54,32 @@ bool UPCGComponent::IsPartitioned() const
 	return bIsPartitioned && CanPartition();
 }
 
+void UPCGComponent::SetIsPartitioned(bool bIsNowPartitioned)
+{
+	if (bIsNowPartitioned == bIsPartitioned)
+	{
+		return;
+	}
+
+	bool bDoActorMapping = bGenerated || PCGHelpers::IsRuntimeOrPIE();
+
+	if (bGenerated)
+	{
+		CleanupLocalImmediate(/*bRemoveComponents=*/true);
+	}
+
+	if (bIsNowPartitioned)
+	{
+		bIsPartitioned = bIsNowPartitioned;
+		GetSubsystem()->RegisterOrUpdatePCGComponent(this, bDoActorMapping);
+	}
+	else
+	{
+		GetSubsystem()->UnregisterPCGComponent(this);
+		bIsPartitioned = bIsNowPartitioned;
+	}
+}
+
 void UPCGComponent::SetGraph_Implementation(UPCGGraph* InGraph)
 {
 	SetGraphLocal(InGraph);
@@ -210,6 +236,8 @@ FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationT
 		return InvalidPCGTaskId;
 	}
 
+	Modify();
+
 	CurrentGenerationTask = GetSubsystem()->ScheduleComponent(this, /*bSave=*/bForce, Dependencies);
 
 	return CurrentGenerationTask;
@@ -229,8 +257,6 @@ FPCGTaskId UPCGComponent::CreateGenerateTask(bool bForce, const TArray<FPCGTaskI
 		++Seed;
 	}
 #endif
-
-	Modify();
 
 	// Keep track of all the dependencies
 	TArray<FPCGTaskId> AdditionalDependencies;
@@ -322,6 +348,7 @@ void UPCGComponent::PostCleanupGraph()
 
 #if WITH_EDITOR
 	OnPCGGraphCleanedDelegate.Broadcast(this);
+	bDirtyGenerated = false;
 #endif
 }
 
@@ -331,7 +358,6 @@ void UPCGComponent::OnProcessGraphAborted()
 
 	CleanupUnusedManagedResources();
 
-	bGenerated = false;
 	CurrentGenerationTask = InvalidPCGTaskId;
 
 #if WITH_EDITOR
@@ -369,6 +395,8 @@ FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, bool bSave, co
 	{
 		return InvalidPCGTaskId;
 	}
+
+	Modify();
 
 	CurrentCleanupTask = GetSubsystem()->ScheduleCleanup(this, bRemoveComponents, bSave, Dependencies);
 	return CurrentCleanupTask;
@@ -470,7 +498,7 @@ bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChil
 
 void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 {
-	if (!bGenerated || IsPartitioned() || IsCleaningUp() || IsGenerating())
+	if (!bGenerated || IsCleaningUp() || IsGenerating())
 	{
 		return;
 	}
@@ -490,6 +518,13 @@ void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 	}
 
 	UPCGActorHelpers::DeleteActors(GetWorld(), ActorsToDelete.Array());
+
+	// If bRemoveComponents is true, it means we are in a "real" cleanup, not a pre-cleanup before a generate.
+	// So call PostCleanup in this case.
+	if (bRemoveComponents)
+	{
+		PostCleanupGraph();
+	}
 }
 
 FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
@@ -596,7 +631,7 @@ void UPCGComponent::BeginPlay()
 	// First if it is partitioned, register itself to the PCGSubsystem, to map the component to all its corresponding PartitionActors
 	if (IsPartitioned() && GetSubsystem())
 	{
-		GetSubsystem()->RegisterPCGComponent(this);
+		GetSubsystem()->RegisterOrUpdatePCGComponent(this);
 	}
 
 	if(bActivated && !bGenerated && GenerationTrigger == EPCGComponentGenerationTrigger::GenerateOnLoad)
@@ -638,6 +673,12 @@ void UPCGComponent::OnComponentCreated()
 
 #if WITH_EDITOR
 	SetupActorCallbacks();
+
+	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned())
+	{
+		check(GetSubsystem());
+		GetSubsystem()->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/bGenerated);
+	}
 #endif
 }
 
@@ -652,6 +693,11 @@ void UPCGComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 		if (!HasAnyFlags(RF_BeginDestroyed) && !IsUnreachable() && IsPartitioned() && !GetOwner()->GetWorld()->IsGameWorld())
 		{
 			Subsystem->CleanupPartitionActors(LastGeneratedBounds);
+		}
+
+		if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned())
+		{
+			Subsystem->UnregisterPCGComponent(this);
 		}
 	}
 #endif
@@ -720,12 +766,24 @@ void UPCGComponent::SetupCallbacksOnCreation()
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
 	}
+
+	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned())
+	{
+		check(GetSubsystem());
+		GetSubsystem()->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/bGenerated);
+	}
 }
 #endif
 
 void UPCGComponent::BeginDestroy()
 {
 #if WITH_EDITOR
+	if (!PCGHelpers::IsRuntimeOrPIE() && IsPartitioned())
+	{
+		check(GetSubsystem());
+		GetSubsystem()->UnregisterPCGComponent(this);
+	}
+
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
@@ -842,42 +900,20 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	{
 		if (CanPartition())
 		{
-			if (bActivated)
+			// At this point, bIsPartitioned is already set with the new value.
+			// But we need to do some cleanup before
+			// So keep this new value, and take its negation for the cleanup.
+			bool bIsNowPartitioned = bIsPartitioned;
+			bIsPartitioned = !bIsPartitioned;
+
+			// SetIsPartioned cleans up before, so keep track if we were generated or not.
+			bool bWasGenerated = bGenerated;
+			SetIsPartitioned(bIsNowPartitioned);
+
+			// And finally, re-generate if we were generated and activated
+			if (bWasGenerated && bActivated)
 			{
-				bool bIsNowPartitioned = bIsPartitioned;
-				if (bGenerated)
-				{
-					bIsPartitioned = !bIsPartitioned;
-
-					// First, we'll cleanup
-					bActivated = false;
-					Refresh();
-
-					// Then invalidate the previous bounds to force actor creation (as if we moved the volume)
-					// and do a normal refresh
-					bActivated = true;
-					bIsPartitioned = bIsNowPartitioned;
-					ResetLastGeneratedBounds();
-					DirtyGenerated();
-					Refresh();
-				}
-				else
-				{
-					// We need the component to be partitioned if we use the subsystem.
-					bIsPartitioned = true;
-
-					if (bIsNowPartitioned)
-					{
-						GetSubsystem()->SchedulePartitionGraph(this);
-					}
-					else
-					{
-						GetSubsystem()->ScheduleUnpartitionGraph(this);
-
-					}
-
-					bIsPartitioned = bIsNowPartitioned;
-				}
+				GenerateLocal(/*bForce=*/false);
 			}
 		}
 		else
@@ -950,7 +986,7 @@ void UPCGComponent::PreEditUndo()
 	if (bGenerated)
 	{
 		// Cleanup so managed resources are cleaned in all cases
-		CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
+		CleanupLocalImmediate(/*bRemoveComponents=*/true);
 		// Put back generated flag to its original value so it is captured properly
 		bGenerated = true;
 	}	
@@ -1418,40 +1454,26 @@ void UPCGComponent::Refresh()
 	}
 #endif
 
-	//check(IsValid(this));
+	// Before doing a refresh, update the component to the subsystem if we are partitioned
+	// Only redo the mapping if we are generated
+	if (IsPartitioned())
+	{
+		GetSubsystem()->RegisterOrUpdatePCGComponent(this, /*bDoActorMapping=*/ bGenerated);
+	}
 
 	// Following a change in some properties or in some spatial information related to this component,
-	// We need to regenerate the graph, depending of the state in the editor.
-	// In the case of a non-partitioned graph, we need to generate the graph only if it was previously generated & tagged for regeneration
-	// In the partitioned graph case, however, we need to do a bit more:
-	// 1. Regenerate the graph if it was previously generated & tagged for regeneration;
-	//  notice that the associated partition actors will not (and should not) have the regenerate flag on.
-	// 2. Otherwise, we need to update the partitioning if the spatial data has changed.
+	// We need to regenerate/cleanup the graph, depending of the state in the editor.
 	if (!bActivated)
 	{
-		if (IsPartitioned() && GetSubsystem())
-		{
-			if (LastGeneratedBounds.IsValid)
-			{
-				GetSubsystem()->ScheduleUnpartitionGraph(this);
-			}
-		}
-		else
-		{
-			bool bWasGenerated = bGenerated;
-			CleanupLocalImmediate(/*bRemoveComponents=*/true);
-			bGenerated = bWasGenerated;
-		}
+		bool bWasGenerated = bGenerated;
+		CleanupLocalImmediate(/*bRemoveComponents=*/true);
+		bGenerated = bWasGenerated;
 	}
 	else
 	{
 		if (bGenerated && bRegenerateInEditor)
 		{
 			GenerateLocal(/*bForce=*/false);
-		}
-		else if (IsPartitioned() && GetSubsystem())
-		{
-			GetSubsystem()->SchedulePartitionGraph(this);
 		}
 	}
 }
@@ -2160,6 +2182,19 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		if (DuplicatedResources.Num() > 0)
 		{
 			PCGComponent->SetManagedResources(DuplicatedResources);
+		}
+
+		// We need to make sure that the component is registered to the subsystem if it is partitioned
+		// or unregister it if it is not.
+		if (PCGComponent->IsPartitioned())
+		{
+			// Mapping needs to be done if we are at runtime or previously generated
+			bool bDoActorMapping = PCGComponent->bGenerated || PCGHelpers::IsRuntimeOrPIE();
+			PCGComponent->GetSubsystem()->RegisterOrUpdatePCGComponent(PCGComponent, bDoActorMapping);
+		}
+		else
+		{
+			PCGComponent->GetSubsystem()->UnregisterPCGComponent(PCGComponent);
 		}
 	}
 }
