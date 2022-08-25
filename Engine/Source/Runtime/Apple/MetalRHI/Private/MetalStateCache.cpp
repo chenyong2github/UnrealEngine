@@ -1469,8 +1469,6 @@ void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EMetalShade
 		}
 		else
 		{
-			FMetalResourceMultiBuffer* Buffer = SRV->GetSourceBuffer();
-
 			if (IsLinearBuffer(ShaderStage, BindIndex) && SRV->GetLinearTexture())
 			{
 				ns::AutoReleased<FMetalTexture> Tex;
@@ -1478,9 +1476,17 @@ void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EMetalShade
 
 				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
 			}
-			else 
+			else
 			{
-				SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, SRV->Offset, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+				FMetalResourceMultiBuffer* Buffer = SRV->GetSourceBuffer();
+				if(Buffer != nullptr)
+				{
+					SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, SRV->Offset, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format);
+				}
+				else
+				{
+					SetShaderBuffer(ShaderStage, nil, nullptr, 0, 0, BindIndex, mtlpp::ResourceUsage(0));
+				}
 			}
 		}
 	}

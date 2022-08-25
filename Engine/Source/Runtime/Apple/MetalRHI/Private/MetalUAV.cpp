@@ -23,48 +23,50 @@ FMetalResourceViewBase::FMetalResourceViewBase(FRHIBuffer* InBuffer, uint32 InSt
 	check(!bTexture);
 
 	if (SourceBuffer)
+	{
 		SourceBuffer->AddRef();
 
-	EBufferUsageFlags Usage = SourceBuffer->GetUsage();
-	if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
-	{
-		if (!SourceBuffer)
+		EBufferUsageFlags Usage = SourceBuffer->GetUsage();
+		if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
 		{
-			Stride = 0;
-		}
-		else
-		{
-			check(SourceBuffer->GetUsage() & BUF_ShaderResource);
-			Stride = GPixelFormats[Format].BlockBytes;
+			if (!SourceBuffer)
+			{
+				Stride = 0;
+			}
+			else
+			{
+				check(SourceBuffer->GetUsage() & BUF_ShaderResource);
+				Stride = GPixelFormats[Format].BlockBytes;
 
-			LinearTextureDesc = MakeUnique<FMetalLinearTextureDescriptor>(InStartOffsetBytes, InNumElements, Stride);
-			SourceBuffer->CreateLinearTexture((EPixelFormat)Format, SourceBuffer, LinearTextureDesc.Get());
+				LinearTextureDesc = MakeUnique<FMetalLinearTextureDescriptor>(InStartOffsetBytes, InNumElements, Stride);
+				SourceBuffer->CreateLinearTexture((EPixelFormat)Format, SourceBuffer, LinearTextureDesc.Get());
+			}
 		}
-	}
-	else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
-	{
-		if (!SourceBuffer)
+		else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
 		{
-			Format = PF_R16_UINT;
-			Stride = 0;
+			if (!SourceBuffer)
+			{
+				Format = PF_R16_UINT;
+				Stride = 0;
+			}
+			else
+			{
+				Format = (SourceBuffer->IndexType == mtlpp::IndexType::UInt16) ? PF_R16_UINT : PF_R32_UINT;
+				Stride = SourceBuffer->GetStride();
+
+				check(Stride == ((Format == PF_R16_UINT) ? 2 : 4));
+
+				LinearTextureDesc = MakeUnique<FMetalLinearTextureDescriptor>(InStartOffsetBytes, InNumElements, Stride);
+				SourceBuffer->CreateLinearTexture((EPixelFormat)Format, SourceBuffer, LinearTextureDesc.Get());
+			}
 		}
 		else
 		{
-			Format = (SourceBuffer->IndexType == mtlpp::IndexType::UInt16) ? PF_R16_UINT : PF_R32_UINT;
+			check(EnumHasAnyFlags(Usage, BUF_StructuredBuffer));
+
+			Format = PF_Unknown;
 			Stride = SourceBuffer->GetStride();
-
-			check(Stride == ((Format == PF_R16_UINT) ? 2 : 4));
-
-			LinearTextureDesc = MakeUnique<FMetalLinearTextureDescriptor>(InStartOffsetBytes, InNumElements, Stride);
-			SourceBuffer->CreateLinearTexture((EPixelFormat)Format, SourceBuffer, LinearTextureDesc.Get());
 		}
-	}
-	else
-	{
-		check(EnumHasAnyFlags(Usage, BUF_StructuredBuffer));
-
-		Format = PF_Unknown;
-		Stride = SourceBuffer->GetStride();
 	}
 }
 
