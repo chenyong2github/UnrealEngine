@@ -88,7 +88,7 @@ namespace PCGDeterminismTests
 		auto ScheduleAndWaitForExecution = [&Executor](FPCGTaskId FinalTaskID)
 		{
 			// TODO: Consider randomizing/iterating through possible input orders
-			bool bTasksComplete = false;
+			volatile bool bTasksComplete = false;
 
 			// Clear the cache between runs
 			Executor.GetCache().ClearCache();
