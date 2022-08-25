@@ -76,6 +76,38 @@ namespace EditMeshPolygonsToolLocals
 		TEXT("Maximal number of edges that PolyEd and TriEd support. Meshes that would require "
 			"more than this number of edges to be rendered in PolyEd or TriEd force the tools to "
 			"be disabled to avoid hanging the editor."));
+
+	// Allows undo/redo of addition of extra corners in the group topology based on user angle thresholds.
+	// Used after user-triggered topology corner changes where the mesh was not actually edited.
+	class FExtraCornerChange : public FToolCommandChange
+	{
+	public:
+		FExtraCornerChange(const TSet<int32>& BeforeIn, const TSet<int32>& AfterIn)
+			: Before(BeforeIn)
+			, After(AfterIn)
+		{
+		}
+		virtual void Apply(UObject* Object) override 
+		{
+			Cast<UEditMeshPolygonsTool>(Object)->RebuildTopologyWithGivenExtraCorners(After);
+		}
+		virtual void Revert(UObject* Object) override
+		{
+			Cast<UEditMeshPolygonsTool>(Object)->RebuildTopologyWithGivenExtraCorners(Before);
+		}
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			return false;
+		}
+		virtual FString ToString() const override
+		{
+			return TEXT("FExtraCornerChange");
+		}
+
+	protected:
+		TSet<int32> Before;
+		TSet<int32> After;
+	};
 }
 
 /*
@@ -215,11 +247,67 @@ void UEditMeshPolygonsTool::Setup()
 				MaxEdges, CurrentMesh->EdgeCount()), EToolMessageLevel::UserError);
 			return;
 		}
+
+		Topology = MakeShared<FTriangleGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), false);
+	}
+	else
+	{
+		Topology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), false);
+		
+		Topology->ShouldAddExtraCornerAtVert = 
+			[this](const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)
+		{
+			if (!TopologyProperties->bAddExtraCorners)
+			{
+				return false;
+			}
+
+			// Note: it's important that we don't use CurrentMesh here. It's possible that an activity might create a copy of 
+			// the topology that uses the same corner forcing function but points to a different mesh, so we want to use
+			// whatever mesh the passed-in topology uses.
+			const FDynamicMesh3* Mesh = GroupTopology.GetMesh();
+			
+			if (!ensure(Mesh->IsEdge(AttachedGroupEdgeEids.A) && Mesh->IsEdge(AttachedGroupEdgeEids.B)))
+			{
+				return false;
+			}
+
+			// Gets vector pointing from the Vid along the edge.
+			auto GetEdgeUnitVector = [Mesh, Vid](int32 Eid, FVector3d& VectorOut)->bool
+			{
+				FIndex2i EdgeVids = Mesh->GetEdgeV(Eid);
+				// Make sure that the Vid is at EdgeVids.A
+				if (EdgeVids.B == Vid)
+				{
+					Swap(EdgeVids.A, EdgeVids.B);
+				}
+				VectorOut = Mesh->GetVertex(EdgeVids.B) - Mesh->GetVertex(EdgeVids.A);
+				return VectorOut.Normalize(KINDA_SMALL_NUMBER);
+			};
+
+			FVector Edge1, Edge2;
+			if (!GetEdgeUnitVector(AttachedGroupEdgeEids.A, Edge1) || !GetEdgeUnitVector(AttachedGroupEdgeEids.B, Edge2))
+			{
+				// If either edge was degenerate, we won't consider this a corner because otherwise we will end up
+				// with two corners connected by the degenerate edge, which is not ideal.
+				return false;
+			}
+
+			return Edge1.Dot(Edge2) >= ExtraCornerDotProductThreshold;
+		};
 	}
 
-	Topology = (bTriangleMode) ? MakeShared<FTriangleGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), true)
-		: MakeShared<FGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), true);
-	
+	TopologyProperties = NewObject<UPolyEditTopologyProperties>(this);
+	TopologyProperties->Initialize(this);
+	TopologyProperties->RestoreProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
+
+	auto UpdateExtraCornerThreshold = [this]() { ExtraCornerDotProductThreshold = FMathd::Cos(TopologyProperties->ExtraCornerAngleThresholdDegrees * FMathd::DegToRad); };
+	UpdateExtraCornerThreshold();
+	TopologyProperties->WatchProperty(TopologyProperties->ExtraCornerAngleThresholdDegrees,
+		[this, UpdateExtraCornerThreshold](double) { UpdateExtraCornerThreshold(); });
+
+	Topology->RebuildTopology();
+
 	if (!bTriangleMode)
 	{
 		int32 NumEdgesToRender = 0;
@@ -440,6 +528,15 @@ void UEditMeshPolygonsTool::Setup()
 	// CommonProps so that they are at the bottom.
 	AddToolPropertySource(SelectionMechanic->Properties);
 	AddToolPropertySource(CommonProps);
+	if (!bTriangleMode)
+	{
+		AddToolPropertySource(TopologyProperties);
+	}
+	else
+	{
+		// Not actually necessary since we don't use the forcing function in triangle mode, but might as well turn it off here too.
+		TopologyProperties->bAddExtraCorners = false;
+	}
 
 	// hide input StaticMeshComponent
 	UE::ToolTarget::HideSourceObject(Target);
@@ -552,6 +649,7 @@ void UEditMeshPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 	}
 	CommonProps->SaveProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 	SelectionMechanic->Properties->SaveProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
+	TopologyProperties->SaveProperties(this, GetPropertyCacheIdentifier(bTriangleMode));
 
 	GetToolManager()->GetContextObjectStore()->RemoveContextObjectsOfType(UPolyEditActivityContext::StaticClass());
 	ActivityContext = nullptr;
@@ -1114,6 +1212,9 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		case EEditMeshPolygonsToolActions::SimplifyByGroups:
 			SimplifyByGroups();
 			break;
+		case EEditMeshPolygonsToolActions::RegenerateExtraCorners:
+			ApplyRegenerateExtraCorners();
+			break;
 		}
 
 		PendingAction = EEditMeshPolygonsToolActions::NoAction;
@@ -1135,6 +1236,7 @@ void UEditMeshPolygonsTool::StartActivity(TObjectPtr<UInteractiveToolActivity> A
 		}
 		SelectionMechanic->SetIsEnabled(false);
 		SetToolPropertySourceEnabled(SelectionMechanic->Properties, false);
+		SetToolPropertySourceEnabled(TopologyProperties, false);
 		CurrentActivity = Activity;
 		if (CurrentActivity->HasAccept())
 		{
@@ -1164,6 +1266,7 @@ void UEditMeshPolygonsTool::EndCurrentActivity(EToolShutdownType ShutdownType)
 		SetToolPropertySourceEnabled(AcceptCancelAction, false);
 		SetActionButtonPanelsVisible(true);
 		SelectionMechanic->SetIsEnabled(true);
+		SetToolPropertySourceEnabled(TopologyProperties, true);
 		SetToolPropertySourceEnabled(SelectionMechanic->Properties, true);
 		UpdateGizmoVisibility();
 	}
@@ -1284,14 +1387,13 @@ void UEditMeshPolygonsTool::ApplyChange(const FMeshVertexChange* Change, bool bR
 }
 
 
-void UEditMeshPolygonsTool::UpdateFromCurrentMesh(bool bGroupTopologyModified)
+void UEditMeshPolygonsTool::UpdateFromCurrentMesh(bool bUpdateTopology)
 {
-	Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get(),
-		bGroupTopologyModified ? UPreviewMesh::ERenderUpdateMode::FullUpdate : UPreviewMesh::ERenderUpdateMode::FastUpdate);
+	Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get(), UPreviewMesh::ERenderUpdateMode::FullUpdate);
 	bSpatialDirty = true;
-	SelectionMechanic->NotifyMeshChanged(bGroupTopologyModified);
+	SelectionMechanic->NotifyMeshChanged(bUpdateTopology);
 
-	if (bGroupTopologyModified)
+	if (bUpdateTopology)
 	{
 		Topology->RebuildTopology();
 	}
@@ -1525,6 +1627,54 @@ void UEditMeshPolygonsTool::SimplifyByGroups()
 
 	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshSimplifyByGroup", "Simplify by Group"),
 		ChangeTracker.EndChange(), NewSelection);
+}
+
+
+
+void UEditMeshPolygonsTool::ApplyRegenerateExtraCorners()
+{
+	if (!ensure(!bTriangleMode && Topology))
+	{
+		return;
+	}
+
+	// We need to remember the extra corners that get generated and put them into the undo system so that if we
+	// change the settings later, undoing still brings us back to the result we saw at that time.
+	TSet<int32> PreviousExtraCorners(Topology->GetCurrentExtraCornerVids());
+	Topology->RebuildTopology();
+	const TSet<int32>& NewExtraCorners = Topology->GetCurrentExtraCornerVids();
+
+	bool bCornersChanged = PreviousExtraCorners.Num() != NewExtraCorners.Num() || !PreviousExtraCorners.Includes(NewExtraCorners);
+	if (bCornersChanged)
+	{
+		const FText TransactionLabel = LOCTEXT("RegenerateCornersTransactionName", "Regenerate Corners");
+
+		GetToolManager()->BeginUndoTransaction(TransactionLabel);
+		if (SelectionMechanic && !SelectionMechanic->GetActiveSelection().IsEmpty())
+		{
+			SelectionMechanic->BeginChange();
+			SelectionMechanic->ClearSelection();
+			GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), TransactionLabel);
+		}
+
+		GetToolManager()->EmitObjectChange(this,
+			MakeUnique<EditMeshPolygonsToolLocals::FExtraCornerChange>(PreviousExtraCorners, NewExtraCorners),
+			TransactionLabel);
+
+		GetToolManager()->EndUndoTransaction();
+	}
+	
+	if (SelectionMechanic)
+	{
+		SelectionMechanic->NotifyMeshChanged(true);
+	}
+}
+
+
+void UEditMeshPolygonsTool::RebuildTopologyWithGivenExtraCorners(const TSet<int32>& Vids)
+{
+	Topology->RebuildTopologyWithSpecificExtraCorners(Vids);
+	SelectionMechanic->NotifyMeshChanged(true);
 }
 
 
@@ -2165,8 +2315,7 @@ void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& Transact
 	FGroupTopologySelection TempSelection;
 	const FGroupTopologySelection* OutputSelectionToUse = &OutputSelection;
 
-	// Because we always consider group topology to be modified, the UpdateFromCurrentMesh() call down below
-	// will clear out our existing selection. However, we want to do this ourselves so that we issue a transaction.
+	// Emit a selection clear before emitting the mesh change, so that undo restores it properly.
 	if (!SelectionMechanic->GetActiveSelection().IsEmpty() /* && (bSelectionModified || bGroupTopologyModified) */)
 	{
 		if (bReferencingSameSelection)
@@ -2181,12 +2330,25 @@ void UEditMeshPolygonsTool::EmitCurrentMeshChangeAndUpdate(const FText& Transact
 		GetToolManager()->EmitObjectChange(SelectionMechanic, SelectionMechanic->EndChange(), LOCTEXT("ClearSelection", "Clear Selection"));
 	}
 
+	// Prep and emit the mesh change. This needs to be bookended by the change in extra corners, since
+	// those get regenerated in the topology rebuild.
+	TUniquePtr<FEditMeshPolygonsToolMeshChange> ChangeToEmit = MakeUnique<FEditMeshPolygonsToolMeshChange>(MoveTemp(MeshChangeIn));
+	if (!Topology->GetCurrentExtraCornerVids().IsEmpty())
+	{
+		ChangeToEmit->ExtraCornerVidsBefore = Topology->GetCurrentExtraCornerVids();
+	}
+	Topology->RebuildTopology();
+	if (!Topology->GetCurrentExtraCornerVids().IsEmpty())
+	{
+		ChangeToEmit->ExtraCornerVidsAfter = Topology->GetCurrentExtraCornerVids();
+	}
 	GetToolManager()->EmitObjectChange(this, 
-		MakeUnique<FEditMeshPolygonsToolMeshChange>(MoveTemp(MeshChangeIn)),
+		MoveTemp(ChangeToEmit),
 		TransactionLabel);
 
-	// Update related structures
-	UpdateFromCurrentMesh(bGroupTopologyModified);
+	// Update other related structures
+	UpdateFromCurrentMesh(false);
+	SelectionMechanic->NotifyMeshChanged(true); // This wasn't updated in UpdateFromCurrentMesh because we didn't ask to rebuild topology
 	ModifiedTopologyCounter += bGroupTopologyModified;
 
 	// Set output selection if there's a non-empty one. We know we've cleared the selection by
@@ -2329,28 +2491,26 @@ void FEditMeshPolygonsToolMeshChange::Apply(UObject* Object)
 {
 	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(Object);
 	
-	// This function currently only supports FDynamicMeshChange but that should be issued only when the mesh changes
-	// topology. For now we use it even when eg vertex postions change. See :HandlePositionOnlyMeshChanges
-	bool bGroupTopologyModified = true;
-	
 	MeshChange->Apply(Tool->CurrentMesh.Get(), false);
-	Tool->UpdateFromCurrentMesh(bGroupTopologyModified);
-	Tool->ModifiedTopologyCounter += bGroupTopologyModified;
-	Tool->ActivityContext->OnUndoRedo.Broadcast(bGroupTopologyModified);
+	Tool->UpdateFromCurrentMesh(false);
+	++Tool->ModifiedTopologyCounter;
+
+	Tool->RebuildTopologyWithGivenExtraCorners(ExtraCornerVidsAfter);
+
+	Tool->ActivityContext->OnUndoRedo.Broadcast(true);
 }
 
 void FEditMeshPolygonsToolMeshChange::Revert(UObject* Object)
 {
 	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(Object);
 	
-	// This function currently only supports FDynamicMeshChange but that should be issued only when the mesh changes
-	// topology. For now we use it even when eg vertex postions change. See :HandlePositionOnlyMeshChanges
-	bool bGroupTopologyModified = true;
-	
 	MeshChange->Apply(Tool->CurrentMesh.Get(), true);
-	Tool->UpdateFromCurrentMesh(bGroupTopologyModified);
-	Tool->ModifiedTopologyCounter -= bGroupTopologyModified;
-	Tool->ActivityContext->OnUndoRedo.Broadcast(bGroupTopologyModified);
+	Tool->UpdateFromCurrentMesh(false);
+	++Tool->ModifiedTopologyCounter;
+
+	Tool->RebuildTopologyWithGivenExtraCorners(ExtraCornerVidsBefore);
+
+	Tool->ActivityContext->OnUndoRedo.Broadcast(true);
 }
 
 FString FEditMeshPolygonsToolMeshChange::ToString() const

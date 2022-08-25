@@ -152,9 +152,14 @@ public:
 	FGroupTopology() {}
 	FGroupTopology(const FDynamicMesh3* Mesh, bool bAutoBuild);
 	FGroupTopology(const FDynamicMesh3* Mesh, const FDynamicMeshPolygroupAttribute* GroupLayer, bool bAutoBuild);
-	
 
+	//~ If we allow deprecation warnings, we'll get a warning in destructor and assignment operator 
+	//~ about CornerVerticesFlags (which we deprecated here) whenever it's copied or destroyed.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	FGroupTopology(const FGroupTopology&) = default;
+	FGroupTopology& operator=(const FGroupTopology&) = default;
 	virtual ~FGroupTopology() {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 	/**
 	 * Keeps the structures of topology in place but points the mesh pointers to
@@ -173,6 +178,29 @@ public:
 	 * @return true on success, false if there was an error
 	 */
 	virtual bool RebuildTopology();
+
+	/**
+	 * Optional function that will add extra corners (in addition to the ones that are always placed at junctures
+	 * of three or more group edges) during RebuildTopology whenever the function returns true for a vertex that
+	 * is part of a group edge.
+	 * For instance, this allows corners to be placed at sharp group edge bends even if the given vertex doesn't
+	 * connect 3 or more group edges.
+	 */
+	TFunction<bool(const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)> ShouldAddExtraCornerAtVert = nullptr;
+
+	/**
+	 * @return Set of vertex ID's that are currently considered corners despite not originally having 3 or more 
+	 *  attached group edges (due to the effects of ShouldAddExtraCornerAtVert or RebuildTopologyWithSpecificExtraCorners).
+	 */
+	const TSet<int32>& GetCurrentExtraCornerVids() const { return CurrentExtraCornerVids; }
+
+	/**
+	 * Rebuilds the topology graph while ignoring ShouldAddExtraCornerAtVert and only determining whether
+	 * an extra corner should be forced by seeing whether the vertex is in the provided set. This is used to rebuild
+	 * the topology with a particular group of extra corners during client undo/redo operations where the behavior
+	 * of ShouldAddExtraCornerAtVert may have changed in the interim.
+	 */
+	virtual bool RebuildTopologyWithSpecificExtraCorners(const TSet<int32>& ExtraCornerVids);
 
 	/** 
 	 * Adjacency of Per-Triangle integers are what define the triangle groups.
@@ -236,7 +264,7 @@ public:
 	 */
 	struct DYNAMICMESH_API FGroupEdge
 	{
-		/** Identifier for this edge, as a pair of groups, sorted by increasing value */
+		/** Groups adjoinging this edge, sorted by increasing value if both present, otherwise the second element may be InvalidID (if boundary edge). */
 		FIndex2i Groups;
 		/** Edge span for this edge */
 		FEdgeSpan Span;
@@ -406,24 +434,53 @@ protected:
 	const FDynamicMeshPolygroupAttribute* GroupLayer = nullptr;
 
 	TArray<int> GroupIDToGroupIndexMap;		// allow fast lookup of index in .Groups, given GroupID
+
+	UE_DEPRECATED(5.1, "Use VertexIDToCornerIDMap instead.")
 	TBitArray<> CornerVerticesFlags;		// bit array of corners for fast testing in ExtractGroupEdges  (redundant w/ VertexIDToCornerIDMap?)
+
 	TArray<int> EmptyArray;
 	TMap<int32, int32> VertexIDToCornerIDMap;
 
-	/** @return true if given mesh vertex is a Corner vertex */
+	TSet<int32> CurrentExtraCornerVids;
+
+	/**
+	 * @return true if given mesh vertex should be a Corner vertex. This looks at the actual mesh- it doesn't
+	 *  use the topology structures.
+	 */
+	UE_DEPRECATED(5.1, "Use ShouldVertBeCorner instead.")
 	virtual bool IsCornerVertex(int VertexID) const;
 
+	/**
+	 * Return true if the given vertex should be a corner based on the number of adjoining group edges or based on
+	 * ShouldAddExtraCornerAtVert, if provided.
+	 * 
+	 * @param bIsExtraCornerOut Set to true if the vertex didn't have 3 or more group adjoining edges, but was forced
+	 *  to be a corner by ShouldAddExtraCornerAtVert.
+	 */
+	virtual bool ShouldVertBeCorner(int VertexID, bool* bIsExtraCornerOut = nullptr) const;
+
 	/** Return false if we had a problem finding group boundaries */
-	bool ExtractGroupEdges(FGroup& Group);
+	UE_DEPRECATED(5.1, "Use GenerateBoundaryAndGroupEdges instead.")
+	bool ExtractGroupEdges(FGroup& Group) { return false; }
 
-	inline FIndex2i MakeEdgeID(int MeshEdgeID) const;
-	inline FIndex2i MakeEdgeID(int Group1, int Group2) const;
+	// Generates group edges and boundary structs for given group. Returns false if failed to find group boundaries.
+	bool GenerateBoundaryAndGroupEdges(FGroup& Group, TMap<int32, int32>& GroupEdgeMinEidToGroupEdgeID, TBitArray<>& VertCheckedForCorner);
 
-	int FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID, int SecondVertexID);
+	UE_DEPRECATED(5.1, "Use MakeEdgeGroupsPair instead. The returned pair cannot uniquely identify a group edge.")
+	inline FIndex2i MakeEdgeID(int MeshEdgeID) const { return MakeEdgeGroupsPair(MeshEdgeID); }
+	UE_DEPRECATED(5.1, "Use MakeEdgeGroupsPair instead. The returned pair cannot uniquely identify a group edge.")
+	inline FIndex2i MakeEdgeID(int Group1, int Group2) const { return MakeEdgeGroupsPair(Group1, Group2); }
+
+	inline FIndex2i MakeEdgeGroupsPair(int MeshEdgeID) const;
+	inline FIndex2i MakeEdgeGroupsPair(int Group1, int Group2) const;
+
+	UE_DEPRECATED(5.1, "Group edges cannot be uniquely identified by a group pair.")
+	int FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID, int SecondVertexID) { return 0; }
+
 	void GetAllVertexGroups(int32 VertexID, TArray<int32>& GroupsOut) const;
 };
 
-FIndex2i FGroupTopology::MakeEdgeID(int MeshEdgeID) const
+FIndex2i FGroupTopology::MakeEdgeGroupsPair(int MeshEdgeID) const
 {
 	FIndex2i EdgeTris = Mesh->GetEdgeT(MeshEdgeID);
 
@@ -433,11 +490,11 @@ FIndex2i FGroupTopology::MakeEdgeID(int MeshEdgeID) const
 	}
 	else
 	{
-		return MakeEdgeID(GetGroupID(EdgeTris.A), GetGroupID(EdgeTris.B));
+		return MakeEdgeGroupsPair(GetGroupID(EdgeTris.A), GetGroupID(EdgeTris.B));
 	}
 }
 
-FIndex2i FGroupTopology::MakeEdgeID(int Group1, int Group2) const
+FIndex2i FGroupTopology::MakeEdgeGroupsPair(int Group1, int Group2) const
 {
 	check(Group1 != Group2);
 	check(Group1 >= 0 && Group2 >= 0);

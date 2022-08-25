@@ -87,7 +87,7 @@ void UPolygonSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PolyEdgesRenderer.LineColor = FLinearColor::Red;
 	PolyEdgesRenderer.LineThickness = 2.0;
 	PolyEdgesRenderer.PointColor = FLinearColor::Red;
-	PolyEdgesRenderer.PointSize = 10.0f;
+	PolyEdgesRenderer.PointSize = 8.0f;
 	HilightRenderer.LineColor = FLinearColor::Green;
 	HilightRenderer.LineThickness = 4.0f;
 	HilightRenderer.PointColor = FLinearColor::Green;

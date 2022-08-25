@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroupTopology.h"
+
+#include "Algo/MinElement.h"
 #include "MeshRegionBoundaryLoops.h"
 
 using namespace UE::Geometry;
@@ -49,6 +51,8 @@ bool FGroupTopology::RebuildTopology()
 	Edges.Reset();
 	Corners.Reset();
 
+	CurrentExtraCornerVids.Reset();
+
 	int32 MaxGroupID = 0;
 	for (int32 tid : Mesh->TriangleIndicesItr())
 	{
@@ -85,30 +89,15 @@ bool FGroupTopology::RebuildTopology()
 		Groups[GroupIDToGroupIndexMap[GroupID]].Triangles.Add(tid);
 	}
 
-	// precompute junction vertices set
-	CornerVerticesFlags.Init(false, Mesh->MaxVertexID());
-	for (int vid : Mesh->VertexIndicesItr())
-	{
-		if (IsCornerVertex(vid))
-		{
-			CornerVerticesFlags[vid] = true;
-			FCorner Corner = { vid };
-			int NewCornerIndex = Corners.Num();
-			VertexIDToCornerIDMap.Add(vid, NewCornerIndex);
-			Corners.Add(Corner);
-		}
-	}
-	for (FCorner& Corner : Corners)
-	{
-		GetAllVertexGroups(Corner.VertexID, Corner.NeighbourGroupIDs);
-	}
-
+	VertexIDToCornerIDMap.Reset();
+	TMap<int32, int32> GroupEdgeMinEidToGroupEdgeID;
+	TBitArray<> VertCheckedForCorner;
+	VertCheckedForCorner.Init(false, Mesh->MaxVertexID());
 
 	// construct boundary loops
 	for (FGroup& Group : Groups)
 	{
-		// finds FGroupEdges and uses to populate Group.Boundaries
-		bool bOK = ExtractGroupEdges(Group);
+		bool bOK = GenerateBoundaryAndGroupEdges(Group, GroupEdgeMinEidToGroupEdgeID, VertCheckedForCorner);
 		if (!bOK)
 		{
 			return false;
@@ -157,31 +146,58 @@ void FGroupTopology::RetargetOnClonedMesh(const FDynamicMesh3* NewMesh)
 	}
 }
 
-
 bool FGroupTopology::IsCornerVertex(int VertexID) const
+{ 
+	return ShouldVertBeCorner(VertexID);
+}
+
+bool FGroupTopology::ShouldVertBeCorner(int VertexID, bool* bIsAnExtraCornerOut) const
 {
-	FIndex3i UniqueGroups;
-	int UniqueCount = 0;
-	for (int tid : Mesh->VtxTrianglesItr(VertexID))
+	if (bIsAnExtraCornerOut)
 	{
-		int GroupID = GetGroupID(tid);
-		if (UniqueCount == 0)
-		{
-			UniqueGroups[0] = GroupID;
-			UniqueCount++;
-		}
-		else if (UniqueCount == 1 && GroupID != UniqueGroups[0])
-		{
-			UniqueGroups[1] = GroupID;
-			UniqueCount++;
-		}
-		else if (UniqueCount == 2 && GroupID != UniqueGroups[0] && GroupID != UniqueGroups[1])
-		{
-			return true;
-		}
+		*bIsAnExtraCornerOut = false;
 	}
-	if (UniqueCount == 2 && Mesh->IsBoundaryVertex(VertexID))
+
+	// If the vertex has at least three attached groupedge edges (ie three edges that separate two groups
+	// or are boundary edges), then it has to be a corner. Otherwise, we let the user supply a function that
+	// determines whether the vert should be a corner anyway, passing in the group edges that do pass through the
+	// vertex.
+
+	// only ends up being used if there are less than 3, so that we can pass in the
+	// relevant edges to the user function.
+	FIndex2i AttachedGroupEdgeEids(IndexConstants::InvalidID, IndexConstants::InvalidID);
+
+	for (int32 Eid : Mesh->VtxEdgesItr(VertexID))
 	{
+		FIndex2i EdgeTris = Mesh->GetEdgeT(Eid);
+		if (EdgeTris.B == IndexConstants::InvalidID
+			|| Mesh->GetTriangleGroup(EdgeTris.A) != Mesh->GetTriangleGroup(EdgeTris.B))
+		{
+			// This is a group edge.
+			if (AttachedGroupEdgeEids[0] == IndexConstants::InvalidID)
+			{
+				AttachedGroupEdgeEids[0] = Eid;
+			}
+			else if (AttachedGroupEdgeEids[1] == IndexConstants::InvalidID)
+			{
+				AttachedGroupEdgeEids[1] = Eid;
+			}
+			else
+			{
+				// This is the third such edge. Has to be corner.
+				return true;
+			}
+		}//end if part of group edge
+	}//end looking through attached edges.
+
+	// If we got to here, then the vert isn't a corner just based on group topology, but can be made
+	// into a corner anyway by user function (for instance, at sharp corners, or at user-defined points).
+	if (ShouldAddExtraCornerAtVert && ShouldAddExtraCornerAtVert(*this, VertexID, AttachedGroupEdgeEids))
+	{
+		if (bIsAnExtraCornerOut)
+		{
+			*bIsAnExtraCornerOut = true;
+		}
 		return true;
 	}
 	return false;
@@ -497,7 +513,8 @@ void FGroupTopology::CollectGroupBoundaryVertices(int GroupID, TSet<int>& Vertic
 
 
 
-bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
+bool FGroupTopology::GenerateBoundaryAndGroupEdges(FGroup& Group, 
+	TMap<int32, int32>& GroupEdgeMinEidToGroupEdgeID, TBitArray<>& VertCheckedForCorner)
 {
 	FMeshRegionBoundaryLoops BdryLoops(Mesh, Group.Triangles, true);
 
@@ -509,6 +526,44 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 
 	int NumLoops = BdryLoops.Loops.Num();
 
+	// Function we use to see if a vertex is a corner, creating a corner object if so
+	auto CheckForCornerAndCreateIfNeeded = [this, &GroupEdgeMinEidToGroupEdgeID, &VertCheckedForCorner](int32 Vid)
+	{
+		// See if we have a cached result
+		if (VertCheckedForCorner[Vid])
+		{
+			return VertexIDToCornerIDMap.Contains(Vid);
+		}
+		else
+		{
+			VertCheckedForCorner[Vid] = true;
+			bool bIsExtraCorner = false;
+			if (ShouldVertBeCorner(Vid, &bIsExtraCorner))
+			{
+				// New corner vertex found. Create a corner for this vertex.
+				int32 CornerID = Corners.Emplace();
+				FCorner& Corner = Corners[CornerID];
+				Corner.VertexID = Vid;
+				GetAllVertexGroups(Vid, Corner.NeighbourGroupIDs);
+
+				VertexIDToCornerIDMap.Add(Vid, CornerID);
+
+				if (bIsExtraCorner)
+				{
+					CurrentExtraCornerVids.Add(Vid);
+				}
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return ensure(false); // Shouldn't be able to get here
+	};
+
+	// Go through the boundary, find the corners, and use the intervening edges to create
+	// group edges.
 	Group.Boundaries.SetNum(NumLoops);
 	for ( int li = 0; li < NumLoops; ++li )
 	{
@@ -520,7 +575,7 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 		int NumV = Loop.Vertices.Num();
 		for (int i = 0; i < NumV; ++i)
 		{
-			if (CornerVerticesFlags[Loop.Vertices[i]])
+			if (CheckForCornerAndCreateIfNeeded(Loop.Vertices[i]))
 			{
 				CornerIndices.Add(i);
 			}
@@ -529,12 +584,12 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 		// if we had no indices then this is like the cap of a cylinder, just one single long edge
 		if ( CornerIndices.Num() == 0 )
 		{ 
-			FIndex2i EdgeID = MakeEdgeID(Loop.Edges[0]);
-			int OtherGroupID = (EdgeID.A == Group.GroupID) ? EdgeID.B : EdgeID.A;
-			int EdgeIndex = FindExistingGroupEdge(Group.GroupID, OtherGroupID, Loop.Vertices[0], Loop.Vertices[1]);
-			if (EdgeIndex == -1)
+			int32 MinEid = *Algo::MinElement(Loop.Edges);
+			int32* ExistingGroupEdgeID = GroupEdgeMinEidToGroupEdgeID.Find(MinEid);
+			int EdgeIndex = ExistingGroupEdgeID ? *ExistingGroupEdgeID : IndexConstants::InvalidID;
+			if (EdgeIndex == IndexConstants::InvalidID)
 			{
-				FGroupEdge Edge = { EdgeID };
+				FGroupEdge Edge = { MakeEdgeGroupsPair(Loop.Edges[0]) };
 				Edge.Span = FEdgeSpan(Mesh);
 				Edge.Span.InitializeFromEdges(Loop.Edges);
 				Edge.EndpointCorners = FIndex2i::Invalid();
@@ -552,27 +607,37 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 		// add each span
 		for (int k = 0; k < NumSpans; ++k)
 		{
-			int i0 = CornerIndices[k];
+			int32 StartIndex = CornerIndices[k];
+			int32 EndIndex = CornerIndices[k + 1];		// note: StartIndex == EndIndex on a closed loop, ie NumSpans == 1
 
-			FIndex2i EdgeID = MakeEdgeID(Loop.Edges[i0]);
-			int OtherGroupID = (EdgeID.A == Group.GroupID) ? EdgeID.B : EdgeID.A;
-			int EdgeIndex = FindExistingGroupEdge(Group.GroupID, OtherGroupID, Loop.Vertices[i0], Loop.Vertices[(i0+1)%Loop.Vertices.Num()]);
-			if (EdgeIndex != -1)
+			int32 NumSpanEdges = (EndIndex + NumV - StartIndex) % NumV;
+
+			// Find the min eid in this subsection so that we can see if we already have a group edge for it.
+			int32 MinEid = Loop.Edges[StartIndex];
+			for (int32 i = 1; i < NumSpanEdges; ++i)
+			{
+				int32 Index = (StartIndex + i) % NumV;
+				MinEid = FMath::Min(MinEid, Loop.Edges[Index]);
+			}
+
+			int32* ExistingGroupEdgeID = GroupEdgeMinEidToGroupEdgeID.Find(MinEid);
+			int EdgeIndex = ExistingGroupEdgeID ? *ExistingGroupEdgeID : IndexConstants::InvalidID;
+			if (EdgeIndex != IndexConstants::InvalidID)
 			{
 				FGroupEdge& Existing = Edges[EdgeIndex];
 				Boundary.GroupEdges.Add(EdgeIndex);
 				continue;
 			}
 
-			FGroupEdge Edge = { EdgeID };
+			FGroupEdge Edge = { MakeEdgeGroupsPair(Loop.Edges[StartIndex]) };
 
-			int i1 = CornerIndices[k+1];		// note: i1 == i0 on a closed loop, ie NumSpans == 1
 			TArray<int> SpanVertices;
-			do {
-				SpanVertices.Add(Loop.Vertices[i0]);
-				i0 = (i0 + 1) % NumV;
-			} while (i0 != i1);
-			SpanVertices.Add(Loop.Vertices[i0]);	// add last vertex
+			int32 NumSpanVertices = NumSpanEdges + 1;
+			for (int32 i = 0; i < NumSpanVertices; ++i)
+			{
+				int32 Index = (StartIndex + i) % NumV;
+				SpanVertices.Add(Loop.Vertices[Index]);
+			}
 
 			Edge.Span = FEdgeSpan(Mesh);
 			Edge.Span.InitializeFromVertices(SpanVertices);
@@ -580,6 +645,7 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 			check(Edge.EndpointCorners.A != IndexConstants::InvalidID && Edge.EndpointCorners.B != IndexConstants::InvalidID);
 			EdgeIndex = Edges.Add(Edge);
 			Boundary.GroupEdges.Add(EdgeIndex);
+			GroupEdgeMinEidToGroupEdgeID.Add(MinEid, EdgeIndex);
 		}
 	}
 
@@ -587,57 +653,19 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 }
 
 
-
-
-int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID, int SecondVertexID)
+bool UE::Geometry::FGroupTopology::RebuildTopologyWithSpecificExtraCorners(const TSet<int32>& ExtraCornerVids)
 {
-	// if this is a boundary edge, we cannot have created it already
-	if (OtherGroupID < 0)
-	{
-		return -1;
-	}
+	// We temporarily replace the vert corner-forcing function with one that checks against the given vids,
+	// then we revert after doing the build.
+	TFunction<bool(const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)> OldCornerFunction = MoveTemp(ShouldAddExtraCornerAtVert);
 
-	FGroup& OtherGroup = Groups[GroupIDToGroupIndexMap[OtherGroupID]];
-	FIndex2i EdgeID = MakeEdgeID(GroupID, OtherGroupID);
-	
-	for (FGroupBoundary& Boundary : OtherGroup.Boundaries)
-	{
-		for (int EdgeIndex : Boundary.GroupEdges)
-		{
-			if (Edges[EdgeIndex].Groups == EdgeID)
-			{
-				// Same EdgeID pair may occur multiple times in the same boundary loop
-				// (think of a cube with its side faces joined together on opposite corners).
-				// For non-loop edges, it is sufficient to check that one of the endpoints is the
-				// same vertex to know that the edges are the same.
-				TArray<int>& Vertices = Edges[EdgeIndex].Span.Vertices;
-				int32 NumVerts = Vertices.Num();
-				if (Edges[EdgeIndex].EndpointCorners.A != IndexConstants::InvalidID)
-				{
-					if (Vertices[0] == FirstVertexID || Vertices[NumVerts - 1] == FirstVertexID)
-					{
-						return EdgeIndex;
-					}
-				}
-				else
-				{
-					// For loop edges we're not guaranteed to have the loop start on any particular
-					// vertex. We have to make sure that the two loops share at least two adjacent 
-					// vertices, because of pathological cases with bowtie-shaped groups.
-					int32 FirstVertIndex = Vertices.IndexOfByKey(FirstVertexID);
-					if (FirstVertIndex != INDEX_NONE 
-						&& (Vertices[(FirstVertIndex + 1) % NumVerts] == SecondVertexID
-							|| Vertices[(FirstVertIndex + NumVerts - 1) % NumVerts] == SecondVertexID))
-					{
-						return EdgeIndex;
-					}
-				}
-			}//end if group pair matched
-		}
-	}//end looking through other group boundaries
-	return -1;
+	ShouldAddExtraCornerAtVert = [&ExtraCornerVids](const FGroupTopology&, int32 Vid, const FIndex2i&) { return ExtraCornerVids.Contains(Vid); };
+
+	bool bSuccess = RebuildTopology();
+
+	ShouldAddExtraCornerAtVert = MoveTemp(OldCornerFunction);
+	return bSuccess;
 }
-
 
 
 bool FGroupTopology::GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut) const
@@ -881,10 +909,8 @@ bool FTriangleGroupTopology::RebuildTopology()
 		}
 	}
 
-	CornerVerticesFlags.Init(true, Mesh->MaxVertexID());
 	for (int vid : Mesh->VertexIndicesItr())
 	{
-		CornerVerticesFlags[vid] = true;
 		FCorner Corner = { vid };
 		int NewCornerIndex = Corners.Num();
 		VertexIDToCornerIDMap.Add(vid, NewCornerIndex);
@@ -912,7 +938,7 @@ bool FTriangleGroupTopology::RebuildTopology()
 			int& GroupEdgeIndex = MeshEdgeToGroupEdge[TriEdges[j]];
 			if (GroupEdgeIndex == INDEX_NONE)
 			{
-				FGroupEdge NewGroupEdge = { MakeEdgeID(TriEdges[j]) };
+				FGroupEdge NewGroupEdge = { MakeEdgeGroupsPair(TriEdges[j]) };
 				FIndex2i EdgeVerts = Mesh->GetEdgeV(TriEdges[j]);
 				NewGroupEdge.Span = FEdgeSpan(Mesh);
 				SpanVertices[0] = EdgeVerts.A; SpanVertices[1] = EdgeVerts.B;
