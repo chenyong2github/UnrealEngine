@@ -4,21 +4,21 @@
 #include "Utils.h"
 
 template <typename T>
-void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+void PSEditorCommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
 {
 	T Value;
 	if (FParse::Value(FCommandLine::Get(), Match, Value))
 		CVar->Set(Value, ECVF_SetByCommandline);
 };
 
-void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CVar, bool bStopOnSeparator = false)
+void PSEditorCommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CVar, bool bStopOnSeparator = false)
 {
 	FString Value;
 	if (FParse::Value(FCommandLine::Get(), Match, Value, bStopOnSeparator))
 		CVar->Set(*Value, ECVF_SetByCommandline);
 };
 
-void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+void PSEditorCommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
 {
 	FString ValueMatch(Match);
 	ValueMatch.Append(TEXT("="));
@@ -51,6 +51,6 @@ namespace UE::PixelStreaming::Settings::Editor
     void InitialiseSettings()
     {
         // Options parse (if these exist they are set to true)
-		CommandLineParseOption(TEXT("EditorPixelStreamingStartOnLaunch"), CVarEditorPixelStreamingStartOnLaunch);
+		PSEditorCommandLineParseOption(TEXT("EditorPixelStreamingStartOnLaunch"), CVarEditorPixelStreamingStartOnLaunch);
     }
 }
