@@ -6,7 +6,7 @@
 
 #include "SceneImporter.h"
 
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 class IDatasmithUEPbrMaterialElement;
 class UMaterialInstanceDynamic;
 
@@ -31,11 +31,11 @@ namespace DatasmithRuntime
 
 	TSharedPtr<IDatasmithUEPbrMaterialElement> ValidatePbrMaterial(TSharedPtr<IDatasmithUEPbrMaterialElement> PbrMaterialElement, FSceneImporter& SceneImporter);
 
-	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement > BaseMaterialElement, FTextureCallback TextureCallback);
+	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMaterialInstanceElement > BaseMaterialElement, FTextureCallback TextureCallback);
 
 	int32 ProcessMaterialElement(IDatasmithUEPbrMaterialElement* PbrMaterialElement, FTextureCallback TextureCallback);
 
-	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement);
+	bool LoadReferenceMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMaterialInstanceElement>& MaterialElement);
 
 	bool LoadPbrMaterial(IDatasmithUEPbrMaterialElement& UEPbrMaterial, UMaterialInstanceDynamic* MaterialInstance);
 }

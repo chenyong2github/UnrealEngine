@@ -659,10 +659,10 @@ void FDatasmithAssetsImportContext::ReInit(const FString& NewRootFolder)
 	MaterialsImportPackage.Reset( NewObject< UPackage >( nullptr, *FPaths::Combine( TransientFolderPath, TEXT("Materials") ), RF_Transient ) );
 	MaterialsImportPackage->FullyLoad();
 
-	MasterMaterialsImportPackage.Reset(NewObject< UPackage >(nullptr, *FPaths::Combine(TransientFolderPath, TEXT("Materials/Master")), RF_Transient));
-	MasterMaterialsImportPackage->FullyLoad();
+	ReferenceMaterialsImportPackage.Reset(NewObject< UPackage >(nullptr, *FPaths::Combine(TransientFolderPath, TEXT("Materials/References")), RF_Transient));
+	ReferenceMaterialsImportPackage->FullyLoad();
 
-	MaterialFunctionsImportPackage.Reset( NewObject< UPackage >(nullptr, *FPaths::Combine(TransientFolderPath, TEXT("Materials/Master/Functions")), RF_Transient));
+	MaterialFunctionsImportPackage.Reset( NewObject< UPackage >(nullptr, *FPaths::Combine(TransientFolderPath, TEXT("Materials/References/Functions")), RF_Transient));
 	MaterialFunctionsImportPackage->FullyLoad();
 
 	LevelSequencesImportPackage.Reset( NewObject< UPackage >( nullptr, *FPaths::Combine( TransientFolderPath, TEXT("Animations") ), RF_Transient ) );

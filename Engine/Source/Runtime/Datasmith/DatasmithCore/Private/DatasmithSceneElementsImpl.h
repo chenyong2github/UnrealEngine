@@ -1377,16 +1377,16 @@ private:// #ue_directlink_reflect
 	TArray< TSharedPtr< IDatasmithShaderElement > > Shaders;
 };
 
-class FDatasmithMasterMaterialElementImpl : public FDatasmithBaseMaterialElementImpl< IDatasmithMasterMaterialElement >
+class FDatasmithMaterialIntanceElementImpl : public FDatasmithBaseMaterialElementImpl< IDatasmithMaterialInstanceElement >
 {
 public:
-	FDatasmithMasterMaterialElementImpl(const TCHAR* InName);
+	FDatasmithMaterialIntanceElementImpl(const TCHAR* InName);
 
-	virtual EDatasmithMasterMaterialType GetMaterialType() const override { return MaterialType; }
-	virtual void SetMaterialType( EDatasmithMasterMaterialType InType ) override { MaterialType = InType; }
+	virtual EDatasmithReferenceMaterialType GetMaterialType() const override { return MaterialType; }
+	virtual void SetMaterialType( EDatasmithReferenceMaterialType InType ) override { MaterialType = InType; }
 
-	virtual EDatasmithMasterMaterialQuality GetQuality() const override { return Quality; }
-	virtual void SetQuality( EDatasmithMasterMaterialQuality InQuality ) override { Quality = InQuality; }
+	virtual EDatasmithReferenceMaterialQuality GetQuality() const override { return Quality; }
+	virtual void SetQuality( EDatasmithReferenceMaterialQuality InQuality ) override { Quality = InQuality; }
 
 	virtual const TCHAR* GetCustomMaterialPathName() const override { return *(FString&)CustomMaterialPathName; }
 	virtual void SetCustomMaterialPathName( const TCHAR* InPathName ) override { CustomMaterialPathName = InPathName; }
@@ -1401,8 +1401,8 @@ public:
 private:
 	TDatasmithReferenceArrayProxy<IDatasmithKeyValueProperty> Properties;
 
-	TReflected<EDatasmithMasterMaterialType, uint8> MaterialType;
-	TReflected<EDatasmithMasterMaterialQuality, uint8> Quality;
+	TReflected<EDatasmithReferenceMaterialType, uint8> MaterialType;
+	TReflected<EDatasmithReferenceMaterialQuality, uint8> Quality;
 
 	TReflected<FString> CustomMaterialPathName;
 };

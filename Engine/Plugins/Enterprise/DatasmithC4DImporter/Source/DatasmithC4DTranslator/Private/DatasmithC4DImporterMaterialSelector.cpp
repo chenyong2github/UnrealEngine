@@ -13,20 +13,20 @@
 
 FDatasmithC4DImporterMaterialSelector::FDatasmithC4DImporterMaterialSelector()
 {
-	BaseMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/C4DMaster.C4DMaster") );
+	ReferenceMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/C4DReference.C4DReference") );
 }
 
 bool FDatasmithC4DImporterMaterialSelector::IsValid() const
 {
-	return BaseMaterial.IsValid();
+	return ReferenceMaterial.IsValid();
 }
 
-const FDatasmithMasterMaterial& FDatasmithC4DImporterMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const
+const FDatasmithReferenceMaterial& FDatasmithC4DImporterMaterialSelector::GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& /*InDatasmithMaterial*/ ) const
 {
-	return BaseMaterial;
+	return ReferenceMaterial;
 }
 
-void FDatasmithC4DImporterMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
+void FDatasmithC4DImporterMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMaterialInstanceElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
 {
 	if (!InDatasmithMaterial.IsValid() || MaterialInstance == nullptr)
 	{
@@ -34,13 +34,13 @@ void FDatasmithC4DImporterMaterialSelector::FinalizeMaterialInstance(const TShar
 	}
 
 	// Set blend mode to translucent if material requires transparency.
-	if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::Transparent)
+	if (InDatasmithMaterial->GetMaterialType() == EDatasmithReferenceMaterialType::Transparent)
 	{
 		MaterialInstance->BasePropertyOverrides.bOverride_BlendMode = true;
 		MaterialInstance->BasePropertyOverrides.BlendMode = BLEND_Translucent;
 	}
 	// Set blend mode to masked if material has cutouts.
-	else if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::CutOut)
+	else if (InDatasmithMaterial->GetMaterialType() == EDatasmithReferenceMaterialType::CutOut)
 	{
 		MaterialInstance->BasePropertyOverrides.bOverride_BlendMode = true;
 		MaterialInstance->BasePropertyOverrides.BlendMode = BLEND_Masked;

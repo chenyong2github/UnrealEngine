@@ -74,7 +74,7 @@ public:
 	static void WriteTextureElement(const TSharedPtr< IDatasmithTextureElement >& TextureElement, FArchive& Archive, int32 Indent);
 
 	static void WriteMaterialElement( TSharedPtr< IDatasmithMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent);
-	static void WriteMasterMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement >& MasterMaterialElement, FArchive& Archive, int32 Indent);
+	static void WriteMaterialInstanceElement(TSharedPtr< IDatasmithMaterialInstanceElement >& MaterialInstanceElement, FArchive& Archive, int32 Indent);
 	static void WriteDecalMaterialElement(TSharedPtr< IDatasmithDecalMaterialElement >& DecalMaterialElement, FArchive& Archive, int32 Indent);
 
 	static void WriteUEPbrMaterialElement( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent );
@@ -1378,28 +1378,28 @@ void FDatasmithSceneXmlWriterImpl::WriteMaterialElement( TSharedPtr< IDatasmithM
 	SerializeToArchive( Archive, XmlString );
 }
 
-void FDatasmithSceneXmlWriterImpl::WriteMasterMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement >& MasterMaterialElement, FArchive& Archive, int32 Indent)
+void FDatasmithSceneXmlWriterImpl::WriteMaterialInstanceElement(TSharedPtr< IDatasmithMaterialInstanceElement >& MaterialInstanceElement, FArchive& Archive, int32 Indent)
 {
 	WriteIndent(Archive, Indent);
 
 	FString XmlString = TEXT("<");
-	XmlString += FString(DATASMITH_MASTERMATERIALNAME) + TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(MasterMaterialElement->GetName())) + TEXT("\" ");
-	XmlString += TEXT(" label=\"") + SanitizeXMLText(MasterMaterialElement->GetLabel()) + TEXT("\" ");
-	XmlString += FString(DATASMITH_MASTERMATERIALTYPE) + TEXT("=\"") + FString::FromInt( (int32)MasterMaterialElement->GetMaterialType() ) + TEXT("\" ");
-	XmlString += FString(DATASMITH_MASTERMATERIALQUALITY) + TEXT("=\"") + FString::FromInt( (int32)MasterMaterialElement->GetQuality() ) + TEXT("\" ");
+	XmlString += FString(DATASMITH_MATERIALINSTANCENAME) + TEXT(" name=\"") + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(MaterialInstanceElement->GetName())) + TEXT("\" ");
+	XmlString += TEXT(" label=\"") + SanitizeXMLText(MaterialInstanceElement->GetLabel()) + TEXT("\" ");
+	XmlString += FString(DATASMITH_MATERIALINSTANCETYPE) + TEXT("=\"") + FString::FromInt( (int32)MaterialInstanceElement->GetMaterialType() ) + TEXT("\" ");
+	XmlString += FString(DATASMITH_MATERIALINSTANCEQUALITY) + TEXT("=\"") + FString::FromInt( (int32)MaterialInstanceElement->GetQuality() ) + TEXT("\" ");
 
-	if ( MasterMaterialElement->GetMaterialType() == EDatasmithMasterMaterialType::Custom )
+	if ( MaterialInstanceElement->GetMaterialType() == EDatasmithReferenceMaterialType::Custom )
 	{
-		XmlString += FString(DATASMITH_MASTERMATERIALPATHNAME) + TEXT("=\"") + SanitizeXMLText( MasterMaterialElement->GetCustomMaterialPathName() ) + TEXT("\" ");
+		XmlString += FString(DATASMITH_MATERIALINSTANCEPATHNAME) + TEXT("=\"") + SanitizeXMLText( MaterialInstanceElement->GetCustomMaterialPathName() ) + TEXT("\" ");
 	}
 
 	XmlString += FString(TEXT(">")) + LINE_TERMINATOR;
 	SerializeToArchive( Archive, XmlString );
 
-	WriteKeyValueProperties( *MasterMaterialElement, Archive, Indent );
+	WriteKeyValueProperties( *MaterialInstanceElement, Archive, Indent );
 
 	WriteIndent(Archive, Indent);
-	XmlString = TEXT("</") + FString(DATASMITH_MASTERMATERIALNAME) + TEXT(">") + LINE_TERMINATOR;
+	XmlString = TEXT("</") + FString(DATASMITH_MATERIALINSTANCENAME) + TEXT(">") + LINE_TERMINATOR;
 	SerializeToArchive( Archive, XmlString );
 }
 
@@ -1990,10 +1990,10 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 			TSharedPtr< IDatasmithMaterialElement > MaterialElement = StaticCastSharedPtr< IDatasmithMaterialElement >( BaseMaterialElement );
 			FDatasmithSceneXmlWriterImpl::WriteMaterialElement( MaterialElement, Archive, 1 );
 		}
-		else if ( BaseMaterialElement->IsA( EDatasmithElementType::MasterMaterial ) )
+		else if ( BaseMaterialElement->IsA( EDatasmithElementType::MaterialInstance ) )
 		{
-			TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( BaseMaterialElement );
-			FDatasmithSceneXmlWriterImpl::WriteMasterMaterialElement( MasterMaterialElement, Archive, 1 );
+			TSharedPtr< IDatasmithMaterialInstanceElement > MaterialInstanceElement = StaticCastSharedPtr< IDatasmithMaterialInstanceElement >( BaseMaterialElement );
+			FDatasmithSceneXmlWriterImpl::WriteMaterialInstanceElement( MaterialInstanceElement, Archive, 1 );
 		}
 		else if ( BaseMaterialElement->IsA( EDatasmithElementType::DecalMaterial ) )
 		{

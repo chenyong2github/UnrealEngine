@@ -2,25 +2,25 @@
 #pragma once
 
 #include "DatasmithDefinitions.h"
-#include "MasterMaterials/DatasmithMasterMaterial.h"
-#include "MasterMaterials/DatasmithMasterMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
 #include "Templates/SharedPointer.h"
 
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 
-class FDatasmithRuntimeMaterialSelector : public FDatasmithMasterMaterialSelector
+class FDatasmithRuntimeMaterialSelector : public FDatasmithReferenceMaterialSelector
 {
 public:
 	FDatasmithRuntimeMaterialSelector();
 	virtual ~FDatasmithRuntimeMaterialSelector() = default;
 
 	virtual bool IsValid() const override;
-	virtual const FDatasmithMasterMaterial& GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const override;
-	virtual void FinalizeMaterialInstance(const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const override;
+	virtual const FDatasmithReferenceMaterial& GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& /*InDatasmithMaterial*/ ) const override;
+	virtual void FinalizeMaterialInstance(const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const override;
 
 private:
-	FDatasmithMasterMaterial OpaqueMaterial;
-	FDatasmithMasterMaterial TransparentMaterial;
-	FDatasmithMasterMaterial CutoutMaterial;
+	FDatasmithReferenceMaterial OpaqueMaterial;
+	FDatasmithReferenceMaterial TransparentMaterial;
+	FDatasmithReferenceMaterial CutoutMaterial;
 };

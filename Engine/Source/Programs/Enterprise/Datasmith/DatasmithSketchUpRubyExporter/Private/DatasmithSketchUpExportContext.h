@@ -18,7 +18,7 @@ class FDatasmithSceneExporter;
 
 class IDatasmithActorElement;
 class IDatasmithCameraActorElement;
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 class IDatasmithMeshElement;
 class IDatasmithMetaDataElement;
 class IDatasmithScene;

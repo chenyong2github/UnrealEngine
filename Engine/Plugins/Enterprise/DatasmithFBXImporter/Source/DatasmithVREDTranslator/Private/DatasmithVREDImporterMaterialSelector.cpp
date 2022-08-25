@@ -13,37 +13,37 @@
 
 FDatasmithVREDImporterMaterialSelector::FDatasmithVREDImporterMaterialSelector()
 {
-	FDatasmithMasterMaterial& Phong = MasterMaterials.Add(TEXT("UPhongMaterial"));
+	FDatasmithReferenceMaterial& Phong = ReferenceMaterials.Add(TEXT("UPhongMaterial"));
 	Phong.FromSoftObjectPath(FSoftObjectPath(TEXT("/DatasmithContent/Materials/FBXImporter/VRED/Phong.Phong")));
 
-	FDatasmithMasterMaterial& Plastic = MasterMaterials.Add(TEXT("UPlasticMaterial"));
+	FDatasmithReferenceMaterial& Plastic = ReferenceMaterials.Add(TEXT("UPlasticMaterial"));
 	Plastic.FromSoftObjectPath(FSoftObjectPath(TEXT("/DatasmithContent/Materials/FBXImporter/VRED/Plastic.Plastic")));
 
-	FDatasmithMasterMaterial& Glass = MasterMaterials.Add(TEXT("UGlassMaterial"));
+	FDatasmithReferenceMaterial& Glass = ReferenceMaterials.Add(TEXT("UGlassMaterial"));
 	Glass.FromSoftObjectPath(FSoftObjectPath(TEXT("/DatasmithContent/Materials/FBXImporter/VRED/Glass.Glass")));
 
-	FDatasmithMasterMaterial& Chrome = MasterMaterials.Add(TEXT("UChromeMaterial"));
+	FDatasmithReferenceMaterial& Chrome = ReferenceMaterials.Add(TEXT("UChromeMaterial"));
 	Chrome.FromSoftObjectPath(FSoftObjectPath(TEXT("/DatasmithContent/Materials/FBXImporter/VRED/Chrome.Chrome")));
 
-	FDatasmithMasterMaterial& BrushedMetal = MasterMaterials.Add(TEXT("UBrushedMetalMaterial"));
+	FDatasmithReferenceMaterial& BrushedMetal = ReferenceMaterials.Add(TEXT("UBrushedMetalMaterial"));
 	BrushedMetal.FromSoftObjectPath(FSoftObjectPath(TEXT("/DatasmithContent/Materials/FBXImporter/VRED/BrushedMetal.BrushedMetal")));
 
-	FDatasmithMasterMaterial& UnicolorCarpaint = MasterMaterials.Add(TEXT("UUnicolorPaintMaterial"));
+	FDatasmithReferenceMaterial& UnicolorCarpaint = ReferenceMaterials.Add(TEXT("UUnicolorPaintMaterial"));
 	UnicolorCarpaint.FromSoftObjectPath(FSoftObjectPath(TEXT("/DatasmithContent/Materials/FBXImporter/VRED/UnicolorCarpaint.UnicolorCarpaint")));
 }
 
 bool FDatasmithVREDImporterMaterialSelector::IsValid() const
 {
-	for (const auto& Pair : MasterMaterials)
+	for (const auto& Pair : ReferenceMaterials)
 	{
-		const FDatasmithMasterMaterial& Mat = Pair.Value;
+		const FDatasmithReferenceMaterial& Mat = Pair.Value;
 		if (!Mat.IsValid())
 		{
 			return false;
 		}
 	}
 
-	if (!MasterMaterials.Contains(DEFAULT_MATERIAL_NAME))
+	if (!ReferenceMaterials.Contains(DEFAULT_MATERIAL_NAME))
 	{
 		return false;
 	}
@@ -51,22 +51,22 @@ bool FDatasmithVREDImporterMaterialSelector::IsValid() const
 	return true;
 }
 
-const FDatasmithMasterMaterial& FDatasmithVREDImporterMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
+const FDatasmithReferenceMaterial& FDatasmithVREDImporterMaterialSelector::GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial ) const
 {
 	const TSharedPtr< IDatasmithKeyValueProperty > TypeProperty = InDatasmithMaterial->GetPropertyByName(TEXT("Type"));
 	FString TypeValue;
 	if (TypeProperty.IsValid() && GetString(TypeProperty, TypeValue))
 	{
-		if (const FDatasmithMasterMaterial* FoundMat = MasterMaterials.Find(TypeValue))
+		if (const FDatasmithReferenceMaterial* FoundMat = ReferenceMaterials.Find(TypeValue))
 		{
 			return *FoundMat;
 		}
 	}
 
-	return MasterMaterials[DEFAULT_MATERIAL_NAME];
+	return ReferenceMaterials[DEFAULT_MATERIAL_NAME];
 }
 
-void FDatasmithVREDImporterMaterialSelector::FinalizeMaterialInstance(const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const
+void FDatasmithVREDImporterMaterialSelector::FinalizeMaterialInstance(const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const
 {
 	const TSharedPtr<IDatasmithKeyValueProperty> OpacityProperty = InDatasmithMaterial->GetPropertyByName(TEXT("Opacity"));
 	const TSharedPtr<IDatasmithKeyValueProperty> TransparencyTextureProperty = InDatasmithMaterial->GetPropertyByName(TEXT("TexTransparencyIsActive"));
@@ -93,7 +93,7 @@ void FDatasmithVREDImporterMaterialSelector::FinalizeMaterialInstance(const TSha
 	}
 }
 
-bool FDatasmithVREDImporterMaterialSelector::IsValidMaterialType( EDatasmithMasterMaterialType InType ) const
+bool FDatasmithVREDImporterMaterialSelector::IsValidMaterialType( EDatasmithReferenceMaterialType InType ) const
 {
-	return InType == EDatasmithMasterMaterialType::Auto || InType == EDatasmithMasterMaterialType::Opaque || InType == EDatasmithMasterMaterialType::Transparent;
+	return InType == EDatasmithReferenceMaterialType::Auto || InType == EDatasmithReferenceMaterialType::Opaque || InType == EDatasmithReferenceMaterialType::Transparent;
 }

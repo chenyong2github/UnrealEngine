@@ -808,7 +808,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportStaticMesh(UStaticMesh* M
 	ImportContext.AssetsContext.LevelSequencesImportPackage.Reset();
 	ImportContext.AssetsContext.LevelVariantSetsImportPackage.Reset();
 	ImportContext.AssetsContext.MaterialsImportPackage.Reset();
-	ImportContext.AssetsContext.MasterMaterialsImportPackage.Reset();
+	ImportContext.AssetsContext.ReferenceMaterialsImportPackage.Reset();
 	ImportContext.AssetsContext.MaterialFunctionsImportPackage.Reset();
 	ImportContext.AssetsContext.TexturesImportPackage.Reset();
 

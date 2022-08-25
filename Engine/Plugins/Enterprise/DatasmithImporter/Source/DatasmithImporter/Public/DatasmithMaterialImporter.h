@@ -8,7 +8,7 @@
 class IDatasmithBaseMaterialElement;
 class IDatasmithDecalMaterialElement;
 class IDatasmithMaterialElement;
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 struct FDatasmithImportContext;
 class UMaterialInterface;
 class UMaterialFunction;
@@ -34,6 +34,6 @@ public:
 	static int32 GetMaterialRequirements(UMaterialInterface* MaterialInterface);
 
 private:
-	static UMaterialInterface* ImportMasterMaterial( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMasterMaterialElement >& MaterialElement, UMaterialInterface* ExistingMaterial );
+	static UMaterialInterface* ImportMaterialInstance( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMaterialInstanceElement >& MaterialElement, UMaterialInterface* ExistingMaterial );
 	static UMaterialInterface* ImportDecalMaterial( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithDecalMaterialElement >& MaterialElement, UMaterialInterface* ExistingMaterial );
 };

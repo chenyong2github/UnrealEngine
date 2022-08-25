@@ -377,10 +377,10 @@ const TSharedPtr< IDatasmithShaderElement >& FDatasmithMaterialElementImpl::GetS
 	return Shaders[InIndex];
 }
 
-FDatasmithMasterMaterialElementImpl::FDatasmithMasterMaterialElementImpl(const TCHAR* InName)
-	: FDatasmithBaseMaterialElementImpl(InName, EDatasmithElementType::MasterMaterial)
-	, MaterialType( EDatasmithMasterMaterialType::Auto )
-	, Quality( EDatasmithMasterMaterialQuality::High )
+FDatasmithMaterialIntanceElementImpl::FDatasmithMaterialIntanceElementImpl(const TCHAR* InName)
+	: FDatasmithBaseMaterialElementImpl(InName, EDatasmithElementType::MaterialInstance)
+	, MaterialType( EDatasmithReferenceMaterialType::Auto )
+	, Quality( EDatasmithReferenceMaterialQuality::High )
 {
 	RegisterReferenceProxy(Properties, "Properties");
 
@@ -389,12 +389,12 @@ FDatasmithMasterMaterialElementImpl::FDatasmithMasterMaterialElementImpl(const T
 	Store.RegisterParameter(CustomMaterialPathName, "CustomMaterialPathName");
 }
 
-const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMasterMaterialElementImpl::GetProperty( int32 InIndex ) const
+const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMaterialIntanceElementImpl::GetProperty( int32 InIndex ) const
 {
 	return Properties.IsValidIndex( InIndex ) ? Properties[InIndex] : FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
 }
 
-const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMasterMaterialElementImpl::GetPropertyByName( const TCHAR* InName ) const
+const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMaterialIntanceElementImpl::GetPropertyByName( const TCHAR* InName ) const
 {
 	int32 Index = Properties.View().IndexOfByPredicate([InName](const TSharedPtr<IDatasmithKeyValueProperty>& Property){
 		return Property.IsValid() && FCString::Stricmp(Property->GetName(), InName) == 0;
@@ -402,7 +402,7 @@ const TSharedPtr< IDatasmithKeyValueProperty >& FDatasmithMasterMaterialElementI
 	return GetProperty(Index);
 }
 
-void FDatasmithMasterMaterialElementImpl::AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty )
+void FDatasmithMaterialIntanceElementImpl::AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty )
 {
 	if (!InProperty.IsValid())
 	{
@@ -420,7 +420,7 @@ void FDatasmithMasterMaterialElementImpl::AddProperty( const TSharedPtr< IDatasm
 	}
 }
 
-FMD5Hash FDatasmithMasterMaterialElementImpl::CalculateElementHash(bool bForce)
+FMD5Hash FDatasmithMaterialIntanceElementImpl::CalculateElementHash(bool bForce)
 {
 	if (ElementHash.IsValid() && !bForce)
 	{

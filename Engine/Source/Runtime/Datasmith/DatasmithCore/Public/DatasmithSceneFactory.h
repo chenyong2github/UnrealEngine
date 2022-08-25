@@ -56,7 +56,15 @@ public:
 
 	static TSharedRef< IDatasmithMaterialElement > CreateMaterial( const TCHAR* InName );
 
-	static TSharedRef< IDatasmithMasterMaterialElement > CreateMasterMaterial( const TCHAR* InName );
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.2, "FDatasmithSceneFactory::CreateMasterMaterial will not be supported in 5.2. Please use FDatasmithSceneFactory::CreateMaterialInstance instead.")
+	static TSharedRef< IDatasmithMasterMaterialElement > CreateMasterMaterial(const TCHAR* InName)
+	{
+		return CreateMaterialInstance(InName);
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	static TSharedRef< IDatasmithMaterialInstanceElement > CreateMaterialInstance(const TCHAR* InName);
 
 	static TSharedRef< IDatasmithUEPbrMaterialElement > CreateUEPbrMaterial( const TCHAR* InName );
 

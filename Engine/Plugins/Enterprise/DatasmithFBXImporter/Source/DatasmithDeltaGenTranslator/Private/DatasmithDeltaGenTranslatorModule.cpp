@@ -2,7 +2,7 @@
 
 #include "DatasmithDeltaGenTranslatorModule.h"
 #include "DatasmithDeltaGenTranslator.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
 #include "DatasmithDeltaGenImporterMaterialSelector.h"
 
 #include "CoreMinimal.h"
@@ -16,7 +16,7 @@ public:
 		// Make sure the DatasmithImporter module exists and has been initialized before adding FDatasmithDeltaGenTranslator's material selector
 		FModuleManager::Get().LoadModule(TEXT("DatasmithTranslator"));
 
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Deltagen"), MakeShared< FDatasmithDeltaGenImporterMaterialSelector >());
+		FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("Deltagen"), MakeShared< FDatasmithDeltaGenImporterMaterialSelector >());
 
 		Datasmith::RegisterTranslator<FDatasmithDeltaGenTranslator>();
 	}

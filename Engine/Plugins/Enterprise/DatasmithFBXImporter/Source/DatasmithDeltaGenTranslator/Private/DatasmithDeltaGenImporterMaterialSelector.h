@@ -2,25 +2,25 @@
 #pragma once
 
 #include "DatasmithDefinitions.h"
-#include "MasterMaterials/DatasmithMasterMaterial.h"
-#include "MasterMaterials/DatasmithMasterMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
 #include "Templates/SharedPointer.h"
 
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 
-class FDatasmithDeltaGenImporterMaterialSelector : public FDatasmithMasterMaterialSelector
+class FDatasmithDeltaGenImporterMaterialSelector : public FDatasmithReferenceMaterialSelector
 {
 public:
 	FDatasmithDeltaGenImporterMaterialSelector();
 
 	virtual bool IsValid() const override;
-	virtual const FDatasmithMasterMaterial& GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const override;
+	virtual const FDatasmithReferenceMaterial& GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial ) const override;
 
 protected:
-	bool IsValidMaterialType( EDatasmithMasterMaterialType InType ) const;
+	bool IsValidMaterialType( EDatasmithReferenceMaterialType InType ) const;
 
 private:
-	FDatasmithMasterMaterial MasterMaterial;
-	FDatasmithMasterMaterial MasterMaterialTransparent;
+	FDatasmithReferenceMaterial ReferenceMaterial;
+	FDatasmithReferenceMaterial ReferenceMaterialTransparent;
 };

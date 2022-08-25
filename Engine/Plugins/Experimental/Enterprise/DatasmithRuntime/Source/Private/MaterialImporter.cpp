@@ -9,9 +9,9 @@
 #include "DatasmithMaterialElements.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
-#include "MasterMaterials/DatasmithMasterMaterial.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MasterMaterials/DatasmithMasterMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
 #include "Engine/Texture2D.h"
 #include "Engine/TextureLightProfile.h"
@@ -101,15 +101,15 @@ namespace DatasmithRuntime
 			}
 		};
 
-		const FString Host = FDatasmithMasterMaterialManager::Get().GetHostFromString( SceneElement->GetHost() );
+		const FString Host = FDatasmithReferenceMaterialManager::Get().GetHostFromString( SceneElement->GetHost() );
 
 		if( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{
 			MaterialData.Requirements = ProcessMaterialElement(static_cast<IDatasmithUEPbrMaterialElement*>(Element.Get()), TextureCallback);
 		}
-		else if( Element->IsA( EDatasmithElementType::MasterMaterial ) )
+		else if( Element->IsA( EDatasmithElementType::MaterialInstance ) )
 		{
-			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), TextureCallback);
+			MaterialData.Requirements = ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMaterialInstanceElement>(Element), TextureCallback);
 		}
 
 		MaterialData.SetState(EAssetState::Processed);
@@ -150,12 +150,12 @@ namespace DatasmithRuntime
 		{
 			// Not supported
 		}
-		else if ( Element->IsA( EDatasmithElementType::MasterMaterial ) )
+		else if ( Element->IsA( EDatasmithElementType::MaterialInstance ) )
 		{
 
-			TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( Element );
+			TSharedPtr< IDatasmithMaterialInstanceElement > MaterialElement = StaticCastSharedPtr< IDatasmithMaterialInstanceElement >( Element );
 
-			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement);
+			bCreationSuccessful = LoadReferenceMaterial(MaterialInstance, MaterialElement);
 
 			// Add tracking on material's properties
 			if (bCreationSuccessful)
@@ -221,9 +221,9 @@ namespace DatasmithRuntime
 			{
 				// Not supported
 			}
-			else if ( Element->IsA( EDatasmithElementType::MasterMaterial ) )
+			else if ( Element->IsA( EDatasmithElementType::MaterialInstance ) )
 			{
-				IDatasmithMasterMaterialElement* MaterialElement = static_cast< IDatasmithMasterMaterialElement* >( Element.Get() );
+				IDatasmithMaterialInstanceElement* MaterialElement = static_cast< IDatasmithMaterialInstanceElement* >( Element.Get() );
 
 				const int32 PropertyIndex = Referencer.Slot;
 				const TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetProperty(PropertyIndex);

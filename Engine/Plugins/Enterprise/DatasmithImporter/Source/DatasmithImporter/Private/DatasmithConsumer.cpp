@@ -771,7 +771,7 @@ bool UDatasmithConsumer::BuildContexts()
 	ImportContextPtr->AssetsContext.StaticMeshesImportPackage.Reset();
 	ImportContextPtr->AssetsContext.TexturesImportPackage.Reset();
 	ImportContextPtr->AssetsContext.MaterialsImportPackage.Reset();
-	ImportContextPtr->AssetsContext.MasterMaterialsImportPackage.Reset();
+	ImportContextPtr->AssetsContext.ReferenceMaterialsImportPackage.Reset();
 	ImportContextPtr->AssetsContext.MaterialFunctionsImportPackage.Reset();
 	ImportContextPtr->AssetsContext.LevelSequencesImportPackage.Reset();
 	ImportContextPtr->AssetsContext.LevelVariantSetsImportPackage.Reset();

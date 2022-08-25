@@ -10,7 +10,7 @@
 
 #include "DatasmithTranslatorModule.h"
 #include "DatasmithGLTFTranslatorModule.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
 
 #if WITH_EDITOR
 #include "Settings/ProjectPackagingSettings.h"
@@ -62,7 +62,7 @@ public:
 
 		DatasmithRuntime::FDestinationProxy::InitializeEndpointProxy();
 
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(DatasmithRuntime::MATERIAL_HOST, MakeShared< FDatasmithRuntimeMaterialSelector >());
+		FDatasmithReferenceMaterialManager::Get().RegisterSelector(DatasmithRuntime::MATERIAL_HOST, MakeShared< FDatasmithRuntimeMaterialSelector >());
 
 		ADatasmithRuntimeActor::OnStartupModule();
 	}
@@ -71,7 +71,7 @@ public:
 	{
 		ADatasmithRuntimeActor::OnShutdownModule();
 		
-		FDatasmithMasterMaterialManager::Get().UnregisterSelector(DatasmithRuntime::MATERIAL_HOST);
+		FDatasmithReferenceMaterialManager::Get().UnregisterSelector(DatasmithRuntime::MATERIAL_HOST);
 
 		DatasmithRuntime::FDestinationProxy::ShutdownEndpointProxy();
 	}

@@ -21,9 +21,9 @@ bool FDatasmithRuntimeMaterialSelector::IsValid() const
 	return OpaqueMaterial.IsValid() && TransparentMaterial.IsValid() && CutoutMaterial.IsValid();
 }
 
-const FDatasmithMasterMaterial& FDatasmithRuntimeMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
+const FDatasmithReferenceMaterial& FDatasmithRuntimeMaterialSelector::GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial ) const
 {
-	TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = ConstCastSharedPtr< IDatasmithMasterMaterialElement >(InDatasmithMaterial);
+	TSharedPtr< IDatasmithMaterialInstanceElement > MaterialElement = ConstCastSharedPtr< IDatasmithMaterialInstanceElement >(InDatasmithMaterial);
 
 	TFunction<void(const TCHAR*, const TCHAR*)> ConvertProperty;
 	ConvertProperty = [this, &MaterialElement](const TCHAR* BoolPropertyName, const TCHAR* FloatPropertyName)
@@ -66,7 +66,7 @@ const FDatasmithMasterMaterial& FDatasmithRuntimeMaterialSelector::GetMasterMate
 		Roughness->SetValue(*NewValue);
 	}
 
-	// Convert static boolean parameters into float ones used in master material's graph
+	// Convert static boolean parameters into float ones used in reference material's graph
 	ConvertProperty(TEXT("RoughnessMapEnable"), TEXT("RoughnessMapFading"));
 	ConvertProperty(TEXT("IsMetal"), TEXT("Metallic"));
 	ConvertProperty(TEXT("TintEnabled"), TEXT("TintColorFading"));
@@ -74,11 +74,11 @@ const FDatasmithMasterMaterial& FDatasmithRuntimeMaterialSelector::GetMasterMate
 	ConvertProperty(TEXT("IsPbr"), TEXT("UseNormalMap"));
 
 	// Return proper material based on material's type
-	if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::Transparent)
+	if (InDatasmithMaterial->GetMaterialType() == EDatasmithReferenceMaterialType::Transparent)
 	{
 		return TransparentMaterial;
 	}
-	else if (InDatasmithMaterial->GetMaterialType() == EDatasmithMasterMaterialType::CutOut)
+	else if (InDatasmithMaterial->GetMaterialType() == EDatasmithReferenceMaterialType::CutOut)
 	{
 		return  CutoutMaterial;
 	}
@@ -86,7 +86,7 @@ const FDatasmithMasterMaterial& FDatasmithRuntimeMaterialSelector::GetMasterMate
 	return OpaqueMaterial;
 }
 
-void FDatasmithRuntimeMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
+void FDatasmithRuntimeMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMaterialInstanceElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
 {
 	// Nothing to do there.
 }

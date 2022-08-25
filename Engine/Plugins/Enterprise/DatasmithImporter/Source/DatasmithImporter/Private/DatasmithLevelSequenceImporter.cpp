@@ -463,7 +463,7 @@ namespace DatasmithLevelSequenceImporterImpl
 		}
 	}
 
-	void PopulateSubsequenceTrack(const TSharedRef<IDatasmithSubsequenceAnimationElement>& SubsequenceAnimation, bool bShouldClearMasterTrack, FDatasmithImportContext& ImportContext, ULevelSequence* LevelSequence, FFrameNumber& MinFrameNumber, FFrameNumber& MaxFrameNumber)
+	void PopulateSubsequenceTrack(const TSharedRef<IDatasmithSubsequenceAnimationElement>& SubsequenceAnimation, bool bShouldClearReferenceTrack, FDatasmithImportContext& ImportContext, ULevelSequence* LevelSequence, FFrameNumber& MinFrameNumber, FFrameNumber& MaxFrameNumber)
 	{
 		// Find the TargetMovieSceneSequence that will be added as a subsequence
 		TSharedPtr<IDatasmithLevelSequenceElement> PinnedTargetSequence = SubsequenceAnimation->GetSubsequence().Pin();
@@ -493,7 +493,7 @@ namespace DatasmithLevelSequenceImporterImpl
 		{
 			SubTrack = MovieScene->AddMasterTrack<UMovieSceneSubTrack>();
 		}
-		else if (SubTrack && bShouldClearMasterTrack)
+		else if (SubTrack && bShouldClearReferenceTrack)
 		{
 			SubTrack->RemoveAllAnimationData();
 		}
@@ -531,8 +531,8 @@ namespace DatasmithLevelSequenceImporterImpl
 		FFrameNumber MaxFrameNumber;
 
 		// We might be reusing the LevelSequence asset, so we must reset it before we add our first subsequence.
-		// We will add further subsequences onto the same master track though, so we can't clear again
-		bool bShouldClearSubsequenceMasterTrack = true;
+		// We will add further subsequences onto the same reference track though, so we can't clear again
+		bool bShouldClearSubsequenceReferenceTrack = true;
 
 		const int32 NumAnimations = LevelSequenceElement->GetAnimationsCount();
 		for (int32 AnimIndex = 0; AnimIndex < NumAnimations; ++AnimIndex)
@@ -556,9 +556,9 @@ namespace DatasmithLevelSequenceImporterImpl
 			else if (AnimationElement->IsSubType(EDatasmithElementAnimationSubType::SubsequenceAnimation))
 			{
 				TSharedRef<IDatasmithSubsequenceAnimationElement> SubsequenceAnimation = StaticCastSharedRef<IDatasmithSubsequenceAnimationElement>(AnimationElement.ToSharedRef());
-				PopulateSubsequenceTrack(SubsequenceAnimation, bShouldClearSubsequenceMasterTrack, ImportContext, LevelSequence, MinFrameNumber, MaxFrameNumber);
+				PopulateSubsequenceTrack(SubsequenceAnimation, bShouldClearSubsequenceReferenceTrack, ImportContext, LevelSequence, MinFrameNumber, MaxFrameNumber);
 
-				bShouldClearSubsequenceMasterTrack = false;
+				bShouldClearSubsequenceReferenceTrack = false;
 			}
 		}
 

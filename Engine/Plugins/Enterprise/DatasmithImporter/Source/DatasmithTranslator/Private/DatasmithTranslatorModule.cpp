@@ -2,34 +2,34 @@
 
 #include "DatasmithTranslatorModule.h"
 
-#include "MasterMaterials/DatasmithC4DMaterialSelector.h"
-#include "MasterMaterials/DatasmithCityEngineMaterialSelector.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MasterMaterials/DatasmithRevitMaterialSelector.h"
-#include "MasterMaterials/DatasmithSketchupMaterialSelector.h"
-#include "MasterMaterials/DatasmithStdMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithC4DMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithCityEngineMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
+#include "ReferenceMaterials/DatasmithRevitMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithSketchupMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithStdMaterialSelector.h"
 
 void IDatasmithTranslatorModule::StartupModule()
 {
-	FDatasmithMasterMaterialManager::Create();
+	FDatasmithReferenceMaterialManager::Create();
 
-	//A minimal set of natively supported master materials
-	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("C4D"), MakeShared< FDatasmithC4DMaterialSelector >());
-	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRevitMaterialSelector >());
-	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("SketchUp"), MakeShared< FDatasmithSketchUpMaterialSelector >());
-	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("CityEngine"), MakeShared< FDatasmithCityEngineMaterialSelector >());
-	FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("StdMaterial"), MakeShared< FDatasmithStdMaterialSelector >());
+	//A minimal set of natively supported reference materials
+	FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("C4D"), MakeShared< FDatasmithC4DMaterialSelector >());
+	FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("Revit"), MakeShared< FDatasmithRevitMaterialSelector >());
+	FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("SketchUp"), MakeShared< FDatasmithSketchUpMaterialSelector >());
+	FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("CityEngine"), MakeShared< FDatasmithCityEngineMaterialSelector >());
+	FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("StdMaterial"), MakeShared< FDatasmithStdMaterialSelector >());
 }
 
 void IDatasmithTranslatorModule::ShutdownModule()
 {
-	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("C4D"));
-	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("Revit"));
-	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("SketchUp"));
-	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("CityEngine"));
-	FDatasmithMasterMaterialManager::Get().UnregisterSelector(TEXT("StdMaterial"));
+	FDatasmithReferenceMaterialManager::Get().UnregisterSelector(TEXT("C4D"));
+	FDatasmithReferenceMaterialManager::Get().UnregisterSelector(TEXT("Revit"));
+	FDatasmithReferenceMaterialManager::Get().UnregisterSelector(TEXT("SketchUp"));
+	FDatasmithReferenceMaterialManager::Get().UnregisterSelector(TEXT("CityEngine"));
+	FDatasmithReferenceMaterialManager::Get().UnregisterSelector(TEXT("StdMaterial"));
 
-	FDatasmithMasterMaterialManager::Destroy();
+	FDatasmithReferenceMaterialManager::Destroy();
 }
 
 IMPLEMENT_MODULE(IDatasmithTranslatorModule, DatasmithTranslator);

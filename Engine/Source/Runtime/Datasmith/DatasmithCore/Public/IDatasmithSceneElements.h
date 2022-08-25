@@ -10,6 +10,7 @@
 #include "Math/Color.h"
 #include "Math/Quat.h"
 #include "Math/Vector.h"
+#include "Misc/CoreMiscDefines.h"
 #include "Misc/SecureHash.h"
 #include "Templates/SharedPointer.h"
 
@@ -641,16 +642,16 @@ public:
 	virtual const TSharedPtr< IDatasmithShaderElement >& GetShader(int32 InIndex) const = 0;
 };
 
-class DATASMITHCORE_API IDatasmithMasterMaterialElement : public IDatasmithBaseMaterialElement
+class DATASMITHCORE_API IDatasmithMaterialInstanceElement : public IDatasmithBaseMaterialElement
 {
 public:
-	virtual ~IDatasmithMasterMaterialElement() {}
+	virtual ~IDatasmithMaterialInstanceElement() {}
 
-	virtual EDatasmithMasterMaterialType GetMaterialType() const = 0;
-	virtual void SetMaterialType(EDatasmithMasterMaterialType InType) = 0;
+	virtual EDatasmithReferenceMaterialType GetMaterialType() const = 0;
+	virtual void SetMaterialType(EDatasmithReferenceMaterialType InType) = 0;
 
-	virtual EDatasmithMasterMaterialQuality GetQuality() const = 0;
-	virtual void SetQuality(EDatasmithMasterMaterialQuality InQuality) = 0;
+	virtual EDatasmithReferenceMaterialQuality GetQuality() const = 0;
+	virtual void SetQuality(EDatasmithReferenceMaterialQuality InQuality) = 0;
 
 	/** Only used when the material type is set to Custom. The path name to an existing material to instantiate. */
 	virtual const TCHAR* GetCustomMaterialPathName() const = 0;
@@ -1785,3 +1786,6 @@ public:
 	/** Attach the actor to the scene root. Detach the actor if it was already attached. */
 	virtual void AttachActorToSceneRoot(const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) = 0;
 };
+
+
+using IDatasmithMasterMaterialElement UE_DEPRECATED(5.2, "IDatasmithMasterMaterialElement will not be supported in 5.2. Please use IDatasmithMaterialInstanceElement instead.") = IDatasmithMaterialInstanceElement;

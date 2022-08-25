@@ -3,14 +3,14 @@
 #pragma once
 
 #include "DatasmithDefinitions.h"
-#include "MasterMaterials/DatasmithMasterMaterial.h"
-#include "MasterMaterials/DatasmithMasterMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
 #include "Templates/SharedPointer.h"
 
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 
-class FDatasmithC4DImporterMaterialSelector : public FDatasmithMasterMaterialSelector
+class FDatasmithC4DImporterMaterialSelector : public FDatasmithReferenceMaterialSelector
 {
 public:
 
@@ -18,10 +18,10 @@ public:
 	virtual ~FDatasmithC4DImporterMaterialSelector() = default;
 
 	virtual bool IsValid() const override;
-	virtual const FDatasmithMasterMaterial& GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& /*InDatasmithMaterial*/ ) const override;
-	virtual void FinalizeMaterialInstance(const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const override;
+	virtual const FDatasmithReferenceMaterial& GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& /*InDatasmithMaterial*/ ) const override;
+	virtual void FinalizeMaterialInstance(const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial, UMaterialInstanceConstant* MaterialInstance) const override;
 
 private:
 
-	FDatasmithMasterMaterial BaseMaterial;
+	FDatasmithReferenceMaterial ReferenceMaterial;
 };

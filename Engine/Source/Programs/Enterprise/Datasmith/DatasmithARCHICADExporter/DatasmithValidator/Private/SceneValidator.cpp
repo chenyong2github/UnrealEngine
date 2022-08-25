@@ -84,9 +84,9 @@ FString FSceneValidator::GetElementTypes(const IDatasmithElement& InElement)
 	{
 		TypesString += TEXT(", BaseMaterial");
 	}
-	if (InElement.IsA(EDatasmithElementType::MasterMaterial))
+	if (InElement.IsA(EDatasmithElementType::MaterialInstance))
 	{
-		TypesString += TEXT(", MasterMaterial");
+		TypesString += TEXT(", MaterialInstance");
 	}
 	if (InElement.IsA(EDatasmithElementType::KeyValueProperty))
 	{

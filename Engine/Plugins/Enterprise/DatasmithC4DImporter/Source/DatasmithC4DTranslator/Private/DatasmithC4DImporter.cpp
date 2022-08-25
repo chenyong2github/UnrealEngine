@@ -945,7 +945,7 @@ namespace
 		return Result;
 	}
 
-	void AddColorToMaterial(const TSharedPtr<IDatasmithMasterMaterialElement>& Material, const FString& DatasmithPropName, const FLinearColor& LinearColor)
+	void AddColorToMaterial(const TSharedPtr<IDatasmithMaterialInstanceElement>& Material, const FString& DatasmithPropName, const FLinearColor& LinearColor)
 	{
 		TSharedPtr<IDatasmithKeyValueProperty> MaterialPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(*DatasmithPropName);
 		MaterialPropertyPtr->SetPropertyType(EDatasmithKeyValuePropertyType::Color);
@@ -954,7 +954,7 @@ namespace
 		Material->AddProperty(MaterialPropertyPtr);
 	}
 
-	void AddFloatToMaterial(const TSharedPtr<IDatasmithMasterMaterialElement>& Material, const FString& DatasmithPropName, float Value)
+	void AddFloatToMaterial(const TSharedPtr<IDatasmithMaterialInstanceElement>& Material, const FString& DatasmithPropName, float Value)
 	{
 		TSharedPtr<IDatasmithKeyValueProperty> MaterialPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(*DatasmithPropName);
 		MaterialPropertyPtr->SetPropertyType(EDatasmithKeyValuePropertyType::Float);
@@ -963,7 +963,7 @@ namespace
 		Material->AddProperty(MaterialPropertyPtr);
 	}
 
-	void AddBoolToMaterial(const TSharedPtr<IDatasmithMasterMaterialElement>& Material, const FString& DatasmithPropName, bool bValue)
+	void AddBoolToMaterial(const TSharedPtr<IDatasmithMaterialInstanceElement>& Material, const FString& DatasmithPropName, bool bValue)
 	{
 		TSharedPtr<IDatasmithKeyValueProperty> MaterialPropertyPtr = FDatasmithSceneFactory::CreateKeyValueProperty(*DatasmithPropName);
 		MaterialPropertyPtr->SetPropertyType(EDatasmithKeyValuePropertyType::Bool);
@@ -972,7 +972,7 @@ namespace
 		Material->AddProperty(MaterialPropertyPtr);
 	}
 
-	void AddTextureToMaterial(const TSharedPtr<IDatasmithMasterMaterialElement>& Material, const FString& DatasmithPropName, TSharedPtr<IDatasmithTextureElement> Texture)
+	void AddTextureToMaterial(const TSharedPtr<IDatasmithMaterialInstanceElement>& Material, const FString& DatasmithPropName, TSharedPtr<IDatasmithTextureElement> Texture)
 	{
 		if (Texture == nullptr)
 		{
@@ -1255,18 +1255,18 @@ FString FDatasmithC4DImporter::GetBaseShaderTextureFilePath(melange::BaseList2D*
 	return TextureFilePath;
 }
 
-TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMaterial(melange::Material* InC4DMaterialPtr)
+TSharedPtr<IDatasmithMaterialInstanceElement> FDatasmithC4DImporter::ImportMaterial(melange::Material* InC4DMaterialPtr)
 {
 	TOptional<FString> DatasmithName = GetMelangeBaseList2dID(InC4DMaterialPtr);
 	if (!DatasmithName)
 	{
-		return TSharedPtr<IDatasmithMasterMaterialElement>();
+		return TSharedPtr<IDatasmithMaterialInstanceElement>();
 	}
 	FString DatasmithLabel = FDatasmithUtils::SanitizeObjectName(MelangeObjectName(InC4DMaterialPtr));
 
-	TSharedPtr<IDatasmithMasterMaterialElement> MaterialPtr = FDatasmithSceneFactory::CreateMasterMaterial(*(DatasmithName.GetValue()));
+	TSharedPtr<IDatasmithMaterialInstanceElement> MaterialPtr = FDatasmithSceneFactory::CreateMaterialInstance(*(DatasmithName.GetValue()));
 	MaterialPtr->SetLabel(*DatasmithLabel);
-	MaterialPtr->SetMaterialType(EDatasmithMasterMaterialType::Opaque);
+	MaterialPtr->SetMaterialType(EDatasmithReferenceMaterialType::Opaque);
 
 	// Color
 	bool bUseColor = InC4DMaterialPtr->GetChannelState(CHANNEL_COLOR);
@@ -1340,7 +1340,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 	AddBoolToMaterial(MaterialPtr, TEXT("Use_Transparency"), bUseTransparency);
 	if (bUseTransparency)
 	{
-		MaterialPtr->SetMaterialType(EDatasmithMasterMaterialType::Transparent);
+		MaterialPtr->SetMaterialType(EDatasmithReferenceMaterialType::Transparent);
 
 		melange::BaseList2D* TransparencyShader = MelangeGetLink(InC4DMaterialPtr, melange::MATERIAL_TRANSPARENCY_SHADER);
 		FString TransparencyMapPath = GetBaseShaderTextureFilePath(TransparencyShader);
@@ -1530,7 +1530,7 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 	AddBoolToMaterial(MaterialPtr, TEXT("Use_Alpha"), bUseAlpha);
 	if (bUseAlpha)
 	{
-		MaterialPtr->SetMaterialType(EDatasmithMasterMaterialType::CutOut);
+		MaterialPtr->SetMaterialType(EDatasmithReferenceMaterialType::CutOut);
 
 		melange::BaseList2D* AlphaShader = MelangeGetLink(InC4DMaterialPtr, melange::MATERIAL_ALPHA_SHADER);
 		FString AlphaMapPath = GetBaseShaderTextureFilePath(AlphaShader);
@@ -1562,12 +1562,12 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportMateria
 	return MaterialPtr;
 }
 
-TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportSimpleColorMaterial(melange::BaseObject* Object, int32 UseColor)
+TSharedPtr<IDatasmithMaterialInstanceElement> FDatasmithC4DImporter::ImportSimpleColorMaterial(melange::BaseObject* Object, int32 UseColor)
 {
 	TOptional<FString> DatasmithName = GetMelangeBaseList2dID(Object);
 	if (!DatasmithName)
 	{
-		return TSharedPtr<IDatasmithMasterMaterialElement>();
+		return TSharedPtr<IDatasmithMaterialInstanceElement>();
 	}
 	FString DatasmithLabel = FDatasmithUtils::SanitizeObjectName(MelangeObjectName(Object) + TEXT("_DisplayColor"));
 
@@ -1590,15 +1590,15 @@ TSharedPtr<IDatasmithMasterMaterialElement> FDatasmithC4DImporter::ImportSimpleC
 
 	FString MaterialHash = TEXT("DisplayColor_") + LexToString(GetTypeHash(DisplayColor));
 
-	TSharedPtr<IDatasmithMasterMaterialElement>& Material = MaterialNameToMaterialElement.FindOrAdd(MaterialHash);
+	TSharedPtr<IDatasmithMaterialInstanceElement>& Material = MaterialNameToMaterialElement.FindOrAdd(MaterialHash);
 	if (Material.IsValid())
 	{
 		return Material;
 	}
 
-	Material = FDatasmithSceneFactory::CreateMasterMaterial(*(DatasmithName.GetValue()));
+	Material = FDatasmithSceneFactory::CreateMaterialInstance(*(DatasmithName.GetValue()));
 	Material->SetLabel(*DatasmithLabel);
-	Material->SetMaterialType(EDatasmithMasterMaterialType::Opaque);
+	Material->SetMaterialType(EDatasmithReferenceMaterialType::Opaque);
 
 	// Color
 	AddColorToMaterial(Material, TEXT("Color"), FLinearColor(DisplayColor));
@@ -1618,7 +1618,7 @@ bool FDatasmithC4DImporter::ImportMaterialHierarchy(melange::BaseMaterial* InC4D
 	{
 		if (InC4DMaterialPtr->GetType() == Mmaterial)
 		{
-			if (TSharedPtr<IDatasmithMasterMaterialElement> DatasmithMaterial = ImportMaterial(static_cast<melange::Material*>(InC4DMaterialPtr)))
+			if (TSharedPtr<IDatasmithMaterialInstanceElement> DatasmithMaterial = ImportMaterial(static_cast<melange::Material*>(InC4DMaterialPtr)))
 			{
 				MaterialNameToMaterialElement.Add(DatasmithMaterial->GetName(), DatasmithMaterial);
 			}
@@ -1651,10 +1651,10 @@ FString FDatasmithC4DImporter::CustomizeMaterial(const FString& InMaterialID, co
 
 		if (OffsetX != 0.0F || OffsetY != 0.0F || TilesX != 1.0F || TilesY != 1.0F)
 		{
-			TSharedPtr<IDatasmithMasterMaterialElement> CustomizedMaterial = FDatasmithSceneFactory::CreateMasterMaterial(*CustomMaterialID);
+			TSharedPtr<IDatasmithMaterialInstanceElement> CustomizedMaterial = FDatasmithSceneFactory::CreateMaterialInstance(*CustomMaterialID);
 
 			// Create a copy of the original material
-			TSharedPtr<IDatasmithMasterMaterialElement> OriginalMaterial = MaterialNameToMaterialElement[InMaterialID];
+			TSharedPtr<IDatasmithMaterialInstanceElement> OriginalMaterial = MaterialNameToMaterialElement[InMaterialID];
 			for (int32 PropertyIndex = 0; PropertyIndex < OriginalMaterial->GetPropertiesCount(); ++PropertyIndex)
 			{
 				CustomizedMaterial->AddProperty(OriginalMaterial->GetProperty(PropertyIndex));
@@ -1764,7 +1764,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithC4DImporter::ImportPolygon(mela
 		FString MaterialName = Pair.Value;
 
 		// Pick whether we use the display color material or a texturetag material
-		TSharedPtr<IDatasmithMasterMaterialElement> TargetMaterial = nullptr;
+		TSharedPtr<IDatasmithMaterialInstanceElement> TargetMaterial = nullptr;
 		if (UseColor == melange::ID_BASEOBJECT_USECOLOR_ALWAYS || UseColor == melange::ID_BASEOBJECT_USECOLOR_LAYER)
 		{
 			TargetMaterial = ImportSimpleColorMaterial(PolyObject, UseColor);
@@ -1777,7 +1777,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithC4DImporter::ImportPolygon(mela
 			}
 			else
 			{
-				TSharedPtr<IDatasmithMasterMaterialElement>* FoundMaterial = MaterialNameToMaterialElement.Find(MaterialName);
+				TSharedPtr<IDatasmithMaterialInstanceElement>* FoundMaterial = MaterialNameToMaterialElement.Find(MaterialName);
 				if (FoundMaterial && FoundMaterial->IsValid())
 				{
 					TargetMaterial = *FoundMaterial;

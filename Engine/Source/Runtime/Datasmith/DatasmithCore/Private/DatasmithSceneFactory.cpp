@@ -69,8 +69,8 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateShader( InName );
 	case EDatasmithElementType::Material:
 		return CreateMaterial( InName );
-	case EDatasmithElementType::MasterMaterial:
-		return CreateMasterMaterial( InName );
+	case EDatasmithElementType::MaterialInstance:
+		return CreateMaterialInstance( InName );
 	case EDatasmithElementType::UEPbrMaterial:
 		return CreateUEPbrMaterial( InName );
 	case EDatasmithElementType::MaterialExpression:
@@ -224,9 +224,9 @@ TSharedRef< IDatasmithMaterialElement > FDatasmithSceneFactory::CreateMaterial( 
 	return MakeShared< FDatasmithMaterialElementImpl >( InName );
 }
 
-TSharedRef< IDatasmithMasterMaterialElement > FDatasmithSceneFactory::CreateMasterMaterial( const TCHAR* InName )
+TSharedRef< IDatasmithMaterialInstanceElement > FDatasmithSceneFactory::CreateMaterialInstance( const TCHAR* InName )
 {
-	return MakeShared< FDatasmithMasterMaterialElementImpl >( InName );
+	return MakeShared< FDatasmithMaterialIntanceElementImpl >( InName );
 }
 
 TSharedRef< IDatasmithUEPbrMaterialElement > FDatasmithSceneFactory::CreateUEPbrMaterial( const TCHAR* InName )

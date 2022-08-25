@@ -934,7 +934,7 @@ UObject* FDatasmithImporter::FinalizeMaterial( UObject* SourceMaterial, const TC
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporter::FinalizeMaterial);
 
-	// Finalizing the master material might add a remapping for the instance parent property so make sure we have a remapping map available
+	// Finalizing the material instance might add a remapping for the instance parent property so make sure we have a remapping map available
 	TOptional< TMap< UObject*, UObject* > > ReferencesToRemapLocal;
 	if ( !ReferencesToRemap )
 	{

@@ -509,8 +509,8 @@ void UDatasmithFileProducer::PreventNameCollision()
 	UPackage* MaterialsImportPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( TransientFolderPath, TEXT("Materials") ), RF_Transient );
 	MaterialsImportPackage->FullyLoad();
 
-	UPackage* MasterMaterialsImportPackage = NewObject< UPackage >(nullptr, *FPaths::Combine(TransientFolderPath, TEXT("Materials/Master")), RF_Transient);
-	MasterMaterialsImportPackage->FullyLoad();
+	UPackage* ReferenceMaterialsImportPackage = NewObject< UPackage >(nullptr, *FPaths::Combine(TransientFolderPath, TEXT("Materials/Reference")), RF_Transient);
+	ReferenceMaterialsImportPackage->FullyLoad();
 
 	UPackage* LevelSequencesImportPackage = NewObject< UPackage >( nullptr, *FPaths::Combine( TransientFolderPath, TEXT("Animations") ), RF_Transient );
 	LevelSequencesImportPackage->FullyLoad();
@@ -614,7 +614,7 @@ void UDatasmithFileProducer::PreventNameCollision()
 
 						if ( ParentPath.StartsWith( MaterialInstancePath ) )
 						{
-							MoveAsset( MaterialParent, MasterMaterialsImportPackage, true );
+							MoveAsset( MaterialParent, ReferenceMaterialsImportPackage, true );
 							ParentMaterials.Add( MaterialParent );
 						}
 					}

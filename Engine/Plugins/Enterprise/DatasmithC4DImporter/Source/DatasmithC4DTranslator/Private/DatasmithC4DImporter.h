@@ -21,7 +21,7 @@ class IDatasmithActorElement;
 class IDatasmithCameraActorElement;
 class IDatasmithLevelSequenceElement;
 class IDatasmithLightActorElement;
-class IDatasmithMasterMaterialElement;
+class IDatasmithMaterialInstanceElement;
 class IDatasmithMeshActorElement;
 class IDatasmithMeshElement;
 class IDatasmithScene;
@@ -96,15 +96,15 @@ public:
 	TSharedPtr<IDatasmithLightActorElement> ImportLight(melange::BaseObject* LightObject, const FString& DatasmithName, const FString& DatasmithLabel);
 	TSharedPtr<IDatasmithCameraActorElement> ImportCamera(melange::BaseObject* CameraObject, const FString& DatasmithName, const FString& DatasmithLabel);
 	TSharedPtr<IDatasmithMeshActorElement> ImportPolygon(melange::PolygonObject* PolyObject, const FString& DatasmithName, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
-	TSharedPtr<IDatasmithMasterMaterialElement> ImportMaterial(melange::Material* InC4DMaterialPtr);
-	TSharedPtr<IDatasmithMasterMaterialElement> ImportSimpleColorMaterial(melange::BaseObject* Object, int32 UseColor);
+	TSharedPtr<IDatasmithMaterialInstanceElement> ImportMaterial(melange::Material* InC4DMaterialPtr);
+	TSharedPtr<IDatasmithMaterialInstanceElement> ImportSimpleColorMaterial(melange::BaseObject* Object, int32 UseColor);
 	TSharedPtr<IDatasmithTextureElement> ImportTexture(const FString& TexturePath, EDatasmithTextureMode TextureMode);
 	TSharedPtr<IDatasmithMeshElement> ImportMesh(melange::PolygonObject* PolyObject, const FString& DatasmithMeshName, const FString& DatasmithLabel);
 
 	/** Parses the spline and its cache into SplineCurves so that it can be used as paths for animation later */
 	void ImportSpline(melange::SplineObject* ActorObject);
 
-	/** Traverse the melange material hierarchy contained in the c4d file and import each into IDatasmithMasterMaterialElements */
+	/** Traverse the melange material hierarchy contained in the c4d file and import each into IDatasmithMaterialInstanceElements */
 	bool ImportMaterialHierarchy(melange::BaseMaterial* InC4DMaterialPtr);
 
 	/** Uses ActorElementToC4DObject to find the corresponding melange object for ActorElement and adds all of its animations to LevelSequence */
@@ -117,7 +117,7 @@ public:
 	FString GetBaseShaderTextureFilePath(melange::BaseList2D* BaseShader);
 
 	/**
-	 * Generates a new copy of the IDatasmithMasterMaterialElement with name InMaterialID and alter its properties to match values retrieved
+	 * Generates a new copy of the IDatasmithMaterialInstanceElement with name InMaterialID and alter its properties to match values retrieved
 	 * from InTextureTag, and adds the new material to the Datasmith scene. This is used because texture tags are closer to material
 	 * instances, and may have different "overrides" for each property
 	 */
@@ -175,7 +175,7 @@ private:
 	TMap<melange::SplineObject*, TArray<FRichCurve>> SplineCurves;
 
 	/** Storage of created materials used by CustomizeMaterial to create new "material instances" */
-	TMap<FString, TSharedPtr<IDatasmithMasterMaterialElement>> MaterialNameToMaterialElement;
+	TMap<FString, TSharedPtr<IDatasmithMaterialInstanceElement>> MaterialNameToMaterialElement;
 
 	/** Cache meshes by hash to promote reusing StaticMeshes */
 	TMap<FString, TSharedRef<IDatasmithMeshElement>> PolygonHashToMeshElement;

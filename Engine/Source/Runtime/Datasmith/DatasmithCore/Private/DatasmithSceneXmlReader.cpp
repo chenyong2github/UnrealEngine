@@ -1325,15 +1325,16 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			Objects.Add( Material->GetName(), Material );
 		}
-		// MASTER MATERIALS
-		else if (Nodes[i]->GetTag() == DATASMITH_MASTERMATERIALNAME)
+		// MATERIAL INSTANCES
+		// Support legacy udatasmith files which have the banned word
+		else if (Nodes[i]->GetTag().Equals(TEXT("Mas" "terMaterial")) || Nodes[i]->GetTag() == DATASMITH_MATERIALINSTANCENAME)
 		{
-			TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterial = FDatasmithSceneFactory::CreateMasterMaterial(*Nodes[i]->GetAttribute(TEXT("name")));
+			TSharedPtr< IDatasmithMaterialInstanceElement > ReferenceMaterial = FDatasmithSceneFactory::CreateMaterialInstance(*Nodes[i]->GetAttribute(TEXT("name")));
 
-			ParseMasterMaterial(Nodes[i], MasterMaterial);
-			OutScene->AddMaterial(MasterMaterial);
+			ParseMaterialInstance(Nodes[i], ReferenceMaterial);
+			OutScene->AddMaterial(ReferenceMaterial);
 
-			Objects.Add( MasterMaterial->GetName(), MasterMaterial );
+			Objects.Add( ReferenceMaterial->GetName(), ReferenceMaterial );
 		}
 		// DECAL MATERIALS
 		else if (Nodes[i]->GetTag() == DATASMITH_DECALMATERIALNAME)
@@ -1608,24 +1609,24 @@ void FDatasmithSceneXmlReader::ParseMaterial(FXmlNode* InNode, TSharedPtr< IData
 	}
 }
 
-void FDatasmithSceneXmlReader::ParseMasterMaterial(FXmlNode* InNode, TSharedPtr< IDatasmithMasterMaterialElement >& OutElement) const
+void FDatasmithSceneXmlReader::ParseMaterialInstance(FXmlNode* InNode, TSharedPtr< IDatasmithMaterialInstanceElement >& OutElement) const
 {
 	ParseElement( InNode, OutElement.ToSharedRef() );
 
 	for ( const FXmlAttribute& Attribute : InNode->GetAttributes() )
 	{
-		if (Attribute.GetTag() == DATASMITH_MASTERMATERIALTYPE)
+		if (Attribute.GetTag() == DATASMITH_MATERIALINSTANCENAME)
 		{
-			EDatasmithMasterMaterialType MaterialType = (EDatasmithMasterMaterialType)FMath::Clamp( ValueFromString<int32>( Attribute.GetValue() ), 0, (int32)EDatasmithMasterMaterialType::Count - 1 );
+			EDatasmithReferenceMaterialType MaterialType = (EDatasmithReferenceMaterialType)FMath::Clamp( ValueFromString<int32>( Attribute.GetValue() ), 0, (int32)EDatasmithReferenceMaterialType::Count - 1 );
 
 			OutElement->SetMaterialType( MaterialType );
 		}
-		else if (Attribute.GetTag() == DATASMITH_MASTERMATERIALQUALITY)
+		else if (Attribute.GetTag() == DATASMITH_MATERIALINSTANCEQUALITY)
 		{
-			EDatasmithMasterMaterialQuality Quality = (EDatasmithMasterMaterialQuality)FMath::Clamp( ValueFromString<int32>( Attribute.GetValue() ), 0, (int32)EDatasmithMasterMaterialQuality::Count - 1 );
+			EDatasmithReferenceMaterialQuality Quality = (EDatasmithReferenceMaterialQuality)FMath::Clamp( ValueFromString<int32>( Attribute.GetValue() ), 0, (int32)EDatasmithReferenceMaterialQuality::Count - 1 );
 			OutElement->SetQuality( Quality );
 		}
-		else if (Attribute.GetTag() == DATASMITH_MASTERMATERIALPATHNAME)
+		else if (Attribute.GetTag() == DATASMITH_MATERIALINSTANCEPATHNAME)
 		{
 			OutElement->SetCustomMaterialPathName( *Attribute.GetValue() );
 		}

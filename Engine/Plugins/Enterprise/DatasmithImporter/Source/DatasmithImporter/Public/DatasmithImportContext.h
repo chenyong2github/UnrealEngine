@@ -174,8 +174,8 @@ struct DATASMITHIMPORTER_API FDatasmithAssetsImportContext
 	/** Package where the materials are stored until they are finalized */
 	TStrongObjectPtr< UPackage > MaterialsImportPackage;
 
-	/** Package where the master/parent materials are stored until they are finalized */
-	TStrongObjectPtr< UPackage > MasterMaterialsImportPackage;
+	/** Package where the reference/parent materials are stored until they are finalized */
+	TStrongObjectPtr< UPackage > ReferenceMaterialsImportPackage;
 
 	/** Package where the material functions are stored until they are finalized */
 	TStrongObjectPtr< UPackage > MaterialFunctionsImportPackage;
@@ -189,8 +189,8 @@ struct DATASMITHIMPORTER_API FDatasmithAssetsImportContext
 	/** Ensures uniqueness of the name of the materials being imported */
 	FDatasmithUniqueNameProvider MaterialNameProvider;
 
-	/** Ensures uniqueness of the name of the materials being imported in the master material package */
-	FDatasmithUniqueNameProvider MasterMaterialNameProvider;
+	/** Ensures uniqueness of the name of the materials being imported in the reference material package */
+	FDatasmithUniqueNameProvider MaterialInstanceNameProvider;
 
 	/** Ensures uniqueness of the name of the material functions being imported in the material function material package */
 	FDatasmithUniqueNameProvider MaterialFunctionNameProvider;

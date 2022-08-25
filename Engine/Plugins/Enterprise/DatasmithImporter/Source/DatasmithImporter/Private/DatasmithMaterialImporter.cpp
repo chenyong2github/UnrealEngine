@@ -6,9 +6,9 @@
 #include "DatasmithMaterialElements.h"
 #include "DatasmithMaterialExpressions.h"
 
-#include "MasterMaterials/DatasmithMasterMaterial.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MasterMaterials/DatasmithMasterMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 #include "ObjectTemplates/DatasmithMaterialInstanceTemplate.h"
 #include "Utility/DatasmithImporterUtils.h"
 
@@ -213,10 +213,10 @@ UMaterialInterface* FDatasmithMaterialImporter::CreateMaterial( FDatasmithImport
 
 		Material = FDatasmithMaterialExpressions::CreateDatasmithMaterial(MaterialPackage, MaterialElement, ImportContext.AssetsContext, nullptr, ImportContext.ObjectFlags);
 	}
-	else if ( BaseMaterialElement->IsA( EDatasmithElementType::MasterMaterial ) )
+	else if ( BaseMaterialElement->IsA( EDatasmithElementType::MaterialInstance ) )
 	{
-		const TSharedRef< IDatasmithMasterMaterialElement >& MasterMaterialElement = StaticCastSharedRef< IDatasmithMasterMaterialElement >( BaseMaterialElement );
-		Material = ImportMasterMaterial( ImportContext, MasterMaterialElement, ExistingMaterial );
+		const TSharedRef< IDatasmithMaterialInstanceElement >& ReferenceMaterialElement = StaticCastSharedRef< IDatasmithMaterialInstanceElement >( BaseMaterialElement );
+		Material = ImportMaterialInstance( ImportContext, ReferenceMaterialElement, ExistingMaterial );
 	}
 	else if ( BaseMaterialElement->IsA( EDatasmithElementType::DecalMaterial ) )
 	{
@@ -236,7 +236,7 @@ UMaterialInterface* FDatasmithMaterialImporter::CreateMaterial( FDatasmithImport
 
 		if ( !ImportContext.ImportedParentMaterials.Contains( MaterialHash ) )
 		{
-			UMaterialInterface* ParentMaterial = FDatasmithMaterialExpressions::CreateUEPbrMaterial( ImportContext.AssetsContext.MasterMaterialsImportPackage.Get(), MaterialElement, ImportContext.AssetsContext, nullptr, ImportContext.ObjectFlags );
+			UMaterialInterface* ParentMaterial = FDatasmithMaterialExpressions::CreateUEPbrMaterial( ImportContext.AssetsContext.ReferenceMaterialsImportPackage.Get(), MaterialElement, ImportContext.AssetsContext, nullptr, ImportContext.ObjectFlags );
 
 			if (ParentMaterial == nullptr)
 			{
@@ -261,13 +261,13 @@ UMaterialInterface* FDatasmithMaterialImporter::CreateMaterial( FDatasmithImport
 	return Material;
 }
 
-UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMasterMaterialElement >& MaterialElement, UMaterialInterface* ExistingMaterial )
+UMaterialInterface* FDatasmithMaterialImporter::ImportMaterialInstance( FDatasmithImportContext& ImportContext, const TSharedRef< IDatasmithMaterialInstanceElement >& MaterialElement, UMaterialInterface* ExistingMaterial )
 {
 	// Verify existing material is of the right class for further processing
 	UMaterialInstanceConstant* FoundConstantMaterial = Cast<UMaterialInstanceConstant>(ExistingMaterial);
 
-	FString Host = FDatasmithMasterMaterialManager::Get().GetHostFromString(ImportContext.Scene->GetHost());
-	TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = FDatasmithMasterMaterialManager::Get().GetSelector( *Host );
+	FString Host = FDatasmithReferenceMaterialManager::Get().GetHostFromString(ImportContext.Scene->GetHost());
+	TSharedPtr< FDatasmithReferenceMaterialSelector > MaterialSelector = FDatasmithReferenceMaterialManager::Get().GetSelector( *Host );
 
 	if (!MaterialSelector.IsValid())
 	{
@@ -276,25 +276,25 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmith
 		return nullptr;
 	}
 
-	const FDatasmithMasterMaterial* ParentMaterial = nullptr;
-	FDatasmithMasterMaterial CustomMasterMaterial; // MasterMaterial might point on this so keep them in the same scope
+	const FDatasmithReferenceMaterial* ParentMaterial = nullptr;
+	FDatasmithReferenceMaterial CustomReferenceMaterial; // ReferenceMaterial might point on this so keep them in the same scope
 
-	if ( MaterialElement->GetMaterialType() == EDatasmithMasterMaterialType::Custom )
+	if ( MaterialElement->GetMaterialType() == EDatasmithReferenceMaterialType::Custom )
 	{
-		CustomMasterMaterial.FromSoftObjectPath( FSoftObjectPath( MaterialElement->GetCustomMaterialPathName() ) );
-		if (!CustomMasterMaterial.IsValid())
+		CustomReferenceMaterial.FromSoftObjectPath( FSoftObjectPath( MaterialElement->GetCustomMaterialPathName() ) );
+		if (!CustomReferenceMaterial.IsValid())
 		{
-			ImportContext.LogError(FText::Format(LOCTEXT("NoMasterForPath", "No compatible asset for path '{0}'. Skipping material {1} ..."), FText::FromString(MaterialElement->GetCustomMaterialPathName()), FText::FromString(MaterialElement->GetName())));
+			ImportContext.LogError(FText::Format(LOCTEXT("NoReferenceForPath", "No compatible asset for path '{0}'. Skipping material {1} ..."), FText::FromString(MaterialElement->GetCustomMaterialPathName()), FText::FromString(MaterialElement->GetName())));
 			return nullptr;
 		}
 
-		ParentMaterial = &CustomMasterMaterial;
+		ParentMaterial = &CustomReferenceMaterial;
 	}
 	else
 	{
 		if ( MaterialSelector->IsValid() )
 		{
-			ParentMaterial = &MaterialSelector->GetMasterMaterial(MaterialElement);
+			ParentMaterial = &MaterialSelector->GetReferenceMaterial(MaterialElement);
 		}
 		else
 		{
@@ -340,7 +340,7 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmith
 
 		MaterialInstanceTemplate->ParentMaterial = MaterialInstance->Parent;
 
-		// Find matching master material parameters
+		// Find matching reference material parameters
 		for (int i = 0; i < MaterialElement->GetPropertiesCount(); ++i)
 		{
 			const TSharedPtr< IDatasmithKeyValueProperty > Property = MaterialElement->GetProperty(i);

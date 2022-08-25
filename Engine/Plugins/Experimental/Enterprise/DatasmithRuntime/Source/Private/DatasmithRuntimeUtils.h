@@ -17,7 +17,6 @@
 
 class IDatasmithBaseMaterialElement;
 class IDatasmithElement;
-class IDatasmithMasterMaterialElement;
 class IDatasmithMeshElement;
 class IDatasmithTextureElement;
 class IDatasmithUEPbrMaterialElement;

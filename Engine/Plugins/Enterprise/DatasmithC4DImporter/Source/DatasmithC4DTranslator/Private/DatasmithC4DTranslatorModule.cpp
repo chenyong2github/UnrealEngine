@@ -7,7 +7,7 @@
 #include "DatasmithC4DTranslator.h"
 #include "DatasmithC4DImporterMaterialSelector.h"
 
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
 
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
@@ -38,7 +38,7 @@ public:
 		// Make sure the DatasmithImporter module exists and has been initialized before adding FDatasmithC4DTranslator's material selector
 		FModuleManager::Get().LoadModule(TEXT("DatasmithTranslator"));
 
-		FDatasmithMasterMaterialManager::Get().RegisterSelector(TEXT("C4DTranslator"), MakeShared< FDatasmithC4DImporterMaterialSelector >());
+		FDatasmithReferenceMaterialManager::Get().RegisterSelector(TEXT("C4DTranslator"), MakeShared< FDatasmithC4DImporterMaterialSelector >());
 
 		FString EnvVariable = FPlatformMisc::GetEnvironmentVariable(TEXT("DATASMITHC4D_DEBUG"));
 		bDebugMode = !EnvVariable.IsEmpty();

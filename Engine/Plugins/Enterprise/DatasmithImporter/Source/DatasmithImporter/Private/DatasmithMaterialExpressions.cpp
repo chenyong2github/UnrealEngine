@@ -3208,7 +3208,7 @@ EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedP
 UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
 	UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
-	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), Package, AssetsContext.MasterMaterialNameProvider);
+	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), Package, AssetsContext.MaterialInstanceNameProvider);
 
 	// Verify that the material could be created in final package
 	FText FailReason;
@@ -3344,7 +3344,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 				}
 				else if(UTexture2D* Default2DTexture = Cast<UTexture2D>(DefaultTexture))
 				{
-					//We are adding a standard texture to a master material that takes virtual textures, we'll need to convert the master's material texture to standard.
+					//We are adding a standard texture to a reference material that takes virtual textures, we'll need to convert the reference's material texture to standard.
 					AssetsContext.VirtualTexturesToConvert.Add(Default2DTexture);
 				}
 			}
@@ -3429,7 +3429,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 								}
 								else if (UTexture2D* Default2DTexture = Cast<UTexture2D>(DefaultTexture))
 								{
-									//We are adding a standard texture to a master material that takes virtual textures, we'll need to convert the master's material texture to standard.
+									//We are adding a standard texture to a reference material that takes virtual textures, we'll need to convert the reference's material texture to standard.
 									AssetsContext.VirtualTexturesToConvert.Add(Default2DTexture);
 								}
 							}

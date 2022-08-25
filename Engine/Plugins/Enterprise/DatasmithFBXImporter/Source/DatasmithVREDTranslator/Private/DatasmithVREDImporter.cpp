@@ -976,7 +976,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 	return ActorElement;
 }
 
-void AddBoolProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, bool Value)
+void AddBoolProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, bool Value)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Bool);
@@ -984,7 +984,7 @@ void AddBoolProperty(IDatasmithMasterMaterialElement* Element, const FString& Pr
 	Element->AddProperty(MaterialProperty);
 }
 
-void AddColorProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, const FVector4& Value)
+void AddColorProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, const FVector4& Value)
 {
 	if (Value.ContainsNaN())
 	{
@@ -999,7 +999,7 @@ void AddColorProperty(IDatasmithMasterMaterialElement* Element, const FString& P
 	Element->AddProperty(MaterialProperty);
 }
 
-void AddFloatProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, float Value)
+void AddFloatProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, float Value)
 {
 	if (!FMath::IsFinite(Value))
 	{
@@ -1013,7 +1013,7 @@ void AddFloatProperty(IDatasmithMasterMaterialElement* Element, const FString& P
 	Element->AddProperty(MaterialProperty);
 }
 
-void AddStringProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, const FString& Value)
+void AddStringProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, const FString& Value)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::String);
@@ -1021,7 +1021,7 @@ void AddStringProperty(IDatasmithMasterMaterialElement* Element, const FString& 
 	Element->AddProperty(MaterialProperty);
 }
 
-void AddTextureProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, const FString& Path)
+void AddTextureProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, const FString& Path)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Texture);
@@ -1031,8 +1031,8 @@ void AddTextureProperty(IDatasmithMasterMaterialElement* Element, const FString&
 
 // Pack all "texture properties". These are really material properties, but we'll use these to help
 // map the texture correctly. Datasmith will bind these values to the material instance on creation and it will
-// do that by property name, so make sure the names match the ones on the master materials
-void AddTextureMappingProperties(IDatasmithMasterMaterialElement* Element, const FString& TexHandle, const FDatasmithFBXSceneMaterial::FTextureParams& Tex)
+// do that by property name, so make sure the names match the ones on the reference materials
+void AddTextureMappingProperties(IDatasmithMaterialInstanceElement* Element, const FString& TexHandle, const FDatasmithFBXSceneMaterial::FTextureParams& Tex)
 {
 	AddTextureProperty(Element, TexHandle + TEXT("Path"), Tex.Path);
 	AddBoolProperty(Element, TexHandle + TEXT("IsActive"), !Tex.Path.IsEmpty() && Tex.bEnabled);
@@ -1075,7 +1075,7 @@ void AddTextureMappingProperties(IDatasmithMasterMaterialElement* Element, const
 	AddFloatProperty(Element, TexHandle + TEXT("Rotate"), Tex.Rotate);
 }
 
-TSharedPtr<IDatasmithTextureElement> CreateTextureElement(IDatasmithMasterMaterialElement* Element, const FString& TexHandle, const FString& TexturePath)
+TSharedPtr<IDatasmithTextureElement> CreateTextureElement(IDatasmithMaterialInstanceElement* Element, const FString& TexHandle, const FString& TexturePath)
 {
 	using TextureModeEntry = TPairInitializer<const FString&, const EDatasmithTextureMode&>;
 	const static TMap<FString, EDatasmithTextureMode> TextureHandleToModes
@@ -1176,7 +1176,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 		return *OldMaterial;
 	}
 
-	TSharedPtr<IDatasmithMasterMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateMasterMaterial(*Material->Name);
+	TSharedPtr<IDatasmithMaterialInstanceElement> MaterialElement = FDatasmithSceneFactory::CreateMaterialInstance(*Material->Name);
 	ImportedMaterials.Add(Material, MaterialElement);
 
 	// Base colors used for Chrome and BrushedMetal materials
@@ -1206,7 +1206,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 		MetalColorEntry(20, FVector4(0.560f, 0.570f, 0.580f, 1.000f))  // Iron
 	});
 
-	IDatasmithMasterMaterialElement* El = MaterialElement.Get();
+	IDatasmithMaterialInstanceElement* El = MaterialElement.Get();
 
 	if (Material->Type.Equals(TEXT("UGlassMaterial")))
 	{

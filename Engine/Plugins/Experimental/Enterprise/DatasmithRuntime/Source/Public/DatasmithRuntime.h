@@ -19,7 +19,7 @@
 #include "DatasmithRuntime.generated.h"
 
 class ADatasmithRuntimeActor;
-class FDatasmithMasterMaterialSelector;
+class FDatasmithReferenceMaterialSelector;
 class FEvent;
 class IDatasmithScene;
 class IDatasmithTranslator;

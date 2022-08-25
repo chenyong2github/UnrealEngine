@@ -510,7 +510,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithDeltaGenImporter::ConvertNode(const
 	return ActorElement;
 }
 
-FORCEINLINE void AddBoolProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, bool Value)
+FORCEINLINE void AddBoolProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, bool Value)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Bool);
@@ -518,7 +518,7 @@ FORCEINLINE void AddBoolProperty(IDatasmithMasterMaterialElement* Element, const
 	Element->AddProperty(MaterialProperty);
 }
 
-FORCEINLINE void AddColorProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, const FVector4& Value)
+FORCEINLINE void AddColorProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, const FVector4& Value)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Color);
@@ -527,7 +527,7 @@ FORCEINLINE void AddColorProperty(IDatasmithMasterMaterialElement* Element, cons
 	Element->AddProperty(MaterialProperty);
 }
 
-FORCEINLINE void AddFloatProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, float Value)
+FORCEINLINE void AddFloatProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, float Value)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Float);
@@ -535,7 +535,7 @@ FORCEINLINE void AddFloatProperty(IDatasmithMasterMaterialElement* Element, cons
 	Element->AddProperty(MaterialProperty);
 }
 
-FORCEINLINE void AddStringProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, const FString& Value)
+FORCEINLINE void AddStringProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, const FString& Value)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::String);
@@ -543,7 +543,7 @@ FORCEINLINE void AddStringProperty(IDatasmithMasterMaterialElement* Element, con
 	Element->AddProperty(MaterialProperty);
 }
 
-FORCEINLINE void AddTextureProperty(IDatasmithMasterMaterialElement* Element, const FString& PropertyName, const FString& Path)
+FORCEINLINE void AddTextureProperty(IDatasmithMaterialInstanceElement* Element, const FString& PropertyName, const FString& Path)
 {
 	TSharedPtr<IDatasmithKeyValueProperty> MaterialProperty = FDatasmithSceneFactory::CreateKeyValueProperty(*PropertyName);
 	MaterialProperty->SetPropertyType(EDatasmithKeyValuePropertyType::Texture);
@@ -551,7 +551,7 @@ FORCEINLINE void AddTextureProperty(IDatasmithMasterMaterialElement* Element, co
 	Element->AddProperty(MaterialProperty);
 }
 
-TSharedPtr<IDatasmithTextureElement> CreateTextureAndTextureProperties(IDatasmithMasterMaterialElement* Element, const FString& TextureName, const FDatasmithFBXSceneMaterial::FTextureParams& Tex, EShadowTextureMode ShadowTextureMode)
+TSharedPtr<IDatasmithTextureElement> CreateTextureAndTextureProperties(IDatasmithMaterialInstanceElement* Element, const FString& TextureName, const FDatasmithFBXSceneMaterial::FTextureParams& Tex, EShadowTextureMode ShadowTextureMode)
 {
 	using MapEntry = TPairInitializer<const FString&, const EDatasmithTextureMode&>;
 	const static TMap<FString, EDatasmithTextureMode> TextureModes
@@ -584,7 +584,7 @@ TSharedPtr<IDatasmithTextureElement> CreateTextureAndTextureProperties(IDatasmit
 	// Pack all "texture properties". These are really material properties, but we'll use these to help
 	// map the texture correctly. Datasmith will bind these values to the material instance on creation and it will
 	// do that by property name, so it is imperative that they are like below (e.g. diffuseTranslation, glossyRotate, etc).
-	// Check the master material graphs to find the matching properties that will be filled in by datasmith
+	// Check the reference material graphs to find the matching properties that will be filled in by datasmith
 	AddTextureProperty(Element, TexHandle + TEXT("Path"), Tex.Path);
 
 	if (TexHandle == TEXT("TexAO"))
@@ -662,10 +662,10 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithDeltaGenImporter::ConvertMat
 		return *OldMaterial;
 	}
 
-	TSharedRef<IDatasmithMasterMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateMasterMaterial(*Material->Name);
+	TSharedRef<IDatasmithMaterialInstanceElement> MaterialElement = FDatasmithSceneFactory::CreateMaterialInstance(*Material->Name);
 	ImportedMaterials.Add(Material, MaterialElement);
 
-	IDatasmithMasterMaterialElement* El = &MaterialElement.Get();
+	IDatasmithMaterialInstanceElement* El = &MaterialElement.Get();
 	AddStringProperty(El, TEXT("Type"), Material->Type);
 	AddBoolProperty(El, TEXT("ReflectionIsActive"), true);
 

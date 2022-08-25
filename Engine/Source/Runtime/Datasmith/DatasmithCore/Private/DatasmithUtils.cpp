@@ -807,7 +807,7 @@ namespace DatasmithSceneUtilsImpl
 		return EDatasmithTextureMode::Diffuse;
 	};
 
-	void CheckMasterMaterialTextures( IDatasmithScene& Scene )
+	void CheckMaterialInstanceTextures( IDatasmithScene& Scene )
 	{
 		TSet<FString> ProcessedTextures;
 
@@ -818,9 +818,9 @@ namespace DatasmithSceneUtilsImpl
 		{
 			const TSharedPtr< IDatasmithBaseMaterialElement >& BaseMaterial = Scene.GetMaterial( MaterialIndex );
 
-			if ( BaseMaterial->IsA( EDatasmithElementType::MasterMaterial ) )
+			if ( BaseMaterial->IsA( EDatasmithElementType::MaterialInstance ) )
 			{
-				const TSharedPtr< IDatasmithMasterMaterialElement >& Material = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( BaseMaterial );
+				const TSharedPtr< IDatasmithMaterialInstanceElement >& Material = StaticCastSharedPtr< IDatasmithMaterialInstanceElement >( BaseMaterial );
 
 				for ( int32 i = 0; i < Material->GetPropertiesCount(); ++i )
 				{
@@ -1042,7 +1042,7 @@ namespace DatasmithSceneUtilsImpl
 			}
 		}
 
-		void ScanMasterMaterialElement(IDatasmithMasterMaterialElement* MaterialElement)
+		void ScanMaterialInstanceElement(IDatasmithMaterialInstanceElement* MaterialElement)
 		{
 			for ( int32 Index = 0; Index < MaterialElement->GetPropertiesCount(); ++Index )
 			{
@@ -1309,9 +1309,9 @@ namespace DatasmithSceneUtilsImpl
 				{
 					ScanPbrMaterialElement(static_cast< IDatasmithUEPbrMaterialElement* >( MaterialElement.Get() ));
 				}
-				else if ( MaterialElement->IsA( EDatasmithElementType::MasterMaterial ) )
+				else if ( MaterialElement->IsA( EDatasmithElementType::MaterialInstance ) )
 				{
-					ScanMasterMaterialElement(static_cast< IDatasmithMasterMaterialElement* >( MaterialElement.Get() ));
+					ScanMaterialInstanceElement(static_cast< IDatasmithMaterialInstanceElement* >( MaterialElement.Get() ));
 				}
 				else if (MaterialElement->IsA(EDatasmithElementType::DecalMaterial))
 				{
@@ -1578,7 +1578,7 @@ void FDatasmithSceneUtils::CleanUpScene(TSharedRef<IDatasmithScene> Scene, bool 
 		FixIesTextures(*Scene, Scene->GetActor(Index));
 	}
 
-	CheckMasterMaterialTextures(*Scene);
+	CheckMaterialInstanceTextures(*Scene);
 
 	CleanUpEnvironments(Scene);
 

@@ -31,9 +31,9 @@ FDatasmithFacadeBaseMaterial::EDatasmithMaterialType FDatasmithFacadeBaseMateria
 	{
 		return EDatasmithMaterialType::UEPbrMaterial;
 	}
-	else if (InMaterial->IsA(EDatasmithElementType::MasterMaterial))
+	else if (InMaterial->IsA(EDatasmithElementType::MaterialInstance))
 	{
-		return EDatasmithMaterialType::MasterMaterial;
+		return EDatasmithMaterialType::MaterialInstance;
 	}
 	else if (InMaterial->IsA(EDatasmithElementType::DecalMaterial))
 	{
@@ -61,8 +61,8 @@ FDatasmithFacadeBaseMaterial* FDatasmithFacadeBaseMaterial::GetNewFacadeBaseMate
 		{
 		case EDatasmithMaterialType::UEPbrMaterial:
 			return new FDatasmithFacadeUEPbrMaterial(StaticCastSharedRef<IDatasmithUEPbrMaterialElement>(MaterialRef));
-		case EDatasmithMaterialType::MasterMaterial:
-			return new FDatasmithFacadeMasterMaterial(StaticCastSharedRef<IDatasmithMasterMaterialElement>(MaterialRef));
+		case EDatasmithMaterialType::MaterialInstance:
+			return new FDatasmithFacadeMaterialInstance(StaticCastSharedRef<IDatasmithMaterialInstanceElement>(MaterialRef));
 		case EDatasmithMaterialType::DecalMaterial:
 			return new FDatasmithFacadeDecalMaterial(StaticCastSharedRef<IDatasmithDecalMaterialElement>(MaterialRef));
 		case EDatasmithMaterialType::Unsupported:
@@ -74,54 +74,54 @@ FDatasmithFacadeBaseMaterial* FDatasmithFacadeBaseMaterial::GetNewFacadeBaseMate
 	return nullptr;
 }
 
-FDatasmithFacadeMasterMaterial::FDatasmithFacadeMasterMaterial(const TCHAR* InElementName) 
-	: FDatasmithFacadeBaseMaterial( FDatasmithSceneFactory::CreateMasterMaterial(InElementName))
+FDatasmithFacadeMaterialInstance::FDatasmithFacadeMaterialInstance(const TCHAR* InElementName) 
+	: FDatasmithFacadeBaseMaterial( FDatasmithSceneFactory::CreateMaterialInstance(InElementName))
 {
-	TSharedPtr<IDatasmithMasterMaterialElement> MasterMaterial = GetDatasmithMasterMaterial();
-	MasterMaterial->SetMaterialType(EDatasmithMasterMaterialType::Opaque);
+	TSharedPtr<IDatasmithMaterialInstanceElement> MaterialInstance = GetDatasmithMaterialInstance();
+	MaterialInstance->SetMaterialType(EDatasmithReferenceMaterialType::Opaque);
 }
 
-FDatasmithFacadeMasterMaterial::FDatasmithFacadeMasterMaterial(const TSharedRef<IDatasmithMasterMaterialElement>& InMaterialRef)
+FDatasmithFacadeMaterialInstance::FDatasmithFacadeMaterialInstance(const TSharedRef<IDatasmithMaterialInstanceElement>& InMaterialRef)
 	: FDatasmithFacadeBaseMaterial(InMaterialRef)
 {}
 
-FDatasmithFacadeMasterMaterial::EMasterMaterialType FDatasmithFacadeMasterMaterial::GetMaterialType() const
+FDatasmithFacadeMaterialInstance::EMaterialInstanceType FDatasmithFacadeMaterialInstance::GetMaterialType() const
 {
-	return static_cast<EMasterMaterialType>(GetDatasmithMasterMaterial()->GetMaterialType());
+	return static_cast<EMaterialInstanceType>(GetDatasmithMaterialInstance()->GetMaterialType());
 }
 
-void FDatasmithFacadeMasterMaterial::SetMaterialType(
-	EMasterMaterialType InMasterMaterialType
+void FDatasmithFacadeMaterialInstance::SetMaterialType(
+	EMaterialInstanceType InMaterialInstanceType
 )
 {
-	GetDatasmithMasterMaterial()->SetMaterialType(static_cast<EDatasmithMasterMaterialType>(InMasterMaterialType));
+	GetDatasmithMaterialInstance()->SetMaterialType(static_cast<EDatasmithReferenceMaterialType>(InMaterialInstanceType));
 }
 
-FDatasmithFacadeMasterMaterial::EMasterMaterialQuality FDatasmithFacadeMasterMaterial::GetQuality() const
+FDatasmithFacadeMaterialInstance::EMaterialInstanceQuality FDatasmithFacadeMaterialInstance::GetQuality() const
 {
-	return static_cast<EMasterMaterialQuality>(GetDatasmithMasterMaterial()->GetQuality());
+	return static_cast<EMaterialInstanceQuality>(GetDatasmithMaterialInstance()->GetQuality());
 }
 
-void FDatasmithFacadeMasterMaterial::SetQuality(
-	EMasterMaterialQuality InQuality
+void FDatasmithFacadeMaterialInstance::SetQuality(
+	EMaterialInstanceQuality InQuality
 )
 {
-	GetDatasmithMasterMaterial()->SetQuality(static_cast<EDatasmithMasterMaterialQuality>(InQuality));
+	GetDatasmithMaterialInstance()->SetQuality(static_cast<EDatasmithReferenceMaterialQuality>(InQuality));
 }
 
-const TCHAR* FDatasmithFacadeMasterMaterial::GetCustomMaterialPathName() const
+const TCHAR* FDatasmithFacadeMaterialInstance::GetCustomMaterialPathName() const
 {
-	return GetDatasmithMasterMaterial()->GetCustomMaterialPathName();
+	return GetDatasmithMaterialInstance()->GetCustomMaterialPathName();
 }
 
-void FDatasmithFacadeMasterMaterial::SetCustomMaterialPathName(
+void FDatasmithFacadeMaterialInstance::SetCustomMaterialPathName(
 	const TCHAR* InPathName
 )
 {
-	GetDatasmithMasterMaterial()->SetCustomMaterialPathName(InPathName);
+	GetDatasmithMaterialInstance()->SetCustomMaterialPathName(InPathName);
 }
 
-void FDatasmithFacadeMasterMaterial::AddColor(
+void FDatasmithFacadeMaterialInstance::AddColor(
 	const TCHAR*  InPropertyName,
 	unsigned char InR,
 	unsigned char InG,
@@ -136,7 +136,7 @@ void FDatasmithFacadeMasterMaterial::AddColor(
 	AddColor(InPropertyName, LinearColor.R, LinearColor.G, LinearColor.B, LinearColor.A);
 }
 
-void FDatasmithFacadeMasterMaterial::AddColor(
+void FDatasmithFacadeMaterialInstance::AddColor(
 	const TCHAR* InPropertyName,
 	float        InR,
 	float        InG,
@@ -152,10 +152,10 @@ void FDatasmithFacadeMasterMaterial::AddColor(
 	MaterialPropertyPtr->SetValue(*LinearColor.ToString());
 
 	// Add the new property to the Datasmith material properties.
-	GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
+	GetDatasmithMaterialInstance()->AddProperty(MaterialPropertyPtr);
 }
 
-void FDatasmithFacadeMasterMaterial::AddTexture(
+void FDatasmithFacadeMaterialInstance::AddTexture(
 	const TCHAR* InPropertyName,
 	const FDatasmithFacadeTexture* InTexture
 )
@@ -168,11 +168,11 @@ void FDatasmithFacadeMasterMaterial::AddTexture(
 		MaterialPropertyPtr->SetValue(InTexture->GetName());
 
 		// Add the new property to the Datasmith material properties.
-		GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
+		GetDatasmithMaterialInstance()->AddProperty(MaterialPropertyPtr);
 	}
 }
 
-void FDatasmithFacadeMasterMaterial::AddString(
+void FDatasmithFacadeMaterialInstance::AddString(
 	const TCHAR* InPropertyName,
 	const TCHAR* InPropertyValue
 )
@@ -185,11 +185,11 @@ void FDatasmithFacadeMasterMaterial::AddString(
 		MaterialPropertyPtr->SetValue(InPropertyValue);
 
 		// Add the new property to the array of Datasmith material properties.
-		GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
+		GetDatasmithMaterialInstance()->AddProperty(MaterialPropertyPtr);
 	}
 }
 
-void FDatasmithFacadeMasterMaterial::AddFloat(
+void FDatasmithFacadeMaterialInstance::AddFloat(
 	const TCHAR* InPropertyName,
 	float        InPropertyValue
 )
@@ -200,10 +200,10 @@ void FDatasmithFacadeMasterMaterial::AddFloat(
 	MaterialPropertyPtr->SetValue(*FString::Printf(TEXT("%f"), InPropertyValue));
 
 	// Add the new property to the Datasmith material properties.
-	GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
+	GetDatasmithMaterialInstance()->AddProperty(MaterialPropertyPtr);
 }
 
-void FDatasmithFacadeMasterMaterial::AddBoolean(
+void FDatasmithFacadeMaterialInstance::AddBoolean(
 	const TCHAR* InPropertyName,
 	bool         bInPropertyValue
 )
@@ -214,19 +214,19 @@ void FDatasmithFacadeMasterMaterial::AddBoolean(
 	MaterialPropertyPtr->SetValue(bInPropertyValue ? TEXT("True") : TEXT("False"));
 
 	// Add the new property to the Datasmith material properties.
-	GetDatasmithMasterMaterial()->AddProperty(MaterialPropertyPtr);
+	GetDatasmithMaterialInstance()->AddProperty(MaterialPropertyPtr);
 }
 
-int32 FDatasmithFacadeMasterMaterial::GetPropertiesCount() const
+int32 FDatasmithFacadeMaterialInstance::GetPropertiesCount() const
 {
-	return GetDatasmithMasterMaterial()->GetPropertiesCount();
+	return GetDatasmithMaterialInstance()->GetPropertiesCount();
 }
 
-FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMasterMaterial::GetNewProperty(
+FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMaterialInstance::GetNewProperty(
 	int32 PropertyIndex
 ) const
 {
-	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMasterMaterial()->GetProperty(PropertyIndex))
+	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMaterialInstance()->GetProperty(PropertyIndex))
 	{
 		return new FDatasmithFacadeKeyValueProperty(Property.ToSharedRef());
 	}
@@ -236,11 +236,11 @@ FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMasterMaterial::GetNewProperty
 	}
 }
 
-FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMasterMaterial::GetNewPropertyByName(
+FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMaterialInstance::GetNewPropertyByName(
 	const TCHAR* PropertyName
 ) const
 {
-	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMasterMaterial()->GetPropertyByName(PropertyName))
+	if (const TSharedPtr<IDatasmithKeyValueProperty>& Property = GetDatasmithMaterialInstance()->GetPropertyByName(PropertyName))
 	{
 		return new FDatasmithFacadeKeyValueProperty(Property.ToSharedRef());
 	}
@@ -250,7 +250,7 @@ FDatasmithFacadeKeyValueProperty* FDatasmithFacadeMasterMaterial::GetNewProperty
 	}
 }
 
-TSharedRef<IDatasmithMasterMaterialElement> FDatasmithFacadeMasterMaterial::GetDatasmithMasterMaterial() const
+TSharedRef<IDatasmithMaterialInstanceElement> FDatasmithFacadeMaterialInstance::GetDatasmithMaterialInstance() const
 {
-	return StaticCastSharedRef<IDatasmithMasterMaterialElement>( InternalDatasmithElement );
+	return StaticCastSharedRef<IDatasmithMaterialInstanceElement>( InternalDatasmithElement );
 }

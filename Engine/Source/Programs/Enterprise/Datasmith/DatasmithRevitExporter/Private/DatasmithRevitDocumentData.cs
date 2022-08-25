@@ -718,7 +718,7 @@ namespace DatasmithRevitExporter
 					OutDatasmithMesh = RPCMesh;
 					OutDatasmithMeshElement = new FDatasmithFacadeMeshElement(HashedName);
 					OutDatasmithMeshElement.SetLabel(GetActorLabel());
-					OutDatasmithMeshElement.SetMaterial(InMaterialData.MasterMaterial.GetName(), MeshMaterialIndex);
+					OutDatasmithMeshElement.SetMaterial(InMaterialData.MaterialInstance.GetName(), MeshMaterialIndex);
 				}
 				else
 				{
@@ -2056,8 +2056,8 @@ namespace DatasmithRevitExporter
 
 				FDecalMaterial DecalMaterial = DecalMaterialPair.Value;
 
-				FDatasmithFacadeMasterMaterial DatasmithMaterial = new FDatasmithFacadeMasterMaterial(DecalMaterial.MaterialName);
-				DatasmithMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Decal);
+				FDatasmithFacadeMaterialInstance DatasmithMaterial = new FDatasmithFacadeMaterialInstance(DecalMaterial.MaterialName);
+				DatasmithMaterial.SetMaterialType(FDatasmithFacadeMaterialInstance.EMaterialInstanceType.Decal);
 
 				if (!string.IsNullOrEmpty(DecalMaterial.DiffuseTexturePath))
 				{
@@ -2161,7 +2161,7 @@ namespace DatasmithRevitExporter
 			// Add the collected master materials from the material data dictionary to the Datasmith scene.
 			foreach (FMaterialData CollectedMaterialData in NewMaterialsMap.Values)
 			{
-				InDatasmithScene.AddMaterial(CollectedMaterialData.MasterMaterial);
+				InDatasmithScene.AddMaterial(CollectedMaterialData.MaterialInstance);
 
 				foreach(FDatasmithFacadeTexture CurrentTexture in CollectedMaterialData.CollectedTextures)
 				{

@@ -9,19 +9,19 @@
 
 FDatasmithDeltaGenImporterMaterialSelector::FDatasmithDeltaGenImporterMaterialSelector()
 {
-	// Master
-	MasterMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/FBXImporter/DeltaGenMaster.DeltaGenMaster") );
+	// Opaque
+	ReferenceMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/FBXImporter/DeltaGenReference.DeltaGenReference") );
 
 	// Transparent
-	MasterMaterialTransparent.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/FBXImporter/DeltaGenMasterTransparent.DeltaGenMasterTransparent") );
+	ReferenceMaterialTransparent.FromSoftObjectPath( FSoftObjectPath("/DatasmithContent/Materials/FBXImporter/DeltaGenReferenceTransparent.DeltaGenReferenceTransparent") );
 }
 
 bool FDatasmithDeltaGenImporterMaterialSelector::IsValid() const
 {
-	return MasterMaterial.IsValid() && MasterMaterialTransparent.IsValid();
+	return ReferenceMaterial.IsValid() && ReferenceMaterialTransparent.IsValid();
 }
 
-const FDatasmithMasterMaterial& FDatasmithDeltaGenImporterMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
+const FDatasmithReferenceMaterial& FDatasmithDeltaGenImporterMaterialSelector::GetReferenceMaterial( const TSharedPtr< IDatasmithMaterialInstanceElement >& InDatasmithMaterial ) const
 {
 	// Transparent material
 	const TSharedPtr< IDatasmithKeyValueProperty > OpacityProperty = InDatasmithMaterial->GetPropertyByName(TEXT("Opacity"));
@@ -32,13 +32,13 @@ const FDatasmithMasterMaterial& FDatasmithDeltaGenImporterMaterialSelector::GetM
 		GetFloat( OpacityProperty, OpacityValue ) &&
 		OpacityValue < 1.f )
 	{
-		return MasterMaterialTransparent;
+		return ReferenceMaterialTransparent;
 	}
 
-	return MasterMaterial;
+	return ReferenceMaterial;
 }
 
-bool FDatasmithDeltaGenImporterMaterialSelector::IsValidMaterialType( EDatasmithMasterMaterialType InType ) const
+bool FDatasmithDeltaGenImporterMaterialSelector::IsValidMaterialType( EDatasmithReferenceMaterialType InType ) const
 {
-	return InType == EDatasmithMasterMaterialType::Auto || InType == EDatasmithMasterMaterialType::Opaque || InType == EDatasmithMasterMaterialType::Transparent;
+	return InType == EDatasmithReferenceMaterialType::Auto || InType == EDatasmithReferenceMaterialType::Opaque || InType == EDatasmithReferenceMaterialType::Transparent;
 }

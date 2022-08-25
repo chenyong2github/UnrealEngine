@@ -1233,9 +1233,9 @@ namespace DatasmithRuntime
 			{
 				ProcessMaterialElement(static_cast<IDatasmithUEPbrMaterialElement*>(Element.Get()), TextureCallback);
 			}
-			else if( Element->IsA( EDatasmithElementType::MasterMaterial ) )
+			else if( Element->IsA( EDatasmithElementType::MaterialInstance ) )
 			{
-				ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMasterMaterialElement>(Element), TextureCallback);
+				ProcessMaterialElement(StaticCastSharedPtr<IDatasmithMaterialInstanceElement>(Element), TextureCallback);
 			}
 
 			AssetPrefixedName = MaterialPrefix + Element->GetName();

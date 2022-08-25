@@ -33,7 +33,7 @@ namespace DatasmithSolidworks
 	{
 		private Dictionary<string, Tuple<EActorType, FDatasmithFacadeActor>> ExportedActorsMap = new Dictionary<string, Tuple<EActorType, FDatasmithFacadeActor>>();
 		private ConcurrentDictionary<string, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>> ExportedMeshesMap = new ConcurrentDictionary<string, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>>();
-		private ConcurrentDictionary<int, FDatasmithFacadeMasterMaterial> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeMasterMaterial>();
+		private ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeMaterialInstance>();
 		private ConcurrentDictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new ConcurrentDictionary<string, FDatasmithFacadeTexture>();
 		private Dictionary<string, FDatasmithFacadeActorBinding> ExportedActorBindingsMap = new Dictionary<string, FDatasmithFacadeActorBinding>();
 		private Dictionary<string, FDatasmithFacadeVariant> ExportedVariantsMap = new Dictionary<string, FDatasmithFacadeVariant>();
@@ -242,7 +242,7 @@ namespace DatasmithSolidworks
 				{
 					if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
 					{
-						FDatasmithFacadeMasterMaterial Material = null;
+						FDatasmithFacadeMaterialInstance Material = null;
 						ExportedMaterialsMap.TryGetValue(Triangle.MaterialID, out Material);
 
 						if (Material != null)
@@ -399,7 +399,7 @@ namespace DatasmithSolidworks
 						foreach (var MatID in UniqueMaterialsSet)
 						{
 							FMaterial Material = Materials.GetMaterial(MatID);
-							FDatasmithFacadeMasterMaterial DatasmithMaterial = null;
+							FDatasmithFacadeMaterialInstance DatasmithMaterial = null;
 							if (Material != null && ExportedMaterialsMap.TryGetValue(Material.ID, out DatasmithMaterial))
 							{
 								Binding.AddMaterialCapture(DatasmithMaterial);
@@ -540,11 +540,11 @@ namespace DatasmithSolidworks
 		public void ExportMaterials(ConcurrentDictionary<int, FMaterial> InMaterialsMap)
 		{
 			ConcurrentBag<FDatasmithFacadeTexture> CreatedTextures = new ConcurrentBag<FDatasmithFacadeTexture>();
-			ConcurrentBag<FDatasmithFacadeMasterMaterial> CreatedMaterials = new ConcurrentBag<FDatasmithFacadeMasterMaterial>();
+			ConcurrentBag<FDatasmithFacadeMaterialInstance> CreatedMaterials = new ConcurrentBag<FDatasmithFacadeMaterialInstance>();
 			Parallel.ForEach(InMaterialsMap, MatKVP =>
 			{
 				List<FDatasmithFacadeTexture> NewMaterialTextures = null;
-				FDatasmithFacadeMasterMaterial NewMaterial = null;
+				FDatasmithFacadeMaterialInstance NewMaterial = null;
 				if (CreateAndCacheMaterial(MatKVP.Value, out NewMaterialTextures, out NewMaterial))
 				{
 					CreatedMaterials.Add(NewMaterial);
@@ -556,7 +556,7 @@ namespace DatasmithSolidworks
 				}
 			});
 			// Adding stuff to a datasmith scene cannot be multithreaded!
-			foreach (FDatasmithFacadeMasterMaterial Mat in CreatedMaterials)
+			foreach (FDatasmithFacadeMaterialInstance Mat in CreatedMaterials)
 			{
 				DatasmithScene.AddMaterial(Mat);
 			}
@@ -566,7 +566,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		private bool CreateAndCacheMaterial(FMaterial InMaterial, out List<FDatasmithFacadeTexture> OutCreatedTextures, out FDatasmithFacadeMasterMaterial OutCreatedMaterial)
+		private bool CreateAndCacheMaterial(FMaterial InMaterial, out List<FDatasmithFacadeTexture> OutCreatedTextures, out FDatasmithFacadeMaterialInstance OutCreatedMaterial)
 		{
 			OutCreatedTextures = null;
 			OutCreatedMaterial = null;
@@ -615,28 +615,28 @@ namespace DatasmithSolidworks
 			float G = Mult * InMaterial.PrimaryColor.G * 1.0f / 255.0f;
 			float B = Mult * InMaterial.PrimaryColor.B * 1.0f / 255.0f;
 
-			FDatasmithFacadeMasterMaterial MasterMaterial = new FDatasmithFacadeMasterMaterial(InMaterial.Name);
+			FDatasmithFacadeMaterialInstance MaterialInstance = new FDatasmithFacadeMaterialInstance(InMaterial.Name);
 
 			OutCreatedTextures = new List<FDatasmithFacadeTexture>();
-			OutCreatedMaterial = MasterMaterial;
+			OutCreatedMaterial = MaterialInstance;
 
-			MasterMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
-			MasterMaterial.AddColor("TintColor", R, G, B, 1.0F);
-			MasterMaterial.AddFloat("RoughnessAmount", Roughness);
+			MaterialInstance.SetMaterialType(FDatasmithFacadeMaterialInstance.EMaterialInstanceType.Opaque);
+			MaterialInstance.AddColor("TintColor", R, G, B, 1.0F);
+			MaterialInstance.AddFloat("RoughnessAmount", Roughness);
 
 			if (InMaterial.Transparency > 0.0)
 			{
-				MasterMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
-				MasterMaterial.AddFloat("Metalness", Metallic);
+				MaterialInstance.SetMaterialType(FDatasmithFacadeMaterialInstance.EMaterialInstanceType.Transparent);
+				MaterialInstance.AddFloat("Metalness", Metallic);
 
-				MasterMaterial.AddColor("OpacityAndRefraction",
+				MaterialInstance.AddColor("OpacityAndRefraction",
 					0.25f,                              // Opacity
 					1.0f,                               // Refraction
 					0.0f,                               // Refraction Exponent
 					1f - (float)InMaterial.Transparency // Fresnel Opacity
 				);
 
-				FDatasmithFacadeTexture NormalMap = ExportNormalMap(InMaterial, MasterMaterial, "NormalMap");
+				FDatasmithFacadeTexture NormalMap = ExportNormalMap(InMaterial, MaterialInstance, "NormalMap");
 
 				if (NormalMap != null)
 				{
@@ -645,17 +645,17 @@ namespace DatasmithSolidworks
 			}
 			else
 			{
-				MasterMaterial.AddFloat("MetallicAmount", Metallic);
+				MaterialInstance.AddFloat("MetallicAmount", Metallic);
 
 				if (InMaterial.Emission > 0.0)
 				{
-					MasterMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Emissive);
-					MasterMaterial.AddFloat("LuminanceAmount", (float)InMaterial.Emission);
-					MasterMaterial.AddColor("LuminanceFilter", R, G, B, 1.0f);
+					MaterialInstance.SetMaterialType(FDatasmithFacadeMaterialInstance.EMaterialInstanceType.Emissive);
+					MaterialInstance.AddFloat("LuminanceAmount", (float)InMaterial.Emission);
+					MaterialInstance.AddColor("LuminanceFilter", R, G, B, 1.0f);
 				}
 
-				FDatasmithFacadeTexture DiffuseMap = ExportDiffuseMap(InMaterial, MasterMaterial, "ColorMap");
-				FDatasmithFacadeTexture NormalMap = ExportNormalMap(InMaterial, MasterMaterial, "NormalMap");
+				FDatasmithFacadeTexture DiffuseMap = ExportDiffuseMap(InMaterial, MaterialInstance, "ColorMap");
+				FDatasmithFacadeTexture NormalMap = ExportNormalMap(InMaterial, MaterialInstance, "NormalMap");
 
 				if (DiffuseMap != null)
 				{
@@ -667,7 +667,7 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			ExportedMaterialsMap[InMaterial.ID] = MasterMaterial;
+			ExportedMaterialsMap[InMaterial.ID] = MaterialInstance;
 
 			return true;
 		}
@@ -721,7 +721,7 @@ namespace DatasmithSolidworks
 			DatasmithScene.AddLevelSequence(LevelSeq);
 		}
 
-		private FDatasmithFacadeTexture ExportDiffuseMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
+		private FDatasmithFacadeTexture ExportDiffuseMap(FMaterial InMaterial, FDatasmithFacadeMaterialInstance InMaterialInstance, string InParamName)
 		{
 			if (!string.IsNullOrEmpty(InMaterial.Texture) && !File.Exists(InMaterial.Texture))
 			{
@@ -746,14 +746,14 @@ namespace DatasmithSolidworks
 					TextureElement.SetTextureMode(TextureMode);
 					ExportedTexturesMap.TryAdd(InMaterial.Texture, TextureElement);
 
-					InMasterMaterial.AddTexture(InParamName, TextureElement);
+					InMaterialInstance.AddTexture(InParamName, TextureElement);
 				}
 			}
 
 			return TextureElement;
 		}
 
-		private FDatasmithFacadeTexture ExportNormalMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
+		private FDatasmithFacadeTexture ExportNormalMap(FMaterial InMaterial, FDatasmithFacadeMaterialInstance InMaterialInstance, string InParamName)
 		{
 			if (!string.IsNullOrEmpty(InMaterial.BumpTextureFileName) && !File.Exists(InMaterial.BumpTextureFileName))
 			{
@@ -778,7 +778,7 @@ namespace DatasmithSolidworks
 					TextureElement.SetTextureMode(TextureMode);
 					ExportedTexturesMap.TryAdd(InMaterial.BumpTextureFileName, TextureElement);
 
-					InMasterMaterial.AddTexture(InParamName, TextureElement);
+					InMaterialInstance.AddTexture(InParamName, TextureElement);
 				}
 			}
 

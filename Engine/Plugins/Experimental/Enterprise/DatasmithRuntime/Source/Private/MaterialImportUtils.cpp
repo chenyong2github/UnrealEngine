@@ -5,9 +5,9 @@
 #include "LogCategory.h"
 
 #include "DatasmithMaterialElements.h"
-#include "MasterMaterials/DatasmithMasterMaterial.h"
-#include "MasterMaterials/DatasmithMasterMaterialManager.h"
-#include "MasterMaterials/DatasmithMasterMaterialSelector.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterial.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialManager.h"
+#include "ReferenceMaterials/DatasmithReferenceMaterialSelector.h"
 
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
@@ -125,40 +125,40 @@ namespace DatasmithRuntime
 		return ParametersRef;
 	}
 
-	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterialElement, FTextureCallback TextureCallback)
+	int32 ProcessMaterialElement(TSharedPtr< IDatasmithMaterialInstanceElement > ReferenceMaterialElement, FTextureCallback TextureCallback)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::ProcessMasterMaterialElement);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::ProcessMaterialElement);
 
 		// Must be updated if FDatasmithMaterialImporter::GetMaterialRequirements changes
 		int32 MaterialRequirement = EMaterialRequirements::RequiresNormals | EMaterialRequirements::RequiresTangents;
 
-		if (!MasterMaterialElement.IsValid())
+		if (!ReferenceMaterialElement.IsValid())
 		{
 			return MaterialRequirement;
 		}
 
-		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = FDatasmithMasterMaterialManager::Get().GetSelector(MATERIAL_HOST);
+		TSharedPtr< FDatasmithReferenceMaterialSelector > MaterialSelector = FDatasmithReferenceMaterialManager::Get().GetSelector(MATERIAL_HOST);
 
 		UMaterialInterface* Material = nullptr;
 
-		if (MasterMaterialElement->GetMaterialType() == EDatasmithMasterMaterialType::Custom)
+		if (ReferenceMaterialElement->GetMaterialType() == EDatasmithReferenceMaterialType::Custom)
 		{
-			FDatasmithMasterMaterial CustomMasterMaterial; // MasterMaterial might point on this so keep them in the same scope
+			FDatasmithReferenceMaterial CustomReferenceMaterial; // ReferenceMaterial might point on this so keep them in the same scope
 
-			CustomMasterMaterial.FromSoftObjectPath(FSoftObjectPath(MasterMaterialElement->GetCustomMaterialPathName()));
+			CustomReferenceMaterial.FromSoftObjectPath(FSoftObjectPath(ReferenceMaterialElement->GetCustomMaterialPathName()));
 
-			if (CustomMasterMaterial.IsValid())
+			if (CustomReferenceMaterial.IsValid())
 			{
-				Material = CustomMasterMaterial.GetMaterial();
+				Material = CustomReferenceMaterial.GetMaterial();
 			}
 		}
 		else if (MaterialSelector.IsValid() && MaterialSelector->IsValid())
 		{
-			const FDatasmithMasterMaterial& MasterMaterial = MaterialSelector->GetMasterMaterial(MasterMaterialElement);
+			const FDatasmithReferenceMaterial& ReferenceMaterial = MaterialSelector->GetReferenceMaterial(ReferenceMaterialElement);
 
-			if (MasterMaterial.IsValid())
+			if (ReferenceMaterial.IsValid())
 			{
-				Material = MasterMaterial.GetMaterial();
+				Material = ReferenceMaterial.GetMaterial();
 			}
 		}
 
@@ -166,9 +166,9 @@ namespace DatasmithRuntime
 		{
 			const TMap< FName, int32 >& TextureParams = GetMaterialParameters(Material).TextureParams;
 
-			for (int Index = 0; Index < MasterMaterialElement->GetPropertiesCount(); ++Index)
+			for (int Index = 0; Index < ReferenceMaterialElement->GetPropertiesCount(); ++Index)
 			{
-				const TSharedPtr< IDatasmithKeyValueProperty > Property = MasterMaterialElement->GetProperty(Index);
+				const TSharedPtr< IDatasmithKeyValueProperty > Property = ReferenceMaterialElement->GetProperty(Index);
 				const FName PropertyName(Property->GetName());
 
 				if (TextureParams.Contains(PropertyName))
@@ -185,28 +185,28 @@ namespace DatasmithRuntime
 		return MaterialRequirement;
 	}
 
-	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement)
+	bool LoadReferenceMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMaterialInstanceElement>& MaterialElement)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadMasterMaterial);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadReferenceMaterial);
 
-		FDatasmithMasterMaterialManager& MaterialManager = FDatasmithMasterMaterialManager::Get();
+		FDatasmithReferenceMaterialManager& MaterialManager = FDatasmithReferenceMaterialManager::Get();
 		const FString Host = MaterialManager.GetHostFromString( MATERIAL_HOST );
-		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( MATERIAL_HOST );
+		TSharedPtr< FDatasmithReferenceMaterialSelector > MaterialSelector = MaterialManager.GetSelector( MATERIAL_HOST );
 
 		UMaterialInterface* ParentMaterial = nullptr;
 
 		{
-			if ( MaterialElement->GetMaterialType() == EDatasmithMasterMaterialType::Custom )
+			if ( MaterialElement->GetMaterialType() == EDatasmithReferenceMaterialType::Custom )
 			{
-				FDatasmithMasterMaterial CustomMasterMaterial;
+				FDatasmithReferenceMaterial CustomReferenceMaterial;
 
-				CustomMasterMaterial.FromSoftObjectPath( FSoftObjectPath( MaterialElement->GetCustomMaterialPathName() ) );
-				ParentMaterial = CustomMasterMaterial.GetMaterial();
+				CustomReferenceMaterial.FromSoftObjectPath( FSoftObjectPath( MaterialElement->GetCustomMaterialPathName() ) );
+				ParentMaterial = CustomReferenceMaterial.GetMaterial();
 			}
 			else if ( MaterialSelector.IsValid() )
 			{
-				const FDatasmithMasterMaterial& DatasmithMasterMaterial = MaterialSelector->GetMasterMaterial(MaterialElement);
-				ParentMaterial = DatasmithMasterMaterial.GetMaterial();
+				const FDatasmithReferenceMaterial& DatasmithReferenceMaterial = MaterialSelector->GetReferenceMaterial(MaterialElement);
+				ParentMaterial = DatasmithReferenceMaterial.GetMaterial();
 			}
 		}
 
