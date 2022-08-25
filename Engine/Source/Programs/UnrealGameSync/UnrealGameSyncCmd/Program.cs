@@ -86,7 +86,7 @@ namespace UnrealGameSyncCmd
 				"Displays or updates the workspace or global sync filter"
 			),
 			new CommandInfo("sync", typeof(SyncCommand),
-				"ugs sync [change|'latest'] [-build] [-remove] [-only]",
+				"ugs sync [change|'latest'] [-build] [-binaries] [-remove] [-only]",
 				"Syncs the current workspace to the given changelist, optionally removing all local state."
 			),
 			new CommandInfo("clients", typeof(ClientsCommand),
@@ -574,6 +574,9 @@ namespace UnrealGameSyncCmd
 				[CommandLine("-Build")]
 				public bool Build { get; set; }
 
+				[CommandLine("-Binaries")]
+				public bool Binaries { get; set; }
+
 				[CommandLine("-NoGPF", Value = "false")]
 				[CommandLine("-NoProjectFiles", Value = "false")]
 				public bool ProjectFiles { get; set; } = true;
@@ -583,6 +586,24 @@ namespace UnrealGameSyncCmd
 
 				[CommandLine("-Refilter")]
 				public bool Refilter { get; set; }
+			}
+
+			async Task<bool> IsCodeChangeAsync(IPerforceConnection perforce, int change)
+			{
+				DescribeRecord describeRecord = await perforce.DescribeAsync(change);
+				return IsCodeChange(describeRecord);
+			}
+
+			bool IsCodeChange(DescribeRecord describeRecord)
+			{
+				foreach (DescribeFileRecord file in describeRecord.Files)
+				{
+					if (PerforceUtils.CodeExtensions.Any(extension => file.DepotFile.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+					{
+						return true;
+					}
+				}
+				return false;
 			}
 
 			public override async Task ExecuteAsync(CommandContext context)
@@ -601,10 +622,17 @@ namespace UnrealGameSyncCmd
 
 				changeString ??= "latest";
 
+				ProjectInfo projectInfo = state.CreateProjectInfo();
+				UserProjectSettings projectSettings = context.UserSettings.FindOrAddProjectSettings(projectInfo, settings, logger);
+
+				ConfigFile projectConfig = await ConfigUtils.ReadProjectConfigFileAsync(perforceClient, projectInfo, logger, CancellationToken.None);
+
+				bool syncLatest = String.Equals(changeString, "latest", StringComparison.OrdinalIgnoreCase);
+
 				int change;
 				if (!int.TryParse(changeString, out change))
 				{
-					if (String.Equals(changeString, "latest", StringComparison.OrdinalIgnoreCase))
+					if (syncLatest)
 					{
 						List<ChangesRecord> changes = await perforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"//{settings.ClientName}/...");
 						change = changes[0].Number;
@@ -634,13 +662,51 @@ namespace UnrealGameSyncCmd
 				}
 				options |= WorkspaceUpdateOptions.RemoveFilteredFiles;
 
-				ProjectInfo projectInfo = state.CreateProjectInfo();
-				UserProjectSettings projectSettings = context.UserSettings.FindOrAddProjectSettings(projectInfo, settings, logger);
-
-				ConfigFile projectConfig = await ConfigUtils.ReadProjectConfigFileAsync(perforceClient, projectInfo, logger, CancellationToken.None);
 				string[] syncFilter = ReadSyncFilter(settings, context.UserSettings, projectConfig);
 
 				WorkspaceUpdateContext updateContext = new WorkspaceUpdateContext(change, options, BuildConfig.Development, syncFilter, projectSettings.BuildSteps, null);
+				if (syncOptions.Binaries)
+				{
+					List<PerforceArchiveInfo> archives = await PerforceArchive.EnumerateAsync(perforceClient, projectConfig, state.ProjectIdentifier, CancellationToken.None);
+
+					PerforceArchiveInfo? editorArchiveInfo = archives.FirstOrDefault(x => x.Name == IArchiveInfo.EditorArchiveType);
+					if (editorArchiveInfo == null)
+					{
+						throw new UserErrorException("No editor archives found for project");
+					}
+
+					KeyValuePair<int, string> revision = editorArchiveInfo.ChangeNumberToFileRevision.LastOrDefault(x => x.Key <= change);
+					if (revision.Key == 0)
+					{
+						throw new UserErrorException($"No editor archives found for CL {change}");
+					}
+
+					if (revision.Key < change)
+					{
+						int lastChange = revision.Key;
+
+						List<ChangesRecord> changeRecords = await perforceClient.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, $"//{settings.ClientName}/...@{revision.Key + 1},{change}");
+						foreach (ChangesRecord changeRecord in changeRecords.OrderBy(x => x.Number))
+						{
+							if (await IsCodeChangeAsync(perforceClient, changeRecord.Number))
+							{
+								if (syncLatest)
+								{
+									updateContext.ChangeNumber = lastChange;
+								}
+								else
+								{
+									throw new UserErrorException($"No editor binaries found for CL {change} (last archive at CL {revision.Key}, but CL {changeRecord.Number} is a code change)");
+								}
+								break;
+							}
+							change = changeRecord.Number;
+						}
+					}
+
+					updateContext.Options |= WorkspaceUpdateOptions.SyncArchives;
+					updateContext.ArchiveTypeToArchive[IArchiveInfo.EditorArchiveType] = Tuple.Create<IArchiveInfo, string>(editorArchiveInfo, revision.Value);
+				}
 
 				WorkspaceUpdate update = new WorkspaceUpdate(updateContext);
 				(WorkspaceUpdateResult result, string message) = await update.ExecuteAsync(perforceClient.Settings, projectInfo, state, context.Logger, CancellationToken.None);

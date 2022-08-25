@@ -87,19 +87,6 @@ namespace UnrealGameSync
 		}
 	}
 
-	public interface IArchiveInfo
-	{
-		public const string EditorArchiveType = "Editor";
-
-		string Name { get; }
-		string Type { get; }
-		string BasePath { get; }
-		string? Target { get; }
-		bool Exists();
-		bool TryGetArchiveKeyForChangeNumber(int changeNumber, [NotNullWhen(true)] out string? archiveKey);
-		Task<bool> DownloadArchive(IPerforceConnection perforce, string archiveKey, DirectoryReference localRootPath, FileReference manifestFileName, ILogger logger, ProgressValue progress, CancellationToken cancellationToken);
-	}
-
 	public class WorkspaceUpdateContext
 	{
 		public DateTime StartTime = DateTime.UtcNow;
