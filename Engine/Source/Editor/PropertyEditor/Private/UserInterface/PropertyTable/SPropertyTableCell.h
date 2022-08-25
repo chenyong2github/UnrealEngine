@@ -3,7 +3,6 @@
 
 #include "HAL/PlatformMath.h"
 #include "Input/Reply.h"
-#include "SPropertyTableCell.h"
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"

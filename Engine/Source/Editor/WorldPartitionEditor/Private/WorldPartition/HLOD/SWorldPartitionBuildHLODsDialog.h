@@ -7,7 +7,6 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "WorldPartition/HLOD/SWorldPartitionBuildHLODsDialog.h"
 
 class SWindow;
 

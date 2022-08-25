@@ -6,7 +6,6 @@
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "Internationalization/Text.h"
-#include "SDesignerToolBar.h"
 #include "SViewportToolBar.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"

@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Input/Reply.h"
-#include "SPropertyEditorSceneDepthPicker.h"
 #include "SceneDepthPickerMode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"

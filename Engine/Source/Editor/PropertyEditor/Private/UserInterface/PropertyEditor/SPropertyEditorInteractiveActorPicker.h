@@ -3,7 +3,6 @@
 
 #include "ActorPickerMode.h"
 #include "Input/Reply.h"
-#include "SPropertyEditorInteractiveActorPicker.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 

@@ -8,7 +8,6 @@
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
-#include "SPropertyComboBox.h"
 #include "SSearchableComboBox.h"
 #include "Styling/AppStyle.h"
 #include "Templates/SharedPointer.h"

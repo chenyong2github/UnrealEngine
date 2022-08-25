@@ -3,7 +3,6 @@
 
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Attribute.h"
-#include "SPropertyEditorDateTime.h"
 #include "Styling/AppStyle.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/TypeHash.h"

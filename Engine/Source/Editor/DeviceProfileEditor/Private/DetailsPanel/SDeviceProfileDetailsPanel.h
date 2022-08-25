@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "SDeviceProfileDetailsPanel.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"

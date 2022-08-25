@@ -6,7 +6,6 @@
 #include "Layout/Visibility.h"
 #include "Math/Color.h"
 #include "Misc/Attribute.h"
-#include "SDisappearingBar.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"

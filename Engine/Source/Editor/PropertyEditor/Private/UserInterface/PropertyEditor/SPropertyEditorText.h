@@ -4,7 +4,6 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Input/Reply.h"
 #include "Misc/Attribute.h"
-#include "SPropertyEditorText.h"
 #include "Styling/AppStyle.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/TypeHash.h"

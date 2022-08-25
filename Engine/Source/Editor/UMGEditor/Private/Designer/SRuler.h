@@ -7,7 +7,6 @@
 #include "Layout/Clipping.h"
 #include "Math/Vector2D.h"
 #include "Misc/Optional.h"
-#include "SRuler.h"
 #include "Types/SlateEnums.h"
 #include "Types/WidgetMouseEventsDelegate.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
