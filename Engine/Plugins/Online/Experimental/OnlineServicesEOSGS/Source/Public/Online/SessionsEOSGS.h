@@ -87,7 +87,7 @@ public:
 	/** This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved. */
 	FSessionEOSGS(const EOS_HSessionDetails& SessionDetailsHandle);
 
-	static const FSessionEOSGS& Cast(const FSession& InSession);
+	static const FSessionEOSGS& Cast(const ISession& InSession);
 
 public:
 	/** Session details handle */
@@ -171,7 +171,7 @@ struct FBuildSessionFromDetailsHandle
 		FAccountId LocalAccountId;
 
 		/** Session built from the details handle */
-		TSharedRef<FSession> Session;
+		TSharedRef<FSessionCommon> Session;
 	};
 };
 

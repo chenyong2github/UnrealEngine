@@ -41,7 +41,7 @@ namespace UE::Online {
 	{
 		FGetAllSessions::Result Result;
 
-		for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSession>>& SessionPair : AllSessionsById)
+		for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSessionCommon>>& SessionPair : AllSessionsById)
 		{
 			Result.Sessions.Add(SessionPair.Value);
 		}
@@ -313,7 +313,7 @@ namespace UE::Online {
 
 	TOnlineResult<FGetMutableSessionById> FSessionsCommon::GetMutableSessionById(FGetMutableSessionById::Params&& Params) const
 	{
-		if (const TSharedRef<FSession>* FoundSession = AllSessionsById.Find(Params.IdHandle))
+		if (const TSharedRef<FSessionCommon>* FoundSession = AllSessionsById.Find(Params.IdHandle))
 		{
 			return TOnlineResult<FGetMutableSessionById>({ *FoundSession });
 		}
@@ -378,7 +378,7 @@ namespace UE::Online {
 		{
 			return TOnlineResult<FAddSessionMembers>(GetMutableSessionByNameResult.GetErrorValue());
 		}
-		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+		TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -448,7 +448,7 @@ namespace UE::Online {
 		{
 			return TOnlineResult<FRemoveSessionMembers>(GetMutableSessionByNameResult.GetErrorValue());
 		}
-		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+		TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -495,7 +495,7 @@ namespace UE::Online {
 		{
 			return TOnlineResult<FRegisterPlayers>(GetMutableSessionByNameResult.GetErrorValue());
 		}
-		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+		TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -539,7 +539,7 @@ namespace UE::Online {
 		{
 			return TOnlineResult<FUnregisterPlayers>(GetMutableSessionByNameResult.GetErrorValue());
 		}
-		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+		TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
@@ -636,7 +636,7 @@ namespace UE::Online {
 				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.LocalAccountId, Entry.Value });
 				if (GetSessionByIdResult.IsOk())
 				{
-					if (GetSessionByIdResult.GetOkValue().Session->SessionSettings.bPresenceEnabled)
+					if (GetSessionByIdResult.GetOkValue().Session->GetSessionSettings().bPresenceEnabled)
 				{
 					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), *Entry.Key.ToString());
 
@@ -671,9 +671,9 @@ namespace UE::Online {
 		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
 		if (GetSessionByNameResult.IsOk())
 		{
-			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			if (!FoundSession->SessionSettings.bIsDedicatedServerSession)
+			if (!FoundSession->GetSessionSettings().bIsDedicatedServerSession)
 			{
 				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalAccountId))
 				{
@@ -841,9 +841,9 @@ namespace UE::Online {
 			return GetSessionByIdResult.GetErrorValue();
 		}
 
-		TSharedRef<const FSession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
+		TSharedRef<const ISession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
-		const FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+		const FSessionSettings& SessionSettings = FoundSession->GetSessionSettings();
 
 		for (const FAccountId& LocalAccountId : LocalAccountIds)
 		{
@@ -950,9 +950,9 @@ namespace UE::Online {
 		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ Params.SessionName });
 		if (GetSessionByNameResult.IsOk())
 		{
-			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			if (!FoundSession->SessionSettings.bIsDedicatedServerSession)
+			if (!FoundSession->GetSessionSettings().bIsDedicatedServerSession)
 			{
 				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalAccountId))
 				{

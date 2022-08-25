@@ -187,17 +187,9 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 
 #undef MOVE_TOPTIONAL_IF_SET
 
-FSession::FSession()
+const FString ToLogString(const ISession& Session)
 {
-
-}
-
-FSession::FSession(const FSession& InSession)
-	: OwnerAccountId(InSession.OwnerAccountId)
-	, SessionId(InSession.SessionId)
-	, SessionSettings(InSession.SessionSettings)
-{
-
+	return Session.ToLogString();
 }
 
 const TCHAR* LexToString(EUISessionJoinRequestedSource UISessionJoinRequestedSource)

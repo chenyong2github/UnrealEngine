@@ -197,9 +197,9 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 	}
 }
 
-const FSessionEOSGS& FSessionEOSGS::Cast(const FSession& InSession)
+const FSessionEOSGS& FSessionEOSGS::Cast(const ISession& InSession)
 {
-	check(InSession.SessionId.GetOnlineServicesType() == EOnlineServices::Epic);
+	check(InSession.GetSessionId().GetOnlineServicesType() == EOnlineServices::Epic);
 
 	return static_cast<const FSessionEOSGS&>(InSession);
 }
@@ -291,7 +291,7 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 
 					FOnlineSessionInviteIdHandle InviteIdHandle = CreateSessionInviteId(InviteId);
 
-					TSharedRef<FSession> Session = Result.GetOkValue().Session;
+					TSharedRef<FSessionCommon> Session = Result.GetOkValue().Session;
 
 					TSharedRef<FSessionInvite> SessionInviteRef = MakeShared<FSessionInvite>(FSessionInvite{
 						ReceiverId,
@@ -739,8 +739,8 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 	TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ SessionName });
 	check(GetSessionByNameResult.IsOk());
 
-	TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
-	const FSessionSettings& SessionSettings = FoundSession->SessionSettings;
+	TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+	const FSessionSettings& SessionSettings = FoundSession->GetSessionSettings();
 
 	if (NewSettings.JoinPolicy.IsSet())
 	{
@@ -834,7 +834,7 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSessio
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
-	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	if (Result.IsOk() && Result.GetOkValue().Session->GetSessionSettings().bIsLANSession)
 	{
 		return FSessionsLAN::UpdateSession(MoveTemp(Params));
 	}
@@ -897,7 +897,7 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsEOSGS::UpdateSession(FUpdateSessio
 			TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ OpParams.SessionName });
 			if (GetMutableSessionByNameResult.IsOk())
 			{
-				TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+				TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 				// Now that the API Session update has processed successfully, we'll update our local session with the same data
 				FoundSession->SessionSettings += OpParams.Mutations;
@@ -1104,7 +1104,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
-	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	if (Result.IsOk() && Result.GetOkValue().Session->GetSessionSettings().bIsLANSession)
 	{
 		return FSessionsLAN::LeaveSession(MoveTemp(Params));
 	}
@@ -1147,17 +1147,17 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ OpParams.SessionName });
 		if (GetSessionByNameResult.IsOk())
 		{
-			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
 			NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
 
-			if (FoundSession->SessionSettings.bPresenceEnabled)
+			if (FoundSession->GetSessionSettings().bPresenceEnabled)
 			{
 				PresenceSessionsUserMap.Remove(OpParams.LocalAccountId);
 			}
 
 			ClearSessionByName(OpParams.SessionName);
-			ClearSessionById(FoundSession->SessionId);
+			ClearSessionById(FoundSession->GetSessionId());
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });
@@ -1376,7 +1376,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 					{
 						if (TOnlineAsyncOpPtr<FFindSessions> StrongOp = WeakOp.Pin())
 						{
-							const TSharedRef<FSession>& Session = Result.GetOkValue().Session;
+							const TSharedRef<FSessionCommon>& Session = Result.GetOkValue().Session;
 
 							TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindOrAdd(Result.GetOkValue().LocalAccountId);
 							SearchResults.Add(Session->SessionId);
@@ -1454,10 +1454,10 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		return Op->GetHandle();
 	}
 
-	const TSharedRef<const FSession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+	const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
 	// LAN Sessions
-	if (FoundSession->SessionSettings.bIsLANSession)
+	if (FoundSession->GetSessionSettings().bIsLANSession)
 	{
 		return FSessionsLAN::JoinSession(MoveTemp(Params));
 	}
@@ -1508,14 +1508,14 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 			return;
 		}
 
-		const TSharedRef<const FSession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
 		// We start setup for the API call
 		EOS_Sessions_JoinSessionOptions JoinSessionOptions = { };
 		JoinSessionOptions.ApiVersion = EOS_SESSIONS_JOINSESSION_API_LATEST;
 		static_assert(EOS_SESSIONS_JOINSESSION_API_LATEST == 2, "EOS_Sessions_JoinSessionOptions updated, check new fields");
 
-		JoinSessionOptions.bPresenceEnabled = FoundSession->SessionSettings.bPresenceEnabled;
+		JoinSessionOptions.bPresenceEnabled = FoundSession->GetSessionSettings().bPresenceEnabled;
 
 		JoinSessionOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalAccountId);
 
@@ -1550,38 +1550,38 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 			return;
 		}
 
-		const TSharedRef<const FSession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
+		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
 		LocalSessionsByName.Emplace(OpParams.SessionName, OpParams.SessionId);
 
 		NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
 
-		if (FoundSession->SessionSettings.bPresenceEnabled)
+		if (FoundSession->GetSessionSettings().bPresenceEnabled)
 		{
 			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-			PresenceSessionId = FoundSession->SessionId;
+			PresenceSessionId = FoundSession->GetSessionId();
 		}
 
-			// After successfully joining a session, we'll remove all related invites if any are found
-			if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
+		// After successfully joining a session, we'll remove all related invites if any are found
+		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
+		{
+			TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
+			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
 			{
-				TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
-				for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+				if (Entry.Value->SessionId == FoundSession->GetSessionId())
 				{
-				if (Entry.Value->SessionId == FoundSession->SessionId)
-					{
-						InviteIdsToRemove.Add(Entry.Key);
-					}
-				}
-				for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
-				{
-					UserMap->Remove(InviteId);
+					InviteIdsToRemove.Add(Entry.Key);
 				}
 			}
+			for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
+			{
+				UserMap->Remove(InviteId);
+			}
+		}
 
 		Op.SetResult(FJoinSession::Result{ });
 
-		FSessionJoined Event = { { OpParams.LocalAccountId }, FoundSession->SessionId };
+		FSessionJoined Event = { { OpParams.LocalAccountId }, FoundSession->GetSessionId() };
 
 			SessionEvents.OnSessionJoined.Broadcast(Event);
 
@@ -1848,7 +1848,7 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
-	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	if (Result.IsOk() && Result.GetOkValue().Session->GetSessionSettings().bIsLANSession)
 	{
 		return FSessionsLAN::AddSessionMembers(MoveTemp(Params));
 	}
@@ -1918,7 +1918,7 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
-	if (Result.IsOk() && Result.GetOkValue().Session->SessionSettings.bIsLANSession)
+	if (Result.IsOk() && Result.GetOkValue().Session->GetSessionSettings().bIsLANSession)
 	{
 		return FSessionsLAN::RemoveSessionMembers(MoveTemp(Params));
 	}

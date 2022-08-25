@@ -21,14 +21,14 @@ protected:
 	FOnlineSessionIdRegistryLAN(EOnlineServices ServicesType);
 };
 
-class ONLINESERVICESCOMMONENGINEUTILS_API FSessionLAN : public FSession
+class ONLINESERVICESCOMMONENGINEUTILS_API FSessionLAN : public FSessionCommon
 {
 public:
 	FSessionLAN();
 	FSessionLAN(const FSessionLAN& InSession) = default;
 
-	static FSessionLAN& Cast(FSession& InSession);
-	static const FSessionLAN& Cast(const FSession& InSession);
+	static FSessionLAN& Cast(FSessionCommon& InSession);
+	static const FSessionLAN& Cast(const ISession& InSession);
 
 private:
 	void Initialize();

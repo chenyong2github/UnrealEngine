@@ -90,7 +90,7 @@ void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionSettings& Se
 	// SessionSettings.SessionMembers will be serialized in implementations as user id types will vary
 }
 
-void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSession& Session)
+void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionCommon& Session)
 {
 	// Session.OwnerUserId will be serialized in implementations as user id types will vary
 	// Session.SessionId will be serialized in implementations as user id types will vary
@@ -215,7 +215,7 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionSettings& Sess
 	// SessionSettings.SessionMembers will be deserialized in implementations as user id types will vary
 }
 
-void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSession& Session)
+void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionCommon& Session)
 {
 	// Session.OwnerUserId will be deserialized in implementations as user id types will vary
 	// Session.SessionId will be deserialized in implementations as user id types will vary

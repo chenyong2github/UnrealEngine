@@ -94,14 +94,14 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnect
 		TOnlineResult<FGetAllSessions> JoinedSessions = SessionsPtr->GetAllSessions(MoveTemp(GetAllSessionsParams));
 		if (JoinedSessions.IsOk())
 		{
-			for (TSharedRef<const FSession>& Session : JoinedSessions.GetOkValue().Sessions)
+			for (TSharedRef<const ISession>& Session : JoinedSessions.GetOkValue().Sessions)
 			{
-				if (Session->SessionId == Params.SessionId)
+				if (Session->GetSessionId() == Params.SessionId)
 				{
-					if (Session->SessionSettings.CustomSettings.Contains(CONNECT_STRING_TAG))
+					if (Session->GetSessionSettings().CustomSettings.Contains(CONNECT_STRING_TAG))
 					{
 						FGetResolvedConnectString::Result Result;
-						Result.ResolvedConnectString = Session->SessionSettings.CustomSettings[CONNECT_STRING_TAG].Data.GetString();
+						Result.ResolvedConnectString = Session->GetSessionSettings().CustomSettings[CONNECT_STRING_TAG].Data.GetString();
 						return TOnlineResult<FGetResolvedConnectString>(Result);
 					}
 					else

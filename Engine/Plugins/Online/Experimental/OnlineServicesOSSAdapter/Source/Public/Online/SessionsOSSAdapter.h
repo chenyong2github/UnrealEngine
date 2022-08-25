@@ -33,14 +33,14 @@ static FName OSS_ADAPTER_SESSIONS_PING_IN_MS = TEXT("OSS_ADAPTER_SESSIONS_PING_I
 static FName OSS_ADAPTER_SESSION_SEARCH_PING_BUCKET_SIZE = TEXT("OSS_ADAPTER_SESSION_SEARCH_PING_BUCKET_SIZE");
 static FName OSS_ADAPTER_SESSION_SEARCH_PLATFORM_HASH = TEXT("OSS_ADAPTER_SESSION_SEARCH_PLATFORM_HASH");
 
-class FSessionOSSAdapter : public FSession
+class FSessionOSSAdapter : public FSessionCommon
 {
 public:
 	FSessionOSSAdapter() = default;
 	FSessionOSSAdapter(const FSessionOSSAdapter& InSession) = default;
 	FSessionOSSAdapter(const FOnlineSession& InSession);
 
-	static const FSessionOSSAdapter& Cast(const FSession& InSession);
+	static const FSessionOSSAdapter& Cast(const ISession& InSession);
 
 	const FOnlineSession& GetV1Session() const;
 
@@ -85,11 +85,11 @@ private:
 	/** Writes V1 Session Settings information contained in Named session type into the passed V2 equivalent */
 	void WriteV2SessionSettingsFromV1NamedSession(const FNamedOnlineSession* InSession, FSessionSettings& OutSettings) const;
 	/** Builds a V1 Session data type from a V2 equivalent */
-	FOnlineSession BuildV1Session(const TSharedRef<const FSession> InSession) const;
+	FOnlineSession BuildV1Session(const TSharedRef<const ISession> InSession) const;
 	/** Builds a V2 Session data type from a V1 equivalent */
-	TSharedRef<FSession> BuildV2Session(const FOnlineSession* InSession) const;
+	TSharedRef<FSessionCommon> BuildV2Session(const FOnlineSession* InSession) const;
 	/** Builds a V2 Session Search Results array from the passed V1 equivalent types */
-	TArray<TSharedRef<FSession>> BuildV2SessionSearchResults(const TArray<FOnlineSessionSearchResult>& SessionSearchResults) const;
+	TArray<TSharedRef<FSessionCommon>> BuildV2SessionSearchResults(const TArray<FOnlineSessionSearchResult>& SessionSearchResults) const;
 
 	FOnlineSessionIdRegistryOSSAdapter& GetSessionIdRegistry() const;
 	FOnlineSessionInviteIdRegistryOSSAdapter& GetSessionInviteIdRegistry() const;

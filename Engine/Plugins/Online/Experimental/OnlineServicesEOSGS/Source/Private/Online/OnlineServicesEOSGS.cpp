@@ -134,11 +134,11 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesEOSGS::GetResolvedConnec
 		if (Result.IsOk())
 		{
 #if WITH_ENGINE
-			TSharedRef<const FSession> Session = Result.GetOkValue().Session;
+			TSharedRef<const ISession> Session = Result.GetOkValue().Session;
 
 			//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
 			FString NetDriverName = GetDefault<UNetDriverEOSBase>()->NetDriverName.ToString();
-			FInternetAddrEOS TempAddr(GetProductUserIdChecked(Session->OwnerAccountId), NetDriverName, GetTypeHash(NetDriverName));
+			FInternetAddrEOS TempAddr(GetProductUserIdChecked(Session->GetOwnerAccountId()), NetDriverName, GetTypeHash(NetDriverName));
 			return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
 #else
 			return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());

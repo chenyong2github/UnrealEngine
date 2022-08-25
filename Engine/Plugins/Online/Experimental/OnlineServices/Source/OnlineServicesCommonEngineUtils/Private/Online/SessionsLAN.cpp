@@ -89,12 +89,12 @@ void FSessionLAN::Initialize()
 	SessionSettings.CustomSettings.Add(CONNECT_STRING_TAG, ConnectString);
 }
 
-FSessionLAN& FSessionLAN::Cast(FSession& InSession)
+FSessionLAN& FSessionLAN::Cast(FSessionCommon& InSession)
 {
 	return static_cast<FSessionLAN&>(InSession);
 }
 
-const FSessionLAN& FSessionLAN::Cast(const FSession& InSession)
+const FSessionLAN& FSessionLAN::Cast(const ISession& InSession)
 {
 	return static_cast<const FSessionLAN&>(InSession);
 }
@@ -199,7 +199,7 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsLAN::UpdateSession(FUpdateSession:
 		TOnlineResult<FGetMutableSessionByName> GetMutableSessionByNameResult = GetMutableSessionByName({ OpParams.SessionName });
 		check(GetMutableSessionByNameResult.IsOk());
 		
-		TSharedRef<FSession> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
+		TSharedRef<FSessionCommon> FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 		const FSessionSettingsUpdate& UpdatedSettings = OpParams.Mutations;
 
@@ -303,20 +303,17 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 			return ;
 		}
 
-		const TSharedRef<const FSession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
-		TSharedRef<FSession> NewSessionLANRef = ConstCastSharedRef<FSession>(FoundSession);
+		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
-		// We save the local object for the session, and set up the appropriate references
-		AllSessionsById.Emplace(NewSessionLANRef->SessionId, NewSessionLANRef);
-
-		LocalSessionsByName.Emplace(OpParams.SessionName, NewSessionLANRef->SessionId);
+		// We set up the appropriate references for the session
+		LocalSessionsByName.Emplace(OpParams.SessionName, FoundSession->GetSessionId());
 
 		NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
 
-		if (NewSessionLANRef->SessionSettings.bPresenceEnabled)
+		if (FoundSession->GetSessionSettings().bPresenceEnabled)
 		{
 			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-			PresenceSessionId = NewSessionLANRef->SessionId;
+			PresenceSessionId = FoundSession->GetSessionId();
 		}
 
 		Op.SetResult(FJoinSession::Result{ });
@@ -325,7 +322,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 		LocalAccountIds.Reserve(OpParams.LocalAccounts.Num());
 		OpParams.LocalAccounts.GenerateKeyArray(LocalAccountIds);
 
-		FSessionJoined SessionJoinedEvent = { MoveTemp(LocalAccountIds), NewSessionLANRef->SessionId };
+		FSessionJoined SessionJoinedEvent = { MoveTemp(LocalAccountIds), FoundSession->GetSessionId() };
 		
 		SessionEvents.OnSessionJoined.Broadcast(SessionJoinedEvent);
 	})
@@ -352,17 +349,17 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 		TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ OpParams.SessionName });
 		if (GetSessionByNameResult.IsOk())
 		{
-			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
+			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
 			NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
 
-			if (FoundSession->SessionSettings.bPresenceEnabled)
+			if (FoundSession->GetSessionSettings().bPresenceEnabled)
 			{
 				PresenceSessionsUserMap.Remove(OpParams.LocalAccountId);
 			}
 
 			ClearSessionByName(OpParams.SessionName);
-			ClearSessionById(FoundSession->SessionId);
+			ClearSessionById(FoundSession->GetSessionId());
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });
@@ -464,9 +461,9 @@ void FSessionsLAN::StopLANSession()
 void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce)
 {
 	// Iterate through all registered sessions and respond for each one that can be joinable
-	for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSession>>& Entry : AllSessionsById)
+	for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSessionCommon>>& Entry : AllSessionsById)
 	{
-		const TSharedRef<FSession>& Session = Entry.Value;
+		const TSharedRef<FSessionCommon>& Session = Entry.Value;
 
 		if (Session->SessionSettings.JoinPolicy == ESessionJoinPolicy::Public)
 		{

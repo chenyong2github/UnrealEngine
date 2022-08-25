@@ -127,6 +127,31 @@ public:
 	TOnlineBasicSessionInviteIdRegistry<FString> BasicRegistry;
 };
 
+class ONLINESERVICESCOMMON_API FSessionCommon : public ISession
+{
+public:
+	FSessionCommon() = default;
+	FSessionCommon(const FSessionCommon& InSession) = default;
+	virtual ~FSessionCommon() = default;
+
+	// ISession
+	virtual const FAccountId GetOwnerAccountId() const override				{ return OwnerAccountId; }
+	virtual const FOnlineSessionIdHandle GetSessionId() const override		{ return SessionId; }
+	virtual const FSessionSettings GetSessionSettings() const override		{ return SessionSettings; }
+
+	virtual FString ToLogString() const override							{ return FString(); } // TODO: Implement after completing refactor
+
+public:
+	/** The user who currently owns the session */
+	FAccountId OwnerAccountId;
+
+	/** The id for the session, platform dependent */
+	FOnlineSessionIdHandle SessionId;
+
+	/** Set of session properties that can be altered by the session owner */
+	FSessionSettings SessionSettings;
+};
+
 struct FGetMutableSessionByName
 {
 	static constexpr TCHAR Name[] = TEXT("GetMutableSessionByName");
@@ -138,7 +163,7 @@ struct FGetMutableSessionByName
 
 	struct Result
 	{
-		TSharedRef<FSession> Session;
+		TSharedRef<FSessionCommon> Session;
 
 		Result() = delete; // cannot default construct due to TSharedRef
 	};
@@ -155,7 +180,7 @@ struct FGetMutableSessionById
 
 	struct Result
 	{
-		TSharedRef<FSession> Session;
+		TSharedRef<FSessionCommon> Session;
 
 		Result() = delete; // cannot default construct due to TSharedRef
 	};
@@ -270,7 +295,7 @@ protected:
 	TMap<FAccountId, TSharedRef<TOnlineAsyncOp<FFindSessions>>> CurrentSessionSearchHandlesUserMap;
 
 	/** Set of every distinct FSession found, indexed by Id */
-	TMap<FOnlineSessionIdHandle, TSharedRef<FSession>> AllSessionsById;
+	TMap<FOnlineSessionIdHandle, TSharedRef<FSessionCommon>> AllSessionsById;
 };
 
 namespace Meta {

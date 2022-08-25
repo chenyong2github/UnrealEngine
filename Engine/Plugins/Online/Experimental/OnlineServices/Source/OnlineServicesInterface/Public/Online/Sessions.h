@@ -178,20 +178,15 @@ struct ONLINESERVICESINTERFACE_API FSessionSettings
 	FSessionSettings& operator+=(const FSessionSettingsUpdate& UpdatedValue);
 };
 
-struct ONLINESERVICESINTERFACE_API FSession
+class ISession
 {
-	FSession();
-	FSession(const FSession& InSession);
-
-	/** The user who currently owns the session */
-	FAccountId OwnerAccountId;
-
-	/** The id for the session, platform dependent */
-	FOnlineSessionIdHandle SessionId;
-
-	/** Set of session properties that can be altered by the session owner */
-	FSessionSettings SessionSettings;
+public:
+	virtual const FAccountId GetOwnerAccountId() const = 0;
+	virtual const FOnlineSessionIdHandle GetSessionId() const = 0;
+	virtual const FSessionSettings GetSessionSettings() const = 0;
+	virtual FString ToLogString() const = 0;
 };
+ONLINESERVICESINTERFACE_API const FString ToLogString(const ISession& Session);
 
 struct FSessionInvite
 {
@@ -221,7 +216,7 @@ struct FGetAllSessions
 
 	struct Result
 	{
-		TArray<TSharedRef<const FSession>> Sessions;
+		TArray<TSharedRef<const ISession>> Sessions;
 	};
 };
 
@@ -236,7 +231,7 @@ struct FGetSessionByName
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
+		TSharedRef<const ISession> Session;
 
 		Result() = delete; // cannot default construct due to TSharedRef
 	};
@@ -255,7 +250,7 @@ struct FGetSessionById
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
+		TSharedRef<const ISession> Session;
 
 		Result() = delete; // cannot default construct due to TSharedRef
 	};
@@ -884,12 +879,6 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedSessionMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedRegisteredPlayers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedRegisteredPlayers)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FSession)
-	ONLINE_STRUCT_FIELD(FSession, OwnerAccountId),
-	ONLINE_STRUCT_FIELD(FSession, SessionId),
-	ONLINE_STRUCT_FIELD(FSession, SessionSettings)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionInvite)
