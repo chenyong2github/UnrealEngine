@@ -502,16 +502,6 @@ void UWorld::WaitForAllAsyncTraceTasks()
 
 void UWorld::ResetAsyncTrace()
 {
-	{
-		// increase buffer index to next one
-		++AsyncTraceState.CurrentFrame;
-		// set up new buffer to accept trace requests
-		AsyncTraceData& NewAsyncBuffer = AsyncTraceState.GetBufferForCurrentFrame();
-		NewAsyncBuffer.bAsyncAllowed = true;
-		NewAsyncBuffer.NumQueuedTraceData = 0;
-		NewAsyncBuffer.NumQueuedOverlapData = 0;
-	}
-
 	AsyncTraceData& DataBufferExecuted = AsyncTraceState.GetBufferForPreviousFrame();
 
 	// Wait for thread
@@ -539,4 +529,15 @@ void UWorld::FinishAsyncTrace()
 
 	// this flag only needed to know I can't accept any more new request in current frame
 	AsyncTraceState.GetBufferForCurrentFrame().bAsyncAllowed = false;
+
+	// increase buffer index to next one
+	++AsyncTraceState.CurrentFrame;
+
+	// set up new buffer to accept trace requests
+	AsyncTraceData& NewAsyncBuffer = AsyncTraceState.GetBufferForCurrentFrame();
+	NewAsyncBuffer.bAsyncAllowed = true;
+	NewAsyncBuffer.NumQueuedTraceData = 0;
+	NewAsyncBuffer.NumQueuedOverlapData = 0;
+
 }
+
