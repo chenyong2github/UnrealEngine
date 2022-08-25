@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Channels/MovieSceneChannelHandle.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "MVVM/Extensions/ILayerBarExtension.h"
@@ -25,6 +26,7 @@ namespace Sequencer
 {
 
 class ITrackExtension;
+class FChannelModel;
 struct FOverlappingSections;
 
 /**
@@ -128,6 +130,25 @@ private:
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
 	TRange<FFrameNumber> SectionRange;
 	TRange<FFrameNumber> LayerBarRange;
+};
+
+/**
+ * Stores a snapshot of the channels contained in a section
+ */
+class SEQUENCER_API FCachedChannelModels
+{
+public:
+	FCachedChannelModels(TSharedPtr<FSectionModel> InSection);
+
+	FMovieSceneChannelHandle GetChannel(FName InChannelName);
+
+private:
+	struct FCachedChannelModel
+	{
+		FMovieSceneChannelHandle Handle;
+		TWeakViewModelPtr<FChannelModel> Model;
+	};
+	TMap<FName, FCachedChannelModel> ChannelsByName;
 };
 
 struct FOverlappingSections

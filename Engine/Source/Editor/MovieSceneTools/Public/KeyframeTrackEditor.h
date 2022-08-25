@@ -55,7 +55,7 @@ struct TAddKeyImpl : IImpl
 		bool bKeyCreated = false;
 		using namespace UE::MovieScene;
 
-		ChannelType* Channel = Proxy.GetChannelBySortOrder<ChannelType>(ChannelIndex);
+		ChannelType* Channel = Proxy.GetChannel<ChannelType>(ChannelIndex);
 		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
@@ -84,7 +84,7 @@ struct TAddKeyImpl : IImpl
 	{
 		using namespace UE::MovieScene;
 
-		ChannelType* Channel = Proxy.GetChannelBySortOrder<ChannelType>(ChannelIndex);
+		ChannelType* Channel = Proxy.GetChannel<ChannelType>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0)
 		{
 			if (Section->TryModify())
@@ -115,7 +115,7 @@ struct TAddKeyImpl<FMovieSceneBoolChannel, bool> : IImpl
 		bool bKeyCreated = false;
 		using namespace UE::MovieScene;
 
-		FMovieSceneBoolChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneBoolChannel>(ChannelIndex);
+		FMovieSceneBoolChannel* Channel = Proxy.GetChannel<FMovieSceneBoolChannel>(ChannelIndex);
 		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
@@ -144,7 +144,7 @@ struct TAddKeyImpl<FMovieSceneBoolChannel, bool> : IImpl
 	{
 		using namespace UE::MovieScene;
 
-		FMovieSceneBoolChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneBoolChannel>(ChannelIndex);
+		FMovieSceneBoolChannel* Channel = Proxy.GetChannel<FMovieSceneBoolChannel>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0 && Channel->GetDefault() != ValueToSet)
 		{
 			if (Section->TryModify())
@@ -174,7 +174,7 @@ struct TAddKeyImpl<FMovieSceneDoubleChannel, double> : IImpl
 		bool bKeyCreated = false;
 		using namespace UE::MovieScene;
 
-		FMovieSceneDoubleChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneDoubleChannel>(ChannelIndex);
+		FMovieSceneDoubleChannel* Channel = Proxy.GetChannel<FMovieSceneDoubleChannel>(ChannelIndex);
 		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
@@ -203,7 +203,7 @@ struct TAddKeyImpl<FMovieSceneDoubleChannel, double> : IImpl
 	{
 		using namespace UE::MovieScene;
 
-		FMovieSceneDoubleChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneDoubleChannel>(ChannelIndex);
+		FMovieSceneDoubleChannel* Channel = Proxy.GetChannel<FMovieSceneDoubleChannel>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0  && Channel->GetDefault() != ValueToSet)
 		{
 			if (Section->TryModify())
@@ -218,7 +218,7 @@ struct TAddKeyImpl<FMovieSceneDoubleChannel, double> : IImpl
 	{
 		using namespace UE::MovieScene;
 		double CurrentValue = *(double*)(VCurrentValue);
-		FMovieSceneDoubleChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneDoubleChannel>(ChannelIndex);
+		FMovieSceneDoubleChannel* Channel = Proxy.GetChannel<FMovieSceneDoubleChannel>(ChannelIndex);
 		if (Channel)
 		{
 			double LocalValue;
@@ -251,7 +251,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 		bool bKeyCreated = false;
 		using namespace UE::MovieScene;
 
-		FMovieSceneFloatChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneFloatChannel>(ChannelIndex);
+		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
 		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
@@ -280,7 +280,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 	{
 		using namespace UE::MovieScene;
 
-		FMovieSceneFloatChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneFloatChannel>(ChannelIndex);
+		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0  && Channel->GetDefault() != ValueToSet)
 		{
 			if (Section->TryModify())
@@ -295,7 +295,7 @@ struct TAddKeyImpl<FMovieSceneFloatChannel, float> : IImpl
 	{
 		using namespace UE::MovieScene;
 		float CurrentValue = *(float*)(VCurrentValue);
-		FMovieSceneFloatChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneFloatChannel>(ChannelIndex);
+		FMovieSceneFloatChannel* Channel = Proxy.GetChannel<FMovieSceneFloatChannel>(ChannelIndex);
 		if (Channel)
 		{
 			float LocalValue;
@@ -328,7 +328,7 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 		bool bKeyCreated = false;
 		using namespace UE::MovieScene;
 
-		FMovieSceneIntegerChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneIntegerChannel>(ChannelIndex);
+		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
 		if (bAddKey && Channel)
 		{
 			bool bShouldKeyChannel = bKeyEvenIfUnchanged;
@@ -357,7 +357,7 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 	{
 		using namespace UE::MovieScene;
 
-		FMovieSceneIntegerChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneIntegerChannel>(ChannelIndex);
+		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
 		if (Channel && Channel->GetData().GetTimes().Num() == 0 && Channel->GetDefault() != ValueToSet)
 		{
 			if (Section->TryModify())
@@ -372,7 +372,7 @@ struct TAddKeyImpl<FMovieSceneIntegerChannel, int32> : IImpl
 	{
 		using namespace UE::MovieScene;
 		int32 CurrentValue = *(int32*)(VCurrentValue);
-		FMovieSceneIntegerChannel* Channel = Proxy.GetChannelBySortOrder<FMovieSceneIntegerChannel>(ChannelIndex);
+		FMovieSceneIntegerChannel* Channel = Proxy.GetChannel<FMovieSceneIntegerChannel>(ChannelIndex);
 		if (Channel)
 		{
 			int32 LocalValue;

@@ -5,6 +5,7 @@
 #include "MVVM/ViewModels/ViewModelIterators.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/Extensions/ITrackExtension.h"
+#include "IKeyArea.h"
 #include "Sequencer.h"
 #include "SSequencerSection.h"
 
@@ -538,6 +539,28 @@ TArray<FOverlappingSections> FSectionModel::GetEasingSegments()
 	}
 
 	return Result;
+}
+
+FCachedChannelModels::FCachedChannelModels(TSharedPtr<FSectionModel> InSection)
+{
+	for (TSharedPtr<FChannelModel> ChannelModel : InSection->GetDescendantsOfType<FChannelModel>())
+	{
+		if (TSharedPtr<IKeyArea> KeyArea = ChannelModel->GetKeyArea())
+		{
+			const FName ChannelName = KeyArea->GetName();
+			const FMovieSceneChannelHandle ChannelHandle = KeyArea->GetChannel();
+			ChannelsByName.Add(ChannelName, FCachedChannelModel{ ChannelHandle, ChannelModel });
+		}
+	}
+}
+
+FMovieSceneChannelHandle FCachedChannelModels::GetChannel(FName InChannelName)
+{
+	if (FCachedChannelModel* CachedChannelModel = ChannelsByName.Find(InChannelName))
+	{
+		return CachedChannelModel->Handle;
+	}
+	return FMovieSceneChannelHandle();
 }
 
 } // namespace Sequencer

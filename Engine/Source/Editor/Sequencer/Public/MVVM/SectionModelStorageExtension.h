@@ -19,7 +19,7 @@ namespace Sequencer
 class FSectionModel;
 class FSequenceModel;
 
-class FSectionModelStorageExtension
+class SEQUENCER_API FSectionModelStorageExtension
 	: public IDynamicExtension
 {
 public:

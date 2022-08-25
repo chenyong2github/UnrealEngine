@@ -34,6 +34,10 @@
 #include "Tracks/IMovieSceneTransformOrigin.h"
 #include "IMovieScenePlaybackClient.h"
 
+#include "MVVM/SectionModelStorageExtension.h"
+#include "MVVM/ViewModels/EditorViewModel.h"
+#include "MVVM/ViewModels/SectionModel.h"
+
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "TransformConstraint.h"
@@ -665,11 +669,13 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 	EMovieSceneTransformChannel TransformMask = TransformSection->GetMask().GetChannels();
 
 	using namespace UE::MovieScene;
+	using namespace UE::Sequencer;
 
-	bool bLastVectorIsValid = LastTransform.IsSet();
+	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 
 	// If key all is enabled, for a key on all the channels
-	if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyAll)
+	bool bLastVectorIsValid = LastTransform.IsSet();
+	if (SequencerPtr->GetKeyGroupMode() == EKeyGroupMode::KeyAll)
 	{
 		bLastVectorIsValid = false;
 		ChannelsToKey = EMovieSceneTransformChannel::All;
@@ -678,6 +684,34 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	FTransformData RecomposedTransform = RecomposeTransform(CurrentTransform, Object, Section);
+
+	// Get the channel indices for our curve channels.
+	// We will ignore any channels that are anything else than FMovieSceneDoubleChannel (such as when
+	// a channel has been overriden by a procedural channel) because we assume, possibly wrongly, that
+	// anything else won't be keyable with a double value.
+	FViewModelPtr RootViewModel = SequencerPtr->GetViewModel()->GetRootModel();
+	TSharedPtr<FSectionModelStorageExtension> SectionStorageExtension = RootViewModel.ImplicitCast();
+	TSharedPtr<FSectionModel> SectionModel = SectionStorageExtension->FindModelForSection(Section);
+	FCachedChannelModels CachedChannels(SectionModel);
+
+	FMovieSceneChannelHandle ChannelHandles[] = {
+		CachedChannels.GetChannel("Location.X"),
+		CachedChannels.GetChannel("Location.Y"),
+		CachedChannels.GetChannel("Location.Z"),
+		CachedChannels.GetChannel("Rotation.X"),
+		CachedChannels.GetChannel("Rotation.Y"),
+		CachedChannels.GetChannel("Rotation.Z"),
+		CachedChannels.GetChannel("Scale.X"),
+		CachedChannels.GetChannel("Scale.Y"),
+		CachedChannels.GetChannel("Scale.Z")
+	};
+
+	bool IsChannelKeyable[9];
+	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
+	for (int32 Index = 0; Index < sizeof(IsChannelKeyable); ++Index)
+	{
+		IsChannelKeyable[Index] = (ChannelHandles[Index].GetChannelTypeName() == DoubleChannelTypeName);
+	}
 
 	// Set translation keys/defaults
 	{
@@ -712,9 +746,9 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 
 		FVector KeyVector = RecomposedTransform.Translation;
 
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(0, (double)KeyVector.X, bKeyX));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(1, (double)KeyVector.Y, bKeyY));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(2, (double)KeyVector.Z, bKeyZ));
+		if (IsChannelKeyable[0]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[0].GetChannelIndex(), (double)KeyVector.X, bKeyX)); }
+		if (IsChannelKeyable[1]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[1].GetChannelIndex(), (double)KeyVector.Y, bKeyY)); }
+		if (IsChannelKeyable[2]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[2].GetChannelIndex(), (double)KeyVector.Z, bKeyZ)); }
 	}
 
 	// Set rotation keys/defaults
@@ -753,10 +787,9 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 
 		// Do we need to unwind re-composed rotations?
 		KeyRotator = UnwindRotator(CurrentTransform.Rotation, RecomposedTransform.Rotation);
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(3, (double)KeyRotator.Roll, bKeyX));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(4, (double)KeyRotator.Pitch, bKeyY));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(5, (double)KeyRotator.Yaw, bKeyZ));
-
+		if (IsChannelKeyable[3]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[3].GetChannelIndex(), (double)KeyRotator.Roll, bKeyX)); }
+		if (IsChannelKeyable[4]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[4].GetChannelIndex(), (double)KeyRotator.Pitch, bKeyY)); }
+		if (IsChannelKeyable[5]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[5].GetChannelIndex(), (double)KeyRotator.Yaw, bKeyZ)); }
 	}
 
 	// Set scale keys/defaults
@@ -791,9 +824,9 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 		}
 
 		FVector KeyVector = RecomposedTransform.Scale;
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(6, (double)KeyVector.X, bKeyX));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(7, (double)KeyVector.Y, bKeyY));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(8, (double)KeyVector.Z, bKeyZ));
+		if (IsChannelKeyable[6]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[6].GetChannelIndex(), (double)KeyVector.X, bKeyX)); }
+		if (IsChannelKeyable[7]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[7].GetChannelIndex(), (double)KeyVector.Y, bKeyY)); }
+		if (IsChannelKeyable[8]) { OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(ChannelHandles[8].GetChannelIndex(), (double)KeyVector.Z, bKeyZ)); }
 	}
 }
 
@@ -1143,7 +1176,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 			for (TSharedPtr<IKeyArea> KeyArea : SectionsToKey[Index].KeyAreas)
 			{
 				FMovieSceneChannelHandle Handle  = KeyArea->GetChannel();
-				if (Handle.GetChannelTypeName() == FMovieSceneDoubleChannel::StaticStruct()->GetFName() && Handle.GetChannelIndex() < 9)
+				if (Handle.GetChannelTypeName() == FMovieSceneDoubleChannel::StaticStruct()->GetFName())
 				{
 					FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(Handle.Get());
 
@@ -1224,7 +1257,7 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 		}
 	}
 
-	if(AnimSequence && AnimSequence->GetDataModel()->GetNumBoneTracks() > 0)
+	if (AnimSequence && AnimSequence->GetDataModel()->GetNumBoneTracks() > 0)
 	{
 		const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "ImportAnimSequenceTransforms", "Import Anim Sequence Transforms" ) );
 
@@ -1237,6 +1270,8 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 		
 		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
+		// We know that there aren't any channel overrides (all 9 channels are double channels) because we're working
+		// on a brand new transform section.
 		TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
 		// Set default translation and rotation
