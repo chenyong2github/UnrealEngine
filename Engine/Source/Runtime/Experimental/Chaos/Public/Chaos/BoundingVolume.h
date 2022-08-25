@@ -473,8 +473,7 @@ private:
 	template <typename SQVisitor, bool bPruneDuplicates = true>
 	bool RaycastImp(const TVector<T, d>& Start, FQueryFastData& CurData, SQVisitor& Visitor, const FVec3& Dir, const FVec3 InvDir, const bool bParallel[3]) const
 	{
-		TVector<T, d> TmpPosition;
-		T TOI;
+		T TOI, ExitTime;
 
 		for (const auto& Elem : MGlobalPayloads)
 		{
@@ -485,7 +484,7 @@ private:
 
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start,
-				Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+				Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, ExitTime))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
@@ -506,7 +505,7 @@ private:
 
 			const auto& InstanceBounds = Elem.Bounds;
 			if (InstanceBounds.RaycastFast(Start, Dir,
-				InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+				InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, ExitTime))
 			{
 				TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 				const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);
@@ -573,7 +572,7 @@ private:
 					}
 					const auto& InstanceBounds = Elem.Bounds;
 					if (InstanceBounds.RaycastFast(Start,
-							Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, TmpPosition))
+							Dir, InvDir, bParallel, CurData.CurrentLength, CurData.InvCurrentLength, TOI, ExitTime))
 					{
 						TSpatialVisitorData<TPayloadType> VisitData(Elem.Payload, true, InstanceBounds);
 						const bool bContinue = Visitor.VisitRaycast(VisitData, CurData);

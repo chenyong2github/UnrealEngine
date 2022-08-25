@@ -252,10 +252,9 @@ private:
 				if (SQ != ESQType::Overlap)
 				{
 					//todo: use fast raycast
-					Chaos::FReal TmpTime;
-					FVec3 TmpPos;
+					Chaos::FReal TmpTime, TmpExitTime;
 					const FVec3 InflatedBoundsTraceStart = SQ == ESQType::Raycast ? StartPoint : QueryGeomWorldBounds.Center();
-					if (!InflatedWorldBounds.RaycastFast(InflatedBoundsTraceStart, CurData->Dir, CurData->InvDir, CurData->bParallel, CurData->CurrentLength, CurData->InvCurrentLength, TmpTime, TmpPos))
+					if (!InflatedWorldBounds.RaycastFast(InflatedBoundsTraceStart, CurData->Dir, CurData->InvDir, CurData->bParallel, CurData->CurrentLength, CurData->InvCurrentLength, TmpTime, TmpExitTime))
 					{
 						continue;
 					}
