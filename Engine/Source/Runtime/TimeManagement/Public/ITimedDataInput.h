@@ -92,6 +92,8 @@ public:
 	static double ConvertFrameOffsetInSecondOffset(double Frames, FFrameRate Rate);
 	
 public:
+	virtual ~ITimedDataInput() {}
+	
 	/** Get the name used when displayed. */
 	virtual FText GetDisplayName() const = 0;
 
@@ -127,6 +129,12 @@ public:
 
 	/** Remove channel from the input */
 	virtual void RemoveChannel(ITimedDataInputChannel* Channel) = 0;
+
+	/** Whether this input supports sub frames. */
+	virtual bool SupportsSubFrames() const
+	{
+		return true;
+	}
 
 	/** Convert second offset to frame offset using this input's framerate. */
 	double ConvertSecondOffsetInFrameOffset(double Seconds) const;

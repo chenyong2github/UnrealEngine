@@ -856,4 +856,9 @@ void FMediaIOCorePlayerBase::RemoveChannel(ITimedDataInputChannel* Channel)
 	Channels.Remove(Channel);
 }
 
+bool FMediaIOCorePlayerBase::SupportsSubFrames() const
+{
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE

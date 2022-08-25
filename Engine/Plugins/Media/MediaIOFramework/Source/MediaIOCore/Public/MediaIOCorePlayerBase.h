@@ -147,7 +147,8 @@ public:
 	virtual FFrameRate GetFrameRate() const override;
 	virtual bool IsDataBufferSizeControlledByInput() const override;
 	virtual void AddChannel(ITimedDataInputChannel* Channel) override;
-	virtual void RemoveChannel(ITimedDataInputChannel * Channel) override; 
+	virtual void RemoveChannel(ITimedDataInputChannel * Channel) override;
+	virtual bool SupportsSubFrames() const override;
 
 protected:
 	/** Is the IO hardware/device ready to be used. */

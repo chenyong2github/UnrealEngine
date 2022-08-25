@@ -4,20 +4,17 @@
 
 #include "CoreMinimal.h"
 
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "SlateOptMacros.h"
-
+#include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "TimedDataMonitorEditorStyle.h"
-
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -39,7 +36,20 @@ public:
 			, _ShowAmount(false)
 			, _TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>(TEXT("NormalText")))
 			, _ComboButton(true)
-		{ }
+			, _ControlModifierOffset(10)
+	{
+		_ShiftModifierOffset = NumericType(1) / 10;
+		if (!_ShiftModifierOffset)
+		{
+			_ShiftModifierOffset = 1;
+		}
+
+		_AltModifierOffset = NumericType(1) / 100;
+		if (!_AltModifierOffset)
+		{
+			_AltModifierOffset = 1;
+		}
+	}
 		SLATE_ATTRIBUTE(NumericType, Value)
 		SLATE_ARGUMENT(TOptional<NumericType>, MinValue)
 		SLATE_ARGUMENT(TOptional<NumericType>, MaxValue)
@@ -51,6 +61,9 @@ public:
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ARGUMENT(bool, ComboButton)
 		SLATE_EVENT(FOnValueCommitted, OnValueCommitted)
+		SLATE_ARGUMENT(NumericType, ControlModifierOffset)
+		SLATE_ARGUMENT(NumericType, AltModifierOffset)
+		SLATE_ARGUMENT(NumericType, ShiftModifierOffset)
 	SLATE_END_ARGS()
 	
 public:
@@ -65,6 +78,9 @@ public:
 		bShowAmount = InArgs._ShowAmount;
 		bComboButton = InArgs._ComboButton;
 		OnValueCommitted = InArgs._OnValueCommitted;
+		AltOffset = InArgs._AltModifierOffset;
+		ControlOffset = InArgs._ControlModifierOffset;
+		ShiftOffset = InArgs._ShiftModifierOffset;
 
 		TSharedRef<SWidget> TextBlock = SNew(STextBlock)
 			.TextStyle(InArgs._TextStyle)
@@ -149,7 +165,7 @@ public:
 			}
 		}
 	}
-	
+
 private:
 	FText GetValueText() const 
 	{
@@ -196,7 +212,7 @@ private:
 					CachedValue = Value.Get();
 					return TOptional<NumericType>(Value.Get()); 
 				})
-				.OnValueCommitted(this, &STimedDataNumericEntryBox::OnValueComittedCallback)
+				.OnValueCommitted(this, &STimedDataNumericEntryBox::OnValueCommittedCallback)
 
 			]
 			+ SHorizontalBox::Slot()
@@ -248,7 +264,7 @@ private:
 		}
 	}
 
-	void OnValueComittedCallback(NumericType NewValue, ETextCommit::Type CommitType)
+	void OnValueCommittedCallback(NumericType NewValue, ETextCommit::Type CommitType)
 	{
 		if (MinValue.IsSet())
 		{
@@ -262,17 +278,33 @@ private:
 
 		CachedValue = NewValue;
 		OnValueCommitted.ExecuteIfBound(NewValue, CommitType);
+		if (!ComboButton && CommitType == ETextCommit::Type::OnEnter)
+		{
+			// Clear focus to get the updated value in case it was modified externally.
+			FSlateApplication::Get().ClearKeyboardFocus();
+			FTimerHandle Handle;
+			constexpr float InRate = 0.01f;
+			constexpr bool InbLoop = false;
+			GEditor->GetTimerManager()->SetTimer(Handle, [this](){ FSlateApplication::Get().SetKeyboardFocus(EntryBox); }, InRate, InbLoop);
+		}
 	}
 
 	FReply OnMinusClicked()
 	{
+		NumericType Offset = GetModifierKeyOffset();
 		if (EntryBox)
 		{
 			CachedValue = Value.Get();
-			if (!MinValue.IsSet() || CachedValue - 1 >= MinValue.GetValue())
+			if (!MinValue.IsSet())
 			{
-				CachedValue--;
+				CachedValue -= Offset;
 			}
+
+			if (MinValue.IsSet() && CachedValue - Offset < MinValue.GetValue())
+			{
+				CachedValue = MinValue.GetValue();
+			}
+			
 			OnValueCommitted.ExecuteIfBound(CachedValue, ETextCommit::Type::Default);
 		}
 		return FReply::Handled();
@@ -280,16 +312,46 @@ private:
 
 	FReply OnPlusClicked()
 	{
+		NumericType Offset = GetModifierKeyOffset();
 		if (EntryBox)
 		{
 			CachedValue = Value.Get();
-			if (!MaxValue.IsSet() || CachedValue + 1 <= MinValue.GetValue())
+			if (!MaxValue.IsSet())
 			{
-				CachedValue++;
+				CachedValue += Offset;
+			}
+
+			if (MaxValue.IsSet() && CachedValue + Offset > MaxValue.GetValue())
+			{
+				CachedValue = MaxValue.GetValue();
 			}
 			OnValueCommitted.ExecuteIfBound(CachedValue, ETextCommit::Type::Default);
 		}
 		return FReply::Handled();
+	}
+
+	NumericType GetModifierKeyOffset() const
+	{
+		const bool bIsShiftDown = FSlateApplication::Get().GetModifierKeys().IsShiftDown();
+		const bool bIsControlDown = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+		const bool bIsAltDown = FSlateApplication::Get().GetModifierKeys().IsAltDown();
+		
+		NumericType Offset = 1;
+		
+		if (bIsShiftDown)
+		{
+			Offset = ShiftOffset;
+		}
+		else if (bIsControlDown)
+		{
+			Offset = ControlOffset;
+		}
+		else if (bIsAltDown)
+		{
+			Offset = AltOffset;
+		}
+
+		return Offset;
 	}
 
 private:
@@ -307,5 +369,8 @@ private:
 	bool bComboButton = true;
 	bool bCloseRequested = false;
 	TSharedPtr<SWidget> EditMenuContent;
+	NumericType AltOffset;
+	NumericType ShiftOffset;
+	NumericType ControlOffset;
 };
 
