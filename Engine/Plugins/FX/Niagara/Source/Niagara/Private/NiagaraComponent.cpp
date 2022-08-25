@@ -2574,6 +2574,24 @@ void UNiagaraComponent::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
+	auto PostLoadVariantDIs = [](auto& VariantMap)
+	{
+		for (const auto& Pair : VariantMap)
+		{
+			if (Pair.Value.GetMode() == ENiagaraVariantMode::DataInterface)
+			{
+				if (UNiagaraDataInterface* DI = Pair.Value.GetDataInterface())
+				{
+					DI->ConditionalPostLoad();
+				}
+			}
+		}
+	};
+	PostLoadVariantDIs(TemplateParameterOverrides);
+	PostLoadVariantDIs(InstanceParameterOverrides);
+#endif
+
 	OverrideParameters.PostLoad();
 	OverrideParameters.SanityCheckData();
 
