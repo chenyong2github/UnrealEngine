@@ -210,10 +210,10 @@ struct TReinitializeBoundMaterials
 
 	void PostTask()
 	{
-		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 		for (FMovieSceneEntityID EntityID : ReboundMaterials)
 		{
-			Linker->EntityManager.AddComponent(EntityID, BuiltInComponents->Tags.NeedsLink);
+			Linker->EntityManager.AddComponent(EntityID, TracksComponents->Tags.BoundMaterialChanged);
 		}
 	}
 };
@@ -334,6 +334,7 @@ void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnRun(UMovi
 		// Add bound materials for any NeedsLink entities that have material parameters
 		FEntityComponentFilter Filter(MaterialParameterFilter);
 		Filter.All({ BuiltInComponents->Tags.NeedsLink });
+		Filter.None({ BuiltInComponents->Tags.ImportedEntity });
 
 		using MutationType = TAddBoundMaterialMutationImpl<AccessorType, TMakeIntegerSequence<int, sizeof...(RequiredComponents)>, RequiredComponents...>;
 		Linker->EntityManager.MutateAll(Filter, MutationType(InRequiredComponents...));
@@ -346,6 +347,7 @@ void TMovieSceneMaterialSystem<AccessorType, RequiredComponents...>::OnRun(UMovi
 		.ReadEntityIDs()
 		.ReadAllOf(InRequiredComponents...)
 		.Write(TracksComponents->BoundMaterial)
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
 		.RunInline_PerEntity(&Linker->EntityManager, ReinitializeBoundMaterialsTask);
 	}

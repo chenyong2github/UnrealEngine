@@ -51,14 +51,12 @@ struct FAddMultipleMutation : IMovieSceneEntityMutation
 
 struct FRemoveMultipleMutation : IMovieSceneEntityMutation
 {
+	/* Mask that defines components to remove by _unset_ bits. This acts as a bitmask applied as a binary AND for each mutated allocation. */
+	FComponentMask MaskToRemove;
 
 	void RemoveComponent(FComponentTypeID InComponentType);
 
 	MOVIESCENE_API virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override;
-
-private:
-
-	FComponentMask MaskToRemove;
 };
 
 } // namespace MovieScene

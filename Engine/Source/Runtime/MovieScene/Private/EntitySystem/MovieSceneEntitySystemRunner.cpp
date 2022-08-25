@@ -490,7 +490,7 @@ bool FMovieSceneEntitySystemRunner::GameThread_SpawnPhase(UMovieSceneEntitySyste
 	// --------------------------------------------------------------------------------------------------------------------------------------------
 	// Only run the instantiation phase if there is anything to instantiate. This must come after the spawn phase because new instantiations may
 	// be created during the spawn phase
-	const bool bAnyPending = Linker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->Tags.NeedsLink) || InstanceRegistry->HasInvalidatedBindings();
+	const bool bAnyPending = Linker->EntityManager.ContainsAnyComponent(FBuiltInComponentTypes::Get()->RequiresInstantiationMask) || InstanceRegistry->HasInvalidatedBindings();
 	if (bInstantiationDirty == false && bAnyPending == false)
 	{
 		FlushState &= ~ERunnerFlushState::Instantiation;
@@ -541,9 +541,12 @@ bool FMovieSceneEntitySystemRunner::GameThread_PostInstantiation(UMovieSceneEnti
 
 	// Nothing needs linking, caching or restoring any more
 	FRemoveMultipleMutation Mutation;
-	Mutation.RemoveComponent(BuiltInComponentTypes->Tags.NeedsLink);
+	Mutation.MaskToRemove = BuiltInComponentTypes->RequiresInstantiationMask;
+	// Inverse the filter because MaskToRemove is applied as a binary AND against all matching allocations.
+	// Therefore, any set bits in RequiresInstantiationMask will be removed from components
+	Mutation.MaskToRemove.BitwiseNOT();
 
-	FEntityComponentFilter Filter = FEntityComponentFilter().Any({ BuiltInComponentTypes->Tags.NeedsLink });
+	FEntityComponentFilter Filter = FEntityComponentFilter().Any(BuiltInComponentTypes->RequiresInstantiationMask);
 	EntityManager.MutateAll(Filter, Mutation);
 
 	// Free anything that has been unlinked

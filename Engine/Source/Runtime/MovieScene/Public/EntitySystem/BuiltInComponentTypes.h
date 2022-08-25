@@ -230,6 +230,12 @@ public:
 
 public:
 
+	/**
+	 * Component mask where set bits denot component types that should trigger instantiation when present.
+	 * After instantiation, these components will be removed from any entities to prevent instantiation being run constantly
+	 */
+	FComponentMask RequiresInstantiationMask;
+
 	TComponentTypeID<FMovieSceneEntityID> ParentEntity;
 
 	TComponentTypeID<UObject*>            BoundObject;

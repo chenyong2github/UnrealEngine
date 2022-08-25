@@ -251,33 +251,58 @@ void UMovieSceneMaterialParameterSystem::OnInstantiation()
 
 	if (GMaterialParameterBlending)
 	{
-		const bool bHasScalars = Linker->EntityManager.ContainsComponent(TracksComponents->ScalarParameterName);
-		const bool bHasColors = Linker->EntityManager.ContainsComponent(TracksComponents->ColorParameterName);
-		const bool bHasVectors = Linker->EntityManager.ContainsComponent(TracksComponents->VectorParameterName);
+		auto HandleUnlinkedAllocation = [this](const FEntityAllocation* Allocation, TRead<UObject*> InObjects, TReadOneOf<FName, FName, FName> ScalarVectorOrColorParameterNames)
+		{
+			if (TComponentPtr<const FName> ScalarParameterNames = TComponentPtr<const FName>(ScalarVectorOrColorParameterNames.Get<0>()))
+			{
+				this->ScalarParameterTracker.VisitUnlinkedAllocation(Allocation);
+			}
+			else
+			{
+				this->VectorParameterTracker.VisitUnlinkedAllocation(Allocation);
+			}
+		};
 
-		if (bHasScalars)
+		auto HandleUpdatedAllocation = [this](const FEntityAllocation* Allocation, TRead<UObject*> InObjects, TReadOneOf<FName, FName, FName> ScalarVectorOrColorParameterNames)
 		{
-			ScalarParameterTracker.Update(Linker, TracksComponents->BoundMaterial, TracksComponents->ScalarParameterName, FEntityComponentFilter());
+			if (TComponentPtr<const FName> ScalarParameterNames = TComponentPtr<const FName>(ScalarVectorOrColorParameterNames.Get<0>()))
+			{
+				this->ScalarParameterTracker.VisitActiveAllocation(Allocation, InObjects, ScalarParameterNames);
+			}
+			else if (TComponentPtr<const FName> VectorParameterNames = TComponentPtr<const FName>(ScalarVectorOrColorParameterNames.Get<1>()))
+			{
+				this->VectorParameterTracker.VisitActiveAllocation(Allocation, InObjects, VectorParameterNames);
+			}
+			else if (TComponentPtr<const FName> ColorParameterNames = TComponentPtr<const FName>(ScalarVectorOrColorParameterNames.Get<2>()))
+			{
+				this->VectorParameterTracker.VisitActiveAllocation(Allocation, InObjects, ColorParameterNames);
+			}
+		};
 
-			FOverlappingMaterialParameterHandler Handler(this);
-			Handler.DefaultComponentMask.Set(BuiltInComponents->DoubleResult[0]);
-			ScalarParameterTracker.ProcessInvalidatedOutputs(Linker, Handler);
-		}
+		// Next handle any new or updated bound materials
+		FEntityTaskBuilder()
+		.Read(TracksComponents->BoundMaterial)
+		.ReadOneOf(TracksComponents->ScalarParameterName, TracksComponents->VectorParameterName, TracksComponents->ColorParameterName)
+		.FilterAny({ BuiltInComponents->Tags.NeedsLink, TracksComponents->Tags.BoundMaterialChanged })
+		.FilterNone({ BuiltInComponents->Tags.NeedsUnlink })
+		.Iterate_PerAllocation(&Linker->EntityManager, HandleUpdatedAllocation);
 
-		if (bHasColors)
-		{
-			VectorParameterTracker.Update(Linker, TracksComponents->BoundMaterial, TracksComponents->ColorParameterName, FEntityComponentFilter());
-		}
-		if (bHasVectors)
-		{
-			VectorParameterTracker.Update(Linker, TracksComponents->BoundMaterial, TracksComponents->VectorParameterName, FEntityComponentFilter());
-		}
-		if (bHasColors || bHasVectors)
-		{
-			FOverlappingMaterialParameterHandler Handler(this);
-			Handler.DefaultComponentMask.SetAll({ BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2], BuiltInComponents->DoubleResult[3] });
-			VectorParameterTracker.ProcessInvalidatedOutputs(Linker, Handler);
-		}
+		// First step, handle any entities that are going away
+		FEntityTaskBuilder()
+		.Read(TracksComponents->BoundMaterial)
+		.ReadOneOf(TracksComponents->ScalarParameterName, TracksComponents->VectorParameterName, TracksComponents->ColorParameterName)
+		.FilterAll({ BuiltInComponents->Tags.NeedsUnlink })
+		.Iterate_PerAllocation(&Linker->EntityManager, HandleUnlinkedAllocation);
+
+		// Process all blended scalar parameters
+		FOverlappingMaterialParameterHandler ScalarHandler(this);
+		ScalarHandler.DefaultComponentMask.Set(BuiltInComponents->DoubleResult[0]);
+		ScalarParameterTracker.ProcessInvalidatedOutputs(Linker, ScalarHandler);
+
+		// Process all blended vector parameters
+		FOverlappingMaterialParameterHandler VectorHandler(this);
+		VectorHandler.DefaultComponentMask.SetAll({ BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2], BuiltInComponents->DoubleResult[3] });
+		VectorParameterTracker.ProcessInvalidatedOutputs(Linker, VectorHandler);
 	}
 }
 

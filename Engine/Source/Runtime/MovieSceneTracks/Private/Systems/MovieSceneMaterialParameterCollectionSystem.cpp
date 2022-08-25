@@ -257,6 +257,7 @@ void UMovieSceneMaterialParameterCollectionSystem::OnRun(FSystemTaskPrerequisite
 	// Only mutate things that are tagged as requiring linking
 	FEntityComponentFilter Filter;
 	Filter.All({ TracksComponents->MPC, BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink });
+	Filter.None({ BuiltInComponents->Tags.ImportedEntity });
 
 	// Initialize bound dynamic materials (for material collection parameters)
 	FAddMPCMutation BindMaterialsMutation(Linker);

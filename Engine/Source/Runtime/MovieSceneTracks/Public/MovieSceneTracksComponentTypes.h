@@ -459,6 +459,11 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 		TCustomPropertyRegistration<FComponentTransformPropertyTraits, 1> ComponentTransform;
 	} Accessors;
 
+	struct
+	{
+		FComponentTypeID BoundMaterialChanged;
+	} Tags;
+
 	TComponentTypeID<FLevelVisibilityComponentData> LevelVisibility;
 	TComponentTypeID<FMovieSceneDataLayerComponentData> DataLayer;
 

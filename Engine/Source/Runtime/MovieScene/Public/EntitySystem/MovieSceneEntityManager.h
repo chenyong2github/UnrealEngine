@@ -699,6 +699,17 @@ public:
 		return Algo::AnyOf(ComponentTypeIDs, [&Mask](FComponentTypeID In){ return Mask.Contains(In); });
 	}
 
+	/**
+	 * Check whether any entity in this manager has any of the specified components
+	 *
+	 * @param ComponentTypeIDs     The types of the component that are being tested for
+	 * @return true if any one of the specified components exist anywhere in this manager, false otherwise
+	 */
+	bool ContainsAnyComponent(const FComponentMask& ComponentTypeIDs) const
+	{
+		const FComponentMask& Mask = GetAccumulatedMask();
+		return FComponentMask::BitwiseAND(Mask, ComponentTypeIDs, EBitwiseOperatorFlags::MinSize).NumComponents() != 0;
+	}
 
 	/**
 	 * Check whether all of the specified components exist anywhere in this entity manager

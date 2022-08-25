@@ -320,6 +320,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EvaluationHook, EvalTime);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EvaluationHook, EvaluationHookFlags);
 	}
+
+	RequiresInstantiationMask.Set(Tags.NeedsLink);
 }
 
 FBuiltInComponentTypes::~FBuiltInComponentTypes()
