@@ -42,7 +42,7 @@ namespace
 				const int StartingIndex = InstanceIndex * FloatArray.NumFloats;
 				const int EndingIndex = (InstanceIndex + 1) * FloatArray.NumFloats;
 
-				OutPackedFloats.Append(MakeArrayView(&(FloatArray.CustomData[StartingIndex]), EndingIndex - StartingIndex));
+				OutPackedFloats.Append(&(FloatArray.CustomData[StartingIndex]), EndingIndex - StartingIndex);
 			}
 		}
 

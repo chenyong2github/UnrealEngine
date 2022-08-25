@@ -15,6 +15,13 @@ enum class EPCGElementType : uint8
 };
 ENUM_CLASS_FLAGS(EPCGElementType);
 
+/** Used to make sure UHT generates properly */
+USTRUCT()
+struct FPCGEditorCommonDummyStruct
+{
+	GENERATED_BODY()
+};
+
 namespace FPCGEditorCommon
 {
 	const FString ContextIdentifier = TEXT("PCGEditorContext");
