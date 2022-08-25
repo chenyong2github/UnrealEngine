@@ -769,7 +769,7 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 			{
 				const int32 Index = TriVertexIndex[TriVertCount];
 				FDynamicMeshVertex Vert;
-				Vert.Position = (FVector3f)VertexData[Index];
+				Vert.Position = (FVector3f)Transform.TransformPosition(VertexData[Index]);
 				Vert.Color = VertexColor;
 				Vert.SetTangents((FVector3f)TangentX, (FVector3f)TangentY, (FVector3f)TangentZ);
 				VertexBuffer.Add(Vert);
