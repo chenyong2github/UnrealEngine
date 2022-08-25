@@ -537,6 +537,8 @@ FPostProcessSettings::FPostProcessSettings()
 	LumenFinalGatherQuality = 1;
 	LumenFinalGatherLightingUpdateSpeed = 1;
 	LumenMaxTraceDistance = 20000.0f;
+	LumenSkylightLeaking = 0.0f;
+	LumenFullSkylightLeakingDistance = 1000.0f;
 
 	ColorGradingIntensity = 1.0f;
 	RayTracingGIType = ERayTracingGlobalIlluminationType::Disabled;
@@ -795,6 +797,8 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
     , bOverride_LumenFinalGatherQuality(Settings.bOverride_LumenFinalGatherQuality)
     , bOverride_LumenFinalGatherLightingUpdateSpeed(Settings.bOverride_LumenFinalGatherLightingUpdateSpeed)
     , bOverride_LumenMaxTraceDistance(Settings.bOverride_LumenMaxTraceDistance)
+	, bOverride_LumenSkylightLeaking(Settings.bOverride_LumenSkylightLeaking)
+	, bOverride_LumenFullSkylightLeakingDistance(Settings.bOverride_LumenFullSkylightLeakingDistance)
 	, bOverride_LumenRayLightingMode(Settings.bOverride_LumenRayLightingMode)
 	, bOverride_LumenFrontLayerTranslucencyReflections(Settings.bOverride_LumenFrontLayerTranslucencyReflections)
 	, bOverride_RayTracingGI(Settings.bOverride_RayTracingGI)
@@ -886,6 +890,8 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, LumenFinalGatherQuality(Settings.LumenFinalGatherQuality)
 	, LumenFinalGatherLightingUpdateSpeed(Settings.LumenFinalGatherLightingUpdateSpeed)
 	, LumenMaxTraceDistance(Settings.LumenMaxTraceDistance)
+	, LumenSkylightLeaking(Settings.LumenSkylightLeaking)
+	, LumenFullSkylightLeakingDistance(Settings.LumenFullSkylightLeakingDistance)
 	, RayTracingGIType(Settings.RayTracingGIType)
 	, RayTracingGIMaxBounces(Settings.RayTracingGIMaxBounces)
 	, RayTracingGISamplesPerPixel(Settings.RayTracingGISamplesPerPixel)

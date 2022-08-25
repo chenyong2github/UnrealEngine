@@ -263,6 +263,7 @@ void ScreenProbeTraceScreenTexturesCS(
 				bHit = bHit && !bUncertain;
 
 				bool bFastMoving = false;
+				float HitDistance = min(sqrt(ComputeRayHitSqrDistance(TranslatedWorldPosition, HitUVz)), MaxTraceDistance);
 
 				if (bHit)
 				{
@@ -310,6 +311,8 @@ void ScreenProbeTraceScreenTexturesCS(
 						HitHistoryScreenUV = clamp(HitHistoryScreenUV, PrevSceneColorBilinearUVMin, PrevSceneColorBilinearUVMax);
 						float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
 
+						Lighting += GetSkylightLeaking(RayWorldDirection, HitDistance) * View.PreExposure;
+
 						#if DEBUG_VISUALIZE_TRACE_TYPES
 							RWTraceRadiance[TraceBufferCoord] = float3(.5f, 0, 0) * View.PreExposure;
 						#else
@@ -330,7 +333,6 @@ void ScreenProbeTraceScreenTexturesCS(
 
 				if (bHit || bWriteDepthOnMiss)
 				{
-					float HitDistance = min(sqrt(ComputeRayHitSqrDistance(TranslatedWorldPosition, HitUVz)), MaxTraceDistance);
 					WriteTraceHit(TraceBufferCoord, HitDistance, bHit, bFastMoving);
 				}
 			}
@@ -537,21 +539,25 @@ void TraceMeshSDFs(
 
 			Transparency = lerp(Transparency, 1, DistanceFade);
 
-#if !TRACE_LIGHT_SAMPLES
-			Lighting *= 1 - DistanceFade;
-			Lighting *= View.PreExposure;
-
-			#if DEBUG_VISUALIZE_TRACE_TYPES
-				RWTraceRadiance[TraceBufferCoord] = float3(0, .5f, 0) * View.PreExposure;
-			#else
-				RWTraceRadiance[TraceBufferCoord] = Lighting;
-			#endif
-#endif
-
 			if (Transparency < InterleavedGradientNoise(TraceBufferCoord + 0.5f, 0))
 			{
 				bHit = true;
 			}
+
+#if !TRACE_LIGHT_SAMPLES
+			if (bHit)
+			{
+				Lighting *= 1 - DistanceFade;
+				Lighting += GetSkylightLeaking(RayWorldDirection, OpaqueHitDistance);
+				Lighting *= View.PreExposure;
+
+				#if DEBUG_VISUALIZE_TRACE_TYPES
+					RWTraceRadiance[TraceBufferCoord] = float3(0, .5f, 0) * View.PreExposure;
+				#else
+					RWTraceRadiance[TraceBufferCoord] = Lighting;
+				#endif
+			}
+#endif
 
 			TraceHitDistance = OpaqueHitDistance + length(WorldPosition - SamplePosition);
 		}
@@ -701,6 +707,8 @@ void TraceVoxels(
 					TraceHitDistance = MaxTraceDistance;
 				}
 			}
+
+			TraceResult.Lighting += GetSkylightLeaking(RayWorldDirection, TraceHitDistance);
 
 			TraceResult.Lighting *= View.PreExposure;
 

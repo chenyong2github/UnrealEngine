@@ -47,6 +47,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+	SHADER_PARAMETER(float, SkylightLeaking)
+	SHADER_PARAMETER(float, InvFullSkylightLeakingDistance)
 
 	// GPU Scene
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)

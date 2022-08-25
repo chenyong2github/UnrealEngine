@@ -137,6 +137,9 @@ void GetLumenCardTracingParameters(
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 	
+	TracingParameters.SkylightLeaking = View.FinalPostProcessSettings.LumenSkylightLeaking;
+	TracingParameters.InvFullSkylightLeakingDistance = 1.0f / FMath::Clamp<float>(View.FinalPostProcessSettings.LumenFullSkylightLeakingDistance, .1f, Lumen::GetMaxTraceDistance(View));
+
 	// GPUScene
 	const FScene* Scene = ((const FScene*)View.Family->Scene);
 	const FGPUSceneResourceParameters GPUSceneParameters = Scene->GPUScene.GetShaderParameters();

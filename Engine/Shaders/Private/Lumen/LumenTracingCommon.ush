@@ -1469,3 +1469,25 @@ void ApplySkylightToTraceResult(float3 ConeDirection, inout FConeTraceResult Tra
 	}
 #endif
 }
+
+float SkylightLeaking;
+float InvFullSkylightLeakingDistance;
+
+float CalculateSkylightLeakingAmount(float HitDistance)
+{
+	return SkylightLeaking * saturate(HitDistance  * InvFullSkylightLeakingDistance);
+}
+
+float3 GetSkylightLeaking(float3 ConeDirection, float HitDistance)
+{
+	float3 Lighting = 0;
+
+	if (ReflectionStruct.SkyLightParameters.y > 0 && SkylightLeaking > 0.0f)
+	{
+		float SkyAverageBrightness = 1.0f;
+		float Roughness = 0.0f;
+		Lighting = GetSkyLightReflection(ConeDirection, Roughness, SkyAverageBrightness) * CalculateSkylightLeakingAmount(HitDistance);
+	}
+
+	return Lighting;
+}

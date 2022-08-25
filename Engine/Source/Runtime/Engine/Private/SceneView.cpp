@@ -1656,6 +1656,16 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.LumenMaxTraceDistance = Src.LumenMaxTraceDistance;
 		}
 
+		if (Src.bOverride_LumenSkylightLeaking)
+		{
+			Dest.LumenSkylightLeaking = Src.LumenSkylightLeaking;
+		}
+
+		if (Src.bOverride_LumenFullSkylightLeakingDistance)
+		{
+			Dest.LumenFullSkylightLeakingDistance = Src.LumenFullSkylightLeakingDistance;
+		}
+
 		if (Src.bOverride_LumenRayLightingMode)
 		{
 			Dest.LumenRayLightingMode = Src.LumenRayLightingMode;
