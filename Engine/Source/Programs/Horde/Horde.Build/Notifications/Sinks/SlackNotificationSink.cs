@@ -931,7 +931,7 @@ namespace Horde.Build.Notifications.Sinks
 
 						if (workflow.TriageAlias != null)
 						{
-							string triageMessage = $"(<@{workflow.TriageAlias}> for triage).";
+							string triageMessage = $"({FormatUserOrGroupMention(workflow.TriageAlias)} for triage).";
 							await _slackClient.PostMessageAsync(triageChannel, state.Ts, triageMessage);
 						}
 					}
@@ -1281,6 +1281,18 @@ namespace Horde.Build.Notifications.Sinks
 			else
 			{
 				return $"<{_externalIssueService.GetIssueUrl(key)}|{key}>";
+			}
+		}
+
+		static string FormatUserOrGroupMention(string userOrGroup)
+		{
+			if (userOrGroup.StartsWith("S", StringComparison.OrdinalIgnoreCase))
+			{
+				return $"<!subteam^{userOrGroup}>";
+			}
+			else
+			{
+				return $"<@{userOrGroup}>";
 			}
 		}
 
@@ -2108,7 +2120,7 @@ namespace Horde.Build.Notifications.Sinks
 					openTimeStr = $"{(int)openTime.TotalDays}d";
 				}
 
-				await _slackClient.PostMessageAsync(workflow.TriageChannel, state.Ts, $"<@{workflow.EscalateAlias}>: Issue has not been resolved after {openTimeStr}.");
+				await _slackClient.PostMessageAsync(workflow.TriageChannel, state.Ts, $"{FormatUserOrGroupMention(workflow.EscalateAlias)}> - Issue has not been resolved after {openTimeStr}.");
 			}
 
 			DateTime nextEscalationTime = span.FirstFailure.StepTime;
