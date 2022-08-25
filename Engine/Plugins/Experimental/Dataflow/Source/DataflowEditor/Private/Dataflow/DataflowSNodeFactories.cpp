@@ -5,6 +5,7 @@
 #include "Dataflow/DataflowEdNode.h"
 #include "EdGraphNode_Comment.h"
 #include "Dataflow/DataflowCommentNode.h"
+#include "Dataflow/DataflowSchema.h"
 
 TSharedPtr<class SGraphNode> FDataflowSNodeFactory::CreateNode(UEdGraphNode* InNode) const
 {
@@ -14,7 +15,10 @@ TSharedPtr<class SGraphNode> FDataflowSNodeFactory::CreateNode(UEdGraphNode* InN
 	}	
 	else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(InNode))
 	{
-		return SNew(SDataflowEdNodeComment, CommentNode);
+		if (CommentNode->GetSchema()->IsA(UDataflowSchema::StaticClass()))
+		{
+			return SNew(SDataflowEdNodeComment, CommentNode);
+		}
 	}
 	return NULL;
 }
