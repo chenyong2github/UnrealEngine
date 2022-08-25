@@ -112,6 +112,7 @@ namespace UE::Anim::FootPlacement
 		{
 			FTransform FKTransformCS = FTransform::Identity;
 			FTransform IKRootTransformCS = FTransform::Identity;
+			FVector FootMidpointCS = FVector::ZeroVector;
 		} InputPose;
 
 		/* Interpolation */
@@ -146,19 +147,20 @@ namespace UE::Anim::FootPlacement
 		TArray<FVector> OutputFootLocationsWS;
 		TArray<FVector> InputFootLocationsWS;
 
-		struct FLegExtension
+		struct FLegInfo
 		{
 			float HyperExtensionAmount;
 			float RollAmount;
 			float PullAmount;
+			float DistanceToSeparatingPlane;
 		};
-		TArray<FLegExtension> LegsExtension;
+		TArray<FLegInfo> LegsInfo;
 
 		void Init(const int32 InSize)
 		{
 			OutputFootLocationsWS.SetNumUninitialized(InSize);
 			InputFootLocationsWS.SetNumUninitialized(InSize);
-			LegsExtension.SetNumUninitialized(InSize);
+			LegsInfo.SetNumUninitialized(InSize);
 		}
 	};
 #endif
@@ -268,12 +270,6 @@ struct FFootPlacementPelvisSettings
 	GENERATED_BODY()
 
 public:
-	// Max horizontal foot adjustment we consider to lower the hips
-	// This can be used to prevent the hips from dropping too low when the feet are locked
-	// Exceeding this value will first attempt to roll the planted feet, and then slide
-	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
-	float MaxOffsetHorizontal = 20.0f;
-
 	// Max vertical offset from the input pose for the Pelvis.
 	// Reaching this limit means the feet may not reach their plant plane
 	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
@@ -284,6 +280,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
 	float LinearDamping = 1.0f;
+
+	// Max horizontal foot adjustment we consider to lower the hips
+	// This can be used to prevent the hips from dropping too low when the feet are locked
+	// Exceeding this value will first attempt to roll the planted feet, and then slide
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
+	float MaxOffsetHorizontal = 10.0f;
 
 	// This is used to hold the Pelvis's interpolator in a fixed spot when the capsule suddenly moves (i.e. on a big step)
 	// If your camera is directly attached to the character with little to no smoothing, you may want this disabled
@@ -362,6 +364,11 @@ public:
 	// Min extension ratio of the chain, calculated from the total limb length, and adjusted along the approach direction
 	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float MinExtensionRatio = 0.2f;
+
+	// The minimum distance the feet can be from the plane that separates the feet. 
+	// Value of 0 disables this
+	UPROPERTY(EditAnywhere, Category = "Plant Settings", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float SeparatingDistance = 0.0f;
 
 	// Speed at which we transition to fully unplanted.
 	// The range between SpeedThreshold and UnalignmentSpeedThreshold should roughly represent the roll-phase of the foot
@@ -444,6 +451,10 @@ private:
 		const UE::Anim::FootPlacement::FEvaluationContext& Context,
 		UE::Anim::FootPlacement::FLegRuntimeData& LegData,
 		const FFootPlacemenLegDefinition& LegDef);
+	void CalculateFootMidpoint(
+		const UE::Anim::FootPlacement::FEvaluationContext& Context,
+		TConstArrayView<UE::Anim::FootPlacement::FLegRuntimeData> LegData,
+		FVector& OutMidpoint) const;
 	void ProcessCharacterState(const UE::Anim::FootPlacement::FEvaluationContext& Context);
 	void ProcessFootAlignment(
 		const UE::Anim::FootPlacement::FEvaluationContext& Context,
