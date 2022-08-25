@@ -87,6 +87,12 @@ struct FRCPreviewRenderCompletedEvent
 	 */
 	UPROPERTY()
 	int64 SequenceNumber = -1;
+
+	/**
+	 * If true, real-time preview rendering is disabled in the engine, which may prevent nDisplay previews and light card positions from updating correctly.
+	 */
+	UPROPERTY()
+	bool IsRealTimeDisabled = false;
 };
 
 /**

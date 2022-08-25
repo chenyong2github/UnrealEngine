@@ -181,4 +181,9 @@ public:
 	 * @param ResultDelegate The delegate to call when the render is complete. It will be passed a FRenderTarget containing the rendered preview.
 	 */
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, TWeakPtr<FCanvas> Canvas, FRenderResultDelegate ResultDelegate) = 0;
+
+	/**
+	 * Check whether nDisplay preview textures are being updated in real time.
+	 */
+	virtual bool IsRealTimePreviewEnabled() const = 0;
 };

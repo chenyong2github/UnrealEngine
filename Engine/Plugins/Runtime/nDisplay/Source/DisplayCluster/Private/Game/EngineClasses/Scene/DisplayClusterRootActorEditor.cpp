@@ -208,6 +208,11 @@ bool ADisplayClusterRootActor::IsPreviewEnabled() const
 	}
 #endif
 
+	if (!PreviewEnableOverriders.IsEmpty())
+	{
+		return true;
+	}
+
 	return bPreviewEnable;
 }
 
@@ -325,7 +330,7 @@ bool ADisplayClusterRootActor::ImplUpdatePreviewConfiguration_Editor(const FStri
 {
 	PreviewRenderFrame.Reset();
 
-	if (bPreviewEnable && ViewportManager.IsValid())
+	if (IsPreviewEnabled() && ViewportManager.IsValid())
 	{
 		FDisplayClusterPreviewSettings PreviewSettings;
 		PreviewSettings.PreviewRenderTargetRatioMult = PreviewRenderTargetRatioMult;
@@ -424,7 +429,7 @@ bool ADisplayClusterRootActor::ImplRenderPassPreviewClusterNode_Editor()
 
 void ADisplayClusterRootActor::ImplRenderPreview_Editor()
 {
-	if (CurrentConfigData == nullptr || !bPreviewEnable || !ViewportManager.IsValid())
+	if (CurrentConfigData == nullptr || !IsPreviewEnabled() || !ViewportManager.IsValid())
 	{
 		// no preview
 		return;
@@ -817,7 +822,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 
 	TArray<UDisplayClusterPreviewComponent*> IteratedPreviewComponents;
 	
-	if (CurrentConfigData != nullptr && bPreviewEnable)
+	if (CurrentConfigData != nullptr && IsPreviewEnabled())
 	{
 		for (const UE_TRANSITIONAL_OBJECT_PTR_TEMPLATE2_ARG2(TPair, FString, UDisplayClusterConfigurationClusterNode)& Node : CurrentConfigData->Cluster->Nodes)
 		{
@@ -912,6 +917,22 @@ bool ADisplayClusterRootActor::DoObserversNeedPostProcessRenderTarget() const
 bool ADisplayClusterRootActor::ShouldThisFrameOutputPreviewToPostProcessRenderTarget() const
 {
 	return bOutputFrameToPostProcessRenderTarget;
+}
+
+void ADisplayClusterRootActor::AddPreviewEnableOverride(const uint8* Object)
+{
+	check(Object);
+	PreviewEnableOverriders.Add(Object);
+
+	UpdatePreviewComponents();
+}
+
+void ADisplayClusterRootActor::RemovePreviewEnableOverride(const uint8* Object)
+{
+	check(Object);
+	PreviewEnableOverriders.Remove(Object);
+
+	UpdatePreviewComponents();
 }
 
 FString ADisplayClusterRootActor::GeneratePreviewComponentName_Editor(const FString& NodeId, const FString& ViewportId) const

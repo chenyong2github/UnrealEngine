@@ -40,6 +40,7 @@ public:
 	virtual bool Render(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas) override;
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const FIntPoint& Size, FRenderResultDelegate ResultDelegate) override;
 	virtual bool RenderQueued(int32 RendererId, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, const TWeakPtr<FCanvas> Canvas, FRenderResultDelegate ResultDelegate) override;
+	virtual bool IsRealTimePreviewEnabled() const override;
 	//~ End IDisplayClusterScenePreview Interface
 
 private:
@@ -126,6 +127,9 @@ private:
 	/** Clear and re-populate a renderer's scene with the root actor and lightcards if applicable. */
 	void AutoPopulateScene(FRendererConfig& RendererConfig);
 
+	/** Check whether nDisplay preview textures are being updated in real time. */
+	bool UpdateIsRealTimePreviewEnabled();
+
 	/** Called on tick to process the queued renders. */
 	bool OnTick(float DeltaTime);
 
@@ -160,4 +164,7 @@ private:
 
 	/** Whether this is currently registered for actor update events. */
 	bool bIsRegisteredForActorEvents = false;
+
+	/** Whether nDisplay preview textures are being updated in real time. */
+	bool bIsRealTimePreviewEnabled = false;
 };

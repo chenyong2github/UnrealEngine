@@ -101,7 +101,7 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 
 bool UDisplayClusterPreviewComponent::IsPreviewEnabled() const
 {
-	return (ViewportConfig && RootActor && RootActor->bPreviewEnable);
+	return (ViewportConfig && RootActor && RootActor->IsPreviewEnabled());
 }
 
 void UDisplayClusterPreviewComponent::RestorePreviewMeshMaterial()

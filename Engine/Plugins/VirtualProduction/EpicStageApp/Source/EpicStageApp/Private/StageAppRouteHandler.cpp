@@ -442,6 +442,7 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewRender(const FRemoteCo
 			FRCPreviewRenderCompletedEvent Event;
 			Event.RendererId = RendererId;
 			Event.ImageBase64 = FBase64::Encode(JpegData.GetData(), JpegData.Num());
+			Event.IsRealTimeDisabled = !IDisplayClusterScenePreview::Get().IsRealTimePreviewEnabled();
 
 			if (PerRendererData)
 			{

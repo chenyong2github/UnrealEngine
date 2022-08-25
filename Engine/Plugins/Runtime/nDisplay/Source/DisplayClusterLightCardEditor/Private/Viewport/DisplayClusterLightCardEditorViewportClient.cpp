@@ -405,6 +405,38 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(FViewport* InViewport, F
 		DrawStatsHUD( World, Viewport, DebugCanvas, NULL, EmptyPropertyArray, GetViewLocation(), GetViewRotation() );
 	}
 
+	// Show warning if nDisplay real-time rendering is disabled
+	if (!IDisplayClusterScenePreview::Get().IsRealTimePreviewEnabled())
+	{
+		const FString WarningLines[] = {
+			LOCTEXT("RealTimeWarningLine1", "WARNING: Real-time rendering is disabled.").ToString(),
+			LOCTEXT("RealTimeWarningLine2", "nDisplay previews and light card positions may not update correctly.").ToString(),
+		};
+		const int32 TextMargin = 8;
+
+		const float RightMarginX = Viewport->GetSizeXY().X - TextMargin;
+		FCanvasTextItem RealTimeWarningText(
+			FVector2D(RightMarginX, Viewport->GetSizeXY().Y - TextMargin),
+			FText::GetEmpty(),
+			GEngine->GetSmallFont(),
+			FLinearColor::Yellow
+		);
+		RealTimeWarningText.EnableShadow(FLinearColor::Black);
+
+		// Draw each line, starting from the bottom edge of the viewport
+		for (int32 LineIndex = sizeof(WarningLines) / sizeof(FString) - 1; LineIndex >= 0; --LineIndex)
+		{
+			const FString& LineString = WarningLines[LineIndex];
+			const int32 TextWidth = RealTimeWarningText.Font->GetStringSize(*LineString);
+
+			RealTimeWarningText.Text = FText::FromString(LineString);
+			RealTimeWarningText.Position.X = RightMarginX - TextWidth;
+			RealTimeWarningText.Position.Y -= RealTimeWarningText.Font->GetStringHeightSize(*LineString);
+
+			Canvas->DrawItem(RealTimeWarningText);
+		}
+	}
+
 	if(!IsRealtime())
 	{
 		// Wait for the rendering thread to finish drawing the view before returning.
@@ -1226,8 +1258,10 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				Finalize();
 				return;
 			}
-			
-			RootActorPtr->SubscribeToPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+
+			const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+			RootActorPtr->SubscribeToPostProcessRenderTarget(GenericThis);
+			RootActorPtr->AddPreviewEnableOverride(GenericThis);
 			RootActorLevelInstance = RootActorPtr;
 			
 			if (ProxyType == EDisplayClusterLightCardEditorProxyType::All ||
@@ -1422,7 +1456,9 @@ void FDisplayClusterLightCardEditorViewportClient::DestroyProxies(
 
 		if (RootActorLevelInstance.IsValid())
 		{
-			RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+			const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+			RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(GenericThis);
+			RootActorLevelInstance->RemovePreviewEnableOverride(GenericThis);
 			RootActorLevelInstance.Reset();
 		}
 	}

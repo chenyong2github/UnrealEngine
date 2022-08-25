@@ -11,6 +11,10 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/TransactionObjectEvent.h"
 
+#if WITH_EDITOR
+#include "LevelEditorViewport.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "DisplayClusterScenePreview"
 
 static TAutoConsoleVariable<float> CVarDisplayClusterScenePreviewRenderTickDelay(
@@ -232,6 +236,11 @@ bool FDisplayClusterScenePreviewModule::RenderQueued(int32 RendererId, FDisplayC
 	return InternalRenderQueued(RendererId, RenderSettings, Canvas, RenderTarget->GetSizeXY(), ResultDelegate);
 }
 
+bool FDisplayClusterScenePreviewModule::IsRealTimePreviewEnabled() const
+{
+	return bIsRealTimePreviewEnabled;
+}
+
 ADisplayClusterRootActor* FDisplayClusterScenePreviewModule::InternalGetRendererRootActor(FRendererConfig& RendererConfig)
 {
 	if (!RendererConfig.RootActor.IsValid() && !RendererConfig.RootActorPath.IsEmpty())
@@ -292,6 +301,9 @@ void FDisplayClusterScenePreviewModule::InternalSetRendererRootActor(FRendererCo
 
 bool FDisplayClusterScenePreviewModule::InternalRenderImmediate(FRendererConfig& RendererConfig, FDisplayClusterMeshProjectionRenderSettings& RenderSettings, FCanvas& Canvas)
 {
+	// Update this so that whoever gets the callback can immediately check whether the nDisplay preview may be out of date
+	UpdateIsRealTimePreviewEnabled();
+
 	UWorld* World = RendererConfig.RootActor.IsValid() ? RendererConfig.RootActor->GetWorld() : nullptr;
 	if (!World)
 	{
@@ -393,12 +405,17 @@ void FDisplayClusterScenePreviewModule::RegisterRootActorEvents(ADisplayClusterR
 		return;
 	}
 
-	// Register/unregister actors to use post-processing for preview renders so their lighting looks correct
-	Actor->UnsubscribeFromPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+	const uint8* GenericThis = reinterpret_cast<uint8*>(this);
+
+	// Register/unregister actors to use post-processing for preview renders so their lighting looks correct,
+	// and add/remove preview override so our preview renders have the latest nDisplay preview texture.
+	Actor->UnsubscribeFromPostProcessRenderTarget(GenericThis);
+	Actor->RemovePreviewEnableOverride(GenericThis);
 
 	if (bShouldRegister)
 	{
-		Actor->SubscribeToPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
+		Actor->SubscribeToPostProcessRenderTarget(GenericThis);
+		Actor->AddPreviewEnableOverride(GenericThis);
 	}
 
 	// Register/unregister for Blueprint events
@@ -441,6 +458,31 @@ void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& Rende
 	}
 
 	RendererConfig.bIsSceneDirty = false;
+}
+
+bool FDisplayClusterScenePreviewModule::UpdateIsRealTimePreviewEnabled()
+{
+#if WITH_EDITOR
+	bIsRealTimePreviewEnabled = false;
+
+	if (!GEditor)
+	{
+		return false;
+	}
+
+	for (const FLevelEditorViewportClient* LevelViewport : GEditor->GetLevelViewportClients())
+	{
+		if (LevelViewport && LevelViewport->IsRealtime())
+		{
+			bIsRealTimePreviewEnabled = true;
+			break;
+		}
+	}
+
+	return bIsRealTimePreviewEnabled;
+#else
+	return false;
+#endif
 }
 
 bool FDisplayClusterScenePreviewModule::OnTick(float DeltaTime)

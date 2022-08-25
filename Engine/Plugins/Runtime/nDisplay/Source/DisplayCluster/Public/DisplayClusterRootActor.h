@@ -419,6 +419,15 @@ public:
 	/** When rendering the preview determine which render target should be used for the current frame. */
 	bool ShouldThisFrameOutputPreviewToPostProcessRenderTarget() const;
 
+	/** Force preview rendering to be enabled regardless of the user's setting until a matching RemovePreviewEnableOverride call is made. */
+	void AddPreviewEnableOverride(const uint8* Object);
+
+	/**
+	 * Stop forcing preview rendering to be enabled for this caller. If other objects have called AddPreviewEnableOverride, it will remain
+	 * forced until they have also removed their overrides.
+	 */
+	void RemovePreviewEnableOverride(const uint8* Object);
+
 	float GetPreviewRenderTargetRatioMult() const
 	{
 		return PreviewRenderTargetRatioMult;
@@ -468,6 +477,9 @@ private:
 
 	/** Enables preview components to output to the post process render target when bPreviewEnablePostProcess is disabled. Contains all subscribed objects. */
 	TSet<const uint8*> PostProcessRenderTargetObservers;
+
+	/* Addresses of callers to AddPreviewEnableOverride that haven't removed their overrides yet. */
+	TSet<const uint8*> PreviewEnableOverriders;
 	
 	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
