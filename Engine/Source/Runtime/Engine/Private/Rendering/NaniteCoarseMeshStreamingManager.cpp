@@ -210,6 +210,7 @@ namespace Nanite
 			}
 		}
 		RegisteredComponentsMap.Remove(RenderAsset);
+		RequestReleaseComponentsMap.Remove(RenderAsset);
 
 		if (RenderAssetInfo.ResourceState != EResourceState::Unloaded)
 		{
@@ -341,7 +342,7 @@ namespace Nanite
 		{
 			return;
 		}
-		
+
 		UnregisterComponentInternal(Primitive, StaticMesh);
 	}
 
@@ -392,12 +393,12 @@ namespace Nanite
 		{
 			UStreamableRenderAsset* RenderAsset = Iter.Key();			
 			TSet<const UPrimitiveComponent*>* RegisteredComponents = RegisteredComponentsMap.Find(RenderAsset);
-			if (RegisteredComponents)
+			if (RegisteredComponents) 
 			{
 				TSet<const UPrimitiveComponent*>& ComponentsToRelease = Iter.Value();
 				for (const UPrimitiveComponent* Component : ComponentsToRelease)
 				{
-					RegisteredComponents->Remove(Component);
+					verify(RegisteredComponents->Remove(Component) == 1);
 				}
 
 				// remove if empty
