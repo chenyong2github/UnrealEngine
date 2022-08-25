@@ -153,6 +153,9 @@ public:
 	virtual void PinSelectedItems() {}
 	/** Unpins all selected items */
 	virtual void UnpinSelectedItems() {}
+
+	/** Function called by the Outliner Filter Bar to compare an item with Asset Type Filters*/
+	virtual bool ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const { return false; };
 public:
 	/* Getters */
 

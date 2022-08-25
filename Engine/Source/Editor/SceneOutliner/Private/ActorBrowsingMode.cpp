@@ -2211,4 +2211,36 @@ void FActorBrowsingMode::CreateOutlinerFilterBarFilters(FSceneOutlinerFilterBarO
 	
 }
 
+/** Function called by the Outliner Filter Bar to compare an item with Asset Type Filters*/
+bool FActorBrowsingMode::ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const
+{
+	// Type filtering only supported for Actors (and unloaded actors) currently
+	if (const FActorTreeItem* ActorItem = InItem.CastTo<FActorTreeItem>())
+	{
+		AActor* Actor = ActorItem->Actor.Get();
+
+		OutAssetData = FAssetData(Actor);
+
+		return true;
+	}
+	// TODO: Maybe can be improved to not use TryConvertShortClassNameToPathName to optimize?
+	else if (const FActorDescTreeItem* ActorDescItem = InItem.CastTo<FActorDescTreeItem>())
+	{
+		if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
+		{
+			// For Unloaded Actors, grab the native class and try to convert it to a path name
+			OutAssetData = FAssetData();
+			FTopLevelAssetPath ClassPath = FAssetData::TryConvertShortClassNameToPathName(ActorDesc->GetNativeClass());
+			if(ClassPath.IsValid())
+			{
+				OutAssetData.AssetClassPath = ClassPath;
+			}
+		}
+
+		return true;
+	}
+
+	return FActorModeInteractive::ConvertItemToAssetData(InItem, OutAssetData);
+}
+
 #undef LOCTEXT_NAMESPACE

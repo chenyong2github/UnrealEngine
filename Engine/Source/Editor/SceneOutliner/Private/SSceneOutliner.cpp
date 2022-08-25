@@ -39,7 +39,6 @@
 #include "SceneOutlinerConfig.h"
 #include "Algo/ForEach.h"
 #include "SceneOutlinerFilterBar.h"
-#include "ActorTreeItem.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -2429,17 +2428,7 @@ void SSceneOutliner::OnFilterBarFilterChanged()
 
 bool SSceneOutliner::ConvertItemToAssetData(SceneOutliner::FilterBarType InItem, FAssetData &OutAssetData) const
 {
-	// Type filtering only supported for Actors currently
-	if (const FActorTreeItem* ActorItem = InItem.CastTo<FActorTreeItem>())
-	{
-		AActor* Actor = ActorItem->Actor.Get();
-
-		OutAssetData = FAssetData(Actor);
-
-		return true;
-	}
-
-	return false;
+	return Mode->ConvertItemToAssetData(InItem, OutAssetData);
 }
 
 void SSceneOutliner::CreateFilterBar(const FSceneOutlinerFilterBarOptions& FilterBarOptions)
