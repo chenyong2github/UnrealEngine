@@ -178,6 +178,9 @@ public:
 	/** Evaluate at Any Thread */
 	virtual void Evaluate_AnyThread();
 
+	/** Locks for the scope of Evaluate_AnyThread */
+	FCriticalSection& GetEvaluateMutex() { return EvaluateMutex; };
+
 	/** Returns the member properties as an external variable array */
 	TArray<FRigVMExternalVariable> GetExternalVariables() const;
 
@@ -940,6 +943,8 @@ public:
 #endif
 	
 private:
+
+	FCriticalSection EvaluateMutex;
 
 #if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM
 	int32 ProfilingRunsLeft;

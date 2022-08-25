@@ -290,6 +290,15 @@ void UControlRig::Evaluate_AnyThread()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ControlRig_Evaluate);
 
+	// we can have other systems trying to poke into running instances of Control Rigs
+	// on the anim thread and query data, such as
+	// UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton,
+	// using a lock here to prevent them from having an inconsistent view of the rig at some
+	// intermediate stage of evaluation, for example, during evaluate, we can have a call
+	// to copy hierarchy, which empties the hierarchy for a short period of time
+	// and we don't want other systems to see that.
+	FScopeLock EvaluateLock(&GetEvaluateMutex());
+	
 	// create a copy since we need to change it here temporarily,
 	// and UI / the rig may change the event queue while it is running
 	EventQueueToRun = EventQueue;

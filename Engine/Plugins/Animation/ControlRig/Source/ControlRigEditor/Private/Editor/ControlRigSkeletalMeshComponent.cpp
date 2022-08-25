@@ -65,6 +65,14 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 		UControlRig* ControlRig = ControlRigInstance->GetFirstAvailableControlRig();
 		if (ControlRig)
 		{
+			// we are trying to poke into running instances of Control Rigs
+			// on the anim thread and query data, using a lock here to make sure
+			// we don't get an inconsistent view of the rig at some
+			// intermediate stage of evaluation, for example, during evaluate, we can have a call
+			// to copy hierarchy, which empties the hierarchy for a short period of time.
+			// if we did not have this lock and try to grab it, we could get an empty bone array
+			FScopeLock EvaluateLock(&ControlRig->GetEvaluateMutex());
+			
 			// just copy it because this is not thread safe
 			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 
