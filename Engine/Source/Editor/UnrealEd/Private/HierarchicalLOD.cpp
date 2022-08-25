@@ -925,7 +925,7 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 							FMeshDescription* SMDesc = StaticMesh->GetMeshDescription(0);
 
-							if (LODLevelSettings.bSimplifyMesh || LODLevelSettings.MergeSetting.bPivotPointAtZero)
+							if (LODLevelSettings.SimplificationMethod != EHierarchicalSimplificationMethod::Merge || LODLevelSettings.MergeSetting.bPivotPointAtZero)
 							{
 								LODActor->SetActorTransform(FTransform::Identity);
 								FStaticMeshOperations::ApplyTransform(*SMDesc, TransformInv);

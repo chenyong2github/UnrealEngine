@@ -58,9 +58,10 @@ void FHierarchicalLODOutlinerModule::OnHLODLevelsArrayChangedEvent()
 			FHierarchicalSimplification& NewLevelSetup = HierarchicalLODSetup.Last();
 			const FHierarchicalSimplification& OldLastLevelSetup = HierarchicalLODSetup[HierarchicalLODSetup.Num() - 2];
 
-			NewLevelSetup.bSimplifyMesh = OldLastLevelSetup.bSimplifyMesh;
+			NewLevelSetup.SimplificationMethod = OldLastLevelSetup.SimplificationMethod;
 			NewLevelSetup.MergeSetting = OldLastLevelSetup.MergeSetting;
 			NewLevelSetup.ProxySetting = OldLastLevelSetup.ProxySetting;
+			NewLevelSetup.ApproximateSettings = OldLastLevelSetup.ApproximateSettings;
 
 			NewLevelSetup.DesiredBoundRadius = OldLastLevelSetup.DesiredBoundRadius * 2.5f;
 			NewLevelSetup.DesiredFillingPercentage = FMath::Max(OldLastLevelSetup.DesiredFillingPercentage * 0.75f, 1.0f);

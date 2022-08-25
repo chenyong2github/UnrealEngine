@@ -510,7 +510,17 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 	if (HierarchicalLODSetups.IsValidIndex(LODActor->LODLevel - 1))
 	{
 		const FHierarchicalSimplification& HLODSettings = HierarchicalLODSetups[LODActor->LODLevel - 1];
-		bConsiderPhysicData = HLODSettings.bSimplifyMesh ? HLODSettings.ProxySetting.bCreateCollision : HLODSettings.MergeSetting.bMergePhysicsData;
+		switch (HLODSettings.SimplificationMethod)
+		{
+		case EHierarchicalSimplificationMethod::Simplify:
+			bConsiderPhysicData = HLODSettings.ProxySetting.bCreateCollision;
+			break;
+		case EHierarchicalSimplificationMethod::Merge:
+			bConsiderPhysicData = HLODSettings.MergeSetting.bMergePhysicsData;
+			break;
+		default:
+			bConsiderPhysicData = false;
+		}
 	}
 	
 	// Base us off the unique object ID

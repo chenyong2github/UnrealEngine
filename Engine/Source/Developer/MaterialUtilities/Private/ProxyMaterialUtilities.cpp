@@ -135,6 +135,11 @@ static FString GetMatchingParamName(EFlattenMaterialProperties InProperty, UMate
 	return ParamName;
 }
 
+FString FMaterialUtilities::GetFlattenMaterialTextureName(EFlattenMaterialProperties InProperty, UMaterialInterface* InBaseMaterial)
+{
+	return GetMatchingParamName(InProperty, InBaseMaterial) + TEXT("Texture");
+}
+
 // Validate that the provided material has all the required parameters needed to be considered a flattening material
 // If not, report what is missing
 bool FMaterialUtilities::IsValidFlattenMaterial(const UMaterialInterface* InBaseMaterial)

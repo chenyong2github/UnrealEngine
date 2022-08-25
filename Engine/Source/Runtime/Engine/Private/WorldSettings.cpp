@@ -25,6 +25,7 @@
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/EnterpriseObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "SceneManagement.h"
 #include "AI/AISystemBase.h"
 #include "AI/NavigationSystemConfig.h"
@@ -557,12 +558,6 @@ void AWorldSettings::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	for (FHierarchicalSimplification& Entry : HierarchicalLODSetup)
-	{
-		Entry.ProxySetting.PostLoadDeprecated();
-		Entry.MergeSetting.PostLoadDeprecated();
-	}
-
 	if (WorldPartition)
 	{
 		// Force to re-apply WorldPartition restrictions on WorldSettings (in case they changed)
@@ -1035,5 +1030,28 @@ void AWorldSettings::RewindForReplay()
 	bWorldGravitySet = false;
 	bHighPriorityLoading = false;
 }
+
+#if WITH_EDITORONLY_DATA
+
+bool FHierarchicalSimplification::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	// Don't actually serialize, just write the custom version for PostSerialize
+	return false;
+}
+
+void FHierarchicalSimplification::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::HierarchicalSimplificationMethodEnumAdded)
+		{
+			SimplificationMethod = bSimplifyMesh_DEPRECATED ? EHierarchicalSimplificationMethod::Simplify : EHierarchicalSimplificationMethod::Merge;
+		}
+	}
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE

@@ -494,6 +494,9 @@ public:
 	/** Validate that the provided material has all the required parameters needed to be considered a flattening material */
 	static bool IsValidFlattenMaterial(const UMaterialInterface* InBaseMaterial);
 
+	/** Get the name of the Texture parameter associated with a given flatten material property */
+	static FString GetFlattenMaterialTextureName(EFlattenMaterialProperties InProperty, UMaterialInterface* InBaseMaterial);
+
 private:
 	
 	/**

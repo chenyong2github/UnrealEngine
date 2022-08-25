@@ -238,6 +238,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Added water non-tessellated LOD
 		WaterNontessellatedLODSupportAdded,
 
+		// Added FHierarchicalSimplification::SimplificationMethod
+		HierarchicalSimplificationMethodEnumAdded,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

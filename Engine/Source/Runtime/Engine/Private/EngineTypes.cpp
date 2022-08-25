@@ -23,50 +23,56 @@ FDetachmentTransformRules FDetachmentTransformRules::KeepRelativeTransform(EDeta
 FDetachmentTransformRules FDetachmentTransformRules::KeepWorldTransform(EDetachmentRule::KeepWorld, true);
 
 #if WITH_EDITORONLY_DATA
-void FMeshProxySettings::PostLoadDeprecated()
+void FMeshProxySettings::PostSerialize(const FArchive& Ar)
 {
-	MaterialSettings.MaterialMergeType = EMaterialMergeType::MaterialMergeType_Simplygon;
+	if (Ar.IsLoading())
+	{
+		MaterialSettings.MaterialMergeType = EMaterialMergeType::MaterialMergeType_Simplygon;
+	}
 }
 
-void FMeshMergingSettings::PostLoadDeprecated()
+void FMeshMergingSettings::PostSerialize(const FArchive& Ar)
 {
-	FMeshMergingSettings DefaultObject;
-	if (bImportVertexColors_DEPRECATED != DefaultObject.bImportVertexColors_DEPRECATED)
+	if (Ar.IsLoading())
 	{
-		bBakeVertexDataToMesh = bImportVertexColors_DEPRECATED;
-	}
+		FMeshMergingSettings DefaultObject;
+		if (bImportVertexColors_DEPRECATED != DefaultObject.bImportVertexColors_DEPRECATED)
+		{
+			bBakeVertexDataToMesh = bImportVertexColors_DEPRECATED;
+		}
 
-	if (bExportNormalMap_DEPRECATED != DefaultObject.bExportNormalMap_DEPRECATED)
-	{
-		MaterialSettings.bNormalMap = bExportNormalMap_DEPRECATED;
-	}
+		if (bExportNormalMap_DEPRECATED != DefaultObject.bExportNormalMap_DEPRECATED)
+		{
+			MaterialSettings.bNormalMap = bExportNormalMap_DEPRECATED;
+		}
 
-	if (bExportMetallicMap_DEPRECATED != DefaultObject.bExportMetallicMap_DEPRECATED)
-	{
-		MaterialSettings.bMetallicMap = bExportMetallicMap_DEPRECATED;
-	}
-	if (bExportRoughnessMap_DEPRECATED != DefaultObject.bExportRoughnessMap_DEPRECATED)
-	{
-		MaterialSettings.bRoughnessMap = bExportRoughnessMap_DEPRECATED;
-	}
-	if (bExportSpecularMap_DEPRECATED != DefaultObject.bExportSpecularMap_DEPRECATED)
-	{
-		MaterialSettings.bSpecularMap = bExportSpecularMap_DEPRECATED;
-	}
-	if (MergedMaterialAtlasResolution_DEPRECATED != DefaultObject.MergedMaterialAtlasResolution_DEPRECATED)
-	{
-		MaterialSettings.TextureSize.X = MergedMaterialAtlasResolution_DEPRECATED;
-		MaterialSettings.TextureSize.Y = MergedMaterialAtlasResolution_DEPRECATED;
-	}
-	if (bCalculateCorrectLODModel_DEPRECATED != DefaultObject.bCalculateCorrectLODModel_DEPRECATED)
-	{
-		LODSelectionType = EMeshLODSelectionType::CalculateLOD;
-	}
+		if (bExportMetallicMap_DEPRECATED != DefaultObject.bExportMetallicMap_DEPRECATED)
+		{
+			MaterialSettings.bMetallicMap = bExportMetallicMap_DEPRECATED;
+		}
+		if (bExportRoughnessMap_DEPRECATED != DefaultObject.bExportRoughnessMap_DEPRECATED)
+		{
+			MaterialSettings.bRoughnessMap = bExportRoughnessMap_DEPRECATED;
+		}
+		if (bExportSpecularMap_DEPRECATED != DefaultObject.bExportSpecularMap_DEPRECATED)
+		{
+			MaterialSettings.bSpecularMap = bExportSpecularMap_DEPRECATED;
+		}
+		if (MergedMaterialAtlasResolution_DEPRECATED != DefaultObject.MergedMaterialAtlasResolution_DEPRECATED)
+		{
+			MaterialSettings.TextureSize.X = MergedMaterialAtlasResolution_DEPRECATED;
+			MaterialSettings.TextureSize.Y = MergedMaterialAtlasResolution_DEPRECATED;
+		}
+		if (bCalculateCorrectLODModel_DEPRECATED != DefaultObject.bCalculateCorrectLODModel_DEPRECATED)
+		{
+			LODSelectionType = EMeshLODSelectionType::CalculateLOD;
+		}
 
-	if (ExportSpecificLOD_DEPRECATED != DefaultObject.ExportSpecificLOD_DEPRECATED)
-	{
-		SpecificLOD = ExportSpecificLOD_DEPRECATED;
-		LODSelectionType = EMeshLODSelectionType::SpecificLOD;
+		if (ExportSpecificLOD_DEPRECATED != DefaultObject.ExportSpecificLOD_DEPRECATED)
+		{
+			SpecificLOD = ExportSpecificLOD_DEPRECATED;
+			LODSelectionType = EMeshLODSelectionType::SpecificLOD;
+		}
 	}
 }
 #endif

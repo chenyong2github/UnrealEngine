@@ -267,6 +267,16 @@ struct ENGINE_API FNetViewer
 	FNetViewer(AController* InController);
 };
 
+UENUM()
+enum class EHierarchicalSimplificationMethod : uint8
+{
+	None = 0			UMETA(hidden),
+	Merge = 1,
+	Simplify = 2,
+	Approximate = 3
+};
+
+
 USTRUCT()
 struct ENGINE_API FHierarchicalSimplification
 {
@@ -285,14 +295,6 @@ struct ENGINE_API FHierarchicalSimplification
 	UPROPERTY(Category = FHierarchicalSimplification, EditAnywhere, AdvancedDisplay)
 	uint8 bAllowSpecificExclusion : 1;
 
-	/** If this is true, it will simplify mesh but it is slower.
-	* If false, it will just merge actors but not simplify using the lower LOD if exists.
-	* For example if you build LOD 1, it will use LOD 1 of the mesh to merge actors if exists.
-	* If you merge material, it will reduce drawcalls.
-	*/
-	UPROPERTY(Category = FHierarchicalSimplification, EditAnywhere)
-	uint8 bSimplifyMesh:1;
-
 	/** Only generate clusters for HLOD volumes */
 	UPROPERTY(EditAnywhere, Category = FHierarchicalSimplification, AdvancedDisplay, meta = (editcondition = "!bReusePreviousLevelClusters", DisplayAfter="MinNumberOfActorsToBuild"))
 	uint8 bOnlyGenerateClustersForVolumes:1;
@@ -301,13 +303,20 @@ struct ENGINE_API FHierarchicalSimplification
 	UPROPERTY(EditAnywhere, Category = FHierarchicalSimplification, AdvancedDisplay, meta=(DisplayAfter="bOnlyGenerateClustersForVolumes"))
 	uint8 bReusePreviousLevelClusters:1;
 
-	/** Simplification Setting if bSimplifyMesh is true */
+	UPROPERTY(Category = FHierarchicalSimplification, EditAnywhere)
+	EHierarchicalSimplificationMethod SimplificationMethod;
+
+	/** Simplification settings, used if SimplificationMethod is Simplify */
 	UPROPERTY(Category = FHierarchicalSimplification, EditAnywhere, AdvancedDisplay)
 	FMeshProxySettings ProxySetting;
 
-	/** Merge Mesh Setting if bSimplifyMesh is false */
+	/** Merge settings, used if SimplificationMethod is Merge */
 	UPROPERTY(Category = FHierarchicalSimplification, EditAnywhere, AdvancedDisplay)
 	FMeshMergingSettings MergeSetting;
+
+	/** Approximate settings, used if SimplificationMethod is Approximate */
+	UPROPERTY(Category = FHierarchicalSimplification, EditAnywhere, AdvancedDisplay)
+	FMeshApproximationSettings ApproximateSettings;
 
 	/** Desired Bounding Radius for clustering - this is not guaranteed but used to calculate filling factor for auto clustering */
 	UPROPERTY(EditAnywhere, Category=FHierarchicalSimplification, AdvancedDisplay, meta=(UIMin=10.f, ClampMin=10.f, editcondition = "!bReusePreviousLevelClusters"))
@@ -319,16 +328,21 @@ struct ENGINE_API FHierarchicalSimplification
 
 	/** Min number of actors to build LODActor */
 	UPROPERTY(EditAnywhere, Category=FHierarchicalSimplification, AdvancedDisplay, meta=(ClampMin = "1", UIMin = "1", editcondition = "!bReusePreviousLevelClusters"))
-	int32 MinNumberOfActorsToBuild;	
+	int32 MinNumberOfActorsToBuild;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (DeprecatedProperty))
+	uint8 bSimplifyMesh_DEPRECATED:1;
+#endif
 
 	FHierarchicalSimplification()
 		: TransitionScreenSize(0.315f)
 		, OverrideDrawDistance(10000)
 		, bUseOverrideDrawDistance(false)
 		, bAllowSpecificExclusion(false)
-		, bSimplifyMesh(false)
 		, bOnlyGenerateClustersForVolumes(false)
 		, bReusePreviousLevelClusters(false)
+		, SimplificationMethod(EHierarchicalSimplificationMethod::Merge)
 		, DesiredBoundRadius(2000)
 		, DesiredFillingPercentage(50)
 		, MinNumberOfActorsToBuild(2)
@@ -338,6 +352,25 @@ struct ENGINE_API FHierarchicalSimplification
 		ProxySetting.MaterialSettings.MaterialMergeType = EMaterialMergeType::MaterialMergeType_Simplygon;
 		ProxySetting.bCreateCollision = false;
 	}
+
+#if WITH_EDITORONLY_DATA
+	bool Serialize(FArchive& Ar);
+
+	/** Handles deprecated properties */
+	void PostSerialize(const FArchive& Ar);
+#endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FHierarchicalSimplification> : public TStructOpsTypeTraitsBase2<FHierarchicalSimplification>
+{
+#if WITH_EDITORONLY_DATA
+	enum
+	{
+		WithSerializer = true,
+		WithPostSerialize = true,
+	};
+#endif
 };
 
 UCLASS(Blueprintable)

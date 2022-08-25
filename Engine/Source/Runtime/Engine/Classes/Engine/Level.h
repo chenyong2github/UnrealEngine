@@ -400,33 +400,6 @@ struct ENGINE_API FLevelSimplificationDetails
 	UPROPERTY(Category=Landscape, EditAnywhere)
 	bool bBakeGrassToLandscape;
 
-	UPROPERTY()
-	bool bGenerateMeshNormalMap_DEPRECATED;
-	
-	UPROPERTY()
-	bool bGenerateMeshMetallicMap_DEPRECATED;
-
-	UPROPERTY()
-	bool bGenerateMeshRoughnessMap_DEPRECATED;
-	
-	UPROPERTY()
-	bool bGenerateMeshSpecularMap_DEPRECATED;
-	
-	UPROPERTY()
-	bool bGenerateLandscapeNormalMap_DEPRECATED;
-
-	UPROPERTY()
-	bool bGenerateLandscapeMetallicMap_DEPRECATED;
-
-	UPROPERTY()
-	bool bGenerateLandscapeRoughnessMap_DEPRECATED;
-	
-	UPROPERTY()
-	bool bGenerateLandscapeSpecularMap_DEPRECATED;
-
-	/** Handles deprecated properties */
-	void PostLoadDeprecated();
-	
 	FLevelSimplificationDetails();
 	bool operator == (const FLevelSimplificationDetails& Other) const;
 };

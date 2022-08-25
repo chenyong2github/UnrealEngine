@@ -21,6 +21,7 @@ public class HierarchicalLODUtilities : ModuleRules
 				"BSPUtils",
 				"EditorFramework",
 				"Engine",
+				"MaterialUtilities",
 				"MeshDescription",
 				"StaticMeshDescription",
 				"UnrealEd",
@@ -28,10 +29,11 @@ public class HierarchicalLODUtilities : ModuleRules
 			}
         );
 
-        PrivateIncludePaths.AddRange(
+		PrivateIncludePathModuleNames.AddRange(
             new string[]
             {
-            }
+				"GeometryProcessingInterfaces"
+			}
         );
 
         DynamicallyLoadedModuleNames.AddRange(
@@ -40,7 +42,8 @@ public class HierarchicalLODUtilities : ModuleRules
                 "MeshUtilities",
                 "MeshMergeUtilities",
                 "MeshReductionInterface",
-            }
+				"GeometryProcessingInterfaces"
+			}
         );
 	}
 }

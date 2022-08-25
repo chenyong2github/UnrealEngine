@@ -81,7 +81,8 @@ public class DetailCustomizations : ModuleRules
 				"GraphEditor",
 				"MeshMergeUtilities",
 				"MeshReductionInterface",
-            }
+				"GeometryProcessingInterfaces"
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -90,7 +91,8 @@ public class DetailCustomizations : ModuleRules
 				"GameProjectGeneration",
 				"MeshMergeUtilities",
 				"MeshReductionInterface",
-            }
+				"GeometryProcessingInterfaces"
+			}
 		);
 	}
 }

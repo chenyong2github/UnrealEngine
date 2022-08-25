@@ -401,14 +401,6 @@ FLevelSimplificationDetails::FLevelSimplificationDetails()
  , LandscapeExportLOD(7)
  , bBakeFoliageToLandscape(false)
  , bBakeGrassToLandscape(false)
- , bGenerateMeshNormalMap_DEPRECATED(true)
- , bGenerateMeshMetallicMap_DEPRECATED(false)
- , bGenerateMeshRoughnessMap_DEPRECATED(false)
- , bGenerateMeshSpecularMap_DEPRECATED(false)
- , bGenerateLandscapeNormalMap_DEPRECATED(true)
- , bGenerateLandscapeMetallicMap_DEPRECATED(false)
- , bGenerateLandscapeRoughnessMap_DEPRECATED(false)
- , bGenerateLandscapeSpecularMap_DEPRECATED(false)
 {
 }
 
@@ -422,12 +414,6 @@ bool FLevelSimplificationDetails::operator == (const FLevelSimplificationDetails
 		&& LandscapeMaterialSettings == Other.LandscapeMaterialSettings
 		&& bBakeFoliageToLandscape == Other.bBakeFoliageToLandscape
 		&& bBakeGrassToLandscape == Other.bBakeGrassToLandscape;
-}
-
-void FLevelSimplificationDetails::PostLoadDeprecated()
-{
-	FLevelSimplificationDetails DefaultObject;
-
 }
 
 static bool IsActorFolderObjectsFeatureAvailable()
@@ -1233,12 +1219,6 @@ void ULevel::PostLoad()
 			// Use LevelScriptBlueprint->GetOuter() instead of NULL to make sure the generated top level objects are moved appropriately
 			LevelScriptBlueprint->Rename(*OuterWorld->GetName(), LevelScriptBlueprint->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional | REN_SkipGeneratedClasses);
 		}
-	}
-
-	// Fixup deprecated stuff in levels simplification settings
-	for (int32 Index = 0; Index < UE_ARRAY_COUNT(LevelSimplification); ++Index)
-	{
-		LevelSimplification[Index].PostLoadDeprecated();
 	}
 
 	RepairLevelScript();

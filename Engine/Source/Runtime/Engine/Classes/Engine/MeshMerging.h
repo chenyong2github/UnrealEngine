@@ -409,7 +409,18 @@ struct FMeshProxySettings
 
 #if WITH_EDITORONLY_DATA
 	/** Handles deprecated properties */
-	void PostLoadDeprecated();
+	void PostSerialize(const FArchive& Ar);
+#endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FMeshProxySettings> : public TStructOpsTypeTraitsBase2<FMeshProxySettings>
+{
+#if WITH_EDITORONLY_DATA
+	enum
+	{
+		WithPostSerialize = true,
+	};
 #endif
 };
 
@@ -466,13 +477,13 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, Category = MaterialSettings, meta=(DisplayAfter="MaterialSettings"))
 	int32 GutterSize;
 
-	// A given LOD level to export from the source meshes
-	UPROPERTY(EditAnywhere, Category = MeshSettings, BlueprintReadWrite, meta = (DisplayAfter="LODSelectionType", ClampMin = "0", ClampMax = "7", UIMin = "0", UIMax = "7", EnumCondition = 1))
-	int32 SpecificLOD;
-
 	/** Which selection mode should be used when generating the merged static mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings, meta = (DisplayAfter="bBakeVertexDataToMesh"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings, meta = (DisplayAfter="bBakeVertexDataToMesh", DisplayName = "LOD Selection Type"))
 	EMeshLODSelectionType LODSelectionType;
+
+	/** A given LOD level to export from the source meshes, used if LOD Selection Type is set to SpecificLOD */
+	UPROPERTY(EditAnywhere, Category = MeshSettings, BlueprintReadWrite, meta = (DisplayAfter="LODSelectionType", EditCondition = "LODSelectionType == EMeshLODSelectionType::SpecificLOD", ClampMin = "0", ClampMax = "7", UIMin = "0", UIMax = "7", EnumCondition = 1))
+	int32 SpecificLOD;
 
 	/** Whether to generate lightmap UVs for a merged mesh*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = MeshSettings, meta=(DisplayName="Generate Lightmap UV"))
@@ -490,12 +501,12 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
 	uint8 bMergePhysicsData:1;
 
-	/** Whether to merge source materials into one flat material, ONLY available when merging a single LOD level, see LODSelectionType */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings)
+	/** Whether to merge source materials into one flat material, ONLY available when LOD Selection Type is set to LowestDetailLOD */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings, meta=(EditCondition="LODSelectionType == EMeshLODSelectionType::LowestDetailLOD"))
 	uint8 bMergeMaterials:1;
 
 	/** Create a flat material from all source materials, along with a new set of UVs. This material won't be applied to any section by default. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MaterialSettings)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = MaterialSettings, meta=(EditCondition="LODSelectionType == EMeshLODSelectionType::LowestDetailLOD"))
 	uint8 bCreateMergedMaterial : 1;
 
 	/** Whether or not vertex data such as vertex colours should be baked into the resulting mesh */
@@ -506,7 +517,7 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, Category = MaterialSettings, BlueprintReadWrite, meta = (EditCondition = "bMergeMaterials"))
 	uint8 bUseVertexDataForBakingMaterial:1;
 
-	// Whether or not to calculate varying output texture sizes according to their importance in the final atlas texture
+	/** Whether or not to calculate varying output texture sizes according to their importance in the final atlas texture */
 	UPROPERTY(Category = MaterialSettings, EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bMergeMaterials"))
 	uint8 bUseTextureBinning:1;
 
@@ -569,8 +580,8 @@ struct FMeshMergingSettings
 	FMeshMergingSettings()
 		: TargetLightMapResolution(256)
 		, GutterSize(2)
-		, SpecificLOD(0)
 		, LODSelectionType(EMeshLODSelectionType::CalculateLOD)
+		, SpecificLOD(0)
 		, bGenerateLightMapUV(true)
 		, bComputedLightMapResolution(false)
 		, bPivotPointAtZero(false)
@@ -607,7 +618,18 @@ struct FMeshMergingSettings
 
 #if WITH_EDITORONLY_DATA
 	/** Handles deprecated properties */
-	void PostLoadDeprecated();
+	void PostSerialize(const FArchive& Ar);
+#endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FMeshMergingSettings> : public TStructOpsTypeTraitsBase2<FMeshMergingSettings>
+{
+#if WITH_EDITORONLY_DATA
+	enum
+	{
+		WithPostSerialize = true,
+	};
 #endif
 };
 
@@ -965,9 +987,4 @@ struct FMeshApproximationSettings
 	{
 		return !(*this == Other);
 	}
-
-#if WITH_EDITORONLY_DATA
-	/** Handles deprecated properties */
-	void PostLoadDeprecated() {}		// none currently
-#endif
 };
