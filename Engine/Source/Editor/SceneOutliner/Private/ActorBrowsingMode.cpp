@@ -2234,10 +2234,9 @@ bool FActorBrowsingMode::ConvertItemToAssetData(SceneOutliner::FilterBarType InI
 			if(ClassPath.IsValid())
 			{
 				OutAssetData.AssetClassPath = ClassPath;
+				return true;
 			}
 		}
-
-		return true;
 	}
 
 	return FActorModeInteractive::ConvertItemToAssetData(InItem, OutAssetData);
