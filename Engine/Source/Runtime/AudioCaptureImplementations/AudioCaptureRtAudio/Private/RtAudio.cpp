@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RtAudio.h"
+#include "AudioCaptureCoreLog.h"
 
 #if WITH_RTAUDIO
 
@@ -231,7 +232,7 @@ RtAudio :: RtAudio( RtAudio::Api api )
 
     // No compiled support for specified API value.  Issue a debug
     // warning and continue as if no API was specified.
-    std::cerr << "\nRtAudio: no compiled support for specified API argument!\n" << std::endl;
+    UE_LOG(LogAudioCaptureCore, Warning, TEXT("RtAudio has no compiled support for specified API argument."));
   }
 
   // Iterate through the compiled APIs and return as soon as we find
@@ -248,11 +249,8 @@ RtAudio :: RtAudio( RtAudio::Api api )
   // It should not be possible to get here because the preprocessor
   // definition __RTAUDIO_DUMMY__ is automatically defined if no
   // API-specific definitions are passed to the compiler. But just in
-  // case something weird happens, we'll thow an error.
-  std::string errorText = "\nRtAudio: no compiled API support found ... critical error!!\n\n";
-
-  // Modification: handled exceptions are prohibited in the UE coding standard.
-  // throw_wrapper( RtAudioError( errorText, RtAudioError::UNSPECIFIED ) );
+  // case something weird happens, we'll log an error.
+  UE_LOG(LogAudioCaptureCore, Error, TEXT("RtAudio has no compiled API support found."));
 }
 
 RtAudio :: ~RtAudio()

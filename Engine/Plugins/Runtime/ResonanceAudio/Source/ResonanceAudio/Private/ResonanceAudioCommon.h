@@ -14,6 +14,7 @@ THIRD_PARTY_INCLUDES_END
 
 
 #include "UObject/ObjectMacros.h"
+#include "ResonanceAudioConstants.h"
 #include "ResonanceAudioEnums.h"
 #include "ISoundfieldFormat.h"
 

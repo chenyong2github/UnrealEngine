@@ -21,16 +21,16 @@ namespace Audio
 /**
 * Callback Function For the Microphone Capture for RtAudio
 */
-static int32 OnAudioCaptureCallback(void *OutBuffer, void* InBuffer, uint32 InBufferFrames, double StreamTime, RtAudioStreamStatus AudioStreamStatus, void* InUserData)
+static int32 OnAudioCaptureCallback(void *OutBuffer, void* InBuffer, uint32 InBufferFrames, double StreamTime, uint32 AudioStreamStatus, void* InUserData)
 {
 	// Check for stream overflow (i.e. we're feeding audio faster than we're consuming)
-
+	const bool bIsOverflow = 0 != AudioStreamStatus;
 
 	// Cast the user data to the singleton mic recorder
 	FAudioRecordingManager* AudioRecordingManager = (FAudioRecordingManager*)InUserData;
 
 	// Call the mic capture callback function
-	return AudioRecordingManager->OnAudioCapture(InBuffer, InBufferFrames, StreamTime, AudioStreamStatus == RTAUDIO_INPUT_OVERFLOW);
+	return AudioRecordingManager->OnAudioCapture(InBuffer, InBufferFrames, StreamTime, bIsOverflow);
 }
 
 /**
@@ -51,9 +51,9 @@ FAudioRecordingManager::FAudioRecordingManager()
 
 FAudioRecordingManager::~FAudioRecordingManager()
 {
-	if (ADC.isStreamOpen())
+	if (ADC.IsStreamOpen())
 	{
-		ADC.abortStream();
+		ADC.AbortStream();
 	}
 }
 
@@ -78,20 +78,10 @@ void FAudioRecordingManager::StartRecording(const FRecordingSettings& InSettings
 	RecordingBlockSize = 1024;
 
 	// If we have a stream open close it (reusing streams can cause a blip of previous recordings audio)
-	if (ADC.isStreamOpen())
+	if (ADC.IsStreamOpen())
 	{
-		try
-		{
-			ADC.stopStream();
-			ADC.closeStream();
-		}
-		catch (RtAudioError& e)
-		{
-			FString ErrorMessage = FString(e.what());
-			bError = true;
-			UE_LOG(LogMicManager, Error, TEXT("Failed to close the mic capture device stream: %s"), *ErrorMessage);
-			return;
-		}
+		ADC.StopStream();
+		ADC.CloseStream();
 	}
 
 	UE_LOG(LogMicManager, Log, TEXT("Starting mic recording."));
@@ -103,9 +93,9 @@ void FAudioRecordingManager::StartRecording(const FRecordingSettings& InSettings
 	InputGain = Audio::ConvertToLinear(Settings.GainDb);
 
 	// Get the default mic input device info
-	RtAudio::DeviceInfo Info = ADC.getDeviceInfo(StreamParams.deviceId);
-	RecordingSampleRate = Info.preferredSampleRate;
-	NumInputChannels = Info.inputChannels;	
+	FRtAudioInputWrapper::FDeviceInfo Info = ADC.GetDeviceInfo(StreamParams.DeviceID);
+	RecordingSampleRate = Info.PreferredSampleRate;
+	NumInputChannels = Info.NumChannels;	
 
 	if (NumInputChannels == 0)
 	{
@@ -144,40 +134,23 @@ void FAudioRecordingManager::StartRecording(const FRecordingSettings& InSettings
 	// Publish to the mic input thread that we're ready to record...
 	bRecording = true;
 
-	StreamParams.deviceId = ADC.getDefaultInputDevice(); // Only use the default input device for now
+	StreamParams.DeviceID = ADC.GetDefaultInputDevice(); // Only use the default input device for now
 
-	StreamParams.nChannels = NumInputChannels;
-	StreamParams.firstChannel = 0;
+	StreamParams.NumChannels = NumInputChannels;
 
 	uint32 BufferFrames = FMath::Max(RecordingBlockSize, 256);
 
-	UE_LOG(LogMicManager, Log, TEXT("Initialized mic recording manager at %d hz sample rate, %d channels, and %d Recording Block Size"), RecordingSampleRate, StreamParams.nChannels, BufferFrames);
+	UE_LOG(LogMicManager, Log, TEXT("Initialized mic recording manager at %d hz sample rate, %d channels, and %d Recording Block Size"), RecordingSampleRate, StreamParams.NumChannels, BufferFrames);
 
 	// RtAudio uses exceptions for error handling... 
-	try
-	{
-		// Open up new audio stream
-		ADC.openStream(nullptr, &StreamParams, RTAUDIO_SINT16, RecordingSampleRate, &BufferFrames, &OnAudioCaptureCallback, this);
-	}
-	catch (RtAudioError& e)
-	{
-		FString ErrorMessage = FString(e.what());
-		bError = true;
-		UE_LOG(LogMicManager, Error, TEXT("Failed to open the mic capture device: %s"), *ErrorMessage);
-	}
-	catch (const std::exception& e)
-	{
-		bError = true;
-		FString ErrorMessage = FString(e.what());
-		UE_LOG(LogMicManager, Error, TEXT("Failed to open the mic capture device: %s"), *ErrorMessage);
-	}
-	catch (...)
-	{
-		UE_LOG(LogMicManager, Error, TEXT("Failed to open the mic capture device: unknown error"));
-		bError = true;
-	}
+	// Open up new audio stream
+	bool bSuccess = ADC.OpenStream(StreamParams, RecordingSampleRate, &BufferFrames, &OnAudioCaptureCallback, this);
+	bError = !bSuccess;
 
-	ADC.startStream();
+	if (bSuccess)
+	{
+		ADC.StartStream();
+	}
 }
 
 static void SampleRateConvert(float CurrentSR, float TargetSR, int32 NumChannels, const TArray<int16>& CurrentRecordedPCMData, int32 NumSamplesToConvert, TArray<int16>& OutConverted)
@@ -235,8 +208,8 @@ void FAudioRecordingManager::StopRecording(TArray<USoundWave*>& OutSoundWaves)
 	if (bRecording)
 	{
 		bRecording = false;
-		ADC.stopStream();
-		ADC.closeStream();
+		ADC.StopStream();
+		ADC.CloseStream();
 
 		if (CurrentRecordedPCMData.Num() > 0)
 		{

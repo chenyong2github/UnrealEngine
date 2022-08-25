@@ -3,6 +3,7 @@
 //
 
 #include "ResonanceAudioCommon.h"
+#include "ResonanceAudioConstants.h"
 #include "Misc/Paths.h"
 #include "EngineUtils.h"
 #include "HAL/FileManager.h"

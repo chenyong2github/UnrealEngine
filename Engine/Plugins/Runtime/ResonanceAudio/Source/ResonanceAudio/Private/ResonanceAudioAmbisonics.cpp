@@ -3,6 +3,7 @@
 //
 #include "ResonanceAudioAmbisonics.h"
 #include "ResonanceAudioAmbisonicsSettings.h"
+#include "ResonanceAudioAmbisonicsSettingsProxy.h"
 #include "ResonanceAudioPluginListener.h"
 #include "SoundFieldRendering.h"
 #include "AudioPluginUtilities.h"

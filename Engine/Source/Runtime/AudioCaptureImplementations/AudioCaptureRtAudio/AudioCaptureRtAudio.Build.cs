@@ -8,6 +8,9 @@ public class AudioCaptureRtAudio : ModuleRules
 
 	public AudioCaptureRtAudio(ReadOnlyTargetRules Target) : base(Target)
 	{
+		// RtAudio throws exceptions for errors.
+		bEnableExceptions = true;
+
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("AudioCaptureCore");
 

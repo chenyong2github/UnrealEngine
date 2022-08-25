@@ -21,14 +21,6 @@ public class AudioCaptureEditor : ModuleRules
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"AudioCaptureEditor/Private",
-				"AudioCapture/Private",
-				"../../../../Source/Runtime/AudioCaptureImplementations/AudioCaptureRtAudio/Private" // This is required to include RtAudio.h in AudioRecordingManager.h.
-			}
-		);
-
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			// Allow us to use direct sound

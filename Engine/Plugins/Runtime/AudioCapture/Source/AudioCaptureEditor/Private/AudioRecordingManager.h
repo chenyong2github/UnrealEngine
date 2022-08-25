@@ -5,12 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Engine/EngineTypes.h"
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsHWrapper.h"
-#endif
-THIRD_PARTY_INCLUDES_START
-	#include "RtAudio.h"
-THIRD_PARTY_INCLUDES_END
+#include "RtAudioWrapper.h"
 
 class USoundWave;
 
@@ -78,10 +73,10 @@ namespace Audio
 		FRecordingSettings Settings;
 
 		// RtAudio ADC object -- used to interact with low-level audio device.
-		RtAudio ADC;
+		FRtAudioInputWrapper ADC;
 
 		// Stream parameters to initialize the ADC
-		RtAudio::StreamParameters StreamParams;
+		FRtAudioInputWrapper::FStreamParameters StreamParams;
 
 		// Critical section used to stop and retrieve finished audio buffers.
 		FCriticalSection CriticalSection;

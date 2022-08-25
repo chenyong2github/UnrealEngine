@@ -42,10 +42,6 @@ enum class ERaDistanceRolloffModel : uint8
 	NONE								UMETA(DisplayName = "None")
 };
 
-// Microsoft define TRANSPARENT as a Macro in "wingdi.h", protect against that. 
-// We are in a private module should be ok with unity compilation
-#undef TRANSPARENT
-
 UENUM(BlueprintType)
 enum class ERaMaterialName : uint8
 {
@@ -77,14 +73,3 @@ enum class ERaMaterialName : uint8
 	UNIFORM								UMETA(DisplayName = "Uniform")
 };
 
-namespace ResonanceAudio
-{
-	// Resonance Audio assets base color.
-	const FColor ASSET_COLOR = FColor(0, 198, 246);
-
-	// Number of surfaces in a shoe-box room.
-	const int NUM_SURFACES = 6;
-
-	// Conversion factor between Resonance Audio and Unreal world distance units (1cm in Unreal = 0.01m in Resonance Audio).
-	const float SCALE_FACTOR = 0.01f;
-}
