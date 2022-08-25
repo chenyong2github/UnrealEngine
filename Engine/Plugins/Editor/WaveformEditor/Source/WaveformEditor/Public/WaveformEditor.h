@@ -7,6 +7,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "WaveformEditorTransportController.h"
 #include "WaveformEditorTransportCoordinator.h"
+#include "WaveformEditorCustomDetailsHelpers.h"
 #include "WaveformEditorZoomController.h"
 
 class IToolkitHost;
@@ -56,9 +57,11 @@ private:
 	bool RegisterToolbar();
 	bool BindCommands();
 
-	/**	Properties tab set up */
+	/**	Details tabs set up */
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
-	bool SetUpPropertiesView();
+	TSharedRef<SDockTab> SpawnTab_Transformations(const FSpawnTabArgs& Args);
+
+	bool SetUpDetailsViews();
 
 	/**	Waveform view tab setup */
 	TSharedRef<SDockTab> SpawnTab_WaveformDisplay(const FSpawnTabArgs& Args);
@@ -97,13 +100,18 @@ private:
 	TSharedPtr<FWaveformEditorZoomController> ZoomManager = nullptr;
 
 	/** Properties tab */
-	TSharedPtr<IDetailsView> PropertiesView;
+	TSharedPtr<IDetailsView> PropertiesDetails;
+
+	/** Transformations tab */
+	TSharedPtr<IDetailsView> TransformationsDetails;
+	TStrongObjectPtr<UWaveformTransformationsViewHelper> TransformationsView;
 
 	/** Settings Editor App Identifier */
 	static const FName AppIdentifier;
 
 	/** Tab Ids */
 	static const FName PropertiesTabId;
+	static const FName TransformationsTabId;
 	static const FName WaveformDisplayTabId;
 
 	static const FName EditorName;

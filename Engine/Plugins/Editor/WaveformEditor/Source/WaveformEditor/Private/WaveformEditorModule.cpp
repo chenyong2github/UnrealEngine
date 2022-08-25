@@ -3,11 +3,15 @@
 #include "WaveformEditorModule.h"
 
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "WaveformEditorCommands.h"
+#include "WaveformEditorCustomDetailsHelpers.h"
+#include "WaveformEditorDetailsCustomization.h"
 #include "WaveformEditorInstantiator.h"
 #include "WaveformEditorLog.h"
 
 DEFINE_LOG_CATEGORY(LogWaveformEditor);
+
 
 void FWaveformEditorModule::StartupModule()
 {
@@ -15,6 +19,12 @@ void FWaveformEditorModule::StartupModule()
 
 	WaveformEditorInstantiator = MakeShared<FWaveformEditorInstantiator>();
 	RegisterContentBrowserExtensions(WaveformEditorInstantiator.Get());
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	PropertyModule.RegisterCustomClassLayout(
+		UWaveformTransformationsViewHelper::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FWaveformTransformationsDetailsCustomization>(); }));
 }
 
 void FWaveformEditorModule::ShutdownModule()

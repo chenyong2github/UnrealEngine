@@ -22,6 +22,7 @@
 
 const FName FWaveformEditor::AppIdentifier("WaveformEditorApp");
 const FName FWaveformEditor::PropertiesTabId("WaveformEditor_Properties");
+const FName FWaveformEditor::TransformationsTabId("WaveformEditor_Transformations");
 const FName FWaveformEditor::WaveformDisplayTabId("WaveformEditor_Display");
 const FName FWaveformEditor::EditorName("Waveform Editor");
 const FName FWaveformEditor::ToolkitFName("WaveformEditor");
@@ -34,7 +35,7 @@ bool FWaveformEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<ITool
 
 	bool bIsInitialized = true;
 	
-	bIsInitialized &= SetUpPropertiesView();
+	bIsInitialized &= SetUpDetailsViews();
 	bIsInitialized &= SetUpWaveformPanel();
 	bIsInitialized &= SetupAudioComponent();
 	bIsInitialized &= SetUpTransportController();
@@ -144,6 +145,11 @@ void FWaveformEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabMa
 
 	InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FWaveformEditor::SpawnTab_Properties))
 		.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(TransformationsTabId, FOnSpawnTab::CreateSP(this, &FWaveformEditor::SpawnTab_Transformations))
+		.SetDisplayName(LOCTEXT("TransformationsTab", "Transformations"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
@@ -375,7 +381,7 @@ bool FWaveformEditor::MatchesContext(const FTransactionContext& InContext, const
 	return bShoouldUndo;
 }
 
-bool FWaveformEditor::SetUpPropertiesView()
+bool FWaveformEditor::SetUpDetailsViews()
 {
 	if (SoundWave == nullptr)
 	{
@@ -383,13 +389,18 @@ bool FWaveformEditor::SetUpPropertiesView()
 		return false;
 	}
 
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs Args;
 	Args.bHideSelectionTip = true;
 	Args.NotifyHook = this;
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertiesView = PropertyModule.CreateDetailView(Args);
-	PropertiesView->SetObject(SoundWave);
+	PropertiesDetails = PropertyModule.CreateDetailView(Args);
+	PropertiesDetails->SetObject(SoundWave);
+
+	TransformationsDetails = PropertyModule.CreateDetailView(Args);
+	TransformationsView = TStrongObjectPtr(NewObject<UWaveformTransformationsViewHelper>());
+	TransformationsView->SetSoundWave(SoundWave);
+	TransformationsDetails->SetObject(TransformationsView.Get());
 
 	return true;
 }
@@ -407,7 +418,7 @@ TSharedRef<SDockTab> FWaveformEditor::SpawnTab_WaveformDisplay(const FSpawnTabAr
 
 const TSharedRef<FTabManager::FLayout> FWaveformEditor::SetupStandaloneLayout()
 {
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_WaveformEditor_v1")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_WaveformEditor_v2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -418,8 +429,9 @@ const TSharedRef<FTabManager::FLayout> FWaveformEditor::SetupStandaloneLayout()
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.2f)
+					->AddTab(TransformationsTabId, ETabState::OpenedTab)
 					->AddTab(PropertiesTabId, ETabState::OpenedTab)
-					->SetForegroundTab(PropertiesTabId)
+					->SetForegroundTab(TransformationsTabId)
 
 				)
 				->Split
@@ -444,7 +456,18 @@ TSharedRef<SDockTab> FWaveformEditor::SpawnTab_Properties(const FSpawnTabArgs& A
 	return SNew(SDockTab)
 		.Label(LOCTEXT("SoundWaveDetailsTitle", "Details"))
 		[
-			PropertiesView.ToSharedRef()
+			PropertiesDetails.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FWaveformEditor::SpawnTab_Transformations(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == TransformationsTabId);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("SoundWaveTransformationsTitle", "Transformations"))
+		[
+			TransformationsDetails.ToSharedRef()
 		];
 }
 
