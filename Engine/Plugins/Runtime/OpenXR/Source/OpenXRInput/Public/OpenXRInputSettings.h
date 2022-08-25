@@ -15,11 +15,12 @@ class OPENXRINPUT_API UOpenXRInputSettings : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Use Enhanced Input for XR instead of regular input. */
-	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input")
-	bool bUseEnhancedInput = false;
-
-	/** A the mappable input config used to generate action sets for OpenXR. */
+	/** Set a mappable input config to allow OpenXR runtimes to remap the Enhanced Input actions. */
 	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta = (DisplayName = "Mappable Input Config for XR", AllowedClasses = "/Script/EnhancedInput.PlayerMappableInputConfig"))
 	FSoftObjectPath MappableInputConfig = nullptr;
+
+	// UObject interface
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif
 };

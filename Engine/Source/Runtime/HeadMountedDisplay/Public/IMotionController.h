@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 #include "Features/IModularFeature.h"
 
 enum class EControllerHand : uint8;
@@ -121,4 +122,14 @@ public:
 	virtual float GetCustomParameterValue(const FName MotionSource, FName ParameterName, bool& bOutValueFound) const = 0;
 
 	virtual bool GetHandJointPosition(const FName MotionSource, int jointIndex, FVector& OutPosition) const = 0;
+
+	/**
+	 * Add a player mappable input config to the motion controller. This allows the motion controller to support
+	 * Enhanced Input actions.
+	 *
+	 * @param InputConfig		The path to the player mappable input config asset
+	 *
+	 * @return			False if the input config can't be attached to the session, true otherwise
+	 */
+	virtual bool SetPlayerMappableInputConfig(TObjectPtr<class UPlayerMappableInputConfig> InputConfig = nullptr) { return true; };
 };

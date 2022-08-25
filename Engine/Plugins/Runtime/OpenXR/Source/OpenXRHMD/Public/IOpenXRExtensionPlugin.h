@@ -255,12 +255,16 @@ public:
 	{
 	}
 
+	UE_DEPRECATED(5.1, "Functionality moved to AttachActionSets().")
+	virtual void AddActionSets(TArray<XrActiveActionSet>& OutActionSets)
+	{
+	}
+
 	/**
 	* Add any action sets provided by the plugin to be attached as active to the session
 	* This allows a plugin to manage a custom actionset that will be active in xrSyncActions
 	*/
-	UE_DEPRECATED(5.1, "Use AddActions to create attached action sets, along with GetActiveActionSetsForSync.")
-	virtual void AddActionSets(TArray<XrActiveActionSet>& OutActionSets)
+	virtual void AttachActionSets(TSet<XrActionSet>& OutActionSets)
 	{
 	}
 

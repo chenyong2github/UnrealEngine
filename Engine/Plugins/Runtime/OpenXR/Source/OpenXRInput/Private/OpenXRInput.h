@@ -122,6 +122,7 @@ public:
 		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const override { check(false); return false; }
 		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override { check(false); return ETrackingStatus::NotTracked; }
 		virtual void EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const override;
+		virtual bool SetPlayerMappableInputConfig(TObjectPtr<class UPlayerMappableInputConfig> InputConfig) override;
 
 		// IHapticDevice overrides
 		IHapticDevice* GetHapticDevice() override { return (IHapticDevice*)this; }
@@ -134,8 +135,9 @@ public:
 		static const XrDuration MaxFeedbackDuration = 2500000000; // 2.5 seconds
 
 		FOpenXRHMD* OpenXRHMD;
+		XrInstance Instance;
 
-		TMap<FString, FInteractionProfile> Profiles;
+		TUniquePtr<FOpenXRActionSet> ControllerActionSet;
 		TArray<FOpenXRActionSet> ActionSets;
 		TArray<FOpenXRActionSet> PluginActionSets;
 		TArray<XrPath> SubactionPaths;
@@ -143,28 +145,26 @@ public:
 		TMap<EControllerHand, FOpenXRController> Controllers;
 		TMap<FName, EControllerHand> MotionSourceToControllerHandMap;
 
-		XrActiveActionSet ControllerSet;
-		XrActiveActionSet LegacySet;
-
-		UPlayerMappableInputConfig* MappableInputConfig;
+		TObjectPtr<UPlayerMappableInputConfig> MappableInputConfig;
 
 		XrAction GetActionForMotionSource(FName MotionSource) const;
 		int32 GetDeviceIDForMotionSource(FName MotionSource) const;
 		XrPath GetUserPathForMotionSource(FName MotionSource) const;
 		bool IsOpenXRInputSupportedMotionSource(const FName MotionSource) const;
 
-		bool bActionsBound;
+		bool bActionsAttached;
 		bool bDirectionalBindingSupported;
 
-		void BuildActions();
-		void BuildLegacyActions();
-		void BuildEnhancedActions(const FSoftObjectPath& MappableInputConfigPath);
+		bool BuildActions(XrSession Session);
+		void SyncActions(XrSession Session);
+		void BuildLegacyActions(TMap<FString, FInteractionProfile>& Profiles);
+		void BuildEnhancedActions(TMap<FString, FInteractionProfile>& Profiles, TObjectPtr<UPlayerMappableInputConfig> MappableInputConfig);
 		void DestroyActions();
 
 		template<typename T>
-		int32 SuggestBindings(XrInstance Instance, FOpenXRAction& Action, const TArray<T>& Mappings);
-		bool SuggestBindingForKey(XrInstance Instance, FOpenXRAction& Action, const FKey& Key, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
-		bool SuggestBindingForKey(XrInstance Instance, FOpenXRAction& Action, const FKey& Key);
+		int32 SuggestBindings(TMap<FString, FInteractionProfile>& Profiles, FOpenXRAction& Action, const TArray<T>& Mappings);
+		bool SuggestBindingForKey(TMap<FString, FInteractionProfile>& Profiles, FOpenXRAction& Action, const FKey& Key, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+		bool SuggestBindingForKey(TMap<FString, FInteractionProfile>& Profiles, FOpenXRAction& Action, const FKey& Key);
 
 		/** handler to send all messages to */
 		TSharedRef<FGenericApplicationMessageHandler> MessageHandler;
