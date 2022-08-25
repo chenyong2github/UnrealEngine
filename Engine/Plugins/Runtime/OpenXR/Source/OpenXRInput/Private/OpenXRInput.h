@@ -8,6 +8,7 @@
 #include "IInputDevice.h"
 #include "IHapticDevice.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FOpenXRHMD;
 class UInputAction;
@@ -145,7 +146,7 @@ public:
 		TMap<EControllerHand, FOpenXRController> Controllers;
 		TMap<FName, EControllerHand> MotionSourceToControllerHandMap;
 
-		TObjectPtr<UPlayerMappableInputConfig> MappableInputConfig;
+		TStrongObjectPtr<UPlayerMappableInputConfig> MappableInputConfig;
 
 		XrAction GetActionForMotionSource(FName MotionSource) const;
 		int32 GetDeviceIDForMotionSource(FName MotionSource) const;
@@ -158,7 +159,7 @@ public:
 		bool BuildActions(XrSession Session);
 		void SyncActions(XrSession Session);
 		void BuildLegacyActions(TMap<FString, FInteractionProfile>& Profiles);
-		void BuildEnhancedActions(TMap<FString, FInteractionProfile>& Profiles, TObjectPtr<UPlayerMappableInputConfig> MappableInputConfig);
+		void BuildEnhancedActions(TMap<FString, FInteractionProfile>& Profiles);
 		void DestroyActions();
 
 		template<typename T>
