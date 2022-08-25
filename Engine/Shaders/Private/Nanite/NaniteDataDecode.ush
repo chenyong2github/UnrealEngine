@@ -253,12 +253,16 @@ FVisibleCluster GetVisibleCluster( uint ClusterIdx, bool bHasPageData )
 	return GetVisibleCluster( VisibleClustersSWHW, ClusterIdx, bHasPageData );
 }
 
+bool IsVisibleClusterIndexImposter(uint ClusterIndex)
+{
+	return ClusterIndex >= (1 << 24);
+}
+
 FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 {
 	FVisibleCluster VisibleCluster;
 
-	bool bImposter = ClusterIndex >= (1 << 24);
-	if( bImposter )
+	if( IsVisibleClusterIndexImposter(ClusterIndex) )
 	{
 		// Couldn't have been stored so signals this is an imposter
 		VisibleCluster.Flags = 1 << NANITE_NUM_CULLING_FLAG_BITS;

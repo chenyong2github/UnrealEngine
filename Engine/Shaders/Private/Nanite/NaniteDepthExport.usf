@@ -101,7 +101,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 		if (VisibleClusterIndex != 0xFFFFFFFF)
 		{
-			checkSlow(VisibleClusterIndex < DepthExportConfig.w);
+			checkSlow(IsVisibleClusterIndexImposter(VisibleClusterIndex) || VisibleClusterIndex < DepthExportConfig.w);
 
 			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 			checkSlow(VisibleCluster.InstanceId < PageConstants.x);
