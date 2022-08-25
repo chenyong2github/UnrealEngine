@@ -171,6 +171,10 @@ public:
 	virtual void OnUnregister() override;
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	virtual void BeginPlay() override;
+	virtual bool IsHLODRelevant() const override;
+#if WITH_EDITOR
+	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const override;
+#endif
 	//~ End ActorComponent Interface.
 
 	/** Apply the component instance data to the child actor component */

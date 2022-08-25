@@ -17,6 +17,11 @@ UHLODBuilder::UHLODBuilder(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+UNullHLODBuilder::UNullHLODBuilder(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
 UHLODBuilderSettings::UHLODBuilderSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

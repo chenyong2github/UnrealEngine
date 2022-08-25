@@ -133,3 +133,20 @@ protected:
 	TObjectPtr<const UHLODBuilderSettings> HLODBuilderSettings;
 #endif
 };
+
+
+/**
+ * Null HLOD builder that ignores it's input and generate no component.
+ */
+UCLASS(HideDropdown)
+class ENGINE_API UNullHLODBuilder : public UHLODBuilder
+{
+	GENERATED_UCLASS_BODY()
+
+#if WITH_EDITOR
+	virtual bool RequiresCompiledAssets() const { return false; }
+	virtual bool RequiresWarmup() const { return false; }
+	virtual uint32 ComputeHLODHash(const UActorComponent* InSourceComponent) const { return 0; }
+	virtual TArray<UActorComponent*> Build(const FHLODBuildContext& InHLODBuildContext, const TArray<UActorComponent*>& InSourceComponents) const { return {}; }
+#endif
+};

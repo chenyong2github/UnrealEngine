@@ -9,6 +9,9 @@
 #include "Engine/Engine.h"
 #include "Engine/DemoNetDriver.h"
 
+#if WITH_EDITOR
+#include "WorldPartition/HLOD/HLODBuilder.h"
+#endif
 #if UE_WITH_IRIS
 #include "Iris/ReplicationSystem/PropertyReplicationFragment.h"
 #endif // UE_WITH_IRIS
@@ -859,6 +862,12 @@ void UChildActorComponent::BeginPlay()
 	}
 }
 
+bool UChildActorComponent::IsHLODRelevant() const
+{
+	const bool bIsHLODRelevant = ChildActor && ChildActor->IsHLODRelevant();
+	return bIsHLODRelevant;
+}
+
 #if UE_WITH_IRIS
 void UChildActorComponent::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
@@ -871,6 +880,14 @@ void UChildActorComponent::RegisterReplicationFragments(UE::Net::FFragmentRegist
 
 
 #if WITH_EDITOR
+TSubclassOf<class UHLODBuilder> UChildActorComponent::GetCustomHLODBuilderClass() const
+{
+	// ChildActorComponents are only HLOD relevant so that their child actors are included in the HLOD generation.
+	// They don't provide any mesh/visual input, so we route them to be processed by the NullHLODBuilder which 
+	// ignores all components sent to it.
+	return UNullHLODBuilder::StaticClass();
+}
+
 void UChildActorComponent::SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode)
 {
 	Modify();
