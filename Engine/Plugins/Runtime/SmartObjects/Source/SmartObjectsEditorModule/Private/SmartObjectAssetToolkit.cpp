@@ -364,8 +364,13 @@ void FSmartObjectAssetToolkit::OnPropertyChanged(UObject* ObjectBeingModified, F
 	{
 		Tool->RebuildGizmos();
 	}
-	else if (PropertyChangedEvent.MemberProperty == nullptr // Provided event is invalid for undo, force refresh in that case
-		|| PropertyChangedEvent.MemberProperty->GetFName() == SlotsMemberName)
+	else if (PropertyChangedEvent.MemberProperty == nullptr)
+	{
+		// Provided event is invalid for undo, refresh isn't enough when it is undoing a delete, 
+		// A rebuild is needed in that case as the gizmos are being destroyed upon deletion.
+		Tool->RebuildGizmos();
+	}
+	else if (PropertyChangedEvent.MemberProperty->GetFName() == SlotsMemberName)
 	{
 		Tool->RefreshGizmos();
 	}
