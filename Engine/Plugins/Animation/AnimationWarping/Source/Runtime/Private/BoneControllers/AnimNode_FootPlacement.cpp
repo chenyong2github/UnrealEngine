@@ -937,7 +937,7 @@ FAnimNode_FootPlacement::FAnimNode_FootPlacement()
 // TODO: implement 
 void FAnimNode_FootPlacement::GatherDebugData(FNodeDebugData& NodeDebugData)
 {
-
+	ComponentPose.GatherDebugData(NodeDebugData);
 }
 
 void FAnimNode_FootPlacement::Initialize_AnyThread(const FAnimationInitializeContext& Context)
@@ -1563,7 +1563,24 @@ FTransform FAnimNode_FootPlacement::SolvePelvis(const UE::Anim::FootPlacement::F
 	// Adjust the hips to prevent over-compression
 	PelvisOffsetZ = FMath::Clamp(PelvisOffsetZ, MinOffsetMax, MaxOffsetMin);
 
-	const FVector PelvisOffsetDelta = -PelvisOffsetZ * Context.ApproachDirCS;
+	FVector PelvisOffsetDelta = -PelvisOffsetZ * Context.ApproachDirCS;
+
+	if (PelvisSettings.HorizontalRebalancingWeight)
+	{
+		const int32 NumLegs = LegsData.Num();
+		FVector OffsetAverage = FVector::ZeroVector;
+		for (const FLegRuntimeData& LegData : LegsData)
+		{
+			const FVector LegTranslationOffset = LegData.AlignedFootTransformCS.GetLocation() - LegData.InputPose.IKTransformCS.GetLocation();
+			OffsetAverage += LegTranslationOffset / NumLegs;
+		}
+
+		// Remove the vertical component
+		OffsetAverage -= OffsetAverage * Context.ApproachDirCS;
+
+		PelvisOffsetDelta += OffsetAverage * PelvisSettings.HorizontalRebalancingWeight;
+	}
+
 	FTransform PelvisTransformCS = PelvisData.InputPose.FKTransformCS;
 	PelvisTransformCS.AddToTranslation(PelvisOffsetDelta);
 

@@ -281,6 +281,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Pelvis Settings")
 	float LinearDamping = 1.0f;
 
+	// How much we move the pelvis horizontally to re-balance the characters weight due to foot offsets.
+	// A value of 0 will disable this effect.
+	// Higher values may move the mesh outside of the character's capsule
+	UPROPERTY(EditAnywhere, Category = "Pelvis Settings", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
+	float HorizontalRebalancingWeight = 0.3f;
+
 	// Max horizontal foot adjustment we consider to lower the hips
 	// This can be used to prevent the hips from dropping too low when the feet are locked
 	// Exceeding this value will first attempt to roll the planted feet, and then slide
