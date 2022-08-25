@@ -115,12 +115,11 @@ public:
 		return WorldOBB;
 	}
 
-	FBox GetBox()
+	FBox GetBox() const
 	{
-		FBox Box;
-		Box.Min = FVector(AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin);
-		Box.Max = FVector(AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin);
-		return Box;
+		FVector BoxMin(AxisX.GetAbs() * -Extent.X + AxisY.GetAbs() * -Extent.Y + AxisZ.GetAbs() * -Extent.Z + Origin);
+		FVector BoxMax(AxisX.GetAbs() * +Extent.X + AxisY.GetAbs() * +Extent.Y + AxisZ.GetAbs() * +Extent.Z + Origin);
+		return FBox(BoxMin, BoxMax);
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FLumenCardOBB& Data)
