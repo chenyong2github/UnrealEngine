@@ -496,7 +496,7 @@ namespace Chaos
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("FPBDRigidsSolver::RegisterObject()"));
 		auto& RigidBody_External = Proxy->GetGameThreadAPI();
 
-		if (BroadPhaseConfig.BroadphaseType == FBroadPhaseConfig::Tree)
+		if (BroadPhaseConfig.BroadphaseType < FBroadPhaseConfig::TreeAndGrid)
 		{
 			FSpatialAccelerationIdx Idx = RigidBody_External.SpatialIdx();
 			Idx.Bucket = 0;
