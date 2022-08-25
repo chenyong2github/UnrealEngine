@@ -21,6 +21,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bHideUnrelatedNodes(false)
 	, bShowShortTooltips(true)
 	// Workflow Settings
+	, bEnableInputTriggerSupportWarnings(false)
 	, bSplitContextTargetSettings(true)
 	, bExposeAllMemberComponentFunctions(true)
 	, bShowContextualFavorites(false)

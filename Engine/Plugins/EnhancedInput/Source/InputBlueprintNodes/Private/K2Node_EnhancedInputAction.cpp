@@ -4,6 +4,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "BlueprintActionDatabase.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintEditorSettings.h"
 #include "BlueprintNodeSpawner.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphSchema_K2_Actions.h"
@@ -60,7 +61,7 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 {
 	PreloadObject((UObject*)InputAction);
 
-	const ETriggerEventsSupported SupportedTriggerEvents = InputAction ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::None;
+	const ETriggerEventsSupported SupportedTriggerEvents = GetDefault<UBlueprintEditorSettings>()->bEnableInputTriggerSupportWarnings && InputAction ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::All;
 	
 	ForEachEventPinName([this, SupportedTriggerEvents](ETriggerEvent Event, FName PinName)
 	{
@@ -104,7 +105,7 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 void UK2Node_EnhancedInputAction::HideEventPins(UEdGraphPin* RetainPin)
 {
 	// Gather pins
-	const ETriggerEventsSupported SupportedTriggerEvents = InputAction ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::None;
+	const ETriggerEventsSupported SupportedTriggerEvents = GetDefault<UBlueprintEditorSettings>()->bEnableInputTriggerSupportWarnings && InputAction ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::All;
 
 	// Hide any event pins that are not supported by this Action's triggers in the advanced view
 	ForEachEventPinName([this, SupportedTriggerEvents](ETriggerEvent Event, FName PinName)
@@ -147,7 +148,7 @@ bool UK2Node_EnhancedInputAction::IsConnectionDisallowed(const UEdGraphPin* MyPi
 	if(MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec && InputAction)
 	{
 		const ETriggerEvent Event = GetTriggerTypeFromExecPin(MyPin);
-		const ETriggerEventsSupported SupportedEvents = InputAction->GetSupportedTriggerEvents();
+		const ETriggerEventsSupported SupportedEvents = GetDefault<UBlueprintEditorSettings>()->bEnableInputTriggerSupportWarnings ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::All;
 
 		if(!UInputTrigger::IsSupportedTriggerEvent(SupportedEvents, Event))
 		{
@@ -281,7 +282,7 @@ void UK2Node_EnhancedInputAction::ExpandNode(FKismetCompilerContext& CompilerCon
 		ETriggerEvent TriggerEvent;
 	};
 
-	const ETriggerEventsSupported SupportedTriggerEvents = InputAction->GetSupportedTriggerEvents();
+	const ETriggerEventsSupported SupportedTriggerEvents = GetDefault<UBlueprintEditorSettings>()->bEnableInputTriggerSupportWarnings ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::All;
 	
 	TArray<ActivePinData> ActivePins;
 	ForEachEventPinName([this, &ActivePins, &SupportedTriggerEvents, &CompilerContext](ETriggerEvent Event, FName PinName) 

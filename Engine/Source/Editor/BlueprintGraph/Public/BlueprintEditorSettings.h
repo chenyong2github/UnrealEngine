@@ -88,6 +88,13 @@ public:
 
 // Workflow Settings
 public:
+	/** 
+	  * If enabled Input Action nodes will hide unsupported trigger pins and give warnings when using unsupported triggers.
+	  * This warning only works with triggers set up in an Input Action, not Input Mapping Contexts. 
+	  */
+	UPROPERTY(EditAnywhere, Config, Category=Workflow, meta=(DisplayName="Enhanced Input: Enable Input Trigger Support Warnings"))
+	bool bEnableInputTriggerSupportWarnings;
+	
 	/** If enabled, we'll save off your chosen target setting based off of the context (allowing you to have different preferences based off what you're operating on). */
 	UPROPERTY(EditAnywhere, config, Category=Workflow, meta=(DisplayName="Context Menu: Divide Context Target Preferences"))
 	bool bSplitContextTargetSettings;

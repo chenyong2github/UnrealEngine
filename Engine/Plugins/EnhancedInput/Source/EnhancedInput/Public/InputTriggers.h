@@ -468,4 +468,7 @@ public:
 	// Actions that will cancel the combo if they are triggered
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger Settings", meta = (DisplayThumbnail = "false"))
     TArray<TObjectPtr<const UInputAction>> CancelActions;
+
+	/** Determines what kind of trigger events can happen from the behavior of this trigger. */
+	virtual ETriggerEventsSupported GetSupportedTriggerEvents() const override { return ETriggerEventsSupported::All; }
 };
