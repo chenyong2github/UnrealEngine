@@ -54,6 +54,107 @@ struct FTransactionObjectDeltaChange
 	TArray<FName> ChangedProperties;
 };
 
+/**
+ * ID for an object that was transacted
+ */
+struct FTransactionObjectId
+{
+public:
+	FTransactionObjectId() = default;
+
+	explicit FTransactionObjectId(const UObject* Object)
+	{
+		SetObject(Object);
+	}
+
+	FTransactionObjectId(const FName InObjectPackageName, const FName InObjectName, const FName InObjectPathName, const FName InObjectOuterPathName, const FName InObjectExternalPackageName, const FName InObjectClassPathName)
+		: ObjectPackageName(InObjectPackageName)
+		, ObjectName(InObjectName)
+		, ObjectPathName(InObjectPathName)
+		, ObjectOuterPathName(InObjectOuterPathName)
+		, ObjectExternalPackageName(InObjectExternalPackageName)
+		, ObjectClassPathName(InObjectClassPathName)
+	{
+	}
+
+	COREUOBJECT_API void SetObject(const UObject* Object);
+
+	void Reset()
+	{
+		ObjectPackageName = FName();
+		ObjectName = FName();
+		ObjectPathName = FName();
+		ObjectOuterPathName = FName();
+		ObjectExternalPackageName = FName();
+		ObjectClassPathName = FName();
+	}
+
+	void Swap(FTransactionObjectId& Other)
+	{
+		Exchange(ObjectPackageName, Other.ObjectPackageName);
+		Exchange(ObjectName, Other.ObjectName);
+		Exchange(ObjectPathName, Other.ObjectPathName);
+		Exchange(ObjectOuterPathName, Other.ObjectOuterPathName);
+		Exchange(ObjectExternalPackageName, Other.ObjectExternalPackageName);
+		Exchange(ObjectClassPathName, Other.ObjectClassPathName);
+	}
+
+	friend bool operator==(const FTransactionObjectId& LHS, const FTransactionObjectId& RHS)
+	{
+		// The other fields are subsets of this data
+		return LHS.ObjectPathName == RHS.ObjectPathName
+			&& LHS.ObjectExternalPackageName == RHS.ObjectExternalPackageName
+			&& LHS.ObjectClassPathName == RHS.ObjectClassPathName;
+	}
+
+	friend bool operator!=(const FTransactionObjectId& LHS, const FTransactionObjectId& RHS)
+	{
+		return !(LHS == RHS);
+	}
+
+	friend uint32 GetTypeHash(const FTransactionObjectId& Id)
+	{
+		return GetTypeHash(Id.ObjectPathName);
+	}
+
+	/** The package name of the object, can be dictated either by outer chain or external package */
+	FName ObjectPackageName;
+
+	/** The name of the object */
+	FName ObjectName;
+
+	/** The path name of the object */
+	FName ObjectPathName;
+
+	/** The outer path name of the object */
+	FName ObjectOuterPathName;
+
+	/** The external package name of the object, if any */
+	FName ObjectExternalPackageName;
+
+	/** The path name of the object's class. */
+	FName ObjectClassPathName;
+};
+
+/** Change information for an object that was transacted */
+struct FTransactionObjectChange
+{
+	/** Original ID of the object that changed */
+	FTransactionObjectId OriginalId;
+
+	/** Information about how the object changed */
+	FTransactionObjectDeltaChange DeltaChange;
+};
+
+/** Different things that can create an object change */
+enum class ETransactionObjectChangeCreatedBy : uint8
+{
+	/** This change was created from an object that was explicitly tracked within a transaction record */
+	TransactionRecord,
+	/** This change was created from an object that was implicitly tracked within a transaction annotation */
+	TransactionAnnotation,
+};
+
 /** Different kinds of actions that can trigger a transaction object event */
 enum class ETransactionObjectEventType : uint8
 {
@@ -77,22 +178,24 @@ class FTransactionObjectEvent
 public:
 	FTransactionObjectEvent() = default;
 
-	FTransactionObjectEvent(const FGuid& InTransactionId, const FGuid& InOperationId, const ETransactionObjectEventType InEventType, const FTransactionObjectDeltaChange& InDeltaChange, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation
-		, const FName InOriginalObjectPackageName, const FName InOriginalObjectName, const FName InOriginalObjectPathName, const FName InOriginalObjectOuterPathName, const FName InOriginalObjectExternalPackageName, const FName InOriginalObjectClassPathName)
+	FTransactionObjectEvent(const FGuid& InTransactionId, const FGuid& InOperationId, const ETransactionObjectEventType InEventType, const ETransactionObjectChangeCreatedBy InObjectChangeCreatedBy, const FTransactionObjectChange& InObjectChange, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation)
 		: TransactionId(InTransactionId)
 		, OperationId(InOperationId)
 		, EventType(InEventType)
-		, DeltaChange(InDeltaChange)
+		, ObjectChangeCreatedBy(InObjectChangeCreatedBy)
+		, ObjectChange(InObjectChange)
 		, Annotation(InAnnotation)
-		, OriginalObjectPackageName(InOriginalObjectPackageName)
-		, OriginalObjectName(InOriginalObjectName)
-		, OriginalObjectPathName(InOriginalObjectPathName)
-		, OriginalObjectOuterPathName(InOriginalObjectOuterPathName)
-		, OriginalObjectExternalPackageName(InOriginalObjectExternalPackageName)
-		, OriginalObjectClassPathName(InOriginalObjectClassPathName)
 	{
 		check(TransactionId.IsValid());
 		check(OperationId.IsValid());
+	}
+
+	// TODO: Deprecate this
+	FTransactionObjectEvent(const FGuid& InTransactionId, const FGuid& InOperationId, const ETransactionObjectEventType InEventType, const FTransactionObjectDeltaChange& InDeltaChange, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation
+		, const FName InOriginalObjectPackageName, const FName InOriginalObjectName, const FName InOriginalObjectPathName, const FName InOriginalObjectOuterPathName, const FName InOriginalObjectExternalPackageName, const FName InOriginalObjectClassPathName)
+		: FTransactionObjectEvent(InTransactionId, InOperationId, InEventType, ETransactionObjectChangeCreatedBy::TransactionRecord, 
+			FTransactionObjectChange{ FTransactionObjectId(InOriginalObjectPackageName, InOriginalObjectName, InOriginalObjectPathName, InOriginalObjectOuterPathName, InOriginalObjectExternalPackageName, InOriginalObjectClassPathName), InDeltaChange }, InAnnotation)
+	{
 	}
 
 	/** The unique identifier of the transaction this event belongs to */
@@ -113,82 +216,93 @@ public:
 		return EventType;
 	}
 
+	/** What kind of thing created this object change? */
+	ETransactionObjectChangeCreatedBy GetObjectChangeCreatedBy() const
+	{
+		return ObjectChangeCreatedBy;
+	}
+
 	/** Was the pending kill state of this object changed? (implies non-property changes) */
 	bool HasPendingKillChange() const
 	{
-		return DeltaChange.bHasPendingKillChange;
+		return ObjectChange.DeltaChange.bHasPendingKillChange;
 	}
 
 	/** Was the name of this object changed? (implies non-property changes) */
 	bool HasNameChange() const
 	{
-		return DeltaChange.bHasNameChange;
+		return ObjectChange.DeltaChange.bHasNameChange;
+	}
+
+	/** Get the original ID of this object */
+	const FTransactionObjectId& GetOriginalObjectId() const
+	{
+		return ObjectChange.OriginalId;
 	}
 
 	/** Get the original package name of this object */
 	FName GetOriginalObjectPackageName() const
 	{
-		return OriginalObjectPackageName;
+		return ObjectChange.OriginalId.ObjectPackageName;
 	}
 
 	/** Get the original name of this object */
 	FName GetOriginalObjectName() const
 	{
-		return OriginalObjectName;
+		return ObjectChange.OriginalId.ObjectName;
 	}
 
 	/** Get the original path name of this object */
 	FName GetOriginalObjectPathName() const
 	{
-		return OriginalObjectPathName;
+		return ObjectChange.OriginalId.ObjectPathName;
 	}
 
 	FName GetOriginalObjectClassPathName() const
 	{
-		return OriginalObjectClassPathName;
+		return ObjectChange.OriginalId.ObjectClassPathName;
 	}
 
 	/** Was the outer of this object changed? (implies non-property changes) */
 	bool HasOuterChange() const
 	{
-		return DeltaChange.bHasOuterChange;
+		return ObjectChange.DeltaChange.bHasOuterChange;
 	}
 
 	/** Has the package assigned to this object changed? (implies non-property changes) */
 	bool HasExternalPackageChange() const
 	{
-		return DeltaChange.bHasExternalPackageChange;
+		return ObjectChange.DeltaChange.bHasExternalPackageChange;
 	}
 
 	/** Get the original outer path name of this object */
 	FName GetOriginalObjectOuterPathName() const
 	{
-		return OriginalObjectOuterPathName;
+		return ObjectChange.OriginalId.ObjectOuterPathName;
 	}
 
 	/** Get the original package name of this object */
 	FName GetOriginalObjectExternalPackageName() const
 	{
-		return OriginalObjectExternalPackageName;
+		return ObjectChange.OriginalId.ObjectExternalPackageName;
 	}
-
 
 	/** Were any non-property changes made to the object? */
 	bool HasNonPropertyChanges(const bool InSerializationOnly = false) const
 	{
-		return (!InSerializationOnly && (DeltaChange.bHasNameChange || DeltaChange.bHasOuterChange || DeltaChange.bHasExternalPackageChange || DeltaChange.bHasPendingKillChange)) || DeltaChange.bHasNonPropertyChanges;
+		return (!InSerializationOnly && (ObjectChange.DeltaChange.bHasNameChange || ObjectChange.DeltaChange.bHasOuterChange || ObjectChange.DeltaChange.bHasExternalPackageChange || ObjectChange.DeltaChange.bHasPendingKillChange)) || ObjectChange.DeltaChange.bHasNonPropertyChanges;
 	}
 
 	/** Were any property changes made to the object? */
 	bool HasPropertyChanges() const
 	{
-		return DeltaChange.ChangedProperties.Num() > 0;
+		return ObjectChange.DeltaChange.ChangedProperties.Num() > 0;
 	}
 
-	/** Get the list of changed properties. Each entry is actually a chain of property names (root -> leaf) separated by a dot, eg) "ObjProp.StructProp". */
+	/** Get the list of changed properties. */
 	const TArray<FName>& GetChangedProperties() const
 	{
-		return DeltaChange.ChangedProperties;
+		return ObjectChange.DeltaChange.ChangedProperties;
 	}
 
 	/** Get the annotation object associated with the object being transacted (if any). */
@@ -205,21 +319,16 @@ public:
 			EventType = InOther.EventType;
 		}
 
-		DeltaChange.Merge(InOther.DeltaChange);
+		ObjectChange.DeltaChange.Merge(InOther.ObjectChange.DeltaChange);
 	}
 
 private:
 	FGuid TransactionId;
 	FGuid OperationId;
-	ETransactionObjectEventType EventType;
-	FTransactionObjectDeltaChange DeltaChange;
+	ETransactionObjectEventType EventType = ETransactionObjectEventType::Finalized;
+	ETransactionObjectChangeCreatedBy ObjectChangeCreatedBy = ETransactionObjectChangeCreatedBy::TransactionRecord;
+	FTransactionObjectChange ObjectChange;
 	TSharedPtr<ITransactionObjectAnnotation> Annotation;
-	FName OriginalObjectPackageName;
-	FName OriginalObjectName;
-	FName OriginalObjectPathName;
-	FName OriginalObjectOuterPathName;
-	FName OriginalObjectExternalPackageName;
-	FName OriginalObjectClassPathName;
 };
 
 /**

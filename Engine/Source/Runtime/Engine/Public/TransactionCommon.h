@@ -8,9 +8,9 @@
 #include "Serialization/ArchiveUObject.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "Templates/TypeHash.h"
+#include "Misc/TransactionObjectEvent.h"
 
 class FReferenceCollector;
-struct FTransactionObjectDeltaChange;
 
 namespace UE::Transaction
 {
@@ -186,59 +186,33 @@ private:
 	TArray64<uint8> Data;
 };
 
-struct FSerializedObjectInfo
+struct FSerializedObjectInfo : public FTransactionObjectId
 {
 public:
+	FSerializedObjectInfo() = default;
+
+	explicit FSerializedObjectInfo(const UObject* InObject)
+	{
+		SetObject(InObject);
+	}
+
 	void SetObject(const UObject* InObject)
 	{
-		ObjectPackageName = InObject->GetPackage()->GetFName();
-		ObjectName = InObject->GetFName();
-		ObjectPathName = *InObject->GetPathName();
-		ObjectOuterPathName = InObject->GetOuter() ? FName(*InObject->GetOuter()->GetPathName()) : FName();
-		ObjectExternalPackageName = InObject->GetExternalPackage() ? InObject->GetExternalPackage()->GetFName() : FName();
-		ObjectClassPathName = FName(*InObject->GetClass()->GetPathName());
+		FTransactionObjectId::SetObject(InObject);
 		bIsPendingKill = !IsValid(InObject);
 	}
 
 	void Reset()
 	{
-		ObjectPackageName = FName();
-		ObjectName = FName();
-		ObjectPathName = FName();
-		ObjectOuterPathName = FName();
-		ObjectExternalPackageName = FName();
-		ObjectClassPathName = FName();
+		FTransactionObjectId::Reset();
 		bIsPendingKill = false;
 	}
 
 	void Swap(FSerializedObjectInfo& Other)
 	{
-		Exchange(ObjectPackageName, Other.ObjectPackageName);
-		Exchange(ObjectName, Other.ObjectName);
-		Exchange(ObjectPathName, Other.ObjectPathName);
-		Exchange(ObjectOuterPathName, Other.ObjectOuterPathName);
-		Exchange(ObjectExternalPackageName, Other.ObjectExternalPackageName);
-		Exchange(ObjectClassPathName, Other.ObjectClassPathName);
+		FTransactionObjectId::Swap(Other);
 		Exchange(bIsPendingKill, Other.bIsPendingKill);
 	}
-
-	/** The package name of the object when it was serialized, can be dictated either by outer chain or external package */
-	FName ObjectPackageName;
-
-	/** The name of the object when it was serialized */
-	FName ObjectName;
-
-	/** The path name of the object when it was serialized */
-	FName ObjectPathName;
-
-	/** The outer path name of the object when it was serialized */
-	FName ObjectOuterPathName;
-
-	/** The external package name of the object when it was serialized, if any */
-	FName ObjectExternalPackageName;
-
-	/** The path name of the object's class. */
-	FName ObjectClassPathName;
 
 	/** The pending kill state of the object when it was serialized */
 	bool bIsPendingKill = false;

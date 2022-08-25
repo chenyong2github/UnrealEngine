@@ -315,6 +315,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 		// Clear out any diff data now as we won't be getting any more diff requests once finalized
 		DiffableObject.Reset();
 		DiffableObjectSnapshot.Reset();
+		ObjectAnnotationSnapshot.Reset();
 		AllPropertiesSnapshot.Reset();
 	}
 }
@@ -388,18 +389,23 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		}
 		DiffableObjectSnapshot->Swap(CurrentDiffableObject);
 
-		TSharedPtr<ITransactionObjectAnnotation> ChangedObjectTransactionAnnotation = CurrentObject->FindOrCreateTransactionAnnotation();
+		TSharedPtr<ITransactionObjectAnnotation> InitialObjectTransactionAnnotation = ObjectAnnotationSnapshot ? ObjectAnnotationSnapshot : SerializedObject.ObjectAnnotation;
+		ObjectAnnotationSnapshot = CurrentObject->FindOrCreateTransactionAnnotation();
 
 		// Notify any listeners of this change
-		if (SnapshotDeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid())
+		if (SnapshotDeltaChange.HasChanged() || ObjectAnnotationSnapshot.IsValid())
 		{
-			CurrentObject->PostTransacted(FTransactionObjectEvent(Owner->GetId(), Owner->GetOperationId(), ETransactionObjectEventType::Snapshot, SnapshotDeltaChange, ChangedObjectTransactionAnnotation
-				, InitialDiffableObject.ObjectInfo.ObjectPackageName
-				, InitialDiffableObject.ObjectInfo.ObjectName
-				, InitialDiffableObject.ObjectInfo.ObjectPathName
-				, InitialDiffableObject.ObjectInfo.ObjectOuterPathName
-				, InitialDiffableObject.ObjectInfo.ObjectExternalPackageName
-				, InitialDiffableObject.ObjectInfo.ObjectClassPathName));
+			TMap<UObject*, FTransactionObjectChange> AdditionalObjectChanges;
+			if (ObjectAnnotationSnapshot)
+			{
+				ObjectAnnotationSnapshot->ComputeAdditionalObjectChanges(InitialObjectTransactionAnnotation.Get(), AdditionalObjectChanges);
+			}
+
+			CurrentObject->PostTransacted(FTransactionObjectEvent(Owner->GetId(), Owner->GetOperationId(), ETransactionObjectEventType::Snapshot, ETransactionObjectChangeCreatedBy::TransactionRecord, FTransactionObjectChange{ InitialDiffableObject.ObjectInfo, SnapshotDeltaChange }, ObjectAnnotationSnapshot));
+			for (const TTuple<UObject*, FTransactionObjectChange>& AdditionalObjectChangePair : AdditionalObjectChanges)
+			{
+				AdditionalObjectChangePair.Key->PostTransacted(FTransactionObjectEvent(Owner->GetId(), Owner->GetOperationId(), ETransactionObjectEventType::Snapshot, ETransactionObjectChangeCreatedBy::TransactionAnnotation, AdditionalObjectChangePair.Value, nullptr));
+			}
 		}
 	}
 }
@@ -793,13 +799,18 @@ void FTransaction::Apply()
 		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid() || ChangedObjectRecord.bHasSerializedObjectChanges)
 		{
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
-			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, ChangedObjectTransactionAnnotation
-				, InitialSerializedObject.ObjectInfo.ObjectPackageName
-				, InitialSerializedObject.ObjectInfo.ObjectName
-				, InitialSerializedObject.ObjectInfo.ObjectPathName
-				, InitialSerializedObject.ObjectInfo.ObjectOuterPathName
-				, InitialSerializedObject.ObjectInfo.ObjectExternalPackageName
-				, InitialSerializedObject.ObjectInfo.ObjectClassPathName));
+
+			TMap<UObject*, FTransactionObjectChange> AdditionalObjectChanges;
+			if (ChangedObjectTransactionAnnotation)
+			{
+				ChangedObjectTransactionAnnotation->ComputeAdditionalObjectChanges(InitialSerializedObject.ObjectAnnotation.Get(), AdditionalObjectChanges);
+			}
+
+			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, ETransactionObjectChangeCreatedBy::TransactionRecord, FTransactionObjectChange{ InitialSerializedObject.ObjectId, DeltaChange }, ChangedObjectTransactionAnnotation));
+			for (const TTuple<UObject*, FTransactionObjectChange>& AdditionalObjectChangePair : AdditionalObjectChanges)
+			{
+				AdditionalObjectChangePair.Key->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, ETransactionObjectChangeCreatedBy::TransactionAnnotation, AdditionalObjectChangePair.Value, nullptr));
+			}
 		}
 	}
 
@@ -827,9 +838,10 @@ void FTransaction::Finalize()
 {
 	for (int32 i = 0; i < Records.Num(); ++i)
 	{
-		TSharedPtr<ITransactionObjectAnnotation> FinalizedObjectAnnotation;
-
 		FObjectRecord& ObjectRecord = Records[i];
+
+		TSharedPtr<ITransactionObjectAnnotation> FinalizedObjectAnnotation;
+		TSharedPtr<ITransactionObjectAnnotation> SnapshotObjectAnnotation = ObjectRecord.ObjectAnnotationSnapshot;
 		ObjectRecord.Finalize(this, FinalizedObjectAnnotation);
 
 		UObject* Object = ObjectRecord.Object.Get();
@@ -837,7 +849,7 @@ void FTransaction::Finalize()
 		{
 			if (!ChangedObjects.Contains(Object))
 			{
-				ChangedObjects.Add(Object, FChangedObjectValue(i, FinalizedObjectAnnotation));
+				ChangedObjects.Add(Object, FChangedObjectValue(i, FinalizedObjectAnnotation, SnapshotObjectAnnotation));
 			}
 		}
 	}
@@ -851,22 +863,30 @@ void FTransaction::Finalize()
 
 	for (auto ChangedObjectIt : ChangedObjects)
 	{
-		TSharedPtr<ITransactionObjectAnnotation> ChangedObjectTransactionAnnotation = ChangedObjectIt.Value.Annotation;
-
 		const FObjectRecord& ChangedObjectRecord = Records[ChangedObjectIt.Value.RecordIndex];
+		TSharedPtr<ITransactionObjectAnnotation> ChangedObjectTransactionAnnotation = ChangedObjectIt.Value.Annotation;		
 		const FTransactionObjectDeltaChange& DeltaChange = ChangedObjectRecord.DeltaChange;
 		if (DeltaChange.HasChanged() || ChangedObjectTransactionAnnotation.IsValid() || ChangedObjectRecord.bHasSerializedObjectChanges)
 		{
 			UObject* ChangedObject = ChangedObjectIt.Key;
 			
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
-			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, DeltaChange, ChangedObjectTransactionAnnotation
-				, InitialSerializedObject.ObjectInfo.ObjectPackageName
-				, InitialSerializedObject.ObjectInfo.ObjectName
-				, InitialSerializedObject.ObjectInfo.ObjectPathName
-				, InitialSerializedObject.ObjectInfo.ObjectOuterPathName
-				, InitialSerializedObject.ObjectInfo.ObjectExternalPackageName
-				, InitialSerializedObject.ObjectInfo.ObjectClassPathName));
+
+			TMap<UObject*, FTransactionObjectChange> AdditionalObjectChanges;
+			if (ChangedObjectTransactionAnnotation)
+			{
+				ChangedObjectTransactionAnnotation->ComputeAdditionalObjectChanges(InitialSerializedObject.ObjectAnnotation.Get(), AdditionalObjectChanges);
+			}
+			if (ChangedObjectTransactionAnnotation && ChangedObjectIt.Value.AnnotationSnapshot)
+			{
+				ChangedObjectTransactionAnnotation->ComputeAdditionalObjectChanges(ChangedObjectIt.Value.AnnotationSnapshot.Get(), AdditionalObjectChanges);
+			}
+
+			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, ETransactionObjectChangeCreatedBy::TransactionRecord, FTransactionObjectChange{ InitialSerializedObject.ObjectId, DeltaChange }, ChangedObjectTransactionAnnotation));
+			for (const TTuple<UObject*, FTransactionObjectChange>& AdditionalObjectChangePair : AdditionalObjectChanges)
+			{
+				AdditionalObjectChangePair.Key->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::Finalized, ETransactionObjectChangeCreatedBy::TransactionAnnotation, AdditionalObjectChangePair.Value, nullptr));
+			}
 		}
 	}
 	ChangedObjects.Reset();
@@ -917,13 +937,10 @@ FTransactionDiff FTransaction::GenerateDiff() const
 				{
 					// Since this transaction is not currently in an undo operation, generate a valid Guid.
 					FGuid Guid = FGuid::NewGuid();
-					TransactionDiff.DiffMap.Emplace(FName(*TransactedObject->GetPathName()), MakeShared<FTransactionObjectEvent>(this->GetId(), Guid, ETransactionObjectEventType::Finalized, ObjectRecord.DeltaChange, ObjectRecord.SerializedObject.ObjectAnnotation
-						, ObjectRecord.SerializedObject.ObjectInfo.ObjectPackageName
-						, ObjectRecord.SerializedObject.ObjectInfo.ObjectName
-						, ObjectRecord.SerializedObject.ObjectInfo.ObjectPathName
-						, ObjectRecord.SerializedObject.ObjectInfo.ObjectOuterPathName
-						, ObjectRecord.SerializedObject.ObjectInfo.ObjectExternalPackageName
-						, ObjectRecord.SerializedObject.ObjectInfo.ObjectClassPathName));
+					TransactionDiff.DiffMap.Emplace(FName(*TransactedObject->GetPathName()), MakeShared<FTransactionObjectEvent>(
+						this->GetId(), Guid, ETransactionObjectEventType::Finalized, ETransactionObjectChangeCreatedBy::TransactionRecord, 
+						FTransactionObjectChange{ ObjectRecord.SerializedObject.ObjectId, ObjectRecord.DeltaChange }, ObjectRecord.SerializedObject.ObjectAnnotation)
+					);
 				}
 			}
 		}

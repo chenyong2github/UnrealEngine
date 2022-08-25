@@ -46,26 +46,26 @@ protected:
 		{
 			void SetObject(const UObject* InObject)
 			{
-				ObjectInfo.SetObject(InObject);
+				ObjectId.SetObject(InObject);
 				ObjectAnnotation = InObject->FindOrCreateTransactionAnnotation();
 			}
 
 			void Reset()
 			{
 				UE::Transaction::FSerializedObject::Reset();
-				ObjectInfo.Reset();
+				ObjectId.Reset();
 				ObjectAnnotation.Reset();
 			}
 
 			void Swap(FSerializedObject& Other)
 			{
 				UE::Transaction::FSerializedObject::Swap(Other);
-				ObjectInfo.Swap(Other.ObjectInfo);
+				ObjectId.Swap(Other.ObjectId);
 				Exchange(ObjectAnnotation, Other.ObjectAnnotation);
 			}
 
-			/** Information about the object when it was serialized */
-			UE::Transaction::FSerializedObjectInfo ObjectInfo;
+			/** ID of the object when it was serialized */
+			FTransactionObjectId ObjectId;
 
 			/** Annotation data for the object stored externally */
 			TSharedPtr<ITransactionObjectAnnotation> ObjectAnnotation;
@@ -111,6 +111,8 @@ protected:
 		TUniquePtr<UE::Transaction::FDiffableObject> DiffableObject;
 		/** The diffable object data when it was last snapshot (always null once finalized) */
 		TUniquePtr<UE::Transaction::FDiffableObject> DiffableObjectSnapshot;
+		/** Annotation data the last time the object was snapshot (always null once finalized) */
+		TSharedPtr<ITransactionObjectAnnotation> ObjectAnnotationSnapshot;
 		/** The combined list of properties that have been passed any Snapshot call for this object (always empty once finalized) */
 		TArray<const FProperty*> AllPropertiesSnapshot;
 		/** Delta change information between the diffable state of the object when the transaction started, and the diffable state of the object when the transaction ended */
@@ -256,20 +258,18 @@ protected:
 
 	struct FChangedObjectValue
 	{
-		FChangedObjectValue()
-			: Annotation()
-			, RecordIndex(INDEX_NONE)
-		{
-		}
+		FChangedObjectValue() = default;
 
-		FChangedObjectValue(const int32 InRecordIndex, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation)
+		FChangedObjectValue(const int32 InRecordIndex, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotation, const TSharedPtr<ITransactionObjectAnnotation>& InAnnotationSnapshot = nullptr)
 			: Annotation(InAnnotation)
+			, AnnotationSnapshot(InAnnotationSnapshot)
 			, RecordIndex(InRecordIndex)
 		{
 		}
 
 		TSharedPtr<ITransactionObjectAnnotation> Annotation;
-		int32 RecordIndex;
+		TSharedPtr<ITransactionObjectAnnotation> AnnotationSnapshot;
+		int32 RecordIndex = INDEX_NONE;
 	};
 
 	/** Objects that will be changed directly by the transaction, empty when not transacting */

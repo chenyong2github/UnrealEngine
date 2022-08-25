@@ -4,6 +4,9 @@
 
 #include "CoreTypes.h"
 
+class UObject;
+struct FTransactionObjectChange;
+
 /**
  * Interface for transaction object annotations.
  *
@@ -18,4 +21,7 @@ public:
 	virtual ~ITransactionObjectAnnotation() = default;
 	virtual void AddReferencedObjects(class FReferenceCollector& Collector) = 0;
 	virtual void Serialize(class FArchive& Ar) = 0;
+
+	virtual bool SupportsAdditionalObjectChanges() const { return false; }
+	virtual void ComputeAdditionalObjectChanges(const ITransactionObjectAnnotation* OriginalAnnotation, TMap<UObject*, FTransactionObjectChange>& OutAdditionalObjectChanges) {}
 };

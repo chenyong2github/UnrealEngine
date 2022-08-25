@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TransactionCommon.h"
-#include "Misc/TransactionObjectEvent.h"
 #include "UObject/UnrealType.h"
 #include "Components/ActorComponent.h"
 
