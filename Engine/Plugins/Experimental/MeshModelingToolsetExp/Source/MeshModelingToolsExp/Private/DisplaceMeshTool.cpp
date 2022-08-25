@@ -18,7 +18,7 @@
 #include "ModelingToolTargetUtil.h"
 #include "Operations/PNTriangles.h"
 #include "Operations/UniformTessellate.h"
-#include "Operations/AdaptiveTessellate.h"
+#include "Operations/SelectiveTessellate.h"
 #include "Materials/MaterialInterface.h"
 
 // needed to disable normals recalculation on the underlying asset

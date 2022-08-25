@@ -7,7 +7,7 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "Operations/PNTriangles.h"
 #include "Operations/UniformTessellate.h"
-#include "Operations/AdaptiveTessellate.h"
+#include "Operations/SelectiveTessellate.h"
 #include "UDynamicMesh.h"
 #include "Math/UnrealMathUtility.h"
 

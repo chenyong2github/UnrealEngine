@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Operations/AdaptiveTessellate.h"
+#include "Operations/SelectiveTessellate.h"
 #include "VectorTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Async/ParallelFor.h"
