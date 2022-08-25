@@ -218,6 +218,17 @@ FText SPCGListViewItemRow::ConvertPointDataToText(const FPCGPoint* PCGPoint, con
 		const int32 Seed = PCGPoint->Seed;
 		return FText::AsNumber(Seed);
 	}
+	// None of the default point columns were caught, see if its metadata
+	else if (const UPCGMetadata* PCGMetadata = InternalItem->PCGMetadata)
+	{
+		if (const FPCGMetadataInfo* MetadataInfo = InternalItem->MetadataInfos->Find(ColumnId))
+		{
+			if (const FPCGMetadataAttributeBase* AttributeBase = PCGMetadata->GetConstAttribute((*MetadataInfo).MetadataId))
+			{
+				return ConvertMetadataAttributeToText(AttributeBase, MetadataInfo, InternalItem->MetaDataItemKey);
+			}
+		}
+	}
 
 	return PCGEditorGraphAttributeListView::NoDataAvailableText;
 }
