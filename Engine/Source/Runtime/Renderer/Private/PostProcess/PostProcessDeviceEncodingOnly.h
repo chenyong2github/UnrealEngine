@@ -11,6 +11,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDeviceEncodingOnlyOutputDeviceParameters, )
 	SHADER_PARAMETER(FVector3f, InverseGamma)
 	SHADER_PARAMETER(uint32, OutputDevice)
 	SHADER_PARAMETER(uint32, OutputGamut)
+	SHADER_PARAMETER(float, OutputMaxLuminance)
 END_SHADER_PARAMETER_STRUCT()
 
 FDeviceEncodingOnlyOutputDeviceParameters GetDeviceEncodingOnlyOutputDeviceParameters(const FSceneViewFamily& Family);

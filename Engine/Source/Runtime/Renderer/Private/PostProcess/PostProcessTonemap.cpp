@@ -18,6 +18,7 @@
 #include "Rendering/Texture2DResource.h"
 #include "Math/Halton.h"
 #include "SystemTextures.h"
+#include "HDRHelper.h"
 
 bool SupportsFilmGrain(EShaderPlatform Platform)
 {
@@ -259,6 +260,7 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 	Parameters.InverseGamma = InvDisplayGammaValue;
 	Parameters.OutputDevice = static_cast<uint32>(OutputDeviceValue);
 	Parameters.OutputGamut = static_cast<uint32>(Family.RenderTarget->GetDisplayColorGamut());
+	Parameters.OutputMaxLuminance = HDRGetDisplayMaximumLuminance();
 	return Parameters;
 }
 

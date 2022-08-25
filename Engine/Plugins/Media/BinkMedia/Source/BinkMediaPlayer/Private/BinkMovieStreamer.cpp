@@ -11,6 +11,7 @@
 #include "RHIUtilities.h"
 #include "BinkMediaPlayer.h"
 #include "BinkFunctionLibrary.h"
+#include "HDRHelper.h"
 
 #include "OneColorShader.h"
 
@@ -132,6 +133,7 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 		if (GRHISupportsHDROutput && CVarHDROutputEnabled->GetValueOnRenderThread() != 0)
 		{
 			EDisplayOutputFormat outDev = static_cast<EDisplayOutputFormat>(CVarDisplayOutputDevice->GetValueOnRenderThread());
+			float DisplayMaxLuminance = HDRGetDisplayMaximumLuminance();
 			switch (outDev)
 			{
 			// LDR
@@ -143,12 +145,12 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 			// 1k nits
 			case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
 			case EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB:
-				BinkPluginSetHdrSettings(bnk, 1, 1.0f, 1000);
+				BinkPluginSetHdrSettings(bnk, 1, 1.0f, DisplayMaxLuminance);
 				break;
 			// 2k nits
 			case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
 			case EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB:
-				BinkPluginSetHdrSettings(bnk, 1, 1.0f, 2000);
+				BinkPluginSetHdrSettings(bnk, 1, 1.0f, DisplayMaxLuminance);
 				break;
 			// no tonemap
 			default:

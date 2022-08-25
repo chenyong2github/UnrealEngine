@@ -31,6 +31,7 @@ uint bOutputInHDR;
 
 uint OutputDevice;
 uint OutputGamut;
+float OutputMaxLuminance;
 
 uint GetOutputDevice()
 {
@@ -96,7 +97,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitST2084 )
 	{		
 		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
+		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance);
 
 		// Convert from AP1 to specified output gamut
 		ODTColor = mul( AP1_2_Output, ODTColor );
@@ -109,7 +110,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitST2084 )
 	{		
 		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
+		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance);
 
 		// Convert from AP1 to specified output gamut
 		ODTColor = mul( AP1_2_Output, ODTColor );
@@ -122,20 +123,20 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if(GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{
 		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
+		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance );
 
 		// Apply conversion to ScRGB
-		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES1000nitScRGB );
+		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES1000nitScRGB, OutputMaxLuminance );
 	}
 
 	// ACES 2000nit transform to linear ScRGB
 	else if(GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{
 		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
+		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0, OutputMaxLuminance );
 
 		// Apply conversion to ScRGB
-		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES2000nitScRGB );
+		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES2000nitScRGB, OutputMaxLuminance );
 	}
 	
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_LinearEXR)

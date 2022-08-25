@@ -15,7 +15,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapperOutputDeviceParameters, )
 	SHADER_PARAMETER(FVector3f, InverseGamma)
 	SHADER_PARAMETER(uint32, OutputDevice)
 	SHADER_PARAMETER(uint32, OutputGamut)
-END_SHADER_PARAMETER_STRUCT()
+	SHADER_PARAMETER(float, OutputMaxLuminance)
+	END_SHADER_PARAMETER_STRUCT()
 
 RENDERER_API FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family);
 

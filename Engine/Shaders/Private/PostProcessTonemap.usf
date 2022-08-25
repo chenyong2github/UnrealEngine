@@ -77,6 +77,7 @@ float4 ScreenPosToFilmGrainTextureUV;
 float EditorNITLevel;
 
 uint bOutputInHDR;
+float OutputMaxLuminance;
 
 #if EYEADAPTATION_EXPOSURE_FIX != 1
 // Default value used when eye adaptation is disabled (e.g fixed exposure) or not available.
@@ -651,7 +652,7 @@ float4 TonemapCommonPS(
 		#endif
 
 		#if DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES2000nitScRGB
-			OutColor.xyz = ST2084ToScRGB(OutColor.xyz, DIM_OUTPUT_DEVICE);
+			OutColor.xyz = ST2084ToScRGB(OutColor.xyz, DIM_OUTPUT_DEVICE, OutputMaxLuminance);
 
 		#elif DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_LinearEXR
 			OutColor.xyz = ST2084ToLinear(OutColor.xyz);

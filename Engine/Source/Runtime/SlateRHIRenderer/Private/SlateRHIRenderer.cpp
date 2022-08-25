@@ -595,10 +595,11 @@ public:
 	{
 		OutputDevice.Bind(Initializer.ParameterMap, TEXT("OutputDevice"));
 		OutputGamut.Bind(Initializer.ParameterMap, TEXT("OutputGamut"));
+		OutputMaxLuminance.Bind(Initializer.ParameterMap, TEXT("OutputMaxLuminance"));
 	}
 	FCompositeLUTGenerationPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut)
+	void SetParameters(FRHICommandList& RHICmdList, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut, float DisplayMaxLuminance)
 	{
 		static const auto CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
 
@@ -620,6 +621,7 @@ public:
 
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputDevice, OutputDeviceValue);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputGamut, OutputGamutValue);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputMaxLuminance, DisplayMaxLuminance);
 	}
 
 	static const TCHAR* GetSourceFilename()
@@ -635,6 +637,7 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, OutputDevice);
 	LAYOUT_FIELD(FShaderParameter, OutputGamut);
+	LAYOUT_FIELD(FShaderParameter, OutputMaxLuminance);
 };
 
 IMPLEMENT_SHADER_TYPE(, FCompositeLUTGenerationPS, TEXT("/Engine/Private/CompositeUIPixelShader.usf"), TEXT("GenerateLUTPS"), SF_Pixel);
@@ -1179,7 +1182,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 							GeometryShader->SetParameters(RHICmdList, VolumeBounds.MinZ);
 						}
 #endif
-						PixelShader->SetParameters(RHICmdList, ViewportInfo.HDRDisplayOutputFormat, ViewportInfo.HDRDisplayColorGamut);
+						PixelShader->SetParameters(RHICmdList, ViewportInfo.HDRDisplayOutputFormat, ViewportInfo.HDRDisplayColorGamut, HDRGetDisplayMaximumLuminance());
 
 						RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
 					}

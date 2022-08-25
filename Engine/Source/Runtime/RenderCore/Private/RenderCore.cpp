@@ -520,6 +520,11 @@ RENDERCORE_API void HDRGetMetaData(EDisplayOutputFormat& OutDisplayOutputFormat,
 
 }
 
+RENDERCORE_API float HDRGetDisplayMaximumLuminance()
+{
+	return CVarHDRDisplayMaxLuminance.GetValueOnAnyThread();
+}
+
 RENDERCORE_API void HDRConfigureCVars(bool bIsHDREnabled, uint32 DisplayNits, bool bFromGameSettings)
 {
 	if (bIsHDREnabled && !GRHISupportsHDROutput)

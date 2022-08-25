@@ -15,6 +15,7 @@
 #include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
+#include "HDRHelper.h"
 
 namespace
 {
@@ -78,6 +79,7 @@ FDeviceEncodingOnlyOutputDeviceParameters GetDeviceEncodingOnlyOutputDeviceParam
 	Parameters.InverseGamma = (FVector3f)InvDisplayGammaValue;
 	Parameters.OutputDevice = static_cast<uint32>(OutputDeviceValue);
 	Parameters.OutputGamut = static_cast<uint32>(Family.RenderTarget->GetDisplayColorGamut());
+	Parameters.OutputMaxLuminance = HDRGetDisplayMaximumLuminance();
 	return Parameters;
 }
 

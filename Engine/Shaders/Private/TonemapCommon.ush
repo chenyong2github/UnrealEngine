@@ -236,6 +236,79 @@ half3 FilmToneMapInverse( half3 ToneColor )
 	return max( 0, LinearColor );
 }
 
+WhiteStandard GetWhiteStandard(uint OutputGamut)
+{
+	if (OutputGamut == TONEMAPPER_GAMUT_DCIP3_D65)
+		return WhiteStandard_D65;
+	else if (OutputGamut == TONEMAPPER_GAMUT_Rec2020_D65)
+		return WhiteStandard_D65;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACES_D60)
+		return WhiteStandard_D60;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACEScg_D60)
+		return WhiteStandard_D60;
+	else
+		return WhiteStandard_D65;
+}
+
+float3x3 XYZtoRGBMatrix(uint OutputGamut)
+{
+	if (OutputGamut == TONEMAPPER_GAMUT_DCIP3_D65)
+		return XYZ_2_P3D65_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_Rec2020_D65)
+		return XYZ_2_Rec2020_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACES_D60)
+		return XYZ_2_AP0_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACEScg_D60)
+		return XYZ_2_AP1_MAT;
+	else
+		return XYZ_2_sRGB_MAT;
+}
+
+float3x3 RGBtoXYZMatrix(uint OutputGamut)
+{
+	if (OutputGamut == TONEMAPPER_GAMUT_DCIP3_D65)
+		return P3D65_2_XYZ_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_Rec2020_D65)
+		return Rec2020_2_XYZ_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACES_D60)
+		return AP0_2_XYZ_MAT;
+	else if (OutputGamut == TONEMAPPER_GAMUT_ACEScg_D60)
+		return AP1_2_XYZ_MAT;
+	else
+		return sRGB_2_XYZ_MAT;
+}
+
+FColorSpace GetColorSpace(uint OutputGamut)
+{
+	FColorSpace OutColorSpace;
+	OutColorSpace.White = GetWhiteStandard(OutputGamut);
+	OutColorSpace.XYZtoRGB = XYZtoRGBMatrix(OutputGamut);
+	OutColorSpace.RGBtoXYZ = RGBtoXYZMatrix(OutputGamut);
+	return OutColorSpace;
+}
+
+static const int UE_ACES_EOTF = 4;          // 0: ST-2084 (PQ)
+											// 1: BT.1886 (Rec.709/2020 settings) 
+											// 2: sRGB (mon_curve w/ presets)
+											// 3: gamma 2.6
+											// 4: linear (no EOTF)
+											// 5: HLG
+
+static const int UE_ACES_SURROUND = 0;      // 0: dark ( NOTE: this is the only active setting! )
+											// 1: dim ( *inactive* - selecting this will have no effect )
+											// 2: normal ( *inactive* - selecting this will have no effect )
+
+static const bool UE_ACES_STRETCH_BLACK = true; // stretch black luminance to a PQ code value of 0
+static const bool UE_ACES_D60_SIM = false;
+static const bool UE_ACES_LEGAL_RANGE = false;
+
+static const float UE_ACES_HDR_Y_MIN = 0.0001;  // black luminance (cd/m^2)
+static const float UE_ACES_HDR_Y_MID = 15.0;    // mid-point luminance (cd/m^2)
+
+static const float UE_ACES_SDR_Y_MIN = 0.0001;  // black luminance (cd/m^2)
+static const float UE_ACES_SDR_Y_MID = 7.2;     // mid-point luminance (cd/m^2)
+static const float UE_ACES_SDR_Y_MAX = 108.0;   // peak white luminance (cd/m^2)
+
 //
 // ACES sRGB D65 Output Transform - Forward and Inverse
 //  Input is scene-referred linear values in the working space gamut
@@ -243,10 +316,16 @@ half3 FilmToneMapInverse( half3 ToneColor )
 //
 float3 ACESOutputTransformsRGBD65( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0 )
 {
-	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 );
-	float3 oces = RRT( aces );
-	float3 OutputReferredLinearsRGBColor =  ODT_sRGB_D65( oces );
-	return OutputReferredLinearsRGBColor;
+	static const float Gain = 2.22; // chosen such that outputTransform(0.18 * Gain) / UE_ACES_SDR_Y_MAX = 0.18
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * Gain );
+
+	const FColorSpace UE_ACES_SRGB_DISPLAY_PRI = GetColorSpace(TONEMAPPER_GAMUT_sRGB_D65);
+	const FColorSpace UE_ACES_SRGB_LIMITING_PRI = GetColorSpace(TONEMAPPER_GAMUT_sRGB_D65);
+
+	float3 OutputReferredLinearsRGBColor = outputTransform(aces, UE_ACES_SDR_Y_MIN, UE_ACES_SDR_Y_MID, UE_ACES_SDR_Y_MAX, UE_ACES_SRGB_DISPLAY_PRI, UE_ACES_SRGB_LIMITING_PRI, UE_ACES_EOTF,
+														   UE_ACES_SURROUND, UE_ACES_STRETCH_BLACK, UE_ACES_D60_SIM, UE_ACES_LEGAL_RANGE);
+
+	return OutputReferredLinearsRGBColor / UE_ACES_SDR_Y_MAX;
 }
 
 float3 ACESOutputTransformsRGBD65( float3 SceneReferredLinearsRGBColor )
@@ -259,10 +338,16 @@ float3 ACESOutputTransformsRGBD65( float3 SceneReferredLinearsRGBColor )
 float3 InverseACESOutputTransformsRGBD65( float3 OutputReferredLinearsRGBColor )
 {
 	const float3x3 AP0_2_sRGB = mul( XYZ_2_sRGB_MAT, mul( D60_2_D65_CAT, AP0_2_XYZ_MAT ) );
+	static const float Gain = 2.22; // chosen such that outputTransform(0.18 * Gain) / UE_ACES_SDR_Y_MAX = 0.18
 
-	float3 oces = Inverse_ODT_sRGB_D65( OutputReferredLinearsRGBColor );
-	float3 aces = Inverse_RRT( oces );
-	float3 SceneReferredLinearsRGBColor = mul( AP0_2_sRGB, aces ) * 0.6666;
+	const FColorSpace UE_ACES_SRGB_DISPLAY_PRI = GetColorSpace(TONEMAPPER_GAMUT_sRGB_D65);
+	const FColorSpace UE_ACES_SRGB_LIMITING_PRI = GetColorSpace(TONEMAPPER_GAMUT_sRGB_D65);
+
+	OutputReferredLinearsRGBColor *= UE_ACES_SDR_Y_MAX;
+	float3 aces = invOutputTransform ( OutputReferredLinearsRGBColor, UE_ACES_SDR_Y_MIN, UE_ACES_SDR_Y_MID, UE_ACES_SDR_Y_MAX, UE_ACES_SRGB_DISPLAY_PRI, UE_ACES_SRGB_LIMITING_PRI, UE_ACES_EOTF,
+									   UE_ACES_SURROUND, UE_ACES_STRETCH_BLACK, UE_ACES_D60_SIM, UE_ACES_LEGAL_RANGE);
+
+	float3 SceneReferredLinearsRGBColor = mul( AP0_2_sRGB, aces ) / Gain;
 
 	return SceneReferredLinearsRGBColor;
 }
@@ -272,19 +357,22 @@ float3 InverseACESOutputTransformsRGBD65( float3 OutputReferredLinearsRGBColor )
 //  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the AP1 gamut
 //
-float3 ACESOutputTransforms1000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0 ) 
+float3 ACESOutputTransforms1000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0, float MaxLuminance ) 
 {
-	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 );
-	float3 oces = RRT( aces );
-	float3 OutputReferredLinearAP1Color = ODT_1000nits( oces );
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 ); // x 1.5 to get similar brightness between HDR and SDR
+	const FColorSpace UE_ACES_AP1_DISPLAY_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
+	const FColorSpace UE_ACES_AP1_LIMITING_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
+	float3 OutputReferredLinearAP1Color = outputTransform(aces, UE_ACES_HDR_Y_MIN, UE_ACES_HDR_Y_MID, MaxLuminance, UE_ACES_AP1_DISPLAY_PRI, UE_ACES_AP1_LIMITING_PRI, UE_ACES_EOTF,
+											 			  UE_ACES_SURROUND, UE_ACES_STRETCH_BLACK, UE_ACES_D60_SIM, UE_ACES_LEGAL_RANGE);
+
 	return OutputReferredLinearAP1Color;
 }
 
-float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor )
+float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor, float MaxLuminance )
 {
 	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
 
-	return ACESOutputTransforms1000( SceneReferredLinearsRGBColor, sRGB_2_AP0 );
+	return ACESOutputTransforms1000( SceneReferredLinearsRGBColor, sRGB_2_AP0, MaxLuminance );
 }
 
 //
@@ -292,19 +380,22 @@ float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor )
 //  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the AP1 gamut
 //
-float3 ACESOutputTransforms2000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0 ) 
+float3 ACESOutputTransforms2000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0, float MaxLuminance ) 
 {
-	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 );
-	float3 oces = RRT( aces );
-	float3 OutputReferredLinearAP1Color = ODT_2000nits( oces );
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 ); // x 1.5 to get similar brightness between HDR and SDR
+	const FColorSpace UE_ACES_AP1_DISPLAY_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
+	const FColorSpace UE_ACES_AP1_LIMITING_PRI = GetColorSpace(TONEMAPPER_GAMUT_ACEScg_D60);
+	float3 OutputReferredLinearAP1Color = outputTransform(aces, UE_ACES_HDR_Y_MIN, UE_ACES_HDR_Y_MID, MaxLuminance, UE_ACES_AP1_DISPLAY_PRI, UE_ACES_AP1_LIMITING_PRI, UE_ACES_EOTF,
+											 			  UE_ACES_SURROUND, UE_ACES_STRETCH_BLACK, UE_ACES_D60_SIM, UE_ACES_LEGAL_RANGE);
+
 	return OutputReferredLinearAP1Color;
 }
 
-float3 ACESOutputTransforms2000( float3 SceneReferredLinearsRGBColor )
+float3 ACESOutputTransforms2000( float3 SceneReferredLinearsRGBColor, float MaxLuminance )
 {
 	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
 
-	return ACESOutputTransforms2000( SceneReferredLinearsRGBColor, sRGB_2_AP0 );
+	return ACESOutputTransforms2000( SceneReferredLinearsRGBColor, sRGB_2_AP0, MaxLuminance );
 }
 
 static const float3x3 GamutMappingIdentityMatrix = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
@@ -364,23 +455,14 @@ float3x3 OuputInverseGamutMappingMatrix( uint OutputGamut )
 	return GamutMappingMatrix;
 }
 
-float3 ST2084ToScRGB(float3 Color, uint OutputDevice)
+float3 ST2084ToScRGB(float3 Color, uint OutputDevice, float MaxODTNits)
 {
 	// Nvidia HDR encoding - Remove PQ, convert to linear scRGB
 	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
 	const float WhitePoint = 80.f;
 
-	// 1000.f nit display
-	float MaxODTNits = 1000.0f;
-	float MinODTNits = 0.0001f;
 
-	if (OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
-	{
-		// 2000 nit display
-		MaxODTNits = 2000.0f;
-		MinODTNits = 0.005f;
-	}
-
+	float MinODTNits = UE_ACES_HDR_Y_MIN;
 	float3 OutColor = ST2084ToLinear(Color);
 		
 	OutColor = clamp(OutColor, MinODTNits, MaxODTNits);
@@ -481,4 +563,3 @@ float3 WhiteBalance(float3 LinearColor, float WhiteTemp, float WhiteTint, bool b
 
 	return mul(WhiteBalanceMat, LinearColor);
 }
-

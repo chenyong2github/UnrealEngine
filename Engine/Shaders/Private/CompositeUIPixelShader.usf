@@ -15,6 +15,7 @@ CompositeUIPixelShader.usf: Filter pixel shader source.
 ///////////////////////////////////////////////////////////////////////////////////////
 uint OutputDevice;
 uint OutputGamut;
+float OutputMaxLuminance;
 
 void GenerateLUTPS(
 	FWriteToSliceGeometryOutput Input,
@@ -32,7 +33,7 @@ void GenerateLUTPS(
 	if( OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{		
 		// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
-		float3 ODTColor = ACESOutputTransforms1000(LinearColor);
+		float3 ODTColor = ACESOutputTransforms1000(LinearColor, OutputMaxLuminance);
 		// do not apply scRGB here because LUT is not 16F in this format, and scRGB can output negative values
 		if (OutputDevice != TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 		{
@@ -43,7 +44,7 @@ void GenerateLUTPS(
 	else if( OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{		
 		// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
-		float3 ODTColor = ACESOutputTransforms2000(LinearColor);
+		float3 ODTColor = ACESOutputTransforms2000(LinearColor, OutputMaxLuminance);
 		// do not apply scRGB here because LUT is not 16F in this format, and scRGB can output negative values
 		// 
 		if (OutputDevice != TONEMAPPER_OUTPUT_ACES2000nitScRGB)
@@ -172,7 +173,7 @@ void Main(
 #if !SCRGB_ENCODING
 		UIColor.xyz = ST2084ToLinear(UIColor.xyz);
 #else
-		UIColor.xyz = ST2084ToScRGB(UIColor.xyz, OutputDevice);
+		UIColor.xyz = ST2084ToScRGB(UIColor.xyz, OutputDevice, OutputMaxLuminance);
 		UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UIBrightnessInNits;
 #endif
 

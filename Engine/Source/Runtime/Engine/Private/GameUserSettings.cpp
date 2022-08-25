@@ -20,6 +20,7 @@
 #include "AudioDevice.h"
 #include "DynamicResolutionState.h"
 #include "HAL/PlatformFramePacer.h"
+#include "HDRHelper.h"
 
 extern EWindowMode::Type GetWindowModeType(EWindowMode::Type WindowMode);
 
@@ -952,7 +953,7 @@ void UGameUserSettings::EnableHDRDisplayOutputInternal(bool bEnable, int32 Displ
 		}
 
 		// Only support 1000 and 2000 nit curves so push to closest
-		int32 DisplayNitLevel = (DisplayNits < 1500) ? 1000 : 2000;
+		int32 DisplayNitLevel = DisplayNits;
 
 		// Apply device-specific output encoding
 		if (bEnable)
