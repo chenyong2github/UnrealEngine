@@ -2,7 +2,7 @@
 
 #include "PixelStreamingCommands.h"
 
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
 #define LOCTEXT_NAMESPACE "PixelStreamingToolBar"
     void FPixelStreamingCommands::RegisterCommands()

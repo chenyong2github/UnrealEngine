@@ -33,7 +33,8 @@ namespace UnrealBuildTool.Rules
 				"SlateCore",
 				"EngineSettings",
 				"InputCore",
-				"Json"
+				"Json",
+				"PixelCapture"
 			});
 
 			if(Target.bBuildEditor)

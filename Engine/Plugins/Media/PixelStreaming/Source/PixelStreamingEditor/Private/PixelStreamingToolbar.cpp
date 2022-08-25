@@ -30,7 +30,7 @@
 
 #define LOCTEXT_NAMESPACE "PixelStreamingEditor"
 
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
     FPixelStreamingToolbar::FPixelStreamingToolbar()
     : PixelStreamingModule(IPixelStreamingModule::Get())

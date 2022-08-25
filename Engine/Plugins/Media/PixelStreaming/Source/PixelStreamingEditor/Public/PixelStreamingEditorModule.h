@@ -4,26 +4,27 @@
 
 #include "IPixelStreamingModule.h"
 
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
-    class PIXELSTREAMINGEDITOR_API FPixelStreamingEditorModule : public IModuleInterface
-    {
-    public:
-        /** IModuleInterface implementation */
-        virtual void StartupModule() override;
-        virtual void ShutdownModule() override;
+    class FPixelStreamingToolbar;
+}
 
-        void StartStreaming();
-        void StopStreaming();
-        
-        static FPixelStreamingEditorModule* GetModule();
-    private:
-        void InitEditorStreaming(IPixelStreamingModule& Module);
-        bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY);
-        void MaybeResizeEditor(TSharedPtr<SWindow> RootWindow);
+class PIXELSTREAMINGEDITOR_API FPixelStreamingEditorModule : public IModuleInterface
+{
+public:
+    /** IModuleInterface implementation */
+    virtual void StartupModule() override;
+    virtual void ShutdownModule() override;
 
-        TSharedPtr<class FPixelStreamingToolbar> Toolbar;
+    void StartStreaming();
+    void StopStreaming();
+       
+    static FPixelStreamingEditorModule* GetModule();
+private:
+    void InitEditorStreaming(IPixelStreamingModule& Module);
+	bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY);
+    void MaybeResizeEditor(TSharedPtr<SWindow> RootWindow);
 
-        static FPixelStreamingEditorModule* PixelStreamingEditorModule;	
-    };
-} // namespace UE::PixelStreaming
+    TSharedPtr<UE::EditorPixelStreaming::FPixelStreamingToolbar> Toolbar;
+    static FPixelStreamingEditorModule* PixelStreamingEditorModule;	
+};

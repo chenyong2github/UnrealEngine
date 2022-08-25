@@ -9,7 +9,7 @@
 #include "ToolMenus.h"
 #include "IPixelStreamingModule.h"
 
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
     class FPixelStreamingToolbar
     {

@@ -7,7 +7,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyle.h"
 
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
     TSharedPtr<FSlateStyleSet> FPixelStreamingStyle::StyleInstance = NULL;
     void FPixelStreamingStyle::Initialize()

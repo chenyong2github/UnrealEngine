@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Styling/SlateStyle.h"
 
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
     class FPixelStreamingStyle
     {

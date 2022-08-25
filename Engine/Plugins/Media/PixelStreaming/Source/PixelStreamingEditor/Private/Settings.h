@@ -6,7 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 
-namespace UE::PixelStreaming::Settings::Editor
+namespace UE::EditorPixelStreaming::Settings
 {
     extern void InitialiseSettings();
 

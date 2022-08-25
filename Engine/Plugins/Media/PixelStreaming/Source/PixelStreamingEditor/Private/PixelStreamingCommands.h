@@ -9,7 +9,7 @@
  * These are the commands used in the toolbar visible in the editor
  * 
  */
-namespace UE::PixelStreaming
+namespace UE::EditorPixelStreaming
 {
     class FPixelStreamingCommands : public TCommands<FPixelStreamingCommands>
     {
