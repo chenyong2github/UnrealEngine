@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Widgets/Input/SSpinBox.h"
-//#include "SlatePrivatePCH.h"
 
 float SpinBoxComputeExponentSliderFraction(float FractionFilled, float StartFractionFilled, float SliderExponent)
 {
