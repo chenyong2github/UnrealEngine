@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using EpicGames.Slack.Elements;
 
 namespace EpicGames.Slack.Blocks
@@ -14,6 +15,7 @@ namespace EpicGames.Slack.Blocks
 		/// <summary>
 		/// The text for the block, in the form of a plain_text text object. Maximum length for the text in this field is 150 characters.
 		/// </summary>
+		[JsonPropertyName("text"), JsonPropertyOrder(1)]
 		public PlainTextObject Text { get; }
 
 		/// <summary>
