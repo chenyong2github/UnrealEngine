@@ -224,8 +224,7 @@ bool UWaterBodyOceanComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3
 	Triangulation.Add(Island);
 	if (!Triangulation.Triangulate())
 	{
-		UE_LOG(LogWater, Warning, TEXT("Failed to triangulate ocean (%s). Spline might not be fully contained by VisualExtents."), *GetOwner()->GetActorNameOrLabel());
-		return false;
+		UE_LOG(LogWater, Error, TEXT("Failed to triangulate Ocean mesh for %s. Ensure that the spline points are fully contained within the VisualExtents of the ocean!"), *GetOwner()->GetActorNameOrLabel());
 	}
 
 	if (Triangulation.Triangles.Num() == 0)

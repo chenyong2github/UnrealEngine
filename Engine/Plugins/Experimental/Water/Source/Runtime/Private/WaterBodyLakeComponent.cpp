@@ -75,7 +75,10 @@ bool UWaterBodyLakeComponent::GenerateWaterBodyMesh(UE::Geometry::FDynamicMesh3&
 	FConstrainedDelaunay2d Triangulation;
 	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
 	Triangulation.Add(LakePoly);
-	Triangulation.Triangulate();
+	if (!Triangulation.Triangulate())
+	{
+		UE_LOG(LogWater, Error, TEXT("Failed to triangulate Lake mesh for %s"), *GetOwner()->GetActorNameOrLabel());
+	}
 
 	if (Triangulation.Triangles.Num() == 0)
 	{
