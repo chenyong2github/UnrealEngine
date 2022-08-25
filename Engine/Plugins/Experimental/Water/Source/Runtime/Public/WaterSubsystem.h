@@ -200,6 +200,8 @@ private:
 	void ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneView* SceneView);
 	void SetMPCTime(float Time, float PrevTime);
 	void AdjustUnderwaterWaterInfoQueryFlags(EWaterBodyQueryFlags& InOutFlags);
+	void OnLoadProfileConfig(class UCollisionProfile* CollisionProfile);
+	void AddWaterCollisionProfile();
 	void ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings, EPropertyChangeType::Type ChangeType);
 
 	FWaterBodyManager& GetWaterBodyManagerInternal();
