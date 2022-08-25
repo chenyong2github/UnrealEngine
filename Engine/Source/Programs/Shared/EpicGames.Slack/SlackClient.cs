@@ -209,10 +209,8 @@ namespace EpicGames.Slack
 			request.Ts = ts;
 			request.ThreadTs = threadTs;
 			request.Text = message.Text;
-			if (message.Blocks.Count > 0)
-			{
-				request.Blocks = message.Blocks;
-			}
+			request.Blocks = message.Blocks;
+
 			if (replyBroadcast)
 			{
 				request.ReplyBroadcast = replyBroadcast;
