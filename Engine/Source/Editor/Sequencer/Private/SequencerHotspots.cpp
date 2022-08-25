@@ -59,6 +59,7 @@ FHotspotSelectionManager::FHotspotSelectionManager(const FPointerEvent* InMouseE
 FHotspotSelectionManager::~FHotspotSelectionManager()
 {
 	Selection->ResumeBroadcast();
+	Selection->GetOnOutlinerNodeSelectionChanged().Broadcast();
 }
 
 void FHotspotSelectionManager::ConditionallyClearSelection()
