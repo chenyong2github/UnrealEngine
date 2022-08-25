@@ -24,6 +24,8 @@ public class SourceControl : ModuleRules
 			new string[] {
 				"AssetRegistry",
 				"Slate",
+				"RenderCore",
+				"RHI",
 			}
 		);
 
