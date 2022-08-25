@@ -1559,8 +1559,9 @@ void FRHICommandListBase::QueueParallelAsyncCommandListSubmit(FGraphEventRef* An
 					if (RHIThreadBufferLockFence.GetReference())
 					{
 						FenceCandidateEvent->DontCompleteUntil(RHIThreadBufferLockFence);
-						RHIThreadBufferLockFence = FenceCandidateEvent;
 					}
+
+					RHIThreadBufferLockFence = FenceCandidateEvent;
 
 					Prereq.Add(FenceCandidateEvent);
 
