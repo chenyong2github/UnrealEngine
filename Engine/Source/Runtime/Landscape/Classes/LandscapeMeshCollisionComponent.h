@@ -79,6 +79,10 @@ public:
 	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 	//End UPrimitiveComponent interface
 
+	//~ Begin INavRelevantInterface Interface
+	virtual bool SupportsGatheringGeometrySlices() const override { return false; }
+	//~ End INavRelevantInterface Interface
+
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void BeginDestroy() override;
