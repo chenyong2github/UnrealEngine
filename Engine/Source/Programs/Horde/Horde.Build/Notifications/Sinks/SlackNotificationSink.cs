@@ -2098,6 +2098,11 @@ namespace Horde.Build.Notifications.Sinks
 				return null;
 			}
 
+			if (!IsIssueOpenForWorkflow(stream.Id, span.TemplateRefId, workflow.Id, spans))
+			{
+				return null;
+			}
+
 			if (issue.QuarantineTimeUtc == null)
 			{
 				MessageStateDocument? state = await GetMessageStateAsync(workflow.TriageChannel, GetTriageThreadEventId(issueId));
