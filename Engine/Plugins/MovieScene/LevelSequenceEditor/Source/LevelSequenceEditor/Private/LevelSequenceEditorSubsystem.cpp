@@ -730,7 +730,7 @@ void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FMovieSceneBindin
 		FFrameNumber KeyTime = FFrameRate::Snap(EvalTime, TickResolution, DisplayRate).FloorToFrame();
 		FMovieSceneEvaluationRange Range(KeyTime * RootToLocalTransform.InverseLinearOnly(), TickResolution);
 
-		Sequencer->SetLocalTimeDirectly(Range.GetTime());
+		Sequencer->SetGlobalTime(Range.GetTime());
 
 		for (const FMovieSceneBindingProxy& ObjectBinding : ObjectBindings)
 		{
