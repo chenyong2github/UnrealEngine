@@ -88,10 +88,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Positioning)
 	EMakeMeshPlacementType TargetSurface = EMakeMeshPlacementType::OnScene;
 
-	/** If true, the shape pivot is snapped to the grid. This is only relevant if the coordinate system is set to world space. */
-	UPROPERTY(EditAnywhere, Category = Positioning)
-	bool bSnapToGrid = true;
-
 	/** Location of pivot within the shape */
 	UPROPERTY(EditAnywhere, Category = Positioning, meta = (ProceduralShapeSetting))
 	EMakeMeshPivotLocation PivotLocation = EMakeMeshPivotLocation::Base;

@@ -289,21 +289,18 @@ void UAddPrimitiveTool::UpdatePreviewPosition(const FInputDeviceRay& DeviceClick
 		}
 	}
 
-	// Snap to grid if applicable
-	if (ShapeSettings->bSnapToGrid)
+	// Snap to grid
+	USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetToolManager());
+	if (SnapManager)
 	{
-		USceneSnappingManager* SnapManager = USceneSnappingManager::Find(GetToolManager());
-		if (SnapManager)
+		FSceneSnapQueryRequest Request;
+		Request.RequestType = ESceneSnapQueryType::Position;
+		Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
+		Request.Position = (FVector)ShapeFrame.Origin;
+		TArray<FSceneSnapQueryResult> Results;
+		if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
 		{
-			FSceneSnapQueryRequest Request;
-			Request.RequestType = ESceneSnapQueryType::Position;
-			Request.TargetTypes = ESceneSnapQueryTargetType::Grid;
-			Request.Position = (FVector)ShapeFrame.Origin;
-			TArray<FSceneSnapQueryResult> Results;
-			if (SnapManager->ExecuteSceneSnapQuery(Request, Results))
-			{
-				ShapeFrame.Origin = (FVector3d)Results[0].Position;
-			}
+			ShapeFrame.Origin = (FVector3d)Results[0].Position;
 		}
 	}
 
