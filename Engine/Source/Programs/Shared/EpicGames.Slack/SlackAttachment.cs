@@ -18,17 +18,20 @@ namespace EpicGames.Slack
 		/// <summary>
 		/// The color of the line down the left side of the attachment.
 		/// </summary>
+		[JsonPropertyName("color"), JsonPropertyOrder(1)]
 		public string Color { get; set; } = "#ff0000";
 
 		/// <summary>
 		/// Used for the "toast" notifications sent by Slack. If not set, and the Text property of the
 		/// base message isn't set, the notification will have a message saying it has no preview.
 		/// </summary>
+		[JsonPropertyName("fallback"), JsonPropertyOrder(2)]
 		public string? FallbackText { get; set; }
 
 		/// <summary>
 		/// A collection of BlockKit blocks the attachment is composed from.
 		/// </summary>
+		[JsonPropertyName("blocks"), JsonPropertyOrder(3)]
 		public List<Block> Blocks { get; } = new List<Block>();
 
 		/// <summary>
