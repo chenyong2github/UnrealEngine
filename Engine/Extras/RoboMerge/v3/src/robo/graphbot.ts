@@ -112,12 +112,12 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		// doing it here ensures that we're using the most up-to-date config, e.g. after a branch spec reload
 
 		// preprocess to get a list of all additional Slack channels
-		const slackChannelOverrides: [Branch, Branch, string][] = []
+		const slackChannelOverrides: [Branch, Branch, string, boolean][] = []
 		for (const branch of this.branchGraph.branches) {
 			for (const [targetBranchName, edgeProps] of branch.edgeProperties) {
 				const slackChannel = edgeProps.additionalSlackChannel
 				if (slackChannel) {
-					slackChannelOverrides.push([branch, this.branchGraph.getBranch(targetBranchName)!, slackChannel])
+					slackChannelOverrides.push([branch, this.branchGraph.getBranch(targetBranchName)!, slackChannel, (edgeProps.postOnlyToAdditionalChannel || false)])
 				}
 			}
 		}

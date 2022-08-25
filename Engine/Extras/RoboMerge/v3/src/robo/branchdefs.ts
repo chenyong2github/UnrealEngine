@@ -117,6 +117,7 @@ const nodeOptionFieldsPrototype = {
 	// if set, still generate workspace but use this name
 	workspaceNameOverride: '',
 	additionalSlackChannelForBlockages: '',
+	postMessagesToAdditionalChannelOnly: false,
 	ignoreBranchspecs: false,
 
 	badgeUrlOverride: '',
@@ -132,6 +133,8 @@ const edgeOptionFieldsPrototype = {
 
 	branchspec: '',
 	additionalSlackChannel: '',
+
+	postOnlyToAdditionalChannel: false,
 
 	terminal: false, // changes go along terminal edges but no further
 

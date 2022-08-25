@@ -26,6 +26,7 @@ import { MergeMainRevToRelease } from './tests/merge-main-rev-to-release'
 import { MultipleConflicts } from './tests/multiple-conflicts'
 import { MultipleRoutesToSkip } from './tests/multiple-routes-to-skip'
 import { OverriddenCommand } from './tests/overridden-command'
+import { PostToAdditionalChannel } from './tests/post-to-additional-channel'
 import { RejectBranchResolveStomp } from './tests/reject-branch-resolve-stomp'
 import { RejectDeleteResolveStomp } from './tests/reject-delete-resolve-stomp'
 import { RejectTextConflictStomp } from './tests/reject-text-conflict-stomp'
@@ -213,6 +214,8 @@ async function go() {
 		new StompForwardingCommands(p4),
 		new MultipleRoutesToSkip(p4),
 		new UnreachableSkip(p4), // 45
+
+		new PostToAdditionalChannel(p4),
 	]
 
 	const TARGET_TEST_DEFS: [string[], string | null][] = [
@@ -279,8 +282,14 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const specificTests = /**/[availableTests[12]]/*/availableTests  /* .slice(0, 0)/**/
-	const targetTests: FunctionalTest[] = /**/ [] /*/ availableTargetTests  /**/
+	const specificTests = availableTests
+	// const specificTests = [availableTests[12]]
+	// const specificTests = availableTests.slice(0, 0)
+
+	const targetTests = availableTargetTests
+	// const targetTests: FunctionalTest[] = []
+	// const targetTests = [availableTargetTests[7]]
+	// const targetTests = availableTargetTests.slice(0, 0)
 
 	//
 	///////////////////////

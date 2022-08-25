@@ -375,7 +375,7 @@ export class BotNotifications implements BotEventHandler {
 
 	constructor(private botname: string, slackChannel: string, persistence: Context, externalUrl: string, 
 		blockageUrlGenerator: NodeOpUrlGenerator, parentLogger: ContextualLogger,
-		slackChannelOverrides?: [Branch, Branch, string][]) {
+		slackChannelOverrides?: [Branch, Branch, string, boolean][]) {
 		this.botNotificationsLogger = parentLogger.createChild('Notifications')
 		// Hacky way to dynamically change the URL for notifications
 		this.externalRobomergeUrl = externalUrl
@@ -389,10 +389,10 @@ export class BotNotifications implements BotEventHandler {
 			if (slackChannelOverrides) {
 				this.additionalBlockChannelIds = new Map(slackChannelOverrides
 					.filter(
-						([_1, _2, channel]) => channel !== slackChannel
+						([_1, _2, channel, _3]) => channel !== slackChannel
 					)
 					.map(
-						([source, target, channel]) => [`${source.upperName}|${target.upperName}`, channel]
+						([source, target, channel, postOnlyToChannel]) => [`${source.upperName}|${target.upperName}`, [channel, postOnlyToChannel]]
 					)
 				)
 			}
@@ -453,18 +453,22 @@ export class BotNotifications implements BotEventHandler {
 			message.footer = blockage.failure.summary
 		}
 
-		// separate message for syntax errors (other blockages have a target branch)
-		const targetKey = targetBranch ? targetBranch.name : blockage.failure.kind
-
-		// Post message to channel
-		this.slackMessages.postOrUpdate(changeInfo.source_cl, targetKey, message)
-
-		// Post to additional side channel if present
-		if (targetBranch) { // temp: not for syntax errors yet
-			const sideChannel = this.additionalBlockChannelIds.get(sourceBranch.upperName + '|' + targetBranch.upperName)
-			if (sideChannel) {
-				this.slackMessages.postOrUpdate(changeInfo.source_cl, targetKey, {...message, channel: sideChannel})
+		if (targetBranch) {
+			const additionalChannelInfo = this.additionalBlockChannelIds.get(sourceBranch.upperName + '|' + targetBranch.upperName)
+			if (additionalChannelInfo) {
+				const [sideChannel, postOnlyToSideChannel] = additionalChannelInfo
+				if (!postOnlyToSideChannel) {
+					this.slackMessages.postOrUpdate(changeInfo.source_cl, targetBranch.name, message)
+				}
+				this.slackMessages.postOrUpdate(changeInfo.source_cl, targetBranch.name, { ...message, channel: sideChannel })
 			}
+			else {
+				this.slackMessages.postOrUpdate(changeInfo.source_cl, targetBranch.name, message)
+			}
+		}
+		else {
+			// separate message for syntax errors (other blockages have a target branch)
+			this.slackMessages.postOrUpdate(changeInfo.source_cl, blockage.failure.kind, message)
 		}
 
 		// Post message to owner in DM
@@ -845,10 +849,10 @@ export class BotNotifications implements BotEventHandler {
 	}
 
 	private readonly slackMessages?: SlackMessages
-	private readonly additionalBlockChannelIds = new Map<string, string>()
+	private readonly additionalBlockChannelIds = new Map<string, [string, boolean]>()
 }
 
-export function bindBotNotifications(events: BotEvents, slackChannelOverrides: [Branch, Branch, string][], persistence: Context, blockageUrlGenerator: NodeOpUrlGenerator, 
+export function bindBotNotifications(events: BotEvents, slackChannelOverrides: [Branch, Branch, string, boolean][], persistence: Context, blockageUrlGenerator: NodeOpUrlGenerator, 
 	externalUrl: string, logger: ContextualLogger) {
 	events.registerHandler(new BotNotifications(events.botname, events.botConfig.slackChannel, persistence, externalUrl, blockageUrlGenerator, logger, slackChannelOverrides))
 }

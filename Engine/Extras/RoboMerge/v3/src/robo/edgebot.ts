@@ -744,7 +744,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 						let msg = `Couldn't change changelist owner for change ${finalCl}: Perforce reports user ${userNonexistenceMatches[0]} doesn't exist`
 						this.edgeBotLogger.warn(msg + `:\n${output}`)
 						msg += `. User will *remain* as Robomerge:\n\`\`\`${output}\`\`\``
-						postMessageToChannel(msg, this.sourceNode.branchGraph.config.slackChannel, SlackMessageStyles.WARNING)
+						if (!this.targetBranch.config.postMessagesToAdditionalChannelOnly) {
+							postMessageToChannel(msg, this.sourceNode.branchGraph.config.slackChannel, SlackMessageStyles.WARNING)
+						}
 						if (this.targetBranch.config.additionalSlackChannelForBlockages) {
 							postMessageToChannel(msg, this.targetBranch.config.additionalSlackChannelForBlockages, SlackMessageStyles.WARNING)
 						}
