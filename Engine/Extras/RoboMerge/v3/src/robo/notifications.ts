@@ -254,7 +254,7 @@ class SlackMessages {
 				timestamp = await this.slack.postMessage(message)
 			}
 			catch (err) {
-				console.error('Error talking to Slack! ' + err.toString())
+				this.smLogger.printException(err, 'Error talking to Slack')
 				return
 			}
 
