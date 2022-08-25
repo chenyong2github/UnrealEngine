@@ -58,7 +58,6 @@ struct FMassDebuggerArchetypeData
 	FMassDebuggerArchetypeData(const FMassArchetypeHandle& ArchetypeHandle);
 
 	FMassArchetypeCompositionDescriptor Composition;
-	FMassArchetypeSharedFragmentValues SharedFragments;
 
 	/** Hash of the Compositions. */
 	uint32 CompositionHash = 0;

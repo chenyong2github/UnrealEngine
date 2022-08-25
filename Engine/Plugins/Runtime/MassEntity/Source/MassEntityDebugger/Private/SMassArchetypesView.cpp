@@ -5,7 +5,8 @@
 #include "SMassArchetype.h"
 #include "MassDebuggerStyle.h"
 #include "Styling/StyleColors.h"
-#include "Widgets/Layout/SScrollBox.h"		
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Text/SRichTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SMassDebugger"
 
@@ -235,6 +236,47 @@ void SMassArchetypesView::Construct(const FArguments& InArgs, TSharedRef<FMassDe
 void SMassArchetypesView::RebuildSelectedView()
 {
 	SelectedArchetypesView->ClearChildren();
+
+	if (DebuggerModel->SelectedArchetypes.Num() > 1)
+	{
+		// print out entity count and memory totals
+		int32 EntitiesCount = 0;
+		SIZE_T AllocatedSize = 0;
+		for (const TSharedPtr<FMassDebuggerArchetypeData>& ArchetypeData : DebuggerModel->SelectedArchetypes)
+		{
+			EntitiesCount += ArchetypeData->ArchetypeStats.EntitiesCount;
+			AllocatedSize += ArchetypeData->ArchetypeStats.AllocatedSize;
+		}
+
+		const FText TotalDescription = FText::Format(LOCTEXT("ArchetypesSelectionTotalsContent", "EntitiesCount: {0}\nAllocated memory: {1}")
+			, FText::AsNumber(EntitiesCount), FText::AsMemory(AllocatedSize));
+
+		TSharedRef<SVerticalBox> Box = SNew(SVerticalBox);
+		
+		Box->AddSlot()
+			.AutoHeight()
+			.Padding(0, 4)
+			[
+				SNew(SRichTextBlock)
+				.Text(LOCTEXT("ArchetypesSelectionTotals", "Total"))
+				.DecoratorStyleSet(&FAppStyle::Get())
+				.TextStyle(FAppStyle::Get(), "LargeText")
+			];
+
+		Box->AddSlot()
+			.AutoHeight()
+			.Padding(0, 4)
+			[
+				SNew(STextBlock)
+				.Text(TotalDescription)
+			];
+
+		SelectedArchetypesView->AddSlot()
+			.Padding(4)
+			[
+				Box
+			];
+	}
 
 	const EMassBitSetDiffPrune Prune = DebuggerModel->SelectedArchetypes.Num() > 1 ? EMassBitSetDiffPrune::Same : EMassBitSetDiffPrune::None;
 	
