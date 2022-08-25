@@ -63,6 +63,8 @@ namespace UnrealBuildTool.Rules
 						"LevelEditor",
 						"VREditor",
 						"EditorStyle",
+						"TypedElementRuntime",
+						"TypedElementFramework"
 					}
 				);
 			}
