@@ -1237,5 +1237,5 @@ FORCEINLINE TArray<ToType> StringToArray(const FromType* Src, int32 SrcLen)
 template <typename ToType, typename FromType>
 FORCEINLINE TArray<ToType> StringToArray(const FromType* Str)
 {
-	return ToArray(Str, TCString<FromType>::Strlen(Str) + 1);
+	return StringToArray<ToType>(Str, TCString<FromType>::Strlen(Str) + 1);
 }
