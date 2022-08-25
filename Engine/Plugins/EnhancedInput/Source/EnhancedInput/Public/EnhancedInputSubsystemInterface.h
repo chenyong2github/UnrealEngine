@@ -154,8 +154,17 @@ public:
 	/**
 	 * Check if a mapping context is applied to this subsystem's owner.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")	// TODO: BlueprintPure would be nicer. Move into library?
 	virtual bool HasMappingContext(const UInputMappingContext* MappingContext) const;
+
+	/**
+	 * Check if a mapping context is applied to this subsystem's owner.
+	 *
+	 * @param MappingContext		The mapping context to search for on the subsystem's owner.
+	 * @param OutFoundPriority		The priority of the mapping context if it is applied. -1 if the context is not applied	
+	 * @return	True if the mapping context is applied
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input|Mapping Queries")
+	virtual bool HasMappingContext(const UInputMappingContext* MappingContext, int32& OutFoundPriority) const;
 
 	/**
 	 * Returns the keys mapped to the given action in the active input mapping contexts.

@@ -335,10 +335,27 @@ void IEnhancedInputSubsystemInterface::ApplyAxisPropertyModifiers(UEnhancedPlaye
 	}
 }
 
-
 bool IEnhancedInputSubsystemInterface::HasMappingContext(const UInputMappingContext* MappingContext) const
 {
-	return GetPlayerInput() && GetPlayerInput()->AppliedInputContexts.Contains(MappingContext);
+	int32 DummyPri = INDEX_NONE;
+	return HasMappingContext(MappingContext, DummyPri);
+}
+
+bool IEnhancedInputSubsystemInterface::HasMappingContext(const UInputMappingContext* MappingContext, int32& OutFoundPriority) const
+{
+	bool bResult = false;
+	OutFoundPriority = INDEX_NONE;
+	
+	if (const UEnhancedPlayerInput* const Input = GetPlayerInput())
+	{
+		if (const int32* const FoundPriority = Input->AppliedInputContexts.Find(MappingContext))
+		{
+			OutFoundPriority = *FoundPriority;
+			bResult = true;
+		}
+	}
+
+	return bResult;
 }
 
 TArray<FKey> IEnhancedInputSubsystemInterface::QueryKeysMappedToAction(const UInputAction* Action) const
