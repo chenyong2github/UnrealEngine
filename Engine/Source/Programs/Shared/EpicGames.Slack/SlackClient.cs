@@ -136,6 +136,9 @@ namespace EpicGames.Slack
 
 			[JsonPropertyName("blocks")]
 			public List<Block>? Blocks { get; set; }
+
+			[JsonPropertyName("attachments")]
+			public List<SlackAttachment>? Attachments { get; set; }
 			
 			[JsonPropertyName("reply_broadcast")]
 			public bool? ReplyBroadcast { get; set; }
@@ -214,6 +217,10 @@ namespace EpicGames.Slack
 			if (replyBroadcast)
 			{
 				request.ReplyBroadcast = replyBroadcast;
+			}
+			if (message.Attachments.Count > 0)
+			{
+				request.Attachments = message.Attachments;
 			}
 			if (!message.UnfurlLinks)
 			{
