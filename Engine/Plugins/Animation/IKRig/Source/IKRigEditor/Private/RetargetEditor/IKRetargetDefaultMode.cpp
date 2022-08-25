@@ -86,7 +86,7 @@ void FIKRetargetDefaultMode::Render(const FSceneView* View, FViewport* Viewport,
 	}
 	
 	const UIKRetargetProcessor* RetargetProcessor = Controller->GetRetargetProcessor();
-	if (!RetargetProcessor && RetargetProcessor->IsInitialized())
+	if (!(RetargetProcessor && RetargetProcessor->IsInitialized()))
 	{
 		return;
 	}
