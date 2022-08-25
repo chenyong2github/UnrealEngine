@@ -94,6 +94,13 @@ public:
 	virtual void SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties) = 0;
 
 	/**
+	 * Set whether to include object changes that have been generated via a transaction annotation 
+	 * (where possible), or whether to send the entire transaction annotation blob instead.
+	 * @note This is set to UConcertSyncConfig::bIncludeAnnotationObjectChanges by default.
+	 */
+	virtual void SetIncludeAnnotationObjectChanges(const bool InIncludeAnnotationObjectChanges) = 0;
+
+	/**
 	 * Called when an ongoing transaction is updated via a snapshot.
 	 * @note This is called during end-frame processing.
 	 */

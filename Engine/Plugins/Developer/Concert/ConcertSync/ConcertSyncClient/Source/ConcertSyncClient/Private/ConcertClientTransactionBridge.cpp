@@ -223,7 +223,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// --------------------------------------------------------------------------------------------------------------------
 	// Phase 0
 	// --------------------------------------------------------------------------------------------------------------------
-	TArray<const FConcertExportedObject*, TInlineAllocator<8>> SortedExportedObjects;
+	TArray<const FConcertExportedObject*, TInlineAllocator<32>> SortedExportedObjects;
 	{
 		SortedExportedObjects.Reserve(InEvent.ExportedObjects.Num());
 		for (const FConcertExportedObject& ExportedObject : InEvent.ExportedObjects)
@@ -241,7 +241,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// Phase 1
 	// --------------------------------------------------------------------------------------------------------------------
 	bool bObjectsDeleted = false;
-	TArray<ConcertSyncClientUtil::FGetObjectResult, TInlineAllocator<8>> TransactionObjects;
+	TArray<ConcertSyncClientUtil::FGetObjectResult, TInlineAllocator<32>> TransactionObjects;
 	{
 		TSet<const UObject*> NewlyCreatedObjects;
 
@@ -297,7 +297,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 	// Phase 2
 	// --------------------------------------------------------------------------------------------------------------------
 #if WITH_EDITOR
-	TArray<TSharedPtr<ITransactionObjectAnnotation>, TInlineAllocator<8>> TransactionAnnotations;
+	TArray<TSharedPtr<ITransactionObjectAnnotation>, TInlineAllocator<32>> TransactionAnnotations;
 	TransactionAnnotations.AddDefaulted(SortedExportedObjects.Num());
 	for (int32 ObjectIndex = SortedExportedObjects.Num() - 1; ObjectIndex >= 0; --ObjectIndex)
 	{
@@ -490,6 +490,7 @@ FConcertClientTransactionBridge::FConcertClientTransactionBridge()
 	: bHasBoundUnderlyingLocalTransactionEvents(false)
 	, bIgnoreLocalTransactions(false)
 	, bIncludeEditorOnlyProperties(true)
+	, bIncludeAnnotationObjectChanges(GetDefault<UConcertSyncConfig>()->bIncludeAnnotationObjectChanges)
 {
 	ConditionalBindUnderlyingLocalTransactionEvents();
 
@@ -518,6 +519,11 @@ FConcertClientTransactionBridge::~FConcertClientTransactionBridge()
 void FConcertClientTransactionBridge::SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties)
 {
 	bIncludeEditorOnlyProperties = InIncludeEditorOnlyProperties;
+}
+
+void FConcertClientTransactionBridge::SetIncludeAnnotationObjectChanges(const bool InIncludeAnnotationObjectChanges)
+{
+	bIncludeAnnotationObjectChanges = InIncludeAnnotationObjectChanges;
 }
 
 FOnConcertClientLocalTransactionSnapshot& FConcertClientTransactionBridge::OnLocalTransactionSnapshot()
@@ -634,6 +640,11 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		return;
 	}
 
+	if (!bIncludeAnnotationObjectChanges && InTransactionEvent.GetObjectChangeCreatedBy() == ETransactionObjectChangeCreatedBy::TransactionAnnotation)
+	{
+		return;
+	}
+
 	UPackage* ChangedPackage = InObject->GetOutermost();
 	ETransactionFilterResult FilterResult = ConcertClientTransactionBridgeUtil::ApplyTransactionFilters(TransactionFilters, InObject, ChangedPackage);
 	FOngoingTransaction* TrackedTransaction = OngoingTransactions.Find(InTransactionEvent.GetOperationId());
@@ -676,7 +687,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		return;
 	}
 
-	const FConcertObjectId ObjectId = FConcertObjectId(*InObject->GetClass()->GetPathName(), InTransactionEvent.GetOriginalObjectPackageName(), InTransactionEvent.GetOriginalObjectName(), InTransactionEvent.GetOriginalObjectOuterPathName(), InTransactionEvent.GetOriginalObjectExternalPackageName(), InObject->GetFlags());
+	const FConcertObjectId ObjectId = FConcertObjectId(InTransactionEvent.GetOriginalObjectId(), InObject->GetFlags());
 	FOngoingTransaction& OngoingTransaction = *TrackedTransaction;
 
 	// If the object is excluded or exclude the whole transaction add it to the excluded list
@@ -687,12 +698,26 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		return;
 	}
 
-	const FName NewObjectPackageName = InTransactionEvent.HasOuterChange() || InTransactionEvent.HasExternalPackageChange() ? InObject->GetPackage()->GetFName() : FName();
-	const FName NewObjectName = InTransactionEvent.HasNameChange() ? InObject->GetFName() : FName();
-	const FName NewObjectOuterPathName = (InTransactionEvent.HasOuterChange() && InObject->GetOuter()) ? FName(*InObject->GetOuter()->GetPathName()) : FName();
-	const FName NewObjectExternalPackageName = (InTransactionEvent.HasExternalPackageChange() && InObject->GetExternalPackage()) ? InObject->GetExternalPackage()->GetFName() : FName();
+	bool bCanCreateOrRenameObject = true;
+	if (const UActorComponent* Component = Cast<UActorComponent>(InObject))
+	{
+		bool bIsOwnedByChildActor = false;
+		if (const AActor* ComponentOwner = Component->GetOwner())
+		{
+			bIsOwnedByChildActor = ComponentOwner->IsChildActor();
+		}
+
+		// Components that are managed by a native or Blueprint class cannot be created or renamed, so we only allow "instance" components to be created or renamed
+		bCanCreateOrRenameObject = !bIsOwnedByChildActor && Component->CreationMethod == EComponentCreationMethod::Instance;
+	}
+
+	const FName NewObjectPackageName = (bCanCreateOrRenameObject && (InTransactionEvent.HasOuterChange() || InTransactionEvent.HasExternalPackageChange())) ? InObject->GetPackage()->GetFName() : FName();
+	const FName NewObjectName = (bCanCreateOrRenameObject && InTransactionEvent.HasNameChange()) ? InObject->GetFName() : FName();
+	const FName NewObjectOuterPathName = (bCanCreateOrRenameObject && (InTransactionEvent.HasOuterChange() && InObject->GetOuter())) ? FName(*InObject->GetOuter()->GetPathName()) : FName();
+	const FName NewObjectExternalPackageName = (bCanCreateOrRenameObject && (InTransactionEvent.HasExternalPackageChange() && InObject->GetExternalPackage())) ? InObject->GetExternalPackage()->GetFName() : FName();
 	const TArray<const FProperty*> ExportedProperties = ConcertSyncClientUtil::GetExportedProperties(InObject->GetClass(), InTransactionEvent.GetChangedProperties(), bIncludeEditorOnlyProperties);
 	TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation = InTransactionEvent.GetAnnotation();
+	const bool bUseSerializedAnnotationData = !bIncludeAnnotationObjectChanges || !TransactionAnnotation || !TransactionAnnotation->SupportsAdditionalObjectChanges();
 
 	// Track which packages were changed
 	OngoingTransaction.CommonData.ModifiedPackages.AddUnique(ChangedPackage->GetFName());
@@ -730,7 +755,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 				ObjectUpdatePtr->ObjectData.bIsPendingKill = !IsValid(InObject);
 			}
 
-			if (TransactionAnnotation.IsValid())
+			if (TransactionAnnotation && bUseSerializedAnnotationData)
 			{
 				ObjectUpdatePtr->SerializedAnnotationData.Reset();
 				FConcertSyncObjectWriter AnnotationWriter(nullptr, InObject, ObjectUpdatePtr->SerializedAnnotationData, bIncludeEditorOnlyProperties, true);
@@ -757,22 +782,14 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	}
 	else if (OnLocalTransactionFinalizedDelegate.IsBound())
 	{
-		auto CanObjectBeCreated = [](const UObject* ObjToTest) -> bool
-		{
-			if (const UActorComponent* ComponentToTest = Cast<UActorComponent>(ObjToTest))
-			{
-				// Components that are managed by a native or Blueprint class cannot be created, so we only allow "instance" components to be created
-				return ComponentToTest->CreationMethod == EComponentCreationMethod::Instance;
-			}
-			return true;
-		};
+		
 
 		const bool bIsNewlyCreated = InTransactionEvent.HasPendingKillChange() && IsValid(InObject);
 
 		FConcertExportedObject& ObjectUpdate = OngoingTransaction.FinalizedData.FinalizedObjectUpdates.AddDefaulted_GetRef();
 		ObjectUpdate.ObjectId = ObjectId;
 		ObjectUpdate.ObjectPathDepth = ConcertSyncClientUtil::GetObjectPathDepth(InObject);
-		ObjectUpdate.ObjectData.bAllowCreate = bIsNewlyCreated && CanObjectBeCreated(InObject);
+		ObjectUpdate.ObjectData.bAllowCreate = bIsNewlyCreated && bCanCreateOrRenameObject;
 		ObjectUpdate.ObjectData.bResetExisting = bIsNewlyCreated;
 		ObjectUpdate.ObjectData.bIsPendingKill = !IsValid(InObject);
 		ObjectUpdate.ObjectData.NewPackageName = NewObjectPackageName;
@@ -780,7 +797,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 		ObjectUpdate.ObjectData.NewOuterPathName = NewObjectOuterPathName;
 		ObjectUpdate.ObjectData.NewExternalPackageName = NewObjectExternalPackageName;
 
-		if (TransactionAnnotation.IsValid())
+		if (TransactionAnnotation && bUseSerializedAnnotationData)
 		{
 			FConcertSyncObjectWriter AnnotationWriter(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, ObjectUpdate.SerializedAnnotationData, bIncludeEditorOnlyProperties, false);
 			TransactionAnnotation->Serialize(AnnotationWriter);

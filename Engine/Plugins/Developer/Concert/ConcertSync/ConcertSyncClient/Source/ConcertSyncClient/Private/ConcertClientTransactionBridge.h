@@ -14,6 +14,7 @@ public:
 
 	//~ IConcertClientTransactionBridge interface
 	virtual void SetIncludeEditorOnlyProperties(const bool InIncludeEditorOnlyProperties) override;
+	virtual void SetIncludeAnnotationObjectChanges(const bool InIncludeAnnotationObjectChanges) override;
 	virtual FOnConcertClientLocalTransactionSnapshot& OnLocalTransactionSnapshot() override;
 	virtual FOnConcertClientLocalTransactionFinalized& OnLocalTransactionFinalized() override;
 	virtual bool CanApplyRemoteTransaction() const override;
@@ -82,6 +83,9 @@ private:
 
 	/** Include non-cooked properties in object serialization */
 	bool bIncludeEditorOnlyProperties;
+
+	/** Include object changes that have been generated via a transaction annotation (where possible) */
+	bool bIncludeAnnotationObjectChanges;
 
 	FConcertSyncWorldRemapper WorldRemapper = FConcertSyncWorldRemapper();
 };

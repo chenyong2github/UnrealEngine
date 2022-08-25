@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
+#include "Misc/TransactionObjectEvent.h"
 #include "IdentifierTable/ConcertIdentifierTableData.h"
 #include "ConcertTransactionEvents.generated.h"
 
@@ -27,22 +28,25 @@ struct FConcertObjectId
 {
 	GENERATED_BODY()
 
-	FConcertObjectId()
-		: ObjectPersistentFlags(0)
-	{
-	}
+	FConcertObjectId() = default;
 
 	explicit FConcertObjectId(const UObject* InObject)
-		: ObjectClassPathName(*InObject->GetClass()->GetPathName())
-		, ObjectPackageName(InObject->GetPackage()->GetFName())
-		, ObjectName(InObject->GetFName())
-		, ObjectOuterPathName(InObject->GetOuter() ? FName(*InObject->GetOuter()->GetPathName()) : FName())
-		, ObjectExternalPackageName(InObject->GetExternalPackage() ? InObject->GetExternalPackage()->GetFName() : FName())
-		, ObjectPersistentFlags(InObject->GetFlags() & RF_Load)
+		: FConcertObjectId(
+			*InObject->GetClass()->GetPathName(), 
+			InObject->GetPackage()->GetFName(), 
+			InObject->GetFName(), 
+			InObject->GetOuter() ? FName(*InObject->GetOuter()->GetPathName()) : FName(), 
+			InObject->GetExternalPackage() ? InObject->GetExternalPackage()->GetFName() : FName(), 
+			InObject->GetFlags())
 	{
 	}
 
-	FConcertObjectId(const FName InObjectClassPathName, const FName InObjectPackageName, const FName InObjectName, const FName InObjectOuterPathName, const FName InObjectExternalPackageName,  const uint32 InObjectFlags)
+	FConcertObjectId(const FTransactionObjectId& InObjectId, const uint32 InObjectFlags)
+		: FConcertObjectId(InObjectId.ObjectClassPathName, InObjectId.ObjectPackageName, InObjectId.ObjectName, InObjectId.ObjectOuterPathName, InObjectId.ObjectExternalPackageName, InObjectFlags)
+	{
+	}
+
+	FConcertObjectId(const FName InObjectClassPathName, const FName InObjectPackageName, const FName InObjectName, const FName InObjectOuterPathName, const FName InObjectExternalPackageName, const uint32 InObjectFlags)
 		: ObjectClassPathName(InObjectClassPathName)
 		, ObjectPackageName(InObjectPackageName)
 		, ObjectName(InObjectName)
@@ -68,7 +72,7 @@ struct FConcertObjectId
 	FName ObjectExternalPackageName;
 
 	UPROPERTY()
-	uint32 ObjectPersistentFlags;
+	uint32 ObjectPersistentFlags = 0;
 };
 
 USTRUCT()
