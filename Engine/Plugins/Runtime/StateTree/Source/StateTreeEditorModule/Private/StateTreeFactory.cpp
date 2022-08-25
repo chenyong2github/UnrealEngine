@@ -114,7 +114,7 @@ UObject* UStateTreeFactory::FactoryCreateNew(UClass* Class, UObject* InParent, F
 	// Create and init new editor data.
 	UStateTreeEditorData* EditorData = NewObject<UStateTreeEditorData>(NewStateTree, FName(), RF_Transactional);
 	EditorData->AddRootState();
-	EditorData->Schema = NewObject<UStateTreeSchema>(this, StateTreeSchemaClass);
+	EditorData->Schema = NewObject<UStateTreeSchema>(EditorData, StateTreeSchemaClass);
 	
 	NewStateTree->EditorData = EditorData;
 

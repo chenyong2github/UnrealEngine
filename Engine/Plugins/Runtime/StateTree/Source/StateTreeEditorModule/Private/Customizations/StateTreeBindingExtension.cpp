@@ -13,6 +13,7 @@
 #include "StateTreeAnyEnum.h"
 #include "StateTreePropertyBindingCompiler.h"
 #include "StateTreeCompiler.h"
+#include "Blueprint/StateTreeItemBlueprintBase.h"
 #include "PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
@@ -89,12 +90,8 @@ EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InP
 	{
 		return EStateTreePropertyUsage::Output;
 	}
-	if (Category == TEXT("Parameter"))
-	{
-		return EStateTreePropertyUsage::Parameter;
-	}
-	
-	return EStateTreePropertyUsage::Invalid;
+
+	return EStateTreePropertyUsage::Parameter;
 }
 
 FText GetSectionNameFromDataSource(const EStateTreeBindableStructSource Source)
@@ -264,6 +261,13 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 
 	Args.OnCanBindToContextStruct = FOnCanBindToContextStruct::CreateLambda([InPropertyHandle](const UStruct* InStruct)
 		{
+			// Do not allow to bind directly StateTree nodes
+			if (InStruct->IsChildOf(UStateTreeItemBlueprintBase::StaticClass())
+				|| InStruct->IsChildOf(FStateTreeNodeBase::StaticStruct()))
+			{
+				return false;
+			}
+		
 			if (const FStructProperty* StructProperty = CastField<FStructProperty>(InPropertyHandle->GetProperty()))
 			{
 				return StructProperty->Struct == InStruct;
