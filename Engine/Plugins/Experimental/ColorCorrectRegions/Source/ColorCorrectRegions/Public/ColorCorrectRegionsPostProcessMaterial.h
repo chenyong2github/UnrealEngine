@@ -35,7 +35,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FCCRRegionDataInputParameter, )
 	SHADER_PARAMETER(float, Intensity)
 	SHADER_PARAMETER(float, FakeLight)
 	SHADER_PARAMETER(uint32, ExcludeStencil)
-	SHADER_PARAMETER(uint32, StencilId)
 	SHADER_PARAMETER(float, Invert)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -77,6 +76,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FCCRColorCorrectHighlightsParameter, )
 	SHADER_PARAMETER(float, HighlightsMin)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FCCRStencilMergerParameter, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MergedStencilTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, MergedStencilSampler)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCCRShaderInputParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -138,6 +141,7 @@ public:
 
 	class FTemperatureType : SHADER_PERMUTATION_ENUM_CLASS("TEMPERATURE_TYPE", ETemperatureType);
 	class FAdvancedShader : SHADER_PERMUTATION_BOOL("ADVANCED_CC");
+	class FStencilEnabled : SHADER_PERMUTATION_BOOL("STENCIL_ENABLED");
 
 	FColorCorrectGenericPS() = default;
 	FColorCorrectGenericPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -164,7 +168,7 @@ public:
 
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHAPE_TYPE", EColorCorrectRegionsType);
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader, FStencilEnabled>;
 
 	FColorCorrectRegionMaterialPS() = default;
 	FColorCorrectRegionMaterialPS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
@@ -181,7 +185,7 @@ public:
 
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("WINDOW_TYPE", EColorCorrectWindowType);
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader, FStencilEnabled>;
 
 	FColorCorrectWindowMaterialPS() = default;
 	FColorCorrectWindowMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -224,6 +228,46 @@ class FClearRectPS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+
+/** Vertex shader to rasterize obstructive CCR Plane. */
+class FCCRStencilMergerVS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCCRStencilMergerVS);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters&)
+	{
+		return true;
+	}
+
+	FCCRStencilMergerVS() = default;
+	FCCRStencilMergerVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
+};
+
+/** Pixel shader to rasterize obstructive CCR Plane. */
+class FCCRStencilMergerPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCCRStencilMergerPS);
+	SHADER_USE_PARAMETER_STRUCT(FCCRStencilMergerPS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return true;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		//SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		//SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, StencilIds)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PostProcessOutput)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };

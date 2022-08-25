@@ -35,9 +35,9 @@ enum class EColorCorrectRegionTemperatureType : uint8
 UENUM(BlueprintType)
 enum class EColorCorrectRegionStencilType : uint8
 {
-	None					UMETA(DisplayName = "No Stencil"),
-	ExcludeStencil			UMETA(DisplayName = "Exclude Selected Stencil"),
-	IncludeStencil			UMETA(DisplayName = "Affect Only Selected Stencil"),
+	None					UMETA(DisplayName = "Default (Affect all actors)"),
+	ExcludeStencil			UMETA(DisplayName = "Exclude Selected Actors"),
+	IncludeStencil			UMETA(DisplayName = "Affect Only Selected Actors"),
 	MAX
 };
 
@@ -107,13 +107,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
 	bool Enabled;
 
-	/** Enable stenciling. */
+	/** Controls in which way the below targets will be affected by color correction. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
-	EColorCorrectRegionStencilType ExcludeStencil;
+	EColorCorrectRegionStencilType PerActorColorCorrection;
 
-	/** Enable stenciling outside of stencil region. */
+	/** A list of actors that need to be excluded or included from color correction (Depends on the option above). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
-	uint8 StencilId;
+	TArray<uint8> StencilIds;
 
 #if WITH_EDITORONLY_DATA
 

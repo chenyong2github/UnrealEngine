@@ -22,7 +22,7 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, Temperature(6500)
 	, Tint(0)
 	, Enabled(true)
-	, ExcludeStencil(EColorCorrectRegionStencilType::None)
+	, PerActorColorCorrection(EColorCorrectRegionStencilType::None)
 	, ColorCorrectRegionsSubsystem(nullptr)
 {
 	PrimaryActorTick.bCanEverTick = true;

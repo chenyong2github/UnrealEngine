@@ -203,10 +203,11 @@ namespace
 	}
 
 	// A helper function for getting the right shader for SDF based CCRs.
-	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, FColorCorrectGenericPS::ETemperatureType TemperatureType, bool bIsAdvanced)
+	TShaderMapRef<FColorCorrectRegionMaterialPS> GetRegionShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectRegionsType RegionType, FColorCorrectGenericPS::ETemperatureType TemperatureType, bool bIsAdvanced, bool bUseStencil)
 	{
 		FColorCorrectRegionMaterialPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FColorCorrectGenericPS::FAdvancedShader>(bIsAdvanced);
+		PermutationVector.Set<FColorCorrectGenericPS::FStencilEnabled>(bUseStencil);
 		PermutationVector.Set<FColorCorrectGenericPS::FTemperatureType>(TemperatureType);
 		PermutationVector.Set<FColorCorrectRegionMaterialPS::FShaderType>(static_cast<EColorCorrectRegionsType>(FMath::Min(static_cast<int32>(RegionType), static_cast<int32>(EColorCorrectRegionsType::MAX) - 1)));
 
@@ -214,10 +215,11 @@ namespace
 	}
 
 	// A helper function for getting the right shader for distance based CCRs.
-	TShaderMapRef<FColorCorrectWindowMaterialPS> GetWindowShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectWindowType RegionType, FColorCorrectGenericPS::ETemperatureType TemperatureType, bool bIsAdvanced)
+	TShaderMapRef<FColorCorrectWindowMaterialPS> GetWindowShader(const FGlobalShaderMap* GlobalShaderMap, EColorCorrectWindowType RegionType, FColorCorrectGenericPS::ETemperatureType TemperatureType, bool bIsAdvanced, bool bUseStencil)
 	{
 		FColorCorrectWindowMaterialPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FColorCorrectGenericPS::FAdvancedShader>(bIsAdvanced);
+		PermutationVector.Set<FColorCorrectGenericPS::FStencilEnabled>(bUseStencil);
 		PermutationVector.Set<FColorCorrectGenericPS::FTemperatureType>(TemperatureType);
 		PermutationVector.Set<FColorCorrectWindowMaterialPS::FShaderType>(static_cast<EColorCorrectWindowType>(FMath::Min(static_cast<int32>(RegionType), static_cast<int32>(EColorCorrectWindowType::MAX) - 1)));
 
@@ -232,6 +234,88 @@ namespace
 						FMath::Clamp(VectorToClamp.W, Min, Max));
 	}
 
+
+	void StencilMerger
+		( FRDGBuilder& GraphBuilder
+		, const AColorCorrectRegion* Region
+		, const FGlobalShaderMap* GlobalShaderMap
+		, const FScreenPassRenderTarget& SceneColorRenderTarget
+		, const FSceneView& View
+		, const FScreenPassTextureViewportParameters& SceneTextureViewportParams
+		, const FScreenPassTextureViewport& RegionViewport
+		, const FSceneTextureShaderParameters& SceneTextures
+		, const TArray<uint8>& StencilIds
+		, FScreenPassRenderTarget& OutMergedStencilRenderTarget)
+	{
+		if (StencilIds.Num() == 0)
+		{
+			return;
+		}
+		FRDGTextureDesc DepthBufferOutputDesc = SceneColorRenderTarget.Texture->Desc;
+		DepthBufferOutputDesc.Format = EPixelFormat::PF_DepthStencil;
+		DepthBufferOutputDesc.ClearValue = FClearValueBinding(0);
+		DepthBufferOutputDesc.Flags = TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable;
+		DepthBufferOutputDesc.ClearValue = FClearValueBinding(0, 0);
+
+		FRDGTextureDesc Desc = SceneColorRenderTarget.Texture->Desc;
+		Desc.Format = EPixelFormat::PF_R8_UINT;
+		FRDGTexture* MergedStencilTexture = GraphBuilder.CreateTexture(Desc, TEXT("CCR_MergedStencil"));
+		OutMergedStencilRenderTarget = FScreenPassRenderTarget(MergedStencilTexture, SceneColorRenderTarget.ViewRect, ERenderTargetLoadAction::EClear);
+		{
+			TShaderMapRef<FCCRStencilMergerPS> StencilMergerPS(GlobalShaderMap);
+			TShaderMapRef<FColorCorrectScreenPassVS> StencilMergerVS(GlobalShaderMap);
+			FCCRStencilMergerPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCCRStencilMergerPS::FParameters>();
+			Parameters->SceneTextures = SceneTextures;
+			Parameters->RenderTargets[0] = OutMergedStencilRenderTarget.GetRenderTargetBinding();
+			Parameters->PostProcessOutput = SceneTextureViewportParams;
+			Parameters->View = View.ViewUniformBuffer;
+
+			const FMatrix& RegionTransformMatrix = Region->GetActorTransform().ToMatrixWithScale();
+
+			FRHIBlendState* DefaultBlendState = FScreenPassPipelineState::FDefaultBlendState::GetRHI();
+				
+			FRHIResourceCreateInfo CreateInfo(TEXT("CCR_StencilIdBuffer"));
+
+			FBufferRHIRef BufferRef = RHICreateStructuredBuffer(sizeof(uint32), sizeof(uint32) * StencilIds.Num(), BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM, CreateInfo);
+			uint32* MappedBuffer = static_cast<uint32*>(RHILockBuffer(BufferRef, 0, StencilIds.Num(), RLM_WriteOnly));
+			uint8 Index = 0;
+			for (const uint8& StencilId : StencilIds)
+			{
+				MappedBuffer[Index++] = StencilId;
+			}
+
+			RHIUnlockBuffer(BufferRef);
+			Parameters->StencilIds = RHICreateShaderResourceView(BufferRef);
+
+			{
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("ColorCorrectRegions_StencilMerger"),
+					Parameters,
+					ERDGPassFlags::Raster,
+						[&View,
+						StencilMergerVS,
+						StencilMergerPS,
+						Parameters,
+						RegionViewport,
+						DefaultBlendState](FRHICommandList& RHICmdList)
+					{
+						check(true);
+						DrawScreenPass(
+							RHICmdList,
+							static_cast<const FViewInfo&>(View),
+							RegionViewport,
+							RegionViewport,
+							FScreenPassPipelineState(StencilMergerVS, StencilMergerPS, DefaultBlendState, FScreenPassPipelineState::FDefaultDepthStencilState::GetRHI()),
+							EScreenPassDrawFlags::None,
+							[&](FRHICommandList& RHICmdList)
+							{
+								SetShaderParameters(RHICmdList, StencilMergerPS, StencilMergerPS.GetPixelShader(), *Parameters);
+							});
+					}
+				);
+			}
+		}
+	}
 
 	bool RenderRegion
 		( FRDGBuilder& GraphBuilder
@@ -372,14 +456,20 @@ namespace
 			? FColorCorrectRegionMaterialPS::ETemperatureType::Disabled
 			: static_cast<FColorCorrectRegionMaterialPS::ETemperatureType>(Region->TemperatureType);
 
+		FScreenPassRenderTarget MergedStencilRenderTarget;
+		if (Region->PerActorColorCorrection != EColorCorrectRegionStencilType::None)
+		{
+			StencilMerger(GraphBuilder, Region, GlobalShaderMap, SceneColorRenderTarget, View, SceneTextureViewportParams, RegionViewport, SceneTextures, Region->StencilIds, MergedStencilRenderTarget);
+		}
+
 		TShaderRef<FColorCorrectGenericPS> PixelShader;
 		if (AColorCorrectWindow* CCWindow = Cast<AColorCorrectWindow>(Region))
 		{
-			PixelShader = GetWindowShader(GlobalShaderMap, CCWindow->WindowType, TemperatureType, bIsAdvanced);
+			PixelShader = GetWindowShader(GlobalShaderMap, CCWindow->WindowType, TemperatureType, bIsAdvanced, MergedStencilRenderTarget.IsValid());
 		}
 		else
 		{
-			PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced);
+			PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced, MergedStencilRenderTarget.IsValid());
 		}
 
 		ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
@@ -389,8 +479,8 @@ namespace
 		FCCRColorCorrectShadowsParameter CCShadows;
 		FCCRColorCorrectMidtonesParameter CCMidtones;
 		FCCRColorCorrectHighlightsParameter CCHighlights;
-
-
+		FCCRStencilMergerParameter CCRMergedStencil;
+		
 		// Setting constant buffer data to be passed to the shader.
 		{
 			RegionData.Rotate = FMath::DegreesToRadians<FVector3f>((FVector3f)Region->GetActorRotation().Euler());
@@ -412,8 +502,7 @@ namespace
 			RegionData.Falloff = Region->Falloff;
 			RegionData.Intensity = Region->Intensity;
 			RegionData.Invert = Region->Invert;
-			RegionData.ExcludeStencil = static_cast<uint32>(Region->ExcludeStencil);
-			RegionData.StencilId = Region->StencilId;
+			RegionData.ExcludeStencil = static_cast<uint32>(Region->PerActorColorCorrection);
 
 			CCBase.ColorSaturation = (FVector4f)Region->ColorGradingSettings.Global.Saturation;
 			CCBase.ColorContrast = (FVector4f)Region->ColorGradingSettings.Global.Contrast;
@@ -446,6 +535,12 @@ namespace
 				CCHighlights.ColorGain = (FVector4f)Region->ColorGradingSettings.Highlights.Gain;
 				CCHighlights.ColorOffset = (FVector4f)Region->ColorGradingSettings.Highlights.Offset;
 				CCHighlights.HighlightsMin = Region->ColorGradingSettings.HighlightsMin;
+			}
+
+			if (MergedStencilRenderTarget.IsValid())
+			{
+				CCRMergedStencil.MergedStencilTexture = MergedStencilRenderTarget.Texture;
+				CCRMergedStencil.MergedStencilSampler = TStaticSamplerState<>::GetRHI();
 			}
 		}
 
@@ -496,7 +591,9 @@ namespace
 			CCShadows,
 			CCMidtones,
 			CCHighlights,
-			bIsAdvanced](FRHICommandList& RHICmdList)
+			CCRMergedStencil,
+			bIsAdvanced,
+			MergedStencilRenderTarget](FRHICommandList& RHICmdList)
 			{
 				DrawScreenPass(
 					RHICmdList,
@@ -514,6 +611,10 @@ namespace
 							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectShadowsParameter>(), CCShadows);
 							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectMidtonesParameter>(), CCMidtones);
 							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectHighlightsParameter>(), CCHighlights);
+						}
+						if (MergedStencilRenderTarget.IsValid())
+						{
+							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRStencilMergerParameter>(), CCRMergedStencil);
 						}
 						VertexShader->SetParameters(RHICmdList, View);
 						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PostProcessMaterialParameters);
@@ -636,7 +737,6 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 		// We don't need to do this per region.
 		check(View.bIsViewInfo);
 		FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, ((const FViewInfo&)View).GetSceneTexturesChecked(), View.GetFeatureLevel(), ESceneTextureSetupMode::All);
-
 
 		for (auto It = WorldSubsystem->RegionsPriorityBased.CreateConstIterator(); It; ++It)
 		{
