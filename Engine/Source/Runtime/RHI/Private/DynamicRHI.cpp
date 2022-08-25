@@ -16,10 +16,6 @@
 #include "PipelineStateCache.h"
 #include "TextureProfiler.h"
 
-#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
-#include "GeForceNOWWrapper.h"
-#endif
-
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
 
@@ -379,37 +375,7 @@ void RHIInit(bool bHasEditorToken)
 	}
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
-#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
-	bool bDetectAndWarnBadDrivers = true;
-	if (IsRHIDeviceNVIDIA() && !!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
-	{
-		const GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().Initialize();
-		const bool bGfnRuntimeSDKInitialized = GfnResult == gfnSuccess || GfnResult == gfnInitSuccessClientOnly;
-		if (bGfnRuntimeSDKInitialized)
-		{
-			UE_LOG(LogRHI, Log, TEXT("GeForceNow SDK initialized: %d"), (int32)GfnResult);
-		}
-		else
-		{
-			UE_LOG(LogRHI, Log, TEXT("GeForceNow SDK initialization failed: %d"), (int32)GfnResult);
-		}
-
-		// Don't pop up a driver version warning window when running on a cloud machine
-		bDetectAndWarnBadDrivers = !bGfnRuntimeSDKInitialized || !GeForceNOWWrapper::Get().IsRunningInCloud();
-
-		if (GeForceNOWWrapper::Get().IsRunningInGFN())
-		{
-			FGenericCrashContext::SetEngineData(TEXT("RHI.CloudInstance"), TEXT("GeForceNow"));
-		}
-	}
-
-	if (bDetectAndWarnBadDrivers)
-	{
-		RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
-	}
-#else
 	RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
-#endif
 #endif
 }
 

@@ -18,10 +18,6 @@
 #include "Engine/Engine.h"
 #include "Stats/Stats.h"
 
-#if NV_GEFORCENOW
-#include "GeForceNOWWrapper.h"
-#endif
-
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
 #endif

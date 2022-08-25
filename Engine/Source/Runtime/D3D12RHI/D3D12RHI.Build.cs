@@ -56,7 +56,6 @@ public class D3D12RHI : ModuleRules
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
             {
-				PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");

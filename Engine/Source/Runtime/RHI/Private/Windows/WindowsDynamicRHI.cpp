@@ -11,10 +11,6 @@
 
 #include "Windows/WindowsPlatformApplicationMisc.h"
 
-#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
-#include "GeForceNOWWrapper.h"
-#endif
-
 static const TCHAR* GLoadedRHIModuleName;
 
 enum class EWindowsRHI
@@ -26,6 +22,13 @@ enum class EWindowsRHI
 	count
 };
 static constexpr int32 EWindowsRHICount = static_cast<int32>(EWindowsRHI::count);
+
+static TAutoConsoleVariable<bool> CVarIgnorePerformanceModeCheck(
+	TEXT("r.IgnorePerformanceModeCheck"),
+	false,
+	TEXT("Ignore performance mode check"),
+	ECVF_RenderThreadSafe
+	);
 
 static const TCHAR* ModuleNameFromWindowsRHI(EWindowsRHI InWindowsRHI)
 {
@@ -377,19 +380,12 @@ static bool PreferFeatureLevelES31()
 {
 	if (!GIsEditor)
 	{
-		bool bIsRunningInGFN = false;
-#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
-		//Prevent ES31 from being forced since we have other ways of setting scalability issues on GFN.
-		GeForceNOWWrapper::Get().Initialize();
-		bIsRunningInGFN = GeForceNOWWrapper::Get().IsRunningInGFN();
-#endif
-
 		bool bPreferFeatureLevelES31 = false;
 		bool bFoundPreference = GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
 
 		// Force low-spec users into performance mode but respect their choice once they have set a preference
 		bool bDefaultES31 = false;
-		if (!bFoundPreference && !bIsRunningInGFN)
+		if (!bFoundPreference && !CVarIgnorePerformanceModeCheck.GetValueOnAnyThread())
 		{
 			bDefaultES31 = DefaultFeatureLevelES31();
 		}

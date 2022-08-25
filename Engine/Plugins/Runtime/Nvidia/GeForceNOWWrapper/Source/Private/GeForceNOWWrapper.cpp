@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if NV_GEFORCENOW
-
 #include "GeForceNOWWrapper.h"
 #include "GeForceNOWWrapperPrivate.h"
 #include "GeForceNOWActionZoneProcessor.h"
@@ -9,6 +7,7 @@
 #include "Misc/CommandLine.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 UE_PUSH_MACRO("TEXT")
 #undef TEXT
@@ -70,16 +69,7 @@ GeForceNOWWrapper& GeForceNOWWrapper::Get()
 
 bool GeForceNOWWrapper::IsRunningInGFN()
 {
-	if (IsRunningMockGFN())
-	{
-		return true;
-	}
-
-	if (IsInitialized())
-	{
-		return IsRunningInCloud();
-	}
-	return false;
+	return IsRunningMockGFN() || IsInitialized() && IsRunningInCloud();
 }
 
 bool GeForceNOWWrapper::IsRunningMockGFN() const
@@ -112,8 +102,13 @@ GfnRuntimeError GeForceNOWWrapper::Initialize()
 	FString GFNDllPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/NVIDIA/GeForceNOW"), FPlatformProcess::GetBinariesSubdirectory(), TEXT("GfnRuntimeSdk.dll"));
 	FString GFNDllFullPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*GFNDllPath);
 	GFNDllFullPath.ReplaceInline(TEXT("/"), TEXT("\\"), ESearchCase::CaseSensitive);
- 	const GfnRuntimeError ErrorCode = GfnInitializeSdkFromPath(gfnDefaultLanguage, *GFNDllFullPath);
+	const GfnRuntimeError ErrorCode = GfnInitializeSdkFromPath(gfnDefaultLanguage, *GFNDllFullPath);
 	bIsInitialized = ErrorCode == gfnSuccess || ErrorCode == gfnInitSuccessClientOnly;
+
+	if (bIsInitialized)
+	{
+		FGenericCrashContext::SetEngineData(TEXT("RHI.CloudInstance"), TEXT("GeForceNow"));
+	}
 
 	return ErrorCode;
 }
@@ -169,7 +164,8 @@ GfnRuntimeError GeForceNOWWrapper::IsRunningInCloudSecure(GfnIsRunningInCloudAss
 
 GfnRuntimeError GeForceNOWWrapper::SetupTitle(const FString& InPlatformAppId) const
 {
-	return GfnSetupTitle(TCHAR_TO_ANSI(*InPlatformAppId));
+	char* PlatformAppId = TCHAR_TO_ANSI(*InPlatformAppId);
+	return GfnSetupTitle(PlatformAppId);
 }
 
 GfnRuntimeError GeForceNOWWrapper::NotifyAppReady(bool bSuccess, const FString& InStatus) const
@@ -179,7 +175,9 @@ GfnRuntimeError GeForceNOWWrapper::NotifyAppReady(bool bSuccess, const FString& 
 
 GfnRuntimeError GeForceNOWWrapper::NotifyTitleExited(const FString& InPlatformId, const FString& InPlatformAppId) const
 {
-	return GfnTitleExited(TCHAR_TO_ANSI(*InPlatformId), TCHAR_TO_ANSI(*InPlatformAppId));
+	char* PlatformId = TCHAR_TO_ANSI(*InPlatformId);
+	char* PlatformAppId = TCHAR_TO_ANSI(*InPlatformAppId);
+	return GfnTitleExited(PlatformId, PlatformAppId);
 }
 
 GfnRuntimeError GeForceNOWWrapper::StartStream(StartStreamInput& InStartStreamInput, StartStreamResponse& OutResponse) const
@@ -300,7 +298,8 @@ GfnRuntimeError GeForceNOWWrapper::GetTitlesAvailable(FString& OutAvailableTitle
 
 GfnRuntimeError GeForceNOWWrapper::IsTitleAvailable(const FString& InTitleID, bool& OutbIsAvailable) const
 {
-	GfnRuntimeError ErrorCode = GfnIsTitleAvailable(TCHAR_TO_ANSI(*InTitleID), &OutbIsAvailable);
+	char* TitleID = TCHAR_TO_ANSI(*InTitleID);
+	GfnRuntimeError ErrorCode = GfnIsTitleAvailable(TitleID, &OutbIsAvailable);
 	return ErrorCode;
 }
 
@@ -308,5 +307,3 @@ GfnRuntimeError GeForceNOWWrapper::Free(const char** data) const
 {
 	return GfnFree(data);
 }
-
-#endif // NV_GEFORCENOW

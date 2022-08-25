@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if NV_GEFORCENOW
-
 #include "CoreMinimal.h"
 #include "Layout/SlateRect.h"
 #include "Containers/Ticker.h"
@@ -88,5 +86,3 @@ private:
 
 	FTSTicker::FDelegateHandle ProcessDelegateHandle;
 };
-
-#endif // NV_GEFORCENOW

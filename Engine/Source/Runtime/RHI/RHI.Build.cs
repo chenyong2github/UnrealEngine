@@ -11,15 +11,6 @@ public class RHI : ModuleRules
 		PrivateDependencyModuleNames.Add("TraceLog");
 		PrivateDependencyModuleNames.Add("ApplicationCore");
 
-		if (Target.Type != TargetRules.TargetType.Server
-		&& Target.Type != TargetRules.TargetType.Program
-		&& Target.Configuration != UnrealTargetConfiguration.Unknown
-		&& Target.Configuration != UnrealTargetConfiguration.Debug
-		&& Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-		{
-			PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
-		}
-
 		if (Target.bCompileAgainstEngine)
 		{
 			DynamicallyLoadedModuleNames.Add("NullDrv");

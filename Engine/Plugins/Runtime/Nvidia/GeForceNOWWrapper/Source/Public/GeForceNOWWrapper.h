@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if NV_GEFORCENOW
-
 #include "CoreMinimal.h"
 
 THIRD_PARTY_INCLUDES_START
@@ -117,5 +115,3 @@ private:
 	/** Keeps track of actions zones for GeForce NOW. Action Zones are used for things like keyboard invocation within the GeForce NOW app.*/
 	TSharedPtr<GeForceNOWActionZoneProcessor> ActionZoneProcessor;
 };
-
-#endif // NV_GEFORCENOW
