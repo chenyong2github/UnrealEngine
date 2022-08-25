@@ -279,17 +279,18 @@ async function go() {
 	///////////////////////
 	// TESTS TO RUN 
 
-	const specificTests = /**/[availableTests[17]]/*/availableTests  /* .slice(0, 0)/**/
-	// needs at least 1 target test otherwise it hangs
-	const targetTests = /**/[availableTargetTests[7]] /*/ availableTargetTests /* .slice(8, 10) /**/
+	const specificTests = /**/[availableTests[12]]/*/availableTests  /* .slice(0, 0)/**/
+	const targetTests: FunctionalTest[] = /**/ [] /*/ availableTargetTests  /**/
 
 	//
 	///////////////////////
 
 	console.log(`${specificTests[0].testName} to ${specificTests[specificTests.length - 1].testName}`)
-	console.log(`${targetTests[0].testName} to ${targetTests[targetTests.length - 1].testName}`)
+	if (targetTests.length > 0) {
+		console.log(`${targetTests[0].testName} to ${targetTests[targetTests.length - 1].testName}`)
+	}
 
-	const tests = /**/ [...specificTests, ...targetTests] /*/ [...specificTests, ...targetTests] /**/
+	const tests = [...specificTests, ...targetTests]
 
 	console.log(`Running set-up for ${tests.length} tests`)
 	await Promise.all(tests.map(test => test.setup()))

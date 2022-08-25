@@ -686,22 +686,22 @@ export abstract class FunctionalTest {
 
 	async ensureConflictMessagePostedToSlack(sourceStream: string, targetStream: string, optChannel?: string) {
 		const edgeDisplayName = `${sourceStream} -> ${targetStream}`
-		this.info(`Ensuring conflict message sent for ${edgeDisplayName}`)
+		const channelMessage = optChannel ? `to '${optChannel}' ` : ''
+		this.info(`Ensuring conflict message sent ${channelMessage}for ${edgeDisplayName}`)
 
 		const [messageSent, conflictCl] = await this.wasConflictMessagePostedToSlack(sourceStream, targetStream, optChannel)
 		if (!messageSent) {
-			const channelMessage = optChannel ? `to '${optChannel}' ` : ''
 			throw new Error(`no message sent ${channelMessage}for CL#${conflictCl} (${edgeDisplayName})`)
 		}
 	}
 
 	async ensureNoConflictMessagePostedToSlack(sourceStream: string, targetStream: string, optChannel?: string) {
 		const edgeDisplayName = `${sourceStream} -> ${targetStream}`
-		this.info(`Ensuring no conflict message sent for ${edgeDisplayName}`)
+		const channelMessage = optChannel ? `to '${optChannel}' ` : ''
+		this.info(`Ensuring no conflict message sent ${channelMessage}for ${edgeDisplayName}`)
 
 		const [messageSent, conflictCl] = await this.wasConflictMessagePostedToSlack(sourceStream, targetStream, optChannel)
 		if (messageSent) {
-			const channelMessage = optChannel ? `to '${optChannel} ` : ''
 			throw new Error(`unexpected message sent ${channelMessage}for CL#${conflictCl} (${edgeDisplayName})`)
 		}
 	}
