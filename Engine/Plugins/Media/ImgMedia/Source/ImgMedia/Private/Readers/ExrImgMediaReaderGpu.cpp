@@ -288,17 +288,19 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 						}
 					});
 				}
-				if (ReadResult != Fail)
-				{
-					OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
-				}
 			}
 			else
 			{
 				UE_LOG(LogImgMedia, Error, TEXT("Could not load %s"), *ImagePath);
 				return false;
 			}
-			if (ReadResult == Fail)
+
+			/* Error handling. */
+			if (ReadResult == Success)
+			{
+				OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
+			}
+			else if (ReadResult == Fail)
 			{
 				// Check if we have a compressed file.
 				FImgMediaFrameInfo Info;
@@ -318,6 +320,10 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 				OutFrame->SampleConverter.Reset();
 
 				return FExrImgMediaReader::ReadFrame(FrameId, InMipTiles, OutFrame);
+			}
+			else if (ReadResult == Cancelled)
+			{
+				return false;
 			}
 		}
 	}
