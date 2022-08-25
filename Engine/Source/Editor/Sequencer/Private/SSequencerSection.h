@@ -109,6 +109,8 @@ private:
 
 	EVisibility GetTopLevelChannelGroupVisibility() const;
 
+	FMargin GetHandleOffsetPadding() const;
+
 public:
 
 	/** Indicate that the current section selection should throb the specified number of times. A single throb takes 0.2s. */

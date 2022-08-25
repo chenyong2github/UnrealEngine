@@ -830,6 +830,7 @@ void SSequencerSection::Construct( const FArguments& InArgs, TSharedPtr<FSequenc
 	UpdateUnderlappingSegments();
 
 	ChildSlot
+	.Padding(MakeAttributeSP(this, &SSequencerSection::GetHandleOffsetPadding))
 	[
 		SNew(SOverlay)
 
@@ -872,6 +873,11 @@ EVisibility SSequencerSection::GetTopLevelChannelGroupVisibility() const
 		return EVisibility::Collapsed;
 	}
 	return EVisibility::Visible;
+}
+
+FMargin SSequencerSection::GetHandleOffsetPadding() const
+{
+	return FMargin(HandleOffsetPx, 0.0);
 }
 
 FText SSequencerSection::GetToolTipText() const
@@ -974,7 +980,7 @@ FTrackLaneScreenAlignment SSequencerSection::GetAlignment(const FTimeToPixel& In
 	{
 		constexpr float MinSectionWidth = 1.f;
 
-		const float FinalSectionWidth = FMath::Max(MinSectionWidth, ScreenAlignment.WidthPx);
+		const float FinalSectionWidth = FMath::Max(MinSectionWidth + SectionInterface->GetSectionGripSize() * 2.f, ScreenAlignment.WidthPx);
 		const float GripOffset        = (FinalSectionWidth - ScreenAlignment.WidthPx) / 2.f;
 
 		ScreenAlignment.LeftPosPx -= GripOffset;

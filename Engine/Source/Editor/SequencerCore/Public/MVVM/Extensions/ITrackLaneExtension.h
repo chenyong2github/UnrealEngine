@@ -55,7 +55,7 @@ struct SEQUENCERCORE_API FTrackLaneVirtualAlignment
 
 	bool IsVisible() const
 	{
-		return !Range.IsEmpty() && !Range.IsDegenerate();
+		return !Range.IsEmpty();
 	}
 
 	static FTrackLaneVirtualAlignment Fixed(const TRange<FFrameNumber>& InRange, float InFixedHeight, EVerticalAlignment InVAlign = VAlign_Center)
