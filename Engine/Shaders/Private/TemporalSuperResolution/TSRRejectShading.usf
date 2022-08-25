@@ -2,9 +2,8 @@
 
 //------------------------------------------------------- CONFIG WAVE SIZE
 
-#define WAVE_SIZE 32
-#if !DIM_USE_WAVE_OPS
-	#define WAVE_BROADCAST_GROUPSIZE (WAVE_SIZE)
+#if DIM_WAVE_SIZE == 0 // fallback to LDS
+	#define WAVE_BROADCAST_GROUPSIZE 32
 #endif
 
 //------------------------------------------------------- INCLUDES
@@ -36,8 +35,24 @@
 //------------------------------------------------------- DERIVED
 
 /** Pixel coordinate stride between each lane in the GROUP_TILE_SIZE. */
-#define LANE_STRIDE_X 4
-#define LANE_STRIDE_Y 2
+#if DIM_WAVE_SIZE == 64
+	#define LANE_COUNT 64
+	#define LANE_STRIDE_X 2
+	#define LANE_STRIDE_Y 2
+
+#elif DIM_WAVE_SIZE == 32
+	#define LANE_COUNT 32
+	#define LANE_STRIDE_X 4
+	#define LANE_STRIDE_Y 2
+
+#elif DIM_WAVE_SIZE == 0
+	#define LANE_COUNT 32
+	#define LANE_STRIDE_X 4
+	#define LANE_STRIDE_Y 2
+
+#else
+	#error Unknown wave size
+#endif
 
 /** Number of lane the GROUP_TILE_SIZE. */
 #define LANE_COUNT_X (GROUP_TILE_SIZE / LANE_STRIDE_X)
@@ -114,13 +129,13 @@ TLaneVector<ScalarType, VectorSize, SimdSize> AccessNeighborTexel(TLaneVector<Sc
 		if (LaneRotation != 0)
 		{
 			// Only uses wave intrinsics on platforms that provides RDNA's ds_swizzle because we know the wave size of this platforms. 
-			#if DIM_USE_WAVE_OPS
+			#if DIM_WAVE_SIZE != 0
 				#if !PLATFORM_SUPPORTS_WAVE_ROTATE
 					//#error InitWaveRotateLaneGroup() isn't supported.
 				#endif
-				const FWaveBroadcastSettings BroadcastSettings = InitWaveRotateLaneGroup(/* LaneGroupSize = */ WAVE_SIZE, LaneRotation);
+				const FWaveBroadcastSettings BroadcastSettings = InitWaveRotateLaneGroup(/* LaneGroupSize = */ LANE_COUNT, LaneRotation);
 			#else
-				const FWaveBroadcastSettings BroadcastSettings = ConvertWaveBroadcastToLDS(InitWaveRotateLaneGroup(/* LaneGroupSize = */ WAVE_SIZE, LaneRotation), GroupThreadIndex);
+				const FWaveBroadcastSettings BroadcastSettings = ConvertWaveBroadcastToLDS(InitWaveRotateLaneGroup(/* LaneGroupSize = */ LANE_COUNT, LaneRotation), GroupThreadIndex);
 			#endif
 			ReturnSimdElement = WaveBroadcast(BroadcastSettings, SimdElement);
 		}
@@ -307,7 +322,7 @@ tsr_simd_halfC ClampFireFliersWithGuide(tsr_simd_halfC ToClamp, tsr_simd_halfC G
 
 //------------------------------------------------------- ENTRY POINT
 
-[numthreads(WAVE_SIZE, 1, 1)]
+[numthreads(LANE_COUNT, 1, 1)]
 void MainCS(
 	uint2 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)

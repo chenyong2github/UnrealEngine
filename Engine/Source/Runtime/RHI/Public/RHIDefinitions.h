@@ -376,6 +376,8 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsTemporalHistoryUpscale : 1;
 	uint32 bSupportsRTIndexFromVS : 1;
 	uint32 bSupportsWaveOperations : int32(ERHIFeatureSupport::NumBits);
+	uint32 MinimumWaveSize : 8;
+	uint32 MaximumWaveSize : 8;
 	uint32 bSupportsIntrinsicWaveOnce : 1;
 	uint32 bSupportsConservativeRasterization : 1;
 	uint32 bRequiresExplicit128bitRT : 1;
@@ -728,6 +730,18 @@ public:
 	{
 		check(IsValid(Platform));
 		return ERHIFeatureSupport(Infos[Platform].bSupportsWaveOperations);
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetMinimumWaveSize(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].MinimumWaveSize;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetMaximumWaveSize(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].MaximumWaveSize;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTemporalHistoryUpscale(const FStaticShaderPlatform Platform)

@@ -348,10 +348,10 @@ class FTSRRejectShadingCS : public FTSRShader
 	DECLARE_GLOBAL_SHADER(FTSRRejectShadingCS);
 	SHADER_USE_PARAMETER_STRUCT(FTSRRejectShadingCS, FTSRShader);
 
-	class FUseWaveOps : SHADER_PERMUTATION_BOOL("DIM_USE_WAVE_OPS");
+	class FWaveSizeOps : SHADER_PERMUTATION_SPARSE_INT("DIM_WAVE_SIZE", 0, 32, 64);
 	class FSeparateTranslucencyDim : SHADER_PERMUTATION_BOOL("DIM_SEPARATE_TRANSLUCENCY");
 
-	using FPermutationDomain = TShaderPermutationDomain<FUseWaveOps, FSeparateTranslucencyDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FWaveSizeOps, FSeparateTranslucencyDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
@@ -374,18 +374,27 @@ class FTSRRejectShadingCS : public FTSRShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		int32 WaveSize = PermutationVector.Get<FWaveSizeOps>();
 
 		ERHIFeatureSupport WaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Parameters.Platform);
-		if (PermutationVector.Get<FUseWaveOps>())
+		if (WaveSize != 0)
 		{
 			if (WaveOpsSupport == ERHIFeatureSupport::Unsupported)
 			{
 				return false;
 			}
+
+			if (WaveSize < int32(FDataDrivenShaderPlatformInfo::GetMinimumWaveSize(Parameters.Platform)) ||
+				WaveSize > int32(FDataDrivenShaderPlatformInfo::GetMaximumWaveSize(Parameters.Platform)))
+			{
+				return false;
+			}
 		}
-		else
+		else // if (WaveSize == LDS fallback)
 		{
-			if (WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed)
+			if (WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed &&
+				FDataDrivenShaderPlatformInfo::GetMinimumWaveSize(Parameters.Platform) >= 32 &&
+				FDataDrivenShaderPlatformInfo::GetMaximumWaveSize(Parameters.Platform) <= 64)
 			{
 				return false;
 			}
@@ -399,10 +408,13 @@ class FTSRRejectShadingCS : public FTSRShader
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
 		FTSRShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 
-		if (PermutationVector.Get<FUseWaveOps>())
+		if (PermutationVector.Get<FWaveSizeOps>() != 0)
 		{
+			if (PermutationVector.Get<FWaveSizeOps>() == 32)
+			{
+				OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+			}
 			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
 		}
 	}
@@ -1256,14 +1268,14 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->DebugOutput = CreateDebugUAV(InputExtent, TEXT("Debug.TSR.RejectShading"));
 
 		FTSRRejectShadingCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTSRRejectShadingCS::FUseWaveOps>(bUseWaveOps&& GRHIMinimumWaveSize <= 32 && GRHIMaximumWaveSize >= 32);
+		PermutationVector.Set<FTSRRejectShadingCS::FWaveSizeOps>(bUseWaveOps && GRHIMinimumWaveSize >= 32 && GRHIMinimumWaveSize <= 64 ? GRHIMinimumWaveSize : 0);
 		PermutationVector.Set<FTSRRejectShadingCS::FSeparateTranslucencyDim>(bAccumulateTranslucencySeparately);
 
 		TShaderMapRef<FTSRRejectShadingCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TSR RejectShading(%s%s) %dx%d",
-				PermutationVector.Get<FTSRRejectShadingCS::FUseWaveOps>() ? TEXT("WaveOps") : TEXT(""),
+			RDG_EVENT_NAME("TSR RejectShading(WaveSize=%d%s) %dx%d",
+				PermutationVector.Get<FTSRRejectShadingCS::FWaveSizeOps>(),
 				PermutationVector.Get<FTSRRejectShadingCS::FSeparateTranslucencyDim>() ? TEXT(" SeparateTranslucency") : TEXT(""),
 				InputRect.Width(), InputRect.Height()),
 			AsyncComputePasses >= 3 ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
