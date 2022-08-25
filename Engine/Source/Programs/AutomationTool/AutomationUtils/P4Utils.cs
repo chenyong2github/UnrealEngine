@@ -2395,31 +2395,18 @@ namespace AutomationTool
 				else
 				{
 					LastCmdOutput = CmdOutput;
-					if (CmdOutput.Trim().EndsWith("submitted."))
-					{
-						if (CmdOutput.Trim().EndsWith(" and submitted."))
-						{
-							string EndStr = " and submitted.";
-							string ChangeStr = "renamed change ";
-							int Offset = CmdOutput.LastIndexOf(ChangeStr);
-							int EndOffset = CmdOutput.LastIndexOf(EndStr);
-							if (Offset >= 0 && Offset < EndOffset)
-							{
-								SubmittedCL = int.Parse(CmdOutput.Substring(Offset + ChangeStr.Length, EndOffset - Offset - ChangeStr.Length));
-							}
-						}
-						else
-						{
-							string EndStr = " submitted.";
-							string ChangeStr = "Change ";
-							int Offset = CmdOutput.LastIndexOf(ChangeStr);
-							int EndOffset = CmdOutput.LastIndexOf(EndStr);
-							if (Offset >= 0 && Offset < EndOffset)
-							{
-								SubmittedCL = int.Parse(CmdOutput.Substring(Offset + ChangeStr.Length, EndOffset - Offset - ChangeStr.Length));
-							}
-						}
 
+					Regex SubmitRegex = new Regex(@"Change \d+ renamed change (?<number>\d+) and submitted");
+					Match SubmitMatch = SubmitRegex.Match(CmdOutput);
+					if (!SubmitMatch.Success)
+					{
+						SubmitRegex = new Regex(@"Change (?<number>\d+) submitted");
+						SubmitMatch = SubmitRegex.Match(CmdOutput);
+					}
+
+					if (SubmitMatch.Success)
+					{
+						SubmittedCL = int.Parse(SubmitMatch.Groups["number"].Value);
 						CommandUtils.LogInformation("Submitted CL {0} which became CL {1}\n", CL, SubmittedCL);
 					}
 
