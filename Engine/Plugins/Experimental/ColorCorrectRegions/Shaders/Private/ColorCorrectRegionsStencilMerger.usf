@@ -10,6 +10,7 @@
 
 
 StructuredBuffer<uint> StencilIds;
+uint StencilIdCount;
 
 uint MainPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0
@@ -22,7 +23,7 @@ uint MainPS(
 	half SceneDepth = CalcSceneDepth(UVAndScreenPos.xy);
 
 	int CustomStencil = SceneTextureLookup(UVAndScreenPos.xy, PPI_CustomStencil, false).r;
-	for (uint Index = 0; Index < StencilIds.Length; Index++)
+	for (uint Index = 0; Index < StencilIdCount; Index++)
 	{
 		if (abs(SceneDepth - CustomDepth) <= Float_Eps)
 		{

@@ -286,6 +286,7 @@ namespace
 
 			RHIUnlockBuffer(BufferRef);
 			Parameters->StencilIds = RHICreateShaderResourceView(BufferRef);
+			Parameters->StencilIdCount = StencilIds.Num();
 
 			{
 				GraphBuilder.AddPass(

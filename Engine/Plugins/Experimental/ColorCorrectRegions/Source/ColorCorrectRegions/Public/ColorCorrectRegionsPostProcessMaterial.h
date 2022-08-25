@@ -262,10 +262,9 @@ class FCCRStencilMergerPS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		//SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-		//SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_SRV(StructuredBuffer<uint>, StencilIds)
+		SHADER_PARAMETER(uint32, StencilIdCount)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PostProcessOutput)
 		RENDER_TARGET_BINDING_SLOTS()
