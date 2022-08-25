@@ -67,6 +67,7 @@ public:
 
 	bool operator==(const UPCGSettings& Other) const;
 	uint32 GetCrc32() const;
+	bool UseSeed() const { return bUseSeed; }
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
@@ -84,7 +85,7 @@ public:
 	/** Derived classes can implement this to expose additional name information in the logs */
 	virtual FName AdditionalTaskName() const { return NAME_None; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta=(EditCondition=bUseSeed, EditConditionHides))
 	int Seed = 0xC35A9631; // random prime number
 
 	/** TODO: Remove this - Placeholder feature until we have a nodegraph */
@@ -124,6 +125,10 @@ protected:
 	/** Method that can be called to dirty the cache data from this settings objects if the operator== does not allow to detect changes */
 	void DirtyCache();
 #endif
+
+	// By default, settings won't use a seed. Set this bool at true in the child ctor to allow edition and use it.
+	UPROPERTY(VisibleAnywhere, Transient, Category = Settings, meta = (EditCondition = false, EditConditionHides))
+	bool bUseSeed = false;
 
 	/** Methods to remove boilerplate code across settings */
 	TArray<FPCGPinProperties> DefaultPointOutputPinProperties() const;

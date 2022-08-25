@@ -27,6 +27,8 @@ class PCG_API UPCGDensityNoiseSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGDensityNoiseSettings();
+
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DensityNoiseNode")); }

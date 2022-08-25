@@ -7,6 +7,11 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 
+UPCGLinearDensityRemapSettings::UPCGLinearDensityRemapSettings()
+{
+	bUseSeed = true;
+}
+
 FPCGElementPtr UPCGLinearDensityRemapSettings::CreateElement() const
 {
 	return MakeShared<FPCGLinearDensityRemapElement>();

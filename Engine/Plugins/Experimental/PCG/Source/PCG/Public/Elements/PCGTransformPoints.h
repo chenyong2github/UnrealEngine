@@ -15,6 +15,8 @@ class PCG_API UPCGTransformPointsSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGTransformPointsSettings();
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("TransformPointsNode")); }

@@ -17,6 +17,8 @@ class PCG_API UPCGSurfaceSamplerSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGSurfaceSamplerSettings();
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
 	float PointsPerSquaredMeter = 0.1f;
 

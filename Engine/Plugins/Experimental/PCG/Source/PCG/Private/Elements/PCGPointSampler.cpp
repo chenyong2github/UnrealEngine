@@ -7,6 +7,11 @@
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Math/RandomStream.h"
 
+UPCGPointSamplerSettings::UPCGPointSamplerSettings()
+{
+	bUseSeed = true;
+}
+
 FPCGElementPtr UPCGPointSamplerSettings::CreateElement() const
 {
 	return MakeShared<FPCGPointSamplerElement>();

@@ -17,6 +17,8 @@
 
 UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitializer &ObjectInitializer)
 {
+	bUseSeed = true;
+
 	MeshSelectorType = UPCGMeshSelectorWeighted::StaticClass();
 	MeshSelectorInstance = ObjectInitializer.CreateDefaultSubobject<UPCGMeshSelectorWeighted>(this, TEXT("DefaultSelectorInstance"));
 }

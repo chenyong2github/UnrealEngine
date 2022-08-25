@@ -151,6 +151,11 @@ TSet<FName> UPCGBlueprintElement::OutputLabels() const
 	return Labels;
 }
 
+UPCGBlueprintSettings::UPCGBlueprintSettings()
+{
+	bUseSeed = true;
+}
+
 void UPCGBlueprintSettings::SetupBlueprintEvent()
 {
 #if WITH_EDITOR

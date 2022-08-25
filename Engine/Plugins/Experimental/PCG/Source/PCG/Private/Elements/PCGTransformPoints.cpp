@@ -5,6 +5,11 @@
 #include "PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+UPCGTransformPointsSettings::UPCGTransformPointsSettings()
+{
+	bUseSeed = true;
+}
+
 TArray<FPCGPinProperties> UPCGTransformPointsSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;

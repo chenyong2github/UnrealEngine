@@ -7,6 +7,11 @@
 
 #include "Math/RandomStream.h"
 
+UPCGDensityNoiseSettings::UPCGDensityNoiseSettings()
+{
+	bUseSeed = true;
+}
+
 FPCGElementPtr UPCGDensityNoiseSettings::CreateElement() const
 {
 	return MakeShared<FPCGDensityNoiseElement>();

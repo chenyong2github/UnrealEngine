@@ -102,6 +102,11 @@ struct FPCGSurfaceSamplerLoopData
 	}
 };
 
+UPCGSurfaceSamplerSettings::UPCGSurfaceSamplerSettings()
+{
+	bUseSeed = true;
+}
+
 void UPCGSurfaceSamplerSettings::PostLoad()
 {
 	Super::PostLoad();

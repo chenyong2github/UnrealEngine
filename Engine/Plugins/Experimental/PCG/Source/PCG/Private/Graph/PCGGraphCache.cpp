@@ -8,10 +8,22 @@
 #include "Algo/AnyOf.h"
 #include "GameFramework/Actor.h"
 
-namespace PCGGraphCacheConstants
+namespace PCGGraphCache
 {
 	constexpr int32 NullComponentSeed = 0;
 	constexpr int32 NullSettingsCrc32 = 0;
+
+	// Component seed is only get if we have a component and either no settings or the settings use seed.
+	// TODO: Perhaps we should not get the component seed if we have no settings...
+	int32 GetComponentSeed(const UPCGSettings* InSettings, const UPCGComponent* InComponent)
+	{
+		if ((!InSettings || InSettings->UseSeed()) && InComponent)
+		{
+			return InComponent->Seed;
+		}
+
+		return PCGGraphCache::NullComponentSeed;
+	}
 }
 
 FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const UPCGComponent* InComponent, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, FPCGRootSet& OutRootSet)
@@ -20,8 +32,8 @@ FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, cons
 {
 	// Note: we don't need to root the settings since they'll be owned by the subsystem
 	Settings = InSettings ? Cast<UPCGSettings>(StaticDuplicateObject(InSettings, InOwner.Get())) : nullptr;
-	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : PCGGraphCacheConstants::NullSettingsCrc32;
-	ComponentSeed = InComponent ? InComponent->Seed : PCGGraphCacheConstants::NullComponentSeed;
+	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : PCGGraphCache::NullSettingsCrc32;
+	ComponentSeed = PCGGraphCache::GetComponentSeed(InSettings, InComponent);
 
 	Input.AddToRootSet(OutRootSet);
 	Output.AddToRootSet(OutRootSet);
@@ -54,8 +66,8 @@ bool FPCGGraphCache::GetFromCache(const IPCGElement* InElement, const FPCGDataCo
 
 	if (const FPCGGraphCacheEntries* Entries = CacheData.Find(InElement))
 	{
-		int32 InSettingsCrc32 = (InSettings ? InSettings->GetCrc32() : PCGGraphCacheConstants::NullSettingsCrc32);
-		int32 InComponentSeed = (InComponent ? InComponent->Seed : PCGGraphCacheConstants::NullComponentSeed);
+		int32 InSettingsCrc32 = (InSettings ? InSettings->GetCrc32() : PCGGraphCache::NullSettingsCrc32);
+		int32 InComponentSeed = PCGGraphCache::GetComponentSeed(InSettings, InComponent);
 
 		for (const FPCGGraphCacheEntry& Entry : *Entries)
 		{

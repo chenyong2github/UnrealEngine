@@ -159,6 +159,8 @@ class PCG_API UPCGBlueprintSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGBlueprintSettings();
+
 	friend class FPCGExecuteBlueprintElement;
 
 	// ~Begin UPCGSettings interface

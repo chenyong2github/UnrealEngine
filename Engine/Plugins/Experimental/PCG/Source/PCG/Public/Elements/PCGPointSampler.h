@@ -15,6 +15,8 @@ class PCG_API UPCGPointSamplerSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	UPCGPointSamplerSettings();
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointSamplerNode")); }
