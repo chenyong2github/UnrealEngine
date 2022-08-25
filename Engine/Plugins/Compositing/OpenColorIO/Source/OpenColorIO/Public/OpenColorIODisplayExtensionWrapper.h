@@ -40,6 +40,10 @@ public:
 		FOpenColorIODisplayConfiguration InDisplayConfiguration, 
 		const FSceneViewExtensionIsActiveFunctor& IsActiveFunction);
 
+	// Creates an instance of this object, configured for use in game with the given OCIO configuration.
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Create In-Game OpenColorIO Display Extension"), Category = "OpenColorIO")
+	static UOpenColorIODisplayExtensionWrapper* CreateInGameOpenColorIODisplayExtension(
+		FOpenColorIODisplayConfiguration InDisplayConfiguration);
 private:
 
 	// Creates OCIO Extension if it doesn't exist. 
