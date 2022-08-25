@@ -138,6 +138,11 @@ bool FObjectPtrProperty::Identical(const void* A, const void* B, uint32 PortFlag
 	return false;
 }
 
+FObjectPtr& FObjectPtrProperty::GetObjectPropertyValueAsPtr(const void* PropertyValueAddress) const
+{
+	return (FObjectPtr&)GetPropertyValue(PropertyValueAddress);
+}
+
 UObject* FObjectPtrProperty::GetObjectPropertyValue(const void* PropertyValueAddress) const
 {
 	return ((FObjectPtr&)GetPropertyValue(PropertyValueAddress)).Get();

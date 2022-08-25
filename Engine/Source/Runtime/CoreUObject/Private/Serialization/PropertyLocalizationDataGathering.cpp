@@ -506,7 +506,21 @@ void FPropertyLocalizationDataGatherer::GatherLocalizationDataFromChildTextPrope
 		// Property is an object property.
 		else if (ObjectProperty && !(GatherTextFlags & EPropertyLocalizationGathererTextFlags::SkipSubObjects))
 		{
-			const UObject* InnerObject = ObjectProperty->GetObjectPropertyValue(ElementValueAddress);
+			// if the object is a FObjectPtr it might not be resolved
+			// if unresolved there is no need to resolve it as IsObjectValidForGather would return false anyways
+			const UObject* InnerObject = nullptr;
+			if (auto ObjectPropertyPtr = CastField<FObjectPtrProperty>(ObjectProperty))
+			{
+				const FObjectPtr& ObjectPtr = ObjectPropertyPtr->GetObjectPropertyValueAsPtr(ElementValueAddress);
+				if (ObjectPtr.IsResolved())
+				{
+					InnerObject = ObjectPtr.Get();
+				}
+			}
+			else
+			{
+				InnerObject = ObjectProperty->GetObjectPropertyValue(ElementValueAddress);
+			} 
 			if (InnerObject && IsObjectValidForGather(InnerObject))
 			{
 				GatherLocalizationDataFromObjectWithCallbacks(InnerObject, FixedChildPropertyGatherTextFlags);

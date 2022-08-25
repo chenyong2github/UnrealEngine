@@ -2982,6 +2982,11 @@ class COREUOBJECT_API FObjectPtrProperty : public FObjectProperty
 	// Helper method for sharing code with FClassPtrProperty even though one doesn't inherit from the other
 	static void StaticSerializeItem(const FObjectPropertyBase* ObjectProperty, FStructuredArchive::FSlot Slot, void* Value, void const* Defaults);
 
+	/// @brief Get the property value as FObjectPtr
+	/// @param PropertyValueAddress address of the property
+	/// @return reference to the FObjectPtr value
+	FObjectPtr& GetObjectPropertyValueAsPtr(const void* PropertyValueAddress) const;
+
 	// FObjectProperty interface
 	virtual UObject* GetObjectPropertyValue(const void* PropertyValueAddress) const override;
 	virtual UObject* GetObjectPropertyValue_InContainer(const void* ContainerAddress, int32 ArrayIndex = 0) const override;
