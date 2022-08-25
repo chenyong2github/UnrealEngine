@@ -8,8 +8,6 @@
 #include "IO/IoHash.h"
 #include "Misc/Optional.h"
 #include "atomic"
-
-template <typename FuncType> class TUniqueFunction;
 #include "Async/AsyncFileHandle.h"
 #include "Containers/Array.h"
 #include "DerivedDataRequestOwner.h"
@@ -22,6 +20,8 @@ template <typename FuncType> class TUniqueFunction;
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManager.h"
+
+template <typename FuncType> class TUniqueFunction;
 
 namespace UE { namespace DerivedData { struct FCacheGetResponse; } }
 

@@ -15,11 +15,6 @@
 #include "Serialization/FileRegions.h"
 #include "Serialization/PackageWriter.h"
 #include "UObject/NameTypes.h"
-
-class FAssetRegistryState;
-class FLargeMemoryWriter;
-class FMD5;
-template <typename ReferencedType> class TRefCountPtr;
 #include "Containers/Map.h"
 #include "Memory/CompositeBuffer.h"
 #include "Misc/PackagePath.h"
@@ -29,8 +24,12 @@ template <typename ReferencedType> class TRefCountPtr;
 #include "Templates/UniquePtr.h"
 
 class FAsyncIODelete;
+class FAssetRegistryState;
+class FLargeMemoryWriter;
+class FMD5;
 class IPlugin;
 class ITargetPlatform;
+template <typename ReferencedType> class TRefCountPtr;
 namespace UE::Cook { struct FPackageDatas; }
 
 /** A CookedPackageWriter that saves cooked packages in separate .uasset,.uexp,.ubulk files in the Saved\Cooked\[Platform] directory. */

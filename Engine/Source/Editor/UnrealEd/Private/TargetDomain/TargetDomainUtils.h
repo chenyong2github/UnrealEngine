@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "Containers/ContainersFwd.h"
-#include "IO/IoHash.h"
-
-template <typename FuncType> class TUniqueFunction;
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
 #include "DerivedDataBuildDefinition.h"
+#include "IO/IoHash.h"
 #include "Serialization/PackageWriter.h"
 #include "UObject/NameTypes.h"
 
@@ -16,6 +14,7 @@ class FCbObject;
 class FString;
 class ITargetPlatform;
 class UPackage;
+template <typename FuncType> class TUniqueFunction;
 
 namespace UE::TargetDomain
 {

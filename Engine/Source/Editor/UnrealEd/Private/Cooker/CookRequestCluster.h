@@ -11,8 +11,6 @@
 #include "HAL/Event.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
-
-class ICookedPackageWriter;
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/MpscQueue.h"
@@ -26,6 +24,7 @@ class ICookedPackageWriter;
 #include <atomic>
 
 class IAssetRegistry;
+class ICookedPackageWriter;
 class ITargetPlatform;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FRequestQueue; }

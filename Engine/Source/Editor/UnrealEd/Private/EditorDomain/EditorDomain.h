@@ -11,12 +11,6 @@
 #include "Stats/Stats2.h"
 #include "Tickable.h"
 #include "UObject/UnrealNames.h"
-
-class FArchive;
-class FObjectPostSaveContext;
-class FPackagePath;
-class IMappedFileHandle;
-struct FEndLoadPackageContext;
 #include "AssetRegistry/AssetData.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
@@ -29,11 +23,16 @@ struct FEndLoadPackageContext;
 #include "UObject/NameTypes.h"
 #include "UObject/PackageResourceManager.h"
 
+class FArchive;
 class FEditorDomainSaveClient;
+class FObjectPostSaveContext;
+class FPackagePath;
 class FScopeLock;
 class IAssetRegistry;
+class IMappedFileHandle;
 class UPackage;
 namespace UE::DerivedData { class FRequestOwner; }
+struct FEndLoadPackageContext;
 
 namespace UE::EditorDomain
 {
