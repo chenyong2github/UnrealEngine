@@ -9,7 +9,7 @@
 class FPaintArgs;
 class FSlateWindowElementList;
 class FTimeSliderController;
-
+class SToolTip;
 
 class SCurveTimelineView : public SCompoundWidget
 {
@@ -67,12 +67,17 @@ public:
 		FixedRangeMax = Max;
 	}
 
+	FText GetCurveToolTipInputText() const { return CurveToolTipInputText; }
+	FText GetCurveToolTipOutputText() const { return CurveToolTipOutputText; }
+	
 protected:
 	// SWidget interface
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	
 	int32 PaintCurve(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const;
+	void UpdateCurveToolTip(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	
 	TAttribute<TRange<double>> ViewRange;
 	TAttribute<TSharedPtr<FTimelineCurveData>> CurveData;
@@ -80,6 +85,10 @@ protected:
 	TAttribute<FLinearColor> CurveColor;
 	TAttribute<FLinearColor> FillColor;
 	TAttribute<bool> RenderFill;
+	
+	TSharedPtr<SToolTip> CurveToolTip;	/** The tooltip control for the curve. */
+	FText CurveToolTipInputText;		
+	FText CurveToolTipOutputText;
 	
 	const FSlateBrush* WhiteBrush;
 
