@@ -1440,19 +1440,19 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		return true;
 	}
 
+	
+	// clear selected controls
+	if (Click.IsShiftDown() ==false && Click.IsControlDown() == false)
+	{
+		FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
+		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
+	}
+
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
 	if (Settings && Settings->bOnlySelectRigControls)
 	{
 		return true;
-	}
-
-	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() &&  !GIsTransacting);
-	
-	// clear selected controls
-	if (Click.IsShiftDown() ==false && Click.IsControlDown() == false)
-	{
-		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
 	}
 	/*
 	if(!InViewportClient->IsLevelEditorClient() && !InViewportClient->IsSimulateInEditorViewport())
