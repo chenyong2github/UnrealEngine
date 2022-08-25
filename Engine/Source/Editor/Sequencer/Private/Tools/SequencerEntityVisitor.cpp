@@ -1,16 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/SequencerEntityVisitor.h"
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "IKeyArea.h"
-#include "MovieSceneTrack.h"
-#include "MovieSceneTimeHelpers.h"
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/CategoryModel.h"
+#include "MVVM/Extensions/IGeometryExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
-#include "MVVM/Extensions/ITrackLaneExtension.h"
-#include "MVVM/Extensions/IGeometryExtension.h"
+#include "Misc/FrameTime.h"
+#include "MovieSceneSection.h"
+#include "SequencerCoreFwd.h"
 
 FSequencerEntityRange::FSequencerEntityRange(const TRange<double>& InRange, FFrameRate InTickResolution)
 	: TickResolution(InTickResolution)

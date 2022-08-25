@@ -2,6 +2,10 @@
 
 #include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
 
+#include "Math/UnrealMathSSE.h"
+
+class UObject;
+
 UDefaultSizedThumbnailRenderer::UDefaultSizedThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

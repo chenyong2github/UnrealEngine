@@ -1,10 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/SMotionTrailOptions.h"
-#include "Tools/MotionTrailOptions.h"
+
+#include "DetailsViewArgs.h"
+#include "IDetailsView.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "SlotBase.h"
+#include "Tools/MotionTrailOptions.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "MotionTrail"
 

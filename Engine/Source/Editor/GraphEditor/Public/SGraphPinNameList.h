@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "SGraphPin.h"
 #include "SNameComboBox.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
+
+class FName;
+class SWidget;
+class UEdGraphPin;
 
 class GRAPHEDITOR_API SGraphPinNameList : public SGraphPin
 {

@@ -2,17 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
 #include "Layout/WidgetPath.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FText;
+class SWidget;
+class SWindow;
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "TranslationPicker"
 
-class SToolTip;
 class FTranslationPickerInputProcessor;
+class SToolTip;
 
 /** Translation picker floating window to show details of FText(s) under cursor, and allow in-place translation via TranslationPickerEditWindow */
 class STranslationPickerFloatingWindow : public SCompoundWidget

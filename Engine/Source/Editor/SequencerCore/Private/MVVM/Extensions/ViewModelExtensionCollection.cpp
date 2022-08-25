@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/ViewModelExtensionCollection.h"
-#include "Containers/ArrayView.h"
+
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "MVVM/SharedViewModelData.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Templates/TypeHash.h"
 
 namespace UE
 {

@@ -1,13 +1,43 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/Sequencer2DTransformTrackEditor.h"
-#include "Animation/Sequencer2DTransformSection.h"
-#include "Slate/WidgetTransform.h"
-#include "ISectionLayoutBuilder.h"
-#include "IKeyArea.h"
 
+#include "Animation/MovieScene2DTransformSection.h"
 #include "Animation/MovieSceneUMGComponentTypes.h"
+#include "Animation/Sequencer2DTransformSection.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "EntitySystem/MovieSceneDecompositionQuery.h"
+#include "EntitySystem/MovieSceneEntityIDs.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "IKeyArea.h"
+#include "ISequencer.h"
+#include "ISequencerSection.h"
+#include "KeyPropertyParams.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
+#include "MovieSceneFwd.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "PropertyPath.h"
+#include "SequencerKeyParams.h"
+#include "Slate/WidgetTransform.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class ISequencerTrackEditor;
+struct FMovieSceneChannel;
 
 FName F2DTransformTrackEditor::TranslationName( "Translation" );
 FName F2DTransformTrackEditor::ScaleName( "Scale" );

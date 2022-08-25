@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorSelection.h"
-#include "CurveEditorTypes.h"
+
 #include "Algo/BinarySearch.h"
 #include "CurveEditor.h"
+#include "CurveEditorTypes.h"
+#include "CurveModel.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
 
 FCurveEditorSelection::FCurveEditorSelection()
 {

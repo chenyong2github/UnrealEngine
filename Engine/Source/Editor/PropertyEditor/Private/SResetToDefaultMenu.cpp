@@ -1,14 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SResetToDefaultMenu.h"
-#include "Textures/SlateIcon.h"
+
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
 #include "PropertyHandle.h"
+#include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
-#include "ScopedTransaction.h"
+
+class SWidget;
+struct FGeometry;
 
 void SResetToDefaultMenu::AddProperty( TSharedRef<IPropertyHandle> InProperty )
 {

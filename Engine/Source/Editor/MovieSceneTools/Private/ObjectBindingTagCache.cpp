@@ -2,12 +2,15 @@
 
 #include "ObjectBindingTagCache.h"
 
-#include "MovieSceneSequence.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/IConsoleManager.h"
+#include "Math/NumericLimits.h"
 #include "MovieScene.h"
 #include "MovieSceneObjectBindingID.h"
-
-#include "HAL/IConsoleManager.h"
-#include "Misc/SecureHash.h"
+#include "MovieSceneSequence.h"
+#include "Templates/Tuple.h"
 
 float GSequencerTagSaturation = 0.6f;
 FAutoConsoleVariableRef CVarSequencerTagSaturation(

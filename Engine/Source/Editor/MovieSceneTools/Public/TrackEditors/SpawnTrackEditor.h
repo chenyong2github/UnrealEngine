@@ -2,14 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "Templates/SubclassOf.h"
 #include "ISequencer.h"
-#include "MovieSceneTrack.h"
 #include "ISequencerSection.h"
 #include "ISequencerTrackEditor.h"
+#include "Misc/Guid.h"
+#include "MovieSceneTrack.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
 #include "TrackEditors/PropertyTrackEditors/BoolPropertyTrackEditor.h"
+#include "UObject/NameTypes.h"
+
+class FMenuBuilder;
+class ISequencer;
+class ISequencerTrackEditor;
+class SWidget;
+class UClass;
+class UMovieScene;
+class UMovieSceneSequence;
+class UMovieSceneTrack;
+class UObject;
+struct FBuildEditWidgetParams;
+struct FGuid;
 
 /**
  * A property track editor for controlling the lifetime of a sapwnable object

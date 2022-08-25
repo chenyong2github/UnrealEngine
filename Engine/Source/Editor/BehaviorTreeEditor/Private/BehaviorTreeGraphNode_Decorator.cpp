@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_Decorator.h"
-#include "BehaviorTree/BTDecorator.h"
+
+#include "AIGraphTypes.h"
 #include "BehaviorTree/BTCompositeNode.h"
+#include "BehaviorTree/BTDecorator.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
 
 UBehaviorTreeGraphNode_Decorator::UBehaviorTreeGraphNode_Decorator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

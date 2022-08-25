@@ -3,12 +3,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Misc/CoreMiscDefines.h"
 #include "SGraphActionMenu.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+
+class FDragDropEvent;
+class SInlineEditableTextBlock;
+class SWidget;
+struct FEdGraphSchemaAction;
+struct FGeometry;
+struct FGraphActionListBuilderBase;
+struct FPointerEvent;
+struct FSlateBrush;
+struct FSlateFontInfo;
 
 //////////////////////////////////////////////////////////////////////////
 

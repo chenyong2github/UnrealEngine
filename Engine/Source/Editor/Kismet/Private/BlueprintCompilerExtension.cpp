@@ -2,6 +2,8 @@
 
 #include "BlueprintCompilerExtension.h"
 
+class FKismetCompilerContext;
+
 UBlueprintCompilerExtension::UBlueprintCompilerExtension(const FObjectInitializer& ObjectInitializer)
 	: UObject(ObjectInitializer)
 {

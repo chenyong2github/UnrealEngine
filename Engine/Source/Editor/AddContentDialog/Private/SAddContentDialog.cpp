@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAddContentDialog.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Styling/AppStyle.h"
+
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "SAddContentWidget.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "AddContentDialog"
 

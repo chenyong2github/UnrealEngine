@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Types/SlateEnums.h"
-#include "Layout/Visibility.h"
 #include "Camera/CameraTypes.h"
 #include "IDetailCustomization.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
+class FText;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SEditableTextBox;

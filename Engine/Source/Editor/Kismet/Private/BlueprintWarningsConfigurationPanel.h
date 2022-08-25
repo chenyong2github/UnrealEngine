@@ -2,18 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SSettingsEditorCheckoutNotice;
 struct FBlueprintWarningDeclaration;
+
 enum class EBlueprintWarningBehavior : uint8;
 template <typename ItemType> class SListView;
 
 typedef TSharedPtr<FBlueprintWarningDeclaration> FBlueprintWarningListEntry;
 typedef SListView<FBlueprintWarningListEntry> FBlueprintWarningListView;
-class SSettingsEditorCheckoutNotice;
 
 class SBlueprintWarningsConfigurationPanel : public SCompoundWidget
 {

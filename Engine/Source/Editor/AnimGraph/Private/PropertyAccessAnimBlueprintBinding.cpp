@@ -3,11 +3,19 @@
 #include "PropertyAccessAnimBlueprintBinding.h"
 
 #include "AnimBlueprintExtension_PropertyAccess.h"
-#include "AnimPropertyAccessUtils.h"
-#include "ScopedTransaction.h"
 #include "Animation/AnimBlueprint.h"
+#include "Delegates/Delegate.h"
+#include "Engine/Blueprint.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "ScopedTransaction.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "FPropertyAccessAnimBlueprintBinding"
 

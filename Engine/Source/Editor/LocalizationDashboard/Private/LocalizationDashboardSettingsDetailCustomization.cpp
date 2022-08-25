@@ -1,18 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LocalizationDashboardSettingsDetailCustomization.h"
-#include "Styling/SlateTypes.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ILocalizationDashboardModule.h"
+#include "ILocalizationServiceModule.h"
 #include "ILocalizationServiceProvider.h"
+#include "Internationalization/Internationalization.h"
+#include "LocalizationSettings.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Serialization/Archive.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "DetailLayoutBuilder.h"
-#include "LocalizationSettings.h"
-#include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
-#include "ILocalizationServiceModule.h"
-#include "ILocalizationDashboardModule.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "LocalizationDashboard"
 

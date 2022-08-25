@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnloadedBlueprintData.h"
+
+#include "ClassViewerNode.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 
 FUnloadedBlueprintData::FUnloadedBlueprintData(TWeakPtr<FClassViewerNode> InClassViewerNode)

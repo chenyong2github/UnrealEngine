@@ -2,31 +2,38 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
+#include "Containers/BitArray.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "MVVM/ICastable.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModelTypeID.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/Views/TreeViewTraits.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
-struct FSlateColor;
-struct FSlateBrush;
-struct FSlateFontInfo;
-
+class FDragDropEvent;
 class FText;
-class SWidget;
 class ISequencer;
+class SWidget;
+struct FSlateBrush;
+struct FSlateColor;
+struct FSlateFontInfo;
 
 namespace UE
 {
 namespace Sequencer
 {
 
-class IOutlinerExtension;
+class FEditorViewModel;
 class FOutlinerViewModel;
 class FViewModel;
-class FEditorViewModel;
+class IOutlinerExtension;
 
 enum class EOutlinerSelectionState
 {

@@ -2,19 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Kismet2/StructureEditorUtils.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "DataTableEditorUtils.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/StructureEditorUtils.h"
+#include "Layout/Visibility.h"
 #include "Misc/NotifyHook.h"
+#include "Misc/Optional.h"
+#include "Serialization/Archive.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/SoftObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/SCompoundWidget.h"
 
-class IStructureDetailsView;
-class SEditableTextBox;
+class FProperty;
 class FStructOnScope;
+class SWidget;
+class UDataTable;
+class UScriptStruct;
+struct FPropertyChangedEvent;
 
 DECLARE_DELEGATE_OneParam(FOnRowModified, FName /*Row name*/);
 DECLARE_DELEGATE_OneParam(FOnRowSelected, FName /*Row name*/);

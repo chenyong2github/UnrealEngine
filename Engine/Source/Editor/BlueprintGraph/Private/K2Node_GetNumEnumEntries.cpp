@@ -2,14 +2,31 @@
 
 
 #include "K2Node_GetNumEnumEntries.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node_CallFunction.h"
-#include "KismetCompiler.h"
-#include "BlueprintFieldNodeSpawner.h"
-#include "EditorCategoryUtils.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintFieldNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_CallFunction.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Field.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UBlueprintNodeSpawner;
+struct FLinearColor;
 
 UK2Node_GetNumEnumEntries::UK2Node_GetNumEnumEntries(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

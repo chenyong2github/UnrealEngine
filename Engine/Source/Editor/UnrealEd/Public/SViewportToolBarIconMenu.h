@@ -3,14 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Textures/SlateIcon.h"
-#include "Widgets/SCompoundWidget.h"
-#include "SViewportToolBar.h"
 #include "Framework/SlateDelegates.h"
+#include "Input/Reply.h"
+#include "Misc/Attribute.h"
+#include "SViewportToolBar.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FName;
+class FText;
 class SMenuAnchor;
+struct FGeometry;
+struct FPointerEvent;
+struct FSlateIcon;
 
 /**
  * Custom widget to display an icon/drop down menu. 

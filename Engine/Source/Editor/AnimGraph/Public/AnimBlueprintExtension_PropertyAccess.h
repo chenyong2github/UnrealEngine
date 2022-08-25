@@ -2,16 +2,30 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AnimBlueprintExtension.h"
 #include "Animation/AnimSubsystem_PropertyAccess.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "IPropertyAccessCompiler.h"
+#include "Internationalization/Text.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "AnimBlueprintExtension_PropertyAccess.generated.h"
 
-class IAnimBlueprintCompilerCreationContext;
+class FString;
 class IAnimBlueprintCompilationBracketContext;
+class IAnimBlueprintCompilerCreationContext;
 class IAnimBlueprintGeneratedClassCompiledData;
 class UAnimBlueprintExtension_PropertyAccess;
+class UClass;
+class UObject;
+
 enum class EPropertyAccessBatchType : uint8;
 class FKismetCompilerContext;
 class UEdGraph;

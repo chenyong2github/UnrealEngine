@@ -1,11 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CollisionProfileNameCustomization.h"
-#include "Engine/CollisionProfile.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
-#include "IDetailGroup.h"
+
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Engine/CollisionProfile.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformMath.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailGroup.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 
 #define LOCTEXT_NAMESPACE "CollisionProfileNameCustomization"

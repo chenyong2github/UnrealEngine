@@ -2,6 +2,14 @@
 
 #include "SSequencerTimeSlider.h"
 
+#include "Math/UnrealMathSSE.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FSlateRect;
+class FWidgetStyle;
+struct FGeometry;
+struct FPointerEvent;
+
 #define LOCTEXT_NAMESPACE "STimeSlider"
 
 

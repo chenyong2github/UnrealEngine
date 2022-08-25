@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Animation/AnimationRecordingSettings.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Misc/FrameRate.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AnimationRecorderParameters.generated.h"
 
 UCLASS(config = EditorPerProjectUserSettings)

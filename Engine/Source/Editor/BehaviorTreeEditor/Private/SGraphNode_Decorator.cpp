@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGraphNode_Decorator.h"
+
 #include "BehaviorTree/BTDecorator.h"
 #include "BehaviorTreeDecoratorGraphNode_Decorator.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
+#include "Templates/Casts.h"
 
 void SGraphNode_Decorator::Construct(const FArguments& InArgs, UBehaviorTreeDecoratorGraphNode_Decorator* InNode)
 {

@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/LazyObjectPtr.h"
+#include "Containers/Array.h"
 #include "IMovieSceneSectionRecorder.h"
 #include "IMovieSceneSectionRecorderFactory.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/LazyObjectPtr.h"
+#include "UObject/Object.h"
 
-class IMovieScenePropertyRecorder;
+class FProperty;
+struct FGuid;
 
 class FMovieSceneMultiPropertyRecorderFactory : public IMovieSceneSectionRecorderFactory
 {

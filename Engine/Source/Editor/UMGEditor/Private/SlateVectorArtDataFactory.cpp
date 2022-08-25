@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateVectorArtDataFactory.h"
+
+#include "Misc/AssertionMacros.h"
 #include "Slate/SlateVectorArtData.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 USlateVectorArtDataFactory::USlateVectorArtDataFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

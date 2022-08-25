@@ -1,8 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/SlomoTrackEditor.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "FloatPropertyTrackEditor.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "MovieScene.h"
+#include "MovieSceneSequence.h"
+#include "MovieSceneTrack.h"
+#include "MovieSceneTrackEditor.h"
+#include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
 #include "Tracks/MovieSceneSlomoTrack.h"
+#include "UObject/WeakObjectPtr.h"
+
+class ISequencerTrackEditor;
+class UMovieSceneSection;
+struct FSlateBrush;
 
 
 #define LOCTEXT_NAMESPACE "FSlomoTrackEditor"

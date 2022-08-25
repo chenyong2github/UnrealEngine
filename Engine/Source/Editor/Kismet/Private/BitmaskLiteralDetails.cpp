@@ -1,18 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BitmaskLiteralDetails.h"
-#include "UObject/Class.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Text/STextBlock.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node_BitmaskLiteral.h"
+
+#include "Containers/UnrealString.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
-#include "IDetailsView.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "K2Node_BitmaskLiteral.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Templates/Casts.h"
+#include "Templates/TypeHash.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Text/STextBlock.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "BitmaskLiteralDetails"
 

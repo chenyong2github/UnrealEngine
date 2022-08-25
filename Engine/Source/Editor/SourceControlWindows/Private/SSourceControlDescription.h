@@ -2,12 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SWindow.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
+
+class SMultiLineEditableTextBox;
+class SWidget;
+class SWindow;
+struct FGeometry;
+struct FKeyEvent;
 
 struct SSourceControlDescriptionItem
 {

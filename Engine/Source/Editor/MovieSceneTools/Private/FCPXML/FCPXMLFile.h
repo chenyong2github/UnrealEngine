@@ -2,11 +2,12 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "FCPXML/FCPXMLNode.h"
-#include "MovieScene.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "XmlParser.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "XmlFile.h"
 
 /**
 	The FFCPXMLFile class represents the overall FCP 7 XML file and is the containing class for

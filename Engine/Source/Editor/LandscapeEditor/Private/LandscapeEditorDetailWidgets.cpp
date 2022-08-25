@@ -1,15 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeEditorDetailWidgets.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBox.h"
-#include "Widgets/SBoxPanel.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Framework/MultiBox/SToolBarButtonBlock.h"
+#include "HAL/Platform.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Types/ISlateMetaData.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Styling/AppStyle.h"
-#include "Framework/MultiBox/SToolBarButtonBlock.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+
+class FUICommandInfo;
+class FUICommandList;
+class ISlateStyle;
+class SWidget;
 
 
 // Based on a stripped-down FToolBarComboButtonBlock

@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 
-class UBehaviorTreeGraphNode_CompositeDecorator;
 class UBTDecorator;
+class UBehaviorTreeGraphNode_CompositeDecorator;
+class UObject;
 
 namespace BehaviorTreeEditorUtils
 {

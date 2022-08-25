@@ -1,13 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_EditorPropertyAccess.h"
-#include "EdGraphSchema_K2.h"
-#include "KismetCompiler.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/MemberReference.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_EditorPropertyAccess"
 

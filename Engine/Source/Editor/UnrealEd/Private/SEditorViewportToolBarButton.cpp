@@ -2,12 +2,22 @@
 
 
 #include "SEditorViewportToolBarButton.h"
+
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SNullWidget.h"
+
+class SWidget;
 
 
 void SEditorViewportToolBarButton::Construct( const FArguments& Declaration)

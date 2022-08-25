@@ -1,12 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraphNode_Comment.h"
-#include "Layout/SlateRect.h"
 
 #include "GraphEditorSettings.h"
+#include "Internationalization/Internationalization.h"
 #include "Kismet2/Kismet2NameValidators.h"
-
+#include "Layout/SlateRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+
+class UEdGraphPin;
 
 #define LOCTEXT_NAMESPACE "EdGraph"
 

@@ -2,13 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
+#include "Containers/Array.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IPropertyHandle;
+class SWidget;
 class UBlackboardData;
+class UObject;
 
 class FBlackboardSelectorDetails : public IPropertyTypeCustomization
 {

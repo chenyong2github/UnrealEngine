@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerChannelTraits.h"
-#include "Styling/AppStyle.h"
+
 #include "CurveModel.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+
+class FCurveModel;
+class FSequencerSectionPainter;
+struct FGeometry;
+struct FMovieSceneChannel;
 
 namespace Sequencer
 {

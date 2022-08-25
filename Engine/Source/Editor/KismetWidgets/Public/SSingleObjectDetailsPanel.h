@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
 
 class IDetailsView;
+class SWidget;
+class UObject;
+struct FGeometry;
 
 /////////////////////////////////////////////////////
 // SSingleObjectDetailsPanel

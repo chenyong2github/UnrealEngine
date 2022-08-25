@@ -1,16 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SViewportToolBarComboMenu.h"
+
+#include "Layout/Children.h"
 #include "SEditorViewportToolBarMenuButton.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SMenuAnchor.h"
-#include "Widgets/Input/SButton.h"
+#include "SViewportToolBar.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
 #include "Styling/ToolBarStyle.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+struct FGeometry;
+struct FPointerEvent;
 
 void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 {

@@ -2,17 +2,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BPTerminal.h"
 #include "BlueprintCompiledStatement.h"
+#include "Containers/Array.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 
 class FCompilerResultsLog;
 class FKismetCompilerContext;
+class FProperty;
 class UBlueprint;
+class UClass;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
 class UEdGraphSchema_K2;
+class UFunction;
 class UK2Node;
 class UK2Node_CallFunction;
+class UObject;
+class UStruct;
+struct FBPTerminal;
+struct FEdGraphPinType;
 struct FKismetFunctionContext;
 
 //////////////////////////////////////////////////////////////////////////

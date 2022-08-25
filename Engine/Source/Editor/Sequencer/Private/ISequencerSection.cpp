@@ -1,11 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ISequencerSection.h"
-#include "MovieSceneSection.h"
-#include "ISectionLayoutBuilder.h"
-#include "SequencerSectionPainter.h"
-#include "IKeyArea.h"
+
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Channels/MovieSceneChannelHandle.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
+#include "IKeyArea.h"
+#include "ISectionLayoutBuilder.h"
+#include "Math/NumericLimits.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Math/UnrealMathSSE.h"
+#include "MovieSceneSection.h"
+#include "SequencerSectionPainter.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+
+struct FMovieSceneChannel;
 
 /** Data pertaining to a group of channels */
 struct FGroupData

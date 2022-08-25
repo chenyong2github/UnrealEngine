@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Layout/SlateRect.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/SlateRect.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
 #include "SGraphNodeResizable.h"
+#include "Templates/SharedPointer.h"
 #include "Types/SlateStructs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
+class UEdGraphNode;
+struct FGeometry;
+struct FPointerEvent;
 
 class GRAPHEDITOR_API SGraphNodeDocumentation : public SGraphNodeResizable
 {

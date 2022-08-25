@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "DetailsViewObjectFilter.h"
+
+class UObject;
 
 /**
  * The default object set is just a pass through to the details panel.  

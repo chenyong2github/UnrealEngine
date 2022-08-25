@@ -1,17 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNamespaceRegistry.h"
+
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "BlueprintNamespacePathTree.h"
 #include "BlueprintNamespaceUtilities.h"
-#include "UObject/UObjectIterator.h"
-#include "HAL/IConsoleManager.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "CoreGlobals.h"
+#include "Delegates/Delegate.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedEnum.h"
 #include "Engine/UserDefinedStruct.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "EdGraphSchema_K2.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/StringBuilder.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectIterator.h"
+
+class UObject;
 
 DEFINE_LOG_CATEGORY_STATIC(LogNamespace, Log, All);
 

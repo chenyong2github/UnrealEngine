@@ -1,12 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLayersCommandsMenu.h"
-#include "Modules/ModuleManager.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "LayersModule.h"
-#include "LayerCollectionViewCommands.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "LayerCollectionViewCommands.h"
+#include "LayerCollectionViewModel.h"
+#include "LayersModule.h"
+#include "Layout/Children.h"
+#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "LayersCommands"

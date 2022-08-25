@@ -2,9 +2,27 @@
 
 #include "KismetCastingUtils.h"
 
+#include "BPTerminal.h"
+#include "BlueprintCompiledStatement.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Kismet/BlueprintTypeConversions.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
-#include "Kismet/BlueprintTypeConversions.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "Templates/Casts.h"
+#include "Templates/Tuple.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 namespace UE::KismetCompiler::CastingUtils
 {

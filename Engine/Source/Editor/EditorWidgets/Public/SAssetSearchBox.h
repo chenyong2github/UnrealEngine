@@ -2,17 +2,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
+#include "Filters/SFilterSearchBox.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SlateFwd.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
-#include "Filters/SFilterSearchBox.h"
+#include "Widgets/Views/STableViewBase.h"
 
+class ITableRow;
 class SMenuAnchor;
+class STableViewBase;
+struct FFocusEvent;
+struct FGeometry;
+struct FKeyEvent;
 
 /** External suggestion entry provided to SAssetSearchBox */
 struct FAssetSearchBoxSuggestion

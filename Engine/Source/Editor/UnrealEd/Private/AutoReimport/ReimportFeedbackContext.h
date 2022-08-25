@@ -2,16 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Logging/LogVerbosity.h"
 #include "Logging/MessageLog.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Logging/TokenizedMessage.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Notifications/INotificationWidget.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
-class SReimportFeedback;
+class FText;
+class SWidget;
 
 /** Feedback context that overrides GWarn for import operations to prevent popup spam */
 class FReimportFeedbackContext : public FFeedbackContext, public INotificationWidget, public TSharedFromThis<FReimportFeedbackContext>

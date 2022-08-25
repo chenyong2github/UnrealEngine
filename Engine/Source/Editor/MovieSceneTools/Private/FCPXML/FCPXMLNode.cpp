@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FCPXML/FCPXMLNode.h"
+
 #include "FCPXML/FCPXMLFile.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/CString.h"
+#include "XmlNode.h"
 
 #define LOCTEXT_NAMESPACE "FCPXMLImporter"
 // DEFINE_LOG_CATEGORY_STATIC(LogStaticMeshEditorTools, Log, All);

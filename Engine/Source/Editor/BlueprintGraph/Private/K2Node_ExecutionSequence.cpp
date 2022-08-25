@@ -2,14 +2,27 @@
 
 
 #include "K2Node_ExecutionSequence.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintCompiledStatement.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
-#include "KismetCompilerMisc.h"
-#include "KismetCompiler.h"
-#include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
+#include "KismetCompiler.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_MultiGate"
 

@@ -1,8 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetGraphNode.h"
-#include "PhysicsAssetGraph.h"
+
 #include "EdGraph/EdGraphPin.h"
+#include "PhysicsAssetGraph.h"
+#include "Templates/Casts.h"
+#include "UObject/UnrealNames.h"
+
+class UObject;
 
 UPhysicsAssetGraphNode::UPhysicsAssetGraphNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

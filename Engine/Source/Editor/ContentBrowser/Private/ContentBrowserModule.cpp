@@ -2,12 +2,19 @@
 
 
 #include "ContentBrowserModule.h"
+
+#include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserLog.h"
 #include "ContentBrowserSingleton.h"
+#include "HAL/PlatformMath.h"
 #include "IContentBrowserDataModule.h"
+#include "IContentBrowserSingleton.h"
+#include "Logging/LogMacros.h"
 #include "MRUFavoritesList.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
 #include "Settings/ContentBrowserSettings.h"
-#include "ContentBrowserDataSubsystem.h"
+#include "UObject/UObjectGlobals.h"
 
 IMPLEMENT_MODULE( FContentBrowserModule, ContentBrowser );
 DEFINE_LOG_CATEGORY(LogContentBrowser);

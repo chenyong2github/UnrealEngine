@@ -2,9 +2,22 @@
 
 #pragma once
 
+#include "Input/CursorReply.h"
+#include "Input/Events.h"
+#include "Input/NavigationReply.h"
+#include "Input/PopupMethodReply.h"
+#include "Input/Reply.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
 #include "Rendering/RenderingCommon.h"
+#include "Templates/SharedPointer.h"
 
+class FSlateRect;
+class FWidgetStyle;
+class SWidget;
 class UInputRouter;
+struct FGeometry;
 
 class FLevelEditorViewportInterfaceWrapper
 	: public ISlateViewport

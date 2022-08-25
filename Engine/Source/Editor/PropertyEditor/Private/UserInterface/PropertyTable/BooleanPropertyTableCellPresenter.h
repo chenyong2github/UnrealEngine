@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "Containers/UnrealString.h"
 #include "IPropertyTableCellPresenter.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class FBooleanPropertyTableCellPresenter : public TSharedFromThis< FBooleanPropertyTableCellPresenter >, public IPropertyTableCellPresenter
 {

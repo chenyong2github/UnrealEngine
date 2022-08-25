@@ -2,12 +2,13 @@
 
 #pragma once
 
+#include "Channels/MovieSceneStringChannel.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "SequencerKeyEditor.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SequencerKeyEditor.h"
-#include "Channels/MovieSceneStringChannel.h"
-
-struct FMovieSceneStringChannel;
 
 /**
  * A widget for editing a curve representing string keys.

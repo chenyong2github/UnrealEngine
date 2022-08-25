@@ -1,18 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serializers/MovieSceneSectionSerialization.h"
-#include "Serializers/MovieSceneSectionSerialization.h"
-#include "Serializers/MovieSceneActorSerialization.h"
-#include "Serializers/MovieSceneManifestSerialization.h"
-#include "Serializers/MovieScenePropertySerialization.h"
-#include "Serializers/MovieSceneTransformSerialization.h"
-#include "Serializers/MovieSceneSpawnSerialization.h"
-#include "Serializers/MovieSceneAnimationSerialization.h"
-#include "Serializers/MovieSceneSerializedType.h"
 
+#include "Math/MathFwd.h"
+#include "Serialization/CustomVersion.h"
 
-//#include "FrameDebuggerServer.h"
-#include "Misc/Paths.h"
+struct FActorFileHeader;
+struct FActorProperty;
+struct FAnimationFileHeader;
+struct FColor;
+struct FLinearColor;
+struct FManifestFileHeader;
+struct FManifestProperty;
+struct FPropertyFileHeader;
+struct FSerializedAnimation;
+struct FSerializedTransform;
+struct FSerializedTypeFileHeader;
+struct FSpawnFileHeader;
+struct FSpawnProperty;
+struct FTransformFileHeader;
+template <typename PropertyType> struct FSerializedProperty;
 
 DEFINE_LOG_CATEGORY(MovieSceneSerialization);
 

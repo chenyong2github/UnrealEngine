@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_CallMaterialParameterCollectionFunction.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "Misc/Guid.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 
 UK2Node_CallMaterialParameterCollectionFunction::UK2Node_CallMaterialParameterCollectionFunction(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

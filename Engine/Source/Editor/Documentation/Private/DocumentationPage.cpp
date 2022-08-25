@@ -2,6 +2,8 @@
 
 #include "DocumentationPage.h"
 
+#include "Containers/Set.h"
+
 TSharedRef< IDocumentationPage > FDocumentationPage::Create( const FString& Link, const TSharedRef< FUDNParser >& Parser ) 
 {
 	return MakeShareable( new FDocumentationPage( Link, Parser ) );

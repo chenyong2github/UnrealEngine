@@ -2,8 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Engine/EngineTypes.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+
+class FFloat16Color;
 
 #define PIXEL_INSPECTOR_SHADINGMODELID_UNLIT 0
 #define PIXEL_INSPECTOR_SHADINGMODELID_DEFAULT_LIT 1

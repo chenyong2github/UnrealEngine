@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Channels/MovieSceneBoolChannel.h"
+#include "HAL/Platform.h"
+#include "SequencerKeyEditor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SequencerKeyEditor.h"
-#include "Channels/MovieSceneBoolChannel.h"
 
 enum class ECheckBoxState : uint8;
 

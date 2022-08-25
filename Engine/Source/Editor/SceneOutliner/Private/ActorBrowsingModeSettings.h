@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Containers/Map.h"
 #include "EditorConfigBase.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ActorBrowsingModeSettings.generated.h"
+
+class FName;
+class UObject;
 
 USTRUCT()
 struct FActorBrowsingModeConfig

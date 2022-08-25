@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/ViewModelHierarchy.h"
-#include "Misc/Guid.h"
-#include "UObject/WeakObjectPtr.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
 #include "SequencerSelectedKey.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UMovieSceneSection;
 class UMovieSceneTrack;
+struct FGuid;
 
 /**
  * Manages the selection of keys, sections, and outliner nodes for the sequencer.

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WidgetPaletteFavorites.h"
-#include "UObject/UnrealType.h"
+
+#include "HAL/PlatformCrt.h"
 
 UWidgetPaletteFavorites::UWidgetPaletteFavorites(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -2,17 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/WeakFieldPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class FProperty;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "ConfigEditor"
 
 class FConfigCacheIni;
 class IDetailsView;
-class STargetPlatformSelector;
 class UConfigHierarchyPropertyView;
 
 /*-----------------------------------------------------------------------------

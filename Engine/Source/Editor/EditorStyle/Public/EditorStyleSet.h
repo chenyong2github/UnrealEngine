@@ -1,23 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Styling/SlateColor.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Styling/StyleDefaults.h"
-#include "Styling/ISlateStyle.h"
-#include "Styling/AppStyle.h"
-#include "UObject/NameTypes.h"
-#include "HAL/Platform.h"
-#include "Math/Vector2D.h"
-#include "Math/Color.h"
-#include "Styling/SlateColor.h"
-#include "Layout/Margin.h"
-#include "Styling/SlateBrush.h"
 #include "Brushes/SlateDynamicImageBrush.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMath.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
 #include "Sound/SlateSound.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateColor.h"
+#include "Styling/StyleDefaults.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+struct FLinearColor;
+struct FMargin;
+struct FSlateBrush;
 struct FSlateDynamicImageBrush;
+struct FSlateSound;
 
 /**
  * A collection of named properties that guide the appearance of Slate.

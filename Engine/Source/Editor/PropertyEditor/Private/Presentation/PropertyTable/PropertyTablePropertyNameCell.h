@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PropertyNode.h"
-#include "ObjectPropertyNode.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "IPropertyTableCell.h"
-#include "IPropertyTableRow.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class FPropertyTablePropertyNameColumn;
+class UObject;
 
 class FPropertyTablePropertyNameCell : public TSharedFromThis< FPropertyTablePropertyNameCell >, public IPropertyTableCell
 {

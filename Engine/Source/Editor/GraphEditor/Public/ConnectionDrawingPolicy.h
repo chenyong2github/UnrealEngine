@@ -2,15 +2,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Layout/ArrangedWidget.h"
-#include "Widgets/SWidget.h"
-#include "SGraphPin.h"
-#include "GraphSplineOverlapResult.h"
 #include "GraphEditorSettings.h"
+#include "GraphSplineOverlapResult.h"
+#include "HAL/Platform.h"
+#include "Layout/ArrangedWidget.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "SGraphPin.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/SWidget.h"
 
+class FArrangedChildren;
+class FArrangedWidget;
+class FSlateRect;
 class FSlateWindowElementList;
+class SGraphPin;
+class SWidget;
+class UGraphEditorSettings;
+struct FGeometry;
+struct FSlateBrush;
+template <class T> class FInterpCurve;
 
 /////////////////////////////////////////////////////
 

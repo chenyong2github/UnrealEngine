@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyTextUtilities.h"
-#include "PropertyNode.h"
+
+#include "CoreTypes.h"
 #include "PropertyHandleImpl.h"
+#include "PropertyNode.h"
+#include "UObject/UnrealType.h"
+
+class FString;
+class UObject;
 
 void FPropertyTextUtilities::PropertyToTextHelper(FString& OutString, const FPropertyNode* InPropertyNode, const FProperty* Property, const uint8* ValueAddress, UObject* Object, EPropertyPortFlags PortFlags)
 {

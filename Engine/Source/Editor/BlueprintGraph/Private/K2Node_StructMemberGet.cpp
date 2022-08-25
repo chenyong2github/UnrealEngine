@@ -1,7 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_StructMemberGet.h"
+
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 #include "StructMemberNodeHandlers.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+
+class FKismetCompilerContext;
 
 //////////////////////////////////////////////////////////////////////////
 // UK2Node_StructMemberGet

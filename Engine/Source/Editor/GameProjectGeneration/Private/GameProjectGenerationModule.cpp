@@ -1,19 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameProjectGenerationModule.h"
-#include "Misc/Paths.h"
-#include "Misc/ScopedSlowTask.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/AppStyle.h"
+
+#include "Brushes/SlateDynamicImageBrush.h"
+#include "Containers/EnumAsByte.h"
 #include "GameProjectGenerationLog.h"
 #include "GameProjectUtils.h"
-#include "SNewClassDialog.h"
-#include "TemplateCategory.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
 #include "Interfaces/IPluginManager.h"
-#include "TemplateProjectDefs.h"
-#include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
+#include "Misc/ScopedSlowTask.h"
+#include "SNewClassDialog.h"
 #include "SProjectDialog.h"
+#include "Styling/SlateBrush.h"
+#include "TemplateCategory.h"
+#include "TemplateProjectDefs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UClass;
+struct FModuleContextInfo;
 
 
 IMPLEMENT_MODULE( FGameProjectGenerationModule, GameProjectGeneration );

@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "SGraphPin.h"
-#include "SGraphPinComboBox.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
+class UEdGraphPin;
 
 class GRAPHEDITOR_API SGraphPinEnum : public SGraphPin
 {

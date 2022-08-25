@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+
+class IPropertyHandle;
 
 class FHorizontalAlignmentCustomization : public IPropertyTypeCustomization
 {

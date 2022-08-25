@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MRUList.h"
-#include "HAL/FileManager.h"
-#include "Misc/PackageName.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Logging/MessageLog.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "CoreGlobals.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Logging/MessageLog.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
 
 FMRUList::FMRUList(const FString& InINISection, const int32 InitMaxItems)
 	:	MaxItems( InitMaxItems ),

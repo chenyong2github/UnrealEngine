@@ -1,14 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PListNodeArray.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/CString.h"
+#include "PListNode.h"
 #include "SPlistEditor.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/ITableRow.h"
+
+class STableViewBase;
+class SWidget;
+struct FSlateBrush;
 
 /** Validation check */
 bool FPListNodeArray::IsValid()

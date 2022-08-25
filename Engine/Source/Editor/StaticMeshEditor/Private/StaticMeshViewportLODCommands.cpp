@@ -2,6 +2,9 @@
 
 #include "StaticMeshViewportLODCommands.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+
 #define LOCTEXT_NAMESPACE "StaticMeshViewportLODCommands"
 
 void FStaticMeshViewportLODCommands::RegisterCommands()

@@ -1,14 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SCurveEditorViewStacked.h"
-#include "CurveEditor.h"
-#include "CurveEditorSettings.h"
-#include "CurveModel.h"
-#include "SCurveEditorPanel.h"
 
-#include "Widgets/Text/STextBlock.h"
-#include "Algo/Copy.h"
+#include "Containers/SortedMap.h"
+#include "CurveEditor.h"
+#include "CurveEditorHelpers.h"
+#include "CurveEditorScreenSpace.h"
+#include "CurveEditorSettings.h"
+#include "CurveEditorTypes.h"
+#include "CurveModel.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IBufferedCurveModel.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Layout/SlateRect.h"
+#include "Math/Color.h"
+#include "Math/TransformCalculus.h"
+#include "Math/TransformCalculus2D.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/SlateLayoutTransform.h"
+#include "SCurveEditorPanel.h"
+#include "SCurveEditorView.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+
+class FPaintArgs;
+class FWidgetStyle;
+struct FSlateBrush;
 
 
 void SCurveEditorViewStacked::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor)

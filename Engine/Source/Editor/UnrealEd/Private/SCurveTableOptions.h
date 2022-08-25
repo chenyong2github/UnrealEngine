@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Factories/CurveTableFactory.h"
-
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "Curves/RealCurve.h"
 #include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 
 DECLARE_DELEGATE_OneParam(FOnCreateCurveTable, ERichCurveInterpMode);

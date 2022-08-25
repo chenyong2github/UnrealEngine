@@ -2,11 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Tools/UEdMode.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveToolStack.h"
+#include "Templates/SharedPointer.h"
+#include "Tools/UEdMode.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "ToolStackContext.generated.h"
+
+class FUICommandInfo;
+class UInteractiveToolBuilder;
+struct FInteractiveToolStack;
 
 /**
  * Context needed to support tool stacks, add this to your ContextObjectStore if you want to use tool stacks

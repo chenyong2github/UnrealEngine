@@ -2,7 +2,12 @@
 
 #include "Customizations/CurveTableCustomization.h"
 
+#include "Framework/Views/ITypedTableView.h"
+#include "SlotBase.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 TSharedRef<SWidget> FCurveTableCustomizationLayout::GetListContent()
 {

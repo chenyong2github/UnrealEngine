@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "UObject/Class.h"
+
+class UStruct;
 
 /**
  * Wrapper for an enum detailing common editor categories. Users can reference

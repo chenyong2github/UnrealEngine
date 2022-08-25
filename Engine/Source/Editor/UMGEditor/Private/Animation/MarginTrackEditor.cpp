@@ -1,7 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/MarginTrackEditor.h"
-#include "ISectionLayoutBuilder.h"
+
+#include "Channels/MovieSceneFloatChannel.h"
+#include "KeyPropertyParams.h"
+#include "Layout/Margin.h"
+#include "Misc/Optional.h"
+#include "PropertyPath.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
+
+class ISequencer;
+class ISequencerTrackEditor;
+class UMovieSceneSection;
 
 FName FMarginTrackEditor::LeftName( "Left" );
 FName FMarginTrackEditor::TopName( "Top" );

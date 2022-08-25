@@ -1,22 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EventChannelCurveModel.h"
-#include "Math/Vector2D.h"
-#include "HAL/PlatformMath.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Channels/FloatChannelKeyProxy.h"
-#include "MovieSceneSection.h"
-#include "MovieScene.h"
-#include "CurveDrawInfo.h"
+
+#include "Algo/BinarySearch.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneEvent.h"
+#include "Channels/MovieSceneEventChannel.h"
 #include "CurveDataAbstraction.h"
-#include "CurveEditor.h"
-#include "CurveEditorScreenSpace.h"
-#include "CurveEditorSnapMetrics.h"
-#include "Styling/AppStyle.h"
-#include "BuiltInChannelEditors.h"
-#include "SequencerChannelTraits.h"
+#include "CurveDrawInfo.h"
+#include "Curves/RealCurve.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/NumericLimits.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
 #include "SequencerSectionPainter.h"
-#include "ISequencer.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FCurveEditor;
+class UObject;
+struct FCurveEditorScreenSpace;
+template <typename OptionalType> struct TOptional;
 
 ECurveEditorViewID FEventChannelCurveModel::EventView = ECurveEditorViewID::Invalid;
 

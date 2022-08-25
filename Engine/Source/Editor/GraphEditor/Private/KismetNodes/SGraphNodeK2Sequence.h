@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "KismetNodes/SGraphNodeK2Base.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SVerticalBox;
 class UK2Node;

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModelTypeID.h"
 #include "MVVM/ViewModels/CameraCutTrackModel.h"
 #include "MVVM/ViewModels/CinematicShotTrackModel.h"
 

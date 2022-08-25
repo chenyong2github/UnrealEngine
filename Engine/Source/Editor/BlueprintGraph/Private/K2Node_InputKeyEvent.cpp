@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_InputKeyEvent.h"
+
+#include "Containers/Array.h"
+#include "Engine/DynamicBlueprintBinding.h"
 #include "Engine/InputKeyDelegateBinding.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+
+class UClass;
 
 UK2Node_InputKeyEvent::UK2Node_InputKeyEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

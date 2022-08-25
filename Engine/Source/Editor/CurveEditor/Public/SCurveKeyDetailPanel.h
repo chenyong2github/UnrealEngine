@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "CurveEditor.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "CurveEditor.h"
 
+class FCurveEditor;
 // Forward Declare
 class IPropertyRowGenerator;
+class SWidget;
 
 /**
  * Inline details panel that lets you edit the Time and Value of a generic FCurveEditor Key

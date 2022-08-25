@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/SharedViewModelData.h"
+
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/ChooseClass.h"
 
 namespace UE
 {

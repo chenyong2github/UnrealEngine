@@ -3,10 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SGraphPinNameList.h"
-#include "Engine/DataTable.h"
 #include "DataTableEditorUtils.h"
+#include "Engine/DataTable.h"
+#include "SGraphPinNameList.h"
+#include "UObject/SoftObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UDataTable;
+class UEdGraphPin;
 
 class GRAPHEDITOR_API SGraphPinDataTableRowName : public SGraphPinNameList, public FDataTableEditorUtils::INotifyOnDataTableChanged
 {

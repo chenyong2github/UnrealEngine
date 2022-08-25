@@ -2,19 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Editor/PListEditor/Private/PListNode.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FText;
+class ITableRow;
 class SButton;
 class SEditableTextBox;
 class SPListEditorPanel;
+class STableViewBase;
 class STextBlock;
+class SWidget;
+struct FSlateBrush;
 
 /** A Node representing an array */
 class FPListNodeArray : public IPListNode

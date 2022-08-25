@@ -1,15 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorView.h"
-#include "ICurveEditorBounds.h"
+
+#include "Containers/Map.h"
+#include "CurveDataAbstraction.h"
+#include "CurveDrawInfo.h"
 #include "CurveEditor.h"
-#include "ICurveEditorModule.h"
-#include "CurveEditorScreenSpace.h"
-#include "CurveModel.h"
-#include "CurveEditorSnapMetrics.h"
-#include "SCurveEditorPanel.h"
-#include "CurveEditorSettings.h"
 #include "CurveEditorHelpers.h"
+#include "CurveEditorScreenSpace.h"
+#include "CurveEditorSelection.h"
+#include "CurveEditorSettings.h"
+#include "CurveModel.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RichCurve.h"
+#include "HAL/PlatformCrt.h"
+#include "ICurveEditorBounds.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "SCurveEditorPanel.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 SCurveEditorView::SCurveEditorView()
 	: bPinned(0)

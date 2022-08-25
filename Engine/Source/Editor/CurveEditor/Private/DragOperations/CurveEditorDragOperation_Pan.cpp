@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorDragOperation_Pan.h"
-#include "CurveEditorScreenSpace.h"
+
 #include "CurveEditor.h"
-#include "SCurveEditorView.h"
+#include "CurveEditorScreenSpace.h"
+#include "ICurveEditorBounds.h"
+#include "Input/Events.h"
+#include "Math/UnrealMathUtility.h"
 #include "SCurveEditorPanel.h"
+#include "SCurveEditorView.h"
 
 FCurveEditorDragOperation_PanView::FCurveEditorDragOperation_PanView(FCurveEditor* InCurveEditor, TSharedPtr<SCurveEditorView> InView)
 	: CurveEditor(InCurveEditor)

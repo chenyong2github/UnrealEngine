@@ -3,12 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Layout/SlateRect.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
+#include "Layout/SlateRect.h"
+#include "Math/Vector2D.h"
 #include "SGraphNode.h"
+#include "Templates/SharedPointer.h"
 
 class FScopedTransaction;
+struct FGeometry;
+struct FPointerEvent;
 
 class GRAPHEDITOR_API SGraphNodeResizable : public SGraphNode
 {

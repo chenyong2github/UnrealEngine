@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BlueprintCompiledStatement.h"
+#include "CoreMinimal.h"
 
-struct FBPTerminal;
-struct FKismetFunctionContext;
 class UEdGraphNode;
 class UEdGraphPin;
+class UFunction;
+struct FBPTerminal;
+struct FKismetFunctionContext;
 
 namespace UE::KismetCompiler::CastingUtils
 {

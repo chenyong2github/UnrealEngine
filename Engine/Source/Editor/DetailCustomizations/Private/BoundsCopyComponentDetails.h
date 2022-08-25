@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Input/Reply.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class IDetailLayoutBuilder;
+
 enum class ECheckBoxState : uint8;
 
 class UBoundsCopyComponent;

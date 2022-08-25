@@ -1,16 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDeviceProfileCreateProfilePanel.h"
-#include "Misc/CoreMisc.h"
-#include "Templates/Casts.h"
+
 #include "DeviceProfiles/DeviceProfileManager.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformMath.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/CoreMisc.h"
+#include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 
 #define LOCTEXT_NAMESPACE "DeviceProfileCreateProfilePanel"

@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundMixFactory.h"
+
 #include "Sound/SoundMix.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 USoundMixFactory::USoundMixFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

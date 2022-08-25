@@ -1,8 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeFileFormatRaw.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector.h"
 #include "Misc/FileHelper.h"
+#include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 

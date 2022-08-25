@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyTable/BooleanPropertyTableCellPresenter.h"
-#include "Layout/Margin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Styling/AppStyle.h"
 
-#include "UserInterface/PropertyEditor/SPropertyEditorBool.h"
+#include "HAL/Platform.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "PropertyEditor.h"
+#include "PropertyHandle.h"
 #include "SResetToDefaultPropertyEditor.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "UserInterface/PropertyEditor/SPropertyEditorBool.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 FBooleanPropertyTableCellPresenter::FBooleanPropertyTableCellPresenter( const TSharedRef< class FPropertyEditor >& InPropertyEditor )
 	: PropertyEditor( InPropertyEditor )

@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
 #include "StructViewerModule.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
-#include "UObject/WeakObjectPtr.h"
-
-struct FAssetData;
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IPropertyHandle;
+class UScriptStruct;
 class UUserDefinedStruct;
+struct FAssetData;
 
 /** Common data representing an unfiltered hierarchy of nodes */
 class FStructViewerNodeData : public TSharedFromThis<FStructViewerNodeData>

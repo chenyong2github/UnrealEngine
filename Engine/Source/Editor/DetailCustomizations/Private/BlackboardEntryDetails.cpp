@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlackboardEntryDetails.h"
-#include "Widgets/SNullWidget.h"
-#include "Engine/GameViewportClient.h"
-#include "SlateOptMacros.h"
-#include "IDetailChildrenBuilder.h"
+
 #include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "IDetailChildrenBuilder.h"
 #include "PropertyHandle.h"
+#include "SlateOptMacros.h"
+#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "BlackboardEntryDetails"
 

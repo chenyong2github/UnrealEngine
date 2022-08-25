@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityBlueprint.h"
-#include "Modules/ModuleManager.h"
 
 /////////////////////////////////////////////////////
 // UEditorUtilityBlueprint

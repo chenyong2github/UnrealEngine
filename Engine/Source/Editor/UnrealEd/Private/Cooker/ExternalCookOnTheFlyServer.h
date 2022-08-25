@@ -2,13 +2,25 @@
 
 #pragma once
 
-#include "CookOnTheFly.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
-#include "IMessageContext.h"
-#include "MessageEndpoint.h"
+#include "UObject/NameTypes.h"
+
 #include "ExternalCookOnTheFlyServer.generated.h"
 
+class FMessageEndpoint;
 class IAssetRegistry;
+class IMessageContext;
+namespace UE::Cook { class ICookOnTheFlyModule; }
+namespace UE::Cook { class ICookOnTheFlyServerConnection; }
+struct FAssetData;
+struct FZenCookOnTheFlyRegisterServiceMessage;
 
 class FExternalCookOnTheFlyServer
 	: public FTickableEditorObject

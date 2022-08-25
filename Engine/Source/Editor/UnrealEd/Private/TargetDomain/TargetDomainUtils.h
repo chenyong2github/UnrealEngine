@@ -2,20 +2,20 @@
 
 #pragma once
 
+#include "Containers/ContainersFwd.h"
+#include "IO/IoHash.h"
+
+template <typename FuncType> class TUniqueFunction;
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "DerivedDataBuildDefinition.h"
 #include "Serialization/PackageWriter.h"
-#include "Templates/Function.h"
 #include "UObject/NameTypes.h"
 
-class ICookedPackageWriter;
-class ITargetPlatform;
 class FCbObject;
 class FString;
+class ITargetPlatform;
 class UPackage;
-struct FIoHash;
-namespace UE::DerivedData { class FBuildDefinition; }
 
 namespace UE::TargetDomain
 {

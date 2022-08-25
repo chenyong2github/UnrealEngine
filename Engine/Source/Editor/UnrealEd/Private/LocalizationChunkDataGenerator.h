@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Commandlets/IChunkDataGenerator.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
 class FLocTextHelper;
+class FName;
+class FSandboxPlatformFile;
+class ITargetPlatform;
 
 /**
  * Implementation for splitting localization data into chunks when creating streaming install manifests.

@@ -2,9 +2,17 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/IFilter.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IContentBrowserSingleton.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/IFilter.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

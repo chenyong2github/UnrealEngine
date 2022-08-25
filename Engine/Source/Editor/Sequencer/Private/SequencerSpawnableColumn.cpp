@@ -1,9 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerSpawnableColumn.h"
+
 #include "ActorTreeItem.h"
-#include "Widgets/Images/SImage.h"
 #include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+
+class SWidget;
+struct FSlateBrush;
+template <typename ItemType> class STableRow;
 
 #define LOCTEXT_NAMESPACE "SpawnableInfoColumn"
 

@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/DragAndDrop.h"
+#include "Containers/UnrealString.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Input/DragAndDrop.h"
+#include "Templates/SharedPointer.h"
 
 class FContentSourceViewModel;
+class SWidget;
 
 /** A drag drop operation for dragging and dropping FContentSourceViewModels. */
 class FContentSourceDragDropOp : public FDecoratedDragDropOp

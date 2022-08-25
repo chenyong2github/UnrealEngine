@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
 #include "SGraphPin.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SNameComboBox;
+class SWidget;
+class UEdGraphPin;
 
 /**
  * Customizes a CollisionProfileName graph pin to use a dropdown

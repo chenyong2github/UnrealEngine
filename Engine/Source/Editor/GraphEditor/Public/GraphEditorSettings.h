@@ -2,12 +2,18 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphNode_Comment.h"
+#include "HAL/Platform.h"
 #include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "GraphEditorSettings.generated.h"
 
 UENUM()

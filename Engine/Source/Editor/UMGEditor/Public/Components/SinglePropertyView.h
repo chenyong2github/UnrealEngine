@@ -3,10 +3,17 @@
 #pragma once
 
 #include "Components/PropertyViewBase.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SinglePropertyView.generated.h"
 
-
 class ISinglePropertyView;
+class UObject;
+struct FFrame;
+struct FPropertyChangedEvent;
 
 /**
  * The single property view allows you to display the value of an object's property.

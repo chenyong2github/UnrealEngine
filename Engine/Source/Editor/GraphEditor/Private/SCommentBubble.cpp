@@ -1,15 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCommentBubble.h"
-#include "Widgets/SOverlay.h"
-#include "Engine/GameViewportClient.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
-#include "Widgets/Input/SCheckBox.h"
+
+#include "EdGraph/EdGraphNode.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/ICursor.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Layout/Margin.h"
+#include "Layout/SlateRect.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "SGraphNode.h"
 #include "SGraphPanel.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateBrush.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SOverlay.h"
+
+class SWidget;
 
 namespace SCommentBubbleDefs
 {

@@ -1,14 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_ActorBoundEvent.h"
+
+#include "Engine/Blueprint.h"
 #include "Engine/Level.h"
 #include "Engine/LevelScriptActor.h"
 #include "Engine/LevelScriptBlueprint.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-
-#include "KismetCompiler.h"
+#include "Engine/MemberReference.h"
 #include "EventEntryHandler.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "KismetCompiler.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectVersion.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+
+struct FKismetFunctionContext;
 
 #define LOCTEXT_NAMESPACE "K2Node_ActorBoundEvent"
 

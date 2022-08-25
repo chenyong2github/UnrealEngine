@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class IPropertyHandle;
+class SWidget;
 struct FAIDataProviderValue;
 
 class FAIDataProviderValueDetails : public IPropertyTypeCustomization

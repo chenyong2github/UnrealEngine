@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Internationalization/Text.h"
 #include "KismetNodes/SGraphNodeK2Base.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SGraphPin;
+class UEdGraphPin;
 class UK2Node_MakeStruct;
 struct FOptionalPinFromProperty;
 

@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FGeometry;
 
 /** 
  * Delegate used to get the text to display when resetting our value

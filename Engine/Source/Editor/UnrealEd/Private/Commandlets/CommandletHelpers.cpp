@@ -2,6 +2,9 @@
 
 #include "Commandlets/CommandletHelpers.h"
 
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+
 namespace CommandletHelpers
 {
 	FString BuildCommandletProcessArguments(const TCHAR* const CommandletName, const TCHAR* const ProjectPath, const TCHAR* const AdditionalArguments)

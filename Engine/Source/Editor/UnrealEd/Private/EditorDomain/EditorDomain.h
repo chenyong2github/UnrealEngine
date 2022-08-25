@@ -2,27 +2,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/PackageSegment.h"
+#include "Stats/Stats2.h"
+#include "Tickable.h"
+#include "UObject/UnrealNames.h"
+
+class FArchive;
+class FObjectPostSaveContext;
+class FPackagePath;
+class IMappedFileHandle;
+struct FEndLoadPackageContext;
 #include "AssetRegistry/AssetData.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
-#include "Hash/Blake3.h"
 #include "IO/IoHash.h"
 #include "Logging/LogMacros.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "UObject/NameTypes.h"
-#include "UObject/ObjectSaveContext.h"
 #include "UObject/PackageResourceManager.h"
 
-class FAssetPackageData;
 class FEditorDomainSaveClient;
 class FScopeLock;
 class IAssetRegistry;
-class UObject;
 class UPackage;
-struct FAssetData;
 namespace UE::DerivedData { class FRequestOwner; }
 
 namespace UE::EditorDomain

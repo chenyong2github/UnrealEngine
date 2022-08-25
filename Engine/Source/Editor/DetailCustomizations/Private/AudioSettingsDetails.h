@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;

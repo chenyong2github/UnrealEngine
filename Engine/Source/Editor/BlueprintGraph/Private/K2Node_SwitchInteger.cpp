@@ -1,10 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_SwitchInteger.h"
-#include "EdGraphSchema_K2.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "BlueprintNodeSpawner.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraphSchema_K2.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 UK2Node_SwitchInteger::UK2Node_SwitchInteger(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

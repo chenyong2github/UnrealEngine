@@ -1,21 +1,45 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Fbx/SSceneReimportNodeTreeView.h"
-#include "Widgets/SOverlay.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Widgets/Images/SImage.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
-#include "GameFramework/Actor.h"
-#include "Components/LightComponent.h"
-#include "Factories/FbxSceneImportData.h"
+
 #include "Camera/CameraComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/LightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
-#include "Components/DirectionalLightComponent.h"
+#include "Containers/UnrealString.h"
+#include "Factories/FbxSceneImportData.h"
+#include "Factories/FbxSceneImportFactory.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/STableRow.h"
+
+class FUICommandList;
+class ITableRow;
+class SWidget;
+class UClass;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "SFbxReimportSceneTreeView"
 

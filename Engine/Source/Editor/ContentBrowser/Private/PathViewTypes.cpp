@@ -2,6 +2,13 @@
 
 #include "PathViewTypes.h"
 
+#include "Containers/UnrealString.h"
+#include "ContentBrowserItemData.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
+
 FTreeItem::FTreeItem(FContentBrowserItem&& InItem)
 	: Item(MoveTemp(InItem))
 {

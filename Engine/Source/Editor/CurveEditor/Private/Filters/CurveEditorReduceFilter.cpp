@@ -1,15 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Filters/CurveEditorReduceFilter.h"
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CurveDataAbstraction.h"
 #include "CurveEditor.h"
 #include "CurveEditorSelection.h"
-#include "ScopedTransaction.h"
-#include "CurveDataAbstraction.h"
-#include "Misc/FrameRate.h"
-#include "CurveModel.h"
-#include "Templates/SharedPointer.h"
 #include "CurveEditorSnapMetrics.h"
+#include "CurveEditorTypes.h"
+#include "CurveModel.h"
 #include "Curves/CurveEvaluation.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RealCurve.h"
+#include "Curves/RichCurve.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 static float EvalForTwoKeys(const FKeyPosition& Key1Pos, const FKeyAttributes& Key1Attrib,
 	const FKeyPosition& Key2Pos, const FKeyAttributes& Key2Attrib,

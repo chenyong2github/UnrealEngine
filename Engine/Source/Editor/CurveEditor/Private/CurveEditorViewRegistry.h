@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CurveEditorTypes.h"
-#include "SCurveEditorView.h"
-#include "Templates/SharedPointer.h"
 #include "Containers/Map.h"
+#include "CurveEditorTypes.h"
 #include "ICurveEditorModule.h"
+#include "Templates/SharedPointer.h"
+
+class FCurveEditor;
+class SCurveEditorView;
 
 /**
  * Central, private registry of distinct view types that can be added to any curve editor panel based on which views the selected set of curve model's supports.

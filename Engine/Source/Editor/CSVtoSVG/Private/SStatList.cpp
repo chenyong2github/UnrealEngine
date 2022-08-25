@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SStatList.h"
+
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "CSVtoSVG"
 

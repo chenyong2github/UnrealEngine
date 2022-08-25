@@ -3,11 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SGraphPin.h"
+#include "Math/Vector2D.h"
 #include "SGraphNodeDefault.h"
+#include "SGraphPin.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FText;
 class SCommentBubble;
+class SGraphPin;
+class UEdGraphPin;
+struct FSlateBrush;
 
 /** The visual representation of a control point meant to adjust how connections are routed, also known as a Reroute node.
  * The input knot node should have properly implemented ShouldDrawNodeAsControlPointOnly to return true with valid indices for its pins.

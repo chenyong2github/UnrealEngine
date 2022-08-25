@@ -2,25 +2,32 @@
 
 #pragma once
 
-#include "SequencerKeyParams.h"
 #include "Containers/Array.h"
-#include "Misc/FrameNumber.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "MVVM/ViewModelPtr.h"
+#include "Misc/FrameNumber.h"
+#include "SequencerKeyParams.h"
+#include "Templates/SharedPointer.h"
 
 class IKeyArea;
 class ISequencer;
 class ISequencerSection;
-
+class ISequencerTrackEditor;
 class UMovieSceneTrack;
+namespace UE::Sequencer { struct FKeyOperation; }
+struct FFrameNumber;
 
 namespace UE
 {
 namespace Sequencer
 {
 
-class ITrackExtension;
-class FViewModel;
 class FChannelGroupModel;
+class FViewModel;
+class ITrackExtension;
 
 /**
  * Temporary structure used for consistent add-key behavior for a set of display nodes

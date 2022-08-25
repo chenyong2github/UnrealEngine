@@ -1,10 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/LayerBarModel.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
+
+#include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
 #include "MVVM/Extensions/ILayerBarExtension.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/EditorViewModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Math/RangeBound.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Templates/TypeHash.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SSequencerLayerBar.h"
 
 namespace UE

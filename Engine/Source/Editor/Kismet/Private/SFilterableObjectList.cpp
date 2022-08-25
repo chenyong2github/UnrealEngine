@@ -2,13 +2,25 @@
 
 
 #include "SFilterableObjectList.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Views/SListView.h"
-#include "Styling/AppStyle.h"
 
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
 
 #define LOCTEXT_NAMESPACE "SFilterableObjectList"
 

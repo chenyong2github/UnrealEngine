@@ -2,15 +2,30 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "CurveModel.h"
-#include "Channels/MovieSceneEventChannel.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneEventChannel.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
+#include "CurveEditorTypes.h"
+#include "CurveModel.h"
+#include "Curves/KeyHandle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class UMovieSceneSection;
+class FCurveEditor;
 class ISequencer;
+class UMovieSceneSection;
+class UObject;
+struct FCurveAttributes;
+struct FCurveEditorScreenSpace;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyPosition;
+struct FMovieSceneEventChannel;
+template <typename OptionalType> struct TOptional;
 
 class FEventChannelCurveModel : public FCurveModel
 {

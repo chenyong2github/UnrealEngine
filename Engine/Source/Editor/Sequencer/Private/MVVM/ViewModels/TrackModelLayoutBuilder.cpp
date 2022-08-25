@@ -1,17 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackModelLayoutBuilder.h"
-#include "Channels/MovieSceneChannelEditorData.h"
-#include "IKeyArea.h"
-#include "ISequencerSection.h"
 
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "ISequencerSection.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/ViewModels/CategoryModel.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/SectionModel.h"
 #include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "SequencerCoreFwd.h"
 
-#include "MVVM/Extensions/IOutlinerExtension.h"
+class FText;
 
 namespace UE
 {

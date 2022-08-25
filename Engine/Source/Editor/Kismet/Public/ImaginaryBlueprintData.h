@@ -1,9 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "FindInBlueprintManager.h"
 #include "FindInBlueprints.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Misc/TextFilterUtils.h"
+#include "Templates/Atomic.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FArchive;
+class FJsonObject;
+class FJsonValue;
+class UBlueprint;
+class UObject;
 
 enum ESearchableValueStatus
 {

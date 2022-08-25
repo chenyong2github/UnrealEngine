@@ -1,20 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ObjectBindingModelStorageExtension.h"
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/Extensions/IOutlinerExtension.h"
-#include "MVVM/ViewModels/SequenceModel.h"
+
+#include "Containers/Array.h"
+#include "EventHandlers/ISequenceDataEventHandler.h"
+#include "MVVM/ICastable.h"
 #include "MVVM/ViewModels/ObjectBindingModel.h"
-#include "MVVM/ViewModels/SpawnableModel.h"
 #include "MVVM/ViewModels/PossessableModel.h"
-
+#include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/SpawnableModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "Misc/AssertionMacros.h"
 #include "MovieScene.h"
-#include "MovieSceneFolder.h"
+#include "MovieSceneBinding.h"
 #include "MovieSceneSequence.h"
-#include "MovieSceneSpawnable.h"
-#include "MovieScenePossessable.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/TypeHash.h"
 
-#include "Widgets/SNullWidget.h"
+class UMovieSceneTrack;
+struct FMovieScenePossessable;
+struct FMovieSceneSpawnable;
 
 namespace UE
 {

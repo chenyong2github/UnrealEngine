@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSoundCuePalette.h"
+
+#include "EdGraph/EdGraphSchema.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
+#include "UObject/UObjectGlobals.h"
 
 void SSoundCuePalette::Construct(const FArguments& InArgs)
 {

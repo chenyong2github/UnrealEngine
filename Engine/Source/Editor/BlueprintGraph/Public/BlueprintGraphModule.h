@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
 
 class FBlueprintActionFilter;

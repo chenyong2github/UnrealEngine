@@ -2,19 +2,24 @@
 
 #pragma once
 
-#include "SequencerCoreFwd.h"
 #include "CoreTypes.h"
 #include "Curves/KeyHandle.h"
-#include "ISequencerSection.h"
-#include "MVVM/ViewModels/ViewModel.h"
+#include "HAL/PlatformCrt.h"
+#include "MVVM/ViewModelPtr.h"
+#include "Math/Range.h"
+#include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
 
-class IKeyArea;
+class UMovieSceneSection;
+namespace UE::Sequencer { class FViewModel; }
 
 namespace UE
 {
 namespace Sequencer
 {
-	class FTrackModel;
 	class FChannelModel;
 }
 }

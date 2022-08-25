@@ -1,16 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintActionMenuItem.h"
-#include "EdGraph/EdGraph.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node.h"
+
 #include "BlueprintNodeSpawner.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "ScopedTransaction.h"
-#include "SNodePanel.h"
-#include "IDocumentationPage.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "HAL/PlatformCrt.h"
 #include "IDocumentation.h"
+#include "IDocumentationPage.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "SNodePanel.h"
+#include "ScopedTransaction.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
+class UBlueprint;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "BlueprintActionMenuItem"
 

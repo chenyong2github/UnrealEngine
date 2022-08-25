@@ -2,6 +2,11 @@
 
 #include "LevelInstanceEditorModeCommands.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "InputCoreTypes.h"
+
 #define LOCTEXT_NAMESPACE "LevelInstanceEditorModeCommands"
 
 void FLevelInstanceEditorModeCommands::RegisterCommands()

@@ -1,22 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutoReimport/ReimportFeedbackContext.h"
-#include "Animation/CurveSequence.h"
-#include "Widgets/SBoxPanel.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Modules/ModuleManager.h"
-#include "Layout/LayoutUtils.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Notifications/SProgressBar.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
 
 #include "FileCacheUtilities.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Layout/Overscroll.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "MessageLogModule.h"
+#include "Misc/Attribute.h"
+#include "Misc/DateTime.h"
+#include "Misc/Optional.h"
+#include "Misc/SlowTaskStack.h"
+#include "Modules/ModuleManager.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Text/STextBlock.h"
+
+struct FGeometry;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "ReimportContext"
 
@@ -59,8 +86,6 @@ class SWidgetStack : public SCompoundWidget
 	int32 NumSlots = 0;
 	
 };
-
-class SWidgetStack;
 
 /** Feedback context that overrides GWarn for import operations to prevent popup spam */
 class SReimportFeedback : public SCompoundWidget

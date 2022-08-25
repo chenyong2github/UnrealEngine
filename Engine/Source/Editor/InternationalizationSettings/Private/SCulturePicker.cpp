@@ -1,9 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCulturePicker.h"
+
+#include "Containers/Map.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Culture.h"
-#include "Widgets/SToolTip.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "Misc/CString.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Function.h"
+#include "Templates/Tuple.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
 
 #define LOCTEXT_NAMESPACE "CulturePicker"
 

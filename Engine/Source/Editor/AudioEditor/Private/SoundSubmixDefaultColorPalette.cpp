@@ -2,6 +2,9 @@
 
 #include "SoundSubmixDefaultColorPalette.h"
 
+#include "Misc/AssertionMacros.h"
+#include "Sound/SoundSubmix.h"
+
 FName Audio::GetNameForSubmixType(const USoundSubmixBase* InSubmix)
 {
 	if (!ensure(InSubmix))

@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Account/IPortalUser.h"
+#include "Containers/UnrealString.h"
 #include "IPluginWardenModule.h"
+#include "Logging/LogMacros.h"
+#include "Templates/Function.h"
+
+class FText;
 
 DECLARE_LOG_CATEGORY_EXTERN(PluginWarden, Log, All);
 

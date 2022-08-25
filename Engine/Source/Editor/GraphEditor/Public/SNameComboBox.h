@@ -2,15 +2,36 @@
  
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Layout/Margin.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Framework/SlateDelegates.h"
-#include "Widgets/Input/SComboBox.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Serialization/Archive.h"
+#include "Styling/CoreStyle.h"
 #include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+
+class SWidget;
 
 //#include "UnrealString.h"
 

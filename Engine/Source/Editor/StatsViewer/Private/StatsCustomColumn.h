@@ -1,14 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IPropertyTableColumn.h"
-#include "IPropertyTableUtilities.h"
+#include "Containers/Map.h"
 #include "IPropertyTableCustomColumn.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FProperty;
+class FString;
 class IPropertyHandle;
 class IPropertyTableCell;
 class IPropertyTableCellPresenter;
+class IPropertyTableColumn;
+class IPropertyTableUtilities;
+class SWidget;
+class UObject;
 
 /**
  * A property table custom column used to display numerical data.

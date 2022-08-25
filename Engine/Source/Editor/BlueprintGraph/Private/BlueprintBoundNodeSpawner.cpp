@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintBoundNodeSpawner.h"
+
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "UObject/Object.h"
+#include "UObject/Package.h"
+
+class UEdGraphNode;
 
 #define LOCTEXT_NAMESPACE "BlueprintBoundNodeSpawner"
 

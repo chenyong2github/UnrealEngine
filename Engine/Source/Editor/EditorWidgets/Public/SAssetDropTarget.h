@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SDropTarget.h"
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "SDropTarget.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FDragDropEvent;
+class FDragDropOperation;
+class SWidget;
+class UObject;
+struct FGeometry;
 
 /**
  * A widget that displays a hover cue and handles dropping assets of allowed types onto this widget

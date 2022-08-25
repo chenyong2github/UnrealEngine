@@ -2,19 +2,25 @@
 
 #pragma once
 
-#include "EditorViewportLayout.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "EditorViewportLayout.h"
+#include "Misc/Optional.h"
+#include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Represents the content in a viewport tab in an editor.
  * Each SDockTab holding viewports in an editor contains and owns one of these.
  */
 
-class SDockTab;
 class FEditorViewportLayout;
-class IEditorViewportLayoutEntity;
 class FUICommandList;
+class IEditorViewportLayoutEntity;
+class SDockTab;
 
 class EDITORFRAMEWORK_API FViewportTabContent
 {

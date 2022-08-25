@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Input/Events.h"
 #include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWindow.h"
-#include "Exporters/FbxExportOption.h"
 
 class SButton;
+class UFbxExportOption;
+struct FGeometry;
 
 class SFbxExportOptionsWindow : public SCompoundWidget
 {

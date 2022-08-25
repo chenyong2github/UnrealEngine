@@ -1,10 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateColorCustomization.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "DetailWidgetRow.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IPropertyTypeCustomization;
+class IPropertyTypeCustomizationUtils;
 
 TSharedRef<IPropertyTypeCustomization> FSlateColorCustomization::MakeInstance() 
 {

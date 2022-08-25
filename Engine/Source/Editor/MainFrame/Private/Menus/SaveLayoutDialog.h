@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * It saves the input parameters that FSaveLayoutDialogUtils::CreateSaveLayoutAsDialogInStandaloneWindow needs and the output ones that it will generate.

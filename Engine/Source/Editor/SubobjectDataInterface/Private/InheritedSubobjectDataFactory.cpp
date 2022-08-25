@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InheritedSubobjectDataFactory.h"
-#include "InheritedSubobjectData.h"
+
+#include "ComponentInstanceDataCache.h"
+#include "Components/ActorComponent.h"
 #include "Engine/SCS_Node.h"		// #TODO_BH  We need to remove this when the actual subobject refactor happens
+#include "InheritedSubobjectData.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
 
 TSharedPtr<FSubobjectData> FInheritedSubobjectDataFactory::CreateSubobjectData(const FCreateSubobjectParams& Params)
 {

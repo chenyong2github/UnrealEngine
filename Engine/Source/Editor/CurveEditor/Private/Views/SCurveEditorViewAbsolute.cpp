@@ -1,7 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SCurveEditorViewAbsolute.h"
+
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
+
+class FCurveEditor;
 
 void SCurveEditorViewAbsolute::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor)
 {

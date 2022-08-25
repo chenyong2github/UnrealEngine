@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "KismetNodes/SGraphNodeK2Base.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class UK2Node;
+struct FSlateBrush;
 
 class SGraphNodeK2Terminator : public SGraphNodeK2Base
 {

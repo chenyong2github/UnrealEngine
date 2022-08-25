@@ -3,12 +3,22 @@
 
 #pragma once
 
+#include "AddToProjectConfig.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "ModuleDescriptor.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "ModuleDescriptor.h"
-#include "AddToProjectConfig.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FText;
+class UClass;
+struct FModuleContextInfo;
 struct FSlateBrush;
 struct FTemplateCategory;
 

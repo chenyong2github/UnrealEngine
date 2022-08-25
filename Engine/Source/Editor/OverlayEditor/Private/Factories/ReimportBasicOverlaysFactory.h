@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
-#include "Factories/BasicOverlaysFactory.h"
+#include "Containers/Array.h"
 #include "EditorReimportHandler.h"
+#include "Factories/BasicOverlaysFactory.h"
+#include "HAL/Platform.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ReimportBasicOverlaysFactory.generated.h"
+
+class FString;
+class UObject;
 
 /**
  * A factory for reimporting basic overlays

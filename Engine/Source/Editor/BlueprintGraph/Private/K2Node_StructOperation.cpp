@@ -1,14 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_StructOperation.h"
-#include "Engine/UserDefinedStruct.h"
-#include "EdGraphSchema_K2.h"
-#include "UserDefinedStructure/UserDefinedStructEditorData.h"
-#include "Kismet2/StructureEditorUtils.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintActionFilter.h"
 #include "BlueprintFieldNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/UserDefinedStruct.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/StructureEditorUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "Templates/Casts.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UserDefinedStructure/UserDefinedStructEditorData.h"
 
 //////////////////////////////////////////////////////////////////////////
 // UK2Node_StructOperation

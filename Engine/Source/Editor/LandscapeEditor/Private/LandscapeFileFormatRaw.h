@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
 #include "LandscapeFileFormatInterface.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/NameTypes.h"
 
 // Implement .raw file format
 class FLandscapeHeightmapFileFormat_Raw : public ILandscapeHeightmapFileFormat

@@ -2,6 +2,16 @@
 
 #include "BasicTokenParser.h"
 
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/Internationalization.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Char.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/UnrealNames.h"
+
 #define LOCTEXT_NAMESPACE "BasicTokenParser"
 DEFINE_LOG_CATEGORY_STATIC(LogTokenParser, Log, All);
 

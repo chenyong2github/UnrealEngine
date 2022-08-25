@@ -2,6 +2,11 @@
 
 #include "StaticMeshEditorActions.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "InputCoreTypes.h"
+
 #define LOCTEXT_NAMESPACE "StaticMeshEditorCommands"
 
 void FStaticMeshEditorCommands::RegisterCommands()

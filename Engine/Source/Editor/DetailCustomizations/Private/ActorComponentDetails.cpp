@@ -1,22 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorComponentDetails.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
-#include "Engine/EngineBaseTypes.h"
+
 #include "Components/ActorComponent.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
+#include "Containers/Array.h"
 #include "DetailCategoryBuilder.h"
-#include "IDetailsView.h"
-#include "ObjectEditorUtils.h"
-#include "Widgets/SToolTip.h"
-#include "IDocumentation.h"
+#include "DetailLayoutBuilder.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "ActorComponentDetails"
 

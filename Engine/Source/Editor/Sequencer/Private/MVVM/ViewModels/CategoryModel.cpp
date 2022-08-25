@@ -1,20 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/CategoryModel.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
+
+#include "HAL/PlatformCrt.h"
+#include "ISequencerSection.h"
+#include "MVVM/Extensions/ITrackExtension.h"
 #include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/SequencerModelUtils.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Views/SChannelView.h"
 #include "MVVM/Views/SOutlinerItemViewBase.h"
 #include "MVVM/Views/SSequencerKeyNavigationButtons.h"
-#include "MVVM/Views/SChannelView.h"
-#include "MVVM/ViewModels/SequencerEditorViewModel.h"
-
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieSceneTrack.h"
+#include "SequencerCoreFwd.h"
 #include "SequencerSectionPainter.h"
-
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 
-#include "ISequencerSection.h"
-#include "SequencerNodeTree.h"
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SequencerCategoryModel"
 

@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "ISequencerSection.h"
+#include "Input/Reply.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "MovieSceneCommonHelpers.h"
+#include "Templates/SharedPointer.h"
 
-class ISequencer;
 class FSequencerSectionPainter;
+class ISequencer;
+class UMovieSceneSection;
+struct FKeyHandle;
 
 /**
 * A color section implementation

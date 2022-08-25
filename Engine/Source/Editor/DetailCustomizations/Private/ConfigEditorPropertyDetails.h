@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Map.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
 
+class FProperty;
+class FString;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class IPropertyTable;
+class SWidget;
+class UClass;
+class UObject;
 struct FPropertyChangedEvent;
 
 /**

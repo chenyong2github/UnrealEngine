@@ -1,9 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorViewRegistry.h"
+
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Views/SCurveEditorViewAbsolute.h"
 #include "Views/SCurveEditorViewNormalized.h"
 #include "Views/SCurveEditorViewStacked.h"
-#include "Views/SCurveEditorViewAbsolute.h"
+#include "Views/SInteractiveCurveEditorView.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FCurveEditor;
+class SCurveEditorView;
 
 FCurveEditorViewRegistry::FCurveEditorViewRegistry()
 {

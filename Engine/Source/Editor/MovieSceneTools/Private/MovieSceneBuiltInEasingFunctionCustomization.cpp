@@ -1,20 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneBuiltInEasingFunctionCustomization.h"
-#include "Generators/MovieSceneEasingCurves.h"
 
-#include "DetailLayoutBuilder.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SGridPanel.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Generators/MovieSceneEasingCurves.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateLayoutTransform.h"
+#include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
-#include "Framework/Application/SlateApplication.h"
-#include "ScopedTransaction.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
 
-#include "Styling/AppStyle.h"
+class FActiveTimerHandle;
+class FPaintArgs;
+class FSlateRect;
+class FWidgetStyle;
+struct FPointerEvent;
+struct FSlateBrush;
 
 struct FGroupedEasing
 {

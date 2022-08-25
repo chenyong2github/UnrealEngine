@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DesignerExtension.h"
+
+#include "Components/Widget.h"
+#include "Misc/AssertionMacros.h"
 #include "ScopedTransaction.h"
+#include "UObject/WeakObjectPtr.h"
 #include "WidgetBlueprint.h"
+#include "WidgetReference.h"
+
+class FText;
 
 #define LOCTEXT_NAMESPACE "UMG"
 

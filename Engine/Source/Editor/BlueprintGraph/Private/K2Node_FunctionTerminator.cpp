@@ -2,12 +2,29 @@
 
 
 #include "K2Node_FunctionTerminator.h"
-#include "UObject/UnrealType.h"
-#include "UObject/FrameworkObjectVersion.h"
-#include "GraphEditorSettings.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "GraphEditorSettings.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/FrameworkObjectVersion.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

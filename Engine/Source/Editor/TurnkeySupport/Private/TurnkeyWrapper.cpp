@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TurnkeySupportModule.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Trace/Detail/Channel.h"
 #include "TurnkeySupport.h"
-#include "Async/Async.h"
-#include "Misc/MonitoredProcess.h"
+#include "UObject/NameTypes.h"
 
 FString ConvertToDDPIPlatform(const FString& Platform)
 {

@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Delegates/Delegate.h"
+#include "Framework/Docking/TabManager.h"
 #include "IUndoHistoryEditorModule.h"
-#include "Styling/AppStyle.h"
+#include "Internationalization/Internationalization.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/SUndoHistory.h"
+#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SUndoHistory.h"
 
 const FName UndoHistoryTabName("UndoHistory");
 

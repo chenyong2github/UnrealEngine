@@ -1,16 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Views/ViewUtilities.h"
-#include "Layout/Margin.h"
+
+#include "Delegates/Delegate.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/CoreStyle.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 namespace UE
 {

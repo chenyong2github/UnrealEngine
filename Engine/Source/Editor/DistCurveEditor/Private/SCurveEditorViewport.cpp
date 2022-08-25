@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorViewport.h"
-#include "Widgets/SBoxPanel.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SScrollBar.h"
-#include "Widgets/SViewport.h"
+
 #include "CurveEditorViewportClient.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "Slate/SceneViewport.h"
+#include "SlotBase.h"
+#include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SViewport.h"
 
 
 SCurveEditorViewport::~SCurveEditorViewport()

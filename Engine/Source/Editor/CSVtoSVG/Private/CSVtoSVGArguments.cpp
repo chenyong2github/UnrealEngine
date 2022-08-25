@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CSVtoSVGArguments.h"
-#include "CSVtoSVGModule.h"
+
 #include "Misc/Paths.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/UnrealType.h"
 
 UCSVtoSVGArugments::UCSVtoSVGArugments(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

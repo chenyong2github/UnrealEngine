@@ -2,16 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/ContainersFwd.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
 #include "CoreTypes.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "Misc/FrameNumber.h"
 #include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "Misc/OptionalFwd.h"
-#include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "Templates/SharedPointer.h"
 
-class UMovieSceneSection;
 class IKeyArea;
+class UMovieSceneSection;
 
 namespace UE
 {

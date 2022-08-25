@@ -2,14 +2,19 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "MVVM/ViewModelTypeID.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 
-struct FGeometry;
-
-class SWidget;
-class ISequencer;
 class FArrangedWidget;
+class ISequencer;
+class SWidget;
+namespace UE::Sequencer { class FEditorViewModel; }
+struct FGeometry;
 struct FTimeToPixel;
 
 namespace UE

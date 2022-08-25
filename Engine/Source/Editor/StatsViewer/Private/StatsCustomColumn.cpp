@@ -1,13 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StatsCustomColumn.h"
-#include "UObject/UnrealType.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
-#include "StatsCellPresenter.h"
+
+#include "Containers/UnrealString.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformMath.h"
 #include "IPropertyTable.h"
 #include "IPropertyTableCell.h"
+#include "IPropertyTableColumn.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "PropertyPath.h"
+#include "SlotBase.h"
+#include "StatsCellPresenter.h"
+#include "Styling/AppStyle.h"
+#include "Templates/TypeHash.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IPropertyTableUtilities;
+class SWidget;
 
 class FNumericStatCellPresenter : public TSharedFromThis< FNumericStatCellPresenter >, public FStatsCellPresenter
 {

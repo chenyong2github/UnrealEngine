@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShaderLibraryChunkDataGenerator.h"
+
 #include "IPlatformFileSandboxWrapper.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "ShaderCodeLibrary.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "ShaderCodeLibrary.h"
+
+class FName;
 
 FShaderLibraryChunkDataGenerator::FShaderLibraryChunkDataGenerator(const ITargetPlatform* TargetPlatform)
 {

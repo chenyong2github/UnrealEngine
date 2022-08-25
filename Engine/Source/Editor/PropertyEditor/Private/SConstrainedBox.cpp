@@ -2,6 +2,11 @@
 
 #include "SConstrainedBox.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Layout/Children.h"
+#include "Math/UnrealMathUtility.h"
+#include "Widgets/SWidget.h"
+
 void SConstrainedBox::Construct(const FArguments& InArgs)
 {
 	MinWidth = InArgs._MinWidth;

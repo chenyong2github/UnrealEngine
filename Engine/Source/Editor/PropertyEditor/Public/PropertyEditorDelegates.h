@@ -2,18 +2,32 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/UIAction.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FName;
+class FProperty;
+class FPropertyNode;
 class FPropertyPath;
-struct FPropertyChangedEvent;
 class IDetailCustomization;
 class IDetailTreeNode;
-class IPropertyTypeIdentifier;
+class IPropertyHandle;
 class IPropertyTypeCustomization;
+class IPropertyTypeIdentifier;
 class SWidget;
+class UObject;
+struct FPropertyChangedEvent;
 
 struct FPropertyAndParent
 {

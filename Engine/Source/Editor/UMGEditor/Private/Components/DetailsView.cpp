@@ -3,13 +3,27 @@
 #include "Components/DetailsView.h"
 
 #include "Components/PropertyViewHelper.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "Delegates/Delegate.h"
+#include "DetailsViewArgs.h"
+#include "HAL/Platform.h"
 #include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
+#include "ObjectEditorUtils.h"
+#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "UObject/UObjectGlobals.h"
-#include "ObjectEditorUtils.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "UMG"
 

@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Designer/SZoomPan.h"
+
+#include "Layout/ArrangedChildren.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
 #include "Layout/LayoutUtils.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SWidget.h"
 
 /////////////////////////////////////////////////////
 // SZoomPan

@@ -1,9 +1,18 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorWidgetsStyle.h"
+
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+
+class ISlateStyle;
 
 TSharedPtr<FSlateStyleSet> FEditorWidgetsStyle::StyleSet = nullptr;
 

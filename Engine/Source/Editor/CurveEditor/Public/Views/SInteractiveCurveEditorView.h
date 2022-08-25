@@ -2,22 +2,45 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "CurveDrawInfo.h"
 #include "CurveEditorTypes.h"
-#include "SCurveEditorView.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/Platform.h"
 #include "ICurveEditorDragOperation.h"
 #include "ICurveEditorToolExtension.h"
-#include "CurveDrawInfo.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Rendering/RenderingCommon.h"
+#include "SCurveEditorView.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-struct FCurveModelID;
-struct FCurveEditorScreenSpace;
-struct FOptionalSize;
-struct FCurveEditorDelayedDrag;
-class IMenu;
+class FCurveEditor;
 class FCurveModel;
+class FMenuBuilder;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+class IMenu;
+struct FCurveEditorDelayedDrag;
+struct FCurveEditorScreenSpace;
+struct FCurveEditorToolID;
+struct FCurveModelID;
+struct FCurvePointHandle;
+struct FGeometry;
+struct FOptionalSize;
+struct FPointerEvent;
 
 namespace CurveViewConstants
 {

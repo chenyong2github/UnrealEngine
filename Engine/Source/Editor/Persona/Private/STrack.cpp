@@ -2,17 +2,34 @@
 
 
 #include "STrack.h"
-#include "Rendering/DrawElements.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Layout/WidgetPath.h"
+
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/CoreStyle.h"
-
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/Clipping.h"
+#include "Layout/PaintGeometry.h"
+#include "Layout/WidgetPath.h"
+#include "Math/UnrealMathSSE.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
 #include "SCurveEditor.h"
-#include "SScrubWidget.h"
+#include "Styling/CoreStyle.h"
+#include "Templates/TypeHash.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Text/STextBlock.h"
+
+class FChildren;
+class FSlateRect;
+class FWidgetStyle;
+struct FSlateBrush;
 
 const float STrackDefaultHeight = 24.0f;
 const float DraggableBarSnapTolerance = 20.0f;

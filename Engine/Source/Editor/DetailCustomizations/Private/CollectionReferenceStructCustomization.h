@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
-#include "CollectionManagerTypes.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
-class SButton;
-class SComboButton;
 class IMenu;
+class IPropertyHandle;
+class SButton;
+struct FCollectionNameType;
 
 class FCollectionReferenceStructCustomization: public IPropertyTypeCustomization
 {

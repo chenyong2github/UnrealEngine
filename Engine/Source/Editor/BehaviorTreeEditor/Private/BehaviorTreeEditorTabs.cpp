@@ -2,6 +2,9 @@
 
 #include "BehaviorTreeEditorTabs.h"
 
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+
 // Tab identifiers
 const FName FBehaviorTreeEditorTabs::GraphDetailsID(TEXT("BehaviorTreeEditor_Properties"));
 const FName FBehaviorTreeEditorTabs::SearchID(TEXT("BehaviorTreeEditor_Search"));

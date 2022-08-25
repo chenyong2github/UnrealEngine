@@ -2,6 +2,12 @@
 
 #include "CascadeActions.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "InputCoreTypes.h"
+#include "Misc/CoreMiscDefines.h"
+
 #define LOCTEXT_NAMESPACE "CascadeCommands"
 
 /** UI_COMMAND takes long for the compile to optimize */

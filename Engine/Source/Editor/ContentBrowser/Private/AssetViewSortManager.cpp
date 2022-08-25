@@ -1,9 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetViewSortManager.h"
+
 #include "AssetViewTypes.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserDataSource.h"
+#include "ContentBrowserDelegates.h"
+#include "ContentBrowserItem.h"
+#include "ContentBrowserItemData.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/CString.h"
 #include "Misc/ComparisonUtility.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/UnrealNames.h"
 
 struct FCompareFAssetItemBase
 {

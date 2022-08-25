@@ -2,8 +2,13 @@
 
 #include "RuntimeVirtualTextureFactory.h"
 
-#include "AssetTypeCategories.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
 #include "VT/RuntimeVirtualTexture.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 URuntimeVirtualTextureFactory::URuntimeVirtualTextureFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

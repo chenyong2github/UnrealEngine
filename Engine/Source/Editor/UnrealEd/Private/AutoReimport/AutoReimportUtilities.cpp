@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutoReimport/AutoReimportUtilities.h"
-#include "EditorFramework/AssetImportData.h"
+
 #include "AutoReimport/AssetSourceFilenameCache.h"
+#include "EditorFramework/AssetImportData.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+
+struct FAssetData;
 
 DEFINE_LOG_CATEGORY(LogAutoReimportManager);
 

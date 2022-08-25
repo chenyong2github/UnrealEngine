@@ -49,6 +49,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Algo/AnyOf.h"
+#include "IKeyArea.h"
 
 
 #define LOCTEXT_NAMESPACE "SequencerContextMenus"

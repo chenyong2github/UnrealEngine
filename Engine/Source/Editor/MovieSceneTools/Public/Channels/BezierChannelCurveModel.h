@@ -2,16 +2,32 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "Channels/ChannelCurveModel.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneDoubleChannel.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "CurveEditorTypes.h"
+#include "Curves/KeyHandle.h"
 #include "IBufferedCurveModel.h"
 #include "MovieSceneSection.h"
-#include "Channels/MovieSceneChannelHandle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class UMovieSceneSection;
+class FCurveEditor;
 class ISequencer;
+class UMovieSceneSection;
+struct FCurveAttributes;
+struct FCurveEditorScreenSpace;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyPosition;
 
 /**
  * Buffered curve implementation for a bezier curve model, stores a copy of the bezier curve channel in order to draw itself.

@@ -1,12 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeK2Sequence.h"
+
 #include "EdGraph/EdGraph.h"
-#include "Widgets/SBoxPanel.h"
+#include "EdGraph/EdGraphNode.h"
+#include "GenericPlatform/ICursor.h"
 #include "GraphEditorSettings.h"
-#include "K2Node_AddPinInterface.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node.h"
+#include "K2Node_AddPinInterface.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Class.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 
 void SGraphNodeK2Sequence::Construct( const FArguments& InArgs, UK2Node* InNode )

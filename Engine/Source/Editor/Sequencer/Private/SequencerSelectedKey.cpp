@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerSelectedKey.h"
-#include "Modules/ModuleManager.h"
+
+#include "Channels/MovieSceneChannel.h"
+#include "Containers/Map.h"
 #include "IKeyArea.h"
 #include "MVVM/ViewModels/ChannelModel.h"
-#include "Channels/MovieSceneChannel.h"
-#include "ISequencerChannelInterface.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
 
 FSelectedKeysByChannel::FSelectedKeysByChannel(TArrayView<const FSequencerSelectedKey> InSelectedKeys)
 {

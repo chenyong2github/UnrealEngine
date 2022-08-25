@@ -4,8 +4,13 @@
 
 #include "Containers/Map.h"
 #include "EditorConfigBase.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "SceneOutlinerConfig.generated.h"
+
+class FName;
+class UObject;
 
 
 USTRUCT()

@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/MergeShaderPipelineCachesCommandlet.h"
-#include "Misc/Paths.h"
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "PipelineFileCache.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMergeShaderPipelineCachesCommandlet, Log, All);
 

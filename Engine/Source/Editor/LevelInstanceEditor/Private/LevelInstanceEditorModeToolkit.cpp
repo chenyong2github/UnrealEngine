@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "LevelInstanceEditorModeToolkit.h"
 
+#include "Internationalization/Internationalization.h"
+
+class FAssetEditorModeUILayer;
+
 #define LOCTEXT_NAMESPACE "LevelInstanceEditorModeToolkit"
 
 FLevelInstanceEditorModeToolkit::FLevelInstanceEditorModeToolkit()

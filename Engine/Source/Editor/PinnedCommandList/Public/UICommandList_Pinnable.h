@@ -2,7 +2,15 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/UICommandList.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FUICommandInfo;
+struct FUIAction;
 
 /** 
  * Extended version of FUICommandList that allows:

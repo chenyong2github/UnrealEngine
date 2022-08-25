@@ -1,11 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DragAndDrop/CollectionDragDropOp.h"
-#include "ICollectionManager.h"
-#include "CollectionManagerModule.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "CollectionManagerModule.h"
+#include "HAL/Platform.h"
+#include "ICollectionManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 #include "SAssetTagItem.h"
+#include "Styling/AppStyle.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBorder.h"
+
+class SWidget;
 
 TArray<FAssetData> FCollectionDragDropOp::GetAssets() const
 {

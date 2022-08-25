@@ -11,6 +11,7 @@
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Editor.h"
 #include "ClassViewerModule.h"
+#include "ClassViewerNode.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "PropertyHandle.h"
 

@@ -1,8 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimBlueprintDetails.h"
+
 #include "Animation/AnimBlueprint.h"
+#include "Containers/Array.h"
 #include "DetailLayoutBuilder.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintDetails"
 

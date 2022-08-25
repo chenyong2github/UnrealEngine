@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "Math/NumericLimits.h"
+#include "Misc/Attribute.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/NameTypes.h"
-#include "Misc/Attribute.h"
 
 /** The shorthand identifier used for editor modes */
 typedef FName FEditorModeID;

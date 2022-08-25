@@ -1,15 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
+#include "Containers/BitArray.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Views/STableRow.h"
 
 class IPropertyHandle;
 class IPropertyUtilities;
+class SDockTab;
+class STableViewBase;
+class SWidget;
 class ULocalizationTarget;
 struct FLocalizationTargetSettings;
 

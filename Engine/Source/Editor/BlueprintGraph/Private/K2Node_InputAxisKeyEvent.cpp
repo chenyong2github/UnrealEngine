@@ -1,14 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_InputAxisKeyEvent.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
+#include "Engine/Blueprint.h"
+#include "Engine/DynamicBlueprintBinding.h"
+#include "Engine/InputAxisKeyDelegateBinding.h"
+#include "Engine/MemberReference.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/CompilerResultsLog.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "Engine/InputAxisKeyDelegateBinding.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectVersion.h"
+
+struct FLinearColor;
 
 #define LOCTEXT_NAMESPACE "UK2Node_InputAxisKeyEvent"
 

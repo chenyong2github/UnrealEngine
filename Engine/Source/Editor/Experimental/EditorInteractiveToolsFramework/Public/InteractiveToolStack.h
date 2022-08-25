@@ -2,20 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "InputBehaviorSet.h"
-#include "InteractiveToolActionSet.h"
-#include "ToolContextInterfaces.h"
-#include "UObject/UObjectGlobals.h"
-#include "InteractiveTool.h"
+#include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "HAL/Platform.h"
+#include "InputBehaviorSet.h"
+#include "InteractiveTool.h"
+#include "InteractiveToolActionSet.h"
+#include "Templates/SharedPointer.h"
+#include "ToolContextInterfaces.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "InteractiveToolStack.generated.h"
 
+class FText;
+class FUICommandInfo;
 class UEdMode;
 class UEditorInteractiveToolsContext;
 class UInteractiveToolBuilder;
+struct FSlateIcon;
 
 /**
  * FInteractiveToolStack represents a bundle of tools that may or may not share the same input chord

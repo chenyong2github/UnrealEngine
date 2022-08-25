@@ -6,11 +6,22 @@ DiffPackagesCommandlet.cpp: Commandlet used for comparing two packages.
 =============================================================================*/
 
 #include "Commandlets/DiffFilesCommandlet.h"
-#include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "CoreGlobals.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/OutputDevice.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/Package.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDiffFilesCommandlet, Log, All);
 

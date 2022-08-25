@@ -1,37 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Framework/EditorElements.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 
-#include "Elements/Object/ObjectElementData.h"
+#include "Containers/UnrealString.h"
+#include "EditorWidgetsModule.h"
+#include "Elements/Actor/ActorElementDetailsInterface.h"
+#include "Elements/Actor/ActorElementEditorAssetDataInterface.h"
+#include "Elements/Actor/ActorElementEditorSelectionInterface.h"
+#include "Elements/Actor/ActorElementEditorWorldInterface.h"
+#include "Elements/Component/ComponentElementDetailsInterface.h"
+#include "Elements/Component/ComponentElementEditorSelectionInterface.h"
+#include "Elements/Component/ComponentElementEditorWorldInterface.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementAssetDataInterface.h"
+#include "Elements/Interfaces/TypedElementDetailsInterface.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "Elements/Object/ObjectElementDetailsInterface.h"
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
-
-#include "Elements/Actor/ActorElementData.h"
-#include "Elements/Actor/ActorElementDetailsInterface.h"
-#include "Elements/Actor/ActorElementEditorWorldInterface.h"
-#include "Elements/Actor/ActorElementEditorSelectionInterface.h"
-#include "Elements/Actor/ActorElementEditorAssetDataInterface.h"
-
-#include "Elements/Component/ComponentElementData.h"
-#include "Elements/Component/ComponentElementDetailsInterface.h"
-#include "Elements/Component/ComponentElementEditorWorldInterface.h"
-#include "Elements/Component/ComponentElementEditorSelectionInterface.h"
-
-#include "Elements/SMInstance/SMInstanceElementData.h"
 #include "Elements/SMInstance/SMInstanceElementDetailsInterface.h"
-#include "Elements/SMInstance/SMInstanceElementEditorWorldInterface.h"
-#include "Elements/SMInstance/SMInstanceElementEditorSelectionInterface.h"
 #include "Elements/SMInstance/SMInstanceElementDetailsProxyObject.h"
-
+#include "Elements/SMInstance/SMInstanceElementEditorSelectionInterface.h"
+#include "Elements/SMInstance/SMInstanceElementEditorWorldInterface.h"
+#include "Elements/SMInstance/SMInstanceElementId.h"
 #include "Elements/TypedElementEditorLog.h"
-
 #include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
-#include "EditorWidgetsModule.h"
 #include "ObjectNameEditSinkRegistry.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
 FSimpleMulticastDelegate OnRegisterEditorElementsDelegate;
 

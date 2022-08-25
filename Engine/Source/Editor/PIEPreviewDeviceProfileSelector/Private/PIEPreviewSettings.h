@@ -7,9 +7,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "PIEPreviewSettings.generated.h"
 
 UCLASS(hidecategories = Object, config = PIEPreviewSettings)

@@ -1,7 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SResetToDefaultPropertyEditor.h"
+
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "ResetToDefaultPropertyEditor"
 

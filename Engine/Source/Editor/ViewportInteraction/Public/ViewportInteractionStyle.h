@@ -3,7 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
 #include "Styling/SlateStyle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class ISlateStyle;
+struct FSlateBrush;
 
 /**  */
 class FViewportInteractionStyle

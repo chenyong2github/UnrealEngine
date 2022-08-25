@@ -2,11 +2,22 @@
 
 
 #include "K2Node_CallFunctionOnMember.h"
-#include "UObject/UObjectHash.h"
+
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node.h"
 #include "K2Node_VariableGet.h"
-#include "KismetCompilerMisc.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiler.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Class.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

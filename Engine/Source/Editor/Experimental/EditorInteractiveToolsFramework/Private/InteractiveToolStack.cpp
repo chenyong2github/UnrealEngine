@@ -2,17 +2,32 @@
 
 
 #include "InteractiveToolStack.h"
-#include "InteractiveToolManager.h"
+
 #include "ContextObjectStore.h"
-#include "UObject/Class.h"
+#include "Delegates/Delegate.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "Framework/Commands/Contexts/UIContentContext.h"
+#include "Framework/Commands/Contexts/UIIdentifierContext.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/PlatformCrt.h"
+#include "InteractiveToolManager.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Templates/Tuple.h"
+#include "Textures/SlateIcon.h"
 #include "ToolContexts/ToolStackContext.h"
 #include "Toolkits/BaseToolkit.h"
 #include "Tools/UEdMode.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/Contexts/UIIdentifierContext.h"
-#include "Framework/Commands/Contexts/UIContentContext.h"
-#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/SNullWidget.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "FInteractiveToolStack"
 

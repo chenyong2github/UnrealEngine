@@ -2,21 +2,32 @@
 
 #pragma once
 
+#include "Animation/CurveSequence.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Styling/SlateColor.h"
-#include "Layout/SlateRect.h"
-#include "Layout/Geometry.h"
+#include "HAL/Platform.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
-#include "Animation/CurveSequence.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/SlateRect.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "SNodePanel.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SNodePanel.h"
-#include "Templates/UniquePtr.h"
 
 class FActiveTimerHandle;
+class FPaintArgs;
 class FSlateWindowElementList;
+class FWidgetStyle;
+class SWidget;
+struct FGeometry;
+struct FPointerEvent;
+struct FSlateBrush;
 
 class UMGEDITOR_API SDesignSurface : public SCompoundWidget
 {

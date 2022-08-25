@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Editor/ClassViewer/Private/ClassViewerNode.h"
 #include "ClassViewerFilter.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
+
+class FClassViewerNode;
+class UClass;
 
 class FUnloadedBlueprintData : public IUnloadedBlueprintData
 {

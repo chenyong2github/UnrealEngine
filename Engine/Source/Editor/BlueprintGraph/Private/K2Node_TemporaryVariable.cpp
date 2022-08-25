@@ -2,12 +2,31 @@
 
 
 #include "K2Node_TemporaryVariable.h"
+
+#include "BPTerminal.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
+#include "Internationalization/Internationalization.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class FKismetCompilerContext;
 
 class FKCHandler_TemporaryVariable : public FNodeHandlingFunctor
 {

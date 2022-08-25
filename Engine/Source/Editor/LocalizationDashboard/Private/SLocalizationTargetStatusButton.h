@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 
 class ULocalizationTarget;
+struct FSlateBrush;
 
 class SLocalizationTargetStatusButton : public SButton
 {

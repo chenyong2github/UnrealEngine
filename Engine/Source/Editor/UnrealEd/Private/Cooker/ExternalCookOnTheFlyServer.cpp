@@ -1,12 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ExternalCookOnTheFlyServer.h"
+
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Async/Future.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/StringFwd.h"
 #include "CookOnTheFly.h"
 #include "CookOnTheFlyMessages.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformProcess.h"
+#include "IMessageContext.h"
+#include "IO/PackageId.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
-#include "Misc/Paths.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Misc/PathViews.h"
+#include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/SecureHash.h"
+#include "Misc/StringBuilder.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
 
 FExternalCookOnTheFlyServer::FExternalCookOnTheFlyServer()
 	: CookOnTheFlyModule(FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly")))

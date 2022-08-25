@@ -1,14 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SViewportToolBarIconMenu.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SMenuAnchor.h"
-#include "Widgets/Input/SButton.h"
+
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "SViewportToolBar.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
 #include "Styling/ToolBarStyle.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+struct FGeometry;
+struct FPointerEvent;
 
 void SViewportToolBarIconMenu::Construct( const FArguments& InArgs )
 {

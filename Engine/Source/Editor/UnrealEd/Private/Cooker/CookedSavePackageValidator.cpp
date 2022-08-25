@@ -2,14 +2,24 @@
 
 #include "CookedSavePackageValidator.h"
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CookOnTheSide/CookLog.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "Engine/ICookInfo.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Misc/PackageName.h"
 #include "ModuleDescriptor.h"
+#include "PluginDescriptor.h"
 #include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/Class.h"
+#include "UObject/Object.h"
 #include "UObject/Package.h"
 
 namespace UE::Cook

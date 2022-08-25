@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserItemPath.h"
+
+#include "Containers/StringView.h"
 #include "IContentBrowserDataModule.h"
 
 FContentBrowserItemPath::FContentBrowserItemPath()

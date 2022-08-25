@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
+
+#include "Serialization/Archive.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
 

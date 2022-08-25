@@ -1,20 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SScrubWidget.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Misc/Paths.h"
-#include "Rendering/DrawElements.h"
-#include "Layout/WidgetPath.h"
-#include "Framework/Application/MenuStack.h"
+
+#include "Animation/AnimTypes.h"
+#include "Containers/UnrealString.h"
 #include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/CoreStyle.h"
+#include "GenericPlatform/GenericPlatformMath.h"
+#include "GenericPlatform/ICursor.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Layout/WidgetPath.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/CString.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateRenderer.h"
 #include "Styling/AppStyle.h"
-#include "Animation/AnimTypes.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/WidgetStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Input/STextEntryPopup.h"
+
+class FSlateRect;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "ScrubWidget"
 

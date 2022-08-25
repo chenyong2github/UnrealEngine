@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/LocalizedOverlaysFactoryNew.h"
-#include "LocalizedOverlays.h"
+
 #include "AssetTypeCategories.h"
+#include "LocalizedOverlays.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 /* ULocalizedOverlaysFactoryNew structors
 *****************************************************************************/

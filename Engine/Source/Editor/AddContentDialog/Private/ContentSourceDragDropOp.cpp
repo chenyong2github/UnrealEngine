@@ -1,7 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentSourceDragDropOp.h"
+
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "ViewModels/ContentSourceViewModel.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+
+class SWidget;
 
 TSharedRef<FContentSourceDragDropOp> FContentSourceDragDropOp::CreateShared(TSharedPtr<FContentSourceViewModel> InContentSource)
 {

@@ -1,12 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveKeyDetailPanel.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "DetailsViewArgs.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailTreeNode.h"
+#include "IPropertyRowGenerator.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "IPropertyRowGenerator.h"
-#include "Widgets/Text/STextBlock.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "IDetailTreeNode.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SWidget.h"
+
+class FCurveEditor;
 
 #define LOCTEXT_NAMESPACE "SCurveEditorPanel"
 

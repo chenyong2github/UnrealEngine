@@ -1,17 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshMergingSettingsCustomization.h"
-#include "Engine/MeshMerging.h"
-#include "Misc/Attribute.h"
-#include "UObject/UnrealType.h"
-#include "PropertyHandle.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
+#include "Engine/MeshMerging.h"
 #include "IDetailChildrenBuilder.h"
-#include "DetailCategoryBuilder.h"
+#include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
 #include "PropertyRestriction.h"
-#include "OverrideResetToDefault.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "FMeshMergingSettingCustomization"
 

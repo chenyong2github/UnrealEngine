@@ -3,13 +3,24 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SGraphPin.h"
-#include "UObject/StructOnScope.h"
 #include "EdGraphUtilities.h"
+#include "HAL/Platform.h"
 #include "IStructureDetailsView.h"
+#include "Internationalization/Text.h"
+#include "SGraphPin.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/StructOnScope.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
 #include "SGraphPinStructInstance.generated.h"
 
+class FStructOnScope;
+class IStructureDetailsView;
 class SComboButton;
+class SWidget;
+class UEdGraphPin;
+class UScriptStruct;
+struct FPropertyChangedEvent;
 
 /**
  * Base type for editing simple structs as pin default values, by displaying a nested version of a struct customization.

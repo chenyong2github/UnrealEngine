@@ -1,16 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "MaterialEditor/DEditorParameterValue.h"
+#include "Containers/UnrealString.h"
+#include "MaterialEditor/DEditorDoubleVectorParameterValue.h"
 #include "MaterialEditor/DEditorFontParameterValue.h"
 #include "MaterialEditor/DEditorMaterialLayersParameterValue.h"
+#include "MaterialEditor/DEditorParameterValue.h"
 #include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "MaterialEditor/DEditorScalarParameterValue.h"
 #include "MaterialEditor/DEditorStaticComponentMaskParameterValue.h"
 #include "MaterialEditor/DEditorStaticSwitchParameterValue.h"
 #include "MaterialEditor/DEditorTextureParameterValue.h"
 #include "MaterialEditor/DEditorVectorParameterValue.h"
-#include "MaterialEditor/DEditorDoubleVectorParameterValue.h"
+#include "MaterialTypes.h"
+#include "Math/Color.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 UDEditorParameterValue::UDEditorParameterValue(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

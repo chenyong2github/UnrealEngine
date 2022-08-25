@@ -1,14 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/MakeBinaryConfigCommandlet.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "CoreGlobals.h"
+#include "HAL/PlatformCrt.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/IPluginManager.h"
-#include "Misc/CoreDelegates.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigContext.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Parse.h"
+#include "Serialization/Archive.h"
+#include "Serialization/MemoryWriter.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
 
 UMakeBinaryConfigCommandlet::UMakeBinaryConfigCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

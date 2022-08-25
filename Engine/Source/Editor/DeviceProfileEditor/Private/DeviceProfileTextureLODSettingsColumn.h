@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IPropertyTableUtilities.h"
-#include "IPropertyTableColumn.h"
+#include "Delegates/Delegate.h"
 #include "IPropertyTableCustomColumn.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IPropertyTableCell;
 class IPropertyTableCellPresenter;
+class IPropertyTableColumn;
+class IPropertyTableUtilities;
+class SWidget;
 class UDeviceProfile;
 
 /** Delegate triggered when user opts to edit TextureLODSettings **/

@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConfigPropertyHelper.h"
+
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "ISourceControlState.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlState.h"
+#include "Misc/Paths.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/UnrealType.h"
+
+class ISourceControlProvider;
 
 void UPropertyConfigFileDisplayRow::InitWithConfigAndProperty(const FString& InConfigFileName, FProperty* InEditProperty)
 {

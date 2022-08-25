@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorConfigTestHelpers.h"
+
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Templates/SharedPointer.h"
 
 namespace FEditorConfigTestHelpers
 {

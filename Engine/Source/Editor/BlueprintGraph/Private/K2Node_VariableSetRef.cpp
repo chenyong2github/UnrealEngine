@@ -2,15 +2,32 @@
 
 
 #include "K2Node_VariableSetRef.h"
+
+#include "BPTerminal.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintActionFilter.h"
+#include "BlueprintCompiledStatement.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
-#include "KismetCastingUtils.h"
-#include "KismetCompiler.h"
-#include "VariableSetHandler.h"
-#include "BlueprintActionFilter.h"
-#include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCastingUtils.h"
+#include "KismetCompiledFunctionContext.h"
+#include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "VariableSetHandler.h"
 
 static FName TargetVarPinName(TEXT("Target"));
 static FName VarValuePinName(TEXT("Value"));

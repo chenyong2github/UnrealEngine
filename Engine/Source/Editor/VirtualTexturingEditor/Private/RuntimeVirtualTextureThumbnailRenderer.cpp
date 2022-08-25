@@ -4,13 +4,29 @@
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "MaterialShared.h"
-#include "RenderingThread.h"
+#include "Math/Box.h"
+#include "Math/Box2D.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "PixelFormat.h"
+#include "RHI.h"
 #include "RenderGraphBuilder.h"
+#include "RenderingThread.h"
 #include "SceneInterface.h"
-#include "VT/RuntimeVirtualTexture.h"
-#include "VT/RuntimeVirtualTextureRender.h"
-#include "UnrealClient.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
 #include "UObject/UObjectIterator.h"
+#include "UnrealClient.h"
+#include "VT/RuntimeVirtualTexture.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
+#include "VT/RuntimeVirtualTextureRender.h"
+#include "VirtualTexturing.h"
+
+class FCanvas;
+class FRHICommandListImmediate;
 
 namespace
 {

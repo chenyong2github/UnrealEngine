@@ -1,14 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PListNode.h"
+
+#include "Containers/BitArray.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
-
 
 /** A default function to return an invalid row widget */
 TSharedRef<ITableRow> GenerateInvalidRow(const TSharedRef<STableViewBase>& OwnerTable, const FText& ErrorMessage)

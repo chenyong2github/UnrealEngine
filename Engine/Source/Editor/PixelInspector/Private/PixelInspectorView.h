@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Containers/EnumAsByte.h"
+#include "Engine/EngineTypes.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "UObject/Object.h"
-#include "Editor/PixelInspector/Private/PixelInspectorResult.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "PixelInspectorView.generated.h"
+
+namespace PixelInspector { class PixelInspectorResult; }
 
 #define FinalColorContextGridSize 7
 

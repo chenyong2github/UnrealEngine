@@ -1,17 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PListNodeString.h"
+
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/CString.h"
+#include "PListNode.h"
+#include "SPlistEditor.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "SPlistEditor.h"
 
 /** Validation check */
 bool FPListNodeString::IsValid()

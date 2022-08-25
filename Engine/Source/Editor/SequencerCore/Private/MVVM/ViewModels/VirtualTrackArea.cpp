@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/VirtualTrackArea.h"
-#include "MVVM/ViewModels/ViewModel.h"
+
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "MVVM/Views/SOutlinerView.h"
+#include "Misc/FrameRate.h"
+
+namespace UE::Sequencer { class FViewModel; }
 
 namespace UE
 {

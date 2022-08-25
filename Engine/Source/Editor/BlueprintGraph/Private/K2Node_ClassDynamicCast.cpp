@@ -2,11 +2,29 @@
 
 
 #include "K2Node_ClassDynamicCast.h"
-#include "GraphEditorSettings.h"
-#include "EdGraphSchema_K2.h"
+
+#include "BlueprintCompiledStatement.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
 #include "DynamicCastHandler.h"
+#include "EdGraph/EdGraphNodeUtils.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
+#include "GraphEditorSettings.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
 #include "UObject/Interface.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+
+class FKismetCompilerContext;
 
 #define LOCTEXT_NAMESPACE "K2Node_ClassDynamicCast"
 

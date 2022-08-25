@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "Templates/SharedPointer.h"
 
 class IDetailLayoutBuilder;
 

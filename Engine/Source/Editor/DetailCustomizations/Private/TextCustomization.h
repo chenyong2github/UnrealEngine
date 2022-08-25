@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
 class FTextCustomization : public IPropertyTypeCustomization
 {

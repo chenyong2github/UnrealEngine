@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
+#include "HAL/Platform.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "EditConditionParserTests.generated.h"
 
 UENUM()

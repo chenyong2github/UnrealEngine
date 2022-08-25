@@ -1,17 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SChordEditBox.h"
-#include "SlateOptMacros.h"
-#include "Widgets/SBoxPanel.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/SChordEditor.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SChordEditor.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+struct FGeometry;
 
 
 #define LOCTEXT_NAMESPACE "SChordEditBox"

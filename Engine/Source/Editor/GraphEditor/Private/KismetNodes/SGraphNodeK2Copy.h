@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "KismetNodes/SGraphNodeK2Base.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SGraphPin;
+class SWidget;
+class UEdGraphPin;
 class UK2Node;
+struct FSlateBrush;
 
 class GRAPHEDITOR_API SGraphNodeK2Copy : public SGraphNodeK2Base
 {

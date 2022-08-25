@@ -1,7 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Presentation/PropertyTable/PropertyTableCell.h"
+
+#include "HAL/PlatformCrt.h"
 #include "IPropertyTable.h"
+#include "ObjectPropertyNode.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
+#include "PropertyHandle.h"
+#include "PropertyNode.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FPropertyPath;
+class UObject;
 
 FPropertyTableCell::FPropertyTableCell( const TSharedRef< class IPropertyTableColumn >& InColumn, const TSharedRef< class IPropertyTableRow >& InRow )
 	: bIsBound( false )

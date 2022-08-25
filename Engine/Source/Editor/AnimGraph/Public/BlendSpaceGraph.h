@@ -4,9 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlendSpaceGraph.generated.h"
 
 class UBlendSpace;
+class UObject;
 
 // Dummy graph to hold sub-graphs for blendspaces. Not edited directly.
 UCLASS(MinimalAPI)

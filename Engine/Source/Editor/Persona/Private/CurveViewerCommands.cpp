@@ -2,6 +2,9 @@
 
 #include "CurveViewerCommands.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+
 #define LOCTEXT_NAMESPACE "CurveViewerCommands"
 
 void FCurveViewerCommands::RegisterCommands()

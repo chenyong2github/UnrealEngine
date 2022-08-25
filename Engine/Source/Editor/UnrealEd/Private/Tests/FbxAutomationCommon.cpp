@@ -1,18 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tests/FbxAutomationCommon.h"
-#include "Misc/FileHelper.h"
-#include "Dom/JsonValue.h"
+
 #include "Dom/JsonObject.h"
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonSerializer.h"
+#include "Dom/JsonValue.h"
 #include "Factories/FbxAnimSequenceImportData.h"
+#include "Factories/FbxImportUI.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Factories/FbxStaticMeshImportData.h"
 #include "Factories/FbxTextureImportData.h"
-#include "Factories/FbxImportUI.h"
-#include "Settings/EditorExperimentalSettings.h"
+#include "HAL/PlatformCrt.h"
 #include "JsonObjectConverter.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
 
 
 namespace FbxAutomationTestsAPI

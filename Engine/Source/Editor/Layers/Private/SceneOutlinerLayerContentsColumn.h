@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "ActorTreeItem.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "ISceneOutlinerColumn.h"
-#include "Editor/Layers/Private/LayerViewModel.h"
+#include "Input/Reply.h"
+#include "SceneOutlinerFwd.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Views/SHeaderRow.h"
 
+class AActor;
+class FLayerViewModel;
+class SWidget;
 template<typename ItemType> class STableRow;
 
 /**

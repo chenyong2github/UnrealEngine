@@ -2,15 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookRequests.h"
+#include "Cooker/CookTypes.h"
 #include "CookWorkerClient.h"
-#include "Containers/StringView.h"
+#include "HAL/Platform.h"
 #include "IWorkerRequests.h"
+
+class FConfigFile;
+class ITargetPlatform;
 
 namespace UE::Cook { struct FDirectorConnectionInfo; }
 
 namespace UE::Cook
 {
+struct FInstigator;
+struct FPackageData;
 
 /** An IWorkerRequests for CookWorkers in MultiProcess cooks: functions are implemented as interprocess messages to/from the CookDirector. */
 class FWorkerRequestsRemote : public IWorkerRequests

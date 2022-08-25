@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorDragOperation_Zoom.h"
-#include "CurveEditorScreenSpace.h"
+
 #include "CurveEditor.h"
+#include "CurveEditorScreenSpace.h"
+#include "ICurveEditorBounds.h"
+#include "Input/Events.h"
+#include "Math/UnrealMathUtility.h"
 #include "SCurveEditorView.h"
-#include "SCurveEditorPanel.h"
 
 FCurveEditorDragOperation_Zoom::FCurveEditorDragOperation_Zoom(FCurveEditor* InCurveEditor, TSharedPtr<SCurveEditorView> InOptionalView)
 	: CurveEditor(InCurveEditor)

@@ -2,15 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
-#include "Widgets/SWidget.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "WidgetReference.h"
+#include "Widgets/SWidget.h"
 
 class FScopedTransaction;
+class FSlateRect;
 class FSlateWindowElementList;
+class FText;
 class IUMGDesigner;
+class SWidget;
 class UWidgetBlueprint;
+struct FGeometry;
+struct FWidgetReference;
 
 /**
  * The location where the widget should appear

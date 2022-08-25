@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorObjectsTracker.h"
+
+#include "HAL/PlatformCrt.h"
 #include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 
 void FEditorObjectTracker::AddReferencedObjects( FReferenceCollector& Collector )
 {

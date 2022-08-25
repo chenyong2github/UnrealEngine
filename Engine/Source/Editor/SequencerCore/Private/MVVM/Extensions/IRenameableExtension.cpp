@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/IRenameableExtension.h"
+
+#include "Containers/UnrealString.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
 
 namespace UE
 {

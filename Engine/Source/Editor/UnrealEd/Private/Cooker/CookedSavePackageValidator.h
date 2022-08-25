@@ -4,10 +4,12 @@
 
 #include "Containers/Set.h"
 #include "UObject/NameTypes.h"
+#include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 
 class ITargetPlatform;
 class UCookOnTheFlyServer;
+class UObject;
 
 namespace UE::Cook
 {

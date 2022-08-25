@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "ISequencerSection.h"
+#include "Templates/SharedPointer.h"
 
-struct FGuid;
+class FMenuBuilder;
+class FName;
 class ISequencer;
 class UMovieSceneSection;
+struct FGuid;
 
 /**
  * An implementation of 2d transform property sections.

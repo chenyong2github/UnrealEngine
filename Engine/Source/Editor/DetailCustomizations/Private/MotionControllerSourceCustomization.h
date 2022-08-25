@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SWidget;
-class IPropertyHandle;
 
 DECLARE_DELEGATE_RetVal(FText, FOnGetMotionSourceText)
 DECLARE_DELEGATE_OneParam(FOnMotionSourceChanged, FName)

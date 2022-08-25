@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Selection.h"
-#include "UObject/Package.h"
-#include "GameFramework/Actor.h"
+
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementListObjectUtil.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
+#include "GameFramework/Actor.h"
+#include "Logging/LogMacros.h"
+#include "Templates/UnrealTemplate.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSelection, Log, All);
 

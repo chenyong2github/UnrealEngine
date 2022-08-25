@@ -1,22 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/ConstraintChannelCurveModel.h"
-#include "HAL/PlatformMath.h"
-#include "Channels/MovieSceneBoolChannel.h"
-#include "MovieSceneSection.h"
-#include "MovieScene.h"
-#include "CurveDrawInfo.h"
-#include "CurveDataAbstraction.h"
-#include "CurveEditor.h"
-#include "CurveEditorScreenSpace.h"
-#include "CurveEditorSnapMetrics.h"
-#include "Styling/AppStyle.h"
-#include "SequencerChannelTraits.h"
-#include "SequencerSectionPainter.h"
-#include "ISequencer.h"
-#include "MVVM/Views/STrackAreaView.h"
-#include "ConstraintsManager.h"
+
+#include "Algo/BinarySearch.h"
 #include "Channels/ConstraintChannelEditor.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelProxy.h"
+#include "ConstraintChannel.h"
+#include "CurveDataAbstraction.h"
+#include "CurveDrawInfo.h"
+#include "Curves/RealCurve.h"
+#include "Delegates/Delegate.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "MVVM/Views/STrackAreaView.h"
+#include "Math/Color.h"
+#include "Math/NumericLimits.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "SequencerClipboardReconciler.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FCurveEditor;
+class UObject;
+struct FCurveEditorScreenSpace;
 
 ECurveEditorViewID FConstraintChannelCurveModel::ViewID = ECurveEditorViewID::Invalid;
 

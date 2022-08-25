@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/CompositeCurveTableFactory.h"
+
 #include "Engine/CompositeCurveTable.h"
+#include "Engine/CurveTable.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCompositeCurveTableFactory::UCompositeCurveTableFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

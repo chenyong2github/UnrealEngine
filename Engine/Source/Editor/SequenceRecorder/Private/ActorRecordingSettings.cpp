@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorRecordingSettings.h"
-#include "IMovieSceneSectionRecorderFactory.h"
+
 #include "Features/IModularFeatures.h"
+#include "HAL/PlatformCrt.h"
+#include "IMovieSceneSectionRecorderFactory.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
 
 FActorRecordingSettings::FActorRecordingSettings()
 {

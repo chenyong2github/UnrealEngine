@@ -1,11 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutomatedAssetImportData.h"
+
 #include "Factories/Factory.h"
-#include "UObject/Package.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
 #include "Misc/PackageName.h"
-#include "UObject/UObjectIterator.h"
 #include "Misc/Paths.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/UnrealNames.h"
 
 DEFINE_LOG_CATEGORY(LogAutomatedImport);
 

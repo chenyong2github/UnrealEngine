@@ -2,17 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/SortedMap.h"
-
-#include "CurveEditorTypes.h"
 #include "CurveEditorScreenSpace.h"
-
+#include "CurveEditorTypes.h"
+#include "HAL/Platform.h"
+#include "Math/NumericLimits.h"
+#include "Math/TransformCalculus2D.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Templates/Less.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FCurveEditor;
-class SCurveEditorPanel;
 class FSlateRect;
+class FText;
+class SCurveEditorPanel;
 struct FCurveDrawParams;
 
 /**

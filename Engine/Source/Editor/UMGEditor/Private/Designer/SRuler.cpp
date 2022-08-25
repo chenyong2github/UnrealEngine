@@ -1,12 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Designer/SRuler.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Misc/Paths.h"
-#include "Rendering/DrawElements.h"
-#include "Styling/CoreStyle.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Geometry.h"
+#include "Layout/SlateRect.h"
+#include "Math/Color.h"
+#include "Math/Range.h"
+#include "Math/UnrealMathSSE.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateRenderer.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/SharedPointer.h"
+
+class FWidgetStyle;
+struct FPointerEvent;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "UMG"
 

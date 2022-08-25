@@ -2,9 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "RuntimeVirtualTextureThumbnailRenderer.generated.h"
+
+class FCanvas;
+class FRenderTarget;
+class UObject;
 
 UCLASS(MinimalAPI)
 class URuntimeVirtualTextureThumbnailRenderer : public UDefaultSizedThumbnailRenderer

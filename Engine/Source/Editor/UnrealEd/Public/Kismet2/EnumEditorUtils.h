@@ -2,9 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Engine/UserDefinedEnum.h"
+#include "HAL/Platform.h"
 #include "Kismet2/ListenerManager.h"
+#include "UObject/NameTypes.h"
+
+class FArchive;
+class FText;
+class UEnum;
+class UObject;
+class UUserDefinedEnum;
 
 class UNREALED_API FEnumEditorUtils
 {

@@ -2,6 +2,10 @@
 
 #include "Channels/FloatChannelKeyProxy.h"
 
+#include "HAL/PlatformCrt.h"
+
+struct FPropertyChangedEvent;
+
 void UFloatChannelKeyProxy::Initialize(FKeyHandle InKeyHandle, TMovieSceneChannelHandle<FMovieSceneFloatChannel> InChannelHandle, TWeakObjectPtr<UMovieSceneSection> InWeakSection)
 {
 	KeyHandle     = InKeyHandle;

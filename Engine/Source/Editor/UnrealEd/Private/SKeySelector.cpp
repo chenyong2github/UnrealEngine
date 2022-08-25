@@ -2,15 +2,37 @@
 
 
 #include "SKeySelector.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SComboBox.h"
-#include "ScopedTransaction.h"
-#include "Widgets/SToolTip.h"
+
+#include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Framework/Views/ITypedTableView.h"
 #include "IDocumentation.h"
-#include "Widgets/Input/SSearchBox.h"
-#include "Styling/CoreStyle.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
 #include "SListViewSelectorDropdownMenu.h"
+#include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/CoreStyle.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/Text/STextBlock.h"
+
+class ITableRow;
+class SWidget;
+struct FGeometry;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "KeySelector"
 

@@ -1,19 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "ILocalizationDashboardModule.h"
-#include "LocalizationDashboard.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "Features/IModularFeatures.h"
-#include "ILocalizationServiceProvider.h"
-#include "IDetailCustomization.h"
-#include "LocalizationDashboardSettingsDetailCustomization.h"
-#include "LocalizationTargetSetDetailCustomization.h"
-#include "LocalizationTargetDetailCustomization.h"
-#include "IPropertyTypeCustomization.h"
 #include "GatherTextDetailCustomizations.h"
-#include "PropertyEditorModule.h"
+#include "HAL/PlatformCrt.h"
+#include "ILocalizationDashboardModule.h"
 #include "ILocalizationServiceModule.h"
+#include "ILocalizationServiceProvider.h"
+#include "LocalizationDashboard.h"
+#include "LocalizationDashboardSettingsDetailCustomization.h"
+#include "LocalizationTargetDetailCustomization.h"
+#include "LocalizationTargetSetDetailCustomization.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class IDetailCustomization;
+class IStructCustomization;
 
 #define LOCTEXT_NAMESPACE "LocalizationDashboard"
 

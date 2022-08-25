@@ -6,7 +6,12 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
+#include "Internationalization/Internationalization.h"
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FUICommandInfo;
 
 /**
  * Unreal StaticMesh editor actions

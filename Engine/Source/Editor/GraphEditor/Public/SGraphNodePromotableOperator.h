@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "K2Node_PromotableOperator.h"
 #include "KismetNodes/SGraphNodeK2Sequence.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UK2Node_PromotableOperator;
+struct FSlateBrush;
 
 /**
  * A custom slate node for the promotable operator (K2Node_PromotableOperator)

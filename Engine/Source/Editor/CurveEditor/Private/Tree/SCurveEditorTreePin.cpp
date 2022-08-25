@@ -1,14 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/SCurveEditorTreePin.h"
-#include "CurveEditor.h"
-#include "Algo/AllOf.h"
 
+#include "Algo/AllOf.h"
+#include "Containers/ArrayView.h"
+#include "CurveEditor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "Styling/AppStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tree/CurveEditorTree.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Views/STableRow.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/ITableRow.h"
 
-#include "Styling/AppStyle.h"
+struct FSlateBrush;
 
 
 void SCurveEditorTreePin::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& InTableRow)

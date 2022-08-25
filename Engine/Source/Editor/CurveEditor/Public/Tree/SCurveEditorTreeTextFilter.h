@@ -2,12 +2,17 @@
 
 #pragma once
 
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SSearchBox;
 class FCurveEditor;
+class FText;
+class SSearchBox;
 struct FCurveEditorTreeTextFilter;
+struct FFocusEvent;
+struct FGeometry;
 
 class CURVEEDITOR_API SCurveEditorTreeTextFilter : public SCompoundWidget
 {

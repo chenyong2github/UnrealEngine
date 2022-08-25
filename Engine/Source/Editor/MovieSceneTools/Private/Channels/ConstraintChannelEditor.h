@@ -2,11 +2,26 @@
 
 #pragma once
 
-#include "SequencerChannelTraits.h"
-#include "SequencerChannelInterface.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Curves/KeyHandle.h"
 #include "KeyBarCurveModel.h"
+#include "SequencerChannelTraits.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
+class FCurveModel;
+class FSequencerSectionPainter;
+class FTrackInstancePropertyBindings;
+class ISequencer;
+class SWidget;
+class UMovieSceneSection;
+struct FFrameNumber;
+struct FGeometry;
+struct FGuid;
+struct FKeyDrawParams;
 struct FMovieSceneConstraintChannel;
+template <typename ChannelType> struct TMovieSceneChannelHandle;
 
 /** Should concillidate this with the FCosntraintChannelHelper once that moves out of the control rig module*/
 struct FConstraintChannelEditor

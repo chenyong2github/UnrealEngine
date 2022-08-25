@@ -1,9 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraphToken.h"
-#include "Kismet2/CompilerResultsLog.h"
+
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "Misc/UObjectToken.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
 
 void FEdGraphToken::Create(const UObject* InObject, FCompilerResultsLog* Log, FTokenizedMessage &OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
 {

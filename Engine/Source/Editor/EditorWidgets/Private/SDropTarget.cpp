@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDropTarget.h"
-#include "Rendering/DrawElements.h"
-#include "Widgets/SOverlay.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/Platform.h"
+#include "Layout/Children.h"
+#include "Layout/Clipping.h"
+#include "Layout/Geometry.h"
+#include "Math/Vector2D.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SlotBase.h"
+#include "Styling/SlateBrush.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/SOverlay.h"
+
+class FSlateRect;
+class FWidgetStyle;
 
 
 #define LOCTEXT_NAMESPACE "EditorWidgets"

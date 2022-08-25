@@ -7,9 +7,12 @@
 #include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModelTypeID.h"
 #include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "Misc/FrameRate.h"
 #include "Templates/SharedPointer.h"
 #include "TimeToPixel.h"
+
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 
 namespace UE
 {

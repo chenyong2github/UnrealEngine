@@ -2,6 +2,7 @@
 
 #include "Tools/EditToolDragOperations.h"
 #include "ISequencer.h"
+#include "ISequencerSection.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneSequence.h"
 #include "Sequencer.h"

@@ -2,6 +2,12 @@
 
 #include "SLevelOfDetailBranchNode.h"
 
+#include "CoreTypes.h"
+#include "Layout/Children.h"
+#include "Widgets/SNullWidget.h"
+
+struct FGeometry;
+
 /////////////////////////////////////////////////////
 // SLevelOfDetailBranchNode
 

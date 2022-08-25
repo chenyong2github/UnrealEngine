@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Settings/EditorStyleSettings.h"
+#include "CoreGlobals.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
+#include "Settings/EditorStyleSettings.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 #include "Styling/StyleColors.h"
+
+class FObjectInitializer;
 
 
 /* UEditorStyleSettings interface

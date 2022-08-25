@@ -1,13 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_ConstructObjectFromClass.h"
-#include "UObject/UnrealType.h"
-#include "EdGraphSchema_K2.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
+#include "Engine/Blueprint.h"
 #include "FindInBlueprintManager.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 struct FK2Node_ConstructObjectFromClassHelper
 {

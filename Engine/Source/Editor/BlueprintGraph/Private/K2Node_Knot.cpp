@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_Knot.h"
-#include "EdGraphSchema_K2.h"
-#include "Kismet2/Kismet2NameValidators.h"
-#include "BlueprintNodeSpawner.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/Kismet2NameValidators.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_Knot"
 

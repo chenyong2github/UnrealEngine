@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "ISequencerSection.h"
 
 class FSequencerSectionPainter;
+class UMovieSceneSection;
 
 /**
 * An implementation of bool sections.

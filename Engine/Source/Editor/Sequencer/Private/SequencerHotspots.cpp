@@ -16,6 +16,7 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerCommonHelpers.h"
+#include "ISequencerSection.h"
 #include "MovieSceneSignedObject.h"
 
 #include "MVVM/ViewModels/SectionModel.h"

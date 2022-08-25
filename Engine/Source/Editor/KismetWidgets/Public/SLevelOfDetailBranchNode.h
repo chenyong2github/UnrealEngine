@@ -3,10 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+
+class SWidget;
+struct FGeometry;
 
 /////////////////////////////////////////////////////
 // SLevelOfDetailBranchNode

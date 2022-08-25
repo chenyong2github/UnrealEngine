@@ -1,7 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/GenerateGatherArchiveCommandlet.h"
+
+#include "Commandlets/Commandlet.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/InternationalizationArchive.h"
+#include "Internationalization/InternationalizationManifest.h"
 #include "Internationalization/InternationalizationMetadata.h"
+#include "Internationalization/Text.h"
+#include "LocTextHelper.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenerateArchiveCommandlet, Log, All);
 

@@ -1,16 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Filters/CurveEditorEulerFilter.h"
-#include "CoreMinimal.h"
-#include "ScopedTransaction.h"
-#include "Curves/KeyHandle.h"
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CurveDataAbstraction.h"
 #include "CurveEditor.h"
 #include "CurveEditorSelection.h"
+#include "CurveEditorTypes.h"
 #include "CurveModel.h"
-#include "Misc/FrameRate.h"
-#include "CurveEditorSnapMetrics.h"
-#include "Containers/ArrayView.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 void UCurveEditorEulerFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEditor, const TMap<FCurveModelID, FKeyHandleSet>& InKeysToOperateOn, TMap<FCurveModelID, FKeyHandleSet>& OutKeysToSelect)
 {

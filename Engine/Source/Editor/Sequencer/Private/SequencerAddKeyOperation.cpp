@@ -2,18 +2,28 @@
 
 #include "SequencerAddKeyOperation.h"
 
-#include "ISequencer.h"
-#include "ISequencerTrackEditor.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
 #include "IKeyArea.h"
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/ChannelModel.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
-#include "MVVM/ViewModels/SequenceModel.h"
-#include "MVVM/ViewModels/OutlinerViewModel.h"
-#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "ISequencer.h"
+#include "ISequencerSection.h"
+#include "ISequencerTrackEditor.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/ITrackExtension.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "SequencerKeyParams.h"
+#include "Templates/Tuple.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
-#include "Algo/Find.h"
+namespace UE::Sequencer { class FSequenceModel; }
 
 
 namespace UE

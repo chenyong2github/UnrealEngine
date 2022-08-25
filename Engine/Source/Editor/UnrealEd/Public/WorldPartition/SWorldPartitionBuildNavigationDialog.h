@@ -3,10 +3,16 @@
 #pragma once
 
 #include "Input/Reply.h"
-#include "Widgets/SWindow.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWindow.h"
 
+class SWindow;
 class UWorldPartitionBuildNavigationOptions;
 
 class SWorldPartitionBuildNavigationDialog : public SCompoundWidget

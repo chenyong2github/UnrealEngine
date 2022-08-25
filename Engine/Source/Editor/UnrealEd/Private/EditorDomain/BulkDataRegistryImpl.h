@@ -4,20 +4,32 @@
 
 #include "Async/AsyncWork.h"
 #include "Async/Future.h"
-#include <atomic>
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
 #include "DerivedDataRequestOwner.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "Misc/Guid.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "Serialization/EditorBulkData.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tickable.h"
 #include "TickableEditorObject.h"
+#include "UObject/NameTypes.h"
 
+#include <atomic>
+
+class FArchive;
 class FCompressedBuffer;
+class FSharedBuffer;
 class UPackage;
-struct FIoHash;
+struct FEndLoadPackageContext;
 
 namespace UE::BulkDataRegistry::Private
 {

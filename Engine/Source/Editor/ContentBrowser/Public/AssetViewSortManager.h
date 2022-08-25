@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Containers/StringView.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "ContentBrowserDelegates.h"
+#include "CoreMinimal.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 class FAssetViewItem;
+class FString;
+struct FAssetViewCustomColumn;
 
 class CONTENTBROWSER_API FAssetViewSortManager
 {

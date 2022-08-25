@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/GCObject.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
 #include "TranslationPickerEditWindow.generated.h"
+
+struct FGeometry;
+struct FKeyEvent;
 
 #define LOCTEXT_NAMESPACE "TranslationPicker"
 

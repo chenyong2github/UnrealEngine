@@ -1,16 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Styling/AppStyle.h"
-#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "SPropertyComboBox.h"
 #include "SSearchableComboBox.h"
+#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
 
 class SToolTip;
+class SWidget;
+struct FGeometry;
+struct FKeyEvent;
 
 class SPropertyComboBox : public SSearchableComboBox
 {

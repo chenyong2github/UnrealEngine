@@ -3,6 +3,10 @@
 #include "TemplateStringStructCustomization.h"
 
 #include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 #include "PropertyHandle.h"
 #include "STemplateStringEditableTextBox.h"
 #include "UObject/TemplateString.h"

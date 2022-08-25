@@ -1,7 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyComboBox.h"
+
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformMath.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "PropertyComboBox"
 

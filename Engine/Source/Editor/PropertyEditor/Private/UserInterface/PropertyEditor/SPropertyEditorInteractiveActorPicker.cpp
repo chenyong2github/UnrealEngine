@@ -1,8 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "UserInterface/PropertyEditor/SPropertyEditorInteractiveActorPicker.h"
+
+#include "Delegates/Delegate.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/Images/SImage.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Widgets/Images/SImage.h"
+
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "PropertyPicker"
 

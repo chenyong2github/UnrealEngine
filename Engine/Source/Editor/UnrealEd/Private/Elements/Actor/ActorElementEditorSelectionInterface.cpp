@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Actor/ActorElementEditorSelectionInterface.h"
-#include "Elements/Actor/ActorElementData.h"
-#include "GameFramework/Actor.h"
 
-#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Actor/ActorElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
+#include "GameFramework/Actor.h"
+#include "Serialization/Archive.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FActorElementTransactedElement : public ITypedElementTransactedElement
 {

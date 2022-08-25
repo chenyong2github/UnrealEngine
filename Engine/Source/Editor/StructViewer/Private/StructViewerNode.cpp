@@ -1,10 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StructViewerNode.h"
+
 #include "AssetRegistry/AssetData.h"
-#include "PropertyHandle.h"
-#include "Misc/ScopedSlowTask.h"
 #include "Engine/UserDefinedStruct.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ScopedSlowTask.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "StructViewer"
 

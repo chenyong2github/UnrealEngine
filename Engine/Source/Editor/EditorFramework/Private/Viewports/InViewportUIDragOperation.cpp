@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Viewports/InViewportUIDragOperation.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/SWindow.h"
-#include "Styling/AppStyle.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Layout/SlateRect.h"
+#include "Misc/AssertionMacros.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Widgets/SWindow.h"
+
+class SWidget;
+struct FPointerEvent;
 
 const FVector2D FInViewportUIDragOperation::GetDecoratorOffsetFromCursor()
 {

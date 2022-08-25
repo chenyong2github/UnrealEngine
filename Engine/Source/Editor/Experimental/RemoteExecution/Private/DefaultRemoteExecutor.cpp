@@ -2,6 +2,11 @@
 
 #include "DefaultRemoteExecutor.h"
 
+#include "Internationalization/Internationalization.h"
+
+namespace UE::RemoteExecution { class IContentAddressableStorage; }
+namespace UE::RemoteExecution { class IExecution; }
+
 #define LOCTEXT_NAMESPACE "DefaultRemoteExecutor"
 
 

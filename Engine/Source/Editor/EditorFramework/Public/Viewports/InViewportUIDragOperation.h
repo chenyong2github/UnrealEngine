@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Delegates/Delegate.h"
 #include "Input/DragAndDrop.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+struct FPointerEvent;
 
 DECLARE_DELEGATE_OneParam(FOnInViewportUIDropped, const FVector2D DropLocation)
 

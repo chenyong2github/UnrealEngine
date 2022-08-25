@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ExtractLocResCommandlet.h"
+
 #include "Commandlets/GatherTextCommandletBase.h"
-#include "Misc/Paths.h"
-#include "Misc/FileHelper.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/LocalizedTextSourceTypes.h"
+#include "Internationalization/TextKey.h"
 #include "Internationalization/TextLocalizationResource.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Templates/Tuple.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogExtractLocRes, Log, All);
 

@@ -3,13 +3,13 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
 #include "Containers/Set.h"
 #include "CookRequests.h"
 #include "CookTypes.h"
-#include "CookOnTheFlyServerInterface.h"
-#include "Engine/ICookInfo.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
@@ -17,6 +17,9 @@
 
 class ITargetPlatform;
 class UPackage;
+namespace UE::Cook { struct FInstigator; }
+namespace UE::Cook { struct FPackageData; }
+namespace UE::Cook { struct FRecompileShaderRequest; }
 
 namespace UE
 {

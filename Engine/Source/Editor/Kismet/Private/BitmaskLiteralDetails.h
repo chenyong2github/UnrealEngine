@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Types/SlateEnums.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 
+class FString;
 class IDetailLayoutBuilder;
+class UEnum;
 class UK2Node_BitmaskLiteral;
 
 /** Details customization for the "Make Bitmask Literal" node */

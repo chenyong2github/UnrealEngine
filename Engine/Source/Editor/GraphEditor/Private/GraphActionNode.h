@@ -2,9 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "SGraphActionMenu.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+
+template <typename ItemType> class STreeView;
 
 // Utility class for building menus of graph actions
 struct GRAPHEDITOR_API FGraphActionNode : TSharedFromThis<FGraphActionNode>

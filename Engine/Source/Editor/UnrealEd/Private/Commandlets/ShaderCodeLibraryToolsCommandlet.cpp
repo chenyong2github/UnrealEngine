@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ShaderCodeLibraryToolsCommandlet.h"
-#include "Misc/Paths.h"
 
-#include "PipelineFileCache.h"
-#include "ShaderCodeLibrary.h"
-#include "Misc/FileHelper.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "CoreGlobals.h"
+#include "HAL/PlatformCrt.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "ShaderCodeLibrary.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogShaderCodeLibraryTools, Log, All);
 

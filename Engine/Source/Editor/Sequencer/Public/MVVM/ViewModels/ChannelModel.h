@@ -2,29 +2,40 @@
 
 #pragma once
 
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/Extensions/IOutlinerExtension.h"
-#include "MVVM/Extensions/IGeometryExtension.h"
-#include "MVVM/ViewModels/OutlinerItemModel.h"
-#include "MVVM/Extensions/LinkedOutlinerExtension.h"
-#include "MVVM/Extensions/ITrackAreaExtension.h"
-#include "MVVM/Extensions/IDeletableExtension.h"
-#include "MVVM/Extensions/ITrackLaneExtension.h"
-#include "MVVM/Extensions/IKeyExtension.h"
 #include "Channels/MovieSceneChannelOverrideContainer.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "EventHandlers/ISignedObjectEventHandler.h"
-#include "Tree/ICurveEditorTreeItem.h"
-
-#include "UObject/NameTypes.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "MVVM/Extensions/IDeletableExtension.h"
+#include "MVVM/Extensions/IGeometryExtension.h"
+#include "MVVM/Extensions/IKeyExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
+#include "MVVM/Extensions/LinkedOutlinerExtension.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/OutlinerItemModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Tree/ICurveEditorTreeItem.h"
+#include "UObject/NameTypes.h"
 
+class FCurveModel;
+class FSequencerSectionKeyAreaNode;
+class IKeyArea;
+class ISequencerSection;
+class SWidget;
+class UMovieSceneSection;
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 struct FMovieSceneChannel;
 struct FMovieSceneChannelHandle;
 struct FSequencerChannelPaintArgs;
-
-class IKeyArea;
-class ISequencerSection;
-class UMovieSceneSection;
 
 namespace UE
 {

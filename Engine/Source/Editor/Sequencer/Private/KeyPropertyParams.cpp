@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KeyPropertyParams.h"
+
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 
 FPropertyPath PropertyHandleToPropertyPath(const UClass* OwnerClass, const IPropertyHandle& InPropertyHandle)
 {

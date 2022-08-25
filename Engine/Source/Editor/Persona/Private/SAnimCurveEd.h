@@ -3,15 +3,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "SCurveEditor.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FWidgetStyle;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
+template <typename OptionalType> struct TOptional;
 
 DECLARE_DELEGATE_OneParam(FOnSelectionChanged, const TArray<UObject*>&)
 DECLARE_DELEGATE(FOnUpdatePanel)

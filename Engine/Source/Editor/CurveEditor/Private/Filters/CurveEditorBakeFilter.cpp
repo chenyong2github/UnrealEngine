@@ -1,16 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Filters/CurveEditorBakeFilter.h"
-#include "CoreMinimal.h"
-#include "ScopedTransaction.h"
-#include "Curves/KeyHandle.h"
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CurveDataAbstraction.h"
 #include "CurveEditor.h"
 #include "CurveEditorSelection.h"
-#include "CurveModel.h"
-#include "Misc/FrameRate.h"
 #include "CurveEditorSnapMetrics.h"
-#include "Containers/ArrayView.h"
+#include "CurveEditorTypes.h"
+#include "CurveModel.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RealCurve.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Optional.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEditor, const TMap<FCurveModelID, FKeyHandleSet>& InKeysToOperateOn, TMap<FCurveModelID, FKeyHandleSet>& OutKeysToSelect)
 {

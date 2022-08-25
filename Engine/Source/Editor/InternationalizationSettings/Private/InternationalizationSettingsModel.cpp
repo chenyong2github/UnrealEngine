@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InternationalizationSettingsModel.h"
+
+#include "CoreGlobals.h"
+#include "Internationalization/TextLocalizationManager.h"
+#include "Math/UnrealMathSSE.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/DateTime.h"
+#include "Misc/Timespan.h"
 
 /* UInternationalizationSettingsModel interface
  *****************************************************************************/

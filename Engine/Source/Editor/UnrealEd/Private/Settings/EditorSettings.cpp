@@ -1,13 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Settings/EditorSettings.h"
+
+#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
+#include "Interfaces/IProjectManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
-#include "Interfaces/IProjectManager.h"
 
 UEditorSettings::UEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

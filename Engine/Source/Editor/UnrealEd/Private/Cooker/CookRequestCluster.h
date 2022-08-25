@@ -2,9 +2,18 @@
 
 #pragma once
 
-#include <atomic>
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "Engine/ICookInfo.h"
+#include "HAL/Event.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+
+class ICookedPackageWriter;
 #include "Containers/Array.h"
-#include "Containers/ArrayView.h"
 #include "Containers/Map.h"
 #include "Containers/MpscQueue.h"
 #include "Containers/RingBuffer.h"
@@ -14,9 +23,10 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
+#include <atomic>
+
 class IAssetRegistry;
 class ITargetPlatform;
-class FEvent;
 class UCookOnTheFlyServer;
 namespace UE::Cook { class FRequestQueue; }
 namespace UE::Cook { struct FFilePlatformRequest; }
@@ -25,6 +35,7 @@ namespace UE::Cook { struct FPackageTracker; }
 
 namespace UE::Cook
 {
+struct FPackageData;
 
 /**
  * A group of external requests sent to CookOnTheFlyServer's tick loop. Transitive dependencies are found and all of the

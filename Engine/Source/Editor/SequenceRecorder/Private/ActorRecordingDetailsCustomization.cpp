@@ -1,12 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorRecordingDetailsCustomization.h"
-#include "UObject/UnrealType.h"
-#include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
+
 #include "ActorRecording.h"
+#include "Containers/Array.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "ObjectEditorUtils.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
 
 void FActorRecordingDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {

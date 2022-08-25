@@ -1,12 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/SCurveEditorTreeFilterStatusBar.h"
-#include "CurveEditor.h"
 
 #include "Algo/Count.h"
+#include "Containers/Map.h"
+#include "CurveEditor.h"
+#include "CurveEditorTypes.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Tuple.h"
+#include "Tree/CurveEditorTree.h"
+#include "Widgets/Input/SHyperlink.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SHyperlink.h"
 
 #define LOCTEXT_NAMESPACE "SCurveEditorTreeFilterStatusBar"
 

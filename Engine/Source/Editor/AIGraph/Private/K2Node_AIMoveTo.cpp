@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_AIMoveTo.h"
+
 #include "Blueprint/AIAsyncTaskBlueprintProxy.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "EditorCategoryUtils.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_AIMoveTo"
 

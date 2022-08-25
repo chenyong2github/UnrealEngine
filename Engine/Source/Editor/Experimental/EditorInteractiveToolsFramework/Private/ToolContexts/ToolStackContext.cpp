@@ -1,9 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ToolContexts/ToolStackContext.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Toolkits/BaseToolkit.h"
+
 #include "EdModeInteractiveToolsContext.h"
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Commands/UICommandList.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "InteractiveToolManager.h"
+#include "InteractiveToolStack.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Tuple.h"
+#include "Toolkits/BaseToolkit.h"
+#include "UObject/ObjectPtr.h"
+
+class UInteractiveToolBuilder;
 
 UToolStackContext::~UToolStackContext()
 {

@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "XmlParser.h"
-#include "Containers/Map.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
 
+class FXmlNode;
 /** The FFCPXMLNode pure virtual base class represents a node in the
 	FCP 7 XML tree. There are derived classes for each node type, including
 	a "Basic" node as default node type.

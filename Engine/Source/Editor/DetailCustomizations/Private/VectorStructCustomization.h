@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Containers/Array.h"
 #include "Customizations/MathStructCustomizations.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
+class IPropertyTypeCustomization;
 
 /**
  * Customizes FVector structs.

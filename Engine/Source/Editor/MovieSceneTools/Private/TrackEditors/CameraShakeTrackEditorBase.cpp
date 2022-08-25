@@ -1,11 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraShakeTrackEditorBase.h"
-#include "CommonMovieSceneTools.h"
-#include "Styling/AppStyle.h"
+
+#include "Camera/CameraShakeBase.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
+#include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/Range.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "MovieScene.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateLayoutTransform.h"
 #include "SequencerSectionPainter.h"
+#include "Styling/AppStyle.h"
+#include "TimeToPixel.h"
+#include "UObject/Class.h"
+
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "CameraShakeTrackEditorBase"
 

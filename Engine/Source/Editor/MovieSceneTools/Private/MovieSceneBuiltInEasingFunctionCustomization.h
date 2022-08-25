@@ -2,7 +2,11 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
+
+class IDetailLayoutBuilder;
 
 enum class EMovieSceneBuiltInEasing : uint8;
 class FReply;

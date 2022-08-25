@@ -1,7 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorConfig.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Serialization/JsonTypes.h"
+#include "UObject/Class.h"
 #include "UObject/EnumProperty.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/PropertyPortFlags.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
 

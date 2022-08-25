@@ -1,14 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SKismetLinearExpression.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SEditableText.h"
-#include "Styling/AppStyle.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
 #include "K2Node_VariableGet.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "KismetLinearExpression"
 

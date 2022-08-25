@@ -3,27 +3,34 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Styling/SlateColor.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
+#include "MVVM/ViewModelPtr.h"
+#include "Misc/Attribute.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "MVVM/ViewModelPtr.h"
+#include "Widgets/SWidget.h"
 
-struct FSlateBrush;
-struct FOptionalSize;
-struct FTableRowStyle;
 class ISequencer;
+struct FGeometry;
+struct FOptionalSize;
+struct FPointerEvent;
+struct FSlateBrush;
+struct FTableRowStyle;
 
 namespace UE
 {
 namespace Sequencer
 {
 
+class FEditorViewModel;
 class IOutlinerExtension;
 class IRenameableExtension;
 class ISequencerTreeViewRow;
-class FEditorViewModel;
 
 enum class EOutlinerItemViewBaseStyle
 {

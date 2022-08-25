@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Misc/DateTime.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "TranslationUnit.generated.h"
 
 class FLocMetadataObject;
+class FName;
 
 USTRUCT()
 struct FTranslationChange

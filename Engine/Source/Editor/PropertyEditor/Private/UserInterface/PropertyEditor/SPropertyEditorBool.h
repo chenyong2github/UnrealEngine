@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Input/Reply.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Presentation/PropertyEditor/PropertyEditor.h"
-#include "Widgets/Input/SCheckBox.h"
+
+struct FFocusEvent;
+struct FGeometry;
+struct FPointerEvent;
 
 class SPropertyEditorBool : public SCompoundWidget
 {

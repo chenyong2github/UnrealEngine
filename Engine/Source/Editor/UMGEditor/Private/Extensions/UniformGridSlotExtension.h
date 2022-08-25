@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "WidgetReference.h"
+#include "Containers/Array.h"
 #include "DesignerExtension.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+
+class UWidget;
+struct FWidgetReference;
 
 class FUniformGridSlotExtension : public FDesignerExtension
 {

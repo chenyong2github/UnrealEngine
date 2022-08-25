@@ -2,8 +2,22 @@
 
 #pragma once
 
+#include "AnimatedPropertyKey.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Delegates/Delegate.h"
+#include "KeyframeTrackEditor.h"
 #include "PropertyTrackEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 #include "Tracks/MovieSceneObjectPropertyTrack.h"
+#include "UObject/UnrealType.h"
+
+class FPropertyChangedParams;
+class ISequencer;
+class ISequencerTrackEditor;
+class UMovieSceneSection;
 
 class FObjectPropertyTrackEditor : public FPropertyTrackEditor<UMovieSceneObjectPropertyTrack>
 {

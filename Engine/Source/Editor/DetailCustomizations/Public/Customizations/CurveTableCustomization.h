@@ -2,23 +2,50 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Layout/Margin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "IPropertyTypeCustomization.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
-#include "IDetailChildrenBuilder.h"
+#include "Delegates/Delegate.h"
 #include "DetailWidgetRow.h"
-#include "IPropertyUtilities.h"
+#include "DetailWidgetRow.h"
 #include "Engine/CurveTable.h"
-#include "PropertyHandle.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
+#include "IPropertyTypeCustomization.h"
 #include "IPropertyUtilities.h"
-#include "DetailWidgetRow.h"
+#include "IPropertyUtilities.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
+class UObject;
+struct FRealCurve;
 
 /**
  * Customizes a DataTable asset to use a dropdown

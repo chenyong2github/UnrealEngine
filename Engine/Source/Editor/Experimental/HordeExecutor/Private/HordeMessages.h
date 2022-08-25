@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IRemoteMessage.h"
+#include "Containers/Set.h"
 #include "IO/IoHash.h"
+#include "IRemoteMessage.h"
+#include "Serialization/CompactBinary.h"
 
 
 namespace UE::RemoteExecution

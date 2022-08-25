@@ -1,9 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundClassGraph/SoundClassGraphNode.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 #include "Sound/SoundClass.h"
-#include "SoundClassGraph/SoundClassGraphSchema.h"
 #include "SoundClassGraph/SoundClassGraph.h"
+#include "SoundClassGraph/SoundClassGraphSchema.h"
+#include "Templates/Casts.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "SoundClassGraphNode"
 

@@ -1,26 +1,54 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPlistEditor.h"
-#include "HAL/FileManager.h"
-#include "Misc/App.h"
-#include "Widgets/SOverlay.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SEditableText.h"
-#include "Widgets/Input/SButton.h"
-#include "Misc/MessageDialog.h"
 
-#include "XmlFile.h"
+#include "Containers/StringConv.h"
+#include "DesktopPlatformModule.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformMath.h"
+#include "HAL/PlatformMisc.h"
+#include "IDesktopPlatform.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/App.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/Paths.h"
+#include "PListNode.h"
 #include "PListNodeArray.h"
 #include "PListNodeBoolean.h"
 #include "PListNodeDictionary.h"
 #include "PListNodeFile.h"
 #include "PListNodeString.h"
-#include "DesktopPlatformModule.h"
-
+#include "Serialization/Archive.h"
+#include "SlotBase.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/STableRow.h"
+#include "XmlFile.h"
+#include "XmlNode.h"
+
+class ITableRow;
+class SWidget;
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
+
 #define LOCTEXT_NAMESPACE "PListEditor"
 
 /** Constructs the main widget for the editor */

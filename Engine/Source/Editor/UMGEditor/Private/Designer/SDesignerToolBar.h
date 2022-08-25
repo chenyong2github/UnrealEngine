@@ -2,13 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "SDesignerToolBar.h"
 #include "SViewportToolBar.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FExtender;
 class FUICommandList;
+class SWidget;
+
 enum class ECheckBoxState : uint8;
 
 /**

@@ -1,15 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceCodeAccessSettingsDetails.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboBox.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
-#include "ISourceCodeAccessor.h"
-#include "ISourceCodeAccessModule.h"
 #include "Features/IModularFeatures.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyHandle.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTemplate.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IModularFeature;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SourceCodeAccessSettingsDetails"
 

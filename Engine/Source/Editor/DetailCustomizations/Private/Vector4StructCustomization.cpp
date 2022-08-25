@@ -1,13 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Vector4StructCustomization.h"
-#include "IPropertyUtilities.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Colors/SColorGradingPicker.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
+
+#include "ColorGradingVectorCustomization.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "PropertyHandle.h"
 #include "UObject/UnrealType.h"
-#include "Widgets/Layout/SBox.h"
+
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyTypeCustomization;
+class IPropertyTypeCustomizationUtils;
+
 TSharedRef<IPropertyTypeCustomization> FVector4StructCustomization::MakeInstance()
 {
 	return MakeShareable(new FVector4StructCustomization);

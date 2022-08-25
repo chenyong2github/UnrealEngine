@@ -1,12 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerKeyParams.h"
-#include "IKeyArea.h"
-#include "ISequencer.h"
-#include "ISequencerSection.h"
-#include "MovieSceneTrack.h"
 
+#include "Algo/Find.h"
 #include "Algo/IndexOf.h"
+#include "Algo/Sort.h"
+#include "CoreTypes.h"
+#include "IKeyArea.h"
+#include "ISequencerSection.h"
+#include "Math/Range.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "MovieSceneCommonHelpers.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "Templates/Function.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE
 {

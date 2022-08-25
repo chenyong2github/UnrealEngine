@@ -4,13 +4,24 @@
 	EdGraphCompiler.cpp
 =============================================================================*/
 
-#include "CoreMinimal.h"
-#include "EdGraph/EdGraphNode.h"
-#include "Templates/SubclassOf.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "EdGraph/EdGraph.h"
-#include "Kismet2/CompilerResultsLog.h"
-#include "EdGraphUtilities.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphCompilerUtilities.h"
+#include "EdGraphUtilities.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectPtr.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FGraphCompilerContext

@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
 
+class SWidget;
 class UEdGraphNode;
 class UEdGraphPin;
 

@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/MeshMerging.h"
-#include "Layout/Visibility.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
 #include "OverrideResetToDefault.h"
+#include "Templates/SharedPointer.h"
 
+class FDetailWidgetRow;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 

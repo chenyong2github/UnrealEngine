@@ -2,12 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "PropertyHandle.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class SWidget;
 
 struct FAccessorItem
 {

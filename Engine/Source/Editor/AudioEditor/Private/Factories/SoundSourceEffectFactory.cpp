@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundSourceEffectFactory.h"
-#include "Sound/SoundSubmix.h"
-#include "AudioDeviceManager.h"
+
 #include "ClassViewerModule.h"
-#include "ClassViewerFilter.h"
-#include "SoundFactoryUtility.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Modules/ModuleManager.h"
-#include "Sound/AudioSettings.h"
+#include "Sound/SoundEffectSource.h"
+#include "SoundFactoryUtility.h"
+#include "Templates/SharedPointer.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "AudioEditorFactories"
 

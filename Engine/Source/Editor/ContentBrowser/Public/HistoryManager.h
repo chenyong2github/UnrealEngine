@@ -2,8 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Math/UnrealMathSSE.h"
 #include "SourcesData.h"
+#include "UObject/NameTypes.h"
 
 class FMenuBuilder;
 

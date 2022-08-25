@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
+#include "Misc/Optional.h"
 #include "SGraphPin.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
+class UEdGraphPin;
 
 class SGraphPinKey : public SGraphPin
 {

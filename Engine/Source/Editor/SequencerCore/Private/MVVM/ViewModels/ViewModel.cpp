@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
+
+#include "HAL/PlatformCrt.h"
 #include "MVVM/SharedViewModelData.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
 
 namespace UE
 {

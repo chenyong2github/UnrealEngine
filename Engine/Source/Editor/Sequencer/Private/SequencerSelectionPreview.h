@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Misc/Optional.h"
 #include "SequencerSelectedKey.h"
+#include "Templates/SharedPointer.h"
 
-#include "MVVM/ViewModels/ViewModel.h"
-
-class UMovieSceneSection;
+namespace UE::Sequencer { class FViewModel; }
 
 enum class ESelectionPreviewState
 {
@@ -16,7 +16,6 @@ enum class ESelectionPreviewState
 	Selected,
 	NotSelected
 };
-
 
 /**
  * Manages the selection of keys, sections, and outliner nodes for the sequencer.

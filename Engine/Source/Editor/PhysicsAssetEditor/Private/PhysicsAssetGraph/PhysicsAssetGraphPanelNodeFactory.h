@@ -3,6 +3,9 @@
 #pragma once
 
 #include "EdGraphUtilities.h"
+#include "Templates/SharedPointer.h"
+
+class UEdGraphNode;
 
 class FPhysicsAssetGraphPanelNodeFactory : public FGraphPanelNodeFactory
 {

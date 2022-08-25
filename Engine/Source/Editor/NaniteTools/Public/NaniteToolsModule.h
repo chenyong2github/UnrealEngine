@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/SoftObjectPath.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/SoftObjectPath.h"
 
+class FSpawnTabArgs;
 class SDockTab;
 class SNaniteTools;
 class UNaniteToolsArguments;
-class FSpawnTabArgs;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNaniteTools, Log, All);
 

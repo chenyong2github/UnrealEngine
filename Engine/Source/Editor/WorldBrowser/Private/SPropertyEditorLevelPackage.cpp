@@ -1,12 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPropertyEditorLevelPackage.h"
-#include "Misc/TextFilter.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "HAL/PlatformFileManager.h"
-#include "Widgets/Views/SListView.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "DetailLayoutBuilder.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformFileManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Misc/TextFilter.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
 

@@ -1,13 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/SCurveEditorTree.h"
-#include "Tree/CurveEditorTree.h"
-#include "Tree/ICurveEditorTreeItem.h"
 
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "CurveEditor.h"
-
-#include "Widgets/Views/STableRow.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tree/CurveEditorTree.h"
+#include "Tree/CurveEditorTreeTraits.h"
+#include "Tree/ICurveEditorTreeItem.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/STableRow.h"
+
+class SWidget;
+struct FGeometry;
 
 
 struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>

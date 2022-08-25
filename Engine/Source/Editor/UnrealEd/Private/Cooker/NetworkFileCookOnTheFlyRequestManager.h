@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 
-struct FNetworkFileServerOptions;
+
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 namespace UE { namespace Cook
 {
 
-class ICookOnTheFlyServer;
-class ICookOnTheFlyRequestManager;
 class ICookOnTheFlyNetworkServer;
+class ICookOnTheFlyRequestManager;
+class ICookOnTheFlyServer;
 
 TUniquePtr<ICookOnTheFlyRequestManager> MakeNetworkFileCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, TSharedRef<ICookOnTheFlyNetworkServer> NetworkServer);
 

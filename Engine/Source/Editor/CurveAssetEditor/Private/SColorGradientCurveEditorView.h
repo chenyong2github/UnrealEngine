@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Misc/Attribute.h"
+#include "SColorGradientEditor.h"
 #include "SCurveEditorView.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-class SColorGradientEditor;
+class FCurveEditor;
 
 /**
 * This wraps a SColorGradientEditor widget. The SColorGradientEditor widget doesn't

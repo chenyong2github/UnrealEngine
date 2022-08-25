@@ -1,15 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequenceBindingTree.h"
-#include "MovieSceneSequence.h"
-#include "MovieScene.h"
-#include "Tracks/MovieSceneSubTrack.h"
-#include "Sections/MovieSceneSubSection.h"
-#include "Sections/MovieSceneCinematicShotSection.h"
 
-#include "Styling/SlateIconFinder.h"
-#include "Textures/SlateIcon.h"
+#include "CoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieScene.h"
+#include "MovieSceneFwd.h"
+#include "MovieScenePossessable.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneSequence.h"
+#include "MovieSceneSpawnable.h"
+#include "MovieSceneTrack.h"
+#include "Sections/MovieSceneCinematicShotSection.h"
+#include "Sections/MovieSceneSubSection.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateIconFinder.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "Tracks/MovieSceneSubTrack.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneObjectBindingIDPicker"
 

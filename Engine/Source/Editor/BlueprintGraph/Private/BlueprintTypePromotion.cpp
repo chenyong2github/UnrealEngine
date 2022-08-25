@@ -1,10 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintTypePromotion.h"
-#include "Modules/ModuleManager.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraphSchema_K2.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "UObject/UObjectHash.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "UObject/Class.h"
+#include "UObject/Script.h"
 #include "UObject/UObjectGlobals.h"		// For FCoreUObjectDelegates::ReloadCompleteDelegate
+#include "UObject/UObjectHash.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "initializer_list"
+
+class UBlueprintFunctionNodeSpawner;
+class UK2Node;
 
 FTypePromotion* FTypePromotion::Instance = nullptr;
 

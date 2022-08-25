@@ -2,13 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "KismetNodes/SGraphNodeK2Base.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FString;
 class SSearchableComboBox;
-class STableViewBase;
 class SVerticalBox;
+class SWidget;
+class UFunction;
 class UK2Node;
 
 /**

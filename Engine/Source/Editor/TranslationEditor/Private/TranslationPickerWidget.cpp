@@ -1,19 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TranslationPickerWidget.h"
-#include "Styling/ISlateStyle.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/SWindow.h"
+
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SToolTip.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Framework/Docking/TabManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "TranslationPickerFloatingWindow.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
 #include "TranslationPickerEditWindow.h"
+#include "TranslationPickerFloatingWindow.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "TranslationPicker"
 

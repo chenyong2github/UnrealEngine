@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCollectionPicker.h"
+
+#include "Layout/Children.h"
 #include "SCollectionView.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"

@@ -3,15 +3,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
-#include "Modules/ModuleInterface.h"
+#include "Containers/Array.h"
 #include "ContentBrowserDelegates.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "MRUFavoritesList.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
+class FContentBrowserPluginFilter;
+class FMainMRUFavoritesList;
+class FString;
+class FText;
 class IContentBrowserSingleton;
 struct FARFilter;
-class FMainMRUFavoritesList;
-class FContentBrowserPluginFilter;
+struct FAssetData;
 
 
 /** Extra state generator that adds an icon and a corresponding legend entry on an asset. */

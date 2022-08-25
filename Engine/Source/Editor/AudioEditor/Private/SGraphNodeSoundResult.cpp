@@ -1,9 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGraphNodeSoundResult.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
+
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SlotBase.h"
 #include "SoundCueGraph/SoundCueGraphNode_Base.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 void SGraphNodeSoundResult::Construct(const FArguments& InArgs, USoundCueGraphNode_Base* InNode)
 {

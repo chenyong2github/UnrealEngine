@@ -2,27 +2,52 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Types/SlateStructs.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Styling/AppStyle.h"
 #include "EdGraphSchema_K2.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SlateFwd.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
 
+class ITableRow;
 class SComboButton;
 class SMenuOwner;
+class SSearchBox;
 class SToolTip;
+class SWidget;
+class UEdGraphSchema;
+struct FEdGraphSchemaAction;
+struct FGeometry;
 struct FObjectReferenceType;
+struct FPointerEvent;
+struct FSlateBrush;
 
 DECLARE_DELEGATE_OneParam(FOnPinTypeChanged, const FEdGraphPinType&)
 
@@ -36,6 +61,7 @@ typedef STreeView<FPinTypeTreeItem> SPinTypeTreeView;
 DECLARE_DELEGATE_TwoParams(FGetPinTypeTree, TArray<FPinTypeTreeItem >&, ETypeTreeFilter);
 
 struct FObjectReferenceType;
+
 typedef TSharedPtr<struct FObjectReferenceType> FObjectReferenceListItem;
 
 /** Widget for modifying the type for a variable or pin */

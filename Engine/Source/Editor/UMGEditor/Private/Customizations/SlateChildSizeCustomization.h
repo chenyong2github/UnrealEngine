@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "Components/SlateWrapperTypes.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+
+class IPropertyHandle;
 
 class FSlateChildSizeCustomization : public IPropertyTypeCustomization
 {

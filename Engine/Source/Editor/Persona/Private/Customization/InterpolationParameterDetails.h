@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
 class IPropertyHandle;
 

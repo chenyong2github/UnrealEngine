@@ -1,9 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DragOperations/CurveEditorDragOperation_MoveKeys.h"
-#include "CurveEditorScreenSpace.h"
+
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "CurveEditor.h"
+#include "CurveEditorScreenSpace.h"
+#include "CurveEditorSelection.h"
+#include "CurveModel.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
 #include "SCurveEditorView.h"
+#include "ScopedTransaction.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/UnrealType.h"
+
+struct FPointerEvent;
 
 void FCurveEditorDragOperation_MoveKeys::OnInitialize(FCurveEditor* InCurveEditor, const TOptional<FCurvePointHandle>& InCardinalPoint)
 {

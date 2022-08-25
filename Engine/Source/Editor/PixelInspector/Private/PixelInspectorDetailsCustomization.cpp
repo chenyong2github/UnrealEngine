@@ -1,15 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelInspectorDetailsCustomization.h"
-#include "PixelInspectorView.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Colors/SColorBlock.h"
-#include "PropertyHandle.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
+#include "Engine/EngineTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 #include "PixelInspectorModule.h"
+#include "PixelInspectorView.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IPropertyHandle;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
 
 #define LOCTEXT_NAMESPACE "PixelInspector"
 

@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_Task.h"
+
+#include "AIGraphTypes.h"
 #include "BehaviorTree/BTNode.h"
 #include "BehaviorTreeEditorTypes.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Templates/Casts.h"
+
+class UToolMenu;
 
 UBehaviorTreeGraphNode_Task::UBehaviorTreeGraphNode_Task(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {

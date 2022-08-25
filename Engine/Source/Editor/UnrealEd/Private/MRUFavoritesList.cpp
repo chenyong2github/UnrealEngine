@@ -2,9 +2,16 @@
 
 
 #include "MRUFavoritesList.h"
-#include "HAL/FileManager.h"
-#include "Misc/PackageName.h"
+
+#include "CoreTypes.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/PackageName.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 const FString FMainMRUFavoritesList::FAVORITES_INI_SECTION = TEXT("FavoriteFiles");

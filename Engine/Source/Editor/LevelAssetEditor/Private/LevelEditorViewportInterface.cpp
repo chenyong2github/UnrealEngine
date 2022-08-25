@@ -2,6 +2,14 @@
 
 #include "LevelEditorViewportInterface.h"
 
+#include "Math/IntPoint.h"
+
+class FSlateRect;
+class FSlateShaderResource;
+class FWidgetStyle;
+class SWidget;
+struct FGeometry;
+
 FLevelEditorViewportInterfaceWrapper::FLevelEditorViewportInterfaceWrapper(TSharedPtr<ISlateViewport> InSceneViewport, UInputRouter* InInputRouter)
 	: LegacyViewportInterface(InSceneViewport)
 	, InputRouter(InInputRouter)

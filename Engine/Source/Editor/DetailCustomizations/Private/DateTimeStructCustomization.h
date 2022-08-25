@@ -2,9 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Misc/DateTime.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class IPropertyHandle;
 class SEditableTextBox;

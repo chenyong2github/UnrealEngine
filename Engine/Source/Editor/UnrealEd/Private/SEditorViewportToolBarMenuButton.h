@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Framework/SlateDelegates.h"
 #include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 
 class SMenuAnchor;
+class SWidget;
 
 /**
  * Button subclass that appears pressed while its menu anchor has a menu open.

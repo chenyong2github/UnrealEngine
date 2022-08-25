@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VectorStructCustomization.h"
+
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
+#include "UObject/NameTypes.h"
 #include "UObject/UnrealType.h"
+
+class IPropertyTypeCustomization;
 
 
 TSharedRef<IPropertyTypeCustomization> FVectorStructCustomization::MakeInstance() 

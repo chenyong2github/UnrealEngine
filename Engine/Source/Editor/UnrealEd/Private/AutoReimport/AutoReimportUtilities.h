@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Logging/LogMacros.h"
 
 class IAssetRegistry;
+class UObject;
+struct FAssetData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAutoReimportManager, Log, All);
 

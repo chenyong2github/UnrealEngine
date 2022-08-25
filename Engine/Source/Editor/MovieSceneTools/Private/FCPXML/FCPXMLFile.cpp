@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FCPXML/FCPXMLFile.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "XmlParser.h"
+
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "XmlNode.h"
 
 #define LOCTEXT_NAMESPACE "FCPXMLImporter"
 

@@ -4,10 +4,11 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
+#include "UObject/Package.h"
 #include "UObject/WeakObjectPtr.h"
-
-class UPackage;
+#include "UObject/WeakObjectPtrTemplates.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSourceControlUtils, Log, All);
 

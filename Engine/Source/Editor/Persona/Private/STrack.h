@@ -2,27 +2,40 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Layout/Geometry.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformMath.h"
 #include "Input/CursorReply.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
-#include "Styling/SlateColor.h"
-#include "Fonts/SlateFontInfo.h"
+#include "Internationalization/Text.h"
 #include "Layout/Children.h"
-#include "Widgets/SPanel.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SPanel.h"
 
 class FArrangedChildren;
+class FChildren;
 class FMenuBuilder;
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
 class FUICommandList;
-class STrack;
-class STrackNode;
+class FWidgetStyle;
+class SWidget;
+class UObject;
+struct FPointerEvent;
+struct FSlateBrush;
 
 //////////////////////////////////////////////////////////////////////////
 DECLARE_DELEGATE_OneParam( FOnSelectionChanged, const TArray<UObject*>& )

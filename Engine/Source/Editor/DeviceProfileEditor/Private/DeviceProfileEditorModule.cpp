@@ -1,15 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeviceProfileEditorModule.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Textures/SlateIcon.h"
+
+#include "Delegates/Delegate.h"
 #include "Framework/Docking/TabManager.h"
-#include "Styling/AppStyle.h"
+#include "Internationalization/Internationalization.h"
+#include "Modules/ModuleManager.h"
 #include "SDeviceProfileEditor.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "DeviceProfileEditor"
 

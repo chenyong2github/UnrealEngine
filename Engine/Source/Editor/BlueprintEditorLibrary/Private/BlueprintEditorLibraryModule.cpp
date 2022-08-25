@@ -2,6 +2,8 @@
 
 #include "BlueprintEditorLibraryModule.h"
 
+#include "Modules/ModuleManager.h"
+
 #define LOCTEXT_NAMESPACE "FBlueprintEditorLibraryModule"
 
 void FBlueprintEditorLibraryModule::StartupModule()

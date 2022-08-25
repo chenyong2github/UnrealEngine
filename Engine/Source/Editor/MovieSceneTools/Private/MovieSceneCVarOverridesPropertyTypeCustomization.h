@@ -2,18 +2,14 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "PropertyEditorModule.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
-struct EVisibility;
-class FReply;
-class SWidget;
-class FDragDropOperation;
-class FDataLayerDragDropOp;
-class UDataLayer;
-struct FSlateColor;
-struct FSlateBrush;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 
 namespace UE
 {

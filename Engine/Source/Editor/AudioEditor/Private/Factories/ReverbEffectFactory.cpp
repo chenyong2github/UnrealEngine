@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/ReverbEffectFactory.h"
+
 #include "Sound/ReverbEffect.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UReverbEffectFactory::UReverbEffectFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

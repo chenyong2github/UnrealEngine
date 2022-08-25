@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_EnumInequality.h"
+
 //#include "KismetCompiler.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+
+class UClass;
 //#include "BlueprintNodeSpawner.h"
 //#include "EditorCategoryUtils.h"
 //#include "BlueprintActionDatabaseRegistrar.h"

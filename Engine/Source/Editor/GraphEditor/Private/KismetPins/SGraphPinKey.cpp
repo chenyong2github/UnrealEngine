@@ -2,8 +2,22 @@
 
 
 #include "KismetPins/SGraphPinKey.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "SKeySelector.h"
 #include "ScopedTransaction.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class SWidget;
 
 void SGraphPinKey::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {

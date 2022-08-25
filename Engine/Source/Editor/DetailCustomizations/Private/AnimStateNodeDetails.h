@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IDetailCustomization.h"
 #include "AnimTransitionNodeDetails.h"
+#include "Templates/SharedPointer.h"
 
+class IDetailCustomization;
 class IDetailLayoutBuilder;
 
 class FAnimStateNodeDetails : public FAnimTransitionNodeDetails

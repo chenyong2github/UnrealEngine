@@ -3,17 +3,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Framework/SlateDelegates.h"
+#include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
 #include "Layout/Visibility.h"
-#include "Framework/SlateDelegates.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/StyleColors.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Styling/AppStyle.h"
-#include "Styling/StyleColors.h"
 
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FWidgetStyle;
+class SWidget;
+struct FGeometry;
+struct FSlateBrush;
 
 /** 
  * A widget that displays a hover cue and handles dropping assets of allowed types onto this widget

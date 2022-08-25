@@ -1,14 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerMarkedFrameHelper.h"
-#include "ISequencer.h"
-#include "MovieSceneSequence.h"
+
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Evaluation/MovieSceneSectionParameters.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
 #include "Evaluation/MovieSceneTimeArray.h"
+#include "Evaluation/MovieSceneTimeTransform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISequencer.h"
+#include "Math/Range.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "MovieScene.h"
+#include "MovieSceneFrameMigration.h"
+#include "MovieSceneSequence.h"
 #include "MovieSceneSequenceID.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Sections/MovieSceneSubSection.h"
-#include "Tracks/MovieSceneSubTrack.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE
 {

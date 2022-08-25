@@ -2,16 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Layout/SlateRect.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
-#include "SNodePanel.h"
+#include "Layout/SlateRect.h"
+#include "Math/Vector2D.h"
 #include "SGraphNodeResizable.h"
+#include "SNodePanel.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-class UEdGraphNode_Comment;
+class FDragDropEvent;
+class SBorder;
 class SCommentBubble;
+class SGraphNode;
+class UEdGraphNode_Comment;
+struct FGeometry;
+struct FPointerEvent;
+struct FSlateBrush;
 
 class GRAPHEDITOR_API SGraphNodeComment : public SGraphNodeResizable
 {

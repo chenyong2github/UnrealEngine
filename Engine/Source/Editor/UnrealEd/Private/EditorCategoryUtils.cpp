@@ -1,8 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorCategoryUtils.h"
-#include "IDocumentationPage.h"
+
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "HAL/PlatformMath.h"
 #include "IDocumentation.h"
+#include "IDocumentationPage.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/CString.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "EditorCategoryUtils"
 

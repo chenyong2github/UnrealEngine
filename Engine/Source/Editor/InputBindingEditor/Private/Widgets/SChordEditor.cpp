@@ -1,9 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SChordEditor.h"
-#include "Styling/CoreStyle.h"
+
+#include "Fonts/SlateFontInfo.h"
 #include "Framework/Commands/InputBindingManager.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "HAL/Platform.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Styling/CoreStyle.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Text/ISlateEditableTextWidget.h"
 #include "Widgets/Text/SlateEditableTextLayout.h"
+
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "SChordEditor"
 

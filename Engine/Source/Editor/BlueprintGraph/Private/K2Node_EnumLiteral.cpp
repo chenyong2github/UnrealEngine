@@ -2,19 +2,32 @@
 
 
 #include "K2Node_EnumLiteral.h"
-#include "K2Node_CastByteToEnum.h"
-#include "EdGraphSchema_K2.h"
-#include "EdGraphUtilities.h"
-#include "K2Node_CallFunction.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "KismetCompiler.h"
-#include "KismetCompiledFunctionContext.h"
-#include "KismetCompilerMisc.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintFieldNodeSpawner.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
 #include "EditorCategoryUtils.h"
 #include "FindInBlueprintManager.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_CallFunction.h"
+#include "K2Node_CastByteToEnum.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Field.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UBlueprintNodeSpawner;
+class UEdGraph;
+struct FLinearColor;
 
 const FName UK2Node_EnumLiteral::GetEnumInputPinName()
 {

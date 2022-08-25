@@ -11,9 +11,11 @@
 
 #include "CoreTypes.h"
 #include "Logging/LogMacros.h"
-#include "Misc/Parse.h"
-#include "Math/Vector.h"
 #include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/CString.h"
+#include "Misc/Parse.h"
 
 /*-----------------------------------------------------------------------------
 	Getters.

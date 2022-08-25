@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeDecoratorGraphNode.h"
+
 #include "BehaviorTreeDecoratorGraph.h"
 #include "BehaviorTreeGraphNode_CompositeDecorator.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_BehaviorTreeDecorator.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
 
 UBehaviorTreeDecoratorGraphNode::UBehaviorTreeDecoratorGraphNode(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {

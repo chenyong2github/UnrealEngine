@@ -2,16 +2,20 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
-#include "Misc/Optional.h"
-#include "Curves/KeyHandle.h"
+#include "Containers/SparseArray.h"
+#include "CoreTypes.h"
 #include "CurveEditorTypes.h"
-
-struct FCurvePointHandle;
+#include "Curves/KeyHandle.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
 
 class FCurveEditor;
+struct FCurvePointHandle;
 
 /**
  * A set of key handles implemented as a sorted array for transparent passing to TArrayView<> APIs.

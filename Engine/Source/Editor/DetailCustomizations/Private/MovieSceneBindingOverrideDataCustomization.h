@@ -3,15 +3,13 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
-
-class IDetailsView;
-class IPropertyHandle;
+class FDetailWidgetRow;
 class FStructOnScope;
 class IMovieSceneBindingOwnerInterface;
+class IPropertyHandle;
 class UMovieSceneSequence;
-
-struct FMovieScenePossessable;
 
 
 class FMovieSceneBindingOverrideDataCustomization : public IPropertyTypeCustomization

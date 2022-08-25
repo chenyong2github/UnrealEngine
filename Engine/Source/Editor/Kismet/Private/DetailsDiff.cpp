@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailsDiff.h"
-#include "Modules/ModuleManager.h"
-#include "IDetailsView.h"
-#include "PropertyEditorModule.h"
+
 #include "Algo/Copy.h"
 #include "Algo/Transform.h"
+#include "Containers/Set.h"
+#include "DetailsViewArgs.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailsView.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
+#include "PropertyPath.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UObject;
 
 FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChanged )
 	: OnDisplayedPropertiesChanged( InOnDisplayedPropertiesChanged )

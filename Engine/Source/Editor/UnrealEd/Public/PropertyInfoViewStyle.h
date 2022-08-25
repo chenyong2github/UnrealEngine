@@ -4,9 +4,29 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableRow.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FText;
+class FWidgetStyle;
+class ITableRow;
+class SButton;
+class SWidget;
+struct FGeometry;
+struct FSlateBrush;
 
 
 /**

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+class FName;
 
 /**  Material editor tabs identifiers */
 struct FMaterialEditorTabs

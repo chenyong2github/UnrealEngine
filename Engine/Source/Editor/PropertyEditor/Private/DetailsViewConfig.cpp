@@ -2,6 +2,8 @@
 
 #include "DetailsViewConfig.h"
 
+#include "UObject/ObjectPtr.h"
+
 TObjectPtr<UDetailsConfig> UDetailsConfig::Instance = nullptr;
 
 void UDetailsConfig::Initialize()

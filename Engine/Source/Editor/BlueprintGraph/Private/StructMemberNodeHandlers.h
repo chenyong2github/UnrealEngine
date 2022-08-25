@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "KismetCompilerMisc.h"
 #include "VariableSetHandler.h"
 
 class FKismetCompilerContext;
+class UEdGraphNode;
+class UEdGraphPin;
 struct FKismetFunctionContext;
 
 class FKCHandler_StructMemberVariableGet : public FNodeHandlingFunctor

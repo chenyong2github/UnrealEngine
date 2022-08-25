@@ -2,6 +2,10 @@
 
 #include "AnimationEditorCommands.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "InputCoreTypes.h"
+
 #define LOCTEXT_NAMESPACE "AnimationEditorCommands"
 
 void FAnimationEditorCommands::RegisterCommands()

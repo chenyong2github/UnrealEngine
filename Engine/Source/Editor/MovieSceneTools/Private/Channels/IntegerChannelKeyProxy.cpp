@@ -2,6 +2,11 @@
 
 #include "Channels/IntegerChannelKeyProxy.h"
 
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "HAL/PlatformCrt.h"
+
+struct FPropertyChangedEvent;
+
 void UIntegerChannelKeyProxy::Initialize(FKeyHandle InKeyHandle, TMovieSceneChannelHandle<FMovieSceneIntegerChannel> InChannelHandle, TWeakObjectPtr<UMovieSceneSection> InWeakSection)
 {
 	KeyHandle     = InKeyHandle;

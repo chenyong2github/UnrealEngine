@@ -1,11 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveTableOptions.h"
-#include "Widgets/Input/SButton.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "SPrimaryButton.h"
+#include "Serialization/Archive.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboBox.h"
 
 DEFINE_LOG_CATEGORY(LogCurveTableOptions);
 

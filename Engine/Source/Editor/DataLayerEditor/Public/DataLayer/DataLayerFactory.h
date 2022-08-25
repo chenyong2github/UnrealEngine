@@ -3,13 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-
-#include "Factories/Factory.h"
 
 #include "DataLayerFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCLASS(hidecategories = Object, MinimalAPI)
 class UDataLayerFactory : public UFactory

@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IPinnedCommandListModule.h"
-#include "SPinnedCommandList.h"
 #include "Modules/ModuleManager.h"
+#include "SPinnedCommandList.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class IPinnedCommandList;
 
 class FPinnedCommandListModule : public IPinnedCommandListModule
 {

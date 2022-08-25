@@ -2,12 +2,21 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Engine/DeveloperSettings.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "WidgetPaletteFavorites.h"
+
 #include "WidgetDesignerSettings.generated.h"
+
+class UObject;
+class UWidgetPaletteFavorites;
 
 UENUM()
 enum EDisplayOnCompile

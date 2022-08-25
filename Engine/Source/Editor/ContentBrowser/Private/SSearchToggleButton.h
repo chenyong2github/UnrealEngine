@@ -2,11 +2,15 @@
 
 #pragma once 
 
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateTypes.h"
+#include "Delegates/Delegate.h"
+#include "Layout/Visibility.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class SSearchBox;
 

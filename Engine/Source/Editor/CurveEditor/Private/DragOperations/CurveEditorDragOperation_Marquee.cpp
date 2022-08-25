@@ -1,11 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DragOperations/CurveEditorDragOperation_Marquee.h"
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "CurveEditor.h"
-#include "SCurveEditorView.h"
+#include "CurveEditorSelection.h"
+#include "CurveEditorTypes.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "Layout/Geometry.h"
+#include "Math/UnrealMathUtility.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/SlateLayoutTransform.h"
 #include "SCurveEditorPanel.h"
+#include "SCurveEditorView.h"
 #include "Styling/AppStyle.h"
-#include "CurveDrawInfo.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
 
 FCurveEditorDragOperation_Marquee::FCurveEditorDragOperation_Marquee(FCurveEditor* InCurveEditor)
 	: LockedToView(nullptr)

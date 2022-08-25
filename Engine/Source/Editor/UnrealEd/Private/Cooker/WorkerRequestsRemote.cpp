@@ -2,13 +2,23 @@
 
 #include "WorkerRequestsRemote.h"
 
+#include "Containers/SparseArray.h"
+#include "CookOnTheSide/CookLog.h"
 #include "CookPlatformManager.h"
 #include "CookTypes.h"
+#include "Cooker/CookRequests.h"
+#include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
-#include "Misc/AssertionMacros.h" 
+#include "Misc/AssertionMacros.h"
+#include "Trace/Detail/Channel.h"
+
+class FConfigFile;
+class ITargetPlatform;
 
 namespace UE::Cook
 {
+struct FInstigator;
+struct FPackageData;
 
 FWorkerRequestsRemote::FWorkerRequestsRemote(UCookOnTheFlyServer& InCOTFS)
 	: CookWorkerClient(*InCOTFS.CookWorkerClient)

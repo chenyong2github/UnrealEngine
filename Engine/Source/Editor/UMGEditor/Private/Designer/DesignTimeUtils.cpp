@@ -1,9 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Designer/DesignTimeUtils.h"
-#include "Widgets/SWindow.h"
-#include "Layout/WidgetPath.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Layout/ArrangedWidget.h"
+#include "Layout/Geometry.h"
+#include "Layout/WidgetPath.h"
+#include "Math/TransformCalculus2D.h"
+#include "Misc/Optional.h"
+#include "Rendering/SlateLayoutTransform.h"
+#include "Widgets/SWindow.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "UMGEditor"
 

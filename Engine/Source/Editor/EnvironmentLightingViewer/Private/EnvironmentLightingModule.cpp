@@ -1,19 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EnvironmentLightingModule.h"
-#include "SEnvironmentLightingViewer.h"
-#include "Widgets/SWidget.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Application/SlateApplication.h"
+
+#include "Delegates/Delegate.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
-#include "Textures/SlateIcon.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
+#include "Internationalization/Internationalization.h"
+#include "Modules/ModuleManager.h"
+#include "SEnvironmentLightingViewer.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "EnvironmentLightingViewer"
 

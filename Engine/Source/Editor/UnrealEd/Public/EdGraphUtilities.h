@@ -2,14 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FCompilerResultsLog;
 class SGraphNode;
 class SGraphPin;
 class UEdGraph;
+class UEdGraphNode;
+class UFunction;
+class UObject;
 
 //////////////////////////////////////////////////////////////////////////
 

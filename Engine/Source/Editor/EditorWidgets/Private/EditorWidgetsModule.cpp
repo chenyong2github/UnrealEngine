@@ -3,13 +3,17 @@
 #include "EditorWidgetsModule.h"
 
 #include "EditorWidgetsStyle.h"
-#include "ITransportControl.h"
+#include "HAL/Platform.h"
+#include "Modules/ModuleManager.h"
 #include "ObjectNameEditSinkRegistry.h"
 #include "SAssetDiscoveryIndicator.h"
 #include "SObjectNameEditableTextBox.h"
 #include "STransportControl.h"
-#include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
+class UObject;
 
 IMPLEMENT_MODULE( FEditorWidgetsModule, EditorWidgets );
 

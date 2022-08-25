@@ -2,15 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Curves/KeyHandle.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SNullWidget.h"
-#include "Layout/Margin.h"
-#include "MovieSceneSection.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/Guid.h"
+#include "MovieSceneSection.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SWidget.h"
 
 class FMenuBuilder;
 class FSequencerSectionPainter;
@@ -18,7 +28,12 @@ class IDetailsView;
 class ISequencer;
 class ISequencerSection;
 class ISequencerTrackEditor;
+class SWidget;
+struct FGeometry;
+struct FKeyHandle;
+struct FPointerEvent;
 struct FSlateBrush;
+template <typename ElementType> class TRange;
 struct FMovieSceneChannelMetaData;
 
 namespace UE::Sequencer

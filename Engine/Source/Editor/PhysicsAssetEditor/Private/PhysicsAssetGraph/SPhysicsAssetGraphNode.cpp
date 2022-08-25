@@ -1,13 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPhysicsAssetGraphNode.h"
-#include "SCommentBubble.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Margin.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "PhysicsAssetGraphNode.h"
 #include "SGraphPin.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "SNodePanel.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+class UEdGraphSchema;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditor"
 

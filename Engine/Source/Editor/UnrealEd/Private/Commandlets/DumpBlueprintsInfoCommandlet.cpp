@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/DumpBlueprintsInfoCommandlet.h"
+
+#include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintInfoDump, Log, All);
 

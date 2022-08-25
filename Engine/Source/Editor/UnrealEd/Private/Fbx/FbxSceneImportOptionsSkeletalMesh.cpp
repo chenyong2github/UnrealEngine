@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxSceneImportOptionsSkeletalMesh.h"
-#include "Factories/FbxSkeletalMeshImportData.h"
+
 #include "Factories/FbxSceneImportOptions.h"
-#include "Factories/FbxSceneImportOptionsStaticMesh.h"
+#include "Factories/FbxSkeletalMeshImportData.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
 
 
 UFbxSceneImportOptionsSkeletalMesh::UFbxSceneImportOptionsSkeletalMesh(const FObjectInitializer& ObjectInitializer)

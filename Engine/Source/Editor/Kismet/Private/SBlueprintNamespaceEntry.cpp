@@ -1,14 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SBlueprintNamespaceEntry.h"
-#include "BlueprintNamespaceRegistry.h"
+
+#include "Algo/Sort.h"
 #include "BlueprintNamespacePathTree.h"
+#include "BlueprintNamespaceRegistry.h"
+#include "Containers/StringFwd.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/Char.h"
+#include "Misc/StringBuilder.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SSuggestionTextBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SBlueprintNamespaceEntry"
 

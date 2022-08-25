@@ -2,16 +2,32 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
 #include "ICurveEditorDragOperation.h"
-#include "CurveEditor.h"
-#include "CurveEditorTypes.h"
+#include "Input/CursorReply.h"
+#include "Input/Reply.h"
+#include "Layout/Margin.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
 
-class SScrollBox;
-class SCurveEditorView;
+class FCurveEditor;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
 class ITimeSliderController;
+class SCurveEditorView;
+struct FCurveEditorToolID;
+struct FFocusEvent;
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
 
 /**
  * Curve editor widget that reflects the state of an FCurveEditor

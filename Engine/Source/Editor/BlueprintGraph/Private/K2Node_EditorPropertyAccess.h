@@ -3,14 +3,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Textures/SlateIcon.h"
+#include "BlueprintActionFilter.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_EditorPropertyAccess.generated.h"
 
-class UEdGraph;
-class UK2Node_CallFunction;
 class FBlueprintActionDatabaseRegistrar;
+class UEdGraph;
+class UObject;
 
 UCLASS(Abstract)
 class UK2Node_EditorPropertyAccessBase : public UK2Node_CallFunction

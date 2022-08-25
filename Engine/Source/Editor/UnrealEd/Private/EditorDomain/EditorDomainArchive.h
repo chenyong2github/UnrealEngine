@@ -2,23 +2,27 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
+#include "DerivedDataRequestTypes.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "IO/IoHash.h"
+#include "Misc/Optional.h"
+#include "atomic"
+
+template <typename FuncType> class TUniqueFunction;
 #include "Async/AsyncFileHandle.h"
 #include "Containers/Array.h"
-#include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValueId.h"
 #include "EditorDomain/EditorDomain.h"
-#include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/PackagePath.h"
 #include "Serialization/Archive.h"
-#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManager.h"
 
-class FAssetPackageData;
 namespace UE { namespace DerivedData { struct FCacheGetResponse; } }
 
 /**

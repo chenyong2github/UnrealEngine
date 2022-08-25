@@ -1,13 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/SlateChildSizeCustomization.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Input/SCheckBox.h"
+
 #include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSegmentedControl.h"
+#include "Widgets/SBoxPanel.h"
+
+class IDetailChildrenBuilder;
 
 #define LOCTEXT_NAMESPACE "UMG"
 

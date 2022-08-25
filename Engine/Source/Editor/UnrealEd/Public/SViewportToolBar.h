@@ -3,14 +3,17 @@
 
 #pragma once
 
+#include "Animation/CurveSequence.h"
 #include "CoreMinimal.h"
+#include "Editor/UnrealEdTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Animation/CurveSequence.h"
-#include "Editor/UnrealEdTypes.h"
 
 class SMenuAnchor;
+struct FSlateBrush;
 
 /**
  * A level viewport toolbar widget that is placed in a viewport

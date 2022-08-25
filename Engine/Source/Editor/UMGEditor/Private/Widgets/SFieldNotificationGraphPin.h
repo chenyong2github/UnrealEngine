@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdGraph/EdGraphPin.h"
+#include "Delegates/Delegate.h"
 #include "FieldNotification/FieldId.h"
 #include "SGraphPin.h"
-#include "Widgets/SWidget.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+class SWidget;
 class UEdGraphPin;
 
 namespace UE::FieldNotification

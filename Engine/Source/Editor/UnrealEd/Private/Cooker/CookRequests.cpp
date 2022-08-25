@@ -3,13 +3,20 @@
 #include "CookRequests.h"
 
 #include "Algo/Find.h"
+#include "CookOnTheSide/CookLog.h"
 #include "CookPackageData.h"
 #include "CookPlatformManager.h"
-#include "HAL/Event.h"
+#include "Cooker/CookTypes.h"
+#include "HAL/Platform.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "Misc/CoreMiscDefines.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/UnrealNames.h"
+#include "atomic"
 
 namespace UE::Cook
 {

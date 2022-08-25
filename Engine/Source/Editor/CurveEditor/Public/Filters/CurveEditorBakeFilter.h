@@ -2,10 +2,19 @@
 
 #pragma once
 
-#include "Filters/CurveEditorFilterBase.h"
+#include "Containers/Map.h"
 #include "CurveEditorTypes.h"
+#include "Filters/CurveEditorFilterBase.h"
 #include "Misc/FrameNumber.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CurveEditorBakeFilter.generated.h"
+
+class FCurveEditor;
+class UObject;
+struct FCurveModelID;
+struct FKeyHandleSet;
 
 UCLASS(DisplayName="Bake")
 class CURVEEDITOR_API UCurveEditorBakeFilter : public UCurveEditorFilterBase

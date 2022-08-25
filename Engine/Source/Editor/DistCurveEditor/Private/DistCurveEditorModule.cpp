@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DistCurveEditorModule.h"
+
+#include "HAL/Platform.h"
 #include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SDistributionCurveEditor.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 const FName DistCurveEditorAppIdentifier = FName(TEXT("DistCurveEditorApp"));
 

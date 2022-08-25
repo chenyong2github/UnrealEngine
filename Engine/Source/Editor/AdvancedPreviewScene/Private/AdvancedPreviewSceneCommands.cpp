@@ -2,6 +2,10 @@
 
 #include "AdvancedPreviewSceneCommands.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "InputCoreTypes.h"
+
 #define LOCTEXT_NAMESPACE "AdvancedPreviewSceneCommands"
 
 void FAdvancedPreviewSceneCommands::RegisterCommands()

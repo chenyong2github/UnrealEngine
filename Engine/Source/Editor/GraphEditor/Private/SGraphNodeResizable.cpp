@@ -2,8 +2,19 @@
 
 
 #include "SGraphNodeResizable.h"
-#include "ScopedTransaction.h"
+
+#include "EdGraph/EdGraphNode.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GenericPlatform/ICursor.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Geometry.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/Attribute.h"
+#include "SNodePanel.h"
+#include "ScopedTransaction.h"
+#include "Widgets/SWindow.h"
 
 namespace GraphNodeResizableDefs
 {

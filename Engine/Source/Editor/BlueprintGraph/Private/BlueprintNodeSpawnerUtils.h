@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
-#include "BlueprintNodeSpawner.h"
+#include "BlueprintNodeBinder.h"
+#include "UObject/Field.h"
+
+class FProperty;
+class UBlueprintNodeSpawner;
+class UClass;
+class UFunction;
 
 struct FBlueprintNodeSpawnerUtils
 {

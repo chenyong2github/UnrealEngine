@@ -2,14 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class FClassViewerFilterFuncs;
 class IClassViewerFilter;
 class IPropertyHandle;
 class SWidget;
+class UClass;
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorClassViewer, Log, All);
 

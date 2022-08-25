@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
-class IStructViewerFilter;
 class IPropertyHandle;
+class IStructViewerFilter;
+class UScriptStruct;
 
 /** Delegate used with the Struct Viewer in 'struct picking' mode.  You'll bind a delegate when the struct viewer widget is created, which will be fired off when a struct is selected in the list */
 DECLARE_DELEGATE_OneParam(FOnStructPicked, const UScriptStruct*);

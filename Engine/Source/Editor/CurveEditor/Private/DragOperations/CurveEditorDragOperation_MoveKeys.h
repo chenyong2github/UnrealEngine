@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Math/Vector2D.h"
-#include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "ICurveEditorDragOperation.h"
+#include "Containers/Array.h"
 #include "CurveDataAbstraction.h"
+#include "CurveEditorSnapMetrics.h"
+#include "CurveEditorTypes.h"
+#include "Curves/KeyHandle.h"
+#include "ICurveEditorDragOperation.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
 
 class FCurveEditor;
+struct FPointerEvent;
 
 class FCurveEditorDragOperation_MoveKeys : public ICurveEditorKeyDragOperation
 {

@@ -2,6 +2,9 @@
 
 #include "ShowFlagFilter.h"
 
+#include "EditorShowFlags.h"
+#include "HAL/PlatformCrt.h"
+
 namespace
 {
 	inline bool FlagGroupExistsInArray(const TArray<EShowFlagGroup>& Array, const FShowFlagData& Flag)

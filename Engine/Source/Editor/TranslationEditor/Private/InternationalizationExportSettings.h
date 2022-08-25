@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "InternationalizationExportSettings.generated.h"
 
 UCLASS(hidecategories = Object, MinimalAPI, config=InternationalizationExport)

@@ -1,15 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserDataSource.h"
-#include "Features/IModularFeatures.h"
-#include "Interfaces/IPluginManager.h"
+
+#include "Containers/StringView.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserItemData.h"
-#include "IContentBrowserDataModule.h"
-#include "Settings/ContentBrowserSettings.h"
+#include "ContentBrowserItemPath.h"
+#include "CoreTypes.h"
+#include "Features/IModularFeatures.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Misc/PackageName.h"
-#include "Misc/NamePermissionList.h"
-#include "IContentBrowserSingleton.h"
+#include "Misc/StringBuilder.h"
+#include "Settings/ContentBrowserSettings.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserDataSource"
 

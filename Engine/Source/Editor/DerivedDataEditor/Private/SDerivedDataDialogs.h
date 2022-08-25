@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+
+class SWidget;
 
 class SDerivedDataRemoteStoreDialog : public SCompoundWidget
 {

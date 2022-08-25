@@ -1,11 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimStateNodeDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Attribute.h"
+#include "Templates/TypeHash.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IDetailCustomization;
 
 #define LOCTEXT_NAMESPACE "FAnimStateNodeDetails"
 

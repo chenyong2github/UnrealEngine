@@ -1,12 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraLensSettingsCustomization.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
-#include "DetailLayoutBuilder.h"
-#include "ScopedTransaction.h"
+
 #include "CineCameraComponent.h"
+#include "Containers/Map.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/Platform.h"
+#include "IDetailChildrenBuilder.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "ScopedTransaction.h"
+#include "Templates/ChooseClass.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IDetailPropertyRow;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "CameraLensSettingsCustomization"
 

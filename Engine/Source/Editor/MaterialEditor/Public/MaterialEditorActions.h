@@ -4,13 +4,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Framework/Commands/InputChord.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Framework/Commands/Commands.h"
+#include "Framework/Commands/InputChord.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
+class FUICommandInfo;
+class UClass;
 class UEdGraph;
+struct FEdGraphSchemaAction;
+struct FInputChord;
 
 /**
  * Unreal material editor actions

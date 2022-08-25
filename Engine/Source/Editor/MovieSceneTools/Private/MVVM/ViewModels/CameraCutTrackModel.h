@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "MVVM/Extensions/ISortableExtension.h"
+#include "MVVM/ICastable.h"
 #include "MVVM/ViewModels/TrackModel.h"
+#include "Templates/SharedPointer.h"
 
 class UMovieSceneCameraCutTrack;
+class UMovieSceneTrack;
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 
 namespace UE
 {

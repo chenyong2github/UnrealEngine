@@ -1,16 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "Engine/Blueprint.h"
-#include "UObject/UnrealType.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "EdGraphSchema_K2.h"
-#include "BlueprintNodeSpawnerUtils.h"
-#include "BlueprintEditorSettings.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "AssetToolsModule.h"
+#include "BlueprintEditorSettings.h"
+#include "BlueprintNodeSpawner.h"
+#include "BlueprintNodeSpawnerUtils.h"
+#include "Containers/Array.h"
+#include "Containers/StringFwd.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "HAL/PlatformCrt.h"
 #include "IAssetTools.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/NamePermissionList.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/Script.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/UnrealType.h"
+
+class UEdGraphNode;
 
 /*******************************************************************************
  * BlueprintActionDatabaseRegistrarImpl

@@ -2,6 +2,8 @@
 
 #include "Factories/FbxSceneImportOptions.h"
 
+#include "Math/MathFwd.h"
+
 
 UFbxSceneImportOptions::UFbxSceneImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

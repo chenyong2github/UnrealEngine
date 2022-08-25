@@ -2,10 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Internationalization/Text.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateColor.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AnimGraphAttributes.generated.h"
+
+struct FPropertyChangedEvent;
+template <typename FuncType> class TFunctionRef;
 
 UENUM()
 enum class EAnimGraphAttributesDisplayMode

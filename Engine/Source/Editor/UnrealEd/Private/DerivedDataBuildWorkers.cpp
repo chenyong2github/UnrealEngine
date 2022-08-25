@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DerivedDataBuildWorkers.h"
+
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/Optional.h"
 #include "MultiPlatformTargetReceiptBuildWorkers.h"
 

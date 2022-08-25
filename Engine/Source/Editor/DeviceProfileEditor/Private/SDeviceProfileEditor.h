@@ -2,12 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
 #include "Framework/Docking/TabManager.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FWorkspaceItem;
+class SDockTab;
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "DeviceProfileEditor"
 

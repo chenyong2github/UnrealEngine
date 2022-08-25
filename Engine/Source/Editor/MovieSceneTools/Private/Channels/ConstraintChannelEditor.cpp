@@ -1,15 +1,50 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstraintChannelEditor.h"
-#include "Channels/ConstraintChannelCurveModel.h"
-#include "ConstraintChannel.h"
 
-#include "KeyBarCurveModel.h"
-#include "TimeToPixel.h"
+#include "Channels/ConstraintChannelCurveModel.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Channels/MovieSceneChannelProxy.h"
+#include "ConstraintChannel.h"
+#include "Containers/UnrealString.h"
 #include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Internationalization/Text.h"
+#include "KeyBarCurveModel.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/Color.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateLayoutTransform.h"
+#include "Rendering/SlateRenderer.h"
+#include "SequencerSectionPainter.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Function.h"
+#include "TimeToPixel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/SNullWidget.h"
+
+class FCurveModel;
+class FTrackInstancePropertyBindings;
+class ISequencer;
+class SWidget;
+struct FGuid;
+struct FSlateBrush;
+template <typename ChannelType> struct TMovieSceneChannelHandle;
 
 namespace
 {

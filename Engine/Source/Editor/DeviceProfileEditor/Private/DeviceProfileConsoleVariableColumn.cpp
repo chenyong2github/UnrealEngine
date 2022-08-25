@@ -2,16 +2,38 @@
 
 // Module includes
 #include "DeviceProfileConsoleVariableColumn.h"
-#include "UObject/UnrealType.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
-#include "IPropertyTableCellPresenter.h"
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "HAL/PlatformMath.h"
 // Property table includes
 #include "IPropertyTable.h"
 #include "IPropertyTableCell.h"
+#include "IPropertyTableCellPresenter.h"
+#include "IPropertyTableColumn.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "PropertyPath.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SNullWidget.h"
+
+class IPropertyTableUtilities;
+class SWidget;
+class UObject;
 
 // Misc includes
 

@@ -4,16 +4,20 @@
 
 #include "CoreTypes.h"
 #include "Layout/Geometry.h"
-#include "TimeToPixel.h"
 #include "MVVM/ViewModels/ViewModel.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "TimeToPixel.h"
+
+namespace UE::Sequencer { class FViewModel; }
 
 namespace UE
 {
 namespace Sequencer
 {
 
-class SOutlinerView;
 class FTrackAreaViewModel;
+class SOutlinerView;
 
 /** Structure used for handling the virtual space of the track area */
 class SEQUENCERCORE_API FVirtualTrackArea : public FTimeToPixel

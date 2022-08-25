@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;

@@ -1,6 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/OutlinerViewModel.h"
+
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "MVVM/Extensions/IHoveredExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/SharedViewModelData.h"
@@ -8,6 +13,11 @@
 #include "MVVM/ViewModels/OutlinerSpacer.h"
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+
+class FDragDropOperation;
 
 namespace UE
 {

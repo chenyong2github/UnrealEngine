@@ -1,16 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeK2Copy.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "GraphEditorSettings.h"
-#include "SGraphPin.h"
-#include "K2Node.h"
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "GenericPlatform/ICursor.h"
+#include "GraphEditorSettings.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SGraphPin.h"
 // Pin stuff
 #include "SLevelOfDetailBranchNode.h"
+#include "SNodePanel.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Notifications/SErrorText.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+class UEdGraphSchema;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "SGraphNodeK2Copy"
 

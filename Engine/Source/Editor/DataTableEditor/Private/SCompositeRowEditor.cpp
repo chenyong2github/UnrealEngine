@@ -1,17 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCompositeRowEditor.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
-#include "UObject/StructOnScope.h"
 
-#include "PropertyEditorModule.h"
-#include "IStructureDetailsView.h"
-#include "IDetailsView.h"
+class UDataTable;
 
 #define LOCTEXT_NAMESPACE "SCompositeRowEditor"
 

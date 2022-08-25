@@ -6,9 +6,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Commandlets/IChunkDataGenerator.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 
+class FName;
+class FSandboxPlatformFile;
 class ITargetPlatform;
 
 /**

@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
+class UFunction;
+class UObject;
 
 class FObjectDetails : public IDetailCustomization
 {

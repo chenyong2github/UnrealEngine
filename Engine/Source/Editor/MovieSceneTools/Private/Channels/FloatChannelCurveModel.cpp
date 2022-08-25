@@ -1,9 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/FloatChannelCurveModel.h"
+
 #include "Channels/FloatChannelKeyProxy.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CurveDataAbstraction.h"
 #include "CurveEditorScreenSpace.h"
+#include "Curves/KeyHandle.h"
+#include "IBufferedCurveModel.h"
+#include "Internationalization/Text.h"
+#include "Math/Range.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
 #include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "Templates/Casts.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FCurveEditor;
+class ISequencer;
+class UObject;
 
 /**
  * Buffered curve implementation for a float channel curve model, stores a copy of the float channel in order to draw itself.

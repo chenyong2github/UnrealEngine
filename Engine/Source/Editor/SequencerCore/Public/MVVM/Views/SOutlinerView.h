@@ -2,25 +2,53 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "MVVM/ViewModelPtr.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/Views/TreeViewTraits.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
+
+class FDragDropEvent;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+class ITableRow;
+class SHeaderRow;
+class SScrollBar;
+class SWidget;
+namespace UE::Sequencer { class FOutlinerViewModel; }
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
+struct FSlateBrush;
 
 namespace UE
 {
 namespace Sequencer
 {
 
-class IOutlinerSelectionHandler;
 class FViewModel;
+class IOutlinerSelectionHandler;
 class SOutlinerViewRow;
 class STrackAreaView;
 class STrackLane;

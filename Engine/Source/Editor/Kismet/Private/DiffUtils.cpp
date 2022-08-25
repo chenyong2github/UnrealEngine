@@ -1,18 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DiffUtils.h"
-#include "UObject/PropertyPortFlags.h"
-#include "UObject/Package.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
-#include "ISourceControlProvider.h"
-#include "ISourceControlModule.h"
 
+#include "Components/ActorComponent.h"
+#include "Containers/BitArray.h"
 #include "EditorCategoryUtils.h"
 #include "Engine/Blueprint.h"
 #include "IAssetTypeActions.h"
+#include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Attribute.h"
+#include "Misc/CString.h"
+#include "Misc/DateTime.h"
+#include "Misc/Optional.h"
 #include "ObjectEditorUtils.h"
-#include "Components/ActorComponent.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/PropertyPortFlags.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
+
+class ITableRow;
+class SWidget;
 
 namespace UEDiffUtils_Private
 {

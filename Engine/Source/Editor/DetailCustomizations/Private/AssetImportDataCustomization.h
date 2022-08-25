@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;

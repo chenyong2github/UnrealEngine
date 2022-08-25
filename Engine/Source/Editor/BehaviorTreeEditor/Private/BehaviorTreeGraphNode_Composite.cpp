@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_Composite.h"
-#include "BehaviorTree/BTNode.h"
+
 #include "BehaviorTree/BTCompositeNode.h"
+#include "BehaviorTree/BTNode.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Templates/Casts.h"
+
+class UToolMenu;
 
 UBehaviorTreeGraphNode_Composite::UBehaviorTreeGraphNode_Composite(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

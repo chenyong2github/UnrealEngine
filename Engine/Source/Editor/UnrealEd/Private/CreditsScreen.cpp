@@ -2,18 +2,33 @@
 
 
 #include "CreditsScreen.h"
-#include "Misc/Paths.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Text/TextLayout.h"
 #include "HAL/PlatformProcess.h"
-#include "Misc/FileHelper.h"
+#include "Internationalization/Text.h"
+#include "Layout/BasicLayoutWidgetSlot.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "Misc/EngineBuildSettings.h"
 #include "Misc/EngineVersion.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SOverlay.h"
+#include "Misc/EngineVersionBase.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "SlateGlobals.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "Styling/AppStyle.h"
-#include "Misc/EngineBuildSettings.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Text/SRichTextBlock.h"
+
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "CreditsScreen"
 

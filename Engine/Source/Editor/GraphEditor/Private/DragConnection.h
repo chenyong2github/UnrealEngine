@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "GraphEditorDragDropAction.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Math/Vector2D.h"
 #include "SGraphPin.h"
-#include "GraphEditorDragDropAction.h"
+#include "Templates/SharedPointer.h"
 
 class SGraphPanel;
+class SWidget;
 class UEdGraph;
+class UEdGraphPin;
+struct FPointerEvent;
 
 class FDragConnection : public FGraphEditorDragDropAction
 {

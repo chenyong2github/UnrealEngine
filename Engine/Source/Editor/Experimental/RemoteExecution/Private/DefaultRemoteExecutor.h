@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IRemoteExecutor.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
 
 
 namespace UE::RemoteExecution
 {
+class IContentAddressableStorage;
+class IExecution;
+
 	class FDefaultRemoteExecutor : public IRemoteExecutor
 	{
 	public:

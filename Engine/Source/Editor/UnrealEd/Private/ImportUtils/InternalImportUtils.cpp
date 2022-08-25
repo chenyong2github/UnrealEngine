@@ -6,14 +6,17 @@
 
 #include "ImportUtils/InternalImportUtils.h"
 
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
-#include "Engine/EngineTypes.h"
+#include "EditorFramework/AssetImportData.h"
 #include "Factories/FbxMeshImportData.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
 #include "UObject/MetaData.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealNames.h"
 
 
 bool InternalImportUtils::IsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)

@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "KismetCompilerMisc.h"
 
-class UK2Node;
-class UFunction;
 class UEdGraphPin;
+class UFunction;
+class UK2Node;
+template <typename FuncType> class TFunctionRef;
 
 class BLUEPRINTGRAPH_API FBlueprintNodeStatics
 {

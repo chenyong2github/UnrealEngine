@@ -2,10 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Brushes/SlateDynamicImageBrush.h"
-#include "IContentSource.h"
+#include "Containers/Array.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 #include "ViewModels/CategoryViewModel.h"
+
+class FLocalizedText;
+class IContentSource;
+struct FSlateBrush;
+struct FSlateDynamicImageBrush;
 
 /** A view model for displaying and interacting with an IContentSource in the FAddContentDialog. */
 class FContentSourceViewModel : public TSharedFromThis<FContentSourceViewModel>

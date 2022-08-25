@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MovieScene.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 
 class ISequencer;
+class UMovieSceneSequence;
+struct FMovieSceneMarkedFrame;
 
 /**
  * Helper class to manage marked frames across a sequence hierarchy.

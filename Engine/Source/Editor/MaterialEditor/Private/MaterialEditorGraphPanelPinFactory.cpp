@@ -1,18 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditorGraphPanelPinFactory.h"
-#include "MaterialGraph/MaterialGraphSchema.h"
-#include "MaterialPins/SGraphPinMaterialInput.h"
+
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Editor/GraphEditor/Private/KismetPins/SGraphPinEnum.h"
+#include "HAL/PlatformCrt.h"
+#include "KismetPins/SGraphPinBool.h"
+#include "KismetPins/SGraphPinColor.h"
 #include "KismetPins/SGraphPinExec.h"
+#include "KismetPins/SGraphPinInteger.h"
 #include "KismetPins/SGraphPinNum.h"
 #include "KismetPins/SGraphPinVector.h"
 #include "KismetPins/SGraphPinVector2D.h"
 #include "KismetPins/SGraphPinVector4.h"
-#include "KismetPins/SGraphPinColor.h"
-#include "KismetPins/SGraphPinInteger.h"
-#include "Editor/GraphEditor/Private/KismetPins/SGraphPinEnum.h"
-#include "KismetPins/SGraphPinBool.h"
-#include "NodeFactory.h"
+#include "MaterialGraph/MaterialGraphSchema.h"
+#include "MaterialPins/SGraphPinMaterialInput.h"
+#include "Misc/Optional.h"
+#include "SGraphPin.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 TSharedPtr<class SGraphPin> FMaterialEditorGraphPanelPinFactory::CreatePin(class UEdGraphPin* InPin) const
 {

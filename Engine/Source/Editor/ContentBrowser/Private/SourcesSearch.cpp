@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourcesSearch.h"
-#include "Widgets/Input/SSearchBox.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Input/Events.h"
+#include "Internationalization/Text.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SSearchBox.h"
 
 void FSourcesSearch::Initialize()
 {

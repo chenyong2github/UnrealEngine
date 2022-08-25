@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerSelectionPreview.h"
-#include "MovieSceneSection.h"
+
+#include "HAL/PlatformCrt.h"
+#include "SequencerSelectedKey.h"
+#include "Templates/TypeHash.h"
+
+namespace UE::Sequencer { class FViewModel; }
 
 void FSequencerSelectionPreview::SetSelectionState(FSequencerSelectedKey Key, ESelectionPreviewState InState)
 {

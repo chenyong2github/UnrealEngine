@@ -2,12 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AIGraph.generated.h"
 
+class FArchive;
 class UEdGraphPin;
+class UObject;
 
 UCLASS()
 class AIGRAPH_API UAIGraph : public UEdGraph

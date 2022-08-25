@@ -1,22 +1,47 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Views/STrackAreaView.h"
-#include "MVVM/ViewModels/OutlinerSpacer.h"
+
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "ISequencerEditTool.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/ArrangedWidget.h"
+#include "Layout/Geometry.h"
+#include "Layout/LayoutUtils.h"
+#include "Layout/Margin.h"
+#include "Layout/SlateRect.h"
+#include "Layout/Visibility.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/ViewModels/OutlinerViewModel.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
 #include "MVVM/Views/SOutlinerView.h"
 #include "MVVM/Views/STrackLane.h"
-#include "Types/PaintArgs.h"
-#include "Layout/ArrangedChildren.h"
+#include "Math/Range.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/FrameNumber.h"
 #include "Rendering/DrawElements.h"
-#include "Layout/LayoutUtils.h"
-#include "Widgets/SWeakWidget.h"
+#include "Rendering/RenderingCommon.h"
 #include "Styling/AppStyle.h"
-#include "TimeToPixel.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
 #include "Styling/StyleColors.h"
-#include "ISequencerEditTool.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "TimeToPixel.h"
+#include "Types/PaintArgs.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SWeakWidget.h"
+#include "Widgets/SWidget.h"
+
+class FChildren;
+class FDragDropEvent;
+class FWidgetStyle;
 
 namespace UE
 {

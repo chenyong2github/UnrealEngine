@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "BlueprintCompiledStatement.h"
+#include "Containers/Map.h"
 #include "KismetCompilerMisc.h"
 
 class FKismetCompilerContext;
+class UEdGraphNode;
+class UEdGraphPin;
+struct FBPTerminal;
 struct FKismetFunctionContext;
 
 //////////////////////////////////////////////////////////////////////////

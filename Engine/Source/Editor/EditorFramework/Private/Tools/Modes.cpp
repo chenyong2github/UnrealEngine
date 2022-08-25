@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/Modes.h"
-#include "Styling/AppStyle.h"
+
+#include "Containers/UnrealString.h"
+#include "UObject/UnrealNames.h"
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)

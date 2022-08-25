@@ -3,44 +3,70 @@
 #pragma once
 
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "IMovieScenePlayer.h"
-#include "Misc/Guid.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "IMovieScenePlayer.h"
-#include "KeyPropertyParams.h"
-#include "MovieSceneBinding.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "Widgets/Input/NumericTypeInterface.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Editor/SequencerWidgets/Public/ITimeSlider.h"
+#include "Evaluation/MovieSceneSequenceTransform.h"
+#include "HAL/Platform.h"
+#include "IMovieScenePlayer.h"
+#include "IMovieScenePlayer.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "KeyParams.h"
+#include "KeyPropertyParams.h"
+#include "Math/Range.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Guid.h"
+#include "Misc/QualifiedFrameTime.h"
+#include "MovieSceneBinding.h"
+#include "MovieSceneSequenceID.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Input/NumericTypeInterface.h"
+#include "Widgets/SWidget.h"
 
-struct FFrameTime;
-struct FQualifiedFrameTime;
-struct FMovieSceneChannelHandle;
-
-class UMovieSceneSection;
-class UMovieSceneTrack;
 class AActor;
 class ACameraActor;
+class FSequencerKeyCollection;
 class FSequencerSelection;
 class FSequencerSelectionPreview;
 class FUICommandList;
-class FSequencerKeyCollection;
-class UMovieSceneSequence;
-class UMovieSceneSubSection;
-class UMovieSceneCinematicShotSection;
-class ISequencerTrackEditor;
 class IDetailsView;
 class IKeyArea;
+class ISequencerTrackEditor;
+class SWidget;
+class UActorFactory;
+class UMovieSceneCinematicShotSection;
+class UMovieSceneFolder;
+class UMovieSceneSection;
+class UMovieSceneSequence;
+class UMovieSceneSubSection;
+class UMovieSceneTrack;
+class UObject;
+class USequencerSettings;
+struct FCanKeyPropertyParams;
+struct FFrameNumber;
+struct FFrameTime;
+struct FKeyPropertyParams;
+struct FMovieSceneBinding;
+struct FMovieSceneChannelHandle;
+struct FMovieSceneMarkedFrame;
+struct FQualifiedFrameTime;
+template <typename NumericType> struct INumericTypeInterface;
+
 enum class EMapChangeType : uint8;
-class FCurveModel;
 class FCurveEditor;
-struct FMovieSceneSequencePlaybackParams;
-struct FMovieSceneChannelMetaData;
+class FCurveModel;
 class IToolkitHost;
+struct FMovieSceneChannelMetaData;
+struct FMovieSceneSequencePlaybackParams;
 
 namespace UE
 {

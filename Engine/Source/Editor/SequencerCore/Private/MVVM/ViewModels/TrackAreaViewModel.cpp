@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
+
+#include "HAL/PlatformCrt.h"
+#include "ISequencerEditTool.h"
 #include "MVVM/ViewModels/EditorViewModel.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
-#include "ISequencerEditTool.h"
+#include "Misc/FrameRate.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE
 {

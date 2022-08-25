@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Layout/Margin.h"
-#include "Widgets/SOverlay.h"
-#include "Layout/ArrangedChildren.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Widgets/SOverlay.h"
+
+class FArrangedChildren;
+struct FCaptureLostEvent;
+struct FGeometry;
+struct FPointerEvent;
 
 /** Splitter used on the anim timeline as an overlay. Input is disabled on all areas except the draggable positions */
 class SAnimTimelineSplitterOverlay : public SOverlay

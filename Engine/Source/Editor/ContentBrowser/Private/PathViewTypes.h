@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "ContentBrowserItem.h"
+#include "Delegates/Delegate.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FContentBrowserItemData;
 class FTreeItem;
 
 // Sorts array of tree items

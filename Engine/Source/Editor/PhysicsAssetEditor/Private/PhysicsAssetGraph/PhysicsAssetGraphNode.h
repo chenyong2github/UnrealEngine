@@ -3,7 +3,14 @@
 #pragma once
 
 #include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector2D.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "PhysicsAssetGraphNode.generated.h"
+
+class UEdGraphPin;
+class UObject;
 
 UCLASS()
 class UPhysicsAssetGraphNode : public UEdGraphNode

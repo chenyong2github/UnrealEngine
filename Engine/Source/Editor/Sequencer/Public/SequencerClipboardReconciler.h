@@ -2,9 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Curves/KeyHandle.h"
+#include "Misc/Optional.h"
 #include "MovieSceneClipboard.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 namespace UE
 {

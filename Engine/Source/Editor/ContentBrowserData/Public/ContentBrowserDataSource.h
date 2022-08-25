@@ -2,19 +2,30 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "Features/IModularFeature.h"
-#include "ContentBrowserItemData.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserDataFilter.h"
+#include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserItemData.h"
 #include "ContentBrowserVirtualPathTree.h"
+#include "CoreMinimal.h"
+#include "Features/IModularFeature.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ContentBrowserDataSource.generated.h"
 
-struct FAssetData;
 class FAssetThumbnail;
-
 class FDragDropEvent;
 class FDragDropOperation;
+class FText;
+struct FAssetData;
+struct FContentBrowserItemPath;
+template <typename FuncType> class TFunctionRef;
 
 namespace ContentBrowserItemAttributes
 {

@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewportSnappingModule.h"
+
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
 #include "ISnappingPolicy.h"
+#include "Math/MathFwd.h"
+#include "Math/Rotator.h"
+
+class FPrimitiveDrawInterface;
+class FSceneView;
 
 //////////////////////////////////////////////////////////////////////////
 // FMergedSnappingPolicy

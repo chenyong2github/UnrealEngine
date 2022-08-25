@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "ShaderFormatsPropertyDetails.h"
+#include "Internationalization/Text.h"
 #include "TargetPlatformAudioCustomization.h"
+#include "Templates/SharedPointer.h"
 
+class FShaderFormatsPropertyDetails;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SErrorText;

@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LayersDragDropOp.h"
-#include "Textures/SlateIcon.h"
+
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Styling/AppStyle.h"
+
+struct FSlateBrush;
 
 
 void FLayersDragDropOp::Construct()

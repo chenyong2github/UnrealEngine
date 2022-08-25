@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Types/SlateEnums.h"
-#include "Styling/SlateColor.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SWindow.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "WorldPartition/HLOD/SWorldPartitionBuildHLODsDialog.h"
+
+class SWindow;
 
 //////////////////////////////////////////////////////////////////////////
 // SWorldPartitionBuildHLODsDialog

@@ -7,7 +7,11 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "MRUList.h"
 
 /** Simple class to represent a combined MRU and favorite map list */

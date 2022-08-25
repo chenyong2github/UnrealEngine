@@ -2,12 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "FindInBlueprintManager.h"
+#include "Delegates/Delegate.h"
 #include "Engine/MemberReference.h"
-#include "TickableEditorObject.h"
+#include "FindInBlueprintManager.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ScopedTransaction.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "TickableEditorObject.h"
+
+class FScopedTransaction;
+class UBlueprint;
+struct FScopedSlowTask;
 
 /** A helper class for Replacing Variable references in blueprints */
 struct FReplaceNodeReferencesHelper : FTickableEditorObject

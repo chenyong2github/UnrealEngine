@@ -2,6 +2,14 @@
 
 #include "SGraphPinDataTableRowName.h"
 
+#include "Containers/Array.h"
+#include "Engine/DataTable.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class UEdGraphPin;
+
 void SGraphPinDataTableRowName::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj, class UDataTable* InDataTable)
 {
 	DataTable = InDataTable;

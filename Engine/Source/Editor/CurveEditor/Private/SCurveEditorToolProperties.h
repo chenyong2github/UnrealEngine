@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "ICurveEditorToolExtension.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "CurveEditor.h"
-#include "UObject/Object.h"
 
+class FCurveEditor;
 class IStructureDetailsView;
+struct FPropertyChangedEvent;
 
 /**
  * Widget to show curve editor tool extension properties

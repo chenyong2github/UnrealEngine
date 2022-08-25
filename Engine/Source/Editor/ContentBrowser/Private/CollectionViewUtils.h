@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CollectionManagerTypes.h"
+#include "Containers/Array.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "UObject/NameTypes.h"
 
 namespace CollectionViewUtils
 {

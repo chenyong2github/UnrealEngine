@@ -2,9 +2,14 @@
 
 
 #include "SViewportToolBar.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Input/SMenuAnchor.h"
+
+#include "Internationalization/Internationalization.h"
 #include "Styling/AppStyle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/Input/SMenuAnchor.h"
+
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "ViewportToolBar"
 

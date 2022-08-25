@@ -1,8 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/SpawnTrackEditor.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/Platform.h"
+#include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Guid.h"
+#include "MovieScene.h"
+#include "MovieSceneSequence.h"
+#include "MovieSceneTrack.h"
+#include "ScopedTransaction.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
-#include "Sections/BoolPropertySection.h"
+#include "UObject/Class.h"
+#include "UObject/UnrealNames.h"
+
+class ISequencerTrackEditor;
 
 
 #define LOCTEXT_NAMESPACE "FSpawnTrackEditor"

@@ -2,8 +2,18 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "Filters/CurveEditorFilterBase.h"
+#include "Misc/FrameRate.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CurveEditorReduceFilter.generated.h"
+
+class FCurveEditor;
+class UObject;
+struct FCurveModelID;
+struct FKeyHandleSet;
 
 UCLASS(DisplayName="Simplify")
 class UCurveEditorReduceFilter : public UCurveEditorFilterBase

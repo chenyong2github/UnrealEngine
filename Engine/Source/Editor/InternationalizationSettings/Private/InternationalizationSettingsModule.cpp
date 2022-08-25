@@ -2,7 +2,9 @@
 
 #include "InternationalizationSettingsModule.h"
 
+#include "Delegates/Delegate.h"
 #include "InternationalizationSettingsModelDetails.h"
+#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 
 

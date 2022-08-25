@@ -2,14 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "WidgetBlueprint.h"
+#include "Engine/Blueprint.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "WidgetBlueprint.h"
 
 class IDetailChildrenBuilder;
 class IDetailPropertyRow;
+class IPropertyHandle;
 
 class FCanvasSlotCustomization : public IPropertyTypeCustomization
 {

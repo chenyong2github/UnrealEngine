@@ -1,10 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GraphDiffControl.h"
+
+#include "Containers/Set.h"
+#include "DiffResults.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Engine/Blueprint.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "GraphDiffControl"
 

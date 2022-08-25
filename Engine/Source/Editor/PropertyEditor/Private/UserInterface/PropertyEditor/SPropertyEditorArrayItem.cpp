@@ -1,10 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorArrayItem.h"
-#include "UObject/UnrealType.h"
-#include "PropertyNode.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
+#include "PropertyHandle.h"
+#include "PropertyNode.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/Text/STextBlock.h"
 
 /*static*/ TSharedPtr<FTitleMetadataFormatter> FTitleMetadataFormatter::TryParse(TSharedPtr<IPropertyHandle> RootProperty, const FString& TitlePropertyRaw)
 {

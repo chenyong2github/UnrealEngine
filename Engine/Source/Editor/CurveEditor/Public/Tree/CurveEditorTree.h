@@ -2,23 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Templates/TypeHash.h"
+#include "Algo/ForEach.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "Templates/SharedPointer.h"
-#include "Delegates/Delegate.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "CurveEditorTypes.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/EnumClassFlags.h"
-#include "Algo/ForEach.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 
 enum class ECurveEditorTreeFilterType : uint32;
 
-struct ICurveEditorTreeItem;
-struct FCurveEditorTreeFilter;
-
 class FCurveEditor;
 class FCurveEditorTree;
+struct FCurveEditorTreeFilter;
+struct ICurveEditorTreeItem;
 
 /** Enumeration of bitmask values specifying how a specific tree item is interpreted by the current set of filters */
 enum class ECurveEditorTreeFilterState : uint8

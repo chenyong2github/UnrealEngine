@@ -2,14 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
+#include "CoreTypes.h"
 #include "Editor/AddContentDialog/Private/IContentSource.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+
 #include "FeaturePackContentSource.generated.h"
 
 class FJsonValue;
 class FPakPlatformFile;
+class UObject;
 struct FSearchEntry;
 
 struct FPackData

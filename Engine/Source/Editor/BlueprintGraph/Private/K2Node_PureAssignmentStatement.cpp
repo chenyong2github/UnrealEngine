@@ -2,10 +2,23 @@
 
 
 #include "K2Node_PureAssignmentStatement.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
 #include "VariableSetHandler.h"
+
+struct FBPTerminal;
 
 #define LOCTEXT_NAMESPACE "K2Node_PureAssignmentStatement"
 

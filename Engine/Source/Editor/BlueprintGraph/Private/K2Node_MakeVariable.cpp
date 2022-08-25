@@ -1,17 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_MakeVariable.h"
+
+#include "BPTerminal.h"
+#include "BlueprintCompiledStatement.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Engine/Blueprint.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
-#include "EdGraph/EdGraphNodeUtils.h"
+#include "Engine/Blueprint.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Templates/SharedPointer.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
 #include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
 
 static const TCHAR* MakeVariableOutputPinName = TEXT("MakeVariableOutput");
 

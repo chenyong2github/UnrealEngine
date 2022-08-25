@@ -1,11 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNodeStatics.h"
-#include "EdGraphSchema_K2.h"
+
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
-#include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
 #include "UObject/Interface.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "FBlueprintNodeStatics"
 

@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Styling/AppStyle.h"
-#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
 #include "PropertyEditorModule.h"
+#include "SPropertyEditorArrayItem.h"
+#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FPropertyEditor;
 class IPropertyHandle;

@@ -2,6 +2,8 @@
 
 #include "ViewportInteractionUtils.h"
 
+#include "Math/UnrealMathUtility.h"
+
 namespace ViewportInteractionUtils
 {
 	

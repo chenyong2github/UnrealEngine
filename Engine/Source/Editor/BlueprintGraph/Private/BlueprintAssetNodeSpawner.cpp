@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintAssetNodeSpawner.h"
+
+#include "EdGraph/EdGraphNode.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/ChooseClass.h"
 #include "UObject/Package.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "BlueprintAssetNodeSpawner"
 

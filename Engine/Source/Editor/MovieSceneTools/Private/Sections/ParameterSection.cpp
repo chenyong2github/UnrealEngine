@@ -1,18 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/ParameterSection.h"
+
+#include "Channels/MovieSceneChannelEditorData.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "HAL/PlatformCrt.h"
+#include "IKeyArea.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneSectionHelpers.h"
 #include "MVVM/ViewModels/CategoryModel.h"
+#include "Rendering/DrawElementPayloads.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
 #include "ScopedTransaction.h"
 #include "Sections/MovieSceneParameterSection.h"
 #include "SequencerSectionPainter.h"
-#include "Channels/MovieSceneChannelHandle.h"
-#include "Channels/MovieSceneChannelEditorData.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "CommonMovieSceneTools.h"
-#include "MovieSceneSectionHelpers.h"
-#include "IKeyArea.h"
 #include "Styling/AppStyle.h"
-#include "Rendering/DrawElements.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "TimeToPixel.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FName;
+struct FKeyHandle;
 
 #define LOCTEXT_NAMESPACE "ParameterSection"
 

@@ -2,15 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
-#include "EdGraph/EdGraphNode.h"
-#include "Textures/SlateIcon.h"
-#include "EdGraph/EdGraphNodeUtils.h"
+
 #include "EdGraphNode_Comment.generated.h"
 
 class INameValidatorInterface;
+class UEdGraphPin;
+class UObject;
+struct FPropertyChangedEvent;
 struct Rect;
 
 typedef TArray<class UObject*> FCommentNodeSet;

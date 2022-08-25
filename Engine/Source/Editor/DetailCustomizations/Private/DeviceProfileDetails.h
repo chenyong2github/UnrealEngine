@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
 
 class FDeviceProfileTextureLODSettingsDetails;
+class FText;
 class IDetailGroup;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class SWidget;
 
 /* FDeviceProfileParentPropertyDetails
  *****************************************************************************/

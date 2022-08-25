@@ -1,9 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AutoReimport/AssetSourceFilenameCache.h"
+
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetDataTagMap.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "CoreGlobals.h"
+#include "EditorFramework/AssetImportData.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistry/AssetRegistryModule.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 
 FAssetSourceFilenameCache::FAssetSourceFilenameCache()
 {

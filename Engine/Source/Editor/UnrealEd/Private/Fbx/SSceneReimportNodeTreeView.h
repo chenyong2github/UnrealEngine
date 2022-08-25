@@ -1,14 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
+#include "Fbx/SSceneBaseMeshListView.h"
+#include "Fbx/SSceneImportNodeTreeView.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-#include "Fbx/SSceneImportNodeTreeView.h"
-#include "Fbx/SSceneBaseMeshListView.h"
+
+class FFbxAttributeInfo;
+class FFbxSceneInfo;
+class ITableRow;
+class SWidget;
 
 struct FTreeNodeValue
 {

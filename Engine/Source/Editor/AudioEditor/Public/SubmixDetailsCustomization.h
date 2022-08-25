@@ -1,15 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
 #include "PropertyHandle.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 
-class IDetailLayoutBuilder;
 class IDetailGroup;
+class IDetailLayoutBuilder;
+class SWidget;
 
 // Utility class to build combo boxes out of arrays of names.
 class FNameSelectorGenerator : public TSharedFromThis<FNameSelectorGenerator>

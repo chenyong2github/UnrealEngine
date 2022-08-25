@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 #include "IDistCurveEditor.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class UInterpCurveEdSetup;
 

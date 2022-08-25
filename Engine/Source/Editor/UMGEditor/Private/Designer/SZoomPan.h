@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
+#include "SZoomPan.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FArrangedChildren;
+class SWidget;
+struct FGeometry;
 
 class SZoomPan : public SCompoundWidget
 {

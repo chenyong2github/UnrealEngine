@@ -1,9 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/WidgetMaterialTrackEditor.h"
-#include "Components/Widget.h"
+
 #include "Animation/MovieSceneWidgetMaterialTrack.h"
 #include "Animation/WidgetMaterialTrackUtilities.h"
+#include "Components/Widget.h"
+#include "Containers/ArrayView.h"
+#include "ISequencer.h"
+#include "Misc/Guid.h"
+#include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tracks/MovieSceneMaterialTrack.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class ISequencerTrackEditor;
+class UMovieSceneTrack;
 
 
 FWidgetMaterialTrackEditor::FWidgetMaterialTrackEditor( TSharedRef<ISequencer> InSequencer )

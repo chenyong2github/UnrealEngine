@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
+#include "Math/Range.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FWidgetStyle;
 class ITimeSliderController;
+class SWidget;
+struct FGeometry;
+struct FPointerEvent;
 
 class STimeRangeSlider : public SCompoundWidget
 {

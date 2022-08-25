@@ -1,12 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintEventNodeSpawner.h"
+
+#include "BlueprintNodeTemplateCache.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node_CallFunction.h"
+#include "K2Node_Event.h"
 #include "K2Node_FunctionEntry.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "BlueprintNodeTemplateCache.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Class.h"
+#include "UObject/Package.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "BlueprintEventNodeSpawner"
 

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/IGeometryExtension.h"
+
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 

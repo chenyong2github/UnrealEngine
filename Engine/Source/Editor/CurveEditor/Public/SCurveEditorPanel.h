@@ -2,25 +2,49 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "CurveDataAbstraction.h"
 #include "CurveDrawInfo.h"
 #include "CurveEditor.h"
 #include "CurveEditorTypes.h"
+#include "Curves/RealCurve.h"
+#include "Curves/RichCurve.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/Visibility.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UniquePtr.h"
 #include "Textures/SlateIcon.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-struct FCurveEditorEditObjectContainer;
-
+class FCurveEditor;
+class FExtender;
+class FTabManager;
+class FUICommandList;
 class IDetailsView;
 class IGraphEditorView;
 class ITimeSliderController;
-class SScrollBox;
+class SCurveEditorToolProperties;
 class SCurveEditorView;
 class SCurveEditorViewContainer;
-class SCurveEditorToolProperties;
-class FTabManager;
+class SCurveKeyDetailPanel;
+class SScrollBox;
+class SWidget;
 class UCurveEditorFilterBase;
+struct FCurveEditorDelayedDrag;
+struct FCurveEditorEditObjectContainer;
+struct FCurveEditorToolID;
+struct FKeyEvent;
 
 /**
  * Curve editor widget that reflects the state of an FCurveEditor

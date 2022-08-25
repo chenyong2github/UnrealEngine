@@ -2,15 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "GraphEditor.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "GraphEditor.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBorder.h"
 
+class SEditableTextBox;
 class SGraphActionMenu;
 class UEdGraph;
+class UEdGraphPin;
+struct FEdGraphSchemaAction;
+struct FGraphActionListBuilderBase;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 

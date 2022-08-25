@@ -2,17 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "BehaviorTree/BlackboardData.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailCustomization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Views/SListView.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class ITableRow;
-class STableViewBase;
 class SComboButton;
-class UBlackboardData;
+class STableViewBase;
 
 /** Delegate used to retrieve current blackboard selection */
 DECLARE_DELEGATE_RetVal_OneParam(int32, FOnGetSelectedBlackboardItemIndex, bool& /* bIsInherited */);

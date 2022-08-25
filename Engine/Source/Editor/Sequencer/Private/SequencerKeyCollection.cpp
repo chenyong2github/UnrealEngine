@@ -1,10 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerKeyCollection.h"
-#include "MovieSceneSection.h"
+
+#include "Algo/BinarySearch.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "IKeyArea.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/SharedList.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Math/Range.h"
+#include "Math/RangeBound.h"
+#include "Math/UnrealMathUtility.h"
+#include "MovieSceneSection.h"
+#include "SequencerCoreFwd.h"
+#include "Templates/Tuple.h"
 
 FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(const TArray<TSharedRef<FViewModel>>& InNodes, FFrameNumber InDuplicateThresholdTime)
 {

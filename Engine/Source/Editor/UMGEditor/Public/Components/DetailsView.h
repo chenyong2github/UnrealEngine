@@ -3,12 +3,21 @@
 #pragma once
 
 #include "Components/PropertyViewBase.h"
+#include "Containers/Array.h"
 #include "Misc/NotifyHook.h"
 #include "PropertyEditorDelegates.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "DetailsView.generated.h"
 
-
+class FProperty;
 class IDetailsView;
+class UObject;
+struct FPropertyAndParent;
+struct FPropertyChangedEvent;
 
 /**
  * The details view allows you to display the value of an object properties.

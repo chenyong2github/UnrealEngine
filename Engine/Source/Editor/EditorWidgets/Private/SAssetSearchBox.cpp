@@ -1,13 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetSearchBox.h"
-#include "Layout/WidgetPath.h"
+
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SMenuAnchor.h"
-#include "Widgets/Views/SListView.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/LocKeyFuncs.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/WidgetPath.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Templates/Tuple.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
+struct FGeometry;
 
 /** Case sensitive hashing function for TMap */
 template <typename ValueType>

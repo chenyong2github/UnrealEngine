@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "Math/Color.h"
 #include "TextureEditorSettings.h"
+#include "UObject/Object.h"
+
+class FObjectInitializer;
 
 
 UTextureEditorSettings::UTextureEditorSettings( const FObjectInitializer& ObjectInitializer )

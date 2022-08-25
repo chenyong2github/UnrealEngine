@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AdvancedPreviewSceneModule.h"
-#include "SAdvancedPreviewDetailsTab.h"
+
 #include "AdvancedPreviewSceneCommands.h"
 #include "Modules/ModuleManager.h"
+#include "SAdvancedPreviewDetailsTab.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UObject;
 
 void FAdvancedPreviewSceneModule::StartupModule()
 {

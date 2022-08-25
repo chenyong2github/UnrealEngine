@@ -3,11 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class IPropertyHandle;
 class SEditableTextBox;
+struct FGuid;
 
 namespace EPropertyEditorGuidActions
 {

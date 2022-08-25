@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneBindingOverrideDataCustomization.h"
-#include "IPropertyUtilities.h"
-#include "MovieSceneBindingOwnerInterface.h"
-#include "MovieSceneBindingOverrides.h"
-#include "MovieSceneSequence.h"
-#include "MovieScene.h"
-#include "PropertyHandle.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieSceneBindingOverrides.h"
+#include "MovieSceneBindingOwnerInterface.h"
+#include "PropertyHandle.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "MovieSceneBindingOverrideDataCustomization"
 

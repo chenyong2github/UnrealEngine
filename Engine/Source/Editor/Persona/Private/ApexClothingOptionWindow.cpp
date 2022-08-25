@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ApexClothingOptionWindow.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ApexClothingOption"
 

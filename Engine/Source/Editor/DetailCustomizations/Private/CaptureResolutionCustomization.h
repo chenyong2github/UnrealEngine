@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;
+class IPropertyHandle;
 class STextBlock;
+class SWidget;
 
 class FCaptureResolutionCustomization : public IPropertyTypeCustomization
 {

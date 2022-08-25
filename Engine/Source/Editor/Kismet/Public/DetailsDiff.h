@@ -1,12 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "PropertyPath.h"
+#include "Delegates/Delegate.h"
 #include "DiffUtils.h"
+#include "PropertyPath.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/SWidget.h"
 
+class FPropertyPath;
 class IDetailsView;
+class UObject;
 
 /** Struct to handle showing details for an object and provide an interface for listing all differences */
 class KISMET_API FDetailsDiff

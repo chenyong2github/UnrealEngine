@@ -1,19 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SProjectTargetPlatformSettings.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/SlateTypes.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
-#include "PlatformInfo.h"
+
 #include "GameProjectGenerationModule.h"
 #include "Interfaces/IProjectManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SProjectTargetPlatformSettings"
 

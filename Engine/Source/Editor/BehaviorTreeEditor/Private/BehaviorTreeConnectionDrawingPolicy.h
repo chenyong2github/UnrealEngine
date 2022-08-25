@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AIGraphConnectionDrawingPolicy.h"
+#include "HAL/Platform.h"
 
+class FSlateRect;
 class FSlateWindowElementList;
 class UEdGraph;
+class UEdGraphPin;
+struct FConnectionParams;
 
 // This class draws the connections for an UEdGraph with a behavior tree schema
 class BEHAVIORTREEEDITOR_API FBehaviorTreeConnectionDrawingPolicy : public FAIGraphConnectionDrawingPolicy

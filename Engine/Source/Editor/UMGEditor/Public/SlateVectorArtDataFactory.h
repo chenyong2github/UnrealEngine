@@ -3,9 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SlateVectorArtDataFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCLASS(hidecategories = Object, collapsecategories, MinimalAPI)
 class USlateVectorArtDataFactory : public UFactory

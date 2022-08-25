@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserDataUtils.h"
+
 #include "Containers/StringView.h"
 #include "Interfaces/IPluginManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/EnumClassFlags.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
 #include "Misc/Paths.h"
+#include "Misc/StringBuilder.h"
 #include "Settings/ContentBrowserSettings.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/UObjectGlobals.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataUtils"
 

@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ViewModels/CategoryViewModel.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
 #include "Misc/TextFilter.h"
+#include "Templates/SharedPointer.h"
+#include "ViewModels/CategoryViewModel.h"
 
 class FContentSourceViewModel;
+class FString;
 class IContentSourceProvider;
 
 /** The view model for the SAddContentWidget. */

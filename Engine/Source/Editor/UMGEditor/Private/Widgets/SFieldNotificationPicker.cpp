@@ -2,8 +2,16 @@
 
 #include "Widgets/SFieldNotificationPicker.h"
 
+#include "FieldNotification/IClassDescriptor.h"
+#include "FieldNotification/IFieldValueChanged.h"
+#include "Layout/Children.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ScriptInterface.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 namespace UE::FieldNotification
 {

@@ -5,10 +5,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "IDetailsView.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IDetailsView.h"
+#include "Widgets/SWidget.h"
+
+class IDetailsView;
 
 class SEQUENCER_API SMotionTrailOptions : public SCompoundWidget
 {

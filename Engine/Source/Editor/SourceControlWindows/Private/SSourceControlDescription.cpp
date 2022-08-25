@@ -2,13 +2,35 @@
 
 #include "SSourceControlDescription.h"
 
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "UObject/UnrealNames.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Styling/AppStyle.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "SourceControl.Description"
 

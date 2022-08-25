@@ -1,13 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StructMemberNodeHandlers.h"
-#include "UObject/UnrealType.h"
+
+#include "BPTerminal.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
-#include "K2Node_StructMemberGet.h"
-#include "K2Node_StructMemberSet.h"
 #include "EdGraphUtilities.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "K2Node_StructMemberGet.h"
+#include "K2Node_StructMemberSet.h"
+#include "K2Node_StructOperation.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
 
 static FBPTerminal* RegisterStructVar(FCompilerResultsLog& MessageLog, FKismetFunctionContext& Context, UK2Node_StructOperation* MemberSetNode)
 {

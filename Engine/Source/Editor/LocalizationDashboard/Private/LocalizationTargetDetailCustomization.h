@@ -2,22 +2,39 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailCustomization.h"
+#include "Internationalization/CulturePointer.h"
+#include "Internationalization/Text.h"
 #include "LocalizationTargetTypes.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Views/SListView.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class ITableRow;
 class SComboButton;
 class SCulturePicker;
 class SEditableTextBox;
 class SErrorText;
-class ULocalizationTarget;
-class ULocalizationTargetSet;
-struct FLocalizationTargetSettings;
+class SHorizontalBox;
+class STableViewBase;
+class SWidget;
+
 enum class ELocalizationTargetLoadingPolicy : uint8;
 
 class FLocalizationTargetDetailCustomization : public IDetailCustomization

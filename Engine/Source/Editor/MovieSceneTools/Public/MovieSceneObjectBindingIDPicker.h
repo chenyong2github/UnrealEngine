@@ -3,28 +3,30 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Textures/SlateIcon.h"
+#include "Internationalization/Text.h"
 #include "MovieSceneSequenceID.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
 
+class FMenuBuilder;
 class FReply;
+class ISequencer;
+class STextBlock;
 class SWidget;
 class UMovieSceneSequence;
-class FMenuBuilder;
-class STextBlock;
-class ISequencer;
 struct EVisibility;
-struct FSlateBrush;
-struct FSequenceBindingTree;
-struct FSequenceBindingNode;
 struct FMovieSceneObjectBindingID;
+struct FSequenceBindingNode;
+struct FSequenceBindingTree;
+struct FSlateBrush;
 
 namespace UE
 {
 namespace MovieScene
 {
 
-struct FRelativeObjectBindingID;
 struct FFixedObjectBindingID;
+struct FRelativeObjectBindingID;
 
 } // namespace MovieScene
 } // namespace UE

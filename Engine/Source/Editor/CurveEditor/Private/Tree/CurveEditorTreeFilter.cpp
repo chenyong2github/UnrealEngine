@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/CurveEditorTreeFilter.h"
-#include "Tree/ICurveEditorTreeItem.h"
-#include "Tree/CurveEditorTree.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
 
 
 

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewportDragOperation.h"
-#include "ViewportInteractionTypes.h"
+
+#include "UObject/Package.h"
 
 UViewportDragOperationComponent::UViewportDragOperationComponent() : 
 	Super(),

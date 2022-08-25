@@ -2,8 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IStatsPage.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class IStatsPage;
 
 /**
  * A class which manages a the collection of known stats pages           

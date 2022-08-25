@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "CoreMinimal.h"
-#include "SequencerCoreFwd.h"
+#include "Containers/Array.h"
+#include "MVVM/ViewModelPtr.h"
+
+class FName;
 
 namespace UE
 {

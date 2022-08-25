@@ -1,14 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LocalizedAssetUtil.h"
-#include "LocalizationSourceControlUtil.h"
-#include "Misc/Paths.h"
-#include "Misc/PackageName.h"
+
+#include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
-#include "AssetRegistry/ARFilter.h"
-#include "PackageHelperFunctions.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "LocalizationSourceControlUtil.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "ObjectTools.h"
+#include "PackageHelperFunctions.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/Package.h"
+#include "UObject/TopLevelAssetPath.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalizedAssetUtil, Log, All);
 

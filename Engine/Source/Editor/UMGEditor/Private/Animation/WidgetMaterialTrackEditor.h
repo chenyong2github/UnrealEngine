@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
-#include "ISequencer.h"
-#include "MovieSceneTrack.h"
-#include "ISequencerTrackEditor.h"
 #include "TrackEditors/MaterialTrackEditor.h"
 
+class ISequencer;
+class ISequencerTrackEditor;
 class UMaterialInterface;
 class UMovieSceneMaterialTrack;
+class UMovieSceneTrack;
+struct FGuid;
 
 /**
  * A specialized material track editor for widget materials

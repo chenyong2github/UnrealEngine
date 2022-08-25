@@ -2,14 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "ISequencer.h"
-#include "ISequencerSection.h"
-#include "ISequencerTrackEditor.h"
-#include "PropertyTrackEditor.h"
+#include "AnimatedPropertyKey.h"
 #include "Animation/MovieScene2DTransformTrack.h"
-#include "Animation/MovieScene2DTransformSection.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "KeyframeTrackEditor.h"
+#include "PropertyTrackEditor.h"
+#include "Slate/WidgetTransform.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+class FName;
+class FPropertyChangedParams;
+class ISequencer;
+class ISequencerSection;
+class ISequencerTrackEditor;
+class UMovieSceneSection;
+class UMovieSceneTrack;
+class UObject;
+namespace UE::Sequencer { struct FKeyOperation; }
+namespace UE::Sequencer { struct FKeySectionOperation; }
+struct FFrameNumber;
+struct FGuid;
 
 class F2DTransformTrackEditor
 	: public FPropertyTrackEditor<UMovieScene2DTransformTrack>

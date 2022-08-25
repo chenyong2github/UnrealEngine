@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserMenuContexts.h"
+
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "SContentBrowser.h"
+#include "UObject/UnrealNames.h"
 
 FName UContentBrowserToolbarMenuContext::GetCurrentPath() const
 {

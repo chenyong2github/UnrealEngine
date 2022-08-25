@@ -2,10 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ISequencer.h"
+#include "HAL/Platform.h"
 #include "ISequencerSection.h"
-#include "Camera/CameraShakeBase.h"
+#include "Internationalization/Text.h"
+#include "Misc/Guid.h"
+#include "MovieSceneSection.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FSequencerSectionPainter;
+class ISequencer;
+class UCameraShakeBase;
 
 /**
  * Section interface for shake sections

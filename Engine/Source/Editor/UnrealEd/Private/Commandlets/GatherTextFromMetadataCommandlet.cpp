@@ -1,16 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/GatherTextFromMetadataCommandlet.h"
+
+#include "Commandlets/Commandlet.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/InternationalizationManifest.h"
+#include "Internationalization/LocKeyFuncs.h"
+#include "LocTextHelper.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
+#include "SourceCodeNavigation.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
-#include "UObject/UnrealType.h"
-#include "Misc/Paths.h"
-#include "Misc/PackageName.h"
-#include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/PropertyIterator.h"
-#include "SourceCodeNavigation.h"
+#include "UObject/UnrealType.h"
+
+class UObject;
 
 DEFINE_LOG_CATEGORY_STATIC(LogGatherTextFromMetaDataCommandlet, Log, All);
 

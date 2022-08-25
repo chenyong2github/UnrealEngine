@@ -2,6 +2,9 @@
 
 #include "BlueprintEditorTabs.h"
 
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+
 const FName FBlueprintEditorTabs::DetailsID( TEXT( "Inspector" ) );
 const FName FBlueprintEditorTabs::DefaultEditorID( TEXT( "DefaultEditor" ) );
 const FName FBlueprintEditorTabs::DebugID( TEXT( "Debug" ) );

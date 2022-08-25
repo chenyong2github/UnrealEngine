@@ -2,16 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
-#include "EdGraph/EdGraphNode.h"
 #include "AssetRegistry/AssetData.h"
 #include "BlueprintActionDatabase.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 
-class UBlueprintNodeSpawner;
 class IAssetTools;
+class UBlueprintNodeSpawner;
+class UClass;
+class UEdGraphNode;
+class UEnum;
+class UField;
+class UFunction;
+class UObject;
+class UScriptStruct;
+struct FAssetData;
 
 /**
  * From the BlueprintActionDatabase, passed around to all UK2Nodes, giving each 

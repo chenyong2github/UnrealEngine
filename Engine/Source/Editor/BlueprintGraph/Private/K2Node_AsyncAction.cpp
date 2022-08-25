@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_AsyncAction.h"
-#include "UObject/UnrealType.h"
 
-#include "Kismet/BlueprintAsyncActionBase.h"
-#include "BlueprintNodeSpawner.h"
-#include "BlueprintFunctionNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintFunctionNodeSpawner.h"
+#include "BlueprintNodeSpawner.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Kismet/BlueprintAsyncActionBase.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 
 #define LOCTEXT_NAMESPACE "K2Node"

@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
-#include "ISequencer.h"
-#include "MovieSceneTrack.h"
-#include "ISequencerTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/FloatPropertyTrackEditor.h"
+
+class FMenuBuilder;
+class ISequencer;
+class ISequencerTrackEditor;
+class UMovieSceneSequence;
+class UMovieSceneTrack;
+struct FSlateBrush;
 
 /**
 * A property track editor for slow motion control.

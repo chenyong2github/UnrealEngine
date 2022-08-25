@@ -2,12 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IContentAddressableStorage.h"
+#include "IO/IoHash.h"
+#include "RemoteMessages.h"
 
 
 namespace UE::RemoteExecution
 {
+class IRemoteMessage;
+
 	class FContentAddressableStorage : public IContentAddressableStorage
 	{
 	private:

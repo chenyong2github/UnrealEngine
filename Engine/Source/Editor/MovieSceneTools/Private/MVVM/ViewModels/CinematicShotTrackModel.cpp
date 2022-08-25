@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/CinematicShotTrackModel.h"
-#include "Tracks/MovieSceneCinematicShotTrack.h" 
+
+#include "MovieSceneTrack.h"
+#include "Templates/Casts.h"
+#include "Tracks/MovieSceneCinematicShotTrack.h"
 
 namespace UE
 {

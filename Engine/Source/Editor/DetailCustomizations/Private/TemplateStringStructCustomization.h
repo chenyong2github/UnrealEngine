@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "IPropertyTypeCustomization.h"
-#include "Core/Private/Internationalization/TextCache.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class IPropertyHandle;
 

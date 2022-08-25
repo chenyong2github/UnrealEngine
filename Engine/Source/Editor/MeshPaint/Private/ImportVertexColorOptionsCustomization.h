@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "Widgets/SBoxPanel.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
+
+class IDetailLayoutBuilder;
+class SHorizontalBox;
 
 /** Customization for importing vertex colors from a texture see SImportVertexColorOptions */
 class FVertexColorImportOptionsCustomization : public IDetailCustomization

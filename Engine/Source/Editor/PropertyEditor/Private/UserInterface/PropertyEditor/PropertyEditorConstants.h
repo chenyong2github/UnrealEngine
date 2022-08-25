@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Styling/SlateColor.h"
-#include "UObject/NameTypes.h"
 #include "Templates/SharedPointer.h"
 
+class FName;
 struct FSlateBrush;
 
 class PropertyEditorConstants

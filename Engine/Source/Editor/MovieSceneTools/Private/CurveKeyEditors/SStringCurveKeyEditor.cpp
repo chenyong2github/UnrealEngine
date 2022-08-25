@@ -1,9 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveKeyEditors/SStringCurveKeyEditor.h"
-#include "Widgets/Input/SEditableText.h"
+
+#include "Containers/ArrayView.h"
+#include "HAL/PlatformCrt.h"
+#include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
 #include "ScopedTransaction.h"
-#include "Sections/MovieSceneStringSection.h"
+#include "Widgets/Input/SEditableText.h"
 
 #define LOCTEXT_NAMESPACE "StringCurveKeyEditor"
 

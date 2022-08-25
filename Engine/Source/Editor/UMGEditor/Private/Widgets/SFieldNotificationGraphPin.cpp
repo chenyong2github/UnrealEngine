@@ -1,13 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SFieldNotificationGraphPin.h"
-#include "Widgets/SFieldNotificationPicker.h"
 
-#include "EdGraphSchema_K2.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "K2Node.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/OutputDeviceRedirector.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/SFieldNotificationPicker.h"
+
+class SWidget;
 
 
 #define LOCTEXT_NAMESPACE "SFieldNotificationGraphPin"

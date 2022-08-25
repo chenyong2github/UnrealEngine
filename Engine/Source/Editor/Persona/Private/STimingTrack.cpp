@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STimingTrack.h"
-#include "Layout/ArrangedChildren.h"
 
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Math/Box2D.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "SCurveEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/SWidget.h"
 
 void STimingTrack::Construct(const FArguments& Args)
 {

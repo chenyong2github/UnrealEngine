@@ -1,12 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_Composite.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EdGraphUtilities.h"
+#include "Engine/Blueprint.h"
+#include "Engine/MemberReference.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node.h"
+#include "K2Node_EditablePinBase.h"
 #include "K2Node_Event.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-
-#include "EdGraphUtilities.h"
 #include "Kismet2/Kismet2NameValidators.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/UnrealNames.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

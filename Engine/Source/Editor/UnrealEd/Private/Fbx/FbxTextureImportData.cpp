@@ -2,6 +2,10 @@
 
 #include "Factories/FbxTextureImportData.h"
 
+#include "UObject/Object.h"
+
+class FProperty;
+
 UFbxTextureImportData::UFbxTextureImportData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Input/Reply.h"
+#include "Math/IntRect.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FGeometry;
+struct FPointerEvent;
 
 DECLARE_DELEGATE_OneParam( FOnCaptureRegionChanged, const FIntRect& )
 DECLARE_DELEGATE_OneParam( FOnCaptureRegionCompleted, bool )

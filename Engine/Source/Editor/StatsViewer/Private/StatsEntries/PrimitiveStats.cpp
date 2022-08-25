@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PrimitiveStats.h"
-#include "UObject/CoreNet.h"
+
+#include "UObject/Class.h"
+#include "UObject/WeakObjectPtr.h"
 
 UPrimitiveStats::UPrimitiveStats(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

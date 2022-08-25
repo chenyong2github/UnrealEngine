@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+
+class FUICommandInfo;
 
 /** Base set of mesh painter commands */
 class MESHPAINT_API FMeshPainterCommands : public TCommands<FMeshPainterCommands>

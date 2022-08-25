@@ -2,13 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-
+#include "Input/DragAndDrop.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
-class FDragDropEvent;
 class AActor;
-class UDataLayerInstance;
 
 typedef TPair< TWeakObjectPtr<AActor>, TWeakObjectPtr<UDataLayerInstance>> FDataLayerActorMoveElement;
 

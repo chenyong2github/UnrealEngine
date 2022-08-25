@@ -1,16 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/LevelVisibilitySection.h"
-#include "Sections/MovieSceneLevelVisibilitySection.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "DragAndDrop/LevelDragDropOp.h"
+#include "Engine/LevelStreaming.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/DragAndDrop.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
 #include "Misc/PackageName.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "SDropTarget.h"
+#include "ScopedTransaction.h"
+#include "Sections/MovieSceneLevelVisibilitySection.h"
+#include "SequencerSectionPainter.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "SequencerSectionPainter.h"
-#include "SDropTarget.h"
-#include "DragAndDrop/LevelDragDropOp.h"
-#include "ScopedTransaction.h"
+
+class SWidget;
+class UMovieSceneSection;
+struct FGeometry;
 
 namespace LevelVisibilitySection
 {

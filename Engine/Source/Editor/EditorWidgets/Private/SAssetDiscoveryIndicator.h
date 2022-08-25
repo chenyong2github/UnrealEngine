@@ -2,16 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Layout/Margin.h"
 #include "Animation/CurveHandle.h"
 #include "Animation/CurveSequence.h"
+#include "AssetDiscoveryIndicator.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetDiscoveryIndicator.h"
-#include "AssetRegistry/IAssetRegistry.h"
+
+struct FGeometry;
 
 /** An indicator for the progress of the asset registry background search */
 class SAssetDiscoveryIndicator : public SCompoundWidget

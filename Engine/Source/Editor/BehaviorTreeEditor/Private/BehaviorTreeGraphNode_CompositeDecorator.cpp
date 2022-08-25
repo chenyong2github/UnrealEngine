@@ -1,15 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_CompositeDecorator.h"
-#include "BehaviorTree/BTNode.h"
-#include "BehaviorTree/BTDecorator.h"
+
 #include "BehaviorTree/BTCompositeNode.h"
-#include "Kismet2/BlueprintEditorUtils.h"
+#include "BehaviorTree/BTDecorator.h"
+#include "BehaviorTree/BTNode.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BehaviorTreeTypes.h"
+#include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
 #include "BehaviorTreeDecoratorGraph.h"
 #include "BehaviorTreeDecoratorGraphNode_Decorator.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_BehaviorTreeDecorator.h"
-#include "BehaviorTree/BehaviorTree.h"
-#include "BehaviorTree/Decorators/BTDecorator_Blackboard.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditor"
 

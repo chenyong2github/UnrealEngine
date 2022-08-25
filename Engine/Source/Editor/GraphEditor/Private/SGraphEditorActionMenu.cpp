@@ -1,11 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SGraphEditorActionMenu.h"
+
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SBox.h"
-#include "Styling/AppStyle.h"
+#include "HAL/PlatformMath.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
 #include "SGraphActionMenu.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/Layout/SBox.h"
+
+class SEditableTextBox;
 
 SGraphEditorActionMenu::~SGraphEditorActionMenu()
 {

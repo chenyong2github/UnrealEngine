@@ -2,6 +2,10 @@
 
 #include "Channels/DoubleChannelKeyProxy.h"
 
+#include "HAL/PlatformCrt.h"
+
+struct FPropertyChangedEvent;
+
 void UDoubleChannelKeyProxy::Initialize(FKeyHandle InKeyHandle, TMovieSceneChannelHandle<FMovieSceneDoubleChannel> InChannelHandle, TWeakObjectPtr<UMovieSceneSection> InWeakSection)
 {
 	KeyHandle     = InKeyHandle;

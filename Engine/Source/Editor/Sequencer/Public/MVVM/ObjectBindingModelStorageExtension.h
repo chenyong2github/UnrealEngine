@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "Misc/Guid.h"
-#include "MVVM/Extensions/DynamicExtensionContainer.h"
+#include "Containers/Map.h"
 #include "EventHandlers/ISequenceDataEventHandler.h"
+#include "EventHandlers/MovieSceneDataEventContainer.h"
+#include "MVVM/Extensions/DynamicExtensionContainer.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 
+class UMovieSceneTrack;
+namespace UE::MovieScene { class ISequenceDataEventHandler; }
 struct FMovieSceneBinding;
 
 namespace UE
@@ -13,12 +19,11 @@ namespace UE
 namespace Sequencer
 {
 
-struct FViewModelChildren;
-
-class FSequenceModel;
-class FViewModel;
 class FObjectBindingModel;
 class FPlaceholderObjectBindingModel;
+class FSequenceModel;
+class FViewModel;
+struct FViewModelChildren;
 
 class FObjectBindingModelStorageExtension
 	: public IDynamicExtension

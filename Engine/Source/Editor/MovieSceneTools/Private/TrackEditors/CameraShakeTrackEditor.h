@@ -2,19 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "Templates/SubclassOf.h"
-#include "Widgets/SWidget.h"
-#include "ISequencer.h"
-#include "MovieSceneTrack.h"
-#include "ISequencerSection.h"
-#include "ISequencerTrackEditor.h"
+#include "Containers/Array.h"
 #include "MovieSceneTrackEditor.h"
-#include "Camera/CameraShakeBase.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-struct FAssetData;
 class FMenuBuilder;
+class ISequencer;
+class ISequencerSection;
+class ISequencerTrackEditor;
+class SWidget;
+class UCameraShakeBase;
+class UClass;
+class UMovieSceneSection;
+class UMovieSceneTrack;
+class UObject;
+struct FAssetData;
+struct FBuildEditWidgetParams;
+struct FFrameNumber;
+struct FGuid;
 
 /**
 * Tools for playing a camera shake

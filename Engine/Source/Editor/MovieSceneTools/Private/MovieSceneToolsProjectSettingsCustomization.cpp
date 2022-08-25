@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneToolsProjectSettingsCustomization.h"
-#include "MovieSceneToolsProjectSettings.h"
 
-#include "PropertyHandle.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "DetailLayoutBuilder.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieSceneToolsProjectSettings.h"
+#include "PropertyHandle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
 
 //#include "Editor/PropertyEditor/Public/IDetailsView.h"
 //#include "IDetailCustomization.h"

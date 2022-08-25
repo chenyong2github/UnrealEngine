@@ -1,10 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyVisualization/ConfigPropertyColumn.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "HAL/Platform.h"
 #include "IPropertyTable.h"
 #include "IPropertyTableCell.h"
+#include "IPropertyTableColumn.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "PropertyPath.h"
 #include "PropertyVisualization/ConfigPropertyCellPresenter.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IPropertyHandle;
+class IPropertyTableUtilities;
+class SWidget;
 
 
 

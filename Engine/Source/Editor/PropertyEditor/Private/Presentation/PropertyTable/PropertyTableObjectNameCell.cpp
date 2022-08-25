@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Presentation/PropertyTable/PropertyTableObjectNameCell.h"
-#include "IPropertyTableColumn.h"
+
 #include "IPropertyTable.h"
+#include "IPropertyTableRow.h"
+#include "ObjectPropertyNode.h"
 #include "Presentation/PropertyTable/PropertyTableObjectNameColumn.h"
+#include "Templates/TypeHash.h"
+#include "UObject/WeakObjectPtr.h"
+
+class IPropertyTableColumn;
+class UObject;
 
 FPropertyTableObjectNameCell::FPropertyTableObjectNameCell( const TSharedRef< class FPropertyTableObjectNameColumn >& InColumn, const TSharedRef< class IPropertyTableRow >& InRow )
 	: EnteredEditModeEvent()

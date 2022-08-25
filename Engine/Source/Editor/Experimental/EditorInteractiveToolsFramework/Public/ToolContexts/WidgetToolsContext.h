@@ -3,11 +3,24 @@
 #pragma once
 
 #include "EdModeInteractiveToolsContext.h"
-#include "Layout/Geometry.h"
+#include "HAL/Platform.h"
 #include "Input/Events.h"
+#include "Layout/Geometry.h"
 #include "Rendering/DrawElements.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "WidgetToolsContext.generated.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+class UObject;
+struct FCaptureLostEvent;
+struct FCharacterEvent;
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
 
 /**
  * UWidgetToolsContext extends UModeManagerInteractiveToolsContext with methods needed for

@@ -2,11 +2,25 @@
 
 
 #include "KismetPins/SGraphPinString.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
-#include "Widgets/Input/SEditableTextBox.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Attribute.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
+
+class SWidget;
 
 void SGraphPinString::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {

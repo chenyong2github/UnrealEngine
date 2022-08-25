@@ -3,13 +3,22 @@
 #include "Commandlets/CommandletSourceControlUtils.h"
 
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlOperation.h"
 #include "ISourceControlProvider.h"
+#include "ISourceControlState.h"
+#include "Logging/LogCategory.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/PackageName.h"
 #include "PackageTools.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "SourceControlOperations.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/Linker.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 
 DEFINE_LOG_CATEGORY(LogSourceControlUtils);
 

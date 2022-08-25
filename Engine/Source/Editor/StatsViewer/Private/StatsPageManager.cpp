@@ -2,6 +2,11 @@
 
 #include "StatsPageManager.h"
 
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "IStatsPage.h"
+#include "Misc/AssertionMacros.h"
+
 const int32 FStatsPageManager::PageIdNone = -1;
 
 FStatsPageManager& FStatsPageManager::Get()

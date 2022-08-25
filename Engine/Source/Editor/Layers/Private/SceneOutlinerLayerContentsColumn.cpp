@@ -2,12 +2,24 @@
 
 
 #include "SceneOutlinerLayerContentsColumn.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
 
 #include "ActorTreeItem.h"
+#include "HAL/Platform.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "Internationalization/Internationalization.h"
+#include "LayerViewModel.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SNullWidget.h"
+
+class AActor;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerLayerContentsColumn"
 

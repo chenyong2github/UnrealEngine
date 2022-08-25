@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
 
-class IPropertyHandle;
 class IDetailLayoutBuilder;
-class USceneCaptureComponent;
+class IPropertyHandle;
+
 enum class ECheckBoxState : uint8;
 
 class FSceneCaptureDetails : public IDetailCustomization

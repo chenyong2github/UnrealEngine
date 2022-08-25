@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveKeyEditors/SBoolCurveKeyEditor.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "ISequencer.h"
-#include "ScopedTransaction.h"
+
 #include "Channels/MovieSceneBoolChannel.h"
+#include "Containers/ArrayView.h"
+#include "HAL/PlatformCrt.h"
+#include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "ScopedTransaction.h"
+#include "Styling/SlateTypes.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "BoolCurveKeyEditor"
 

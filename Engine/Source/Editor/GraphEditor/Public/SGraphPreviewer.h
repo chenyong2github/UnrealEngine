@@ -3,10 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FText;
 class SGraphPanel;
+class SWidget;
 class UEdGraph;
 
 // This widget provides a fully-zoomed-out preview of a specified graph

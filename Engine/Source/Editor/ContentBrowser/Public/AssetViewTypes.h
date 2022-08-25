@@ -2,9 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "ContentBrowserItem.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Templates/Tuple.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 
+class FContentBrowserItemData;
+class FString;
+class FText;
 struct FAssetViewCustomColumn;
 
 /** An item (folder or file) displayed in the asset view */

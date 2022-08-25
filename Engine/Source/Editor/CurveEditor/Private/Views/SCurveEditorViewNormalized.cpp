@@ -1,11 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/SCurveEditorViewNormalized.h"
+
+#include "Containers/SortedMap.h"
 #include "CurveEditor.h"
+#include "CurveEditorScreenSpace.h"
 #include "CurveEditorSettings.h"
-#include "CurveEditorHelpers.h"
 #include "CurveModel.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IBufferedCurveModel.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Math/TransformCalculus2D.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Rendering/DrawElements.h"
+#include "SCurveEditorView.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/Tuple.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FText;
+class FWidgetStyle;
 
 constexpr float NormalizedPadding = 10.f;
 

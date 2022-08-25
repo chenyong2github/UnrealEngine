@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayerInstanceCustomization.h"
+
+#include "Containers/Array.h"
 #include "DetailLayoutBuilder.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 #define LOCTEXT_NAMESPACE "FDataLayerInstanceDetails"
 

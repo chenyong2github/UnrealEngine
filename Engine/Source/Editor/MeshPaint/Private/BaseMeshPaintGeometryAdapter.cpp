@@ -2,6 +2,11 @@
 
 #include "BaseMeshPaintGeometryAdapter.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Math/Box.h"
+#include "Math/GenericOctree.h"
+#include "Misc/AssertionMacros.h"
+
 bool FBaseMeshPaintGeometryAdapter::Initialize()
 {
 	return InitializeVertexData() && BuildOctree();

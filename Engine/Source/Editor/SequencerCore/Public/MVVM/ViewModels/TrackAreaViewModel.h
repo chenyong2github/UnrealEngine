@@ -2,13 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModelTypeID.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "Math/Range.h"
+#include "Templates/SharedPointer.h"
 #include "TimeToPixel.h"
+#include "UObject/NameTypes.h"
 
-struct FFrameRate;
 struct FFrameNumber;
+struct FFrameRate;
 struct FGeometry;
 
 namespace UE
@@ -16,9 +21,9 @@ namespace UE
 namespace Sequencer
 {
 
-struct ITrackAreaHotspot;
-class ISequencerEditTool;
 class FEditorViewModel;
+class ISequencerEditTool;
+struct ITrackAreaHotspot;
 
 class SEQUENCERCORE_API FTrackAreaViewModel
 	: public FViewModel

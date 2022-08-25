@@ -1,12 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_CallArrayFunction.h"
-#include "EdGraphSchema_K2.h"
-#include "BlueprintNodeSpawner.h"
-#include "K2Node_GetArrayItem.h"
-#include "UObject/BlueprintsObjectVersion.h"
-#include "Kismet/KismetArrayLibrary.h" // for Array_Get()
+
 #include "Algo/Transform.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "K2Node_GetArrayItem.h"
+#include "Kismet/KismetArrayLibrary.h" // for Array_Get()
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/BlueprintsObjectVersion.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 UK2Node_CallArrayFunction::UK2Node_CallArrayFunction(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

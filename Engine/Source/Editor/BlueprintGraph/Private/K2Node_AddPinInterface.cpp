@@ -2,6 +2,9 @@
 
 #include "K2Node_AddPinInterface.h"
 
+#include "Containers/UnrealString.h"
+#include "Misc/AssertionMacros.h"
+
 FName IK2Node_AddPinInterface::GetNameForAdditionalPin(int32 PinIndex)
 {
 	check(PinIndex < GetMaxInputPinsNum());

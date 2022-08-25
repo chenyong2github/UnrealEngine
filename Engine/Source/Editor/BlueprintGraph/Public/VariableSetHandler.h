@@ -6,6 +6,8 @@
 #include "KismetCompilerMisc.h"
 
 class FKismetCompilerContext;
+class UEdGraphNode;
+class UEdGraphPin;
 struct FKismetFunctionContext;
 
 //////////////////////////////////////////////////////////////////////////

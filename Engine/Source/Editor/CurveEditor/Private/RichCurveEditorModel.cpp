@@ -1,17 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RichCurveEditorModel.h"
-#include "RichCurveKeyProxy.h"
-#include "Math/Vector2D.h"
-#include "HAL/PlatformMath.h"
-#include "Curves/RichCurve.h"
-#include "CurveDrawInfo.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
 #include "CurveDataAbstraction.h"
-#include "CurveEditor.h"
+#include "CurveDrawInfo.h"
 #include "CurveEditorScreenSpace.h"
-#include "CurveEditorSnapMetrics.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RealCurve.h"
+#include "Curves/RichCurve.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "IBufferedCurveModel.h"
+#include "Internationalization/Text.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "RichCurveKeyProxy.h"
 #include "Styling/AppStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Object.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
+class FCurveEditor;
 
 
 void RefineCurvePoints(const FRichCurve& RichCurve, double TimeThreshold, float ValueThreshold, TArray<TTuple<double, double>>& InOutPoints)

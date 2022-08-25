@@ -3,6 +3,9 @@
 
 #include "SGraphNodeDefault.h"
 
+#include "GenericPlatform/ICursor.h"
+#include "Misc/Optional.h"
+
 void SGraphNodeDefault::Construct( const FArguments& InArgs )
 {
 	this->GraphNode = InArgs._GraphNodeObj;

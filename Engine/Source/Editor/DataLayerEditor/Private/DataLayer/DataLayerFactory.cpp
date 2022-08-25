@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayer/DataLayerFactory.h"
+
+#include "Containers/UnrealString.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UDataLayerFactory::UDataLayerFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

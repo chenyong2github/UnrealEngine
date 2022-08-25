@@ -2,16 +2,29 @@
 
 
 #include "K2Node_IfThenElse.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintCompiledStatement.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "EdGraph/EdGraphPin.h"
-#include "GraphEditorSettings.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
-#include "KismetCompilerMisc.h"
-#include "KismetCompiler.h"
-#include "BlueprintNodeSpawner.h"
 #include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "GraphEditorSettings.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
+#include "KismetCompiler.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+
+struct FBPTerminal;
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

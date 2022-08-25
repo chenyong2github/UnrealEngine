@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_TunnelBoundary.h"
-#include "EdGraphSchema_K2.h"
-#include "KismetCompilerMisc.h"
+
+#include "EdGraph/EdGraph.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node_Composite.h"
 #include "K2Node_MacroInstance.h"
+#include "K2Node_Tunnel.h"
+#include "KismetCompilerMisc.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+
+struct FKismetFunctionContext;
 
 #define LOCTEXT_NAMESPACE "UK2Node_TunnelBoundary"
 

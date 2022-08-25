@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyAccessBlueprintBinding.h"
+#include "Templates/SharedPointer.h"
+
+class FExtender;
 
 class FPropertyAccessAnimBlueprintBinding : public IPropertyAccessBlueprintBinding
 {

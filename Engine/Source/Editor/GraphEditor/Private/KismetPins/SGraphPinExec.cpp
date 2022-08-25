@@ -2,7 +2,14 @@
 
 
 #include "KismetPins/SGraphPinExec.h"
+
+#include "HAL/PlatformMath.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SSpacer.h"
+
+class SWidget;
+class UEdGraphPin;
+struct FSlateBrush;
 
 void SGraphPinExec::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 {

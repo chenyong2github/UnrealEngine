@@ -1,13 +1,46 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyTable/SPropertyTableCell.h"
-#include "Rendering/DrawElements.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SMenuAnchor.h"
-#include "IPropertyTable.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IPropertyTable.h"
+#include "IPropertyTableCell.h"
+#include "IPropertyTableCellPresenter.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
+#include "Styling/WidgetStyle.h"
+#include "Templates/TypeHash.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+
+class FSlateRect;
+class SWidget;
+class SWindow;
+class UObject;
+struct FPropertyChangedEvent;
 
 void SPropertyTableCell::Construct( const FArguments& InArgs, const TSharedRef< class IPropertyTableCell >& InCell )
 {

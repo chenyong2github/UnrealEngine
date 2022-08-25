@@ -1,12 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_GetInputVectorAxisValue.h"
-#include "GameFramework/Actor.h"
-#include "Kismet2/CompilerResultsLog.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Engine/DynamicBlueprintBinding.h"
 #include "Engine/InputAxisKeyDelegateBinding.h"
 #include "Engine/InputVectorAxisDelegateBinding.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_CallFunction.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
 
 UK2Node_GetInputVectorAxisValue::UK2Node_GetInputVectorAxisValue(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

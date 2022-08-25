@@ -2,23 +2,46 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "PackagesDialog.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateTypes.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "ISourceControlProvider.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "ISourceControlState.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "Misc/PackageName.h"
+#include "PackagesDialog.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Package.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
+class ITableRow;
 class SCheckBox;
+class SHorizontalBox;
+class STableViewBase;
+class SWidget;
+class UObject;
+struct FGeometry;
+struct FKeyEvent;
 
 /**
  * Represents a button that will dynamically be added to the package dialog window

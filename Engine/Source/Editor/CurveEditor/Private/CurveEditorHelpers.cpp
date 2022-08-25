@@ -1,8 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorHelpers.h"
+
+#include "CurveEditorScreenSpace.h"
 #include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Math/UnrealMathSSE.h"
+#include "Rendering/SlateRenderer.h"
 #include "Slate/Public/Framework/Application/SlateApplication.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 
 
 namespace CurveEditor

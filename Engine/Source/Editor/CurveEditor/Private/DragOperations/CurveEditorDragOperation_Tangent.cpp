@@ -1,10 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorDragOperation_Tangent.h"
-#include "CurveEditorScreenSpace.h"
+
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "CoreTypes.h"
 #include "CurveEditor.h"
 #include "CurveEditorHelpers.h"
+#include "CurveEditorScreenSpace.h"
+#include "CurveEditorSelection.h"
+#include "CurveModel.h"
+#include "Curves/RichCurve.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "SCurveEditorView.h"
+#include "ScopedTransaction.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/UnrealType.h"
 
 namespace CurveEditorDragOperation
 {

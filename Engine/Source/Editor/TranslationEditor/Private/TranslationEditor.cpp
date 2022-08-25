@@ -7,6 +7,7 @@
 #include "Widgets/Input/SButton.h"
 #include "TranslationEditorModule.h"
 #include "TranslationEditorMenu.h"
+#include "PropertyPath.h"
 
 #include "Logging/MessageLog.h"
 

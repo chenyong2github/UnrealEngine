@@ -1,7 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/PropertyTrackEditors/BytePropertyTrackEditor.h"
+
+#include "Channels/MovieSceneByteChannel.h"
+#include "Containers/Set.h"
+#include "HAL/Platform.h"
+#include "ISequencer.h"
+#include "KeyPropertyParams.h"
+#include "MovieSceneTrack.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
 #include "UObject/EnumProperty.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class ISequencerTrackEditor;
+class UMovieScene;
+class UMovieSceneSection;
+struct FGuid;
 
 
 TSharedRef<ISequencerTrackEditor> FBytePropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> OwningSequencer )

@@ -2,13 +2,36 @@
 
 
 #include "SNodePanel.h"
-#include "Rendering/DrawElements.h"
+
+#include "Delegates/Delegate.h"
+#include "DiffResults.h"
 #include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MarqueeRect.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/GenericApplicationMessageHandler.h"
+#include "GenericPlatform/ICursor.h"
+#include "GraphEditorSettings.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/IntPoint.h"
+#include "Misc/AssertionMacros.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateRenderer.h"
+#include "ScopedTransaction.h"
 #include "Settings/EditorStyleSettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
-#include "ScopedTransaction.h"
-#include "GraphEditorSettings.h"
+#include "Styling/SlateBrush.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/RemoveReference.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
+class FWidgetStyle;
 
 struct FZoomLevelEntry
 {

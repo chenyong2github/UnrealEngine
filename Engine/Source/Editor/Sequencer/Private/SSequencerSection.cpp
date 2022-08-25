@@ -34,6 +34,7 @@
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Generators/MovieSceneEasingFunction.h"
+#include "IKeyArea.h"
 #include "Widgets/SWeakWidget.h"
 #include "Algo/Transform.h"
 

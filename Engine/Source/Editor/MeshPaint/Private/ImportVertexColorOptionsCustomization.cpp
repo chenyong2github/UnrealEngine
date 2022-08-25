@@ -1,12 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImportVertexColorOptionsCustomization.h"
-#include "SImportVertexColorOptions.h"
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "PropertyHandle.h"
+#include "SImportVertexColorOptions.h"
+#include "SlotBase.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "VertexColorImportOptionsCustomization"
 

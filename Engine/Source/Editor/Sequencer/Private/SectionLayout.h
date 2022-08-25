@@ -2,7 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 
 struct FGeometry;
 
@@ -11,10 +18,9 @@ namespace UE
 namespace Sequencer
 {
 
-class FViewModel;
 class FChannelModel;
 class FSectionModel;
-class FTrackModel;
+class FViewModel;
 
 /** A layout element specifying the geometry required to render a key area */
 struct FSectionLayoutElement

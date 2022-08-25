@@ -2,11 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookRequests.h"
+#include "Cooker/CookTypes.h"
+#include "HAL/Platform.h"
 #include "IWorkerRequests.h"
+
+class FConfigFile;
+class ITargetPlatform;
 
 namespace UE::Cook
 {
+struct FInstigator;
+struct FPackageData;
 
 /** An IWorkerRequests for SingleProcess cooks: functions are passed through to the CookOnTheFlyServer. */
 class FWorkerRequestsLocal : public IWorkerRequests

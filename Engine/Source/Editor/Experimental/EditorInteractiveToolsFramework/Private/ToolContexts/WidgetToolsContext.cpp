@@ -2,9 +2,22 @@
 
 
 #include "ToolContexts/WidgetToolsContext.h"
-#include "BaseBehaviors/Widgets/WidgetBaseBehavior.h"
 
+#include "BaseBehaviors/Widgets/WidgetBaseBehavior.h"
+#include "Containers/Array.h"
 #include "InteractiveToolManager.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+struct FCaptureLostEvent;
+struct FCharacterEvent;
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
 
 
 

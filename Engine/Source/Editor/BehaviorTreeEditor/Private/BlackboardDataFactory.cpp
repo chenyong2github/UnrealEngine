@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlackboardDataFactory.h"
+
 #include "BehaviorTree/BlackboardData.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+
+class FFeedbackContext;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "BlackboardDataFactory"
 

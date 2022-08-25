@@ -2,7 +2,21 @@
 
 
 #include "SGraphPinNameList.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "SNameComboBox.h"
 #include "ScopedTransaction.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class SWidget;
 
 void SGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj, const TArray<TSharedPtr<FName>>& InNameList)
 {

@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "KismetCompilerMisc.h"
+#include "BlueprintCompiledStatement.h"
 #include "CallFunctionHandler.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Crc.h"
 
 class FKismetCompilerContext;
+class UEdGraphNode;
+class UFunction;
+struct FBPTerminal;
 struct FKismetFunctionContext;
 
 //////////////////////////////////////////////////////////////////////////

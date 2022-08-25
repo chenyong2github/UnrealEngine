@@ -1,8 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ImaginaryBlueprintData.h"
-#include "Misc/ScopeLock.h"
+
 #include "Async/Async.h"
+#include "Async/Future.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Containers/StringConv.h"
+#include "CoreGlobals.h"
+#include "CoreTypes.h"
+#include "Dom/JsonObject.h"
+#include "Dom/JsonValue.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "Internationalization/StringTableCore.h"
+#include "Misc/CString.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "Serialization/Archive.h"
+#include "Serialization/JsonTypes.h"
+#include "Templates/Casts.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "FindInBlueprints"
 

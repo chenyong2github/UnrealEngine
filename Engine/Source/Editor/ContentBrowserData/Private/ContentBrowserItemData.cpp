@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserItemData.h"
+
+#include "Containers/StringView.h"
 #include "ContentBrowserDataSource.h"
+#include "ContentBrowserDataSubsystem.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/UnrealNames.h"
 
 FContentBrowserItemData::FContentBrowserItemData(UContentBrowserDataSource* InOwnerDataSource, EContentBrowserItemFlags InItemFlags, FName InVirtualPath, FName InItemName, FText InDisplayNameOverride, TSharedPtr<const IContentBrowserItemDataPayload> InPayload)
 	: OwnerDataSource(InOwnerDataSource)

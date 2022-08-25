@@ -1,8 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/OutlinerSpacer.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
+
+#include "HAL/PlatformCrt.h"
 #include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Math/NumericLimits.h"
+#include "Misc/Attribute.h"
+#include "SequencerCoreFwd.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBox.h"
+
+class FDragDropEvent;
+class SWidget;
 
 namespace UE
 {

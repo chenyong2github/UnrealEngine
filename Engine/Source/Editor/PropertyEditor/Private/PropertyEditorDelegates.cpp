@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyEditorDelegates.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyHandle.h"
 #include "PropertyNode.h"
+
+class FProperty;
 
 FPropertyAndParent::FPropertyAndParent(const TSharedRef<IPropertyHandle>& InPropertyHandle) :
 	Property(*InPropertyHandle->GetProperty())

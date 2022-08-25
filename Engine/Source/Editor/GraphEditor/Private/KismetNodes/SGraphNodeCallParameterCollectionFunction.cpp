@@ -1,11 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeCallParameterCollectionFunction.h"
-#include "Materials/MaterialParameterCollection.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "K2Node_CallMaterialParameterCollectionFunction.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "NodeFactory.h"
 #include "SGraphPinNameList.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SGraphNodeCallParameterCollectionFunction

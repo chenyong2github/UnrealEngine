@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 
-class FWidgetPath;
+
+#include "Templates/SharedPointer.h"
+
+class FArrangedWidget;
+class SWidget;
 
 /**
  * A set of utility functions used at design time for the widget blueprint editor.

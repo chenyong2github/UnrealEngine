@@ -1,16 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/PossessableModel.h"
+
+#include "Containers/ArrayView.h"
+#include "HAL/Platform.h"
+#include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
 #include "MVVM/ViewModels/SequenceModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
-
-#include "ISequencer.h"
-
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
 #include "MovieScene.h"
-#include "MovieSceneSequence.h"
+#include "MovieSceneFwd.h"
 #include "MovieScenePossessable.h"
-
+#include "MovieSceneSequence.h"
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+
+class UClass;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "FPossessableModel"
 

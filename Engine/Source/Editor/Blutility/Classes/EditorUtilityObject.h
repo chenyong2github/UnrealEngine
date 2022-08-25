@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorUtilityObject.generated.h"
 
 

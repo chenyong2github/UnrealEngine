@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IContentSourceProvider.h"
+#include "Containers/Array.h"
+#include "Templates/SharedPointer.h"
+
+class IContentSourceProvider;
 
 /** Provides methods for registering and getting registered content source providers. */
 class FContentSourceProviderManager

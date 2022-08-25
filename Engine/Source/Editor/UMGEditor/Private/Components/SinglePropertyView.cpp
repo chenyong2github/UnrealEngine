@@ -3,12 +3,22 @@
 #include "Components/SinglePropertyView.h"
 
 #include "Components/PropertyViewHelper.h"
+#include "CoreGlobals.h"
+#include "Delegates/Delegate.h"
 #include "ISinglePropertyView.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "UObject/UObjectGlobals.h"
 
 
 #define LOCTEXT_NAMESPACE "UMG"

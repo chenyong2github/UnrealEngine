@@ -1,16 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/SpawnableModel.h"
-#include "MVVM/ViewModels/SequenceModel.h"
-#include "MVVM/ObjectBindingModelStorageExtension.h"
 
+#include "Containers/Array.h"
 #include "ISequencer.h"
-
+#include "Internationalization/Internationalization.h"
+#include "MVVM/ObjectBindingModelStorageExtension.h"
+#include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "Misc/Guid.h"
 #include "MovieScene.h"
-#include "MovieSceneSequence.h"
+#include "MovieSceneSpawnRegister.h"
 #include "MovieSceneSpawnable.h"
-
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+
+namespace UE::Sequencer { class FViewModel; }
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "FSpawnableModel"
 

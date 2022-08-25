@@ -4,14 +4,16 @@
 
 // Module includes
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "IConfigEditorModule.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/WeakFieldPtr.h"
 
+class FProperty;
 class FSpawnTabArgs;
 class SConfigEditor;
+class SWidget;
 
 /*-----------------------------------------------------------------------------
    FConfigEditorModule

@@ -2,6 +2,8 @@
 
 
 #include "ThumbnailRendering/SceneThumbnailInfoWithPrimitive.h"
+
+#include "Serialization/Archive.h"
 #include "UObject/EditorObjectVersion.h"
 
 USceneThumbnailInfoWithPrimitive::USceneThumbnailInfoWithPrimitive(const FObjectInitializer& ObjectInitializer)

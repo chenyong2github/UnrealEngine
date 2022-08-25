@@ -2,6 +2,10 @@
 
 #include "ContentSourceProviderManager.h"
 
+#include "HAL/PlatformCrt.h"
+
+class IContentSourceProvider;
+
 void FContentSourceProviderManager::RegisterContentSourceProvider(TSharedRef<IContentSourceProvider> ContentSourceProvider)
 {
 	ContentSourceProviders.Add(ContentSourceProvider);

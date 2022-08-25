@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Actor/ActorElementDetailsInterface.h"
+
 #include "Elements/Actor/ActorElementData.h"
 #include "GameFramework/Actor.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FActorTypedElementDetailsObject : public ITypedElementDetailsObject
 {

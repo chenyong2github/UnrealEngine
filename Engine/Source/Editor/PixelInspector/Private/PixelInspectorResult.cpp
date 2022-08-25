@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelInspectorResult.h"
+
+#include "HAL/PlatformCrt.h"
+#include "Math/Float16.h"
+#include "Math/Float16Color.h"
 #include "PixelInspectorView.h"
 
 

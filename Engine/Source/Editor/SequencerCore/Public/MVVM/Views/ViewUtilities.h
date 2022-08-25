@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Widgets/SWidget.h"
 #include "Framework/SlateDelegates.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/SWidget.h"
 
+class FText;
+class SWidget;
 template< typename ObjectType > class TAttribute;
 
 namespace UE

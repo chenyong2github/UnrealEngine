@@ -3,9 +3,19 @@
 #include "WorkerRequestsLocal.h"
 
 #include "CookTypes.h"
+#include "Cooker/CookRequests.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformProcess.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+
+class FConfigFile;
+class ITargetPlatform;
 
 namespace UE::Cook
 {
+struct FInstigator;
+struct FPackageData;
 
 bool FWorkerRequestsLocal::HasExternalRequests() const
 {

@@ -2,10 +2,15 @@
 
 #pragma once
 
+#include "CurveEditorSnapMetrics.h"
 #include "ICurveEditorDragOperation.h"
+#include "Input/Reply.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
 class FCurveEditor;
 class SCurveEditorView;
+struct FPointerEvent;
 
 class FCurveEditorDragOperation_PanView : public ICurveEditorDragOperation
 {

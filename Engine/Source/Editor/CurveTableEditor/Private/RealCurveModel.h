@@ -1,10 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
+#include "CurveEditorTypes.h"
 #include "CurveModel.h"
+#include "Templates/Tuple.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FCurveEditor;
+class UObject;
+struct FCurveEditorScreenSpace;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyHandle;
+struct FKeyPosition;
 struct FRealCurve;
+template <typename OptionalType> struct TOptional;
 
 /*
  * RealCurveModel implements the FCurveModel interface for FRealCurves which allows

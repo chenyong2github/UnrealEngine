@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;

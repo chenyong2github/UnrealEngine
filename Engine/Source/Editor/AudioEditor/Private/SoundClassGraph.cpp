@@ -4,10 +4,19 @@
 // USoundClassGraph
 
 #include "SoundClassGraph/SoundClassGraph.h"
-#include "UObject/Package.h"
-#include "SoundClassGraph/SoundClassGraphNode.h"
+
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "GraphEditor.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
 #include "Sound/SoundClass.h"
+#include "SoundClassGraph/SoundClassGraphNode.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
 
 class FSoundClassAudioEditor : public ISoundClassAudioEditor
 {

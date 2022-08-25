@@ -2,13 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
+#include "Layout/Clipping.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "SRuler.h"
+#include "Types/SlateEnums.h"
+#include "Types/WidgetMouseEventsDelegate.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FWidgetStyle;
+struct FGeometry;
+struct FPointerEvent;
 
 class SRuler : public SCompoundWidget
 {

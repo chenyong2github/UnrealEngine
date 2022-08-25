@@ -1,13 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SlateWidgetStyleAssetFactory.h"
+
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/SClassPickerDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "Styling/SlateWidgetStyleContainerBase.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
 
-
-#include "ClassViewerModule.h"
-#include "Kismet2/SClassPickerDialog.h"
-#include "ClassViewerFilter.h"
+class FFeedbackContext;
+class UObject;
 
 class FClassFilter : public IClassViewerFilter
 {

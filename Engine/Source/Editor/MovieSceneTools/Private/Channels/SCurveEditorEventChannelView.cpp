@@ -1,16 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorEventChannelView.h"
-#include "Rendering/DrawElements.h"
-#include "Fonts/FontMeasure.h"
-#include "Styling/CoreStyle.h"
+
+#include "Containers/SortedMap.h"
 #include "CurveEditor.h"
-#include "Styling/AppStyle.h"
-#include "CurveModel.h"
-#include "ICurveEditorBounds.h"
 #include "CurveEditorScreenSpace.h"
-#include "CurveDataAbstraction.h"
-#include "CurveDrawInfo.h"
+#include "CurveModel.h"
+#include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/Color.h"
+#include "Math/TransformCalculus2D.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/SlateLayoutTransform.h"
+#include "Rendering/SlateRenderer.h"
+#include "SCurveEditorView.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/ChooseClass.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FWidgetStyle;
+struct FSlateBrush;
 
 float SCurveEditorEventChannelView::TrackHeight = 24.f;
 

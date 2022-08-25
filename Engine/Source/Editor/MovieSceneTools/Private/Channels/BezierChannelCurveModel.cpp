@@ -1,22 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/BezierChannelCurveModel.h"
-#include "BuiltInChannelEditors.h"
-#include "Channels/MovieSceneChannelProxy.h"
+
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneCurveChannelCommon.h"
 #include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Containers/EnumAsByte.h"
 #include "CurveDataAbstraction.h"
 #include "CurveDrawInfo.h"
-#include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
-#include "CurveEditorSnapMetrics.h"
-#include "Styling/AppStyle.h"
-#include "HAL/PlatformMath.h"
-#include "ISequencer.h"
+#include "Curves/RealCurve.h"
+#include "Curves/RichCurve.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathUtility.h"
 #include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Optional.h"
 #include "MovieScene.h"
 #include "MovieSceneSection.h"
-#include "SequencerChannelTraits.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FCurveEditor;
 
 template<typename ChannelType>
 FBezierChannelBufferedCurveModel<ChannelType>::FBezierChannelBufferedCurveModel(

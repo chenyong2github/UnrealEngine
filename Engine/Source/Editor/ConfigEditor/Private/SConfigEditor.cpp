@@ -1,17 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SConfigEditor.h"
-#include "UObject/UnrealType.h"
+
 #include "ConfigPropertyHelper.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/SBoxPanel.h"
-#include "SlateOptMacros.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "DetailsViewArgs.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailsView.h"
-
+#include "Layout/Children.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigTypes.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-
 #include "STargetPlatformSelector.h"
+#include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Templates/Tuple.h"
+#include "UObject/Class.h"
+#include "UObject/FieldPath.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/SBoxPanel.h"
 
 
 #define LOCTEXT_NAMESPACE "ConfigEditor"

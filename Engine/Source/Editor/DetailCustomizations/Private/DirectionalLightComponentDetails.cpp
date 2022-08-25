@@ -1,12 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DirectionalLightComponentDetails.h"
-#include "Components/SceneComponent.h"
+
 #include "Components/LightComponentBase.h"
-#include "Misc/Attribute.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
+#include "Components/SceneComponent.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/Platform.h"
+#include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "UObject/Class.h"
 
 #define LOCTEXT_NAMESPACE "DirectionalLightComponentDetails"
 

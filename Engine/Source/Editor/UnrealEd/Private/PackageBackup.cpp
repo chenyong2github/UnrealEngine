@@ -5,12 +5,20 @@
 =============================================================================*/
 
 #include "PackageBackup.h"
+
+#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/DateTime.h"
 #include "Misc/FeedbackContext.h"
-#include "UObject/Package.h"
 #include "Misc/PackageName.h"
+#include "Misc/Paths.h"
+#include "Misc/Timespan.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
 
 /**
  * Helper struct to hold information on backup files to prevent redundant checks

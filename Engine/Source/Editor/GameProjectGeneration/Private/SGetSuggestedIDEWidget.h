@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/UnrealString.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class SWidget;
 
 /**
  * Either a button to directly install or a hyperlink to a website to download the suggested IDE for the platform.

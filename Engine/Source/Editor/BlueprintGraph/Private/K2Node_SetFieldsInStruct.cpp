@@ -1,14 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_SetFieldsInStruct.h"
-#include "UObject/StructOnScope.h"
+
+#include "BPTerminal.h"
+#include "BlueprintCompiledStatement.h"
+#include "BlueprintEditorSettings.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
-#include "MakeStructHandler.h"
-#include "KismetCompiler.h"
-#include "BlueprintEditorSettings.h"
-#include "K2Node_VariableGet.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node.h"
 #include "K2Node_Knot.h"
+#include "K2Node_StructOperation.h"
+#include "K2Node_Variable.h"
+#include "K2Node_VariableGet.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
+#include "KismetCompiler.h"
+#include "KismetCompilerMisc.h"
+#include "MakeStructHandler.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/UnrealType.h"
+
+class FBlueprintActionDatabaseRegistrar;
+struct FLinearColor;
 
 #define LOCTEXT_NAMESPACE "K2Node_MakeStruct"
 

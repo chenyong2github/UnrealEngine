@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SVerticalBox;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "DeviceProfileEditorSelectionPanel"
 

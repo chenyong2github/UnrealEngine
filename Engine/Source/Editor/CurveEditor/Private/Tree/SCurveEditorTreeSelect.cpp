@@ -1,15 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/SCurveEditorTreeSelect.h"
-#include "CurveEditor.h"
-#include "Algo/AllOf.h"
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "CurveEditor.h"
+#include "CurveEditorSelection.h"
+#include "CurveModel.h"
+#include "Curves/KeyHandle.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "Layout/Children.h"
+#include "Math/NumericLimits.h"
+#include "Styling/AppStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tree/CurveEditorTree.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Views/STableRow.h"
 
-#include "Styling/AppStyle.h"
-#include "Framework/Application/SlateApplication.h"
+struct FSlateBrush;
 
 
 void SCurveEditorTreeSelect::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& InTableRow)

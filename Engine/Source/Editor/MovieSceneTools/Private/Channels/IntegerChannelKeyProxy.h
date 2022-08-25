@@ -2,17 +2,21 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "Channels/MovieSceneChannelHandle.h"
-#include "CurveEditorKeyProxy.h"
-#include "MovieSceneKeyProxy.h"
 #include "Channels/MovieSceneIntegerChannel.h"
+#include "CoreTypes.h"
+#include "CurveEditorKeyProxy.h"
+#include "Curves/KeyHandle.h"
+#include "Misc/FrameNumber.h"
+#include "MovieSceneKeyProxy.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "IntegerChannelKeyProxy.generated.h"
 
 class UMovieSceneSection;
+struct FPropertyChangedEvent;
 
 UCLASS()
 class UIntegerChannelKeyProxy : public UObject, public ICurveEditorKeyProxy, public IMovieSceneKeyProxy

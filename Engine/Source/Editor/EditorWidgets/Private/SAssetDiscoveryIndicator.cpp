@@ -1,13 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetDiscoveryIndicator.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Notifications/SProgressBar.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Styling/AppStyle.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Text/TextLayout.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Modules/ModuleManager.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Notifications/SProgressBar.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "AssetDiscoveryIndicator"
 

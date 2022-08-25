@@ -1,19 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Types/SlateEnums.h"
-#include "Styling/SlateColor.h"
+#include "Containers/Array.h"
+#include "IDetailCustomization.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SWindow.h"
+#include "Internationalization/Text.h"
+#include "LevelInstance/LevelInstanceTypes.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IDetailCustomization.h"
-#include "DetailLayoutBuilder.h"
-#include "Templates/SharedPointer.h"
-#include "LevelInstance/LevelInstanceTypes.h"
+
+class AActor;
+class IDetailLayoutBuilder;
+class SWidget;
+class SWindow;
 
 //////////////////////////////////////////////////////////////////////////
 // SNewLevelInstanceDialog

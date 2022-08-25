@@ -2,6 +2,13 @@
 
 #include "UICommandList_Pinnable.h"
 
+#include "CoreTypes.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/UnrealNames.h"
+
+struct FUIAction;
+
 FUICommandList_Pinnable::FUICommandList_Pinnable()
 	: CurrentActionIndex(0)
 {

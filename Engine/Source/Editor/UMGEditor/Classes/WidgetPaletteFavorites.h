@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "WidgetPaletteFavorites.generated.h"
 
 UCLASS(config = EditorPerProjectUserSettings)

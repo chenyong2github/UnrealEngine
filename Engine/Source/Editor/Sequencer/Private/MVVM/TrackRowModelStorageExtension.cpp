@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/TrackRowModelStorageExtension.h"
-#include "MVVM/ViewModels/TrackRowModel.h"
-#include "MVVM/ViewModels/SequenceModel.h"
 
-#include "MovieSceneSequence.h"
+#include "HAL/PlatformCrt.h"
+#include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/TrackRowModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "MovieSceneTrack.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/TypeHash.h"
 
 namespace UE
 {

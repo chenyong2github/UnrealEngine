@@ -1,12 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Extensions/GridSlotExtension.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "WidgetBlueprint.h"
-#include "Widgets/Input/SButton.h"
+
 #include "Components/GridSlot.h"
+#include "Components/PanelSlot.h"
+#include "Components/Widget.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Layout/Margin.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "WidgetBlueprint.h"
+#include "WidgetReference.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 

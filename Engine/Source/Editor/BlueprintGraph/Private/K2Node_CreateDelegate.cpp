@@ -1,20 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "K2Node_CreateDelegate.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/UnrealString.h"
+#include "DelegateNodeHandlers.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
 #include "Engine/Blueprint.h"
 #include "Engine/MemberReference.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node_Event.h"
-#include "K2Node_BaseMCDelegate.h"
-#include "K2Node_Knot.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-
-#include "Kismet2/CompilerResultsLog.h"
-#include "DelegateNodeHandlers.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
 #include "FindInBlueprintManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_BaseMCDelegate.h"
+#include "K2Node_Event.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Script.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FKismetCompilerContext;
 
 namespace UE::BlueprintGraph::Private
 {

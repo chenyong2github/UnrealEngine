@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "Misc/Optional.h"
-#include "CurveEditorTypes.h"
+#include "Templates/SharedPointer.h"
 
 class FCurveEditor;
 class FMenuBuilder;
+struct FCurveModelID;
+struct FCurvePointHandle;
 
 struct FCurveEditorContextMenu
 {

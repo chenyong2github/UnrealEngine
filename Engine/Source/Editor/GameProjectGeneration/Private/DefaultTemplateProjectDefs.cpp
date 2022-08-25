@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DefaultTemplateProjectDefs.h"
+
 #include "HAL/FileManager.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 

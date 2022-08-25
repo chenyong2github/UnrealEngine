@@ -1,7 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/PropertyTrackEditors/VisibilityPropertyTrackEditor.h"
+
+#include "Channels/MovieSceneBoolChannel.h"
+#include "KeyPropertyParams.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "Sections/BoolPropertySection.h"
+
+class ISequencer;
+class ISequencerSection;
+class ISequencerTrackEditor;
+class UMovieSceneSection;
+class UMovieSceneTrack;
 
 
 TSharedRef<ISequencerTrackEditor> FVisibilityPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> OwningSequencer )

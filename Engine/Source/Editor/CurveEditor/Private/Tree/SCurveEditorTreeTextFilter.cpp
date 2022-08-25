@@ -1,12 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/SCurveEditorTreeTextFilter.h"
-#include "Tree/CurveEditorTreeFilter.h"
-#include "Tree/CurveEditorTree.h"
-#include "CurveEditor.h"
 
-#include "Widgets/Input/SSearchBox.h"
+#include "CurveEditor.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Tree/CurveEditorTree.h"
+#include "Tree/CurveEditorTreeFilter.h"
+#include "Widgets/Input/SSearchBox.h"
+
+struct FGeometry;
 
 
 void SCurveEditorTreeTextFilter::Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> CurveEditor)

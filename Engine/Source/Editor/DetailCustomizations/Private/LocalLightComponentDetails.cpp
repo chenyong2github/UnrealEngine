@@ -1,12 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LocalLightComponentDetails.h"
-#include "LightComponentDetails.h"
+
+#include "Components/LightComponentBase.h"
 #include "Components/LocalLightComponent.h"
-#include "Components/SpotLightComponent.h"
-#include "DetailLayoutBuilder.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "Engine/Scene.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "LightComponentDetails.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "LocalLightComponentDetails"
 

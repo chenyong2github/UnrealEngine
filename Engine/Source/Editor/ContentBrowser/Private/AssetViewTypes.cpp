@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetViewTypes.h"
+
+#include "AssetRegistry/AssetData.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserDelegates.h"
+#include "ContentBrowserItemData.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
 
 FAssetViewItem::FAssetViewItem(FContentBrowserItem&& InItem)
 	: Item(MoveTemp(InItem))

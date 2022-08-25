@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IDetailsView.h"
+
+class SWidget;
 
 class SPersonaDetails : public SCompoundWidget
 {

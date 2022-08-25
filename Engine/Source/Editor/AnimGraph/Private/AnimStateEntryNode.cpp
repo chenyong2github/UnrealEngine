@@ -5,8 +5,14 @@
 =============================================================================*/
 
 #include "AnimStateEntryNode.h"
-#include "EdGraph/EdGraph.h"
+
 #include "AnimationStateMachineSchema.h"
+#include "Containers/Array.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 
 #define LOCTEXT_NAMESPACE "AnimStateEntryNode"
 

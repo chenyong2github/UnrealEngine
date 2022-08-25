@@ -2,14 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
 #include "CollectionManagerTypes.h"
+#include "Containers/Array.h"
+#include "Input/Reply.h"
+#include "Math/Color.h"
 #include "SCollectionView.h"
-#include "Widgets/SWindow.h"
+#include "Templates/SharedPointer.h"
 
 class FMenuBuilder;
+class FText;
 class FUICommandList;
+class SWidget;
+struct FCollectionItem;
 
 class FCollectionContextMenu : public TSharedFromThis<FCollectionContextMenu>
 {

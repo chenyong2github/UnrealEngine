@@ -2,16 +2,35 @@
 
 
 #include "K2Node_CastByteToEnum.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node_CallFunction.h"
-#include "EdGraphUtilities.h"
-#include "KismetCompilerMisc.h"
-#include "KismetCompiler.h"
-#include "Kismet/KismetNodeHelperLibrary.h"
-#include "BlueprintFieldNodeSpawner.h"
-#include "EditorCategoryUtils.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintFieldNodeSpawner.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EdGraphUtilities.h"
+#include "EditorCategoryUtils.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_CallFunction.h"
+#include "Kismet/KismetNodeHelperLibrary.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
+#include "KismetCompiler.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Field.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FString;
+class UBlueprintNodeSpawner;
+struct FBPTerminal;
+struct FLinearColor;
 
 const FName UK2Node_CastByteToEnum::ByteInputPinName(TEXT("Byte"));
 

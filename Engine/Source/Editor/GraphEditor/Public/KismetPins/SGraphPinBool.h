@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SGraphPin.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
-#include "SGraphPin.h"
+
+class SWidget;
+class UEdGraphPin;
 
 class GRAPHEDITOR_API SGraphPinBool : public SGraphPin
 {

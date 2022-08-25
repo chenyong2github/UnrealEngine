@@ -2,12 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class IPropertyHandle;
+
 enum class ECheckBoxState : uint8;
 
 /**

@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "UObject/NameTypes.h"
 
 /**
 * A collection of utilities for creating, using, and changing the value of wildcard pin types

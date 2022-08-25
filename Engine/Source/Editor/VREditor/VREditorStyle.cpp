@@ -1,16 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VREditorStyle.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/AppStyle.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Brushes/SlateImageBrush.h"
+
 #include "Brushes/SlateBoxBrush.h"
-#include "Brushes/SlateBorderBrush.h"
+#include "Brushes/SlateImageBrush.h"
+#include "Brushes/SlateNoResource.h"
+#include "Containers/UnrealString.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
+#include "Rendering/SlateRenderer.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/TypeHash.h"
+
+class ISlateStyle;
 
 TSharedPtr< FSlateStyleSet > FVREditorStyle::VREditorStyleInstance = NULL;
 

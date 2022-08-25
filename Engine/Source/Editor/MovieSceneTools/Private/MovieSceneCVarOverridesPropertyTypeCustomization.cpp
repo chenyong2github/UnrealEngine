@@ -1,10 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneCVarOverridesPropertyTypeCustomization.h"
-#include "Sections/MovieSceneCVarSection.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "DetailWidgetRow.h"
-#include "Widgets/Text/SMultiLineEditableText.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "PropertyHandle.h"
+#include "Sections/MovieSceneCVarSection.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateStructs.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/SMultiLineEditableText.h"
 
 #define LOCTEXT_NAMESPACE "FCVarOverridesPropertyTypeCustomization"
 

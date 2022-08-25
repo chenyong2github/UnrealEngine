@@ -2,10 +2,21 @@
 
 #pragma once
 
-#include "MVVM/ViewModels/ViewModel.h"
+#include "HAL/Platform.h"
 #include "MVVM/Extensions/IGeometryExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/ISortableExtension.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Views/STableRow.h"
+
+class FDragDropEvent;
+class SWidget;
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 
 namespace UE
 {

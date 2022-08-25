@@ -2,16 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FText;
 class ITableRow;
 class SPListEditorPanel;
 class STableViewBase;
 class SWidget;
 struct FSlateBrush;
-
-/** Forward declaration for the panel which we will need to access in delegates */
-class SPListEditorPanel;
 
 /**
  * Represents the types of data that are supported by plist files.

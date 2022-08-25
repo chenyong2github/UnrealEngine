@@ -2,13 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "IPinnedCommandList.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-class SCommand;
-class SWrapBox;
 class FUICommandInfo;
 class FUICommandList;
 class FUICommandList_Pinnable;
+class ISlateStyle;
+class SCommand;
+class SWidget;
+class SWrapBox;
+struct FGeometry;
+struct FPointerEvent;
 
 /** Tracks a registered custom widget, so it can be persisted */
 struct FRegisteredCustomWidget

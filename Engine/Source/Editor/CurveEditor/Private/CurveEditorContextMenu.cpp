@@ -1,10 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveEditorContextMenu.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/GenericCommands.h"
+
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CurveEditor.h"
 #include "CurveEditorCommands.h"
+#include "CurveEditorSelection.h"
+#include "CurveEditorTypes.h"
+#include "CurveModel.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/UnrealNames.h"
+
+class IBufferedCurveModel;
 
 #define LOCTEXT_NAMESPACE "CurveEditorContextMenu"
 

@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Editor/PListEditor/Private/PListNode.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class ITableRow;
 class SPListEditorPanel;

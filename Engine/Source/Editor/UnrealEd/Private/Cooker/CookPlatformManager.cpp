@@ -2,11 +2,19 @@
 
 #include "CookPlatformManager.h"
 
-#include "Commandlets/AssetRegistryGenerator.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "Cooker/CookTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformTLS.h"
+#include "HAL/PlatformTime.h"
+#include "IWorkerRequests.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#include "IWorkerRequests.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/ScopeRWLock.h"
 
 namespace UE

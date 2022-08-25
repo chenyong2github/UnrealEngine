@@ -2,17 +2,29 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Input/CursorReply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "SNodePanel.h"
+#include "Delegates/Delegate.h"
 #include "Framework/SlateDelegates.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/CursorReply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "SNodePanel.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class SMultiLineEditableTextBox;
+class UEdGraphNode;
+struct FGeometry;
+struct FPointerEvent;
 
 DECLARE_DELEGATE_RetVal( bool, FIsGraphNodeHovered );
 DECLARE_DELEGATE_OneParam( FOnCommentBubbleToggled, bool );

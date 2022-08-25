@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IPropertyTypeCustomization.h"
 #include "Customizations/ColorStructCustomization.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
+class IPropertyHandle;
+class IPropertyTypeCustomization;
+class IPropertyTypeCustomizationUtils;
 
 class FSlateColorCustomization
 	: public FColorStructCustomization

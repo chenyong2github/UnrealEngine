@@ -2,15 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
-#include "Layout/SlateRect.h"
 #include "Layout/Geometry.h"
+#include "Layout/SlateRect.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
 
 class FSlateWindowElementList;
+class IKeyArea;
 class UMovieSceneSection;
 class UMovieSceneTrack;
 struct FTimeToPixel;
-class IKeyArea;
 
 namespace UE
 {

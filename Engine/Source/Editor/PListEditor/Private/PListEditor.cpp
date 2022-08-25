@@ -1,14 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PListEditor.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Docking/TabManager.h"
 
-#include "SPlistEditor.h"
+#include "Delegates/Delegate.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/TabManager.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Modules/ModuleManager.h"
+#include "SPlistEditor.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 
 IMPLEMENT_MODULE( FPListEditor, PListEditor );

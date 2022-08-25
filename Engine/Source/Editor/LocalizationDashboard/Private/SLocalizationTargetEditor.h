@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "PropertyEditorDelegates.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "PropertyEditorDelegates.h"
 
 class ULocalizationTarget;
 class ULocalizationTargetSet;
+struct FPropertyChangedEvent;
 
 class SLocalizationTargetEditor : public SCompoundWidget
 {

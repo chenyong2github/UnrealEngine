@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "HAL/Platform.h"
 #include "ISequencerSection.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
 
+class FDragDropEvent;
+class FDragDropOperation;
 class FSequencerSectionPainter;
-class ISectionLayoutBuilder;
+class SWidget;
 class UMovieSceneLevelVisibilitySection;
+class UMovieSceneSection;
+struct FGeometry;
 
 /**
  * A seqeuencer section for displaying and interacting with level visibility movie scene sections. 

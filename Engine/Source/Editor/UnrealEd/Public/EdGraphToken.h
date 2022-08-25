@@ -2,12 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
 #include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
+#include "UObject/WeakObjectPtr.h"
 
 class FCompilerResultsLog;
+class FField;
+class UEdGraphNode;
+class UObject;
 
 /**
  * A Message Log token that links to an elemnt (node or pin) in an EdGraph

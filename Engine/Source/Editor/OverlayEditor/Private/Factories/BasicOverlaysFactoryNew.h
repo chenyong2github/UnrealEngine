@@ -2,9 +2,16 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BasicOverlaysFactoryNew.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 
 /**

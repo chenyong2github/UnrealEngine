@@ -2,6 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "IO/IoDispatcher.h"
+#include "Memory/SharedBuffer.h"
+#include "Misc/DateTime.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/FileRegions.h"
+#include "Serialization/PackageWriter.h"
+#include "UObject/NameTypes.h"
+
+class FAssetRegistryState;
+class FLargeMemoryWriter;
+class FMD5;
+template <typename ReferencedType> class TRefCountPtr;
 #include "Containers/Map.h"
 #include "Memory/CompositeBuffer.h"
 #include "Misc/PackagePath.h"

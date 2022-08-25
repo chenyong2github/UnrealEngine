@@ -1,12 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveViewerPanel.h"
-#include "Rendering/DrawElements.h"
+
+#include "Containers/Map.h"
+#include "Containers/SortedMap.h"
 #include "CurveDrawInfo.h"
-#include "Styling/AppStyle.h"
+#include "CurveEditor.h"
+#include "CurveEditorTypes.h"
+#include "Layout/Clipping.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
-#include "CurveEditorScreenSpace.h"
+#include "Misc/Optional.h"
+#include "Rendering/DrawElements.h"
+#include "Templates/Less.h"
+#include "Templates/UniquePtr.h"
 #include "Views/SInteractiveCurveEditorView.h"
+
+class FCurveModel;
+class FPaintArgs;
+class FSlateRect;
+class FWidgetStyle;
 
 #define LOCTEXT_NAMESPACE "SCurveViewerPanel"
 

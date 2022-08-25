@@ -1,15 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PluginWardenModule.h"
+
+#include "AnalyticsEventAttribute.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/Ticker.h"
+#include "CoreGlobals.h"
 #include "EngineAnalytics.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Interfaces/IAnalyticsProvider.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWindow.h"
-
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
+#include "IAnalyticsProviderET.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 #include "PluginWardenAuthorizer.h"
 #include "SAuthorizingPlugin.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWindow.h"
 
 IMPLEMENT_MODULE( FPluginWardenModule, PluginWarden );
 

@@ -2,13 +2,24 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SLeafWidget.h"
-
+#include "Containers/Array.h"
 #include "CurveDrawInfo.h"
 #include "CurveEditor.h"
 #include "CurveEditorTypes.h"
+#include "HAL/Platform.h"
+#include "Misc/Attribute.h"
+#include "Rendering/RenderingCommon.h"
 #include "SCurveEditorView.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SLeafWidget.h"
+
+class FCurveEditor;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+struct FGeometry;
 
 /**
  * Curve viewer widget that reflects the state of an FCurveEditor

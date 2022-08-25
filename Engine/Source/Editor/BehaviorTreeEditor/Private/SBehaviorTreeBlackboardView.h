@@ -2,18 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FExtender;
 class FMenuBuilder;
+class FReferenceCollector;
 class FUICommandList;
 class SGraphActionMenu;
+class SWidget;
 class UBlackboardData;
 struct FBlackboardEntry;
 struct FCreateWidgetForActionData;

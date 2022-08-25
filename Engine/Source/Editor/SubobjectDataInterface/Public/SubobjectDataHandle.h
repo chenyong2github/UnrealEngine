@@ -6,6 +6,7 @@
 #include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/TypeHash.h"
+#include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
 
 #include "SubobjectDataHandle.generated.h"

@@ -1,13 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Component/ComponentElementEditorSelectionInterface.h"
-#include "Elements/Component/ComponentElementData.h"
-#include "Components/SceneComponent.h"
-#include "GameFramework/Actor.h"
 
-#include "Elements/Framework/TypedElementList.h"
+#include "Components/ActorComponent.h"
+#include "Components/ChildActorComponent.h"
+#include "Components/SceneComponent.h"
+#include "Elements/Component/ComponentElementData.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementList.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
+#include "GameFramework/Actor.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FComponentElementTransactedElement : public ITypedElementTransactedElement
 {

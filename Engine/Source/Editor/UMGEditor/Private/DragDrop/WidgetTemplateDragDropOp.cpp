@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DragDrop/WidgetTemplateDragDropOp.h"
+
+#include "Internationalization/Text.h"
 #include "WidgetTemplate.h"
 
 #define LOCTEXT_NAMESPACE "UMG"

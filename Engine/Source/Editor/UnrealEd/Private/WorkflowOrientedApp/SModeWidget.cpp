@@ -1,15 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorkflowOrientedApp/SModeWidget.h"
-#include "Misc/Paths.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
-#include "Styling/CoreStyle.h"
+
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SModeWidget

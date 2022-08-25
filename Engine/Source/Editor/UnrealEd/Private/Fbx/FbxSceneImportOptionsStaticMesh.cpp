@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxSceneImportOptionsStaticMesh.h"
-#include "Factories/FbxStaticMeshImportData.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Factories/FbxMeshImportData.h"
 #include "Factories/FbxSceneImportOptions.h"
+#include "Factories/FbxStaticMeshImportData.h"
+#include "Math/MathFwd.h"
+#include "Math/Rotator.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/UnrealNames.h"
 
 
 UFbxSceneImportOptionsStaticMesh::UFbxSceneImportOptionsStaticMesh(const FObjectInitializer& ObjectInitializer)

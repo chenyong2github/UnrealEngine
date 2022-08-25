@@ -1,14 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "BlueprintGraphPanelPinFactory.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/CurveTable.h"
 #include "Engine/DataTable.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EdGraphSchema_K2.h"
+#include "HAL/PlatformCrt.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_GetDataTableRow.h"
-#include "SGraphPin.h"
-#include "SGraphPinNameList.h"
 #include "SGraphPinDataTableRowName.h"
+#include "SGraphPinNameList.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FString;
+struct FRealCurve;
 	
 TSharedPtr<class SGraphPin> FBlueprintGraphPanelPinFactory::CreatePin(class UEdGraphPin* InPin) const
 {

@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tree/CurveEditorTree.h"
-#include "Tree/ICurveEditorTreeItem.h"
-#include "Tree/CurveEditorTreeFilter.h"
-#include "CurveEditor.h"
 
 #include "Containers/SortedMap.h"
-#include "Algo/AnyOf.h"
-#include "Algo/AllOf.h"
-
-class FCurveModel;
+#include "Containers/SparseArray.h"
+#include "CurveEditor.h"
+#include "CurveModel.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Less.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tree/CurveEditorTreeFilter.h"
+#include "Tree/ICurveEditorTreeItem.h"
 
 TArrayView<const FCurveModelID> FCurveEditorTreeItem::GetOrCreateCurves(FCurveEditor* CurveEditor)
 {

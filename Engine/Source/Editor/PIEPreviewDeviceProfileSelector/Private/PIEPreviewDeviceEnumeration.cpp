@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PIEPreviewDeviceEnumeration.h"
-#include "HAL/FileManager.h"
-#include "Misc/Paths.h"
 
-#include "Modules/ModuleManager.h"
-#include "PIEPreviewDeviceProfileSelectorModule.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Paths.h"
 
 #define LOCTEXT_NAMESPACE "PIEPreviewDevice"
 

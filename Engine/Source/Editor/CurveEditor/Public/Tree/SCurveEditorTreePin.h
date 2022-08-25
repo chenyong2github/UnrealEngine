@@ -2,14 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "CurveEditorTreeTraits.h"
+#include "CurveEditorTypes.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "CurveEditorTypes.h"
-#include "CurveEditorTreeTraits.h"
-
 class FCurveEditor;
 class ITableRow;
+struct FSlateBrush;
 
 class CURVEEDITOR_API SCurveEditorTreePin : public SCompoundWidget
 {

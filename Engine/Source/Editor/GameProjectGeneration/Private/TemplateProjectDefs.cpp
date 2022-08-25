@@ -2,7 +2,12 @@
 
 
 #include "TemplateProjectDefs.h"
+
+#include "HAL/Platform.h"
 #include "Internationalization/Culture.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/CString.h"
+#include "Templates/SharedPointer.h"
 
 FText FLocalizedTemplateString::GetLocalizedText(const TArray<FLocalizedTemplateString>& LocalizedStrings)
 {

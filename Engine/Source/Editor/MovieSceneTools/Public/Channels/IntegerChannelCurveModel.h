@@ -2,18 +2,25 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "Channels/ChannelCurveModel.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
 #include "IBufferedCurveModel.h"
 #include "MovieSceneSection.h"
-#include "Channels/MovieSceneIntegerChannel.h"
-#include "Channels/MovieSceneChannelHandle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-struct FMovieSceneIntegerChannel;
-class UMovieSceneSection;
+class IBufferedCurveModel;
 class ISequencer;
+class UMovieSceneSection;
+class UObject;
+struct FKeyHandle;
+struct FMovieSceneIntegerChannel;
+template <typename ChannelType> struct TMovieSceneChannelHandle;
 
 class FIntegerChannelCurveModel : public FChannelCurveModel<FMovieSceneIntegerChannel, int32, int32>
 {

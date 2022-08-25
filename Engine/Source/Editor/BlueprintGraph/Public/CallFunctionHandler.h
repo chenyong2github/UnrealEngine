@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "KismetCompilerMisc.h"
+#include "EdGraph/EdGraphNode.h"
 #include "K2Node_CallFunction.h"
+#include "KismetCompilerMisc.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
 
 class FKismetCompilerContext;
+class UClass;
+class UEdGraphPin;
+class UFunction;
+struct FBPTerminal;
+struct FBlueprintCompiledStatement;
 struct FKismetFunctionContext;
 
 //////////////////////////////////////////////////////////////////////////

@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "Misc/Attribute.h"
 #include "Misc/FrameTime.h"
 #include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+struct FFrameNumber;
 
 namespace UE
 {

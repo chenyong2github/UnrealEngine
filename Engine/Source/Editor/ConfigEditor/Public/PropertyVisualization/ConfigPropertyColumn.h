@@ -3,12 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Editor/PropertyEditor/Public/IPropertyTableCustomColumn.h"
 #include "IPropertyTableColumn.h"
 #include "IPropertyTableUtilities.h"
-#include "Editor/PropertyEditor/Public/IPropertyTableCustomColumn.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FProperty;
 class IPropertyTableCell;
 class IPropertyTableCellPresenter;
+class IPropertyTableColumn;
+class IPropertyTableUtilities;
+class SWidget;
 
 /**
 * A property table custom column used to display source control condition of files.

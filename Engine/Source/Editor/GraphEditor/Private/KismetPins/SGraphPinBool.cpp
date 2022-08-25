@@ -2,8 +2,17 @@
 
 
 #include "KismetPins/SGraphPinBool.h"
-#include "Widgets/Input/SCheckBox.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Input/SCheckBox.h"
+
+class SWidget;
 
 void SGraphPinBool::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {

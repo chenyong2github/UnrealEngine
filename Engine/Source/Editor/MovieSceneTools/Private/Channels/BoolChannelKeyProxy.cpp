@@ -2,6 +2,11 @@
 
 #include "Channels/BoolChannelKeyProxy.h"
 
+#include "Channels/MovieSceneBoolChannel.h"
+#include "HAL/PlatformCrt.h"
+
+struct FPropertyChangedEvent;
+
 void UBoolChannelKeyProxy::Initialize(FKeyHandle InKeyHandle, TMovieSceneChannelHandle<FMovieSceneBoolChannel> InChannelHandle, TWeakObjectPtr<UMovieSceneSection> InWeakSection)
 {
 	KeyHandle     = InKeyHandle;

@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundAttenuationFactory.h"
+
 #include "Sound/SoundAttenuation.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 USoundAttenuationFactory::USoundAttenuationFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

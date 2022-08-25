@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "KismetCompiler.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "BlueprintCompilerExtension.generated.h"
+
+class FKismetCompilerContext;
+class UEdGraph;
 
 USTRUCT()
 struct FBlueprintCompiledData

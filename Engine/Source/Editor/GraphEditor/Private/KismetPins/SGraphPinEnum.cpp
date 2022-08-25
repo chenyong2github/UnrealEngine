@@ -2,9 +2,42 @@
 
 
 #include "KismetPins/SGraphPinEnum.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Views/SListView.h"
+
+#include "Containers/BitArray.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "SGraphPinComboBox.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateStructs.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+
+class ITableRow;
+class STableViewBase;
+class SWidget;
 
 //Construct combo box using combo button and combo list
 void SPinComboBox::Construct( const FArguments& InArgs )

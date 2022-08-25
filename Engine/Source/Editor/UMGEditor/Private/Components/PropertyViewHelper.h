@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+class FText;
 
 struct FPropertyViewHelper
 {

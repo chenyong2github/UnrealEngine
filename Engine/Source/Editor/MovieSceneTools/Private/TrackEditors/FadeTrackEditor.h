@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
-#include "ISequencer.h"
-#include "MovieSceneTrack.h"
-#include "ISequencerSection.h"
-#include "ISequencerTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/FloatPropertyTrackEditor.h"
+
+class FMenuBuilder;
+class ISequencer;
+class ISequencerSection;
+class ISequencerTrackEditor;
+class UMovieSceneSection;
+class UMovieSceneSequence;
+class UMovieSceneTrack;
+struct FGuid;
+struct FSlateBrush;
 
 /**
 * A property track editor for fade control.

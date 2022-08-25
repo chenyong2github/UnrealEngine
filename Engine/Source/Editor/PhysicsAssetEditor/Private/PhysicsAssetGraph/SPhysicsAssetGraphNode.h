@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
 #include "SGraphNode.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-class SHorizontalBox;
+class SGraphPin;
+class SVerticalBox;
+class SWidget;
+struct FSlateBrush;
 
 class SPhysicsAssetGraphNode : public SGraphNode
 {

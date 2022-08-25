@@ -1,13 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNodeSpawner.h"
-#include "EdGraph/EdGraph.h"
-#include "UObject/Package.h"
-#include "K2Node.h"
-#include "K2Node_IfThenElse.h"
-#include "BlueprintNodeTemplateCache.h"
+
 #include "BlueprintNodeSpawnerUtils.h"
+#include "BlueprintNodeTemplateCache.h"
+#include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node.h"
+#include "Misc/AssertionMacros.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Styling/AppStyle.h"
+#include "Templates/ChooseClass.h"
+#include "UObject/Class.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealType.h"
 
 /*******************************************************************************
  * Static UBlueprintNodeSpawner Helpers

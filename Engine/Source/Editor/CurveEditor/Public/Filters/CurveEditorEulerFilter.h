@@ -2,9 +2,18 @@
 
 #pragma once
 
-#include "Filters/CurveEditorFilterBase.h"
+#include "Containers/Map.h"
 #include "CurveEditorTypes.h"
+#include "Filters/CurveEditorFilterBase.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "CurveEditorEulerFilter.generated.h"
+
+class FCurveEditor;
+class UObject;
+struct FCurveModelID;
+struct FKeyHandleSet;
 
 UCLASS(DisplayName = "Euler")
 class CURVEEDITOR_API UCurveEditorEulerFilter : public UCurveEditorFilterBase

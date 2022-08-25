@@ -1,9 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/SPropertyEditorText.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/CString.h"
+#include "PropertyEditor.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "PropertyNode.h"
+#include "SlotBase.h"
+#include "UObject/NameTypes.h"
 #include "UObject/TextProperty.h"
-#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SWidget.h"
+
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 

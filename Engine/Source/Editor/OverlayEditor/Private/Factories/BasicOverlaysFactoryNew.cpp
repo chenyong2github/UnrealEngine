@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/BasicOverlaysFactoryNew.h"
-#include "BasicOverlays.h"
+
 #include "AssetTypeCategories.h"
+#include "BasicOverlays.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 
 /* UBasicOverlaysFactoryNew structors

@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 #include "Framework/Commands/Commands.h"
-#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+
+class FName;
+class FUICommandInfo;
 
 /**
  * Unreal landscape editor actions

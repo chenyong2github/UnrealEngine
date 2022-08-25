@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+
+#include "Math/Color.h"
 #include "Styling/AppStyle.h"
-#include "Styling/StyleColors.h"
+#include "Styling/ISlateStyle.h"
+#include "UObject/NameTypes.h"
 
 const FName PropertyEditorConstants::PropertyFontStyle( TEXT("PropertyWindow.NormalFont") );
 const FName PropertyEditorConstants::CategoryFontStyle( TEXT("DetailsView.CategoryFontStyle") );

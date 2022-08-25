@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/IPinnableExtension.h"
+
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
-#include "EditorStyleSet.h"
+#include "SequencerCoreFwd.h"
 
 namespace UE
 {

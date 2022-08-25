@@ -2,6 +2,8 @@
 
 #include "ContentBrowserDataFilter.h"
 
+#include "Templates/Casts.h"
+
 FContentBrowserDataFilterList::FContentBrowserDataFilterList(const FContentBrowserDataFilterList& InOther)
 {
 	SetTo(InOther);

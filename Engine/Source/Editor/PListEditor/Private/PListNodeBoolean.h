@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Editor/PListEditor/Private/PListNode.h"
+#include "HAL/Platform.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FText;
 class ITableRow;
 class SCheckBox;
 class SEditableTextBox;
@@ -13,6 +18,7 @@ class SPListEditorPanel;
 class STableViewBase;
 class SWidget;
 struct FSlateBrush;
+
 enum class ECheckBoxState : uint8;
 
 /** A Node representing a boolean value */

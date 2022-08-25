@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorDirectories.h"
+
+#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
+#include "Templates/UnrealTemplate.h"
 
 FEditorDirectories& FEditorDirectories::Get()
 {

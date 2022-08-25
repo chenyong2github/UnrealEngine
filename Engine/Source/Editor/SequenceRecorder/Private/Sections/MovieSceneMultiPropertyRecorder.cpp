@@ -1,10 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneMultiPropertyRecorder.h"
-#include "UObject/UnrealType.h"
+
+#include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieScenePropertyRecorder.h"
 #include "SequenceRecorderSettings.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+
+struct FActorRecordingSettings;
+struct FGuid;
 
 TSharedPtr<IMovieSceneSectionRecorder> FMovieSceneMultiPropertyRecorderFactory::CreateSectionRecorder(const FActorRecordingSettings& InActorRecordingSettings) const
 {

@@ -2,14 +2,32 @@
 
 #pragma once
 
+#include "AnimatedPropertyKey.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "ISequencer.h"
-#include "Tracks/MovieSceneBoolTrack.h"
-#include "Sections/MovieSceneBoolSection.h"
 #include "ISequencerSection.h"
 #include "ISequencerTrackEditor.h"
+#include "KeyframeTrackEditor.h"
+#include "Misc/Guid.h"
 #include "PropertyTrackEditor.h"
+#include "Sections/MovieSceneBoolSection.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tracks/MovieSceneBoolTrack.h"
+#include "UObject/UnrealNames.h"
+
+class FPropertyChangedParams;
+class ISequencer;
+class ISequencerSection;
+class ISequencerTrackEditor;
+class UMovieSceneSection;
+class UMovieSceneTrack;
+struct FGuid;
 
 /**
  * A property track editor for Booleans.

@@ -19,6 +19,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerSelection.h"
 #include "Sequencer.h"
+#include "ISequencerSection.h"
 
 #include "Widgets/Layout/SSpacer.h"
 #include "Styling/AppStyle.h"

@@ -1,10 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetTagItem.h"
-#include "Widgets/SToolTip.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
+
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Text/TextLayout.h"
+#include "HAL/Platform.h"
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "AssetTagsEditor"
 

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/LinkedOutlinerExtension.h"
+
 #include "MVVM/Extensions/IOutlinerExtension.h"
-#include "MVVM/ViewModels/ViewModel.h"
 
 namespace UE
 {

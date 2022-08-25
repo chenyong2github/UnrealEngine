@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveModel.h"
+
 #include "Containers/Array.h"
 #include "CurveDataAbstraction.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/PlatformCrt.h"
 
 void FCurveModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, const FKeyAttributes& InKeyAttributes, EPropertyChangeType::Type ChangeType)
 {

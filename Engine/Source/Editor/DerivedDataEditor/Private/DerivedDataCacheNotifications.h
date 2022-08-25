@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "UObject/WeakObjectPtr.h"
 #include "DerivedDataCacheInterface.h"
 #include "IDerivedDataCacheNotifications.h"
+#include "Templates/SharedPointer.h"
 
 class SNotificationItem;
 

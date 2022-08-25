@@ -2,10 +2,17 @@
 
 
 #include "SGraphPreviewer.h"
+
+#include "Delegates/Delegate.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Visibility.h"
+#include "SGraphPanel.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/WidgetActiveTimerDelegate.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
-#include "SGraphPanel.h"
 
 EActiveTimerReturnType SGraphPreviewer::RefreshGraphTimer(const double InCurrentTime, const float InDeltaTime)
 {

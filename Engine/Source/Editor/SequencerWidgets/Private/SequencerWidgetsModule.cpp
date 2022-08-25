@@ -1,15 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "ITimeSlider.h"
 #include "ISequencerWidgetsModule.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 #include "SSequencerTimeSlider.h"
 #include "STimeRange.h"
 #include "STimeRangeSlider.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class ITimeSlider;
+class ITimeSliderController;
+class SWidget;
 
 
 /**

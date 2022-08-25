@@ -3,14 +3,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "SNodePanel.h"
 #include "SCurveEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
+class SVerticalBox;
 
 //////////////////////////////////////////////////////////////////////////
 // FTrackColorTracker

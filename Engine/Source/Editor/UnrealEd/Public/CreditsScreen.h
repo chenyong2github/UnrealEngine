@@ -3,13 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Text/SlateHyperlinkRun.h"
 #include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/Text/SlateHyperlinkRun.h"
 
 class FActiveTimerHandle;
 class SScrollBox;
+struct FSlateBrush;
 
 /**
  * Credit screen widget that displays a scrolling list contributors.  

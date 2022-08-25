@@ -3,9 +3,12 @@
 #pragma once
 
 #include "ICurveEditorDragOperation.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
 class FCurveEditor;
 class SCurveEditorView;
+struct FPointerEvent;
 
 class FCurveEditorDragOperation_Zoom : public ICurveEditorDragOperation
 {

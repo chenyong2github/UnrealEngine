@@ -1,16 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
+
+#include "Internationalization/Internationalization.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
-
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/SBoxPanel.h"
-
+#include "Misc/Attribute.h"
+#include "SequencerCoreFwd.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "EdGraph/EdGraph.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "OutlinerViewModelDragDropOp"
 

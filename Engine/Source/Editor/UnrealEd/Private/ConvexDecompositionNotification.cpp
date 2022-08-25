@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ConvexDecompositionNotification.h"
+
 #include "GlobalEditorNotification.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 /** Pointer to global status object */

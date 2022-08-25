@@ -2,13 +2,25 @@
 
 
 #include "K2Node_Self.h"
-#include "EdGraphSchema_K2.h"
+
 #include "BPTerminal.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+
+class FKismetCompilerContext;
 
 #define LOCTEXT_NAMESPACE "K2Node_Self"
 

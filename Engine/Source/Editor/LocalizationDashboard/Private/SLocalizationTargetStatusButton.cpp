@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLocalizationTargetStatusButton.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "HAL/PlatformProcess.h"
-#include "Widgets/Images/SImage.h"
-#include "Styling/AppStyle.h"
-#include "LocalizationTargetTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
 #include "LocalizationConfigurationScript.h"
+#include "LocalizationTargetTypes.h"
+#include "Math/Color.h"
+#include "Misc/Paths.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SCompoundWidget.h"
+
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "LocalizationTargetStatusButton"
 

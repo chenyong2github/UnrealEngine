@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Misc/IFilter.h"
-#include "Misc/FilterCollection.h"
-#include "SceneOutlinerFwd.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "ISceneOutlinerTreeItem.h"
+#include "Internationalization/Text.h"
+#include "Misc/FilterCollection.h"
+#include "Misc/IFilter.h"
+#include "SceneOutlinerFwd.h"
+#include "Templates/SharedPointer.h"
 
 class FMenuBuilder;
+class FSceneOutlinerFilter;
+struct FSceneOutlinerFilters;
 
 /**
 	* Contains information used to create a filter which will be displayed as user toggleable filter

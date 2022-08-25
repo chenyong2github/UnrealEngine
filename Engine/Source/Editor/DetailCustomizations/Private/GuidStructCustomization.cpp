@@ -1,19 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GuidStructCustomization.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "Widgets/SBoxPanel.h"
-#include "Textures/SlateIcon.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
 #include "PropertyHandle.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SComboButton.h"
-#include "DetailWidgetRow.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/TypeHash.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "FGuidStructCustomization"
 

@@ -2,6 +2,10 @@
 
 #include "AnimGraphAttributes.h"
 
+#include "Templates/Function.h"
+
+struct FPropertyChangedEvent;
+
 void UAnimGraphAttributes::Register(const FAnimGraphAttributeDesc& InDesc)
 {
 	if(AttributesMap.Find(InDesc.Name) == nullptr)

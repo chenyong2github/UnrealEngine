@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PipelineCacheChunkDataGenerator.h"
+
 #include "IPlatformFileSandboxWrapper.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "PipelineCacheUtilities.h"
+
+class FName;
 
 FPipelineCacheChunkDataGenerator::FPipelineCacheChunkDataGenerator(const ITargetPlatform* TargetPlatform, const FString& InShaderLibraryName)
 {

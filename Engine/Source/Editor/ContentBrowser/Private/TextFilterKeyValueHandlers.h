@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserItem.h"
-#include "TextFilterKeyValueHandler.h"
+#include "Containers/Array.h"
+#include "CoreFwd.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TextFilterKeyValueHandlers.generated.h"
+
+class FTextFilterString;
+class UTextFilterKeyValueHandler;
+struct FContentBrowserItem;
 
 USTRUCT()
 struct FTextFilterKeyValueHandlerEntry

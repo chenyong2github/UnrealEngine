@@ -1,10 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateStringSyntaxHighlighterMarshaller.h"
+
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
 #include "Framework/Text/IRun.h"
-#include "Framework/Text/TextLayout.h"
 #include "Framework/Text/ISlateRun.h"
 #include "Framework/Text/SlateTextRun.h"
+#include "Framework/Text/TextLayout.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/UnrealTemplate.h"
 
 constexpr static const TCHAR* Operators[] = {
 	TEXT("{"),

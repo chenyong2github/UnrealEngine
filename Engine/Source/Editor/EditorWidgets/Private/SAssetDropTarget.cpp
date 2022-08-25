@@ -1,10 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetDropTarget.h"
-#include "DragAndDrop/AssetDragDropOp.h"
+
+#include "AssetSelection.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
-#include "AssetSelection.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/DragAndDrop.h"
+#include "Styling/AppStyle.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "EditorWidgets"
 

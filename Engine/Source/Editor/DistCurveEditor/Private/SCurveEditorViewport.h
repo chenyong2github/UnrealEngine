@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "IDistCurveEditor.h"
 #include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IDistCurveEditor.h"
 
 class FCurveEditorViewportClient;
 class FSceneViewport;
 class SDistributionCurveEditor;
 class SScrollBar;
 class SViewport;
+struct FGeometry;
 
 /*-----------------------------------------------------------------------------
    SCurveEditorViewport

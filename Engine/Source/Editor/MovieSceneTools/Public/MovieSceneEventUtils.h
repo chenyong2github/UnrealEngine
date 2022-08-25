@@ -2,28 +2,27 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+class FKismetCompilerContext;
+class UBlueprint;
+class UClass;
+class UEdGraphNode;
+class UEdGraphPin;
+class UK2Node;
+class UK2Node_CallFunction;
+class UK2Node_CustomEvent;
+class UK2Node_FunctionEntry;
+class UMovieScene;
+class UMovieSceneEventSectionBase;
+class UMovieSceneEventTrack;
+class UMovieSceneSequence;
+class UMovieSceneTrack;
 struct FGuid;
 struct FMovieSceneEvent;
-
-class UClass;
-class UK2Node;
-class UBlueprint;
-class UEdGraphPin;
-class UEdGraphNode;
-class UK2Node_CustomEvent;
-class UK2Node_CallFunction;
-class UK2Node_FunctionEntry;
-class FKismetCompilerContext;
-
-class UMovieScene;
-class UMovieSceneTrack;
-class UMovieSceneSequence;
-class UMovieSceneEventTrack;
-class UMovieSceneEventSectionBase;
 
 
 

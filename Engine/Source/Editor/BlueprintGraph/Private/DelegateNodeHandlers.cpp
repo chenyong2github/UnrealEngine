@@ -1,14 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DelegateNodeHandlers.h"
+
+#include "BPTerminal.h"
+#include "Containers/Array.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "EdGraphUtilities.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/MemberReference.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node_BaseMCDelegate.h"
 #include "K2Node_CallDelegate.h"
 #include "K2Node_ClearDelegate.h"
 #include "K2Node_CreateDelegate.h"
-#include "EdGraphUtilities.h"
-#include "Engine/BlueprintGeneratedClass.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
+#include "Templates/Casts.h"
+#include "Templates/Tuple.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+
+class UK2Node;
 
 #define LOCTEXT_NAMESPACE "DelegateNodeHandlers"
 

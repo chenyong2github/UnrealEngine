@@ -2,6 +2,12 @@
 
 #include "CurveTableEditorHandle.h"
 
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+
+class UObject;
+struct FRealCurve;
+
 FRealCurve* FCurveTableEditorHandle::GetCurve() const
 {
 	if (CurveTable != nullptr && RowName != NAME_None)

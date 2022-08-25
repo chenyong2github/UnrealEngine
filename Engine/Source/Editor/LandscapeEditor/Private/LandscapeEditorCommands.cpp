@@ -3,6 +3,16 @@
 
 #include "LandscapeEditorCommands.h"
 
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Styling/AppStyle.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
 #define LOCTEXT_NAMESPACE "LandscapeEditorCommands"
 
 FName FLandscapeEditorCommands::LandscapeContext = TEXT("LandscapeEditor");

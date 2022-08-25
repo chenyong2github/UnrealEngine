@@ -1,15 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/SNullWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Documentation.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
-#include "Widgets/SToolTip.h"
-#include "IDocumentationModule.h"
+#include "HAL/Platform.h"
 #include "IDocumentation.h"
-#include "Documentation.h"
+#include "IDocumentationModule.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SToolTip.h"
+
+class SWidget;
 
 class FDocumentationModule : public IDocumentationModule
 {

@@ -3,6 +3,8 @@
 
 #include "BusyCursor.h"
 
+#include "HAL/Platform.h"
+
 static int32 GScopedBusyCursorReferenceCounter = 0;
 
 FScopedBusyCursor::FScopedBusyCursor()

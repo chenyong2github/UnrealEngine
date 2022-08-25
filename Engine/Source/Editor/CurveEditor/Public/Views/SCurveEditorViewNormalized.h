@@ -2,7 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Rendering/RenderingCommon.h"
+#include "Templates/SharedPointer.h"
 #include "Views/SInteractiveCurveEditorView.h"
+
+class FCurveEditor;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FText;
+class FWidgetStyle;
+struct FGeometry;
 
 /**
  * A Normalized curve view supporting one or more curves with their own screen transform that normalizes the vertical curve range to [-1,1]

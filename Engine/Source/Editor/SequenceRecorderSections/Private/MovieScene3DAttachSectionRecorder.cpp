@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieScene3DAttachSectionRecorder.h"
-#include "Modules/ModuleManager.h"
-#include "Sections/MovieScene3DAttachSection.h"
-#include "Tracks/MovieScene3DAttachTrack.h"
-#include "SequenceRecorderUtils.h"
+
 #include "ISequenceRecorder.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Modules/ModuleManager.h"
+#include "MovieScene.h"
+#include "MovieSceneObjectBindingID.h"
+#include "Sections/MovieScene3DAttachSection.h"
+#include "SequenceRecorderUtils.h"
+#include "Templates/Casts.h"
+#include "Tracks/MovieScene3DAttachTrack.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 
 TSharedPtr<IMovieSceneSectionRecorder> FMovieScene3DAttachSectionRecorderFactory::CreateSectionRecorder(const struct FActorRecordingSettings& InActorRecordingSettings) const
 {

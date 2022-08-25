@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ISequencer.h"
-#include "MovieSceneSequence.h"
+
+#include "Misc/AssertionMacros.h"
 #include "MovieScene.h"
+#include "MovieSceneSequence.h"
 
 FFrameRate ISequencer::GetRootTickResolution() const
 {

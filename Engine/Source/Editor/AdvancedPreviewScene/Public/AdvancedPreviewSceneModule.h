@@ -2,12 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Modules/ModuleInterface.h"
 #include "PropertyEditorDelegates.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
-class SWidget;
 class FAdvancedPreviewScene;
+class SWidget;
+class UObject;
+class UStruct;
 
 class FAdvancedPreviewSceneModule : public IModuleInterface
 {

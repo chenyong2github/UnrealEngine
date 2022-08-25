@@ -1,11 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/ISortableExtension.h"
+
+#include "Algo/Sort.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
-#include "Internationalization/Internationalization.h"
-#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Templates/TypeHash.h"
 
 namespace UE
 {

@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "PropertyPath.h"
-#include "IPropertyTable.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "IPropertyTableRow.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FPropertyPath;
+class UObject;
 
 class FPropertyTableRow : public TSharedFromThis< FPropertyTableRow >, public IPropertyTableRow
 {

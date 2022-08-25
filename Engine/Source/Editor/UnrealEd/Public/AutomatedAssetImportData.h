@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Logging/LogMacros.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AutomatedAssetImportData.generated.h"
 
-class UFactory;
 class FJsonObject;
+class UFactory;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAutomatedImport, Log, All);
 

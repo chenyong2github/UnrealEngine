@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "ITimeSlider.h"
 #include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AnimTimeSliderController.h"
 
-class FPaintArgs;
-class FSlateWindowElementList;
 class FAnimTimeSliderController;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FWidgetStyle;
+struct FGeometry;
 
 /**
  * An overlay that displays global information in the track area

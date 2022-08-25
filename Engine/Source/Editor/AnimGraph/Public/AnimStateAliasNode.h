@@ -2,15 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Animation/AnimTypes.h"
 #include "AnimStateNodeBase.h"
+#include "Animation/AnimTypes.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "AnimStateAliasNode.generated.h"
 
+class FArchive;
+class UAnimStateNode;
 class UEdGraph;
 class UEdGraphPin;
-class UAnimStateNode;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UAnimStateAliasNode : public UAnimStateNodeBase

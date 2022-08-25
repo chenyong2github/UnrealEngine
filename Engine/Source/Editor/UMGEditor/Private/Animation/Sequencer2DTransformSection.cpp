@@ -1,12 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/Sequencer2DTransformSection.h"
-#include "ISectionLayoutBuilder.h"
+
 #include "Animation/MovieScene2DTransformSection.h"
-#include "SequencerSectionPainter.h"
+#include "Containers/ArrayView.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ScopedTransaction.h"
 #include "ISequencer.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
+#include "MovieSceneSection.h"
+#include "ScopedTransaction.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "F2DTransformSection"
 

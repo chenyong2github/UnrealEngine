@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditConditionParser.h"
-#include "EditConditionContext.h"
 
+#include "Containers/Set.h"
+#include "EditConditionContext.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ExpressionParser.h"
-#include "UObject/Class.h"
+#include "Misc/Optional.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "EditConditionParser"
 

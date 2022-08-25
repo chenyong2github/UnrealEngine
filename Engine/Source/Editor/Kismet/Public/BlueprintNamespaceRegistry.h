@@ -2,9 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
 
+class FName;
+class UObject;
 struct FAssetData;
 struct FBlueprintNamespacePathTree;
 

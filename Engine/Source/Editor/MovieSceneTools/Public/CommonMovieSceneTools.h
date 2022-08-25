@@ -6,10 +6,12 @@
 #include "FrameNumberNumericInterface.h"
 #include "Layout/Geometry.h"
 #include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
 #include "SequencerSectionPainter.h"
 #include "TimeToPixel.h"
 
 class FSequencerSectionPainter;
+struct FFrameNumberInterface;
 
 /**
  * Draw a frame time next to the scrub handle

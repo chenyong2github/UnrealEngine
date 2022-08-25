@@ -2,17 +2,53 @@
 
 
 #include "SGraphNodeKnot.h"
-#include "SCommentBubble.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "GraphEditorSettings.h"
-#include "SGraphPanel.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Delegates/Delegate.h"
 #include "DragConnection.h"
-#include "K2Node_Knot.h"
-#include "ScopedTransaction.h"
-#include "Kismet2/BlueprintEditorUtils.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/ICursor.h"
+#include "GraphEditorSettings.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/DragAndDrop.h"
+#include "Input/Events.h"
+#include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SCommentBubble.h"
+#include "SGraphNode.h"
+#include "SGraphPanel.h"
+#include "SGraphPin.h"
+#include "SNodePanel.h"
+#include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+
+class FText;
+class SWidget;
+struct FGeometry;
+struct FSlateBrush;
 
 namespace SKnotNodeDefinitions
 {

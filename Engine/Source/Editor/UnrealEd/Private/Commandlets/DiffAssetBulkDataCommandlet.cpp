@@ -2,11 +2,27 @@
 
 #include "Commandlets/DiffAssetBulkDataCommandlet.h"
 
+#include "Algo/Sort.h"
 #include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetDataTagMap.h"
 #include "AssetRegistry/AssetRegistryState.h"
-#include "HAL/FileManager.h"
-#include "Serialization/LargeMemoryReader.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
+#include "IO/IoDispatcher.h"
+#include "IO/IoHash.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/Parse.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogDiffAssetBulk, Display, All);

@@ -1,10 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorToolProperties.h"
-#include "Modules/ModuleManager.h"
+
+#include "Containers/Map.h"
+#include "CurveEditor.h"
+#include "Delegates/Delegate.h"
+#include "DetailsViewArgs.h"
+#include "HAL/PlatformCrt.h"
 #include "IStructureDetailsView.h"
+#include "Layout/Children.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+
+class FStructOnScope;
+struct FPropertyChangedEvent;
 
 
 void SCurveEditorToolProperties::Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor, FCurveEditorToolID InToolId)

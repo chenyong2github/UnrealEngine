@@ -1,13 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/BoolPropertySection.h"
-#include "Rendering/DrawElements.h"
-#include "SequencerSectionPainter.h"
-#include "ISectionLayoutBuilder.h"
-#include "Styling/AppStyle.h"
-#include "CommonMovieSceneTools.h"
-#include "Sections/MovieSceneBoolSection.h"
+
+#include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "MovieSceneSection.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Sections/MovieSceneBoolSection.h"
+#include "SequencerSectionPainter.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "TimeToPixel.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+struct FSlateBrush;
 
 
 int32 FBoolPropertySection::OnPaintSection( FSequencerSectionPainter& Painter ) const

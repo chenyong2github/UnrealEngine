@@ -2,16 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Kismet2/StructureEditorUtils.h"
 #include "DataTableEditorUtils.h"
-#include "Misc/NotifyHook.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "SRowEditor.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UDataTable;
 
 
 class SCompositeRowEditor : public SRowEditor

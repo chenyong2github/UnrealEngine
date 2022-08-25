@@ -4,6 +4,7 @@
 
 #include "MVVM/ViewModelTypeID.h"
 #include "Misc/FrameNumber.h"
+#include "Templates/SharedPointer.h"
 
 struct FGuid;
 

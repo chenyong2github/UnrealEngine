@@ -2,8 +2,15 @@
 
 
 #include "KismetPins/SGraphPinIndex.h"
+
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraphSchema_K2.h"
+#include "Misc/Attribute.h"
 #include "SPinTypeSelector.h"
+#include "UObject/UObjectGlobals.h"
+
+class SWidget;
 
 void SGraphPinIndex::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {

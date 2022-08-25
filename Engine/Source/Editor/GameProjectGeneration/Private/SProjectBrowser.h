@@ -2,25 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Layout/Visibility.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Misc/TextFilter.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Misc/TextFilter.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STileView.h"
 
 class ITableRow;
-class STableViewBase;
 class SToolTip;
 class SVerticalBox;
-
-template<typename T>
-class STileView;
-
+class SWidget;
+struct FGeometry;
+struct FKeyEvent;
 struct FProjectCategory;
 struct FProjectItem;
-struct FSlateBrush;
 
 enum class EProjectSortOption : uint8
 {

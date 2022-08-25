@@ -2,16 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Delegates/Delegate.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/Platform.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "SCurveEditor.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FText;
+class FWidgetStyle;
+struct FGeometry;
+struct FPointerEvent;
 
 /**
  * A Slate SpinBox resembles traditional spin boxes in that it is a widget that provides

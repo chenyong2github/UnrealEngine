@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "IOverlayEditorModule.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
 #include "OverlayEditorPrivate.h"
-#include "IOverlayEditorModule.h"
 
 DEFINE_LOG_CATEGORY(LogOverlayEditor);
 

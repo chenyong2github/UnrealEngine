@@ -2,8 +2,13 @@
 
 #pragma once
 
-#include "UObject/ObjectKey.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
 #include "MVVM/Extensions/DynamicExtensionContainer.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/ObjectKey.h"
 
 class UMovieSceneTrack;
 
@@ -12,8 +17,8 @@ namespace UE
 namespace Sequencer
 {
 
-class FTrackRowModel;
 class FSequenceModel;
+class FTrackRowModel;
 class FViewModel;
 
 class FTrackRowModelStorageExtension

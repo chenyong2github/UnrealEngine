@@ -1,17 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Editor/PropertyEditor/Private/UserInterface/PropertyTable/PropertyTableConstants.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/SlateDelegates.h"
-#include "Styling/AppStyle.h"
-#include "IPropertyTableColumn.h"
-#include "IPropertyTableUtilities.h"
-#include "IPropertyTableCell.h"
+#include "HAL/PlatformCrt.h"
 #include "IPropertyTableCustomColumn.h"
-#include "Editor/PropertyEditor/Private/UserInterface/PropertyTable/PropertyTableConstants.h"
+#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FProperty;
+class IPropertyTableCell;
 class IPropertyTableCellPresenter;
+class IPropertyTableColumn;
+class IPropertyTableUtilities;
+class SWidget;
 
 /**
  * A property table custom column used to display text cells in a chosen font

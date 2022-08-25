@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Input/DragAndDrop.h"
+#include "UObject/NameTypes.h"
 
 class FDragDropEvent;
 

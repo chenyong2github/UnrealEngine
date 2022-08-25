@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "SceneOutlinerFwd.h"
-#include "Layout/Visibility.h"
-#include "Input/DragAndDrop.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
+#include "HAL/Platform.h"
 #include "ISceneOutlinerTreeItem.h"
+#include "Input/DragAndDrop.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "SceneOutlinerFwd.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+
+class SWidget;
+struct FSlateBrush;
+struct ISceneOutlinerTreeItem;
 
 /** Enum to describe the compatibility of a drag drop operation */
 enum class ESceneOutlinerDropCompatibility : uint8

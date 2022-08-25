@@ -1,7 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintFieldNodeSpawner.h"
+
+#include "EdGraph/EdGraphNode.h"
+#include "K2Node.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealType.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "BlueprintFieldNodeSpawner"
 

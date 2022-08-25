@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/VerticalAlignmentCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "PropertyHandle.h"
+
 #include "DetailWidgetRow.h"
-#include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSegmentedControl.h"
+
+class IDetailChildrenBuilder;
 
 
 #define LOCTEXT_NAMESPACE "UMG"

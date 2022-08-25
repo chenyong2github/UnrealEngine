@@ -3,15 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IDerivedDataCacheNotifications.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "IDerivedDataCacheNotifications.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
-class SDockTab;
-class SWindow;
-class SWidget;
-class SDerivedDataCacheSettingsDialog;
 class FSpawnTabArgs;
+class SDerivedDataCacheSettingsDialog;
+class SDockTab;
+class SWidget;
+class SWindow;
 
 /**
  * The module holding all of the UI related pieces for DerivedData

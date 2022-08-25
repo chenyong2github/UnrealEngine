@@ -6,10 +6,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
 
-class UObject;
+class FName;
+class FString;
 class UAssetImportData;
+class UObject;
 
 namespace InternalImportUtils
 {

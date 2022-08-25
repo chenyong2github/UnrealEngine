@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_Root.h"
-#include "UObject/UObjectIterator.h"
+
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardData.h"
 #include "BehaviorTreeEditorTypes.h"
 #include "BehaviorTreeGraph.h"
-#include "BehaviorTree/BlackboardData.h"
-#include "BehaviorTree/BehaviorTree.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/UObjectBaseUtility.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/UnrealType.h"
 
 UBehaviorTreeGraphNode_Root::UBehaviorTreeGraphNode_Root(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {

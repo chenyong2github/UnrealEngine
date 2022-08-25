@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Object/ObjectElementEditorSelectionInterface.h"
-#include "Elements/Object/ObjectElementData.h"
 
-#include "UObject/Package.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
+#include "Elements/Object/ObjectElementData.h"
+#include "Serialization/Archive.h"
+#include "UObject/Object.h"
+#include "UObject/Package.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FObjectElementTransactedElement : public ITypedElementTransactedElement
 {

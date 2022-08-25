@@ -2,6 +2,8 @@
 
 #include "SubobjectDataInterfaceModule.h"
 
+#include "Modules/ModuleManager.h"
+
 #define LOCTEXT_NAMESPACE "FSubobjectDataInterfaceModule"
 
 void FSubobjectDataInterfaceModule::StartupModule()

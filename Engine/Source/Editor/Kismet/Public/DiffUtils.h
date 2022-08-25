@@ -1,14 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Views/STreeView.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
 #include "PropertyPath.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/STreeView.h"
 
+class SWidget;
 class UBlueprint;
+class UObject;
+class UStruct;
 struct FRevisionInfo;
+template <typename ItemType> class STreeView;
 
 struct FResolvedProperty
 {

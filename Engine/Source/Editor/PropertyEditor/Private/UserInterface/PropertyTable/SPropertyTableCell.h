@@ -1,18 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/PlatformMath.h"
 #include "Input/Reply.h"
+#include "SPropertyTableCell.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IPropertyTableCellPresenter.h"
-#include "Widgets/SWindow.h"
-#include "IPropertyTableCell.h"
 
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FWidgetStyle;
+class IPropertyTableCellPresenter;
 class SMenuAnchor;
+class SWidget;
+class SWindow;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
+struct FPropertyChangedEvent;
+struct FSlateBrush;
 
 class SPropertyTableCell : public SCompoundWidget
 {

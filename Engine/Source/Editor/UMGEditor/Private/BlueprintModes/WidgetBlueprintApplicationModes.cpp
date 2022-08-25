@@ -2,6 +2,8 @@
 
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
 
+#include "Internationalization/Internationalization.h"
+
 // Mode constants
 const FName FWidgetBlueprintApplicationModes::DesignerMode("DesignerName");
 const FName FWidgetBlueprintApplicationModes::GraphMode("GraphName");

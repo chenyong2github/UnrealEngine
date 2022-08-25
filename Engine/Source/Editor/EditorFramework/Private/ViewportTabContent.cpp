@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewportTabContent.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Framework/Docking/LayoutService.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Docking/SDockTab.h"
+
+#include "EditorViewportLayout.h"
+#include "Templates/Tuple.h"
 
 
 // FViewportTabContent ///////////////////////////

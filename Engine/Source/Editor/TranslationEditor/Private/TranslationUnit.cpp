@@ -1,5 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "TranslationUnit.h"
+
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 
 UTranslationUnit::UTranslationUnit( const FObjectInitializer& ObjectInitializer )

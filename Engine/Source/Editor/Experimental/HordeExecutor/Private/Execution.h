@@ -2,8 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Async/Future.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IExecution.h"
+#include "RemoteMessages.h"
+#include "Templates/SharedPointer.h"
 
 
 namespace UE::RemoteExecution

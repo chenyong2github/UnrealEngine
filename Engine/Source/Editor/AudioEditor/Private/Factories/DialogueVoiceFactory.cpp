@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/DialogueVoiceFactory.h"
+
 #include "Sound/DialogueVoice.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+
+class FFeedbackContext;
+class UClass;
 
 UDialogueVoiceFactory::UDialogueVoiceFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

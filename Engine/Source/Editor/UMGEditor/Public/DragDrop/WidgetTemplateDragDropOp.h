@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Input/DragAndDrop.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Input/DragAndDrop.h"
+#include "Templates/SharedPointer.h"
 
 class FWidgetTemplate;
 

@@ -2,15 +2,19 @@
 
 #include "SDocumentationAnchor.h"
 
-#include "EditorClassUtils.h"
-#include "Styling/AppStyle.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDocumentation.h"
 #include "IDocumentationPage.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SToolTip.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
 #include "SSimpleButton.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Widgets/SToolTip.h"
 
 void SDocumentationAnchor::Construct(const FArguments& InArgs )
 {

@@ -5,16 +5,27 @@
  */
 
 #include "Commandlets/DiffAssetsCommandlet.h"
-#include "HAL/PlatformProcess.h"
+
+#include "Containers/Map.h"
+#include "Exporters/Exporter.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformProcess.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/CString.h"
 #include "Misc/FileHelper.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
-#include "UObject/UObjectIterator.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 #include "UObject/Package.h"
 #include "UObject/PropertyPortFlags.h"
-#include "Misc/PackageName.h"
-#include "Templates/Casts.h"
-#include "Exporters/Exporter.h"
+#include "UObject/UObjectIterator.h"
 #include "UnrealExporter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDiffAssetsCommandlet, Log, All);

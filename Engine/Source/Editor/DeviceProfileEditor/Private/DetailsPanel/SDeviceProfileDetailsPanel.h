@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "SDeviceProfileDetailsPanel.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class IDetailsView;
 class SVerticalBox;
+class SWidget;
 class UDeviceProfile;
 
 #define LOCTEXT_NAMESPACE "DeviceProfileDetailsPanel"

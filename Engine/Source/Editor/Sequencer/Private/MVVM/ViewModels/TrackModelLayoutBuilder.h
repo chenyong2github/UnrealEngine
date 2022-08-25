@@ -2,20 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "HAL/PlatformCrt.h"
 #include "ISectionLayoutBuilder.h"
-#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Templates/Invoke.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
 
+class FText;
 class ISequencerSection;
+namespace UE::Sequencer { class FViewModel; }
+struct FMovieSceneChannelHandle;
 
 namespace UE
 {
 namespace Sequencer
 {
 
-class FCategoryModel;
 class FSectionModel;
 
 struct FHierarchicalModelListRefresher

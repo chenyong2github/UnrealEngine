@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/IOutlinerExtension.h"
+
+#include "Fonts/SlateFontInfo.h"
+#include "Internationalization/Text.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Misc/StringBuilder.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
 
 namespace UE
 {

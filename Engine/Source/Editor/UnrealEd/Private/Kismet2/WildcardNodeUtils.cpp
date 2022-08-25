@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/WildcardNodeUtils.h"
-#include "EdGraphUtilities.h"
+
+#include "Containers/Array.h"
 #include "EdGraphSchema_K2.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 FEdGraphPinType FWildcardNodeUtils::GetDefaultWildcardPinType()
 {

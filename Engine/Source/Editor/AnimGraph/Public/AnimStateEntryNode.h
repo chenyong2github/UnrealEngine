@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "AnimStateEntryNode.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class UAnimStateEntryNode : public UEdGraphNode

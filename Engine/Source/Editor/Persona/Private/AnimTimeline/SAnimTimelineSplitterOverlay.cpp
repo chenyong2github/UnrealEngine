@@ -1,7 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimTimelineSplitterOverlay.h"
+
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/ArrangedWidget.h"
+#include "Layout/ChildrenBase.h"
+#include "Layout/Geometry.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
+
+struct FCaptureLostEvent;
+struct FPointerEvent;
 
 void SAnimTimelineSplitterOverlay::Construct( const FArguments& InArgs )
 {

@@ -5,6 +5,7 @@
 #include "SequencerCommonHelpers.h"
 #include "SSequencer.h"
 #include "ISequencerEditTool.h"
+#include "ISequencerSection.h"
 #include "SequencerHotspots.h"
 #include "Tools/SequencerEntityVisitor.h"
 #include "MVVM/Views/ISequencerTreeView.h"

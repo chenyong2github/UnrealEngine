@@ -1,13 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FilePathStructCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "Misc/PackageName.h"
-#include "PropertyHandle.h"
-#include "Misc/MessageDialog.h"
-#include "EditorDirectories.h"
+
 #include "DetailWidgetRow.h"
+#include "EditorDirectories.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
+#include "PropertyHandle.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SFilePathPicker.h"
 
 

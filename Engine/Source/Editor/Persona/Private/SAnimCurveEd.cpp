@@ -2,11 +2,23 @@
 
 
 #include "SAnimCurveEd.h"
-#include "Rendering/DrawElements.h"
+
 #include "Animation/AnimTypes.h"
-
-
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "Layout/Clipping.h"
+#include "Layout/Geometry.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Optional.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
 #include "SScrubWidget.h"
+
+class FSlateRect;
+class FWidgetStyle;
 
 #define LOCTEXT_NAMESPACE "AnimCurveEd"
 

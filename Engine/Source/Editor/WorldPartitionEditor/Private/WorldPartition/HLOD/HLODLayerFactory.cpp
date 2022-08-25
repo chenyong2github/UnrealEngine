@@ -2,7 +2,13 @@
 
 #include "WorldPartition/HLOD/HLODLayerFactory.h"
 
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UHLODLayerFactory::UHLODLayerFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

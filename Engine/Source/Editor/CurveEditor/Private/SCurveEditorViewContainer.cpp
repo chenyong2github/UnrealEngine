@@ -1,18 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCurveEditorViewContainer.h"
-#include "SCurveEditorPanel.h"
-#include "SCurveEditorView.h"
-#include "Views/SInteractiveCurveEditorView.h"
 
-#include "DragOperations/CurveEditorDragOperation_Tangent.h"
-#include "DragOperations/CurveEditorDragOperation_MoveKeys.h"
+#include "CurveEditor.h"
+#include "CurveEditorSelection.h"
+#include "Delegates/Delegate.h"
+#include "DragOperations/CurveEditorDragOperation_Marquee.h"
 #include "DragOperations/CurveEditorDragOperation_Pan.h"
 #include "DragOperations/CurveEditorDragOperation_Zoom.h"
-#include "DragOperations/CurveEditorDragOperation_Marquee.h"
-
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "ICurveEditorBounds.h"
+#include "ICurveEditorToolExtension.h"
+#include "ITimeSlider.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Layout/Children.h"
+#include "Layout/Clipping.h"
+#include "Layout/Geometry.h"
+#include "Layout/Visibility.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Attribute.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SCurveEditorPanel.h"
+#include "SCurveEditorView.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Templates/UniquePtr.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "Views/SInteractiveCurveEditorView.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SWidget.h"
+
+class FPaintArgs;
+class FSlateRect;
+class FWidgetStyle;
 
 #define LOCTEXT_NAMESPACE "SCurveEditorViewContainer"
 

@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 #include "Toolkits/BaseToolkit.h"
+#include "UObject/NameTypes.h"
+
+class FAssetEditorModeUILayer;
 
 class FLevelInstanceEditorModeToolkit : public FModeToolkit
 {

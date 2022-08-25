@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
 
 #define CURVEED_MAX_CURVES 6
 

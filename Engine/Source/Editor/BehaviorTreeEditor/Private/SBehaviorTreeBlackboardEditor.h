@@ -2,10 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
+#include "Delegates/Delegate.h"
+#include "Logging/LogMacros.h"
 #include "SBehaviorTreeBlackboardView.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
+class UClass;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBlackboardEditor, Warning, All);
 

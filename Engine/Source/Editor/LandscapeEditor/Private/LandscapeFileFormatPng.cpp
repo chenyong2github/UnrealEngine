@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeFileFormatPng.h"
-#include "Misc/FileHelper.h"
-#include "Modules/ModuleManager.h"
+
+#include "Algo/Transform.h"
+#include "Containers/Array.h"
+#include "Containers/ContainersFwd.h"
+#include "Containers/UnrealString.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/UnrealMemory.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
-#include "Algo/Transform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector.h"
+#include "Misc/FileHelper.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"

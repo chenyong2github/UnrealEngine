@@ -2,6 +2,9 @@
 
 #include "PixelInspectorView.h"
 
+#include "Containers/Array.h"
+#include "PixelInspectorResult.h"
+
 
 UPixelInspectorView::UPixelInspectorView(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

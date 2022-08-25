@@ -2,6 +2,10 @@
 
 #include "AnimationModifiersAssetUserData.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+
 void UAnimationModifiersAssetUserData::AddAnimationModifier(UAnimationModifier* Instance)
 {
 	AnimationModifierInstances.Add(Instance);

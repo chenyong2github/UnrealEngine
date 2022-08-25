@@ -1,11 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonMovieSceneTools.h"
+
+#include "Containers/UnrealString.h"
+#include "Fonts/FontMeasure.h"
+#include "Fonts/SlateFontInfo.h"
 #include "FrameNumberNumericInterface.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
-#include "Fonts/FontMeasure.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/FrameNumber.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateRenderer.h"
 #include "SequencerSectionPainter.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/WidgetStyle.h"
+#include "Templates/SharedPointer.h"
+#include "TimeToPixel.h"
 
 void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& CurrentTime, const FFrameTime& FrameTime, const FFrameNumberInterface* FrameNumberInterface)
 {

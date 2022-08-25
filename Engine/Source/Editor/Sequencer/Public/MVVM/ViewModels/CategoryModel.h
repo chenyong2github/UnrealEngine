@@ -2,19 +2,29 @@
 
 #pragma once
 
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/OutlinerItemModel.h"
-#include "MVVM/Extensions/LinkedOutlinerExtension.h"
-#include "MVVM/Extensions/IGeometryExtension.h"
-#include "MVVM/Extensions/ITrackLaneExtension.h"
-#include "MVVM/Extensions/ITrackAreaExtension.h"
-#include "MVVM/Extensions/IDeletableExtension.h"
-
-#include "UObject/NameTypes.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Internationalization/Text.h"
+#include "MVVM/Extensions/IDeletableExtension.h"
+#include "MVVM/Extensions/IGeometryExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
+#include "MVVM/Extensions/LinkedOutlinerExtension.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/OutlinerItemModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
-class UMovieSceneSection;
 class FSequencerSectionCategoryNode;
+class SWidget;
+class UMovieSceneSection;
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 
 namespace UE
 {

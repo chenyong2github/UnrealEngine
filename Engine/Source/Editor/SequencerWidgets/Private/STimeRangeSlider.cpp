@@ -1,9 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STimeRangeSlider.h"
-#include "Rendering/DrawElements.h"
+
 #include "ITimeSlider.h"
+#include "Input/Events.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
 #include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/WidgetStyle.h"
+#include "UObject/NameTypes.h"
+
+class FSlateRect;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "STimeRangeSlider"
 

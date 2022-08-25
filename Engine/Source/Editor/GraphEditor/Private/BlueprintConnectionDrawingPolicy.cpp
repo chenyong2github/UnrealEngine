@@ -1,17 +1,43 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintConnectionDrawingPolicy.h"
-#include "Misc/App.h"
+
+#include "BlueprintEditorSettings.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node_Composite.h"
+#include "GraphEditorSettings.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
 #include "K2Node_Knot.h"
-#include "K2Node_MacroInstance.h"
-#include "K2Node_TunnelBoundary.h"
-#include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "BlueprintEditorSettings.h"
+#include "Kismet2/KismetDebugUtilities.h"
+#include "Layout/ArrangedWidget.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/App.h"
+#include "Misc/AssertionMacros.h"
+#include "SGraphPin.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Templates/Casts.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FArrangedChildren;
+class FSlateRect;
+class SWidget;
 
 /////////////////////////////////////////////////////
 // FKismetConnectionDrawingPolicy

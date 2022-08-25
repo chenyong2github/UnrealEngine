@@ -1,13 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PListNodeFile.h"
+
+#include "Containers/BitArray.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "PListNode.h"
+#include "SlotBase.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 
 /** Validation check */

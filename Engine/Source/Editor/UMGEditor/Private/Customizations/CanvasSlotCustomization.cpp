@@ -1,24 +1,57 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/CanvasSlotCustomization.h"
-#include "Widgets/Layout/Anchors.h"
+
+#include "Animation/CurveSequence.h"
+#include "Components/CanvasPanelSlot.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
+#include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Framework/Commands/InputChord.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "HAL/PlatformMath.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailPropertyRow.h"
+#include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
+#include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateStructs.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-
+#include "Widgets/Layout/Anchors.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
-#include "Components/CanvasPanelSlot.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
-#include "IDetailChildrenBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "ScopedTransaction.h"
+class FActiveTimerHandle;
+class SWidget;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
 
 
 

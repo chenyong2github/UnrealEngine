@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "ISceneOutlinerTreeItem.h"
+#include "SceneOutlinerStandaloneTypes.h"
+
+struct FGuid;
 
 /** A tree item that represents an actor, loaded or unloaded */
 struct SCENEOUTLINER_API IActorBaseTreeItem : ISceneOutlinerTreeItem

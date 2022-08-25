@@ -2,14 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Layout/Margin.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Modules/ModuleInterface.h"
 #include "AssetDiscoveryIndicator.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Layout/Margin.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
 
+class FName;
 class ITransportControl;
+class SWidget;
+class UObject;
 struct FTransportControlArgs;
 
 namespace UE::EditorWidgets

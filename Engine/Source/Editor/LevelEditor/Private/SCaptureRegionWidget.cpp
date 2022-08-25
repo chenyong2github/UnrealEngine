@@ -1,12 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCaptureRegionWidget.h"
+
 #include "Fonts/SlateFontInfo.h"
-#include "Styling/CoreStyle.h"
-#include "Misc/Paths.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Slate/SceneViewport.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
 #include "HighResScreenshot.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Layout/Visibility.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "Slate/SceneViewport.h"
+#include "Styling/CoreStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Text/STextBlock.h"
 
 void SCaptureRegionWidget::Construct( const FArguments& InArgs )
 {

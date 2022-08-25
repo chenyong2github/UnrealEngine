@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/Extensions/ITrackLaneExtension.h"
+#include "MVVM/Extensions/IDraggableTrackAreaExtension.h"
+#include "MVVM/Extensions/ILayerBarExtension.h"
 #include "MVVM/Extensions/ISelectableExtension.h"
 #include "MVVM/Extensions/ISnappableExtension.h"
 #include "MVVM/Extensions/IStretchableExtension.h"
-#include "MVVM/Extensions/IDraggableTrackAreaExtension.h"
-#include "MVVM/Extensions/ILayerBarExtension.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Extensions/LinkedOutlinerExtension.h"
 #include "MVVM/Extensions/ViewModelExtensionCollection.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "Math/Range.h"
+#include "Templates/SharedPointer.h"
+
+namespace UE::Sequencer { class ILayerBarExtension; }
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
+struct FFrameNumber;
 
 namespace UE
 {

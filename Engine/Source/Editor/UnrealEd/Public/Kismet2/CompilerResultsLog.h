@@ -31,14 +31,14 @@
 #include "Misc/CompilationResult.h"
 #endif
 
+class FDelegateHandle;
+class FTokenizedMessage;
+class IMessageLogListing;
 class UBlueprint;
 class UEdGraphNode;
 class UEdGraphPin;
 class UObject;
-class FDelegateHandle;
 struct FObjectKey;
-class FTokenizedMessage;
-class IMessageLogListing;
 
 #if WITH_EDITOR
 

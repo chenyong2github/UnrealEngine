@@ -2,13 +2,38 @@
 
 
 #include "DragConnection.h"
-#include "Widgets/SBoxPanel.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Images/SImage.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "EdGraphHandleTypes.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "SGraphNode.h"
 #include "SGraphPanel.h"
 #include "ScopedTransaction.h"
-#include "EdGraphHandleTypes.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/ChooseClass.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+struct FSlateBrush;
 
 TSharedRef<FDragConnection> FDragConnection::New(const TSharedRef<SGraphPanel>& GraphPanel, const FDraggedPinTable& DraggedPins)
 {

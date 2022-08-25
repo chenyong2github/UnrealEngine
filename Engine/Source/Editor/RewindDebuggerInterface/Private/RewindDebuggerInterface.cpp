@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IRewindDebuggerExtension.h"
-#include "IRewindDebuggerViewCreator.h"
-#include "IRewindDebuggerTrackCreator.h"
-#include "IRewindDebuggerDoubleClickHandler.h"
 #include "IRewindDebugger.h"
+#include "IRewindDebuggerDoubleClickHandler.h"
+#include "IRewindDebuggerExtension.h"
+#include "IRewindDebuggerTrackCreator.h"
+#include "IRewindDebuggerViewCreator.h"
+#include "UObject/NameTypes.h"
 
 const FName IRewindDebuggerExtension::ModularFeatureName = "RewindDebuggerExtension";
 const FName IRewindDebuggerViewCreator::ModularFeatureName = "RewindDebuggerViewCreator";

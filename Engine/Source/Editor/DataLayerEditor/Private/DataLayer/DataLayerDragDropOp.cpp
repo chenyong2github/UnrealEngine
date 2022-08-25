@@ -1,10 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayer/DataLayerDragDropOp.h"
-#include "GameFramework/Actor.h"
-#include "Textures/SlateIcon.h"
-#include "ClassIconFinder.h"
+
 #include "Algo/Transform.h"
+#include "ClassIconFinder.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Tuple.h"
+
+class UClass;
+struct FSlateBrush;
 
 void FDataLayerDragDropOp::Construct()
 {

@@ -2,9 +2,15 @@
 
 
 #include "SAnimTrackPanel.h"
+
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
 #include "Widgets/Layout/SBorder.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
 
 
 #define LOCTEXT_NAMESPACE "AnimTrackPanel"

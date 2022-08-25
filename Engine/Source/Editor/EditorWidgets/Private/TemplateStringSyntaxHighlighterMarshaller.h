@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateTypes.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "EditorWidgetsStyle.h"
-#include "Framework/Text/SyntaxTokenizer.h"
 #include "Framework/Text/SyntaxHighlighterTextLayoutMarshaller.h"
+#include "Framework/Text/SyntaxTokenizer.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
 
 class FTextLayout;
 

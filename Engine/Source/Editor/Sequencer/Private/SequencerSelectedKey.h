@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/ContainersFwd.h"
-#include "Curves/KeyHandle.h"
 #include "Channels/MovieSceneChannelHandle.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 
-struct FFrameNumber;
-
-class IKeyArea;
 class UMovieSceneSection;
+struct FFrameNumber;
 
 namespace UE
 {

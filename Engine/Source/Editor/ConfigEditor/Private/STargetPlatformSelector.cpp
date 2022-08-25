@@ -1,18 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STargetPlatformSelector.h"
-#include "Misc/CoreMisc.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/CoreStyle.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
 
-#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
 #include "Interfaces/ITargetPlatform.h"
-
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/CoreMisc.h"
+#include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Types/SlateStructs.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ConfigEditor"
 

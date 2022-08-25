@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InheritedSubobjectData.h"
+
+#include "ComponentInstanceDataCache.h"
+#include "Components/ActorComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
+
+class USCS_Node;
 
 FInheritedSubobjectData::FInheritedSubobjectData(UObject* ContextObject, const FSubobjectDataHandle& ParentHandle, const bool InbIsInheritedSCS)
     : FSubobjectData(ContextObject, ParentHandle)

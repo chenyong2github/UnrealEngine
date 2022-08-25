@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
 #include "Brushes/SlateNoResource.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/IToolTip.h"
 
+class IToolTip;
 class UWidget;
+struct FSlateBrush;
 
 /**
  * The widget template represents a widget or a set of widgets to create and spawn into the widget tree.

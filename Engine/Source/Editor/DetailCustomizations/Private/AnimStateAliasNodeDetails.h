@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Set.h"
 #include "IDetailCustomization.h"
 #include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
-
 class UAnimStateAliasNode;
 class UAnimStateNodeBase;
 

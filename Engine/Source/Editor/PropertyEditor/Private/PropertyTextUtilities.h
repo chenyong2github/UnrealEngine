@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/UnrealType.h"
+#include "HAL/Platform.h"
 #include "UObject/PropertyPortFlags.h"
 
-class FPropertyNode;
 class FObjectBaseAddress;
+class FProperty;
+class FPropertyNode;
+class FString;
+class UObject;
 
 class FPropertyTextUtilities
 {

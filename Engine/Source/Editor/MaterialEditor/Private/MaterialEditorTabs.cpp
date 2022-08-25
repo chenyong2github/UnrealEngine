@@ -2,6 +2,9 @@
 
 #include "MaterialEditorTabs.h"
 
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+
 const FName FMaterialEditorTabs::PreviewTabId(TEXT("MaterialEditor_Preview"));
 const FName FMaterialEditorTabs::PropertiesTabId(TEXT("MaterialEditor_MaterialProperties"));
 const FName FMaterialEditorTabs::PaletteTabId(TEXT("MaterialEditor_Palette"));

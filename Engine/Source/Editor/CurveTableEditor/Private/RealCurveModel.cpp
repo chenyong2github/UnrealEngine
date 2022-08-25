@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RealCurveModel.h"
-#include "CurveDrawInfo.h"
 
-#include "Curves/RealCurve.h"
-#include "Styling/AppStyle.h"
+#include "CurveDataAbstraction.h"
+#include "CurveDrawInfo.h"
 #include "CurveEditorScreenSpace.h"
+#include "Curves/KeyHandle.h"
+#include "Curves/RealCurve.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FCurveEditor;
 
 FRealCurveModel::FRealCurveModel(FRealCurve* InRealCurve, UObject* InOwner)
 	: WeakOwner(InOwner)

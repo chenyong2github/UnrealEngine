@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Toolkits/ToolkitManager.h"
-#include "Layout/Margin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+#include "Delegates/Delegate.h"
 #include "Framework/Docking/TabManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
 #include "Toolkits/IToolkit.h"
 #include "Toolkits/IToolkitHost.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
+
+class UObject;
 
 static TSharedRef<SDockTab> SpawnStandaloneToolkitHost( const FSpawnTabArgs& Args )
 {

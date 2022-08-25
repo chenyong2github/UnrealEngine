@@ -1,12 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetPins/SGraphPinInteger.h"
-#include "Widgets/Layout/SBox.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SComboButton.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
-#include "Misc/DefaultValueHelper.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/CString.h"
+#include "SGraphPin.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/TypeHash.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 void SGraphPinInteger::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/CategoryViewModel.h"
+
 #include "IContentSource.h"
+#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "ContentSourceViewModel"
 

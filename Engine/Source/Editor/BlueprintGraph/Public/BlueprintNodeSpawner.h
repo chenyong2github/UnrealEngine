@@ -2,18 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
-#include "EdGraph/EdGraphNode.h"
-#include "BlueprintNodeSignature.h"
-#include "Textures/SlateIcon.h"
-#include "BlueprintNodeBinder.h"
 #include "BlueprintActionFilter.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSignature.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UnrealTemplate.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintNodeSpawner.generated.h"
 
 class UEdGraph;
+class UEdGraphNode;
 
 /*******************************************************************************
  * FBlueprintActionUiSpec

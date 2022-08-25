@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLocalizationTargetEditor.h"
-#include "Modules/ModuleManager.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "DetailsViewArgs.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailsView.h"
-#include "LocalizationTargetTypes.h"
+#include "Layout/Children.h"
 #include "LocalizationConfigurationScript.h"
+#include "LocalizationTargetTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectPtr.h"
+
+struct FPropertyChangedEvent;
 
 void SLocalizationTargetEditor::Construct(const FArguments& InArgs, ULocalizationTargetSet* const InProjectSettings, ULocalizationTarget* const InLocalizationTarget, const FIsPropertyEditingEnabled& IsPropertyEditingEnabled)
 {

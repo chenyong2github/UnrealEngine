@@ -2,6 +2,12 @@
 
 #include "SNameComboBox.h"
 
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+
 
 void SNameComboBox::Construct( const FArguments& InArgs )
 {

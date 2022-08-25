@@ -2,17 +2,35 @@
 
 #pragma once
 
+#include "Channels/MovieSceneChannelHandle.h"
+#include "ConstraintChannel.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
+#include "CurveEditorTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "KeyBarCurveModel.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "UObject/UnrealType.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "KeyBarCurveModel.h"
-#include "ConstraintChannel.h"
-#include "Channels/MovieSceneChannelHandle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
-class UMovieSceneSection;
+class FCurveEditor;
+class FMenuBuilder;
 class ISequencer;
+class UMovieSceneSection;
+class UObject;
 class UTickableConstraint;
+struct FCurveAttributes;
+struct FCurveEditorScreenSpace;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyPosition;
+struct FMovieSceneConstraintChannel;
 
 class FConstraintChannelCurveModel : public FKeyBarCurveModel
 {

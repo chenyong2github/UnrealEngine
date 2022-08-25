@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customization/InterpolationParameterDetails.h"
-#include "IDetailsView.h"
-#include "PropertyHandle.h"
+
+#include "HAL/Platform.h"
 #include "IDetailChildrenBuilder.h"
-#include "IDetailPropertyRow.h"
+#include "PropertyHandle.h"
+
+class IDetailPropertyRow;
 
 #define LOCTEXT_NAMESPACE "InterpolationParameterDetails"
 

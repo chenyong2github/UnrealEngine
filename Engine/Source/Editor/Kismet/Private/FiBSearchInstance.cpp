@@ -1,6 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "FiBSearchInstance.h"
 
+#include "Containers/SparseArray.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ImaginaryBlueprintData.h"
+#include "Internationalization/Text.h"
+#include "Misc/CString.h"
+#include "Misc/ExpressionParserTypes.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/ValueOrError.h"
+#include "UObject/NameTypes.h"
+
 /** All operators when evaluating FiB searched expressions must return this token, it helps to manage
  *	the results from functions as well as the specific components that were matched, and allows
  *	for combining those results through complex operator combinations that may eliminate entire sections

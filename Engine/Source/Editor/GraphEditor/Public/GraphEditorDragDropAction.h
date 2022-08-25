@@ -2,22 +2,28 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Styling/SlateColor.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
-#include "EdGraph/EdGraphSchema.h"
+#include "Math/Vector2D.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class SGraphNode;
 class SGraphPanel;
 class SWidget;
 class UEdGraph;
-struct FSlateBrush;
-class UEdGraphPin;
 class UEdGraphNode;
+class UEdGraphPin;
 class UEdGraphSchema;
+struct FEdGraphSchemaAction;
+struct FSlateBrush;
 
 // Base class for drag-drop actions that pass into the graph editor and perform an action when dropped
 class GRAPHEDITOR_API FGraphEditorDragDropAction : public FDragDropOperation

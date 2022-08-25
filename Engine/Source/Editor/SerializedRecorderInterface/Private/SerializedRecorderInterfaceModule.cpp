@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ISerializedRecorderInterfaceModule.h"
+#include "HAL/Platform.h"
 #include "ISerializedRecorder.h"
+#include "ISerializedRecorderInterfaceModule.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
 
 FName ISerializedRecorder::ModularFeatureName(TEXT("ModularFeature_SerialzedRecorder"));
 

@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 // #include "SceneOutlinerPublicTypes.h"
 #include "ISceneOutlinerColumn.h"
+#include "SceneOutlinerFwd.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 class ISceneOutliner;
+class SWidget;
+struct FSlateBrush;
+template <typename ItemType> class STableRow;
 
 namespace Sequencer
 {

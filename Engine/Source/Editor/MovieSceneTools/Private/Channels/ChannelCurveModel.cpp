@@ -1,22 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/ChannelCurveModel.h"
-#include "Math/Vector2D.h"
-#include "HAL/PlatformMath.h"
+
+#include "Algo/BinarySearch.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneIntegerChannel.h"
-#include "MovieSceneSection.h"
-#include "MovieScene.h"
-#include "CurveDrawInfo.h"
+#include "Containers/UnrealString.h"
 #include "CurveDataAbstraction.h"
-#include "CurveEditor.h"
+#include "CurveDrawInfo.h"
 #include "CurveEditorScreenSpace.h"
-#include "CurveEditorSnapMetrics.h"
-#include "Styling/AppStyle.h"
-#include "BuiltInChannelEditors.h"
-#include "SequencerChannelTraits.h"
+#include "Curves/RealCurve.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "ISequencer.h"
-#include "Channels/MovieSceneChannelProxy.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/UnrealTemplate.h"
+
+class UObject;
+struct FMovieSceneChannelMetaData;
 
 template <class ChannelType, class ChannelValue, class KeyType>
 FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FChannelCurveModel(TMovieSceneChannelHandle<ChannelType> InChannel, UMovieSceneSection* OwningSection, TWeakPtr<ISequencer> InWeakSequencer)

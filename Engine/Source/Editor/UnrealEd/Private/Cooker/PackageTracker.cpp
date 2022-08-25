@@ -2,6 +2,7 @@
 
 #include "PackageTracker.h"
 
+#include "CookOnTheFlyServerInterface.h"
 #include "CookPackageData.h"
 #include "CookPlatformManager.h"
 #include "ProfilingDebugging/CookStats.h"

@@ -1,12 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/SectionModelStorageExtension.h"
-#include "MVVM/ViewModels/SectionModel.h"
-#include "MVVM/ViewModels/TrackModelLayoutBuilder.h"
-#include "MVVM/ViewModels/ViewModel.h"
 
-#include "MovieSceneTrack.h"
+#include "MVVM/ViewModels/SectionModel.h"
 #include "MovieSceneSection.h"
+#include "Templates/ChooseClass.h"
 
 namespace UE
 {

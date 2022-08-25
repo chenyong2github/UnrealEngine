@@ -2,16 +2,22 @@
 
 
 #include "SGetSuggestedIDEWidget.h"
-#include "HAL/PlatformProcess.h"
-#include "Widgets/Input/SButton.h"
-#include "SourceCodeNavigation.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Input/SHyperlink.h"
+
+#include "Delegates/Delegate.h"
 #include "EngineAnalytics.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Interfaces/IAnalyticsProvider.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformProcess.h"
+#include "IAnalyticsProviderET.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
 #include "SPrimaryButton.h"
+#include "SourceCodeNavigation.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SWindow.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
 

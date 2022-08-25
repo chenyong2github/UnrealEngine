@@ -1,11 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AIGraph.h"
-#include "UObject/UObjectHash.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "AIGraphTypes.h"
-#include "AIGraphNode.h"
+
 #include "AIGraphModule.h"
+#include "AIGraphNode.h"
+#include "AIGraphTypes.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformMath.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 
 UAIGraph::UAIGraph(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {

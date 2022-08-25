@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequenceRecorderDetailsCustomization.h"
-#include "SequenceRecorderSettings.h"
-#include "ISequenceRecorder.h"
-#include "Modules/ModuleManager.h"
+
 #include "DetailLayoutBuilder.h"
+#include "ISequenceRecorder.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
+#include "SequenceRecorderSettings.h"
 
 void FSequenceRecorderDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {

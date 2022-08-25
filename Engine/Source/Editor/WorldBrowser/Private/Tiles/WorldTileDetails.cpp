@@ -1,5 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Tiles/WorldTileDetails.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 
 

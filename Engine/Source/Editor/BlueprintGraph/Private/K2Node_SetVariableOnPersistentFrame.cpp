@@ -2,12 +2,30 @@
 
 
 #include "K2Node_SetVariableOnPersistentFrame.h"
+
+#include "BPTerminal.h"
+#include "BlueprintCompiledStatement.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
-#include "BPTerminal.h"
-#include "KismetCompilerMisc.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_SetVariableOnPersistentFrame"
 

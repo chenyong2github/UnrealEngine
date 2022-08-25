@@ -1,16 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LocalizationChunkDataGenerator.h"
-#include "LocTextHelper.h"
-#include "TextLocalizationResourceGenerator.h"
-#include "Internationalization/TextLocalizationResource.h"
 
-#include "Misc/Paths.h"
-#include "Misc/PackageName.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Containers/Map.h"
 #include "IPlatformFileSandboxWrapper.h"
-#include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/IPluginManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Internationalization/InternationalizationManifest.h"
+#include "Internationalization/Text.h"
+#include "Internationalization/TextLocalizationResource.h"
+#include "LocTextHelper.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
+#include "Templates/UnrealTemplate.h"
+#include "TextLocalizationResourceGenerator.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+
+class FArchiveEntry;
 
 DEFINE_LOG_CATEGORY_STATIC(LogLocalizationChunkDataGenerator, Log, All);
 

@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "Templates/SharedPointer.h"
+
+class FUICommandInfo;
 
 
 /**

@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Containers/UnrealString.h"
 #include "IDetailCustomization.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class UObject;
 
 //class FImportantToggleSettingCustomization : public IPropertyTypeCustomization
 //{

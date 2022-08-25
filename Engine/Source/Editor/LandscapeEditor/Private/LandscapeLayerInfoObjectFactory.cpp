@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeLayerInfoObjectFactory.h"
-#include "AssetTypeCategories.h"
+
 #include "LandscapeLayerInfoObject.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 ULandscapeLayerInfoObjectFactory::ULandscapeLayerInfoObjectFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

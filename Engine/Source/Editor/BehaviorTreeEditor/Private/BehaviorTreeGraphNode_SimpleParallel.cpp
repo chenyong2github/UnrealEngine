@@ -1,7 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_SimpleParallel.h"
+
 #include "BehaviorTreeEditorTypes.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditor"
 

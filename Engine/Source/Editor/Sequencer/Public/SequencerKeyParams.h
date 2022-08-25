@@ -2,20 +2,23 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "Misc/Guid.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/FrameNumber.h"
-
-struct FGuid;
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 
 class IKeyArea;
 class ISequencer;
 class ISequencerSection;
 class ISequencerTrackEditor;
-
 class UMovieSceneTrack;
+struct FFrameNumber;
+struct FGuid;
+template <typename FuncType> class TFunctionRef;
 
 namespace UE
 {

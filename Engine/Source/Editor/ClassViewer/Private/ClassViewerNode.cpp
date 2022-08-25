@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClassViewerNode.h"
-#include "Engine/Blueprint.h"
-#include "GameFramework/Actor.h"
-#include "Engine/Brush.h"
 
 #include "ClassViewerFilter.h"
+#include "Engine/Blueprint.h"
+#include "Engine/Brush.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/StringFormatArg.h"
 #include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
 
 FClassViewerNode::FClassViewerNode(UClass* InClass)
 {

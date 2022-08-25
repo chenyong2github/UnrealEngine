@@ -3,13 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SOverlay.h"
 #include "Engine/GameViewportClient.h"
 #include "KismetNodes/SGraphNodeK2Default.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SWidget.h"
 
 class SGraphPin;
+class SNodeTitle;
+class SOverlay;
+class SWidget;
 
 class GRAPHEDITOR_API SGraphNodeK2Event : public SGraphNodeK2Default
 {

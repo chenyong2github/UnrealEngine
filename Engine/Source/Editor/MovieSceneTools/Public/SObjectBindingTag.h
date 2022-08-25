@@ -3,13 +3,22 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Input/Reply.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "MovieSceneObjectBindingID.h"
-
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class SEditableTextBox;
 class FObjectBindingTagCache;
+class FText;
+class SEditableTextBox;
 
 /** A horizontally grouped collection of tags that apply to a single object binding. This widget automatically updates when the tags for a binding change. */
 class SObjectBindingTags : public SCompoundWidget

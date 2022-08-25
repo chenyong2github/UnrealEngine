@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/Guid.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "UObject/ObjectKey.h"
-#include "Textures/SlateIcon.h"
-#include "Templates/SharedPointer.h"
+#include "CoreTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
-
-#include "MovieSceneSequenceID.h"
+#include "Misc/Guid.h"
 #include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSequenceID.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectKey.h"
 
 class UMovieScene;
 class UMovieSceneSequence;

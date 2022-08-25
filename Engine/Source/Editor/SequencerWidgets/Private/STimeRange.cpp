@@ -1,14 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STimeRange.h"
-#include "Widgets/SBoxPanel.h"
+
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Range.h"
+#include "Misc/Attribute.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "MovieSceneTimeHelpers.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SSpinBox.h"
-#include "Styling/AppStyle.h"
-#include "Misc/QualifiedFrameTime.h"
-#include "MovieSceneTimeHelpers.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SNullWidget.h"
+
+class SWidget;
+template <typename NumericType> struct INumericTypeInterface;
 
 #define LOCTEXT_NAMESPACE "STimeRange"
 

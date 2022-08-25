@@ -1,10 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavLinkStructCustomization.h"
-#include "Widgets/Text/STextBlock.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
+
 #include "AI/Navigation/NavLinkDefinition.h"
+#include "Containers/UnrealString.h"
+#include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "Templates/TypeHash.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Text/STextBlock.h"
 
 TSharedRef<IPropertyTypeCustomization> FNavLinkStructCustomization::MakeInstance( )
 {

@@ -3,11 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "KismetNodes/SGraphNodeK2Base.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FText;
+class SWidget;
 class UK2Node;
+struct FMargin;
+struct FSlateBrush;
 
 class GRAPHEDITOR_API SGraphNodeK2Var : public SGraphNodeK2Base
 {

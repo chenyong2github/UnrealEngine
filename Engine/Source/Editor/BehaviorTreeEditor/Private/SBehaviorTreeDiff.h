@@ -1,19 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "GraphEditor.h"
+#include "HAL/Platform.h"
 #include "IAssetTypeActions.h"
-#include "IDetailsView.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FUICommandList;
+class ITableRow;
+class SBorder;
+class STableViewBase;
+class SWidget;
 class UEdGraph;
-struct FTreeDiffResultItem;
+class UEdGraphPin;
+struct FDiffSingleResult;
 template <typename ItemType> class SListView;
 
 class SBehaviorTreeDiff: public SCompoundWidget

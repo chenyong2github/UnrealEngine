@@ -1,6 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelInspectorStyle.h"
+
+#include "Brushes/SlateImageBrush.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)

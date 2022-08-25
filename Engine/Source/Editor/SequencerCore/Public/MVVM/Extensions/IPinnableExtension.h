@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MVVM/ViewModelTypeID.h"
+#include "Templates/SharedPointer.h"
 
 namespace UE
 {

@@ -3,11 +3,23 @@
 #include "Commandlets/AssetSizeQueryCommandlet.h"
 
 #include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryState.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
+#include "Misc/Parse.h"
 #include "Misc/WildcardString.h"
+#include "Templates/Greater.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAssetSize, Display, All);
 

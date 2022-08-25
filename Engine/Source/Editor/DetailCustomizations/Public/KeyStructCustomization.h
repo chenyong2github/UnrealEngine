@@ -3,9 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InputCoreTypes.h"
 #include "IPropertyTypeCustomization.h"
+#include "InputCoreTypes.h"
+#include "Misc/Optional.h"
 #include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
+class SWidget;
+struct FKey;
 
 /**
  * Implements a details panel customization for FKey structures.

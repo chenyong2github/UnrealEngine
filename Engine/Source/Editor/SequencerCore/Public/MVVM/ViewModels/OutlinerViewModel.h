@@ -2,25 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
-#include "Input/DragAndDrop.h"
-#include "Templates/SharedPointer.h"
 #include "Delegates/Delegate.h"
+#include "Input/DragAndDrop.h"
+#include "MVVM/ICastable.h"
 #include "MVVM/ViewModelPtr.h"
 #include "MVVM/ViewModelTypeID.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModel.h"
+#include "Templates/SharedPointer.h"
 
+class FDragDropOperation;
 class SWidget;
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 
 namespace UE
 {
 namespace Sequencer
 {
 
-class IOutlinerExtension;
-class FViewModel;
 class FEditorViewModel;
+class FViewModel;
+class IOutlinerExtension;
 
 class SEQUENCERCORE_API FOutlinerViewModel
 	: public FViewModel

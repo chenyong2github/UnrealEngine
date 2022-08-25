@@ -2,14 +2,22 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Editor/PropertyEditor/Public/IPropertyTableCustomColumn.h"
 #include "IPropertyTableCellPresenter.h"
 #include "IPropertyTableColumn.h"
 #include "IPropertyTableUtilities.h"
-#include "Editor/PropertyEditor/Public/IPropertyTableCustomColumn.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FProperty;
 class IPropertyHandle;
 class IPropertyTableCell;
+class IPropertyTableColumn;
+class IPropertyTableUtilities;
+class SWidget;
 
 class FConfigPropertyConfigFileStateCellPresenter : public TSharedFromThis< FConfigPropertyConfigFileStateCellPresenter >, public IPropertyTableCellPresenter
 {

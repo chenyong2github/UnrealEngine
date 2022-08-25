@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CookTypes.h"
+#include "Commandlets/AssetRegistryGenerator.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
+#include "CookTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "Templates/Atomic.h"

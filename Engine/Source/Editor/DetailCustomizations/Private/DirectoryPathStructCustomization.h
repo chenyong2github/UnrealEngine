@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
+#include "Containers/UnrealString.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
-class SButton;
-class SComboButton;
 class IMenu;
+class IPropertyHandle;
+class SButton;
 
 class FDirectoryPathStructCustomization : public IPropertyTypeCustomization
 {

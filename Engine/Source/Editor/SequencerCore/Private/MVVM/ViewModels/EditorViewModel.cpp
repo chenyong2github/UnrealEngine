@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/EditorViewModel.h"
+
+#include "CoreTypes.h"
 #include "MVVM/ViewModels/OutlinerViewModel.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/TypeHash.h"
 
 namespace UE
 {

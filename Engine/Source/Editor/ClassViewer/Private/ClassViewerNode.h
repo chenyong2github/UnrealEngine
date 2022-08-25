@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ClassViewerModule.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class IPropertyHandle;
-class IUnloadedBlueprintData;
 class UBlueprint;
+class UClass;
 
 class FClassViewerNode : public TSharedFromThis<FClassViewerNode>
 {

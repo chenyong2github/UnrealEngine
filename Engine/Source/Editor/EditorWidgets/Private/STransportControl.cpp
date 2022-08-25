@@ -1,12 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STransportControl.h"
-#include "Widgets/SBoxPanel.h"
-#include "Styling/SlateTypes.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "Framework/SlateDelegates.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Clipping.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Misc/EnumRange.h"
+#include "SlateGlobals.h"
 #include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
+#include "Types/WidgetActiveTimerDelegate.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
 
 #define LOCTEXT_NAMESPACE "STransportControl"
 

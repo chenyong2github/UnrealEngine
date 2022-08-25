@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+class FName;
 
 struct FBehaviorTreeEditorTabs
 {

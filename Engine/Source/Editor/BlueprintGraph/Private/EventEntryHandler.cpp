@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EventEntryHandler.h"
-#include "K2Node_Event.h"
 
+#include "BPTerminal.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformMath.h"
+#include "K2Node_Event.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiledFunctionContext.h"
+#include "UObject/NameTypes.h"
+
+class UEdGraphNode;
+struct FBlueprintCompiledStatement;
 
 void FKCHandler_EventEntry::RegisterNet(FKismetFunctionContext& Context, UEdGraphPin* Net)
 {

@@ -2,16 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
 #include "Templates/SharedPointer.h"
-
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
-class IDetailPropertyRow;
 class IPropertyHandle;
 class SWidget;
 class UFbxSceneImportData;

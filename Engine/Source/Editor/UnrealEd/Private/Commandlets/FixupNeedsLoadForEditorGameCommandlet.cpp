@@ -5,9 +5,16 @@
 ====================================================================================================*/
 
 #include "Commandlets/FixupNeedsLoadForEditorGameCommandlet.h"
+
+#include "Containers/UnrealString.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/Class.h"
-#include "UObject/Package.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectResource.h"
+#include "UObject/TopLevelAssetPath.h"
 
 int32 UFixupNeedsLoadForEditorGameCommandlet::InitializeResaveParameters(const TArray<FString>& Tokens, TArray<FString>& MapPathNames)
 {

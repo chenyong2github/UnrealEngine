@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SEditorViewportToolBarMenuButton.h"
+
+#include "Delegates/Delegate.h"
 #include "Widgets/Input/SMenuAnchor.h"
 
 void SEditorViewportToolBarMenuButton::Construct(const FArguments& InArgs, TSharedRef<SMenuAnchor> InMenuAnchor)

@@ -3,7 +3,12 @@
 #include "STemplateStringEditableTextBox.h"
 
 #include "EditorWidgetsStyle.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
 #include "SlateOptMacros.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
 #include "TemplateStringSyntaxHighlighterMarshaller.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION

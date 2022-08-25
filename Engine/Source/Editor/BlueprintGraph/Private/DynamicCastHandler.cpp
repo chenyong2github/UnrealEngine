@@ -1,9 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicCastHandler.h"
-#include "K2Node_DynamicCast.h"
+
+#include "BPTerminal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "K2Node_DynamicCast.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "DynamicCastHandler"
 

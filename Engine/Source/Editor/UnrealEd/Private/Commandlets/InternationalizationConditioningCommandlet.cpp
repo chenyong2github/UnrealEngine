@@ -1,9 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/InternationalizationConditioningCommandlet.h"
+
+#include "Commandlets/Commandlet.h"
+#include "Containers/Map.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/InternationalizationArchive.h"
+#include "Internationalization/InternationalizationManifest.h"
+#include "Internationalization/LocKeyFuncs.h"
+#include "LocalizedAssetUtil.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/JsonInternationalizationArchiveSerializer.h"
 #include "Serialization/JsonInternationalizationManifestSerializer.h"
+#include "Templates/ChooseClass.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/NameTypes.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInternationalizationConditioningCommandlet, Log, All);
 

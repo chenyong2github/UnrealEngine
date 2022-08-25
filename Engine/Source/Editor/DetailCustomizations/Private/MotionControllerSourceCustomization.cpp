@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionControllerSourceCustomization.h"
-#include "PropertyHandle.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "Features/IModularFeatures.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformCrt.h"
 #include "IMotionController.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Input/Events.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Textures/SlateIcon.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
 void SMotionSourceWidget::Construct(const FArguments& InArgs)

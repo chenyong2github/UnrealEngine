@@ -1,10 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReplaceNodeReferencesHelper.h"
+
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
 #include "ImaginaryBlueprintData.h"
-#include "K2Node_Variable.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ScopedSlowTask.h"
+#include "ScopedTransaction.h"
+#include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+
+class UBlueprint;
 
 #define LOCTEXT_NAMESPACE "FReplaceNodeReferencesHelper"
 

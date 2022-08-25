@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/Platform.h"
 #include "HitProxies.h"
 #include "PhysicsEngine/ShapeElem.h"
 

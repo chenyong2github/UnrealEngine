@@ -1,10 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeFormatText.h"
-#include "Widgets/SBoxPanel.h"
+
+#include "Containers/Array.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "GenericPlatform/ICursor.h"
 #include "GraphEditorSettings.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node_FormatText.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
 #include "NodeFactory.h"
+#include "SGraphNode.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SBoxPanel.h"
+
+class SGraphPin;
+class SWidget;
 
 
 //////////////////////////////////////////////////////////////////////////

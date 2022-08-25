@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorkspaceMenuStructureModule.h"
-#include "Textures/SlateIcon.h"
+
 #include "Framework/Docking/WorkspaceItem.h"
-#include "WorkspaceMenuStructure.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Textures/SlateIcon.h"
+#include "WorkspaceMenuStructure.h"
 
 
 IMPLEMENT_MODULE( FWorkspaceMenuStructureModule, WorkspaceMenuStructure );

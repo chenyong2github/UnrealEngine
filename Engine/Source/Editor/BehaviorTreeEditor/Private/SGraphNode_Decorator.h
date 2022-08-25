@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/UnrealString.h"
 #include "SGraphNode.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class UBehaviorTreeDecoratorGraphNode_Decorator;
 

@@ -1,11 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/GenerateTextLocalizationReportCommandlet.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Internationalization/LocKeyFuncs.h"
+
+#include "Commandlets/Commandlet.h"
+#include "CoreGlobals.h"
+#include "Internationalization/CulturePointer.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "LocTextHelper.h"
+#include "LocalizationSourceControlUtil.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/CString.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/DateTime.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenerateTextLocalizationReportCommandlet, Log, All);
 

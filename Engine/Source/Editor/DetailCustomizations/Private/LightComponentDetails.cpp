@@ -1,15 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightComponentDetails.h"
-#include "Components/SceneComponent.h"
+
+#include "Components/LightComponent.h"
 #include "Components/LightComponentBase.h"
 #include "Components/LocalLightComponent.h"
-#include "Misc/Attribute.h"
-#include "Components/LightComponent.h"
-#include "PropertyHandle.h"
+#include "Components/SceneComponent.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "LightComponentDetails"
 

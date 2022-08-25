@@ -1,11 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserVirtualPathTree.h"
-#include "IContentBrowserDataModule.h"
+
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserDataSubsystem.h"
-#include "Settings/ContentBrowserSettings.h"
-#include "Misc/StringBuilder.h"
+#include "IContentBrowserDataModule.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/PathViews.h"
+#include "Misc/StringBuilder.h"
+#include "Settings/ContentBrowserSettings.h"
+#include "Templates/Function.h"
+#include "Templates/Tuple.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
 void FContentBrowserVirtualPathTree::Reset()
 {

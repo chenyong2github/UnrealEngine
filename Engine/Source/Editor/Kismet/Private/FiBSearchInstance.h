@@ -1,11 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "FindInBlueprintManager.h"
 #include "ImaginaryBlueprintData.h"
+#include "Misc/ExpressionParser.h"
+#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Misc/TextFilterUtils.h"
 
 class FFiBSearchInstance;
+class FImaginaryFiBData;
+class FText;
+struct FComponentUniqueDisplay;
 
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FTokenDefaultFunctionHandler, const FTextFilterString&, const FTextFilterString&);
 

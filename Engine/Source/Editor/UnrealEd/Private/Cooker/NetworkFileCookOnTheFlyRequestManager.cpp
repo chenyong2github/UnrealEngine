@@ -1,10 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Cooker/NetworkFileCookOnTheFlyRequestManager.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CookOnTheFlyServerInterface.h"
+#include "Cooker/CookTypes.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformProcess.h"
 #include "INetworkFileServer.h"
 #include "INetworkFileSystemModule.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/PackageName.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+
+namespace UE::Cook { struct FPackageData; }
 
 class FNetworkFileCookOnTheFlyRequestManager final
 	: public UE::Cook::ICookOnTheFlyRequestManager

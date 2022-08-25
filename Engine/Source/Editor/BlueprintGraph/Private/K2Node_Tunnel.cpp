@@ -1,11 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_Tunnel.h"
+
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "HAL/IConsoleManager.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node_Composite.h"
 #include "K2Node_MacroInstance.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Kismet2/CompilerResultsLog.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FArchive;
+class FCompilerResultsLog;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

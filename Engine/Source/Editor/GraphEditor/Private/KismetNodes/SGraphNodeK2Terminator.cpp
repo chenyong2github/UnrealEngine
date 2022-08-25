@@ -2,9 +2,32 @@
 
 
 #include "KismetNodes/SGraphNodeK2Terminator.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
 #include "K2Node.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SGraphNode.h"
+#include "SNodePanel.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+
+struct FSlateBrush;
 
 
 void SGraphNodeK2Terminator::Construct( const FArguments& InArgs, UK2Node* InNode )

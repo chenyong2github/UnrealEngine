@@ -4,17 +4,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Framework/SlateDelegates.h"
 #include "Framework/Commands/UICommandInfo.h"
-#include "Styling/SlateTypes.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/Platform.h"
+#include "Misc/Attribute.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Styling/ToolBarStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FName;
+class SWidget;
+struct FButtonStyle;
+struct FCheckBoxStyle;
 struct FSlateBrush;
+
 enum class ECheckBoxState : uint8;
 
 /**

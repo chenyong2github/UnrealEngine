@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Layout/Margin.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class IUMGDesigner;
 class UCanvasPanelSlot;
 class UPanelSlot;
+struct FGeometry;
+struct FPointerEvent;
 
 namespace ETransformDirection
 {

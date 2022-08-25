@@ -2,6 +2,9 @@
 
 #include "PropertyRestriction.h"
 
+#include "HAL/PlatformCrt.h"
+#include "Templates/UnrealTemplate.h"
+
 bool FPropertyRestriction::IsValueHidden(const FString& InValue) const
 {
 	for (const FString& Value : HiddenValues)

@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "Widgets/SWidget.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
 
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
 class ILocalizationServiceProvider;
+class SWidget;
 
 struct FLocalizationServiceProviderWrapper
 {

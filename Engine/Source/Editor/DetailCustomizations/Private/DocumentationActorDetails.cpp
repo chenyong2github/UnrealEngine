@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DocumentationActorDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SButton.h"
-#include "Engine/DocumentationActor.h"
 
-
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
+#include "Engine/DocumentationActor.h"
+#include "Internationalization/Internationalization.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SButton.h"
+
+class UObject;
 
 
 #define LOCTEXT_NAMESPACE "DocumentationActorDetails"

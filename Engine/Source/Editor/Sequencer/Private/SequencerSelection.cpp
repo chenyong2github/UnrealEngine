@@ -1,18 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerSelection.h"
-#include "MovieSceneSection.h"
-#include "MovieSceneTrack.h"
-#include "SequencerCommonHelpers.h"
 
-#include "MVVM/SharedViewModelData.h"
-#include "MVVM/ViewModels/SectionModel.h"
-#include "MVVM/ViewModels/TrackModel.h"
-#include "MVVM/ViewModels/ChannelModel.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Containers/SparseArray.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/ISelectableExtension.h"
 #include "MVVM/SectionModelStorageExtension.h"
+#include "MVVM/SharedViewModelData.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneTrack.h"
+#include "SequencerCoreFwd.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/TypeHash.h"
+#include "UObject/WeakObjectPtr.h"
 
 FSequencerSelection::FSequencerSelection()
 	: SerialNumber(0)

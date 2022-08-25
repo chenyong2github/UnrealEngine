@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "KismetNodes/SGraphNodeK2Default.h"
+#include "Templates/SharedPointer.h"
 
 class SGraphPin;
+class UEdGraphPin;
 
 class SGraphNodeCallParameterCollectionFunction : public SGraphNodeK2Default
 {

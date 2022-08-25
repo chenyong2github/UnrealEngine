@@ -2,8 +2,9 @@
 
 #include "HordeExecutor.h"
 
-#include "Execution.h"
 #include "ContentAddressableStorage.h"
+#include "Execution.h"
+#include "Internationalization/Internationalization.h"
 
 #define LOCTEXT_NAMESPACE "HordeExecutor"
 

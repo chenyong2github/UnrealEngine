@@ -1,12 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneEventBlueprintExtension.h"
-#include "MovieSceneEventUtils.h"
-#include "Sections/MovieSceneEventSectionBase.h"
+
+#include "Channels/MovieSceneEvent.h"
+#include "Containers/ArrayView.h"
+#include "CoreGlobals.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "Engine/Blueprint.h"
+#include "HAL/Platform.h"
+#include "K2Node.h"
 #include "K2Node_FunctionEntry.h"
 #include "KismetCompiler.h"
-#include "Engine/Blueprint.h"
-#include "EdGraph/EdGraph.h"
+#include "Misc/AssertionMacros.h"
+#include "MovieSceneEventUtils.h"
+#include "Sections/MovieSceneEventSectionBase.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+
+class UEdGraphNode;
 
 void UMovieSceneEventBlueprintExtension::PostLoad()
 {

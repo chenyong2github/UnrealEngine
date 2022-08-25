@@ -6,10 +6,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Camera/CameraActor.h"
-#include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorUtilityCamera.generated.h"
+
+class UObject;
 
 
 UCLASS(Abstract, Blueprintable, meta = (ShowWorldContextPin))

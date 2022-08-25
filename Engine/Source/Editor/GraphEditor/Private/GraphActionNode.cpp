@@ -2,6 +2,17 @@
 
 #include "GraphActionNode.h"
 
+#include "Containers/BitArray.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
+
 /*******************************************************************************
  * Static FGraphActionNode Helpers
  ******************************************************************************/

@@ -3,11 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Debugging/SKismetDebugTreeView.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FText;
 class SSearchBox;
+class UBlueprint;
+class UObject;
 
 typedef TSharedPtr<struct FPinValueInspectorTreeViewNode> FPinValueInspectorTreeViewNodePtr;
 

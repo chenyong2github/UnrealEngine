@@ -1,13 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SectionLayout.h"
-#include "Layout/Geometry.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
-#include "MVVM/ViewModels/SectionModel.h"
-#include "MVVM/ViewModels/CategoryModel.h"
-#include "MVVM/ViewModels/TrackModel.h"
-#include "MVVM/ViewModels/ChannelModel.h"
+
 #include "Algo/Sort.h"
+#include "Layout/Geometry.h"
+#include "MVVM/Extensions/IGeometryExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/LinkedOutlinerExtension.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "SequencerCoreFwd.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE
 {

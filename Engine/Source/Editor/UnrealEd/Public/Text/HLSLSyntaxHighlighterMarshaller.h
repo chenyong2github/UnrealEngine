@@ -1,11 +1,15 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Styling/SlateTypes.h"
-#include "Framework/Text/SyntaxTokenizer.h"
 #include "Framework/Text/SyntaxHighlighterTextLayoutMarshaller.h"
+#include "Framework/Text/SyntaxTokenizer.h"
 #include "Framework/Text/TextLayout.h"
+#include "HAL/Platform.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
 
 
 

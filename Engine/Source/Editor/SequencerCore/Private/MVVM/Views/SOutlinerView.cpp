@@ -1,6 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Views/SOutlinerView.h"
+
+#include "Algo/BinarySearch.h"
+#include "Containers/ArrayView.h"
+#include "Framework/Layout/Overscroll.h"
+#include "Framework/SlateDelegates.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "Input/DragAndDrop.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/ChildrenBase.h"
+#include "Layout/Geometry.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
 #include "MVVM/Extensions/IDraggableOutlinerExtension.h"
 #include "MVVM/Extensions/IDroppableExtension.h"
 #include "MVVM/Extensions/IGeometryExtension.h"
@@ -10,19 +25,35 @@
 #include "MVVM/ViewModels/OutlinerSpacer.h"
 #include "MVVM/ViewModels/OutlinerViewModel.h"
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
+#include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 #include "MVVM/Views/IOutlinerSelectionHandler.h"
-#include "MVVM/Views/SOutlinerItemViewBase.h"
 #include "MVVM/Views/STrackAreaView.h"
 #include "MVVM/Views/STrackLane.h"
-
-#include "EditorStyleSet.h"
-#include "Algo/BinarySearch.h"
-#include "Algo/Copy.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Application/SlateApplication.h"
+#include "MVVM/Views/TreeViewTraits.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/SlateLayoutTransform.h"
 #include "ScopedTransaction.h"
+#include "SequencerCoreFwd.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/WidgetStyle.h"
+#include "Templates/Tuple.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Views/SHeaderRow.h"
+
+class FPaintArgs;
+class FSlateRect;
+class ITableRow;
+class SWidget;
+namespace UE::Sequencer { class FEditorViewModel; }
+namespace UE::Sequencer { class FOutlinerSpacer; }
 
 namespace UE
 {

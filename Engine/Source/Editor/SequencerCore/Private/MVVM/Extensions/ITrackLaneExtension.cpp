@@ -1,9 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Extensions/ITrackLaneExtension.h"
+
+#include "HAL/PlatformCrt.h"
 #include "Layout/ArrangedWidget.h"
+#include "Layout/Geometry.h"
+#include "Math/RangeBound.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
 #include "MovieSceneTimeHelpers.h"
 #include "TimeToPixel.h"
+#include "Widgets/SWidget.h"
 
 namespace UE
 {

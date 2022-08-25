@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
 #include "KismetCompilerMisc.h"
 
 class FKismetCompilerContext;
+class UEdGraphNode;
+class UEdGraphPin;
+class UFunction;
 class UK2Node_MathExpression;
+struct FBPTerminal;
+struct FBlueprintCompiledStatement;
 struct FKismetFunctionContext;
 
 class FKCHandler_MathExpression : public FNodeHandlingFunctor

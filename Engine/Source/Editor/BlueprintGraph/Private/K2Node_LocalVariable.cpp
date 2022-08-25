@@ -2,14 +2,28 @@
 
 
 #include "K2Node_LocalVariable.h"
-#include "Engine/Blueprint.h"
+
+#include "Containers/Array.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node_AssignmentStatement.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/Kismet2NameValidators.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
 #include "ScopedTransaction.h"
+#include "Templates/Casts.h"
+#include "UObject/UnrealNames.h"
 
 
 UDEPRECATED_K2Node_LocalVariable::UDEPRECATED_K2Node_LocalVariable(const FObjectInitializer& ObjectInitializer)

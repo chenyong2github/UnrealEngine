@@ -1,8 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeK2Event.h"
-#include "SGraphPin.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformCrt.h"
 #include "K2Node_Event.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "SGraphNode.h"
+#include "SGraphPin.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SWidget.h"
 
 void SGraphNodeK2Event::AddPin( const TSharedRef<SGraphPin>& PinToAdd ) 
 {

@@ -1,11 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "BehaviorTreeDecoratorGraph.h"
-#include "BehaviorTree/BTDecorator.h"
+
 #include "BehaviorTree/BTCompositeNode.h"
+#include "BehaviorTree/BTDecorator.h"
 #include "BehaviorTreeDecoratorGraphNode.h"
 #include "BehaviorTreeDecoratorGraphNode_Decorator.h"
 #include "BehaviorTreeDecoratorGraphNode_Logic.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_BehaviorTreeDecorator.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectPtr.h"
 
 //////////////////////////////////////////////////////////////////////////
 // BehaviorTreeGraph

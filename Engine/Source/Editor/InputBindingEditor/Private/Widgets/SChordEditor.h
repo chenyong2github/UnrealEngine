@@ -2,12 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/InputChord.h"
-#include "Widgets/SChordEditBox.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "SChordEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableText.h"
+
+struct FCharacterEvent;
+struct FFocusEvent;
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
 
 /**
  * A specialized text edit box that visualizes a new chord being entered           .

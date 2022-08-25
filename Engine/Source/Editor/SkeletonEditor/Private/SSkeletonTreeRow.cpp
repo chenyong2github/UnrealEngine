@@ -1,8 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSkeletonTreeRow.h"
+
+#include "Framework/SlateDelegates.h"
 #include "ISkeletonTree.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
 #include "Preferences/PersonaOptions.h"
+#include "SlotBase.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableViewBase.h"
+
+class FDragDropEvent;
+class STableViewBase;
+class SWidget;
+struct FGeometry;
+struct FPointerEvent;
 
 void SSkeletonTreeRow::Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView )
 {

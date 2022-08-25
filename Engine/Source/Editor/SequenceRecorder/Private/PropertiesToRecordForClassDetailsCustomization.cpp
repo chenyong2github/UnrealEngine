@@ -1,14 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertiesToRecordForClassDetailsCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
+
 #include "DetailWidgetRow.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
 #include "SClassPropertyRecorderSettings.h"
 #include "SequenceRecorderSettings.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 void FPropertiesToRecordForClassDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {

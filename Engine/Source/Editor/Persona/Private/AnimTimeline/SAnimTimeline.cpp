@@ -38,6 +38,7 @@
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Runtime/Engine/Classes/Animation/AnimSequenceHelpers.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "AnimTimeline/AnimTimeSliderController.h"
 #include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "SAnimTimeline"

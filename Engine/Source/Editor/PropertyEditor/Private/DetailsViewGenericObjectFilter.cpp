@@ -2,6 +2,10 @@
 
 #include "DetailsViewGenericObjectFilter.h"
 
+#include "HAL/PlatformCrt.h"
+
+class UObject;
+
 
 FDetailsViewDefaultObjectFilter::FDetailsViewDefaultObjectFilter(bool bInAllowMultipleRoots)
 	: bAllowMultipleRoots(bInAllowMultipleRoots)

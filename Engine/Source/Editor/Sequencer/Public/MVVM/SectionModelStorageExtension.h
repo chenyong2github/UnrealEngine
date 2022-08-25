@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "UObject/ObjectKey.h"
+#include "Containers/Map.h"
 #include "MVVM/Extensions/DynamicExtensionContainer.h"
+#include "MVVM/ViewModelTypeID.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectKey.h"
 
 class ISequencerSection;
 class UMovieSceneSection;

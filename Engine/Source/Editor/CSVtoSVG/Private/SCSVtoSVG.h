@@ -2,14 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/StrongObjectPtr.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Input/Reply.h"
 #include "Misc/NotifyHook.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-class UCSVtoSVGArugments;
+class FProperty;
 class IDetailsView;
 class SStatList;
+class UCSVtoSVGArugments;
+struct FPropertyChangedEvent;
 
 class SCSVtoSVG : public SCompoundWidget, public FNotifyHook
 {

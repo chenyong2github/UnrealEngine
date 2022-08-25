@@ -2,13 +2,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STreeView.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "SlateFwd.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
 
+class ITableRow;
 class SComboButton;
+class SSearchBox;
 class SSuggestionTextBox;
+class SWidget;
 
 /** A custom widget class that provides support for Blueprint namespace entry and/or selection. */
 class KISMET_API SBlueprintNamespaceEntry : public SCompoundWidget

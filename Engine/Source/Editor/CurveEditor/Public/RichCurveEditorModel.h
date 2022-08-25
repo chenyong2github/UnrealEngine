@@ -2,13 +2,31 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+#include "CurveEditorTypes.h"
 #include "CurveModel.h"
 #include "IBufferedCurveModel.h"
+#include "Math/Range.h"
+#include "Misc/Attribute.h"
+#include "Templates/Tuple.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FCurveEditor;
+class IBufferedCurveModel;
+class UObject;
+struct FCurveAttributes;
+struct FCurveEditorScreenSpace;
+struct FKeyAttributes;
+struct FKeyDrawInfo;
+struct FKeyHandle;
+struct FKeyPosition;
 struct FRichCurve;
+template <typename OptionalType> struct TOptional;
 
 class CURVEEDITOR_API FRichCurveEditorModel : public FCurveModel
 {

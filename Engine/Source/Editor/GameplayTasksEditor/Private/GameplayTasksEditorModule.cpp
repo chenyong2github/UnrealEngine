@@ -2,6 +2,9 @@
 
 #include "GameplayTasksEditorModule.h"
 
+#include "CoreGlobals.h"
+#include "Misc/AssertionMacros.h"
+
 //////////////////////////////////////////////////////////////////////////
 // FCharacterAIModule
 

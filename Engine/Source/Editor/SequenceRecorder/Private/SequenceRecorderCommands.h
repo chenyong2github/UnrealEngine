@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
+#include "Templates/SharedPointer.h"
+
+class FUICommandInfo;
 
 class FSequenceRecorderCommands : public TCommands<FSequenceRecorderCommands>
 {

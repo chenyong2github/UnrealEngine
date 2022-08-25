@@ -2,6 +2,9 @@
 
 #include "Components/PropertyViewHelper.h"
 
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+
 
 #define LOCTEXT_NAMESPACE "UMG"
 

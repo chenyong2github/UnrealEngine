@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewportInteractionStyle.h"
-#include "Styling/SlateTypes.h"
-#include "Styling/AppStyle.h"
-#include "Styling/SlateStyleRegistry.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Brushes/SlateImageBrush.h"
-#include "Brushes/SlateBoxBrush.h"
-#include "Brushes/SlateBorderBrush.h"
-#include "Fonts/SlateFontInfo.h"
+
+#include "Containers/UnrealString.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Paths.h"
+#include "Rendering/SlateRenderer.h"
+#include "Styling/SlateStyleRegistry.h"
+
+class ISlateStyle;
 
 TSharedPtr< FSlateStyleSet > FViewportInteractionStyle::ViewportInteractionStyleInstance = NULL;
 

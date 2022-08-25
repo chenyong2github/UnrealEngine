@@ -2,19 +2,21 @@
 
 #pragma once
 
-#include <atomic>
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
 #include "Containers/UnrealString.h"
 #include "CookTypes.h"
 #include "Engine/ICookInfo.h"
 #include "HAL/CriticalSection.h"
-#include "HAL/Event.h"
-#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformProcess.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
+
+#include <atomic>
 
 class FEvent;
 class ITargetPlatform;

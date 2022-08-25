@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDeviceProfileEditorSingleProfileView.h"
+
+#include "DetailsViewArgs.h"
 #include "DeviceProfiles/DeviceProfile.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Styling/AppStyle.h"
-#include "PropertyEditorModule.h"
 #include "IDetailsView.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Layout/SBorder.h"
 
 
 #define LOCTEXT_NAMESPACE "DeviceProfileEditorSingleProfileView"

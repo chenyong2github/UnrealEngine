@@ -1,10 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SEnumCombo.h"
-#include "Styling/AppStyle.h"
-#include "Types/SlateEnums.h"
-#include "Widgets/SToolTip.h"
+
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "EditorWidgets"
 

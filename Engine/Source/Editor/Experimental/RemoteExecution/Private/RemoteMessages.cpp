@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteMessages.h"
+
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "HAL/PlatformCrt.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Templates/UnrealTemplate.h"
 
 
 namespace UE::RemoteExecution

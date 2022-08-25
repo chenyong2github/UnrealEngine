@@ -2,22 +2,40 @@
 
 
 #include "K2Node_ForEachElementInEnum.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintFieldNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
-#include "K2Node_CallFunction.h"
+#include "EditorCategoryUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node_AssignmentStatement.h"
+#include "K2Node_CallFunction.h"
+#include "K2Node_CastByteToEnum.h"
 #include "K2Node_ExecutionSequence.h"
+#include "K2Node_GetNumEnumEntries.h"
 #include "K2Node_IfThenElse.h"
 #include "K2Node_SwitchEnum.h"
 #include "K2Node_TemporaryVariable.h"
-#include "KismetCompiler.h"
-#include "Kismet/KismetNodeHelperLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "K2Node_CastByteToEnum.h"
-#include "K2Node_GetNumEnumEntries.h"
-#include "BlueprintFieldNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Kismet/KismetNodeHelperLibrary.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UBlueprintNodeSpawner;
+struct FLinearColor;
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

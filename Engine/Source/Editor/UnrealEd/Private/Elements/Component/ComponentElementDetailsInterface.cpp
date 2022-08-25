@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Component/ComponentElementDetailsInterface.h"
-#include "Elements/Component/ComponentElementData.h"
+
 #include "Components/ActorComponent.h"
+#include "Elements/Component/ComponentElementData.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FComponentTypedElementDetailsObject : public ITypedElementDetailsObject
 {

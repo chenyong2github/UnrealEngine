@@ -5,7 +5,13 @@ AnimBoneCompressionSettingsFactory.cpp: Factory for animation bone compression s
 =============================================================================*/
 
 #include "Factories/AnimBoneCompressionSettingsFactory.h"
+
 #include "Animation/AnimBoneCompressionSettings.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UAnimBoneCompressionSettingsFactory::UAnimBoneCompressionSettingsFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

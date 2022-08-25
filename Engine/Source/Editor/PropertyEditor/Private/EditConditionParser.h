@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Misc/ExpressionParserTypes.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 #include "Templates/ValueOrError.h"
+
+class FText;
 
 namespace EditConditionParserTokens
 {

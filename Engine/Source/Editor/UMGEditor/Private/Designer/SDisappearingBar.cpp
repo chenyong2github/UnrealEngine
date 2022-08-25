@@ -2,6 +2,12 @@
 
 #include "Designer/SDisappearingBar.h"
 
+#include "Delegates/Delegate.h"
+#include "Layout/Children.h"
+
+class FDragDropEvent;
+struct FGeometry;
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 /////////////////////////////////////////////////////

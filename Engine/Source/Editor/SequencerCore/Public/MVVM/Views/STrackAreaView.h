@@ -2,22 +2,38 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreTypes.h"
-#include "Layout/Geometry.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SlotBase.h"
+#include "Layout/BasicLayoutWidgetSlot.h"
 #include "Layout/Children.h"
-#include "Widgets/SPanel.h"
-#include "MVVM/Views/SequencerInputHandlerStack.h"
-#include "MVVM/ViewModels/ViewModel.h"
+#include "Layout/Clipping.h"
+#include "Layout/Geometry.h"
 #include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/Views/SequencerInputHandlerStack.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "SlotBase.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SPanel.h"
 
 class FArrangedChildren;
+class FChildren;
+class FDragDropEvent;
 class FPaintArgs;
+class FSlateRect;
 class FSlateWindowElementList;
+class FWidgetStyle;
 class ISequencerEditTool;
+struct FCaptureLostEvent;
+struct FFrameNumber;
+struct FGeometry;
+struct FPointerEvent;
+template <typename ElementType> class TRange;
 struct FTimeToPixel;
 
 namespace UE
@@ -25,10 +41,10 @@ namespace UE
 namespace Sequencer
 {
 
-class SOutlinerView;
-class IOutlinerExtension;
 class FTrackAreaViewModel;
 class FViewModel;
+class IOutlinerExtension;
+class SOutlinerView;
 class STrackLane;
 
 /**

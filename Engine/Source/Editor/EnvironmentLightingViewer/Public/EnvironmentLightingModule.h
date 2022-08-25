@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Struct Viewer module

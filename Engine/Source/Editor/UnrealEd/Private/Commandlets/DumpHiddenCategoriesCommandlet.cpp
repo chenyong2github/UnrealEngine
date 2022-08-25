@@ -1,18 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/DumpHiddenCategoriesCommandlet.h"
+
+#include "Containers/Array.h"
+#include "Containers/StringConv.h"
+#include "EditorCategoryUtils.h"
 #include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "UObject/Class.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "UObject/UnrealType.h"
+#include "HAL/PlatformTime.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "Misc/Paths.h"
 //#include "DumpHiddenCategoriesCommandlet.h"
 #include "ObjectEditorUtils.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "EditorCategoryUtils.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Serialization/Archive.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/UnrealType.h"
 
 /*******************************************************************************
  * Static Helpers

@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ContentBrowserItem.h"
-#include "TextFilterValueHandler.h"
+#include "Containers/Array.h"
+#include "CoreFwd.h"
+#include "UObject/Object.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "TextFilterValueHandlers.generated.h"
+
+class FTextFilterString;
+class UTextFilterValueHandler;
+struct FContentBrowserItem;
 
 UCLASS(transient, config = Editor)
 class UTextFilterValueHandlers : public UObject

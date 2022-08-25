@@ -1,22 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Channels/BoolChannelCurveModel.h"
-#include "Math/Vector2D.h"
-#include "HAL/PlatformMath.h"
-#include "Channels/MovieSceneBoolChannel.h"
+
+#include "Algo/BinarySearch.h"
 #include "Channels/BoolChannelKeyProxy.h"
-#include "MovieSceneSection.h"
-#include "MovieScene.h"
-#include "CurveDrawInfo.h"
+#include "Channels/MovieSceneBoolChannel.h"
+#include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CurveDataAbstraction.h"
-#include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
-#include "CurveEditorSnapMetrics.h"
-#include "Styling/AppStyle.h"
-#include "BuiltInChannelEditors.h"
-#include "SequencerChannelTraits.h"
-#include "ISequencer.h"
-#include "Channels/MovieSceneChannelProxy.h"
+#include "Curves/KeyHandle.h"
+#include "HAL/PlatformCrt.h"
+#include "IBufferedCurveModel.h"
+#include "Internationalization/Text.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "MovieScene.h"
+#include "MovieSceneSection.h"
+#include "Templates/Casts.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FCurveEditor;
+class UObject;
 
 /**
  * Buffered curve implementation for a bool channel curve model, stores a copy of the bool channel in order to draw itself.

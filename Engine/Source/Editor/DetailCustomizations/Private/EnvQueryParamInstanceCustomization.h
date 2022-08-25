@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
 
 class IPropertyHandle;
+
 enum class EAIParamType : uint8;
 enum class ECheckBoxState : uint8;
 

@@ -2,12 +2,18 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "SGraphPin.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
-#include "SGraphPin.h"
 #include "SVector2DTextBox.h"
 #include "ScopedTransaction.h"
+
+class SWidget;
+class UEdGraphPin;
 
 template <typename NumericType>
 class SGraphPinVector2D : public SGraphPin

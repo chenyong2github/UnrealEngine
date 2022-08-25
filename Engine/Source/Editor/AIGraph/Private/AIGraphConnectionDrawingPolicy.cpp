@@ -1,7 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AIGraphConnectionDrawingPolicy.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/ArrangedWidget.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Optional.h"
 #include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SGraphNode.h"
+#include "Styling/SlateBrush.h"
+
+class FSlateRect;
+class SWidget;
+struct FGeometry;
 
 FAIGraphConnectionDrawingPolicy::FAIGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
 	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements)

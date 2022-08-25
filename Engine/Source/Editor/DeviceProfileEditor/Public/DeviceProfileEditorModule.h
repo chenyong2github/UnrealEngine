@@ -2,10 +2,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
 #include "Modules/ModuleInterface.h"
+#include "SlateFwd.h"
+#include "Templates/SharedPointer.h"
 
 class FSpawnTabArgs;
+class SDockTab;
 
 /**
  * Device Profile Editor module

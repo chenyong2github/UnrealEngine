@@ -1,12 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSingleObjectDetailsPanel.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/SBoxPanel.h"
-#include "Framework/Application/SlateApplication.h"
 
-#include "PropertyEditorModule.h"
+#include "DetailsViewArgs.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailsView.h"
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "SlotBase.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+class UObject;
+struct FGeometry;
 
 /////////////////////////////////////////////////////
 // SSingleObjectDetailsPanel

@@ -2,7 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CurveEditorScreenSpace.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+
+class FText;
+struct FCurveEditorScreenSpace;
 
 namespace CurveEditor
 {

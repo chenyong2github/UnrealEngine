@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 class SDerivedDataCacheSettingsDialog : public SCompoundWidget
 {

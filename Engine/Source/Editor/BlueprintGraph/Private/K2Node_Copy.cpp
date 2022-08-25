@@ -1,15 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_Copy.h"
-#include "Engine/Blueprint.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "EdGraphUtilities.h"
+#include "EditorCategoryUtils.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompilerMisc.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FKismetCompilerContext;
+struct FBPTerminal;
 
 #define LOCTEXT_NAMESPACE "K2Node_Copy"
 

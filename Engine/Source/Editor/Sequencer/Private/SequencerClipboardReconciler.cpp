@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerClipboardReconciler.h"
+
+#include "HAL/PlatformCrt.h"
 #include "IKeyArea.h"
 #include "MVVM/ViewModels/ChannelModel.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+
+class UMovieSceneSection;
 
 TMap<FName, TArray<FName>> FSequencerClipboardReconciler::KeyAreaAliases;
 

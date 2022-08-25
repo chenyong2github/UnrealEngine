@@ -2,7 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "ISequencerSection.h"
+#include "Input/Reply.h"
+
+class FName;
+class FSequencerSectionPainter;
+class UMovieSceneSection;
+struct FKeyHandle;
 
 /**
  * A movie scene section for material parameters.

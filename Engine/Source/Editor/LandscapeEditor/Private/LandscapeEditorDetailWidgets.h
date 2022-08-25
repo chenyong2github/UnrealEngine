@@ -2,13 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
-#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "Framework/SlateDelegates.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class FExtender;
+class FUICommandInfo;
+class FUICommandList;
+struct FUIAction;
 
 // A toolbar whose combo buttons have an additional small text label describing the current selection
 class FToolSelectorBuilder : public FToolBarBuilder

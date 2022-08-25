@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Object/ObjectElementDetailsInterface.h"
+
 #include "Elements/Object/ObjectElementData.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FObjectTypedElementDetailsObject : public ITypedElementDetailsObject
 {

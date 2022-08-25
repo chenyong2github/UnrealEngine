@@ -2,9 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Framework/SlateDelegates.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
+class FString;
+class FText;
 class ITextLayoutMarshaller;
 
 class EDITORWIDGETS_API STemplateStringEditableTextBox : public SMultiLineEditableTextBox

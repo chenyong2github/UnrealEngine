@@ -1,10 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/AddContentWidgetViewModel.h"
-#include "Modules/ModuleManager.h"
+
+#include "CategoryViewModel.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "ContentSourceProviderManager.h"
+#include "HAL/PlatformCrt.h"
 #include "IAddContentDialogModule.h"
 #include "IContentSource.h"
-#include "ContentSourceProviderManager.h"
+#include "IContentSourceProvider.h"
+#include "Modules/ModuleManager.h"
 #include "ViewModels/ContentSourceViewModel.h"
 
 

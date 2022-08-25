@@ -2,17 +2,49 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
-#include "ISequencerChannelInterface.h"
-#include "MVVM/Views/KeyDrawParams.h"
 #include "Channels/MovieSceneChannelData.h"
+#include "Channels/MovieSceneChannelHandle.h"
+#include "Channels/MovieSceneChannelTraits.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreTypes.h"
+#include "Curves/KeyHandle.h"
+#include "Evaluation/MovieSceneRootOverridePath.h"
+#include "ISequencer.h"
+#include "ISequencerChannelInterface.h"
+#include "Math/Range.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameRate.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "MovieSceneClipboard.h"
+#include "MovieSceneSection.h"
+#include "MVVM/Views/KeyDrawParams.h"
 #include "SequencerClipboardReconciler.h"
 #include "SequencerKeyStructGenerator.h"
+#include "Templates/Decay.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/SNullWidget.h"
-#include "ISequencer.h"
-#include "MovieSceneSection.h"
 #include "TimeToPixel.h"
+
+class FCurveModel;
+class FMenuBuilder;
+class FSequencerSectionPainter;
+class FStructOnScope;
+class FTrackInstancePropertyBindings;
+class SWidget;
+class UMovieSceneTrack;
+class UObject;
+struct FGeometry;
+struct FKeyDrawParams;
+struct FMovieSceneChannel;
+template <typename T> struct TMovieSceneExternalValue;
+template <typename ValueType> struct TMovieSceneChannelData;
 
 /** Utility struct representing a number of selected keys on a single channel */
 template<typename ChannelType>

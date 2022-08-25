@@ -2,7 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Misc/Optional.h"
+#include "Rendering/RenderingCommon.h"
+#include "Templates/SharedPointer.h"
 #include "Views/SInteractiveCurveEditorView.h"
+
+class FCurveEditor;
+class FMenuBuilder;
+class FPaintArgs;
+class FSlateRect;
+class FSlateWindowElementList;
+class FText;
+class FWidgetStyle;
+struct FCurveModelID;
+struct FCurvePointHandle;
+struct FGeometry;
 
 class MOVIESCENETOOLS_API SCurveEditorKeyBarView : public SInteractiveCurveEditorView
 {

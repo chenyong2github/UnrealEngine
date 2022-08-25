@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Input/Reply.h"
-#include "Widgets/SBoxPanel.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
 class SColorBlock;
+class SHorizontalBox;
 class UPixelInspectorView;
+struct FGeometry;
+struct FPointerEvent;
 
 class FPixelInspectorDetailsCustomization : public IDetailCustomization
 {

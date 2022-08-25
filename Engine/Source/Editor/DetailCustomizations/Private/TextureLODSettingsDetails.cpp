@@ -1,18 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TextureLODSettingsDetails.h"
-#include "Engine/TextureLODSettings.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SSpinBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "DeviceProfiles/DeviceProfile.h"
-#include "DetailLayoutBuilder.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "DeviceProfiles/DeviceProfile.h"
+#include "Engine/TextureLODSettings.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "PropertyHandle.h"
+#include "RHIDefinitions.h"
+#include "Serialization/Archive.h"
+#include "SlateOptMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Text/STextBlock.h"
+
+class FString;
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "TextureLODSettingsDetails"
 

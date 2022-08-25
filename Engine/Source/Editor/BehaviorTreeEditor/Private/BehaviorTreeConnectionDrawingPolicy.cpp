@@ -1,9 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeConnectionDrawingPolicy.h"
-#include "BehaviorTreeGraphNode.h"
-#include "BehaviorTreeDebugger.h"
+
 #include "BehaviorTreeColors.h"
+#include "BehaviorTreeDebugger.h"
+#include "BehaviorTreeGraphNode.h"
+#include "ConnectionDrawingPolicy.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformMath.h"
+#include "Math/Color.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+
+class FSlateRect;
 
 FBehaviorTreeConnectionDrawingPolicy::FBehaviorTreeConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
 	: FAIGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj)

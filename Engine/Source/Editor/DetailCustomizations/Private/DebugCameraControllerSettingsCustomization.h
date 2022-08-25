@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
 
 
 class FDebugCameraControllerSettingsViewModeIndexCustomization : public IPropertyTypeCustomization

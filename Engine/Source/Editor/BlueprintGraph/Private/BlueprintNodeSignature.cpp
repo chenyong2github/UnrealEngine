@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNodeSignature.h"
+
+#include "Containers/Array.h"
+#include "Containers/StringConv.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/CString.h"
 #include "Misc/SecureHash.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/Tuple.h"
 
 /*******************************************************************************
  * Static FBlueprintNodeSignature Helpers

@@ -2,6 +2,10 @@
 
 #include "EditorFontGlyphs.h"
 
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+
 FText FEditorFontGlyphs::Angle_Double_Left(FText::FromString(FString(TEXT("\xf100"))));
 FText FEditorFontGlyphs::Angle_Double_Right(FText::FromString(FString(TEXT("\xf101"))));
 FText FEditorFontGlyphs::Angle_Left(FText::FromString(FString(TEXT("\xf104"))));

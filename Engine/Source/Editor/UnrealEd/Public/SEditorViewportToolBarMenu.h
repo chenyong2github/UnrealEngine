@@ -4,18 +4,25 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "SViewportToolBar.h"
 #include "Framework/SlateDelegates.h"
-#include "Styling/SlateTypes.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "SViewportToolBar.h"
 #include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class SMenuAnchor;
+struct FGeometry;
+struct FPointerEvent;
 struct FSlateBrush;
 
 namespace EMenuItemType

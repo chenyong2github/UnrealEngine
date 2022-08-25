@@ -2,15 +2,31 @@
 
 
 #include "K2Node_GetEnumeratorName.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "EdGraphSchema_K2.h"
-#include "K2Node_CallFunction.h"
-#include "KismetCompiler.h"
-#include "Kismet/KismetNodeHelperLibrary.h"
-#include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
+
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EditorCategoryUtils.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_CallFunction.h"
+#include "Kismet/KismetNodeHelperLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+struct FLinearColor;
 
 FName UK2Node_GetEnumeratorName::EnumeratorPinName(TEXT("Enumerator"));
 

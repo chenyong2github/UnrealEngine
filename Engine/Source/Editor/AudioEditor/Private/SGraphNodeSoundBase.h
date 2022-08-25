@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "SGraphNode.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SVerticalBox;
 class USoundCueGraphNode;

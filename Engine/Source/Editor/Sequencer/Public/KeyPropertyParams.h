@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/UnrealType.h"
+#include "Math/UnrealMathSSE.h"
 #include "PropertyPath.h"
+#include "UObject/Field.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakFieldPtr.h"
 
 class IPropertyHandle;
+class UClass;
+class UObject;
+class UStruct;
+
 enum class ESequencerKeyMode;
 
 /**

@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "Animation/CurveSequence.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "SDisappearingBar.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+
+class FDragDropEvent;
+class SWidget;
+struct FGeometry;
 
 /**
  * A widget that shows another widget as long as the mouse isn't hovering over it.

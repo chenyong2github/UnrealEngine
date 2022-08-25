@@ -2,8 +2,15 @@
 
 #include "Widgets/SGraphNodeCreateWidget.h"
 
-#include "Nodes/K2Node_CreateWidget.h"
+#include "Containers/Array.h"
+#include "EdGraph/EdGraphPin.h"
 #include "KismetPins/SGraphPinClass.h"
+#include "Misc/AssertionMacros.h"
+#include "Nodes/K2Node_CreateWidget.h"
+#include "Templates/Casts.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SGraphPin;
 
 TSharedPtr<SGraphPin> SGraphNodeCreateWidget::CreatePinWidget(UEdGraphPin* Pin) const
 {

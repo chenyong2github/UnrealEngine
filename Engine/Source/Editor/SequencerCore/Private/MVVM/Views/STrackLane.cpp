@@ -1,22 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Views/STrackLane.h"
-#include "Rendering/DrawElements.h"
-#include "Styling/AppStyle.h"
 
-#include "MVVM/Extensions/IGeometryExtension.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/ArrangedWidget.h"
+#include "Layout/Geometry.h"
+#include "Layout/SlateRect.h"
+#include "Layout/Visibility.h"
 #include "MVVM/Extensions/IHoveredExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/IPinnableExtension.h"
 #include "MVVM/Extensions/IResizableExtension.h"
 #include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/SharedViewModelData.h"
 #include "MVVM/ViewModels/EditorViewModel.h"
-#include "MVVM/ViewModels/OutlinerViewModel.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
 #include "MVVM/Views/SOutlinerView.h"
 #include "MVVM/Views/STrackAreaView.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SequencerCoreFwd.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
+#include "TimeToPixel.h"
+#include "Types/PaintArgs.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/SWidget.h"
+
+class FWidgetStyle;
+namespace UE::Sequencer { class FOutlinerViewModel; }
 
 namespace UE
 {

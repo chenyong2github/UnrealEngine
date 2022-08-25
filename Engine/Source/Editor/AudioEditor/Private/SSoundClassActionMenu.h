@@ -3,17 +3,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Containers/Array.h"
 #include "GraphEditor.h"
-#include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FText;
 class SGraphActionMenu;
-class SSoundClassActionMenu;
+class SWidget;
 class UEdGraph;
+class UEdGraphPin;
+struct FEdGraphSchemaAction;
+struct FGraphActionListBuilderBase;
+struct FSlateFontInfo;
 
 /** Widget for displaying a single item  */
 class SSoundClassActionMenuItem : public SCompoundWidget

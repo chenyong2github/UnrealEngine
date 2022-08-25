@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Framework/Commands/UICommandInfo.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class SButton;
-class SChordEditor;
 class SMenuAnchor;
+class SWidget;
+struct FGeometry;
+struct FPointerEvent;
 struct FSlateBrush;
 
 /**

@@ -1,15 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Exporters/FbxExportOption.h"
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-#include "UObject/UObjectBaseUtility.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "HAL/PlatformMath.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/ConfigCacheIni.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 UFbxExportOption::UFbxExportOption(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

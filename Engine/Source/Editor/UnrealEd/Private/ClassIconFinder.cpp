@@ -2,11 +2,19 @@
 
 
 #include "ClassIconFinder.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
+
 #include "AssetRegistry/AssetData.h"
+#include "Blueprint/BlueprintSupport.h"
+#include "Containers/UnrealString.h"
 #include "Engine/Blueprint.h"
-#include "Engine/Brush.h"
+#include "GameFramework/Actor.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
 
 const FSlateBrush* FClassIconFinder::FindIconForActors(const TArray< TWeakObjectPtr<AActor> >& InActors, UClass*& CommonBaseClass)
 {

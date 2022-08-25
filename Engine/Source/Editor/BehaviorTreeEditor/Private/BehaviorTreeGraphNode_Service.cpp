@@ -1,7 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_Service.h"
+
+#include "AIGraphTypes.h"
 #include "BehaviorTree/BTService.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Templates/Casts.h"
 
 UBehaviorTreeGraphNode_Service::UBehaviorTreeGraphNode_Service(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

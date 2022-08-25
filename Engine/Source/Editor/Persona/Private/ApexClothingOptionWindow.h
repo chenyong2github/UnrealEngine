@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWindow.h"
 
 class SUniformGridPanel;

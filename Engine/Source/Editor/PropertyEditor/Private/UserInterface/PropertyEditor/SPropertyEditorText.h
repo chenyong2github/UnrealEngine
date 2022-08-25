@@ -1,18 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Misc/Attribute.h"
+#include "SPropertyEditorText.h"
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Presentation/PropertyEditor/PropertyEditor.h"
-#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 
+class FText;
 class SEditableTextBox;
 class SMultiLineEditableTextBox;
+struct FFocusEvent;
+struct FGeometry;
 
 class SPropertyEditorText : public SCompoundWidget
 {

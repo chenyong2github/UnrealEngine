@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
+#include "KismetNodes/SGraphNodeK2Base.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
-#include "KismetNodes/SGraphNodeK2Base.h"
 
 class SToolTip;
+class SWidget;
 class UEdGraph;
 class UK2Node_Composite;
 

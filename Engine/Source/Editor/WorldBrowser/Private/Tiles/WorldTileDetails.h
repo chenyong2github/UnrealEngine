@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Misc/WorldCompositionUtility.h"
+#include "Delegates/Delegate.h"
 #include "Engine/Level.h"
+#include "Math/Box.h"
+#include "Math/IntVector.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/WorldCompositionUtility.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "WorldTileDetails.generated.h"
 
 /////////////////////////////////////////////////////

@@ -1,9 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SColorGradientCurveEditorView.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Layout/SBorder.h"
+
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
 #include "SColorGradientEditor.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateColor.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SCompoundWidget.h"
+
+class FCurveEditor;
 
 void SColorGradientCurveEditorView::Construct(const FArguments& InArgs, TSharedRef<FCurveEditor> InCurveEditor)
 {

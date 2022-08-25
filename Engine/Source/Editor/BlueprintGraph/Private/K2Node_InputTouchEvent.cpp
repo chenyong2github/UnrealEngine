@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_InputTouchEvent.h"
+
+#include "Containers/Array.h"
+#include "Engine/DynamicBlueprintBinding.h"
 #include "Engine/InputTouchDelegateBinding.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+
+class UClass;
 
 UK2Node_InputTouchEvent::UK2Node_InputTouchEvent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

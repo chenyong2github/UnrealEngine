@@ -1,10 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditorActions.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Materials/MaterialExpression.h"
+
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "HAL/PlatformCrt.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
+#include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionComment.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
+struct FEdGraphSchemaAction;
 
 #define LOCTEXT_NAMESPACE "MaterialEditorCommands"
 

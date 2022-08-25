@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "DiffResults.h"
+#include "Internationalization/Text.h"
 
 class UEdGraph;
 class UEdGraphNode;
+struct FDiffResults;
+struct FDiffSingleResult;
 
 /** Used to find differences between revisions of a graph. */
 class GRAPHEDITOR_API FGraphDiffControl

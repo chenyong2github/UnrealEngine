@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPersonaDetails.h"
+
+#include "DetailsViewArgs.h"
+#include "IDetailsView.h"
+#include "Layout/Children.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "SlotBase.h"
+#include "Widgets/SBoxPanel.h"
 
 void SPersonaDetails::Construct(const FArguments& InArgs)
 {

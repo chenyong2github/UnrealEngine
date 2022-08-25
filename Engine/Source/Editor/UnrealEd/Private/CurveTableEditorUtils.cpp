@@ -2,6 +2,8 @@
 
 #include "CurveTableEditorUtils.h"
 
+#include "Templates/SharedPointer.h"
+
 #define LOCTEXT_NAMESPACE "CurveTableEditorUtils"
 
 FCurveTableEditorUtils::FCurveTableEditorManager& FCurveTableEditorUtils::FCurveTableEditorManager::Get()

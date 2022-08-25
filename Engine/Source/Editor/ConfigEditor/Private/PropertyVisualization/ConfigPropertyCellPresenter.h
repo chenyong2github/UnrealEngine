@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
 #include "Editor/PropertyEditor/Public/IPropertyTableCellPresenter.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class IPropertyHandle;
 class SWidget;

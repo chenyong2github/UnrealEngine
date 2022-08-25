@@ -2,6 +2,8 @@
 
 #include "CurveEditorSettings.h"
 
+#include "HAL/PlatformCrt.h"
+
 UCurveEditorSettings::UCurveEditorSettings()
 {
 	bAutoFrameCurveEditor = true;

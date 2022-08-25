@@ -1,15 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Views/SKeyNavigationButtons.h"
+
+#include "Containers/UnrealString.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "MVVM/Extensions/IHoveredExtension.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "Math/NumericLimits.h"
+#include "Misc/FrameNumber.h"
+#include "Misc/FrameTime.h"
+#include "Misc/Optional.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
-#include "Misc/FrameTime.h"
-#include "MVVM/ViewModels/ViewModel.h"
-#include "MVVM/ViewModels/ViewModelIterators.h"
-#include "MVVM/Extensions/IHoveredExtension.h"
+
+struct FSlateBrush;
 
 namespace UE
 {

@@ -2,13 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/SoftObjectPath.h"
+#include "Logging/LogMacros.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/SoftObjectPath.h"
 
+class FSpawnTabArgs;
+class FString;
 class SDockTab;
 class UCSVtoSVGArugments;
-class FSpawnTabArgs;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCSVtoSVG, Log, All);
 

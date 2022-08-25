@@ -2,12 +2,17 @@
 
 #pragma once
 
+#include "Internationalization/Text.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModels/ObjectBindingModel.h"
 #include "Misc/Guid.h"
 
-#include "MVVM/ViewModels/ObjectBindingModel.h"
-
+class UClass;
+namespace UE::Sequencer { class FSequenceModel; }
+namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
 struct FMovieSceneBinding;
 struct FMovieScenePossessable;
+struct FSlateBrush;
 
 namespace UE
 {

@@ -2,14 +2,23 @@
 
 
 #include "Commandlets/UpdateGameProjectCommandlet.h"
-#include "Misc/Paths.h"
-#include "Misc/EngineVersion.h"
-#include "ISourceControlOperation.h"
-#include "SourceControlOperations.h"
-#include "ISourceControlProvider.h"
-#include "ISourceControlModule.h"
+
+#include "Containers/Array.h"
 #include "GameProjectGenerationModule.h"
+#include "ISourceControlModule.h"
+#include "ISourceControlOperation.h"
+#include "ISourceControlProvider.h"
+#include "ISourceControlState.h"
 #include "Interfaces/IProjectManager.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/EngineVersion.h"
+#include "Misc/EngineVersionBase.h"
+#include "Misc/Paths.h"
+#include "SourceControlOperations.h"
+#include "Templates/SharedPointer.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUpdateGameProjectCommandlet, Log, All);
 

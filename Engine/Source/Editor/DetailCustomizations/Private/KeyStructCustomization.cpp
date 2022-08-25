@@ -1,10 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KeyStructCustomization.h"
+
+#include "Containers/Array.h"
 #include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "InputCoreTypes.h"
 #include "InputSettingsDetails.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
 #include "SKeySelector.h"
+#include "SlotBase.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
 #include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "FKeyStructCustomization"
 

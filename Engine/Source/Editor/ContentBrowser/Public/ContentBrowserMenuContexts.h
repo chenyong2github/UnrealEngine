@@ -2,11 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "ContentBrowserDelegates.h"
 #include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "ContentBrowserDelegates.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "ContentBrowserMenuContexts.generated.h"
 
@@ -15,6 +24,8 @@ class IAssetTypeActions;
 class SAssetView;
 class SContentBrowser;
 class SFilterList;
+class UClass;
+struct FFrame;
 
 UCLASS()
 class CONTENTBROWSER_API UContentBrowserAssetContextMenuContext : public UObject

@@ -2,10 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
 
 class IToolkit;
 class IToolkitHost;
+class UObject;
 
 /**
  * Singleton that managers instances of editor toolkits

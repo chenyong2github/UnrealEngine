@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "HAL/PlatformCrt.h"
 #include "SGraphNode.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UEdGraphNode;
 
 class GRAPHEDITOR_API SGraphNodeDefault : public SGraphNode
 {

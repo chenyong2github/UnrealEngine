@@ -2,6 +2,15 @@
 
 #include "GraphEditorActions.h"
 
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/UnrealString.h"
+#include "Framework/Commands/InputChord.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "GenericPlatform/GenericApplication.h"
+#include "HAL/PlatformCrt.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+
 #define LOCTEXT_NAMESPACE "GraphEditorCommands"
 
 void FGraphEditorCommandsImpl::RegisterCommands()

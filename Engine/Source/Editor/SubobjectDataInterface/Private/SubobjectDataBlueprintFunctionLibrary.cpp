@@ -2,6 +2,8 @@
 
 #include "SubobjectDataBlueprintFunctionLibrary.h"
 
+#include "Templates/SharedPointer.h"
+
 void USubobjectDataBlueprintFunctionLibrary::GetData(const FSubobjectDataHandle& DataHandle, FSubobjectData& OutData)
 {
 	TSharedPtr<FSubobjectData> DataPtr = DataHandle.GetSharedDataPtr();

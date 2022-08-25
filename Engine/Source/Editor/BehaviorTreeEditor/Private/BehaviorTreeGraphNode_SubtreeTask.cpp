@@ -1,13 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeGraphNode_SubtreeTask.h"
+
 #include "BehaviorTree/BTDecorator.h"
-#include "BehaviorTreeDecoratorGraphNode_Decorator.h"
-#include "BehaviorTreeGraph.h"
-#include "BehaviorTreeGraphNode_CompositeDecorator.h"
-#include "BehaviorTreeGraphNode_Root.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/Tasks/BTTask_RunBehavior.h"
+#include "BehaviorTreeDecoratorGraphNode_Decorator.h"
+#include "BehaviorTreeGraph.h"
+#include "BehaviorTreeGraphNode.h"
+#include "BehaviorTreeGraphNode_CompositeDecorator.h"
+#include "BehaviorTreeGraphNode_Root.h"
+#include "Containers/Array.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 UBehaviorTreeGraphNode_SubtreeTask::UBehaviorTreeGraphNode_SubtreeTask(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {

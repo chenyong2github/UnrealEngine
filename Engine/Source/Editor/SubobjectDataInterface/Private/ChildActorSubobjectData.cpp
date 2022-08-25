@@ -2,6 +2,9 @@
 
 #include "ChildActorSubobjectData.h"
 
+#include "GameFramework/Actor.h"
+#include "UObject/Class.h"
+
 FChildActorSubobjectData::FChildActorSubobjectData(UObject* ContextObject, const FSubobjectDataHandle& ParentHandle, const bool InbIsInheritedSCS)
     : FInheritedSubobjectData(ContextObject, ParentHandle, InbIsInheritedSCS)
 {

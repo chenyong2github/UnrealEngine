@@ -2,12 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/DragAndDrop.h"
-#include "DragAndDrop/DecoratedDragDropOp.h"
-#include "CollectionManagerTypes.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetTagItemTypes.h"
+#include "CollectionManagerTypes.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/DragAndDrop.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+
+class SWidget;
+struct FAssetData;
 
 class UNREALED_API FCollectionDragDropOp : public FDecoratedDragDropOp
 {

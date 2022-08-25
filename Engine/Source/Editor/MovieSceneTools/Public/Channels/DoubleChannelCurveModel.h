@@ -4,8 +4,18 @@
 
 #include "Channels/BezierChannelCurveModel.h"
 #include "Channels/MovieSceneDoubleChannel.h"
+#include "Containers/ArrayView.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
+class IBufferedCurveModel;
+class ISequencer;
+class UMovieSceneSection;
+class UObject;
+struct FKeyHandle;
 struct FMovieSceneDoubleChannel;
+struct FMovieSceneDoubleValue;
+template <typename ChannelType> struct TMovieSceneChannelHandle;
 
 class FDoubleChannelCurveModel : public FBezierChannelCurveModel<FMovieSceneDoubleChannel, FMovieSceneDoubleValue, double>
 {

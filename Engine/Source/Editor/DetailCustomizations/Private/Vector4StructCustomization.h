@@ -3,8 +3,14 @@
 #pragma once
 
 #include "Customizations/MathStructCustomizations.h"
-#include "IDetailCustomNodeBuilder.h"
-#include "ColorGradingVectorCustomization.h"
+#include "Templates/SharedPointer.h"
+
+class FColorGradingVectorCustomization;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
+class IPropertyTypeCustomization;
+class IPropertyTypeCustomizationUtils;
 
 /**
  * Customizes FVector4 structs.

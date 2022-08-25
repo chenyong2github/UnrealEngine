@@ -2,7 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
+#include "Misc/CString.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Script.h"
 #include "UObject/Stack.h"
 
 /*******************************************************************************

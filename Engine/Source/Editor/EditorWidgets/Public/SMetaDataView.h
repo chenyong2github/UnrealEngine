@@ -1,13 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FName;
+class FString;
 class ITableRow;
 class STableViewBase;
-
 struct FMetaDataLine;
 
 /**

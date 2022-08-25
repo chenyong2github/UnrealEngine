@@ -1,13 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-
 #include "AsyncIODelete.h"
+#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
+#include "Serialization/Archive.h"
+#include "Templates/UniquePtr.h"
+#include "Trace/Detail/Channel.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAsyncIODeleteTest, "System.Core.Misc.AsyncIODelete", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 bool FAsyncIODeleteTest::RunTest(const FString& Parameters)

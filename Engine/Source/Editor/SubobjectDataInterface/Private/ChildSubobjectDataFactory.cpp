@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChildSubobjectDataFactory.h"
+
 #include "ChildActorSubobjectData.h"
+#include "Components/ActorComponent.h"
 #include "Components/ChildActorComponent.h"
-#include "SubobjectData.h"
 #include "Engine/SCS_Node.h"		// #TODO_BH  We need to remove this when the actual subobject refactor happens
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 TSharedPtr<FSubobjectData> FChildSubobjectDataFactory::CreateSubobjectData(const FCreateSubobjectParams& Params)
 {

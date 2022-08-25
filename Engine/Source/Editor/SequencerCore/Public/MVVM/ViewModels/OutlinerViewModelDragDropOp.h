@@ -2,12 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "GraphEditorDragDropAction.h"
-
-#include "MVVM/ViewModelPtr.h"
+#include "Input/DragAndDrop.h"
+#include "Internationalization/Text.h"
 #include "MVVM/Extensions/IDraggableOutlinerExtension.h"
 #include "MVVM/Extensions/IDraggableTrackAreaExtension.h" // for IDragOperation
+#include "MVVM/ViewModelPtr.h"
+#include "Misc/FrameNumber.h"
+#include "Templates/SharedPointer.h"
+
+struct FSlateBrush;
 
 namespace UE
 {

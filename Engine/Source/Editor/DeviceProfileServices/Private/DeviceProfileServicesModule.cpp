@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "IDeviceProfileServicesModule.h"
 #include "DeviceProfileServicesUIManager.h"
+#include "HAL/PlatformCrt.h"
+#include "IDeviceProfileServicesModule.h"
+#include "IDeviceProfileServicesUIManager.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
 
 /**

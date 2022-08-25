@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FCurveEditor;
-class IDetailsView;
-class UCurveEditorFilterBase;
-class SWindow;
 class FTabManager;
+class IDetailsView;
+class SWindow;
+class UClass;
+class UCurveEditorFilterBase;
 
 class CURVEEDITOR_API SCurveEditorFilterPanel : public SCompoundWidget
 {

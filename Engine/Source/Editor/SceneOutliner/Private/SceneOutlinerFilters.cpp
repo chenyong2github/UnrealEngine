@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneOutlinerFilters.h"
+
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/UnrealNames.h"
 
 void FSceneOutlinerFilterInfo::InitFilter(TSharedPtr<FSceneOutlinerFilters> InFilters)
 {

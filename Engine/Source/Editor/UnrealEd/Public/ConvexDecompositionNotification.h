@@ -6,6 +6,7 @@ ConvexDecompositionNotification.h: Defines the interface to update the ConvexDec
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 
 // To make the convex decomposition notification appear, you simply set 'IsActive' to true and assign

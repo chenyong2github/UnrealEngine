@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Curves/CurveOwnerInterface.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Curves/RichCurve.h"
 #include "Engine/CurveTable.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UObject;
+struct FRealCurve;
 
 /**
  * Handle to a particular row in a table, used for editing individual curves

@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/CameraCutTrackModel.h"
+
+#include "MovieSceneTrack.h"
+#include "Templates/Casts.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 
 namespace UE

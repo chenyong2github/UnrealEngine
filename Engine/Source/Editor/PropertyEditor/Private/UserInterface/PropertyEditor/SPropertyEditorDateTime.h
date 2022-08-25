@@ -1,14 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Widgets/SWidget.h"
+#include "Misc/Attribute.h"
+#include "SPropertyEditorDateTime.h"
 #include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Presentation/PropertyEditor/PropertyEditor.h"
-#include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
+
+class FText;
 
 class SPropertyEditorDateTime : public SCompoundWidget
 {

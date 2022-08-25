@@ -1,11 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_InputVectorAxisEvent.h"
-#include "Kismet2/CompilerResultsLog.h"
+
+#include "BlueprintActionDatabaseRegistrar.h"
 #include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Engine/DynamicBlueprintBinding.h"
 #include "Engine/InputAxisKeyDelegateBinding.h"
 #include "Engine/InputVectorAxisDelegateBinding.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "K2Node_Event.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectVersion.h"
 
 UK2Node_InputVectorAxisEvent::UK2Node_InputVectorAxisEvent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)

@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "MVVM/ViewModelPtr.h"
-#include "MVVM/ICastable.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/ICastable.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/ViewModelTypeID.h"
 
 namespace UE
 {
