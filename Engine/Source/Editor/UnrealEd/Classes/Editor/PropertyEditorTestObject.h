@@ -708,6 +708,12 @@ class UPropertyEditorTestObject : public UObject
 	FString FixedArrayWithEditCondition[5];
 
 	UPROPERTY(EditAnywhere, Category=EditCondition)
+	bool bEditConditionForDirectoryPath;
+
+	UPROPERTY(EditAnywhere, Category=EditCondition, meta=(EditCondition="bEditConditionForDirectoryPath"))
+	FDirectoryPath DirectoryPath;
+
+	UPROPERTY(EditAnywhere, Category=EditCondition)
 	int64 EditConditionFlags;
 
 	UPROPERTY(EditAnywhere, Category=EditCondition, meta=(EditCondition="EditConditionFlags & ETestEnumFlags::Two || EditConditionFlags & ETestEnumFlags::Four"))
