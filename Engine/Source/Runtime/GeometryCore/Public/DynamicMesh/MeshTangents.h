@@ -250,6 +250,32 @@ public:
 	 */
 	bool CopyToOverlays(FDynamicMesh3& MeshToSet) const;
 
+
+
+	/**
+	 * Convenience function to compute tangents from the mesh attribute set's primary UVs and normals
+	 * @return true if tangents were computed, false otherwise
+	 */
+	static bool ComputeDefaultOverlayTangents(FDynamicMesh3& Mesh)
+	{
+		const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
+		if (!Attributes)
+		{
+			return false;
+		}
+		const FDynamicMeshUVOverlay* UVOverlay = Attributes->PrimaryUV();
+		const FDynamicMeshNormalOverlay* NormalOverlay = Attributes->PrimaryNormals();
+		if (UVOverlay && NormalOverlay)
+		{
+			TMeshTangents Tangents;
+			Tangents.SetMesh(&Mesh);
+			Tangents.ComputeTriVertexTangents(NormalOverlay, UVOverlay, FComputeTangentsOptions());
+			Mesh.Attributes()->EnableTangents();
+			return Tangents.CopyToOverlays(Mesh);
+		}
+		return false;
+	}
+
 protected:
 	/**
 	 * Set the size of the Tangents array to Count, and optionally clear all values to (0,0,0)

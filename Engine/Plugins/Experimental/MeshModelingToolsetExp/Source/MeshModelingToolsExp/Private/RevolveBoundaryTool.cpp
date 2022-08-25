@@ -283,6 +283,7 @@ void URevolveBoundaryTool::OnShutdown(EToolShutdownType ShutdownType)
 	{
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
+			Preview->PreviewMesh->CalculateTangents();
 			GenerateAsset(Preview->Shutdown());
 		}
 		else

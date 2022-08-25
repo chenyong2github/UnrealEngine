@@ -224,6 +224,7 @@ void UDrawAndRevolveTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
+			Preview->PreviewMesh->CalculateTangents(); // Copy tangents from the PreviewMesh
 			GenerateAsset(Preview->Shutdown());
 		}
 		else

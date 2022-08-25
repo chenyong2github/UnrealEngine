@@ -24,6 +24,7 @@
 #include "SceneQueries/SceneSnappingManager.h"
 #include "ConstrainedDelaunay2.h"
 #include "Arrangement2d.h"
+#include "DynamicMesh/MeshTangents.h"
 
 #include "DynamicMeshEditor.h"
 
@@ -1116,6 +1117,7 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 		ResetPolygon();
 		return;
 	}
+	UE::Geometry::FMeshTangentsf::ComputeDefaultOverlayTangents(Mesh);
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("CreatePolygon", "Create Polygon"));
 

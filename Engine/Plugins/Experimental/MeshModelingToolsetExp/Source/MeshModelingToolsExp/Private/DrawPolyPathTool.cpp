@@ -18,6 +18,7 @@
 #include "Selection/ToolSelectionUtil.h"
 #include "Operations/ExtrudeMesh.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTangents.h"
 #include "MeshBoundaryLoops.h"
 #include "ToolDataVisualizer.h"
 
@@ -1012,6 +1013,7 @@ void UDrawPolyPathTool::EmitNewObject()
 	FVector3d Center = PathMesh.GetBounds().Center();
 	MeshTransform.Origin = MeshTransform.ToPlane(Center, 2);
 	MeshTransforms::WorldToFrameCoords(PathMesh, MeshTransform);
+	UE::Geometry::FMeshTangentsf::ComputeDefaultOverlayTangents(PathMesh);
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("CreatePolyPathTransactionName", "Create PolyPath"));
 
