@@ -9,7 +9,7 @@
 #include "Templates/RefCounting.h"
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingAudioSink.h"
-#include "IPixelStreamingInputChannel.h"
+#include "IPixelStreamingInputHandler.h"
 #include "PixelStreamingWebRTCIncludes.h"
 #include "IPixelStreamingStreamer.h"
 #include "IInputDeviceModule.h"
@@ -124,6 +124,14 @@ public:
 	virtual void RegisterMessage(Protocol::EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, Protocol::FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) = 0;
 
 	/**
+	 * @brief Find the function to be called whenever the specified message type is received.
+	 * 
+	 * @param MessageType The human readable identifier for the message
+	 * @return TFunction<void(FMemoryReader)> The function called when this message type is received.
+	 */
+	virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) = 0;
+
+	/**
 	 * Sets the target FPS for Externally Consumed video Tracks
 	 * @param InFPS new FPS for the ExternalVideoSource to output at. 
 	 */
@@ -181,12 +189,6 @@ public:
 	 * @param Func The lambda to execute with each streamer
 	 */
 	virtual void ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func) = 0;
-
-	/**
-	 * Register a lambda that returns a IInputDevice
-	 * @param InCreateInputeChannel - A lambda that will return input Channel
-	*/
-	virtual void RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel) = 0;
 
 	DECLARE_MULTICAST_DELEGATE(FOnProtocolUpdated);
 	FOnProtocolUpdated OnProtocolUpdated;

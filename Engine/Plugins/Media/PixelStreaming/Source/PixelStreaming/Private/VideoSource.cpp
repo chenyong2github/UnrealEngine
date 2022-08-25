@@ -26,13 +26,12 @@ namespace UE::PixelStreaming
 		static int32 FrameId = 1;
 
 		CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
-		const int64 TimestampUs = rtc::TimeMicros();
 
 		rtc::scoped_refptr<webrtc::VideoFrameBuffer> FrameBuffer = VideoInput->GetFrameBuffer();
 		check(FrameBuffer->width() != 0 && FrameBuffer->height() != 0);
 		webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder()
 									   .set_video_frame_buffer(FrameBuffer)
-									   .set_timestamp_us(TimestampUs)
+									   .set_timestamp_us(webrtc::Clock::GetRealTimeClock()->TimeInMicroseconds())
 									   .set_rotation(webrtc::VideoRotation::kVideoRotation_0)
 									   .set_id(FrameId++)
 									   .build();

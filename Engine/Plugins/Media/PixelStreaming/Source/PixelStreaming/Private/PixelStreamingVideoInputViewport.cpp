@@ -5,17 +5,16 @@
 #include "Utils.h"
 #include "PixelStreamingModule.h"
 #include "PixelStreamingPrivate.h"
-
 #include "PixelCaptureInputFrameRHI.h"
 #include "PixelCaptureBufferFormat.h"
 #include "PixelCaptureCapturerRHI.h"
 #include "PixelCaptureCapturerRHIToI420CPU.h"
 #include "PixelCaptureCapturerRHIToI420Compute.h"
-
 #include "UnrealClient.h"
 #include "Engine/GameViewportClient.h"
 #include "RenderingThread.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Slate/SceneViewport.h"
 
 namespace UE::PixelStreaming
 {

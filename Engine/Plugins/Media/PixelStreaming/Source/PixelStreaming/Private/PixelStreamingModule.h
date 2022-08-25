@@ -1,3 +1,4 @@
+
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
@@ -5,8 +6,6 @@
 #include "IPixelStreamingModule.h"
 #include "RHI.h"
 #include "Tickable.h"
-#include "PixelStreamingInputChannel.h"
-#include "StreamerInputChannels.h"
 #include "PixelStreamingProtocol.h"
 
 class UPixelStreamingInput;
@@ -42,6 +41,7 @@ namespace UE::PixelStreaming
 		virtual const Protocol::FPixelStreamingProtocol& GetProtocol() override;
 		
 		virtual void RegisterMessage(Protocol::EPixelStreamingMessageDirection MessageDirection, const FString& MessageType, Protocol::FPixelStreamingInputMessage Message, const TFunction<void(FMemoryReader)>& Handler) override;
+		virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) override;
 		// These are staying on the module at the moment as theres no way of the BPs knowing which streamer they are relevant to
 		virtual void AddInputComponent(UPixelStreamingInput* InInputComponent) override;
 		virtual void RemoveInputComponent(UPixelStreamingInput* InInputComponent) override;
@@ -54,20 +54,19 @@ namespace UE::PixelStreaming
 		virtual void ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func) override;
 		/** End IPixelStreamingModule implementation */
 
-		virtual void RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel) override;
-
 	private:
 		/** IModuleInterface implementation */
 		void StartupModule() override;
 		void ShutdownModule() override;
 		/** End IModuleInterface implementation */
 
+		/** IInputDeviceModule implementation */
+		virtual TSharedPtr<IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
+		/** End IInputDeviceModule implementation */
+
 		// Own methods
 		void InitDefaultStreamer();
 		bool IsPlatformCompatible() const;
-
-		virtual TSharedPtr<IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
-
 		void PopulateProtocol();
 
 	private:
@@ -81,6 +80,5 @@ namespace UE::PixelStreaming
 		mutable FCriticalSection StreamersCS;
 		TMap<FString, TSharedPtr<IPixelStreamingStreamer>> Streamers;
 		Protocol::FPixelStreamingProtocol MessageProtocol;
-		TSharedPtr<FStreamerInputChannels> StreamerInputChannels;
 	};
 } // namespace UE::PixelStreaming

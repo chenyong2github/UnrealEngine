@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PixelStreamingPlayerId.h"
+#include "PixelStreamingDataChannel.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/DelegateSignatureImpl.inl"
 #include "PixelStreamingDelegates.generated.h"
@@ -44,22 +45,22 @@ public:
 	 * A new connection has been made to the session.
 	 */
 	// BP Delegate
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FNewConnection, FString, PlayerId, bool, QualityController);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FNewConnection, FString, StreamerId, FString, PlayerId, bool, QualityController);
 	UPROPERTY(BlueprintAssignable, Category = "Pixel Streaming Delegates")
 	FNewConnection OnNewConnection;
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FNewConnectionNative, FString, bool);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FNewConnectionNative, FString, FPixelStreamingPlayerId, bool);
 	FNewConnectionNative OnNewConnectionNative;
 
 	/**
 	 * A connection to a player was lost.
 	 */
 	// BP Delegate
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FClosedConnection, FString, PlayerId, bool, WasQualityController);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FClosedConnection, FString, StreamerId, FString, PlayerId, bool, WasQualityController);
 	UPROPERTY(BlueprintAssignable, Category = "Pixel Streaming Delegates")
 	FClosedConnection OnClosedConnection;
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FClosedConnectionNative, FPixelStreamingPlayerId, bool);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FClosedConnectionNative, FString, FPixelStreamingPlayerId, bool);
 	FClosedConnectionNative OnClosedConnectionNative;
 
 	/**
@@ -67,32 +68,32 @@ public:
 	 * the app. This is an opportunity to reset the app.
 	 */
 	// BP Delegate
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAllConnectionsClosed);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAllConnectionsClosed, FString, StreamerId);
 	UPROPERTY(BlueprintAssignable, Category = "Pixel Streaming Delegates")
 	FAllConnectionsClosed OnAllConnectionsClosed;
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE(FAllConnectionsClosedNative);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FAllConnectionsClosedNative, FString);
 	FAllConnectionsClosedNative OnAllConnectionsClosedNative;
 
 	/**
 	 * The quality controlling peer has changed
 	 */
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_OneParam(FQualityControllerChanged, FPixelStreamingPlayerId);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FQualityControllerChanged, FString, FPixelStreamingPlayerId);
 	FQualityControllerChanged OnQualityControllerChangedNative;
 
 	/**
 	 * A new data channel has been opened
 	 */
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelOpen, FPixelStreamingPlayerId, webrtc::DataChannelInterface*);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FDataChannelOpen, FString, FPixelStreamingPlayerId, FPixelStreamingDataChannel*);
 	FDataChannelOpen OnDataChannelOpenNative;
 
 	/**
 	 * An existing data channel has been closed
 	 */
 	// C++ Delegate
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelClosed, FPixelStreamingPlayerId, webrtc::DataChannelInterface*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDataChannelClosed, FString, FPixelStreamingPlayerId);
 	FDataChannelClosed OnDataChannelClosedNative;
 
 	/**

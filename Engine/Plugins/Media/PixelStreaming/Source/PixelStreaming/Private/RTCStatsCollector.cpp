@@ -24,12 +24,12 @@ namespace UE::PixelStreaming
 		Add(PixelStreamingStatNames::FrameWidth, 0);
 		Add(PixelStreamingStatNames::FrameHeight, 0);
 		Add(PixelStreamingStatNames::HugeFramesSent, 0);
+		Add(PixelStreamingStatNames::AvgSendDelay, 0);
 
 		AddForCalculation(PixelStreamingStatNames::FramesSent);
 		AddForCalculation(PixelStreamingStatNames::BytesSent);
 		AddForCalculation(PixelStreamingStatNames::QPSum);
 		AddForCalculation(PixelStreamingStatNames::TotalEncodeTime);
-		AddForCalculation(PixelStreamingStatNames::TotalPacketSendDelay);
 		AddForCalculation(PixelStreamingStatNames::FramesEncoded);
 	}
 

@@ -10,8 +10,8 @@
 #include "Widgets/SWindow.h"
 #include "Templates/SharedPointer.h"
 #include "IPixelStreamingAudioSink.h"
-#include "IPixelStreamingInputChannel.h"
 #include "IPixelStreamingAudioInput.h"
+#include "IPixelStreamingInputHandler.h"
 
 class UTexture2D;
 
@@ -103,6 +103,12 @@ public:
 	virtual FString GetSignallingServerURL() = 0;
 
 	/**
+	 * @brief Get this streamer's ID
+	 * 
+	 */
+	virtual FString GetId() = 0;
+
+	/**
 	 * @return True if the streamer is connected to the signalling mechanism (e.g. websocket for signalling server).
 	 */
 	virtual bool IsSignallingConnected() = 0;
@@ -192,16 +198,16 @@ public:
 	// virtual bool IsQualityController(FPixelStreamingPlayerId PlayerId) = 0;
 
 	/**
-	 * @brief Set the streamer's input device
-	 * @param InInputChannel
+	 * @brief Set the streamer's input handler
+	 * @param InInputHandler
 	 */
-	virtual void SetInputChannel(TSharedPtr<IPixelStreamingInputChannel> InInputChannel) = 0;
+	virtual void SetInputHandler(TSharedPtr<IPixelStreamingInputHandler> InInputHandler) = 0;
 
 	/**
-	 * @brief Get the streamer's input device
-	 * @return The streamer's input device
+	 * @brief Get the streamer's input handler
+	 * @return The streamer's input handler
 	 */
-	virtual TWeakPtr<IPixelStreamingInputChannel> GetInputChannel() = 0;
+	virtual TWeakPtr<IPixelStreamingInputHandler> GetInputHandler() = 0;
 
 	/**
 	 * @brief Get the audio sink associated with a specific peer/player.

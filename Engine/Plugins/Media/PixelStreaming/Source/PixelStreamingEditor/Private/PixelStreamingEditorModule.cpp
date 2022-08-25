@@ -1,24 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingEditorModule.h"
-#include "SLevelViewport.h"
-#include "Slate/SceneViewport.h"
-#include "LevelEditorViewport.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "PixelStreamingToolbar.h"
-#include "PixelStreamingVideoInputViewport.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingStyle.h"
 #include "IPixelStreamingStreamer.h"
-#include "Math/Vector4.h"
-#include "Math/Matrix.h"
-#include "Math/TransformNonVectorized.h"
-#include "Serialization/MemoryReader.h"
-#include "PixelStreamingPlayerId.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "PixelStreamingVideoInputBackBuffer.h"
 #include "PixelStreamingVideoInputBackBufferComposited.h"
 #include "Settings.h"
+#include "UnrealEngine.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "PixelStreamingProtocol.h"
+#include "Utils.h"
 
 UE::PixelStreaming::FPixelStreamingEditorModule* UE::PixelStreaming::FPixelStreamingEditorModule::PixelStreamingEditorModule = nullptr;
 
@@ -42,7 +35,7 @@ namespace UE::PixelStreaming
 		Settings::Editor::InitialiseSettings();
 		
 		IPixelStreamingModule& Module = IPixelStreamingModule::Get();
-		Module.OnReady().AddRaw(this, &FPixelStreamingEditorModule::InitEditorStreamer);
+		Module.OnReady().AddRaw(this, &FPixelStreamingEditorModule::InitEditorStreaming);
 	}
 
 	void FPixelStreamingEditorModule::ShutdownModule()
@@ -50,13 +43,56 @@ namespace UE::PixelStreaming
 		StopStreaming();
 	}
 
-	void FPixelStreamingEditorModule::InitEditorStreamer(IPixelStreamingModule& Module)
+	void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Module)
 	{
 		TSharedPtr<IPixelStreamingStreamer> Streamer = Module.GetStreamer(Module.GetDefaultStreamerID());
 		if (!Streamer.IsValid())
 		{
 			return;
 		}
+
+		// The current handler is the function that will currently be executed if a message with type "Command" is received
+		TFunction<void(FMemoryReader)> CurrentHandler = Module.FindMessageHandler("Command");
+		TFunction<void(FMemoryReader)> ExtendedHandler = [this, CurrentHandler](FMemoryReader Ar)
+		{
+			// We then create our new handler which will execute the "base" handler
+			CurrentHandler(Ar);
+			// and then perform out extended functionality after.
+			// equivalent to the super::DoSomeFunc pattern
+			FString Res;
+			Res.GetCharArray().SetNumUninitialized(Ar.TotalSize() / 2 + 1);
+			Ar.Serialize(Res.GetCharArray().GetData(), Ar.TotalSize());
+			FString Descriptor = Res.Mid(1);
+			FString WidthString;
+			FString HeightString;
+			bool bSuccess;
+			UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Width"), WidthString, bSuccess);
+			if (bSuccess)
+			{
+				UE::PixelStreaming::ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+				if (bSuccess)
+				{
+					int Width = FCString::Atoi(*WidthString);
+					int Height = FCString::Atoi(*HeightString);
+					if (Width < 1 || Height < 1)
+					{
+						return;
+					}
+
+					TSharedPtr<SWindow> ParentWindow = IMainFrameModule::Get().GetParentWindow();
+					ParentWindow->Resize(FVector2D(Width, Height));
+					FSlateApplication::Get().OnSizeChanged(ParentWindow->GetNativeWindow().ToSharedRef(), Width, Height);
+				}
+			}
+		};
+		Module.RegisterMessage( Protocol::EPixelStreamingMessageDirection::ToStreamer, 
+								"Command", 
+								Protocol::FPixelStreamingInputMessage(51, 0, {}),
+								[ExtendedHandler](FMemoryReader Ar) {
+									ExtendedHandler(Ar);
+								});
+
+
 
 		Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
 		// Give the editor streamer the default url if the user hasn't specified one when launching the editor
@@ -65,10 +101,16 @@ namespace UE::PixelStreaming
 			Streamer->SetSignallingServerURL(Module.GetDefaultSignallingURL());
 		}
 
-		if(Settings::Editor::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
+
+		IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsNewProjectWindow)
 		{
-			StartStreaming();
-		}
+			MaybeResizeEditor(RootWindow);
+
+			if(Settings::Editor::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
+			{
+				StartStreaming();
+			}
+		});
 	}
 
 	void FPixelStreamingEditorModule::StartStreaming()
@@ -111,6 +153,78 @@ namespace UE::PixelStreaming
 			PixelStreamingEditorModule = Module;
 		}
 		return PixelStreamingEditorModule;
+	}
+
+	bool FPixelStreamingEditorModule::ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY)
+	{
+		if(*InResolution)
+		{
+			FString CmdString(InResolution);
+			CmdString = CmdString.TrimStartAndEnd().ToLower();
+
+			// Retrieve the X dimensional value
+			const uint32 X = FMath::Max(FCString::Atof(*CmdString), 0.0f);
+
+			// Determine whether the user has entered a resolution and extract the Y dimension.
+			FString YString;
+
+			// Find separator between values (Example of expected format: 1280x768)
+			const TCHAR* YValue = NULL;
+			if(FCString::Strchr(*CmdString,'x'))
+			{
+				YValue = const_cast<TCHAR*> (FCString::Strchr(*CmdString,'x')+1);
+				YString = YValue;
+				// Remove any whitespace from the end of the string
+				YString = YString.TrimStartAndEnd();
+			}
+
+			// If the Y dimensional value exists then setup to use the specified resolution.
+			uint32 Y = 0;
+			if ( YValue && YString.Len() > 0 )
+			{
+				if (YString.IsNumeric())
+				{
+					Y = FMath::Max(FCString::Atof(YValue), 0.0f);
+					OutX = X;
+					OutY = Y;
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	void FPixelStreamingEditorModule::MaybeResizeEditor(TSharedPtr<SWindow> RootWindow)
+	{
+		uint32 ResolutionX, ResolutionY = 0;
+		FString ResolutionStr;
+		bool bSuccess = FParse::Value(FCommandLine::Get(), TEXT("EditorPixelStreamingRes="), ResolutionStr);
+		if (bSuccess)
+		{
+			bSuccess = ParseResolution(*ResolutionStr, ResolutionX, ResolutionY);
+		}
+		else
+		{
+			bool UserSpecifiedWidth = FParse::Value(FCommandLine::Get(), TEXT("EditorPixelStreamingResX="), ResolutionX);
+			bool UserSpecifiedHeight = FParse::Value(FCommandLine::Get(), TEXT("EditorPixelStreamingResY="), ResolutionY);
+			bSuccess = UserSpecifiedWidth | UserSpecifiedHeight;
+
+			const float AspectRatio = 16.0 / 9.0;
+			if (UserSpecifiedWidth && !UserSpecifiedHeight)
+			{
+				ResolutionY = int32(ResolutionX / AspectRatio);
+			}
+			else if (UserSpecifiedHeight && !UserSpecifiedWidth)
+			{
+				ResolutionX = int32(ResolutionY * AspectRatio);
+			}
+		}
+
+		if(bSuccess)
+		{
+			RootWindow->Resize(FVector2D(ResolutionX, ResolutionY));
+			FSlateApplication::Get().OnSizeChanged(RootWindow->GetNativeWindow().ToSharedRef(), ResolutionX, ResolutionY);
+		}
 	}
 } // namespace UE::PixelStreaming
 

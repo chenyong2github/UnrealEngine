@@ -6,7 +6,6 @@
 #include "PixelStreamingVideoInputBackBuffer.h"
 #include "WebRTCIncludes.h"
 #include "IPixelStreamingModule.h"
-#include "StreamerInputChannels.h"
 #include "IPixelStreamingStreamer.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

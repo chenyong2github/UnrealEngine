@@ -2,7 +2,6 @@
 
 #include "PixelStreamingModule.h"
 #include "Streamer.h"
-#include "PixelStreamingInputChannel.h"
 #include "PixelStreamingInputComponent.h"
 #include "PixelStreamingDelegates.h"
 #include "PixelStreamingSignallingConnection.h"
@@ -57,6 +56,9 @@ THIRD_PARTY_INCLUDES_END
 #include "VideoSourceGroup.h"
 #include "PixelStreamingPeerConnection.h"
 #include "Engine/GameEngine.h"
+#include "PixelStreamingApplicationWrapper.h"
+#include "PixelStreamingInputHandler.h"
+#include "InputHandlers.h"
 
 DEFINE_LOG_CATEGORY(LogPixelStreaming);
 
@@ -86,7 +88,6 @@ namespace UE::PixelStreaming
 
 		const ERHIInterfaceType RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
 
-		StreamerInputChannels = MakeShared<FStreamerInputChannels>(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 		PopulateProtocol();
 		
@@ -136,8 +137,8 @@ namespace UE::PixelStreaming
 
 		// ExternalVideoSourceGroup is used so that we can have a video source without a streamer
 		ExternalVideoSourceGroup = FVideoSourceGroup::Create();
-		ExternalVideoSourceGroup->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
-		ExternalVideoSourceGroup->Start();
+		// ExternalVideoSourceGroup->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
+		// ExternalVideoSourceGroup->Start();
 
 		bStartupCompleted = true;
 	}
@@ -149,8 +150,6 @@ namespace UE::PixelStreaming
 			return;
 		}
 
-		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
-
 		// We explicitly call release on streamer so WebRTC gets shutdown before our module is deleted
 		Streamers.Empty();
 		ExternalVideoSourceGroup->Stop();
@@ -158,7 +157,6 @@ namespace UE::PixelStreaming
 		FPixelStreamingPeerConnection::Shutdown();
 
 		rtc::CleanupSSL();
-
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 
 		bStartupCompleted = false;
@@ -208,34 +206,30 @@ namespace UE::PixelStreaming
 	bool FPixelStreamingModule::StartStreaming()
 	{
 		bool bSuccess = true;
-		TMap<FString, TSharedPtr<IPixelStreamingStreamer>>::TIterator Iter = Streamers.CreateIterator();
-		for (; Iter; ++Iter)
+		ForEachStreamer([&bSuccess](TSharedPtr<IPixelStreamingStreamer> Streamer)
 		{
-			TSharedPtr<IPixelStreamingStreamer> Streamer = Iter.Value();
-
 			if (Streamer.IsValid())
 			{
 				Streamer->StartStreaming();
 				bSuccess &= true;
-				continue;
 			}
-			bSuccess &= false;
-		}
+			else
+			{
+				bSuccess = false;
+			}
+		});
 		return bSuccess;
 	}
 
 	void FPixelStreamingModule::StopStreaming()
 	{
-		TMap<FString, TSharedPtr<IPixelStreamingStreamer>>::TIterator Iter = Streamers.CreateIterator();
-		for (; Iter; ++Iter)
+		ForEachStreamer([this](TSharedPtr<IPixelStreamingStreamer> Streamer)
 		{
-			TSharedPtr<IPixelStreamingStreamer> Streamer = Iter.Value();
-
 			if (Streamer.IsValid())
 			{
 				Streamer->StopStreaming();
 			}
-		}
+		});
 	}
 
 	TSharedPtr<IPixelStreamingStreamer> FPixelStreamingModule::CreateStreamer(const FString& StreamerId)
@@ -251,7 +245,6 @@ namespace UE::PixelStreaming
 			FScopeLock Lock(&StreamersCS);
 			Streamers.Add(StreamerId, NewStreamer);
 		}
-		NewStreamer->SetInputChannel(StreamerInputChannels->CreateInputChannel());
 
 		return NewStreamer;
 	}
@@ -359,11 +352,11 @@ namespace UE::PixelStreaming
 			MessageProtocol.ToStreamerProtocol.Add(MessageType, Message);
 			ForEachStreamer([&Handler = Handler, &MessageType = MessageType](TSharedPtr<IPixelStreamingStreamer> Streamer)
 			{
-				TWeakPtr<IPixelStreamingInputChannel> WeakChannel = Streamer->GetInputChannel();
-				TSharedPtr<IPixelStreamingInputChannel> Channel = WeakChannel.Pin();
-				if (Channel)
+				TWeakPtr<IPixelStreamingInputHandler> WeakInputHandler = Streamer->GetInputHandler();
+				TSharedPtr<IPixelStreamingInputHandler> InputHandler = WeakInputHandler.Pin();
+				if (InputHandler)
 				{
-					Channel->RegisterHandler(MessageType, Handler);
+					InputHandler->RegisterMessageHandler(MessageType, Handler);
 				}
 			});
 		}
@@ -372,6 +365,19 @@ namespace UE::PixelStreaming
 			MessageProtocol.FromStreamerProtocol.Add(MessageType, Message);
 		}
 		OnProtocolUpdated.Broadcast();
+	}
+
+	TFunction<void(FMemoryReader)> FPixelStreamingModule::FindMessageHandler(const FString& MessageType)
+	{
+		// All streamers have the same protocol so we just use the first streamers input channel to get the message handler
+		TSharedPtr<IPixelStreamingStreamer> Streamer = Streamers.begin()->Value;
+		TWeakPtr<IPixelStreamingInputHandler> WeakInputHandler = Streamer->GetInputHandler();
+		if (TSharedPtr<IPixelStreamingInputHandler> InputHandler = WeakInputHandler.Pin())
+		{
+			return InputHandler->FindMessageHandler(MessageType);
+		}
+		// If the channel doesn't exist, just return an empty function
+		return ([](FMemoryReader Ar) {});
 	}
 
 	/**
@@ -450,20 +456,13 @@ namespace UE::PixelStreaming
 
 		return bCompatible;
 	}
-
 	/**
 	 * End own methods
 	 */
 
 	TSharedPtr<IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	{
-		return StreamerInputChannels;
-	}
-
-	void FPixelStreamingModule::RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel)
-	{
-		checkf(StreamerInputChannels, TEXT("StreamerInputChannels does not exist yet"));
-		StreamerInputChannels->OverrideInputChannel(InCreateInputChannel);
+		return MakeShared<FInputHandlers>(InMessageHandler);
 	}
 
 	void FPixelStreamingModule::PopulateProtocol()

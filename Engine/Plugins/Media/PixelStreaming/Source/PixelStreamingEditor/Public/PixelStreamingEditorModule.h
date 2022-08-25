@@ -18,7 +18,9 @@ namespace UE::PixelStreaming
         
         static FPixelStreamingEditorModule* GetModule();
     private:
-        void InitEditorStreamer(IPixelStreamingModule& Module);
+        void InitEditorStreaming(IPixelStreamingModule& Module);
+        bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY);
+        void MaybeResizeEditor(TSharedPtr<SWindow> RootWindow);
 
         TSharedPtr<class FPixelStreamingToolbar> Toolbar;
 

@@ -28,6 +28,8 @@
 #include "PixelStreamingModule.h"
 #include "PixelStreamingProtocol.h"
 #include "IPixelStreamingModule.h"
+#include "PixelStreamingApplicationWrapper.h"
+#include "PixelStreamingInputHandler.h"
 #include "PixelCaptureBufferFormat.h"
 #include "PixelCaptureOutputFrameRHI.h"
 #include "PixelCaptureInputFrameRHI.h"
@@ -48,6 +50,9 @@ namespace UE::PixelStreaming
 		SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, *this, InStreamerId);
 		SignallingServerConnection->SetAutoReconnect(true);
 
+		TSharedPtr<FPixelStreamingApplicationWrapper> PixelStreamerApplicationWrapper = MakeShareable(new FPixelStreamingApplicationWrapper(FSlateApplication::Get().GetPlatformApplication()));
+		TSharedPtr<FGenericApplicationMessageHandler> BaseHandler = FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler();
+		InputHandler = MakeShared<FPixelStreamingInputHandler>(PixelStreamerApplicationWrapper, BaseHandler);
 		Module.OnProtocolUpdated.AddRaw(this, &FStreamer::OnProtocolUpdated);
 	}
 
@@ -112,32 +117,32 @@ namespace UE::PixelStreaming
 
 	void FStreamer::SetTargetViewport(TWeakPtr<SViewport> InTargetViewport)
 	{
-		InputChannel->SetTargetViewport(InTargetViewport);
+		InputHandler->SetTargetViewport(InTargetViewport);
 	}
 
 	TWeakPtr<SViewport> FStreamer::GetTargetViewport()
 	{
-		return InputChannel ? InputChannel->GetTargetViewport() : nullptr;
+		return InputHandler ? InputHandler->GetTargetViewport() : nullptr;
 	}
 
 	void FStreamer::SetTargetWindow(TWeakPtr<SWindow> InTargetWindow)
 	{
-		InputChannel->SetTargetWindow(InTargetWindow);
+		InputHandler->SetTargetWindow(InTargetWindow);
 	}
 
 	TWeakPtr<SWindow> FStreamer::GetTargetWindow()
 	{
-		return InputChannel->GetTargetWindow();
+		return InputHandler->GetTargetWindow();
 	}
 
 	void FStreamer::SetTargetScreenSize(TWeakPtr<FIntPoint> InTargetScreenSize)
 	{
-		InputChannel->SetTargetScreenSize(InTargetScreenSize);
+		InputHandler->SetTargetScreenSize(InTargetScreenSize);
 	}
 
 	TWeakPtr<FIntPoint> FStreamer::GetTargetScreenSize()
 	{
-		return InputChannel->GetTargetScreenSize();
+		return InputHandler->GetTargetScreenSize();
 	}
 
 	void FStreamer::SetSignallingServerURL(const FString& InSignallingServerURL)
@@ -168,6 +173,7 @@ namespace UE::PixelStreaming
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
 			ConsumeStatsHandle = Delegates->OnStatChangedNative.AddSP(AsShared(), &FStreamer::ConsumeStats);
+			AllConnectionsClosedHandle = Delegates->OnAllConnectionsClosedNative.AddSP(AsShared(), &FStreamer::TriggerMouseLeave);
 		}
 
 		VideoSourceGroup->Start();
@@ -180,10 +186,12 @@ namespace UE::PixelStreaming
 		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
 			Delegates->OnStatChangedNative.Remove(ConsumeStatsHandle);
+			Delegates->OnAllConnectionsClosedNative.Remove(AllConnectionsClosedHandle);
 		}
 
 		SignallingServerConnection->Disconnect();
 		VideoSourceGroup->Stop();
+		TriggerMouseLeave(StreamerId);
 
 		if (bStreamingStarted)
 		{
@@ -344,8 +352,8 @@ namespace UE::PixelStreaming
 
 	void FStreamer::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
 	{
-		checkf(InputChannel.IsValid(), TEXT("No Input Device available when populating Player Config"));
-		JsonObject->SetBoolField(TEXT("FakingTouchEvents"), InputChannel->IsFakingTouchEvents());
+		checkf(InputHandler.IsValid(), TEXT("No Input Device available when populating Player Config"));
+		JsonObject->SetBoolField(TEXT("FakingTouchEvents"), InputHandler->IsFakingTouchEvents());
 		FString PixelStreamingControlScheme;
 		if (Settings::GetControlScheme(PixelStreamingControlScheme))
 		{
@@ -389,6 +397,12 @@ namespace UE::PixelStreaming
 				else
 				{
 					SetQualityController(PlayerId);
+				}
+
+				if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+				{
+					Delegates->OnNewConnection.Broadcast(StreamerId, PlayerId, !PlayerContext->Config.IsSFU);
+					Delegates->OnNewConnectionNative.Broadcast(StreamerId, PlayerId, !PlayerContext->Config.IsSFU);
 				}
 
 				return true;
@@ -637,7 +651,8 @@ namespace UE::PixelStreaming
 			SFUPlayerId = INVALID_PLAYER_ID;
 		}
 
-		if (PlayerId == QualityControllingId)
+		bool bWasQualityController = PlayerId == QualityControllingId;
+		if (bWasQualityController)
 		{
 			SetQualityController(INVALID_PLAYER_ID);
 
@@ -658,6 +673,17 @@ namespace UE::PixelStreaming
 		if (FStats* Stats = FStats::Get())
 		{
 			Stats->RemovePeerStats(PlayerId);
+		}
+
+		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		{
+			Delegates->OnClosedConnection.Broadcast(StreamerId, PlayerId, bWasQualityController);
+			Delegates->OnClosedConnectionNative.Broadcast(StreamerId, PlayerId, bWasQualityController);
+			if(Players.IsEmpty())
+			{
+				Delegates->OnAllConnectionsClosed.Broadcast(StreamerId);
+				Delegates->OnAllConnectionsClosedNative.Broadcast(StreamerId);
+			}
 		}
 	}
 
@@ -708,6 +734,12 @@ namespace UE::PixelStreaming
 			InputControllingId = PlayerId;
 		}
 
+		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		{
+			FPlayerContext* PlayerContext = Players.Find(PlayerId);
+			Delegates->OnDataChannelOpenNative.Broadcast(StreamerId, PlayerId, PlayerContext->DataChannel.Get());
+		}
+
 		// When data channel is open
 		SendProtocol(PlayerId);
 		// Try to send cached freeze frame (if we have one)
@@ -738,6 +770,11 @@ namespace UE::PixelStreaming
 					return false;
 				});
 			}
+
+		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		{
+			Delegates->OnDataChannelClosedNative.Broadcast(StreamerId, PlayerId);
+		}
 		}
 	}
 
@@ -787,9 +824,9 @@ namespace UE::PixelStreaming
 			TArray<uint8> MessageData(RawBuffer.data.data(), RawBuffer.data.size());
 			OnInputReceived.Broadcast(PlayerId, Type, MessageData);
 
-			if (InputChannel)
+			if (InputHandler)
 			{
-				InputChannel->OnMessage(RawBuffer);
+				InputHandler->OnMessage(RawBuffer);
 			}
 		}
 	}
@@ -955,7 +992,7 @@ namespace UE::PixelStreaming
 				{
 					// bool QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutStatValue)
 					Stats->QueryPeerStat(PlayerId, PixelStreamingStatNames::MeanEncodeTime, EncodeMs);
-					Stats->QueryPeerStat(PlayerId, PixelStreamingStatNames::MeanSendDelay, CaptureToSendMs);
+					Stats->QueryPeerStat(PlayerId, PixelStreamingStatNames::AvgSendDelay, CaptureToSendMs);
 				}
 
 				double TransmissionTimeMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
@@ -1053,5 +1090,21 @@ namespace UE::PixelStreaming
 				PlayerContext.DataChannel->SendMessage(Module.GetProtocol().FromStreamerProtocol.Find("QualityControlOwnership")->Id, IsController);
 			}
 		});
+		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		{
+			Delegates->OnQualityControllerChangedNative.Broadcast(StreamerId, QualityControllingId);
+		}
+	}
+
+	void FStreamer::TriggerMouseLeave(FString InStreamerId)
+	{
+		if (!IsEngineExitRequested() && StreamerId == InStreamerId)
+		{	
+			// Force a MouseLeave event. This prevents the PixelStreamingApplicationWrapper from
+			// still wrapping the base FSlateApplication after we stop streaming
+			TArray<uint8> EmptyArray;
+			TFunction<void(FMemoryReader)> MouseLeaveHandler = IPixelStreamingModule::Get().FindMessageHandler("MouseLeave");
+			MouseLeaveHandler(FMemoryReader(EmptyArray));
+		}
 	}
 } // namespace UE::PixelStreaming

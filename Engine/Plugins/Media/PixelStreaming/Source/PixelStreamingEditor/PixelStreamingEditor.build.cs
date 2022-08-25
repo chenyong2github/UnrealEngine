@@ -13,8 +13,11 @@ namespace UnrealBuildTool.Rules
 		{
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
-			PublicDependencyModuleNames.AddRange(new string[] {});
+			// NOTE: General rule is not to access the private folder of another module
+			PrivateIncludePaths.AddRange(new string[]
+			{
+				Path.Combine(EngineDir, "Plugins/Media/PixelStreaming/Source/PixelStreaming/Private")
+			});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
@@ -29,7 +32,8 @@ namespace UnrealBuildTool.Rules
 				"Slate",
 				"SlateCore",
 				"EngineSettings",
-				"InputCore"
+				"InputCore",
+				"Json"
 			});
 
 			if(Target.bBuildEditor)
@@ -40,7 +44,8 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
 					"EditorStyle",
 					"DesktopPlatform",
-					"LevelEditor"
+					"LevelEditor",
+					"MainFrame"
 				});
 			}
 		}

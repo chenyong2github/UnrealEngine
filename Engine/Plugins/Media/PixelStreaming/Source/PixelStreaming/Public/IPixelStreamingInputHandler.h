@@ -11,12 +11,11 @@
 #include "Serialization/MemoryReader.h"
 
 /**
- * IPixelStreamingInputChannel extends the IInputDevice interface and routes input messages to it's message handler,
- * whilst handling application specifics in its wrapped application. Setting the target viewport allows for
+ * IPixelStreamingInputHandler extends the IInputDevice interface. Setting the target viewport allows for
  * scaling of input from browser to application, and setting the target window ensure that if windows are tiled (eg editor)
  * that the streamed input only affect the target window.
  */
-class PIXELSTREAMING_API IPixelStreamingInputChannel : public IInputDevice
+class PIXELSTREAMING_API IPixelStreamingInputHandler : public IInputDevice
 {
 public:
 	/**
@@ -75,10 +74,14 @@ public:
 	 * @param MessageType The human readable identifier for the message
 	 * @param Handler The function called when this message type is received. This handler must take a single parameter (an FMemoryReader) and have a return type of void
 	 */
-	virtual void RegisterHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler) = 0;
+	virtual void RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler) = 0;
 
-    /**
-	 * @brief Convinient typedef for a TFunction that Creates an Input device and is passed into the IPixelStreamingStreamer.
+
+	/**
+	 * @brief Find the function to be called whenever the specified message type is received.
+	 * 
+	 * @param MessageType The human readable identifier for the message
+	 * @return TFunction<void(FMemoryReader)> The function called when this message type is received.
 	 */
-	typedef TFunction<TSharedPtr<IPixelStreamingInputChannel>(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)> FCreateInputChannelFunc;
+	virtual TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType) = 0;
 };

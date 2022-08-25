@@ -9,17 +9,33 @@
 #include "IPixelStreamingModule.h"
 #include "InputCoreTypes.h"
 #include "PixelStreamingApplicationWrapper.h"
+#include "IPixelStreamingInputHandler.h"
 
 namespace UE::PixelStreaming
 {
-	class FPixelStreamingMessageHandler
+	class FPixelStreamingInputHandler : public IPixelStreamingInputHandler
 	{
 	public:
-		FPixelStreamingMessageHandler(TSharedPtr<FPixelStreamingApplicationWrapper> InApplicationWrapper, const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler);
+		FPixelStreamingInputHandler(TSharedPtr<FPixelStreamingApplicationWrapper> InApplicationWrapper, const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler);
 
-		virtual ~FPixelStreamingMessageHandler();
+		virtual ~FPixelStreamingInputHandler();
 
-		void Tick(const float InDeltaTime);
+		virtual void Tick(float DeltaTime) override;
+
+		/** Poll for controller state and send events if needed */
+		virtual void SendControllerEvents() override {};
+
+		/** Set which MessageHandler will route input  */
+		virtual void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InTargetHandler) override;
+
+		/** Exec handler to allow console commands to be passed through for debugging */
+		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+		/**
+		 * IForceFeedbackSystem pass through functions
+		 */
+		virtual void SetChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
+
+		virtual void SetChannelValues(int32 ControllerId, const FForceFeedbackValues& values) override;
 
 		void OnMessage(const webrtc::DataBuffer& Buffer);
 
@@ -32,11 +48,10 @@ namespace UE::PixelStreaming
 		void SetTargetScreenSize(TWeakPtr<FIntPoint> InScreenSize);
 		TWeakPtr<FIntPoint> GetTargetScreenSize();
 
-		void SetTargetHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler);
-
 		bool IsFakingTouchEvents() const { return bFakingTouchEvents; }
 
-        void RegisterHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler);
+        void RegisterMessageHandler(const FString& MessageType, const TFunction<void(FMemoryReader)>& Handler);
+		TFunction<void(FMemoryReader)> FindMessageHandler(const FString& MessageType);
 
     protected:
         /**

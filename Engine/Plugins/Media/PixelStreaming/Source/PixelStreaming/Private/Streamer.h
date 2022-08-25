@@ -8,7 +8,7 @@
 #include "VideoSourceGroup.h"
 #include "ThreadSafeMap.h"
 #include "Dom/JsonObject.h"
-#include "IPixelStreamingInputChannel.h"
+#include "IPixelStreamingInputHandler.h"
 #include "PixelStreamingSignallingConnection.h"
 #include "Templates/SharedPointer.h"
 
@@ -37,6 +37,7 @@ namespace UE::PixelStreaming
 
 		virtual void SetSignallingServerURL(const FString& InSignallingServerURL) override;
 		virtual FString GetSignallingServerURL() override;
+		virtual FString GetId() override { return StreamerId; };
 		virtual bool IsSignallingConnected() override;
 		virtual void StartStreaming() override;
 		virtual void StopStreaming() override;
@@ -55,8 +56,8 @@ namespace UE::PixelStreaming
 		virtual void SendFileData(const TArray64<uint8>& ByteData, FString& MimeType, FString& FileExtension) override;
 		virtual void KickPlayer(FPixelStreamingPlayerId PlayerId) override;
 
-		virtual void SetInputChannel(TSharedPtr<IPixelStreamingInputChannel> InInputChannel) override { InputChannel = InInputChannel; }
-		virtual TWeakPtr<IPixelStreamingInputChannel> GetInputChannel() override { return InputChannel; }
+		virtual void SetInputHandler(TSharedPtr<IPixelStreamingInputHandler> InInputHandler) override { InputHandler = InInputHandler; }
+		virtual TWeakPtr<IPixelStreamingInputHandler> GetInputHandler() override { return InputHandler; }
 
 		virtual IPixelStreamingAudioSink* GetPeerAudioSink(FPixelStreamingPlayerId PlayerId) override;
 		virtual IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
@@ -104,12 +105,13 @@ namespace UE::PixelStreaming
 		bool ShouldPeerGenerateFrames(FPixelStreamingPlayerId PlayerId) const;
 
 		void SetQualityController(FPixelStreamingPlayerId PlayerId);
+		void TriggerMouseLeave(FString InStreamerId);
 
 	private:
 		FString StreamerId;
 		FString CurrentSignallingServerURL;
 
-		TSharedPtr<IPixelStreamingInputChannel> InputChannel;
+		TSharedPtr<IPixelStreamingInputHandler> InputHandler;
 		TUniquePtr<FPixelStreamingSignallingConnection> SignallingServerConnection;
 		double LastSignallingServerConnectionAttemptTimestamp = 0;
 
@@ -143,6 +145,7 @@ namespace UE::PixelStreaming
 		TSharedPtr<FVideoSourceGroup> VideoSourceGroup;
 
 		FDelegateHandle ConsumeStatsHandle;
+		FDelegateHandle AllConnectionsClosedHandle;
 
 		IPixelStreamingModule& Module;
 	};
