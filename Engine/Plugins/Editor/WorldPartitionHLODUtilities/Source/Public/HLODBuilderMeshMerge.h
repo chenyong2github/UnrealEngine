@@ -30,7 +30,7 @@ class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshMergeSettings : public UHL
 /**
  * Build a merged mesh using geometry from the provided actors
  */
-UCLASS()
+UCLASS(HideDropdown)
 class WORLDPARTITIONHLODUTILITIES_API UHLODBuilderMeshMerge : public UHLODBuilder
 {
 	GENERATED_UCLASS_BODY()

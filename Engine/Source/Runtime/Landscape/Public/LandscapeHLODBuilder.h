@@ -7,7 +7,7 @@
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "LandscapeHLODBuilder.generated.h"
 
-UCLASS()
+UCLASS(HideDropdown)
 class LANDSCAPE_API ULandscapeHLODBuilder : public UHLODBuilder
 {
 	GENERATED_UCLASS_BODY()

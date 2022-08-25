@@ -7,7 +7,7 @@
 #include "WorldPartition/HLOD/HLODBuilder.h"
 #include "WaterBodyHLODBuilder.generated.h"
 
-UCLASS()
+UCLASS(HideDropdown)
 class UWaterBodyHLODBuilder : public UHLODBuilder
 {
 	GENERATED_UCLASS_BODY()
