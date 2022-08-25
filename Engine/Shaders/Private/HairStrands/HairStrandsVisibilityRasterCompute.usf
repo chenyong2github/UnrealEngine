@@ -32,21 +32,6 @@ float2	OutputResolutionf;
 #if SHADER_RASTERCOMPUTE_BINNING || SHADER_RASTERCOMPUTE_COMPACTION || SHADER_RASTERCOMPUTE_RASTER || SHADER_RASTERCOMPUTE_DEPTH_GRID
 
 ///////////////////////////////////////////////////////////////////////////
-// 
-// Wave size
-#if SHADER_RASTERCOMPUTE_DEPTH_GRID == 0
-
-#if PERMUTATION_GROUP_SIZE == 64
-#define WAVE_SIZE 32
-#elif PERMUTATION_GROUP_SIZE == 32
-#define WAVE_SIZE 32
-#else
-#error Unknown group size	
-#endif
-
-#endif //SHADER_RASTERCOMPUTE_DEPTH_GRID
-
-///////////////////////////////////////////////////////////////////////////
 
 /* 
 // use untyped buffer for segment tiles to reduce VGPR usage - 16 bytes
@@ -70,7 +55,7 @@ uint PackVisTileCoord(uint2 Coord)
 	return uint(((Coord.x & 0xff) << 0) | (((Coord.y) & 0xff) << 8));
 }
 
-uint2 UppackVisTileCoord(uint Packed)
+uint2 UnpackVisTileCoord(uint Packed)
 {
 	return uint2(((Packed >> 0) & 0xff), ((Packed >> 8) & 0xff));
 }
@@ -274,11 +259,17 @@ void PrepareDepthGridCS(uint dId : SV_DispatchThreadID, uint GroupThreadID : SV_
 
 #if SHADER_RASTERCOMPUTE_BINNING
 
+#ifndef PERMUTATION_INDIRECT_PRIM_IDS
+#define PERMUTATION_INDIRECT_PRIM_IDS 0
+#endif
+
 RWTexture2DArray<uint> 				OutVisTileBinningGrid;
-Texture2D<uint>						VisTileDepthGrid;
 RWBuffer<uint>						OutVisTilePrims;
 RWBuffer<uint>						OutVisTileArgs;
 RWByteAddressBuffer					OutVisTileData;
+Texture2D<uint>						VisTileDepthGrid;
+ByteAddressBuffer					IndirectPrimIDCount;
+Buffer<uint>						IndirectPrimIDs;
 
 // TODO: Without setting a limit, we are sometimes caught in an infinite loop even though this should not happen.
 #define DDA_MAX_ITERATIONS 256
@@ -329,6 +320,7 @@ void StoreOutVisTileData(uint index, uint offset, uint value)
 }
 
 groupshared uint group_LoopNum;
+groupshared uint group_VerticesNum;
 groupshared uint group_BatchNum;
 
 #define TILES_TO_ALLOCATE_MAX 1024
@@ -344,75 +336,68 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 	ResolvedView = ResolveView();
 	if (GroupThreadID == 0)
 	{
-#if PERMUTATION_CULLING	
-		if (HairStrandsVF_bIsCullingEnable)
-		{
-			group_BatchNum = (HairStrandsVF_CullingIndirectBuffer[3] + 1023) / 1024;
-		}
-		else
-		{
-			group_BatchNum = (VertexCount + 1023) / 1024;
-		}
-#else
-		group_BatchNum = (VertexCount + 1023) / 1024;
-#endif
-		
+#if PERMUTATION_INDIRECT_PRIM_IDS
+		group_VerticesNum = IndirectPrimIDCount.Load(0);
+#else // PERMUTATION_INDIRECT_PRIM_IDS
+	#if PERMUTATION_CULLING	
+		group_VerticesNum = HairStrandsVF_bIsCullingEnable ? HairStrandsVF_CullingIndirectBuffer[3] : VertexCount;
+	#else // PERMUTATION_CULLING
+		group_VerticesNum = VertexCount;
+	#endif //PERMUTATION_CULLING
+#endif // PERMUTATION_INDIRECT_PRIM_IDS
+
+		group_BatchNum = (group_VerticesNum + 1023) / 1024;
 		group_LoopNum = (group_BatchNum + (NumBinners - 1)) * RcpNumBinners;
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	LOOP
-	for (uint LoopIndex = 0; LoopIndex < group_LoopNum; LoopIndex++)
+	LOOP for (uint LoopIndex = 0; LoopIndex < group_LoopNum; LoopIndex++)
 	{
-		uint BatchIndex = LoopIndex + (GroupID * group_LoopNum);
-
+		const uint BatchIndex = LoopIndex + (GroupID * group_LoopNum);
 		bool bSegValid = (BatchIndex < group_BatchNum);
 
-#if PERMUTATION_CULLING
+#if PERMUTATION_INDIRECT_PRIM_IDS
+		uint PrimID = 0;
+		const uint PrimIDIndex = BatchIndex * 1024 + GroupThreadID;
+		bSegValid = bSegValid && (PrimIDIndex < group_VerticesNum);
+		if (bSegValid)
+		{
+			PrimID = IndirectPrimIDs[PrimIDIndex];
+		}
+#else // PERMUTATION_INDIRECT_PRIM_IDS
+	#if PERMUTATION_CULLING
 		uint PrimID = BatchIndex * 1024 + GroupThreadID;
-		if (HairStrandsVF_bIsCullingEnable)
-		{
-			group_BatchNum = (HairStrandsVF_CullingIndirectBuffer[3] + 1023) / 1024;
-			bSegValid = bSegValid && (PrimID < (HairStrandsVF_CullingIndirectBuffer[3]));
-		}
-		else
-		{
-			bSegValid = bSegValid && (PrimID < (VertexCount));
-		}
+		bSegValid = bSegValid && (PrimID < group_VerticesNum);
 
 		if (bSegValid && HairStrandsVF_bIsCullingEnable)
 		{
-			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
-			uint FetchIndex0 = PrimID;
-			if (FetchIndex0 >= (VertexCountAfterCulling-1))
+			const uint FetchIndex0 = PrimID;
+			const uint FetchIndex1 = min(FetchIndex0 + 1, group_VerticesNum - 1);
+
+			const uint VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
+			const uint VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
+			const float LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
+			const float LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
+
+			if ((LodRadiusScale0 <= 0.0f) || (VertexIndex1 != VertexIndex0 + 1))
 			{
 				bSegValid = false;
 			}
 			else
 			{
-				uint FetchIndex1 = min(FetchIndex0 + 1, VertexCountAfterCulling - 1);
-
-				uint VertexIndex0 = HairStrandsVF_CullingIndexBuffer[FetchIndex0];
-				float LodRadiusScale0 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex0];
-
-				uint VertexIndex1 = HairStrandsVF_CullingIndexBuffer[FetchIndex1];
-				float LodRadiusScale1 = HairStrandsVF_CullingRadiusScaleBuffer[FetchIndex1];
-
-				if ((LodRadiusScale0 <= 0.0f) || (VertexIndex1 != VertexIndex0 + 1))
-				{
-					bSegValid = false;
-				}
-				else
-				{
-					PrimID = VertexIndex0;
-				}
+				PrimID = VertexIndex0;
 			}
 		}
-#else
-		uint PrimID = BatchIndex * 1024 + GroupThreadID + VertexStart;
+		else if (bSegValid)
+		{
+			PrimID += VertexStart;
+		}
+	#else // PERMUTATION_CULLING
+		const uint PrimID = BatchIndex * 1024 + GroupThreadID + VertexStart;
 		bSegValid = bSegValid && (PrimID < (VertexStart + VertexCount));
-#endif
+	#endif // PERMUTATION_CULLING
+#endif // PERMUTATION_INDIRECT_PRIM_IDS
 
 		const uint SegmentCountLayerIdx = GroupID; // Stores number of segments per tile per workgroup.
 		const uint TmpSegmentCountLayerIdx = SegmentCountLayerIdx + NumBinners; // Also stores number of segments per tile per workgroup. Used as second counter for this two pass algorithm.
@@ -510,7 +495,7 @@ void BinningCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID :
 		for (uint TileIdx = GroupThreadID; TileIdx < TilesToAllocateCount; TileIdx += 1024)
 		{
 			const uint PackedTileCoord = group_TilesToAllocate[TileIdx];
-			const uint2 TileCoord = UppackVisTileCoord(PackedTileCoord);
+			const uint2 TileCoord = UnpackVisTileCoord(PackedTileCoord);
 
 			const uint TotalNewWriteCount = OutVisTileBinningGrid[uint3(TileCoord, SegmentCountLayerIdx)];
 			const uint TotalOldWriteCount = OutVisTileBinningGrid[uint3(TileCoord, TmpSegmentCountLayerIdx)];
@@ -732,6 +717,15 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 
 #if SHADER_RASTERCOMPUTE_RASTER
 
+// Wave size
+#if PERMUTATION_GROUP_SIZE == 64
+#define WAVE_SIZE 32
+#elif PERMUTATION_GROUP_SIZE == 32
+#define WAVE_SIZE 32
+#else
+#error Unknown group size	
+#endif
+
 // Simple rasterization algorithm that lerps between line endpoints. Is currently more robust than the Wu algorithm
 // and optionally supports anti-aliasing similar to the Wu algorithm.
 #define RASTER_LINEAR 0 
@@ -743,26 +737,17 @@ void CompactionCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadI
 
 #define RASTER_ALGO RASTER_LINEAR
 
-RWTexture2D<uint> 					RWVisTileDepthGrid;
-Buffer<uint> 						VisTilePrims;
-Buffer<uint> 						VisTileArgs;
-RWByteAddressBuffer					RWVisTileData;
-Buffer<uint>						VisTileIndirect;
+Buffer<uint> 				VisTilePrims;
+Buffer<uint> 				VisTileArgs;
+ByteAddressBuffer			VisTileData;
+RWTexture2D<uint>			OutHairCountTexture;
+RWTexture2D<uint>			OutDepthCovTexture;
+RWTexture2D<uint>			OutPrimMatTexture;
 
-uint LoadRWVisTileData(uint index, uint offset)
+uint LoadVisTileData(uint index, uint offset)
 {
-	return RWVisTileData.Load((((index)) * VT_SIZE * 4) + ((offset) * 4));
+	return VisTileData.Load((((index)) * VT_SIZE * 4) + ((offset) * 4));
 }
-
-void StoreRWVisTileData(uint index, uint offset, uint value)
-{
-	RWVisTileData.Store((((index)) * VT_SIZE * 4) + ((offset) * 4), (value));
-}
-
-RWTexture2D<uint> OutHairCountTexture;
-RWTexture2D<uint> OutDepthCovTexture;
-RWTexture2D<uint> OutPrimMatTexture;
-
 
 groupshared uint4 group_SubTile[1024]; //(32 x 32 x 4 x 4 bytes = 16k bytes)
 
@@ -876,10 +861,10 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 		bool bTileValid = (group_TileIndex < group_TileNum);
 
 		uint PrimOffset = group_TileIndex * 1024;
-		uint PrimCount = LoadRWVisTileData(group_TileIndex, VT_PrimCount);
+		uint PrimCount = LoadVisTileData(group_TileIndex, VT_PrimCount);
 
-		uint PackedCoord = LoadRWVisTileData(group_TileIndex, VT_Coord);
-		uint2 SubTileMin = UppackVisTileCoord(PackedCoord) * TileSize;
+		uint PackedCoord = LoadVisTileData(group_TileIndex, VT_Coord);
+		uint2 SubTileMin = UnpackVisTileCoord(PackedCoord) * TileSize;
 
 		uint PackedTileMin = ((SubTileMin.x & 0xffff) << 0) | ((SubTileMin.y & 0xffff) << 16);
 
@@ -1143,13 +1128,10 @@ void PrintBool(inout FShaderPrintContext Ctx, bool In)
 
 Texture2D<uint>						VisTileDepthGrid;
 Texture2DArray<uint> 				VisTileBinningGrid;
-//Buffer<uint>						OutVisTilePrims;
 Buffer<uint>						VisTileArgs;
-//ByteAddressBuffer					OutVisTileData;
-
-uint MacroGroupId;
-uint PrimitiveInfoIndex;
-uint TotalPrimitiveInfoCount;
+uint								MacroGroupId;
+uint								PrimitiveInfoIndex;
+uint								TotalPrimitiveInfoCount;
 
 #define TilePrintOffset (TileSize >> 1)
 
