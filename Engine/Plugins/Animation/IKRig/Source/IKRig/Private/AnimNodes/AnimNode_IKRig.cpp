@@ -160,6 +160,8 @@ void FAnimNode_IKRig::GatherDebugData(FNodeDebugData& DebugData)
 		
 		DebugData.AddDebugItem(FString::Printf(TEXT("Goal supplied by node pin: %s"), *Goal.ToString()));
 	}
+
+	Source.GatherDebugData(DebugData);
 }
 
 void FAnimNode_IKRig::Initialize_AnyThread(const FAnimationInitializeContext& Context)
