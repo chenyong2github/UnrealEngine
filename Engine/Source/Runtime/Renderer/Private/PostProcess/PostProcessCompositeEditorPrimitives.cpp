@@ -606,6 +606,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 		PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 		PassParameters->InstanceCulling = InstanceCullingManager.GetDummyInstanceCullingUniformBuffer();
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+		PassParameters->RenderTargets[0].SetLoadAction(ERenderTargetLoadAction::ELoad);
 
 		const FEditorPrimitiveInputs::EBasePassType BasePassType = Inputs.BasePassType;
 
