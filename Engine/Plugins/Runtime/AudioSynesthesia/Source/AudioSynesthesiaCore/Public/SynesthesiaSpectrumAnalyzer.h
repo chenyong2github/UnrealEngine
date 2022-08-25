@@ -39,7 +39,7 @@ namespace Audio
 		FSynesthesiaSpectrumAnalyzer(float InSampleRate, const FSynesthesiaSpectrumAnalyzerSettings& InSettings);
 
 		/**
-		 * Calculate the spectrum values for the input samples. OutSpectrum should have (num input samples / 2) values. 
+		 * Calculate the spectrum values for the input samples. OutSpectrum should have (num input samples / 2) + 1 values. 
 		 */
 		void ProcessAudio(TArrayView<const float> InSampleView, TArrayView<float> OutSpectrum);
 

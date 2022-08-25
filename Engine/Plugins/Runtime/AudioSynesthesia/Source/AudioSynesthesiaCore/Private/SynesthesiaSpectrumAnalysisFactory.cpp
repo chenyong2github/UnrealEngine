@@ -33,6 +33,8 @@ namespace Audio
 		check(SampleRate > 0);
 		check(FMath::IsPowerOfTwo(InAnalyzerSettings.FFTSize));
 		
+		// From IFFTAlgorithm::ForwardRealToComplex required number of output values 
+		NumOutputFrames = InAnalyzerSettings.FFTSize / 2 + 1;
 		NumWindowFrames = InAnalyzerSettings.FFTSize;
 		NumWindowSamples = InAnalyzerSettings.FFTSize * InParams.NumChannels;
 
@@ -67,7 +69,7 @@ namespace Audio
 				FSynesthesiaSpectrumEntry NewEntry;
 				NewEntry.Channel = 0;
 				NewEntry.Timestamp = static_cast<float>(FrameCounter) / SampleRate;
-				NewEntry.SpectrumValues.AddZeroed(Window.Num() / 2);
+				NewEntry.SpectrumValues.AddZeroed(NumOutputFrames);
 
 				SpectrumAnalyzer->ProcessAudio(Window, NewEntry.SpectrumValues);
 
@@ -100,7 +102,7 @@ namespace Audio
 				FSynesthesiaSpectrumEntry NewEntry;
 				NewEntry.Channel = 0; // Mono channel index
 				NewEntry.Timestamp = static_cast<float>(FrameCounter) / SampleRate;
-				NewEntry.SpectrumValues.AddZeroed(MonoBuffer.Num() / 2);
+				NewEntry.SpectrumValues.AddZeroed(NumOutputFrames);
 
 				SpectrumAnalyzer->ProcessAudio(MonoBuffer, NewEntry.SpectrumValues);
 
@@ -120,7 +122,7 @@ namespace Audio
 					FSynesthesiaSpectrumEntry NewEntry;
 					NewEntry.Channel = ChannelIndex;
 					NewEntry.Timestamp = static_cast<float>(FrameCounter) / SampleRate;
-					NewEntry.SpectrumValues.AddZeroed(Channel.Values.Num() / 2);
+					NewEntry.SpectrumValues.AddZeroed(NumOutputFrames);
 					
 					SpectrumAnalyzer->ProcessAudio(Channel.Values, NewEntry.SpectrumValues);
 

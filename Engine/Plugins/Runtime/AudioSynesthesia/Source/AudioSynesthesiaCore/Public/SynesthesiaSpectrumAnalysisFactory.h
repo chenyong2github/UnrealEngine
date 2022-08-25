@@ -66,6 +66,7 @@ namespace Audio
 
 		int32 NumChannels = 0;
 		bool bDownmixToMono = true;
+		int32 NumOutputFrames = 0;
 		int32 NumWindowFrames = 0;
 		int32 NumWindowSamples = 0;
 		int32 NumHopFrames = 0;

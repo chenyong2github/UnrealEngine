@@ -61,13 +61,13 @@ namespace Audio
 			break;
 		}
 
-		WindowedBuffer.SetNumUninitialized(Settings.FFTSize);
-		FFTOutput.SetNumUninitialized(Settings.FFTSize);
+		WindowedBuffer.SetNumUninitialized(FFT->NumInputFloats());
+		FFTOutput.SetNumUninitialized(FFT->NumOutputFloats());
 	}
 
 	void FSynesthesiaSpectrumAnalyzer::ProcessAudio(TArrayView<const float> InSampleView, TArrayView<float> OutSpectrum)
 	{
-		if (!ensure(InSampleView.Num() == Settings.FFTSize) || !ensure(OutSpectrum.Num() == Settings.FFTSize / 2))
+		if (!ensure(InSampleView.Num() == FFT->NumInputFloats()) || !ensure(OutSpectrum.Num() == FFT->NumOutputFloats() / 2))
 		{
 			return;
 		}

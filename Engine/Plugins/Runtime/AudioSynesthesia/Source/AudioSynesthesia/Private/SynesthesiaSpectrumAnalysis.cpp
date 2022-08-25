@@ -188,7 +188,8 @@ void USynesthesiaSpectrumAnalyzer::GetCenterFrequencies(const float InSampleRate
 	const int32 NumFrequencies = GetNumCenterFrequencies();
 	if (NumFrequencies == OutCenterFrequencies.Num())
 	{
-		float BinSize = InSampleRate / NumFrequencies / 2; // with Nyquist
+		// Calculate frequencies 0 to Nyquist inclusive
+		float BinSize = InSampleRate / BPFFTSizeEnumToInt(Settings->FFTSize);
 		for (int i = 0; i < NumFrequencies; ++i)
 		{
 			OutCenterFrequencies[i] = i * BinSize;
@@ -198,7 +199,7 @@ void USynesthesiaSpectrumAnalyzer::GetCenterFrequencies(const float InSampleRate
 
 const int32 USynesthesiaSpectrumAnalyzer::GetNumCenterFrequencies() const
 {
-	return BPFFTSizeEnumToInt(Settings->FFTSize) / 2;
+	return BPFFTSizeEnumToInt(Settings->FFTSize) / 2 + 1;
 }
 
 FName USynesthesiaSpectrumAnalyzer::GetAnalyzerFactoryName() const
