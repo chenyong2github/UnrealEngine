@@ -191,13 +191,6 @@ static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
 	TEXT("0 to disable round-robin occlusion queries for stereo rendering (default), 1 to enable."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarODSCapture(
-	TEXT("vr.ODSCapture"),
-	0,
-	TEXT("Experimental")
-	TEXT("0 to disable Omni-directional stereo capture (default), 1 to enable."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarViewRectUseScreenBottom(
 	TEXT("r.ViewRectUseScreenBottom"),
 	0,
@@ -1785,7 +1778,6 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight = (FVector3f)GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight();
 
 	ViewUniformShaderParameters.StereoPassIndex = StereoViewIndex != INDEX_NONE ? StereoViewIndex : 0;
-	ViewUniformShaderParameters.StereoIPD = StereoIPD;
 
 	{
 		auto XRCamera = GEngine->XRSystem ? GEngine->XRSystem->GetXRCamera() : nullptr;

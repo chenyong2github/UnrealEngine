@@ -1101,7 +1101,6 @@ USceneCaptureComponentCube::USceneCaptureComponentCube(const FObjectInitializer&
 	PrimaryComponentTick.TickGroup = TG_DuringPhysics;
 	PrimaryComponentTick.bAllowTickOnDedicatedServer = false;
 	bTickInEditor = true;
-	IPD = 6.2f;
 	bCaptureRotation = false;
 
 #if WITH_EDITORONLY_DATA

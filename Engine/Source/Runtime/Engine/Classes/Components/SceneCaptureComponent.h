@@ -24,7 +24,6 @@ struct FSceneCaptureViewInfo
 	FIntRect ViewRect;
 	EStereoscopicPass StereoPass;
 	int32 StereoViewIndex;
-	float StereoIPD;
 };
 
 USTRUCT(BlueprintType)

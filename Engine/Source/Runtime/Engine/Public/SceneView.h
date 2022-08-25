@@ -132,9 +132,6 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 	/** For stereoscopic rendering, a unique index to identify the view across view families */
 	int32 StereoViewIndex;
 
-	/** For stereoscopic scene capture rendering. Half of the view's stereo IPD (- for lhs, + for rhs) */
-	float StereoIPD;
-
 	/** Conversion from world units (uu) to meters, so we can scale motion to the world appropriately */
 	float WorldToMetersScale;
 
@@ -193,7 +190,6 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 		, ColorScale(FLinearColor::White)
 		, StereoPass(EStereoscopicPass::eSSP_FULL)
 		, StereoViewIndex(INDEX_NONE)
-		, StereoIPD(0.0f)
 		, WorldToMetersScale(100.f)
 		, ViewLocation(ForceInitToZero)
 		, ViewRotation(ForceInitToZero)
@@ -770,7 +766,6 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector3f, VolumetricLightmapIndirectionTextureSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, VolumetricLightmapBrickSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector3f, VolumetricLightmapBrickTexelSize) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, StereoIPD) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, IndirectLightingCacheShowFlag) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, EyeToPixelSpreadAngle) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4f, XRPassthroughCameraUVs, [2]) \
@@ -1018,9 +1013,6 @@ public:
 
 	/** For stereoscopic rendering, view family index of the primary view associated with this view */
 	int32 PrimaryViewIndex;
-
-	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
-	float StereoIPD;
 
 	/** Allow cross GPU transfer for this view */
 	bool bAllowCrossGPUTransfer;

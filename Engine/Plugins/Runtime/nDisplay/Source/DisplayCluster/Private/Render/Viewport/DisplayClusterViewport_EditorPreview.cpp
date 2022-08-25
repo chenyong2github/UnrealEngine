@@ -86,7 +86,6 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 			FPlane(0, 1, 0, 0),
 			FPlane(0, 0, 0, 1));
 
-		float StereoIPD = 0.f;
 		FIntRect ViewRect = Contexts[InContextNum].RenderTargetRect;
 
 		FSceneViewInitOptions ViewInitOptions;
@@ -111,8 +110,6 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		{
 			ViewInitOptions.WorldToMetersScale = InOutViewFamily.Scene->GetWorld()->GetWorldSettings()->WorldToMeters;
 		}
-
-		ViewInitOptions.StereoIPD = StereoIPD * (ViewInitOptions.WorldToMetersScale / 100.0f);
 
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 

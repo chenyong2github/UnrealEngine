@@ -830,12 +830,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bRoundRobinOcclusion : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = Experimental, meta = (
-		ConsoleVariable = "vr.ODSCapture", DisplayName = "Omni-directional Stereo Capture",
-		ToolTip = "Enable Omni-directional Stereo Capture.",
-		ConfigRestartRequired = true))
-		uint32 bODSCapture : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = Experimental, meta = (
 		ConsoleVariable="r.MeshStreaming",DisplayName="Mesh Streaming",
 		ToolTip="When enabled mesh will stream in based on what is visible on screen.",
 		ConfigRestartRequired = true))
