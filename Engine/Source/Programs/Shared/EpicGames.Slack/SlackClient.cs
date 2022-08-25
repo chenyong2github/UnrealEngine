@@ -213,6 +213,7 @@ namespace EpicGames.Slack
 			request.ThreadTs = threadTs;
 			request.Text = message.Text;
 			request.Blocks = message.Blocks;
+			request.Markdown = message.Markdown;
 
 			if (replyBroadcast)
 			{
