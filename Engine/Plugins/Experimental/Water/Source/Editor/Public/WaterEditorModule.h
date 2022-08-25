@@ -36,6 +36,10 @@ private:
 
 	void OnLevelActorAddedToWorld(AActor* Actor);
 
+	void CheckForWaterCollisionProfile();
+
+	void AddWaterCollisionProfile();
+
 private:
 	/** Array of component class names we have registered, so we know what to unregister afterwards */
 	TArray<FName> RegisteredComponentClassNames;
@@ -43,4 +47,6 @@ private:
 	static EAssetTypeCategories::Type WaterAssetCategory;
 
 	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions;
+
+	FDelegateHandle OnLoadCollisionProfileConfigHandle;
 };
