@@ -141,8 +141,8 @@ private:
 	/** Sample rate on the engine side. */ 
 	uint32 SampleRate = 0;
 
-	// Used to make sure we only accumulate audio from the master submix. 
-	FName MasterSubmixName;
+	// Used to make sure we only accumulate audio from the primary submix. 
+	FName PrimarySubmixName;
 
 	/** Number of channels on the engine side. */
 	int32 NumChannels = 0;

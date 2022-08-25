@@ -75,7 +75,7 @@ FMediaIOAudioCapture::~FMediaIOAudioCapture()
 void FMediaIOAudioCapture::OnNewSubmixBuffer(const USoundSubmix* InOwningSubmix, float* InAudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double InAudioClock)
 {
 	check(InOwningSubmix);
-	if (InOwningSubmix->GetFName() == MasterSubmixName)
+	if (InOwningSubmix->GetFName() == PrimarySubmixName)
 	{
 		if (ensureMsgf(NumChannels == InNumChannels, TEXT("Expected %d channels from submix buffer but got %d instead."), NumChannels, InNumChannels))
 		{
@@ -173,7 +173,7 @@ void FMediaIOAudioCapture::RegisterBufferListener(FAudioDevice* AudioDevice)
 		Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(AudioDevice);
 		NumChannels = MixerDevice->GetDeviceOutputChannels();
 		SampleRate = MixerDevice->GetSampleRate();
-		MasterSubmixName = *GetDefault<UAudioSettings>()->MasterSubmix.GetAssetName();
+		PrimarySubmixName = *GetDefault<UAudioSettings>()->MasterSubmix.GetAssetName();
 		AudioDevice->RegisterSubmixBufferListener(this);
 	}
 }
