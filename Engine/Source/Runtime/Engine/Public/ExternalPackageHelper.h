@@ -139,12 +139,12 @@ void FExternalPackageHelper::LoadObjectsFromExternalPackages(UObject* InOuter, T
 	const bool bInstanced = !PackageResourceName.IsNone() && (PackageResourceName != OuterPackage->GetFName());
 	if (bInstanced)
 	{
-		InstancingContext.AddMapping(PackageResourceName, OuterPackage->GetFName());
+		InstancingContext.AddPackageMapping(PackageResourceName, OuterPackage->GetFName());
 
 		for (const FString& ObjectPackageName : ObjectPackageNames)
 		{
 			const FString InstancedName = GetExternalObjectPackageInstanceName(OuterPackage->GetName(), ObjectPackageName);
-			InstancingContext.AddMapping(FName(*ObjectPackageName), FName(*InstancedName));
+			InstancingContext.AddPackageMapping(FName(*ObjectPackageName), FName(*InstancedName));
 
 			// Create instance package
 			UPackage* InstancePackage = CreatePackage(*InstancedName);

@@ -429,10 +429,13 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	
 		if (bIsInstanced)
 		{
-			InstancingContext.AddMapping(PackageName, LevelPackage->GetFName());
+			InstancingContext.AddPackageMapping(PackageName, LevelPackage->GetFName());
 
 			// SoftObjectPaths: Specific case for new maps (/Temp/Untitled) where we need to remap the AssetPath and not just the Package name because the World gets renamed (See UWorld::PostLoad)
-			InstancingContext.AddMapping(*FString::Format(TEXT("{0}.{1}"), { PackageName.ToString(), FPackageName::GetShortName(PackageName) }), *GetWorld()->GetPathName());
+			InstancingContext.AddPathMapping(
+				FSoftObjectPath(*FString::Format(TEXT("{0}.{1}"), {PackageName.ToString(), FPackageName::GetShortName(PackageName)})),
+				FSoftObjectPath(GetWorld())
+				);
 		}
 
 		{
@@ -450,7 +453,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 					const FString LongActorPackageName = ActorDescIterator->GetActorPackage().ToString();
 					const FString InstancedName = ULevel::GetExternalActorPackageInstanceName(LevelPackage->GetName(), LongActorPackageName);
 
-					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
+					InstancingContext.AddPackageMapping(*LongActorPackageName, *InstancedName);
 
 					ActorDescIterator->TransformInstance(SourceWorldPath, RemappedWorldPath, GetInstanceTransform());
 				}

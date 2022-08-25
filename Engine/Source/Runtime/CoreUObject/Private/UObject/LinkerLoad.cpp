@@ -942,7 +942,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 	FName PackageNameToLoad = GetPackagePath().GetPackageFName();
 	if (LinkerRoot->GetFName() != PackageNameToLoad)
 	{
-		InstancingContext.AddMapping(PackageNameToLoad, LinkerRoot->GetFName());
+		InstancingContext.AddPackageMapping(PackageNameToLoad, LinkerRoot->GetFName());
 	}
 }
 
@@ -1934,7 +1934,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::PopulateInstancingContext()
 			// add remapping for all the packages that should be instantiated along with this one
 			for (const FName& InstancingName : InstancingPackageName)
 			{
-				FName& InstancedName = InstancingContext.Mapping.FindOrAdd(InstancingName);
+				FName& InstancedName = InstancingContext.PackageMapping.FindOrAdd(InstancingName);
 				// if there's isn't already a remapping for that package, create one
 				if (InstancedName.IsNone())
 				{
@@ -2493,7 +2493,7 @@ UObject* FLinkerLoad::FindExistingImport(int32 ImportIndex)
 	if (Import.OuterIndex.IsNull())
 	{
 		// if the import outer is null then we have a package, resolve it, potentially remapping it
-		FName ObjectName = InstancingContextRemap(Import.ObjectName);
+		FName ObjectName = InstancingContext.RemapPackage(Import.ObjectName);
 		UPackage* Package = static_cast<UPackage*>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, ObjectName, /*bExactClass*/true));
 		if (!IsPackageReferenceAllowed(Package))
 		{
@@ -3063,7 +3063,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 
 		// Resolve the package name for the import, potentially remapping it, if instancing
 		FName PackageToLoad = !Import.HasPackageName() ? Import.ObjectName : Import.GetPackageName();
-		FName PackageToLoadInto = InstancingContextRemap(PackageToLoad);
+		FName PackageToLoadInto = InstancingContext.RemapPackage(PackageToLoad);
 #if WITH_EDITOR
 		if (SlowTask)
 		{
@@ -3492,7 +3492,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 
 		if (IsCoreUObjectPackage(Import.ClassPackage) && Import.ClassName == NAME_Package && !TmpPkg->GetOuter())
 		{
-			if (InstancingContextRemap(Import.ObjectName) == TmpPkg->GetFName())
+			if (InstancingContext.RemapPackage(Import.ObjectName) == TmpPkg->GetFName())
 			{
 				// except if we are looking for _the_ package...in which case we are looking for TmpPkg, so we are done
 				Import.XObject = TmpPkg;
@@ -5124,7 +5124,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 					// Import is a toplevel package.
 					if( Import.OuterIndex.IsNull() )
 					{
-						FName ObjectName = InstancingContextRemap(Import.ObjectName);
+						FName ObjectName = InstancingContext.RemapPackage(Import.ObjectName);
 						UPackage* Pkg = CreatePackage(*ObjectName.ToString());
 						if (IsPackageReferenceAllowed(Pkg))
 						{
@@ -5148,7 +5148,7 @@ UObject* FLinkerLoad::CreateImport( int32 Index )
 							// Outer is toplevel package, create/ find it.
 							else if( OuterImport.OuterIndex.IsNull() )
 							{
-								FName ObjectName = InstancingContextRemap(OuterImport.ObjectName);
+								FName ObjectName = InstancingContext.RemapPackage(OuterImport.ObjectName);
 								UPackage* Pkg = CreatePackage(*ObjectName.ToString());
 								if (IsPackageReferenceAllowed(Pkg))
 								{
@@ -6220,30 +6220,25 @@ bool FLinkerLoad::IsSoftObjectRemappingEnabled() const
 	return IsContextInstanced() && InstancingContext.GetSoftObjectPathRemappingEnabled();
 }
 
-FName FLinkerLoad::InstancingContextRemap(FName ObjectName) const
-{
-	return InstancingContext.Remap(ObjectName);
-}
-
 void FLinkerLoad::FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
 {
 	if (IsSoftObjectRemappingEnabled())
 	{
 		// Try remapping AssetPathName before remapping LongPackageName
-		if (FName RemappedAssetPath = InstancingContextRemap(InOutSoftObjectPath.GetAssetPathName()); RemappedAssetPath != InOutSoftObjectPath.GetAssetPathName())
+		if (FSoftObjectPath RemappedAssetPath = InstancingContext.RemapPath(InOutSoftObjectPath); RemappedAssetPath != InOutSoftObjectPath)
 		{
-			InOutSoftObjectPath.SetAssetPathName(RemappedAssetPath);
+			InOutSoftObjectPath = RemappedAssetPath;
 		}
 		else
 		{
 			FName LongPackageName = InOutSoftObjectPath.GetLongPackageFName();
-			if (FName RemappedPackage = InstancingContextRemap(LongPackageName); RemappedPackage != LongPackageName)
+			if (FName RemappedPackage = InstancingContext.RemapPackage(LongPackageName); RemappedPackage != LongPackageName)
 			{
 				FNameBuilder TmpSoftObjectPathBuilder;
 				InOutSoftObjectPath.ToString(TmpSoftObjectPathBuilder);
 
 				TmpSoftObjectPathBuilder.ReplaceAt(0, LongPackageName.GetStringLength(), RemappedPackage.ToString());
-				InOutSoftObjectPath.SetPath(TmpSoftObjectPathBuilder.ToView());
+				InOutSoftObjectPath.SetPath(FName(TmpSoftObjectPathBuilder));
 			}
 		}
 	}

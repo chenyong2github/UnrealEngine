@@ -228,9 +228,6 @@ private:
 	// Helper function to query if we should do any SoftObjectPath fixup
 	bool IsSoftObjectRemappingEnabled() const;
 
-	// Helper function to access the InstancingContext, 
-	FName InstancingContextRemap(FName ObjectName) const;
-
 	/** Remaps SoftObjectPaths using InstancingContextRemap. */
 	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath);
 

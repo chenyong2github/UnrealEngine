@@ -8,6 +8,7 @@
 #include "Misc/Optional.h"
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/LinkerInstancingContext.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"

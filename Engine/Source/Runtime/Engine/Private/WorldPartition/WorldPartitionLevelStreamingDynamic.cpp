@@ -286,7 +286,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	const bool bSoftObjectRemappingEnabled = false;
 	FLinkerInstancingContext InstancingContext(bSoftObjectRemappingEnabled);
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
-	InstancingContext.AddMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
+	InstancingContext.AddPackageMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
 
 	ChildPackagesToLoad.Reset(ChildPackages.Num());
 

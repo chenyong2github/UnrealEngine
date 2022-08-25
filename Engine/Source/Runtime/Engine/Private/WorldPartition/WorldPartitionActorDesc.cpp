@@ -503,7 +503,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 
 		if (InstancingContext)
 		{
-			FName RemappedPackageName = InstancingContext->Remap(ActorPackage);
+			FName RemappedPackageName = InstancingContext->RemapPackage(ActorPackage);
 			check(RemappedPackageName != ActorPath);
 
 			Package = CreatePackage(*RemappedPackageName.ToString());

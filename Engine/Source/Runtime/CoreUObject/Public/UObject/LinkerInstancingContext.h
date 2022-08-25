@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "UObject/SoftObjectPath.h"
+
 /**
  * Helper class to remap package imports during loading.
  * This is usually when objects in a package are outer-ed to object in another package or vice versa.
@@ -12,9 +14,6 @@ class FLinkerInstancingContext
 {
 public:
 	FLinkerInstancingContext() = default;
-	explicit FLinkerInstancingContext(TMap<FName, FName> InInstanceMapping)
-		: Mapping(MoveTemp(InInstanceMapping))
-	{}
 	explicit FLinkerInstancingContext(TSet<FName> InTags)
 		: Tags(MoveTemp(InTags))
 	{
@@ -26,27 +25,49 @@ public:
 
 	bool IsInstanced() const
 	{
-		return Mapping.Num() > 0;
+		return PackageMapping.Num() > 0 || PathMapping.Num() > 0;
 	}
 
-	/** Remap the object name from the import table to its instanced counterpart, otherwise return the name unmodified. */
-	FName Remap(const FName& ObjectName) const
+	/** Remap the package name from the import table to its instanced counterpart, otherwise return the name unmodified. */
+	FName RemapPackage(const FName& PackageName) const
 	{
-		if (const FName* RemappedName = Mapping.Find(ObjectName))
+		if (const FName* RemappedName = PackageMapping.Find(PackageName))
 		{
 			return *RemappedName;
 		}
-		return ObjectName;
+		return PackageName;
 	}
 
-	void AddMapping(FName Original, FName Instanced)
+	/**
+	 * Remap the top level asset part of the path name to its instanced counterpart, otherwise return the name unmodified. 
+	 * i.e. remaps /Path/To/Package.AssetName:Inner to /NewPath/To/NewPackage.NewAssetName:Inner 
+	 */
+	FSoftObjectPath RemapPath(const FSoftObjectPath& Path) const
 	{
-		Mapping.Add(Original, Instanced);
+		if (const FName* Remapped = PathMapping.Find(Path.GetAssetPathName()))
+		{
+			FSoftObjectPath NewPath = Path;
+			NewPath.SetAssetPathName(*Remapped);
+			return NewPath;
+		}
+		return Path;
 	}
 
-	void AppendMapping(const TMap<FName, FName>& NewMapping)
+	/** Add a mapping from a package name to a new package name. There should be no separators (. or :) in these strings. */
+	void AddPackageMapping(FName Original, FName Instanced)
 	{
-		Mapping.Append(NewMapping);
+		PackageMapping.Add(Original, Instanced);
+	}
+
+	/** Add a mapping from a top level asset path (/Path/To/Package.AssetName) to another. */
+	void AddPathMapping(FSoftObjectPath Original, FSoftObjectPath Instanced)
+	{
+		ensureAlwaysMsgf(Original.GetSubPathString().IsEmpty(), 
+			TEXT("Linker instance remap paths should be top-level assets only: %s->"), *Original.ToString());
+		ensureAlwaysMsgf(Instanced.GetSubPathString().IsEmpty(), 
+			TEXT("Linker instance remap paths should be top-level assets only: ->%s"), *Instanced.ToString());
+	
+		PathMapping.Emplace(Original.GetAssetPathName(), Instanced.GetAssetPathName());
 	}
 
 	void AddTag(FName NewTag)
@@ -80,8 +101,10 @@ public:
 private:
 	friend class FLinkerLoad;
 
-	/** Map of original object name to their instance counterpart. */
-	TMap<FName, FName> Mapping;
+	/** Map of original package name to their instance counterpart. */
+	TMap<FName, FName> PackageMapping;
+	/** Map of original top level asset path to their instance counterpart. This should be FTopLevelAssetPath when FSoftObjectPath is refactored to contain that. */
+	TMap<FName, FName> PathMapping;
 	/** Tags can be used to determine some loading behavior. */
 	TSet<FName> Tags;
 	/** Remap soft object paths */

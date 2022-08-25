@@ -224,7 +224,7 @@ bool FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InConta
 			
 		const FString ContainerPackageString = GetContainerPackage(InContainerID, LongPackageName, INDEX_NONE);	
 		const FString NewSubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(InContainerID, SoftObjectPath.GetSubPathString());
-			
+
 		FNameBuilder NewAssetPathBuilder;
 		SoftObjectPath.GetAssetPathName().ToString(NewAssetPathBuilder);
 		NewAssetPathBuilder.ReplaceAt(0, LongPackageName.Len(), ContainerPackageString);
@@ -332,17 +332,17 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 
 			FLinkerInstancingContext& NewContext = LinkerInstancingContexts.Add(PackageObjectMapping.ContainerID);
 			NewContext.AddTag(ULevel::DontLoadExternalObjectsTag);
-			NewContext.AddMapping(PackageObjectMapping.ContainerPackage, ContainerPackageInstanceName);
+			NewContext.AddPackageMapping(PackageObjectMapping.ContainerPackage, ContainerPackageInstanceName);
 			Context = &NewContext;
 		}
 		
-		const FName ContainerPackageInstanceName = Context->Remap(PackageObjectMapping.ContainerPackage);
+		const FName ContainerPackageInstanceName = Context->RemapPackage(PackageObjectMapping.ContainerPackage);
 		if (PackageObjectMapping.ContainerPackage != ContainerPackageInstanceName)
 		{
 			const FString ActorPackageName = FPackageName::ObjectPathToPackageName(PackageObjectMapping.Package.ToString());
 			const FString ActorPackageInstanceName = ULevel::GetExternalActorPackageInstanceName(ContainerPackageInstanceName.ToString(), ActorPackageName);
 
-			Context->AddMapping(FName(*ActorPackageName), FName(*ActorPackageInstanceName));
+			Context->AddPackageMapping(FName(*ActorPackageName), FName(*ActorPackageInstanceName));
 		}
 		ActorPackages.Add(&PackageObjectMapping);
 	}
@@ -464,7 +464,7 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 
 		FName PackageToLoad(*FPackageName::ObjectPathToPackageName(PackageObjectMapping->Package.ToString()));
 		const FLinkerInstancingContext& ContainerInstancingContext = LinkerInstancingContexts.FindChecked(PackageObjectMapping->ContainerID);
-		FName PackageName = ContainerInstancingContext.Remap(PackageToLoad);
+		FName PackageName = ContainerInstancingContext.RemapPackage(PackageToLoad);
 
 		if (bInLoadAsync)
 		{

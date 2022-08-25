@@ -2064,7 +2064,7 @@ FObjectImport* FAsyncPackage::FindExistingImport(int32 LocalImportIndex)
 		Import->bImportSearchedFor = true;
 		if (Import->OuterIndex.IsNull())
 		{
-			Import->XObject = StaticFindObjectFast(UPackage::StaticClass(), nullptr, Linker->GetInstancingContext().Remap(Import->ObjectName), true);
+			Import->XObject = StaticFindObjectFast(UPackage::StaticClass(), nullptr, Linker->GetInstancingContext().RemapPackage(Import->ObjectName), true);
 			check(!Import->XObject || CastChecked<UPackage>(Import->XObject));
 		}
 		else if (Import->OuterIndex.IsImport())
@@ -2194,7 +2194,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 		const bool bCompiledInNotDynamic = IsNativeCodePackage(ExistingPackage);
 		// Our import package name is the import name
 		const FName ImportPackageToLoad = !Import->HasPackageName() ? Import->ObjectName : Import->GetPackageName();
-		const FName ImportPackageFName = Linker->GetInstancingContext().Remap(ImportPackageToLoad);
+		const FName ImportPackageFName = Linker->GetInstancingContext().RemapPackage(ImportPackageToLoad);
 		check(!PendingPackage || !bCompiledInNotDynamic); // we should never have a pending package for something that is compiled in
 		if (!PendingPackage && !bCompiledInNotDynamic)
 		{
@@ -2444,7 +2444,7 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 			}
 			FObjectImport& OuterMostImport = Linker->Imp(OuterMostIndex);
 			check(OuterMostImport.OuterIndex.IsNull() || OuterMostImport.HasPackageName());
-			FName ImportPackageName = Linker->GetInstancingContext().Remap(!OuterMostImport.HasPackageName() ? OuterMostImport.ObjectName : OuterMostImport.GetPackageName());
+			FName ImportPackageName = Linker->GetInstancingContext().RemapPackage(!OuterMostImport.HasPackageName() ? OuterMostImport.ObjectName : OuterMostImport.GetPackageName());
 			UPackage* ImportPackage = OuterMostImport.XObject ? OuterMostImport.XObject->GetPackage() : nullptr;
 			if (!ImportPackage)
 			{
@@ -2525,7 +2525,7 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 							OuterName = ImportLinker->LinkerRoot->GetFName();
 						}
 						check(OuterName != NAME_None);
-						check(OuterName == Linker->GetInstancingContext().Remap(Linker->ImpExp(Import.OuterIndex).ObjectName));
+						check(OuterName == Linker->GetInstancingContext().RemapPackage(Linker->ImpExp(Import.OuterIndex).ObjectName));
 					}
 
 					Import.bImportFailed = LocalExportIndex.IsNull();
@@ -6507,7 +6507,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 		// Our import package name is the import name itself if import is a package, else the specified package name
 		const FLinkerInstancingContext& InstancingContext = Linker->GetInstancingContext();
 		FName ImportToLoad = !Import->HasPackageName() ? Import->ObjectName : Import->GetPackageName();
-		FName ImportPackageFName = InstancingContext.Remap(ImportToLoad);
+		FName ImportPackageFName = InstancingContext.RemapPackage(ImportToLoad);
 
 		// Don't try to import a package that is in an import table that we know is an invalid entry
 		if (FLinkerLoad::IsKnownMissingPackage(ImportPackageFName))

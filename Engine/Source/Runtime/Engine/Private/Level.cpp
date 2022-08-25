@@ -1124,7 +1124,7 @@ void ULevel::PostLoad()
 			FLinkerInstancingContext InstancingContext;
 			if (bInstanced)
 			{
-				InstancingContext.AddMapping(PackageResourceName, LevelPackage->GetFName());
+				InstancingContext.AddPackageMapping(PackageResourceName, LevelPackage->GetFName());
 			}
 
 			TArray<FString> ActorPackageNames = GetOnDiskExternalActorPackages(/*bTryUsingPackageLoadedPath*/ true);
@@ -1136,7 +1136,7 @@ void ULevel::PostLoad()
 					const FString InstancedName = GetExternalActorPackageInstanceName(LevelPackage->GetName(), ActorPackageName);
 					InstancePackageNames.Add(InstancedName);
 
-					InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
+					InstancingContext.AddPackageMapping(FName(*ActorPackageName), FName(*InstancedName));
 				}
 			}
 
