@@ -574,6 +574,9 @@ protected:
 	void BP_OnDisabled();
 	virtual void NativeOnDisabled();
 
+	UFUNCTION(BlueprintImplementableEvent, Category = CommonButton, meta = (DisplayName = "On Input Method Changed"))
+	void BP_OnInputMethodChanged(ECommonInputType CurrentInputType);
+
 	/** Allows derived classes to take action when the current text style has changed */
 	UFUNCTION(BlueprintImplementableEvent, meta=(BlueprintProtected="true"), Category = "Common Button")
 	void OnCurrentTextStyleChanged();

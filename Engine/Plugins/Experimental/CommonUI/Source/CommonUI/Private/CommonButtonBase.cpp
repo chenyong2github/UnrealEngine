@@ -478,6 +478,7 @@ void UCommonButtonBase::UnbindInputMethodChangedDelegate()
 void UCommonButtonBase::OnInputMethodChanged(ECommonInputType CurrentInputType)
 {
 	UpdateInputActionWidget();
+	BP_OnInputMethodChanged(CurrentInputType);
 }
 
 void UCommonButtonBase::BindTriggeringInputActionToClick()
