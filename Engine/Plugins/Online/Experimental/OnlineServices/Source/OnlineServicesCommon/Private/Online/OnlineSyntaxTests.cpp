@@ -47,7 +47,7 @@ struct FTestUserOp
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -74,7 +74,7 @@ struct FJoinableTestUserOp
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -109,7 +109,7 @@ struct FMergeableTestUserOp
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		FTestMutation Mutations;
 	};
 
@@ -126,14 +126,14 @@ BEGIN_ONLINE_STRUCT_META(Test::FTestOp::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(Test::FTestUserOp::Params)
-	ONLINE_STRUCT_FIELD(Test::FTestUserOp::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(Test::FTestUserOp::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(Test::FJoinableTestOp::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(Test::FJoinableTestUserOp::Params)
-	ONLINE_STRUCT_FIELD(Test::FJoinableTestUserOp::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(Test::FJoinableTestUserOp::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(Test::FMergeableTestOp::Params)
@@ -142,7 +142,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(Test::FMergeableTestUserOp::Params)
 	ONLINE_STRUCT_FIELD(Test::FMergeableTestUserOp::Params, Mutations),
-	ONLINE_STRUCT_FIELD(Test::FMergeableTestUserOp::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(Test::FMergeableTestUserOp::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 /* Meta */ }
@@ -150,8 +150,8 @@ END_ONLINE_STRUCT_META()
 // confirm that a couple concepts are working as expected
 static_assert(TModels<UE::Online::Meta::CSuperDefined, Test::FTestInterface>::Value);
 static_assert(!TModels<UE::Online::Meta::CSuperDefined, Test::ITestInterface>::Value);
-static_assert(!TModels<UE::Online::CLocalUserIdDefined, Test::FTestOp::Params>::Value);
-static_assert(TModels<UE::Online::CLocalUserIdDefined, Test::FTestUserOp::Params>::Value);
+static_assert(!TModels<UE::Online::CLocalAccountIdDefined, Test::FTestOp::Params>::Value);
+static_assert(TModels<UE::Online::CLocalAccountIdDefined, Test::FTestUserOp::Params>::Value);
 
 /* UE::Online */ }
 

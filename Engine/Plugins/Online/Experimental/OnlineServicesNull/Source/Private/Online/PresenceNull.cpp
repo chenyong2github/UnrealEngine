@@ -34,12 +34,12 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceNull::QueryPresence(FQueryPresence
 
 		if(Params.bListenToChanges)
 		{
-			PresenceListeners.FindOrAdd(Params.LocalUserId).Add(Params.TargetUserId);
+			PresenceListeners.FindOrAdd(Params.LocalAccountId).Add(Params.TargetAccountId);
 		}
 
-		if(Presences.Contains(Params.TargetUserId))
+		if(Presences.Contains(Params.TargetAccountId))
 		{
-			InAsyncOp.SetResult({Presences.FindChecked(Params.TargetUserId)});
+			InAsyncOp.SetResult({Presences.FindChecked(Params.TargetAccountId)});
 		}
 		else
 		{
@@ -53,9 +53,9 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceNull::QueryPresence(FQueryPresence
 
 TOnlineResult<FGetCachedPresence> FPresenceNull::GetCachedPresence(FGetCachedPresence::Params&& Params)
 {
-	if (Presences.Contains(Params.LocalUserId))
+	if (Presences.Contains(Params.LocalAccountId))
 	{
-		return TOnlineResult<FGetCachedPresence>({Presences.FindChecked(Params.LocalUserId)});
+		return TOnlineResult<FGetCachedPresence>({Presences.FindChecked(Params.LocalAccountId)});
 	}
 	else
 	{
@@ -71,11 +71,11 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceNull::UpdatePresence(FUpdatePrese
 	Op->Then([this](TOnlineAsyncOp<FUpdatePresence>& InAsyncOp) mutable
 	{
 		const FUpdatePresence::Params& Params = InAsyncOp.GetParams();
-		Presences.Add(Params.LocalUserId, Params.Presence);
+		Presences.Add(Params.LocalAccountId, Params.Presence);
 
 		for (const TPair<FAccountId, TSet<FAccountId>>& Pairs : PresenceListeners)
 		{
-			if (Pairs.Value.Contains(Params.LocalUserId))
+			if (Pairs.Value.Contains(Params.LocalAccountId))
 			{
 				OnPresenceUpdatedEvent.Broadcast({Pairs.Key, Params.Presence});
 			}
@@ -98,17 +98,17 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceNull::PartialUpdatePresenc
 		TSharedRef<FUserPresence> NewPresence = MakeShared<FUserPresence>();
 		const FPartialUpdatePresence::Params::FMutations& Mutations = InAsyncOp.GetParams().Mutations;
 		
-		if (Presences.Contains(InAsyncOp.GetParams().LocalUserId))
+		if (Presences.Contains(InAsyncOp.GetParams().LocalAccountId))
 		{
-			*NewPresence = *Presences.FindChecked(InAsyncOp.GetParams().LocalUserId);
+			*NewPresence = *Presences.FindChecked(InAsyncOp.GetParams().LocalAccountId);
 		}
 
 		TSharedRef<FUserPresence> MutatedPresence = ApplyPresenceMutations(*NewPresence, Mutations);
-		Presences.Add(InAsyncOp.GetParams().LocalUserId, MutatedPresence);
+		Presences.Add(InAsyncOp.GetParams().LocalAccountId, MutatedPresence);
 
 		for (const TPair<FAccountId, TSet<FAccountId>>& Pairs : PresenceListeners)
 		{
-			if (Pairs.Value.Contains(InAsyncOp.GetParams().LocalUserId))
+			if (Pairs.Value.Contains(InAsyncOp.GetParams().LocalAccountId))
 			{
 				OnPresenceUpdatedEvent.Broadcast({ Pairs.Key, MutatedPresence });
 			}

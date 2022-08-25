@@ -90,9 +90,9 @@ TSharedPtr<FAccountInfoNull> FAccountInfoRegistryNULL::Find(FPlatformUserId Plat
 	return StaticCastSharedPtr<FAccountInfoNull>(Super::Find(PlatformUserId));
 }
 
-TSharedPtr<FAccountInfoNull> FAccountInfoRegistryNULL::Find(FAccountId AccountIdHandle) const
+TSharedPtr<FAccountInfoNull> FAccountInfoRegistryNULL::Find(FAccountId AccountId) const
 {
-	return StaticCastSharedPtr<FAccountInfoNull>(Super::Find(AccountIdHandle));
+	return StaticCastSharedPtr<FAccountInfoNull>(Super::Find(AccountId));
 }
 
 void FAccountInfoRegistryNULL::Register(const TSharedRef<FAccountInfoNull>& AccountInfoNULL)
@@ -177,12 +177,12 @@ FOnlineAccountIdRegistryNull& FOnlineAccountIdRegistryNull::Get()
 	return Instance;
 }
 
-FAccountId FOnlineAccountIdRegistryNull::Find(FString UserId) const
+FAccountId FOnlineAccountIdRegistryNull::Find(FString AccountId) const
 {
-	const FOnlineAccountIdString* Entry = StringToId.Find(UserId);
+	const FOnlineAccountIdString* Entry = StringToId.Find(AccountId);
 	if(Entry)
 	{
-		return Entry->Handle;
+		return Entry->AccountId;
 	}
 	return FAccountId();
 }
@@ -192,7 +192,7 @@ FAccountId FOnlineAccountIdRegistryNull::Find(FPlatformUserId UserId) const
 	const FOnlineAccountIdString* Entry = LocalUserMap.Find(UserId);
 	if (Entry)
 	{
-		return Entry->Handle;
+		return Entry->AccountId;
 	}
 	return FAccountId();
 }
@@ -202,27 +202,27 @@ FAccountId FOnlineAccountIdRegistryNull::Find(int32 UserIndex) const
 	const FOnlineAccountIdString* Entry = LocalUserMap.Find(FPlatformMisc::GetPlatformUserForUserIndex(UserIndex));
 	if (Entry)
 	{
-		return Entry->Handle;
+		return Entry->AccountId;
 	}
 	return FAccountId();
 }
 
-const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::GetInternal(const FAccountId& Handle) const
+const FOnlineAccountIdString* FOnlineAccountIdRegistryNull::GetInternal(const FAccountId& AccountId) const
 {
-	if(Handle.IsValid() && Handle.GetOnlineServicesType() == EOnlineServices::Null && Handle.GetHandle() <= (uint32)Ids.Num())
+	if(AccountId.IsValid() && AccountId.GetOnlineServicesType() == EOnlineServices::Null && AccountId.GetHandle() <= (uint32)Ids.Num())
 	{
-		return &Ids[Handle.GetHandle()-1];
+		return &Ids[AccountId.GetHandle()-1];
 	}
 	return nullptr;
 }
 
-FAccountId FOnlineAccountIdRegistryNull::Create(FString UserId, FPlatformUserId PlatformUserId/* = PLATFORMUSERID_NONE*/)
+FAccountId FOnlineAccountIdRegistryNull::Create(FString AccountId, FPlatformUserId PlatformUserId/* = PLATFORMUSERID_NONE*/)
 {
-	FAccountId ExistingHandle = Find(UserId);
-	if(ExistingHandle.IsValid())
+	FAccountId ExistingAccountId = Find(AccountId);
+	if(ExistingAccountId.IsValid())
 	{
 		UE_LOG(LogOnlineServices, Error, TEXT("[FOnlineAccountIdRegistryNull::Create] Found a duplicate ID for local user %d."), FPlatformMisc::GetUserIndexForPlatformUser(PlatformUserId));
-		return ExistingHandle;
+		return ExistingAccountId;
 	}
 
 	if (!PlatformUserId.IsValid())
@@ -233,18 +233,18 @@ FAccountId FOnlineAccountIdRegistryNull::Create(FString UserId, FPlatformUserId 
 
 	FOnlineAccountIdString& Id = Ids.Emplace_GetRef();
 	Id.AccountIndex = Ids.Num();
-	Id.Data = UserId;
-	Id.Handle = FAccountId(EOnlineServices::Null, Id.AccountIndex);
+	Id.Data = AccountId;
+	Id.AccountId = FAccountId(EOnlineServices::Null, Id.AccountIndex);
 	
-	StringToId.Add(UserId, Id);
+	StringToId.Add(AccountId, Id);
 	LocalUserMap.Add(PlatformUserId, Id);
 
-	return Id.Handle;
+	return Id.AccountId;
 }
 
-FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& Handle) const
+FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& AccountId) const
 {
-	if(const FOnlineAccountIdString* Id = GetInternal(Handle))
+	if(const FOnlineAccountIdString* Id = GetInternal(AccountId))
 	{
 		return Id->Data;
 	}
@@ -253,9 +253,9 @@ FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& Handle) cons
 }
 
 
-TArray<uint8> FOnlineAccountIdRegistryNull::ToReplicationData(const FAccountId& Handle) const
+TArray<uint8> FOnlineAccountIdRegistryNull::ToReplicationData(const FAccountId& AccountId) const
 {
-	if (const FOnlineAccountIdString* Id = GetInternal(Handle))
+	if (const FOnlineAccountIdString* Id = GetInternal(AccountId))
 	{
 		TArray<uint8> ReplicationData;
 		ReplicationData.SetNumUninitialized(Id->Data.Len());

@@ -14,7 +14,7 @@ using FStatValue = FSchemaVariant;
 struct FUserStats
 {
 	/* The user id */
-	FAccountId UserId;
+	FAccountId AccountId;
 	/* The stats of one account */
 	TMap<FString, FStatValue> Stats;
 };
@@ -26,7 +26,7 @@ struct FUpdateStats
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* The stats of users to update */
 		TArray<FUserStats> UpdateUsersStats;
 	};
@@ -43,9 +43,9 @@ struct FQueryStats
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* Target user id to query */
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 		/* The stats to query */
 		TArray<FString> StatNames;
 	};
@@ -64,9 +64,9 @@ struct FBatchQueryStats
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* The user ids to query */
-		TArray<FAccountId> TargetUserIds;
+		TArray<FAccountId> TargetAccountIds;
 		/* The stats to query */
 		TArray<FString> StatNames;
 	};
@@ -86,7 +86,7 @@ struct FResetStats
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -163,12 +163,12 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FUserStats)
-	ONLINE_STRUCT_FIELD(FUserStats, UserId),
+	ONLINE_STRUCT_FIELD(FUserStats, AccountId),
 	ONLINE_STRUCT_FIELD(FUserStats, Stats)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdateStats::Params)
-	ONLINE_STRUCT_FIELD(FUpdateStats::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUpdateStats::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUpdateStats::Params, UpdateUsersStats)
 END_ONLINE_STRUCT_META()
 
@@ -176,8 +176,8 @@ BEGIN_ONLINE_STRUCT_META(FUpdateStats::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryStats::Params)
-	ONLINE_STRUCT_FIELD(FQueryStats::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FQueryStats::Params, TargetUserId)
+	ONLINE_STRUCT_FIELD(FQueryStats::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FQueryStats::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryStats::Result)
@@ -185,8 +185,8 @@ BEGIN_ONLINE_STRUCT_META(FQueryStats::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FBatchQueryStats::Params)
-	ONLINE_STRUCT_FIELD(FBatchQueryStats::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FBatchQueryStats::Params, TargetUserIds)
+	ONLINE_STRUCT_FIELD(FBatchQueryStats::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FBatchQueryStats::Params, TargetAccountIds)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FBatchQueryStats::Result)
@@ -195,7 +195,7 @@ END_ONLINE_STRUCT_META()
 
 #if !UE_BUILD_SHIPPING
 BEGIN_ONLINE_STRUCT_META(FResetStats::Params)
-	ONLINE_STRUCT_FIELD(FResetStats::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FResetStats::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FResetStats::Result)

@@ -35,7 +35,7 @@ struct FGetResolvedConnectString
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		FOnlineLobbyIdHandle LobbyId;
 		FOnlineSessionIdHandle SessionId;
 		FName PortType;
@@ -207,7 +207,7 @@ namespace Meta {
 // TODO: Move to OnlineServices_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FGetResolvedConnectString::Params)
-	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, LobbyId),
 	ONLINE_STRUCT_FIELD(FGetResolvedConnectString::Params, PortType)
 END_ONLINE_STRUCT_META()

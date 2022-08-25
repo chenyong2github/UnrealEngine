@@ -33,15 +33,15 @@ void FAchievementsEOSGS::Initialize()
 	{
 		FAchievementsEOSGS* This = reinterpret_cast<FAchievementsEOSGS*>(Data->ClientData);
 
-		const FAccountId LocalUserId = FindAccountId(Data->UserId);
-		if (LocalUserId.IsValid())
+		const FAccountId LocalAccountId = FindAccountId(Data->UserId);
+		if (LocalAccountId.IsValid())
 		{
 			const FString AchievementId = UTF8_TO_TCHAR(Data->AchievementId);
 			const FDateTime UnlockTime = FDateTime::FromUnixTimestamp(Data->UnlockTime);
 
-			UE_LOG(LogTemp, Verbose, TEXT("EOS_Achievements_OnAchievementsUnlocked User=%s AchievId=%s"), *ToLogString(LocalUserId), *AchievementId);
+			UE_LOG(LogTemp, Verbose, TEXT("EOS_Achievements_OnAchievementsUnlocked User=%s AchievId=%s"), *ToLogString(LocalAccountId), *AchievementId);
 
-			if (FAchievementStateMap* LocalUserAchievementStates = This->AchievementStates.Find(LocalUserId))
+			if (FAchievementStateMap* LocalUserAchievementStates = This->AchievementStates.Find(LocalAccountId))
 			{
 				if (FAchievementState* AchievementState = LocalUserAchievementStates->Find(AchievementId))
 				{
@@ -51,7 +51,7 @@ void FAchievementsEOSGS::Initialize()
 			}
 			
 			FAchievementStateUpdated EventParams;
-			EventParams.LocalUserId = LocalUserId;
+			EventParams.LocalAccountId = LocalAccountId;
 			EventParams.AchievementIds.Emplace(AchievementId);
 
 			This->OnAchievementStateUpdatedEvent.Broadcast(EventParams);
@@ -74,7 +74,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 {
 	TOnlineAsyncOpRef<FQueryAchievementDefinitions> Op = GetOp<FQueryAchievementDefinitions>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -87,7 +87,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 			EOS_Achievements_QueryDefinitionsOptions Options = {};
 			Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST;
 			static_assert(EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST == 3, "EOS_Achievements_QueryDefinitionsOptions updated, check new fields");
-			Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+			Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalAccountId);
 
 			EOS_Async(EOS_Achievements_QueryDefinitions, AchievementsHandle, Options, MoveTemp(Promise));
 		})
@@ -169,7 +169,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 
 TOnlineResult<FGetAchievementIds> FAchievementsEOSGS::GetAchievementIds(FGetAchievementIds::Params&& Params)
 {
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetAchievementIds>(Errors::InvalidUser());
 	}
@@ -187,7 +187,7 @@ TOnlineResult<FGetAchievementIds> FAchievementsEOSGS::GetAchievementIds(FGetAchi
 
 TOnlineResult<FGetAchievementDefinition> FAchievementsEOSGS::GetAchievementDefinition(FGetAchievementDefinition::Params&& Params)
 {
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetAchievementDefinition>(Errors::InvalidUser());
 	}
@@ -211,7 +211,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 {
 	TOnlineAsyncOpRef<FQueryAchievementStates> Op = GetOp<FQueryAchievementStates>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -224,14 +224,14 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 		return Op->GetHandle();
 	}
 
-	if (!AchievementStates.Contains(Op->GetParams().LocalUserId))
+	if (!AchievementStates.Contains(Op->GetParams().LocalAccountId))
 	{
 		Op->Then([this](TOnlineAsyncOp<FQueryAchievementStates>& InAsyncOp, TPromise<const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo*>&& Promise)
 		{
 			EOS_Achievements_QueryPlayerAchievementsOptions Options = {};
 			Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST;
 			static_assert(EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST == 2, "EOS_Achievements_QueryPlayerAchievementsOptions updated, check new fields");
-			Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+			Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalAccountId);
 			Options.TargetUserId = Options.LocalUserId;
 
 			EOS_Async(EOS_Achievements_QueryPlayerAchievements, AchievementsHandle, Options, MoveTemp(Promise));
@@ -249,7 +249,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 			EOS_Achievements_GetPlayerAchievementCountOptions GetCountOptions = {};
 			GetCountOptions.ApiVersion = EOS_ACHIEVEMENTS_GETPLAYERACHIEVEMENTCOUNT_API_LATEST;
 			static_assert(EOS_ACHIEVEMENTS_GETPLAYERACHIEVEMENTCOUNT_API_LATEST == 1, "EOS_Achievements_GetPlayerAchievementCountOptions updated, check new fields");
-			GetCountOptions.UserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+			GetCountOptions.UserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalAccountId);
 
 			const uint32_t AchievementCount = EOS_Achievements_GetPlayerAchievementCount(AchievementsHandle, &GetCountOptions);
 
@@ -259,7 +259,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 				EOS_Achievements_CopyPlayerAchievementByIndexOptions CopyOptions = {};
 				CopyOptions.ApiVersion = EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST;
 				static_assert(EOS_ACHIEVEMENTS_COPYPLAYERACHIEVEMENTBYINDEX_API_LATEST == 2, "EOS_Achievements_CopyPlayerAchievementByIndexOptions updated, check new fields");
-				CopyOptions.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+				CopyOptions.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalAccountId);
 				CopyOptions.TargetUserId = CopyOptions.LocalUserId;
 				CopyOptions.AchievementIndex = AchievementIdx;
 
@@ -287,7 +287,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 
 				EOS_Achievements_PlayerAchievement_Release(EOSPlayerAchievement);
 			}
-			AchievementStates.Emplace(InAsyncOp.GetParams().LocalUserId, MoveTemp(NewAchievementStates));
+			AchievementStates.Emplace(InAsyncOp.GetParams().LocalAccountId, MoveTemp(NewAchievementStates));
 			InAsyncOp.SetResult({});
 		})
 		.Enqueue(GetSerialQueue());
@@ -302,12 +302,12 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 
 TOnlineResult<FGetAchievementState> FAchievementsEOSGS::GetAchievementState(FGetAchievementState::Params&& Params) const
 {
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetAchievementState>(Errors::InvalidUser());
 	}
 
-	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalUserId);
+	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalAccountId);
 	if (!LocalUserAchievementStates)
 	{
 		// Call QueryAchievementStates first
@@ -327,7 +327,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 {
 	TOnlineAsyncOpRef<FUnlockAchievements> Op = GetOp<FUnlockAchievements>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -339,7 +339,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 		return Op->GetHandle();
 	}
 
-	FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Op->GetParams().LocalUserId);
+	FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Op->GetParams().LocalAccountId);
 	if (!LocalUserAchievementStates)
 	{
 		// Call QueryAchievementStates first
@@ -379,7 +379,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 		EOS_Achievements_UnlockAchievementsOptions Options = {};
 		Options.ApiVersion = EOS_ACHIEVEMENTS_UNLOCKACHIEVEMENTS_API_LATEST;
 		static_assert(EOS_ACHIEVEMENTS_UNLOCKACHIEVEMENTS_API_LATEST == 1, "EOS_Achievements_UnlockAchievementsOptions updated, check new fields");
-		Options.UserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+		Options.UserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalAccountId);
 		Options.AchievementIds = AchievementIdPtrs.GetData();
 		Options.AchievementsCount = AchievementIdPtrs.Num();
 
@@ -394,7 +394,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 			const FUnlockAchievements::Params& Params = InAsyncOp.GetParams();
 			const FDateTime TimeNow = FDateTime::Now();
 
-			FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalUserId);
+			FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalAccountId);
 			if (ensure(LocalUserAchievementStates))
 			{
 				for(const FString& AchievementId : Params.AchievementIds)

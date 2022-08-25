@@ -66,7 +66,7 @@ struct FCommerceQueryOffers
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -83,7 +83,7 @@ struct FCommerceQueryOffersById
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* List of offer ids */
 		TArray<FOfferId> OfferIds;
 	};
@@ -103,7 +103,7 @@ struct FCommerceGetOffers
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -121,7 +121,7 @@ struct FCommerceGetOffersById
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* List of offer ids */
 		TArray<FOfferId> OfferIds;
 	};
@@ -142,7 +142,7 @@ struct FCommerceShowStoreUI
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -167,7 +167,7 @@ struct FCommerceCheckout
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* Offers to purchase */
 		TArray<FPurchaseOffer> Offers;
 	};
@@ -206,7 +206,7 @@ struct FCommerceQueryTransactionEntitlements
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* Transaction id for a completed purchase */
 		FString TransactionId;
 	};
@@ -226,7 +226,7 @@ struct FCommerceQueryEntitlements
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* Whether or not to fetch redeemed entitlements */
 		bool bIncludeRedeemed;
 	};
@@ -245,7 +245,7 @@ struct FCommerceGetEntitlements
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -263,7 +263,7 @@ struct FCommerceRedeemEntitlement
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* Entitlement id to mark as redeemed */
 		FEntitlementId EntitlementId;
 		/* Quantity to consume */
@@ -284,7 +284,7 @@ struct FCommerceRetrieveS2SToken
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* Implementation specific, used to specify the type of token to retrieve. See implementation specific documentation for valid values */
 		FString TokenType;
 	};
@@ -302,7 +302,7 @@ struct FCommerceOnPurchaseComplete
 public:
 	
 	/* Local user */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 	
 	/* If available, the transaction id for the completed purchase */
 	TOptional<FString> TransactionId;
@@ -384,13 +384,13 @@ BEGIN_ONLINE_STRUCT_META(FEntitlement)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryOffers::Params)
-	ONLINE_STRUCT_FIELD(FCommerceQueryOffers::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FCommerceQueryOffers::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 	BEGIN_ONLINE_STRUCT_META(FCommerceQueryOffers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryOffersById::Params)
-	ONLINE_STRUCT_FIELD(FCommerceQueryOffersById::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceQueryOffersById::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceQueryOffersById::Params, OfferIds)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryOffersById::Result)
@@ -398,14 +398,14 @@ BEGIN_ONLINE_STRUCT_META(FCommerceQueryOffersById::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceGetOffers::Params)
-	ONLINE_STRUCT_FIELD(FCommerceGetOffers::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FCommerceGetOffers::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceGetOffers::Result)
 	ONLINE_STRUCT_FIELD(FCommerceGetOffers::Result, Offers)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceGetOffersById::Params)
-	ONLINE_STRUCT_FIELD(FCommerceGetOffersById::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceGetOffersById::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceGetOffersById::Params, OfferIds)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceGetOffersById::Result)
@@ -413,13 +413,13 @@ ONLINE_STRUCT_FIELD(FCommerceGetOffersById::Result, Offers)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceShowStoreUI::Params)
-	ONLINE_STRUCT_FIELD(FCommerceShowStoreUI::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FCommerceShowStoreUI::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceShowStoreUI::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceCheckout::Params)
-	ONLINE_STRUCT_FIELD(FCommerceCheckout::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceCheckout::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceCheckout::Params, Offers)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceCheckout::Result)
@@ -427,7 +427,7 @@ BEGIN_ONLINE_STRUCT_META(FCommerceCheckout::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryTransactionEntitlements::Params)
-	ONLINE_STRUCT_FIELD(FCommerceQueryTransactionEntitlements::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceQueryTransactionEntitlements::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceQueryTransactionEntitlements::Params, TransactionId)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryTransactionEntitlements::Result)
@@ -435,21 +435,21 @@ BEGIN_ONLINE_STRUCT_META(FCommerceQueryTransactionEntitlements::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryEntitlements::Params)
-	ONLINE_STRUCT_FIELD(FCommerceQueryEntitlements::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceQueryEntitlements::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceQueryEntitlements::Params, bIncludeRedeemed)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceQueryEntitlements::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceGetEntitlements::Params)
-	ONLINE_STRUCT_FIELD(FCommerceGetEntitlements::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FCommerceGetEntitlements::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceGetEntitlements::Result)
 	ONLINE_STRUCT_FIELD(FCommerceGetEntitlements::Result, Entitlements)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceRedeemEntitlement::Params)
-	ONLINE_STRUCT_FIELD(FCommerceRedeemEntitlement::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceRedeemEntitlement::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceRedeemEntitlement::Params, EntitlementId),
 	ONLINE_STRUCT_FIELD(FCommerceRedeemEntitlement::Params, Quantity)
 END_ONLINE_STRUCT_META()
@@ -457,7 +457,7 @@ BEGIN_ONLINE_STRUCT_META(FCommerceRedeemEntitlement::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceRetrieveS2SToken::Params)
-	ONLINE_STRUCT_FIELD(FCommerceRetrieveS2SToken::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceRetrieveS2SToken::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceRetrieveS2SToken::Params, TokenType)
 END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FCommerceRetrieveS2SToken::Result)
@@ -466,7 +466,7 @@ BEGIN_ONLINE_STRUCT_META(FCommerceRetrieveS2SToken::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCommerceOnPurchaseComplete)
-	ONLINE_STRUCT_FIELD(FCommerceOnPurchaseComplete, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCommerceOnPurchaseComplete, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCommerceOnPurchaseComplete, TransactionId)
 END_ONLINE_STRUCT_META()
 

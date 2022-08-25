@@ -32,10 +32,10 @@ void FAchievementsOSSAdapter::PostInitialize()
 
 	AchievementsInterface->AddOnAchievementUnlockedDelegate_Handle(FOnAchievementUnlockedDelegate::CreateLambda([this](const FUniqueNetId& LocalUserIdV1, const FString& AchievementId)
 	{
-		const FAccountId LocalUserIdV2 = Services.Get<FAuthOSSAdapter>()->GetAccountIdHandle(LocalUserIdV1.AsShared());
+		const FAccountId LocalUserIdV2 = Services.Get<FAuthOSSAdapter>()->GetAccountId(LocalUserIdV1.AsShared());
 
 		FAchievementStateUpdated AchievementStateUpdated;
-		AchievementStateUpdated.LocalUserId = LocalUserIdV2;
+		AchievementStateUpdated.LocalAccountId = LocalUserIdV2;
 		AchievementStateUpdated.AchievementIds = { AchievementId };
 		OnAchievementStateUpdatedEvent.Broadcast(MoveTemp(AchievementStateUpdated));
 	}));
@@ -61,7 +61,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsOSSAdapter::Quer
 		TPromise<void> Promise;
 		TFuture<void> Future = Promise.GetFuture();
 
-		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -95,7 +95,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsOSSAdapter::Quer
 		TPromise<void> Promise;
 		TFuture<void> Future = Promise.GetFuture();
 
-		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -118,7 +118,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsOSSAdapter::Quer
 	})
 	.Then([this](TOnlineAsyncOp<FQueryAchievementDefinitions>& Op)
 	{
-		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -165,7 +165,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsOSSAdapter::Quer
 
 TOnlineResult<FGetAchievementIds> FAchievementsOSSAdapter::GetAchievementIds(FGetAchievementIds::Params&& Params)
 {
-	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId);
 	if (!LocalUserId)
 	{
 		return TOnlineResult<FGetAchievementIds>(Errors::InvalidUser());
@@ -184,7 +184,7 @@ TOnlineResult<FGetAchievementIds> FAchievementsOSSAdapter::GetAchievementIds(FGe
 
 TOnlineResult<FGetAchievementDefinition> FAchievementsOSSAdapter::GetAchievementDefinition(FGetAchievementDefinition::Params&& Params)
 {
-	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId);
 	if (!LocalUserId)
 	{
 		return TOnlineResult<FGetAchievementDefinition>(Errors::InvalidUser());
@@ -214,7 +214,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsOSSAdapter::QueryAchi
 		TPromise<void> Promise;
 		TFuture<void> Future = Promise.GetFuture();
 
-		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -246,7 +246,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsOSSAdapter::QueryAchi
 	})
 	.Then([this](TOnlineAsyncOp<FQueryAchievementStates>& Op)
 	{
-		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -261,7 +261,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsOSSAdapter::QueryAchi
 			return;
 		}
 
-		FAchievementStateMap& AchievementStates = UserToAchievementStates.Emplace(Op.GetParams().LocalUserId);
+		FAchievementStateMap& AchievementStates = UserToAchievementStates.Emplace(Op.GetParams().LocalAccountId);
 
 		for (FOnlineAchievement& Achievement : Achievements)
 		{
@@ -280,13 +280,13 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsOSSAdapter::QueryAchi
 
 TOnlineResult<FGetAchievementState> FAchievementsOSSAdapter::GetAchievementState(FGetAchievementState::Params&& Params) const
 {
-	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalUserId);
+	const FUniqueNetIdPtr LocalUserId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId);
 	if (!LocalUserId)
 	{
 		return TOnlineResult<FGetAchievementState>(Errors::InvalidUser());
 	}
 
-	const FAchievementStateMap* AchievementStates = UserToAchievementStates.Find(Params.LocalUserId);
+	const FAchievementStateMap* AchievementStates = UserToAchievementStates.Find(Params.LocalAccountId);
 	if (!AchievementStates)
 	{
 		// Call QueryAchievementStates first
@@ -309,7 +309,7 @@ TOnlineResult<FDisplayAchievementUI> FAchievementsOSSAdapter::DisplayAchievement
 		return TOnlineResult<FDisplayAchievementUI>(Errors::NotImplemented());
 	}
 
-	const int LocalUserNum = Services.Get<FAuthOSSAdapter>()->GetLocalUserNum(Params.LocalUserId);
+	const int LocalUserNum = Services.Get<FAuthOSSAdapter>()->GetLocalUserNum(Params.LocalAccountId);
 	if (LocalUserNum == INDEX_NONE)
 	{
 		return TOnlineResult<FDisplayAchievementUI>(Errors::InvalidUser());

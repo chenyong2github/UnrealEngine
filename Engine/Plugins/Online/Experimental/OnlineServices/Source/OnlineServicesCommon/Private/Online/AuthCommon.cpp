@@ -17,10 +17,10 @@ TSharedPtr<FAccountInfo> FAccountInfoRegistry::Find(FPlatformUserId PlatformUser
 	return FoundPtr ? TSharedPtr<FAccountInfo>(*FoundPtr) : TSharedPtr<FAccountInfo>();
 }
 
-TSharedPtr<FAccountInfo> FAccountInfoRegistry::Find(FAccountId AccountIdHandle) const
+TSharedPtr<FAccountInfo> FAccountInfoRegistry::Find(FAccountId AccountId) const
 {
 	FReadScopeLock Lock(IndexLock);
-	const TSharedRef<FAccountInfo>* FoundPtr = AuthDataByOnlineAccountIdHandle.Find(AccountIdHandle);
+	const TSharedRef<FAccountInfo>* FoundPtr = AuthDataByOnlineAccountIdHandle.Find(AccountId);
 	return FoundPtr ? TSharedPtr<FAccountInfo>(*FoundPtr) : TSharedPtr<FAccountInfo>();
 }
 
@@ -162,7 +162,7 @@ TOnlineResult<FAuthGetLocalOnlineUserByPlatformUserId> FAuthCommon::GetLocalOnli
 
 TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId> FAuthCommon::GetLocalOnlineUserByOnlineAccountId(FAuthGetLocalOnlineUserByOnlineAccountId::Params&& Params) const
 {
-	TSharedPtr<FAccountInfo> AccountInfo = GetAccountInfoRegistry().Find(Params.LocalUserId);
+	TSharedPtr<FAccountInfo> AccountInfo = GetAccountInfoRegistry().Find(Params.LocalAccountId);
 	return (AccountInfo && IsOnlineStatus(AccountInfo->LoginStatus)) ?
 		TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId>(FAuthGetLocalOnlineUserByOnlineAccountId::Result{ AccountInfo.ToSharedRef() }) :
 		TOnlineResult<FAuthGetLocalOnlineUserByOnlineAccountId>(Errors::InvalidUser());

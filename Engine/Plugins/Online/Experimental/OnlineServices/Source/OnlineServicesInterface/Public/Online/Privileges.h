@@ -65,7 +65,7 @@ struct FQueryUserPrivilege
 	struct Params
 	{
 		/** User id whose privilege we want to query */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Privilege to query */
 		EUserPrivileges Privilege;
 	};
@@ -91,7 +91,7 @@ namespace Meta {
 // TODO: Move to OnlineServices_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FQueryUserPrivilege::Params)
-	ONLINE_STRUCT_FIELD(FQueryUserPrivilege::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FQueryUserPrivilege::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FQueryUserPrivilege::Params, Privilege)
 END_ONLINE_STRUCT_META()
 

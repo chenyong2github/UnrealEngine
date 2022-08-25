@@ -15,7 +15,7 @@ struct FTitleFileEnumerateFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -30,7 +30,7 @@ struct FTitleFileGetEnumeratedFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -52,7 +52,7 @@ struct FTitleFileReadFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** File to be opened */
 		FString Filename;
 	};
@@ -87,14 +87,14 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FTitleFileEnumerateFiles::Params)
-	ONLINE_STRUCT_FIELD(FTitleFileEnumerateFiles::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FTitleFileEnumerateFiles::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FTitleFileEnumerateFiles::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FTitleFileGetEnumeratedFiles::Params)
-	ONLINE_STRUCT_FIELD(FTitleFileGetEnumeratedFiles::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FTitleFileGetEnumeratedFiles::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FTitleFileGetEnumeratedFiles::Result)
@@ -102,7 +102,7 @@ BEGIN_ONLINE_STRUCT_META(FTitleFileGetEnumeratedFiles::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FTitleFileReadFile::Params)
-	ONLINE_STRUCT_FIELD(FTitleFileReadFile::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FTitleFileReadFile::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FTitleFileReadFile::Params, Filename)
 END_ONLINE_STRUCT_META()
 

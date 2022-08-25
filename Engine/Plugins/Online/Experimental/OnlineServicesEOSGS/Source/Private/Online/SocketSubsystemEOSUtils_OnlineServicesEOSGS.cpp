@@ -62,7 +62,7 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 		check(LobbiesEOS);
 
 		FGetJoinedLobbies::Params LobbiesParams;
-		LobbiesParams.LocalUserId = AuthOkValue->AccountInfo->AccountId;
+		LobbiesParams.LocalAccountId = AuthOkValue->AccountInfo->AccountId;
 		TOnlineResult<FGetJoinedLobbies> LobbiesResult = LobbiesEOS->GetJoinedLobbies(MoveTemp(LobbiesParams));
 		if (LobbiesResult.IsOk())
 		{
@@ -77,7 +77,7 @@ FString FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId()
 		}
 		else
 		{
-			UE_LOG(LogOnlineServices, Verbose, TEXT("[FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId] Unable to get joined lobbies for local user id [%s]. Error=[%s]"), *ToLogString(LobbiesParams.LocalUserId), *AuthResult.GetErrorValue().GetLogString(true));
+			UE_LOG(LogOnlineServices, Verbose, TEXT("[FSocketSubsystemEOSUtils_OnlineServicesEOS::GetSessionId] Unable to get joined lobbies for local user id [%s]. Error=[%s]"), *ToLogString(LobbiesParams.LocalAccountId), *AuthResult.GetErrorValue().GetLogString(true));
 		}
 	}
 	else

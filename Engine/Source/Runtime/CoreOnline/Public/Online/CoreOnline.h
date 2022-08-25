@@ -374,8 +374,8 @@ public:
 	 */
 	COREONLINE_API void UnregisterAccountIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
 
-	COREONLINE_API FString ToLogString(const FAccountId& Handle) const;
-	COREONLINE_API TArray<uint8> ToReplicationData(const FAccountId& Handle) const;
+	COREONLINE_API FString ToLogString(const FAccountId& AccountId) const;
+	COREONLINE_API TArray<uint8> ToReplicationData(const FAccountId& AccountId) const;
 	COREONLINE_API FAccountId ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const;
 
 	COREONLINE_API IOnlineAccountIdRegistry* GetAccountIdRegistry(EOnlineServices OnlineServices) const;
@@ -487,9 +487,9 @@ struct FUniqueNetIdWrapper
 	{
 	}
 
-	FUniqueNetIdWrapper(const UE::Online::FAccountId& Handle)
+	FUniqueNetIdWrapper(const UE::Online::FAccountId& AccountId)
 	{
-		Variant.Emplace<UE::Online::FAccountId>(Handle);
+		Variant.Emplace<UE::Online::FAccountId>(AccountId);
 	}
 
 	// temporarily restored implicit conversion from FUniqueNetId
@@ -562,8 +562,8 @@ struct FUniqueNetIdWrapper
 		}
 		else
 		{
-			const UE::Online::FAccountId& Handle = GetV2();
-			return Handle.IsValid();
+			const UE::Online::FAccountId& AccountId = GetV2();
+			return AccountId.IsValid();
 		}
 	}
 
@@ -577,9 +577,9 @@ struct FUniqueNetIdWrapper
 		Variant.Emplace<FUniqueNetIdPtr>(InUniqueNetId);
 	}
 
-	virtual void SetAccountId(const UE::Online::FAccountId& Handle)
+	virtual void SetAccountId(const UE::Online::FAccountId& AccountId)
 	{
-		Variant.Emplace<UE::Online::FAccountId>(Handle);
+		Variant.Emplace<UE::Online::FAccountId>(AccountId);
 	}
 
 	/** @return unique id associated with this wrapper object */

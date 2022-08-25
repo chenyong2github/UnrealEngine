@@ -13,7 +13,7 @@ namespace UE::Online {
 struct FLeaderboardEntry
 {
 	/* The account id of this leaderboard entry */
-	FAccountId UserId;
+	FAccountId AccountId;
 	/* The rank of this account */
 	int32 Rank;
 	/* The score of this account */
@@ -27,9 +27,9 @@ struct FReadEntriesForUsers
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* The account ids of users */
-		TArray<FAccountId> UserIds;
+		TArray<FAccountId> AccountIds;
 		/* The leaderboard name */
 		FString BoardName;
 	};
@@ -48,7 +48,7 @@ struct FReadEntriesAroundRank
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* The rank index to start read */
 		uint32 Rank;
 		/* How many entries to fetch */
@@ -71,9 +71,9 @@ struct FReadEntriesAroundUser
 	struct Params
 	{
 		/* Local user id */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* The account id of specified user */
-		FAccountId UserId;
+		FAccountId AccountId;
 		/* The offset to the rank of user */
 		int32 Offset;
 		/* How many entries to fetch */
@@ -119,14 +119,14 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FLeaderboardEntry)
-	ONLINE_STRUCT_FIELD(FLeaderboardEntry, UserId),
+	ONLINE_STRUCT_FIELD(FLeaderboardEntry, AccountId),
 	ONLINE_STRUCT_FIELD(FLeaderboardEntry, Rank),
 	ONLINE_STRUCT_FIELD(FLeaderboardEntry, Score)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FReadEntriesForUsers::Params)
-	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, UserIds),
+	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, AccountIds),
 	ONLINE_STRUCT_FIELD(FReadEntriesForUsers::Params, BoardName)
 END_ONLINE_STRUCT_META()
 
@@ -135,7 +135,7 @@ BEGIN_ONLINE_STRUCT_META(FReadEntriesForUsers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FReadEntriesAroundRank::Params)
-	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, Rank),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, Limit),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundRank::Params, BoardName)
@@ -146,8 +146,8 @@ BEGIN_ONLINE_STRUCT_META(FReadEntriesAroundRank::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FReadEntriesAroundUser::Params)
-	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, UserId),
+	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, AccountId),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, Offset),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, Limit),
 	ONLINE_STRUCT_FIELD(FReadEntriesAroundUser::Params, BoardName)

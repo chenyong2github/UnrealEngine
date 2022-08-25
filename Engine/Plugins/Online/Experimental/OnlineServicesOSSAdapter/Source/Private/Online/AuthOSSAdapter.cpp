@@ -100,9 +100,9 @@ TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FPlatfor
 	return StaticCastSharedPtr<FAccountInfoOSSAdapter>(Super::Find(PlatformUserId));
 } 
 
-TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FAccountId AccountIdHandle) const
+TSharedPtr<FAccountInfoOSSAdapter> FAccountInfoRegistryOSSAdapter::Find(FAccountId AccountId) const
 {
-	return StaticCastSharedPtr<FAccountInfoOSSAdapter>(Super::Find(AccountIdHandle));
+	return StaticCastSharedPtr<FAccountInfoOSSAdapter>(Super::Find(AccountId));
 }
 
 void FAccountInfoRegistryOSSAdapter::Register(const TSharedRef<FAccountInfoOSSAdapter>& AccountInfoNULL)
@@ -306,7 +306,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthOSSAdapter::Logout(FAuthLogout::Params&& 
 	{
 		const FAuthLogout::Params& Params = InAsyncOp.GetParams();
 
-		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalUserId);
+		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalAccountId);
 		if (!AccountInfoOSSAdapter)
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
@@ -373,7 +373,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> FAuthOSSAdapter::QueryE
 		InAsyncOp.Data.Set<TSharedRef<FExternalServerAuthTicketTranslationTraits>>(ExternalServerAuthTicketTranslationTraitsKeyName, TranslationTraits.GetOkValue());
 
 		// Look up logged in user.
-		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalUserId);
+		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalAccountId);
 		if (!AccountInfoOSSAdapter)
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
@@ -417,7 +417,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthOSSAdapter::QueryExternal
 		InAsyncOp.Data.Set<const FExternalAuthTokenTranslationTraits*>(ExternalAuthTokenTranslationTraitsKeyName, TranslationTraits);
 
 		// Look up logged in user.
-		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalUserId);
+		TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(Params.LocalAccountId);
 		if (!AccountInfoOSSAdapter)
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
@@ -516,19 +516,19 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthOSSAdapter::QueryExternal
 	return Op->GetHandle();
 }
 
-FUniqueNetIdPtr FAuthOSSAdapter::GetUniqueNetId(FAccountId AccountIdHandle) const
+FUniqueNetIdPtr FAuthOSSAdapter::GetUniqueNetId(FAccountId AccountId) const
 {
-	return GetOnlineServicesOSSAdapter().GetAccountIdRegistry().GetIdValue(AccountIdHandle);
+	return GetOnlineServicesOSSAdapter().GetAccountIdRegistry().GetIdValue(AccountId);
 }
 
-FAccountId FAuthOSSAdapter::GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const
+FAccountId FAuthOSSAdapter::GetAccountId(const FUniqueNetIdRef& UniqueNetId) const
 {
 	return GetOnlineServicesOSSAdapter().GetAccountIdRegistry().FindOrAddHandle(UniqueNetId);
 }
 
-int32 FAuthOSSAdapter::GetLocalUserNum(FAccountId AccountIdHandle) const
+int32 FAuthOSSAdapter::GetLocalUserNum(FAccountId AccountId) const
 {
-	TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(AccountIdHandle);
+	TSharedPtr<FAccountInfoOSSAdapter> AccountInfoOSSAdapter = AccountInfoRegistryOSSAdapter.Find(AccountId);
 	return AccountInfoOSSAdapter ? AccountInfoOSSAdapter->LocalUserNum : INDEX_NONE;
 }
 

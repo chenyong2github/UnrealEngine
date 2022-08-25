@@ -62,10 +62,10 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 		FUniqueNetIdWrapper::SetUniqueNetId(UniqueNetId);
 	}
 
-	virtual void SetAccountId(const UE::Online::FAccountId& Handle) override
+	virtual void SetAccountId(const UE::Online::FAccountId& AccountId) override
 	{
 		ReplicationBytes.Empty();
-		FUniqueNetIdWrapper::SetAccountId(Handle);
+		FUniqueNetIdWrapper::SetAccountId(AccountId);
 	}
 
 	/** Export contents of this struct as a string */

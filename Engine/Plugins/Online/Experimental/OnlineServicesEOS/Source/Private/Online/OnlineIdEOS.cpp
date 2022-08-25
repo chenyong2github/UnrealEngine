@@ -9,17 +9,17 @@
 
 namespace UE::Online {
 
-FString FOnlineAccountIdRegistryEOS::ToLogString(const FAccountId& Handle) const
+FString FOnlineAccountIdRegistryEOS::ToLogString(const FAccountId& AccountId) const
 {
 	FString Result;
-	if (ValidateOnlineId(Handle))
+	if (ValidateOnlineId(AccountId))
 	{
-		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(Handle);
+		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(AccountId);
 		Result = FString::Printf(TEXT("EAS=[%s] EOS=[%s]"), *LexToString(IdData.EpicAccountId), *LexToString(IdData.ProductUserId));
 	}
 	else
 	{
-		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+		check(!AccountId.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
 		Result = TEXT("Invalid");
 	}
 	return Result;
@@ -35,12 +35,12 @@ ENUM_CLASS_FLAGS(EEOSAccountIdElements);
 const uint8 OnlineIdEOSUtf8BufferLength = 32;
 const uint8 OnlineIdEOSHexBufferLength = 16;
 
-TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FAccountId& Handle) const
+TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FAccountId& AccountId) const
 {
 	TArray<uint8> ReplicationData;
-	if (ValidateOnlineId(Handle))
+	if (ValidateOnlineId(AccountId))
 	{
-		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(Handle);
+		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(AccountId);
 		EEOSAccountIdElements Elements = EEOSAccountIdElements::None;
 
 		char EasBuffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1] = { 0 };
@@ -82,7 +82,7 @@ TArray<uint8> FOnlineAccountIdRegistryEOS::ToReplicationData(const FAccountId& H
 	}
 	else
 	{
-		check(!Handle.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+		check(!AccountId.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
 	}
 	return ReplicationData;
 }
@@ -114,43 +114,43 @@ FAccountId FOnlineAccountIdRegistryEOS::FromReplicationData(const TArray<uint8>&
 
 FAccountId FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_ProductUserId ProductUserId) const
 {
-	FAccountId Handle;
+	FAccountId AccountId;
 	if (EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE)
 	{
 		const FReadScopeLock ReadLock(Lock);
-		if (const FAccountId* Found = ProductUserIdToHandle.Find(ProductUserId))
+		if (const FAccountId* Found = ProductUserIdToAccountId.Find(ProductUserId))
 		{
-			Handle = *Found;
+			AccountId = *Found;
 		}
 	}
-	return Handle;
+	return AccountId;
 }
 
-EOS_ProductUserId FOnlineAccountIdRegistryEOS::GetProductUserId(const FAccountId& Handle) const
+EOS_ProductUserId FOnlineAccountIdRegistryEOS::GetProductUserId(const FAccountId& AccountId) const
 {
-	return GetAccountIdData(Handle).ProductUserId;
+	return GetAccountIdData(AccountId).ProductUserId;
 }
 
 FAccountId FOnlineAccountIdRegistryEOS::FindAccountId(const EOS_EpicAccountId EpicAccountId) const
 {
-	FAccountId Handle;
+	FAccountId AccountId;
 	if (EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE)
 	{
 		const FReadScopeLock ReadLock(Lock);
-		if (const FAccountId* Found = EpicAccountIdToHandle.Find(EpicAccountId))
+		if (const FAccountId* Found = EpicAccountIdToAccountId.Find(EpicAccountId))
 		{
-			Handle = *Found;
+			AccountId = *Found;
 		}
 	}
-	return Handle;
+	return AccountId;
 }
 
-FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetAccountIdData(const FAccountId& Handle) const
+FOnlineAccountIdDataEOS FOnlineAccountIdRegistryEOS::GetAccountIdData(const FAccountId& AccountId) const
 {
-	if (ValidateOnlineId(Handle))
+	if (ValidateOnlineId(AccountId))
 	{
 		FReadScopeLock ScopeLock(Lock);
-		return AccountIdData[Handle.GetHandle() - 1];
+		return AccountIdData[AccountId.GetHandle() - 1];
 	}
 	return FOnlineAccountIdDataEOS();
 }
@@ -174,11 +174,11 @@ FAccountId FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccount
 		auto FindExisting = [this, InEpicAccountId, InProductUserId, bInEpicAccountIdValid, bInProductUserIdValid, &bUpdateEpicAccountId, &bUpdateProductUserId]()
 		{
 			FAccountId Result;
-			if (const FAccountId* FoundEas = bInEpicAccountIdValid ? EpicAccountIdToHandle.Find(InEpicAccountId) : nullptr)
+			if (const FAccountId* FoundEas = bInEpicAccountIdValid ? EpicAccountIdToAccountId.Find(InEpicAccountId) : nullptr)
 			{
 				Result = *FoundEas;
 			}
-			else if (const FAccountId* FoundProd = bInProductUserIdValid ? ProductUserIdToHandle.Find(InProductUserId) : nullptr)
+			else if (const FAccountId* FoundProd = bInProductUserIdValid ? ProductUserIdToAccountId.Find(InProductUserId) : nullptr)
 			{
 				Result = *FoundProd;
 			}
@@ -222,11 +222,11 @@ FAccountId FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccount
 
 				if (bInEpicAccountIdValid)
 				{
-					EpicAccountIdToHandle.Emplace(InEpicAccountId, Result);
+					EpicAccountIdToAccountId.Emplace(InEpicAccountId, Result);
 				}
 				if (bInProductUserIdValid)
 				{
-					ProductUserIdToHandle.Emplace(InProductUserId, Result);
+					ProductUserIdToAccountId.Emplace(InProductUserId, Result);
 				}
 			}
 		}
@@ -240,12 +240,12 @@ FAccountId FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccount
 			if (bUpdateEpicAccountId)
 			{
 				AccountIdDataToUpdate.EpicAccountId = InEpicAccountId;
-				EpicAccountIdToHandle.Emplace(InEpicAccountId, Result);
+				EpicAccountIdToAccountId.Emplace(InEpicAccountId, Result);
 			}
 			if (bUpdateProductUserId)
 			{
 				AccountIdDataToUpdate.ProductUserId = InProductUserId;
-				ProductUserIdToHandle.Emplace(InProductUserId, Result);
+				ProductUserIdToAccountId.Emplace(InProductUserId, Result);
 			}
 		}
 	}
@@ -253,14 +253,14 @@ FAccountId FOnlineAccountIdRegistryEOS::FindOrAddAccountId(const EOS_EpicAccount
 	return Result;
 }
 
-EOS_EpicAccountId GetEpicAccountId(const FAccountId& Handle)
+EOS_EpicAccountId GetEpicAccountId(const FAccountId& AccountId)
 {
-	return FOnlineAccountIdRegistryEOS::Get().GetAccountIdData(Handle).EpicAccountId;
+	return FOnlineAccountIdRegistryEOS::Get().GetAccountIdData(AccountId).EpicAccountId;
 }
 
-EOS_EpicAccountId GetEpicAccountIdChecked(const FAccountId& Handle)
+EOS_EpicAccountId GetEpicAccountIdChecked(const FAccountId& AccountId)
 {
-	EOS_EpicAccountId EpicAccountId = GetEpicAccountId(Handle);
+	EOS_EpicAccountId EpicAccountId = GetEpicAccountId(AccountId);
 	check(EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE);
 	return EpicAccountId;
 }

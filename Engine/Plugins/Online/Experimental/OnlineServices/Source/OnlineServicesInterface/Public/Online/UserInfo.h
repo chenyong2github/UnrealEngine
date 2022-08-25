@@ -11,7 +11,7 @@ namespace UE::Online {
 struct FUserInfo
 {
 	/* Account Id */
-	FAccountId UserId;
+	FAccountId AccountId;
 	/* Display Name of the User */
 	FString DisplayName;
 };
@@ -24,9 +24,9 @@ struct FQueryUserInfo
 	struct Params
 	{
 		/* Local user to query users for */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* List of User ids to Query*/
-		TArray<FAccountId> UserIds;
+		TArray<FAccountId> AccountIds;
 	};
 
 	/**
@@ -46,9 +46,9 @@ struct FGetUserInfo
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* User id to get info for*/
-		FAccountId UserId;
+		FAccountId AccountId;
 	};
 
 	/**
@@ -69,9 +69,9 @@ struct FQueryUserAvatar
 	struct Params
 	{
 		/* Local user to query users for */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* List of User ids to Query*/
-		TArray<FAccountId> UserIds;
+		TArray<FAccountId> AccountIds;
 	};
 
 	/**
@@ -91,9 +91,9 @@ struct FGetUserAvatar
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* User id to get avatar for*/
-		FAccountId UserId;
+		FAccountId AccountId;
 	};
 
 	/**
@@ -114,9 +114,9 @@ struct FShowUserProfile
 	struct Params
 	{
 		/* Local user */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/* User id to display the profile for*/
-		FAccountId UserId;
+		FAccountId AccountId;
 	};
 
 	/**
@@ -182,21 +182,21 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FUserInfo)
-	ONLINE_STRUCT_FIELD(FUserInfo, UserId),
+	ONLINE_STRUCT_FIELD(FUserInfo, AccountId),
 	ONLINE_STRUCT_FIELD(FUserInfo, DisplayName)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryUserInfo::Params)
-	ONLINE_STRUCT_FIELD(FQueryUserInfo::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FQueryUserInfo::Params, UserIds)
+	ONLINE_STRUCT_FIELD(FQueryUserInfo::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FQueryUserInfo::Params, AccountIds)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryUserInfo::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetUserInfo::Params)
-	ONLINE_STRUCT_FIELD(FGetUserInfo::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FGetUserInfo::Params, UserId)
+	ONLINE_STRUCT_FIELD(FGetUserInfo::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FGetUserInfo::Params, AccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetUserInfo::Result)
@@ -204,16 +204,16 @@ BEGIN_ONLINE_STRUCT_META(FGetUserInfo::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryUserAvatar::Params)
-	ONLINE_STRUCT_FIELD(FQueryUserAvatar::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FQueryUserAvatar::Params, UserIds)
+	ONLINE_STRUCT_FIELD(FQueryUserAvatar::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FQueryUserAvatar::Params, AccountIds)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryUserAvatar::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetUserAvatar::Params)
-	ONLINE_STRUCT_FIELD(FGetUserAvatar::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FGetUserAvatar::Params, UserId)
+	ONLINE_STRUCT_FIELD(FGetUserAvatar::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FGetUserAvatar::Params, AccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetUserAvatar::Result)
@@ -221,8 +221,8 @@ BEGIN_ONLINE_STRUCT_META(FGetUserAvatar::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FShowUserProfile::Params)
-	ONLINE_STRUCT_FIELD(FShowUserProfile::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FShowUserProfile::Params, UserId)
+	ONLINE_STRUCT_FIELD(FShowUserProfile::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FShowUserProfile::Params, AccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FShowUserProfile::Result)

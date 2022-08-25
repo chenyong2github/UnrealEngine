@@ -176,7 +176,7 @@ TOnlineResult<FGetCachedStats> FStatsCommon::GetCachedStats(FGetCachedStats::Par
 
 void FStatsCommon::CacheUserStats(const FUserStats& UserStats)
 {
-	if (FUserStats* ExistingUserStats = CachedUsersStats.FindByPredicate(FFindUserStatsByAccountId(UserStats.UserId)))
+	if (FUserStats* ExistingUserStats = CachedUsersStats.FindByPredicate(FFindUserStatsByAccountId(UserStats.AccountId)))
 	{
 		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
 		{

@@ -169,7 +169,7 @@ public:
 	virtual ~FAccountInfoRegistryEOS() = default;
 
 	TSharedPtr<FAccountInfoEOS> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfoEOS> Find(FAccountId AccountIdHandle) const;
+	TSharedPtr<FAccountInfoEOS> Find(FAccountId AccountId) const;
 	TSharedPtr<FAccountInfoEOS> Find(EOS_EpicAccountId EpicAccountId) const;
 	TSharedPtr<FAccountInfoEOS> Find(EOS_ProductUserId ProductUserId) const;
 
@@ -208,8 +208,8 @@ public:
 	// End IAuth
 
 	// Begin FAuthEOSGS
-	virtual TFuture<FAccountId> ResolveAccountId(const FAccountId& LocalUserId, const EOS_ProductUserId ProductUserId);
-	virtual TFuture<TArray<FAccountId>> ResolveAccountIds(const FAccountId& LocalUserId, const TArray<EOS_ProductUserId>& ProductUserIds);
+	virtual TFuture<FAccountId> ResolveAccountId(const FAccountId& LocalAccountId, const EOS_ProductUserId ProductUserId);
+	virtual TFuture<TArray<FAccountId>> ResolveAccountIds(const FAccountId& LocalAccountId, const TArray<EOS_ProductUserId>& ProductUserIds);
 	virtual TFunction<TFuture<FAccountId>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)> ResolveProductIdFn();
 	virtual TFunction<TFuture<TArray<FAccountId>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> ResolveProductIdsFn();
 	// End FAuthEOSGS

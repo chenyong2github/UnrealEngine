@@ -37,7 +37,7 @@ struct FExternalUIShowFriendsUI
 	struct Params
 	{
 		/** Local user id to show the friends UI for */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -84,7 +84,7 @@ BEGIN_ONLINE_STRUCT_META(FExternalUIShowLoginUI::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Params)
-	ONLINE_STRUCT_FIELD(FExternalUIShowFriendsUI::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FExternalUIShowFriendsUI::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Result)

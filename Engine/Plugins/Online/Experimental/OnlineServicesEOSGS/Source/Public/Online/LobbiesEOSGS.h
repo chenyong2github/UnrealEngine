@@ -32,7 +32,7 @@ struct FLobbiesJoinLobbyImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// The local name for the lobby.
 		FName LocalName;
@@ -56,7 +56,7 @@ struct FLobbiesJoinLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// Initial attributes.
 		TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
@@ -77,7 +77,7 @@ struct FLobbiesLeaveLobbyImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -95,7 +95,7 @@ struct FLobbiesDestroyLobbyImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -113,10 +113,10 @@ struct FLobbiesInviteLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// The target user for the invitation.
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	struct Result
@@ -131,7 +131,7 @@ struct FLobbiesDeclineLobbyInvitationImpl
 	struct Params
 	{
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// Id of the lobby for which the invitations will be declined.
 		FOnlineLobbyIdHandle LobbyId;
@@ -152,10 +152,10 @@ struct FLobbiesKickLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// The target user to be kicked.
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	struct Result
@@ -173,10 +173,10 @@ struct FLobbiesPromoteLobbyMemberImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// The target user to be promoted to owner.
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	struct Result
@@ -194,7 +194,7 @@ struct FLobbiesModifyLobbyDataImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// The changes to apply to the lobby data.
 		TSharedPtr<FClientLobbyDataChanges> Changes;
@@ -218,7 +218,7 @@ struct FLobbiesModifyLobbyMemberDataImpl
 		TSharedPtr<FLobbyDataEOS> LobbyData;
 
 		// The local user agent which will perform the action.
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		// The changes to apply to the lobby member data.
 		TSharedPtr<FClientLobbyMemberDataChanges> Changes;
@@ -293,8 +293,8 @@ protected:
 	void RegisterHandlers();
 	void UnregisterHandlers();
 
-	void AddActiveLobby(FAccountId LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData);
-	void RemoveActiveLobby(FAccountId LocalUserId, const TSharedRef<FLobbyDataEOS>& LobbyData);
+	void AddActiveLobby(FAccountId LocalAccountId, const TSharedRef<FLobbyDataEOS>& LobbyData);
+	void RemoveActiveLobby(FAccountId LocalAccountId, const TSharedRef<FLobbyDataEOS>& LobbyData);
 
 	// Todo: store list of invites per lobby.
 	void AddActiveInvite(const TSharedRef<FLobbyInviteDataEOS>& Invite);
@@ -334,7 +334,7 @@ namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesJoinLobbyImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalName),
 	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalUsers)
 END_ONLINE_STRUCT_META()
@@ -344,7 +344,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesJoinLobbyMemberImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, Attributes)
 END_ONLINE_STRUCT_META()
 
@@ -353,7 +353,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesLeaveLobbyImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesLeaveLobbyImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesLeaveLobbyImpl::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesLeaveLobbyImpl::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesLeaveLobbyImpl::Result)
@@ -361,7 +361,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesDestroyLobbyImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesDestroyLobbyImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesDestroyLobbyImpl::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesDestroyLobbyImpl::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesDestroyLobbyImpl::Result)
@@ -369,15 +369,15 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesInviteLobbyMemberImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesInviteLobbyMemberImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesInviteLobbyMemberImpl::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FLobbiesInviteLobbyMemberImpl::Params, TargetUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesInviteLobbyMemberImpl::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FLobbiesInviteLobbyMemberImpl::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesInviteLobbyMemberImpl::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesDeclineLobbyInvitationImpl::Params)
-	ONLINE_STRUCT_FIELD(FLobbiesDeclineLobbyInvitationImpl::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbiesDeclineLobbyInvitationImpl::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLobbiesDeclineLobbyInvitationImpl::Params, LobbyId)
 END_ONLINE_STRUCT_META()
 
@@ -386,8 +386,8 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesKickLobbyMemberImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesKickLobbyMemberImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesKickLobbyMemberImpl::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FLobbiesKickLobbyMemberImpl::Params, TargetUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesKickLobbyMemberImpl::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FLobbiesKickLobbyMemberImpl::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesKickLobbyMemberImpl::Result)
@@ -395,8 +395,8 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesPromoteLobbyMemberImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesPromoteLobbyMemberImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesPromoteLobbyMemberImpl::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FLobbiesPromoteLobbyMemberImpl::Params, TargetUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesPromoteLobbyMemberImpl::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FLobbiesPromoteLobbyMemberImpl::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesPromoteLobbyMemberImpl::Result)
@@ -404,7 +404,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyDataImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyDataImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyDataImpl::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyDataImpl::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyDataImpl::Result)
@@ -412,7 +412,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyMemberDataImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyMemberDataImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyMemberDataImpl::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FLobbiesModifyLobbyMemberDataImpl::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesModifyLobbyMemberDataImpl::Result)

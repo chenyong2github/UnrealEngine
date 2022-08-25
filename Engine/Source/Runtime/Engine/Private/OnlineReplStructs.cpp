@@ -227,9 +227,9 @@ void FUniqueNetIdRepl::MakeReplicationDataV2()
 	EUniqueIdEncodingFlags EncodingFlags = EUniqueIdEncodingFlags::IsEncoded;
 	EncodingFlags |= static_cast<EUniqueIdEncodingFlags>(TypeHash_V2 << 3);
 
-	UE::Online::FAccountId Handle = GetV2();
-	UE::Online::EOnlineServices OnlineServicesType = Handle.GetOnlineServicesType();
-	TArray<uint8> ReplicationData = UE::Online::FOnlineIdRegistryRegistry::Get().ToReplicationData(Handle);
+	UE::Online::FAccountId AccountId = GetV2();
+	UE::Online::EOnlineServices OnlineServicesType = AccountId.GetOnlineServicesType();
+	TArray<uint8> ReplicationData = UE::Online::FOnlineIdRegistryRegistry::Get().ToReplicationData(AccountId);
 	check(!ReplicationData.IsEmpty());
 
 	ReplicationBytes.Empty();
@@ -445,9 +445,9 @@ void FUniqueNetIdRepl::NetSerializeLoadV2(FArchive& Ar, const EUniqueIdEncodingF
 	TArray<uint8> ReplicationData;
 	Ar << ReplicationData;
 
-	const UE::Online::FAccountId Handle = UE::Online::FOnlineIdRegistryRegistry::Get().ToAccountId(OnlineServicesType, ReplicationData);
-	check(Handle.IsValid());
-	SetAccountId(Handle);
+	const UE::Online::FAccountId AccountId = UE::Online::FOnlineIdRegistryRegistry::Get().ToAccountId(OnlineServicesType, ReplicationData);
+	check(AccountId.IsValid());
+	SetAccountId(AccountId);
 }
 
 bool FUniqueNetIdRepl::Serialize(FArchive& Ar)

@@ -147,7 +147,7 @@ TSharedRef<FLobbyNull> FLobbiesNull::CreateNamedLobby(const FCreateLobby::Params
 	//CHECK(!NamedLobbies.Contains(Params.LocalName))
 	TSharedRef<FLobbyNull> Lobby = NamedLobbies.Add(Params.LocalName, MakeShared<FLobbyNull>());
 	Lobby->Data->LobbyId = FOnlineLobbyIdRegistryNull::Get().GetNext();
-	Lobby->Data->OwnerAccountId = Params.LocalUserId;
+	Lobby->Data->OwnerAccountId = Params.LocalAccountId;
 	Lobby->Data->LocalName = Params.LocalName;
 	//Lobby.Data.SchemaName = ???
 	Lobby->Data->JoinPolicy = ELobbyJoinPolicy::PublicAdvertised; // temp
@@ -159,12 +159,12 @@ TSharedRef<FLobbyNull> FLobbiesNull::CreateNamedLobby(const FCreateLobby::Params
 	{
 		TSharedRef<FLobbyMember> NewMember = MakeShared<FLobbyMember>();
 
-		NewMember->AccountId = Data.LocalUserId;
-		NewMember->PlatformAccountId = Data.LocalUserId;
+		NewMember->AccountId = Data.LocalAccountId;
+		NewMember->PlatformAccountId = Data.LocalAccountId;
 		NewMember->PlatformDisplayName = TEXT("TEMP");
 		NewMember->Attributes = Data.Attributes;
 
-		Lobby->Data->Members.Add(Data.LocalUserId, NewMember);
+		Lobby->Data->Members.Add(Data.LocalAccountId, NewMember);
 
 	}
 
@@ -299,10 +299,10 @@ void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TS
 	UE_LOG(LogTemp, Verbose, TEXT("Reading session information from server"));
 
 	/** Owner of the session */
-	FAccountId OwningUserId;
+	FAccountId OwningAccountId;
 	FString OwningUserName;
 	uint32 NumOpenPrivateConnections, NumOpenPublicConnections;
-	SerializeFromBuffer(Packet, OwningUserId);
+	SerializeFromBuffer(Packet, OwningAccountId);
 	SerializeFromBuffer(Packet, Session->Data->Attributes);
 	Packet	>> OwningUserName
 		>> Session->HostAddrIp
@@ -310,7 +310,7 @@ void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TS
 		>> NumOpenPrivateConnections
 		>> NumOpenPublicConnections;
 
-	Session->Data->OwnerAccountId = OwningUserId;
+	Session->Data->OwnerAccountId = OwningAccountId;
 	Session->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 	Session->HostAddr->SetIp(Session->HostAddrIp);
 	Session->HostAddr->SetPort(Session->HostAddrPort);
@@ -320,10 +320,10 @@ void FLobbiesNull::ReadLobbyFromPacket(FNboSerializeFromBuffer& Packet, const TS
 
 	// todo: make all the members (not just the host
 	TSharedRef<FLobbyMember> NewMember = MakeShared<FLobbyMember>();
-	NewMember->AccountId = OwningUserId;
-	NewMember->PlatformAccountId = OwningUserId;
+	NewMember->AccountId = OwningAccountId;
+	NewMember->PlatformAccountId = OwningAccountId;
 	NewMember->PlatformDisplayName = TEXT("TEMP");
-	Session->Data->Members.Add(OwningUserId, NewMember);
+	Session->Data->Members.Add(OwningAccountId, NewMember);
 	AllLobbies.Add(Session->Data->LobbyId, Session);
 
 	// todo: host info, per game settings

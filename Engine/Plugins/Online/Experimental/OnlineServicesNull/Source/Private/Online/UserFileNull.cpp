@@ -48,13 +48,13 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileNull::EnumerateFiles(FUse
 	TOnlineAsyncOpRef<FUserFileEnumerateFiles> Op = GetOp<FUserFileEnumerateFiles>(MoveTemp(InParams));
 	const FUserFileEnumerateFiles::Params& Params = Op->GetParams();
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
 	}
 
-	FUserState& UserState = GetUserState(Params.LocalUserId);
+	FUserState& UserState = GetUserState(Params.LocalAccountId);
 	UserState.bEnumerated = true;
 
 	Op->SetResult({});
@@ -63,12 +63,12 @@ TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileNull::EnumerateFiles(FUse
 
 TOnlineResult<FUserFileGetEnumeratedFiles> FUserFileNull::GetEnumeratedFiles(FUserFileGetEnumeratedFiles::Params&& Params)
 {
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FUserFileGetEnumeratedFiles>(Errors::InvalidUser());
 	}
 
-	FUserState& FileState = GetUserState(Params.LocalUserId);
+	FUserState& FileState = GetUserState(Params.LocalAccountId);
 	if (!FileState.bEnumerated)
 	{
 		// Need to call EnumerateFiles first.
@@ -85,7 +85,7 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileNull::ReadFile(FUserFileReadFil
 	TOnlineAsyncOpRef<FUserFileReadFile> Op = GetOp<FUserFileReadFile>(MoveTemp(InParams));
 	const FUserFileReadFile::Params& Params = Op->GetParams();
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -97,7 +97,7 @@ TOnlineAsyncOpHandle<FUserFileReadFile> FUserFileNull::ReadFile(FUserFileReadFil
 		return Op->GetHandle();
 	}
 
-	FUserState& UserState = GetUserState(Params.LocalUserId);
+	FUserState& UserState = GetUserState(Params.LocalAccountId);
 	const FUserFileContentsRef* Found = UserState.Files.Find(Params.Filename);
 	if (!Found)
 	{
@@ -114,7 +114,7 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileNull::WriteFile(FUserFileWrite
 	TOnlineAsyncOpRef<FUserFileWriteFile> Op = GetOp<FUserFileWriteFile>(MoveTemp(InParams));
 	const FUserFileWriteFile::Params& Params = Op->GetParams();
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -126,7 +126,7 @@ TOnlineAsyncOpHandle<FUserFileWriteFile> FUserFileNull::WriteFile(FUserFileWrite
 		return Op->GetHandle();
 	}
 
-	FUserState& UserState = GetUserState(Params.LocalUserId);
+	FUserState& UserState = GetUserState(Params.LocalAccountId);
 	UserState.Files.Emplace(Params.Filename, MakeShared<FUserFileContents>(Params.FileContents));
 	Op->SetResult({});
 	return Op->GetHandle();
@@ -137,7 +137,7 @@ TOnlineAsyncOpHandle<FUserFileCopyFile> FUserFileNull::CopyFile(FUserFileCopyFil
 	TOnlineAsyncOpRef<FUserFileCopyFile> Op = GetOp<FUserFileCopyFile>(MoveTemp(InParams));
 	const FUserFileCopyFile::Params& Params = Op->GetParams();
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -149,7 +149,7 @@ TOnlineAsyncOpHandle<FUserFileCopyFile> FUserFileNull::CopyFile(FUserFileCopyFil
 		return Op->GetHandle();
 	}
 
-	FUserState& UserState = GetUserState(Params.LocalUserId);
+	FUserState& UserState = GetUserState(Params.LocalAccountId);
 	const FUserFileContentsRef* SourceFile = UserState.Files.Find(Params.SourceFilename);
 	if (!SourceFile)
 	{
@@ -167,7 +167,7 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileNull::DeleteFile(FUserFileDel
 	TOnlineAsyncOpRef<FUserFileDeleteFile> Op = GetOp<FUserFileDeleteFile>(MoveTemp(InParams));
 	const FUserFileDeleteFile::Params& Params = Op->GetParams();
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -179,7 +179,7 @@ TOnlineAsyncOpHandle<FUserFileDeleteFile> FUserFileNull::DeleteFile(FUserFileDel
 		return Op->GetHandle();
 	}
 
-	FUserState& UserState = GetUserState(Params.LocalUserId);
+	FUserState& UserState = GetUserState(Params.LocalAccountId);
 	const bool bRemoved = UserState.Files.Remove(Params.Filename) != 0;
 	if (!bRemoved)
 	{

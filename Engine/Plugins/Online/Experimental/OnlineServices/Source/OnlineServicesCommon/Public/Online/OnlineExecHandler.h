@@ -229,11 +229,11 @@ public:
 
 	static bool Assign(FString& VariantValue, VariantObject& Variant, IOnlineServices* Services)
 	{
-		FAccountId Handle;
+		FAccountId AccountId;
 		const TCHAR* ValueTCHAR = *VariantValue;
-		if (ParseOnlineExecParams<TOnlineIdHandle<OnlineIdHandleTags::FAccount>>(ValueTCHAR, Handle, Services))
+		if (ParseOnlineExecParams<TOnlineIdHandle<OnlineIdHandleTags::FAccount>>(ValueTCHAR, AccountId, Services))
 		{
-			Variant.template Set<FAccountId>(Handle);
+			Variant.template Set<FAccountId>(AccountId);
 			return true;
 		}
 		return false;

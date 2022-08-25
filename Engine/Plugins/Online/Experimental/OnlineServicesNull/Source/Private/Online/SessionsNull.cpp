@@ -36,7 +36,7 @@ void FSessionsNull::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const F
 	using namespace NboSerializerNullSvc;
 
 	SerializeToBuffer(Packet, Session);
-	SerializeToBuffer(Packet, Session.OwnerUserId);
+	SerializeToBuffer(Packet, Session.OwnerAccountId);
 	SerializeToBuffer(Packet, Session.SessionId);
 	SerializeToBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
 	SerializeToBuffer(Packet, Session.SessionSettings.SessionMembers);
@@ -48,7 +48,7 @@ void FSessionsNull::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSess
 	using namespace NboSerializerNullSvc;
 
 	SerializeFromBuffer(Packet, Session);
-	SerializeFromBuffer(Packet, Session.OwnerUserId);
+	SerializeFromBuffer(Packet, Session.OwnerAccountId);
 	SerializeFromBuffer(Packet, Session.SessionId);
 	SerializeFromBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
 	SerializeFromBuffer(Packet, Session.SessionSettings.SessionMembers);

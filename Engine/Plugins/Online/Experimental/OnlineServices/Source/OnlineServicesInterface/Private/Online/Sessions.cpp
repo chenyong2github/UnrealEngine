@@ -193,7 +193,7 @@ FSession::FSession()
 }
 
 FSession::FSession(const FSession& InSession)
-	: OwnerUserId(InSession.OwnerUserId)
+	: OwnerAccountId(InSession.OwnerAccountId)
 	, SessionId(InSession.SessionId)
 	, SessionSettings(InSession.SessionSettings)
 {

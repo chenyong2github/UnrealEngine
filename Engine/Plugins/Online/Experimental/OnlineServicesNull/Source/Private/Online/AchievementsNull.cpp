@@ -73,7 +73,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsNull::QueryAchie
 {
 	TOnlineAsyncOpRef<FQueryAchievementDefinitions> Op = GetOp<FQueryAchievementDefinitions>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -90,7 +90,7 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsNull::QueryAchie
 
 TOnlineResult<FGetAchievementIds> FAchievementsNull::GetAchievementIds(FGetAchievementIds::Params&& Params)
 {
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetAchievementIds>(Errors::InvalidUser());
 	}
@@ -108,7 +108,7 @@ TOnlineResult<FGetAchievementIds> FAchievementsNull::GetAchievementIds(FGetAchie
 
 TOnlineResult<FGetAchievementDefinition> FAchievementsNull::GetAchievementDefinition(FGetAchievementDefinition::Params&& Params)
 {
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetAchievementDefinition>(Errors::InvalidUser());
 	}
@@ -132,7 +132,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsNull::QueryAchievemen
 {
 	TOnlineAsyncOpRef<FQueryAchievementStates> Op = GetOp<FQueryAchievementStates>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -145,9 +145,9 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsNull::QueryAchievemen
 		return Op->GetHandle();
 	}
 
-	if (!AchievementStates.Contains(Op->GetParams().LocalUserId))
+	if (!AchievementStates.Contains(Op->GetParams().LocalAccountId))
 	{
-		FAchievementStateMap& LocalUserAchievementStates = AchievementStates.Emplace(Op->GetParams().LocalUserId);
+		FAchievementStateMap& LocalUserAchievementStates = AchievementStates.Emplace(Op->GetParams().LocalAccountId);
 		for (const TPair<FString, FAchievementDefinition>& Pair : *AchievementDefinitions)
 		{
 			const FString& AchievementId = Pair.Key;
@@ -162,12 +162,12 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsNull::QueryAchievemen
 
 TOnlineResult<FGetAchievementState> FAchievementsNull::GetAchievementState(FGetAchievementState::Params&& Params) const
 {
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetAchievementState>(Errors::InvalidUser());
 	}
 
-	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalUserId);
+	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalAccountId);
 	if (!LocalUserAchievementStates)
 	{
 		// Call QueryAchievementStates first
@@ -187,7 +187,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsNull::UnlockAchievements(
 {
 	TOnlineAsyncOpRef<FUnlockAchievements> Op = GetOp<FUnlockAchievements>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -199,7 +199,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsNull::UnlockAchievements(
 		return Op->GetHandle();
 	}
 
-	FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Op->GetParams().LocalUserId);
+	FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Op->GetParams().LocalAccountId);
 	if (!LocalUserAchievementStates)
 	{
 		// Call QueryAchievementStates first
@@ -235,7 +235,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsNull::UnlockAchievements(
 	}
 
 	FAchievementStateUpdated AchievementStateUpdated;
-	AchievementStateUpdated.LocalUserId = Op->GetParams().LocalUserId;
+	AchievementStateUpdated.LocalAccountId = Op->GetParams().LocalAccountId;
 	AchievementStateUpdated.AchievementIds = Op->GetParams().AchievementIds;
 	OnAchievementStateUpdatedEvent.Broadcast(AchievementStateUpdated);
 
@@ -245,12 +245,12 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsNull::UnlockAchievements(
 
 TOnlineResult<FDisplayAchievementUI> FAchievementsNull::DisplayAchievementUI(FDisplayAchievementUI::Params&& Params)
 {
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FDisplayAchievementUI>(Errors::InvalidUser());
 	}
 
-	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalUserId);
+	const FAchievementStateMap* LocalUserAchievementStates = AchievementStates.Find(Params.LocalAccountId);
 	if (!LocalUserAchievementStates)
 	{
 		// Call QueryAchievementStates first
@@ -266,7 +266,7 @@ TOnlineResult<FDisplayAchievementUI> FAchievementsNull::DisplayAchievementUI(FDi
 	}
 
 	const FAchievementState& AchievementState = LocalUserAchievementStates->FindChecked(Params.AchievementId);
-	UE_LOG(LogTemp, Display, TEXT("AchievementsNull: DisplayAchievementUI LocalUserId=[%s]"), *ToLogString(Params.LocalUserId));
+	UE_LOG(LogTemp, Display, TEXT("AchievementsNull: DisplayAchievementUI LocalAccountId=[%s]"), *ToLogString(Params.LocalAccountId));
 	UE_LOG(LogTemp, Display, TEXT("AchievementsNull: DisplayAchievementUI AchievementDefinition=[%s]"), *ToLogString(*AchievementDefinition));
 	UE_LOG(LogTemp, Display, TEXT("AchievementsNull: DisplayAchievementUI AchievementState=[%s]"), *ToLogString(AchievementState));
 

@@ -77,7 +77,7 @@ struct FLobby
 struct FJoinLobbyLocalUserData
 {
 	/** Local users who will be joining the lobby. */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 
 	/** Initial attributes. */
 	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
@@ -105,7 +105,7 @@ struct FCreateLobby
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** The local name for the lobby. */
 		FName LocalName;
@@ -142,7 +142,7 @@ struct FFindLobbies
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/**
 		* Max results to return in one search.
@@ -190,7 +190,7 @@ struct FJoinLobby
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** The local name for the lobby. */
 		FName LocalName;
@@ -218,7 +218,7 @@ struct FLeaveLobby
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby to leave. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -238,13 +238,13 @@ struct FInviteLobbyMember
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby for which the invitation will be sent. */
 		FOnlineLobbyIdHandle LobbyId;
 
 		/** Id of the player who will be sent the invitation. */
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	/** Output struct for Lobbies::InviteLobbyMember */
@@ -261,7 +261,7 @@ struct FDeclineLobbyInvitation
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby for which the invitations will be declined. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -281,13 +281,13 @@ struct FKickLobbyMember
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
 
 		/** The target user to be kicked. */
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	/** Output struct for Lobbies::KickLobbyMember */
@@ -304,13 +304,13 @@ struct FPromoteLobbyMember
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
 
 		/** The target user to be promoted to owner. */
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	/** Output struct for Lobbies::PromoteLobbyMember */
@@ -342,7 +342,7 @@ struct FModifyLobbyJoinPolicy
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -365,7 +365,7 @@ struct FModifyLobbyAttributes
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -391,7 +391,7 @@ struct FModifyLobbyMemberAttributes
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Id of the lobby. */
 		FOnlineLobbyIdHandle LobbyId;
@@ -417,7 +417,7 @@ struct FGetJoinedLobbies
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	/** Output struct for Lobbies::GetJoinedLobbies */
@@ -435,7 +435,7 @@ struct FGetReceivedInvitations
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	/** Output struct for Lobbies::GetReceivedInvitations */
@@ -526,7 +526,7 @@ struct FLobbyMemberAttributesChanged
 struct FLobbyInvitationAdded
 {
 	/** The local user associated with the invitation. */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 
 	/** The user who sent the invitation. */
 	FAccountId SenderId;
@@ -539,7 +539,7 @@ struct FLobbyInvitationAdded
 struct FLobbyInvitationRemoved
 {
 	/** The local user associated with the invitation. */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 
 	/** The user who sent the invitation. */
 	FAccountId SenderId;
@@ -564,7 +564,7 @@ ONLINESERVICESINTERFACE_API void LexFromString(EUILobbyJoinRequestedSource& OutU
 struct FUILobbyJoinRequested
 {
 	/** The local user associated with the join request. */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 
 	/** The lobby the local user requested to join, or the online error if there was a failure */
 	TResult<TSharedRef<const FLobby>, FOnlineError> Result;
@@ -809,12 +809,12 @@ BEGIN_ONLINE_STRUCT_META(FLobby)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinLobbyLocalUserData)
-	ONLINE_STRUCT_FIELD(FJoinLobbyLocalUserData, LocalUserId),
+	ONLINE_STRUCT_FIELD(FJoinLobbyLocalUserData, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FJoinLobbyLocalUserData, Attributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateLobby::Params)
-	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalName),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, SchemaName),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, MaxMembers),
@@ -846,7 +846,7 @@ BEGIN_ONLINE_STRUCT_META(FJoinLobby::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLeaveLobby::Params)
-	ONLINE_STRUCT_FIELD(FLeaveLobby::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLeaveLobby::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLeaveLobby::Params, LobbyId)
 END_ONLINE_STRUCT_META()
 
@@ -902,7 +902,7 @@ BEGIN_ONLINE_STRUCT_META(FModifyLobbyMemberAttributes::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetJoinedLobbies::Params)
-	ONLINE_STRUCT_FIELD(FGetJoinedLobbies::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FGetJoinedLobbies::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetJoinedLobbies::Result)
@@ -910,7 +910,7 @@ BEGIN_ONLINE_STRUCT_META(FGetJoinedLobbies::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetReceivedInvitations::Params)
-	ONLINE_STRUCT_FIELD(FGetReceivedInvitations::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FGetReceivedInvitations::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetReceivedInvitations::Result)
@@ -952,19 +952,19 @@ BEGIN_ONLINE_STRUCT_META(FLobbyMemberAttributesChanged)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbyInvitationAdded)
-	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, SenderId),
 	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, Lobby)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbyInvitationRemoved)
-	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, SenderId),
 	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, Lobby)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUILobbyJoinRequested)
-	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, Result)
 END_ONLINE_STRUCT_META()
 

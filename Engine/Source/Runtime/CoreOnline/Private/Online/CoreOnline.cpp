@@ -237,46 +237,46 @@ void FOnlineIdRegistryRegistry::UnregisterAccountIdRegistry(EOnlineServices Onli
 	}
 }
 
-FString FOnlineIdRegistryRegistry::ToLogString(const FAccountId& Handle) const
+FString FOnlineIdRegistryRegistry::ToLogString(const FAccountId& AccountId) const
 {
 	FString Result;
-	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(Handle.GetOnlineServicesType()))
+	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(AccountId.GetOnlineServicesType()))
 	{
-		Result = Registry->ToLogString(Handle);
+		Result = Registry->ToLogString(AccountId);
 	}
 	else
 	{
-		Result = ForeignAccountIdRegistry->ToLogString(Handle);
+		Result = ForeignAccountIdRegistry->ToLogString(AccountId);
 	}
 	return Result;
 }
 
-TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FAccountId& Handle) const
+TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FAccountId& AccountId) const
 {
 	TArray<uint8> RepData;
-	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(Handle.GetOnlineServicesType()))
+	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(AccountId.GetOnlineServicesType()))
 	{
-		RepData = Registry->ToReplicationData(Handle);
+		RepData = Registry->ToReplicationData(AccountId);
 	}
 	else
 	{
-		RepData = ForeignAccountIdRegistry->ToReplicationData(Handle);
+		RepData = ForeignAccountIdRegistry->ToReplicationData(AccountId);
 	}
 	return RepData;
 }
 
 FAccountId FOnlineIdRegistryRegistry::ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const
 {
-	FAccountId Handle;
+	FAccountId AccountId;
 	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(Services))
 	{
-		Handle = Registry->FromReplicationData(RepData);
+		AccountId = Registry->FromReplicationData(RepData);
 	}
 	else
 	{
-		Handle = ForeignAccountIdRegistry->FromReplicationData(Services, RepData);
+		AccountId = ForeignAccountIdRegistry->FromReplicationData(Services, RepData);
 	}
-	return Handle;
+	return AccountId;
 }
 
 IOnlineAccountIdRegistry* FOnlineIdRegistryRegistry::GetAccountIdRegistry(EOnlineServices OnlineServices) const

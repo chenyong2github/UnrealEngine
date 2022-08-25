@@ -44,7 +44,7 @@ public:
 	virtual ~FAccountInfoRegistryOSSAdapter() = default;
 
 	TSharedPtr<FAccountInfoOSSAdapter> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfoOSSAdapter> Find(FAccountId AccountIdHandle) const;
+	TSharedPtr<FAccountInfoOSSAdapter> Find(FAccountId AccountId) const;
 
 	void Register(const TSharedRef<FAccountInfoOSSAdapter>&UserAuthData);
 	void Unregister(FAccountId AccountId);
@@ -67,9 +67,9 @@ public:
 	virtual TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> QueryExternalServerAuthTicket(FAuthQueryExternalServerAuthTicket::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> QueryExternalAuthToken(FAuthQueryExternalAuthToken::Params&& Params) override;
 
-	FUniqueNetIdPtr GetUniqueNetId(FAccountId AccountIdHandle) const;
-	FAccountId GetAccountIdHandle(const FUniqueNetIdRef& UniqueNetId) const;
-	int32 GetLocalUserNum(FAccountId AccountIdHandle) const;
+	FUniqueNetIdPtr GetUniqueNetId(FAccountId AccountId) const;
+	FAccountId GetAccountId(const FUniqueNetIdRef& UniqueNetId) const;
+	int32 GetLocalUserNum(FAccountId AccountId) const;
 
 protected:
 #if !UE_BUILD_SHIPPING

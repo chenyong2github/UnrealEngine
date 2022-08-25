@@ -103,7 +103,7 @@ TSharedRef<FUserPresence> FPresenceOSSAdapter::PresenceV1toV2(FOnlineUserPresenc
 {
 	TSharedRef<FUserPresence> PresenceV2 = MakeShared<FUserPresence>();
 
-	PresenceV2->UserId = Auth->GetAccountIdHandle(Presence.SessionId.ToSharedRef());
+	PresenceV2->AccountId = Auth->GetAccountId(Presence.SessionId.ToSharedRef());
 	PresenceV2->Status = StatusV1toV2(Presence.Status.State);
 	PresenceV2->GameStatus = GameStatusV1toV2(Presence);
 	PresenceV2->Joinability = (Presence.bIsJoinable) ? EUserPresenceJoinability::Public : EUserPresenceJoinability::Private;
@@ -118,7 +118,7 @@ TSharedRef<FOnlineUserPresence> FPresenceOSSAdapter::PresenceV2toV1(FUserPresenc
 {
 	TSharedRef<FOnlineUserPresence> PresenceV1 = MakeShared<FOnlineUserPresence>();
 
-	PresenceV1->SessionId = Auth->GetUniqueNetId(Presence.UserId);
+	PresenceV1->SessionId = Auth->GetUniqueNetId(Presence.AccountId);
 	PresenceV1->bIsOnline = (Presence.Status == EUserPresenceStatus::Online) ? 1 : 0;
 	PresenceV1->bIsPlaying = (Presence.GameStatus != EUserPresenceGameStatus::Unknown) ? 1 : 0;
 	PresenceV1->bIsPlayingThisGame = (Presence.GameStatus == EUserPresenceGameStatus::PlayingThisGame) ? 1 : 0;
@@ -146,7 +146,7 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceOSSAdapter::QueryPresence(FQueryPr
 
 	Op->Then([this](TOnlineAsyncOp<FQueryPresence>& Op, TPromise<TOnlineResult<FQueryPresence>>&& Result)
 	{
-		const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalAccountId);
 
 		if (UniqueNetId)
 		{
@@ -179,7 +179,7 @@ TOnlineAsyncOpHandle<FBatchQueryPresence> FPresenceOSSAdapter::BatchQueryPresenc
 
 	Op->Then([this](TOnlineAsyncOp<FBatchQueryPresence>& Op, TPromise<TOnlineResult<FBatchQueryPresence>>&& Result)
 	{
-		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -187,9 +187,9 @@ TOnlineAsyncOpHandle<FBatchQueryPresence> FPresenceOSSAdapter::BatchQueryPresenc
 		}
 
 		TArray<FUniqueNetIdRef> NetIds;
-		for (const FAccountId& TargetUserId : Op.GetParams().TargetUserIds)
+		for (const FAccountId& TargetAccountId : Op.GetParams().TargetAccountIds)
 		{
-			const FUniqueNetIdPtr TargetUserNetId = Auth->GetUniqueNetId(TargetUserId);
+			const FUniqueNetIdPtr TargetUserNetId = Auth->GetUniqueNetId(TargetAccountId);
 			if (!TargetUserNetId)
 			{
 				Op.SetError(Errors::InvalidParams());
@@ -218,7 +218,7 @@ TOnlineAsyncOpHandle<FBatchQueryPresence> FPresenceOSSAdapter::BatchQueryPresenc
 
 TOnlineResult<FGetCachedPresence> FPresenceOSSAdapter::GetCachedPresence(FGetCachedPresence::Params&& Params)
 {
-	const FUniqueNetId& User = *Auth->GetUniqueNetId(Params.LocalUserId);
+	const FUniqueNetId& User = *Auth->GetUniqueNetId(Params.LocalAccountId);
 	TSharedPtr<FOnlineUserPresence> Presence = MakeShared<FOnlineUserPresence>();
 	EOnlineCachedResult::Type Result = PresenceInt->GetCachedPresence(User, Presence);
 	if (Result != EOnlineCachedResult::Success)
@@ -239,7 +239,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceOSSAdapter::UpdatePresence(FUpdat
 	Op->Then([this](TOnlineAsyncOp<FUpdatePresence>& Op, TPromise<TOnlineResult<FUpdatePresence>>&& Result)
 	{
 		TSharedRef<const FOnlineUserPresence> PresenceV1 = PresenceV2toV1(*Op.GetParams().Presence);
-		PresenceInt->SetPresence(*Auth->GetUniqueNetId(Op.GetParams().LocalUserId), PresenceV1->Status, *MakeDelegateAdapter(this, [this, ResultPromise = MoveTemp(Result)](const FUniqueNetId& UserId, const bool bWasSuccessful) mutable
+		PresenceInt->SetPresence(*Auth->GetUniqueNetId(Op.GetParams().LocalAccountId), PresenceV1->Status, *MakeDelegateAdapter(this, [this, ResultPromise = MoveTemp(Result)](const FUniqueNetId& UserId, const bool bWasSuccessful) mutable
 		{
 			if (bWasSuccessful)
 			{
@@ -283,7 +283,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceOSSAdapter::PartialUpdateP
 			Parameters.Properties = NewProperties;
 		}
 
-		PresenceInt->SetPresence(*Auth->GetUniqueNetId(Op.GetParams().LocalUserId), MoveTemp(Parameters), *MakeDelegateAdapter(this, [this, ResultPromise = MoveTemp(Result)](const FUniqueNetId& UserId, const bool bWasSuccessful) mutable
+		PresenceInt->SetPresence(*Auth->GetUniqueNetId(Op.GetParams().LocalAccountId), MoveTemp(Parameters), *MakeDelegateAdapter(this, [this, ResultPromise = MoveTemp(Result)](const FUniqueNetId& UserId, const bool bWasSuccessful) mutable
 		{
 			if (bWasSuccessful)
 			{

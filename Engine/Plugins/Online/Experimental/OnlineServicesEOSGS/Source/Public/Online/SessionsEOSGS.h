@@ -140,11 +140,11 @@ struct FSendSingleSessionInviteImpl
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		FName SessionName;
 
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	struct Result
@@ -159,7 +159,7 @@ struct FBuildSessionFromDetailsHandle
 	struct Params
 	{
 		/** User which will drive the id resolution */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** EOS session details handle used to extract the data */
 		TSharedRef<FSessionDetailsHandleEOSGS> SessionDetailsHandleEOSGS;
@@ -168,7 +168,7 @@ struct FBuildSessionFromDetailsHandle
 	struct Result
 	{
 		/** User which started the resolution operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** Session built from the details handle */
 		TSharedRef<FSession> Session;
@@ -218,7 +218,7 @@ protected:
 	void SetSessionSearchMaxResults(FSessionSearchHandleEOSGS& SessionSearchHandle, uint32 MaxResults);
 	void SetSessionSearchParameters(FSessionSearchHandleEOSGS& SessionSearchHandle, TArray<FFindSessionsSearchFilter> Filters);
 	void SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionIdHandle& SessionId);
-	void SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FAccountId& TargetUserId);
+	void SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FAccountId& TargetAccountId);
 
 	/**
 	 * Writes all values in the passed SessionSettings to the SessionModificationHandle
@@ -302,21 +302,21 @@ BEGIN_ONLINE_STRUCT_META(FUpdateSessionImpl::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSingleSessionInviteImpl::Params)
-	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, TargetUserId)
+	ONLINE_STRUCT_FIELD(FSendSingleSessionInviteImpl::Params, TargetAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSingleSessionInviteImpl::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FBuildSessionFromDetailsHandle::Params)
-	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Params, SessionDetailsHandleEOSGS)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FBuildSessionFromDetailsHandle::Result)
-	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Result, LocalUserId),
+	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Result, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FBuildSessionFromDetailsHandle::Result, Session)
 END_ONLINE_STRUCT_META()
 

@@ -184,7 +184,7 @@ struct ONLINESERVICESINTERFACE_API FSession
 	FSession(const FSession& InSession);
 
 	/** The user who currently owns the session */
-	FAccountId OwnerUserId;
+	FAccountId OwnerAccountId;
 
 	/** The id for the session, platform dependent */
 	FOnlineSessionIdHandle SessionId;
@@ -248,7 +248,7 @@ struct FGetSessionById
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		FOnlineSessionIdHandle IdHandle;
 	};
@@ -268,7 +268,7 @@ struct FCreateSession
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** The local name for the session */
 		FName SessionName;
@@ -277,7 +277,7 @@ struct FCreateSession
 		FSessionSettings SessionSettings;
 
 		/** Information for all local users who will join the session (includes the session creator) */
-		FSessionMembersMap LocalUsers;
+		FSessionMembersMap LocalAccounts;
 	};
 
 	struct Result
@@ -293,7 +293,7 @@ struct FUpdateSession
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/** The local name for the session */
 		FName SessionName;
@@ -315,13 +315,13 @@ struct FLeaveSession
 	struct Params
 	{
 		/* The local user agent which leaves the session*/
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* The local name for the session. */
 		FName SessionName;
 
 		/** Ids for all local users who will leave the session (includes the main caller) */
-		TArray<FAccountId> LocalUsers;
+		TArray<FAccountId> LocalAccounts;
 
 		/* Whether the call should attempt to destroy the session instead of just leave it */
 		bool bDestroySession;
@@ -340,7 +340,7 @@ struct FFindSessions
 	struct Params
 	{
 		/* The local user agent which starts the session search*/
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* Maximum number of results to return in one search */
 		uint32 MaxResults;
@@ -371,10 +371,10 @@ struct FStartMatchmaking
 	struct Params
 	{
 		/** The local user agent which will perform the action. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* Information for all local users who will join the session (includes the session creator) */
-		FSessionMembersMap LocalUsers;
+		FSessionMembersMap LocalAccounts;
 
 		/* Local name for the session */
 		FName SessionName;
@@ -399,7 +399,7 @@ struct FJoinSession
 	struct Params
 	{
 		/* The local user agent which starts the join operation*/
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* Local name for the session */
 		FName SessionName;
@@ -408,7 +408,7 @@ struct FJoinSession
 		FOnlineSessionIdHandle SessionId;
 
 		/* Information for all local users who will join the session (includes the session creator). Any player that wants to join the session needs defined information to become a new member */
-		FSessionMembersMap LocalUsers;
+		FSessionMembersMap LocalAccounts;
 	};
 
 	struct Result
@@ -424,7 +424,7 @@ struct FAddSessionMembers
 	struct Params
 	{
 		/* The local user agent */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* Local name for the session */
 		FName SessionName;
@@ -449,7 +449,7 @@ struct FRemoveSessionMembers
 	struct Params
 	{
 		/* The local user agent */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* Local name for the session */
 		FName SessionName;
@@ -474,7 +474,7 @@ struct FSendSessionInvite
 	struct Params
 	{
 		/* The local user agent which sends the invite*/
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* The local name for the session. */
 		FName SessionName;
@@ -496,7 +496,7 @@ struct FGetSessionInvites
 	struct Params
 	{
 		/* The local user agent */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -513,7 +513,7 @@ struct FRejectSessionInvite
 	struct Params
 	{
 		/* The local user agent which started the query*/
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* The id handle for the invite to be rejected */
 		FOnlineSessionInviteIdHandle SessionInviteId;
@@ -531,7 +531,7 @@ struct FRegisterPlayers
 	struct Params
 	{
 		/* The local user agent */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* The local name for the session. */
 		FName SessionName;
@@ -555,7 +555,7 @@ struct FUnregisterPlayers
 	struct Params
 	{
 		/* The local user agent */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 		/* The local name for the session. */
 		FName SessionName;
@@ -577,7 +577,7 @@ struct FUnregisterPlayers
 struct FSessionJoined
 {
 	/* The local users which joined the session */
-	TArray<FAccountId> LocalUserIds;
+	TArray<FAccountId> LocalAccountIds;
 
 	/* A shared reference to the session joined. */
 	FOnlineSessionIdHandle SessionId;
@@ -586,7 +586,7 @@ struct FSessionJoined
 struct FSessionLeft
 {
 	/* The local users which left the session */
-	TArray<FAccountId> LocalUserIds;
+	TArray<FAccountId> LocalAccountIds;
 };
 
 struct FSessionUpdated
@@ -601,7 +601,7 @@ struct FSessionUpdated
 struct FSessionInviteReceived
 {
 	/* The local user which received the invite */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 
 	/** The session invite the local user was sent, or the online error if there was a failure retrieving the session for it*/
 	TSharedRef<const FSessionInvite> SessionInvite;
@@ -623,7 +623,7 @@ ONLINESERVICESINTERFACE_API void LexFromString(EUISessionJoinRequestedSource& Ou
 struct FUISessionJoinRequested
 {
 	/** The local user associated with the join request. */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 
 	/** The id for the session the local user requested to join, or the online error if there was a failure retrieving it */
 	TResult<FOnlineSessionIdHandle, FOnlineError> Result;
@@ -887,7 +887,7 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSession)
-	ONLINE_STRUCT_FIELD(FSession, OwnerUserId),
+	ONLINE_STRUCT_FIELD(FSession, OwnerAccountId),
 	ONLINE_STRUCT_FIELD(FSession, SessionId),
 	ONLINE_STRUCT_FIELD(FSession, SessionSettings)
 END_ONLINE_STRUCT_META()
@@ -915,7 +915,7 @@ BEGIN_ONLINE_STRUCT_META(FGetSessionByName::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionById::Params)
-	ONLINE_STRUCT_FIELD(FGetSessionById::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FGetSessionById::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FGetSessionById::Params, IdHandle)
 END_ONLINE_STRUCT_META()
 
@@ -924,17 +924,17 @@ BEGIN_ONLINE_STRUCT_META(FGetSessionById::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateSession::Params)
-	ONLINE_STRUCT_FIELD(FCreateSession::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionSettings),
-	ONLINE_STRUCT_FIELD(FCreateSession::Params, LocalUsers)
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, LocalAccounts)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateSession::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdateSession::Params)
-	ONLINE_STRUCT_FIELD(FUpdateSession::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUpdateSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUpdateSession::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FUpdateSession::Params, Mutations)
 END_ONLINE_STRUCT_META()
@@ -943,9 +943,9 @@ BEGIN_ONLINE_STRUCT_META(FUpdateSession::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLeaveSession::Params)
-	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalUsers),
+	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalAccounts),
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, bDestroySession)
 END_ONLINE_STRUCT_META()
 
@@ -953,7 +953,7 @@ BEGIN_ONLINE_STRUCT_META(FLeaveSession::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FFindSessions::Params)
-	ONLINE_STRUCT_FIELD(FFindSessions::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FFindSessions::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, MaxResults),
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, bFindLANSessions),	
 	ONLINE_STRUCT_FIELD(FFindSessions::Params, Filters),
@@ -966,8 +966,8 @@ BEGIN_ONLINE_STRUCT_META(FFindSessions::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Params)
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalUsers),
+	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalAccounts),
 	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionSettings),
 	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SearchFilters)
@@ -977,17 +977,17 @@ BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Params)
-	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionId),
-	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalUsers)
+	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalAccounts)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAddSessionMembers::Params)
-	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, NewSessionMembers),
 	ONLINE_STRUCT_FIELD(FAddSessionMembers::Params, bRegisterPlayers)
@@ -997,7 +997,7 @@ BEGIN_ONLINE_STRUCT_META(FAddSessionMembers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRemoveSessionMembers::Params)
-	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, SessionMemberIds),
 	ONLINE_STRUCT_FIELD(FRemoveSessionMembers::Params, bUnregisterPlayers)
@@ -1007,7 +1007,7 @@ BEGIN_ONLINE_STRUCT_META(FRemoveSessionMembers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSendSessionInvite::Params)
-	ONLINE_STRUCT_FIELD(FSendSessionInvite::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FSendSessionInvite::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FSendSessionInvite::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FSendSessionInvite::Params, TargetUsers)
 END_ONLINE_STRUCT_META()
@@ -1016,7 +1016,7 @@ BEGIN_ONLINE_STRUCT_META(FSendSessionInvite::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionInvites::Params)
-	ONLINE_STRUCT_FIELD(FGetSessionInvites::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FGetSessionInvites::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionInvites::Result)
@@ -1024,7 +1024,7 @@ BEGIN_ONLINE_STRUCT_META(FGetSessionInvites::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Params)
-	ONLINE_STRUCT_FIELD(FRejectSessionInvite::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FRejectSessionInvite::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FRejectSessionInvite::Params, SessionInviteId)
 END_ONLINE_STRUCT_META()
 
@@ -1032,7 +1032,7 @@ BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRegisterPlayers::Params)
-	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, TargetUsers),
 	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, bReserveSlot)
@@ -1042,7 +1042,7 @@ BEGIN_ONLINE_STRUCT_META(FRegisterPlayers::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUnregisterPlayers::Params)
-	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, TargetUsers),
 	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, bRemoveUnregisteredPlayers)

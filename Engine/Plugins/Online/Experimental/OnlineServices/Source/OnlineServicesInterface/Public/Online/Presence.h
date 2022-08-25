@@ -78,7 +78,7 @@ typedef TMap<FString, FPresenceVariant> FPresenceProperties;
 struct FUserPresence
 {
 	/** User whose presence this is */
-	FAccountId UserId;
+	FAccountId AccountId;
 	/** Presence state */
 	EUserPresenceStatus Status = EUserPresenceStatus::Unknown;
 	/** Session state */
@@ -100,9 +100,9 @@ struct FQueryPresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** User to query the presence for */
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 		/** If true, then future presence updates for this user will be propagated via the OnPresenceUpdated event */
 		bool bListenToChanges = true;
 	};
@@ -122,9 +122,9 @@ struct FBatchQueryPresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Users to query the presence for */
-		TArray<FAccountId> TargetUserIds;
+		TArray<FAccountId> TargetAccountIds;
 		/** If true, then future presence updates for these users will be propagated via the OnPresenceUpdated event */
 		bool bListenToChanges = true;
 	};
@@ -143,9 +143,9 @@ struct FGetCachedPresence
 	struct Params
 	{
 		/** Local user getting the presence */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** User to get the presence for */
-		FAccountId TargetUserId;
+		FAccountId TargetAccountId;
 	};
 
 	struct Result
@@ -162,7 +162,7 @@ struct FUpdatePresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** The new presence to send to the server */
 		TSharedRef<FUserPresence> Presence;
 	};
@@ -179,7 +179,7 @@ struct FPartialUpdatePresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 
 
 		struct FMutations
@@ -293,7 +293,7 @@ inline TSharedRef<FUserPresence> ApplyPresenceMutations(const FUserPresence& Bas
 struct FPresenceUpdated
 {
 	/** Local user receiving the presence update */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 	/** Presence that has updated */
 	TSharedRef<const FUserPresence> UpdatedPresence;
 };
@@ -354,7 +354,7 @@ namespace Meta {
 // TODO: Move to Presence_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FUserPresence)
-	ONLINE_STRUCT_FIELD(FUserPresence, UserId),
+	ONLINE_STRUCT_FIELD(FUserPresence, AccountId),
 	ONLINE_STRUCT_FIELD(FUserPresence, Status),
 	ONLINE_STRUCT_FIELD(FUserPresence, Joinability),
 	ONLINE_STRUCT_FIELD(FUserPresence, GameStatus),
@@ -364,14 +364,14 @@ BEGIN_ONLINE_STRUCT_META(FUserPresence)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryPresence::Params)
-	ONLINE_STRUCT_FIELD(FQueryPresence::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FQueryPresence::Params, TargetUserId),
+	ONLINE_STRUCT_FIELD(FQueryPresence::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FQueryPresence::Params, TargetAccountId),
 	ONLINE_STRUCT_FIELD(FQueryPresence::Params, bListenToChanges)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FBatchQueryPresence::Params)
-	ONLINE_STRUCT_FIELD(FBatchQueryPresence::Params, LocalUserId),
-	ONLINE_STRUCT_FIELD(FBatchQueryPresence::Params, TargetUserIds),
+	ONLINE_STRUCT_FIELD(FBatchQueryPresence::Params, LocalAccountId),
+	ONLINE_STRUCT_FIELD(FBatchQueryPresence::Params, TargetAccountIds),
 	ONLINE_STRUCT_FIELD(FBatchQueryPresence::Params, bListenToChanges)
 END_ONLINE_STRUCT_META()
 
@@ -384,7 +384,7 @@ BEGIN_ONLINE_STRUCT_META(FBatchQueryPresence::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetCachedPresence::Params)
-	ONLINE_STRUCT_FIELD(FGetCachedPresence::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FGetCachedPresence::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetCachedPresence::Result)
@@ -392,7 +392,7 @@ BEGIN_ONLINE_STRUCT_META(FGetCachedPresence::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUpdatePresence::Params)
-	ONLINE_STRUCT_FIELD(FUpdatePresence::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUpdatePresence::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUpdatePresence::Params, Presence)
 END_ONLINE_STRUCT_META()
 
@@ -400,7 +400,7 @@ BEGIN_ONLINE_STRUCT_META(FUpdatePresence::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FPartialUpdatePresence::Params)
-	ONLINE_STRUCT_FIELD(FPartialUpdatePresence::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FPartialUpdatePresence::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FPartialUpdatePresence::Params, Mutations)
 END_ONLINE_STRUCT_META()
 
@@ -417,7 +417,7 @@ BEGIN_ONLINE_STRUCT_META(FPartialUpdatePresence::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FPresenceUpdated)
-	ONLINE_STRUCT_FIELD(FPresenceUpdated, LocalUserId),
+	ONLINE_STRUCT_FIELD(FPresenceUpdated, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FPresenceUpdated, UpdatedPresence)
 END_ONLINE_STRUCT_META()
 

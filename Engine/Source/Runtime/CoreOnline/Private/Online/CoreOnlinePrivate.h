@@ -28,8 +28,8 @@ namespace UE::Online {
 class FOnlineForeignAccountIdRegistry
 {
 public:
-	FString ToLogString(const FAccountId& Handle) const;
-	TArray<uint8> ToReplicationData(const FAccountId& Handle) const;
+	FString ToLogString(const FAccountId& AccountId) const;
+	TArray<uint8> ToReplicationData(const FAccountId& AccountId) const;
 	FAccountId FromReplicationData(EOnlineServices Services, const TArray<uint8>& RepData);
 
 private:

@@ -14,8 +14,8 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FForeignIdRepTest,
 	const TArray<uint8> SourceRepData { 0, 1, 2, 3, 4, 5, 6, 7 };
 
 	FOnlineIdRegistryRegistry Registry;
-	const FAccountId Handle = Registry.ToAccountId(Services, SourceRepData);
-	const TArray<uint8> RepData = Registry.ToReplicationData(Handle);
+	const FAccountId AccountId = Registry.ToAccountId(Services, SourceRepData);
+	const TArray<uint8> RepData = Registry.ToReplicationData(AccountId);
 	UTEST_EQUAL(TEXT(""), RepData, SourceRepData);
 
 	return true;

@@ -147,7 +147,7 @@ const EOS_HLobbyDetails FLobbyDetailsEOS::InvalidLobbyDetailsHandle = {};
 
 TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::CreateFromLobbyId(
 	const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	EOS_LobbyId LobbyId)
 {
 	EOS_HLobbyDetails LobbyDetailsHandle = {};
@@ -155,7 +155,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 	EOS_Lobby_CopyLobbyDetailsHandleOptions Options;
 	Options.ApiVersion = EOS_LOBBY_COPYLOBBYDETAILSHANDLE_API_LATEST;
 	Options.LobbyId = LobbyId;
-	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
+	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	static_assert(EOS_LOBBY_COPYLOBBYDETAILSHANDLE_API_LATEST == 1, "EOS_Lobby_CopyLobbyDetailsHandleOptions updated, check new fields");
 
 	EOS_EResult EOSResult = EOS_Lobby_CopyLobbyDetailsHandle(Prerequisites->LobbyInterfaceHandle, &Options, &LobbyDetailsHandle);
@@ -171,12 +171,12 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 		return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MoveTemp(LobbyDetailsInfoResult.GetErrorValue()));
 	}
 
-	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalUserId, ELobbyDetailsSource::Active, LobbyDetailsHandle));
+	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalAccountId, ELobbyDetailsSource::Active, LobbyDetailsHandle));
 }
 
 TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::CreateFromInviteId(
 	const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	const char* InviteId)
 {
 	EOS_HLobbyDetails LobbyDetailsHandle = {};
@@ -199,12 +199,12 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 		return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MoveTemp(LobbyDetailsInfoResult.GetErrorValue()));
 	}
 
-	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalUserId, ELobbyDetailsSource::Invite, LobbyDetailsHandle));
+	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalAccountId, ELobbyDetailsSource::Invite, LobbyDetailsHandle));
 }
 
 TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::CreateFromUiEventId(
 	const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	EOS_UI_EventId UiEventId)
 {
 	EOS_HLobbyDetails LobbyDetailsHandle = {};
@@ -227,12 +227,12 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 		return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MoveTemp(LobbyDetailsInfoResult.GetErrorValue()));
 	}
 
-	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalUserId, ELobbyDetailsSource::UiEvent, LobbyDetailsHandle));
+	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalAccountId, ELobbyDetailsSource::UiEvent, LobbyDetailsHandle));
 }
 
 TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::CreateFromSearchResult(
 	const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	EOS_HLobbySearch SearchHandle,
 	uint32_t ResultIndex)
 {
@@ -256,7 +256,7 @@ TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> FLobbyDetailsEOS::Crea
 		return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MoveTemp(LobbyDetailsInfoResult.GetErrorValue()));
 	}
 
-	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalUserId, ELobbyDetailsSource::Search, LobbyDetailsHandle));
+	return TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>>(MakeShared<FLobbyDetailsEOS>(Prerequisites, LobbyDetailsInfoResult.GetOkValue(), LocalAccountId, ELobbyDetailsSource::Search, LobbyDetailsHandle));
 }
 
 FLobbyDetailsEOS::~FLobbyDetailsEOS()
@@ -418,7 +418,7 @@ TDefaultErrorResultInternal<TSharedRef<FClientLobbyMemberSnapshot>> FLobbyDetail
 }
 
 TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	const FClientLobbyDataChanges& Changes) const
 {
 	EOS_HLobbyModification LobbyModificationHandle = nullptr;
@@ -431,7 +431,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	// Create lobby modification handle.
 	EOS_Lobby_UpdateLobbyModificationOptions ModificationOptions = {};
 	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
-	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalUserId);
+	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	ModificationOptions.LobbyId = GetInfo()->GetLobbyId();
 	static_assert(EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST == 1, "EOS_Lobby_UpdateLobbyModificationOptions updated, check new fields");
 
@@ -513,7 +513,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 }
 
 TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChanges(
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	const FClientLobbyMemberDataChanges& Changes) const
 {
 	EOS_HLobbyModification LobbyModificationHandle = {};
@@ -526,7 +526,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 	// Create lobby modification handle.
 	EOS_Lobby_UpdateLobbyModificationOptions ModificationOptions = {};
 	ModificationOptions.ApiVersion = EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST;
-	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalUserId);
+	ModificationOptions.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	ModificationOptions.LobbyId = GetInfo()->GetLobbyId();
 	static_assert(EOS_LOBBY_UPDATELOBBYMODIFICATION_API_LATEST == 1, "EOS_Lobby_UpdateLobbyModificationOptions updated, check new fields");
 
@@ -595,12 +595,12 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 FLobbyDetailsEOS::FLobbyDetailsEOS(
 	const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 	const TSharedRef<FLobbyDetailsInfoEOS>& LobbyDetailsInfo,
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	ELobbyDetailsSource LobbyDetailsSource,
 	EOS_HLobbyDetails LobbyDetailsHandle)
 	: Prerequisites(Prerequisites)
 	, LobbyDetailsInfo(LobbyDetailsInfo)
-	, AssociatedLocalUser(LocalUserId)
+	, AssociatedLocalUser(LocalAccountId)
 	, LobbyDetailsSource(LobbyDetailsSource)
 	, LobbyDetailsHandle(LobbyDetailsHandle)
 {
@@ -642,9 +642,9 @@ FLobbyDataEOS::~FLobbyDataEOS()
 	}
 }
 
-void FLobbyDataEOS::AddUserLobbyDetails(FAccountId LocalUserId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails)
+void FLobbyDataEOS::AddUserLobbyDetails(FAccountId LocalAccountId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails)
 {
-	if (TSharedPtr<FLobbyDetailsEOS> ExistingDetails = GetUserLobbyDetails(LocalUserId))
+	if (TSharedPtr<FLobbyDetailsEOS> ExistingDetails = GetUserLobbyDetails(LocalAccountId))
 	{
 		if (ExistingDetails->GetDetailsSource() < LobbyDetails->GetDetailsSource())
 		{
@@ -652,12 +652,12 @@ void FLobbyDataEOS::AddUserLobbyDetails(FAccountId LocalUserId, const TSharedPtr
 		}
 	}
 
-	UserLobbyDetails.Add(LocalUserId, LobbyDetails);
+	UserLobbyDetails.Add(LocalAccountId, LobbyDetails);
 }
 
-TSharedPtr<FLobbyDetailsEOS> FLobbyDataEOS::GetUserLobbyDetails(FAccountId LocalUserId) const
+TSharedPtr<FLobbyDetailsEOS> FLobbyDataEOS::GetUserLobbyDetails(FAccountId LocalAccountId) const
 {
-	const TSharedPtr<FLobbyDetailsEOS>* Result = UserLobbyDetails.Find(LocalUserId);
+	const TSharedPtr<FLobbyDetailsEOS>* Result = UserLobbyDetails.Find(LocalAccountId);
 	return Result ? *Result : TSharedPtr<FLobbyDetailsEOS>();
 }
 
@@ -759,11 +759,11 @@ TSharedPtr<FLobbyDataEOS> FLobbyDataRegistryEOS::Find(FOnlineLobbyIdHandle Lobby
 	return Result ? Result->Pin() : TSharedPtr<FLobbyDataEOS>();
 }
 
-TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegistryEOS::FindOrCreateFromLobbyDetails(FAccountId LocalUserId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails)
+TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegistryEOS::FindOrCreateFromLobbyDetails(FAccountId LocalAccountId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails)
 {
 	if (TSharedPtr<FLobbyDataEOS> FindResult = Find(LobbyDetails->GetInfo()->GetLobbyId()))
 	{
-		FindResult->AddUserLobbyDetails(LocalUserId, LobbyDetails);
+		FindResult->AddUserLobbyDetails(LocalAccountId, LobbyDetails);
 		return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>(FindResult.ToSharedRef()).GetFuture();
 	}
 
@@ -772,7 +772,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegist
 
 	const FOnlineLobbyIdHandle LobbyId = FOnlineLobbyIdHandle(EOnlineServices::Epic, NextHandleIndex++);
 	FLobbyDataEOS::Create(LobbyId, LobbyDetails, MakeUnregisterFn())
-	.Then([WeakThis = AsWeak(), Promise = MoveTemp(Promise), LocalUserId, LobbyDetails](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable
+	.Then([WeakThis = AsWeak(), Promise = MoveTemp(Promise), LocalAccountId, LobbyDetails](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable
 	{
 		if (TSharedPtr<FLobbyDataRegistryEOS> StrongThis = WeakThis.Pin())
 		{
@@ -782,7 +782,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FLobbyDataRegist
 			}
 		}
 
-		Future.Get().GetOkValue()->AddUserLobbyDetails(LocalUserId, LobbyDetails);
+		Future.Get().GetOkValue()->AddUserLobbyDetails(LocalAccountId, LobbyDetails);
 		Promise.EmplaceValue(MoveTempIfPossible(Future.Get()));
 	});
 
@@ -818,11 +818,11 @@ FLobbyDataEOS::FUnregisterFn FLobbyDataRegistryEOS::MakeUnregisterFn()
 TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> FLobbyInviteDataEOS::CreateFromInviteId(
 	const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 	const TSharedRef<FLobbyDataRegistryEOS>& LobbyDataRegistry,
-	FAccountId LocalUserId,
+	FAccountId LocalAccountId,
 	const char* InviteIdEOS,
 	EOS_ProductUserId Sender)
 {
-	TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> LobbyDetailsResult = FLobbyDetailsEOS::CreateFromInviteId(Prerequisites, LocalUserId, InviteIdEOS);
+	TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> LobbyDetailsResult = FLobbyDetailsEOS::CreateFromInviteId(Prerequisites, LocalAccountId, InviteIdEOS);
 	if (LobbyDetailsResult.IsError())
 	{
 		return MakeFulfilledPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>>(MoveTemp(LobbyDetailsResult.GetErrorValue())).GetFuture();
@@ -834,8 +834,8 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> FLobbyInvi
 
 	// Search for existing lobby data so that the LobbyIdHandle will match.
 	TSharedRef<FLobbyInviteIdEOS> InviteId = MakeShared<FLobbyInviteIdEOS>(InviteIdEOS);
-	LobbyDataRegistry->FindOrCreateFromLobbyDetails(LocalUserId, LobbyDetails)
-	.Then([Promise = MoveTemp(Promise), InviteId, LocalUserId, Sender, LobbyDetails](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable
+	LobbyDataRegistry->FindOrCreateFromLobbyDetails(LocalAccountId, LobbyDetails)
+	.Then([Promise = MoveTemp(Promise), InviteId, LocalAccountId, Sender, LobbyDetails](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable
 	{
 		if (Future.Get().IsError())
 		{
@@ -844,15 +844,15 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>> FLobbyInvi
 		}
 
 		// Once the lobby data has been resolved the FAccountId for the sender is expected to be in the AccountID cache.
-		const FAccountId SenderUserId = FindAccountId(Sender);
-		if (!SenderUserId.IsValid())
+		const FAccountId SenderAccountId = FindAccountId(Sender);
+		if (!SenderAccountId.IsValid())
 		{
 			// Todo: Errors.
 			Promise.EmplaceValue(MoveTemp(Future.Get().GetErrorValue()));
 			return;
 		}
 
-		Promise.EmplaceValue(MakeShared<FLobbyInviteDataEOS>(InviteId, LocalUserId, SenderUserId, LobbyDetails, Future.Get().GetOkValue()));
+		Promise.EmplaceValue(MakeShared<FLobbyInviteDataEOS>(InviteId, LocalAccountId, SenderAccountId, LobbyDetails, Future.Get().GetOkValue()));
 	});
 
 	return Future;
@@ -978,11 +978,11 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 
 	EOS_LobbySearch_FindOptions FindOptions = {};
 	FindOptions.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
-	FindOptions.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
+	FindOptions.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 	static_assert(EOS_LOBBYSEARCH_FIND_API_LATEST == 1, "EOS_LobbySearch_FindOptions updated, check new fields");
 
 	EOS_Async(EOS_LobbySearch_Find, SearchHandle->Get(), FindOptions,
-	[Promise = MoveTemp(Promise), Prerequisites, LobbyRegistry, LocalUserId = Params.LocalUserId, SearchHandle]
+	[Promise = MoveTemp(Promise), Prerequisites, LobbyRegistry, LocalAccountId = Params.LocalAccountId, SearchHandle]
 	(const EOS_LobbySearch_FindCallbackInfo* CallbackInfo) mutable
 	{
 		if (CallbackInfo->ResultCode != EOS_EResult::EOS_Success)
@@ -1003,7 +1003,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 		for (uint32_t SearchResultIndex = 0; SearchResultIndex < NumSearchResults; ++SearchResultIndex)
 		{
 			TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> Result = FLobbyDetailsEOS::CreateFromSearchResult(
-				Prerequisites, LocalUserId, SearchHandle->Get(), SearchResultIndex);
+				Prerequisites, LocalAccountId, SearchHandle->Get(), SearchResultIndex);
 			if (Result.IsError())
 			{
 				// todo: errors
@@ -1014,7 +1014,7 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 			TPromise<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> ResolveLobbyDetailsPromise;
 			ResolvedLobbyDetails.Add(ResolveLobbyDetailsPromise.GetFuture());
 
-			LobbyRegistry->FindOrCreateFromLobbyDetails(LocalUserId, Result.GetOkValue())
+			LobbyRegistry->FindOrCreateFromLobbyDetails(LocalAccountId, Result.GetOkValue())
 			.Then([ResolveLobbyDetailsPromise = MoveTemp(ResolveLobbyDetailsPromise)](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>>&& Future) mutable
 			{
 				ResolveLobbyDetailsPromise.EmplaceValue(MoveTempIfPossible(Future.Get()));

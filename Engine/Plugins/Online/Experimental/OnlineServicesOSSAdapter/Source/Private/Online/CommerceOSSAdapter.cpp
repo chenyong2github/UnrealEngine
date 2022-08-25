@@ -66,7 +66,7 @@ void FCommerceOSSAdapter::PostInitialize()
 	MakeMulticastAdapter(this, GetPurchaseInterface()->OnUnexpectedPurchaseReceiptDelegates, [this](const FUniqueNetId& User)
 	{
 		FCommerceOnPurchaseComplete Event;
-		Event.LocalUserId = Auth->GetAccountIdHandle(User.AsShared());
+		Event.LocalAccountId = Auth->GetAccountId(User.AsShared());
 		OnPurchaseCompletedEvent.Broadcast(MoveTemp(Event));
 
 		return false; // don't unbind
@@ -86,7 +86,7 @@ TOnlineAsyncOpHandle<FCommerceQueryOffers> FCommerceOSSAdapter::QueryOffers(FCom
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryOffers>& InAsyncOp)
 	{
 		IOnlineStoreV2Ptr StorePtr = GetStoreInterface();
-		FUniqueNetIdPtr NetId = Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalUserId);
+		FUniqueNetIdPtr NetId = Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalAccountId);
 		StorePtr->QueryOffersByFilter(*NetId, FOnlineStoreFilter(), *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](bool bWasSuccessful, const TArray<FUniqueOfferId>& OfferIds, const FString& Error)
 		{
 			if (bWasSuccessful)
@@ -113,7 +113,7 @@ TOnlineAsyncOpHandle<FCommerceQueryOffersById> FCommerceOSSAdapter::QueryOffersB
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryOffersById>& InAsyncOp)
 	{
 		IOnlineStoreV2Ptr StorePtr = GetStoreInterface();
-		FUniqueNetIdPtr NetId = Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalUserId);
+		FUniqueNetIdPtr NetId = Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalAccountId);
 		StorePtr->QueryOffersById(*NetId, InAsyncOp.GetParams().OfferIds, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](bool bWasSuccessful, const TArray<FUniqueOfferId>& OfferIds, const FString& Error)
 		{
 			if (bWasSuccessful)
@@ -186,7 +186,7 @@ TOnlineAsyncOpHandle<FCommerceShowStoreUI> FCommerceOSSAdapter::ShowStoreUI(FCom
 			return;
 		}
 
-		GetExternalUIInterface()->ShowStoreUI(Auth->GetLocalUserNum(InAsyncOp.GetParams().LocalUserId), FShowStoreParams());
+		GetExternalUIInterface()->ShowStoreUI(Auth->GetLocalUserNum(InAsyncOp.GetParams().LocalAccountId), FShowStoreParams());
 		InAsyncOp.SetResult({});
 	})
 	.Enqueue(GetSerialQueue());
@@ -207,7 +207,7 @@ TOnlineAsyncOpHandle<FCommerceCheckout> FCommerceOSSAdapter::Checkout(FCommerceC
 			CheckoutRequest.AddPurchaseOffer(FOfferNamespace(), Offer.OfferId, Offer.Quantity);
 		}
 
-		GetPurchaseInterface()->Checkout(*Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalUserId), CheckoutRequest, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](const ::FOnlineError& Result, const TSharedRef<FPurchaseReceipt>& Receipt) mutable
+		GetPurchaseInterface()->Checkout(*Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalAccountId), CheckoutRequest, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](const ::FOnlineError& Result, const TSharedRef<FPurchaseReceipt>& Receipt) mutable
 		{
 			if (Result.WasSuccessful())
 			{
@@ -216,7 +216,7 @@ TOnlineAsyncOpHandle<FCommerceCheckout> FCommerceOSSAdapter::Checkout(FCommerceC
 				WeakOp.Pin()->SetResult(MoveTemp(OpResult));
 
 				FCommerceOnPurchaseComplete Event;
-				Event.LocalUserId = WeakOp.Pin()->GetParams().LocalUserId;
+				Event.LocalAccountId = WeakOp.Pin()->GetParams().LocalAccountId;
 				OnPurchaseCompletedEvent.Broadcast(MoveTemp(Event));
 			}
 			else
@@ -236,13 +236,13 @@ TOnlineAsyncOpHandle<FCommerceQueryTransactionEntitlements> FCommerceOSSAdapter:
 
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryTransactionEntitlements>& InAsyncOp)
 	{
-		GetPurchaseInterface()->QueryReceipts(*Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalUserId), true, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](const ::FOnlineError& Result) mutable
+		GetPurchaseInterface()->QueryReceipts(*Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalAccountId), true, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](const ::FOnlineError& Result) mutable
 		{
 			if (Result.WasSuccessful())
 			{
 				FCommerceQueryTransactionEntitlements::Result OpResult;
 				TArray<FPurchaseReceipt> OutReceipts;
-				GetPurchaseInterface()->GetReceipts(*Auth->GetUniqueNetId(WeakOp.Pin()->GetParams().LocalUserId), OutReceipts);
+				GetPurchaseInterface()->GetReceipts(*Auth->GetUniqueNetId(WeakOp.Pin()->GetParams().LocalAccountId), OutReceipts);
 
 				for (const FPurchaseReceipt& Receipt : OutReceipts)
 				{
@@ -275,7 +275,7 @@ TOnlineAsyncOpHandle<FCommerceQueryEntitlements> FCommerceOSSAdapter::QueryEntit
 	
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryEntitlements>& InAsyncOp)
 	{
-		GetPurchaseInterface()->QueryReceipts(*Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalUserId), true, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](const ::FOnlineError& Result) mutable
+		GetPurchaseInterface()->QueryReceipts(*Auth->GetUniqueNetId(InAsyncOp.GetParams().LocalAccountId), true, *MakeDelegateAdapter(InAsyncOp, [this, WeakOp = InAsyncOp.AsWeak()](const ::FOnlineError& Result) mutable
 		{
 			if (Result.WasSuccessful())
 			{
@@ -296,7 +296,7 @@ TOnlineResult<FCommerceGetEntitlements> FCommerceOSSAdapter::GetEntitlements(FCo
 {
 	FCommerceGetEntitlements::Result Result;
 	TArray<FPurchaseReceipt> OutReceipts;
-	GetPurchaseInterface()->GetReceipts(*Auth->GetUniqueNetId(Params.LocalUserId), OutReceipts);
+	GetPurchaseInterface()->GetReceipts(*Auth->GetUniqueNetId(Params.LocalAccountId), OutReceipts);
 
 	for (const FPurchaseReceipt& Receipt : OutReceipts)
 	{

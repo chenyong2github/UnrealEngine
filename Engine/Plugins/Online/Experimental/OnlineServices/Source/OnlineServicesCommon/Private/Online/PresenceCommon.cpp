@@ -36,16 +36,16 @@ public:
 		, Presence(InPresence)
 		, ErrorState(Errors::Success())
 	{
-		NumPresencesRemaining = Op->GetParams().TargetUserIds.Num();
+		NumPresencesRemaining = Op->GetParams().TargetAccountIds.Num();
 	}
 
 	TFuture<FBatchQueryPresenceHelperResult> GetPromise()
 	{
-		for(FAccountId TargetUserId : Op->GetParams().TargetUserIds)
+		for(FAccountId TargetAccountId : Op->GetParams().TargetAccountIds)
 		{
 			FQueryPresence::Params Params;
-			Params.LocalUserId = Op->GetParams().LocalUserId;
-			Params.TargetUserId = TargetUserId;
+			Params.LocalAccountId = Op->GetParams().LocalAccountId;
+			Params.TargetAccountId = TargetAccountId;
 			Params.bListenToChanges = Op->GetParams().bListenToChanges;
 
 			Presence->QueryPresence(MoveTemp(Params)).OnComplete([this](const TOnlineResult<FQueryPresence> NewOp) mutable
@@ -122,7 +122,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceCommon::UpdatePresence(FUpdatePre
 
 TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceCommon::PartialUpdatePresence(FPartialUpdatePresence::Params&& Params)
 {
-	TOnlineResult<FGetCachedPresence> CachedPresence = GetCachedPresence({Params.LocalUserId, Params.LocalUserId});
+	TOnlineResult<FGetCachedPresence> CachedPresence = GetCachedPresence({Params.LocalAccountId, Params.LocalAccountId});
 	if (CachedPresence.IsOk())
 	{
 		TSharedRef<FUserPresence> NewPresence = MakeShared<FUserPresence>();
@@ -155,7 +155,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceCommon::PartialUpdatePrese
 		}
 
 		TOnlineAsyncOpRef<FPartialUpdatePresence> Op = GetOp<FPartialUpdatePresence>(MoveTemp(Params));
-		TOnlineAsyncOpHandle<FUpdatePresence> UpdatePresenceResult = UpdatePresence({Op->GetParams().LocalUserId, NewPresence});
+		TOnlineAsyncOpHandle<FUpdatePresence> UpdatePresenceResult = UpdatePresence({Op->GetParams().LocalAccountId, NewPresence});
 		UpdatePresenceResult.OnComplete([this, Op](const TOnlineResult<FUpdatePresence> Result)
 		{
 			if (Result.IsOk())

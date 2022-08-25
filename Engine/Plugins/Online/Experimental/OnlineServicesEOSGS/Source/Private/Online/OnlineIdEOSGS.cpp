@@ -23,27 +23,27 @@ FAccountId FOnlineAccountIdRegistryEOSGS::FindAccountId(const EOS_ProductUserId 
 	return Registry.FindHandle(ProductUserId);
 }
 
-EOS_ProductUserId FOnlineAccountIdRegistryEOSGS::GetProductUserId(const FAccountId& Handle) const
+EOS_ProductUserId FOnlineAccountIdRegistryEOSGS::GetProductUserId(const FAccountId& AccountId) const
 {
-	return Registry.FindIdValue(Handle);
+	return Registry.FindIdValue(AccountId);
 }
 
-FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FAccountId& Handle) const
+FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FAccountId& AccountId) const
 {
-	if (Registry.ValidateOnlineId(Handle))
+	if (Registry.ValidateOnlineId(AccountId))
 	{
-		EOS_ProductUserId ProductUserId = Registry.FindIdValue(Handle);
+		EOS_ProductUserId ProductUserId = Registry.FindIdValue(AccountId);
 		return LexToString(ProductUserId);
 	}
 	return FString();
 }
 
-TArray<uint8> FOnlineAccountIdRegistryEOSGS::ToReplicationData(const FAccountId& Handle) const
+TArray<uint8> FOnlineAccountIdRegistryEOSGS::ToReplicationData(const FAccountId& AccountId) const
 {
 	TArray<uint8> ReplicationData;
-	if (Registry.ValidateOnlineId(Handle))
+	if (Registry.ValidateOnlineId(AccountId))
 	{
-		EOS_ProductUserId ProductUserId = Registry.FindIdValue(Handle);
+		EOS_ProductUserId ProductUserId = Registry.FindIdValue(AccountId);
 		if (ensure(EOS_ProductUserId_IsValid(ProductUserId)))
 		{
 			char EosBuffer[EOS_PRODUCTUSERID_MAX_LENGTH + 1] = {};
@@ -93,14 +93,14 @@ FAccountId FOnlineAccountIdRegistryEOSGS::FindOrAddAccountId(const EOS_ProductUs
 	return Registry.GetInvalidHandle();
 }
 
-EOS_ProductUserId GetProductUserId(const FAccountId& Handle)
+EOS_ProductUserId GetProductUserId(const FAccountId& AccountId)
 {
-	return FOnlineAccountIdRegistryEOSGS::GetRegistered().GetProductUserId(Handle);
+	return FOnlineAccountIdRegistryEOSGS::GetRegistered().GetProductUserId(AccountId);
 }
 
-EOS_ProductUserId GetProductUserIdChecked(const FAccountId& Handle)
+EOS_ProductUserId GetProductUserIdChecked(const FAccountId& AccountId)
 {
-	EOS_ProductUserId ProductUserId = GetProductUserId(Handle);
+	EOS_ProductUserId ProductUserId = GetProductUserId(AccountId);
 	check(EOS_ProductUserId_IsValid(ProductUserId) == EOS_TRUE);
 	return ProductUserId;
 }

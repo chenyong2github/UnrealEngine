@@ -45,12 +45,12 @@ void FFriendsEOS::Initialize()
 	{
 		FFriendsEOS* This = reinterpret_cast<FFriendsEOS*>(Data->ClientData);
 
-		const FAccountId LocalUserId = FindAccountIdChecked(Data->LocalUserId);
-		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalUserId, Data->TargetUserId)
-		.Next([This, LocalUserId, PreviousStatus = Data->PreviousStatus, CurrentStatus = Data->CurrentStatus](const FAccountId& FriendUserId)
+		const FAccountId LocalAccountId = FindAccountIdChecked(Data->LocalUserId);
+		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalAccountId, Data->TargetUserId)
+		.Next([This, LocalAccountId, PreviousStatus = Data->PreviousStatus, CurrentStatus = Data->CurrentStatus](const FAccountId& FriendAccountId)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalUserId=[%s] FriendUserId=[%s]"), *ToLogString(LocalUserId), *ToLogString(FriendUserId));
-			This->OnEOSFriendsUpdate(LocalUserId, FriendUserId, PreviousStatus, CurrentStatus);
+			UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalAccountId=[%s] FriendAccountId=[%s]"), *ToLogString(LocalAccountId), *ToLogString(FriendAccountId));
+			This->OnEOSFriendsUpdate(LocalAccountId, FriendAccountId, PreviousStatus, CurrentStatus);
 		});
 	});
 }
@@ -67,7 +67,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 	{
 		// Initialize
 		const FQueryFriends::Params& Params = Op->GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			// TODO: Error codes
 			Op->SetError(Errors::Unknown());
@@ -76,7 +76,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 
 		EOS_Friends_QueryFriendsOptions QueryFriendsOptions = { };
 		QueryFriendsOptions.ApiVersion = EOS_FRIENDS_QUERYFRIENDS_API_LATEST;
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountIdChecked(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		QueryFriendsOptions.LocalUserId = LocalUserEasId;
 
 		Op->Then([this, QueryFriendsOptions](TOnlineAsyncOp<FQueryFriends>& InAsyncOp, TPromise<const EOS_Friends_QueryFriendsCallbackInfo*>&& Promise) mutable
@@ -117,10 +117,10 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 		}).Then(Services.Get<FAuthEOS>()->ResolveEpicIdsFn())
 		.Then([this](TOnlineAsyncOp<FQueryFriends>& InAsyncOp, const TArray<FAccountId>& CurrentFriendIds) mutable
 		{
-			const FAccountId LocalUserId = InAsyncOp.GetParams().LocalUserId;
-			const EOS_EpicAccountId LocalUserEasId = GetEpicAccountIdChecked(LocalUserId);
+			const FAccountId LocalAccountId = InAsyncOp.GetParams().LocalAccountId;
+			const EOS_EpicAccountId LocalUserEasId = GetEpicAccountIdChecked(LocalAccountId);
 
-			TMap<FAccountId, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalUserId);
+			TMap<FAccountId, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalAccountId);
 			TArray<FAccountId> NewFriendIds;
 			TArray<FAccountId> PreviousFriendIds;
 			TArray<FAccountId> UpdatedFriendIds; // TODO:  More granular updates like what changed?
@@ -154,7 +154,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 					// Add new friend
 					UE_LOG(LogTemp, Warning, TEXT("QueryFriendsComplete: Adding %s"), *LexToString(FriendEasId));
 					TSharedRef<FFriend> Friend = MakeShared<FFriend>();
-					Friend->UserId = FriendId;
+					Friend->AccountId = FriendId;
 					Friend->InviteStatus = InviteStatus;
 					FriendsList.Emplace(FriendId, MoveTemp(Friend));
 					NewFriendIds.Emplace(FriendId);
@@ -177,7 +177,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 			if (bAnyChanges)
 			{
 				FFriendsListUpdated FriendsListUpdatedParams = {};
-				FriendsListUpdatedParams.LocalUserId = InAsyncOp.GetParams().LocalUserId;
+				FriendsListUpdatedParams.LocalAccountId = InAsyncOp.GetParams().LocalAccountId;
 				FriendsListUpdatedParams.AddedFriends = NewFriendIds;
 				FriendsListUpdatedParams.RemovedFriends = PreviousFriendIds;
 				FriendsListUpdatedParams.UpdatedFriends = UpdatedFriendIds;
@@ -191,7 +191,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 
 TOnlineResult<FGetFriends> FFriendsEOS::GetFriends(FGetFriends::Params&& Params)
 {
-	if (TMap<FAccountId, TSharedRef<FFriend>>* FriendsList = FriendsLists.Find(Params.LocalUserId))
+	if (TMap<FAccountId, TSharedRef<FFriend>>* FriendsList = FriendsLists.Find(Params.LocalAccountId))
 	{
 		FGetFriends::Result Result;
 		FriendsList->GenerateValueArray(Result.Friends);
@@ -208,7 +208,7 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 #if 0 // At present this causes issues due to the EOS function executing the callback immediately, before the future can be bound to
 		// Initialize
 		const FAddFriend::Params& Params = Op->GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			// TODO: Error codes
 			Op->SetError(Errors::UnknownError());
@@ -229,7 +229,7 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 			const FAddFriend::Params& Params = InAsyncOp.GetParams();
 			EOS_Friends_SendInviteOptions SendInviteOptions = { };
 			SendInviteOptions.ApiVersion = EOS_FRIENDS_SENDINVITE_API_LATEST;
-			SendInviteOptions.LocalUserId = EOSAccountIdFromOnlineServiceAccountId(Params.LocalUserId).GetValue();
+			SendInviteOptions.LocalUserId = EOSAccountIdFromOnlineServiceAccountId(Params.LocalAccountId).GetValue();
 			SendInviteOptions.TargetUserId = EOSAccountIdFromOnlineServiceAccountId(Params.FriendId).GetValue();
 			EOS_Async(EOS_Friends_SendInvite, FriendsHandle, SendInviteOptions, MoveTemp(Promise));
 		})
@@ -245,33 +245,33 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 	return Op->GetHandle();
 }
 
-void FFriendsEOS::OnEOSFriendsUpdate(FAccountId LocalUserId, FAccountId FriendUserId, EOS_EFriendsStatus PreviousStatus, EOS_EFriendsStatus CurrentStatus)
+void FFriendsEOS::OnEOSFriendsUpdate(FAccountId LocalAccountId, FAccountId FriendAccountId, EOS_EFriendsStatus PreviousStatus, EOS_EFriendsStatus CurrentStatus)
 {
 	// TODO
-	UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalUserId=[%s] FriendUserId=[%s] PreviousStatus=[%s] CurrentStatus=[%s]"), *ToLogString(LocalUserId), *ToLogString(FriendUserId), LexToString(PreviousStatus), LexToString(CurrentStatus));
+	UE_LOG(LogTemp, Warning, TEXT("OnEOSFriendsUpdate: LocalAccountId=[%s] FriendAccountId=[%s] PreviousStatus=[%s] CurrentStatus=[%s]"), *ToLogString(LocalAccountId), *ToLogString(FriendAccountId), LexToString(PreviousStatus), LexToString(CurrentStatus));
 
-	TMap<FAccountId, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalUserId);
+	TMap<FAccountId, TSharedRef<FFriend>>& FriendsList = FriendsLists.FindOrAdd(LocalAccountId);
 	bool bAnyChanges = false;
 	TArray<FAccountId, TInlineAllocator<1>> AddedFriends;
 	TArray<FAccountId, TInlineAllocator<1>> RemovedFriends;
 	TArray<FAccountId, TInlineAllocator<1>> UpdatedFriends;
 	if (CurrentStatus == EOS_EFriendsStatus::EOS_FS_NotFriends)
 	{
-		bAnyChanges = FriendsList.Remove(FriendUserId) > 0;
+		bAnyChanges = FriendsList.Remove(FriendAccountId) > 0;
 		if (bAnyChanges)
 		{
-			RemovedFriends.Emplace(FriendUserId);
+			RemovedFriends.Emplace(FriendAccountId);
 		}
 	}
 	else
 	{
 		TOptional<EFriendInviteStatus> InviteStatus = EOSFriendStatusToInviteStatus(CurrentStatus);
-		if (TSharedRef<FFriend>* ExistingFriend = FriendsList.Find(FriendUserId))
+		if (TSharedRef<FFriend>* ExistingFriend = FriendsList.Find(FriendAccountId))
 		{
 			if ((*ExistingFriend)->InviteStatus != InviteStatus)
 			{
 				(*ExistingFriend)->InviteStatus = InviteStatus;
-				UpdatedFriends.Emplace(FriendUserId);
+				UpdatedFriends.Emplace(FriendAccountId);
 				bAnyChanges = true;
 			}
 		}
@@ -279,11 +279,11 @@ void FFriendsEOS::OnEOSFriendsUpdate(FAccountId LocalUserId, FAccountId FriendUs
 		{
 			// Create new entry
 			TSharedRef<FFriend> Friend = MakeShared<FFriend>();
-			Friend->UserId = FriendUserId;
+			Friend->AccountId = FriendAccountId;
 			Friend->InviteStatus = InviteStatus;
-			FriendsList.Emplace(FriendUserId, MoveTemp(Friend));
+			FriendsList.Emplace(FriendAccountId, MoveTemp(Friend));
 
-			AddedFriends.Emplace(FriendUserId);
+			AddedFriends.Emplace(FriendAccountId);
 			bAnyChanges = true;
 		}
 	}
@@ -291,7 +291,7 @@ void FFriendsEOS::OnEOSFriendsUpdate(FAccountId LocalUserId, FAccountId FriendUs
 	if (bAnyChanges)
 	{
 		FFriendsListUpdated FriendsListUpdatedParams = {};
-		FriendsListUpdatedParams.LocalUserId = LocalUserId;
+		FriendsListUpdatedParams.LocalAccountId = LocalAccountId;
 		FriendsListUpdatedParams.AddedFriends = AddedFriends;
 		FriendsListUpdatedParams.RemovedFriends = RemovedFriends;
 		FriendsListUpdatedParams.UpdatedFriends = UpdatedFriends;

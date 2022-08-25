@@ -182,7 +182,7 @@ struct FAuthLogout
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Whether to remove persistent credentials on logout. */
 		bool bDestroyAuth = false;
 	};
@@ -199,7 +199,7 @@ struct FAuthModifyAccountAttributes
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** New or changed attributes. */
 		TMap<FSchemaAttributeId, FSchemaVariant> MutatedAttributes;
 		/** Attributes to be cleared. */
@@ -218,7 +218,7 @@ struct FAuthQueryExternalServerAuthTicket
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -234,7 +234,7 @@ struct FAuthQueryExternalAuthToken
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** The method of external auth to provide. */
 		EExternalAuthTokenMethod Method = EExternalAuthTokenMethod::Primary;
 	};
@@ -252,7 +252,7 @@ struct FAuthQueryVerifiedAuthTicket
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** The intended purpose of the auth ticket. */
 		ERemoteAuthTicketAudience Audience = ERemoteAuthTicketAudience::Peer;
 	};
@@ -273,7 +273,7 @@ struct FAuthCancelVerifiedAuthTicket
 	struct Params
 	{
 		/** The online account id of the Local User making the request. */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Local ticket id used to reference the verified auth ticket. */
 		FOnlineVerifiedAuthTicketIdHandle VerifiedAuthTicketId;
 	};
@@ -322,7 +322,7 @@ struct FAuthGetLocalOnlineUserByOnlineAccountId
 	struct Params
 	{
 		/** Account Id of the Local User making the request */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -562,7 +562,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthLogin::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthLogout::Params)
-	ONLINE_STRUCT_FIELD(FAuthLogout::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthLogout::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAuthLogout::Params, bDestroyAuth)
 END_ONLINE_STRUCT_META()
 
@@ -570,7 +570,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthLogout::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthModifyAccountAttributes::Params)
-	ONLINE_STRUCT_FIELD(FAuthModifyAccountAttributes::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthModifyAccountAttributes::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAuthModifyAccountAttributes::Params, MutatedAttributes),
 	ONLINE_STRUCT_FIELD(FAuthModifyAccountAttributes::Params, ClearedAttributes)
 END_ONLINE_STRUCT_META()
@@ -579,7 +579,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthModifyAccountAttributes::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthQueryExternalServerAuthTicket::Params)
-	ONLINE_STRUCT_FIELD(FAuthQueryExternalServerAuthTicket::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FAuthQueryExternalServerAuthTicket::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthQueryExternalServerAuthTicket::Result)
@@ -587,7 +587,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthQueryExternalServerAuthTicket::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthQueryExternalAuthToken::Params)
-	ONLINE_STRUCT_FIELD(FAuthQueryExternalAuthToken::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthQueryExternalAuthToken::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAuthQueryExternalAuthToken::Params, Method)
 END_ONLINE_STRUCT_META()
 
@@ -596,7 +596,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthQueryExternalAuthToken::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthQueryVerifiedAuthTicket::Params)
-	ONLINE_STRUCT_FIELD(FAuthQueryVerifiedAuthTicket::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthQueryVerifiedAuthTicket::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAuthQueryVerifiedAuthTicket::Params, Audience)
 END_ONLINE_STRUCT_META()
 
@@ -605,7 +605,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthQueryVerifiedAuthTicket::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthCancelVerifiedAuthTicket::Params)
-	ONLINE_STRUCT_FIELD(FAuthCancelVerifiedAuthTicket::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAuthCancelVerifiedAuthTicket::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAuthCancelVerifiedAuthTicket::Params, VerifiedAuthTicketId)
 END_ONLINE_STRUCT_META()
 
@@ -629,7 +629,7 @@ BEGIN_ONLINE_STRUCT_META(FAuthEndVerifiedAuthSession::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetLocalOnlineUserByOnlineAccountId::Params)
-	ONLINE_STRUCT_FIELD(FAuthGetLocalOnlineUserByOnlineAccountId::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FAuthGetLocalOnlineUserByOnlineAccountId::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAuthGetLocalOnlineUserByOnlineAccountId::Result)

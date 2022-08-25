@@ -28,7 +28,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoOSSAdapter::QueryUserInfo(FQueryUs
 	TOnlineAsyncOpRef<FQueryUserInfo> Op = GetJoinableOp<FQueryUserInfo>(MoveTemp(InParams));
 	const FQueryUserInfo::Params& Params = Op->GetParams();
 
-	if (Params.UserIds.IsEmpty())
+	if (Params.AccountIds.IsEmpty())
 	{
 		Op->SetError(Errors::InvalidParams());
 		return Op->GetHandle();
@@ -39,7 +39,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoOSSAdapter::QueryUserInfo(FQueryUs
 		const FQueryUserInfo::Params& Params = Op.GetParams();
 		const FAuthOSSAdapter* AuthInterface = Services.Get<FAuthOSSAdapter>();
 
-		const int32 LocalUserNum = AuthInterface->GetLocalUserNum(Params.LocalUserId);
+		const int32 LocalUserNum = AuthInterface->GetLocalUserNum(Params.LocalAccountId);
 		if (LocalUserNum == INDEX_NONE)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -47,10 +47,10 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoOSSAdapter::QueryUserInfo(FQueryUs
 		}
 
 		TArray<FUniqueNetIdRef> UserIds;
-		UserIds.Reserve(Params.UserIds.Num());
-		for(const FAccountId& TargetAccountIdHandle : Params.UserIds)
+		UserIds.Reserve(Params.AccountIds.Num());
+		for(const FAccountId& TargetAccountId : Params.AccountIds)
 		{
-			FUniqueNetIdPtr TargetUserNetId = AuthInterface->GetUniqueNetId(TargetAccountIdHandle);
+			FUniqueNetIdPtr TargetUserNetId = AuthInterface->GetUniqueNetId(TargetAccountId);
 			if (!TargetUserNetId)
 			{
 				Op.SetError(Errors::InvalidParams());
@@ -97,13 +97,13 @@ TOnlineResult<FGetUserInfo> FUserInfoOSSAdapter::GetUserInfo(FGetUserInfo::Param
 {
 	const FAuthOSSAdapter* AuthInterface = Services.Get<FAuthOSSAdapter>();
 
-	const int32 LocalUserNum = AuthInterface->GetLocalUserNum(Params.LocalUserId);
+	const int32 LocalUserNum = AuthInterface->GetLocalUserNum(Params.LocalAccountId);
 	if (LocalUserNum == INDEX_NONE)
 	{
 		return TOnlineResult<FGetUserInfo>(Errors::InvalidUser());
 	}
 
-	const FUniqueNetIdPtr TargetUserNetId = AuthInterface->GetUniqueNetId(Params.UserId);
+	const FUniqueNetIdPtr TargetUserNetId = AuthInterface->GetUniqueNetId(Params.AccountId);
 	if (!TargetUserNetId)
 	{
 		return TOnlineResult<FGetUserInfo>(Errors::InvalidParams());
@@ -116,7 +116,7 @@ TOnlineResult<FGetUserInfo> FUserInfoOSSAdapter::GetUserInfo(FGetUserInfo::Param
 	}
 
 	TSharedRef<FUserInfo> UserInfo = MakeShared<FUserInfo>();
-	UserInfo->UserId = Params.UserId;
+	UserInfo->AccountId = Params.AccountId;
 	UserInfo->DisplayName = OnlineUser->GetDisplayName();
 
 	return TOnlineResult<FGetUserInfo>({ UserInfo });

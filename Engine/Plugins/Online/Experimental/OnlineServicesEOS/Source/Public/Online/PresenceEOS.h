@@ -29,9 +29,9 @@ public:
 
 protected:
 	/** Get a user's presence, creating entries if missing */
-	TSharedRef<FUserPresence> FindOrCreatePresence(FAccountId LocalUserId, FAccountId PresenceUserId);
+	TSharedRef<FUserPresence> FindOrCreatePresence(FAccountId LocalAccountId, FAccountId PresenceAccountId);
 	/** Update a user's presence from EOS's current value */
-	void UpdateUserPresence(FAccountId LocalUserId, FAccountId PresenceUserId);
+	void UpdateUserPresence(FAccountId LocalAccountId, FAccountId PresenceAccountId);
 protected:
 	EOS_HPresence PresenceHandle = nullptr;
 

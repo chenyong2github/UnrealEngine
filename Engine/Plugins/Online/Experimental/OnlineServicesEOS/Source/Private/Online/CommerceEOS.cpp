@@ -60,12 +60,12 @@ TOnlineAsyncOpHandle<FCommerceQueryOffers> FCommerceEOS::QueryOffers(FCommerceQu
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryOffers>& Op, TPromise<const EOS_Ecom_QueryOffersCallbackInfo*>&& Promise)
 	{
 		const FCommerceQueryOffers::Params& Params = Op.GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
 			return;
 		}
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 		if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
@@ -91,7 +91,7 @@ TOnlineAsyncOpHandle<FCommerceQueryOffers> FCommerceEOS::QueryOffers(FCommerceQu
 		CountOptions.LocalUserId = Data->LocalUserId;
 		uint32 OfferCount = EOS_Ecom_GetOfferCount(EcomHandle, &CountOptions);
 
-		TArray<FOffer>& Offers = CachedOffers.FindOrAdd(Op.GetParams().LocalUserId, TArray<FOffer>());
+		TArray<FOffer>& Offers = CachedOffers.FindOrAdd(Op.GetParams().LocalAccountId, TArray<FOffer>());
 		Offers.Empty(OfferCount);
 
 		EOS_Ecom_CopyOfferByIndexOptions OfferOptions = { };
@@ -124,7 +124,7 @@ TOnlineAsyncOpHandle<FCommerceQueryOffersById> FCommerceEOS::QueryOffersById(FCo
 	TOnlineAsyncOpRef<FCommerceQueryOffersById> Op = GetOp<FCommerceQueryOffersById>(MoveTemp(Params));
 
 	// EOS doesn't support anything ID-specific, just use the generic QueryOffers call
-	QueryOffers({Op->GetParams().LocalUserId})
+	QueryOffers({Op->GetParams().LocalAccountId})
 	.OnComplete([this, Op](const TOnlineResult<FCommerceQueryOffers>& Result)
 	{
 		if(Result.IsOk())
@@ -143,18 +143,18 @@ TOnlineAsyncOpHandle<FCommerceQueryOffersById> FCommerceEOS::QueryOffersById(FCo
 
 TOnlineResult<FCommerceGetOffers> FCommerceEOS::GetOffers(FCommerceGetOffers::Params&& Params)
 {
-	if(CachedOffers.Contains(Params.LocalUserId))
+	if(CachedOffers.Contains(Params.LocalAccountId))
 	{
-		return TOnlineResult<FCommerceGetOffers>({CachedOffers.FindChecked(Params.LocalUserId)});
+		return TOnlineResult<FCommerceGetOffers>({CachedOffers.FindChecked(Params.LocalAccountId)});
 	}
 	return TOnlineResult<FCommerceGetOffers>(Errors::NotFound());
 }
 
 TOnlineResult<FCommerceGetOffersById> FCommerceEOS::GetOffersById(FCommerceGetOffersById::Params&& Params)
 {
-	if (CachedOffers.Contains(Params.LocalUserId))
+	if (CachedOffers.Contains(Params.LocalAccountId))
 	{
-		return TOnlineResult<FCommerceGetOffersById>({ CachedOffers.FindChecked(Params.LocalUserId).FilterByPredicate(
+		return TOnlineResult<FCommerceGetOffersById>({ CachedOffers.FindChecked(Params.LocalAccountId).FilterByPredicate(
 			[&Params](const FOffer& Offer)
 			{ 
 				return Params.OfferIds.Contains(Offer.OfferId);
@@ -179,12 +179,12 @@ TOnlineAsyncOpHandle<FCommerceCheckout> FCommerceEOS::Checkout(FCommerceCheckout
 	Op->Then([this](TOnlineAsyncOp<FCommerceCheckout>& Op, TPromise<const EOS_Ecom_CheckoutCallbackInfo*>&& Promise)
 	{
 		const FCommerceCheckout::Params& Params = Op.GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
 			return;
 		}
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 		if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
@@ -236,12 +236,12 @@ TOnlineAsyncOpHandle<FCommerceQueryTransactionEntitlements> FCommerceEOS::QueryT
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryTransactionEntitlements>& Op)
 	{
 		const FCommerceQueryTransactionEntitlements::Params& Params = Op.GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
 			return;
 		}
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 		if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
@@ -309,12 +309,12 @@ TOnlineAsyncOpHandle<FCommerceQueryEntitlements> FCommerceEOS::QueryEntitlements
 	Op->Then([this](TOnlineAsyncOp<FCommerceQueryEntitlements>& Op, TPromise<const EOS_Ecom_QueryEntitlementsCallbackInfo*>&& Promise)
 	{
 		const FCommerceQueryEntitlements::Params& Params = Op.GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
 			return;
 		}
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 		if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
@@ -342,7 +342,7 @@ TOnlineAsyncOpHandle<FCommerceQueryEntitlements> FCommerceEOS::QueryEntitlements
 		CountOptions.ApiVersion = EOS_ECOM_GETENTITLEMENTSCOUNT_API_LATEST;
 		CountOptions.LocalUserId = Data->LocalUserId;
 		uint32 Count = EOS_Ecom_GetEntitlementsCount(EcomHandle, &CountOptions);
-		TArray<FEntitlement>& Entitlements = CachedEntitlements.FindOrAdd(Op.GetParams().LocalUserId, TArray<FEntitlement>());
+		TArray<FEntitlement>& Entitlements = CachedEntitlements.FindOrAdd(Op.GetParams().LocalAccountId, TArray<FEntitlement>());
 		Entitlements.Reset(Count);
 
 		EOS_Ecom_CopyEntitlementByIndexOptions CopyOptions = { };
@@ -377,11 +377,11 @@ TOnlineAsyncOpHandle<FCommerceQueryEntitlements> FCommerceEOS::QueryEntitlements
 
 TOnlineResult<FCommerceGetEntitlements> FCommerceEOS::GetEntitlements(FCommerceGetEntitlements::Params&& Params)
 {
-	if (!CachedEntitlements.Contains(Params.LocalUserId))
+	if (!CachedEntitlements.Contains(Params.LocalAccountId))
 	{
 		return TOnlineResult<FCommerceGetEntitlements>(Errors::NotFound());
 	}
-	return TOnlineResult<FCommerceGetEntitlements>({CachedEntitlements.FindChecked(Params.LocalUserId)});
+	return TOnlineResult<FCommerceGetEntitlements>({CachedEntitlements.FindChecked(Params.LocalAccountId)});
 }
 
 TOnlineAsyncOpHandle<FCommerceRedeemEntitlement> FCommerceEOS::RedeemEntitlement(FCommerceRedeemEntitlement::Params&& Params)
@@ -391,12 +391,12 @@ TOnlineAsyncOpHandle<FCommerceRedeemEntitlement> FCommerceEOS::RedeemEntitlement
 	Op->Then([this](TOnlineAsyncOp<FCommerceRedeemEntitlement>& Op, TPromise<const EOS_Ecom_RedeemEntitlementsCallbackInfo*>&& Promise)
 	{
 		const FCommerceRedeemEntitlement::Params& Params = Op.GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
 			return;
 		}
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 		if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
@@ -436,12 +436,12 @@ TOnlineAsyncOpHandle<FCommerceRetrieveS2SToken> FCommerceEOS::RetrieveS2SToken(F
 	Op->Then([this](TOnlineAsyncOp<FCommerceRetrieveS2SToken>& Op, TPromise<const EOS_Ecom_QueryOwnershipTokenCallbackInfo*>&& Promise)
 	{
 		const FCommerceRetrieveS2SToken::Params& Params = Op.GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op.SetError(Errors::NotLoggedIn());
 			return;
 		}
-		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+		EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 		if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 		{
 			Op.SetError(Errors::NotLoggedIn());

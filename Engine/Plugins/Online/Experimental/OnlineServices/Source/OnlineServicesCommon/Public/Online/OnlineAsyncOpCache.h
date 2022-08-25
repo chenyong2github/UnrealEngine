@@ -9,10 +9,10 @@
 
 namespace UE::Online {
 
-struct CLocalUserIdDefined
+struct CLocalAccountIdDefined
 {
 	template <typename T>
-	auto Requires() -> decltype(T::LocalUserId);
+	auto Requires() -> decltype(T::LocalAccountId);
 };
 
 enum class EOperationCacheExpirationPolicy : uint8
@@ -250,10 +250,10 @@ public:
 	{
 		TSharedRef<TOnlineAsyncOp<OpType>> Op = MakeShared<TOnlineAsyncOp<OpType>>(Services, MoveTemp(Params));
 
-		if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
 		{
-			// add LocalUserId to the Op Data
-			Op->Data.template Set<decltype(Params.LocalUserId)>(TEXT("LocalUserId"), Op->GetParams().LocalUserId);
+			// add LocalAccountId to the Op Data
+			Op->Data.template Set<decltype(Params.LocalAccountId)>(TEXT("LocalAccountId"), Op->GetParams().LocalAccountId);
 		}
 
 		return Op;
@@ -266,9 +266,9 @@ public:
 		TSharedPtr<TOnlineAsyncOp<OpType>> Op;
 
 		// find existing op
-		if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
 		{
-			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalUserId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
+			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalAccountId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
 			{
 				if (!(*OpPtr)->IsExpired())
 				{
@@ -299,9 +299,9 @@ public:
 					// remove from cache if operation was canceled
 					if (ThisOp.GetState() == EAsyncOpState::Cancelled)
 					{
-						if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+						if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
 						{
-							UserOperations.FindOrAdd(ThisOp.GetParams().LocalUserId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
+							UserOperations.FindOrAdd(ThisOp.GetParams().LocalAccountId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
 						}
 						else
 						{
@@ -321,9 +321,9 @@ public:
 		TSharedPtr<TOnlineAsyncOp<OpType>> Op;
 
 		// find existing op
-		if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
 		{
-			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalUserId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
+			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalAccountId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
 			{
 				Op = (*OpPtr)->GetRef<TSharedRef<TOnlineAsyncOp<OpType>>>();
 			}
@@ -350,9 +350,9 @@ public:
 			// remove from cache once operation has started. It is no longer mergeable at that point
 			FOnlineEventDelegateHandle Handle = Op->OnStart().Add(GetSharedThis(), [this](const TOnlineAsyncOp<OpType>& ThisOp)
 				{
-					if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+					if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
 					{
-						UserOperations.FindOrAdd(ThisOp.GetParams().LocalUserId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
+						UserOperations.FindOrAdd(ThisOp.GetParams().LocalAccountId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
 					}
 					else
 					{
@@ -383,12 +383,12 @@ private:
 
 		TSharedRef<TOnlineAsyncOp<OpType>> Op = WrappedOp->GetDataRef();
 
-		if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+		if constexpr (TModels<CLocalAccountIdDefined, typename OpType::Params>::Value)
 		{
-			// add LocalUserId to the Op Data
-			Op->Data.template Set<decltype(Params.LocalUserId)>(TEXT("LocalUserId"), Op->GetParams().LocalUserId);
+			// add LocalAccountId to the Op Data
+			Op->Data.template Set<decltype(Params.LocalAccountId)>(TEXT("LocalAccountId"), Op->GetParams().LocalAccountId);
 
-			UserOperations.FindOrAdd(Op->GetParams().LocalUserId).Add(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Op->GetParams()), MoveTemp(WrappedOp));
+			UserOperations.FindOrAdd(Op->GetParams().LocalAccountId).Add(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Op->GetParams()), MoveTemp(WrappedOp));
 		}
 		else
 		{

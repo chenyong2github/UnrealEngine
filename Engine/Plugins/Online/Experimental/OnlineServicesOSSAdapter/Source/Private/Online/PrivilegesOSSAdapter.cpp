@@ -27,7 +27,7 @@ TOnlineAsyncOpHandle<FQueryUserPrivilege> FPrivilegesOSSAdapter::QueryUserPrivil
 	if (!Op->IsReady())
 	{
 		FAuthOSSAdapter* Auth = Services.Get<FAuthOSSAdapter>();
-		FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op->GetParams().LocalUserId);
+		FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(Op->GetParams().LocalAccountId);
 		if (!UniqueNetId.IsValid())
 		{
 			Op->SetError(Errors::InvalidUser());

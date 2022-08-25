@@ -78,13 +78,13 @@ void FPresenceEOS::Initialize()
 	NotifyPresenceChangedNotificationId = EOS_Presence_AddNotifyOnPresenceChanged(PresenceHandle, &Options, this, [](const EOS_Presence_PresenceChangedCallbackInfo* Data)
 	{
 		FPresenceEOS* This = reinterpret_cast<FPresenceEOS*>(Data->ClientData);
-		const FAccountId LocalUserId = FindAccountIdChecked(Data->LocalUserId);
+		const FAccountId LocalAccountId = FindAccountIdChecked(Data->LocalUserId);
 
-		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalUserId, Data->PresenceUserId)
-		.Next([This, LocalUserId](const FAccountId& PresenceUserId)
+		This->Services.Get<FAuthEOS>()->ResolveAccountId(LocalAccountId, Data->PresenceUserId)
+		.Next([This, LocalAccountId](const FAccountId& PresenceAccountId)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("OnEOSPresenceUpdate: LocalUserId=[%s] PresenceUserId=[%s]"), *ToLogString(LocalUserId), *ToLogString(PresenceUserId));
-			This->UpdateUserPresence(LocalUserId, PresenceUserId);
+			UE_LOG(LogTemp, Warning, TEXT("OnEOSPresenceUpdate: LocalAccountId=[%s] PresenceAccountId=[%s]"), *ToLogString(LocalAccountId), *ToLogString(PresenceAccountId));
+			This->UpdateUserPresence(LocalAccountId, PresenceAccountId);
 		});
 	});
 }
@@ -101,12 +101,12 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 	{
 		// Initialize
 		const FQueryPresence::Params& Params = Op->GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op->SetError(Errors::NotLoggedIn());
 			return Op->GetHandle();
 		}
-		EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(Params.TargetUserId);
+		EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(Params.TargetAccountId);
 		if (!EOS_EpicAccountId_IsValid(TargetUserEasId))
 		{
 			Op->SetError(Errors::NotLoggedIn());
@@ -114,7 +114,7 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 		}
 
 		// TODO:  If we try to query a local user's presence, is that an error, should we return the cached state, should we still ask EOS?
-		const bool bIsLocalUser = Services.Get<FAuthEOS>()->IsLoggedIn(Params.TargetUserId);
+		const bool bIsLocalUser = Services.Get<FAuthEOS>()->IsLoggedIn(Params.TargetAccountId);
 		if (bIsLocalUser)
 		{
 			Op->SetError(Errors::CannotQueryLocalUsers()); 
@@ -126,8 +126,8 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 				const FQueryPresence::Params& Params = InAsyncOp.GetParams();
 				EOS_Presence_QueryPresenceOptions QueryPresenceOptions = { };
 				QueryPresenceOptions.ApiVersion = EOS_PRESENCE_QUERYPRESENCE_API_LATEST;
-				QueryPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
-				QueryPresenceOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetUserId);
+				QueryPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
+				QueryPresenceOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetAccountId);
 
 				EOS_Async(EOS_Presence_QueryPresence, PresenceHandle, QueryPresenceOptions, MoveTemp(Promise));
 			})
@@ -138,8 +138,8 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 				if (Data->ResultCode == EOS_EResult::EOS_Success)
 				{
 					const FQueryPresence::Params& Params = InAsyncOp.GetParams();
-					UpdateUserPresence(Params.LocalUserId, Params.TargetUserId);
-					FQueryPresence::Result Result = { FindOrCreatePresence(Params.LocalUserId, Params.TargetUserId) };
+					UpdateUserPresence(Params.LocalAccountId, Params.TargetAccountId);
+					FQueryPresence::Result Result = { FindOrCreatePresence(Params.LocalAccountId, Params.TargetAccountId) };
 					InAsyncOp.SetResult(MoveTemp(Result));
 				}
 				else
@@ -154,9 +154,9 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 
 TOnlineResult<FGetCachedPresence> FPresenceEOS::GetCachedPresence(FGetCachedPresence::Params&& Params)
 {
-	if (TMap<FAccountId, TSharedRef<FUserPresence>>* PresenceList = PresenceLists.Find(Params.LocalUserId))
+	if (TMap<FAccountId, TSharedRef<FUserPresence>>* PresenceList = PresenceLists.Find(Params.LocalAccountId))
 	{
-		TSharedRef<FUserPresence>* PresencePtr = PresenceList->Find(Params.TargetUserId);
+		TSharedRef<FUserPresence>* PresencePtr = PresenceList->Find(Params.TargetAccountId);
 		if (PresencePtr)
 		{
 			FGetCachedPresence::Result Result = { *PresencePtr };
@@ -171,7 +171,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 {
 	TOnlineAsyncOpRef<FUpdatePresence> Op = GetOp<FUpdatePresence>(MoveTemp(InParams));
 	const FUpdatePresence::Params& Params = Op->GetParams();
-	if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		Op->SetError(Errors::NotLoggedIn());
 		return Op->GetHandle();
@@ -183,7 +183,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 		EOS_HPresenceModification ChangeHandle = nullptr;
 		EOS_Presence_CreatePresenceModificationOptions Options = { };
 		Options.ApiVersion = EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST;
-		Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
+		Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 		EOS_EResult CreatePresenceModificationResult = EOS_Presence_CreatePresenceModification(PresenceHandle, &Options, &ChangeHandle);
 		if (CreatePresenceModificationResult == EOS_EResult::EOS_Success)
 		{
@@ -221,7 +221,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 
 			// EOS needs to be specific on which fields are removed and which aren't, so grab the last presence and check which are deletions
 			TArray<FString> RemovedProperties;
-			TSharedRef<FUserPresence> LastUserPresence = FindOrCreatePresence(Params.LocalUserId, Params.LocalUserId);
+			TSharedRef<FUserPresence> LastUserPresence = FindOrCreatePresence(Params.LocalAccountId, Params.LocalAccountId);
 			for (const TPair<FString, FPresenceVariant>& Pair : LastUserPresence->Properties)
 			{
 				if(!Params.Presence->Properties.Contains(Pair.Key))
@@ -304,7 +304,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 
 			EOS_Presence_SetPresenceOptions SetPresenceOptions = { };
 			SetPresenceOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
-			SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
+			SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 			SetPresenceOptions.PresenceModificationHandle = ChangeHandle;
 
 			EOS_Async(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions, MoveTemp(Promise));
@@ -325,7 +325,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 		{
 			// Update local presence
 			const FUpdatePresence::Params& Params = InAsyncOp.GetParams();
-			TSharedRef<FUserPresence> LocalUserPresence = FindOrCreatePresence(Params.LocalUserId, Params.LocalUserId);
+			TSharedRef<FUserPresence> LocalUserPresence = FindOrCreatePresence(Params.LocalAccountId, Params.LocalAccountId);
 			*LocalUserPresence = *Params.Presence;
 
 			InAsyncOp.SetResult(FUpdatePresence::Result());
@@ -353,7 +353,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 	{
 		// Initialize
 		const FPartialUpdatePresence::Params& Params = Op->GetParams();
-		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			Op->SetError(Errors::NotLoggedIn());
 			return Op->GetHandle();
@@ -366,7 +366,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 				EOS_HPresenceModification ChangeHandle = nullptr;
 				EOS_Presence_CreatePresenceModificationOptions Options = { };
 				Options.ApiVersion = EOS_PRESENCE_CREATEPRESENCEMODIFICATION_API_LATEST;
-				Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
+				Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 				EOS_EResult CreatePresenceModificationResult = EOS_Presence_CreatePresenceModification(PresenceHandle, &Options, &ChangeHandle);
 				if (CreatePresenceModificationResult == EOS_EResult::EOS_Success)
 				{
@@ -489,7 +489,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 
 					EOS_Presence_SetPresenceOptions SetPresenceOptions = { };
 					SetPresenceOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
-					SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
+					SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 					SetPresenceOptions.PresenceModificationHandle = ChangeHandle;
 					EOS_Async(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions, MoveTemp(Promise));
 					EOS_PresenceModification_Release(ChangeHandle);
@@ -509,7 +509,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 				{
 					// Update local presence
 					const FPartialUpdatePresence::Params& Params = InAsyncOp.GetParams();
-					TSharedRef<FUserPresence> LocalUserPresence = FindOrCreatePresence(Params.LocalUserId, Params.LocalUserId);
+					TSharedRef<FUserPresence> LocalUserPresence = FindOrCreatePresence(Params.LocalAccountId, Params.LocalAccountId);
 					if (Params.Mutations.Status.IsSet())
 					{
 						LocalUserPresence->Status = Params.Mutations.Status.GetValue();
@@ -548,32 +548,32 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 }
 
 /** Get a user's presence, creating entries if missing */
-TSharedRef<FUserPresence> FPresenceEOS::FindOrCreatePresence(FAccountId LocalUserId, FAccountId PresenceUserId)
+TSharedRef<FUserPresence> FPresenceEOS::FindOrCreatePresence(FAccountId LocalAccountId, FAccountId PresenceAccountId)
 {
-	TMap<FAccountId, TSharedRef<FUserPresence>>& LocalUserPresenceList = PresenceLists.FindOrAdd(LocalUserId);
-	if (const TSharedRef<FUserPresence>* const ExistingPresence = LocalUserPresenceList.Find(PresenceUserId))
+	TMap<FAccountId, TSharedRef<FUserPresence>>& LocalUserPresenceList = PresenceLists.FindOrAdd(LocalAccountId);
+	if (const TSharedRef<FUserPresence>* const ExistingPresence = LocalUserPresenceList.Find(PresenceAccountId))
 	{
 		return *ExistingPresence;
 	}
 
 	TSharedRef<FUserPresence> UserPresence = MakeShared<FUserPresence>();
-	UserPresence->UserId = PresenceUserId;
-	LocalUserPresenceList.Emplace(PresenceUserId, UserPresence);
+	UserPresence->AccountId = PresenceAccountId;
+	LocalUserPresenceList.Emplace(PresenceAccountId, UserPresence);
 	return UserPresence;
 }
 
-void FPresenceEOS::UpdateUserPresence(FAccountId LocalUserId, FAccountId PresenceUserId)
+void FPresenceEOS::UpdateUserPresence(FAccountId LocalAccountId, FAccountId PresenceAccountId)
 {
 	bool bPresenceHasChanged = false;
-	TSharedRef<FUserPresence> UserPresence = FindOrCreatePresence(LocalUserId, PresenceUserId);
+	TSharedRef<FUserPresence> UserPresence = FindOrCreatePresence(LocalAccountId, PresenceAccountId);
 	// TODO:  Handle updates for local users.  Don't want to conflict with UpdatePresence calls
 
 	// Get presence from EOS
 	EOS_Presence_Info* PresenceInfo = nullptr;
 	EOS_Presence_CopyPresenceOptions Options = { };
 	Options.ApiVersion = EOS_PRESENCE_COPYPRESENCE_API_LATEST;
-	Options.LocalUserId = GetEpicAccountIdChecked(LocalUserId);
-	Options.TargetUserId = GetEpicAccountIdChecked(PresenceUserId);
+	Options.LocalUserId = GetEpicAccountIdChecked(LocalAccountId);
+	Options.TargetUserId = GetEpicAccountIdChecked(PresenceAccountId);
 	EOS_EResult CopyPresenceResult = EOS_Presence_CopyPresence(PresenceHandle, &Options, &PresenceInfo);
 	if (CopyPresenceResult == EOS_EResult::EOS_Success)
 	{
@@ -638,7 +638,7 @@ void FPresenceEOS::UpdateUserPresence(FAccountId LocalUserId, FAccountId Presenc
 
 	if (bPresenceHasChanged)
 	{
-		FPresenceUpdated PresenceUpdatedParams = { LocalUserId, UserPresence };
+		FPresenceUpdated PresenceUpdatedParams = { LocalAccountId, UserPresence };
 		OnPresenceUpdatedEvent.Broadcast(PresenceUpdatedParams);
 	}
 }

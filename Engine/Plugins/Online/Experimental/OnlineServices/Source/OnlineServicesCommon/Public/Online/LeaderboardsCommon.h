@@ -47,7 +47,7 @@ struct FWriteLeaderboardScores
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		FString BoardName;
 		uint64 Score;
 	};
@@ -88,7 +88,7 @@ protected:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FWriteLeaderboardScores::Params)
-	ONLINE_STRUCT_FIELD(FWriteLeaderboardScores::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FWriteLeaderboardScores::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FWriteLeaderboardScores::Params, BoardName),
 	ONLINE_STRUCT_FIELD(FWriteLeaderboardScores::Params, Score)
 END_ONLINE_STRUCT_META()

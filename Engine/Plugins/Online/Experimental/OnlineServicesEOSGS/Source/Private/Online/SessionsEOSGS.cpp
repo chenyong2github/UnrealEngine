@@ -96,12 +96,12 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 						// We retrieve the registered player id
 						const FString& PlayerIdStr = KeyComponents[1];
 						const EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
-						const FAccountId& IdHandle = FindAccountId(ProductUserId);
+						const FAccountId& AccountId = FindAccountId(ProductUserId);
 
 						// This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved
-						check(IdHandle.IsValid());
+						check(AccountId.IsValid());
 
-						FRegisteredPlayer& RegisteredPlayer = SessionSettings.RegisteredPlayers.FindOrAdd(IdHandle);
+						FRegisteredPlayer& RegisteredPlayer = SessionSettings.RegisteredPlayers.FindOrAdd(AccountId);
 						
 						FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
 						const TPair<FSchemaAttributeId, FSchemaVariant>& CustomSettingData = CustomSettingConverter.GetAttributeData();
@@ -124,9 +124,9 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 						// We retrieve the member id
 						FString PlayerIdStr = KeyComponents[0];
 						EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
-						FAccountId IdHandle = FindAccountId(ProductUserId);
+						FAccountId AccountId = FindAccountId(ProductUserId);
 
-						FSessionMember& SessionMember = SessionSettings.SessionMembers.FindOrAdd(IdHandle);
+						FSessionMember& SessionMember = SessionSettings.SessionMembers.FindOrAdd(AccountId);
 
 						// And add the corresponding custom setting
 						FSchemaAttributeId AttributeId(KeyComponents[1]);
@@ -273,12 +273,12 @@ void FSessionsEOSGS::UnregisterEventHandlers()
 
 void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInviteReceivedCallbackInfo* Data)
 {
-	FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
-	if (LocalUserId.IsValid())
+	FAccountId LocalAccountId = FindAccountId(Data->LocalUserId);
+	if (LocalAccountId.IsValid())
 	{
 		FString InviteId(UTF8_TO_TCHAR(Data->InviteId));
 
-		BuildSessionFromInvite(LocalUserId, InviteId)
+		BuildSessionFromInvite(LocalAccountId, InviteId)
 			.OnComplete([this, WeakThis = AsWeak(), SenderPUID = Data->TargetUserId, InviteId](const TOnlineResult<FBuildSessionFromDetailsHandle>& Result)
 		{
 			if (Result.IsOk())
@@ -286,7 +286,7 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 				if (const TSharedPtr<ISessions> StrongThis = WeakThis.Pin())
 				{
 					// First and second place in the array will be occupied by the receiver and the sender, respectively, since the same order is kept in the array of resolved ids
-					const FAccountId& ReceiverId = Result.GetOkValue().LocalUserId;
+					const FAccountId& ReceiverId = Result.GetOkValue().LocalAccountId;
 					const FAccountId& SenderId = FindAccountId(SenderPUID);
 
 					FOnlineSessionInviteIdHandle InviteIdHandle = CreateSessionInviteId(InviteId);
@@ -298,7 +298,7 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 						SenderId,
 						InviteIdHandle,
 						Session->SessionId
-					});
+						});
 
 					SessionInvitesUserMap.FindOrAdd(ReceiverId).Emplace(InviteIdHandle, SessionInviteRef);
 
@@ -317,12 +317,12 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 
 void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInviteAcceptedCallbackInfo* Data)
 {
-	FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
-	if (LocalUserId.IsValid())
+	FAccountId LocalAccountId = FindAccountId(Data->LocalUserId);
+	if (LocalAccountId.IsValid())
 	{
 		FString InviteId(UTF8_TO_TCHAR(Data->InviteId));
 
-		BuildSessionFromInvite(LocalUserId, InviteId)
+		BuildSessionFromInvite(LocalAccountId, InviteId)
 			.OnComplete([this, WeakThis = AsWeak()](const TOnlineResult<FBuildSessionFromDetailsHandle>& Result)
 		{
 			if (Result.IsOk())
@@ -333,8 +333,8 @@ void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInvit
 					AllSessionsById.Emplace(Result.GetOkValue().Session->SessionId, Result.GetOkValue().Session);
 
 					FUISessionJoinRequested Event{
-						Result.GetOkValue().LocalUserId,
-						TResult<FOnlineSessionIdHandle, FOnlineError>(Result.GetOkValue().Session->SessionId),
+									Result.GetOkValue().LocalAccountId,
+									TResult<FOnlineSessionIdHandle, FOnlineError>(Result.GetOkValue().Session->SessionId),
 						EUISessionJoinRequestedSource::FromInvitation
 					};
 
@@ -349,10 +349,10 @@ void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInvit
 
 void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcceptedCallbackInfo* Data)
 {
-	FAccountId LocalUserId = FindAccountId(Data->LocalUserId);
-	if (LocalUserId.IsValid())
+	FAccountId LocalAccountId = FindAccountId(Data->LocalUserId);
+	if (LocalAccountId.IsValid())
 	{
-		BuildSessionFromUIEvent(LocalUserId, Data->UiEventId)
+		BuildSessionFromUIEvent(LocalAccountId, Data->UiEventId)
 			.OnComplete([this, WeakThis = AsWeak()](const TOnlineResult<FBuildSessionFromDetailsHandle>& Result)
 		{
 			if (Result.IsOk())
@@ -363,9 +363,9 @@ void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcc
 					AllSessionsById.Emplace(Result.GetOkValue().Session->SessionId, Result.GetOkValue().Session);
 
 					FUISessionJoinRequested Event{
-						Result.GetOkValue().LocalUserId,
+						Result.GetOkValue().LocalAccountId,
 						TResult<FOnlineSessionIdHandle, FOnlineError>(Result.GetOkValue().Session->SessionId),
-						EUISessionJoinRequestedSource::Unspecified
+			EUISessionJoinRequestedSource::Unspecified
 					};
 
 					SessionEvents.OnUISessionJoinRequested.Broadcast(Event);
@@ -450,7 +450,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 			CreateSessionModificationOptions.BucketId = BucketIdUtf8.Get();
 		}
 	
-		CreateSessionModificationOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+		CreateSessionModificationOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalAccountId);
 		CreateSessionModificationOptions.MaxPlayers = OpParams.SessionSettings.NumMaxPrivateConnections + OpParams.SessionSettings.NumMaxPublicConnections;
 
 		const FTCHARToUTF8 SessionIdUtf8(*OpParams.SessionSettings.SessionIdOverride);
@@ -491,7 +491,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 		{
 			// If the session is created successfully, we'll create the local session object
 			TSharedRef<FSessionEOSGS> NewSessionEOSGSRef = MakeShared<FSessionEOSGS>();
-			NewSessionEOSGSRef->OwnerUserId = OpParams.LocalUserId;
+			NewSessionEOSGSRef->OwnerAccountId = OpParams.LocalAccountId;
 			NewSessionEOSGSRef->SessionSettings = OpParams.SessionSettings;
 			NewSessionEOSGSRef->SessionId = CreateSessionId(Result.GetOkValue().NewSessionId);
 
@@ -499,11 +499,11 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 
 			LocalSessionsByName.Emplace(OpParams.SessionName, NewSessionEOSGSRef->SessionId);
 
-			NamedSessionUserMap.FindOrAdd(OpParams.LocalUserId).AddUnique(OpParams.SessionName);
+			NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
 
 			if (NewSessionEOSGSRef->SessionSettings.bPresenceEnabled)
 			{
-				FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalUserId);
+				FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
 				PresenceSessionId = NewSessionEOSGSRef->SessionId;
 			}
 
@@ -1074,12 +1074,12 @@ TOnlineAsyncOpHandle<FSendSingleSessionInviteImpl> FSessionsEOSGS::SendSingleSes
 	SendInviteOptions.ApiVersion = EOS_SESSIONS_SENDINVITE_API_LATEST;
 	static_assert(EOS_SESSIONS_SENDINVITE_API_LATEST == 1, "EOS_Sessions_SendInviteOptions updated, check new fields");
 
-	SendInviteOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+	SendInviteOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalAccountId);
 
 	const FTCHARToUTF8 SessionNameUtf8(*OpParams.SessionName.ToString());
 	SendInviteOptions.SessionName = SessionNameUtf8.Get();
 
-	SendInviteOptions.TargetUserId = GetProductUserIdChecked(OpParams.TargetUserId);
+	SendInviteOptions.TargetUserId = GetProductUserIdChecked(OpParams.TargetAccountId);
 
 	EOS_Async(EOS_Sessions_SendInvite, SessionsHandle, SendInviteOptions,
 		[this, WeakOp = Op->AsWeak()](const EOS_Sessions_SendInviteCallbackInfo* Result) mutable
@@ -1149,11 +1149,11 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 		{
 			TSharedRef<const FSession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			NamedSessionUserMap.FindChecked(OpParams.LocalUserId).Remove(OpParams.SessionName);
+			NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
 
 			if (FoundSession->SessionSettings.bPresenceEnabled)
 			{
-				PresenceSessionsUserMap.Remove(OpParams.LocalUserId);
+				PresenceSessionsUserMap.Remove(OpParams.LocalAccountId);
 			}
 
 			ClearSessionByName(OpParams.SessionName);
@@ -1163,8 +1163,8 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 		Op.SetResult(FLeaveSession::Result{ });
 
 		FSessionLeft SessionLeftEvent;
-		SessionLeftEvent.LocalUserIds.Add(OpParams.LocalUserId);
-		//SessionLeftEvent.LocalUserIds.Append(OpParams.AdditionalLocalUsers); // TODO: Process multiple users in Session destruction
+		SessionLeftEvent.LocalAccountIds.Add(OpParams.LocalAccountId);
+		//SessionLeftEvent.LocalAccountIds.Append(OpParams.AdditionalLocalUsers); // TODO: Process multiple users in Session destruction
 		SessionEvents.OnSessionLeft.Broadcast(SessionLeftEvent);
 	})
 	.Enqueue(GetSerialQueue());
@@ -1225,12 +1225,12 @@ void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& Sessio
 	}
 }
 
-void FSessionsEOSGS::SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FAccountId& TargetUserId)
+void FSessionsEOSGS::SetSessionSearchTargetId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FAccountId& TargetAccountId)
 {
 	EOS_SessionSearch_SetTargetUserIdOptions Options = { };
 	Options.ApiVersion = EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST;
 	static_assert(EOS_SESSIONSEARCH_SETTARGETUSERID_API_LATEST == 1, "EOS_SessionSearch_SetTargetUserIdOptions updated, check new fields");
-	Options.TargetUserId = GetProductUserIdChecked(TargetUserId);
+	Options.TargetUserId = GetProductUserIdChecked(TargetAccountId);
 
 	EOS_EResult ResultCode = EOS_SessionSearch_SetTargetUserId(SessionSearchHandle.SearchHandle, &Options);
 	if (ResultCode != EOS_EResult::EOS_Success)
@@ -1303,8 +1303,8 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 		}
 
 		// Before we start the search, we reset the cache
-		SearchResultsUserMap.FindOrAdd(OpParams.LocalUserId).Reset();
-		CurrentSessionSearchHandlesUserMap.Emplace(OpParams.LocalUserId, Op.AsShared());
+		SearchResultsUserMap.FindOrAdd(OpParams.LocalAccountId).Reset();
+		CurrentSessionSearchHandlesUserMap.Emplace(OpParams.LocalAccountId, Op.AsShared());
 
 		// We start preparing the search
 		EOS_Sessions_CreateSessionSearchOptions CreateSessionSearchOptions = { };
@@ -1323,7 +1323,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			return;
 		}
 
-		const TSharedRef<FSessionSearchHandleEOSGS>& CurrentSessionSearchHandleEOSGS = CurrentSessionSearchHandleEOSGSUserMap.Emplace(OpParams.LocalUserId, MakeShared<FSessionSearchHandleEOSGS>(SearchHandle));
+		const TSharedRef<FSessionSearchHandleEOSGS>& CurrentSessionSearchHandleEOSGS = CurrentSessionSearchHandleEOSGSUserMap.Emplace(OpParams.LocalAccountId, MakeShared<FSessionSearchHandleEOSGS>(SearchHandle));
 
 		// We write the search attributes
 		WriteSessionSearchHandle(*CurrentSessionSearchHandleEOSGS, OpParams);
@@ -1331,7 +1331,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 		EOS_SessionSearch_FindOptions FindOptions = { };
 		FindOptions.ApiVersion = EOS_SESSIONSEARCH_FIND_API_LATEST;
 		static_assert(EOS_SESSIONSEARCH_FIND_API_LATEST == 2, "EOS_SessionSearch_FindOptions updated, check new fields");
-		FindOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+		FindOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalAccountId);
 
 		EOS_Async(EOS_SessionSearch_Find, CurrentSessionSearchHandleEOSGS->SearchHandle, FindOptions, MoveTemp(Promise));
 	})
@@ -1345,7 +1345,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 
 		const FFindSessions::Params& OpParams = Op.GetParams();
 
-		const TSharedRef<FSessionSearchHandleEOSGS>& CurrentSessionSearchHandleEOSGS = CurrentSessionSearchHandleEOSGSUserMap.FindChecked(OpParams.LocalUserId);
+		const TSharedRef<FSessionSearchHandleEOSGS>& CurrentSessionSearchHandleEOSGS = CurrentSessionSearchHandleEOSGSUserMap.FindChecked(OpParams.LocalAccountId);
 
 		// For a successful session, we'll get the search results
 		EOS_SessionSearch_GetSearchResultCountOptions GetSearchResultCountOptions = { };
@@ -1369,7 +1369,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			if (CopySearchResultByIndexResult == EOS_EResult::EOS_Success)
 			{
 				TSharedRef<TPromise<TDefaultErrorResult<FBuildSessionFromDetailsHandle>>> BuildSessionPromise = MakeShared<TPromise<TDefaultErrorResult<FBuildSessionFromDetailsHandle>>>();
-				BuildSessionFromDetailsHandle({ OpParams.LocalUserId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) })
+				BuildSessionFromDetailsHandle({ OpParams.LocalAccountId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) })
 					.OnComplete([this, WeakOp = Op.AsWeak(), BuildSessionPromise](const TOnlineResult<FBuildSessionFromDetailsHandle>& Result) mutable
 				{
 					if (Result.IsOk())
@@ -1378,7 +1378,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 						{
 							const TSharedRef<FSession>& Session = Result.GetOkValue().Session;
 
-							TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindOrAdd(Result.GetOkValue().LocalUserId);
+							TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindOrAdd(Result.GetOkValue().LocalAccountId);
 							SearchResults.Add(Session->SessionId);
 
 							AllSessionsById.Emplace(Session->SessionId, Session);
@@ -1419,12 +1419,12 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 
 				const FFindSessions::Params& OpParams = StrongOp->GetParams();
 
-				TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindChecked(OpParams.LocalUserId);
+				TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindChecked(OpParams.LocalAccountId);
 
 				StrongOp->SetResult({ SearchResults });
 
-				CurrentSessionSearchHandlesUserMap.Remove(OpParams.LocalUserId);
-				CurrentSessionSearchHandleEOSGSUserMap.Remove(OpParams.LocalUserId);
+				CurrentSessionSearchHandlesUserMap.Remove(OpParams.LocalAccountId);
+				CurrentSessionSearchHandleEOSGSUserMap.Remove(OpParams.LocalAccountId);
 			}
 		});
 	});
@@ -1441,7 +1441,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 	TOnlineAsyncOpRef<FJoinSession> Op = GetOp<FJoinSession>(MoveTemp(Params));
 	const FJoinSession::Params& OpParams = Op->GetParams();
 
-	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalUserId, OpParams.SessionId });
+	TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
 	if (GetSessionByIdResult.IsError())
 	{
 		// If no result is found, the id might be expired, which we should notify
@@ -1494,7 +1494,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 			return;
 		}
 
-		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalUserId, OpParams.SessionId });
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
 			// If no result is found, the id might be expired, which we should notify
@@ -1517,7 +1517,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 
 		JoinSessionOptions.bPresenceEnabled = FoundSession->SessionSettings.bPresenceEnabled;
 
-		JoinSessionOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+		JoinSessionOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalAccountId);
 
 		const FTCHARToUTF8 SessionNameUtf8(*OpParams.SessionName.ToString());
 		JoinSessionOptions.SessionName = SessionNameUtf8.Get();
@@ -1537,7 +1537,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 			return;
 		}
 		
-		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalUserId, OpParams.SessionId });
+		TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ OpParams.LocalAccountId, OpParams.SessionId });
 		if (GetSessionByIdResult.IsError())
 		{
 			// If no result is found, the id might be expired, which we should notify
@@ -1554,36 +1554,36 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 
 		LocalSessionsByName.Emplace(OpParams.SessionName, OpParams.SessionId);
 
-		NamedSessionUserMap.FindOrAdd(OpParams.LocalUserId).AddUnique(OpParams.SessionName);
+		NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
 
 		if (FoundSession->SessionSettings.bPresenceEnabled)
 		{
-			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalUserId);
+			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
 			PresenceSessionId = FoundSession->SessionId;
 		}
 
-		// After successfully joining a session, we'll remove all related invites if any are found
-		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalUserId))
-		{
-			TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
-			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+			// After successfully joining a session, we'll remove all related invites if any are found
+			if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
 			{
-				if (Entry.Value->SessionId == FoundSession->SessionId)
+				TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
+				for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
 				{
-					InviteIdsToRemove.Add(Entry.Key);
+				if (Entry.Value->SessionId == FoundSession->SessionId)
+					{
+						InviteIdsToRemove.Add(Entry.Key);
+					}
+				}
+				for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
+				{
+					UserMap->Remove(InviteId);
 				}
 			}
-			for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
-			{
-				UserMap->Remove(InviteId);
-			}
-		}
 
 		Op.SetResult(FJoinSession::Result{ });
 
-		FSessionJoined Event = { { OpParams.LocalUserId }, FoundSession->SessionId };
+		FSessionJoined Event = { { OpParams.LocalAccountId }, FoundSession->SessionId };
 
-		SessionEvents.OnSessionJoined.Broadcast(Event);
+			SessionEvents.OnSessionJoined.Broadcast(Event);
 
 		// A successful join allows the client to server travel, after which RegisterPlayers will be called by the engine
 	})
@@ -1592,7 +1592,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessionFromInvite(const FAccountId& LocalUserId, const FString& InInviteId)
+TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessionFromInvite(const FAccountId& LocalAccountId, const FString& InInviteId)
 {
 	EOS_Sessions_CopySessionHandleByInviteIdOptions CopySessionHandleByInviteIdOptions = { };
 	CopySessionHandleByInviteIdOptions.ApiVersion = EOS_SESSIONS_COPYSESSIONHANDLEBYINVITEID_API_LATEST;
@@ -1605,7 +1605,7 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 	EOS_EResult CopySessionHandleByInviteIdResult = EOS_Sessions_CopySessionHandleByInviteId(SessionsHandle, &CopySessionHandleByInviteIdOptions, &SessionDetailsHandle);
 	if (CopySessionHandleByInviteIdResult == EOS_EResult::EOS_Success)
 	{
-		return BuildSessionFromDetailsHandle({ LocalUserId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) });
+		return BuildSessionFromDetailsHandle({ LocalAccountId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) });
 	}
 	else
 	{
@@ -1617,7 +1617,7 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 	}
 }
 
-TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessionFromUIEvent(const FAccountId& LocalUserId, const EOS_UI_EventId& UIEventId)
+TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessionFromUIEvent(const FAccountId& LocalAccountId, const EOS_UI_EventId& UIEventId)
 {
 	EOS_Sessions_CopySessionHandleByUiEventIdOptions CopySessionHandleByUiEventIdOptions = { };
 	CopySessionHandleByUiEventIdOptions.ApiVersion = EOS_SESSIONS_COPYSESSIONHANDLEBYUIEVENTID_API_LATEST;
@@ -1629,7 +1629,7 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 	EOS_EResult CopySessionHandleByUiEventIdResult = EOS_Sessions_CopySessionHandleByUiEventId(SessionsHandle, &CopySessionHandleByUiEventIdOptions, &SessionDetailsHandle);
 	if (CopySessionHandleByUiEventIdResult == EOS_EResult::EOS_Success)
 	{
-		return BuildSessionFromDetailsHandle({ LocalUserId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) });
+		return BuildSessionFromDetailsHandle({ LocalAccountId, MakeShared<FSessionDetailsHandleEOSGS>(SessionDetailsHandle) });
 	}
 	else
 	{
@@ -1712,13 +1712,13 @@ TOnlineAsyncOpHandle<FBuildSessionFromDetailsHandle> FSessionsEOSGS::BuildSessio
 
 	if (GetIdsResult.IsOk())
 	{
-		Services.Get<FAuthEOSGS>()->ResolveAccountIds(Params.LocalUserId, GetIdsResult.GetOkValue())
+		Services.Get<FAuthEOSGS>()->ResolveAccountIds(Params.LocalAccountId, GetIdsResult.GetOkValue())
 			.Next([this, WeakOp = Op->AsWeak(), Params = MoveTemp(Params)](TArray<FAccountId> ResolvedAccountIds) mutable
 		{
 			if (TOnlineAsyncOpPtr<FBuildSessionFromDetailsHandle> StrongOp = WeakOp.Pin())
 			{
 				// After all the ids are resolved, we can build the session safely
-				StrongOp->SetResult(FBuildSessionFromDetailsHandle::Result{ StrongOp->GetParams().LocalUserId, MakeShared<FSessionEOSGS>(Params.SessionDetailsHandleEOSGS->SessionDetailsHandle) });
+				StrongOp->SetResult(FBuildSessionFromDetailsHandle::Result{ StrongOp->GetParams().LocalAccountId, MakeShared<FSessionEOSGS>(Params.SessionDetailsHandleEOSGS->SessionDetailsHandle) });
 			}
 		});
 	}
@@ -1747,12 +1747,12 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsEOSGS::SendSessionInvite(FSend
 		}
 
 		TArray<TFuture<TDefaultErrorResult<FSendSingleSessionInviteImpl>>> PendingSessionInvites;
-		for (const FAccountId& TargetUser : OpParams.TargetUsers)
+		for (const FAccountId& TargetAccountId : OpParams.TargetUsers)
 		{
 			FSendSingleSessionInviteImpl::Params FSendSingleSessionInviteParams;
-			FSendSingleSessionInviteParams.LocalUserId = OpParams.LocalUserId;
+			FSendSingleSessionInviteParams.LocalAccountId = OpParams.LocalAccountId;
 			FSendSingleSessionInviteParams.SessionName = OpParams.SessionName;
-			FSendSingleSessionInviteParams.TargetUserId = TargetUser;
+			FSendSingleSessionInviteParams.TargetAccountId = TargetAccountId;
 
 			TSharedRef<TPromise<TDefaultErrorResult<FSendSingleSessionInviteImpl>>> SessionInvitePromise = MakeShared<TPromise<TDefaultErrorResult<FSendSingleSessionInviteImpl>>>();
 			SendSingleSessionInviteImpl(MoveTemp(FSendSingleSessionInviteParams))
@@ -1813,7 +1813,7 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 		RejectInviteOptions.ApiVersion = EOS_SESSIONS_REJECTINVITE_API_LATEST;
 		static_assert(EOS_SESSIONS_REJECTINVITE_API_LATEST == 1, "EOS_Sessions_RejectInviteOptions updated, check new fields");
 
-		RejectInviteOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
+		RejectInviteOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalAccountId);
 
 		const FString& InviteIdStr = FOnlineSessionInviteIdRegistryEOSGS::Get().BasicRegistry.FindIdValue(OpParams.SessionInviteId);
 		const FTCHARToUTF8 InviteIdUtf8(*InviteIdStr);
@@ -1832,7 +1832,7 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 
 		const FRejectSessionInvite::Params& OpParams = Op.GetParams();
 
-		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalUserId))
+		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
 		{
 			UserMap->Remove(OpParams.SessionInviteId);
 		}
@@ -1990,7 +1990,7 @@ void FSessionsEOSGS::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const 
 	using namespace NboSerializerEOSGSSvc;
 
 	SerializeToBuffer(Packet, Session);
-	SerializeToBuffer(Packet, Session.OwnerUserId);
+	SerializeToBuffer(Packet, Session.OwnerAccountId);
 	SerializeToBuffer(Packet, Session.SessionId);
 	SerializeToBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
 	SerializeToBuffer(Packet, Session.SessionSettings.SessionMembers);
@@ -2002,7 +2002,7 @@ void FSessionsEOSGS::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSes
 	using namespace NboSerializerEOSGSSvc;
 
 	SerializeFromBuffer(Packet, Session);
-	SerializeFromBuffer(Packet, Session.OwnerUserId);
+	SerializeFromBuffer(Packet, Session.OwnerAccountId);
 	SerializeFromBuffer(Packet, Session.SessionId);
 	SerializeFromBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
 	SerializeFromBuffer(Packet, Session.SessionSettings.SessionMembers);

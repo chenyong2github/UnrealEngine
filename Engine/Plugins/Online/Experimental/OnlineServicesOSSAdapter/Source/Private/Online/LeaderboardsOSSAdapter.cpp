@@ -27,7 +27,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsOSSAdapter::ReadEntriesF
 
 	Op->Then([this](TOnlineAsyncOp<FReadEntriesForUsers>& Op)
 	{
-		const FUniqueNetIdPtr LocalUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().LocalAccountId);
 
 		if (!LocalUniqueNetId)
 		{
@@ -35,19 +35,19 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsOSSAdapter::ReadEntriesF
 			return MakeFulfilledPromise<void>().GetFuture();
 		}
 
-		if (Op.GetParams().UserIds.IsEmpty() || Op.GetParams().BoardName.IsEmpty())
+		if (Op.GetParams().AccountIds.IsEmpty() || Op.GetParams().BoardName.IsEmpty())
 		{
 			Op.SetError(Errors::InvalidParams());
 			return MakeFulfilledPromise<void>().GetFuture();
 		}
 
 		TArray<FUniqueNetIdRef> NetIds;
-		for (const FAccountId& UserId : Op.GetParams().UserIds)
+		for (const FAccountId& AccountId : Op.GetParams().AccountIds)
 		{
-			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(UserId);
+			const FUniqueNetIdPtr UniqueNetId = Auth->GetUniqueNetId(AccountId);
 			if (!UniqueNetId)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Failed to get unique net id for user %s"), *ToLogString(UserId));
+				UE_LOG(LogTemp, Warning, TEXT("Failed to get unique net id for user %s"), *ToLogString(AccountId));
 				Op.SetError(Errors::InvalidUser());
 				return MakeFulfilledPromise<void>().GetFuture();
 			}
@@ -104,7 +104,7 @@ TOnlineAsyncOpHandle<FReadEntriesAroundRank> FLeaderboardsOSSAdapter::ReadEntrie
 
 	Op->Then([this](TOnlineAsyncOp<FReadEntriesAroundRank>& Op)
 	{
-		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -166,14 +166,14 @@ TOnlineAsyncOpHandle<FReadEntriesAroundUser> FLeaderboardsOSSAdapter::ReadEntrie
 
 	Op->Then([this](TOnlineAsyncOp<FReadEntriesAroundUser>& Op)
 	{
-		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalUserId);
+		const FUniqueNetIdPtr LocalUserId = Auth->GetUniqueNetId(Op.GetParams().LocalAccountId);
 		if (!LocalUserId)
 		{
 			Op.SetError(Errors::InvalidUser());
 			return MakeFulfilledPromise<void>().GetFuture();
 		}
 
-		const FUniqueNetIdPtr TargetUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().UserId);
+		const FUniqueNetIdPtr TargetUniqueNetId = Auth->GetUniqueNetId(Op.GetParams().AccountId);
 		if (!TargetUniqueNetId)
 		{
 			Op.SetError(Errors::InvalidUser());
@@ -253,7 +253,7 @@ void FLeaderboardsOSSAdapter::ReadLeaderboardsResultFromV1ToV2(const FString& Bo
 	{
 		const FVariantData* VariantData = OnlineStatsRow.Columns.Find(*BoardName);
 		FLeaderboardEntry& LeaderboardEntry = OutEntries.Emplace_GetRef();
-		LeaderboardEntry.UserId = Auth->GetAccountIdHandle(OnlineStatsRow.PlayerId.ToSharedRef());
+		LeaderboardEntry.AccountId = Auth->GetAccountId(OnlineStatsRow.PlayerId.ToSharedRef());
 		LeaderboardEntry.Rank = OnlineStatsRow.Rank;
 		VariantData->GetValue(LeaderboardEntry.Score);
 	}

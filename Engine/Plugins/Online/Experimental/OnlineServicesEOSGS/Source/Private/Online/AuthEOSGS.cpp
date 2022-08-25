@@ -473,9 +473,9 @@ TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(FPlatformUserId Platfo
 	return StaticCastSharedPtr<FAccountInfoEOS>(Super::Find(PlatformUserId));
 }
 
-TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(FAccountId AccountIdHandle) const
+TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(FAccountId AccountId) const
 {
-	return StaticCastSharedPtr<FAccountInfoEOS>(Super::Find(AccountIdHandle));
+	return StaticCastSharedPtr<FAccountInfoEOS>(Super::Find(AccountId));
 }
 
 TSharedPtr<FAccountInfoEOS> FAccountInfoRegistryEOS::Find(EOS_EpicAccountId EpicAccountId) const
@@ -828,7 +828,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOSGS::Logout(FAuthLogout::Params&& Param
 	Op->Then([this](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
 	{
 		const FAuthLogout::Params& Params = InAsyncOp.GetParams();
-		TSharedPtr<FAccountInfoEOS> AccountInfoEOS = AccountInfoRegistryEOS.Find(Params.LocalUserId);
+		TSharedPtr<FAccountInfoEOS> AccountInfoEOS = AccountInfoRegistryEOS.Find(Params.LocalAccountId);
 		if (!AccountInfoEOS)
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
@@ -946,12 +946,12 @@ TOnlineAsyncOpHandle<FAuthEndVerifiedAuthSession> FAuthEOSGS::EndVerifiedAuthSes
 	return Operation->GetHandle();
 }
 
-TFuture<FAccountId> FAuthEOSGS::ResolveAccountId(const FAccountId& LocalUserId, const EOS_ProductUserId ProductUserId)
+TFuture<FAccountId> FAuthEOSGS::ResolveAccountId(const FAccountId& LocalAccountId, const EOS_ProductUserId ProductUserId)
 {
 	return MakeFulfilledPromise<FAccountId>(CreateAccountId(ProductUserId)).GetFuture();
 }
 
-TFuture<TArray<FAccountId>> FAuthEOSGS::ResolveAccountIds(const FAccountId& LocalUserId, const TArray<EOS_ProductUserId>& InProductUserIds)
+TFuture<TArray<FAccountId>> FAuthEOSGS::ResolveAccountIds(const FAccountId& LocalAccountId, const TArray<EOS_ProductUserId>& InProductUserIds)
 {
 	TArray<FAccountId> AccountIds;
 	AccountIds.Reserve(InProductUserIds.Num());
@@ -966,12 +966,12 @@ TFunction<TFuture<FAccountId>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId
 {
 	return [this](FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)
 	{
-		const FAccountId* LocalUserIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalUserId"));
-		if (!ensure(LocalUserIdPtr))
+		const FAccountId* LocalAccountIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalAccountId"));
+		if (!ensure(LocalAccountIdPtr))
 		{
 			return MakeFulfilledPromise<FAccountId>().GetFuture();
 		}
-		return ResolveAccountId(*LocalUserIdPtr, ProductUserId);
+		return ResolveAccountId(*LocalAccountIdPtr, ProductUserId);
 	};
 }
 
@@ -979,12 +979,12 @@ TFunction<TFuture<TArray<FAccountId>>(FOnlineAsyncOp& InAsyncOp, const TArray<EO
 {
 	return [this](FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)
 	{
-		const FAccountId* LocalUserIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalUserId"));
-		if (!ensure(LocalUserIdPtr))
+		const FAccountId* LocalAccountIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalAccountId"));
+		if (!ensure(LocalAccountIdPtr))
 		{
 			return MakeFulfilledPromise<TArray<FAccountId>>().GetFuture();
 		}
-		return ResolveAccountIds(*LocalUserIdPtr, ProductUserIds);
+		return ResolveAccountIds(*LocalAccountIdPtr, ProductUserIds);
 	};
 }
 

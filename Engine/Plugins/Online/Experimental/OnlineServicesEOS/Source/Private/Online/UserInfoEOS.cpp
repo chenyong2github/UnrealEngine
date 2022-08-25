@@ -30,26 +30,26 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo:
 	TOnlineAsyncOpRef<FQueryUserInfo> Op = GetJoinableOp<FQueryUserInfo>(MoveTemp(InParams));
 	const FQueryUserInfo::Params& Params = Op->GetParams();
 
-	if (Params.UserIds.IsEmpty())
+	if (Params.AccountIds.IsEmpty())
 	{
 		Op->SetError(Errors::InvalidParams());
 		return Op->GetHandle();
 	}
 
-	for (const FAccountId TargetUserId : Params.UserIds)
+	for (const FAccountId TargetAccountId : Params.AccountIds)
 	{
-		Op->Then([this, TargetUserId](TOnlineAsyncOp<FQueryUserInfo>& Op, TPromise<const EOS_UserInfo_QueryUserInfoCallbackInfo*>&& Promise)
+		Op->Then([this, TargetAccountId](TOnlineAsyncOp<FQueryUserInfo>& Op, TPromise<const EOS_UserInfo_QueryUserInfoCallbackInfo*>&& Promise)
 		{
 			const FQueryUserInfo::Params& Params = Op.GetParams();
 
-			if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+			if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 			{
 				Op.SetError(Errors::NotLoggedIn());
 				Promise.EmplaceValue();
 				return;
 			}
 
-			const EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(TargetUserId);
+			const EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(TargetAccountId);
 			if (!EOS_EpicAccountId_IsValid(TargetUserEasId))
 			{
 				Op.SetError(Errors::InvalidParams());
@@ -60,7 +60,7 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo:
 			EOS_UserInfo_QueryUserInfoOptions QueryUserInfoOptions = {};
 			QueryUserInfoOptions.ApiVersion = EOS_USERINFO_QUERYUSERINFO_API_LATEST;
 			static_assert(EOS_USERINFO_QUERYUSERINFO_API_LATEST == 1, "EOS_UserInfo_QueryUserInfoOptions updated, check new fields");
-			QueryUserInfoOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
+			QueryUserInfoOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 			QueryUserInfoOptions.TargetUserId = TargetUserEasId;
 
 			EOS_Async(EOS_UserInfo_QueryUserInfo, UserInfoHandle, QueryUserInfoOptions, MoveTemp(Promise));
@@ -85,12 +85,12 @@ TOnlineAsyncOpHandle<FQueryUserInfo> FUserInfoEOS::QueryUserInfo(FQueryUserInfo:
 
 TOnlineResult<FGetUserInfo> FUserInfoEOS::GetUserInfo(FGetUserInfo::Params&& Params)
 {
-	if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FGetUserInfo>(Errors::NotLoggedIn());
 	}
 
-	const EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(Params.UserId);
+	const EOS_EpicAccountId TargetUserEasId = GetEpicAccountId(Params.AccountId);
 	if (!EOS_EpicAccountId_IsValid(TargetUserEasId))
 	{
 		return TOnlineResult<FGetUserInfo>(Errors::InvalidParams());
@@ -99,7 +99,7 @@ TOnlineResult<FGetUserInfo> FUserInfoEOS::GetUserInfo(FGetUserInfo::Params&& Par
 	EOS_UserInfo_CopyUserInfoOptions Options;
 	Options.ApiVersion = EOS_USERINFO_COPYUSERINFO_API_LATEST;
 	static_assert(EOS_USERINFO_COPYUSERINFO_API_LATEST == 3, "EOS_UserInfo_CopyUserInfoOptions updated, check new fields");
-	Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
+	Options.LocalUserId = GetEpicAccountIdChecked(Params.LocalAccountId);
 	Options.TargetUserId = TargetUserEasId;
 
 	EOS_UserInfo* EosUserInfo = nullptr;
@@ -116,7 +116,7 @@ TOnlineResult<FGetUserInfo> FUserInfoEOS::GetUserInfo(FGetUserInfo::Params&& Par
 	}
 
 	TSharedRef<FUserInfo> UserInfo = MakeShared<FUserInfo>();
-	UserInfo->UserId = Params.UserId;
+	UserInfo->AccountId = Params.AccountId;
 	UserInfo->DisplayName = UTF8_TO_TCHAR(EosUserInfo->DisplayName);
 
 	return TOnlineResult<FGetUserInfo>({UserInfo});

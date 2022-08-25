@@ -141,7 +141,7 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 	}
 
 	TArray<FString> StatNames;
-	TArray<FAccountId> UserIds;
+	TArray<FAccountId> AccountIds;
 	for (const FUserStats& UserStats : StatsUpdated.UpdateUsersStats)
 	{
 		for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
@@ -158,17 +158,17 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 			}
 		}
 
-		UserIds.AddUnique(UserStats.UserId);
+		AccountIds.AddUnique(UserStats.AccountId);
 	}
 
-	if (StatNames.IsEmpty() || UserIds.IsEmpty())
+	if (StatNames.IsEmpty() || AccountIds.IsEmpty())
 	{
 		return;
 	}
 
 	FBatchQueryStats::Params BatchQueryStatsParam;
-	BatchQueryStatsParam.LocalUserId = StatsUpdated.LocalUserId;
-	BatchQueryStatsParam.TargetUserIds = MoveTemp(UserIds);
+	BatchQueryStatsParam.LocalAccountId = StatsUpdated.LocalAccountId;
+	BatchQueryStatsParam.TargetAccountIds = MoveTemp(AccountIds);
 	BatchQueryStatsParam.StatNames = MoveTemp(StatNames);
 
 	Services.Get<FStatsCommon>()->BatchQueryStats(MoveTemp(BatchQueryStatsParam))
@@ -182,13 +182,13 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 				TArray<FString> AchievementsToUnlock;
 				for (const TPair<FString, FStatValue>& StatPair : UserStats.Stats)
 				{
-					ExecuteUnlockRulesRelatedToStat(UserStats.UserId, StatPair.Key, UserStats.Stats, AchievementsToUnlock);
+					ExecuteUnlockRulesRelatedToStat(UserStats.AccountId, StatPair.Key, UserStats.Stats, AchievementsToUnlock);
 				}
 
 				if (!AchievementsToUnlock.IsEmpty())
 				{
 					FUnlockAchievements::Params UnlockAchievementsParams;
-					UnlockAchievementsParams.LocalUserId = UserStats.UserId;
+					UnlockAchievementsParams.LocalAccountId = UserStats.AccountId;
 					UnlockAchievementsParams.AchievementIds = MoveTemp(AchievementsToUnlock);
 					UnlockAchievements(MoveTemp(UnlockAchievementsParams));
 				}
@@ -197,12 +197,12 @@ void FAchievementsCommon::UnlockAchievementsByStats(const FStatsUpdated& StatsUp
 	});
 }
 
-void FAchievementsCommon::ExecuteUnlockRulesRelatedToStat(const FAccountId& UserId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock)
+void FAchievementsCommon::ExecuteUnlockRulesRelatedToStat(const FAccountId& AccountId, const FString& StatName, const TMap<FString, FStatValue>& Stats, TArray<FString>& OutAchievementsToUnlock)
 {
 	for (const FAchievementUnlockRule& AchievementUnlockRule : AchievementUnlockRules)
 	{
 		if (AchievementUnlockRule.ContainsStat(StatName)
-			&& !IsUnlocked(UserId, AchievementUnlockRule.AchievementToUnlock) 
+			&& !IsUnlocked(AccountId, AchievementUnlockRule.AchievementToUnlock) 
 			&& MeetUnlockCondition(AchievementUnlockRule, Stats))
 		{
 			OutAchievementsToUnlock.AddUnique(AchievementUnlockRule.AchievementToUnlock);
@@ -251,10 +251,10 @@ bool FAchievementsCommon::MeetUnlockCondition(FAchievementUnlockRule Achievement
 	return true;
 }
 
-bool FAchievementsCommon::IsUnlocked(const FAccountId& UserId, const FString& AchievementName) const
+bool FAchievementsCommon::IsUnlocked(const FAccountId& AccountId, const FString& AchievementName) const
 {
 	FGetAchievementState::Params Params;
-	Params.LocalUserId = UserId;
+	Params.LocalAccountId = AccountId;
 	Params.AchievementId = AchievementName;
 	TOnlineResult<FGetAchievementState> Result = GetAchievementState(MoveTemp(Params));
 	if (Result.IsOk())

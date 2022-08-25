@@ -15,7 +15,7 @@ public:
 	virtual ~FAccountInfoRegistry() = default;
 
 	TSharedPtr<FAccountInfo> Find(FPlatformUserId PlatformUserId) const;
-	TSharedPtr<FAccountInfo> Find(FAccountId AccountIdHandle) const;
+	TSharedPtr<FAccountInfo> Find(FAccountId AccountId) const;
 
 	TArray<TSharedRef<FAccountInfo>> GetAllAccountInfo(TFunction<bool(const TSharedRef<FAccountInfo>&)> Predicate) const;
 

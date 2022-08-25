@@ -57,7 +57,7 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsNull::WriteLeaderboar
 {
 	TOnlineAsyncOpRef<FWriteLeaderboardScores> Op = GetOp<FWriteLeaderboardScores>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -88,7 +88,7 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsNull::WriteLeaderboar
 		while (CurrentNode)
 		{
 			const FUserScoreNull& UserScore = CurrentNode->GetValue();
-			if (UserScore.UserId == InAsyncOp.GetParams().LocalUserId)
+			if (UserScore.AccountId == InAsyncOp.GetParams().LocalAccountId)
 			{
 				UpdatedScore = Private::GetUpdatedScoreByLeaderboardDefinition(LeaderboardDefinition, UserScore.Score, InAsyncOp.GetParams().Score);
 				UserScoreList.RemoveNode(CurrentNode);
@@ -101,7 +101,7 @@ TOnlineAsyncOpHandle<FWriteLeaderboardScores> FLeaderboardsNull::WriteLeaderboar
 		// Insert into list by order
 		FUserScoreNull UserScoreToInsert;
 		UserScoreToInsert.Score = UpdatedScore;
-		UserScoreToInsert.UserId = InAsyncOp.GetParams().LocalUserId;
+		UserScoreToInsert.AccountId = InAsyncOp.GetParams().LocalAccountId;
 
 		bool bInserted = false;
 		CurrentNode = UserScoreList.GetHead();
@@ -147,7 +147,7 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsNull::ReadEntriesForUser
 {
 	TOnlineAsyncOpRef<FReadEntriesForUsers> Op = GetOp<FReadEntriesForUsers>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -159,18 +159,18 @@ TOnlineAsyncOpHandle<FReadEntriesForUsers> FLeaderboardsNull::ReadEntriesForUser
 
 		if (FLeaderboardDataNull* LeaderboardData = LeaderboardsData.FindByPredicate(FFindLeaderboardDataByName(InAsyncOp.GetParams().BoardName)))
 		{
-			for (const FAccountId& UserId : InAsyncOp.GetParams().UserIds)
+			for (const FAccountId& AccountId : InAsyncOp.GetParams().AccountIds)
 			{
 				uint32 Index = 0;
 				TDoubleLinkedList<FUserScoreNull>::TDoubleLinkedListNode* CurrentNode = LeaderboardData->UserScoreList.GetHead();
 				while (CurrentNode)
 				{
 					const FUserScoreNull& UserScore = CurrentNode->GetValue();
-					// When needed, use map/set instead of array for UserIds in Params, to improve performance
-					if (UserScore.UserId == UserId)
+					// When needed, use map/set instead of array for AccountIds in Params, to improve performance
+					if (UserScore.AccountId == AccountId)
 					{
 						FLeaderboardEntry& LeaderboardEntry = Result.Entries.Emplace_GetRef();
-						LeaderboardEntry.UserId = UserId;
+						LeaderboardEntry.AccountId = AccountId;
 						LeaderboardEntry.Rank = Index;
 						LeaderboardEntry.Score = UserScore.Score;
 						break;
@@ -204,7 +204,7 @@ void ReadEntriesInRange(TDoubleLinkedList<FUserScoreNull>& UserScoreList, uint32
 		{
 			const FUserScoreNull& UserScore = CurrentNode->GetValue();
 			FLeaderboardEntry& LeaderboardEntry = OutEntries.Emplace_GetRef();
-			LeaderboardEntry.UserId = UserScore.UserId;
+			LeaderboardEntry.AccountId = UserScore.AccountId;
 			LeaderboardEntry.Rank = Index;
 			LeaderboardEntry.Score = UserScore.Score;
 		}
@@ -220,7 +220,7 @@ TOnlineAsyncOpHandle<FReadEntriesAroundRank> FLeaderboardsNull::ReadEntriesAroun
 {
 	TOnlineAsyncOpRef<FReadEntriesAroundRank> Op = GetOp<FReadEntriesAroundRank>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -252,7 +252,7 @@ TOnlineAsyncOpHandle<FReadEntriesAroundUser> FLeaderboardsNull::ReadEntriesAroun
 {
 	TOnlineAsyncOpRef<FReadEntriesAroundUser> Op = GetOp<FReadEntriesAroundUser>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -276,7 +276,7 @@ TOnlineAsyncOpHandle<FReadEntriesAroundUser> FLeaderboardsNull::ReadEntriesAroun
 			while (CurrentNode)
 			{
 				const FUserScoreNull& UserScore = CurrentNode->GetValue();
-				if (UserScore.UserId == InAsyncOp.GetParams().UserId)
+				if (UserScore.AccountId == InAsyncOp.GetParams().AccountId)
 				{
 					FoundUser = true;
 					break;

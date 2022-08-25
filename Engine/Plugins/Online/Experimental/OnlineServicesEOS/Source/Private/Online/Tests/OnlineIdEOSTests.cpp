@@ -21,26 +21,26 @@ bool FAccountIdReplicationTest::RunTest(const FString& Parameters)
 
 		{
 			FOnlineAccountIdRegistryEOS Registry;
-			const FAccountId Handle = Registry.FindOrAddAccountId(EasId, EosId);
-			TArray<uint8> RepData = Registry.ToReplicationData(Handle);
-			const FAccountId Handle2 = Registry.FromReplicationData(RepData);
-			UTEST_EQUAL(TEXT(""), Handle, Handle2);
+			const FAccountId AccountId = Registry.FindOrAddAccountId(EasId, EosId);
+			TArray<uint8> RepData = Registry.ToReplicationData(AccountId);
+			const FAccountId AccountId2 = Registry.FromReplicationData(RepData);
+			UTEST_EQUAL(TEXT(""), AccountId, AccountId2);
 		}
 
 		{
 			FOnlineAccountIdRegistryEOS Registry;
-			const FAccountId Handle = Registry.FindOrAddAccountId(EasId, nullptr);
-			TArray<uint8> RepData = Registry.ToReplicationData(Handle);
-			const FAccountId Handle2 = Registry.FromReplicationData(RepData);
-			UTEST_EQUAL(TEXT(""), Handle, Handle2);
+			const FAccountId AccountId = Registry.FindOrAddAccountId(EasId, nullptr);
+			TArray<uint8> RepData = Registry.ToReplicationData(AccountId);
+			const FAccountId AccountId2 = Registry.FromReplicationData(RepData);
+			UTEST_EQUAL(TEXT(""), AccountId, AccountId2);
 		}
 
 		{
 			FOnlineAccountIdRegistryEOS Registry;
-			const FAccountId Handle = Registry.FindOrAddAccountId(nullptr, EosId);
-			TArray<uint8> RepData = Registry.ToReplicationData(Handle);
-			const FAccountId Handle2 = Registry.FromReplicationData(RepData);
-			UTEST_EQUAL(TEXT(""), Handle, Handle2);
+			const FAccountId AccountId = Registry.FindOrAddAccountId(nullptr, EosId);
+			TArray<uint8> RepData = Registry.ToReplicationData(AccountId);
+			const FAccountId AccountId2 = Registry.FromReplicationData(RepData);
+			UTEST_EQUAL(TEXT(""), AccountId, AccountId2);
 		}
 	}
 

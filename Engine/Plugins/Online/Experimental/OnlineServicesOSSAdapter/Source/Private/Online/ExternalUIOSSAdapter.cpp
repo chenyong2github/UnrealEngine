@@ -66,10 +66,10 @@ TOnlineAsyncOpHandle<FExternalUIShowLoginUI> FExternalUIOSSAdapter::ShowLoginUI(
 							{
 								if (Error.WasSuccessful())
 								{
-									FAccountId Handle = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueId.ToSharedRef());
+									FAccountId AccountId = static_cast<FOnlineServicesOSSAdapter&>(Services).GetAccountIdRegistry().FindOrAddHandle(UniqueId.ToSharedRef());
 									FExternalUIShowLoginUI::Result Result = { MakeShared<FAccountInfo>() };
 									Result.AccountInfo->PlatformUserId = PinnedOp->GetParams().PlatformUserId;
-									Result.AccountInfo->AccountId = Handle;
+									Result.AccountInfo->AccountId = AccountId;
 									Result.AccountInfo->LoginStatus = ELoginStatus::LoggedIn;
 
 									PinnedOp->SetResult(MoveTemp(Result));
@@ -103,7 +103,7 @@ TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUIOSSAdapter::ShowFriend
 
 	if (!Op->IsReady())
 	{
-		int32 LocalUserIndex = Services.Get<FAuthOSSAdapter>()->GetLocalUserNum(Op->GetParams().LocalUserId);
+		int32 LocalUserIndex = Services.Get<FAuthOSSAdapter>()->GetLocalUserNum(Op->GetParams().LocalAccountId);
 
 		if (LocalUserIndex < 0 || LocalUserIndex >= MAX_LOCAL_PLAYERS)
 		{

@@ -14,7 +14,7 @@ class FOnlineAccountIdString
 public:
 	FString Data;
 	int32 AccountIndex;
-	FAccountId Handle;
+	FAccountId AccountId;
 };
 
 class FOnlineAccountIdRegistryNull : public IOnlineAccountIdRegistry
@@ -22,22 +22,22 @@ class FOnlineAccountIdRegistryNull : public IOnlineAccountIdRegistry
 public:
 	static FOnlineAccountIdRegistryNull& Get();
 
-	FAccountId Find(FString UserId) const;
+	FAccountId Find(FString AccountId) const;
 	FAccountId Find(FPlatformUserId UserId) const;
 	FAccountId Find(int32 UserIndex) const;
 
-	FAccountId Create(FString UserId, FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE);
+	FAccountId Create(FString AccountId, FPlatformUserId PlatformUserId = PLATFORMUSERID_NONE);
 
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const FAccountId& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FAccountId& Handle) const override;
+	virtual FString ToLogString(const FAccountId& AccountId) const override;
+	virtual TArray<uint8> ToReplicationData(const FAccountId& AccountId) const override;
 	virtual FAccountId FromReplicationData(const TArray<uint8>& ReplicationString) override;
 	// End IOnlineAccountIdRegistry
 
 	virtual ~FOnlineAccountIdRegistryNull() = default;
 
 private:
-	const FOnlineAccountIdString* GetInternal(const FAccountId& Handle) const;
+	const FOnlineAccountIdString* GetInternal(const FAccountId& AccountId) const;
 
 	// how much of these are actually necessary?
 	TArray<FOnlineAccountIdString> Ids;

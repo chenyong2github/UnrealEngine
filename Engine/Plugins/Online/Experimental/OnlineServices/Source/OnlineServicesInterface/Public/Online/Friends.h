@@ -27,7 +27,7 @@ const TCHAR* LexToString(EFriendInviteStatus);
 struct FFriend
 {
 	/** Id of the friend */
-	FAccountId UserId;
+	FAccountId AccountId;
 	/** Friendship invite status - if an invite is pending */
 	TOptional<EFriendInviteStatus> InviteStatus;
 };
@@ -40,7 +40,7 @@ struct FQueryFriends
 	struct Params
 	{
 		/** Account Id of the local user making the request */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	/**
@@ -60,7 +60,7 @@ struct FGetFriends
 	struct Params
 	{
 		/** Account Id of the local user making the request */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	/** Output struct for Friends::GetFriends */
@@ -79,7 +79,7 @@ struct FAddFriend
 	struct Params
 	{
 		/** Account Id of the local user making the request */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Friend to add */
 		FAccountId FriendId;
 	};
@@ -96,7 +96,7 @@ struct FAddFriend
 struct FFriendsListUpdated
 {
 	/** Local user who's friends list changed */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 	/** Account ids of friends that have been added */
 	TArrayView<const FAccountId> AddedFriends;
 	/** Account ids of friends that have been removed */
@@ -157,19 +157,19 @@ namespace Meta {
 // TODO: Move to Friends_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FFriend)
-	ONLINE_STRUCT_FIELD(FFriend, UserId),
+	ONLINE_STRUCT_FIELD(FFriend, AccountId),
 	ONLINE_STRUCT_FIELD(FFriend, InviteStatus)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryFriends::Params)
-	ONLINE_STRUCT_FIELD(FQueryFriends::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FQueryFriends::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryFriends::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetFriends::Params)
-	ONLINE_STRUCT_FIELD(FGetFriends::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FGetFriends::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetFriends::Result)
@@ -177,7 +177,7 @@ BEGIN_ONLINE_STRUCT_META(FGetFriends::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAddFriend::Params)
-	ONLINE_STRUCT_FIELD(FAddFriend::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAddFriend::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAddFriend::Params, FriendId)
 END_ONLINE_STRUCT_META()
 
@@ -186,7 +186,7 @@ BEGIN_ONLINE_STRUCT_META(FAddFriend::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FFriendsListUpdated)
-	ONLINE_STRUCT_FIELD(FFriendsListUpdated, LocalUserId),
+	ONLINE_STRUCT_FIELD(FFriendsListUpdated, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FFriendsListUpdated, AddedFriends),
 	ONLINE_STRUCT_FIELD(FFriendsListUpdated, RemovedFriends),
 	ONLINE_STRUCT_FIELD(FFriendsListUpdated, UpdatedFriends)

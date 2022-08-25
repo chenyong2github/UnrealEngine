@@ -41,7 +41,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 	{
 		const FTitleFileEnumerateFiles::Params& Params = InAsyncOp.GetParams();
 
-		if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
 			Promise.EmplaceValue();
@@ -61,7 +61,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 		EOS_TitleStorage_QueryFileListOptions Options = {};
 		Options.ApiVersion = EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
 		static_assert(EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST == 1, "EOS_TitleStorage_QueryFileListOptions updated, check new fields");
-		Options.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
+		Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		Options.ListOfTagsCount = 1;
 		Options.ListOfTags = &SearchTagPtr;
 
@@ -78,7 +78,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 			return;
 		}
 
-		const EOS_ProductUserId LocalUserPuid = GetProductUserIdChecked(Params.LocalUserId);
+		const EOS_ProductUserId LocalUserPuid = GetProductUserIdChecked(Params.LocalAccountId);
 
 		EOS_TitleStorage_GetFileMetadataCountOptions GetCountOptions;
 		GetCountOptions.ApiVersion = EOS_TITLESTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST;
@@ -122,7 +122,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 
 TOnlineResult<FTitleFileGetEnumeratedFiles> FTitleFileEOSGS::GetEnumeratedFiles(FTitleFileGetEnumeratedFiles::Params&& Params)
 {
-	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
+	if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalAccountId))
 	{
 		return TOnlineResult<FTitleFileGetEnumeratedFiles>(Errors::InvalidUser());
 	}
@@ -167,7 +167,7 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 	{
 		const FTitleFileReadFile::Params& Params = InAsyncOp.GetParams();
 
-		if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
+		if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalAccountId))
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
 			Promise.EmplaceValue();
@@ -182,7 +182,7 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 		EOS_TitleStorage_ReadFileOptions Options = {};
 		Options.ApiVersion = EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST;
 		static_assert(EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST == 1, "EOS_TitleStorage_ReadFileOptions updated, check new fields");
-		Options.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
+		Options.LocalUserId = GetProductUserIdChecked(Params.LocalAccountId);
 		Options.Filename = Utf8Filename.Get();
 		Options.ReadChunkLengthBytes = Config.ReadChunkLengthBytes;
 		Options.ReadFileDataCallback = &FTitleFileEOSGS::OnReadFileDataStatic;

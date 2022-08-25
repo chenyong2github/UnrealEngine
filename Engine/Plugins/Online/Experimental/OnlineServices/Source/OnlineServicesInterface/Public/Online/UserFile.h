@@ -15,7 +15,7 @@ struct FUserFileEnumerateFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -30,7 +30,7 @@ struct FUserFileGetEnumeratedFiles
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -52,7 +52,7 @@ struct FUserFileReadFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** File to be read */
 		FString Filename;
 	};
@@ -71,7 +71,7 @@ struct FUserFileWriteFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** File to be written */
 		FString Filename;
 		/** Data to write */
@@ -90,7 +90,7 @@ struct FUserFileCopyFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** File to copy contents from */
 		FString SourceFilename;
 		/** File to copy contents to */
@@ -109,7 +109,7 @@ struct FUserFileDeleteFile
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** File to delete */
 		FString Filename;
 	};
@@ -156,14 +156,14 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FUserFileEnumerateFiles::Params)
-	ONLINE_STRUCT_FIELD(FUserFileEnumerateFiles::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FUserFileEnumerateFiles::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileEnumerateFiles::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileGetEnumeratedFiles::Params)
-	ONLINE_STRUCT_FIELD(FUserFileGetEnumeratedFiles::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FUserFileGetEnumeratedFiles::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileGetEnumeratedFiles::Result)
@@ -171,7 +171,7 @@ BEGIN_ONLINE_STRUCT_META(FUserFileGetEnumeratedFiles::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileReadFile::Params)
-	ONLINE_STRUCT_FIELD(FUserFileReadFile::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUserFileReadFile::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUserFileReadFile::Params, Filename)
 END_ONLINE_STRUCT_META()
 
@@ -180,7 +180,7 @@ BEGIN_ONLINE_STRUCT_META(FUserFileReadFile::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileWriteFile::Params)
-	ONLINE_STRUCT_FIELD(FUserFileWriteFile::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUserFileWriteFile::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUserFileWriteFile::Params, Filename),
 	ONLINE_STRUCT_FIELD(FUserFileWriteFile::Params, FileContents)
 END_ONLINE_STRUCT_META()
@@ -189,7 +189,7 @@ BEGIN_ONLINE_STRUCT_META(FUserFileWriteFile::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileCopyFile::Params)
-	ONLINE_STRUCT_FIELD(FUserFileCopyFile::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUserFileCopyFile::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUserFileCopyFile::Params, SourceFilename),
 	ONLINE_STRUCT_FIELD(FUserFileCopyFile::Params, TargetFilename)
 END_ONLINE_STRUCT_META()
@@ -198,7 +198,7 @@ BEGIN_ONLINE_STRUCT_META(FUserFileCopyFile::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUserFileDeleteFile::Params)
-	ONLINE_STRUCT_FIELD(FUserFileDeleteFile::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUserFileDeleteFile::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUserFileDeleteFile::Params, Filename)
 END_ONLINE_STRUCT_META()
 

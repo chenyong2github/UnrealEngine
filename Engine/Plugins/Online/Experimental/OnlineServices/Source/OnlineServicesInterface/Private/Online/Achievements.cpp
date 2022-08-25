@@ -46,7 +46,7 @@ FString ToLogString(const FAchievementState& State)
 
 bool operator==(const FAchievementStateUpdated& A, const FAchievementStateUpdated& B)
 {
-	return A.LocalUserId == B.LocalUserId
+	return A.LocalAccountId == B.LocalAccountId
 		&& A.AchievementIds == B.AchievementIds;
 }
 

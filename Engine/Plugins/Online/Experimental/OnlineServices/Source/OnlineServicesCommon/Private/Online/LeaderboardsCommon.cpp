@@ -166,7 +166,7 @@ void FLeaderboardsCommon::WriteLeaderboardsByStats(const FStatsUpdated& StatsUpd
 			if (LeaderboardDefinitions.Contains(StatPair.Key))
 			{
 				FWriteLeaderboardScores::Params WriteLeaderboardScoresParam;
-				WriteLeaderboardScoresParam.LocalUserId = UserStats.UserId;
+				WriteLeaderboardScoresParam.LocalAccountId = UserStats.AccountId;
 				WriteLeaderboardScoresParam.BoardName = StatPair.Key;
 				WriteLeaderboardScoresParam.Score = StatPair.Value.GetInt64();
 				WriteLeaderboardScores(MoveTemp(WriteLeaderboardScoresParam));

@@ -84,10 +84,10 @@ TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUIEOS::ShowFriendsUI(FEx
 {
 	TOnlineAsyncOpRef<FExternalUIShowFriendsUI> Op = GetOp<FExternalUIShowFriendsUI>(MoveTemp(Params));
 
-	EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
+	EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalAccountId);
 	if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FExternalUIEOS::ShowFriendsUI] LocalUserId=[%s] EpicAccountId not found"), *ToLogString(Params.LocalUserId));
+		UE_LOG(LogTemp, Warning, TEXT("[FExternalUIEOS::ShowFriendsUI] LocalAccountId=[%s] EpicAccountId not found"), *ToLogString(Params.LocalAccountId));
 		Op->SetError(Errors::Unknown()); // TODO
 		return Op->GetHandle();
 	}

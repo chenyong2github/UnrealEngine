@@ -16,7 +16,7 @@ struct FQueryAchievementDefinitions
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -31,7 +31,7 @@ struct FGetAchievementIds
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -84,7 +84,7 @@ struct FGetAchievementDefinition
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Achievement to get definition of */
 		FString AchievementId;
 	};
@@ -103,7 +103,7 @@ struct FQueryAchievementStates
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -130,7 +130,7 @@ struct FGetAchievementState
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Achievement to get state of */
 		FString AchievementId;
 	};
@@ -149,7 +149,7 @@ struct FUnlockAchievements
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Achievements to unlock */
 		TArray<FString> AchievementIds;
 	};
@@ -166,7 +166,7 @@ struct FDisplayAchievementUI
 	struct Params
 	{
 		/** Local user performing the operation */
-		FAccountId LocalUserId;
+		FAccountId LocalAccountId;
 		/** Achievement to display */
 		FString AchievementId;
 	};
@@ -180,7 +180,7 @@ struct FDisplayAchievementUI
 struct FAchievementStateUpdated
 {
 	/** User whose achievement states have updated */
-	FAccountId LocalUserId;
+	FAccountId LocalAccountId;
 	/** Achievements which have updated */
 	TArray<FString> AchievementIds;
 };
@@ -239,14 +239,14 @@ public:
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FQueryAchievementDefinitions::Params)
-	ONLINE_STRUCT_FIELD(FQueryAchievementDefinitions::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FQueryAchievementDefinitions::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryAchievementDefinitions::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAchievementIds::Params)
-	ONLINE_STRUCT_FIELD(FGetAchievementIds::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FGetAchievementIds::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAchievementIds::Result)
@@ -272,7 +272,7 @@ BEGIN_ONLINE_STRUCT_META(FAchievementDefinition)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAchievementDefinition::Params)
-	ONLINE_STRUCT_FIELD(FGetAchievementDefinition::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FGetAchievementDefinition::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FGetAchievementDefinition::Params, AchievementId)
 END_ONLINE_STRUCT_META()
 
@@ -281,7 +281,7 @@ BEGIN_ONLINE_STRUCT_META(FGetAchievementDefinition::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryAchievementStates::Params)
-	ONLINE_STRUCT_FIELD(FQueryAchievementStates::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FQueryAchievementStates::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FQueryAchievementStates::Result)
@@ -294,7 +294,7 @@ BEGIN_ONLINE_STRUCT_META(FAchievementState)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAchievementState::Params)
-	ONLINE_STRUCT_FIELD(FGetAchievementState::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FGetAchievementState::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FGetAchievementState::Params, AchievementId)
 END_ONLINE_STRUCT_META()
 
@@ -303,7 +303,7 @@ BEGIN_ONLINE_STRUCT_META(FGetAchievementState::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FUnlockAchievements::Params)
-	ONLINE_STRUCT_FIELD(FUnlockAchievements::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUnlockAchievements::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FUnlockAchievements::Params, AchievementIds)
 END_ONLINE_STRUCT_META()
 
@@ -311,7 +311,7 @@ BEGIN_ONLINE_STRUCT_META(FUnlockAchievements::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FDisplayAchievementUI::Params)
-	ONLINE_STRUCT_FIELD(FDisplayAchievementUI::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FDisplayAchievementUI::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FDisplayAchievementUI::Params, AchievementId)
 END_ONLINE_STRUCT_META()
 
@@ -319,7 +319,7 @@ BEGIN_ONLINE_STRUCT_META(FDisplayAchievementUI::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAchievementStateUpdated)
-	ONLINE_STRUCT_FIELD(FAchievementStateUpdated, LocalUserId),
+	ONLINE_STRUCT_FIELD(FAchievementStateUpdated, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAchievementStateUpdated, AchievementIds)
 END_ONLINE_STRUCT_META()
 

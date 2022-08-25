@@ -257,12 +257,12 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 }
 
 template <typename IdType>
-TFuture<FAccountId> ResolveAccountIdImpl(FAuthEOS& AuthEOS, const FAccountId& LocalUserId, const IdType InId)
+TFuture<FAccountId> ResolveAccountIdImpl(FAuthEOS& AuthEOS, const FAccountId& LocalAccountId, const IdType InId)
 {
 	TPromise<FAccountId> Promise;
 	TFuture<FAccountId> Future = Promise.GetFuture();
 
-	AuthEOS.ResolveAccountIds(LocalUserId, { InId }).Next([Promise = MoveTemp(Promise)](const TArray<FAccountId>& AccountIds) mutable
+	AuthEOS.ResolveAccountIds(LocalAccountId, { InId }).Next([Promise = MoveTemp(Promise)](const TArray<FAccountId>& AccountIds) mutable
 	{
 		FAccountId Result;
 		if (AccountIds.Num() == 1)
@@ -282,7 +282,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalServerAuthTicket> FAuthEOS::QueryExternal
 	Op->Then([this](TOnlineAsyncOp<FAuthQueryExternalServerAuthTicket>& InAsyncOp)
 	{
 		const FAuthQueryExternalServerAuthTicket::Params& Params = InAsyncOp.GetParams();
-		TSharedPtr<FAccountInfoEOS> AccountInfoEOS = AccountInfoRegistryEOS.Find(Params.LocalUserId);
+		TSharedPtr<FAccountInfoEOS> AccountInfoEOS = AccountInfoRegistryEOS.Find(Params.LocalAccountId);
 		if (!AccountInfoEOS)
 		{
 			InAsyncOp.SetError(Errors::InvalidParams());
@@ -325,7 +325,7 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthEOS::QueryExternalAuthTok
 	Op->Then([this](TOnlineAsyncOp<FAuthQueryExternalAuthToken>& InAsyncOp)
 	{
 		const FAuthQueryExternalAuthToken::Params& Params = InAsyncOp.GetParams();
-		TSharedPtr<FAccountInfoEOS> AccountInfoEOS = AccountInfoRegistryEOS.Find(Params.LocalUserId);
+		TSharedPtr<FAccountInfoEOS> AccountInfoEOS = AccountInfoRegistryEOS.Find(Params.LocalAccountId);
 		if (!AccountInfoEOS)
 		{
 			InAsyncOp.SetError(Errors::InvalidParams());
@@ -347,19 +347,19 @@ TOnlineAsyncOpHandle<FAuthQueryExternalAuthToken> FAuthEOS::QueryExternalAuthTok
 	return Op->GetHandle();
 }
 
-TFuture<FAccountId> FAuthEOS::ResolveAccountId(const FAccountId& LocalUserId, const EOS_EpicAccountId EpicAccountId)
+TFuture<FAccountId> FAuthEOS::ResolveAccountId(const FAccountId& LocalAccountId, const EOS_EpicAccountId EpicAccountId)
 {
-	return ResolveAccountIdImpl(*this, LocalUserId, EpicAccountId);
+	return ResolveAccountIdImpl(*this, LocalAccountId, EpicAccountId);
 }
 
-TFuture<FAccountId> FAuthEOS::ResolveAccountId(const FAccountId& LocalUserId, const EOS_ProductUserId ProductUserId)
+TFuture<FAccountId> FAuthEOS::ResolveAccountId(const FAccountId& LocalAccountId, const EOS_ProductUserId ProductUserId)
 {
-	return ResolveAccountIdImpl(*this, LocalUserId, ProductUserId);
+	return ResolveAccountIdImpl(*this, LocalAccountId, ProductUserId);
 }
 
 using FEpicAccountIdStrBuffer = char[EOS_EPICACCOUNTID_MAX_LENGTH + 1];
 
-TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalUserId, const TArray<EOS_EpicAccountId>& InEpicAccountIds)
+TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalAccountId, const TArray<EOS_EpicAccountId>& InEpicAccountIds)
 {
 	// Search for all the account id's
 	TArray<FAccountId> AccountIdHandles;
@@ -386,8 +386,8 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalU
 		return MakeFulfilledPromise<TArray<FAccountId>>(MoveTemp(AccountIdHandles)).GetFuture();
 	}
 
-	// If we failed to find all the handles, we need to query, which requires a valid LocalUserId
-	if (!ValidateOnlineId(LocalUserId))
+	// If we failed to find all the handles, we need to query, which requires a valid LocalAccountId
+	if (!ValidateOnlineId(LocalAccountId))
 	{
 		checkNoEntry();
 		return MakeFulfilledPromise<TArray<FAccountId>>().GetFuture();
@@ -415,7 +415,7 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalU
 
 	EOS_Connect_QueryExternalAccountMappingsOptions Options = {};
 	Options.ApiVersion = EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST;
-	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
+	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
 	Options.ExternalAccountIds = (const char**)EpicAccountIdStrPtrs.GetData();
 	Options.ExternalAccountIdCount = 1;
@@ -462,7 +462,7 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalU
 	return Future;
 }
 
-TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalUserId, const TArray<EOS_ProductUserId>& InProductUserIds)
+TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalAccountId, const TArray<EOS_ProductUserId>& InProductUserIds)
 {
 	// Search for all the account id's
 	TArray<FAccountId> AccountIdHandles;
@@ -489,8 +489,8 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalU
 		return MakeFulfilledPromise<TArray<FAccountId>>(MoveTemp(AccountIdHandles)).GetFuture();
 	}
 
-	// If we failed to find all the handles, we need to query, which requires a valid LocalUserId
-	if (!ValidateOnlineId(LocalUserId))
+	// If we failed to find all the handles, we need to query, which requires a valid LocalAccountId
+	if (!ValidateOnlineId(LocalAccountId))
 	{
 		checkNoEntry();
 		return MakeFulfilledPromise<TArray<FAccountId>>().GetFuture();
@@ -501,7 +501,7 @@ TFuture<TArray<FAccountId>> FAuthEOS::ResolveAccountIds(const FAccountId& LocalU
 
 	EOS_Connect_QueryProductUserIdMappingsOptions Options = {};
 	Options.ApiVersion = EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST;
-	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
+	Options.LocalUserId = GetProductUserIdChecked(LocalAccountId);
 	Options.ProductUserIds = MissingProductUserIds.GetData();
 	Options.ProductUserIdCount = MissingProductUserIds.Num();
 	static_assert(EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST == 2, "EOS_Connect_QueryProductUserIdMappingsOptions updated, check new fields");
@@ -556,12 +556,12 @@ TFunction<TFuture<FAccountId>(FOnlineAsyncOp& InAsyncOp, const ParamType& Param)
 {
 	return [AuthEOS](FOnlineAsyncOp& InAsyncOp, const ParamType& Param)
 	{
-		const FAccountId* LocalUserIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalUserId"));
-		if (!ensure(LocalUserIdPtr))
+		const FAccountId* LocalAccountIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalAccountId"));
+		if (!ensure(LocalAccountIdPtr))
 		{
 			return MakeFulfilledPromise<FAccountId>().GetFuture();
 		}
-		return AuthEOS->ResolveAccountId(*LocalUserIdPtr, Param);
+		return AuthEOS->ResolveAccountId(*LocalAccountIdPtr, Param);
 	};
 }
 TFunction<TFuture<FAccountId>(FOnlineAsyncOp& InAsyncOp, const EOS_EpicAccountId& ProductUserId)> FAuthEOS::ResolveEpicIdFn()
@@ -578,12 +578,12 @@ TFunction<TFuture<TArray<FAccountId>>(FOnlineAsyncOp& InAsyncOp, const TArray<Pa
 {
 	return [AuthEOS](FOnlineAsyncOp& InAsyncOp, const TArray<ParamType>& Param)
 	{
-		const FAccountId* LocalUserIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalUserId"));
-		if (!ensure(LocalUserIdPtr))
+		const FAccountId* LocalAccountIdPtr = InAsyncOp.Data.Get<FAccountId>(TEXT("LocalAccountId"));
+		if (!ensure(LocalAccountIdPtr))
 		{
 			return MakeFulfilledPromise<TArray<FAccountId>>().GetFuture();
 		}
-		return AuthEOS->ResolveAccountIds(*LocalUserIdPtr, Param);
+		return AuthEOS->ResolveAccountIds(*LocalAccountIdPtr, Param);
 	};
 }
 TFunction<TFuture<TArray<FAccountId>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_EpicAccountId>& EpicAccountIds)> FAuthEOS::ResolveEpicIdsFn()

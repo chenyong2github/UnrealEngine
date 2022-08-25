@@ -16,7 +16,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 {
 	TOnlineAsyncOpRef<FUpdateStats> Op = GetOp<FUpdateStats>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -26,11 +26,11 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsNull::UpdateStats(FUpdateStats::Params&
 	{
 		for (const FUserStats& UpdateUserStats : InAsyncOp.GetParams().UpdateUsersStats)
 		{
-			FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(UpdateUserStats.UserId));
+			FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(UpdateUserStats.AccountId));
 			if (!ExistingUserStats)
 			{
 				ExistingUserStats = &UsersStats.Emplace_GetRef();
-				ExistingUserStats->UserId = UpdateUserStats.UserId;
+				ExistingUserStats->AccountId = UpdateUserStats.AccountId;
 			}
 
 			TMap<FString, FStatValue>& UserStats = ExistingUserStats->Stats;
@@ -104,7 +104,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsNull::QueryStats(FQueryStats::Params&& P
 {
 	TOnlineAsyncOpRef<FQueryStats> Op = GetOp<FQueryStats>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -114,7 +114,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsNull::QueryStats(FQueryStats::Params&& P
 	{
 		FQueryStats::Result Result;
 
-		if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().TargetUserId)))
+		if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().TargetAccountId)))
 		{
 			Result.Stats = ExistingUserStats->Stats;
 		}
@@ -129,7 +129,7 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsNull::QueryStats(FQueryStats::Params&& P
 TOnlineAsyncOpHandle<FBatchQueryStats> FStatsNull::BatchQueryStats(FBatchQueryStats::Params&& Params)
 {
 	TOnlineAsyncOpRef<FBatchQueryStats> Op = GetOp<FBatchQueryStats>(MoveTemp(Params));
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -139,9 +139,9 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsNull::BatchQueryStats(FBatchQuerySt
 	{
 		FBatchQueryStats::Result Result;
 
-		for (const FAccountId& TargetUserId : InAsyncOp.GetParams().TargetUserIds)
+		for (const FAccountId& TargetAccountId : InAsyncOp.GetParams().TargetAccountIds)
 		{
-			if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(TargetUserId)))
+			if (FUserStats* ExistingUserStats = UsersStats.FindByPredicate(FFindUserStatsByAccountId(TargetAccountId)))
 			{
 				Result.UsersStats.Emplace(*ExistingUserStats);
 			}
@@ -159,7 +159,7 @@ TOnlineAsyncOpHandle<FResetStats> FStatsNull::ResetStats(FResetStats::Params&& P
 {
 	TOnlineAsyncOpRef<FResetStats> Op = GetOp<FResetStats>(MoveTemp(Params));
 
-	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalUserId))
+	if (!Services.Get<FAuthNull>()->IsLoggedIn(Op->GetParams().LocalAccountId))
 	{
 		Op->SetError(Errors::InvalidUser());
 		return Op->GetHandle();
@@ -167,13 +167,13 @@ TOnlineAsyncOpHandle<FResetStats> FStatsNull::ResetStats(FResetStats::Params&& P
 
 	Op->Then([this](TOnlineAsyncOp<FResetStats>& InAsyncOp)
 	{
-		uint32 Index = UsersStats.IndexOfByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().LocalUserId));
+		uint32 Index = UsersStats.IndexOfByPredicate(FFindUserStatsByAccountId(InAsyncOp.GetParams().LocalAccountId));
 		if (Index != INDEX_NONE)
 		{
 			UsersStats.RemoveAt(Index);
 		}
 
-		FFindUserStatsByAccountId FindUserStatsByAccountId(InAsyncOp.GetParams().LocalUserId);
+		FFindUserStatsByAccountId FindUserStatsByAccountId(InAsyncOp.GetParams().LocalAccountId);
 
 		UsersStats.RemoveAll(FindUserStatsByAccountId);
 		CachedUsersStats.RemoveAll(FindUserStatsByAccountId);
