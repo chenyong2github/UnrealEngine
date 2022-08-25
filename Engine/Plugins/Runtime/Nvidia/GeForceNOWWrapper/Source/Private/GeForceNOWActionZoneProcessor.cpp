@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if NV_GEFORCENOW
+
 #include "GeForceNOWActionZoneProcessor.h"
 #include "Widgets/Accessibility/SlateWidgetTracker.h"
 #include "Framework/Application/SlateApplication.h"
@@ -222,3 +224,5 @@ void GeForceNOWActionZoneProcessor::StopProcess()
 	FTSTicker::GetCoreTicker().RemoveTicker(ProcessDelegateHandle);
 	ProcessDelegateHandle.Reset();
 }
+
+#endif // NV_GEFORCENOW

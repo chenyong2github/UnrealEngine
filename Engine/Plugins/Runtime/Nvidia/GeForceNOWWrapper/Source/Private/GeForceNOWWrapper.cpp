@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if NV_GEFORCENOW
+
 #include "GeForceNOWWrapper.h"
 #include "GeForceNOWWrapperPrivate.h"
 #include "GeForceNOWActionZoneProcessor.h"
@@ -307,3 +309,5 @@ GfnRuntimeError GeForceNOWWrapper::Free(const char** data) const
 {
 	return GfnFree(data);
 }
+
+#endif // NV_GEFORCENOW

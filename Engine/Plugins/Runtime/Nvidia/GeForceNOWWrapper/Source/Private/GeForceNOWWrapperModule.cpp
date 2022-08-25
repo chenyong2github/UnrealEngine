@@ -17,6 +17,7 @@ public:
 
 	virtual void StartupModule() override
 	{
+#if NV_GEFORCENOW
 		const GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().Initialize();
 		const bool bGfnRuntimeSDKInitialized = GfnResult == gfnSuccess || GfnResult == gfnInitSuccessClientOnly;
 		if (bGfnRuntimeSDKInitialized)
@@ -45,6 +46,7 @@ public:
 		{
 			UE_LOG(LogGeForceNow, Log, TEXT("GeForceNow SDK initialization failed: %d"), (int32)GfnResult);
 		}
+#endif // NV_GEFORCENOW
 	}
 
 	virtual void ShutdownModule() override{}
