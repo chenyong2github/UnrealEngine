@@ -274,6 +274,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Wheel friction forces are now applied at tire contact point
 		VehicleFrictionForcePositionChange,
 
+		// Add flag to override MeshDeformer on a SkinnedMeshComponent.
+		AddSetMeshDeformerFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

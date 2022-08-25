@@ -277,16 +277,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
 	TArray<ESkinCacheUsage> SkinCacheUsage;
 
-	/** If set then the MeshDeformer will be used instead of the fixed animation pipeline. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer")
+protected:
+	/** If true, MeshDeformer will be used. If false, use the default mesh deformer on the SkeletalMesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer", meta = (InlineEditConditionToggle))
+	bool bSetMeshDeformer = false;
+
+	/** The mesh deformer to use. If no mesh deformer is set from here or the SkeletalMesh, then we fall back to the fixed function deformation. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer", meta = (editcondition = "bSetMeshDeformer"))
 	TObjectPtr<UMeshDeformer> MeshDeformer;
+
+	/** Get the currently active MeshDeformer. This may come from the SkeletalMesh default or the Component override. */
+	UMeshDeformer* GetActiveMeshDeformer() const;
+
+	/** Object containing instance settings for the bound MeshDeformer. */
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, DisplayName = "Settings", Category = "Deformer", meta = (EditInline, EditCondition = "MeshDeformerInstanceSettings!=nullptr", HideEditConditionToggle, EditConditionHides))
+	TObjectPtr<UMeshDeformerInstanceSettings> MeshDeformerInstanceSettings;
 
 	/** Object containing state for the bound MeshDeformer. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Deformer")
 	TObjectPtr<UMeshDeformerInstance> MeshDeformerInstance;
 
-	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, DisplayName = "Settings", Category = "Deformer", meta=(EditInline, EditCondition="MeshDeformerInstanceSettings!=nullptr", HideEditConditionToggle, EditConditionHides))
-	TObjectPtr<UMeshDeformerInstanceSettings> MeshDeformerInstanceSettings;
+public:
+	/** Get the currently active MeshDeformer Instance. */
+	UMeshDeformerInstance const* GetMeshDeformerInstance() const { return MeshDeformerInstance; }
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -980,7 +993,7 @@ public:
 
 	bool IsSkinCacheAllowed(int32 LodIdx) const;
 
-	bool HasMeshDeformer() const { return MeshDeformer != nullptr; }
+	bool HasMeshDeformer() const { return GetActiveMeshDeformer() != nullptr; }
 
 	/**
 	 *	Compute SkeletalMesh MinLOD that will be used by this component

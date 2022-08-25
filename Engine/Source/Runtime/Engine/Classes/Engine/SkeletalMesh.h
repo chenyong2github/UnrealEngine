@@ -36,22 +36,23 @@
 class UAnimInstance;
 class UAnimSequence;
 class UAssetUserData;
-class UBodySetup;
-class USkeletalMeshSocket;
-class USkeleton;
-class UClothingAssetBase;
 class UBlueprint;
+class UBodySetup;
+class UClothingAssetBase;
+class UMeshDeformer;
 class UNodeMappingContainer;
 class UPhysicsAsset;
-class FSkeletalMeshRenderData;
-class FSkeletalMeshModel;
-class FSkeletalMeshLODModel;
-class FSkeletalMeshLODRenderData;
-class FSkinWeightVertexBuffer;
-struct FSkinWeightProfileInfo;
-class FSkeletalMeshUpdate;
 class USkeletalMeshEditorData;
 class FSkeletalMeshImportData;
+class FSkeletalMeshLODModel;
+class FSkeletalMeshLODRenderData;
+class FSkeletalMeshModel;
+class FSkeletalMeshRenderData;
+class USkeletalMeshSocket;
+class FSkeletalMeshUpdate;
+class USkeleton;
+struct FSkinWeightProfileInfo;
+class FSkinWeightVertexBuffer;
 enum class ESkeletalMeshGeoImportVersions : uint8;
 enum class ESkeletalMeshSkinningImportVersions : uint8;
 
@@ -119,6 +120,7 @@ enum class ESkeletalMeshAsyncProperties : uint64
 	bSupportRayTracing = 1llu << 53,
 	RayTracingMinLOD = 1llu << 54,
 	ClothLODBiasMode = 1llu << 55,
+	DefaultMeshDeformer = 1llu << 56,
 	All = MAX_uint64
 };
 
@@ -2849,12 +2851,19 @@ public:
 	/** USkinnedAsset interface. */
 	virtual bool IsMaterialUsed(int32 MaterialIndex) const override;
 
-public:
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const 
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return SkinWeightProfiles; 
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	virtual UMeshDeformer* GetDefaultMeshDeformer() const override
+	{
+		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::DefaultMeshDeformer, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return DefaultMeshDeformer;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
@@ -2921,6 +2930,11 @@ protected:
 	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY(EditAnywhere, Category = SkinWeights, EditFixedSize, Meta=(NoResetToDefault))
 	TArray<FSkinWeightProfileInfo> SkinWeightProfiles;
+
+	/** Default mesh deformer to use with this mesh. */
+	UE_DEPRECATED(5.1, "This must be protected for async build, always use the accessors even internally.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Deformer")
+	TObjectPtr<UMeshDeformer> DefaultMeshDeformer;
 
 private:
 	/**

@@ -203,7 +203,7 @@ FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderP
 
 bool UOptimusPersistentBufferDataProvider::IsValid() const
 {
-	const UOptimusDeformerInstance* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->MeshDeformerInstance);
+	UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->GetMeshDeformerInstance());
 	if (DeformerInstance == nullptr || !DeformerInstance->GetBufferPool().IsValid())
 	{
 		return false;
@@ -217,7 +217,7 @@ FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRender
 {
 	FOptimusPersistentBufferPoolPtr BufferPoolPtr;
 	
-	const UOptimusDeformerInstance* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->MeshDeformerInstance);
+	UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->GetMeshDeformerInstance());
 	if (ensure(DeformerInstance))
 	{
 		BufferPoolPtr = DeformerInstance->GetBufferPool();

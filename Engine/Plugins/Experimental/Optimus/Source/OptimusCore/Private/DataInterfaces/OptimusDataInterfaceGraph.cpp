@@ -115,7 +115,7 @@ void UOptimusGraphDataProvider::SetConstant(FString const& InVariableName, TArra
 
 FComputeDataProviderRenderProxy* UOptimusGraphDataProvider::GetRenderProxy()
 {
-	const UOptimusDeformerInstance* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->MeshDeformerInstance);
+	UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->GetMeshDeformerInstance());
 
 	return new FOptimusGraphDataProviderProxy(DeformerInstance, Variables, ParameterBufferSize);
 }

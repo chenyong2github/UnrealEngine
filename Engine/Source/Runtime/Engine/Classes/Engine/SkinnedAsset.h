@@ -17,12 +17,13 @@
 #include "SkinnedAssetCommon.h"
 #include "SkinnedAsset.generated.h"
 
-class USkeleton;
-class UMorphTarget;
-class UPhysicsAsset;
-class ITargetPlatform;
 struct FSkeletalMaterial;
 struct FSkeletalMeshLODInfo;
+class ITargetPlatform;
+class UMeshDeformer;
+class UMorphTarget;
+class UPhysicsAsset;
+class USkeleton;
 
 enum class ESkinnedAssetAsyncPropertyLockType
 {
@@ -169,6 +170,9 @@ public:
 	PURE_VIRTUAL(USkinnedAsset::GetSkeleton, return nullptr;);
 	virtual void SetSkeleton(USkeleton* InSkeleton)
 	PURE_VIRTUAL(USkinnedAsset::SetSkeleton,);
+
+	virtual UMeshDeformer* GetDefaultMeshDeformer() const
+	PURE_VIRTUAL(USkinnedAsset::GetDefaultMeshDeformer, return nullptr;);
 
 	/** Return true if given index's LOD is valid */
 	virtual bool IsValidLODIndex(int32 Index) const

@@ -523,6 +523,12 @@ void USkinnedMeshComponent::PostLoad()
 		SkinnedAsset = SkeletalMesh;  // Set to the SkeletalMesh pointer for backward compatibility when the SkinnedAsset is invalid
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AddSetMeshDeformerFlag)
+	{
+		// Set default for new bSetMeshDeformer flag.
+		bSetMeshDeformer = MeshDeformer != nullptr;
+	}
 }
 
 void USkinnedMeshComponent::OnRegister()
@@ -561,7 +567,8 @@ void USkinnedMeshComponent::OnRegister()
 	UpdateLODStatus();
 	InvalidateCachedBounds();
 
-	MeshDeformerInstance = (MeshDeformer != nullptr) ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+	UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
+	MeshDeformerInstance = ActiveMeshDeformer != nullptr ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
 
 	RefreshExternalMorphTargetWeights();
 }
@@ -986,16 +993,11 @@ void USkinnedMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 	if (const FProperty* Property = PropertyChangedEvent.Property)
 	{
-		if ( Property->GetFName() == GET_MEMBER_NAME_CHECKED( USkinnedMeshComponent, MeshDeformer ) )
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkinnedMeshComponent, MeshDeformer) ||
+			Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkinnedMeshComponent, bSetMeshDeformer))
 		{
-			if (MeshDeformer)
-			{
-				MeshDeformerInstanceSettings = MeshDeformer->CreateSettingsInstance(this);
-			}
-			else
-			{
-				MeshDeformerInstanceSettings = nullptr;
-			}
+			UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
+			MeshDeformerInstanceSettings = ActiveMeshDeformer ? ActiveMeshDeformer->CreateSettingsInstance(this) : nullptr;
 		}
 	}
 }
@@ -1716,7 +1718,7 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
 	const bool bGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
 
-	if (MeshDeformer)
+	if (HasMeshDeformer())
 	{
 		// Disable skin cache if a mesh deformer is in use.
 		// Any animation buffers are expected to be owned by the MeshDeformer.
@@ -1903,11 +1905,28 @@ USkinnedAsset* USkinnedMeshComponent::GetSkinnedAsset() const
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+UMeshDeformer* USkinnedMeshComponent::GetActiveMeshDeformer() const
+{
+	if (bSetMeshDeformer)
+	{
+		return MeshDeformer;
+	}
+	if (GetSkinnedAsset())
+	{
+		return GetSkinnedAsset()->GetDefaultMeshDeformer();
+	}
+	return nullptr;
+}
+
 void USkinnedMeshComponent::SetMeshDeformer(UMeshDeformer* InMeshDeformer)
 {
+	bSetMeshDeformer = true;
 	MeshDeformer = InMeshDeformer;
-	MeshDeformerInstanceSettings = MeshDeformer ? MeshDeformer->CreateSettingsInstance(this) : nullptr;
-	MeshDeformerInstance = MeshDeformer ? MeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+	
+	UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
+	MeshDeformerInstanceSettings = ActiveMeshDeformer ? ActiveMeshDeformer->CreateSettingsInstance(this) : nullptr;
+	MeshDeformerInstance = ActiveMeshDeformer ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+
 	MarkRenderDynamicDataDirty();
 }
 
