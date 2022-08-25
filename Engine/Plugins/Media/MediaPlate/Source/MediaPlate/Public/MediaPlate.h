@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Engine/AssetUserData.h"
 #include "MediaPlate.generated.h"
 
 class UMediaPlateComponent;
@@ -36,9 +37,14 @@ public:
 	 * Call this to change the static mesh to use the default media plate material.
 	 */
 	void UseDefaultMaterial();
+
+	/**
+	 * Call this after changing the current material to set it up for media plate.
+	 */
+	void ApplyCurrentMaterial();
 	void ApplyMaterial(UMaterialInterface* InMaterial);
 	UMaterialInterface* GetLastMaterial() const { return LastMaterial; }
-#endif
+#endif // WITH_EDITOR
 
 private:
 	/** Name for our media plate component. */
@@ -48,5 +54,26 @@ private:
 
 #if WITH_EDITOR
 	UMaterialInterface* LastMaterial = nullptr;
-#endif
+
+	/**
+	 * Called before a level saves
+	 */
+	void OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext);
+
+	/**
+	 * Called after a level has saved.
+	 */
+	void OnPostSaveWorld(UWorld* InWorld, FObjectPostSaveContext ObjectSaveContext);
+
+	/**
+	 * Adds our asset user data to the static mesh component.
+	 */
+	void AddAssetUserData();
+
+	/**
+	 * Removes our asset user data from the static mesh component.
+	 */
+	void RemoveAssetUserData();
+
+#endif // WITH_EDITOR
 };

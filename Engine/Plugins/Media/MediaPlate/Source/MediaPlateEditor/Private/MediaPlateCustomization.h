@@ -60,11 +60,6 @@ private:
 	bool bIsMediaSourceAsset;
 
 	/**
-	 * Object property change callback used for static mesh material changes.
-	 */
-	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
-
-	/**
 	 * Adds widgets for editing the mesh.
 	 */
 	void AddMeshCustomization(IDetailCategoryBuilder& MediaPlateCategory);

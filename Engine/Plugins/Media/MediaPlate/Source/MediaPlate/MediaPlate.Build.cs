@@ -25,5 +25,10 @@ public class MediaPlate : ModuleRules
 				"MediaUtils",
 			}
 			);
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 	}
 }
