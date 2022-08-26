@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "/Engine/Public/Platform.ush"
+
 // Macro to mark a kernel entry point.
 // Only one should exist per kernel.
 
