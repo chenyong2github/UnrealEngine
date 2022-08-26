@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "FSceneOutlinerSCCHandler"
 
-TSharedPtr<FSceneOutlinerTreeItemSCC> FSceneOutlinerSCCHandler::GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem)
+TSharedPtr<FSceneOutlinerTreeItemSCC> FSceneOutlinerSCCHandler::GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem) const
 {
 	TSharedPtr<FSceneOutlinerTreeItemSCC>* Result = ItemSourceControls.Find(InItem);
 	if (!Result)
@@ -88,13 +88,11 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 	{
 		for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
 		{
-			TSharedPtr<FSceneOutlinerTreeItemSCC>* SourceControlLookup = ItemSourceControls.Find(SelectedItem);
-			if (SourceControlLookup == nullptr)
+			TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl = GetItemSourceControl(SelectedItem);
+			if (SourceControl == nullptr)
 			{
 				continue;
 			}
-
-			TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl = *SourceControlLookup;
 
 			if (!SourceControl->IsExternalPackage())
 			{
@@ -218,13 +216,12 @@ void FSceneOutlinerSCCHandler::GetSelectedPackageNames(TArray<FString>& OutPacka
 {
 	for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
 	{
-		const TSharedPtr<FSceneOutlinerTreeItemSCC>* SourceControlLookup = ItemSourceControls.Find(SelectedItem);
-		if (SourceControlLookup == nullptr)
+		const TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl = GetItemSourceControl(SelectedItem);
+		if (SourceControl == nullptr)
 		{
 			continue;
 		}
 
-		TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl = *SourceControlLookup;
 		FString PackageName = SourceControl->GetPackageName();
 		if (!PackageName.IsEmpty()) {
 			OutPackageNames.Add(PackageName);
@@ -236,13 +233,12 @@ void FSceneOutlinerSCCHandler::GetSelectedPackages(TArray<UPackage*>& OutPackage
 {
 	for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
 	{
-		const TSharedPtr<FSceneOutlinerTreeItemSCC>* SourceControlLookup = ItemSourceControls.Find(SelectedItem);
-		if (SourceControlLookup == nullptr)
+		const TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl = GetItemSourceControl(SelectedItem);
+		if (SourceControl == nullptr)
 		{
 			continue;
 		}
 
-		TSharedPtr<FSceneOutlinerTreeItemSCC> SourceControl = *SourceControlLookup;
 		UPackage* Package = SourceControl->GetPackage();
 		if (Package != nullptr) {
 			OutPackages.Add(Package);
