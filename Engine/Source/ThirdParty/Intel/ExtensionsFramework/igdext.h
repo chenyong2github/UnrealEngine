@@ -126,6 +126,7 @@ extern "C" {
         SPIRV       = 4,            // ??
         HLSL        = 5,            // ??
         CL_BIN      = 6,            // CL FE/BE generated Binary
+        ESIMD_SPIRV = 7,            // input is ESIMD SPIRV
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -141,8 +142,9 @@ extern "C" {
         D3D12_SHADER_BYTECODE                       CS;                     /// Compute Shader Bytecode
         INTC_D3D12_SHADER_INPUT_TYPE                ShaderInputType;        /// Input Shader Type
         void*                                       CompileOptions;         /// Compilation Options
+        void*                                       InternalOptions;        /// Internal CrossCompile Options
     };
-
+ 
     struct INTC_D3D12_RESOURCE_DESC
     {                      
         union
@@ -159,6 +161,82 @@ extern "C" {
     {
         // Emulated Typed 64bit Atomics
         BOOL                                    EmulatedTyped64bitAtomics;
+    };
+
+    struct INTC_D3D12_RESOURCE_DESC_0002 : INTC_D3D12_RESOURCE_DESC_0001
+    {
+        // Cpu Visible Video Memory
+        BOOL                                    ResourceFlagCpuVisibleVideoMemory;
+    };
+
+
+    struct INTC_D3D12_HEAP_DESC
+    {
+        union
+        {
+            D3D12_HEAP_DESC*                    pD3D12Desc;
+        };
+
+        // Cpu Visible Video Memory
+        BOOL                                    HeapFlagCpuVisibleVideoMemory;
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    /// @brief Raytracing Pipeline State Object Descriptor:
+    struct INTC_D3D12_STATE_OBJECT_DESC
+    {
+        union
+        {
+            D3D12_STATE_OBJECT_DESC*                pD3D12Desc;
+        };
+
+        /// Extension ray tracing
+        D3D12_SHADER_BYTECODE*                      DXILLibrary;              /// Raytracing Shader Byte code
+        unsigned int                                numLibraries;
+    };
+
+    enum INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_TYPE
+    {
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EXT_INSTANCE_COMPARISON = 0,
+    };
+
+    struct INTC_D3D12_INSTANCE_COMPARISON_DATA
+    {
+        UINT                                        InstanceValue : 8;              // The lower 7 bits define the InstanceValue
+        UINT                                        InstanceComparisonOperator : 8; // The lowest bit defines the InstanceComparisonOperator
+                                                                                    // (e.g. 0==op_less_equal and 1==op_greater).
+    };
+
+    struct INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA
+    {
+        void*                                       pNext;                          // pointer to next extension or 0
+        UINT                                        ExtType;                        // type of the extension : D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_EXT_INSTANCE_COMPARISON
+        D3D12_GPU_VIRTUAL_ADDRESS                   InstanceComparisonData;         // GPU virtual address of a buffer that contains an array of INTC_D3D12_INSTANCE_COMPARISON_DATA 
+    };
+
+    struct INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
+    {
+        union
+        {
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC* pDesc;
+        };
+
+        INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA* pCompDataDesc;
+    };
+
+    struct INTC_D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILDINFO_DESC
+    {
+        union
+        {
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS* pDesc;
+        };
+
+        INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA* pCompDataDesc;
+    };
+
+    struct INTC_D3D12_FEATURE
+    {
+        BOOL                                        EmulatedTyped64bitAtomics;
     };
 
 #endif //INTC_IGDEXT_D3D12
@@ -359,6 +437,45 @@ extern "C" {
         void**                                      ppvResource );
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Creates both a resource and an implicit heap, such that the heap is big enough to contain the entire resource and the resource is mapped to the heap. Supported extensions:
+    ///        Texture2DArrayMipPack - Enables Reserved Resources Texture2D Array with Mip Packing
+    ///        Emulated64bitTypedAtomics - Enable usage of 64bit Typed Atomics on a texture created
+    ///        CommittedResourceInCpuVisibleVideoMemory - Enable creating committed resource with heap placed in CPU visible video memory
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pHeapProperties A pointer to the ID3D12Heap interface that represents the heap in which the resource is placed.
+    /// @param HeapFlags The offset, in bytes, to the resource.
+    /// @param pDesc A pointer to a overridden D3D12_RESOURCE_DESC structure that describes the resource.
+    /// @param InitialResourceState The initial state of the resource, as a bitwise-OR'd combination of D3D12_RESOURCE_STATES enumeration constants.
+    /// @param pOptimizedClearValue Specifies a D3D12_CLEAR_VALUE that describes the default value for a clear color.
+    /// @param riidResource The globally unique identifier (GUID) for the resource interface.
+    /// @param ppvResource A pointer to memory that receives the requested interface pointer to the created resource object.
+    /// @returns HRESULT Returns S_OK if it was successful.
+    HRESULT INTC_D3D12_CreateCommittedResource1(
+        INTCExtensionContext*                       pExtensionContext,
+        const D3D12_HEAP_PROPERTIES*                pHeapProperties,
+        D3D12_HEAP_FLAGS                            HeapFlags,
+        const INTC_D3D12_RESOURCE_DESC_0002*        pDesc,
+        D3D12_RESOURCE_STATES                       InitialResourceState,
+        const D3D12_CLEAR_VALUE*                    pOptimizedClearValue,
+        REFIID                                      riidResource,
+        void**                                      ppvResource );
+
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Creates a heap. Supported extensions:
+    ///        UploadHeapInCpuVisibleVideoMemory - Enable upload heap creation on CPU visible video memory
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pDesc A pointer to a overridden D3D12_HEAP_DESC structure that describes the heap.
+    /// @param riid The globally unique identifier (GUID) for the heap interface.
+    /// @param ppvHeap A pointer to a memory block that receives a pointer to the heap.
+    /// @returns HRESULT Returns S_OK if it was successful.
+    HRESULT INTC_D3D12_CreateHeap(
+        INTCExtensionContext*                       pExtensionContext,
+        const INTC_D3D12_HEAP_DESC*                 pDesc,
+        REFIID                                      riid,
+        void**                                      ppvHeap );
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// @brief Creates a resource that is placed in a specific heap. Supported extensions:
 	///        Emulated64bitTypedAtomics - Enable usage of 64bit Typed Atomics on a texture created
     /// @param pExtensionContext A pointer to the extension context associated with the current Device
@@ -380,6 +497,15 @@ extern "C" {
         REFIID                                      riid,
         void**                                      ppvResource );
 
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Constructs a buffer resource suitable for storing raytracing acceleration structures build on the host.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param SizeInBytes Size of the resource, in bytes.
+    /// @param Flags Reserved, must be zero.
+    /// @param riidResource Interface id for the returned resource.
+    /// @param ppvResource Pointer to a pointer which is set to the output resource.
+    /// @returns HRESULT Returns S_OK if it was successful.
     HRESULT INTC_D3D12_CreateHostRTASResource(
         INTCExtensionContext*                                               pExtensionContext,
         size_t                                                              SizeInBytes,
@@ -387,29 +513,66 @@ extern "C" {
         REFIID                                                              riidResource,
         void**                                                              ppvResource );
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Builds an acceleration structure on the host timeline.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pDesc An acceleration structure description. All GPUVA fields contained in the description
+    ///        are interpreted as host pointers cast to uintptr_t. All GPUVA which point to other acceleration structures
+    ///        (including BLAS address for instances) must point into a mapped host RTAS resource.
+    ///        Destination and scratch buffers must be sized according to the result of 'INTC_D3D12_GetRaytracingAccelerationStructurePrebuildInfo_Host'
+    ///        (NOT the DXR function GetRaytracingAccelerationStructurePrebuildInfo).
+    /// @param pInstanceGPUVAs For a top-level AS, this contains the GPUVA of the bottom-level AS for each instance which will be used for ray traversal
+    ///        This mechanism allows CPU-built AS to be copied directly to the GPU and used for traversal, without pointer patching.
+    /// @param NumInstances Number of addresses in 'pInstanceGPUVAs'
     void INTC_D3D12_BuildRaytracingAccelerationStructure_Host(
         INTCExtensionContext*                                               pExtensionContext,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*           pDesc,
         const D3D12_GPU_VIRTUAL_ADDRESS*                                    pInstanceGPUVAs,
         UINT                                                                NumInstances );
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Copies an acceleration structure on the host timeline.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param DestAccelerationStructureData Pointer to destination AS. Must point into a mapped Host RTAS resource
+    /// @param SourceAccelerationStructureData Pointer to source AS. Must point into a mapped Host RTAS resource
+    /// @param Mode See DXR spec...
     void INTC_D3D12_CopyRaytracingAccelerationStructure_Host(
         INTCExtensionContext*                                               pExtensionContext,
         void*                                                               DestAccelerationStructureData,
         const void*                                                         SourceAccelerationStructureData,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE                   Mode );
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Retrieves post-build info for a host-built AS on the host timeline
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param InfoType See DXR spec...
+    /// @param DestBuffer Pointer to output structure (see DXR spec)
+    /// @param SourceRTAS Pointer to source RTAS. Must lie within a Host rtas resource
     void INTC_D3D12_EmitRaytracingAccelerationStructurePostbuildInfo_Host(
         INTCExtensionContext*                                               pExtensionContext,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_TYPE         InfoType,
         void*                                                               DestBuffer,
         const void*                                                         SourceRTAS );
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Retrieves pre-build info for a host-built AS
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pDesc See DXR spec...
+    /// @param pInfo See DXR spec... This function gives the AS and scratch sizes for a host-built AS, which might not match
+    ///        the device-built equivalents
     void INTC_D3D12_GetRaytracingAccelerationStructurePrebuildInfo_Host(
         INTCExtensionContext*                                               pExtensionContext,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS*         pDesc,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO*              pInfo );
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Copy host-built acceleration structures to/from device memory on the GPU timeline
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pCommandList A command list to receive copy commands.
+    /// @param DestAccelerationStructureData GPU address of destination.
+    /// @param SrcAccelerationStructureData GPU address of source.
+    /// @param Mode See DXR spec...
+    ///        At least one of Dest and Src must be a Host RTAS resource. The other must be a conventional DXR acceleration structure buffer.
     void INTC_D3D12_TransferHostRTAS(
         INTCExtensionContext*                                               pExtensionContext,
         ID3D12GraphicsCommandList*                                          pCommandList,
@@ -417,10 +580,71 @@ extern "C" {
         D3D12_GPU_VIRTUAL_ADDRESS                                           SrcAccelerationStructureData,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE                   Mode );
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Set Metadata associated with the CommandList
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pCommandList A command list to set metadata.
+    /// @param Metadata .
     void INTC_D3D12_SetDriverEventMetadata(
         INTCExtensionContext*                                               pExtensionContext,
         ID3D12GraphicsCommandList*                                          pCommandList,
         UINT64                                                              Metadata );
+
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Queries total number of bytes and number of free bytes in CPU visible local memory.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pTotalBytes A pointer to total number of bytes in CPU visible vidmem.
+    /// @param pFreeBytes A pointer to number of free bytes in CPU visible vidmem.
+    void INTC_D3D12_QueryCpuVisibleVidmem(
+        INTCExtensionContext*                                               pExtensionContext,
+        UINT64*                                                             pTotalBytes,
+        UINT64*                                                             pFreeBytes );
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Creates an ID3D12StateObject.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pDesc The description of the state object to create.
+    /// @param riid The GUID of the interface to create.
+    /// @param ppPipelineState The returned Raytracing pipeline state object.
+    /// @returns HRESULT Returns S_OK if it was successful.
+    HRESULT INTC_D3D12_CreateStateObject(
+        INTCExtensionContext*                                                       pExtensionContext,
+        const INTC_D3D12_STATE_OBJECT_DESC*                                         pDesc,
+        REFIID                                                                      riid,
+        void**                                                                      ppPipelineState );
+
+   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+   /// @brief Performs a raytracing acceleration structure build on the GPU.
+   /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+   /// @param pCommandList A command list to build acceleration structure.
+   /// @param pDesc Description of the acceleration structure to build.
+   /// @param NumPostbuildInfoDescs Size of the pPostbuildInfoDescs array.
+   /// @param pPostbuildInfoDescs Optional array of descriptions for post-build info to generate describing properties of the acceleration structure that was built.
+   /// @param pComparisonDataDesc Description of the comparison data.
+    void INTC_D3D12_BuildRaytracingAccelerationStructure(
+        INTCExtensionContext*                                                       pExtensionContext,
+        ID3D12GraphicsCommandList*                                                  pCommandList,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC*                   pDesc,
+        UINT                                                                        NumPostbuildInfoDescs,
+        const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC*          pPostbuildInfoDescs,
+        const INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA* pComparisonDataDesc );
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Query the driver for resource requirements to build an acceleration structure.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param pDesc Description of the acceleration structure build.
+    /// @param pInfo The result of the query.
+    /// @param pComparisonDataDesc Description of the comparison data.
+    void INTC_D3D12_GetRaytracingAccelerationStructurePrebuildInfo(
+        INTCExtensionContext*                                                       pExtensionContext,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS*                 pDesc,
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO*                      pInfo,
+        const INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA* pComparisonDataDesc );
+
+    HRESULT INTC_D3D12_SetFeatureSupport(
+        INTCExtensionContext* pExtensionContext,
+        INTC_D3D12_FEATURE* pFeature);
 
 #endif //INTC_IGDEXT_D3D12
 
@@ -434,7 +658,7 @@ extern "C" {
     ///     Function helps load Intel Extensions Framework module into the currently executing process. 
     ///     If useCurrentProcessDir is set, the function tries to load the library from the current
     ///     process directory first. If that was unsuccessful or useCurrentProcessDir was not set, 
-    ///     it tries to find the full path to the Intel DX11 UMD Driver module that must be loaded
+    ///     it tries to find the full path to the Intel Graphics Driver module that must be loaded
     ///     by the current process. Library is loaded from the same path (whether it is DriverStore
     ///     location or system32 folder).
     /// @param useCurrentProcessDir If true, this function attempts to load the Extensions Framework DLL
@@ -459,7 +683,7 @@ extern "C" {
 #ifdef INTC_IGDEXT_D3D11
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// @brief Returns all D3D11 Intel Extensions interface versions supported on a current platform/driver/header file combination.
+	/// @brief Returns all Intel Extensions interface versions supported on a current platform/driver/header file combination using D3D11 Device.
     ///        It is guaranteed that the application can initialize every extensions interface version returned by this call.
     ///        First call populates pSupportedExtVersionsCount, user of API allocates space for ppSupportedExtVersions then calls 
     ///        the API a second time to populate ppSupportedExtVersions. See sample for an example of API usage.
@@ -482,9 +706,10 @@ extern "C" {
     /// @param pExtensionInfo A pointer to the ExtensionInfo structure. The requestedExtensionVersion member must be set prior to 
     ///        calling this function. The remaining members are filled in with device info about the Intel GPU and info about the graphics driver version.
     /// @param pExtensionAppInfo A pointer to the ExtensionAppInfo structure that can be optionally passed to the driver identifying application and engine.
-    /// @returns HRESULT Returns S_OK if it was successful.
-    ///                  Returns E_INVALIDARG if invalid arguments are passed.
-    ///                  Returns E_OUTOFMEMORY if extensions are not supported by the driver.
+	/// @returns HRESULT Returns S_OK - successful.
+	///                  Returns E_ABORT - Device Extension Context was already created in the current process.
+	///                  Returns E_INVALIDARG - invalid arguments passed.
+	///                  Returns E_OUTOFMEMORY - no driver support.
     HRESULT INTC_D3D11_CreateDeviceExtensionContext(
         ID3D11Device*                               pDevice,
         INTCExtensionContext**                      ppExtensionContext,
@@ -496,7 +721,7 @@ extern "C" {
 #ifdef INTC_IGDEXT_D3D12
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// @brief Returns all D3D12 Intel Extensions interface versions supported on a current platform/driver/header file combination.
+	/// @brief Returns all Intel Extensions interface versions supported on a current platform/driver/header file combination using D3D12 Device.
     ///        It is guaranteed that the application can initialize every extensions interface version returned by this call.
     ///        First call populates pSupportedExtVersionsCount, user of API allocates space for ppSupportedExtVersions then calls 
     ///        the API a second time to populate ppSupportedExtVersions. See sample for an example of API usage.
@@ -519,9 +744,10 @@ extern "C" {
     /// @param pExtensionInfo A pointer to the ExtensionInfo structure. The requestedExtensionVersion member must be set prior to 
     ///        calling this function. The remaining members are filled in with device info about the Intel GPU and info about the graphics driver version.
     /// @param pExtensionAppInfo A pointer to the ExtensionAppInfo structure that can be optionally passed to the driver identifying application and engine.
-    /// @returns HRESULT Returns S_OK if it was successful.
-    ///                  Returns E_INVALIDARG if invalid arguments are passed.
-    ///                  Returns E_OUTOFMEMORY if extensions are not supported by the driver.
+	/// @returns HRESULT Returns S_OK - successful.
+	///                  Returns E_ABORT - Device Extension Context was already created in the current process.
+	///                  Returns E_INVALIDARG - invalid arguments passed.
+	///                  Returns E_OUTOFMEMORY - no driver support.
     HRESULT INTC_D3D12_CreateDeviceExtensionContext(
         ID3D12Device*                               pDevice,
         INTCExtensionContext**                      ppExtensionContext,

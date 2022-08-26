@@ -288,13 +288,157 @@ static D3D_SHADER_MODEL FindHighestShaderModel(ID3D12Device* Device)
 	return D3D_SHADER_MODEL_5_1;
 }
 
+#if INTEL_EXTENSIONS
+static void DestroyIntelExtensionsContext(INTCExtensionContext* IntelExtensionContext)
+{
+	if (IntelExtensionContext)
+	{
+		const HRESULT hr = INTC_DestroyDeviceExtensionContext(&IntelExtensionContext);
+
+		if (hr == S_OK)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework unloaded"));
+		}
+		else if (hr == E_INVALIDARG)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework error when unloading"));
+		}
+	}
+}
+
+static INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, INTCExtensionInfo& INTCExtensionInfo)
+{
+	const INTCExtensionVersion AtomicsRequiredVersion = { 4, 7, 0 };
+
+	if (FAILED(INTC_LoadExtensionsLibrary(false)))
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("Failed to load Intel Extensions Library"));
+	}
+
+	INTCExtensionVersion* SupportedExtensionsVersions = nullptr;
+	uint32_t SupportedExtensionsVersionCount = 0;
+	if (SUCCEEDED(INTC_D3D12_GetSupportedVersions(Device, nullptr, &SupportedExtensionsVersionCount)))
+	{
+		SupportedExtensionsVersions = new INTCExtensionVersion[SupportedExtensionsVersionCount]{};
+	}
+
+	if (SUCCEEDED(INTC_D3D12_GetSupportedVersions(Device, SupportedExtensionsVersions, &SupportedExtensionsVersionCount)) && SupportedExtensionsVersions != nullptr)
+	{
+		for (uint32_t i = 0; i < SupportedExtensionsVersionCount; i++)
+		{
+			if ((SupportedExtensionsVersions[i].HWFeatureLevel >= AtomicsRequiredVersion.HWFeatureLevel) &&
+				(SupportedExtensionsVersions[i].APIVersion >= AtomicsRequiredVersion.APIVersion) &&
+				(SupportedExtensionsVersions[i].Revision >= AtomicsRequiredVersion.Revision))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions loaded requested version: %u.%u.%u"),
+					SupportedExtensionsVersions[i].HWFeatureLevel,
+					SupportedExtensionsVersions[i].APIVersion,
+					SupportedExtensionsVersions[i].Revision);
+
+				INTCExtensionInfo.RequestedExtensionVersion = SupportedExtensionsVersions[i];
+				break;
+			}
+		}
+	}
+
+	INTCExtensionContext* IntelExtensionContext = nullptr;
+	INTCExtensionAppInfo AppInfo{};
+	AppInfo.pEngineName = TEXT("Unreal Engine");
+	AppInfo.EngineVersion = 5;
+
+	const HRESULT hr = INTC_D3D12_CreateDeviceExtensionContext(Device, &IntelExtensionContext, &INTCExtensionInfo, &AppInfo);
+
+	if (SUCCEEDED(hr))
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework enabled"));
+	}
+	else
+	{
+		if (hr == E_OUTOFMEMORY)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework not supported by driver"));
+		}
+		else if (hr == E_INVALIDARG)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework passed invalid creation arguments"));
+		}
+
+		if (IntelExtensionContext)
+		{
+			DestroyIntelExtensionsContext(IntelExtensionContext);
+			IntelExtensionContext = nullptr;
+		}
+	}
+
+	if (SupportedExtensionsVersions != nullptr)
+	{
+		delete[] SupportedExtensionsVersions;
+	}
+
+	return IntelExtensionContext;
+}
+
+static bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionContext, INTCExtensionInfo& INTCExtensionInfo)
+{
+	bool bEmulatedAtomic64Support = false;
+
+	if (IntelExtensionContext)
+	{
+#if D3D12_CORE_ENABLED
+		// only enabled Atomic64 emulation for selected platforms, explicitly enable emulation for the adapter, will affect all future device creations
+		if (INTCExtensionInfo.IntelDeviceInfo.GTGeneration == 1270 /*IGFX_DG2*/)
+		{
+			INTC_D3D12_FEATURE INTCFeature;
+			INTCFeature.EmulatedTyped64bitAtomics = true;
+
+			const HRESULT hr = INTC_D3D12_SetFeatureSupport(IntelExtensionContext, &INTCFeature);
+			if (SUCCEEDED(hr))
+			{
+				bEmulatedAtomic64Support = true;
+				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions 64-bit Typed Atomics emulation enabled."));
+			}
+			else
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Failed to enable Intel Extensions 64-bit Typed Atomics emulation."));
+			}
+		}
+#endif
+	}
+
+	return bEmulatedAtomic64Support;
+}
+#endif
+
+static bool CheckDeviceForEmulatedAtomic64Support(IDXGIAdapter* Adapter, ID3D12Device* Device)
+{
+	bool bEmulatedAtomic64Support = false;
+
+#if INTEL_EXTENSIONS
+	DXGI_ADAPTER_DESC AdapterDesc{};
+	Adapter->GetDesc(&AdapterDesc);
+
+	if (AdapterDesc.VendorId == 0x8086 && !FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
+	{
+		INTCExtensionInfo INTCExtensionInfo{};
+		if (INTCExtensionContext* IntelExtensionContext = CreateIntelExtensionsContext(Device, INTCExtensionInfo))
+		{
+			bEmulatedAtomic64Support = EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
+
+			DestroyIntelExtensionsContext(IntelExtensionContext);
+		}
+	}
+#endif
+
+	return bEmulatedAtomic64Support;
+}
+
 inline bool ShouldCheckBindlessSupport(EShaderPlatform ShaderPlatform)
 {
 	return RHIGetBindlessResourcesConfiguration(ShaderPlatform) != ERHIBindlessConfiguration::Disabled
 		|| RHIGetBindlessSamplersConfiguration(ShaderPlatform) != ERHIBindlessConfiguration::Disabled;
 }
 
-inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(ID3D12Device* Device, D3D_FEATURE_LEVEL InMaxFeatureLevel, D3D_SHADER_MODEL InMaxShaderModel, D3D12_RESOURCE_BINDING_TIER ResourceBindingTier)
+inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(IDXGIAdapter* Adapter, ID3D12Device* Device, D3D_FEATURE_LEVEL InMaxFeatureLevel, D3D_SHADER_MODEL InMaxShaderModel, D3D12_RESOURCE_BINDING_TIER ResourceBindingTier)
 {
 	ERHIFeatureLevel::Type MaxRHIFeatureLevel = ERHIFeatureLevel::Num;
 
@@ -312,9 +456,12 @@ inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(ID3D12Device* Device, D3D_F
 			bHighEnoughBindingTier = ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3;
 		}
 
-		if (D3D12Caps1.WaveOps && D3D12Caps9.AtomicInt64OnTypedResourceSupported && bHighEnoughBindingTier)
+		if (D3D12Caps1.WaveOps && bHighEnoughBindingTier)
 		{
-			MaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+			if (D3D12Caps9.AtomicInt64OnTypedResourceSupported || CheckDeviceForEmulatedAtomic64Support(Adapter, Device))
+			{
+				MaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+			}
 		}
 	}
 
@@ -350,7 +497,7 @@ static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL M
 			OutInfo.MaxShaderModel = FindHighestShaderModel(Device);
 			GetResourceTiers(Device, OutInfo.ResourceBindingTier, OutInfo.ResourceHeapTier);
 			OutInfo.NumDeviceNodes = Device->GetNodeCount();
-			OutInfo.MaxRHIFeatureLevel = FindMaxRHIFeatureLevel(Device, OutInfo.MaxFeatureLevel, OutInfo.MaxShaderModel, OutInfo.ResourceBindingTier);
+			OutInfo.MaxRHIFeatureLevel = FindMaxRHIFeatureLevel(Adapter, Device, OutInfo.MaxFeatureLevel, OutInfo.MaxShaderModel, OutInfo.ResourceBindingTier);
 
 			Device->Release();
 			return true;
@@ -1209,96 +1356,16 @@ void FD3D12DynamicRHI::Init()
 #if INTEL_EXTENSIONS
 	if (IsRHIDeviceIntel() && bAllowVendorDevice)
 	{
-		const INTCExtensionVersion AtomicsRequiredVersion = { 4, 4, 0 }; //version 4.4.0 Alchemist+
-		INTCExtensionVersion* SupportedExtensionsVersions = nullptr;
-		uint32_t SupportedExtensionsVersionCount = 0;
 		INTCExtensionInfo INTCExtensionInfo{};
+		IntelExtensionContext = CreateIntelExtensionsContext(GetAdapter().GetD3DDevice(), INTCExtensionInfo);
 
-		if (FAILED(INTC_LoadExtensionsLibrary(false)))
+		if (IntelExtensionContext)
 		{
-			UE_LOG(LogD3D12RHI, Log, TEXT("Failed to load Intel Extensions Library"));
+			bHasVendorSupportForAtomic64 = (INTCExtensionInfo.RequestedExtensionVersion.HWFeatureLevel > 0);
+
+			GRHISupportsAtomicUInt64 = EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
+			GRHISupportsDX12AtomicUInt64 = GRHISupportsAtomicUInt64;
 		}
-
-		if (SUCCEEDED(INTC_D3D12_GetSupportedVersions(GetAdapter().GetD3DDevice(), nullptr, &SupportedExtensionsVersionCount)))
-		{
-			SupportedExtensionsVersions = new INTCExtensionVersion[SupportedExtensionsVersionCount]{};
-		}
-
-		if (SUCCEEDED(INTC_D3D12_GetSupportedVersions(GetAdapter().GetD3DDevice(), SupportedExtensionsVersions, &SupportedExtensionsVersionCount)) && SupportedExtensionsVersions != nullptr)
-		{
-			for (uint32_t i = 0; i < SupportedExtensionsVersionCount; i++)
-			{
-				if ((SupportedExtensionsVersions[i].HWFeatureLevel >= AtomicsRequiredVersion.HWFeatureLevel) &&
-					(SupportedExtensionsVersions[i].APIVersion >= AtomicsRequiredVersion.APIVersion) &&
-					(SupportedExtensionsVersions[i].Revision >= AtomicsRequiredVersion.Revision))
-				{
-					UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions loaded requested version: %u.%u.%u"),
-						SupportedExtensionsVersions[i].HWFeatureLevel,
-						SupportedExtensionsVersions[i].APIVersion,
-						SupportedExtensionsVersions[i].Revision);
-
-					INTCExtensionInfo.RequestedExtensionVersion = SupportedExtensionsVersions[i];
-					bHasVendorSupportForAtomic64 = true;
-					break;
-				}
-			}
-		}
-
-	#if D3D12_CORE_ENABLED
-		if (GRHISupportsAtomicUInt64)
-		{
-			D3D12_FEATURE_DATA_SHADER_MODEL D3D12ShaderModelLevel = { D3D_SHADER_MODEL_6_6 };
-			if (GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &D3D12ShaderModelLevel, sizeof(D3D12ShaderModelLevel)) == S_OK &&
-				D3D12ShaderModelLevel.HighestShaderModel >= D3D_SHADER_MODEL_6_6)
-			{
-				GRHISupportsDX12AtomicUInt64 = true;
-			}
-		}
-	#endif
-
-		check(IntelExtensionContext == nullptr);
-		INTCExtensionAppInfo AppInfo{};
-		AppInfo.pEngineName = TEXT("Unreal Engine");
-		AppInfo.EngineVersion = 5;
-
-		HRESULT hr = INTC_D3D12_CreateDeviceExtensionContext(GetAdapter().GetD3DDevice(), &IntelExtensionContext, &INTCExtensionInfo, &AppInfo);
-
-		bool bEnabled = false;
-		if (SUCCEEDED(hr))
-		{
-			bEnabled = true;
-			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework enabled"));
-		}
-		else if (hr == E_OUTOFMEMORY)
-		{
-			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework not supported by driver"));
-		}
-		else if (hr == E_INVALIDARG)
-		{
-			UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework passed invalid creation arguments"));
-		}
-
-		if (!bEnabled && IntelExtensionContext)
-		{
-			hr = INTC_DestroyDeviceExtensionContext(&IntelExtensionContext);
-
-			if (hr == S_OK)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework unloaded"));
-			}
-			else if (hr == E_INVALIDARG)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions Framework error when unloading"));
-			}
-
-			IntelExtensionContext = nullptr;
-		}
-
-		if (SupportedExtensionsVersions != nullptr)
-		{
-			delete[] SupportedExtensionsVersions;
-		}
-
 	}
 #endif // INTEL_EXTENSIONS
 
