@@ -9,6 +9,7 @@
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "Templates/TypeHash.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "Containers/SortedMap.h"
 
 class FReferenceCollector;
 
@@ -274,7 +275,7 @@ public:
 	FSerializedObjectData SerializedData;
 
 	/** Information about tagged data (mainly properties) that were serialized within this object */
-	TMap<FName, FSerializedTaggedData> SerializedTaggedData;
+	TSortedMap<FName, FSerializedTaggedData, FDefaultAllocator, FNameFastLess> SerializedTaggedData;
 };
 
 ENGINE_API extern const FName TaggedDataKey_UnknownData;
@@ -369,11 +370,21 @@ private:
 	struct FCachedPropertyKey
 	{
 	public:
-		FName SyncCache(const FArchiveSerializedPropertyChain* InPropertyChain);
+		FName SyncCache(const FArchiveSerializedPropertyChain& InPropertyChain);
 
 	private:
 		FName CachedKey;
 		uint32 LastUpdateCount = 0;
+	};
+
+	struct FCachedTaggedDataEntry
+	{
+	public:
+		FSerializedTaggedData& SyncCache(FDiffableObject& InDiffableObject, const FName InSerializedTaggedDataKey);
+
+	private:
+		FName CachedKey;
+		FSerializedTaggedData* CachedEntryPtr = nullptr;
 	};
 
 	FDiffableObject& DiffableObject;
@@ -386,6 +397,7 @@ private:
 	mutable int32 TaggedDataKeyIndex_UnknownData = 0;
 	mutable int32 TaggedDataKeyIndex_ScriptData = 0;
 	mutable FCachedPropertyKey CachedSerializedTaggedPropertyKey;
+	mutable FCachedTaggedDataEntry CachedSerializedTaggedDataEntry;
 };
 
 namespace DiffUtil

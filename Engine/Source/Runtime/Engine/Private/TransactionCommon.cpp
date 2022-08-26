@@ -326,7 +326,7 @@ FName FDiffableObjectDataWriter::GetTaggedDataKey() const
 		const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
 		if (PropertyChain && PropertyChain->GetNumProperties() > 0)
 		{
-			TaggedDataKey = CachedSerializedTaggedPropertyKey.SyncCache(PropertyChain);
+			TaggedDataKey = CachedSerializedTaggedPropertyKey.SyncCache(*PropertyChain);
 		}
 	}
 
@@ -397,7 +397,7 @@ void FDiffableObjectDataWriter::OnDataSerialized(int64 InOffset, int64 InNum)
 	const FName SerializedTaggedDataKey = GetTaggedDataKey();
 	if (!SerializedTaggedDataKey.IsNone())
 	{
-		FSerializedTaggedData& SerializedTaggedData = DiffableObject.SerializedTaggedData.FindOrAdd(SerializedTaggedDataKey);
+		FSerializedTaggedData& SerializedTaggedData = CachedSerializedTaggedDataEntry.SyncCache(DiffableObject, SerializedTaggedDataKey);
 		SerializedTaggedData.AppendSerializedData(InOffset, InNum);
 	}
 }
@@ -421,24 +421,27 @@ FArchive& FDiffableObjectDataWriter::operator<<(UObject*& Res)
 	return *this << ResPathName;
 }
 
-FName FDiffableObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSerializedPropertyChain* InPropertyChain)
+FName FDiffableObjectDataWriter::FCachedPropertyKey::SyncCache(const FArchiveSerializedPropertyChain& InPropertyChain)
 {
-	if (InPropertyChain)
+	const uint32 CurrentUpdateCount = InPropertyChain.GetUpdateCount();
+	if (CurrentUpdateCount != LastUpdateCount)
 	{
-		const uint32 CurrentUpdateCount = InPropertyChain->GetUpdateCount();
-		if (CurrentUpdateCount != LastUpdateCount)
-		{
-			CachedKey = InPropertyChain->GetNumProperties() > 0 ? InPropertyChain->GetPropertyFromRoot(0)->GetFName() : FName();
-			LastUpdateCount = CurrentUpdateCount;
-		}
-	}
-	else
-	{
-		CachedKey = FName();
-		LastUpdateCount = 0;
+		CachedKey = InPropertyChain.GetNumProperties() > 0 ? InPropertyChain.GetPropertyFromRoot(0)->GetFName() : FName();
+		LastUpdateCount = CurrentUpdateCount;
 	}
 
 	return CachedKey;
+}
+
+FSerializedTaggedData& FDiffableObjectDataWriter::FCachedTaggedDataEntry::SyncCache(FDiffableObject& InDiffableObject, const FName InSerializedTaggedDataKey)
+{
+	if (CachedKey != InSerializedTaggedDataKey)
+	{
+		CachedKey = InSerializedTaggedDataKey;
+		CachedEntryPtr = &InDiffableObject.SerializedTaggedData.FindOrAdd(InSerializedTaggedDataKey);
+	}
+
+	return *CachedEntryPtr;
 }
 
 
