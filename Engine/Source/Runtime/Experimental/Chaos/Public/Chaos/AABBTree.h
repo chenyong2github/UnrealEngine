@@ -3156,6 +3156,11 @@ private:
 				return nullptr; 
 			}
 
+			bool HasBlockingHit() const
+			{
+				return false;
+			}
+
 			bool ShouldIgnore(const TSpatialVisitorData<TPayloadType>& Instance) const { return false; }
 			TArray<TPayloadType>& CollectedResults;
 		};
@@ -3415,6 +3420,5 @@ FArchive& operator<<(FChaosArchive& Ar, TAABBTree<TPayloadType, TLeafType, bMuta
 	AABBTree.Serialize(Ar);
 	return Ar;
 }
-
 
 }

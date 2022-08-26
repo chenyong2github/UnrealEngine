@@ -148,6 +148,8 @@ public:
 
 	/** Return a pointer to the payload on which we are querying the acceleration structure */
 	virtual const void* GetQueryPayload() const { return nullptr; }
+
+	virtual bool HasBlockingHit() const { return false; }
 };
 
 /**
@@ -441,6 +443,11 @@ public:
 	FORCEINLINE const void* GetQueryPayload() const
 	{
 		return Visitor.GetQueryPayload();
+	}
+
+	FORCEINLINE bool HasBlockingHit() const
+	{
+		return Visitor.HasBlockingHit();
 	}
 
 private:

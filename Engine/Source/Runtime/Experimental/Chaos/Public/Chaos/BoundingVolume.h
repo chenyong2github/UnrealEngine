@@ -583,6 +583,12 @@ private:
 					}
 				}
 
+				// Early exit if the raycast has a hit and it has set as bloking hit, it is not necessary to navigate along the raycast
+				if (Visitor.HasBlockingHit())
+				{
+					return false;
+				}
+
 				CellsVisited.Add(CellIdx);
 
 

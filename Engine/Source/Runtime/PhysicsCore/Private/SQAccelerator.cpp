@@ -178,6 +178,11 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 		return nullptr;
 	}
 
+	virtual bool HasBlockingHit() const override
+	{ 
+		return HitBuffer.HasBlockingHit();
+	}
+
 private:
 
 	enum class ESQType

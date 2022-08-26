@@ -66,6 +66,11 @@ namespace Chaos
 			return &AccelerationHandle;
 		}
 
+		bool HasBlockingHit() const
+		{
+			return false;
+		}
+
 	private:
 		FCollisionFilterData SimFilterData;
 		FUniqueIdx ParticleUniqueIdx; // unique id of the particle visiting, used to skip self intersection as early as possible

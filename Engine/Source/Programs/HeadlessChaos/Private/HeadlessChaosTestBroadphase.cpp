@@ -74,11 +74,6 @@ namespace ChaosTest
 				{
 					return false;
 				}
-				if (Instances.Num() >= BlockAfterN)
-				{
-					//blocking so adjust Length
-					CurData.SetLength(NewLength);
-				}
 			}
 			
 			return true;
@@ -113,6 +108,11 @@ namespace ChaosTest
 		virtual bool Sweep(const TSpatialVisitorData<int32>& Instance, FQueryFastData& CurData) override
 		{
 			return VisitSweep(Instance, CurData);
+		}
+
+		virtual bool HasBlockingHit() const override
+		{ 
+			return Instances.Num() >= BlockAfterN; 
 		}
 
 		TArray<int32> Instances;
@@ -440,6 +440,41 @@ namespace ChaosTest
 		auto Boxes = BuildBoxes(Box);
 		TBoundingVolume<int32> Spatial(MakeParticleView(Boxes.Get()));
 		SpatialTestHelper(Spatial, Boxes.Get(), Box);
+	}
+
+	void GridBPEarlyExitTest()
+	{
+		TUniquePtr<TBox<FReal, 3>> Box;
+		auto Boxes = BuildBoxes(Box);
+		TBoundingVolume<int32> Spatial(MakeParticleView(Boxes.Get()));
+		// SpatialTestHelper(Spatial, Boxes.Get(), Box);
+
+		//gather along ray
+		{
+			FVisitor Visitor(FVec3(10, 0, 0), FVec3(0, 1, 0), 0, *Boxes);
+			Spatial.Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
+			EXPECT_EQ(Visitor.Instances.Num(), 10);
+			EXPECT_EQ(Visitor.Instances[0], 0);
+			EXPECT_EQ(Visitor.Instances[9], 90);
+		}
+
+		// Stop after first hits in the first cell
+		{
+			FVisitor Visitor(FVec3(10, 0, 0), FVec3(0, 1, 0), 0, *Boxes);
+			Visitor.BlockAfterN = 1;
+			Spatial.Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
+			EXPECT_EQ(Visitor.Instances.Num(), 1);
+			EXPECT_EQ(Visitor.Instances[0], 0);
+		}
+
+		// Stop after first hits in the first cell, going backward
+		{
+			FVisitor Visitor(FVec3(10, 1000, 0), FVec3(0, -1, 0), 0, *Boxes);
+			Visitor.BlockAfterN = 1;
+			Spatial.Raycast(Visitor.Start, Visitor.Dir, 1000, Visitor);
+			EXPECT_EQ(Visitor.Instances.Num(), 1);
+			EXPECT_EQ(Visitor.Instances[0], 90);
+		}
 	}
 
 	void GridBPTest2()

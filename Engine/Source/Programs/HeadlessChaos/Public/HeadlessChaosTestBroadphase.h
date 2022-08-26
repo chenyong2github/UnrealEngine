@@ -9,6 +9,8 @@ namespace ChaosTest {
 
 	void GridBPTest();
 
+	void GridBPEarlyExitTest();
+
 	void GridBPTest2();
 
 	void AABBTreeTest();
