@@ -928,11 +928,6 @@ namespace Horde.Build.Notifications.Sinks
 							string suspectMessage = $"Possibly {StringUtils.FormatList(suspectList, "or")}.";
 							await _slackClient.PostMessageAsync(triageChannel, state.Ts, suspectMessage);
 						}
-						else if (workflow.TriageAlias != null)
-						{
-							string triageMessage = $"(cc {FormatUserOrGroupMention(workflow.TriageAlias)} for triage).";
-							await _slackClient.PostMessageAsync(triageChannel, state.Ts, triageMessage);
-						}
 					}
 
 					if (_environment.IsProduction() && workflow.AllowMentions)
@@ -945,6 +940,12 @@ namespace Horde.Build.Notifications.Sinks
 						DateTime escalateTime = span.FirstFailure.StepTime + TimeSpan.FromMinutes(workflow.EscalateTimes[0]);
 						await _escalateIssues.AddAsync(issue.Id, escalateTime.Ticks, StackExchange.Redis.When.NotExists);
 					}
+				}
+
+				if (workflow.TriageAlias != null && issue.OwnerId == null && suspects.All(x => x.DeclinedAt != null))
+				{
+					string triageMessage = $"(cc {FormatUserOrGroupMention(workflow.TriageAlias)} for triage).";
+					await SendOrUpdateMessageAsync(triageChannel, state.Ts, eventId + "_triage", null, triageMessage);
 				}
 
 				if (issue.AcknowledgedAt != null)
