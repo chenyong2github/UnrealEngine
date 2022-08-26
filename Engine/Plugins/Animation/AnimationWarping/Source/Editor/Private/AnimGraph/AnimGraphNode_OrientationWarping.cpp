@@ -106,6 +106,7 @@ void UAnimGraphNode_OrientationWarping::CustomizeDetails(IDetailLayoutBuilder& D
 	{
 		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_OrientationWarping, LocomotionAngle)));
 		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_OrientationWarping, LocomotionAngleDeltaThreshold)));
+		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_OrientationWarping, MinRootMotionSpeedThreshold)));
 	}
 }
 
@@ -144,6 +145,13 @@ void UAnimGraphNode_OrientationWarping::PostEditChangeProperty(struct FPropertyC
 					}
 				}
 				else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_OrientationWarping, LocomotionAngleDeltaThreshold))
+				{
+					if (Node.Mode == EWarpingEvaluationMode::Manual)
+					{
+						Pin->BreakAllPinLinks();
+					}
+				}
+				else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_OrientationWarping, MinRootMotionSpeedThreshold))
 				{
 					if (Node.Mode == EWarpingEvaluationMode::Manual)
 					{
