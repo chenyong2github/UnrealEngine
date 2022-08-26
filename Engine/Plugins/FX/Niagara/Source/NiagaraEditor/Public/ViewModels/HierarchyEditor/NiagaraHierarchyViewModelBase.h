@@ -247,10 +247,8 @@ public:
 	UNiagaraHierarchyViewModelBase();
 	virtual ~UNiagaraHierarchyViewModelBase() override;
 
-	void Initialize(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
+	void Initialize();
 	void Finalize();
-
-	TSharedPtr<FNiagaraSystemViewModel> GetSystemViewModel() const { return SystemViewModel; }
 
 	void AddCategory() const;
 	void AddSection() const;
@@ -327,8 +325,6 @@ protected:
 
 	TWeakPtr<struct FNiagaraHierarchySectionViewModel> ActiveSection;
 	TSharedPtr<FUICommandList> Commands;
-
-	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 
 protected:
 	// delegate collection to call UI functions

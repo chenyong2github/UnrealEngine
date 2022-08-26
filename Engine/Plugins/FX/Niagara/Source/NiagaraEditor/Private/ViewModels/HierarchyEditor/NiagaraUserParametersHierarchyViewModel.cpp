@@ -33,14 +33,25 @@ void UNiagaraHierarchyUserParameter::RefreshDataInternal()
 	}
 }
 
-void UNiagaraUserParametersHierarchyViewModel::InitializeInternal()
+TSharedRef<FNiagaraSystemViewModel> UNiagaraUserParametersHierarchyViewModel::GetSystemViewModel() const
 {
-	UNiagaraSystemEditorData* SystemEditorData = Cast<UNiagaraSystemEditorData>(GetSystemViewModel()->GetSystem().GetEditorData());
-	SystemEditorData->OnUserParameterScriptVariablesSynced().AddUObject(this, &UNiagaraUserParametersHierarchyViewModel::ForceFullRefresh);
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModelWeak.Pin();
+	checkf(SystemViewModelPinned.IsValid(), TEXT("System view model destroyed before user parameters hierarchy view model."));
+	return SystemViewModelPinned.ToSharedRef();
+}
+
+void UNiagaraUserParametersHierarchyViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
+{
+	SystemViewModelWeak = InSystemViewModel;
+	UNiagaraHierarchyViewModelBase::Initialize();
+
+	UNiagaraSystemEditorData& SystemEditorData = InSystemViewModel->GetEditorData();
+	SystemEditorData.OnUserParameterScriptVariablesSynced().AddUObject(this, &UNiagaraUserParametersHierarchyViewModel::ForceFullRefresh);
 }
 
 void UNiagaraUserParametersHierarchyViewModel::FinalizeInternal()
 {
+	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = SystemViewModelWeak.Pin();
 	if(SystemViewModel.IsValid())
 	{
 		GetSystemViewModel()->GetSystem().GetExposedParameters().RemoveAllOnChangedHandlers(this);

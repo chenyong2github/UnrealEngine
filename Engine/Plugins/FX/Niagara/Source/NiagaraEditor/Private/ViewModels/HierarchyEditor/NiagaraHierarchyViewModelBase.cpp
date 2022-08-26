@@ -270,10 +270,8 @@ void UNiagaraHierarchyViewModelBase::PostRedo(bool bSuccess)
 	PostUndo(bSuccess);
 }
 
-void UNiagaraHierarchyViewModelBase::Initialize(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel)
+void UNiagaraHierarchyViewModelBase::Initialize()
 {
-	SystemViewModel = InSystemViewModel;
-	
 	if(GEditor)
 	{
 		GEditor->RegisterForUndo(this);

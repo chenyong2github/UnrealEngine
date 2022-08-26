@@ -40,7 +40,9 @@ public:
 	{
 	}
 
-	virtual void InitializeInternal() override;
+	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel() const;
+
+	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 	
 	virtual UNiagaraHierarchyRoot* GetHierarchyDataRoot() const override;
 	
@@ -58,7 +60,7 @@ public:
 protected:
 	virtual void FinalizeInternal() override;
 private:
-	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
+	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;
 };
 
 class FNiagaraUserParameterDragDropOp : public FNiagaraHierarchyDragDropOp
