@@ -829,6 +829,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				AppendVTableHelperCtorAndCaller(builder, classObj, api);
 				AppendCopyConstructorDefinition(builder, classObj, api);
+				AppendDestructorDefinition(builder, classObj, api);
 			}
 			return builder;
 		}
@@ -847,6 +848,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				AppendConstructorDefinition(builder, classObj, api);
 				AppendVTableHelperCtorAndCaller(builder, classObj, api);
 				AppendDefaultConstructorCallDefinition(builder, classObj);
+				AppendDestructorDefinition(builder, classObj, api);
 			}
 			return builder;
 		}
@@ -882,6 +884,22 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			builder.Append('\t').Append(api).Append(classObj.SourceName).Append('(').Append(classObj.SourceName).Append("&&); \\\r\n");
 			builder.Append('\t').Append(api).Append(classObj.SourceName).Append("(const ").Append(classObj.SourceName).Append("&); \\\r\n");
 			builder.Append("public: \\\r\n");
+			return builder;
+		}
+
+		/// <summary>
+		/// Generates a destructor
+		/// </summary>
+		/// <param name="builder">Output builder</param>
+		/// <param name="classObj">Class being exported</param>
+		/// <param name="api">API text to be used</param>
+		/// <returns>Output builder</returns>
+		private static StringBuilder AppendDestructorDefinition(StringBuilder builder, UhtClass classObj, string api)
+		{
+			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDestructor))
+			{
+				builder.Append('\t').Append(api).Append("virtual ~").Append(classObj.SourceName).Append("(); \\\r\n");
+			}
 			return builder;
 		}
 

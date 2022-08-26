@@ -458,6 +458,9 @@ namespace EpicGames.UHT.Parsers
 							if (topScope.HeaderParser.CheckForConstructor(classObj, declaration))
 							{
 							}
+							else if (topScope.HeaderParser.CheckForDestructor(classObj, declaration))
+							{
+							}
 							else if (classObj.ClassType == UhtClassType.Class)
 							{
 								if (topScope.HeaderParser.CheckForSerialize(classObj, declaration))
@@ -1016,6 +1019,25 @@ namespace EpicGames.UHT.Parsers
 				classObj.ClassExportFlags |= UhtClassExportFlags.HasConstructor;
 			}
 
+			return false;
+		}
+
+		private bool CheckForDestructor(UhtClass classObj, UhtDeclaration declaration)
+		{
+			if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDestructor))
+			{
+				return false;
+			}
+
+			IUhtTokenReader replayReader = UhtTokenReplayReader.GetThreadInstance(this.HeaderFile, this.HeaderFile.Data.Memory, new ReadOnlyMemory<UhtToken>(declaration.Tokens), UhtTokenType.EndOfDeclaration);
+
+			SkipVirtualAndAPI(replayReader);
+
+			if (replayReader.TryOptional('~') && replayReader.TryOptional(classObj.SourceName))
+			{
+				classObj.ClassExportFlags |= UhtClassExportFlags.HasDestructor;
+				return true;
+			}
 			return false;
 		}
 

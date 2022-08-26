@@ -83,6 +83,11 @@ namespace EpicGames.UHT.Types
 		/// Class has a field notify
 		/// </summary>
 		HasFieldNotify = 1 << 10,
+
+		/// <summary>
+		/// Class has destructor
+		/// </summary>
+		HasDestructor = 1 << 11,
 	}
 
 	/// <summary>

@@ -3051,7 +3051,7 @@ void ExportDestructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo& 
 {
 	if (!ClassDef.IsDestructorDeclared())
 	{
-		Out.Logf(TEXT("\t %s_API virtual ~%s();\r\n"), API, ClassCPPName);
+		Out.Logf(TEXT("\t%s_API virtual ~%s();\r\n"), API, ClassCPPName);
 	}
 }
 
