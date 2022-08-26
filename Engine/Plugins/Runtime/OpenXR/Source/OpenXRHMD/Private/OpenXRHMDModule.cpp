@@ -42,7 +42,12 @@ FOpenXRHMDModule::~FOpenXRHMDModule()
 
 TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDModule::CreateTrackingSystem()
 {
-	if (!RenderBridge)
+	if (!InitInstanceAndSystem())
+	{
+		return nullptr;
+	}
+
+	if (!RenderBridge && !FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly")))
 	{
 		if (!InitRenderBridge())
 		{
@@ -79,6 +84,11 @@ void FOpenXRHMDModule::ShutdownModule()
 
 uint64 FOpenXRHMDModule::GetGraphicsAdapterLuid()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly")))
+	{
+		return 0;
+	}
+
 	if (!RenderBridge)
 	{
 		if (!InitRenderBridge())
@@ -419,6 +429,14 @@ bool FOpenXRHMDModule::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensi
 #if PLATFORM_ANDROID
 	OutExtensions.Add(XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME);
 #endif
+
+	// If the commandline -xrtrackingonly is passed, then start the application in _Other mode instead of _Scene mode
+	// This is used when we only want to get tracking information and don't need to render anything to the XR device
+	if (FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly")))
+	{
+		OutExtensions.Add(XR_MND_HEADLESS_EXTENSION_NAME);
+	}
+
 	return true;
 }
 

@@ -1676,7 +1676,7 @@ bool FOpenXRHMD::OnStereoStartup()
 
 	XrSessionCreateInfo SessionInfo;
 	SessionInfo.type = XR_TYPE_SESSION_CREATE_INFO;
-	SessionInfo.next = RenderBridge->GetGraphicsBinding();
+	SessionInfo.next = RenderBridge.IsValid() ? RenderBridge->GetGraphicsBinding() : nullptr;
 	SessionInfo.createFlags = 0;
 	SessionInfo.systemId = System;
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
@@ -1762,7 +1762,10 @@ bool FOpenXRHMD::OnStereoStartup()
 		DeviceSpace.CreateSpace(Session);
 	}
 
-	RenderBridge->SetOpenXRHMD(this);
+	if (RenderBridge.IsValid())
+	{
+		RenderBridge->SetOpenXRHMD(this);
+	}
 
 	// grab a pointer to the renderer module for displaying our mirror window
 	static const FName RendererModuleName("Renderer");
@@ -2172,6 +2175,12 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
 	ensure(IsInRenderingThread());
+	if (!RenderBridge)
+	{
+		// Frame submission is not necessary in a headless session.
+		return;
+	}
+
 	FReadScopeLock DeviceLock(DeviceMutex);
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
@@ -2417,7 +2426,7 @@ void FOpenXRHMD::OnBeginSimulation_GameThread()
 {
 	FReadScopeLock Lock(SessionHandleMutex);
 
-	if (!bShouldWait)
+	if (!bShouldWait || !RenderBridge)
 	{
 		return;
 	}
@@ -2656,7 +2665,7 @@ void FOpenXRHMD::OnBeginRendering_RHIThread(const FPipelinedFrameState& InFrameS
 	SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
 
 	FReadScopeLock Lock(SessionHandleMutex);
-	if (!bIsRunning)
+	if (!bIsRunning || !RenderBridge)
 	{
 		return;
 	}
@@ -2715,7 +2724,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 
 	SCOPED_NAMED_EVENT(EndFrame, FColor::Red);
 
-	if (!bIsRendering)
+	if (!bIsRendering || !RenderBridge)
 	{
 		return;
 	}
