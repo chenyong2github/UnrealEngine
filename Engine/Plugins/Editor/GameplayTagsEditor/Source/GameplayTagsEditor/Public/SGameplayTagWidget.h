@@ -8,6 +8,7 @@
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
@@ -22,8 +23,9 @@ class SAddNewGameplayTagSourceWidget;
 /** Determines the behavior of the gameplay tag UI depending on where it's used */
 enum class EGameplayTagUIMode : uint8
 {
-	SelectionMode,
-	ManagementMode,
+	SelectionMode,    // Allows selecting tags for gameplay tag containers.
+	ManagementMode,   // Allows renaming/deleting tags, does not require gameplay tag containers.
+	HybridMode        // Allows doing operations from both Selection and Management mode.
 };
 
 /** Widget allowing user to tag assets with gameplay tags */
@@ -33,6 +35,13 @@ public:
 
 	/** Called when a tag status is changed */
 	DECLARE_DELEGATE( FOnTagChanged )
+	enum class ETagFilterResult
+	{
+		IncludeTag,
+		ExcludeTag
+	};
+	
+	DECLARE_DELEGATE_RetVal_OneParam( ETagFilterResult, FOnFilterTag, const TSharedPtr<FGameplayTagNode>&)
 
 	SLATE_BEGIN_ARGS( SGameplayTagWidget )
 		: _Filter()
@@ -47,8 +56,13 @@ public:
 		, _RestrictedTags( false )
 		, _ForceHideAddNewTag(false)
 		, _ForceHideAddNewTagSource(false)
+		, _ForceHideTagTreeControls(false)
+		, _BackgroundBrush(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		, _TagTreeViewBackgroundBrush(nullptr)
+		
 	{}
 		SLATE_ARGUMENT( FString, Filter ) // Comma delimited string of tag root names to filter by
+		SLATE_EVENT( FOnFilterTag, OnFilterTag ) // Optional filter function called when generating the tag list
 		SLATE_ARGUMENT( FString, NewTagName ) // String that will initially populate the New Tag Name field
 		SLATE_ARGUMENT( bool, ReadOnly ) // Flag to set if the list is read only
 		SLATE_ARGUMENT( FString, TagContainerName ) // The name that will be used for the settings file
@@ -59,8 +73,11 @@ public:
 		SLATE_ARGUMENT( EGameplayTagUIMode, GameplayTagUIMode )	// Determines behavior of the menu based on where it's used
 		SLATE_ARGUMENT( float, MaxHeight )	// caps the height of the gameplay tag tree
 		SLATE_ARGUMENT( bool, RestrictedTags ) // if we are dealing with restricted tags or regular gameplay tags
-		SLATE_ARGUMENT( bool, ForceHideAddNewTag) // Allow caller context to manually manipulate visibility of add new tag widget
-		SLATE_ARGUMENT( bool, ForceHideAddNewTagSource) // Allow caller context to manually manipulate visibility of add new tag source widget
+		SLATE_ARGUMENT( bool, ForceHideAddNewTag ) // Allow caller context to manually manipulate visibility of add new tag widget
+		SLATE_ARGUMENT( bool, ForceHideAddNewTagSource ) // Allow caller context to manually manipulate visibility of add new tag source widget
+		SLATE_ARGUMENT( bool, ForceHideTagTreeControls ) // Allow caller context to manually manipulate visibility of Collapse/Expand buttons and filter widget
+		SLATE_ARGUMENT( const FSlateBrush*, BackgroundBrush) // Background brush for the whole widget
+		SLATE_ARGUMENT( const FSlateBrush*, TagTreeViewBackgroundBrush) // Background brush for the whole widget
 	SLATE_END_ARGS()
 
 	/** Simple struct holding a tag container and its owner for generic re-use of the widget */
@@ -140,6 +157,9 @@ private:
 	/** root filter (passed in on creation) */
 	FString RootFilterString;
 
+	/** User specified filter function. */
+	FOnFilterTag TagFilter; 
+
 	/* Flag to set if the list is read only*/
 	bool bReadOnly;
 
@@ -163,6 +183,9 @@ private:
 
 	/** If true, this widget is unable to display the 'Add new tag source' widget */
 	bool bForceHideAddNewTagSource;
+
+	/** If true, this widget is unable to display the tag tree controls. */
+	bool bForceHideTagTreeControls;
 
 	/** The maximum height of the gameplay tag tree. If 0, the height is unbound. */
 	float MaxHeight;
@@ -338,6 +361,9 @@ private:
 	/** Helper function to determine the visibility of the Add New Tag Source widget */
 	EVisibility DetermineAddNewSourceWidgetVisibility() const;
 
+	/** Helper function to determine the visibility of the tag tree controls. */
+	EVisibility DetermineTagTreeControlsVisibility() const;
+
 	/** Helper function to determine the visibility of the Add New Subtag widget */
 	EVisibility DetermineAddNewSubTagWidgetVisibility(TSharedPtr<FGameplayTagNode> Node) const;
 
@@ -399,4 +425,7 @@ private:
 
 	/** Delegate that is fired when a tag is successfully renamed */
 	void OnGameplayTagRenamed(FString OldTagName, FString NewTagName);
+	
+	/** Populate tag items from the gameplay tags manager. */
+	void GetFilteredGameplayRootTags(const FString& InFilterString, TArray<TSharedPtr<FGameplayTagNode>>& OutNodes) const;
 };
