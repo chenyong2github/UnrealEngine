@@ -121,7 +121,7 @@ struct FConcertPackageTransmissionStartEvent
 	FConcertPackageInfo PackageInfo;
 
 	UPROPERTY()
-	uint64 PackageNumBytes;
+	uint64 PackageNumBytes = 0;
 };
 
 
