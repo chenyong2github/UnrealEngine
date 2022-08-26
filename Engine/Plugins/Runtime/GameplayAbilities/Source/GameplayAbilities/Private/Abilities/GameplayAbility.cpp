@@ -597,17 +597,17 @@ void UGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const
 {
 	if (IsEndAbilityValid(Handle, ActorInfo))
 	{
-		if (GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
-		{
-			bIsAbilityEnding = true;
-		}
-
 		if (ScopeLockCount > 0)
 		{
 			UE_LOG(LogAbilitySystem, Verbose, TEXT("Attempting to end Ability %s but ScopeLockCount was greater than 0, adding end to the WaitingToExecute Array"), *GetName());
 			WaitingToExecute.Add(FPostLockDelegate::CreateUObject(this, &UGameplayAbility::EndAbility, Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled));
 			return;
 		}
+        
+        if (GetInstancingPolicy() != EGameplayAbilityInstancingPolicy::NonInstanced)
+        {
+            bIsAbilityEnding = true;
+        }
 
 		// Give blueprint a chance to react
 		K2_OnEndAbility(bWasCancelled);
