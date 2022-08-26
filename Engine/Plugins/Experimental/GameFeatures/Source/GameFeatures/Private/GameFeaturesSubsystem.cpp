@@ -533,12 +533,17 @@ EGameFeaturePluginProtocol UGameFeaturesSubsystem::GetPluginURLProtocol(FStringV
 {
 	for (EGameFeaturePluginProtocol Protocol : TEnumRange<EGameFeaturePluginProtocol>())
 	{
-		if (PluginURL.StartsWith(UE::GameFeatures::GameFeaturePluginProtocolPrefix(Protocol)))
+		if (UGameFeaturesSubsystem::IsPluginURLProtocol(PluginURL, Protocol))
 		{
 			return Protocol;
 		}
 	}
 	return EGameFeaturePluginProtocol::Unknown;
+}
+
+bool UGameFeaturesSubsystem::IsPluginURLProtocol(FStringView PluginURL, EGameFeaturePluginProtocol PluginProtocol)
+{
+	return PluginURL.StartsWith(UE::GameFeatures::GameFeaturePluginProtocolPrefix(PluginProtocol));
 }
 
 void UGameFeaturesSubsystem::OnGameFeatureTerminating(const FString& PluginName, const FString& PluginURL)
@@ -962,7 +967,7 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 	FString PluginURLForTerminate = PluginURL;
 
 	//InstallBundle Protocol GameFeatures may need to change their metadata to force this uninstall
-	if (EGameFeaturePluginProtocol::InstallBundle == GetPluginURLProtocol(PluginURL))
+	if (UGameFeaturesSubsystem::IsPluginURLProtocol(PluginURL, EGameFeaturePluginProtocol::InstallBundle))
 	{
 		// Parse a duplicate version of our current Metadata from the URL
 		FInstallBundlePluginProtocolMetaData ProtocolMetadata;
@@ -1052,8 +1057,18 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 	// Make sure you are in a game feature plugins folder. All GameFeaturePlugins are rooted in a GameFeatures folder.
 	if (!PluginDescriptorFilename.IsEmpty() && GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(FPaths::ConvertRelativePathToFull(PluginDescriptorFilename)) && FPaths::FileExists(PluginDescriptorFilename))
 	{
-		const FString PluginURL = GetPluginURL_FileProtocol(PluginDescriptorFilename);
-		if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
+		FString PluginURL;
+		bool bIsFileProtocol = true;
+		if (GetPluginURLByName(Plugin->GetName(), PluginURL))
+		{
+			bIsFileProtocol = UGameFeaturesSubsystem::IsPluginURLProtocol(PluginURL, EGameFeaturePluginProtocol::File);
+		}
+		else
+		{
+			PluginURL = GetPluginURL_FileProtocol(PluginDescriptorFilename);
+		}
+
+		if (bIsFileProtocol && GameSpecificPolicies->IsPluginAllowed(PluginURL))
 		{
 			FGameFeaturePluginDetails PluginDetails;
 			if (GetGameFeaturePluginDetails(PluginDescriptorFilename, PluginDetails))

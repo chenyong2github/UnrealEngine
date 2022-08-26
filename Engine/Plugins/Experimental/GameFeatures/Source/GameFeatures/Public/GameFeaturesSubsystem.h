@@ -364,7 +364,11 @@ public:
 	static FString GetPluginURL_InstallBundleProtocol(const FString& PluginName, FName BundleName);
 	static FString GetPluginURL_InstallBundleProtocol(const FString& PluginName, const FInstallBundlePluginProtocolMetaData& ProtocolMetadata);
 
+	/** Returns the plugin protocol for the specified URL */
 	static EGameFeaturePluginProtocol GetPluginURLProtocol(FStringView PluginURL);
+
+	/** Tests whether the plugin URL is the specified protocol */
+	static bool IsPluginURLProtocol(FStringView PluginURL, EGameFeaturePluginProtocol PluginProtocol);
 
 public:
 	/** Returns all the active plugins GameFeatureDatas */
