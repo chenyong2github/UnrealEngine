@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "Templates/Function.h"
 
 typedef TFunction<void(int32 HttpStatus)> FDownloadComplete;
