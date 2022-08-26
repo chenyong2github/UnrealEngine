@@ -67,7 +67,7 @@ void SNiagaraSimCacheView::Construct(const FArguments& InArgs)
 {
 	SimCacheViewModel = InArgs._SimCacheViewModel;
 
-	SimCacheViewModel->OnFrameUpdated().AddSP(this, &SNiagaraSimCacheView::OnSimCacheFrameChanged);
+	SimCacheViewModel->OnViewDataChanged().AddSP(this, &SNiagaraSimCacheView::OnViewDataChanged);
 
 	HeaderRowWidget = SNew(SHeaderRow);
 
@@ -206,7 +206,7 @@ void SNiagaraSimCacheView::UpdateColumns(const bool bRefresh)
 
 
 	const bool bFilterActive = ComponentFilterArray.Num() > 0;
-	for (const FNiagaraSimCacheComponentInfo& ComponentInfo : SimCacheViewModel->GetComponentInfos())
+	for (const FNiagaraSimCacheViewModel::FComponentInfo& ComponentInfo : SimCacheViewModel->GetComponentInfos())
 	{
 		if (bFilterActive)
 		{
@@ -323,9 +323,14 @@ void SNiagaraSimCacheView::OnSimCacheChanged(const FAssetData& InAsset)
 	}
 }
 
-void SNiagaraSimCacheView::OnSimCacheFrameChanged(const bool bRefresh)
+void SNiagaraSimCacheView::OnViewDataChanged(const bool bFullRefresh)
 {
-	UpdateRows(bRefresh);
+	UpdateRows(true);
+	if (bFullRefresh)
+	{
+		UpdateColumns(true);
+		UpdateBufferSelectionList();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

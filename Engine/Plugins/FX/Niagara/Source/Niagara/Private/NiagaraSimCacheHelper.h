@@ -58,25 +58,41 @@ struct FNiagaraSimCacheHelper
 	bool HasValidSimulation() const { return SystemSimulation != nullptr; }
 	bool HasValidSimulationData() const { return SystemSimulationDataBuffer != nullptr; }
 
-	void BuildCacheLayout(FNiagaraSimCacheDataBuffersLayout& CacheLayout, const FNiagaraDataSetCompiledData& CompiledData, FName LayoutName, TArray<FName> InRebaseVariableNames) const
+	void BuildCacheLayout(FNiagaraSimCacheDataBuffersLayout& CacheLayout, const FNiagaraDataSetCompiledData& CompiledData, FName LayoutName, TArray<FName> InRebaseVariableNames, TConstArrayView<FName> ExplicitCaptureAttributes) const
 	{
 		CacheLayout.LayoutName = LayoutName;
 		CacheLayout.SimTarget = CompiledData.SimTarget;
 
-		const int32 NumVariables = CompiledData.Variables.Num();
-		CacheLayout.Variables.AddDefaulted(NumVariables);
+		int32 TotalCacheComponents = 0;
+		TArray<int32> CacheToDataSetVariables;
 
-		const int32 CacheTotalComponents = CompiledData.TotalFloatComponents + CompiledData.TotalFloatComponents + CompiledData.TotalInt32Components;
-		CacheLayout.ComponentMappingsFromDataBuffer.Empty(CacheTotalComponents);
-		CacheLayout.ComponentMappingsFromDataBuffer.AddDefaulted(CacheTotalComponents);
+		CacheToDataSetVariables.Reserve(CompiledData.Variables.Num());
+		for (int32 i = 0; i < CompiledData.Variables.Num(); ++i)
+		{
+			const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData.VariableLayouts[i];
+			const FNiagaraVariable& DataSetVariable = CompiledData.Variables[i];
+			if (ExplicitCaptureAttributes.Num() == 0 || ExplicitCaptureAttributes.Contains(DataSetVariable.GetName()))
+			{
+				CacheToDataSetVariables.Add(i);
+				TotalCacheComponents += DataSetVariableLayout.GetNumFloatComponents() + DataSetVariableLayout.GetNumHalfComponents() + DataSetVariableLayout.GetNumInt32Components();
+			}
+		}
+
+		const int32 NumCacheVariables = CacheToDataSetVariables.Num();
+
+		CacheLayout.Variables.AddDefaulted(NumCacheVariables);
+
+		CacheLayout.ComponentMappingsFromDataBuffer.Empty(TotalCacheComponents);
+		CacheLayout.ComponentMappingsFromDataBuffer.AddDefaulted(TotalCacheComponents);
 		CacheLayout.RebaseVariableNames = MoveTemp(InRebaseVariableNames);
 
-		for ( int32 iVariable=0; iVariable < NumVariables; ++iVariable)
+		for ( int32 iCacheVariable=0; iCacheVariable < NumCacheVariables; ++iCacheVariable)
 		{
-			const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData.VariableLayouts[iVariable];
-			FNiagaraSimCacheVariable& CacheVariable = CacheLayout.Variables[iVariable];
+			const int32 iDataSetVariable = CacheToDataSetVariables[iCacheVariable];
+			const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData.VariableLayouts[iDataSetVariable];
+			FNiagaraSimCacheVariable& CacheVariable = CacheLayout.Variables[iCacheVariable];
 
-			CacheVariable.Variable = CompiledData.Variables[iVariable];
+			CacheVariable.Variable = CompiledData.Variables[iDataSetVariable];
 			CacheVariable.FloatOffset = DataSetVariableLayout.GetNumFloatComponents() > 0 ? CacheLayout.FloatCount : INDEX_NONE;
 			CacheVariable.FloatCount = DataSetVariableLayout.GetNumFloatComponents();
 			CacheVariable.HalfOffset = DataSetVariableLayout.GetNumHalfComponents() > 0 ? CacheLayout.HalfCount : INDEX_NONE;
@@ -93,26 +109,27 @@ struct FNiagaraSimCacheHelper
 		int32 FloatOffset = 0;
 		int32 HalfOffset = CacheLayout.FloatCount;
 		int32 Int32Offset = HalfOffset + CacheLayout.HalfCount;
-		for (int32 iVariable = 0; iVariable < NumVariables; ++iVariable)
+		for (int32 iCacheVariable = 0; iCacheVariable < NumCacheVariables; ++iCacheVariable)
 		{
-			const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData.VariableLayouts[iVariable];
-			FNiagaraSimCacheVariable& CacheVariable = CacheLayout.Variables[iVariable];
+			const int32 iDataSetVariable = CacheToDataSetVariables[iCacheVariable];
+			const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData.VariableLayouts[iDataSetVariable];
+			FNiagaraSimCacheVariable& CacheVariable = CacheLayout.Variables[iCacheVariable];
 
 			for (int32 iComponent=0; iComponent < CacheVariable.FloatCount; ++iComponent)
 			{
-				CacheLayout.ComponentMappingsFromDataBuffer[FloatOffset] = CacheVariable.FloatOffset + iComponent;
+				CacheLayout.ComponentMappingsFromDataBuffer[FloatOffset] = DataSetVariableLayout.FloatComponentStart + iComponent;
 				++FloatOffset;
 			}
 
 			for (int32 iComponent=0; iComponent < CacheVariable.HalfCount; ++iComponent)
 			{
-				CacheLayout.ComponentMappingsFromDataBuffer[HalfOffset] = CacheVariable.HalfOffset + iComponent;
+				CacheLayout.ComponentMappingsFromDataBuffer[HalfOffset] = DataSetVariableLayout.HalfComponentStart + iComponent;
 				++HalfOffset;
 			}
 
 			for (int32 iComponent=0; iComponent < CacheVariable.Int32Count; ++iComponent)
 			{
-				CacheLayout.ComponentMappingsFromDataBuffer[Int32Offset] = CacheVariable.Int32Offset + iComponent;
+				CacheLayout.ComponentMappingsFromDataBuffer[Int32Offset] = DataSetVariableLayout.Int32ComponentStart + iComponent;
 				++Int32Offset;
 			}
 		}
@@ -121,12 +138,12 @@ struct FNiagaraSimCacheHelper
 		BuildCacheReadMappings(CacheLayout, CompiledData);
 	}
 
-	void BuildCacheLayoutForSystem(const FNiagaraSimCacheCreateParameters& CreateParmaeters, FNiagaraSimCacheDataBuffersLayout& CacheLayout)
+	void BuildCacheLayoutForSystem(const FNiagaraSimCacheCreateParameters& CreateParameters, FNiagaraSimCacheDataBuffersLayout& CacheLayout)
 	{
 		const FNiagaraDataSetCompiledData& SystemCompileData = NiagaraSystem->GetSystemCompiledData().DataSetCompiledData;
 
 		TArray<FName> RebaseVariableNames;
-		if ( CreateParmaeters.bAllowRebasing )
+		if ( CreateParameters.bAllowRebasing )
 		{
 			TArray<FString, TInlineAllocator<8>> LocalSpaceEmitters;
 			for ( int32 i=0; i < NiagaraSystem->GetNumEmitters(); ++i )
@@ -153,22 +170,22 @@ struct FNiagaraSimCacheHelper
 						}
 					}
 
-					if ( bIsLocalSpace == false && CreateParmaeters.RebaseExcludeList.Contains(Variable.GetName()) == false )
+					if ( bIsLocalSpace == false && CreateParameters.RebaseExcludeAttributes.Contains(Variable.GetName()) == false )
 					{
 						RebaseVariableNames.AddUnique(Variable.GetName());
 					}
 				}
-				else if ( CanRebaseVariable(Variable) && CreateParmaeters.RebaseIncludeList.Contains(Variable.GetName()) )
+				else if ( CanRebaseVariable(Variable) && CreateParameters.RebaseIncludeAttributes.Contains(Variable.GetName()) )
 				{
 					RebaseVariableNames.AddUnique(Variable.GetName());
 				}
 			}
 		}
 
-		BuildCacheLayout(CacheLayout, SystemCompileData, NiagaraSystem->GetFName(), MoveTemp(RebaseVariableNames));
+		BuildCacheLayout(CacheLayout, SystemCompileData, NiagaraSystem->GetFName(), MoveTemp(RebaseVariableNames), CreateParameters.ExplicitCaptureAttributes);
 	}
 
-	void BuildCacheLayoutForEmitter(const FNiagaraSimCacheCreateParameters& CreateParmaeters, FNiagaraSimCacheDataBuffersLayout& CacheLayout, int EmitterIndex)
+	void BuildCacheLayoutForEmitter(const FNiagaraSimCacheCreateParameters& CreateParameters, FNiagaraSimCacheDataBuffersLayout& CacheLayout, int EmitterIndex)
 	{
 		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterIndex);
 		const FNiagaraEmitterCompiledData& EmitterCompiledData = NiagaraSystem->GetEmitterCompiledData()[EmitterIndex].Get();
@@ -177,15 +194,15 @@ struct FNiagaraSimCacheHelper
 		CacheLayout.bLocalSpace = EmitterHandle.GetInstance().GetEmitterData()->bLocalSpace;
 
 		TArray<FName> RebaseVariableNames;
-		if ( CreateParmaeters.bAllowRebasing && CacheLayout.bLocalSpace == false )
+		if ( CreateParameters.bAllowRebasing && CacheLayout.bLocalSpace == false )
 		{
 			// Build list of include / exclude names
 			TArray<FName> ForceIncludeNames;
 			TArray<FName> ForceExcludeNames;
-			if ( CreateParmaeters.RebaseIncludeList.Num() > 0 || CreateParmaeters.RebaseExcludeList.Num() > 0 )
+			if ( CreateParameters.RebaseIncludeAttributes.Num() > 0 || CreateParameters.RebaseExcludeAttributes.Num() > 0 )
 			{
 				const FString EmitterName = EmitterHandle.GetUniqueInstanceName();
-				for (FName RebaseName : CreateParmaeters.RebaseIncludeList)
+				for (FName RebaseName : CreateParameters.RebaseIncludeAttributes)
 				{
 					FNiagaraVariableBase BaseVar(FNiagaraTypeDefinition::GetFloatDef(), RebaseName);
 					if (BaseVar.RemoveRootNamespace(EmitterName))
@@ -194,7 +211,7 @@ struct FNiagaraSimCacheHelper
 					}
 				}
 
-				for (FName RebaseName : CreateParmaeters.RebaseExcludeList)
+				for (FName RebaseName : CreateParameters.RebaseExcludeAttributes)
 				{
 					FNiagaraVariableBase BaseVar(FNiagaraTypeDefinition::GetFloatDef(), RebaseName);
 					if (BaseVar.RemoveRootNamespace(EmitterName))
@@ -244,8 +261,24 @@ struct FNiagaraSimCacheHelper
 				}
 			}
 		}
+		TArray<FName> ExplicitCaptureAttributes;
+		if ( CreateParameters.ExplicitCaptureAttributes.Num() > 0 )
+		{
+			const FString EmitterName = EmitterHandle.GetUniqueInstanceName();
+			for ( FName AttributeName : CreateParameters.ExplicitCaptureAttributes)
+			{
+				FNiagaraVariableBase AttributeVar(FNiagaraTypeDefinition::GetFloatDef(), AttributeName);
+				if (AttributeVar.RemoveRootNamespace(EmitterName))
+				{
+					if (AttributeVar.RemoveRootNamespace(FNiagaraConstants::ParticleAttributeNamespaceString))
+					{
+						ExplicitCaptureAttributes.Add(AttributeVar.GetName());
+					}
+				}
+			}
+		}
 
-		BuildCacheLayout(CacheLayout, EmitterCompiledData.DataSetCompiledData, EmitterHandle.GetName(), MoveTemp(RebaseVariableNames));
+		BuildCacheLayout(CacheLayout, EmitterCompiledData.DataSetCompiledData, EmitterHandle.GetName(), MoveTemp(RebaseVariableNames), ExplicitCaptureAttributes);
 	}
 
 	static bool BuildCacheReadMappings(FNiagaraSimCacheDataBuffersLayout& CacheLayout, const FNiagaraDataSetCompiledData& CompiledData)

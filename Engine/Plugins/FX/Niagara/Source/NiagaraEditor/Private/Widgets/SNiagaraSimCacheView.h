@@ -39,7 +39,7 @@ public:
 
 	void OnSimCacheChanged(const FAssetData& InAsset);
 
-	void OnSimCacheFrameChanged(const bool bRefresh);
+	void OnViewDataChanged(const bool bFullRefresh);
 
 	TArray<TSharedPtr<int32>>					RowItems;
 	TSharedPtr<FNiagaraSimCacheViewModel>		SimCacheViewModel;

@@ -8,6 +8,31 @@
 
 class UNiagaraComponent;
 
+UENUM(BlueprintType)
+enum class ENiagaraSimCacheAttributeCaptureMode : uint8
+{
+	/**
+	Captures all attributes available.
+	This kind of cache will be useful for restarting a simulation from or debugging.
+	*/
+	All UMETA(DisplayName = "Capture All Attributes"),
+
+	/**
+	Captures attributes that are required to render the system only.
+	This kind of cache is useful for rendering only and should have a much smaller
+	size than capturing all attributes.
+	*/
+	RenderingOnly UMETA(DisplayName = "Capture Attributes Needed For Rendering"),
+
+	/**
+	Captures only attributes that match the 'ExplicitCaptureAttributes' list provided by the user.
+	This kind of cache is useful to keep the size down if you need to debug a very
+	specific attribute, or you want to do some additional process on the attributes
+	i.e. capture MyEmitter.Particles.Position and place static meshes in those locations.
+	*/
+	ExplicitAttributes UMETA(DisplayName = "Capture Explicit Attributes Only"),
+};
+
 USTRUCT(BlueprintType)
 struct FNiagaraSimCacheCreateParameters
 {
@@ -18,6 +43,13 @@ struct FNiagaraSimCacheCreateParameters
 		, bAllowDataInterfaceCaching(true)
 	{
 	}
+
+	/**
+	How do we want to capture attributes for the simulation cache.
+	The mode selected depends on what situations the cache can be used in.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
+	ENiagaraSimCacheAttributeCaptureMode AttributeCaptureMode = ENiagaraSimCacheAttributeCaptureMode::All;
 
 	/**
 	When enabled allows the SimCache to be re-based.
@@ -34,26 +66,25 @@ struct FNiagaraSimCacheCreateParameters
 	uint32 bAllowDataInterfaceCaching : 1;
 
 	/**
-	When enabled the SimCache will only be useful for rendering a replay, it can not be used to restart
-	the simulation from as only attributes & data interface that impact rendering will be stored.
-	This should result in a much smaller caches.
-	*/
-	//UPROPERTY(EditAnywhere, Category="SimCache")
-	//uint32 bRenderOnly : 1;
-
-	/**
 	List of Attributes to force include in the SimCache rebase, they should be the full path to the attribute
 	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
-	TArray<FName> RebaseIncludeList;
+	TArray<FName> RebaseIncludeAttributes;
 
 	/**
 	List of Attributes to force exclude from the SimCache rebase, they should be the full path to the attribute
 	For example, MyEmitter.Particles.MyQuat would force the particle attribute MyQuat to be included for MyEmitter
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache")
-	TArray<FName> RebaseExcludeList;
+	TArray<FName> RebaseExcludeAttributes;
+
+	/**
+	List of attributes to capture when the capture attribute capture mode is set to explicit.
+	For example, adding MyEmitter.Particles.Position will only gather that attribute inside the cache.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SimCache", meta=(EditCondition="AttributeCaptureMode == ENiagaraSimCacheAttributeCaptureMode::ExplicitAttributes"))
+	TArray<FName> ExplicitCaptureAttributes;
 };
 
 USTRUCT()
@@ -224,11 +255,14 @@ class NIAGARA_API UNiagaraSimCache : public UObject
 {
 	friend struct FNiagaraSimCacheAttributeReaderHelper;
 	friend struct FNiagaraSimCacheHelper;
-	friend struct FSimCacheBufferReader;	//-TODO: Refactor to use API
+	friend class FNiagaraSimCacheViewModel;	//-TODO: Refactor to use API
 
 	GENERATED_UCLASS_BODY()
 
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheBeginWrite, UNiagaraSimCache*)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCacheEndWrite, UNiagaraSimCache*)
+
 	// UObject Interface
 	virtual bool IsReadyForFinishDestroy() override;
 	// UObject Interface
@@ -267,6 +301,13 @@ public:
 	/** Returns a list of emitters we have captured in the SimCache. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraSimCache)
 	TArray<FName> GetEmitterNames() const;
+
+	/**
+	Reads Niagara attributes by name from the cache frame and appends them into the relevant arrays.
+	When reading using this method the attributes for a FVector would come out as AoS rather than SoA so each component is wrote one by one
+	EmitterName - If left blank will return the system simulation attributes.
+	*/
+	void ReadAttribute(TArray<float>& OutFloats, TArray<FFloat16>& OutHalfs, TArray<int32>& OutInts, FName AttributeName, FName EmitterName, int FrameIndex = 0) const;
 
 	/**
 	Reads Niagara int attributes by name from the cache frame and appends them into the OutValues array.
@@ -375,4 +416,8 @@ private:
 	TMap<FNiagaraVariableBase, TObjectPtr<UObject>> DataInterfaceStorage;
 
 	mutable std::atomic<int32> PendingCommandsInFlight;
+
+public:
+	static FOnCacheBeginWrite	OnCacheBeginWrite;
+	static FOnCacheEndWrite		OnCacheEndWrite;
 };

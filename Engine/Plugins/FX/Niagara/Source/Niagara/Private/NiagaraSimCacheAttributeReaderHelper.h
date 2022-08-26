@@ -54,6 +54,24 @@ struct FNiagaraSimCacheAttributeReaderHelper
 
 	int32 GetNumInstances() const { check(IsValid()); return DataBuffers->NumInstances; }
 
+	void CopyComponentFloats(int32 Component, float* OutBuffer)
+	{
+		check(Component < Variable->FloatCount);
+		FMemory::Memcpy(OutBuffer, &DataBuffers->FloatData[(Variable->FloatOffset + Component) * DataBuffers->NumInstances * sizeof(float)], sizeof(float) * DataBuffers->NumInstances);
+	}
+
+	void CopyComponentHalfs(int32 Component, FFloat16* OutBuffer)
+	{
+		check(Component < Variable->HalfCount);
+		FMemory::Memcpy(OutBuffer, &DataBuffers->HalfData[(Variable->HalfOffset + Component) * DataBuffers->NumInstances * sizeof(FFloat16)], sizeof(FFloat16) * DataBuffers->NumInstances);
+	}
+
+	void CopyComponentInts(int32 Component, int32* OutBuffer)
+	{
+		check(Component < Variable->Int32Count);
+		FMemory::Memcpy(OutBuffer, &DataBuffers->Int32Data[(Variable->Int32Offset + Component) * DataBuffers->NumInstances * sizeof(int32)], sizeof(int32) * DataBuffers->NumInstances);
+	}
+
 	float ReadInt(int32 Instance) const
 	{
 		check(IsValid());

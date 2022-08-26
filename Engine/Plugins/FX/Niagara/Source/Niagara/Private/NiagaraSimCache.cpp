@@ -16,6 +16,9 @@
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
 
+UNiagaraSimCache::FOnCacheBeginWrite	UNiagaraSimCache::OnCacheBeginWrite;
+UNiagaraSimCache::FOnCacheEndWrite		UNiagaraSimCache::OnCacheEndWrite;
+
 UNiagaraSimCache::UNiagaraSimCache(const FObjectInitializer& ObjectInitializer)
 {
 }
@@ -29,6 +32,8 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 {
 	check(PendingCommandsInFlight == 0);
 
+	OnCacheBeginWrite.Broadcast(this);
+
 	FNiagaraSimCacheHelper Helper(NiagaraComponent);
 	if (Helper.HasValidSimulation() == false)
 	{
@@ -36,6 +41,9 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	}
 
 	Modify();
+#if WITH_EDITOR
+	PostEditChange();
+#endif
 
 	// Reset to defaults
 	SoftNiagaraSystem = Helper.NiagaraSystem;
@@ -44,6 +52,59 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	DurationSeconds = 0.0f;
 	CacheLayout = FNiagaraSimCacheLayout();
 	CacheFrames.Empty();
+
+	for ( auto it=DataInterfaceStorage.CreateIterator(); it; ++it )
+	{
+		it->Value->MarkAsGarbage();
+	}
+	DataInterfaceStorage.Empty();
+
+	// Not explicit capture mode?  Empty the list as internally we reuse this list when in rendering only mode
+	if (CreateParameters.AttributeCaptureMode == ENiagaraSimCacheAttributeCaptureMode::ExplicitAttributes)
+	{
+		// Invalid as the user specified nothing to actual capture
+		if (CreateParameters.ExplicitCaptureAttributes.IsEmpty())
+		{
+			SoftNiagaraSystem.Reset();
+			return;
+		}
+	}
+	else
+	{
+		CreateParameters.ExplicitCaptureAttributes.Empty();
+	}
+
+	// When in rendering only mode ask all renderers which attributes we need to capture
+	if ( CreateParameters.AttributeCaptureMode == ENiagaraSimCacheAttributeCaptureMode::RenderingOnly )
+	{
+	#if WITH_EDITORONLY_DATA
+		for ( const FNiagaraEmitterHandle& EmitterHandle : Helper.NiagaraSystem->GetEmitterHandles() )
+		{
+			EmitterHandle.GetInstance().GetEmitterData()->ForEachEnabledRenderer(
+				[&](UNiagaraRendererProperties* RenderProperties)
+				{
+					for (FNiagaraVariableBase BoundAttribute : RenderProperties->GetBoundAttributes())
+					{
+						FNameBuilder NameBuilder;
+						NameBuilder.Append(EmitterHandle.GetUniqueInstanceName());
+						NameBuilder.AppendChar(TEXT('.'));
+						BoundAttribute.GetName().AppendString(NameBuilder);
+
+						CreateParameters.ExplicitCaptureAttributes.Emplace(NameBuilder.ToString());
+					}
+				}
+			);
+		}
+	#endif
+		for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : Helper.SystemInstance->GetEmitters())
+		{
+			const FNiagaraParameterStore& RendererBindings = EmitterInstance->GetRendererBoundVariables();
+			for ( const FNiagaraVariableWithOffset& Variable : RendererBindings.ReadParameterVariables() )
+			{
+				CreateParameters.ExplicitCaptureAttributes.Add(Variable.GetName());
+			}
+		}
+	}
 
 	// Build new layout for system / emitters
 	Helper.BuildCacheLayoutForSystem(CreateParameters, CacheLayout.SystemLayout);
@@ -62,10 +123,13 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			Helper.SystemInstance,
 			[&](const FNiagaraVariableBase& Variable, UNiagaraDataInterface* DataInterface)
 			{
-				const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
-				if (UObject* DICacheStorage = DataInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData))
+				if ( (CreateParameters.ExplicitCaptureAttributes.Num() == 0) || CreateParameters.ExplicitCaptureAttributes.Contains(Variable.GetName()) )
 				{
-					DataInterfaceStorage.FindOrAdd(Variable) = DICacheStorage;
+					const void* PerInstanceData = Helper.SystemInstance->FindDataInterfaceInstanceData(DataInterface);
+					if (UObject* DICacheStorage = DataInterface->SimCacheBeginWrite(this, Helper.SystemInstance, PerInstanceData))
+					{
+						DataInterfaceStorage.FindOrAdd(Variable) = DICacheStorage;
+					}
 				}
 				return true;
 			}
@@ -201,6 +265,8 @@ void UNiagaraSimCache::EndWrite()
 			SoftNiagaraSystem.Reset();
 		}
 	}
+
+	OnCacheEndWrite.Broadcast(this);
 }
 
 bool UNiagaraSimCache::CanRead(UNiagaraSystem* NiagaraSystem)
@@ -384,6 +450,31 @@ TArray<FName> UNiagaraSimCache::GetEmitterNames() const
 	}
 
 	return EmitterNames;
+}
+
+void UNiagaraSimCache::ReadAttribute(TArray<float>& OutFloats, TArray<FFloat16>& OutHalfs, TArray<int32>& OutInts, FName AttributeName, FName EmitterName, int FrameIndex) const
+{
+	FNiagaraSimCacheAttributeReaderHelper AttributeReader(this, EmitterName, AttributeName, FrameIndex);
+	if ( AttributeReader.IsValid() )
+	{
+		const int32 OutFloatOffset = OutFloats.AddUninitialized(AttributeReader.Variable->FloatCount * AttributeReader.GetNumInstances());
+		for ( int32 i=0; i < AttributeReader.Variable->FloatCount; ++i )
+		{
+			AttributeReader.CopyComponentFloats(i, &OutFloats[OutFloatOffset + (i * AttributeReader.GetNumInstances())]);
+		}
+
+		const int32 OutHalfOffset = OutHalfs.AddUninitialized(AttributeReader.Variable->HalfCount * AttributeReader.GetNumInstances());
+		for (int32 i = 0; i < AttributeReader.Variable->HalfCount; ++i)
+		{
+			AttributeReader.CopyComponentHalfs(i, &OutHalfs[OutHalfOffset + (i * AttributeReader.GetNumInstances())]);
+		}
+
+		const int32 OutIntOffset = OutInts.AddUninitialized(AttributeReader.Variable->Int32Count * AttributeReader.GetNumInstances());
+		for (int32 i = 0; i < AttributeReader.Variable->Int32Count; ++i)
+		{
+			AttributeReader.CopyComponentInts(i, &OutInts[OutIntOffset + (i * AttributeReader.GetNumInstances())]);
+		}
+	}
 }
 
 void UNiagaraSimCache::ReadIntAttribute(TArray<int32>& OutValues, FName AttributeName, FName EmitterName, int FrameIndex) const
