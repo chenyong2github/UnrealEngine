@@ -28,6 +28,7 @@ public:
 	void ImmediateReadback(FNiagaraEmitterInstance* EmitterInstance);
 
 private:
+	void ReadbackCompleteInternal();
 	void GPUReadbackInternal(FRHICommandListImmediate& RHICmdList, FNiagaraGpuComputeDispatchInterface* DispatchInterface, FNiagaraComputeExecutionContext* GPUContext);
 
 private:
