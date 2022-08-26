@@ -349,8 +349,16 @@ UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForEditorWorld(FWor
 	return ResolvedObject;
 }
 
-UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForClassDefaultObject(FWorldSnapshotData& WorldData, int32 ObjectPathIndex)
+UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForClassDefaultObject(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, UObject* CurrentValue)
 {
+	// If the reference is supposed to be skipped...
+	if (const FObjectReferenceSnapshotMetaData* MetaData = WorldData.SerializedReferenceMetaData.Find(ObjectPathIndex)
+		; MetaData && (MetaData->Flags & EObjectReferenceSnapshotFlags::SkipWhenSerializingArchetypeData) != EObjectReferenceSnapshotFlags::None)
+	{
+		// ... make the property we're serializing point to whatever it was assigned by the class archetype
+		return CurrentValue;
+	}
+	
 	if (ensure(WorldData.SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
 	{
 		const FSoftObjectPath& OriginalObjectPath = WorldData.SerializedObjectReferences[ObjectPathIndex];

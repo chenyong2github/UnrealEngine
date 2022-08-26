@@ -123,7 +123,7 @@ FArchive& UE::LevelSnapshots::Private::FSnapshotArchive::operator<<(UObject*& Va
 			return *this;
 		}
 
-		Value = ResolveObjectDependency(ReferencedIndex);
+		Value = ResolveObjectDependency(ReferencedIndex, Value);
 		if (Value)
 		{
 			const ULevel* ResolvedOwningLevel = Value->GetTypedOuter<ULevel>();
@@ -140,7 +140,8 @@ FArchive& UE::LevelSnapshots::Private::FSnapshotArchive::operator<<(UObject*& Va
 	}
 	else
 	{
-		int32 ReferenceIndex = UE::LevelSnapshots::Private::AddObjectDependency(SharedData, Value);
+		int32 ReferenceIndex = AddObjectDependency(SharedData, Value);
+		OnAddObjectDependency(ReferenceIndex, Value);
 		*this << ReferenceIndex;
 	}
 	

@@ -23,11 +23,14 @@ namespace UE::LevelSnapshots
 			/** FWorldSnapshotData::ClassDefaults was replaced by FWorldSnapshotData::ClassData. */
 			ClassArchetypeRefactor = 3,
 
-			/** FWorldSnapshotData now compresses data using oodle before it is saved to disk */
+			/** FWorldSnapshotData now compresses data using Oodle before it is saved to disk */
 			OoddleCompression = 4,
 
 			/** Before this soft object references were saved by FCustomSerializationDataWriter using FObjectAndNameAsStringProxyArchive - if you moved the asset our data would get corrupted. */
 			CustomSubobjectSoftObjectPathRefactor = 5,
+
+			/** FWorldSnapshotData::SerializedReferenceMetaData was introduced. No migration needs to take place. This entry exists only for future proofing (in case something breaks). */
+			AddedSerializedReferenceMetaData = 6,
 
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,

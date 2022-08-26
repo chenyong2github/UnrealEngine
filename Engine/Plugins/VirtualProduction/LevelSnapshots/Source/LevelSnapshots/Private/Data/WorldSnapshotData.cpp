@@ -48,7 +48,7 @@ namespace UE::LevelSnapshots::Private::Internal
 
 	static void CollectEnums(FArchive& Ar)
 	{
-		TArray<UEnum*> Enums = { StaticEnum<ESnapshotClassFlags>() };
+		TArray<UEnum*> Enums = { StaticEnum<ESnapshotClassFlags>(), StaticEnum<EObjectReferenceSnapshotFlags>() };
 		for (UEnum* Enum : Enums)
 		{
 			FName ClassFlagsName = Enum->GetFName();
@@ -110,6 +110,7 @@ namespace UE::LevelSnapshots::Private::Internal
 		FPropertyIterator(FSubobjectSnapshotData::StaticStruct(), ProcessProperty, ProcessStruct);
 		FPropertyIterator(FCustomSerializationData::StaticStruct(), ProcessProperty, ProcessStruct);
 		FPropertyIterator(FClassSnapshotData::StaticStruct(), ProcessProperty, ProcessStruct);
+		FPropertyIterator(FObjectReferenceSnapshotMetaData::StaticStruct(), ProcessProperty, ProcessStruct);
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS

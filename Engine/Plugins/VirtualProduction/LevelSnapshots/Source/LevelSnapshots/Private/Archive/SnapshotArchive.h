@@ -26,16 +26,17 @@ namespace UE::LevelSnapshots::Private
 		virtual int64 Tell() override;
 		virtual void Seek(int64 InPos) override;
 		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
-	
 		virtual FArchive& operator<<(FName& Value) override;
 		virtual FArchive& operator<<(UObject*& Value) override;
 		virtual void Serialize(void* Data, int64 Length) override;
 		//~ End FArchive Interface
 
-		protected:
+	protected:
 	
 		/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
-		virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const = 0;
+		virtual UObject* ResolveObjectDependency(int32 ObjectIndex, UObject* CurrentValue) const = 0;
+		/** Called when an object dependency is saved. */
+		virtual void OnAddObjectDependency(int32 ObjectIndex, UObject* Object) const {}
 	
 		FWorldSnapshotData& GetSharedData() const { return SharedData;}
 		UObject* GetSerializedObject() const { return SerializedObject; }

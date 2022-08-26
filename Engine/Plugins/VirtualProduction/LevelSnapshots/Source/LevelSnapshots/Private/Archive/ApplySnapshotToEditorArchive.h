@@ -65,7 +65,7 @@ namespace UE::LevelSnapshots::Private
 	protected:
 
 		//~ Begin FSnapshotArchive Interface
-		virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const override;
+		virtual UObject* ResolveObjectDependency(int32 ObjectIndex, UObject* CurrentValue) const override;
 		//~ End FSnapshotArchive Interface
 
 	private:

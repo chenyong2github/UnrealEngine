@@ -23,10 +23,10 @@ namespace UE::LevelSnapshots::Private
 		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 		//~ End FSnapshotArchive Interface
 
-		protected:
+	protected:
 	
 		//~ Begin FSnapshotArchive Interface
-		virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const { checkNoEntry(); return nullptr; }
+		virtual UObject* ResolveObjectDependency(int32 ObjectIndex, UObject* CurrentValue) const { checkNoEntry(); return nullptr; }
 		//~ End FSnapshotArchive Interface
 
 	private:

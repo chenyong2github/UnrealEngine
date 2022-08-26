@@ -11,26 +11,12 @@ struct FWorldSnapshotData;
 
 namespace UE::LevelSnapshots::Private
 {
-	/* Shared logic for serializing class defaults. */
+	/** Shared logic for serializing class defaults. */
 	class FBaseClassDefaultArchive : public FSnapshotArchive
 	{
 		using Super = FSnapshotArchive;
-	public:
-
-		//~ Begin FSnapshotArchive Interface
-		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
-		//~ End FSnapshotArchive Interface
-
-		protected:
-	
-		//~ Begin FSnapshotArchive Interface
-		virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const override;
-		//~ End FSnapshotArchive Interface
+	protected:
 	
 		FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore);
-
-	private:
-	
-		bool IsPropertyReferenceToSubobjectOrClassDefaults(const FProperty* InProperty) const;
 	};
 }

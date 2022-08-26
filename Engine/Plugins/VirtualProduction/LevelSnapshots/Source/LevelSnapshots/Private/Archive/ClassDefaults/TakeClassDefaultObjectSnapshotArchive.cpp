@@ -15,6 +15,24 @@ void UE::LevelSnapshots::Private::FTakeClassDefaultObjectSnapshotArchive::SaveCl
 	InObjectData.ClassFlags = SerializedObject->GetClass()->GetFlags();
 }
 
+void UE::LevelSnapshots::Private::FTakeClassDefaultObjectSnapshotArchive::OnAddObjectDependency(int32 ObjectIndex, UObject* Object) const
+{
+	if (Object)
+	{
+		const bool bIsClassDefault = Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject);
+		const bool bIsPointingToDefaultSubobject = Object->HasAnyFlags(RF_DefaultSubObject);
+		const bool bIsPointingToSelf = Object == GetSerializedObject();
+		const bool bIsPointingToSubobject = Object->IsIn(GetSerializedObject());
+		const bool bShouldSkip = bIsClassDefault || bIsPointingToDefaultSubobject || bIsPointingToSelf || bIsPointingToSubobject;
+
+		// We don't ever want to interfere with the default subobjects that the class archetype assigns so the reference is marked so we know it is supposed to be skipped when restoring 
+		if (bShouldSkip)
+		{
+			GetSharedData().SerializedReferenceMetaData.FindOrAdd(ObjectIndex).Flags |= EObjectReferenceSnapshotFlags::SkipWhenSerializingArchetypeData;
+		}
+	}
+}
+
 UE::LevelSnapshots::Private::FTakeClassDefaultObjectSnapshotArchive::FTakeClassDefaultObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InSerializedObject)
 	:
 	Super(InObjectData, InSharedData, false, InSerializedObject)
