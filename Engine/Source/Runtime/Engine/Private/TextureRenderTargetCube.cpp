@@ -110,18 +110,22 @@ void UTextureRenderTargetCube::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	// If this is an interactive size edit, notify any scene capture component that points to this render target that it needs to refresh.
-	// During interactive edits, time is paused, so the Tick function which normally handles capturing isn't called.
+	// Notify any scene capture components that point to this texture that they may need to refresh
 	static const FName SizeXName = GET_MEMBER_NAME_CHECKED(UTextureRenderTargetCube, SizeX);
 
-	if ((PropertyChangedEvent.ChangeType & EPropertyChangeType::Interactive) && PropertyChangedEvent.GetPropertyName() == SizeXName)
+	if (PropertyChangedEvent.GetPropertyName() == SizeXName)
 	{
 		for (TObjectIterator<USceneCaptureComponentCube> It; It; ++It)
 		{
 			USceneCaptureComponentCube* SceneCaptureComponent = *It;
 			if (SceneCaptureComponent->TextureTarget == this)
 			{
-				SceneCaptureComponent->CaptureSceneDeferred();
+				// During interactive edits, time is paused, so the Tick function which normally handles capturing isn't called, and we
+				// need a manual refresh.  We also need a refresh if the capture doesn't happen automatically every frame.
+				if ((PropertyChangedEvent.ChangeType & EPropertyChangeType::Interactive) || !SceneCaptureComponent->bCaptureEveryFrame)
+				{
+					SceneCaptureComponent->CaptureSceneDeferred();
+				}
 			}
 		}
 	}
