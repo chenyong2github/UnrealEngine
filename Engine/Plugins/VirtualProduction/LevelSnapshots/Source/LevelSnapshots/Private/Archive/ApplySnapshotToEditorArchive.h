@@ -59,7 +59,6 @@ namespace UE::LevelSnapshots::Private
 	
 		//~ Begin FTakeSnapshotArchiveV2 Interface
 		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
-		virtual void PushSerializedProperty(FProperty* InProperty, const bool bIsEditorOnlyProperty) override;
 		//~ End FTakeSnapshotArchiveV2 Interface
 
 	protected:
@@ -70,15 +69,12 @@ namespace UE::LevelSnapshots::Private
 
 	private:
 
-		using FOnSerializeProperty = TFunctionRef<void(const FArchiveSerializedPropertyChain*, const FProperty*)>;
-
 		FApplySnapshotToEditorArchive(
 			FObjectSnapshotData& InObjectData,
 			FWorldSnapshotData& InSharedData,
 			UObject* InOriginalObject,
 			const FPropertySelectionMap& InSelectionMapForResolvingSubobjects,
 			TOptional<const FPropertySelection*> InSelectionSet,
-			FOnSerializeProperty InOnPropertySerialized,
 			FSnapshotDataCache& Cache
 			);
 
@@ -89,9 +85,6 @@ namespace UE::LevelSnapshots::Private
 	
 		/** Immutable list of properties we are supposed to serialise. Serialize all properties if unset. */
 		TOptional<const FPropertySelection*> SelectionSet;
-
-		/** After serialisation is done, we can tell which properties are still left to serialise (i.e. copy from deserialized). */
-		FOnSerializeProperty OnPropertySerialized;
 
 		FSnapshotDataCache& Cache;
 	};

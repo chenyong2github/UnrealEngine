@@ -2,7 +2,6 @@
 
 #include "BaseClassDefaultArchive.h"
 
-#include "Data/Util/Property/PropertyUtil.h"
 #include "WorldSnapshotData.h"
 
 UE::LevelSnapshots::Private::FBaseClassDefaultArchive::FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore)
