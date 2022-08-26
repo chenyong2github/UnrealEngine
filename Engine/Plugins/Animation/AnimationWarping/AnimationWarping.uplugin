@@ -21,7 +21,7 @@
 		{
 			"Name": "AnimationWarpingEditor",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 	]
 }
