@@ -905,6 +905,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	static void PrimeSound(USoundBase* InSound);
 
+	/** Get list of available Audio Spatialization Plugin names */
+	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static TArray<FName> GetAvailableSpatialPluginNames(const UObject* WorldContextObject);
+
+	/** Get currently active Audio Spatialization Plugin name */
+	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static FName GetActiveSpatialPluginName(const UObject* WorldContextObject);
+
+	/** Get list of available Audio Spatialization Plugins */
+	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
+	static bool SetActiveSpatialPluginByName(const UObject* WorldContextObject, FName InPluginName);
+
 	/** Primes the sound waves in the given USoundClass, caching the first chunk of streamed audio. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
 	static void PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass);

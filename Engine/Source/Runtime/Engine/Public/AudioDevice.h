@@ -515,9 +515,9 @@ public:
 	 */
 	FAudioDevice();
 
-	virtual ~FAudioDevice()
-	{
-	}
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // supress deprecation warning in default dtor
+	virtual ~FAudioDevice() = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Returns an array of available audio devices names for the platform */
 	virtual void GetAudioDeviceList(TArray<FString>& OutAudioDeviceNames) const
@@ -1329,11 +1329,23 @@ public:
 		return bSpatializationInterfaceEnabled;
 	}
 
+	/** Set and initialize the current Spatialization plugin (by name) */
+	bool SetCurrentSpatializationPlugin(FName PluginName);
+
+	/** Get the current list of available spatialization plugins */
+	TArray<FName> GetAvailableSpatializationPluginNames() const;
+
 	/** Return the spatialization plugin interface. */
 	TAudioSpatializationPtr GetSpatializationPluginInterface()
 	{
-		return SpatializationPluginInterface;
+		return GetCurrentSpatializationPluginInterfaceInfo().SpatializationPlugin;
 	}
+
+	/** Return the spatialization plugin interface info (requested by name). */
+	struct FAudioSpatializationInterfaceInfo;
+	FAudioSpatializationInterfaceInfo GetCurrentSpatializationPluginInterfaceInfo();
+
+	bool SpatializationPluginInterfacesAvailable();
 
 	/** Whether or not there's a modulation plugin enabled. */
 	bool IsModulationPluginEnabled() const
@@ -2003,9 +2015,34 @@ public:
 	/** The handle for this audio device used in the audio device manager. */
 	Audio::FDeviceId DeviceID;
 
-	/** 3rd party audio spatialization interface. */
-	TAudioSpatializationPtr SpatializationPluginInterface;
+	struct ENGINE_API FAudioSpatializationInterfaceInfo
+	{
+		// ctors
+		FAudioSpatializationInterfaceInfo() = default;
+		FAudioSpatializationInterfaceInfo(FName InPluginName, FAudioDevice* InAudioDevice, IAudioSpatializationFactory* InAudioSpatializationFactoryPtr);
 
+		bool IsValid() const;
+
+		FName PluginName;
+		TAudioSpatializationPtr SpatializationPlugin = nullptr;
+		int32 MaxChannelsSupportedBySpatializationPlugin = 1;
+		uint8 bSpatializationIsExternalSend:1;
+		uint8 bIsInitialized:1;
+	};
+
+	UE_DEPRECATED(5.1, "Do not access this member directly, it is not used. Call GetSpatializationPluginInterface() instead.")
+	TAudioSpatializationPtr SpatializationPluginInterface = nullptr;
+
+protected:
+	/** 3rd party audio spatialization interface. */
+	FName CurrentSpatializationPluginInterfaceName;
+	TArray<FAudioSpatializationInterfaceInfo> SpatializationInterfaces;
+	FAudioSpatializationInterfaceInfo* CurrentSpatializationInterfaceInfoPtr = nullptr;
+
+	/** Cached parameters passed to the initialization of various audio plugins */
+	FAudioPluginInitializationParams PluginInitializationParams;
+
+public:
 	/** 3rd party source data override interface. */
 	TAudioSourceDataOverridePtr SourceDataOverridePluginInterface;
 
@@ -2145,13 +2182,20 @@ public:
 	/** Whether or not the audio mixer module is being used by this device. */
 	uint8 bAudioMixerModuleLoaded : 1;
 
-	/** Whether of not various audio plugin interfaces are external sends. */
-	uint8 bSpatializationIsExternalSend:1;
+	/** Whether or not various audio plugin interfaces are external sends. */
 	uint8 bOcclusionIsExternalSend:1;
 	uint8 bReverbIsExternalSend:1;
 
+// deprecate these as they have been moved to the info struct.
+
+	UE_DEPRECATED(5.1, "This member is no longer  in use. Use the return value of GetCurrentSpatializationPluginInterfaceInfo()")
+	uint8 bSpatializationIsExternalSend:1;
+
 	/** Max amount of channels a source can be to be spatialized by our active spatialization plugin. */
+	UE_DEPRECATED(5.1, "This member is no longer  in use. Use the return value of GetCurrentSpatializationPluginInterfaceInfo()")
 	int32 MaxChannelsSupportedBySpatializationPlugin;
+
+
 
 private:
 	/** True once the startup sounds have been precached */

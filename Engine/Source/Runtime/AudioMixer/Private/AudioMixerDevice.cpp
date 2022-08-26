@@ -424,12 +424,11 @@ namespace Audio
 				// TODO: Migrate this to project settings properly
 				SourceManagerInitParams.NumSourceWorkers = 4;
 
-				SourceManager->Init(SourceManagerInitParams);
 
 				AudioClock = 0.0;
 				AudioClockDelta = (double)OpenStreamParams.NumFrames / OpenStreamParams.SampleRate;
 
-				FAudioPluginInitializationParams PluginInitializationParams;
+
 				PluginInitializationParams.NumSources = SourceManagerInitParams.NumSources;
 				PluginInitializationParams.SampleRate = SampleRate;
 				PluginInitializationParams.BufferLength = OpenStreamParams.NumFrames;
@@ -439,10 +438,8 @@ namespace Audio
 					LLM_SCOPE(ELLMTag::AudioMixerPlugins);
 
 					// Initialize any plugins if they exist
-					if (SpatializationPluginInterface.IsValid())
-					{
-						SpatializationPluginInterface->Initialize(PluginInitializationParams);
-					}
+					// spatialization
+					SetCurrentSpatializationPlugin(AudioPluginUtilities::GetDesiredSpatializationPluginName());
 
 					if (OcclusionInterface.IsValid())
 					{
@@ -459,6 +456,9 @@ namespace Audio
  						SourceDataOverridePluginInterface->Initialize(PluginInitializationParams);
  					}
 				}
+
+				// initialize the source manager after our plugins are spun up (cached by sources)
+				SourceManager->Init(SourceManagerInitParams);
 
 				// Need to set these up before we start the audio stream.
 				InitSoundSubmixes();

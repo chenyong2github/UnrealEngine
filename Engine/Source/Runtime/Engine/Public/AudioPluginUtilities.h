@@ -16,6 +16,8 @@ struct ENGINE_API AudioPluginUtilities
 	 * 
 	 * if no matching plugin is found, nullptr is returned.
 	 */
+	static FName GetDesiredSpatializationPluginName();
+	static TArray<IAudioSpatializationFactory*> GetSpatialPluginArray();
 	static IAudioSpatializationFactory* GetDesiredSpatializationPlugin();
 	static IAudioSourceDataOverrideFactory* GetDesiredSourceDataOverridePlugin();
 	static IAudioReverbFactory* GetDesiredReverbPlugin();

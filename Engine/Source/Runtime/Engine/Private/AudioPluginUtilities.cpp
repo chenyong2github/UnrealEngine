@@ -46,6 +46,17 @@ FORCEINLINE const TCHAR* GetPluginConfigName(EAudioPlugin PluginType)
 /************************************************************************/
 /* Plugin Utilities                                                     */
 /************************************************************************/
+FName AudioPluginUtilities::GetDesiredSpatializationPluginName()
+{
+	return FName(GetDesiredPluginName(EAudioPlugin::SPATIALIZATION));
+}
+
+TArray<IAudioSpatializationFactory*> AudioPluginUtilities::GetSpatialPluginArray()
+{
+	IModularFeatures::FScopedLockModularFeatureList ScopedLockModularFeatureList;
+	return IModularFeatures::Get().GetModularFeatureImplementations<IAudioSpatializationFactory>(IAudioSpatializationFactory::GetModularFeatureName());
+}
+
 IAudioSpatializationFactory* AudioPluginUtilities::GetDesiredSpatializationPlugin()
 {
 	FString DesiredSpatializationPlugin = GetDesiredPluginName(EAudioPlugin::SPATIALIZATION);
