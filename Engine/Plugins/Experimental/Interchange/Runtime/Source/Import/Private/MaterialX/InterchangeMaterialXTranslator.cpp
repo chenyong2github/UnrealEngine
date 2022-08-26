@@ -60,8 +60,10 @@ namespace UE::Interchange::MaterialX
 UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 #if WITH_EDITOR
 	:
-InputNamesMaterialX2UE{
+InputNamesMaterialX2UE
+{
 	{{TEXT(""),                         TEXT("bg")},		TEXT("B")},
+	{{TEXT(""),                         TEXT("center")},		TEXT("Center")},
 	{{TEXT(""),                         TEXT("fg")},		TEXT("A")},
 	{{TEXT(""),                         TEXT("high")},		TEXT("Max")},
 	{{TEXT(""),                         TEXT("in")},		TEXT("Input")},
@@ -69,24 +71,46 @@ InputNamesMaterialX2UE{
 	{{TEXT(""),                         TEXT("in2")},		TEXT("B")},
 	{{TEXT(""),                         TEXT("in3")},		TEXT("C")},
 	{{TEXT(""),                         TEXT("in4")},		TEXT("D")},
+	{{TEXT(""),                         TEXT("inlow")},     TEXT("InputLow")},
+	{{TEXT(""),                         TEXT("inhigh")},    TEXT("InputHigh")},
 	{{TEXT(""),                         TEXT("low")},		TEXT("Min")},
+	{{TEXT(""),                         TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
 	{{TEXT(""),                         TEXT("mix")},		TEXT("Factor")},
 	{{TEXT(""),                         TEXT("texcoord")},  TEXT("Coordinates")},
+	{{TEXT(""),                         TEXT("outlow")},    TEXT("TargetLow")},
+	{{TEXT(""),                         TEXT("outhigh")},   TEXT("TargetHigh")},
+	{{TEXT(""),                         TEXT("valuel")},    TEXT("A")},
+	{{TEXT(""),                         TEXT("valuer")},    TEXT("B")},
 	{{MaterialX::Category::Atan2,       TEXT("in1")},       TEXT("Y")},
 	{{MaterialX::Category::Atan2,       TEXT("in2")},       TEXT("X")},
+	{{MaterialX::Category::IfGreater,   TEXT("value1")},    TEXT("A")},
+	{{MaterialX::Category::IfGreater,   TEXT("value2")},    TEXT("B")},
+	{{MaterialX::Category::IfGreater,   TEXT("in1")},       TEXT("AGreaterThanB")},
+	{{MaterialX::Category::IfGreater,   TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case equal see ConnectIfGreater
+	{{MaterialX::Category::IfGreaterEq, TEXT("value1")},    TEXT("A")},
+	{{MaterialX::Category::IfGreaterEq, TEXT("value2")},    TEXT("B")},
+	{{MaterialX::Category::IfGreaterEq, TEXT("in1")},       TEXT("AGreaterThanB")}, //another is added for the case equal see ConnectIfGreaterEq
+	{{MaterialX::Category::IfGreaterEq, TEXT("in2")},       TEXT("ALessThanB")},
+	{{MaterialX::Category::IfEqual,     TEXT("value1")},    TEXT("A")},
+	{{MaterialX::Category::IfEqual,     TEXT("value2")},    TEXT("B")},
+	{{MaterialX::Category::IfEqual,     TEXT("in1")},       TEXT("AEqualsB")},
+	{{MaterialX::Category::IfEqual,     TEXT("in2")},       TEXT("ALessThanB")}, //another input is added for the case greater see ConnectIfEqual
+	{{MaterialX::Category::Invert,      TEXT("amount")},    TEXT("A")},
+	{{MaterialX::Category::Invert,      TEXT("in")},        TEXT("B")},
 	{{MaterialX::Category::Magnitude,   TEXT("in")},        TEXT("A")},
 	{{MaterialX::Category::Mix,         TEXT("fg")},        TEXT("B")},
 	{{MaterialX::Category::Mix,         TEXT("bg")},        TEXT("A")},
 	{{MaterialX::Category::Normalize,   TEXT("in")},        TEXT("VectorInput")},
 	{{MaterialX::Category::Power,       TEXT("in1")},       TEXT("Base")},
 	{{MaterialX::Category::Power,	    TEXT("in2")},       TEXT("Exponent")},
-	{{MaterialX::Category::Invert,      TEXT("amount")},    TEXT("A")},
-	{{MaterialX::Category::Invert,      TEXT("in")},        TEXT("B")},
 	{{MaterialX::Category::Rotate2D,    TEXT("amount")},    TEXT("RotationAngle")},
 	{{MaterialX::Category::Rotate2D,    TEXT("in")},        TEXT("Position")},
 	{{MaterialX::Category::Rotate3D,    TEXT("amount")},    TEXT("RotationAngle")},
 	{{MaterialX::Category::Rotate3D,    TEXT("axis")},		TEXT("NormalizedRotationAxis")},
-	{{MaterialX::Category::Rotate3D,    TEXT("in")},        TEXT("Position")} },
+	{{MaterialX::Category::Rotate3D,    TEXT("in")},        TEXT("Position")},
+	{{MaterialX::Category::Saturate,    TEXT("amount")},    TEXT("Fraction")},
+	{{MaterialX::Category::Smoothstep,  TEXT("in")},        TEXT("Value")},
+},
 NodeNamesMaterialX2UE{
 	// Math nodes
 	{MaterialX::Category::Absval,       TEXT("Abs")},
@@ -103,6 +127,7 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::Exp,          TEXT("Exponential")},
 	{MaterialX::Category::Floor,        TEXT("Floor")},
 	{MaterialX::Category::Invert,       TEXT("Subtract")},
+	{MaterialX::Category::Ln,           TEXT("Logarithm")},
 	{MaterialX::Category::Magnitude,    TEXT("Length")},
 	{MaterialX::Category::Max,          TEXT("Max")},
 	{MaterialX::Category::Min,          TEXT("Min")},
@@ -110,8 +135,12 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::Multiply,     TEXT("Multiply")},
 	{MaterialX::Category::Normalize,    TEXT("Normalize")},
 	{MaterialX::Category::Power,        TEXT("Power")},
+	{MaterialX::Category::RampLR,       TEXT("RampLeftRight")},
+	{MaterialX::Category::RampTB,       TEXT("RampTopBottom")},
 	{MaterialX::Category::Sign,         TEXT("Sign")},
 	{MaterialX::Category::Sin,          TEXT("Sine")},
+	{MaterialX::Category::SplitLR,      TEXT("SplitLeftRight")},
+	{MaterialX::Category::SplitTB,      TEXT("SplitTopBottom")},
 	{MaterialX::Category::Sqrt,         TEXT("SquareRoot")},
 	{MaterialX::Category::Sub,          TEXT("Subtract")},
 	{MaterialX::Category::Tan,          TEXT("Tangent")},
@@ -125,21 +154,36 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::TexCoord,		TEXT("TextureCoordinate")},
 	// Adjustment nodes,
 	{MaterialX::Category::HsvToRgb,		TEXT("HsvToRgb")},
-	{MaterialX::Category::RgbToHsv,		TEXT("RgbToHsv")}},
-UEInputs{
+	{MaterialX::Category::Luminance,    TEXT("Luminance")},
+	{MaterialX::Category::Remap,        TEXT("Remap")},
+	{MaterialX::Category::RgbToHsv,		TEXT("RgbToHsv")},
+	{MaterialX::Category::Saturate,		TEXT("Desaturation")},
+	{MaterialX::Category::Smoothstep,   TEXT("SmoothStep")}
+},
+UEInputs
+{
     TEXT("A"),
 	TEXT("B"),
     TEXT("Base"),
-    TEXT("Exponent"),
     TEXT("C"),
+	TEXT("Center"),
     TEXT("D"),
+	TEXT("Exponent"),
     TEXT("Factor"),
+	TEXT("Fraction"),
     TEXT("Input"),
+	TEXT("InputLow"),
+	TEXT("InputHigh"),
+	TEXT("LuminanceFactors"),
     TEXT("Max"),
     TEXT("Min"),
-    TEXT("VectorInput")
+	TEXT("TargetLow"),
+	TEXT("TargetHigh"),
+	TEXT("Value"),
+    TEXT("VectorInput"),
     TEXT("X"),
-    TEXT("Y")}
+    TEXT("Y")
+}
 #endif // WITH_EDITOR
 {
 }
@@ -838,12 +882,17 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 			return false;
 		}
 
-		//Let's substitute all the sub graphs, so we don't have to handle them ourselves, but they will be handled by smaller operations		
+		//Let's substitue all the sub graphs, so we don't have to handle them ourselves, but they will be handled by smaller operations		
 		//extract and separate nodes will be handled by ourselves, since they are defined with a swizzle node, which is not present in UE
 		auto FilterNodes = [](mx::NodePtr Node) ->bool
 		{
 			const std::string& Category= Node->getCategory();
-			return Category != "extract" && Category != "separate2" && Category != "separate3" && Category != "separate4";
+			return 
+				Category != mx::Category::Extract &&
+				Category != mx::Category::Saturate &&
+				Category != mx::Category::Separate2 &&
+				Category != mx::Category::Separate3 &&
+				Category != mx::Category::Separate4;
 		};
 
 		Output->getParent()->asA<mx::NodeGraph>()->flattenSubgraphs(mx::EMPTY_STRING, FilterNodes);
@@ -912,6 +961,18 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				{
 					ConnectConvertInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
 				}
+				else if(UpstreamNode->getCategory() == mx::Category::IfGreater)
+				{
+					ConnectIfGreaterInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::IfGreaterEq)
+				{
+					ConnectIfGreaterEqInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::IfEqual)
+				{
+					ConnectIfEqualInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
 				else
 				{
 					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
@@ -946,7 +1007,6 @@ bool UInterchangeMaterialXTranslator::ConnectNodeOutputToInput(MaterialX::NodePt
 			}
 			else if(Input->hasInterfaceName())
 			{
-				auto NodeDef = Node->getNodeDef();
 				mx::InputPtr InputInterface = Input->getInterfaceInput();
 				if(InputInterface && InputInterface->hasValue())
 				{
@@ -1406,7 +1466,9 @@ void UInterchangeMaterialXTranslator::ConnectImageInputToOutput(MaterialX::NodeP
 		FString OutputChannel{ TEXT("RGB") };
 
 		if(UpstreamNode->getType() == mx::Type::Vector4 || UpstreamNode->getType() == mx::Type::Color4)
+		{
 			OutputChannel = TEXT("RGBA");
+		}
 
 		UInterchangeShaderNode* TextureShaderNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TextureSample::Name.ToString(), NamesToShaderNodes, NodeContainer);
 		TextureShaderNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
@@ -1556,6 +1618,123 @@ void UInterchangeMaterialXTranslator::ConnectConvertInputToOutput(MaterialX::Nod
 
 		// Input now points to the new node
 		Input->setNodeName(CombineNode->getName());
+	}
+}
+
+void UInterchangeMaterialXTranslator::ConnectIfGreaterInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	UInterchangeShaderNode* NodeIf = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("If"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NodeIf->GetUniqueID());
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("value1"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+	
+	if(mx::InputPtr Input = UpstreamNode->getInput("value2"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+	
+	if(mx::InputPtr Input = UpstreamNode->getInput("in1"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	//In that case we also need to add an attribute to AEqualsB
+	mx::InputPtr Input = UpstreamNode->getInput("in2");
+	if(Input)
+	{
+		if(Input->hasValueString())
+		{
+			AddAttribute(Input, GetInputName(Input), NodeIf);
+			AddAttribute(Input, TEXT("AEqualsB"), NodeIf);
+		}
+		else
+		{
+			//Let's add a new input that is a copy of in2 to connect it to the equal input
+			mx::InputPtr Input3 = UpstreamNode->addInput("in3");
+			Input3->copyContentFrom(Input);
+			RenameInput(Input3, "AEqualsB");
+		}
+	}
+}
+
+void UInterchangeMaterialXTranslator::ConnectIfGreaterEqInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode * ParentShaderNode, const FString & InputChannelName, TMap<FString, UInterchangeShaderNode*>&NamesToShaderNodes, UInterchangeBaseNodeContainer & NodeContainer) const
+{
+	UInterchangeShaderNode* NodeIf = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("If"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NodeIf->GetUniqueID());
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("value1"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("value2"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("in2"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	//In that case we also need to add an attribute to AEqualsB
+	mx::InputPtr Input = UpstreamNode->getInput("in1");
+	if(Input)
+	{
+		if(Input->hasValueString())
+		{
+			AddAttribute(Input, GetInputName(Input), NodeIf);
+			AddAttribute(Input, TEXT("AEqualsB"), NodeIf);
+		}
+		else
+		{
+			//Let's add a new input that is a copy of in2 to connect it to the equal input
+			mx::InputPtr Input3 = UpstreamNode->addInput("in3");
+			Input3->copyContentFrom(Input);
+			RenameInput(Input3, "AEqualsB");
+		}
+	}
+}
+
+void UInterchangeMaterialXTranslator::ConnectIfEqualInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode * ParentShaderNode, const FString & InputChannelName, TMap<FString, UInterchangeShaderNode*>&NamesToShaderNodes, UInterchangeBaseNodeContainer & NodeContainer) const
+{
+	UInterchangeShaderNode* NodeIf = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("If"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NodeIf->GetUniqueID());
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("value1"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("value2"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	if(mx::InputPtr Input = UpstreamNode->getInput("in1"); Input && Input->hasValueString())
+	{
+		AddAttribute(Input, GetInputName(Input), NodeIf);
+	}
+
+	//In that case we also need to add an attribute to AGreaterThanB
+	mx::InputPtr Input = UpstreamNode->getInput("in2");
+	if(Input)
+	{
+		if(Input->hasValueString())
+		{
+			AddAttribute(Input, GetInputName(Input), NodeIf);
+			AddAttribute(Input, TEXT("AGreaterThanB"), NodeIf);
+		}
+		else
+		{
+			//Let's add a new input that is a copy of in2 to connect it to the equal input
+			mx::InputPtr Input3 = UpstreamNode->addInput("in3");
+			Input3->copyContentFrom(Input);
+			RenameInput(Input3, "AGreaterThanB");
+		}
 	}
 }
 
