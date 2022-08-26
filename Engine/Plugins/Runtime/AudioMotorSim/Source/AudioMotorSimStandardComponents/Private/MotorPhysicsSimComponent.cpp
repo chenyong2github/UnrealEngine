@@ -16,7 +16,8 @@ void UMotorPhysicsSimComponent::Update(FAudioMotorSimInputContext& Input, FAudio
 	const float SpeedKmh = AudioMotorSim::CmsToKmh(Input.Speed);
 
 	int32& Gear = RuntimeInfo.Gear;
-
+	const int32 PrevGear = Gear;
+	
 	const float ClutchModifier = Input.bClutchEngaged ? ClutchedForceModifier : 1.f;
 	
 	//Forces in Newtons.
@@ -43,7 +44,6 @@ void UMotorPhysicsSimComponent::Update(FAudioMotorSimInputContext& Input, FAudio
 		if (Gear < MaxGear || bUseInfiniteGears)
 		{
 			++Gear;
-			OnGearChangedEvent.Broadcast(Gear);
 		}
 
 		Rpm = CalcRpm(GetGearRatio(Gear, Input.bClutchEngaged), VirtualSpeedKmh);
@@ -53,6 +53,11 @@ void UMotorPhysicsSimComponent::Update(FAudioMotorSimInputContext& Input, FAudio
 	{
 		Gear = bAlwaysDownshiftToZerothGear ? 0 : Gear - 1;
 		Rpm = DownShiftStartRpm;
+	}
+
+	if(Gear != PrevGear)
+	{
+		OnGearChangedEvent.Broadcast(Gear);
 	}
 
 	RuntimeInfo.Rpm = FMath::FInterpTo(RuntimeInfo.Rpm, Rpm, Input.DeltaTime, RpmInterpSpeed);
