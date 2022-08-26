@@ -63,20 +63,27 @@ void UPCGComponent::SetIsPartitioned(bool bIsNowPartitioned)
 
 	bool bDoActorMapping = bGenerated || PCGHelpers::IsRuntimeOrPIE();
 
-	if (bGenerated)
+	if (UPCGSubsystem* Subsystem = GetSubsystem())
 	{
-		CleanupLocalImmediate(/*bRemoveComponents=*/true);
-	}
+		if (bGenerated)
+		{
+			CleanupLocalImmediate(/*bRemoveComponents=*/true);
+		}
 
-	if (bIsNowPartitioned)
-	{
-		bIsPartitioned = bIsNowPartitioned;
-		GetSubsystem()->RegisterOrUpdatePCGComponent(this, bDoActorMapping);
+		if (bIsNowPartitioned)
+		{
+			bIsPartitioned = bIsNowPartitioned;
+			Subsystem->RegisterOrUpdatePCGComponent(this, bDoActorMapping);
+		}
+		else
+		{
+			Subsystem->UnregisterPCGComponent(this);
+			bIsPartitioned = bIsNowPartitioned;
+		}
 	}
 	else
 	{
-		GetSubsystem()->UnregisterPCGComponent(this);
-		bIsPartitioned = bIsNowPartitioned;
+		bIsPartitioned = false;
 	}
 }
 

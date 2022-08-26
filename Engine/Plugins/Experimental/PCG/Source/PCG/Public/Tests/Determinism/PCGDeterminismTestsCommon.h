@@ -5,11 +5,13 @@
 #include "PCGCommon.h"
 #include "PCGSettings.h"
 #include "Tests/PCGTestsCommon.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "PCGDeterminismTestsCommon.generated.h"
 
 class UPCGComponent;
 class UPCGData;
+class UPCGMetadata;
 class UPCGSpatialData;
 class UPrimitiveComponent;
 class USplineComponent;
@@ -72,12 +74,14 @@ namespace PCGDeterminismTests
 		constexpr static int32 NumTestPointsToGenerate = 100;
 		constexpr static int32 NumPolyLinePointsToGenerate = 6;
 		constexpr static int32 NumTestPolyLinePointsToGenerate = 6;
-		constexpr static int32 NumSamplingStepsPerDimension = 100;
+		constexpr static int32 NumSamplingStepsPerDimension = 15;
 		constexpr static int32 NumTestInputsPerPin = 2;
 
 		constexpr static FVector::FReal SmallDistance = 50.0;
 		constexpr static FVector::FReal MediumDistance = 200.0;
 		constexpr static FVector::FReal LargeDistance = 500.0;
+		/** This will expand the testing volume by an increase of this ratio - ex. 0.25 == 125% */
+		constexpr static FVector::FReal TestingVolumeExpandByFactor = 0.25;
 
 		const FVector SmallVector = FVector::OneVector * SmallDistance;
 		const FVector MediumVector = FVector::OneVector * MediumDistance;
@@ -85,9 +89,6 @@ namespace PCGDeterminismTests
 
 		const FName TestPinName = TEXT("Test");
 		const FName GraphResultName = TEXT("Graph Result");
-
-		/** A little bigger than the typical largest volumes */
-		const FBox TestingVolume = FBox(-1.2 * LargeVector, 1.2 * LargeVector);
 	}
 
 	constexpr static EPCGDataType TestableDataTypes[6] =
@@ -227,6 +228,12 @@ namespace PCGDeterminismTests
 	/** Validates whether two PointData objects contain the same points */
 	bool PointDataIsOrthogonal(const UPCGData* FirstData, const UPCGData* SecondData);
 
+	/** Validates whether two ParamData objects are identical */
+	bool ParamDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData);
+
+	/** Validates whether two Metadata objects are identical */
+	bool MetadataIsIdentical(const UPCGMetadata* FirstMetadata, const UPCGMetadata* SecondMetadata);
+
 	/** A catch function for unimplemented comparisons */
 	bool ComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData);
 	/** Updates the test result output to reflect that the permutation limit has been exceeded */
@@ -353,6 +360,27 @@ namespace PCGDeterminismTests
 		}
 
 		Array = MoveTemp(TempArray);
+	}
+
+	template<typename MetadataAttributeType>
+	bool MetadataAttributesAreEqual(const FPCGMetadataAttributeBase* FirstAttributeBase, const FPCGMetadataAttributeBase* SecondAttributeBase, PCGMetadataValueKey ValueKey)
+	{
+		check(FirstAttributeBase && SecondAttributeBase);
+
+		if constexpr (TIsSame<FTransform, MetadataAttributeType>::Value)
+		{
+			const FTransform FirstTypedAttribute = static_cast<const FPCGMetadataAttribute<FTransform>*>(FirstAttributeBase)->GetValue(ValueKey);
+			const FTransform SecondTypedAttribute = static_cast<const FPCGMetadataAttribute<FTransform>*>(SecondAttributeBase)->GetValue(ValueKey);
+
+			return FirstTypedAttribute.Equals(SecondTypedAttribute);
+		}
+		else
+		{
+			const MetadataAttributeType FirstTypedAttribute = static_cast<const FPCGMetadataAttribute<MetadataAttributeType>*>(FirstAttributeBase)->GetValue(ValueKey);
+			const MetadataAttributeType SecondTypedAttribute = static_cast<const FPCGMetadataAttribute<MetadataAttributeType>*>(SecondAttributeBase)->GetValue(ValueKey);
+
+			return (FirstTypedAttribute == SecondTypedAttribute);
+		}
 	}
 
 	namespace Defaults
