@@ -82,15 +82,15 @@ static FAutoConsoleVariableRef CVarShaderComplexityBaselineDeferredUnlitPS(
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDebugViewModePS, TEXT("/Engine/Private/DebugViewModePixelShader.usf"), TEXT("Main"), SF_Pixel);
 
-int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel)
+int32 GetQuadOverdrawUAVIndex(EShaderPlatform Platform)
 {
 	if (IsForwardShadingEnabled(Platform))
 	{
-		return FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) ? 2 : 1;
+		return FVelocityRendering::BasePassCanOutputVelocity(Platform) ? 2 : 1;
 	}
 	else // GBuffer
 	{
-		return FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel) ? 7 : 6;
+		return FVelocityRendering::BasePassCanOutputVelocity(Platform) ? 7 : 6;
 	}
 }
 
