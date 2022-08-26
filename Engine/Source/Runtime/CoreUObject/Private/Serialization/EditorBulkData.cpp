@@ -961,8 +961,12 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 			if (BulkDataId.IsValid())
 			{
 				FLinkerLoad* LinkerLoad = Cast<FLinkerLoad>(Ar.GetLinker());
-				if (Ar.HasAllPortFlags(PPF_Duplicate) ||
-					(LinkerLoad && LinkerLoad->GetInstancingContext().IsInstanced()))
+
+				if (LinkerLoad && LinkerLoad->GetInstancingContext().ShouldRegenerateUniqueBulkDataGuids())
+				{
+					BulkDataId = FGuid::NewGuid();
+				}
+				else if (Ar.HasAllPortFlags(PPF_Duplicate) || (LinkerLoad && LinkerLoad->GetInstancingContext().IsInstanced()))
 				{
 					// When duplicating BulkDatas we need to create a new BulkDataId to respect the uniqueness contract
 					BulkDataId = CreateUniqueGuid(BulkDataId, Owner, TEXT("PPF_Duplicate serialization"));

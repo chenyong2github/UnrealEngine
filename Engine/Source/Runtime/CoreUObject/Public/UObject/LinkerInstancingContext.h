@@ -90,7 +90,20 @@ public:
 		bSoftObjectPathRemappingEnabled = bInSoftObjectPathRemappingEnabled;
 	}
 
-	bool GetSoftObjectPathRemappingEnabled() const { return bSoftObjectPathRemappingEnabled; }
+	bool GetSoftObjectPathRemappingEnabled() const 
+	{ 
+		return bSoftObjectPathRemappingEnabled; 
+	}
+
+	void SetRegenerateUniqueBulkDataGuids(bool bFlag)
+	{
+		bRegenerateUniqueBulkDataGuids = bFlag;
+	}
+
+	bool ShouldRegenerateUniqueBulkDataGuids() const
+	{
+		return bRegenerateUniqueBulkDataGuids;
+	}
 
 	/** Return the instanced package name for a given instanced outer package and an object package name */
 	static FString GetInstancedPackageName(const FString& InOuterPackageName, const FString& InPackageName)
@@ -109,4 +122,6 @@ private:
 	TSet<FName> Tags;
 	/** Remap soft object paths */
 	bool bSoftObjectPathRemappingEnabled = true;
+	/** When true we will generate new unique identifiers for editor bulkdata objects */
+	bool bRegenerateUniqueBulkDataGuids = false;
 };
