@@ -381,8 +381,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRa
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
 	#if WANT_PIXEL_DEPTH_OFFSET
-	// TODO: Restore PDO
-	//ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, WriteParams.DeviceZ);
+	ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, WriteParams.DeviceZ);
 	#endif
 
 	#if MATERIALBLENDING_MASKED
@@ -2096,8 +2095,7 @@ void HWRasterizePS(VSOut In
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
 		#if WANT_PIXEL_DEPTH_OFFSET
-		// TODO: Restore PDO
-		//ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, WriteParams.DeviceZ);
+		ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, WriteParams.DeviceZ);
 		#endif
 
 		#if MATERIALBLENDING_MASKED

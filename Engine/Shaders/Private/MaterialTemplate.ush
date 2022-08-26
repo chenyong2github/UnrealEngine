@@ -1308,7 +1308,7 @@ float GetPerInstanceFadeAmount(FMaterialVertexParameters Parameters)
  
 MaterialFloat GetDistanceCullFade()
 {
-#if PIXELSHADER
+#if PIXELSHADER && !IS_NANITE_PASS // Nanite doesn't bind this UB
 	return saturate(ResolvedView.RealTime * PrimitiveFade.FadeTimeScaleBias.x + PrimitiveFade.FadeTimeScaleBias.y);
 #else
     return 1.0f;
