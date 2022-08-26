@@ -28,7 +28,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLightmassRender, Error, All);
 
-bool Lightmass_IsStrataEnabled()
+extern bool Lightmass_IsStrataEnabled()
 {
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
 	return CVar && CVar->GetValueOnAnyThread() > 0;
@@ -1094,6 +1094,15 @@ bool FLightmassMaterialRenderer::GenerateMaterialData(
 	// Set the blend mode
 	static_assert(EBlendMode::BLEND_MAX == (EBlendMode)Lightmass::BLEND_MAX, "Debug type sizes must match.");
 	OutMaterialData.BlendMode = (Lightmass::EBlendMode)((int32)BlendMode);
+	if (Lightmass_IsStrataEnabled())
+	{
+		OutMaterialData.StrataBlendMode = (Lightmass::EStrataBlendMode)((int32)InMaterial.GetStrataBlendMode());
+	}
+	else
+	{
+		OutMaterialData.StrataBlendMode = Lightmass::SBM_MAX;
+	}
+
 	// Set the two-sided flag
 	OutMaterialData.bTwoSided = (uint32)InMaterial.IsTwoSided();
 	OutMaterialData.OpacityMaskClipValue = InMaterial.GetOpacityMaskClipValue();

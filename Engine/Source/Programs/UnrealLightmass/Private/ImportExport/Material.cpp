@@ -55,8 +55,16 @@ namespace Lightmass
 		}
 		else
 		{
-			// Materials with a translucent blend mode should always import transmission
-			check(BlendMode != BLEND_Translucent && BlendMode != BLEND_Additive && BlendMode != BLEND_Modulate && BlendMode != BLEND_AlphaComposite && BlendMode != BLEND_AlphaHoldout);
+			if (StrataBlendMode != SBM_MAX)
+			{
+				// Strata is enabled: only opaque materials do not have Transmission data.
+				check(StrataBlendMode == SBM_Opaque);
+			}
+			else
+			{
+				// Materials with a translucent blend mode should always import transmission
+				check(BlendMode != BLEND_Translucent && BlendMode != BLEND_Additive && BlendMode != BLEND_Modulate && BlendMode != BLEND_AlphaComposite && BlendMode != BLEND_AlphaHoldout);
+			}
 		}
 
 		// Normal

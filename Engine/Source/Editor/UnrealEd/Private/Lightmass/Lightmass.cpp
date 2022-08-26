@@ -54,6 +54,8 @@
 
 extern FSwarmDebugOptions GSwarmDebugOptions;
 
+bool Lightmass_IsStrataEnabled();
+
 DEFINE_LOG_CATEGORY_STATIC(LogLightmassSolver, Warning, All);
 /**
  * If false (default behavior), Lightmass is launched automatically when a lighting build starts.
@@ -1344,6 +1346,13 @@ void FLightmassExporter::GetMaterialHash(const UMaterialInterface* Material, FSH
 			LastGuid = MaterialGuid;
 		}
 	}
+
+	if (Lightmass_IsStrataEnabled())
+	{
+		uint32 LightmassStrataVersion = 0XB6A0D99F; // This can be change when the code/logic for converting material to strata for lightmap has changed.
+		HashState.Update((const uint8*)&LightmassStrataVersion, sizeof(LightmassStrataVersion));
+	}
+
 	HashState.Final();
 	HashState.GetHash(&OutHash.Hash[0]);
 }

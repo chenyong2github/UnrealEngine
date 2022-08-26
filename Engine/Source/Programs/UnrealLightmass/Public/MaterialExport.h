@@ -53,11 +53,23 @@ enum EBlendMode
 	BLEND_AlphaHoldout      =6,
 	BLEND_MAX               =7,
 };
+enum EStrataBlendMode
+{
+	SBM_Opaque								= 0,
+	SBM_Masked								= 1,
+	SBM_TranslucentGreyTransmittance		= 2,
+	SBM_TranslucentColoredTransmittance		= 3,
+	SBM_ColoredTransmittanceOnly			= 4,
+	SBM_AlphaHoldout						= 5,
+	SBM_MAX									= 6,
+};
 
 struct FMaterialData
 {
 	/** The BLEND mode of the material */
 	EBlendMode BlendMode;
+	/** The Strata BLEND mode of the material */
+	EStrataBlendMode StrataBlendMode;
 	/** Whether the material is two-sided or not */
 	uint32 bTwoSided:1;
 	/** Whether the material should cast shadows as masked even though it has a translucent blend mode. */
@@ -78,8 +90,9 @@ struct FMaterialData
 	int32 TransmissionSize;
 	int32 NormalSize;
 
-	FMaterialData() : 
-		  EmissiveBoost(1.0f)
+	FMaterialData() :
+		  StrataBlendMode(SBM_MAX)
+		, EmissiveBoost(1.0f)
 		, DiffuseBoost(1.0f)
 		, EmissiveSize(0)
 		, DiffuseSize(0)
