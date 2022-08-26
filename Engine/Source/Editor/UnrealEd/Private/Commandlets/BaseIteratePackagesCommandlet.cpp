@@ -1153,7 +1153,7 @@ int32 UBaseIteratePackagesCommandlet::Main( const FString& Params )
 FText UBaseIteratePackagesCommandlet::GetChangelistDescription() const
 {
 	FTextBuilder ChangelistDescription;
-	ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescription", "Resave Packages"));
+	ChangelistDescription.AppendLine(NSLOCTEXT("ContentCmdlets", "ChangelistDescriptionResavePackages", "Resave Packages"));
 	return ChangelistDescription.ToText();
 }
 
