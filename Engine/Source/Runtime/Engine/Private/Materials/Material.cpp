@@ -3118,6 +3118,15 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		ConvertLegacyToStrataBlendMode();
 		bInvalidateShader = true;
 	}
+	else if (!bUseMaterialAttributes && !EditorOnly->FrontMaterial.IsConnected() && GetExpressions().IsEmpty())
+	{
+		const int32 NewNodeOffsetX = -300;
+		UMaterialExpressionStrataSlabBSDF* SlabNode = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
+		SlabNode->MaterialExpressionEditorX = EditorX + NewNodeOffsetX;
+		EditorOnly->FrontMaterial.Connect(0, SlabNode);
+		bRelinkCustomOutputNodes = false;
+		bInvalidateShader = true;
+	}
 	else if (!bUseMaterialAttributes && !EditorOnly->FrontMaterial.IsConnected())
 	{
 		if (MaterialDomain == MD_Surface)

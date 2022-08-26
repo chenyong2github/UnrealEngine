@@ -4686,7 +4686,7 @@ void FMaterialEditor::OnCreateStrataNodeForPin(const FToolMenuContext& InMenuCon
 
 	// Set position of new node to be close to node we clicked on
 	FVector2D NewNodePos;
-	NewNodePos.X = PinNode->NodePosX + (bTargetPinIsInput ? -200 : 300);
+	NewNodePos.X = PinNode->NodePosX + (bTargetPinIsInput ? -300 : 300);
 	NewNodePos.Y = PinNode->NodePosY;
 
 
