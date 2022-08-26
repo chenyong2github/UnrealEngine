@@ -74,4 +74,7 @@ public:
 	
 	/** Merges imposter meshes into the given MeshDescription. */
 	static void MergeImpostersToMesh(TArray<const UStaticMeshComponent*> ImposterComponents, FMeshDescription& InOutMeshDescription, const FVector& InPivot, int32 BaseMaterialIndex, TArray<UMaterialInterface*>& OutImposterMaterials);
+
+	/** Ensure a generated HLOD mesh is not referencing non standalone materials. */
+	static void FixupNonStandaloneMaterialReferences(UStaticMesh* InStaticMesh);
 };

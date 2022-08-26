@@ -1214,3 +1214,20 @@ void FMeshMergeHelpers::MergeImpostersToMesh(TArray<const UStaticMeshComponent*>
 		FStaticMeshOperations::AppendMeshDescription(ImposterMesh, InMeshDescription, AppendSettings);
 	}
 }
+
+void FMeshMergeHelpers::FixupNonStandaloneMaterialReferences(UStaticMesh* InStaticMesh)
+{
+	UPackage* Package = InStaticMesh->GetPackage();
+
+	// Ensure mesh is not referencing non standalone materials
+	// This can be the case for MaterialInstanceDynamic (MID) as they are normally outered to the components
+	for (FStaticMaterial& StaticMaterial : InStaticMesh->GetStaticMaterials())
+	{
+		TObjectPtr<UMaterialInterface>& MaterialInterface = StaticMaterial.MaterialInterface;
+		if (!MaterialInterface->HasAnyFlags(RF_Standalone) && MaterialInterface->GetPackage() != Package)
+		{
+			// Duplicate material and outer it to the mesh
+			MaterialInterface = DuplicateObject<UMaterialInterface>(MaterialInterface, InStaticMesh);
+		}
+	}
+}

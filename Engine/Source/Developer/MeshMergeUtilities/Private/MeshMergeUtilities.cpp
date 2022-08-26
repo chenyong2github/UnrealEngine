@@ -3055,6 +3055,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			StaticMesh->BuildCacheAutomationTestGuid = FGuid::NewGuid();
 		}
 #endif
+
+		// Ensure the new mesh is not referencing non standalone materials
+		FMeshMergeHelpers::FixupNonStandaloneMaterialReferences(StaticMesh);
+
 		StaticMesh->Build(bSilent);
 
 		if (ImposterBounds.IsValid)

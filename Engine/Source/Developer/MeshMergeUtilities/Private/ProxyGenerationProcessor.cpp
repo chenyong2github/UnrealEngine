@@ -286,6 +286,9 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 			}
 			StaticMesh->GetStaticMaterials().Add(NewMaterial);
 		}
+
+		// Ensure the new mesh is not referencing non standalone materials
+		FMeshMergeHelpers::FixupNonStandaloneMaterialReferences(StaticMesh);
 	}
 	else
 	{
