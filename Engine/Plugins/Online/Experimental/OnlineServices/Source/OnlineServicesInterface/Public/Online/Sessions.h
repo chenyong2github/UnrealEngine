@@ -211,7 +211,7 @@ struct FGetAllSessions
 
 	struct Params
 	{
-
+		FAccountId LocalAccountId;
 	};
 
 	struct Result
@@ -672,7 +672,7 @@ class ISessions
 {
 public:
 	/**
-	 * Get an array of all session objects.
+	 * Gets an array of references to all the sessions the given user is part of.
 	 * 
 	 * @params Parameters for the GetAllSessions call
 	 * return
@@ -952,6 +952,7 @@ BEGIN_ONLINE_STRUCT_META(FSessionInvite)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAllSessions::Params)
+	ONLINE_STRUCT_FIELD(FGetAllSessions::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetAllSessions::Result)

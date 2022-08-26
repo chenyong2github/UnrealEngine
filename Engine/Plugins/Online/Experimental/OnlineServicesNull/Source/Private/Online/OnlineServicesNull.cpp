@@ -90,8 +90,7 @@ TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnect
 		ISessionsPtr SessionsPtr = GetSessionsInterface();
 		check(SessionsPtr);
 
-		FGetAllSessions::Params GetAllSessionsParams;
-		TOnlineResult<FGetAllSessions> JoinedSessions = SessionsPtr->GetAllSessions(MoveTemp(GetAllSessionsParams));
+		TOnlineResult<FGetAllSessions> JoinedSessions = SessionsPtr->GetAllSessions({ Params.LocalAccountId });
 		if (JoinedSessions.IsOk())
 		{
 			for (TSharedRef<const ISession>& Session : JoinedSessions.GetOkValue().Sessions)

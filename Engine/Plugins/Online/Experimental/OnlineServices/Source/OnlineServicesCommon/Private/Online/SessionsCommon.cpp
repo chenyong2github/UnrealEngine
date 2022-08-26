@@ -39,14 +39,24 @@ namespace UE::Online {
 
 	TOnlineResult<FGetAllSessions> FSessionsCommon::GetAllSessions(FGetAllSessions::Params&& Params) const
 	{
-		FGetAllSessions::Result Result;
-
-		for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSessionCommon>>& SessionPair : AllSessionsById)
+		if (const TArray<FName>* UserSessions = NamedSessionUserMap.Find(Params.LocalAccountId))
 		{
-			Result.Sessions.Add(SessionPair.Value);
-		}
+			FGetAllSessions::Result Result;
 
-		return TOnlineResult<FGetAllSessions>(MoveTemp(Result));
+			for (const FName& SessionName : *UserSessions)
+			{
+				const FOnlineSessionIdHandle& SessionId = LocalSessionsByName.FindChecked(SessionName);
+				const TSharedRef<FSessionCommon>& Session = AllSessionsById.FindChecked(SessionId);
+
+				Result.Sessions.Add(Session);
+			}
+
+			return TOnlineResult<FGetAllSessions>(MoveTemp(Result));
+		}
+		else
+		{
+			return TOnlineResult<FGetAllSessions>(Errors::InvalidUser());
+		}
 	}
 
 	TOnlineResult<FGetSessionByName> FSessionsCommon::GetSessionByName(FGetSessionByName::Params&& Params) const
