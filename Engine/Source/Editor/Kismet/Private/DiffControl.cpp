@@ -213,7 +213,6 @@ void FCDODiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifference
 	));
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 /// FClassSettingsDiffControl
 
@@ -479,6 +478,11 @@ FGraphToDiff::~FGraphToDiff()
 
 void FGraphToDiff::GenerateTreeEntries(TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutTreeEntries, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& OutRealDifferences)
 {
+	if (!DiffListSource.IsEmpty())
+	{
+		RealDifferencesStartIndex = OutRealDifferences.Num();
+	}
+	
 	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
 	for (const TSharedPtr<FDiffResultItem>& Difference : DiffListSource)
 	{
