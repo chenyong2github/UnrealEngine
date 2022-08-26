@@ -6,7 +6,7 @@
 #include "NiagaraSimCache.h"
 #include "NiagaraBakerOutputSimCache.generated.h"
 
-UCLASS(meta = (DisplayName = "Simulation Cache Output"))
+UCLASS(meta = (DisplayName = "Simulation Cache Output (Experimental)"))
 class NIAGARA_API UNiagaraBakerOutputSimCache : public UNiagaraBakerOutput
 {
 	GENERATED_BODY()
