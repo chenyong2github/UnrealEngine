@@ -35,7 +35,10 @@ void UGerstnerWaterWaves::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 {
 	Super::PostDuplicate(DuplicateMode);
 
-	RecomputeWaves(/* bAllowBPScript = */true);
+	if (UGerstnerWaterWaveSubsystem* GerstnerWaterWaveSubsystem = GEngine ? GEngine->GetEngineSubsystem<UGerstnerWaterWaveSubsystem>() : nullptr)
+	{
+		GerstnerWaterWaveSubsystem->RebuildGPUData();
+	}
 }
 
 #if WITH_EDITOR
