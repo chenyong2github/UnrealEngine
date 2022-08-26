@@ -6,6 +6,7 @@
 #include "GeForceNOWWrapperPrivate.h"
 #include "GeForceNOWWrapper.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY(LogGeForceNow);
 
