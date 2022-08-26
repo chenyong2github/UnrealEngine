@@ -11,7 +11,10 @@
 // @UE BEGIN
 // self as first header
 #include "ThirdParty/clipper/clipper.engine.h"
-// @UE END	
+
+#pragma warning(push)
+#pragma warning(disable : 6011 28182)
+// @UE END
 
 #include <stdlib.h>
 #include <cmath>
@@ -3582,3 +3585,7 @@ namespace Clipper2Lib {
 	}
 
 }  // namespace clipper2lib
+
+// @UE BEGIN
+#pragma warning(pop)
+// @UE END
