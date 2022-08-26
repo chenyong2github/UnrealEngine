@@ -8,7 +8,7 @@
 #include "PCGParamData.h"
 
 #include "Data/PCGPointData.h"
-#include "Elements/PCGMetadataBreakVector.h"
+#include "Elements/Metadata/PCGMetadataBreakVector.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"

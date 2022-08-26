@@ -3,24 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PCGModule.h"
 #include "PCGMetadataAccessor.h"
 #include "PCGMetadataAttributeTraits.h"
 #include "PCGMetadataCommon.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include "PCGMetadata.generated.h"
 
-class FPCGMetadataAttributeBase;
-
-UENUM()
-enum class EPCGMetadataOp : uint8
-{
-	Min,
-	Max,
-	Sub,
-	Add,
-	Mul,
-	Div
-};
 
 UCLASS(BlueprintType)
 class PCG_API UPCGMetadata : public UObject
@@ -202,10 +192,10 @@ public:
 	int64 GetItemKeyCountForParent() const;
 	int64 GetItemCountForChild() const;
 
-protected:
 	template<typename T>
 	FPCGMetadataAttributeBase* CreateAttribute(FName AttributeName, const T& DefaultValue, bool bAllowsInterpolation, bool bOverrideParent);
 
+protected:
 	FPCGMetadataAttributeBase* CopyAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
 
 	bool ParentHasAttribute(FName AttributeName) const;
@@ -232,3 +222,32 @@ protected:
 
 	TAtomic<int64> DelayedEntriesIndex = 0;
 };
+
+template<typename T>
+FPCGMetadataAttributeBase* UPCGMetadata::CreateAttribute(FName AttributeName, const T& DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
+{
+	const FPCGMetadataAttributeBase* ParentAttribute = nullptr;
+
+	if (bOverrideParent && Parent.IsValid())
+	{
+		ParentAttribute = Parent->GetConstAttribute(AttributeName);
+	}
+
+	FPCGMetadataAttributeBase* NewAttribute = new FPCGMetadataAttribute<T>(this, AttributeName, ParentAttribute, DefaultValue, bAllowsInterpolation);
+
+	AttributeLock.WriteLock();
+	if (FPCGMetadataAttributeBase** ExistingAttribute = Attributes.Find(AttributeName))
+	{
+		UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists"), *AttributeName.ToString());
+		delete NewAttribute;
+		NewAttribute = *ExistingAttribute;
+	}
+	else
+	{
+		NewAttribute->AttributeId = NextAttributeId++;
+		AddAttributeInternal(AttributeName, NewAttribute);
+	}
+	AttributeLock.WriteUnlock();
+
+	return NewAttribute;
+}

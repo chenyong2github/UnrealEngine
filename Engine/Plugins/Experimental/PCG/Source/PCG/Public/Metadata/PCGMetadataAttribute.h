@@ -4,10 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "PCGMetadataCommon.h"
-#include "PCGMetadata.h"
 
 #include "Misc/ScopeRWLock.h"
 #include "Templates/EnableIf.h"
+
+class UPCGMetadata;
 
 class PCG_API FPCGMetadataAttributeBase
 {

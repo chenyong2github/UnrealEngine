@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/PCGMetadataRenameElement.h"
+#include "Elements/Metadata/PCGMetadataRenameElement.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"

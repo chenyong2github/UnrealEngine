@@ -1,84 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/PCGMetadataBreakVector.h"
+#include "Elements/Metadata/PCGMetadataBreakVector.h"
 
 #include "PCGParamData.h"
 #include "Data/PCGSpatialData.h"
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Helpers/PCGSettingsHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
-
-namespace PCGMetadataBreakVectorElement {
-	void DuplicateTaggedData(const FPCGTaggedData& InTaggedData, FPCGTaggedData& OutTaggedData, UPCGMetadata*& OutMetadata)
-	{
-		if (const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(InTaggedData.Data))
-		{
-			UPCGSpatialData* NewSpatialData = Cast<UPCGSpatialData>(StaticDuplicateObject(SpatialInput, const_cast<UPCGSpatialData*>(SpatialInput), FName()));
-			NewSpatialData->InitializeFromData(SpatialInput);
-			OutTaggedData.Data = NewSpatialData;
-
-			OutMetadata = NewSpatialData->Metadata;
-		}
-		else if (const UPCGParamData* ParamsInput = Cast<const UPCGParamData>(InTaggedData.Data))
-		{
-			UPCGParamData* NewParamData = Cast<UPCGParamData>(StaticDuplicateObject(ParamsInput, const_cast<UPCGParamData*>(ParamsInput), FName()));
-			OutTaggedData.Data = NewParamData;
-
-			NewParamData->Metadata->Initialize(ParamsInput->Metadata);
-			OutMetadata = NewParamData->Metadata;
-		}
-	}
-
-	/** Creates a new double attribute, or clears the attribute if it already exists and is  a 'double' type */
-	void ClearOrCreateDoubleAttribute(UPCGMetadata* Metadata, const FName& DestinationAttribute, double DefaultValue, FPCGMetadataAttribute<double>*& OutAttribute)
-	{
-		if (!Metadata)
-		{
-			UE_LOG(LogPCG, Error, TEXT("Failed to create metadata"));
-			return;
-		}
-
-		if (Metadata->HasAttribute(DestinationAttribute))
-		{
-			UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists and has been overwritten"), *DestinationAttribute.ToString());
-
-			if (Metadata->GetConstAttribute(DestinationAttribute)->GetTypeId() == PCG::Private::MetadataTypes<double>::Id)
-			{
-				// TODO: If DestinationAttribute is an existing double attribute, it will retain its old DefaultValue instead of using the given DefaultValue
-				Metadata->ClearAttribute(DestinationAttribute);
-			}
-			else
-			{
-				Metadata->DeleteAttribute(DestinationAttribute);
-				Metadata->CreateDoubleAttribute(DestinationAttribute, DefaultValue, /*bAllowsInterpolation=*/true, /*bOverrideParent=*/false);
-			}
-		}
-		else
-		{
-			Metadata->CreateDoubleAttribute(DestinationAttribute, DefaultValue, /*bAllowsInterpolation=*/true, /*bOverrideParent=*/false);
-		}
-
-		OutAttribute = static_cast<FPCGMetadataAttribute<double>*>(Metadata->GetMutableAttribute(DestinationAttribute));
-	}
-
-	/** Copies the entry to value key relationship stored in the given Metadata, including its parents */
-	void CopyEntryToValueKeyMap(const UPCGMetadata* MetadataToCopy, const FPCGMetadataAttributeBase* AttributeToCopy, FPCGMetadataAttributeBase* OutAttribute)
-	{
-		if (!OutAttribute)
-		{
-			UE_LOG(LogPCG, Error, TEXT("Failed to create output attribute"));
-			return;
-		}
-
-		const PCGMetadataEntryKey EntryKeyCount = MetadataToCopy->GetItemCountForChild();
-		for (PCGMetadataEntryKey EntryKey = 0; EntryKey < EntryKeyCount; ++EntryKey)
-		{
-			const PCGMetadataValueKey ValueKey = AttributeToCopy->GetValueKey(EntryKey);
-			OutAttribute->SetValueFromValueKey(EntryKey, ValueKey);
-		}
-	}
-}
 
 TArray<FPCGPinProperties> UPCGMetadataBreakVectorSettings::InputPinProperties() const
 {
@@ -255,9 +185,9 @@ bool FPCGMetadataBreakVectorElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGMetadata* OutMetadata = nullptr;
 
-			PCGMetadataBreakVectorElement::DuplicateTaggedData(Input, OutputX, OutMetadata);
-			PCGMetadataBreakVectorElement::ClearOrCreateDoubleAttribute(OutMetadata, DestinationAttributeForX, DefaultValue.X, AttributeX);
-			PCGMetadataBreakVectorElement::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeX);
+			PCGMetadataElementCommon::DuplicateTaggedData(Input, OutputX, OutMetadata);
+			AttributeX = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, DestinationAttributeForX, DefaultValue.X);
+			PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeX);
 		}
 
 		if (bYPinConnected)
@@ -267,9 +197,9 @@ bool FPCGMetadataBreakVectorElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGMetadata* OutMetadata = nullptr;
 
-			PCGMetadataBreakVectorElement::DuplicateTaggedData(Input, OutputY, OutMetadata);
-			PCGMetadataBreakVectorElement::ClearOrCreateDoubleAttribute(OutMetadata, DestinationAttributeForY, DefaultValue.Y, AttributeY);
-			PCGMetadataBreakVectorElement::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeY);
+			PCGMetadataElementCommon::DuplicateTaggedData(Input, OutputY, OutMetadata);
+			AttributeY = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, DestinationAttributeForY, DefaultValue.Y);
+			PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeY);
 		}
 
 		if (bZPinConnected)
@@ -279,9 +209,9 @@ bool FPCGMetadataBreakVectorElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGMetadata* OutMetadata = nullptr;
 
-			PCGMetadataBreakVectorElement::DuplicateTaggedData(Input, OutputZ, OutMetadata);
-			PCGMetadataBreakVectorElement::ClearOrCreateDoubleAttribute(OutMetadata, DestinationAttributeForZ, DefaultValue.Z, AttributeZ);
-			PCGMetadataBreakVectorElement::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeZ);
+			PCGMetadataElementCommon::DuplicateTaggedData(Input, OutputZ, OutMetadata);
+			AttributeZ = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, DestinationAttributeForZ, DefaultValue.Z);
+			PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeZ);
 		}
 
 		if (bWPinConnected && SourceAttribute->GetTypeId() == PCG::Private::MetadataTypes<FVector4>::Id)
@@ -291,9 +221,9 @@ bool FPCGMetadataBreakVectorElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGMetadata* OutMetadata = nullptr;
 
-			PCGMetadataBreakVectorElement::DuplicateTaggedData(Input, OutputW, OutMetadata);
-			PCGMetadataBreakVectorElement::ClearOrCreateDoubleAttribute(OutMetadata, DestinationAttributeForW, DefaultValue.W, AttributeW);
-			PCGMetadataBreakVectorElement::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeW);
+			PCGMetadataElementCommon::DuplicateTaggedData(Input, OutputW, OutMetadata);
+			AttributeW = PCGMetadataElementCommon::ClearOrCreateAttribute(OutMetadata, DestinationAttributeForW, DefaultValue.W);
+			PCGMetadataElementCommon::CopyEntryToValueKeyMap(SourceMetadata, SourceAttribute, AttributeW);
 		}
 
 		// Copy all Value pairs from the parent hierarchy into our new attributes. Assumes that adding values in order of the parent hierarchy will result in identical ValueKey->Value mappings.

@@ -6,6 +6,10 @@
 #include "Metadata/PCGMetadataAttribute.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
 
+#include "Helpers/PCGMetadataHelpers.h"
+
+class UPCGMetadata;
+
 template<typename T>
 class FPCGMetadataAttribute : public FPCGMetadataAttributeBase
 {
@@ -47,7 +51,7 @@ public:
 	virtual FPCGMetadataAttributeBase* Copy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true) const override
 	{
 		// this copies to a new attribute
-		check(!bKeepParent || Metadata->GetRoot() == InMetadata->GetRoot());
+		check(!bKeepParent || PCGMetadataHelpers::HasSameRoot(Metadata, InMetadata));
 		FPCGMetadataAttribute<T>* AttributeCopy = new FPCGMetadataAttribute<T>(InMetadata, NewName, bKeepParent ? this : nullptr, DefaultValue, bAllowsInterpolation);
 
 		if (bCopyEntries)

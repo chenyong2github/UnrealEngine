@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Metadata/PCGMetadata.h"
-#include "Metadata/PCGMetadataAttributeTpl.h"
-#include "PCGModule.h"
 
 #include "Misc/ScopeRWLock.h"
 #include "Helpers/PCGSettingsHelpers.h"
@@ -233,35 +231,6 @@ void UPCGMetadata::AddAttributeInternal(FName AttributeName, FPCGMetadataAttribu
 void UPCGMetadata::RemoveAttributeInternal(FName AttributeName)
 {
 	Attributes.Remove(AttributeName);
-}
-
-template<typename T>
-FPCGMetadataAttributeBase* UPCGMetadata::CreateAttribute(FName AttributeName, const T& DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
-{
-	const FPCGMetadataAttributeBase* ParentAttribute = nullptr;
-
-	if (bOverrideParent && Parent.IsValid())
-	{
-		ParentAttribute = Parent->GetConstAttribute(AttributeName);
-	}
-
-	FPCGMetadataAttributeBase* NewAttribute = new FPCGMetadataAttribute<T>(this, AttributeName, ParentAttribute, DefaultValue, bAllowsInterpolation);
-
-	AttributeLock.WriteLock();
-	if (FPCGMetadataAttributeBase** ExistingAttribute = Attributes.Find(AttributeName))
-	{
-		UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists"), *AttributeName.ToString());
-		delete NewAttribute;
-		NewAttribute = *ExistingAttribute;
-	}
-	else
-	{
-		NewAttribute->AttributeId = NextAttributeId++;
-		AddAttributeInternal(AttributeName, NewAttribute);
-	}
-	AttributeLock.WriteUnlock();
-
-	return NewAttribute;
 }
 
 FPCGMetadataAttributeBase* UPCGMetadata::GetMutableAttribute(FName AttributeName)
