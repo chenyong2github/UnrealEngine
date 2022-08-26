@@ -2,7 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaPlayerFactory.h"
-#include "BinkMediaPlayerEditorPCH.h"
+
+#include "BinkMediaPlayerEditorPrivate.h"
 
 UBinkMediaPlayerFactory::UBinkMediaPlayerFactory( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

@@ -2,7 +2,7 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMoviePlayerSettings.h"
-#include "BinkMediaPlayerPCH.h"
+#include "BinkMediaPlayerPrivate.h"
 
 UBinkMoviePlayerSettings::UBinkMoviePlayerSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

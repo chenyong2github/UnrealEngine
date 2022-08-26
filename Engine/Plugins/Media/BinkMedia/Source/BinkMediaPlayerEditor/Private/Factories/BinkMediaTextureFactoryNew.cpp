@@ -2,7 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaTextureFactoryNew.h"
-#include "BinkMediaPlayerEditorPCH.h"
+
+#include "BinkMediaPlayerEditorPrivate.h"
 
 UBinkMediaTextureFactoryNew::UBinkMediaTextureFactoryNew( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)

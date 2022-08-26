@@ -2,8 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMovieStreamer.h"
-#include "BinkMediaPlayerPCH.h"
 
+#include "BinkMediaPlayerPrivate.h"
 #include "Rendering/RenderingCommon.h"
 #include "Slate/SlateTextures.h"
 #include "MoviePlayer.h"

@@ -1,9 +1,8 @@
 // Copyright Epic Games Tools LLC
 //   Licenced under the Unreal Engine EULA 
 
-#include "BinkMediaPlayerPCH.h"
 #include "BinkFunctionLibrary.h"
-
+#include "BinkMediaPlayerPrivate.h"
 #include "Runtime/Core/Public/Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/CoreDelegates.h"

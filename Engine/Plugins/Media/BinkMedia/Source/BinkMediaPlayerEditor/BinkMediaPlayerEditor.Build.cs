@@ -38,9 +38,6 @@ public class BinkMediaPlayerEditor : ModuleRules
 			}
 		);
 
-		PCHUsage = PCHUsageMode.UseSharedPCHs;
-        PrivatePCHHeaderFile = "Private/BinkMediaPlayerEditorPCH.h";
-
 		PublicDefinitions.Add("BUILDING_FOR_UNREAL_ONLY=1");
 		PublicDefinitions.Add("__RADNOEXPORTS__=1");
 		PublicDefinitions.Add("__RADINSTATICLIB__=1");

@@ -2,8 +2,9 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaPlayer.h"
+
+#include "BinkMediaPlayerPrivate.h"
 #include "binkplugin.h"
-#include "BinkMediaPlayerPCH.h"
 #include "BinkMediaTexture.h"
 #include "BinkFunctionLibrary.h"
 

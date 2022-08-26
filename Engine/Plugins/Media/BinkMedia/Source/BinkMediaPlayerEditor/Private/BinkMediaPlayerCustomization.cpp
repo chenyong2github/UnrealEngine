@@ -2,8 +2,9 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaPlayerCustomization.h"
-#include "BinkMediaPlayerEditorPCH.h"
+
 #include "BinkMediaPlayer.h"
+#include "BinkMediaPlayerEditorPrivate.h"
 #include "DesktopPlatformModule.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorDirectories.h"

@@ -2,8 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 
-#include "BinkMediaPlayerEditorPCH.h"
 #include "AssetTypeActions_Base.h"
+#include "BinkMediaPlayerEditorPrivate.h"
 #include "TextureEditor.h"
 #include "Editor/ContentBrowser/Public/ContentBrowserModule.h"
 #include "Modules/ModuleInterface.h"

@@ -2,8 +2,9 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaTexture.h"
-#include "BinkMediaPlayerPCH.h"
+
 #include "BinkMediaPlayer.h"
+#include "BinkMediaPlayerPrivate.h"
 #include "BinkMediaTextureResource.h"
 
 UBinkMediaTexture::UBinkMediaTexture( const FObjectInitializer& ObjectInitializer )

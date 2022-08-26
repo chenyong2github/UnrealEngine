@@ -2,7 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkMediaPlayerEditorToolkit.h"
-#include "BinkMediaPlayerEditorPCH.h"
+
+#include "BinkMediaPlayerEditorPrivate.h"
 #include "Factories.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Docking/SDockTab.h"

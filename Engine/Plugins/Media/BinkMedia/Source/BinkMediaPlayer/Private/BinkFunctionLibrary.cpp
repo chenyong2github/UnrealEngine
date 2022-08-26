@@ -2,8 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "BinkFunctionLibrary.h"
-#include "BinkMediaPlayerPCH.h"
 
+#include "BinkMediaPlayerPrivate.h"
 #include "Misc/Paths.h"
 #include "Rendering/RenderingCommon.h"
 #include "RenderingThread.h"

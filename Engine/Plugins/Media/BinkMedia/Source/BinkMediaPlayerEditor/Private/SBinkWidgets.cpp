@@ -2,7 +2,8 @@
 //   Licenced under the Unreal Engine EULA 
 
 #include "SBinkWidgets.h"
-#include "BinkMediaPlayerEditorPCH.h"
+
+#include "BinkMediaPlayerEditorPrivate.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/SViewport.h"
 
