@@ -2129,7 +2129,8 @@ namespace Horde.Build.Notifications.Sinks
 					openTimeStr = $"{(int)openTime.TotalDays}d";
 				}
 
-				await _slackClient.PostMessageAsync(workflow.TriageChannel, state.Ts, $"{FormatUserOrGroupMention(workflow.EscalateAlias)} - Issue has not been resolved after {openTimeStr}.");
+				Uri issueUrl = GetIssueUrl(issue, span.FirstFailure);
+				await _slackClient.PostMessageAsync(workflow.TriageChannel, state.Ts, $"{FormatUserOrGroupMention(workflow.EscalateAlias)} - Issue <{issueUrl}|{issue.Id}> has not been resolved after {openTimeStr}.");
 			}
 
 			DateTime nextEscalationTime = span.FirstFailure.StepTime;
