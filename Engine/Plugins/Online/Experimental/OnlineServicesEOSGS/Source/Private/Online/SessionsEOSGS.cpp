@@ -300,9 +300,7 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 						Session->SessionId
 						});
 
-					SessionInvitesUserMap.FindOrAdd(ReceiverId).Emplace(InviteIdHandle, SessionInviteRef);
-
-					AllSessionsById.Emplace(Session->SessionId, Session);
+					AddSessionInvite(SessionInviteRef, Session, ReceiverId);
 
 					FSessionInviteReceived Event = { ReceiverId, SessionInviteRef };
 
@@ -495,16 +493,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 			NewSessionEOSGSRef->SessionSettings = OpParams.SessionSettings;
 			NewSessionEOSGSRef->SessionId = CreateSessionId(Result.GetOkValue().NewSessionId);
 
-			AllSessionsById.Emplace(NewSessionEOSGSRef->SessionId, NewSessionEOSGSRef);
-
-			LocalSessionsByName.Emplace(OpParams.SessionName, NewSessionEOSGSRef->SessionId);
-
-			NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-			if (NewSessionEOSGSRef->SessionSettings.bPresenceEnabled)
-			{
-				SetPresenceSession({ OpParams.LocalAccountId, NewSessionEOSGSRef->SessionId });
-			}
+			AddSessionWithReferences(NewSessionEOSGSRef, OpParams.SessionName, OpParams.LocalAccountId, NewSessionEOSGSRef->SessionSettings.bPresenceEnabled);
 
 			Op.SetResult({ });
 		}
@@ -1148,15 +1137,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 		{
 			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
-
-			if (FoundSession->GetSessionSettings().bPresenceEnabled)
-			{
-				ClearPresenceSession({ OpParams.LocalAccountId });
-			}
-
-			ClearSessionByName(OpParams.SessionName);
-			ClearSessionById(FoundSession->GetSessionId());
+			ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });
@@ -1374,12 +1355,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 					{
 						if (TOnlineAsyncOpPtr<FFindSessions> StrongOp = WeakOp.Pin())
 						{
-							const TSharedRef<FSessionCommon>& Session = Result.GetOkValue().Session;
-
-							TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindOrAdd(Result.GetOkValue().LocalAccountId);
-							SearchResults.Add(Session->SessionId);
-
-							AllSessionsById.Emplace(Session->SessionId, Session);
+							AddSearchResult(Result.GetOkValue().Session, Result.GetOkValue().LocalAccountId);
 
 							BuildSessionPromise->EmplaceValue(Result.GetOkValue());
 						}
@@ -1550,31 +1526,10 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 
 		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
-		LocalSessionsByName.Emplace(OpParams.SessionName, OpParams.SessionId);
-
-		NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-		if (FoundSession->GetSessionSettings().bPresenceEnabled)
-		{
-			SetPresenceSession({ OpParams.LocalAccountId, FoundSession->GetSessionId() });
-		}
+		AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
 
 		// After successfully joining a session, we'll remove all related invites if any are found
-		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
-		{
-			TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
-			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
-			{
-				if (Entry.Value->SessionId == FoundSession->GetSessionId())
-				{
-					InviteIdsToRemove.Add(Entry.Key);
-				}
-			}
-			for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
-			{
-				UserMap->Remove(InviteId);
-			}
-		}
+		ClearSessionInvitesForSession(OpParams.LocalAccountId, FoundSession->GetSessionId());
 
 		Op.SetResult(FJoinSession::Result{ });
 

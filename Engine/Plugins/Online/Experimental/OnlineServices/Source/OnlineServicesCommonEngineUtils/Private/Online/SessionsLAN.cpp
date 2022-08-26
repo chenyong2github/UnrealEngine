@@ -160,16 +160,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		NewSessionLANRef->SessionSettings.SessionMembers.Emplace(OpParams.LocalAccountId, OpParams.SessionMemberData);
 
 		// We save the local object for the session, and set up the appropriate references
-		AllSessionsById.Emplace(NewSessionLANRef->SessionId, NewSessionLANRef);
-
-		LocalSessionsByName.Emplace(OpParams.SessionName, NewSessionLANRef->SessionId);
-
-		NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-		if (NewSessionLANRef->SessionSettings.bPresenceEnabled)
-		{
-			SetPresenceSession({ OpParams.LocalAccountId, NewSessionLANRef->SessionId });
-		}
+		AddSessionWithReferences(NewSessionLANRef, OpParams.SessionName, OpParams.LocalAccountId, NewSessionLANRef->SessionSettings.bPresenceEnabled);
 
 		Op.SetResult({ });
 	})
@@ -305,14 +296,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
 		// We set up the appropriate references for the session
-		LocalSessionsByName.Emplace(OpParams.SessionName, FoundSession->GetSessionId());
-
-		NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-		if (FoundSession->GetSessionSettings().bPresenceEnabled)
-		{
-			SetPresenceSession({ OpParams.LocalAccountId, FoundSession->GetSessionId() });
-		}
+		AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
 
 		Op.SetResult(FJoinSession::Result{ });
 
@@ -350,15 +334,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 				StopLANSession();
 			}
 
-			NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
-
-			if (FoundSession->GetSessionSettings().bPresenceEnabled)
-			{
-				ClearPresenceSession({ OpParams.LocalAccountId });
-			}
-
-			ClearSessionByName(OpParams.SessionName);
-			ClearSessionById(FoundSession->GetSessionId());
+			ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });
@@ -488,17 +464,12 @@ void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLen
 
 void FSessionsLAN::OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength, const FAccountId LocalAccountId)
 {
-	if (TArray<FOnlineSessionIdHandle>* SearchResults = SearchResultsUserMap.Find(LocalAccountId))
-	{
-		TSharedRef<FSessionLAN> Session = MakeShared<FSessionLAN>();
+	TSharedRef<FSessionLAN> Session = MakeShared<FSessionLAN>();
 
-		FNboSerializeFromBuffer Packet(PacketData, PacketLength);
-		ReadSessionFromPacket(Packet, *Session);
+	FNboSerializeFromBuffer Packet(PacketData, PacketLength);
+	ReadSessionFromPacket(Packet, *Session);
 
-		SearchResults->Add(Session->SessionId);
-
-		AllSessionsById.Emplace(Session->SessionId, Session);
-	}
+	AddSearchResult(Session, LocalAccountId);
 }
 
 void FSessionsLAN::OnLANSearchTimeout(const FAccountId LocalAccountId)

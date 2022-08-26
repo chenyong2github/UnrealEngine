@@ -360,6 +360,74 @@ namespace UE::Online {
 		}
 	}
 
+	void FSessionsCommon::AddSessionInvite(const TSharedRef<FSessionInvite> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId)
+	{
+		AllSessionsById.Emplace(Session->SessionId, Session);
+
+		TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& SessionInvitesMap = SessionInvitesUserMap.FindOrAdd(LocalAccountId);
+		SessionInvitesMap.Emplace(SessionInvite->InviteId, SessionInvite);
+	}
+
+	void FSessionsCommon::AddSearchResult(const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId)
+	{
+		AllSessionsById.Emplace(Session->SessionId, Session);
+
+		TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindOrAdd(LocalAccountId);
+		SearchResults.Add(Session->SessionId);
+	}
+
+	void FSessionsCommon::AddSessionWithReferences(const TSharedRef<FSessionCommon> Session, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
+	{
+		AllSessionsById.Emplace(Session->SessionId, Session);
+
+		AddSessionReferences(Session->SessionId, SessionName, LocalAccountId, bIsPresenceSession);
+	}
+
+	void FSessionsCommon::AddSessionReferences(const FOnlineSessionIdHandle SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
+	{
+		LocalSessionsByName.Emplace(SessionName, SessionId);
+
+		NamedSessionUserMap.FindOrAdd(LocalAccountId).AddUnique(SessionName);
+
+		if (bIsPresenceSession)
+		{
+			SetPresenceSession({ LocalAccountId, SessionId });
+		}
+	}
+
+	void FSessionsCommon::ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionIdHandle SessionId)
+	{
+		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(LocalAccountId))
+		{
+			TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
+			for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
+			{
+				if (Entry.Value->SessionId == SessionId)
+				{
+					InviteIdsToRemove.Add(Entry.Key);
+				}
+			}
+
+			for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
+			{
+				UserMap->Remove(InviteId);
+			}
+		}
+	}
+
+	void FSessionsCommon::ClearSessionReferences(const FOnlineSessionIdHandle SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
+	{
+		NamedSessionUserMap.FindChecked(LocalAccountId).Remove(SessionName);
+
+		if (bIsPresenceSession)
+		{
+			ClearPresenceSession({ LocalAccountId });
+		}
+
+		ClearSessionByName(SessionName);
+		ClearSessionById(SessionId);
+	}
+
 	void FSessionsCommon::ClearSessionByName(const FName& SessionName)
 	{
 		for (const TPair<FAccountId, TArray<FName>>& Entry : NamedSessionUserMap)

@@ -286,9 +286,7 @@ void FSessionsOSSAdapter::Initialize()
 		SessionInvite->InviteId = GetSessionInviteIdRegistry().BasicRegistry.FindOrAddHandle(AppId);
 		SessionInvite->SessionId = Session->SessionId;
 
-		SessionInvitesUserMap.FindOrAdd(SessionInvite->RecipientId).Emplace(SessionInvite->InviteId, SessionInvite);
-
-		AllSessionsById.Emplace(Session->SessionId, Session);
+		AddSessionInvite(SessionInvite, Session, SessionInvite->RecipientId);
 
 		FSessionInviteReceived Event{ ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared()), SessionInvite };
 
@@ -457,16 +455,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateS
 
 				TSharedRef<FSessionCommon> V2Session = BuildV2Session(V1Session);
 
-				AllSessionsById.Emplace(V2Session->SessionId, V2Session);
-
-				LocalSessionsByName.Emplace(OpParams.SessionName, V2Session->SessionId);
-
-				NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-				if (V2Session->SessionSettings.bPresenceEnabled)
-				{
-					SetPresenceSession({ OpParams.LocalAccountId, V2Session->SessionId });
-				}
+				AddSessionWithReferences(V2Session, OpParams.SessionName, OpParams.LocalAccountId, V2Session->SessionSettings.bPresenceEnabled);
 
 				Op->SetResult({ });
 			}
@@ -584,15 +573,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsOSSAdapter::LeaveSession(FLeaveSess
 				{
 					TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-					NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
-
-					if (FoundSession->GetSessionSettings().bPresenceEnabled)
-					{
-						ClearPresenceSession({ OpParams.LocalAccountId });
-					}
-
-					ClearSessionByName(OpParams.SessionName);
-					ClearSessionById(FoundSession->GetSessionId());
+					ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
 				}
 
 				Op->SetResult({ });
@@ -668,14 +649,12 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessi
 							TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Op->GetParams().LocalAccountId);
 
 							TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(PendingV1SessionSearch->SearchResults);
-
-							TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 							for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
 							{
-								AllSessionsById.Emplace(FoundSession->SessionId, FoundSession);
-								SearchResults.Add(FoundSession->SessionId);
+								AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
 							}
 
+							TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 							Op->SetResult({ SearchResults });
 						}
 						else
@@ -731,13 +710,12 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessi
 					if (bWasSuccessful)
 					{
 						TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(FriendSearchResults);
-						TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 						for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
 						{
-							AllSessionsById.Emplace(FoundSession->SessionId, FoundSession);
-							SearchResults.Add(FoundSession->SessionId);
+							AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
 						}
 
+						TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 						Op->SetResult({ SearchResults });
 					}
 					else
@@ -770,13 +748,12 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessi
 						TSharedRef<FOnlineSessionSearch>& PendingV1SessionSearch = PendingV1SessionSearchesPerUser.FindChecked(Op->GetParams().LocalAccountId);
 
 						TArray<TSharedRef<FSessionCommon>> FoundSessions = BuildV2SessionSearchResults(PendingV1SessionSearch->SearchResults);
-						TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 						for (const TSharedRef<FSessionCommon>& FoundSession : FoundSessions)
 						{
-							AllSessionsById.Emplace(FoundSession->SessionId, FoundSession);
-							SearchResults.Add(FoundSession->SessionId);
+							AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
 						}
 
+						TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 						Op->SetResult({ SearchResults });
 					}
 					else
@@ -881,16 +858,7 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 
 				TSharedRef<FSessionCommon> V2Session = BuildV2Session(SessionsInterface->GetNamedSession(SessionName));
 
-				AllSessionsById.Emplace(V2Session->SessionId, V2Session);
-
-				LocalSessionsByName.Emplace(OpParams.SessionName, V2Session->SessionId);
-
-				NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-				if (V2Session->SessionSettings.bPresenceEnabled)
-				{
-					SetPresenceSession({ OpParams.LocalAccountId, V2Session->SessionId });
-				}
+				AddSessionWithReferences(V2Session, OpParams.SessionName, OpParams.LocalAccountId, V2Session->SessionSettings.bPresenceEnabled);
 
 				Op->SetResult({ });
 
@@ -965,31 +933,10 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession
 
 				TSharedRef<const ISession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
-				LocalSessionsByName.Emplace(OpParams.SessionName, OpParams.SessionId);
-
-				NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
-
-				if (FoundSession->GetSessionSettings().bPresenceEnabled)
-				{
-					SetPresenceSession({ OpParams.LocalAccountId, FoundSession->GetSessionId() });
-				}
+				AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
 
 				// After successfully joining a session, we'll remove all related invites if any are found
-				if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
-				{
-					TArray<FOnlineSessionInviteIdHandle> InviteIdsToRemove;
-					for (const TPair<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>& Entry : *UserMap)
-					{
-						if (Entry.Value->SessionId == FoundSession->GetSessionId())
-						{
-							InviteIdsToRemove.Add(Entry.Key);
-						}
-					}
-					for (const FOnlineSessionInviteIdHandle& InviteId : InviteIdsToRemove)
-					{
-						UserMap->Remove(InviteId);
-					}
-				}
+				ClearSessionInvitesForSession(OpParams.LocalAccountId, FoundSession->GetSessionId());
 
 				Op->SetResult({ });
 
