@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace UnrealBuildTool
@@ -55,6 +56,62 @@ namespace UnrealBuildTool
 
 		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2021, 0, 0);
 
+		/// <summary>
+		/// The default set of components that should be suggested to be installed for Visual Studio 2019 or 2022.
+		/// This or the 2019\2022 specific components should be updated if the referred visual cpp version changes
+		/// </summary>
+		static readonly string[] VisualStudioSuggestedComponents = new string[]
+		{
+			"Microsoft.VisualStudio.Workload.CoreEditor",
+			"Microsoft.VisualStudio.Workload.Universal",
+			"Microsoft.VisualStudio.Workload.ManagedDesktop",
+			"Microsoft.VisualStudio.Workload.NativeDesktop",
+			"Microsoft.VisualStudio.Workload.NativeGame",
+			"Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+			"Microsoft.VisualStudio.Component.VC.Tools.ARM64",
+			"Microsoft.VisualStudio.Component.Windows10SDK",
+		};
+
+		/// <summary>
+		/// Additional set of components that should be suggested to be installed for Visual Studio 2019.
+		/// </summary>
+		static readonly string[] VisualStudio2019SuggestedComponents = new string[]
+		{
+		};
+
+		/// <summary>
+		/// Additional set of components that should be suggested to be installed for Visual Studio 2022.
+		/// </summary>
+		static readonly string[] VisualStudio2022SuggestedComponents = new string[]
+		{
+			"Microsoft.VisualStudio.Workload.NativeCrossPlat",
+			"Microsoft.VisualStudio.Component.VC.14.32.17.2.ARM64",
+			"Microsoft.VisualStudio.Component.VC.14.32.17.2.x86.x64"
+		};
+
+		/// <summary>
+		/// Returns the list of suggested of components that should be suggested to be installed for Visual Studio.
+		/// Used to generate a .vsconfig file which will prompt Visual Studio to ask the user to install these components.
+		/// </summary>
+		public static IEnumerable<string> GetVisualStudioSuggestedComponents(VCProjectFileFormat Format)
+		{
+			SortedSet<string> Components = new SortedSet<string>();
+			Components.UnionWith(VisualStudioSuggestedComponents);
+
+			switch (Format)
+			{
+				case VCProjectFileFormat.VisualStudio2019:
+					Components.UnionWith(VisualStudio2019SuggestedComponents);
+					break;
+				case VCProjectFileFormat.VisualStudio2022:
+					Components.UnionWith(VisualStudio2022SuggestedComponents);
+					break;
+				default:
+					throw new BuildException("Unsupported Visual Studio version");
+			}
+
+			return Components;
+		}
 
 		public override string GetMainVersion()
 		{

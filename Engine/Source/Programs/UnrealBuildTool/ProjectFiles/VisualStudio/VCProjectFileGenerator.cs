@@ -57,6 +57,12 @@ namespace UnrealBuildTool
 		public bool bWriteSolutionOptionFile = true;
 
 		/// <summary>
+		/// Whether to write a .vsconfig file next to the sln to suggest components to install.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bVsConfigFile = true;
+
+		/// <summary>
 		/// Forces UBT to be built in debug configuration, regardless of the solution configuration
 		/// </summary>
 		[XmlConfigFile(Category = "VCProjectFileGenerator")]
@@ -169,6 +175,11 @@ namespace UnrealBuildTool
 				FileReference.Delete(PrimaryProjDeleteFilename);
 			}
 			PrimaryProjDeleteFilename = PrimaryProjectFile + ".v12.suo";
+			if (FileReference.Exists(PrimaryProjDeleteFilename))
+			{
+				FileReference.Delete(PrimaryProjDeleteFilename);
+			}
+			PrimaryProjDeleteFilename = FileReference.Combine(InPrimaryProjectDirectory, ".vsconfig");
 			if (FileReference.Exists(PrimaryProjDeleteFilename))
 			{
 				FileReference.Delete(PrimaryProjDeleteFilename);
@@ -886,6 +897,23 @@ namespace UnrealBuildTool
 						Options.Write(SolutionOptionsFileName.FullName);
 					}
 				}
+			}
+
+			if (bSuccess && Settings.bVsConfigFile && OperatingSystem.IsWindows())
+			{
+				StringBuilder VsConfigFileContent = new StringBuilder();
+
+				VsConfigFileContent.AppendLine("{");
+				VsConfigFileContent.AppendLine("  \"version\": \"1.0\",");
+				VsConfigFileContent.AppendLine("  \"components\": [");
+				IEnumerable<string> Components = MicrosoftPlatformSDK.GetVisualStudioSuggestedComponents(Settings.ProjectFileFormat);
+				string ComponentsString = string.Join($",{Environment.NewLine}    ", Components.Select(x => $"\"{x}\""));
+				VsConfigFileContent.AppendLine($"    {ComponentsString}");
+				VsConfigFileContent.AppendLine("  ]");
+				VsConfigFileContent.AppendLine("}");
+
+				FileReference VsConfigFileName = FileReference.Combine(PrimaryProjectPath, ".vsconfig");
+				bSuccess = WriteFileIfChanged(VsConfigFileName.FullName, VsConfigFileContent.ToString(), Logger);
 			}
 
 			return bSuccess;
