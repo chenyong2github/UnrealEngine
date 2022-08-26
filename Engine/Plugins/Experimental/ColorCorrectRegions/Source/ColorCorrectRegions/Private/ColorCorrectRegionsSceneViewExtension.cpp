@@ -276,16 +276,14 @@ namespace
 				
 			FRHIResourceCreateInfo CreateInfo(TEXT("CCR_StencilIdBuffer"));
 
-			FBufferRHIRef BufferRef = RHICreateStructuredBuffer(sizeof(uint32), sizeof(uint32) * StencilIds.Num(), BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM, CreateInfo);
-			uint32* MappedBuffer = static_cast<uint32*>(RHILockBuffer(BufferRef, 0, StencilIds.Num(), RLM_WriteOnly));
-			uint8 Index = 0;
-			for (const uint8& StencilId : StencilIds)
+			TArray<uint32> BufferData;
+			BufferData.AddUninitialized(StencilIds.Num());
+			for (int Index = 0; Index < BufferData.Num(); Index++)
 			{
-				MappedBuffer[Index++] = StencilId;
+				BufferData[Index] = StencilIds[Index];
 			}
 
-			RHIUnlockBuffer(BufferRef);
-			Parameters->StencilIds = RHICreateShaderResourceView(BufferRef);
+			Parameters->StencilIds = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("CCR.StencilIdBuffer"), sizeof(uint32), StencilIds.Num(), &BufferData[0], sizeof(uint32) * StencilIds.Num())));
 			Parameters->StencilIdCount = StencilIds.Num();
 
 			{
@@ -473,6 +471,11 @@ namespace
 			PixelShader = GetRegionShader(GlobalShaderMap, Region->Type, TemperatureType, bIsAdvanced, MergedStencilRenderTarget.IsValid());
 		}
 
+		if (MergedStencilRenderTarget.IsValid())
+		{
+			PostProcessMaterialParameters->MergedStencilTexture = MergedStencilRenderTarget.Texture;
+		}
+
 		ClearUnusedGraphResources(VertexShader, PixelShader, PostProcessMaterialParameters);
 
 		FCCRRegionDataInputParameter RegionData;
@@ -480,7 +483,6 @@ namespace
 		FCCRColorCorrectShadowsParameter CCShadows;
 		FCCRColorCorrectMidtonesParameter CCMidtones;
 		FCCRColorCorrectHighlightsParameter CCHighlights;
-		FCCRStencilMergerParameter CCRMergedStencil;
 		
 		// Setting constant buffer data to be passed to the shader.
 		{
@@ -538,11 +540,6 @@ namespace
 				CCHighlights.HighlightsMin = Region->ColorGradingSettings.HighlightsMin;
 			}
 
-			if (MergedStencilRenderTarget.IsValid())
-			{
-				CCRMergedStencil.MergedStencilTexture = MergedStencilRenderTarget.Texture;
-				CCRMergedStencil.MergedStencilSampler = TStaticSamplerState<>::GetRHI();
-			}
 		}
 
 #if CLIP_PIXELS_OUTSIDE_AABB
@@ -592,7 +589,6 @@ namespace
 			CCShadows,
 			CCMidtones,
 			CCHighlights,
-			CCRMergedStencil,
 			bIsAdvanced,
 			MergedStencilRenderTarget](FRHICommandList& RHICmdList)
 			{
@@ -613,10 +609,7 @@ namespace
 							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectMidtonesParameter>(), CCMidtones);
 							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectHighlightsParameter>(), CCHighlights);
 						}
-						if (MergedStencilRenderTarget.IsValid())
-						{
-							SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRStencilMergerParameter>(), CCRMergedStencil);
-						}
+
 						VertexShader->SetParameters(RHICmdList, View);
 						SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PostProcessMaterialParameters);
 

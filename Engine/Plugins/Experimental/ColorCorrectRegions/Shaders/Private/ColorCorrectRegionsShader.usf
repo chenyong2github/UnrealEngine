@@ -34,6 +34,7 @@
 
 #define EXCLUDE_STENCIL 1
 
+Texture2D<uint> MergedStencilTexture;
 
 struct FExternalExpressions
 {
@@ -249,7 +250,7 @@ float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpr
 MaterialFloat4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
 {
 #if STENCIL_ENABLED
-	int CustomStencil = CCRMergedStencil.MergedStencilTexture.Load(int3(Parameters.SvPosition.xy, 0.)).r;
+	int CustomStencil = MergedStencilTexture.Load(int3(Parameters.SvPosition.xy, 0.)).r;
 
 	{
 		if (ExternalExpressions.ExcludeStencil == EXCLUDE_STENCIL)
