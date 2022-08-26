@@ -210,7 +210,7 @@ protected:
 public:
 
 	/** Get the size of the project browser window */
-	static FVector2D GetProjectBrowserWindowSize() { return FVector2D(1190, 733); }
+	static FVector2D GetProjectBrowserWindowSize() { return FVector2D(1190, 822); }
 
 private:
 
