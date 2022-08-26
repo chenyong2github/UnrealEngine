@@ -270,13 +270,8 @@ void FActorDescTreeItem::FocusActorBounds() const
 {
 	if (FWorldPartitionActorDesc const* ActorDesc = ActorDescHandle.Get())
 	{
-		if (FLevelEditorViewportClient* LevelViewportClient = GCurrentLevelEditingViewportClient)
-		{
-			FBox Bounds = ActorDesc->GetBounds();
-			LevelViewportClient->FocusViewportOnBox(Bounds, false);
-			const FColor DarkGray(40, 40, 40);
-			DrawDebugBox(ActorDesc->GetContainer()->GetWorld(), Bounds.GetCenter(), Bounds.GetExtent(), DarkGray, false, 0.5f);
-		}
+		const bool bActiveViewportOnly = true;
+		GEditor->MoveViewportCamerasToBox(ActorDesc->GetBounds(), bActiveViewportOnly, 0.5f);
 	}
 }
 

@@ -19,6 +19,7 @@
 
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlWindowsModule.h"
 #include "UncontrolledChangelistsModule.h"
 #include "SourceControlOperations.h"
 #include "ToolMenus.h"
@@ -26,6 +27,7 @@
 #include "SourceControlWindows.h"
 #include "SourceControlHelpers.h"
 #include "SourceControlPreferences.h"
+#include "SourceControlMenuContext.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -873,22 +875,31 @@ void SSourceControlChangelistsWidget::GetSelectedFiles(TArray<FString>& OutContr
 
 	for (const TSharedPtr<IChangelistTreeItem>& Item : SelectedItems)
 	{
-		if (Item->GetTreeItemType() != IChangelistTreeItem::File)
+		if (Item->GetTreeItemType() == IChangelistTreeItem::File)
 		{
-			continue;
-		}
-
-		if (TSharedPtr<IChangelistTreeItem> Parent = Item->GetParent())
-		{
-			const FString& Filename = StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename();
-
-			if (Parent->GetTreeItemType() == IChangelistTreeItem::Changelist)
+			if (TSharedPtr<IChangelistTreeItem> Parent = Item->GetParent())
 			{
-				OutControlledFiles.Add(Filename);
+				const FString& Filename = StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename();
+
+				if (Parent->GetTreeItemType() == IChangelistTreeItem::Changelist)
+				{
+					OutControlledFiles.Add(Filename);
+				}
+				else if (Parent->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+				{
+					OutUncontrolledFiles.Add(Filename);
+				}
 			}
-			else if (Parent->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+		}
+		else if (Item->GetTreeItemType() == IChangelistTreeItem::OfflineFile)
+		{
+			if (TSharedPtr<IChangelistTreeItem> Parent = Item->GetParent())
 			{
-				OutUncontrolledFiles.Add(Filename);
+				if (Parent->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+				{
+					const FString& Filename = StaticCastSharedPtr<FOfflineFileTreeItem>(Item)->GetFilename();
+					OutUncontrolledFiles.Add(Filename);
+				}
 			}
 		}
 	}
@@ -1714,51 +1725,6 @@ void SSourceControlChangelistsWidget::OnMoveFiles()
 	}
 }
 
-void SSourceControlChangelistsWidget::OnLocateFile()
-{
-	TArray<FAssetData> AssetsToSync;
-	TArray<FChangelistTreeItemPtr> SelectedItems = FileTreeView->GetSelectedItems();
-
-	for (const FChangelistTreeItemPtr& SelectedItem : SelectedItems)
-	{
-		if (SelectedItem->GetTreeItemType() == IChangelistTreeItem::File)
-		{
-			const FAssetDataArrayPtr& Assets = StaticCastSharedPtr<FFileTreeItem>(SelectedItem)->GetAssetData();
-
-			if (Assets.IsValid())
-			{
-				AssetsToSync.Append(*Assets);
-			}
-		}
-	}
-
-	if (AssetsToSync.Num() > 0)
-	{
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-		ContentBrowserModule.Get().SyncBrowserToAssets(AssetsToSync, true);
-	}
-}
-
-bool SSourceControlChangelistsWidget::CanLocateFile()
-{
-	TArray<FChangelistTreeItemPtr> SelectedItems = FileTreeView->GetSelectedItems();
-
-	auto HasAssetData = [](const FChangelistTreeItemPtr& SelectedItem)
-	{
-		if (SelectedItem->GetTreeItemType() != IChangelistTreeItem::File)
-		{
-			return false;
-		}
-
-		const FAssetDataArrayPtr& Assets = StaticCastSharedPtr<FFileTreeItem>(SelectedItem)->GetAssetData();
-
-		return (Assets.IsValid() && Assets->Num() > 0);
-	};
-
-	// Checks if at least one selected item has asset data (ie: accessible from ContentBrowser)
-	return SelectedItems.FindByPredicate(HasAssetData) != nullptr;
-}
-
 void SSourceControlChangelistsWidget::OnShowHistory()
 {
 	TArray<FString> SelectedFiles = GetSelectedFiles();
@@ -1802,12 +1768,10 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	static const FName MenuName = "SourceControl.ChangelistContextMenu";
 	if (!ToolMenus->IsMenuRegistered(MenuName))
 	{
-		ToolMenus->RegisterMenu(MenuName);
+		UToolMenu* RegisteredMenu = ToolMenus->RegisterMenu(MenuName);
+		// Add section so it can be used as insert position for menu extensions
+		RegisteredMenu->AddSection("Source Control");
 	}
-
-	// Build up the menu for a selection
-	FToolMenuContext Context;
-	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
 
 	TArray<TSharedPtr<IChangelistTreeItem>> SelectedChangelistNodes = ChangelistTreeView->GetSelectedItems();
 	TArray<TSharedPtr<IChangelistTreeItem>> SelectedUncontrolledChangelistNodes = UncontrolledChangelistTreeView->GetSelectedItems();
@@ -1819,7 +1783,20 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	bool bHasSelectedShelvedFiles = (GetSelectedShelvedFiles().Num() > 0);
 	bool bHasEmptySelection = (!bHasSelectedChangelist && !bHasSelectedFiles && !bHasSelectedShelvedFiles);
 
-	FToolMenuSection& Section = Menu->AddSection("Source Control");
+	// Build up the menu for a selection
+	USourceControlMenuContext* ContextObject = NewObject<USourceControlMenuContext>();
+	FToolMenuContext Context(ContextObject);
+
+	// Fill Context Object
+	TArray<FString> SelectedControlledFiles;
+	TArray<FString> SelectedUncontrolledFiles;
+	GetSelectedFiles(SelectedControlledFiles, SelectedUncontrolledFiles);
+	ContextObject->SelectedFiles.Append(SelectedControlledFiles);
+	ContextObject->SelectedFiles.Append(SelectedUncontrolledFiles);
+
+	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
+
+	FToolMenuSection& Section = *Menu->FindSection("Source Control");
 	
 	// This should appear only on change lists
 	if (bHasSelectedChangelist)
@@ -1944,15 +1921,6 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 			FUIAction(FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnMoveFiles)));
 
 		Section.AddMenuEntry(
-			"LocateFile",
-			LOCTEXT("SourceControl_LocateFile", "Locate File..."),
-			LOCTEXT("SourceControl_LocateFile_Tooltip", "Locate File in Project..."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::OnLocateFile),
-				FCanExecuteAction::CreateSP(this, &SSourceControlChangelistsWidget::CanLocateFile)));
-
-		Section.AddMenuEntry(
 			"ShowHistory",
 			LOCTEXT("SourceControl_ShowHistory", "Show History..."),
 			LOCTEXT("SourceControl_ShowHistory_ToolTip", "Show File History From Selection..."),
@@ -2005,6 +1973,7 @@ TSharedRef<STreeView<FChangelistTreeItemPtr>> SSourceControlChangelistsWidget::C
 		.OnGetChildren(this, &SSourceControlChangelistsWidget::OnGetFileChildren)
 		.SelectionMode(ESelectionMode::Multi)
 		.OnContextMenuOpening(this, &SSourceControlChangelistsWidget::OnOpenContextMenu)
+		.OnMouseButtonDoubleClick(this, &SSourceControlChangelistsWidget::OnItemDoubleClicked)
 		.HeaderRow
 		(
 			SNew(SHeaderRow)
@@ -2614,6 +2583,20 @@ void SSourceControlChangelistsWidget::OnGetChangelistChildren(FChangelistTreeIte
 	else if (InParent->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
 	{
 		// Uncontrolled changelist nodes do not have children at the moment.
+	}
+}
+
+void SSourceControlChangelistsWidget::OnItemDoubleClicked(TSharedPtr<IChangelistTreeItem> Item)
+{
+	if (Item->GetTreeItemType() == IChangelistTreeItem::OfflineFile)
+	{
+		const FString& Filename = StaticCastSharedPtr<FOfflineFileTreeItem>(Item)->GetFilename();
+		ISourceControlWindowsModule::Get().OnChangelistFileDoubleClicked().Broadcast(Filename);
+	}
+	else if (Item->GetTreeItemType() == IChangelistTreeItem::File)
+	{
+		const FString& Filename = StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename();
+		ISourceControlWindowsModule::Get().OnChangelistFileDoubleClicked().Broadcast(Filename);
 	}
 }
 

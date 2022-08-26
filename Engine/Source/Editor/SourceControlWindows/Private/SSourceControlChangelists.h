@@ -109,8 +109,6 @@ private:
 
 	/** Files operations */
 	void OnMoveFiles();
-	void OnLocateFile();
-	bool CanLocateFile();
 	void OnShowHistory();
 	void OnDiffAgainstDepot();
 	bool CanDiffAgainstDepot();
@@ -122,6 +120,7 @@ private:
 	/** Source control callbacks */
 	void OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
 	void OnSourceControlStateChanged();
+	void OnItemDoubleClicked(TSharedPtr<IChangelistTreeItem> Item);
 	void OnChangelistSelectionChanged(TSharedPtr<IChangelistTreeItem> SelectedItem, ESelectInfo::Type SelectionType);
 	void OnChangelistsStatusUpdated(const TSharedRef<ISourceControlOperation>& InOperation, ECommandResult::Type InType);
 

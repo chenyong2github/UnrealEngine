@@ -265,6 +265,7 @@ public class UnrealEd : ModuleRules
 				"VirtualTexturingEditor",
 				"WorldPartitionEditor",
 				"CSVtoSVG",
+				"SourceControlWindowExtender"
 			}
 		);
 

@@ -1037,10 +1037,11 @@ public:
 
 	/**
 	 * Moves all viewport cameras to focus on the provided bounding box.
-	 * @param	BoundingBox				Target box
-	 * @param	bActiveViewportOnly		If true, move/reorient only the active viewport.
+	 * @param	BoundingBox					Target box
+	 * @param	bActiveViewportOnly			If true, move/reorient only the active viewport.
+	 * @param	DrawDebubBoxTimeInSeconds	If greater than 0 a debug box is drawn representing the bounding box.It will be drawn for specified time.
 	 */
-	void MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const;
+	void MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly, float DrawDebugBoxTimeInSeconds = 0.f) const;
 
 	/** 
 	 * Snaps an element in a direction.  Optionally will align with the trace normal.

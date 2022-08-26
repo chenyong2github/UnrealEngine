@@ -37,6 +37,9 @@ public:
 
 	virtual void ShowChangelistsTab() override;
 	virtual bool CanShowChangelistsTab() const override;
+	
+	DECLARE_DERIVED_EVENT(FSourceControlWindowsModule, ISourceControlWindowsModule::FChangelistFileDoubleClickedEvent, FChangelistFileDoubleClickedEvent);
+	virtual FChangelistFileDoubleClickedEvent& OnChangelistFileDoubleClicked() override { return ChangelistFileDoubleClickedEvent; }
 
 private:
 	TSharedRef<SDockTab> CreateChangelistsTab(const FSpawnTabArgs& Args);
@@ -45,6 +48,8 @@ private:
 private:
 	TWeakPtr<SDockTab> ChangelistsTab;
 	TWeakPtr<SSourceControlChangelistsWidget> ChangelistsWidget;
+
+	FChangelistFileDoubleClickedEvent ChangelistFileDoubleClickedEvent;
 };
 
 IMPLEMENT_MODULE(FSourceControlWindowsModule, SourceControlWindows);

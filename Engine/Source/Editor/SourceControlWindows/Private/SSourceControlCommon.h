@@ -250,6 +250,8 @@ struct FOfflineFileTreeItem : public IChangelistTreeItem
 	explicit FOfflineFileTreeItem(const FString& InFilename);
 
 public:
+	const FString& GetFilename() const { return Filename; }
+
 	const FText& GetPackageName() const { return PackageName; }
 
 	const FText& GetDisplayName() const { return AssetName; }
@@ -262,6 +264,7 @@ public:
 
 private:
 	TArray<FAssetData> Assets;
+	FString Filename;
 	FText PackageName;
 	FText AssetName;
 	FText AssetPath;

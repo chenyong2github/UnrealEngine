@@ -224,6 +224,7 @@ FText FShelvedChangelistTreeItem::GetDisplayText() const
 FOfflineFileTreeItem::FOfflineFileTreeItem(const FString& InFilename)
 	: IChangelistTreeItem(IChangelistTreeItem::OfflineFile)
 	, Assets()
+	, Filename(InFilename)
 	, PackageName(FText::FromString(InFilename)) 
 	, AssetName(SSourceControlCommon::GetDefaultAssetName())
 	, AssetPath()

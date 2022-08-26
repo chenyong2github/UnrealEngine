@@ -5021,7 +5021,7 @@ void UEditorEngine::MoveViewportCamerasToElement(const UTypedElementSelectionSet
 	MoveViewportCamerasToBox(BoundingBox, bActiveViewportOnly);
 }
 
-void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const
+void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly, float DrawDebugBoxTimeInSeconds) const
 {
 	// Make sure we had at least one non-null actor in the array passed in.
 	if (BoundingBox.GetSize() != FVector::ZeroVector || BoundingBox.GetCenter() != FVector::ZeroVector)
@@ -5056,6 +5056,16 @@ void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActi
 				//Dont move camera attach to an actor
 				if (!LinkedViewportClient->IsAnyActorLocked())
 					LinkedViewportClient->FocusViewportOnBox(BoundingBox);
+			}
+		}
+
+		if (DrawDebugBoxTimeInSeconds > 0.f)
+		{
+			const FWorldContext& Context = const_cast<UEditorEngine*>(this)->GetEditorWorldContext();
+			if (const UWorld* World = Context.World())
+			{
+				const FColor DarkGray(40, 40, 40);
+				DrawDebugBox(World, BoundingBox.GetCenter(), BoundingBox.GetExtent(), DarkGray, false, DrawDebugBoxTimeInSeconds);
 			}
 		}
 	}

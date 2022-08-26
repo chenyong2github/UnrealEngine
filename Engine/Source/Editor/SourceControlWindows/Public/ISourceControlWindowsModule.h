@@ -19,6 +19,14 @@ public:
 		return FModuleManager::LoadModuleChecked<ISourceControlWindowsModule>("SourceControlWindows");
 	}
 
+	static inline ISourceControlWindowsModule* TryGet()
+	{
+		return FModuleManager::GetModulePtr<ISourceControlWindowsModule>("SourceControlWindows");
+	}
+
 	virtual void ShowChangelistsTab() = 0;
 	virtual bool CanShowChangelistsTab() const = 0;
+
+	DECLARE_EVENT_OneParam(ISourceControlWindowsModule, FChangelistFileDoubleClickedEvent, const FString&);
+	virtual FChangelistFileDoubleClickedEvent& OnChangelistFileDoubleClicked() = 0;
 };
