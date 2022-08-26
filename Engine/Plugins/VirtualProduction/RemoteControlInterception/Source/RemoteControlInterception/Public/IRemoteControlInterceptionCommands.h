@@ -214,6 +214,7 @@ public:
 		Ar << Super;
 		
 		Ar << Instance.PayloadType;
+		Ar << Instance.Operation;
 		// const cast is needed for keeping the const& on a constructor and as a class parameter
 		Ar << const_cast<TArray<uint8>&>(Instance.Payload);
 		return Ar;

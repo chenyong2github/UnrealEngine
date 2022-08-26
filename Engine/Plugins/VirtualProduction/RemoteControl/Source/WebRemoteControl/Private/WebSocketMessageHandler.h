@@ -267,6 +267,7 @@ private:
 	 */
 	int64 GetSequenceNumber(const FGuid& ClientId) const;
 
+#if WITH_EDITOR
 	/**
 	 * Indicate that a client is going to contribute to the transaction with the given ID.
 	 * This should be called whenever a change is made that will be part of the transaction, not just at the start.
@@ -288,6 +289,7 @@ private:
 	 * Converts an internal transaction GUID to the ID used by the given client to refer to it.
 	 */
 	int32 GetClientTransactionId(const FGuid& ClientId, const FGuid& TransactionGuid) const;
+#endif
 
 private:
 

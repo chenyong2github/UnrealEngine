@@ -110,7 +110,7 @@
 		},
 		{
 			"Name": "DisplayClusterScenePreview",
-			"Type": "Editor",
+			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
 				"Win64",
