@@ -328,7 +328,7 @@ void ProcessTransactionEvent(const FConcertTransactionEventBase& InEvent, const 
 				});
 			}
 
-			if (ObjectUpdate.ObjectData.bResetExisting && !NewlyCreatedObjects.Contains(TransactionObjectRef.Obj))
+			if (TransactionObjectRef.Obj && ObjectUpdate.ObjectData.bResetExisting && !NewlyCreatedObjects.Contains(TransactionObjectRef.Obj))
 			{
 				ConcertSyncUtil::ResetObjectPropertiesToArchetypeValues(TransactionObjectRef.Obj, bIncludeEditorOnlyProperties);
 			}
