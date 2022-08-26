@@ -199,6 +199,15 @@ void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransform
 }
 
 
+void MeshTransforms::ReverseOrientationIfNeeded(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform)
+{
+	if (Transform.GetDeterminant() < 0)
+	{
+		Mesh.ReverseOrientation(false);
+	}
+}
+
+
 
 void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh,
 	TFunctionRef<FVector3d(const FVector3d&)> PositionTransform,

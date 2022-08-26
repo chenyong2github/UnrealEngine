@@ -173,6 +173,9 @@ void ULatticeDeformerTool::Setup()
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(UE::ToolTarget::GetMeshDescription(Target), *OriginalMesh);
 
+	// Note: Mesh will be implicitly transformed to world space by transforming the lattice; we account for whether that would invert the mesh here
+	MeshTransforms::ReverseOrientationIfNeeded(*OriginalMesh, (Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform()));
+
 	Settings = NewObject<ULatticeDeformerToolProperties>(this, TEXT("Lattice Deformer Tool Settings"));
 	Settings->Initialize(this);
 	Settings->RestoreProperties(this);
@@ -358,7 +361,7 @@ void ULatticeDeformerTool::OnShutdown(EToolShutdownType ShutdownType)
 			// The lattice and its output mesh are in world space, so get them in local space.
 			// TODO: Would it make more sense to do all the lattice computation in local space?
 			FTransform3d LocalToWorld(TargetComponent->GetWorldTransform());
-			MeshTransforms::ApplyTransformInverse(*DynamicMeshResult, LocalToWorld);
+			MeshTransforms::ApplyTransformInverse(*DynamicMeshResult, LocalToWorld, true);
 
 			UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Target, *DynamicMeshResult, true);
 

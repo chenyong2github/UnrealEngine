@@ -67,6 +67,10 @@ namespace MeshTransforms
 		TFunctionRef<FVector3d(const FVector3d&)> PositionTransform,
 		TFunctionRef<FVector3f(const FVector3f&)> NormalTransform);
 
-
+	/**
+	 * If applying Transform would invert Mesh w/ a negative scale, then invert Mesh's triangle orientations.
+	 * Note: Does not apply the transform.
+	 */
+	GEOMETRYCORE_API void ReverseOrientationIfNeeded(FDynamicMesh3& Mesh, const FTransformSRT3d& Transform);
 
 };
