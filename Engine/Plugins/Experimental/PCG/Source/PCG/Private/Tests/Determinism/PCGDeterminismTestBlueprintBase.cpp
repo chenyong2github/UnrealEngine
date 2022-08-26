@@ -2,11 +2,11 @@
 
 #include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
 
-void UPCGDeterminismTestBlueprintBase::ExecuteTest_Implementation(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& InOutTestResult)
+void UPCGDeterminismTestBlueprintBase::ExecuteTest_Implementation(const UPCGNode* InPCGNode, FDeterminismTestResult& InOutTestResult)
 {
 	// The default case if the user tries to run the blueprint test unimplemented
-	InOutTestResult.NodeTitle = InPCGNode->GetNodeTitle();
-	InOutTestResult.NodeName = InPCGNode->GetName();
+	InOutTestResult.TestResultTitle = InPCGNode->GetNodeTitle();
+	InOutTestResult.TestResultName = InPCGNode->GetName();
 	InOutTestResult.Seed = InPCGNode->DefaultSettings->Seed;
 	PCGDeterminismTests::RunDeterminismTest(InPCGNode, InOutTestResult, PCGDeterminismTests::Defaults::DeterminismBasicTestInfo);
 }

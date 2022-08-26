@@ -15,5 +15,5 @@ class PCG_API UPCGDeterminismTestBlueprintBase : public UObject
 
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintPure, CallInEditor, Category = Determinism)
-	void ExecuteTest(const UPCGNode* InPCGNode, UPARAM(ref)FDeterminismNodeTestResult& InOutTestResult);
+	void ExecuteTest(const UPCGNode* InPCGNode, UPARAM(ref)FDeterminismTestResult& InOutTestResult);
 };

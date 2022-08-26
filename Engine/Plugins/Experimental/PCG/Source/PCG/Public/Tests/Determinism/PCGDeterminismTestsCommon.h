@@ -31,17 +31,17 @@ enum class EDeterminismLevel : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FDeterminismNodeTestResult // TODO: Refactor the names since this isn't always a node any longer
+struct FDeterminismTestResult
 {
 	GENERATED_BODY()
 
 	/** The node's title */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Determinism)
-	FName NodeTitle = TEXT("Untitled");
+	FName TestResultTitle = TEXT("Untitled");
 
 	/** The node's name */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Determinism)
-	FString NodeName = TEXT("Unnamed");
+	FString TestResultName = TEXT("Unnamed");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Determinism)
 	int32 Seed = -1;
@@ -102,9 +102,9 @@ namespace PCGDeterminismTests
 	};
 
 	/** A default delegate to report an unset test */
-	bool LogInvalidTest(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult);
+	bool LogInvalidTest(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismTestResult& OutResult);
 
-	typedef TFunction<bool(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult)> TestFunction;
+	typedef TFunction<bool(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismTestResult& OutResult)> TestFunction;
 
 	struct FNodeTestInfo
 	{
@@ -134,18 +134,18 @@ namespace PCGDeterminismTests
 	};
 
 	/** Validates if a PCGNode is deterministic */
-	PCG_API void RunDeterminismTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult, const FNodeTestInfo& TestToRun);
+	PCG_API void RunDeterminismTest(const UPCGNode* InPCGNode, FDeterminismTestResult& OutResult, const FNodeTestInfo& TestToRun);
 
 #if WITH_EDITOR
 	/** Validates if a PCGGraph is deterministic */
-	PCG_API void RunDeterminismTest(const UPCGGraph* InPCGGraph, UPCGComponent* InPCGComponent, FDeterminismNodeTestResult& OutResult);
+	PCG_API void RunDeterminismTest(const UPCGGraph* InPCGGraph, UPCGComponent* InPCGComponent, FDeterminismTestResult& OutResult);
 #endif
 
 	/** Validates all the generic determinism tests for any given node */
-	PCG_API bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult);
+	PCG_API bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismTestResult& OutResult);
 
 	/** Validates the various levels of order independence for any given node */
-	PCG_API bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult);
+	PCG_API bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismTestResult& OutResult);
 
 	/** Validates minimal node determinism against the same single test data */
 	bool RunBasicSelfTest(const FNodeAndOptions& NodeAndOptions);
@@ -237,7 +237,7 @@ namespace PCGDeterminismTests
 	/** A catch function for unimplemented comparisons */
 	bool ComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData);
 	/** Updates the test result output to reflect that the permutation limit has been exceeded */
-	void UpdateTestResultForOverPermutationLimitError(FDeterminismNodeTestResult& OutResult);
+	void UpdateTestResultForOverPermutationLimitError(FDeterminismTestResult& OutResult);
 
 	/** Determines if a PCG DataType is a type that should be compared */
 	bool DataTypeIsComparable(EPCGDataType DataType);
@@ -268,7 +268,7 @@ namespace PCGDeterminismTests
 	EPCGDataType GetPermutation(int32 PermutationIteration, int32 PinIndex, const TArray<TArray<EPCGDataType>>& BaseOptionsPerPin);
 
 	/** Helper to update a tests' outgoing results */
-	void UpdateTestResults(FName TestName, FDeterminismNodeTestResult& OutResult, EDeterminismLevel DeterminismLevel);
+	void UpdateTestResults(FName TestName, FDeterminismTestResult& OutResult, EDeterminismLevel DeterminismLevel);
 
 	/** Gets a comparison function to compare two data objects */
 	TFunction<bool(const UPCGData*, const UPCGData*)> GetDataCompareFunction(EPCGDataType DataType, EDeterminismLevel DeterminismLevel);

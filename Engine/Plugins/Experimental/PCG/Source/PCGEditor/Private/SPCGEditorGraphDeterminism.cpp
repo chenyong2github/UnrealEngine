@@ -61,11 +61,11 @@ TSharedRef<SWidget> SPCGEditorGraphDeterminismRow::GenerateWidgetForColumn(const
 	}
 	else if (ColumnId == NAME_NodeTitle)
 	{
-		return ReturnColorCodedResultBlock(FText::FromName(CurrentItem->NodeTitle));
+		return ReturnColorCodedResultBlock(FText::FromName(CurrentItem->TestResultTitle));
 	}
 	else if (ColumnId == NAME_NodeName)
 	{
-		CellText = FText::FromString(CurrentItem->NodeName);
+		CellText = FText::FromString(CurrentItem->TestResultName);
 	}
 	else if (ColumnId == NAME_Seed)
 	{

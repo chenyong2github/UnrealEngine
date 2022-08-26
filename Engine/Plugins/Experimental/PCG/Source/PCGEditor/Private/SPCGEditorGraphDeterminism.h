@@ -7,7 +7,7 @@
 
 class FPCGEditor;
 
-typedef TSharedPtr<FDeterminismNodeTestResult> FPCGNodeTestResultPtr;
+typedef TSharedPtr<FDeterminismTestResult> FPCGNodeTestResultPtr;
 
 struct FTestColumnInfo
 {

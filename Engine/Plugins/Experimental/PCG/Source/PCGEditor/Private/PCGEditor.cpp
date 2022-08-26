@@ -473,9 +473,9 @@ void FPCGEditor::OnDeterminismNodeTest()
 				const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 				check(PCGNode && PCGNode->DefaultSettings);
 
-				TSharedPtr<FDeterminismNodeTestResult> NodeResult = MakeShared<FDeterminismNodeTestResult>();
-				NodeResult->NodeTitle = PCGNode->GetNodeTitle();
-				NodeResult->NodeName = PCGNode->GetName();
+				TSharedPtr<FDeterminismTestResult> NodeResult = MakeShared<FDeterminismTestResult>();
+				NodeResult->TestResultTitle = PCGNode->GetNodeTitle();
+				NodeResult->TestResultName = PCGNode->GetName();
 				NodeResult->Seed = PCGNode->DefaultSettings->Seed;
 
 				if (PCGNode->DefaultSettings->DeterminismSettings.bNativeTests)
@@ -562,9 +562,9 @@ void FPCGEditor::OnDeterminismGraphTest()
 	FTestColumnInfo ColumnInfo({PCGDeterminismTests::Defaults::GraphResultName, NSLOCTEXT("PCGDeterminism", "Result", "Result"), 120.f, HAlign_Center});
 	DeterminismWidget->AddColumn(ColumnInfo);
 
-	TSharedPtr<FDeterminismNodeTestResult> TestResult = MakeShared<FDeterminismNodeTestResult>();
-	TestResult->NodeTitle = TEXT("Full Graph Test");
-	TestResult->NodeName = PCGGraphBeingEdited->GetName();
+	TSharedPtr<FDeterminismTestResult> TestResult = MakeShared<FDeterminismTestResult>();
+	TestResult->TestResultTitle = TEXT("Full Graph Test");
+	TestResult->TestResultName = PCGGraphBeingEdited->GetName();
 	TestResult->Seed = PCGComponentBeingDebugged->Seed;
 
 	PCGDeterminismTests::RunDeterminismTest(PCGGraphBeingEdited, PCGComponentBeingDebugged, *TestResult);

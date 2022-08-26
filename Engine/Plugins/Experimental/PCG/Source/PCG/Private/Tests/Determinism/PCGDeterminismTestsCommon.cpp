@@ -33,14 +33,14 @@ static TAutoConsoleVariable<int32> CVarDeterminismPermutationLimit(
 
 namespace PCGDeterminismTests
 {
-	bool LogInvalidTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult)
+	bool LogInvalidTest(const UPCGNode* InPCGNode, FDeterminismTestResult& OutResult)
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Attempting to run an invalid determinism test"));
 		OutResult.AdditionalDetails.Add(TEXT("Invalid test"));
 		return false;
 	}
 
-	void RunDeterminismTest(const UPCGNode* InPCGNode, FDeterminismNodeTestResult& OutResult, const FNodeTestInfo& TestToRun)
+	void RunDeterminismTest(const UPCGNode* InPCGNode, FDeterminismTestResult& OutResult, const FNodeTestInfo& TestToRun)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGDeterminismTests::RunDeterminismTest::Node);
 
@@ -65,7 +65,7 @@ namespace PCGDeterminismTests
 	}
 
 #if WITH_EDITOR
-	void RunDeterminismTest(const UPCGGraph* InPCGGraph, UPCGComponent* InPCGComponent, FDeterminismNodeTestResult& OutResult)
+	void RunDeterminismTest(const UPCGGraph* InPCGGraph, UPCGComponent* InPCGComponent, FDeterminismTestResult& OutResult)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGDeterminismTests::RunDeterminismTest::Graph);
 
@@ -211,7 +211,7 @@ namespace PCGDeterminismTests
 	}
 #endif
 
-	bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult)
+	bool RunBasicTestSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismTestResult& OutResult)
 	{
 		// Get Pins
 		const TArray<TObjectPtr<UPCGPin>>& InputPins = InPCGNode->GetInputPins();
@@ -229,7 +229,7 @@ namespace PCGDeterminismTests
 		return RunBasicSelfTest(NodeAndOptions) && RunBasicCopiedSelfTest(NodeAndOptions);
 	}
 
-	bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismNodeTestResult& OutResult)
+	bool RunOrderIndependenceSuite(const UPCGNode* InPCGNode, const FName& TestName, FDeterminismTestResult& OutResult)
 	{
 		// Start with not deterministic
 		UpdateTestResults(TestName, OutResult, EDeterminismLevel::NoDeterminism);
@@ -1215,7 +1215,7 @@ namespace PCGDeterminismTests
 		return false;
 	}
 
-	void UpdateTestResultForOverPermutationLimitError(FDeterminismNodeTestResult& OutResult)
+	void UpdateTestResultForOverPermutationLimitError(FDeterminismTestResult& OutResult)
 	{
 		OutResult.DataTypesTested = EPCGDataType::None;
 		OutResult.bFlagRaised = true;
@@ -1361,7 +1361,7 @@ namespace PCGDeterminismTests
 		return BaseOptionsPerPin[PinIndex][PermutationIndex];
 	}
 
-	void UpdateTestResults(FName TestName, FDeterminismNodeTestResult& OutResult, EDeterminismLevel DeterminismLevel)
+	void UpdateTestResults(FName TestName, FDeterminismTestResult& OutResult, EDeterminismLevel DeterminismLevel)
 	{
 		EDeterminismLevel& Result = OutResult.TestResults.FindOrAdd(TestName);
 		Result = DeterminismLevel;
