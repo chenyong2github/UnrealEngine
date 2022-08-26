@@ -700,6 +700,14 @@ void UGroomAsset::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);	// Needed to support MeshDescription AttributesSet serialization
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);    // Needed to support Cards and Cluster culling serialization
 
+#if WITH_EDITORONLY_DATA
+	// Retrieve achieve version to forward them to the hair description bulk data
+	HairDescriptionVersion.CustomVersions = Ar.GetCustomVersions();
+	HairDescriptionVersion.UEVersion = Ar.UEVer();
+	HairDescriptionVersion.LicenseeVersion = Ar.LicenseeUEVer();
+	HairDescriptionVersion.bIsValid = true;
+#endif // WITH_EDITORONLY_DATA
+
 	if (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::GroomWithDescription)
 	{
 		FStripDataFlags StripFlags(Ar, ClassDataStripFlags);
@@ -2067,6 +2075,24 @@ FString UGroomAsset::GetDerivedDataKeyForMeshes(uint32 GroupIndex)
 	return DerivedDataKey;
 }
 
+const FHairDescriptionVersion& UGroomAsset::GetHairDescriptionVersion() const
+{
+	if (!HairDescriptionVersion.IsValid())
+	{
+		FHairDescriptionVersion* MutableHairDescription = const_cast<FHairDescriptionVersion*>(&HairDescriptionVersion);
+		if (UObject* Outer = GetOuter())
+		{
+			MutableHairDescription->UEVersion = Outer->GetLinkerUEVersion();
+			MutableHairDescription->LicenseeVersion = Outer->GetLinkerLicenseeUEVersion();
+			if (FLinkerLoad* Linker = Outer->GetLinker())
+			{
+				MutableHairDescription->CustomVersions = Linker->GetCustomVersions();
+			}
+		}
+		MutableHairDescription->bIsValid = true; 
+	}
+	return HairDescriptionVersion;
+}
 
 void UGroomAsset::CommitHairDescription(FHairDescription&& InHairDescription, EHairDescriptionType Type)
 {
@@ -2083,7 +2109,7 @@ void UGroomAsset::CommitHairDescription(FHairDescription&& InHairDescription, EH
 	CachedHairDescriptionGroups[HairDescriptionType] = MakeUnique<FHairDescriptionGroups>();
 	FGroomBuilder::BuildHairDescriptionGroups(*CachedHairDescription[HairDescriptionType], *CachedHairDescriptionGroups[HairDescriptionType]);
 
-	HairDescriptionBulkData[HairDescriptionType]->SaveHairDescription(*CachedHairDescription[HairDescriptionType]);
+	HairDescriptionBulkData[HairDescriptionType]->SaveHairDescription(*CachedHairDescription[HairDescriptionType], GetHairDescriptionVersion());
 }
 
 const FHairDescriptionGroups& UGroomAsset::GetHairDescriptionGroups()
@@ -2093,7 +2119,7 @@ const FHairDescriptionGroups& UGroomAsset::GetHairDescriptionGroups()
 	if (!CachedHairDescription[HairDescriptionType])
 	{
 		CachedHairDescription[HairDescriptionType] = MakeUnique<FHairDescription>();
-		HairDescriptionBulkData[HairDescriptionType]->LoadHairDescription(*CachedHairDescription[HairDescriptionType]);
+		HairDescriptionBulkData[HairDescriptionType]->LoadHairDescription(*CachedHairDescription[HairDescriptionType], GetHairDescriptionVersion());
 	}
 	if (!CachedHairDescriptionGroups[HairDescriptionType])
 	{
@@ -2109,7 +2135,7 @@ FHairDescription UGroomAsset::GetHairDescription() const
 	FHairDescription OutHairDescription;
 	if (HairDescriptionBulkData[HairDescriptionType])
 	{
-		HairDescriptionBulkData[HairDescriptionType]->LoadHairDescription(OutHairDescription);
+		HairDescriptionBulkData[HairDescriptionType]->LoadHairDescription(OutHairDescription, GetHairDescriptionVersion());
 	}
 	return MoveTemp(OutHairDescription);
 }

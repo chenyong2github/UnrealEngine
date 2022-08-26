@@ -674,6 +674,10 @@ private:
 	TUniquePtr<FHairDescription> CachedHairDescription[EHairDescriptionType::Count];
 	TUniquePtr<FHairDescriptionGroups> CachedHairDescriptionGroups[EHairDescriptionType::Count];
 
+	// Hair description version aggregate all versions used by the asset (i.e., UE/Custom/Licensee version)
+	const FHairDescriptionVersion& GetHairDescriptionVersion() const;
+	FHairDescriptionVersion HairDescriptionVersion;
+
 	TArray<FString> StrandsDerivedDataKey;
 	TArray<FString> CardsDerivedDataKey;
 	TArray<FString> MeshesDerivedDataKey;
