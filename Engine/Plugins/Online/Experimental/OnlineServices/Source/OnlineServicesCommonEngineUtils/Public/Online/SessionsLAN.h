@@ -15,7 +15,7 @@ class ONLINESERVICESCOMMONENGINEUTILS_API FOnlineSessionIdRegistryLAN : public F
 public:
 	static FOnlineSessionIdRegistryLAN& GetChecked(EOnlineServices ServicesType);
 
-	FOnlineSessionIdHandle GetNextSessionId();
+	FOnlineSessionId GetNextSessionId();
 
 protected:
 	FOnlineSessionIdRegistryLAN(EOnlineServices ServicesType);

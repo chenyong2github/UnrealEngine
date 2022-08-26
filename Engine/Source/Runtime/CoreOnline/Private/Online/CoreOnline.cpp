@@ -307,34 +307,34 @@ void FOnlineIdRegistryRegistry::UnregisterSessionIdRegistry(EOnlineServices Onli
 	}
 }
 
-FString FOnlineIdRegistryRegistry::ToLogString(const FOnlineSessionIdHandle& Handle) const
+FString FOnlineIdRegistryRegistry::ToLogString(const FOnlineSessionId& SessionId) const
 {
 	FString Result;
-	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(Handle.GetOnlineServicesType()))
+	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(SessionId.GetOnlineServicesType()))
 	{
-		Result = Registry->ToLogString(Handle);
+		Result = Registry->ToLogString(SessionId);
 	}
 	return Result;
 }
 
-TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FOnlineSessionIdHandle& Handle) const
+TArray<uint8> FOnlineIdRegistryRegistry::ToReplicationData(const FOnlineSessionId& SessionId) const
 {
 	TArray<uint8> RepData;
-	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(Handle.GetOnlineServicesType()))
+	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(SessionId.GetOnlineServicesType()))
 	{
-		RepData = Registry->ToReplicationData(Handle);
+		RepData = Registry->ToReplicationData(SessionId);
 	}
 	return RepData;
 }
 
-FOnlineSessionIdHandle FOnlineIdRegistryRegistry::ToSessionId(EOnlineServices Services, const TArray<uint8>& RepData) const
+FOnlineSessionId FOnlineIdRegistryRegistry::ToSessionId(EOnlineServices Services, const TArray<uint8>& RepData) const
 {
-	FOnlineSessionIdHandle Handle;
+	FOnlineSessionId SessionId;
 	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(Services))
 	{
-		Handle = Registry->FromReplicationData(RepData);
+		SessionId = Registry->FromReplicationData(RepData);
 	}
-	return Handle;
+	return SessionId;
 }
 
 IOnlineSessionIdRegistry* FOnlineIdRegistryRegistry::GetSessionIdRegistry(EOnlineServices OnlineServices) const
@@ -416,7 +416,7 @@ FString ToLogString(const FLobbyId& Id)
 	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
 }
 
-FString ToLogString(const FOnlineSessionIdHandle& Id)
+FString ToLogString(const FOnlineSessionId& Id)
 {
 	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
 }

@@ -25,7 +25,7 @@ FOnlineSessionIdRegistryLAN& FOnlineSessionIdRegistryLAN::GetChecked(EOnlineServ
 	return *SessionIdRegistry;
 }
 
-FOnlineSessionIdHandle FOnlineSessionIdRegistryLAN::GetNextSessionId()
+FOnlineSessionId FOnlineSessionIdRegistryLAN::GetNextSessionId()
 {
 	return BasicRegistry.FindOrAddHandle(FGuid::NewGuid().ToString());
 }
@@ -436,7 +436,7 @@ void FSessionsLAN::StopLANSession()
 void FSessionsLAN::OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce)
 {
 	// Iterate through all registered sessions and respond for each one that can be joinable
-	for (const TPair<FOnlineSessionIdHandle, TSharedRef<FSessionCommon>>& Entry : AllSessionsById)
+	for (const TPair<FOnlineSessionId, TSharedRef<FSessionCommon>>& Entry : AllSessionsById)
 	{
 		const TSharedRef<FSessionCommon>& Session = Entry.Value;
 
@@ -481,7 +481,7 @@ void FSessionsLAN::OnLANSearchTimeout(const FAccountId LocalAccountId)
 
 	UE_LOG(LogTemp, Warning, TEXT("[FSessionsLAN::OnLANSearchTimeout] %d sessions found!"), SearchResultsUserMap.FindChecked(LocalAccountId).Num());
 
-	TArray<FOnlineSessionIdHandle>& FoundSessionIds = SearchResultsUserMap.FindChecked(LocalAccountId);
+	TArray<FOnlineSessionId>& FoundSessionIds = SearchResultsUserMap.FindChecked(LocalAccountId);
 
 	CurrentSessionSearchHandlesUserMap.FindChecked(LocalAccountId)->SetResult({ FoundSessionIds });
 

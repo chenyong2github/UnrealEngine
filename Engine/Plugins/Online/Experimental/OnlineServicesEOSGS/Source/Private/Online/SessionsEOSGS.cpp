@@ -332,7 +332,7 @@ void FSessionsEOSGS::HandleSessionInviteAccepted(const EOS_Sessions_SessionInvit
 
 					FUISessionJoinRequested Event{
 									Result.GetOkValue().LocalAccountId,
-									TResult<FOnlineSessionIdHandle, FOnlineError>(Result.GetOkValue().Session->SessionId),
+									TResult<FOnlineSessionId, FOnlineError>(Result.GetOkValue().Session->SessionId),
 						EUISessionJoinRequestedSource::FromInvitation
 					};
 
@@ -362,7 +362,7 @@ void FSessionsEOSGS::HandleJoinSessionAccepted(const EOS_Sessions_JoinSessionAcc
 
 					FUISessionJoinRequested Event{
 						Result.GetOkValue().LocalAccountId,
-						TResult<FOnlineSessionIdHandle, FOnlineError>(Result.GetOkValue().Session->SessionId),
+						TResult<FOnlineSessionId, FOnlineError>(Result.GetOkValue().Session->SessionId),
 			EUISessionJoinRequestedSource::Unspecified
 					};
 
@@ -1188,7 +1188,7 @@ void FSessionsEOSGS::SetSessionSearchParameters(FSessionSearchHandleEOSGS& Sessi
 	}
 }
 
-void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionIdHandle& SessionId)
+void FSessionsEOSGS::SetSessionSearchSessionId(FSessionSearchHandleEOSGS& SessionSearchHandle, const FOnlineSessionId& SessionId)
 {
 	EOS_SessionSearch_SetSessionIdOptions Options = { };
 	Options.ApiVersion = EOS_SESSIONSEARCH_SETSESSIONID_API_LATEST;
@@ -1238,7 +1238,7 @@ void FSessionsEOSGS::WriteSessionSearchHandle(FSessionSearchHandleEOSGS& Session
 	}
 }
 
-FOnlineSessionIdHandle FSessionsEOSGS::CreateSessionId(const FString& SessionId)
+FOnlineSessionId FSessionsEOSGS::CreateSessionId(const FString& SessionId)
 {
 	return FOnlineSessionIdRegistryEOSGS::Get().BasicRegistry.FindOrAddHandle(SessionId);
 }
@@ -1393,7 +1393,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 
 				const FFindSessions::Params& OpParams = StrongOp->GetParams();
 
-				TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindChecked(OpParams.LocalAccountId);
+				TArray<FOnlineSessionId>& SearchResults = SearchResultsUserMap.FindChecked(OpParams.LocalAccountId);
 
 				StrongOp->SetResult({ SearchResults });
 

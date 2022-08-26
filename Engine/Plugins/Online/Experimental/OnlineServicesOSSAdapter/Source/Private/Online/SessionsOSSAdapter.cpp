@@ -306,7 +306,7 @@ void FSessionsOSSAdapter::Initialize()
 
 		FUISessionJoinRequested Event {
 			ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(LocalAccountId),
-			TResult<FOnlineSessionIdHandle, FOnlineError>(GetSessionIdRegistry().FindOrAddHandle(InviteResult.Session.SessionInfo->GetSessionId().AsShared())),
+			TResult<FOnlineSessionId, FOnlineError>(GetSessionIdRegistry().FindOrAddHandle(InviteResult.Session.SessionInfo->GetSessionId().AsShared())),
 			EUISessionJoinRequestedSource::FromInvitation
 		};
 
@@ -654,7 +654,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessi
 								AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
 							}
 
-							TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
+							TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 							Op->SetResult({ SearchResults });
 						}
 						else
@@ -715,7 +715,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessi
 							AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
 						}
 
-						TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
+						TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 						Op->SetResult({ SearchResults });
 					}
 					else
@@ -753,7 +753,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsOSSAdapter::FindSessions(FFindSessi
 							AddSearchResult(FoundSession, Op->GetParams().LocalAccountId);
 						}
 
-						TArray<FOnlineSessionIdHandle> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
+						TArray<FOnlineSessionId> SearchResults = SearchResultsUserMap.FindOrAdd(Op->GetParams().LocalAccountId);
 						Op->SetResult({ SearchResults });
 					}
 					else

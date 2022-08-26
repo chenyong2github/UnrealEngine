@@ -16,7 +16,7 @@ namespace UE::Online {
 
 class FOnlineServicesOSSAdapter;
 
-/** Registry of V1 session ids in FUniqueNetIdRef format, indexed by FOnlineSessionIdHandle */
+/** Registry of V1 session ids in FUniqueNetIdRef format, indexed by FOnlineSessionId */
 using FOnlineSessionIdRegistryOSSAdapter = TOnlineUniqueNetIdRegistry<OnlineIdHandleTags::FSession>;
 
 using FOnlineSessionInviteIdRegistryOSSAdapter = FOnlineSessionInviteIdStringRegistry;

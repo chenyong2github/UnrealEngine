@@ -26,7 +26,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FAccountId& Uniqu
 	Ar.WriteBinary(Data.GetData(), Data.Num());
 }
 
-inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionIdHandle& SessionId)
+inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const FOnlineSessionId& SessionId)
 {
 	TArray<uint8> Data = FOnlineSessionIdRegistryEOSGS::Get().ToReplicationData(SessionId);
 	Ar << Data.Num();
@@ -66,7 +66,7 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FAccountId& UniqueI
 	UniqueId = FOnlineAccountIdRegistryEOSGS::GetRegistered().FromReplicationData(Data);
 }
 
-inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionIdHandle& SessionId)
+inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, FOnlineSessionId& SessionId)
 {
 	TArray<uint8> Data;
 	int32 Size;

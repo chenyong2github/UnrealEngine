@@ -41,18 +41,18 @@ namespace UE::Online {
 	{
 		if (const TArray<FName>* UserSessions = NamedSessionUserMap.Find(Params.LocalAccountId))
 		{
-			FGetAllSessions::Result Result;
+		FGetAllSessions::Result Result;
 
 			for (const FName& SessionName : *UserSessions)
-			{
-				const FOnlineSessionIdHandle& SessionId = LocalSessionsByName.FindChecked(SessionName);
+		{
+				const FOnlineSessionId& SessionId = LocalSessionsByName.FindChecked(SessionName);
 				const TSharedRef<FSessionCommon>& Session = AllSessionsById.FindChecked(SessionId);
 
 				Result.Sessions.Add(Session);
-			}
-
-			return TOnlineResult<FGetAllSessions>(MoveTemp(Result));
 		}
+
+		return TOnlineResult<FGetAllSessions>(MoveTemp(Result));
+	}
 		else
 		{
 			return TOnlineResult<FGetAllSessions>(Errors::InvalidUser());
@@ -74,7 +74,7 @@ namespace UE::Online {
 
 	TOnlineResult<FGetSessionById> FSessionsCommon::GetSessionById(FGetSessionById::Params&& Params) const
 	{
-		TOnlineResult<FGetMutableSessionById> GetMutableSessionByIdResult = GetMutableSessionById({ Params.IdHandle });
+		TOnlineResult<FGetMutableSessionById> GetMutableSessionByIdResult = GetMutableSessionById({ Params.SessionId });
 		if (GetMutableSessionByIdResult.IsOk())
 		{
 			return TOnlineResult<FGetSessionById>({ GetMutableSessionByIdResult.GetOkValue().Session });
@@ -87,7 +87,7 @@ namespace UE::Online {
 
 	TOnlineResult<FGetPresenceSession> FSessionsCommon::GetPresenceSession(FGetPresenceSession::Params&& Params) const
 	{
-		if (const FOnlineSessionIdHandle* PresenceSessionId = PresenceSessionsUserMap.Find(Params.LocalAccountId))
+		if (const FOnlineSessionId* PresenceSessionId = PresenceSessionsUserMap.Find(Params.LocalAccountId))
 		{
 			return TOnlineResult<FGetPresenceSession>({ AllSessionsById.FindChecked(*PresenceSessionId) });
 		}
@@ -99,7 +99,7 @@ namespace UE::Online {
 
 	TOnlineResult<FSetPresenceSession> FSessionsCommon::SetPresenceSession(FSetPresenceSession::Params&& Params)
 	{
-		FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(Params.LocalAccountId);
+		FOnlineSessionId& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(Params.LocalAccountId);
 		PresenceSessionId = Params.SessionId;
 
 		return TOnlineResult<FSetPresenceSession>(FSetPresenceSession::Result{ });
@@ -336,11 +336,11 @@ namespace UE::Online {
 
 	TOnlineResult<FGetMutableSessionByName> FSessionsCommon::GetMutableSessionByName(FGetMutableSessionByName::Params&& Params) const
 	{
-		if (const FOnlineSessionIdHandle* SessionIdHandle = LocalSessionsByName.Find(Params.LocalName))
+		if (const FOnlineSessionId* SessionId = LocalSessionsByName.Find(Params.LocalName))
 		{
-			check(AllSessionsById.Contains(*SessionIdHandle));
+			check(AllSessionsById.Contains(*SessionId));
 
-			return TOnlineResult<FGetMutableSessionByName>({ AllSessionsById.FindChecked(*SessionIdHandle) });
+			return TOnlineResult<FGetMutableSessionByName>({ AllSessionsById.FindChecked(*SessionId) });
 		}
 		else
 		{
@@ -350,7 +350,7 @@ namespace UE::Online {
 
 	TOnlineResult<FGetMutableSessionById> FSessionsCommon::GetMutableSessionById(FGetMutableSessionById::Params&& Params) const
 	{
-		if (const TSharedRef<FSessionCommon>* FoundSession = AllSessionsById.Find(Params.IdHandle))
+		if (const TSharedRef<FSessionCommon>* FoundSession = AllSessionsById.Find(Params.SessionId))
 		{
 			return TOnlineResult<FGetMutableSessionById>({ *FoundSession });
 		}
@@ -372,7 +372,7 @@ namespace UE::Online {
 	{
 		AllSessionsById.Emplace(Session->SessionId, Session);
 
-		TArray<FOnlineSessionIdHandle>& SearchResults = SearchResultsUserMap.FindOrAdd(LocalAccountId);
+		TArray<FOnlineSessionId>& SearchResults = SearchResultsUserMap.FindOrAdd(LocalAccountId);
 		SearchResults.Add(Session->SessionId);
 	}
 
@@ -383,7 +383,7 @@ namespace UE::Online {
 		AddSessionReferences(Session->SessionId, SessionName, LocalAccountId, bIsPresenceSession);
 	}
 
-	void FSessionsCommon::AddSessionReferences(const FOnlineSessionIdHandle SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
+	void FSessionsCommon::AddSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
 	{
 		LocalSessionsByName.Emplace(SessionName, SessionId);
 
@@ -395,7 +395,7 @@ namespace UE::Online {
 		}
 	}
 
-	void FSessionsCommon::ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionIdHandle SessionId)
+	void FSessionsCommon::ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionId SessionId)
 	{
 		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(LocalAccountId))
 		{
@@ -415,7 +415,7 @@ namespace UE::Online {
 		}
 	}
 
-	void FSessionsCommon::ClearSessionReferences(const FOnlineSessionIdHandle SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
+	void FSessionsCommon::ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
 	{
 		NamedSessionUserMap.FindChecked(LocalAccountId).Remove(SessionName);
 
@@ -442,10 +442,10 @@ namespace UE::Online {
 		LocalSessionsByName.Remove(SessionName);
 	}
 
-	void FSessionsCommon::ClearSessionById(const FOnlineSessionIdHandle& SessionId)
+	void FSessionsCommon::ClearSessionById(const FOnlineSessionId& SessionId)
 	{
 		// PresenceSessionsUserMap is not evaluated, since any session there would also be in LocalSessionsByName
-		for (const TPair<FName, FOnlineSessionIdHandle>& Entry : LocalSessionsByName)
+		for (const TPair<FName, FOnlineSessionId>& Entry : LocalSessionsByName)
 		{
 			if (Entry.Value == SessionId)
 			{
@@ -464,7 +464,7 @@ namespace UE::Online {
 			}			
 		}
 
-		for (const TPair<FAccountId, TArray<FOnlineSessionIdHandle>>& Entry : SearchResultsUserMap)
+		for (const TPair<FAccountId, TArray<FOnlineSessionId>>& Entry : SearchResultsUserMap)
 		{
 			if (Entry.Value.Contains(SessionId))
 			{
@@ -723,7 +723,7 @@ namespace UE::Online {
 
 		if (Params.SessionSettings.bPresenceEnabled)
 		{
-			for (const TPair<FName, FOnlineSessionIdHandle>& Entry : LocalSessionsByName)
+			for (const TPair<FName, FOnlineSessionId>& Entry : LocalSessionsByName)
 			{
 				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.LocalAccountId, Entry.Value });
 				if (GetSessionByIdResult.IsOk())

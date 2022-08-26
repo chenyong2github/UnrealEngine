@@ -78,9 +78,9 @@ public:
 		return GetIdValue(Handle).ToSharedRef();
 	}
 
-	bool IsHandleExpired(const FOnlineSessionIdHandle& InHandle) const
+	bool IsHandleExpired(const FOnlineSessionId& InSessionId) const
 	{
-		return GetIdValue(InHandle).IsValid();
+		return GetIdValue(InSessionId).IsValid();
 	}
 
 	// Begin IOnlineAccountIdRegistry

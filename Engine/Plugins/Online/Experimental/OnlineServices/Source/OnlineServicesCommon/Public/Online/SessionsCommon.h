@@ -16,9 +16,9 @@ class FOnlineSessionIdStringRegistry : public IOnlineSessionIdRegistry
 {
 public:
 	// Begin IOnlineSessionIdRegistry
-	virtual inline FString ToLogString(const FOnlineSessionIdHandle& Handle) const override
+	virtual inline FString ToLogString(const FOnlineSessionId& SessionId) const override
 	{
-		FString IdValue = BasicRegistry.FindIdValue(Handle);
+		FString IdValue = BasicRegistry.FindIdValue(SessionId);
 
 		if (IdValue.Len() == 0)
 		{
@@ -28,9 +28,9 @@ public:
 		return IdValue;
 	};
 
-	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionIdHandle& Handle) const override
+	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionId& SessionId) const override
 	{
-		const FString IdValue = BasicRegistry.FindIdValue(Handle);
+		const FString IdValue = BasicRegistry.FindIdValue(SessionId);
 		const FTCHARToUTF8 IdValueUtf8(*IdValue);
 
 		TArray<uint8> ReplicationData;
@@ -41,7 +41,7 @@ public:
 		return ReplicationData;
 	}
 
-	virtual inline FOnlineSessionIdHandle FromReplicationData(const TArray<uint8>& ReplicationData) override
+	virtual inline FOnlineSessionId FromReplicationData(const TArray<uint8>& ReplicationData) override
 	{
 		const FUTF8ToTCHAR IdValueTCHAR((char*)ReplicationData.GetData(), ReplicationData.Num());
 		const FString IdValue = FString(IdValueTCHAR.Length(), IdValueTCHAR.Get());
@@ -51,13 +51,13 @@ public:
 			return BasicRegistry.FindOrAddHandle(IdValue);
 		}
 
-		return FOnlineSessionIdHandle();
+		return FOnlineSessionId();
 	}
 	// End IOnlineSessionIdRegistry
 
-	inline bool IsSessionIdExpired(const FOnlineSessionIdHandle& InHandle) const
+	inline bool IsSessionIdExpired(const FOnlineSessionId& InSessionId) const
 	{
-		return BasicRegistry.FindIdValue(InHandle).IsEmpty();
+		return BasicRegistry.FindIdValue(InSessionId).IsEmpty();
 	}
 
 	FOnlineSessionIdStringRegistry(EOnlineServices OnlineServicesType)
@@ -136,7 +136,7 @@ public:
 
 	// ISession
 	virtual const FAccountId GetOwnerAccountId() const override				{ return OwnerAccountId; }
-	virtual const FOnlineSessionIdHandle GetSessionId() const override		{ return SessionId; }
+	virtual const FOnlineSessionId GetSessionId() const override		{ return SessionId; }
 	virtual const FSessionSettings GetSessionSettings() const override		{ return SessionSettings; }
 
 	virtual FString ToLogString() const override							{ return FString(); } // TODO: Implement after completing refactor
@@ -146,7 +146,7 @@ public:
 	FAccountId OwnerAccountId;
 
 	/** The id for the session, platform dependent */
-	FOnlineSessionIdHandle SessionId;
+	FOnlineSessionId SessionId;
 
 	/** Set of session properties that can be altered by the session owner */
 	FSessionSettings SessionSettings;
@@ -175,7 +175,7 @@ struct FGetMutableSessionById
 
 	struct Params
 	{
-		FOnlineSessionIdHandle IdHandle;
+		FOnlineSessionId SessionId;
 	};
 
 	struct Result
@@ -231,10 +231,10 @@ protected:
 	void AddSessionInvite(const TSharedRef<FSessionInvite> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId);
 	void AddSearchResult(const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId);
 	void AddSessionWithReferences(const TSharedRef<FSessionCommon> Session, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
-	void AddSessionReferences(const FOnlineSessionIdHandle SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
+	void AddSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
 
-	void ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionIdHandle SessionId);
-	void ClearSessionReferences(const FOnlineSessionIdHandle SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
+	void ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionId SessionId);
+	void ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
 
 	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
 	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
@@ -274,7 +274,7 @@ private:
 	TOptional<FOnlineError> CheckSessionExistsByName(const FAccountId& LocalAccountId, const FName& SessionName);
 
 	void ClearSessionByName(const FName& SessionName);
-	void ClearSessionById(const FOnlineSessionIdHandle& SessionId);
+	void ClearSessionById(const FOnlineSessionId& SessionId);
 
 protected:
 
@@ -291,22 +291,22 @@ protected:
 	TMap<FAccountId, TArray<FName>> NamedSessionUserMap;
 
 	/** Map of sessions that local users are part of, indexed by their local name */
-	TMap<FName, FOnlineSessionIdHandle> LocalSessionsByName;
+	TMap<FName, FOnlineSessionId> LocalSessionsByName;
 
 	/** Map of sessions that local users have set as their presence session to appear in the platform UI. A user may not have set any session as their presence session. */
-	TMap<FAccountId, FOnlineSessionIdHandle> PresenceSessionsUserMap;
+	TMap<FAccountId, FOnlineSessionId> PresenceSessionsUserMap;
 
 	/** Cache for received session invites, mapped per user */
 	TMap<FAccountId, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
 
 	/** Cache for the last set of session search results, mapped per user */
-	TMap<FAccountId, TArray<FOnlineSessionIdHandle>> SearchResultsUserMap;
+	TMap<FAccountId, TArray<FOnlineSessionId>> SearchResultsUserMap;
 
 	/** Handle for an ongoing session search operation, mapped per user */
 	TMap<FAccountId, TSharedRef<TOnlineAsyncOp<FFindSessions>>> CurrentSessionSearchHandlesUserMap;
 
 	/** Set of every distinct FSession found, indexed by Id */
-	TMap<FOnlineSessionIdHandle, TSharedRef<FSessionCommon>> AllSessionsById;
+	TMap<FOnlineSessionId, TSharedRef<FSessionCommon>> AllSessionsById;
 };
 
 namespace Meta {
@@ -320,7 +320,7 @@ BEGIN_ONLINE_STRUCT_META(FGetMutableSessionByName::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetMutableSessionById::Params)
-	ONLINE_STRUCT_FIELD(FGetMutableSessionById::Params, IdHandle)
+	ONLINE_STRUCT_FIELD(FGetMutableSessionById::Params, SessionId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetMutableSessionById::Result)

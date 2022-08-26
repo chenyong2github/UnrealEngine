@@ -182,7 +182,7 @@ class ISession
 {
 public:
 	virtual const FAccountId GetOwnerAccountId() const = 0;
-	virtual const FOnlineSessionIdHandle GetSessionId() const = 0;
+	virtual const FOnlineSessionId GetSessionId() const = 0;
 	virtual const FSessionSettings GetSessionSettings() const = 0;
 	virtual FString ToLogString() const = 0;
 };
@@ -200,7 +200,7 @@ struct FSessionInvite
 	FOnlineSessionInviteIdHandle InviteId;
 
 	/* Pointer to the session information */
-	FOnlineSessionIdHandle SessionId;
+	FOnlineSessionId SessionId;
 
 	// TODO: Default constructor will be deleted after we cache invites
 };
@@ -245,7 +245,7 @@ struct FGetSessionById
 	{
 		FAccountId LocalAccountId;
 
-		FOnlineSessionIdHandle IdHandle;
+		FOnlineSessionId SessionId;
 	};
 
 	struct Result
@@ -279,7 +279,7 @@ struct FSetPresenceSession
 	{
 		FAccountId LocalAccountId;
 
-		FOnlineSessionIdHandle SessionId;
+		FOnlineSessionId SessionId;
 	};
 
 	struct Result
@@ -392,12 +392,12 @@ struct FFindSessions
 		TOptional<FAccountId> TargetUser;
 
 		/* Find join info for the target session id. */
-		TOptional<FOnlineSessionIdHandle> SessionId;
+		TOptional<FOnlineSessionId> SessionId;
 	};
 
 	struct Result
 	{
-		TArray<FOnlineSessionIdHandle> FoundSessionIds;
+		TArray<FOnlineSessionId> FoundSessionIds;
 	};
 };
 
@@ -442,7 +442,7 @@ struct FJoinSession
 		FName SessionName;
 
 		/* Id handle for the session to be joined. To be retrieved via session search or invite */
-		FOnlineSessionIdHandle SessionId;
+		FOnlineSessionId SessionId;
 
 		/* Information for the local user who will join the session */
 		FSessionMember SessionMemberData;
@@ -614,7 +614,7 @@ struct FSessionJoined
 	FAccountId LocalAccountId;
 
 	/* Id for the session joined. */
-	FOnlineSessionIdHandle SessionId;
+	FOnlineSessionId SessionId;
 };
 
 struct FSessionLeft
@@ -660,7 +660,7 @@ struct FUISessionJoinRequested
 	FAccountId LocalAccountId;
 
 	/** The id for the session the local user requested to join, or the online error if there was a failure retrieving it */
-	TResult<FOnlineSessionIdHandle, FOnlineError> Result;
+	TResult<FOnlineSessionId, FOnlineError> Result;
 
 	/** Join request source */
 	EUISessionJoinRequestedSource JoinRequestedSource = EUISessionJoinRequestedSource::Unspecified;
@@ -969,7 +969,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionById::Params)
 	ONLINE_STRUCT_FIELD(FGetSessionById::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FGetSessionById::Params, IdHandle)
+	ONLINE_STRUCT_FIELD(FGetSessionById::Params, SessionId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionById::Result)
