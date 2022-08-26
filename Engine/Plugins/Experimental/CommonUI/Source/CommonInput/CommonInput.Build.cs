@@ -86,7 +86,10 @@ public class CommonInput : ModuleRules
 		get
 		{
 			// Support touch testing until touch is supported on desktop
-			return Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) && Target.Configuration != UnrealTargetConfiguration.Shipping;
+			return (Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) && Target.Configuration != UnrealTargetConfiguration.Shipping)
+					// Platforms always with touch support
+					|| (Target.Platform == UnrealTargetPlatform.Android)
+					|| (Target.Platform == UnrealTargetPlatform.IOS);
 		}
 	}
 }
