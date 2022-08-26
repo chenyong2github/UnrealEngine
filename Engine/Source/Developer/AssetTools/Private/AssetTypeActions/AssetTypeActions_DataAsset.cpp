@@ -7,6 +7,7 @@
 #include "Kismet2/SClassPickerDialog.h"
 #include "ClassViewerFilter.h"
 #include "ObjectTools.h"
+#include "SDetailsDiff.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -68,6 +69,18 @@ void FAssetTypeActions_DataAsset::GetActions(const TArray<UObject*>& InObjects, 
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_DataAsset::ExecuteChangeDataAssetClass, DataAssets)
 		)
 	);
+}
+
+void FAssetTypeActions_DataAsset::PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision) const
+{
+	// sometimes we're comparing different revisions of one single asset (other 
+	// times we're comparing two completely separate assets altogether)
+	const bool bIsSingleAsset = (OldAsset->GetName() == NewAsset->GetName());
+	static const FText BasicWindowTitle = LOCTEXT("NamelessDataAssetDiff", "DataAsset Diff");
+
+	const FText WindowTitle = !bIsSingleAsset ? BasicWindowTitle : FText::Format(LOCTEXT("DataAsset Diff", "{0} - DataAsset Diff"), FText::FromString(NewAsset->GetName()));
+
+	SDetailsDiff::CreateDiffWindow(WindowTitle, OldAsset, NewAsset, OldRevision, NewRevision);
 }
 
 void FAssetTypeActions_DataAsset::ExecuteChangeDataAssetClass(TArray<TWeakObjectPtr<UDataAsset>> InDataAssets)

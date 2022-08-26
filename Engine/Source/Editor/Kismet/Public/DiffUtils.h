@@ -75,7 +75,7 @@ struct FPropertySoftPath
 
 	FPropertySoftPath( FPropertyPath InPropertyPath )
 	{
-		for( int32 i = 0, end = InPropertyPath.GetNumProperties(); i != end; ++i )
+		for (int32 i = 0, end = InPropertyPath.GetNumProperties(); i != end; ++i)
 		{
 			PropertyChain.Push(FChainElement(InPropertyPath.GetPropertyInfo(i).Property.Get()));
 		}
@@ -193,7 +193,7 @@ FORCEINLINE bool operator!=(const FSCSIdentifier& A, const FSCSIdentifier& B)
 FORCEINLINE uint32 GetTypeHash( FPropertySoftPath const& Path )
 {
 	uint32 Ret = 0;
-	for( const FPropertySoftPath::FChainElement& PropertyElement : Path.PropertyChain )
+	for (const FPropertySoftPath::FChainElement& PropertyElement : Path.PropertyChain)
 	{
 		Ret = Ret ^ GetTypeHash(PropertyElement.PropertyName);
 	}
@@ -332,7 +332,7 @@ namespace DiffViewUtils
 
 	KISMET_API FText PropertyDiffMessage(FSingleObjectDiffEntry Difference, FText ObjectName);
 	KISMET_API FText SCSDiffMessage(const FSCSDiffEntry& Difference, FText ObjectName);
-	KISMET_API FText GetPanelLabel(const UBlueprint* Blueprint, const FRevisionInfo& Revision, FText Label);
+	KISMET_API FText GetPanelLabel(const UObject* Asset, const FRevisionInfo& Revision, FText Label);
 
 	KISMET_API SHorizontalBox::FSlot::FSlotArguments Box(bool bIsPresent, FLinearColor Color);
 }

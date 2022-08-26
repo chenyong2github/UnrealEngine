@@ -375,7 +375,7 @@ void DiffUtils::CompareUnrelatedSCS(const UBlueprint* Old, const TArray< FSCSRes
 	{
 		for (const auto& Node : InArray)
 		{
-			if (Node.Identifier.Name == Value->Name )
+			if (Node.Identifier.Name == Value->Name)
 			{
 				return &Node;
 			}
@@ -1004,7 +1004,7 @@ FText DiffViewUtils::SCSDiffMessage(const FSCSDiffEntry& Difference, FText Objec
 	return Text;
 }
 
-FText DiffViewUtils::GetPanelLabel(const UBlueprint* Blueprint, const FRevisionInfo& Revision, FText Label )
+FText DiffViewUtils::GetPanelLabel(const UObject* Asset, const FRevisionInfo& Revision, FText Label)
 {
 	if( !Revision.Revision.IsEmpty() )
 	{
@@ -1027,32 +1027,32 @@ FText DiffViewUtils::GetPanelLabel(const UBlueprint* Blueprint, const FRevisionI
 		if (Label.IsEmpty())
 		{
 			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
-				, FText::FromString(Blueprint->GetName())
+				, FText::FromString(Asset->GetName())
 				, RevisionData);
 		}
 		else
 		{
 			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
 				, Label
-				, FText::FromString(Blueprint->GetName())
+				, FText::FromString(Asset->GetName())
 				, RevisionData);
 		}
 	}
 	else
 	{
-		if( Blueprint )
+		if( Asset )
 		{
 			if (Label.IsEmpty())
 			{
 				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
-					, FText::FromString(Blueprint->GetName())
+					, FText::FromString(Asset->GetName())
 					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
 			}
 			else
 			{
 				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
 					, Label
-					, FText::FromString(Blueprint->GetName())
+					, FText::FromString(Asset->GetName())
 					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
 			}
 		}
