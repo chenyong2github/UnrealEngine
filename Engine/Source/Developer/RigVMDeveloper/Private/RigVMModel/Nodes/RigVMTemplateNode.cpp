@@ -728,6 +728,11 @@ TArray<TRigVMTypeIndex> URigVMTemplateNode::GetFilteredTypesForPin(URigVMPin* In
 	ensureMsgf(InPin->GetNode() == this, TEXT("GetFilteredTypesForPin of %s with pin from another node %s"), *GetNodePath(), *InPin->GetPinPath(true));
 	TArray<TRigVMTypeIndex> FilteredTypes;
 
+	if (IsSingleton())
+	{
+		return {InPin->GetTypeIndex()};
+	}
+
 	if (FilteredPermutations.IsEmpty())
 	{
 		return FilteredTypes;	

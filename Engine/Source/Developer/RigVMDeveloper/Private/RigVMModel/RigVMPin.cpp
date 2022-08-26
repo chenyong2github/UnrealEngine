@@ -1614,7 +1614,7 @@ URigVMNode* URigVMPin::GetNode() const
 	}
 
 	URigVMNode* Node = Cast<URigVMNode>(GetOuter());
-	if(Node)
+	if(IsValid(Node))
 	{
 		return Node;
 	}
