@@ -112,17 +112,15 @@ float SchlickPhase(float G, float CosTheta)
 // Follows PBRT convention http://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering.html#SamplingPhaseFunctions
 float HenyeyGreensteinPhaseInvertCDF(float E, float G)
 {
-	float R = 1.0 - 2.0 * E;
-	if (abs(G) < 0.001f)
-	{
-		// Careful: OneOver2G undefined for g close to 0
-		return R;
-	}
-	float OnePlusG2  = 1.0f + G * G;
-	float OneMinusG2 = 1.0f - G * G;
-	float OneOver2G  = 0.5f / G;
-	float t = OneMinusG2 / (1.0f + G * R);
-	return OneOver2G * (t * t - OnePlusG2);
+	// The naive expression requires a special case for G==0, rearranging terms a bit
+	// gives the following result which does not require any special cases
+	float t0 = (1.0 - G) + G * E;
+	float t1 = (1.0 - E) + E * E;
+	float t2 = t1 + (G * E) * t0;
+	float t3 = (2.0 * E - 1.0) - G * G;
+	float Num = t3 + (2.0 * G) * t2;
+	float Den = t0 + G * E;
+	return Num / (Den * Den);
 }
 
 // Follows PBRT convention http://www.pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering.html#SamplingPhaseFunctions

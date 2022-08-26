@@ -787,8 +787,7 @@ FPathState CreatePathState(int2 PixelIndex)
 		// importance sample a gaussian kernel with variable sigma
 		float3 Disk = ConcentricDiskSamplingHelper(AAJitter);
 		float Sigma = FilterWidth / 6.0; // user-provided width covers +/-3*Sigma
-		float R = min(Disk.z, 0.99999994); // avoid log(0) when R=1
-		AAJitter = 0.5 + Sigma * Disk.xy * sqrt(-2.0 * log(1.0 - R * R));
+		AAJitter = 0.5 + Sigma * Disk.xy * sqrt(-2.0 * log(1.0 - Disk.z * Disk.z));
 
 		float2 ViewportUV = (LaunchIndex + AAJitter) * View.BufferSizeAndInvSize.zw;
 		Output.Ray = CreatePrimaryRay(ViewportUV);

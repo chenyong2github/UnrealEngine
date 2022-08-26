@@ -113,7 +113,8 @@ float2 UniformSampleDisk( float2 E )
 // Returns a point on the unit circle and a radius in z
 float3 ConcentricDiskSamplingHelper(float2 E)
 {
-	float2 p = 2 * E - 1;
+	// Rescale input from [0,1) to (-1,1). This ensures the output radius is in [0,1)
+	float2 p = 2 * E - 0.99999994;
 	float2 a = abs(p);
 	float Lo = min(a.x, a.y);
 	float Hi = max(a.x, a.y);
@@ -450,6 +451,36 @@ float MISWeight( uint Num, float PDF, uint OtherNum, float OtherPDF )
 	float Weight = Num * PDF;
 	float OtherWeight = OtherNum * OtherPDF;
 	return Weight * Weight / (Weight * Weight + OtherWeight * OtherWeight);
+}
+
+// Multiple importance sampling balance heuristic
+float MISWeightBalanced(float Pdf, float OtherPdf)
+{
+	// The straightforward implementation is prone to numerical overflow and divisions by 0
+	// and does not work well with +inf inputs.
+
+	if (Pdf == OtherPdf)
+	{
+		// Catch potential NaNs from (0,0) and (+inf, +inf)
+		return 0.5f;
+	}
+
+	// Evaluate the expression using the ratio of the smaller value to the bigger one for greater
+	// numerical stability. The math would also work using the ratio of bigger to smaller value,
+	// which would underflow less but would make the weights asymmetric. Underflow to 0 is not a
+	// bad property to have in rendering application as it ensures more weights are exactly 0
+	// which allows some evaluations to be skipped.
+	if (OtherPdf < Pdf)
+	{
+		float x = OtherPdf / Pdf;
+		return 1.0 / (1.0 + x);
+	}
+	else
+	{
+		// this form guarantees the weights add back up to one when arguments are swapped
+		float x = Pdf / OtherPdf;
+		return 1.0 - 1.0 / (1.0 + x);
+	}
 }
 
 // Multiple importance sampling power heuristic of two functions with a power of two. 

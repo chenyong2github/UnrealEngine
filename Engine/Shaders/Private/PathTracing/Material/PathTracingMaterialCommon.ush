@@ -15,7 +15,8 @@ float LobeSelectionProb(float3 A, float3 B)
 {
 	const float SumA = A.x + A.y + A.z;
 	const float SumB = B.x + B.y + B.z;
-	return SumA / (SumA + SumB + 1e-6);
+	// use MIS routine to robustly compute SumA / (SumA + SumB) even when both are 0, or overflow, etc ...
+	return MISWeightBalanced(SumA, SumB);
 }
 
 // Takes as input the sample weight and pdf for a certain lobe of a mixed model, together with the probability of picking that lobe
@@ -31,14 +32,7 @@ void AddLobeWithMIS(inout float3 Weight, inout float Pdf, float3 LobeWeight, flo
 		LobePdf *= LobeProb;
 		LobeWeight *= 1 / LobeProb;
 
-		// See discussion in MISWeightRobust for why this is better than LobePdf / (Pdf + LobePdf)
-		float MISWeight;
-		if (Pdf < LobePdf)
-			MISWeight = 1 / (1 + Pdf / LobePdf);
-		else if (LobePdf < Pdf)
-			MISWeight = 1 - 1 / (1 + LobePdf / Pdf);
-		else
-			MISWeight = 0.5f; // avoid (rare) inf/inf
+		float MISWeight = MISWeightBalanced(LobePdf, Pdf);
 
 		Weight = lerp(Weight, LobeWeight, MISWeight);
 		Pdf += LobePdf;
