@@ -29,6 +29,8 @@ namespace
 
 bool AAbilitySystemDebugHUD::bEnableBasicHUD = false;
 
+FDelegateHandle AAbilitySystemDebugHUD::DrawDebugDelegateHandle;
+
 TSubclassOf<AAbilitySystemDebugHUD> AAbilitySystemDebugHUD::HUDClass = AAbilitySystemDebugHUD::StaticClass();
 
 void UAbilitySystemDebugHUDExtension_Tags::ToggleExtension(const TArray<FString>& Args, UWorld* World)
@@ -66,7 +68,7 @@ void UAbilitySystemDebugHUDExtension_Tags::ToggleExtension(const TArray<FString>
 
 bool UAbilitySystemDebugHUDExtension_Tags::IsEnabled() const
 {
-	return bEnabled;
+	return bEnabled || !TagsToDisplay.IsEmpty();
 }
 
 void UAbilitySystemDebugHUDExtension_Tags::GetDebugStrings(const AActor* Actor, const UAbilitySystemComponent* Comp, OUT TArray<FString>& OutDebugStrings) const
@@ -232,7 +234,7 @@ void UAbilitySystemDebugHUDExtension_BlockedAbilityTags::ToggleExtension(const T
 
 bool UAbilitySystemDebugHUDExtension_BlockedAbilityTags::IsEnabled() const
 {
-	return bEnabled;
+	return bEnabled || !TagsToDisplay.IsEmpty();
 }
 
 void UAbilitySystemDebugHUDExtension_BlockedAbilityTags::GetDebugStrings(const AActor* Actor, const UAbilitySystemComponent* Comp, OUT TArray<FString>& OutDebugStrings) const
@@ -292,7 +294,7 @@ void AAbilitySystemDebugHUD::NotifyExtensionEnableChanged(UWorld* InWorld)
 		return;
 	}
 
-	AAbilitySystemDebugHUD* HUD = NULL;
+	AAbilitySystemDebugHUD* HUD = nullptr;
 	for (TActorIterator<AAbilitySystemDebugHUD> It(InWorld); It; ++It)
 	{
 		HUD = *It;
@@ -305,41 +307,41 @@ void AAbilitySystemDebugHUD::NotifyExtensionEnableChanged(UWorld* InWorld)
 		bAnyExtensionEnabled |= ExtIt->IsEnabled();
 	}
 
-	static FDelegateHandle DrawDebugDelegateHandle;
-	static FDelegateHandle PostBeginPIEDelegateHandle;
+	static FDelegateHandle PostWorldInitDelegateHandle;
 
 	if (!HUD && bAnyExtensionEnabled)
 	{
-		UClass* HUDClassToSpawn = HUDClass.Get();
-		if (!HUDClassToSpawn)
-		{
-			HUDClassToSpawn = AAbilitySystemDebugHUD::StaticClass();
-		}
+		CreateHUD(InWorld);
 
-		HUD = InWorld->SpawnActor<AAbilitySystemDebugHUD>();
-
-		FDebugDrawDelegate DrawDebugDelegate = FDebugDrawDelegate::CreateUObject(HUD, &AAbilitySystemDebugHUD::DrawDebugHUD);
-		DrawDebugDelegateHandle = UDebugDrawService::Register(TEXT("GameplayDebug"), DrawDebugDelegate);
-
-#if WITH_EDITOR
-		PostBeginPIEDelegateHandle = FEditorDelegates::PostPIEStarted.AddLambda([](const bool bIsSimulating)
+		PostWorldInitDelegateHandle = FWorldDelegates::OnPostWorldInitialization.AddLambda([](UWorld* World, const UWorld::InitializationValues IVS)
 			{
-				if (FWorldContext* PIEWorldContext = GEditor->GetPIEWorldContext())
+				if (World->WorldType == EWorldType::PIE || World->WorldType == EWorldType::Game)
 				{
-					NotifyExtensionEnableChanged(PIEWorldContext->World());
+					CreateHUD(World);
 				}
 			});
-#endif
 
 	}
 	else if (HUD && !bAnyExtensionEnabled)
 	{
+		FEditorDelegates::PostPIEStarted.Remove(PostWorldInitDelegateHandle);
 		UDebugDrawService::Unregister(DrawDebugDelegateHandle);
-#if WITH_EDITOR
-		FEditorDelegates::PostPIEStarted.Remove(PostBeginPIEDelegateHandle);
-#endif
 		HUD->Destroy();
 	}
+}
+
+void AAbilitySystemDebugHUD::CreateHUD(UWorld* World)
+{
+	UClass* HUDClassToSpawn = HUDClass.Get();
+	if (!HUDClassToSpawn)
+	{
+		HUDClassToSpawn = AAbilitySystemDebugHUD::StaticClass();
+	}
+
+	AAbilitySystemDebugHUD* HUD = World->SpawnActor<AAbilitySystemDebugHUD>();
+
+	FDebugDrawDelegate DrawDebugDelegate = FDebugDrawDelegate::CreateUObject(HUD, &AAbilitySystemDebugHUD::DrawDebugHUD);
+	DrawDebugDelegateHandle = UDebugDrawService::Register(TEXT("GameplayDebug"), DrawDebugDelegate);
 }
 
 void AAbilitySystemDebugHUD::DrawWithBackground(UFont* InFont, const FString& Text, const FColor& TextColor, EAlignHorizontal::Type HAlign, float& OffsetX, EAlignVertical::Type VAlign, float& OffsetY, float Alpha)

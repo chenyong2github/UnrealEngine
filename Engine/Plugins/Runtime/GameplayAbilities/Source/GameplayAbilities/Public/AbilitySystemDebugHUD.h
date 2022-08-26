@@ -137,6 +137,7 @@ public:
 
 	static void ToggleBasicHUD(const TArray<FString>& Args, UWorld* World);
 
+
 	/**
 	 * Notifies the AbilitySystemDebugHUD that an extension has been enabled/disabled
 	 * This will create the HUD if it did not exist and there are any extensions enabled
@@ -158,6 +159,7 @@ protected:
 	virtual bool ShouldDisplayDebugForActor(UCanvas* InCanvas, const AActor* Actor, const FVector& CameraPosition, const FVector& CameraDir) const;
 
 private:
+	static void CreateHUD(UWorld* World);
 
 	void DrawWithBackground(UFont* InFont, const FString& Text, const FColor& TextColor, EAlignHorizontal::Type HAlign, float& OffsetX, EAlignVertical::Type VAlign, float& OffsetY, float Alpha = 1.f);
 
@@ -172,5 +174,7 @@ private:
 	static bool bEnableBasicHUD;
 
 	static TSubclassOf<AAbilitySystemDebugHUD> HUDClass;
+	
+	static FDelegateHandle DrawDebugDelegateHandle;
 
 };
