@@ -156,6 +156,10 @@ namespace PCGDeterminismTests
 	EDeterminismLevel GetHighestDeterminismLevel(const FNodeAndOptions& NodeAndOptions,
 		int32 NumInputsPerPin = Defaults::NumTestInputsPerPin,
 		EDeterminismLevel MaxLevel = EDeterminismLevel::OrderIndependent);
+	/** Conducts simplified shuffled input tests and determines the highest level of determinism */
+	EDeterminismLevel GetHighestDeterminismLevelSimpleShuffleInput(const FNodeAndOptions& NodeAndOptions,
+		int32 NumInputsPerPin = Defaults::NumTestInputsPerPin,
+		EDeterminismLevel MaxLevel = EDeterminismLevel::OrderIndependent);
 
 	/** Adds input data to test data, based on input pins' allowed types */
 	void AddRandomizedInputData(PCGTestsCommon::FTestData& TestData, EPCGDataType DataType, const FName& PinName = Defaults::TestPinName);
