@@ -246,13 +246,8 @@ struct FEditorTransactionNotification
 				{
 					DeltaChange.ChangedProperties.Add(PropertyData.PropertyName);
 				}
-				TransactionObjectEvent = FTransactionObjectEvent(TransactionContext.TransactionId, TransactionContext.OperationId, ETransactionObjectEventType::UndoRedo, DeltaChange, InTransactionAnnotation
-					, InObjectUpdate.ObjectId.ObjectPackageName
-					, InTransactionObject->GetFName()
-					, *InTransactionObject->GetPathName()
-					, InObjectUpdate.ObjectId.ObjectOuterPathName
-					, InObjectUpdate.ObjectId.ObjectExternalPackageName
-					, FName(*InTransactionObject->GetClass()->GetPathName()));
+				TransactionObjectEvent = FTransactionObjectEvent(TransactionContext.TransactionId, TransactionContext.OperationId, ETransactionObjectEventType::UndoRedo, ETransactionObjectChangeCreatedBy::TransactionRecord,
+					FTransactionObjectChange{ InObjectUpdate.ObjectId.ToTransactionObjectId(), MoveTemp(DeltaChange) }, InTransactionAnnotation);
 			}
 			GUnrealEd->HandleObjectTransacted(InTransactionObject, TransactionObjectEvent);
 		}

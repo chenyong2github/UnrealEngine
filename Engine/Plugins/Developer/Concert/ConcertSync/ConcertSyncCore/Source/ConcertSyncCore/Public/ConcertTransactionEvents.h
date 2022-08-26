@@ -31,13 +31,7 @@ struct FConcertObjectId
 	FConcertObjectId() = default;
 
 	explicit FConcertObjectId(const UObject* InObject)
-		: FConcertObjectId(
-			*InObject->GetClass()->GetPathName(), 
-			InObject->GetPackage()->GetFName(), 
-			InObject->GetFName(), 
-			InObject->GetOuter() ? FName(*InObject->GetOuter()->GetPathName()) : FName(), 
-			InObject->GetExternalPackage() ? InObject->GetExternalPackage()->GetFName() : FName(), 
-			InObject->GetFlags())
+		: FConcertObjectId(FTransactionObjectId(InObject), InObject->GetFlags())
 	{
 	}
 
@@ -54,6 +48,26 @@ struct FConcertObjectId
 		, ObjectExternalPackageName(InObjectExternalPackageName)
 		, ObjectPersistentFlags(InObjectFlags & RF_Load)
 	{
+	}
+
+	FTransactionObjectId ToTransactionObjectId() const
+	{
+		FNameBuilder ObjectPathName;
+		ObjectOuterPathName.AppendString(ObjectPathName);
+		{
+			int32 Unused = 0;
+			if (ObjectPathName.ToView().FindChar(TEXT('.'), Unused) && !ObjectPathName.ToView().FindChar(SUBOBJECT_DELIMITER_CHAR, Unused))
+			{
+				ObjectPathName.AppendChar(SUBOBJECT_DELIMITER_CHAR);
+			}
+			else
+			{
+				ObjectPathName.AppendChar(TEXT('.'));
+			}
+		}
+		ObjectName.AppendString(ObjectPathName);
+
+		return FTransactionObjectId(ObjectPackageName, ObjectName, ObjectPathName.ToString(), ObjectOuterPathName, ObjectExternalPackageName, ObjectClassPathName);
 	}
 
 	UPROPERTY()

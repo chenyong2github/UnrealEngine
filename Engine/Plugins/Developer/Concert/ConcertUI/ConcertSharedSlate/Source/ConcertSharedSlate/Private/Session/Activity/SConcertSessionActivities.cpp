@@ -828,16 +828,11 @@ void SConcertSessionActivities::DisplayTransactionDetails(const FConcertSessionA
 		DeltaChange.bHasExternalPackageChange = ExportedObject.ObjectData.NewExternalPackageName != FName();
 		DeltaChange.bHasPendingKillChange = ExportedObject.ObjectData.bIsPendingKill;
 
-		FString ObjectPathName = ExportedObject.ObjectId.ObjectOuterPathName.ToString() + TEXT(".") + ExportedObject.ObjectId.ObjectName.ToString();
-		TSharedPtr<FTransactionObjectEvent> Event = MakeShared<FTransactionObjectEvent>(InTransaction.TransactionId, InTransaction.OperationId, ETransactionObjectEventType::Finalized, MoveTemp(DeltaChange), nullptr
-			, ExportedObject.ObjectId.ObjectPackageName
-			, ExportedObject.ObjectId.ObjectName
-			, FName(*MoveTemp(ObjectPathName))
-			, ExportedObject.ObjectId.ObjectOuterPathName
-			, ExportedObject.ObjectId.ObjectExternalPackageName
-			, ExportedObject.ObjectId.ObjectClassPathName);
+		FTransactionObjectId TransactionObjectId = ExportedObject.ObjectId.ToTransactionObjectId();
+		TSharedPtr<FTransactionObjectEvent> Event = MakeShared<FTransactionObjectEvent>(InTransaction.TransactionId, InTransaction.OperationId, ETransactionObjectEventType::Finalized, ETransactionObjectChangeCreatedBy::TransactionRecord, 
+			FTransactionObjectChange{ TransactionObjectId, MoveTemp(DeltaChange) }, nullptr);
 
-		TransactionDiff.DiffMap.Emplace(FName(*ObjectPathName), MoveTemp(Event));
+		TransactionDiff.DiffMap.Emplace(TransactionObjectId.ObjectPathName, MoveTemp(Event));
 	}
 
 	TransactionDetailsPanel->SetSelectedTransaction(MoveTemp(TransactionDiff));
