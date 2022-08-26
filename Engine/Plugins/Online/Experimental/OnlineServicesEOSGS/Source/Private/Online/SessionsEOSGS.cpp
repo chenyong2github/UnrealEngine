@@ -503,8 +503,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 
 			if (NewSessionEOSGSRef->SessionSettings.bPresenceEnabled)
 			{
-				FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-				PresenceSessionId = NewSessionEOSGSRef->SessionId;
+				SetPresenceSession({ OpParams.LocalAccountId, NewSessionEOSGSRef->SessionId });
 			}
 
 			Op.SetResult({ });
@@ -1153,7 +1152,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 
 			if (FoundSession->GetSessionSettings().bPresenceEnabled)
 			{
-				PresenceSessionsUserMap.Remove(OpParams.LocalAccountId);
+				ClearPresenceSession({ OpParams.LocalAccountId });
 			}
 
 			ClearSessionByName(OpParams.SessionName);
@@ -1558,8 +1557,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 
 		if (FoundSession->GetSessionSettings().bPresenceEnabled)
 		{
-			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-			PresenceSessionId = FoundSession->GetSessionId();
+			SetPresenceSession({ OpParams.LocalAccountId, FoundSession->GetSessionId() });
 		}
 
 		// After successfully joining a session, we'll remove all related invites if any are found

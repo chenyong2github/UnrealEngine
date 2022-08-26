@@ -168,8 +168,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 
 		if (NewSessionLANRef->SessionSettings.bPresenceEnabled)
 		{
-			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-			PresenceSessionId = NewSessionLANRef->SessionId;
+			SetPresenceSession({ OpParams.LocalAccountId, NewSessionLANRef->SessionId });
 		}
 
 		Op.SetResult({ });
@@ -312,8 +311,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 
 		if (FoundSession->GetSessionSettings().bPresenceEnabled)
 		{
-			FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-			PresenceSessionId = FoundSession->GetSessionId();
+			SetPresenceSession({ OpParams.LocalAccountId, FoundSession->GetSessionId() });
 		}
 
 		Op.SetResult(FJoinSession::Result{ });
@@ -351,11 +349,16 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 		{
 			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
+			if (FoundSession->GetOwnerAccountId() == OpParams.LocalAccountId && FoundSession->GetSessionSettings().JoinPolicy == ESessionJoinPolicy::Public)
+			{
+				StopLANSession();
+			}
+
 			NamedSessionUserMap.FindChecked(OpParams.LocalAccountId).Remove(OpParams.SessionName);
 
 			if (FoundSession->GetSessionSettings().bPresenceEnabled)
 			{
-				PresenceSessionsUserMap.Remove(OpParams.LocalAccountId);
+				ClearPresenceSession({ OpParams.LocalAccountId });
 			}
 
 			ClearSessionByName(OpParams.SessionName);

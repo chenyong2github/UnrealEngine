@@ -256,6 +256,51 @@ struct FGetSessionById
 	};
 };
 
+struct FGetPresenceSession
+{
+	static constexpr TCHAR Name[] = TEXT("GetPresenceSession");
+
+	struct Params
+	{
+		FAccountId LocalUserId;
+	};
+
+	struct Result
+	{
+		TSharedPtr<const ISession> Session;
+	};
+};
+
+struct FSetPresenceSession
+{
+	static constexpr TCHAR Name[] = TEXT("SetPresenceSession");
+
+	struct Params
+	{
+		FAccountId LocalUserId;
+
+		FOnlineSessionIdHandle SessionId;
+	};
+
+	struct Result
+	{
+	};
+};
+
+struct FClearPresenceSession
+{
+	static constexpr TCHAR Name[] = TEXT("ClearPresenceSession");
+
+	struct Params
+	{
+		FAccountId LocalUserId;
+	};
+
+	struct Result
+	{
+	};
+};
+
 struct FCreateSession
 {
 	static constexpr TCHAR Name[] = TEXT("CreateSession");
@@ -657,6 +702,30 @@ public:
 	virtual TOnlineResult<FGetSessionById> GetSessionById(FGetSessionById::Params&& Params) const = 0;
 
 	/**
+	 * Get the session set as presence session for the user.
+	 *
+	 * @params Parameters for the GetPresenceSession call
+	 * return
+	 */
+	virtual TOnlineResult<FGetPresenceSession> GetPresenceSession(FGetPresenceSession::Params&& Params) const = 0;
+
+	/**
+	 * Sets the session with the given id as the presence session for the user.
+	 *
+	 * @params Parameters for the SetPresenceSession call
+	 * return
+	 */
+	virtual TOnlineResult<FSetPresenceSession> SetPresenceSession(FSetPresenceSession::Params&& Params) = 0;
+
+	/**
+	 * Clears the presence session for the user. If no presence session is set, GetPresenceSession will return an error.
+	 *
+	 * @params Parameters for the ClearPresenceSession call
+	 * return
+	 */
+	virtual TOnlineResult<FClearPresenceSession> ClearPresenceSession(FClearPresenceSession::Params&& Params) = 0;
+
+	/**
 	 * Create and join a new session.
 	 *
 	 * @param Parameters for the CreateSession call
@@ -910,6 +979,29 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetSessionById::Result)
 	ONLINE_STRUCT_FIELD(FGetSessionById::Result, Session)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetPresenceSession::Params)
+	ONLINE_STRUCT_FIELD(FGetPresenceSession::Params, LocalUserId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FGetPresenceSession::Result)
+	ONLINE_STRUCT_FIELD(FGetPresenceSession::Result, Session)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSetPresenceSession::Params)
+	ONLINE_STRUCT_FIELD(FSetPresenceSession::Params, LocalUserId),
+	ONLINE_STRUCT_FIELD(FSetPresenceSession::Params, SessionId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSetPresenceSession::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FClearPresenceSession::Params)
+	ONLINE_STRUCT_FIELD(FClearPresenceSession::Params, LocalUserId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FClearPresenceSession::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateSession::Params)

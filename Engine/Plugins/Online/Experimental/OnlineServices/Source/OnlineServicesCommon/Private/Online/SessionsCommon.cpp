@@ -75,6 +75,33 @@ namespace UE::Online {
 			}
 		}
 
+	TOnlineResult<FGetPresenceSession> FSessionsCommon::GetPresenceSession(FGetPresenceSession::Params&& Params) const
+	{
+		if (const FOnlineSessionIdHandle* PresenceSessionId = PresenceSessionsUserMap.Find(Params.LocalUserId))
+		{
+			return TOnlineResult<FGetPresenceSession>({ AllSessionsById.FindChecked(*PresenceSessionId) });
+		}
+		else
+		{
+			return  TOnlineResult<FGetPresenceSession>({ Errors::InvalidState() });
+		}
+	}
+
+	TOnlineResult<FSetPresenceSession> FSessionsCommon::SetPresenceSession(FSetPresenceSession::Params&& Params)
+	{
+		FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(Params.LocalUserId);
+		PresenceSessionId = Params.SessionId;
+
+		return TOnlineResult<FSetPresenceSession>(FSetPresenceSession::Result{ });
+	}
+
+	TOnlineResult<FClearPresenceSession> FSessionsCommon::ClearPresenceSession(FClearPresenceSession::Params&& Params)
+	{
+		PresenceSessionsUserMap.Remove(Params.LocalUserId);
+
+		return TOnlineResult<FClearPresenceSession>(FClearPresenceSession::Result{ });
+	}
+
 	TOnlineAsyncOpHandle<FCreateSession> FSessionsCommon::CreateSession(FCreateSession::Params&& Params)
 	{
 		TOnlineAsyncOpRef<FCreateSession> Operation = GetOp<FCreateSession>(MoveTemp(Params));

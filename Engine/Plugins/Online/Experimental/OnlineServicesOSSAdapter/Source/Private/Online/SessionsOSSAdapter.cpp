@@ -463,6 +463,11 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateS
 
 				NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
 
+				if (V2Session->SessionSettings.bPresenceEnabled)
+				{
+					SetPresenceSession({ OpParams.LocalAccountId, V2Session->SessionId });
+				}
+
 				Op->SetResult({ });
 			}
 		});
@@ -583,7 +588,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsOSSAdapter::LeaveSession(FLeaveSess
 
 					if (FoundSession->GetSessionSettings().bPresenceEnabled)
 					{
-						PresenceSessionsUserMap.Remove(OpParams.LocalAccountId);
+						ClearPresenceSession({ OpParams.LocalAccountId });
 					}
 
 					ClearSessionByName(OpParams.SessionName);
@@ -884,6 +889,11 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 
 				NamedSessionUserMap.FindOrAdd(OpParams.LocalAccountId).AddUnique(OpParams.SessionName);
 
+				if (V2Session->SessionSettings.bPresenceEnabled)
+				{
+					SetPresenceSession({ OpParams.LocalAccountId, V2Session->SessionId });
+				}
+
 				Op->SetResult({ });
 
 				FSessionJoined Event{ { Op->GetParams().LocalAccountId }, V2Session->SessionId };
@@ -963,8 +973,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession
 
 				if (FoundSession->GetSessionSettings().bPresenceEnabled)
 				{
-					FOnlineSessionIdHandle& PresenceSessionId = PresenceSessionsUserMap.FindOrAdd(OpParams.LocalAccountId);
-					PresenceSessionId = FoundSession->GetSessionId();
+					SetPresenceSession({ OpParams.LocalAccountId, FoundSession->GetSessionId() });
 				}
 
 				// After successfully joining a session, we'll remove all related invites if any are found
