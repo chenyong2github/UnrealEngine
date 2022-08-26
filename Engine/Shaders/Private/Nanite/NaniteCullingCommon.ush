@@ -50,7 +50,7 @@ void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteV
 		{
 #if VIRTUAL_TEXTURE_TARGET
 			// The logic here is that if the thing has moved it should test against all hzb pages, whereas if it is static we can skip the cached ones (since we'd not render into those anyway).
-			const uint PageTestFlagMask = GetPageFlagMaskForRendering(InstanceData, DynamicData.bHasMoved);
+			const uint PageTestFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, DynamicData.bHasMoved);
 			//bWasOccluded = !IsVisibleCurrentHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, PageFlagMask);
 			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, false, true, 0U, PageTestFlagMask);
 

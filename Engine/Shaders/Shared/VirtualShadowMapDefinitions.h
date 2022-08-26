@@ -18,3 +18,7 @@ VirtualShadowMapDefinitions.h: used in virtual shadow map shaders and C++ code t
 
 
 #define VSM_PROJ_FLAG_CURRENT_DISTANT_LIGHT (1U << 0)
+#define VSM_PROJ_FLAG_UNCACHED (1U << 1) // Used to indicate that the light is uncached and should only render to dynamic pages
+
+// Hard limit for max distant lights supported 8k for now - we may revise later. We need to keep them in a fixed range for now to make allocation easy and minimize overhead for indexing.
+#define VSM_MAX_SINGLE_PAGE_SHADOW_MAPS (1024U * 8U)

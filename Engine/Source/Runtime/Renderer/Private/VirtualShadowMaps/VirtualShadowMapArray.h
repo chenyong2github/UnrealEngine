@@ -7,6 +7,7 @@
 #include "../Nanite/Nanite.h"
 #include "../MeshDrawCommands.h"
 #include "SceneTypes.h"
+#include "VirtualShadowMapDefinitions.h"
 
 struct FMinimalSceneTextures;
 struct FSortedLightSetSceneInfo;
@@ -62,11 +63,13 @@ public:
 	
 	static_assert(MaxMipLevels <= 8, ">8 mips requires more PageFlags bits. See VSM_PAGE_FLAGS_BITS_PER_HMIP in PageAccessCommon.ush");
 
-	FVirtualShadowMap(uint32 InID) : ID(InID)
+	FVirtualShadowMap(uint32 InID, bool bInIsSinglePageSM) : ID(InID), bIsSinglePageSM(bInIsSinglePageSM)
 	{
 	}
 
-	int32 ID = INDEX_NONE;
+	const int32 ID = INDEX_NONE;
+	const bool bIsSinglePageSM;
+
 	TSharedPtr<FVirtualShadowMapCacheEntry> VirtualShadowMapCacheEntry;
 };
 
@@ -115,9 +118,10 @@ struct FVirtualShadowMapHZBMetadata
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
-	SHADER_PARAMETER(uint32, NumShadowMaps)
-	SHADER_PARAMETER(uint32, NumDirectionalLights) // TODO: Remove
+	SHADER_PARAMETER(uint32, NumFullShadowMaps)
+	SHADER_PARAMETER(uint32, NumSinglePageShadowMaps)
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
+	SHADER_PARAMETER(uint32, NumShadowMapSlots)
 	// Set to 0 if separate static caching is disabled
 	SHADER_PARAMETER(uint32, StaticCachedArrayIndex)
 	// use to map linear index to x,y page coord
@@ -202,12 +206,25 @@ public:
 		return bEnabled;
 	}
 
-	FVirtualShadowMap *Allocate()
+	FVirtualShadowMap* Allocate(bool bSinglePageShadowMap);
+
+	int32 GetNumFullShadowMaps() const
 	{
-		check(IsEnabled());
-		FVirtualShadowMap *SM = new FVirtualShadowMap(ShadowMaps.Num());
-		ShadowMaps.Emplace(SM);
-		return SM;
+		return FMath::Max(ShadowMaps.Num() - int32(VSM_MAX_SINGLE_PAGE_SHADOW_MAPS), 0);
+	}
+
+	int32 GetNumSinglePageShadowMaps() const
+	{
+		return NumSinglePageSms;
+	}
+
+	/**
+	 * Return the total of allocated SMs, both full and single-page SMs
+	 */
+	int32 GetNumShadowMaps() const
+	{
+		// If not initialized ShadowMaps is empty, but we want it to return at most 0 anyway
+		return GetNumFullShadowMaps() + GetNumSinglePageShadowMaps();
 	}
 
 	// Raw size of the physical pool, including both static and dynamic pages (if enabled)
@@ -284,8 +301,6 @@ public:
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
 
-	TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator> ShadowMaps;
-
 	FVirtualShadowMapUniformParameters UniformParameters;
 
 	// Physical page pool shadow data
@@ -337,6 +352,9 @@ public:
 	TArray<FVirtualShadowMapVisualizeLightSearch> VisualizeLight;
 
 private:
+	TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator> ShadowMaps;
+	int32 NumSinglePageSms = 0;
+
 	FScene &Scene;
 	//
 	bool bUseHzbOcclusion = true;

@@ -7,6 +7,7 @@
 
 #include "../Common.ush"
 #include "../BitPacking.ush"
+#include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 
 // Used in the PageFlags
 // NOTE: These flags are combined hierarchically using bitwise *OR*, so plan/negate them appropriately
@@ -18,6 +19,11 @@
 #define VSM_STATIC_UNCACHED_FLAG	(4U)
 // Marks pages that need non-nanite rendering
 #define VSM_NON_NANITE_FLAG			(8U)
+
+// Stored in the physical meta data flags and must be higher than the  VSM_*_FLAG
+// The light was marked to not be cached (even though caching is enabled)
+#define VSM_PHYSICAL_FLAG_VIEW_UNCACHED (1U << 4) 
+
 // NOTE: Bits for the hierarchical page flags are stored in the same uints as the regular mip tail,
 // offset based on the Hmip level. For instance, at the 1x1 level the first 4 bits store the page
 // flags for the coarsest mip, the next 4 bits store the hierarchical page flags for the second
@@ -26,12 +32,18 @@
 #define VSM_PAGE_FLAGS_BITS_PER_HMIP (4U)
 #define VSM_PAGE_FLAGS_BITS_MASK     ((1U<<VSM_PAGE_FLAGS_BITS_PER_HMIP)-1U)
 
+bool IsSinglePageVirtualShadowMap(uint VirtualShadowMapId)
+{
+	return VirtualShadowMapId < VSM_MAX_SINGLE_PAGE_SHADOW_MAPS;
+}
+
 struct FPhysicalPageMetaData
 {
-	uint Flags;	// VSM_*_FLAG. Not all relevant to physical pages
+	uint Flags;	// VSM_*_FLAG, not all relevant to physical pages + VSM_PHYSICAL_FLAG_*
 	uint Age;
-	// Link back to the virtual page table slot that references this physical page, useful to track data on a virtual address space frequency
+	// Link back to the virtual shadow map & page table slot that references this physical page, useful to track data on a virtual address space frequency & vice versa
 	uint VirtualPageOffset;
+	uint VirtualShadowMapId;
 };
 
 uint CalcLog2LevelDimsPages(uint Level)
@@ -75,26 +87,86 @@ uint CalcLevelOffsets(uint Level)
 	return 0x55555555u & Mask;
 }
 
+struct FVirtualSMLevelOffset
+{
+	bool bIsSinglePageSM;
+	uint LevelOffset;
+};
+
+
+FVirtualSMLevelOffset InitVirtualMLevelOffset(uint RawLevelOffset)
+{
+	FVirtualSMLevelOffset Result;
+	// We can derive the bIsSinglePageSM flag from the level offset since CalcFullPageTableLevelOffset always adds VSM_MAX_SINGLE_PAGE_SHADOW_MAPS.
+	Result.bIsSinglePageSM = RawLevelOffset < VSM_MAX_SINGLE_PAGE_SHADOW_MAPS;
+	Result.LevelOffset = RawLevelOffset;
+
+	return Result;
+}
+
 /**
  * Compute the offset for a mip level page table given a shadow map ID and a level.
  */
-uint CalcPageTableLevelOffset(uint ShadowMapID, uint Level)
+uint CalcFullPageTableLevelOffset(uint VirtualShadowMapId, uint Level)
 {
-	return ShadowMapID * VSM_PAGE_TABLE_SIZE + CalcLevelOffsets(Level);
+	checkSlow(!IsSinglePageVirtualShadowMap(VirtualShadowMapId));
+	return VSM_MAX_SINGLE_PAGE_SHADOW_MAPS + (VirtualShadowMapId - VSM_MAX_SINGLE_PAGE_SHADOW_MAPS) * VSM_PAGE_TABLE_SIZE + CalcLevelOffsets(Level);
 }
 
 /**
- * Compute the offset for page within a level page table given a level and PageAddress.
+ * Compute the offset for a mip level page table given a shadow map ID and a level.
  */
-uint CalcPageOffsetInLevel(uint Level, uint2 PageAddress)
+FVirtualSMLevelOffset CalcPageTableLevelOffset(uint VirtualShadowMapId, uint Level)
 {
-	// return PageAddress.x + PageAddress.y * LevelDimsPages[Level];
-	return PageAddress.x + ( PageAddress.y << CalcLog2LevelDimsPages(Level) );
+	FVirtualSMLevelOffset Result;
+	Result.bIsSinglePageSM = IsSinglePageVirtualShadowMap(VirtualShadowMapId);
+	if (Result.bIsSinglePageSM)
+	{
+		// Single page SM vtables (single entry) are laid out before all the high-detail SMs vTable
+		Result.LevelOffset = VirtualShadowMapId;
+	}
+	else
+	{
+		// Full SMs are laid out after the single page ones.
+		Result.LevelOffset = CalcFullPageTableLevelOffset(VirtualShadowMapId, Level);
+	}
+	return Result;
 }
 
-uint CalcPageOffset(uint ShadowMapID, uint Level, uint2 PageAddress)
+uint CalcPageOffsetInFullLevel(uint Level, uint2 PageAddress)
 {
-	return CalcPageTableLevelOffset(ShadowMapID, Level) + CalcPageOffsetInLevel(Level, PageAddress);
+	return PageAddress.x + (PageAddress.y << CalcLog2LevelDimsPages(Level));
+}
+/**
+ * Compute the offset for page within a level page table given a level and PageAddress.
+ */
+uint CalcPageOffset(FVirtualSMLevelOffset LevelOffset, uint Level, uint2 PageAddress)
+{
+	checkSlow(LevelOffset.bIsSinglePageSM == (LevelOffset.LevelOffset < VSM_MAX_SINGLE_PAGE_SHADOW_MAPS));
+	uint Result = LevelOffset.LevelOffset;
+
+	if (!LevelOffset.bIsSinglePageSM)
+	{
+		Result += CalcPageOffsetInFullLevel(Level, PageAddress);
+	}
+
+	return Result;
+}
+
+uint CalcPageOffset(uint VirtualShadowMapId, uint Level, uint2 PageAddress)
+{
+	// Single page SMs are allocated before all the others such that we can easily determine the category from the index 
+	if (IsSinglePageVirtualShadowMap(VirtualShadowMapId))
+	{
+		// We do call this with the single-page SMs during sampling and then the parameters are non-zero / last level
+		//checkSlow(PageAddress.x == 0U && PageAddress.y == 0U);
+		//checkSlow(Level == (VSM_MAX_MIP_LEVELS - 1U));
+		
+		// We must skip the level offset since there is only one level for a single-page SM
+		return VirtualShadowMapId;
+	}
+	// Store all full-detail VSMs after the block of low-detail ones (single-page entries) - CalcPageTableLevelOffset does the offset.
+	return CalcFullPageTableLevelOffset(VirtualShadowMapId, Level) + CalcPageOffsetInFullLevel(Level, PageAddress);
 }
 
 // Linearlize a physical page address to a linear offset
@@ -154,12 +226,12 @@ FShadowPhysicalPage ShadowGetPhysicalPage(uint PageOffset)
 	return ShadowDecodePageTable(VirtualShadowMap.PageTable[PageOffset]);
 }
 
-bool VirtualToPhysicalTexel_PageTableLevelOffset(uint PageTableLevelOffset, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
+bool VirtualToPhysicalTexel_PageTableLevelOffset(FVirtualSMLevelOffset PageTableLevelOffset, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
 {
 	uint VPageX = VirtualTexelAddress.x >> VSM_LOG2_PAGE_SIZE;
 	uint VPageY = VirtualTexelAddress.y >> VSM_LOG2_PAGE_SIZE;
 
-	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(PageTableLevelOffset + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY)));
+	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(PageTableLevelOffset, Level, uint2(VPageX, VPageY)));
 	PhysicalTexelAddress = PhysicalPageEntry.PhysicalAddress * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 	return (PhysicalPageEntry.bThisLODValid);
 }
@@ -186,7 +258,7 @@ FShadowPageTranslationResult ShadowVirtualToPhysicalUV(uint VirtualShadowMapID, 
 
 	FShadowPageTranslationResult Result;
 	Result.bValid = PhysicalPageEntry.bAnyLODValid;
-	Result.LODOffset = PhysicalPageEntry.LODOffset;
+	Result.LODOffset = IsSinglePageVirtualShadowMap(VirtualShadowMapID) ? (VSM_MAX_MIP_LEVELS - 1U) : PhysicalPageEntry.LODOffset;
 	// TODO: Can optimize this slightly based on relative offset
 	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(Result.LODOffset));
 	Result.VirtualTexelAddress = uint2(Result.VirtualTexelAddressFloat);

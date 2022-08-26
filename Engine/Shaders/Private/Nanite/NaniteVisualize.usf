@@ -326,7 +326,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_VSM_STATIC_CACHING)
 		{
-			Result = ShouldCacheInstanceAsStatic(InstanceData) ? float3(0, 1, 0) : float3(1, 0, 0);
+			Result = ShouldCacheInstanceAsStatic(InstanceData, NaniteView) ? float3(0, 1, 0) : float3(1, 0, 0);
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_PICKING)
 		{

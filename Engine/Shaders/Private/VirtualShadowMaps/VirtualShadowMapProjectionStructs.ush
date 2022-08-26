@@ -31,9 +31,9 @@ struct FVirtualShadowMapProjectionShaderData
 	uint Flags;
 	// Derived data for convenience when passing the structure around
 	int VirtualShadowMapId;
-
-	// Low detail == single page only
-	bool bCurrentDistantLight;
+	
+	bool bCurrentDistantLight; // Low detail == single page only
+	bool bUnCached; // see VSM_PROJ_FLAG_UNCACHED
 };
 
 FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteAddressBuffer ProjectionData, int VirtualShadowMapId)
@@ -86,6 +86,7 @@ FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteA
 	Result.ClipmapWorldOrigin				= LWCNegate(MakeLWCVector3(PreViewTranslationTile, NegativeClipmapWorldOriginOffset));
 
 	Result.bCurrentDistantLight = (Result.Flags & VSM_PROJ_FLAG_CURRENT_DISTANT_LIGHT) != 0U;
+	Result.bUnCached = (Result.Flags & VSM_PROJ_FLAG_UNCACHED) != 0U;
 
 	return Result;
 }

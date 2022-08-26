@@ -10,6 +10,9 @@ VirtualShadowMapClipmap.cpp
 #include "RendererModule.h"
 #include "VirtualShadowMapArray.h"
 #include "VirtualShadowMapCacheManager.h"
+#include "VirtualShadowMapDefinitions.h"
+
+extern int32 GForceInvalidateDirectionalVSM;
 
 static TAutoConsoleVariable<float> CVarVirtualShadowMapResolutionLodBiasDirectional(
 	TEXT( "r.Shadow.Virtual.ResolutionLodBiasDirectional" ),
@@ -125,7 +128,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		const int32 AbsoluteLevel = Index + FirstLevel;		// Absolute (virtual) level index
 
 		// TODO: Allocate these as a chunk if we continue to use one per clipmap level
-		Level.VirtualShadowMap = VirtualShadowMapArray.Allocate();
+		Level.VirtualShadowMap = VirtualShadowMapArray.Allocate(false);
 		ensure(Index == 0 || (Level.VirtualShadowMap->ID == (LevelData[Index-1].VirtualShadowMap->ID + 1)));
 
 		const float RawLevelRadius = GetLevelRadius(AbsoluteLevel);
@@ -269,6 +272,7 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ResolutionLodBias = ResolutionLodBias;
 	Data.ClipmapCornerOffset = Level.CornerOffset;
 	Data.LightSourceRadius = GetLightSceneInfo().Proxy->GetSourceRadius();
+	Data.Flags = GForceInvalidateDirectionalVSM ? VSM_PROJ_FLAG_UNCACHED : 0U;
 
 	return Data;
 }

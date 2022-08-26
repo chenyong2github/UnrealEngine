@@ -218,10 +218,9 @@ uint2 VsmPageTableLoad(uint2 Coords)
 void FetchAndCachePageTableEntry(FNaniteView NaniteView, uint2 vPageStart, uint2 vPageEnd, uint PageFlagMask, uint CacheIndex)
 {
 	uint2 CacheCoords = uint2(CacheIndex & 0x7, CacheIndex >> 3);
-	uint LevelOffset = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
 	if (all(vPageStart + CacheCoords <= vPageEnd))
 	{
-		uint PageEntryOffset = LevelOffset + CalcPageOffsetInLevel(NaniteView.TargetMipLevel, vPageStart + CacheCoords);
+		uint PageEntryOffset = CalcPageOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vPageStart + CacheCoords);
 		uint PageFlag = VirtualShadowMap.PageFlags[PageEntryOffset];
 		uint2 pPageAddress = 0xffff;
 		if ((PageFlag & PageFlagMask) != 0)
@@ -1113,7 +1112,7 @@ void MicropolyRasterize(
 	WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
 
 #if VIRTUAL_TEXTURE_TARGET
-	bVirtualTargetStaticPage = ShouldCacheInstanceAsStatic( InstanceData );
+	bVirtualTargetStaticPage = ShouldCacheInstanceAsStatic( InstanceData, NaniteView );
 
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
@@ -1121,7 +1120,7 @@ void MicropolyRasterize(
 	uint2 pPageAddress;
 	if (bSinglePage)
 	{
-		pPageAddress = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;
+		pPageAddress = ShadowGetPhysicalPage( CalcPageOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;
 	}
 	PageTranslation.ArrayIndex = bVirtualTargetStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
 #endif
@@ -1135,7 +1134,7 @@ void MicropolyRasterize(
 
 #if VIRTUAL_TEXTURE_TARGET
 #if NANITE_LATE_VSM_PAGE_TRANSLATION
-	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, InstanceDynamicData.bHasMoved);
+	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, InstanceDynamicData.bHasMoved);
 	if (!bSinglePage)
 	{
 		ViewRect.xy = 0;
@@ -1456,10 +1455,10 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset = uint3(PixelValue, 0u, 0u);
 
 #if VIRTUAL_TEXTURE_TARGET
-	const bool bStaticPage = ShouldCacheInstanceAsStatic(InstanceData);
+	const bool bStaticPage = ShouldCacheInstanceAsStatic(InstanceData, NaniteView);
 	const uint ArrayIndex = bStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
 	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y = VisibleCluster.ViewId | (NaniteView.TargetMipLevel << 16) | (ArrayIndex << 24);
-	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.z = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
+	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.z = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel).LevelOffset;
 #elif NANITE_MULTI_VIEW
 	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y = VisibleCluster.ViewId;
 #endif

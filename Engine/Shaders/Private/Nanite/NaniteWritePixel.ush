@@ -63,7 +63,7 @@ void WritePixel(
 // Optional per-pixel page translation parameters
 struct WritePixelPageTranslation
 {
-	int PageTableLevelOffset;
+	FVirtualSMLevelOffset PageTableLevelOffset;
 	int MipLevel;
 	uint ArrayIndex;
 	bool bTranslate;
@@ -72,7 +72,7 @@ struct WritePixelPageTranslation
 WritePixelPageTranslation InitializeWritePixelPageTranslation()
 {
 	WritePixelPageTranslation Result;
-	Result.PageTableLevelOffset = INDEX_NONE;
+	Result.PageTableLevelOffset = (FVirtualSMLevelOffset)0;
 	Result.MipLevel = 0;
 	Result.ArrayIndex = 0;
 	Result.bTranslate = false;
@@ -82,7 +82,7 @@ WritePixelPageTranslation InitializeWritePixelPageTranslation()
 WritePixelPageTranslation InitializeWritePixelPageTranslation(uint PageTableLevelOffset, uint MipLevel, uint ArrayIndex)
 {
 	WritePixelPageTranslation Result;
-	Result.PageTableLevelOffset = PageTableLevelOffset;
+	Result.PageTableLevelOffset = InitVirtualMLevelOffset(PageTableLevelOffset);
 	Result.MipLevel = MipLevel;
 	Result.ArrayIndex = ArrayIndex;
 	Result.bTranslate = true;

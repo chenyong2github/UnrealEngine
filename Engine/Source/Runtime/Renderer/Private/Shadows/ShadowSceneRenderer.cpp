@@ -43,10 +43,19 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FShadowSceneRenderer::AddLocalLi
 	LocalLightShadowFrameSetup.ProjectedShadowInfo = ProjectedShadowInfo;
 	LocalLightShadowFrameSetup.LightSceneInfo = LightSceneInfo;
 
+	// Single page res, at this point we force the VSM to be single page
+	// TODO: this computation does not match up with page marking logic super-well, particularly for long spot lights,
+	//       we can absolutely mirror the page marking calc better, just unclear how much it helps. 
+	//       Also possible to feed back from gpu - which would be more accurate wrt partially visible lights (e.g., a spot going through the ground).
+	//       Of course this creates jumps if visibility changes, which may or may not create unsolvable artifacts.
+	const bool bIsDistantLight = CVarDistantLightMode.GetValueOnRenderThread() != 0
+		&& (MaxScreenRadius <= FVirtualShadowMap::PageSize || CVarDistantLightMode.GetValueOnRenderThread() == 2);
+
+
 	const int32 NumMaps = ProjectedShadowInitializer.bOnePassPointLightShadow ? 6 : 1;
 	for (int32 Index = 0; Index < NumMaps; ++Index)
 	{
-		FVirtualShadowMap* VirtualShadowMap = VirtualShadowMapArray.Allocate();
+		FVirtualShadowMap* VirtualShadowMap = VirtualShadowMapArray.Allocate(bIsDistantLight);
 		// TODO: redundant
 		ProjectedShadowInfo->VirtualShadowMaps.Add(VirtualShadowMap);
 		LocalLightShadowFrameSetup.VirtualShadowMaps.Add(VirtualShadowMap);
@@ -56,14 +65,6 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FShadowSceneRenderer::AddLocalLi
 	if (PerLightCacheEntry.IsValid())
 	{
 		LocalLightShadowFrameSetup.PerLightCacheEntry = PerLightCacheEntry;
-		// Single page res, at this point we force the VSM to be single page
-		// TODO: this computation does not match up with page marking logic super-well, particularly for long spot lights,
-		//       we can absolutely mirror the page marking calc better, just unclear how much it helps. 
-		//       Also possible to feed back from gpu - which would be more accurate wrt partially visible lights (e.g., a spot going through the ground).
-		//       Of course this creates jumps if visibility changes, which may or may not create unsolvable artifacts.
-		const bool bIsDistantLight = CVarDistantLightMode.GetValueOnRenderThread() != 0
-			&& (MaxScreenRadius <= FVirtualShadowMap::PageSize || CVarDistantLightMode.GetValueOnRenderThread() == 2);
-
 		PerLightCacheEntry->UpdateLocal(ProjectedShadowInitializer, bIsDistantLight);
 
 		for (int32 Index = 0; Index < NumMaps; ++Index)

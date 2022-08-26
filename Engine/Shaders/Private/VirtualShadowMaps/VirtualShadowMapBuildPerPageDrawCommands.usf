@@ -226,7 +226,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
-				uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(InstanceData, bHasMoved);
+				uint FlagMask = VSM_NON_NANITE_FLAG | GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 
 				uint4 RectPages = GetPageRect(Rect, VirtualShadowMapId, MipLevel);
 
@@ -258,7 +258,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 #endif // USE_HZB_OCCLUSION
 
 					++ThreadTotalForAllViews;
-					WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData));
+					WriteCmd(MipViewId, InstanceId, Payload.IndirectArgIndex, ShouldCacheInstanceAsStatic(InstanceData, NaniteView));
 				}
 				else
 				{

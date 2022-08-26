@@ -35,7 +35,7 @@ uint NumInvalidatingInstanceSlots;
 
 struct FInstanceInvalidationPayload
 {
-	int ClipmapVirtualShadowMapId;
+	int VirtualShadowMapId;
 	bool bInvalidateStaticPage;
 };
 
@@ -45,13 +45,13 @@ FInstanceInvalidationPayload DecodeInstanceInvalidationPayload(uint Payload)
 	Result.bInvalidateStaticPage = (Payload & 0x2) != 0;
 	if (Payload & 0x1)
 	{
-		// Single clipmap level
-		Result.ClipmapVirtualShadowMapId = Payload >> 2;
+		// Single shadow map
+		Result.VirtualShadowMapId = Payload >> 2;
 	}
 	else
 	{
-		// All local light levels
-		Result.ClipmapVirtualShadowMapId = INDEX_NONE;
+		// All lights
+		Result.VirtualShadowMapId = INDEX_NONE;
 	}
 	return Result;
 }
@@ -66,8 +66,9 @@ void VirtualSmInvalidateInstancePagesCS(
 	uint3 GroupId : SV_GroupID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
-	uint FirstVirtualShadowMapId = 0u;
-	uint NumVirtualShadowMapIds = VirtualShadowMap.NumShadowMaps;
+	// Loop only over the non-single-page VSMs
+	uint FirstVirtualShadowMapId = VSM_MAX_SINGLE_PAGE_SHADOW_MAPS;
+	uint EndVirtualShadowMapId = VSM_MAX_SINGLE_PAGE_SHADOW_MAPS + VirtualShadowMap.NumFullShadowMaps;
 
 	bool bForceInvalidateStaticPage = false;
 
@@ -82,12 +83,11 @@ void VirtualSmInvalidateInstancePagesCS(
 	FInstanceInvalidationPayload Payload = DecodeInstanceInvalidationPayload(WorkSetup.Item.Payload);
 
 	bForceInvalidateStaticPage = Payload.bInvalidateStaticPage;
-	bool bSkipClipmaps = Payload.ClipmapVirtualShadowMapId == INDEX_NONE;
-	if (!bSkipClipmaps)
+	if (Payload.VirtualShadowMapId != INDEX_NONE)
 	{
-		// Do a single clipmap level
-		FirstVirtualShadowMapId = Payload.ClipmapVirtualShadowMapId;
-		NumVirtualShadowMapIds = FirstVirtualShadowMapId + 1U;
+		// Do a single shadowmap
+		FirstVirtualShadowMapId = Payload.VirtualShadowMapId;
+		EndVirtualShadowMapId = FirstVirtualShadowMapId + 1U;
 	}
 
 	uint InstanceId = WorkSetup.Item.InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
@@ -97,8 +97,6 @@ void VirtualSmInvalidateInstancePagesCS(
 	{
 		return;
 	}
-	bool bSkipClipmaps = false;
-
 	int InstanceId = InvalidatingInstances[1 + DispatchIndex];
 #endif
 	{
@@ -112,9 +110,6 @@ void VirtualSmInvalidateInstancePagesCS(
 			return;
 		}
 
-		// TODO: This is slightly messy, but should be ok for the moment
-		bool bInvalidateStaticPage = bForceInvalidateStaticPage ||  ShouldCacheInstanceAsStatic(InstanceSceneData);
-		uint InvalidationFlags = bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
 
 		// TODO: Clean up hardcoded flag field test.
 		bool bCastShadows = InstanceSceneData.ValidInstance 
@@ -126,21 +121,11 @@ void VirtualSmInvalidateInstancePagesCS(
 		// TODO: test the flag on the instance instead once it is updated correctly InstanceSceneData.CastShadows
 		if (bCastShadows)
 		{
-			for (uint VirtualShadowMapId = FirstVirtualShadowMapId; VirtualShadowMapId < NumVirtualShadowMapIds;)
+			for (uint VirtualShadowMapId = FirstVirtualShadowMapId; VirtualShadowMapId < EndVirtualShadowMapId; ++VirtualShadowMapId)
 			{
 				// 1. Load cached projection data
 				FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 				const bool bDirectionalLight = (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL);
-
-				if (bSkipClipmaps && bDirectionalLight)
-				{
-					VirtualShadowMapId += uint(ProjectionData.ClipmapLevelCount);
-					continue;
-				}
-				else
-				{
-					++VirtualShadowMapId;
-				}
 
 				// Stop invalidations if the light is 'distant'
 				if (ProjectionData.bCurrentDistantLight)
@@ -160,6 +145,10 @@ void VirtualSmInvalidateInstancePagesCS(
 						continue;
 					}
 				}
+
+				// TODO: This is slightly messy, but should be ok for the moment
+				bool bInvalidateStaticPage = bForceInvalidateStaticPage ||  ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
+				uint InvalidationFlags = bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
 
 				// Go back to clip space
 				float4x4 UVToClip;
@@ -202,12 +191,12 @@ void VirtualSmInvalidateInstancePagesCS(
 #endif // USE_HZB_OCCLUSION
 
 								// 3. do invalidation
-								uint PageTableLevelOffset = CalcPageTableLevelOffset(ProjectionData.VirtualShadowMapId, MipLevel);
+								FVirtualSMLevelOffset PageTableLevelOffset = CalcPageTableLevelOffset(ProjectionData.VirtualShadowMapId, MipLevel);
 								for (uint y = RectPages.y; y <= RectPages.w; y++)
 								{
 									for (uint x = RectPages.x; x <= RectPages.z; x++)
 									{
-										uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+										uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, MipLevel, uint2(x, y));
 										uint PageFlag = VirtualShadowMap.PageFlags[PageFlagOffset];
 
 										if ((PageFlag & VSM_ALLOCATED_FLAG) != 0)

@@ -60,9 +60,10 @@ FAutoConsoleVariableRef CVarCacheInvalidateOftenMoving(
 	TEXT("If enabled, Primitive Proxies that are marked as having deformable meshes (HasDeformableMesh() == true) causes invalidations regardless of whether their transforms are updated."),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarForceInvalidateClipmaps(
-	TEXT("r.Shadow.Virtual.Cache.ForceInvalidateClipmaps"),
-	0,
+int32 GForceInvalidateDirectionalVSM = 0;
+static FAutoConsoleVariableRef  CVarForceInvalidateDirectionalVSM(
+	TEXT("r.Shadow.Virtual.Cache.ForceInvalidateDirectional"),
+	GForceInvalidateDirectionalVSM,
 	TEXT("Forces the clipmap to always invalidate, useful to emulate a moving sun to avoid misrepresenting cache performance."),
 	ECVF_RenderThreadSafe);
 
@@ -76,7 +77,7 @@ void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	double ViewRadiusZ,
 	const FVirtualShadowMapPerLightCacheEntry& PerLightEntry)
 {
-	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE) && CVarForceInvalidateClipmaps.GetValueOnRenderThread() == 0;
+	bool bCacheValid = (CurrentVirtualShadowMapId != INDEX_NONE) && GForceInvalidateDirectionalVSM == 0;
 	
 	if (bCacheValid && WorldToLight != Clipmap.WorldToLight)
 	{
@@ -147,6 +148,12 @@ void FVirtualShadowMapCacheEntry::UpdateLocal(int32 VirtualShadowMapId, const FV
 
 	// Not valid if it was never rendered
 	if (PerLightEntry.PrevRenderedFrameNumber < 0)
+	{
+		PrevVirtualShadowMapId = INDEX_NONE;
+	}
+
+	// Invalidate on transition from distant to full
+	if (!PerLightEntry.bCurrentIsDistantLight && PerLightEntry.bPrevIsDistantLight)
 	{
 		PrevVirtualShadowMapId = INDEX_NONE;
 	}
@@ -282,8 +289,6 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(co
 		const bool bPossiblyCachedAsStatic = !PrimitiveSceneInfo->Proxy->IsMovable();
 
 		const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
-		// Add for non-directional lights, mark for skipping clipmaps as these are handled individually below
-		LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, EncodeInstanceInvalidationPayload(bPossiblyCachedAsStatic));
 
 		// Process directional lights, where we explicitly filter out primitives that were not rendered (and mark this fact)
 		for (auto& CacheEntry : Manager.PrevCacheEntries)
@@ -557,7 +562,9 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 	if (bDropPrevBuffers)
 	{
 		PrevBuffers = FVirtualShadowMapArrayFrameData();
-		PrevUniformParameters.NumShadowMaps = 0;
+		PrevUniformParameters.NumFullShadowMaps = 0;
+		PrevUniformParameters.NumSinglePageShadowMaps = 0;
+		PrevUniformParameters.NumShadowMapSlots = 0;
 	}
 
 	if (bDropAll)

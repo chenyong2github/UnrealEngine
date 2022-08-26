@@ -91,6 +91,7 @@
 #define NANITE_VIEW_FLAG_HZBTEST							0x1
 #define NANITE_VIEW_FLAG_NEAR_CLIP							0x2
 #define NANITE_VIEW_FLAG_DISTANCE_CULL						0x4
+#define NANITE_VIEW_FLAG_UNCACHED							0x8 // Indicates that the view does not support caching, used in VSM rendering to pipe everything to the dynamic pages and skip merging
 
 #define NANITE_MAX_STATE_BUCKET_ID							((1 << 14) - 1)
 

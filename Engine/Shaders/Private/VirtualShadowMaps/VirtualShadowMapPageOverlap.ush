@@ -4,6 +4,7 @@
 
 #include "../Common.ush"
 #include "../Nanite/NaniteHZBCull.ush"
+#include "../Nanite/NaniteDataDecode.ush"
 #include "../SceneData.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 #include "VirtualShadowMapStaticCaching.ush"
@@ -16,7 +17,6 @@ StructuredBuffer<uint> HZBPageFlags;
 uint ShadowGetPageFlags(uint ShadowMapID, uint MipLevel, uint HMipLevel, uint2 PageAddress)
 {
 	uint MipToSample = MipLevel + HMipLevel;
-	uint HPageLevelOffset = CalcPageTableLevelOffset(ShadowMapID, MipToSample);
 	uint RawFlags = VirtualShadowMap.PageFlags[CalcPageOffset(ShadowMapID, MipToSample, PageAddress)];
 
 	// Extract the flags for the given HMip
@@ -164,13 +164,13 @@ bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, b
 
 
 	uint4 RectPages = HZBTestRect.RectPages;
-	uint PageTableLevelOffset = CalcPageTableLevelOffset(PrevShadowMapID, MipLevel);
+	FVirtualSMLevelOffset PageTableLevelOffset = CalcPageTableLevelOffset(PrevShadowMapID, MipLevel);
 
 	for (uint y = RectPages.y; y <= RectPages.w; y++)
 	{
 		for (uint x = RectPages.x; x <= RectPages.z; x++)
 		{
-			uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+			uint PageFlagOffset = CalcPageOffset(PageTableLevelOffset, MipLevel, uint2(x, y));
 			uint PageFlag = HZBPageFlags[PageFlagOffset];
 
 			// Skip unallocated pages if bTreatUnmappedAsOccluded is true, otherwise test everything
@@ -188,12 +188,12 @@ bool IsVisibleMaskedHZB(uint PrevShadowMapID, uint MipLevel, FScreenRect Rect, b
 	return false;
 }
 
-uint GetPageFlagMaskForRendering(FInstanceSceneData InstanceData, bool bHasMoved)
+uint GetPageFlagMaskForRendering(FInstanceSceneData InstanceData, FNaniteView NaniteView, bool bHasMoved)
 {
 	// Clustered that have moved must be rendered into any allocated page
 	// Otherwise they must be rendered only into uncached pages that match their "static/dynamic" instance type	
 	const uint PageFlagMask = 
 		bHasMoved ? VSM_ALLOCATED_FLAG :
-		(ShouldCacheInstanceAsStatic(InstanceData) ?  VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG);
+		(ShouldCacheInstanceAsStatic(InstanceData, NaniteView) ?  VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG);
 	return PageFlagMask;
 }
