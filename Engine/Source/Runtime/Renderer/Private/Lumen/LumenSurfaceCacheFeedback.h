@@ -46,6 +46,8 @@ public:
 	FIntPoint GetFeedbackBufferTileJitter() const;
 	uint32 GetFrameIndex() const { return FrameIndex; }
 
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+
 private:
 
 	uint32 FrameIndex = 0;

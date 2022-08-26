@@ -55,6 +55,8 @@ public:
 	int32 GetMode()				const { return Mode; }
 	int32 GetUpsamplingMode()	const { return UpsamplingMode; }
 
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+
 private:
 
 	uint32 VolumetricReconstructRTDownsampleFactor;
@@ -110,6 +112,8 @@ public:
 	uint32 GetPreviousIndex() { return 1 - CurrentRT; }
 
 	void Reset();
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
 private:
 

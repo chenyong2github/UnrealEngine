@@ -87,7 +87,7 @@ int32 GDisplayClusterLumenPerView = 1;
 static FAutoConsoleVariableRef CVarDisplayClusterLumenPerView(
 	TEXT("DC.LumenPerView"),
 	GDisplayClusterLumenPerView,
-	TEXT("Separate Lumen scene cache allocated for each View.  Setting is permanent for a given view once enabled (disable before startup to avoid this)."),
+	TEXT("Separate Lumen scene cache allocated for each View.  Reduces artifacts where views affect one another, at a cost in GPU memory."),
 	ECVF_RenderThreadSafe
 );
 
@@ -602,6 +602,10 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 					if (GDisplayClusterLumenPerView)
 					{
 						View->State->AddLumenSceneData(MyWorld->Scene);
+					}
+					else
+					{
+						View->State->RemoveLumenSceneData(MyWorld->Scene);
 					}
 
 					{

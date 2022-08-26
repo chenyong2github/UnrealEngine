@@ -69,6 +69,8 @@ public:
 
 	FORCEINLINE const FRHIGPUMask& GetLastCopyGPUMask() const { return LastCopyGPUMask; }
 
+	FName GetName() const { return Fence->GetFName(); }
+
 protected:
 
 	FGPUFenceRHIRef Fence;
@@ -92,6 +94,7 @@ public:
 	void EnqueueCopy(FRHICommandList& RHICmdList, FRHIBuffer* SourceBuffer, uint32 NumBytes = 0) override;
 	void* Lock(uint32 NumBytes) override;
 	void Unlock() override;
+	uint64 GetGPUSizeBytes() const;
 
 private:
 
@@ -123,6 +126,8 @@ public:
 
 	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")
 	void LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels);
+
+	uint64 GetGPUSizeBytes() const;
 
 #if WITH_MGPU
 	FTextureRHIRef DestinationStagingTextures[MAX_NUM_GPUS];

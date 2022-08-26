@@ -261,9 +261,13 @@ public:
 	* The cache only works for the first Scene this function is called for.
 	*/
 	virtual void AddVirtualShadowMapCache(FSceneInterface* InScene) {}
+	virtual void RemoveVirtualShadowMapCache(FSceneInterface* InScene) {}
+	virtual bool HasVirtualShadowMapCache() const = 0;
 
 	/** Similar to above, but adds Lumen Scene Data */
-	virtual void AddLumenSceneData(FSceneInterface* InScene) {}
+	virtual void AddLumenSceneData(FSceneInterface* InScene, float SurfaceCacheResolution = 1.0f) {}
+	virtual void RemoveLumenSceneData(FSceneInterface* InScene) {}
+	virtual bool HasLumenSceneData() const = 0;
 
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.

@@ -1232,6 +1232,9 @@ struct FPostProcessSettings
 	uint32 bOverride_DynamicGlobalIlluminationMethod : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint32 bOverride_LumenSurfaceCacheResolution : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint32 bOverride_LumenSceneLightingQuality : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
@@ -1560,6 +1563,10 @@ struct FPostProcessSettings
 	UPROPERTY()
 	uint32 RayTracingGI_DEPRECATED : 1;
 #endif
+
+	/** Scale factor for Lumen Surface Cache resolution for Scene Captures.  Smaller values save GPU memory, at a cost in quality.  Defaults to 0.5 if not overridden, 1.0 is full resolution. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Global Illumination|Lumen Global Illumination", meta = (ClampMin = ".5", ClampMax = "1", editcondition = "bOverride_LumenSurfaceCacheResolution", DisplayName = "Lumen Surface Cache Resolution"))
+	float LumenSurfaceCacheResolution;
 
 	/** Scales Lumen Scene's quality.  Larger scales cause Lumen Scene to be calculated with a higher fidelity, which can be visible in reflections, but increase GPU cost. */
 	UPROPERTY(interp, EditAnywhere, BlueprintReadWrite, Category = "Global Illumination|Lumen Global Illumination", meta = (ClampMin = ".25", UIMax = "2", editcondition = "bOverride_LumenSceneLightingQuality", DisplayName = "Lumen Scene Lighting Quality"))

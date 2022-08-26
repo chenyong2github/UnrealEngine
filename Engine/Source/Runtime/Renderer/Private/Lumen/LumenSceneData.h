@@ -499,6 +499,9 @@ public:
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FLumenPrimitiveGroupRemoveInfo> PendingRemoveOperations;
 
+	// Scale factor to adjust atlas size for tuning memory usage
+	float SurfaceCacheResolution = 1.0f;
+
 	// Multi-view multi-GPU information
 	bool bViewSpecific = false;
 #if WITH_MGPU
@@ -577,6 +580,8 @@ public:
 #if WITH_MGPU
 	void UpdateGPUMask(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries, FRHIGPUMask ViewGPUMask);
 #endif
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
 private:
 

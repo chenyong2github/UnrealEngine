@@ -26,6 +26,14 @@ struct FSceneCaptureViewInfo
 	int32 StereoViewIndex;
 };
 
+#if WITH_EDITORONLY_DATA
+/** Editor only structure for gathering memory size */
+struct FSceneCaptureMemorySize : public FThreadSafeRefCountedObject
+{
+	uint64 Size = 0;
+};
+#endif
+
 USTRUCT(BlueprintType)
 struct FEngineShowFlagsSetting
 {
@@ -221,6 +229,10 @@ protected:
 
 	/** The mesh to show visually where the camera is placed */
 	class UStaticMeshComponent* ProxyMeshComponent;
+
+public:
+	/** Thread safe storage for memory statistics for a scene capture */
+	TRefCountPtr<FSceneCaptureMemorySize> CaptureMemorySize;
 #endif
 };
 

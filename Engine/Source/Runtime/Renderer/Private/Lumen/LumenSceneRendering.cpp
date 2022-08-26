@@ -407,7 +407,7 @@ bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& 
 		&& ShouldRenderLumenForViewFamily(Scene, *View.Family, bSkipProjectCheck)
 		// Don't update scene lighting for secondary views
 		&& !View.bIsPlanarReflection
-		&& !View.bIsSceneCapture
+		&& !View.bIsSceneCaptureCube
 		&& !View.bIsReflectionCapture
 		&& View.State
 		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing(*View.Family) || IsSoftwareRayTracingSupported());
@@ -1174,6 +1174,7 @@ public:
 		const TSparseSpanArray<FLumenMeshCards>& InLumenMeshCards,
 		const TSparseSpanArray<FLumenCard>& InLumenCards,
 		const TArray<FVector, TInlineAllocator<2>>& InViewOrigins,
+		float InSurfaceCacheResolution,
 		float InLumenSceneDetail,
 		float InMaxDistanceFromCamera,
 		int32 InFirstMeshCardsIndex,
@@ -1185,7 +1186,7 @@ public:
 		, FirstMeshCardsIndex(InFirstMeshCardsIndex)
 		, NumMeshCardsPerPacket(InNumMeshCardsPerPacket)
 		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
-		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
+		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale() * InSurfaceCacheResolution)
 		, MaxTexelDensity(GLumenSceneCardMaxTexelDensity)
 	{
 	}
@@ -1751,6 +1752,7 @@ void UpdateSurfaceCacheMeshCards(
 			LumenSceneData.MeshCards,
 			LumenSceneData.Cards,
 			LumenSceneCameraOrigins,
+			LumenSceneData.SurfaceCacheResolution,
 			LumenSceneDetail,
 			MaxCardUpdateDistanceFromCamera,
 			TaskIndex * NumMeshCardsPerTask,
@@ -2452,7 +2454,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 			((ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
 				// Don't update scene lighting for secondary views
 				&& !View.bIsPlanarReflection 
-				&& !View.bIsSceneCapture
+				&& !View.bIsSceneCaptureCube
 				&& !View.bIsReflectionCapture
 				&& View.ViewState);
 

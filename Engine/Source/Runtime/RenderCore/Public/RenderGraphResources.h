@@ -1188,6 +1188,11 @@ public:
 		return Desc.BytesPerElement * NumAllocatedElements;
 	}
 
+	const TCHAR* GetName() const
+	{
+		return Name;
+	}
+
 private:
 	TRefCountPtr<FRHIBuffer> Buffer;
 	FRHIShaderResourceView* CachedSRV = nullptr;

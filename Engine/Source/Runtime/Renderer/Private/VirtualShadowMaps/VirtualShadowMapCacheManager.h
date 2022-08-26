@@ -128,6 +128,8 @@ struct FVirtualShadowMapArrayFrameData
 
 	TRefCountPtr<FRDGPooledBuffer>				InvalidatingInstancesBuffer;
 	int32										NumInvalidatingInstanceSlots = 0;
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 class FVirtualShadowMapArrayCacheManager
@@ -230,6 +232,8 @@ public:
 #if WITH_MGPU
 	void UpdateGPUMask(FRHIGPUMask GPUMask);
 #endif
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
 	GPUMessage::FSocket StatusFeedbackSocket;
 

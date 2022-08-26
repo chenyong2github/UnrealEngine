@@ -2661,6 +2661,10 @@ public:
 
 	virtual void *Lock(uint32 Offset, uint32 NumBytes) = 0;
 	virtual void Unlock() = 0;
+
+	// For debugging, may not be implemented on all RHIs
+	virtual uint64 GetGPUSizeBytes() const { return 0; }
+
 protected:
 	bool bIsLocked;
 };
@@ -2676,6 +2680,8 @@ public:
 
 	virtual void* Lock(uint32 Offset, uint32 NumBytes) final override;
 	virtual void Unlock() final override;
+	virtual uint64 GetGPUSizeBytes() const final override { return ShadowBuffer.IsValid() ? ShadowBuffer->GetSize() : 0; }
+
 	FBufferRHIRef ShadowBuffer;
 	uint32 Offset;
 };

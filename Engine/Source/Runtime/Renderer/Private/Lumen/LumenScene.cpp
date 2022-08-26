@@ -71,17 +71,18 @@ public:
 	}
 };
 
-FIntPoint GetDesiredPhysicalAtlasSizeInPages()
+static FIntPoint GetDesiredPhysicalAtlasSizeInPages(float SurfaceCacheResolution)
 {
 	extern int32 GLumenSceneSurfaceCacheAtlasSize;
 	int32 AtlasSizeInPages = FMath::DivideAndRoundUp<uint32>(GLumenSceneSurfaceCacheAtlasSize, Lumen::PhysicalPageSize);
+	AtlasSizeInPages = AtlasSizeInPages * SurfaceCacheResolution;
 	AtlasSizeInPages = FMath::Clamp(AtlasSizeInPages, 1, 64);
 	return FIntPoint(AtlasSizeInPages, AtlasSizeInPages);
 }
 
-FIntPoint GetDesiredPhysicalAtlasSize()
+static FIntPoint GetDesiredPhysicalAtlasSize(float SurfaceCacheResolution)
 {
-	return GetDesiredPhysicalAtlasSizeInPages() * Lumen::PhysicalPageSize;
+	return GetDesiredPhysicalAtlasSizeInPages(SurfaceCacheResolution) * Lumen::PhysicalPageSize;
 }
 
 bool FLumenPrimitiveGroup::HasMergedInstances() const
@@ -1038,12 +1039,12 @@ bool FLumenSceneData::UpdateAtlasSize()
 		NewCompression = ESurfaceCacheCompression::CopyTextureRegion;
 	}
 
-	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize() || PhysicalAtlasCompression != NewCompression)
+	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize(SurfaceCacheResolution) || PhysicalAtlasCompression != NewCompression)
 	{
 		RemoveAllMeshCards();
 
-		PhysicalAtlasSize = GetDesiredPhysicalAtlasSize();
-		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages());
+		PhysicalAtlasSize = GetDesiredPhysicalAtlasSize(SurfaceCacheResolution);
+		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages(SurfaceCacheResolution));
 		UnlockedAllocationHeap.Clear();
 		for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
 		{
@@ -1645,7 +1646,7 @@ bool FLumenSceneData::EvictOldestAllocation(uint32 MaxFramesSinceLastUsed, TSpar
 
 void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData, bool bDumpMeshDistanceFields, bool bDumpPrimitiveGroups)
 {
-	const FIntPoint PageAtlasSizeInPages = GetDesiredPhysicalAtlasSizeInPages();
+	const FIntPoint PageAtlasSizeInPages = GetDesiredPhysicalAtlasSizeInPages(SurfaceCacheResolution);
 	const int32 NumPhysicalPages = PageAtlasSizeInPages.X * PageAtlasSizeInPages.Y;
 
 	int32 NumCards = 0;

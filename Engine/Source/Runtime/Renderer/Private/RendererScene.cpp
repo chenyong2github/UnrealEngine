@@ -387,6 +387,7 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneView
 
 	bVirtualShadowMapCacheAdded = false;
 	bLumenSceneDataAdded = false;
+	LumenSurfaceCacheResolution = 1.0f;
 
 	ViewVirtualShadowMapCache = nullptr;
 }
@@ -439,6 +440,17 @@ FSceneViewState::~FSceneViewState()
 	}
 }
 
+void FScene::RemoveViewLumenSceneData_RenderThread(FSceneViewStateInterface* ViewState)
+{
+	FLumenSceneDataKey ByViewKey = { ViewState->GetViewKey(), (uint32)INDEX_NONE };
+	FLumenSceneData* const* Found = PerViewOrGPULumenSceneData.Find(ByViewKey);
+	if (Found)
+	{
+		delete* Found;
+		PerViewOrGPULumenSceneData.Remove(ByViewKey);
+	}
+}
+
 void FScene::RemoveViewState_RenderThread(FSceneViewStateInterface* ViewState)
 {
 	for (int32 ViewStateIndex = 0; ViewStateIndex < ViewStates.Num(); ViewStateIndex++)
@@ -450,13 +462,7 @@ void FScene::RemoveViewState_RenderThread(FSceneViewStateInterface* ViewState)
 		}
 	}
 
-	FLumenSceneDataKey ByViewKey = { ViewState->GetViewKey(), (uint32)INDEX_NONE };
-	FLumenSceneData* const* Found = PerViewOrGPULumenSceneData.Find(ByViewKey);
-	if (Found)
-	{
-		delete *Found;
-		PerViewOrGPULumenSceneData.Remove(ByViewKey);
-	}
+	RemoveViewLumenSceneData_RenderThread(ViewState);
 }
 
 
@@ -757,6 +763,432 @@ FFXSystemInterface* FScene::GetFXSystem()
 	return FXSystem;
 }
 
+static uint64 GetTextureGPUSizeBytes(const FTexture2DRHIRef& Target, bool bLogSizes)
+{
+	uint64 Size = Target.IsValid() ? Target->GetDesc().CalcMemorySizeEstimate() : 0;
+	if (bLogSizes && Size)
+	{
+		UE_LOG(LogRenderer, Log, TEXT("LogSizes\tTexture\t%s\t%llu"), *Target->GetName().ToString(), Size);
+	}
+	return Size;
+}
+
+static uint64 GetRenderTargetGPUSizeBytes(const TRefCountPtr<IPooledRenderTarget>& Target, bool bLogSizes)
+{
+	uint64 Size = Target.IsValid() ? Target->ComputeMemorySize() : 0;
+	if (bLogSizes && Size)
+	{
+		UE_LOG(LogRenderer, Log, TEXT("LogSizes\tRenderTarget\t%s\t%llu"), Target->GetDesc().DebugName, Size);
+	}
+	return Size;
+}
+
+static uint64 GetBufferGPUSizeBytes(const TRefCountPtr<FRDGPooledBuffer>& Buffer, bool bLogSizes)
+{
+	uint64 Size = Buffer.IsValid() ? Buffer->GetSize() : 0;
+	if (bLogSizes && Size)
+	{
+		const TCHAR* Name = Buffer->GetName();
+		UE_LOG(LogRenderer, Log, TEXT("LogSizes\tBuffer\t%s\t%llu"), Name ? Name : TEXT("UNKNOWN"), Size);
+	}
+	return Size;
+}
+
+static uint64 GetTextureReadbackGPUSizeBytes(const FRHIGPUTextureReadback* TextureReadback, bool bLogSizes)
+{
+	uint64 Size = TextureReadback ? TextureReadback->GetGPUSizeBytes() : 0;
+	if (bLogSizes && Size)
+	{
+		UE_LOG(LogRenderer, Log, TEXT("LogSizes\tTextureReadback\t%s\t%llu"), *TextureReadback->GetName().ToString(), Size);
+	}
+	return Size;
+}
+
+static uint64 GetBufferReadbackGPUSizeBytes(const FRHIGPUBufferReadback* BufferReadback, bool bLogSizes)
+{
+	uint64 Size = BufferReadback ? BufferReadback->GetGPUSizeBytes() : 0;
+	if (bLogSizes && Size)
+	{
+		UE_LOG(LogRenderer, Log, TEXT("LogSizes\tBufferReadback\t%s\t%llu"), *BufferReadback->GetName().ToString(), Size);
+	}
+	return Size;
+}
+
+uint64 FHZBOcclusionTester::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return ResultsReadback.IsValid() ? GetTextureReadbackGPUSizeBytes(ResultsReadback.Get(), bLogSizes) : 0;
+}
+
+uint64 FPersistentSkyAtmosphereData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (int32 VolumeIndex = 0; VolumeIndex < UE_ARRAY_COUNT(CameraAerialPerspectiveVolumes); VolumeIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(CameraAerialPerspectiveVolumes[VolumeIndex], bLogSizes);
+	}
+	return TotalSize;
+}
+
+uint64 FSceneViewState::FEyeAdaptationManager::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (int32 TargetIndex = 0; TargetIndex < UE_ARRAY_COUNT(PooledRenderTarget); TargetIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(PooledRenderTarget[TargetIndex], bLogSizes);
+	}
+	for (FRHIGPUTextureReadback* ReadbackTexture : ExposureReadbackTextures)
+	{
+		TotalSize += GetTextureReadbackGPUSizeBytes(ReadbackTexture, bLogSizes);
+	}
+	for (int32 BufferIndex = 0; BufferIndex < UE_ARRAY_COUNT(ExposureBufferData); BufferIndex++)
+	{
+		TotalSize += GetBufferGPUSizeBytes(ExposureBufferData[BufferIndex], bLogSizes);
+	}
+	for (FRHIGPUBufferReadback* ReadbackBuffer : ExposureReadbackBuffers)
+	{
+		TotalSize += GetBufferReadbackGPUSizeBytes(ReadbackBuffer, bLogSizes);
+	}
+	return TotalSize;
+}
+
+uint64 FTemporalAAHistory::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (int32 TargetIndex = 0; TargetIndex < kRenderTargetCount; TargetIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(RT[TargetIndex], bLogSizes);
+	}
+	return TotalSize;
+}
+
+uint64 FTSRHistory::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		GetRenderTargetGPUSizeBytes(ColorArray, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(Metadata, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(TranslucencyAlpha, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(SubpixelDetails, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(Guide, bLogSizes);
+}
+
+uint64 FScreenSpaceDenoiserHistory::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (int32 TargetIndex = 0; TargetIndex < RTCount; TargetIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(RT[TargetIndex], bLogSizes);
+	}
+	TotalSize += GetRenderTargetGPUSizeBytes(TileClassification, bLogSizes);
+	return TotalSize;
+}
+
+uint64 FPreviousViewInfo::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize =
+		GetRenderTargetGPUSizeBytes(DepthBuffer, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(GBufferA, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(GBufferB, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(GBufferC, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ImaginaryReflectionDepthBuffer, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ImaginaryReflectionGBufferA, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(HZB, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(NaniteHZB, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(CompressedDepthViewNormal, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ImaginaryReflectionCompressedDepthViewNormal, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(CompressedOpaqueDepth, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(CompressedOpaqueShadingModel, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ScreenSpaceRayTracingInput, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(SeparateTranslucency, bLogSizes) +
+		TemporalAAHistory.GetGPUSizeBytes(bLogSizes) +
+		TSRHistory.GetGPUSizeBytes(bLogSizes) +
+		GetRenderTargetGPUSizeBytes(HalfResTemporalAAHistory, bLogSizes) +
+		DOFSetupHistory.GetGPUSizeBytes(bLogSizes) +
+		SSRHistory.GetGPUSizeBytes(bLogSizes) +
+		WaterSSRHistory.GetGPUSizeBytes(bLogSizes) +
+		HairHistory.GetGPUSizeBytes(bLogSizes) +
+		EditorPrimtiveDepthHistory.GetGPUSizeBytes(bLogSizes) +
+		CustomSSRInput.GetGPUSizeBytes(bLogSizes) +
+		ReflectionsHistory.GetGPUSizeBytes(bLogSizes) +
+		WaterReflectionsHistory.GetGPUSizeBytes(bLogSizes) +
+		AmbientOcclusionHistory.GetGPUSizeBytes(bLogSizes) +
+		GetRenderTargetGPUSizeBytes(GTAOHistory.RT, bLogSizes) +
+		DiffuseIndirectHistory.GetGPUSizeBytes(bLogSizes) +
+		SkyLightHistory.GetGPUSizeBytes(bLogSizes) +
+		ReflectedSkyLightHistory.GetGPUSizeBytes(bLogSizes) +
+		PolychromaticPenumbraHarmonicsHistory.GetGPUSizeBytes(bLogSizes) +
+		GetRenderTargetGPUSizeBytes(MobileBloomSetup_EyeAdaptation, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(MobilePixelProjectedReflection, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(MobileAmbientOcclusion, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(VisualizeMotionVectors, bLogSizes);
+
+	for (auto ShadowHistoryIt = ShadowHistories.begin(); ShadowHistoryIt; ++ShadowHistoryIt)
+	{
+		if (ShadowHistoryIt.Value().IsValid())
+		{
+			TotalSize += ShadowHistoryIt.Value()->GetGPUSizeBytes(bLogSizes);
+		}
+	}
+
+	return TotalSize;
+}
+
+/** FLumenViewState GPU size queries */
+uint64 FScreenProbeGatherTemporalState::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		GetRenderTargetGPUSizeBytes(DiffuseIndirectHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RoughSpecularIndirectHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(NumFramesAccumulatedRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(FastUpdateModeHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(NormalHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(BSDFTileHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(OctahedralSolidAngleTextureRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(HistoryScreenProbeSceneDepth, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(HistoryScreenProbeTranslatedWorldPosition, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ProbeHistoryScreenProbeRadiance, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ImportanceSamplingHistoryScreenProbeRadiance, bLogSizes);
+}
+
+uint64 FReflectionTemporalState::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return 
+		GetRenderTargetGPUSizeBytes(SpecularIndirectHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(NumFramesAccumulatedRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ResolveVarianceHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(BSDFTileHistoryRT, bLogSizes);
+}
+
+uint64 FRadianceCacheState::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		GetRenderTargetGPUSizeBytes(RadianceProbeIndirectionTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadianceProbeAtlasTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(FinalRadianceAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(FinalIrradianceAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ProbeOcclusionAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(DepthProbeAtlasTexture, bLogSizes) +
+		GetBufferGPUSizeBytes(ProbeAllocator, bLogSizes) +
+		GetBufferGPUSizeBytes(ProbeFreeListAllocator, bLogSizes) +
+		GetBufferGPUSizeBytes(ProbeFreeList, bLogSizes) +
+		GetBufferGPUSizeBytes(ProbeLastUsedFrame, bLogSizes) +
+		GetBufferGPUSizeBytes(ProbeLastTracedFrame, bLogSizes) +
+		GetBufferGPUSizeBytes(ProbeWorldOffset, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(OctahedralSolidAngleTextureRT, bLogSizes);
+}
+
+uint64 FLumenViewState::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		ScreenProbeGatherState.GetGPUSizeBytes(bLogSizes) +
+		ReflectionState.GetGPUSizeBytes(bLogSizes) +
+		GetRenderTargetGPUSizeBytes(DepthHistoryRT, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(VoxelLighting, bLogSizes) +
+		GetBufferGPUSizeBytes(VoxelVisBuffer, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(TranslucencyVolume0, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(TranslucencyVolume1, bLogSizes) +
+		RadianceCacheState.GetGPUSizeBytes(bLogSizes) +
+		TranslucencyVolumeRadianceCacheState.GetGPUSizeBytes(bLogSizes);
+}
+
+/** FLumenSceneData GPU size queries */
+uint64 FLumenSurfaceCacheFeedback::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (const FRHIGPUBufferReadback* ReadbackBuffer : ReadbackBuffers)
+	{
+		TotalSize += GetBufferReadbackGPUSizeBytes(ReadbackBuffer, bLogSizes);
+	}
+	return TotalSize;
+}
+
+uint64 FLumenSceneData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		GetBufferGPUSizeBytes(CardBuffer, bLogSizes) +
+		CardUploadBuffer.GetNumBytes() +
+		GetBufferGPUSizeBytes(MeshCardsBuffer, bLogSizes) +
+		MeshCardsUploadBuffer.GetNumBytes() +
+		GetBufferGPUSizeBytes(HeightfieldBuffer, bLogSizes) +
+		HeightfieldUploadBuffer.GetNumBytes() +
+		GetBufferGPUSizeBytes(SceneInstanceIndexToMeshCardsIndexBuffer, bLogSizes) +
+		SceneInstanceIndexToMeshCardsIndexUploadBuffer.GetNumBytes() +
+		GetBufferGPUSizeBytes(CardPageBuffer, bLogSizes) +
+		CardPageUploadBuffer.GetNumBytes() +
+		GetBufferGPUSizeBytes(CardPageLastUsedBuffer, bLogSizes) +
+		GetBufferGPUSizeBytes(CardPageHighResLastUsedBuffer, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(AlbedoAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(OpacityAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(NormalAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(EmissiveAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(DepthAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(DirectLightingAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(IndirectLightingAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadiosityNumFramesAccumulatedAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(FinalLightingAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadiosityTraceRadianceAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadiosityTraceHitDistanceAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadiosityProbeSHRedAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadiosityProbeSHGreenAtlas, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(RadiosityProbeSHBlueAtlas, bLogSizes) +
+		SurfaceCacheFeedback.GetGPUSizeBytes(bLogSizes) +
+		GetBufferGPUSizeBytes(PageTableBuffer, bLogSizes) +
+		PageTableUploadBuffer.GetNumBytes();
+}
+
+#if RHI_RAYTRACING
+uint64 FIESLightProfileResource::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return GetTextureGPUSizeBytes(DefaultTexture, bLogSizes) + GetTextureGPUSizeBytes(AtlasTexture, bLogSizes);
+}
+#endif
+
+uint64 FPersistentGlobalDistanceFieldData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize =
+		GetBufferGPUSizeBytes(PageFreeListAllocatorBuffer, bLogSizes) +
+		GetBufferGPUSizeBytes(PageFreeListBuffer, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(PageAtlasTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(CoverageAtlasTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(PageTableCombinedTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(MipTexture, bLogSizes);
+
+	for (int32 GDFIndex = 0; GDFIndex < UE_ARRAY_COUNT(PageTableLayerTextures); GDFIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(PageTableLayerTextures[GDFIndex], bLogSizes);
+	}
+	return TotalSize;
+}
+
+uint64 FVolumetricRenderTargetViewStateData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (uint32 TargetIndex = 0; TargetIndex < kRenderTargetCount; TargetIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(VolumetricReconstructRT[TargetIndex], bLogSizes);
+		TotalSize += GetRenderTargetGPUSizeBytes(VolumetricReconstructRTDepth[TargetIndex], bLogSizes);
+	}
+	TotalSize += GetRenderTargetGPUSizeBytes(VolumetricTracingRT, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(VolumetricTracingRTDepth, bLogSizes);
+	return TotalSize;
+}
+
+uint64 FTemporalRenderTargetState::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+	for (int32 TargetIndex = 0; TargetIndex < UE_ARRAY_COUNT(RenderTargets); TargetIndex++)
+	{
+		TotalSize += GetRenderTargetGPUSizeBytes(RenderTargets[TargetIndex], bLogSizes);
+	}
+	return TotalSize;
+}
+
+uint64 FShadingEnergyConservationStateData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		GetRenderTargetGPUSizeBytes(GGXSpecEnergyTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(GGXGlassEnergyTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(ClothEnergyTexture, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(DiffuseEnergyTexture, bLogSizes);
+}
+
+uint64 FVirtualShadowMapArrayFrameData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return
+		GetBufferGPUSizeBytes(PageTable, bLogSizes) +
+		GetBufferGPUSizeBytes(PageFlags, bLogSizes) +
+		GetBufferGPUSizeBytes(ProjectionData, bLogSizes) +
+		GetBufferGPUSizeBytes(PageRectBounds, bLogSizes) +
+		GetBufferGPUSizeBytes(DynamicCasterPageFlags, bLogSizes) +
+		GetBufferGPUSizeBytes(PhysicalPageMetaData, bLogSizes) +
+		GetRenderTargetGPUSizeBytes(HZBPhysical, bLogSizes) +
+		GetBufferGPUSizeBytes(InvalidatingInstancesBuffer, bLogSizes);
+};
+
+uint64 FVirtualShadowMapArrayCacheManager::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = PrevBuffers.GetGPUSizeBytes(bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(PhysicalPagePool, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(HZBPhysicalPagePool, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(AccumulatedStatsBuffer, bLogSizes);
+	TotalSize += GetBufferReadbackGPUSizeBytes(GPUBufferReadback, bLogSizes);
+	return TotalSize;
+}
+
+uint64 FSceneViewState::GetGPUSizeBytes(bool bLogSizes) const
+{
+	uint64 TotalSize = 0;
+
+	// Todo, not currently computing GPU memory usage for queries or sampler states.  Are these important?  Should be small...
+	//  ShadowOcclusionQueryMaps
+	//  OcclusionQueryPool
+	//  PrimitiveOcclusionQueryPool
+	//  PlanarReflectionOcclusionHistories
+	//  MaterialTextureBilinearWrapedSamplerCache
+	//  MaterialTextureBilinearClampedSamplerCache
+
+	TotalSize += HZBOcclusionTests.GetGPUSizeBytes(bLogSizes);
+	TotalSize += PersistentSkyAtmosphereData.GetGPUSizeBytes(bLogSizes);
+	TotalSize += EyeAdaptationManager.GetGPUSizeBytes(bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(CombinedLUTRenderTarget, bLogSizes);
+	TotalSize += PrevFrameViewInfo.GetGPUSizeBytes(bLogSizes);
+	TotalSize += LightShaftOcclusionHistory.GetGPUSizeBytes(bLogSizes);
+	for (auto LightShaftBloomIt = LightShaftBloomHistoryRTs.begin(); LightShaftBloomIt; ++LightShaftBloomIt)
+	{
+		if (LightShaftBloomIt.Value().IsValid())
+		{
+			TotalSize += LightShaftBloomIt.Value()->GetGPUSizeBytes(bLogSizes);
+		}
+	}
+	TotalSize += GetRenderTargetGPUSizeBytes(DistanceFieldAOHistoryRT, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(DistanceFieldIrradianceHistoryRT, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(SubsurfaceScatteringQualityHistoryRT, bLogSizes);
+	TotalSize += Lumen.GetGPUSizeBytes(bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(BloomFFTKernel.Spectral, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(BloomFFTKernel.ConstantsBuffer, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(FilmGrainCache.ConstantsBuffer, bLogSizes);
+#if RHI_RAYTRACING
+	TotalSize += IESLightProfileResources.GetGPUSizeBytes(bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(ImaginaryReflectionGBufferA, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(ImaginaryReflectionDepthZ, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(ImaginaryReflectionVelocity, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(SkyLightVisibilityRaysBuffer, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(GatherPointsBuffer, bLogSizes);
+#endif
+	TotalSize += GetRenderTargetGPUSizeBytes(LightScatteringHistory, bLogSizes);
+	TotalSize += GetRenderTargetGPUSizeBytes(PrevLightScatteringConservativeDepthTexture, bLogSizes);
+	if (GlobalDistanceFieldData.IsValid())
+	{
+		TotalSize += GlobalDistanceFieldData->GetGPUSizeBytes(bLogSizes);
+	}
+	TotalSize += VolumetricCloudRenderTarget.GetGPUSizeBytes(bLogSizes);
+	for (int32 LightIndex = 0; LightIndex < UE_ARRAY_COUNT(VolumetricCloudShadowRenderTarget); LightIndex++)
+	{
+		TotalSize += VolumetricCloudShadowRenderTarget[LightIndex].GetGPUSizeBytes(bLogSizes);
+	}
+	TotalSize += GetBufferGPUSizeBytes(HairStrandsViewStateData.VoxelFeedbackBuffer, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(ShaderPrintStateData.EntryBuffer, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(ShaderPrintStateData.StateBuffer, bLogSizes);
+	TotalSize += ShadingEnergyConservationData.GetGPUSizeBytes(bLogSizes);
+	if (ViewVirtualShadowMapCache)
+	{
+		TotalSize += ViewVirtualShadowMapCache->GetGPUSizeBytes(bLogSizes);
+	}
+
+	// Per-view Lumen scene data is stored in a map in the FScene
+	if (Scene && bLumenSceneDataAdded)
+	{
+		FLumenSceneDataKey ByViewKey = { GetViewKey(), (uint32)INDEX_NONE };
+		FLumenSceneData** SceneData = Scene->PerViewOrGPULumenSceneData.Find(ByViewKey);
+
+		if (SceneData)
+		{
+			TotalSize += (*SceneData)->GetGPUSizeBytes(bLogSizes);
+		}
+	}
+
+	return TotalSize;
+}
+
 void FSceneViewState::AddVirtualShadowMapCache(FSceneInterface* InScene)
 {
 	check(InScene);
@@ -792,6 +1224,27 @@ void FSceneViewState::AddVirtualShadowMapCache(FSceneInterface* InScene)
 	}
 }
 
+void FSceneViewState::RemoveVirtualShadowMapCache(FSceneInterface* InScene)
+{
+	check(InScene);
+	if (Scene == InScene && bVirtualShadowMapCacheAdded)
+	{
+		bVirtualShadowMapCacheAdded = false;
+
+		ENQUEUE_RENDER_COMMAND(RemoveVirtualShadowMapCache)(
+			[this](FRHICommandListImmediate& RHICmdList)
+			{
+				delete ViewVirtualShadowMapCache;
+				ViewVirtualShadowMapCache = nullptr;
+			});
+	}
+}
+
+bool FSceneViewState::HasVirtualShadowMapCache() const
+{
+	return bVirtualShadowMapCacheAdded;
+}
+
 FVirtualShadowMapArrayCacheManager* FSceneViewState::GetVirtualShadowMapCache(const FScene* InScene) const
 {
 	// Per-view VSM cache can only be used for the Scene the view state was previously linked to
@@ -812,7 +1265,7 @@ FVirtualShadowMapArrayCacheManager* FScene::GetVirtualShadowMapCache(FSceneView&
 	return Result;
 }
 
-void FSceneViewState::AddLumenSceneData(FSceneInterface* InScene)
+void FSceneViewState::AddLumenSceneData(FSceneInterface* InScene, float InSurfaceCacheResolution)
 {
 	check(InScene);
 	if (!Scene)
@@ -827,15 +1280,17 @@ void FSceneViewState::AddLumenSceneData(FSceneInterface* InScene)
 			});
 	}
 
-	if (Scene == InScene)
+	if (Scene == InScene && Scene->DefaultLumenSceneData)
 	{
 		// Don't allocate if one already exists
-		if (Scene->DefaultLumenSceneData && !bLumenSceneDataAdded)
+		if (!bLumenSceneDataAdded)
 		{
 			bLumenSceneDataAdded = true;
+			LumenSurfaceCacheResolution = InSurfaceCacheResolution;
 
 			FLumenSceneData* SceneData = new FLumenSceneData(Scene->DefaultLumenSceneData->bTrackAllPrimitives);
 			SceneData->bViewSpecific = true;
+			SceneData->SurfaceCacheResolution = FMath::Clamp(InSurfaceCacheResolution, 0.5f, 1.0f);
 
 			// Need to add reference to Lumen scene data in render thread
 			ENQUEUE_RENDER_COMMAND(LinkLumenSceneData)(
@@ -850,7 +1305,48 @@ void FSceneViewState::AddLumenSceneData(FSceneInterface* InScene)
 					Scene->PerViewOrGPULumenSceneData.Emplace(ByViewKey, SceneData);
 				});
 		} //-V773
+		else if (LumenSurfaceCacheResolution != InSurfaceCacheResolution)
+		{
+			LumenSurfaceCacheResolution = InSurfaceCacheResolution;
+
+			ENQUEUE_RENDER_COMMAND(ChangeLumenSceneDataQuality)(
+				[this, InSurfaceCacheResolution](FRHICommandListImmediate& RHICmdList)
+				{
+					FLumenSceneDataKey ByViewKey = { GetViewKey(), (uint32)INDEX_NONE };
+					FLumenSceneData** SceneData = Scene->PerViewOrGPULumenSceneData.Find(ByViewKey);
+
+					check(SceneData);
+
+					(*SceneData)->SurfaceCacheResolution = FMath::Clamp(InSurfaceCacheResolution, 0.5f, 1.0f);
+				});
+		}
 	}
+}
+
+void FSceneViewState::RemoveLumenSceneData(FSceneInterface* InScene)
+{
+	check(InScene);
+	if (Scene == InScene && bLumenSceneDataAdded)
+	{
+		bLumenSceneDataAdded = false;
+
+		ENQUEUE_RENDER_COMMAND(RemoveLumenSceneData)(
+			[this](FRHICommandListImmediate& RHICmdList)
+			{
+				FLumenSceneDataKey ByViewKey = { GetViewKey(), (uint32)INDEX_NONE };
+				FLumenSceneData** SceneData = Scene->PerViewOrGPULumenSceneData.Find(ByViewKey);
+
+				check(SceneData);
+				delete *SceneData;
+
+				Scene->PerViewOrGPULumenSceneData.Remove(ByViewKey);
+			});
+	}
+}
+
+bool FSceneViewState::HasLumenSceneData() const
+{
+	return bLumenSceneDataAdded;
 }
 
 FLumenSceneData* FScene::FindLumenSceneData(uint32 ViewKey, uint32 GPUIndex) const

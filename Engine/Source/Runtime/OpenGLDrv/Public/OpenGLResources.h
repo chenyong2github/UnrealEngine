@@ -1724,6 +1724,8 @@ public:
 
 	// Unlocks the shadow. This is an error if it was not locked previously.
 	void Unlock() override;
+
+	uint64 GetGPUSizeBytes() const override { return ShadowSize; }
 private:
 	void Initialize();
 

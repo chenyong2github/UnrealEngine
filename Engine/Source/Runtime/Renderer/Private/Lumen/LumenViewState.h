@@ -74,6 +74,8 @@ public:
 		ProbeHistoryScreenProbeRadiance.SafeRelease();
 		ImportanceSamplingHistoryScreenProbeRadiance.SafeRelease();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 
@@ -100,6 +102,8 @@ public:
 		ResolveVarianceHistoryRT.SafeRelease();
 		BSDFTileHistoryRT.SafeRelease();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 class FLumenVoxelLightingClipmapState
@@ -188,6 +192,8 @@ public:
 		ProbeLastTracedFrame.SafeRelease();
 		ProbeWorldOffset.SafeRelease();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 class FLumenViewState
@@ -224,6 +230,8 @@ public:
 		TranslucencyVolume0.SafeRelease();
 		TranslucencyVolume1.SafeRelease();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardPassUniformParameters, RENDERER_API)

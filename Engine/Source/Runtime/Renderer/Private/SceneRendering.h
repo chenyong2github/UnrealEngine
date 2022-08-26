@@ -476,6 +476,8 @@ public:
 
 	void SetValidFrameNumber(uint32 FrameNumber);
 
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+
 private:
 	enum { SizeX = 256 };
 	enum { SizeY = 256 };
@@ -897,6 +899,8 @@ struct FTemporalAAHistory
 	{
 		return RT[0].IsValid();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 // Structure in charge of storing all information about TSR's history.
@@ -927,6 +931,8 @@ struct FTSRHistory
 	{
 		return ColorArray.IsValid();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 /** Temporal history for a denoiser. */
@@ -956,6 +962,8 @@ struct FScreenSpaceDenoiserHistory
 	{
 		return RT[0].IsValid();
 	}
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 
@@ -1099,6 +1107,8 @@ struct FPreviousViewInfo
 	// Scene color used for reprojecting next frame to verify the motion vector reprojects correctly.
 	TRefCountPtr<IPooledRenderTarget> VisualizeMotionVectors;
 	FIntRect VisualizeMotionVectorsRect;
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 class FViewCommands

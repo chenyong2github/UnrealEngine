@@ -1620,6 +1620,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.DynamicGlobalIlluminationMethod = Src.DynamicGlobalIlluminationMethod;
 		}
 
+		if (Src.bOverride_LumenSurfaceCacheResolution)
+		{
+			Dest.LumenSurfaceCacheResolution = Src.LumenSurfaceCacheResolution;
+		}
+
 		if (Src.bOverride_LumenSceneLightingQuality)
 		{
 			Dest.LumenSceneLightingQuality = Src.LumenSceneLightingQuality;

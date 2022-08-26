@@ -41,6 +41,25 @@
 #include "GenerateMips.h"
 #include "RectLightTextureManager.h"
 
+#if WITH_EDITOR
+// All scene captures on the given render thread frame will be dumped
+uint32 GDumpSceneCaptureMemoryFrame = INDEX_NONE;
+void DumpSceneCaptureMemory()
+{
+	ENQUEUE_RENDER_COMMAND(DumpSceneCaptureMemory)(
+		[](FRHICommandList& RHICmdList)
+		{
+			GDumpSceneCaptureMemoryFrame = GFrameNumberRenderThread;
+		});
+}
+
+FAutoConsoleCommand CmdDumpSceneCaptureViewState(
+	TEXT("r.SceneCapture.DumpMemory"),
+	TEXT("Editor specific command to dump scene capture memory to log"),
+	FConsoleCommandDelegate::CreateStatic(DumpSceneCaptureMemory)
+);
+#endif  // WITH_EDITOR
+
 /** A pixel shader for capturing a component of the rendered scene for a scene capture.*/
 class FSceneCapturePS : public FGlobalShader
 {
@@ -687,6 +706,14 @@ void SetupViewFamilyForSceneCapture(
 		ViewFamily.Views.Add(View);
 
 		View->StartFinalPostprocessSettings(SceneCaptureViewInfo.ViewLocation);
+
+		// By default, Lumen is disabled in scene captures, but can be re-enabled with the post process settings in the component.
+		View->FinalPostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::None;
+		View->FinalPostProcessSettings.ReflectionMethod = EReflectionMethod::None;
+
+		// Default surface cache to lower resolution for Scene Capture.  Can be overridden via post process settings.
+		View->FinalPostProcessSettings.LumenSurfaceCacheResolution = 0.5f;
+
 		View->OverridePostProcessSettings(*PostProcessSettings, PostProcessBlendWeight);
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 	}
@@ -831,6 +858,22 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
 		SceneRenderer->ViewFamily.SceneCaptureCompositeMode = CaptureComponent->CompositeMode;
 
+		// Need view state interface to be allocated for Lumen, as it requires persistent data.  This means
+		// "bCaptureEveryFrame" or "bAlwaysPersistRenderingState" must be enabled.
+		FSceneViewStateInterface* ViewStateInterface = CaptureComponent->GetViewState(0);
+
+		if (ViewStateInterface &&
+			(SceneRenderer->Views[0].FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen ||
+			 SceneRenderer->Views[0].FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen))
+		{
+			// It's OK to call these every frame -- they are no-ops if the correct data is already there
+			ViewStateInterface->AddLumenSceneData(this, SceneRenderer->Views[0].FinalPostProcessSettings.LumenSurfaceCacheResolution);
+		}
+		else if (ViewStateInterface)
+		{
+			ViewStateInterface->RemoveLumenSceneData(this);
+		}
+
 		// Ensure that the views for this scene capture reflect any simulated camera motion for this frame
 		TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(CaptureComponent);
 
@@ -901,6 +944,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		{
 			CaptureComponent->GetOwner()->GetFName().ToString(EventName);
 		}
+		FName TargetName = TextureRenderTarget->GetFName();
 
 		const bool bGenerateMips = TextureRenderTarget->bAutoGenerateMips;
 		FGenerateMipsParams GenerateMipsParams{TextureRenderTarget->MipsSamplerFilter == TF_Nearest ? SF_Point : (TextureRenderTarget->MipsSamplerFilter == TF_Trilinear ? SF_Trilinear : SF_Bilinear),
@@ -927,9 +971,18 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 		// Compositing feature is only active when using SceneColor as the source
 		bool bIsCompositing = (CaptureComponent->CompositeMode != SCCM_Overwrite) && (CaptureComponent->CaptureSource == SCS_SceneColorHDR);
+#if WITH_EDITOR
+		if (!CaptureComponent->CaptureMemorySize)
+		{
+			CaptureComponent->CaptureMemorySize = new FSceneCaptureMemorySize;
+		}
+		TRefCountPtr<FSceneCaptureMemorySize> CaptureMemorySize = CaptureComponent->CaptureMemorySize;
+#else
+		void* CaptureMemorySize = nullptr;		// Dummy value for lambda capture argument list
+#endif
 
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, TextureRenderTargetResource, TexturePtrNotDeferenced, EventName, bGenerateMips, GenerateMipsParams, GameViewportRT, bEnableOrthographicTiling, bIsCompositing, bOrthographicCamera, NumXTiles, NumYTiles, TileID](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, TextureRenderTargetResource, TexturePtrNotDeferenced, EventName, TargetName, bGenerateMips, GenerateMipsParams, GameViewportRT, bEnableOrthographicTiling, bIsCompositing, bOrthographicCamera, NumXTiles, NumYTiles, TileID, CaptureMemorySize](FRHICommandListImmediate& RHICmdList)
 			{
 				if (GameViewportRT != nullptr)
 				{
@@ -961,6 +1014,23 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				bool bClearRenderTarget = !bIsCompositing && !bEnableOrthographicTiling;
 
 				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, CopyInfo, bGenerateMips, GenerateMipsParams, bClearRenderTarget, bOrthographicCamera);
+
+#if WITH_EDITOR
+				const FSceneViewState* ViewState = SceneRenderer->Views[0].ViewState;
+				if (ViewState)
+				{
+					const bool bLogSizes = GDumpSceneCaptureMemoryFrame == GFrameNumberRenderThread;
+					if (bLogSizes)
+					{
+						UE_LOG(LogRenderer, Log, TEXT("LogSizes\tSceneCapture\t%s\t%s\t%dx%d"), *EventName, *TargetName.ToString(), TextureRenderTargetResource->GetSizeX(), TextureRenderTargetResource->GetSizeY());
+					}
+					CaptureMemorySize->Size = ViewState->GetGPUSizeBytes(bLogSizes);
+				}
+				else
+				{
+					CaptureMemorySize->Size = 0;
+				}
+#endif  // WITH_EDITOR
 			}
 		);
 	}

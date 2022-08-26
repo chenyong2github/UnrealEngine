@@ -34,6 +34,8 @@ public:
 		return AtlasTexture;
 	}
 
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+
 private:
 	FTexture2DRHIRef					DefaultTexture;
 	FTexture2DRHIRef					AtlasTexture;

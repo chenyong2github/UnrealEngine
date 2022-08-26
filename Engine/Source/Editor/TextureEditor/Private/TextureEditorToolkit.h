@@ -408,6 +408,8 @@ private:
 	TSharedPtr<STextBlock> NumMipsText;
 	TSharedPtr<STextBlock> MipLevelTextBlock;
 	TSharedPtr<STextBlock> EncodeSpeedText;
+	TSharedPtr<STextBlock> SceneCaptureSizeText;
+	TSharedPtr<STextBlock> SceneCaptureNameText;
 
 	// oodle details text blocks.
 	TSharedPtr<STextBlock> OodleRDOText;

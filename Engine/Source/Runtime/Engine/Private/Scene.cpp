@@ -530,6 +530,7 @@ FPostProcessSettings::FPostProcessSettings()
 	DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::Lumen;
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
+	LumenSurfaceCacheResolution = 1.0f;
 	LumenSceneLightingQuality = 1;
 	LumenSceneDetail = 1.0f;
 	LumenSceneViewDistance = 20000.0f;
@@ -790,6 +791,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_RayTracingTranslucencyShadows(Settings.bOverride_RayTracingTranslucencyShadows)
 	, bOverride_RayTracingTranslucencyRefraction(Settings.bOverride_RayTracingTranslucencyRefraction)
 	, bOverride_DynamicGlobalIlluminationMethod(Settings.bOverride_DynamicGlobalIlluminationMethod)
+	, bOverride_LumenSurfaceCacheResolution(Settings.bOverride_LumenSurfaceCacheResolution)
     , bOverride_LumenSceneLightingQuality(Settings.bOverride_LumenSceneLightingQuality)
     , bOverride_LumenSceneDetail(Settings.bOverride_LumenSceneDetail)
 	, bOverride_LumenSceneViewDistance(Settings.bOverride_LumenSceneViewDistance)
@@ -883,6 +885,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, DynamicGlobalIlluminationMethod(Settings.DynamicGlobalIlluminationMethod)
 	, IndirectLightingColor(Settings.IndirectLightingColor)
 	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
+	, LumenSurfaceCacheResolution(Settings.LumenSurfaceCacheResolution)
 	, LumenSceneLightingQuality(Settings.LumenSceneLightingQuality)
 	, LumenSceneDetail(Settings.LumenSceneDetail)
 	, LumenSceneViewDistance(Settings.LumenSceneViewDistance)

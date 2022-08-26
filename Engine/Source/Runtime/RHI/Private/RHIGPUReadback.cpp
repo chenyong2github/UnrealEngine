@@ -109,6 +109,20 @@ void FRHIGPUBufferReadback::Unlock()
 	RHIUnlockStagingBuffer(DestinationStagingBuffers[LastLockGPUIndex]);
 }
 
+uint64 FRHIGPUBufferReadback::GetGPUSizeBytes() const
+{
+	uint64 TotalSize = 0;
+	for (uint32 BufferIndex = 0; BufferIndex < UE_ARRAY_COUNT(DestinationStagingBuffers); BufferIndex++)
+	{
+		if (DestinationStagingBuffers[BufferIndex].IsValid())
+		{
+			TotalSize += DestinationStagingBuffers[BufferIndex]->GetGPUSizeBytes();
+		}
+	}
+	return TotalSize;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 ////////////////////     FRHIGPUTextureReadback    ////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -232,4 +246,17 @@ void FRHIGPUTextureReadback::Unlock()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	RHICmdList.UnmapStagingSurface(DestinationStagingTextures[LastLockGPUIndex], LastLockGPUIndex);
 	RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[LastLockGPUIndex], ERHIAccess::CPURead, ERHIAccess::CopyDest));
+}
+
+uint64 FRHIGPUTextureReadback::GetGPUSizeBytes() const
+{
+	uint64 TotalSize = 0;
+	for (uint32 TextureIndex = 0; TextureIndex < UE_ARRAY_COUNT(DestinationStagingTextures); TextureIndex++)
+	{
+		if (DestinationStagingTextures[TextureIndex].IsValid())
+		{
+			TotalSize += DestinationStagingTextures[TextureIndex]->GetDesc().CalcMemorySizeEstimate();
+		}
+	}
+	return TotalSize;
 }

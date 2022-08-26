@@ -601,6 +601,8 @@ struct FPersistentSkyAtmosphereData
 
 	TRefCountPtr<IPooledRenderTarget> GetCurrentCameraAerialPerspectiveVolume();
 
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+
 private:
 	bool bInitialised;
 	TRefCountPtr<IPooledRenderTarget> CameraAerialPerspectiveVolumes[2];
@@ -634,6 +636,8 @@ struct FPersistentGlobalDistanceFieldData : public FThreadSafeRefCountedObject
 	TRefCountPtr<IPooledRenderTarget> PageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> PageTableLayerTextures[GDF_Num];
 	TRefCountPtr<IPooledRenderTarget> MipTexture;
+
+	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 };
 
 /**
@@ -818,6 +822,8 @@ private:
 		void SwapBuffers();
 		void UpdateLastExposureFromBuffer();
 		void EnqueueExposureBufferReadback(FRDGBuilder& GraphBuilder);
+
+		uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
@@ -1032,6 +1038,7 @@ public:
 
 	bool bVirtualShadowMapCacheAdded;
 	bool bLumenSceneDataAdded;
+	float LumenSurfaceCacheResolution;
 
 	FVirtualShadowMapArrayCacheManager* ViewVirtualShadowMapCache;
 
@@ -1478,6 +1485,7 @@ public:
 	}
 
 	virtual SIZE_T GetSizeBytes() const override;
+	uint64 GetGPUSizeBytes(bool bLogSizes = false) const;
 
 	virtual void SetSequencerState(ESequencerState InSequencerState) override
 	{
@@ -1490,9 +1498,13 @@ public:
 	}
 
 	virtual void AddVirtualShadowMapCache(FSceneInterface* InScene) override;
+	virtual void RemoveVirtualShadowMapCache(FSceneInterface* InScene) override;
+	virtual bool HasVirtualShadowMapCache() const override;
 	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(const FScene* InScene) const override;
 
-	virtual void AddLumenSceneData(FSceneInterface* InScene) override;
+	virtual void AddLumenSceneData(FSceneInterface* InScene, float SurfaceCacheResolution) override;
+	virtual void RemoveLumenSceneData(FSceneInterface* InScene) override;
+	virtual bool HasLumenSceneData() const override;
 
 	/** Information about visibility/occlusion states in past frames for individual primitives. */
 	TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs> PrimitiveOcclusionHistorySet;
@@ -3448,6 +3460,7 @@ public:
 protected:
 
 private:
+	void RemoveViewLumenSceneData_RenderThread(FSceneViewStateInterface* ViewState);
 	void RemoveViewState_RenderThread(FSceneViewStateInterface*);
 
 	/**

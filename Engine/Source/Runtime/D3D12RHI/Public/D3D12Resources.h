@@ -1063,6 +1063,7 @@ public:
 
 	void* Lock(uint32 Offset, uint32 NumBytes) override;
 	void Unlock() override;
+	uint64 GetGPUSizeBytes() const override { return ShadowBufferSize; }
 
 private:
 	FD3D12ResourceLocation ResourceLocation;

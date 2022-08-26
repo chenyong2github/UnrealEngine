@@ -54,6 +54,7 @@
 #include "DerivedDataCache/Public/DerivedDataCacheKey.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "Compression/OodleDataCompressionUtil.h"
+#include "Components/SceneCaptureComponent2D.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -500,6 +501,8 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 		NumMipsText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips_NA", "Number of Mips: Computing..."));
 		HasAlphaChannelText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_HasAlphaChannel_NA", "Has Alpha Channel: Computing..."));
 		EncodeSpeedText->SetText(NSLOCTEXT("TextureEditor", "QuickInfo_EncodeSpeed_Computing", "Encode Speed: Computing..."));
+		SceneCaptureSizeText->SetText(FText());
+		SceneCaptureNameText->SetText(FText());
 		return;
 	}
 
@@ -814,6 +817,32 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 
 	int32 NumMips = GetNumMips();
 	NumMipsText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips", "Number of Mips: {0}"), FText::AsNumber(NumMips)));
+
+	uint64 CaptureSize = 0;
+	FName CaptureName;
+	if (Texture->GetTextureClass() == ETextureClass::RenderTarget)
+	{
+		for (TObjectIterator<USceneCaptureComponent2D> It; It; ++It)
+		{
+			USceneCaptureComponent2D* SceneCaptureComponent = *It;
+			if (SceneCaptureComponent->TextureTarget == Texture && SceneCaptureComponent->CaptureMemorySize.IsValid())
+			{
+				// Could have multiple scene captures blending to the same render target -- add them all up, but only show the name of the last one...
+				CaptureSize += SceneCaptureComponent->CaptureMemorySize->Size;
+				CaptureName = SceneCaptureComponent->GetOwner()->GetFName();
+			}
+		}
+	}
+	if (CaptureSize)
+	{
+		SceneCaptureSizeText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_SceneCaptureSize", "Scene Capture: {0} KB"), FText::AsNumber(FMath::DivideAndRoundNearest(CaptureSize, (uint64)1024), &FormatOptions)));
+		SceneCaptureNameText->SetText(FText::Format(FText::FromString(TEXT("({0})")), FText::FromName(CaptureName)));
+	}
+	else
+	{
+		SceneCaptureSizeText->SetText(FText());
+		SceneCaptureNameText->SetText(FText());
+	}
 }
 
 
@@ -1640,6 +1669,14 @@ void FTextureEditorToolkit::CreateInternalWidgets()
 			[
 				SAssignNew(HasAlphaChannelText, STextBlock)
 			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(SceneCaptureSizeText, STextBlock)
+			]
 		]
 
 		+ SHorizontalBox::Slot()
@@ -1687,6 +1724,13 @@ void FTextureEditorToolkit::CreateInternalWidgets()
 				SAssignNew(EncodeSpeedText, STextBlock)
 			]
 
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f)
+			[
+				SAssignNew(SceneCaptureNameText, STextBlock)
+			]
 		]
 	]
 
