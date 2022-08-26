@@ -478,6 +478,19 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		]
 
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(40, 2, 0, 0)
+		[
+			SNew(STextBlock)
+			.TextStyle(FAppStyle::Get(), "Graph.ZoomText")
+			.Font(FCoreStyle::GetDefaultFontStyle(TEXT("BoldCondensed"), 14))
+			.Text(this, &SDesignerView::GetSelectedWidgetDimensionsText)
+			.ColorAndOpacity(FLinearColor(1.f, 1.f, 1.f, 0.25f))
+			.Visibility(this, &SDesignerView::GetSelectedWidgetDimensionsVisibility)
+		]
+
+		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		[
 			SNew(SSpacer)
@@ -3156,6 +3169,37 @@ FText SDesignerView::GetCursorPositionText() const
 EVisibility SDesignerView::GetCursorPositionTextVisibility() const
 {
 	return IsHovered() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+}
+
+FText SDesignerView::GetSelectedWidgetDimensionsText() const
+{
+	const FWidgetReference SelectedWidget = GetSelectedWidget();
+	if ( SelectedWidget.IsValid() )
+	{
+		const UWidget* WidgetPreview = SelectedWidget.GetPreview();
+		const FVector2D& Size = WidgetPreview->GetCachedGeometry().GetLocalSize();
+
+		FNumberFormattingOptions FmtOptions;
+		FmtOptions.SetMaximumFractionalDigits(2);
+		const FText ScaleFactorText = FText::Format(
+			LOCTEXT("SelectionDimensionsScaleFormat", "(Render Scale: {0} x {1})"), 
+			FText::AsNumber(WidgetPreview->GetRenderTransform().Scale.X, &FmtOptions),
+			FText::AsNumber(WidgetPreview->GetRenderTransform().Scale.Y, &FmtOptions));
+
+		bool bShowScaleFactor = !FMath::IsNearlyEqual(WidgetPreview->GetRenderTransform().Scale.X, 1.f) || !FMath::IsNearlyEqual(WidgetPreview->GetRenderTransform().Scale.Y, 1.f);
+		return FText::Format(
+			LOCTEXT("SelectionDimensionsFormat", "Selection: {0} x {1} {2}"), 
+			FText::AsNumber(Size.X, &FmtOptions), 
+			FText::AsNumber(Size.Y, &FmtOptions), 
+			bShowScaleFactor ? ScaleFactorText : FText());
+	}
+	return FText();
+}
+
+EVisibility SDesignerView::GetSelectedWidgetDimensionsVisibility() const
+{
+	const TSet<FWidgetReference>& SelectedWidgets = BlueprintEditor.Pin()->GetSelectedWidgets();
+	return SelectedWidgets.Num() == 1 ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 }
 
 FReply SDesignerView::HandleDPISettingsClicked()

@@ -220,6 +220,9 @@ private:
 
 	FText GetCursorPositionText() const;
 	EVisibility GetCursorPositionTextVisibility() const;
+	
+	FText GetSelectedWidgetDimensionsText() const;
+	EVisibility GetSelectedWidgetDimensionsVisibility() const;
 
 	// Handles drawing selection and other effects a SPaintSurface widget injected into the hierarchy.
 	int32 HandleEffectsPainting(const FOnPaintHandlerParams& PaintArgs);
