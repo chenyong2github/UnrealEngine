@@ -5772,7 +5772,7 @@ void FAssetRegistryImpl::GetSubClasses_Recursive(Impl::FClassInheritanceContext&
 #if WITH_EDITOR
 		// Also add subclasses of any old names (from CoreRedirects) in case subclasses have not been resaved and have
 		// registered their ParentClass as the old name
-		TArray<FString> OldNames = FLinkerLoad::FindPreviousPathNamesForClass(InClassName.ToString(), false);
+		TArray<FString> OldNames = FLinkerLoad::FindPreviousPathNamesForClass(InClassName.ToString(), false, true);
 		for (const FString& OldNameString : OldNames)
 		{
 			if (FPackageName::IsShortPackageName(OldNameString))
@@ -5780,7 +5780,7 @@ void FAssetRegistryImpl::GetSubClasses_Recursive(Impl::FClassInheritanceContext&
 				// TODO: We do not have a way to handle these, because we don't allow searching subclasses for short path
 				// names. We should instead change the construction of CachedBPInheritanceMap and ReverseInheritanceMap 
 				// to modify the ParentClassName with CoreRedirects
-				UE_LOG(LogAssetRegistry, Display, TEXT("GetDerivedClassNames found CoreRedirect from ShortPathName %s; it will not be able to find old blueprint classes that were saved with that parent class before the Redirect was added."),
+				UE_LOG(LogAssetRegistry, Verbose, TEXT("GetDerivedClassNames found CoreRedirect from ShortPathName %s; it will not be able to find old blueprint classes that were saved with that parent class before the Redirect was added."),
 					*OldNameString);
 				continue;
 			}

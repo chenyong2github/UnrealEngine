@@ -298,9 +298,10 @@ public:
 	 * Utility functions to query the object name redirects list for previous names for a class
 	 * @param CurrentClassPath The current name of the class, with a full path
 	 * @param bIsInstance If true, we're an instance, so check instance only maps as well
-	 * @return Names without path of all classes that were redirected to this name. Empty if none found.
+	 * @param bIncludeShortNames If true, also include short names without a package
+	 * @return Full object paths of all classes that were redirected to this name. Empty if none found.
 	 */
-	COREUOBJECT_API static TArray<FString> FindPreviousPathNamesForClass(const FString& CurrentClassPath, bool bIsInstance);
+	COREUOBJECT_API static TArray<FString> FindPreviousPathNamesForClass(const FString& CurrentClassPath, bool bIsInstance, bool bIncludeShortNames = false);
 
 	/** 
 	 * Utility functions to query the object name redirects list for the current name for a class

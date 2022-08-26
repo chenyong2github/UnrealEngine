@@ -5735,7 +5735,7 @@ TArray<FName> FLinkerLoad::FindPreviousNamesForClass(const FString& CurrentClass
 	return OldNames;
 }
 
-TArray<FString> FLinkerLoad::FindPreviousPathNamesForClass(const FString& CurrentClassPath, bool bIsInstance)
+TArray<FString> FLinkerLoad::FindPreviousPathNamesForClass(const FString& CurrentClassPath, bool bIsInstance, bool bIncludeShortNames)
 {
 	TArray<FString> OldNames;
 	TArray<FCoreRedirectObjectName> OldObjectNames;
@@ -5744,7 +5744,10 @@ TArray<FString> FLinkerLoad::FindPreviousPathNamesForClass(const FString& Curren
 	{
 		for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
 		{
-			OldNames.AddUnique(OldObjectName.ToString());
+			if (bIncludeShortNames || !OldObjectName.PackageName.IsNone())
+			{
+				OldNames.AddUnique(OldObjectName.ToString());
+			}
 		}
 	}
 
@@ -5755,7 +5758,10 @@ TArray<FString> FLinkerLoad::FindPreviousPathNamesForClass(const FString& Curren
 		{
 			for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
 			{
-				OldNames.AddUnique(OldObjectName.ToString());
+				if (bIncludeShortNames || !OldObjectName.PackageName.IsNone())
+				{
+					OldNames.AddUnique(OldObjectName.ToString());
+				}
 			}
 		}
 	}
