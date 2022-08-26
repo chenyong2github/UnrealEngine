@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RailSDK.h"
-#include "OnlineSubsystemTencentPCH.h"
+#include "OnlineSubsystemTencentPrivate.h"
 #include "RailSdkWrapper.h"
 
 #if WITH_TENCENTSDK

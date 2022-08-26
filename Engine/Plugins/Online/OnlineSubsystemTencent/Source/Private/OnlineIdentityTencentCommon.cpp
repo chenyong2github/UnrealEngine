@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineIdentityTencent.h"
-#include "OnlineSubsystemTencentPCH.h"
+#include "OnlineSubsystemTencentPrivate.h"
 
 #if WITH_TENCENT_RAIL_SDK
 bool FOnlineIdentityTencent::GetLocalUserIdx(const FUniqueNetId& UserId, int32& OutLocalIdx) const

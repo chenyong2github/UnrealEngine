@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemTencent.h"
-#include "OnlineSubsystemTencentPCH.h"
+#include "OnlineSubsystemTencentPrivate.h"
 #include "RailSdkWrapper.h"
 #include "OnlineAsyncTaskManagerTencent.h"
 #include "OnlineIdentityTencent.h"

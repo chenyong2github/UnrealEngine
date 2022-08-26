@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSubsystemTencentModule.h"
-#include "OnlineSubsystemTencentPCH.h"
+#include "OnlineSubsystemTencentPrivate.h"
 #include "OnlineSubsystemTencent.h"
 
 IMPLEMENT_MODULE(FOnlineSubsystemTencentModule, OnlineSubsystemTencent);

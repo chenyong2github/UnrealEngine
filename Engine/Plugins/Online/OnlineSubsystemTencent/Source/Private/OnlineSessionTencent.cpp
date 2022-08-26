@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineSessionTencent.h"
-#include "OnlineSubsystemTencentPCH.h"
+#include "OnlineSubsystemTencentPrivate.h"
 #include "OnlineSubsystemTencentTypes.h"
 #include "OnlineIdentityTencent.h"
 #include "Misc/ScopeLock.h"

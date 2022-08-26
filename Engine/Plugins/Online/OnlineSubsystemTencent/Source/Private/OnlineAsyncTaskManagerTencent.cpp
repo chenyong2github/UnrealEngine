@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineAsyncTaskManagerTencent.h"
-#include "OnlineSubsystemTencentPCH.h"
+#include "OnlineSubsystemTencentPrivate.h"
 #include "OnlineAsyncTasksTencent.h"
 #include "OnlinePresenceTencent.h"
 #include "PlayTimeLimitImpl.h"
