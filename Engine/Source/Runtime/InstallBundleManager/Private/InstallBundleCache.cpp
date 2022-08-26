@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstallBundleCache.h"
-#include "InstallBundleManagerPrivatePCH.h"
+#include "InstallBundleManagerPrivate.h"
 
 #define INSTALLBUNDLE_CACHE_CHECK_INVARIANTS (DO_CHECK && 0)
 #define INSTALLBUNDLE_CACHE_DUMP_INFO (0)

@@ -2,7 +2,7 @@
 
 #include "BundlePrereqCombinedStatusHelper.h"
 #include "Containers/Ticker.h"
-#include "InstallBundleManagerPrivatePCH.h"
+#include "InstallBundleManagerPrivate.h"
 #include "Stats/Stats.h"
 #include "Algo/Transform.h"
 

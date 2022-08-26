@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstallBundleTypes.h"
-#include "InstallBundleManagerPrivatePCH.h"
 
+#include "InstallBundleManagerPrivate.h"
 #include "InstallBundleUtils.h"
 #include "Misc/CString.h"
 

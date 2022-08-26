@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstallBundleManagerModule.h"
-#include "InstallBundleManagerPrivatePCH.h"
+#include "InstallBundleManagerPrivate.h"
 
 IMPLEMENT_MODULE(FInstallBundleManagerModule, InstallBundleManager);
 DEFINE_LOG_CATEGORY(LogInstallBundleManager);

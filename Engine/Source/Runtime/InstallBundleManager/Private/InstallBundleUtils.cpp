@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstallBundleUtils.h"
-#include "InstallBundleManagerPrivatePCH.h"
+
+#include "InstallBundleManagerPrivate.h"
 #include "Misc/App.h"
 
 #include "HAL/PlatformApplicationMisc.h"
