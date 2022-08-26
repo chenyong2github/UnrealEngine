@@ -206,7 +206,7 @@ namespace UE::Online {
 
 class FOnlineForeignAccountIdRegistry;
 
-/** Tags used as template argument to TOnlineIdHandle to make it a compile error to assign between id's of different types */
+/** Tags used as template argument to TOnlineId to make it a compile error to assign between id's of different types */
 namespace OnlineIdHandleTags
 {
 	struct FAccount {};
@@ -284,11 +284,11 @@ COREONLINE_API void LexFromString(EOnlineServices& OutValue, const TCHAR* InStr)
  * Passed to and returned from OnlineServices APIs.
  */
 template<typename IdType>
-class TOnlineIdHandle
+class TOnlineId
 {
 public:
-	TOnlineIdHandle() = default;
-	TOnlineIdHandle(EOnlineServices Type, uint32 Handle)
+	TOnlineId() = default;
+	TOnlineId(EOnlineServices Type, uint32 Handle)
 	{
 		check(Handle < 0xFF000000);
 		Value = (Handle & 0x00FFFFFF) | (uint32(Type) << 24);
@@ -299,32 +299,32 @@ public:
 	EOnlineServices GetOnlineServicesType() const { return EOnlineServices(Value >> 24); }
 	uint32 GetHandle() const { return Value & 0x00FFFFFF; }
 
-	bool operator==(const TOnlineIdHandle& Other) const { return Value == Other.Value; }
-	bool operator!=(const TOnlineIdHandle& Other) const { return Value != Other.Value; }
+	bool operator==(const TOnlineId& Other) const { return Value == Other.Value; }
+	bool operator!=(const TOnlineId& Other) const { return Value != Other.Value; }
 
 private:
 	uint32 Value = uint32(EOnlineServices::Null) << 24;
 };
 
-using FAccountId = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
-using FLobbyId = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
-using FOnlineSessionId = TOnlineIdHandle<OnlineIdHandleTags::FSession>;
-using FOnlineSessionInviteIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSessionInvite>;
-using FOnlineVerifiedAuthTicketIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthTicket>;
-using FOnlineVerifiedAuthSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FVerifiedAuthSession>;
+using FAccountId = TOnlineId<OnlineIdHandleTags::FAccount>;
+using FLobbyId = TOnlineId<OnlineIdHandleTags::FLobby>;
+using FOnlineSessionId = TOnlineId<OnlineIdHandleTags::FSession>;
+using FSessionInviteId = TOnlineId<OnlineIdHandleTags::FSessionInvite>;
+using FVerifiedAuthTicketId = TOnlineId<OnlineIdHandleTags::FVerifiedAuthTicket>;
+using FVerifiedAuthSessionId = TOnlineId<OnlineIdHandleTags::FVerifiedAuthSession>;
 
 COREONLINE_API FString ToLogString(const FAccountId& Id);
 COREONLINE_API FString ToLogString(const FLobbyId& Id);
 COREONLINE_API FString ToLogString(const FOnlineSessionId& Id);
-COREONLINE_API FString ToLogString(const FOnlineSessionInviteIdHandle& Id);
-COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthTicketIdHandle& Id);
-COREONLINE_API FString ToLogString(const FOnlineVerifiedAuthSessionIdHandle& Id);
+COREONLINE_API FString ToLogString(const FSessionInviteId& Id);
+COREONLINE_API FString ToLogString(const FVerifiedAuthTicketId& Id);
+COREONLINE_API FString ToLogString(const FVerifiedAuthSessionId& Id);
 
 template<typename IdType>
-inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)
+inline uint32 GetTypeHash(const TOnlineId<IdType>& OnlineId)
 {
 	using ::GetTypeHash;
-	return HashCombine(GetTypeHash(Handle.GetOnlineServicesType()), GetTypeHash(Handle.GetHandle()));
+	return HashCombine(GetTypeHash(OnlineId.GetOnlineServicesType()), GetTypeHash(OnlineId.GetHandle()));
 }
 
 template<typename IdType>
@@ -333,9 +333,9 @@ class IOnlineIdRegistry
 public:
 	virtual ~IOnlineIdRegistry() = default;
 
-	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const = 0;
-	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const = 0;
-	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& ReplicationData) = 0;
+	virtual FString ToLogString(const TOnlineId<IdType>& OnlineId) const = 0;
+	virtual TArray<uint8> ToReplicationData(const TOnlineId<IdType>& OnlineId) const = 0;
+	virtual TOnlineId<IdType> FromReplicationData(const TArray<uint8>& ReplicationData) = 0;
 };
 
 using IOnlineAccountIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FAccount>;
@@ -420,9 +420,9 @@ public:
 	 */
 	COREONLINE_API void UnregisterSessionInviteIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
 
-	COREONLINE_API FString ToLogString(const FOnlineSessionInviteIdHandle& Handle) const;
-	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineSessionInviteIdHandle& Handle) const;
-	COREONLINE_API FOnlineSessionInviteIdHandle ToSessionInviteId(EOnlineServices Services, const TArray<uint8>& RepData) const;
+	COREONLINE_API FString ToLogString(const FSessionInviteId& SessionInviteId) const;
+	COREONLINE_API TArray<uint8> ToReplicationData(const FSessionInviteId& SessionInviteId) const;
+	COREONLINE_API FSessionInviteId ToSessionInviteId(EOnlineServices Services, const TArray<uint8>& RepData) const;
 
 	COREONLINE_API IOnlineSessionInviteIdRegistry* GetSessionInviteIdRegistry(EOnlineServices OnlineServices) const;
 

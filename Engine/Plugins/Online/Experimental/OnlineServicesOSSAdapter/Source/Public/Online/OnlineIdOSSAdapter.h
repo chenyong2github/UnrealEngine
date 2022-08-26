@@ -22,12 +22,12 @@ public:
 
 	virtual ~TOnlineUniqueNetIdRegistry() {}
 
-	TOnlineIdHandle<IdType> FindOrAddHandle(const FUniqueNetIdRef& IdValue)
+	TOnlineId<IdType> FindOrAddHandle(const FUniqueNetIdRef& IdValue)
 	{
-		TOnlineIdHandle<IdType> Handle;
+		TOnlineId<IdType> OnlineId;
 		if (!ensure(IdValue->IsValid()))
 		{
-			return Handle;
+			return OnlineId;
 		}
 
 		// Take a read lock and check if we already have a handle
@@ -35,47 +35,47 @@ public:
 			FReadScopeLock ReadLock(Lock);
 			if (const uint32* FoundHandle = IdValueToHandleMap.Find(IdValue))
 			{
-				Handle = TOnlineIdHandle<IdType>(OnlineServicesType, *FoundHandle);
+				OnlineId = TOnlineId<IdType>(OnlineServicesType, *FoundHandle);
 			}
 		}
 
-		if (!Handle.IsValid())
+		if (!OnlineId.IsValid())
 		{
 			// Take a write lock, check again if we already have a handle, or insert a new element.
 			FWriteScopeLock WriteLock(Lock);
 			if (const uint32* FoundHandle = IdValueToHandleMap.Find(IdValue))
 			{
-				Handle = TOnlineIdHandle<IdType>(OnlineServicesType, *FoundHandle);
+				OnlineId = TOnlineId<IdType>(OnlineServicesType, *FoundHandle);
 			}
 
-			if (!Handle.IsValid())
+			if (!OnlineId.IsValid())
 			{
 				IdValues.Emplace(IdValue);
-				Handle = TOnlineIdHandle<IdType>(OnlineServicesType, IdValues.Num());
-				IdValueToHandleMap.Emplace(IdValue, Handle.GetHandle());
+				OnlineId = TOnlineId<IdType>(OnlineServicesType, IdValues.Num());
+				IdValueToHandleMap.Emplace(IdValue, OnlineId.GetHandle());
 			}
 		}
 
-		return Handle;
+		return OnlineId;
 	}
 
 	// Returns a copy as it's not thread safe to return a pointer/ref to an element of an array that can be relocated by another thread.
-	FUniqueNetIdPtr GetIdValue(const TOnlineIdHandle<IdType> Handle) const
+	FUniqueNetIdPtr GetIdValue(const TOnlineId<IdType> OnlineId) const
 	{
-		if (Handle.GetOnlineServicesType() == OnlineServicesType && Handle.IsValid())
+		if (OnlineId.GetOnlineServicesType() == OnlineServicesType && OnlineId.IsValid())
 		{
 			FReadScopeLock ReadLock(Lock);
-			if (IdValues.IsValidIndex(Handle.GetHandle() - 1))
+			if (IdValues.IsValidIndex(OnlineId.GetHandle() - 1))
 			{
-				return IdValues[Handle.GetHandle() - 1];
+				return IdValues[OnlineId.GetHandle() - 1];
 			}
 		}
 		return FUniqueNetIdPtr();
 	}
 
-	FUniqueNetIdRef GetIdValueChecked(const TOnlineIdHandle<IdType> Handle) const
+	FUniqueNetIdRef GetIdValueChecked(const TOnlineId<IdType> OnlineId) const
 	{
-		return GetIdValue(Handle).ToSharedRef();
+		return GetIdValue(OnlineId).ToSharedRef();
 	}
 
 	bool IsHandleExpired(const FOnlineSessionId& InSessionId) const
@@ -84,20 +84,20 @@ public:
 	}
 
 	// Begin IOnlineAccountIdRegistry
-	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const override
+	virtual FString ToLogString(const TOnlineId<IdType>& OnlineId) const override
 	{
-		FUniqueNetIdPtr IdValue = GetIdValue(Handle);
+		FUniqueNetIdPtr IdValue = GetIdValue(OnlineId);
 		return IdValue ? IdValue->ToDebugString() : FString(TEXT("invalid_id"));
 	}
 
-	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const override
+	virtual TArray<uint8> ToReplicationData(const TOnlineId<IdType>& OnlineId) const override
 	{
 		return TArray<uint8>();
 	}
 
-	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& Handle) override
+	virtual TOnlineId<IdType> FromReplicationData(const TArray<uint8>& OnlineId) override
 	{
-		return TOnlineIdHandle<IdType>();
+		return TOnlineId<IdType>();
 	}
 
 	// End IOnlineAccountIdRegistry

@@ -122,7 +122,7 @@ template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TShar
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedRef<T>& Ref, IOnlineServices* Services = nullptr);
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOptional<T>& Optional, IOnlineServices* Services = nullptr);
 template <typename... Ts> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant, IOnlineServices* Services = nullptr);
-template <typename IdType> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Value, IOnlineServices* Services = nullptr);
+template <typename IdType> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineId<IdType>& Value, IOnlineServices* Services = nullptr);
 template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services = nullptr);
 template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value, IOnlineServices* Services = nullptr);
 
@@ -231,7 +231,7 @@ public:
 	{
 		FAccountId AccountId;
 		const TCHAR* ValueTCHAR = *VariantValue;
-		if (ParseOnlineExecParams<TOnlineIdHandle<OnlineIdHandleTags::FAccount>>(ValueTCHAR, AccountId, Services))
+		if (ParseOnlineExecParams<TOnlineId<OnlineIdHandleTags::FAccount>>(ValueTCHAR, AccountId, Services))
 		{
 			Variant.template Set<FAccountId>(AccountId);
 			return true;
@@ -762,7 +762,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant, I
 }
 
 template<typename IdType>
-inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Value, IOnlineServices* Services)
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineId<IdType>& Value, IOnlineServices* Services)
 {
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
@@ -775,7 +775,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Va
 			EOnlineServices ServiceEnum;
 			LexFromString(ServiceEnum, *ServicesString);
 			uint32 Handle = static_cast<uint32>(FCString::Strtoui64(*HandleString, nullptr, 10));
-			Value = TOnlineIdHandle<IdType>(ServiceEnum, Handle);
+			Value = TOnlineId<IdType>(ServiceEnum, Handle);
 			return true;
 		}
 	}
@@ -784,7 +784,7 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Va
 }
 
 template<>
-inline bool ParseOnlineExecParams<OnlineIdHandleTags::FAccount>(const TCHAR*& Cmd, TOnlineIdHandle<OnlineIdHandleTags::FAccount>& Value, IOnlineServices* Services)
+inline bool ParseOnlineExecParams<OnlineIdHandleTags::FAccount>(const TCHAR*& Cmd, TOnlineId<OnlineIdHandleTags::FAccount>& Value, IOnlineServices* Services)
 {
 	FString Token;
 	if (FParse::Token(Cmd, Token, true))
@@ -797,7 +797,7 @@ inline bool ParseOnlineExecParams<OnlineIdHandleTags::FAccount>(const TCHAR*& Cm
 			EOnlineServices ServicesEnum;
 			LexFromString(ServicesEnum, *ServicesString);
 			uint32 Handle = static_cast<uint32>(FCString::Strtoui64(*HandleString, nullptr, 10));
-			Value = TOnlineIdHandle<OnlineIdHandleTags::FAccount>(ServicesEnum, Handle);
+			Value = TOnlineId<OnlineIdHandleTags::FAccount>(ServicesEnum, Handle);
 			return true;
 		}
 		else if (Token.Len() == 1 && **Token >= TEXT('0') && **Token <= TEXT('9'))

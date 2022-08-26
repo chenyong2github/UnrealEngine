@@ -289,14 +289,14 @@ void FSessionsEOSGS::HandleSessionInviteReceived(const EOS_Sessions_SessionInvit
 					const FAccountId& ReceiverId = Result.GetOkValue().LocalAccountId;
 					const FAccountId& SenderId = FindAccountId(SenderPUID);
 
-					FOnlineSessionInviteIdHandle InviteIdHandle = CreateSessionInviteId(InviteId);
+					FSessionInviteId SessionInviteId = CreateSessionInviteId(InviteId);
 
 					TSharedRef<FSessionCommon> Session = Result.GetOkValue().Session;
 
 					TSharedRef<FSessionInvite> SessionInviteRef = MakeShared<FSessionInvite>(FSessionInvite{
 						ReceiverId,
 						SenderId,
-						InviteIdHandle,
+						SessionInviteId,
 						Session->SessionId
 						});
 
@@ -1243,7 +1243,7 @@ FOnlineSessionId FSessionsEOSGS::CreateSessionId(const FString& SessionId)
 	return FOnlineSessionIdRegistryEOSGS::Get().BasicRegistry.FindOrAddHandle(SessionId);
 }
 
-FOnlineSessionInviteIdHandle FSessionsEOSGS::CreateSessionInviteId(const FString& SessionInviteId) const
+FSessionInviteId FSessionsEOSGS::CreateSessionInviteId(const FString& SessionInviteId) const
 {
 	return FOnlineSessionInviteIdRegistryEOSGS::Get().BasicRegistry.FindOrAddHandle(SessionInviteId);
 }
@@ -1784,7 +1784,7 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 
 		const FRejectSessionInvite::Params& OpParams = Op.GetParams();
 
-		if (TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
+		if (TMap<FSessionInviteId, TSharedRef<FSessionInvite>>* UserMap = SessionInvitesUserMap.Find(OpParams.LocalAccountId))
 		{
 			UserMap->Remove(OpParams.SessionInviteId);
 		}

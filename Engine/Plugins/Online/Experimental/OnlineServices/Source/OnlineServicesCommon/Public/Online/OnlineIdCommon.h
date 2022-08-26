@@ -21,7 +21,7 @@ public:
 
 	virtual ~TOnlineBasicIdRegistry() = default;
 
-	using HandleType = TOnlineIdHandle<IdType>;
+	using HandleType = TOnlineId<IdType>;
 
 	HandleType GetInvalidHandle() const
 	{

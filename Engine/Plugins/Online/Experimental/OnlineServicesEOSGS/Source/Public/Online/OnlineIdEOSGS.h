@@ -58,9 +58,9 @@ FAccountId ONLINESERVICESEOSGS_API FindAccountId(const EOS_ProductUserId EpicAcc
 FAccountId ONLINESERVICESEOSGS_API FindAccountIdChecked(const EOS_ProductUserId EpicAccountId);
 
 template<typename IdType>
-inline bool ValidateOnlineId(const TOnlineIdHandle<IdType> Handle)
+inline bool ValidateOnlineId(const TOnlineId<IdType> OnlineId)
 {
-	return Handle.GetOnlineServicesType() == EOnlineServices::Epic && Handle.IsValid();
+	return OnlineId.GetOnlineServicesType() == EOnlineServices::Epic && OnlineId.IsValid();
 }
 
 } /* namespace UE::Online */

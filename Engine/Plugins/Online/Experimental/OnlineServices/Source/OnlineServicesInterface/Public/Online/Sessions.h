@@ -197,7 +197,7 @@ struct FSessionInvite
 	FAccountId SenderId;
 
 	/* The invite id handle, needed for retrieving session information and rejecting the invite */
-	FOnlineSessionInviteIdHandle InviteId;
+	FSessionInviteId InviteId;
 
 	/* Pointer to the session information */
 	FOnlineSessionId SessionId;
@@ -550,7 +550,7 @@ struct FRejectSessionInvite
 		FAccountId LocalAccountId;
 
 		/* The id handle for the invite to be rejected */
-		FOnlineSessionInviteIdHandle SessionInviteId;
+		FSessionInviteId SessionInviteId;
 	};
 
 	struct Result

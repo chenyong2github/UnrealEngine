@@ -141,7 +141,7 @@ using FCredentialsToken = TVariant<FString, FExternalAuthToken>;
 
 struct FVerifiedAuthSession
 {
-	FOnlineVerifiedAuthSessionIdHandle SessionId;
+	FVerifiedAuthSessionId SessionId;
 	FAccountId RemoteAccountId;
 	double CreationTime;
 };
@@ -260,7 +260,7 @@ struct FAuthQueryVerifiedAuthTicket
 	struct Result
 	{
 		/** Local ticket id used to reference the ticket in further operations. */
-		FOnlineVerifiedAuthTicketIdHandle VerifiedAuthTicketId;
+		FVerifiedAuthTicketId VerifiedAuthTicketId;
 		/** Ticket used to begin a verified auth session with a remote host. */
 		FVerifiedAuthTicket VerifiedAuthTicket;
 	};
@@ -275,7 +275,7 @@ struct FAuthCancelVerifiedAuthTicket
 		/** The online account id of the Local User making the request. */
 		FAccountId LocalAccountId;
 		/** Local ticket id used to reference the verified auth ticket. */
-		FOnlineVerifiedAuthTicketIdHandle VerifiedAuthTicketId;
+		FVerifiedAuthTicketId VerifiedAuthTicketId;
 	};
 
 	struct Result
@@ -307,7 +307,7 @@ struct FAuthEndVerifiedAuthSession
 
 	struct Params
 	{
-		FOnlineVerifiedAuthSessionIdHandle SessionId;
+		FVerifiedAuthSessionId SessionId;
 	};
 
 	struct Result

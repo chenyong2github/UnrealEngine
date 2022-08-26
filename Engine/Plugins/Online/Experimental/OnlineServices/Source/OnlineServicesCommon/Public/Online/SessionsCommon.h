@@ -76,9 +76,9 @@ class FOnlineSessionInviteIdStringRegistry : public IOnlineSessionInviteIdRegist
 {
 public:
 	// Begin IOnlineSessionIdRegistry
-	virtual inline FString ToLogString(const FOnlineSessionInviteIdHandle& Handle) const override
+	virtual inline FString ToLogString(const FSessionInviteId& SessionInviteId) const override
 	{
-		FString IdValue = BasicRegistry.FindIdValue(Handle);
+		FString IdValue = BasicRegistry.FindIdValue(SessionInviteId);
 
 		if (IdValue.Len() == 0)
 		{
@@ -88,9 +88,9 @@ public:
 		return IdValue;
 	};
 
-	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionInviteIdHandle& Handle) const override
+	virtual inline TArray<uint8> ToReplicationData(const FSessionInviteId& SessionInviteId) const override
 	{
-		const FString IdValue = BasicRegistry.FindIdValue(Handle);
+		const FString IdValue = BasicRegistry.FindIdValue(SessionInviteId);
 		const FTCHARToUTF8 IdValueUtf8(IdValue);
 
 		TArray<uint8> ReplicationData;
@@ -101,7 +101,7 @@ public:
 		return ReplicationData;
 	}
 
-	virtual inline FOnlineSessionInviteIdHandle FromReplicationData(const TArray<uint8>& ReplicationData) override
+	virtual inline FSessionInviteId FromReplicationData(const TArray<uint8>& ReplicationData) override
 	{
 		const FUTF8ToTCHAR IdValueTCHAR((char*)ReplicationData.GetData(), ReplicationData.Num());
 		const FString IdValue = FString(IdValueTCHAR.Length(), IdValueTCHAR.Get());
@@ -111,7 +111,7 @@ public:
 			return BasicRegistry.FindOrAddHandle(IdValue);
 		}
 
-		return FOnlineSessionInviteIdHandle();
+		return FSessionInviteId();
 	}
 	// End IOnlineSessionIdRegistry
 
@@ -297,7 +297,7 @@ protected:
 	TMap<FAccountId, FOnlineSessionId> PresenceSessionsUserMap;
 
 	/** Cache for received session invites, mapped per user */
-	TMap<FAccountId, TMap<FOnlineSessionInviteIdHandle, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
+	TMap<FAccountId, TMap<FSessionInviteId, TSharedRef<FSessionInvite>>> SessionInvitesUserMap;
 
 	/** Cache for the last set of session search results, mapped per user */
 	TMap<FAccountId, TArray<FOnlineSessionId>> SearchResultsUserMap;

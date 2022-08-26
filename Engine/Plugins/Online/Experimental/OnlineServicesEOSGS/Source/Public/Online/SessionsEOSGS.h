@@ -251,7 +251,7 @@ protected:
 	TOnlineAsyncOpHandle<FSendSingleSessionInviteImpl> SendSingleSessionInviteImpl(FSendSingleSessionInviteImpl::Params&& Params);
 
 	static FOnlineSessionId CreateSessionId(const FString& SessionId);
-	FOnlineSessionInviteIdHandle CreateSessionInviteId(const FString& SessionInviteId) const;
+	FSessionInviteId CreateSessionInviteId(const FString& SessionInviteId) const;
 
 	/**
 	 * Builds a session from an EOS Session Details Handle. Asynchronous due to the id resolution process
