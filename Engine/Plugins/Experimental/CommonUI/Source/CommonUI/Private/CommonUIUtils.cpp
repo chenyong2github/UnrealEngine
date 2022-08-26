@@ -2,7 +2,7 @@
  
 #include "CommonUIUtils.h"
 #include "ICommonUIModule.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "CommonUIEditorSettings.h"
 #include "Blueprint/WidgetTree.h"
 #include "Editor/WidgetCompilerLog.h"

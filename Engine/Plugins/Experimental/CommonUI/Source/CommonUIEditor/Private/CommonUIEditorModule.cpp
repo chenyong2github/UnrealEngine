@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonUIEditorModule.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "CommonVideoPlayerCustomization.h"
 
 #include "GameplayTagsEditorModule.h"

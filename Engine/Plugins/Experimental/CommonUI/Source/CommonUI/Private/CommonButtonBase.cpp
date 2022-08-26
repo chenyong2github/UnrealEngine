@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonButtonBase.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 
 #include "CommonTextBlock.h"
 #include "CommonActionWidget.h"

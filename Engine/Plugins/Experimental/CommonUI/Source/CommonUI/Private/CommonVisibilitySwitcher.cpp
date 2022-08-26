@@ -3,7 +3,7 @@
 #include "CommonVisibilitySwitcher.h"
 
 #include "CommonActivatableWidget.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "CommonVisibilitySwitcherSlot.h"
 #include "CommonWidgetPaletteCategories.h"
 #include "Widgets/Layout/SBox.h"

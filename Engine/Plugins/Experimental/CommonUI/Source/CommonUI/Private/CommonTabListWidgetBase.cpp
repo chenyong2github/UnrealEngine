@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonTabListWidgetBase.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "CommonAnimatedSwitcher.h"

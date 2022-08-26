@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonInputSettings.h"
-#include "CommonInputPrivatePCH.h"
+#include "CommonInputPrivate.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/AssetManager.h"

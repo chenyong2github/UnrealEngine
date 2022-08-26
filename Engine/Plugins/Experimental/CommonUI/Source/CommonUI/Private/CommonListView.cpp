@@ -3,7 +3,7 @@
 #include "CommonListView.h"
 #include "CommonWidgetPaletteCategories.h"
 #include "SCommonButtonTableRow.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 
 //////////////////////////////////////////////////////////////////////////
 // UCommonListView

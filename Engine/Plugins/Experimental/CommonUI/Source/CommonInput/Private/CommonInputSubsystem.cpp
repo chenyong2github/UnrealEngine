@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonInputSubsystem.h"
-#include "CommonInputPrivatePCH.h"
+#include "CommonInputPrivate.h"
 #include "Misc/ConfigCacheIni.h"
 
 #include "Framework/Application/IInputProcessor.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonTextBlock.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "Containers/Ticker.h"
 #include "CommonUIEditorSettings.h"
 #include "CommonUIUtils.h"

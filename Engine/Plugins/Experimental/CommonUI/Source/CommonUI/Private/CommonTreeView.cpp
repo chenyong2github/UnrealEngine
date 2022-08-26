@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonTreeView.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "SCommonButtonTableRow.h"
 
 UCommonTreeView::UCommonTreeView(const FObjectInitializer& ObjectInitializer)

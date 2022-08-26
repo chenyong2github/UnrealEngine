@@ -5,7 +5,7 @@
 #include "Subsystems/SubsystemCollection.h"
 
 #include "Blueprint/UserWidget.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "CommonInputSubsystem.h"
 #include "ICommonInputModule.h"
 #include "CommonInputSettings.h"

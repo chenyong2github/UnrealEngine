@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonLoadGuard.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "Components/SizeBoxSlot.h"
 #include "CommonTextBlock.h"
 #include "CommonWidgetPaletteCategories.h"

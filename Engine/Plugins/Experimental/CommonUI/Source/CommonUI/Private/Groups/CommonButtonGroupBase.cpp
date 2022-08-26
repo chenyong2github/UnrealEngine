@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Groups/CommonButtonGroupBase.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include <functional>
 
 UCommonButtonGroupBase::UCommonButtonGroupBase()

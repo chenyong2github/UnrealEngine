@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Input/CommonAnalogCursor.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "Slate/SObjectWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Input/CommonUIActionRouterBase.h"

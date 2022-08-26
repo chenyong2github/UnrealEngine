@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Groups/CommonWidgetGroupBase.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 
 UCommonWidgetGroupBase::UCommonWidgetGroupBase()
 {

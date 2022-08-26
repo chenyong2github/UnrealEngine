@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonActionWidget.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "CommonUISubsystemBase.h"
 #include "CommonInputSubsystem.h"
 #include "CommonWidgetPaletteCategories.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CommonInputPrivatePCH.h"
+#include "CommonInputPrivate.h"
 #include "ICommonInputModule.h"
 #include "Engine/AssetManager.h"
 #if WITH_EDITOR

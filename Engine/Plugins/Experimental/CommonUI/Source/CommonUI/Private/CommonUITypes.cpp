@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
  
 #include "CommonUITypes.h"
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "ICommonInputModule.h"
 #include "CommonInputSettings.h"
 #include "HAL/PlatformInput.h"

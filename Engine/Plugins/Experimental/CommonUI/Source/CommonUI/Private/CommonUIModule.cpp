@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CommonUIPrivatePCH.h"
+#include "CommonUIPrivate.h"
 #include "ICommonUIModule.h"
 #include "CommonUISettings.h"
 #include "CommonUIEditorSettings.h"
