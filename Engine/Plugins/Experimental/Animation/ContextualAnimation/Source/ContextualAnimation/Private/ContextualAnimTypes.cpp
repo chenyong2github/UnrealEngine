@@ -19,6 +19,7 @@ const FContextualAnimSceneBinding FContextualAnimSceneBinding::InvalidBinding;
 const FContextualAnimTrack FContextualAnimTrack::EmptyTrack;
 const FContextualAnimIKTarget FContextualAnimIKTarget::InvalidIKTarget;
 const FContextualAnimIKTargetDefContainer FContextualAnimIKTargetDefContainer::EmptyContainer;
+const FContextualAnimRoleDefinition FContextualAnimRoleDefinition::InvalidRoleDefinition;
 
 // FContextualAnimAlignmentTrackContainer
 ///////////////////////////////////////////////////////////////////////
@@ -261,6 +262,14 @@ FVector FContextualAnimSceneBindingContext::GetVelocity() const
 	return FVector::ZeroVector;
 }
 
+bool FContextualAnimSceneBindingContext::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+{
+	//@TODO: Serialize optional properties
+	Ar << Actor;
+	bOutSuccess = true;
+	return true;
+}
+
 // FContextualAnimSceneBinding
 ///////////////////////////////////////////////////////////////////////
 
@@ -270,9 +279,36 @@ FContextualAnimSceneBinding::FContextualAnimSceneBinding(const FContextualAnimSc
 
 	Context = InContext;
 	SceneAsset = &InSceneAsset;
-	AnimTrackPtr = &InAnimTrack;
-	RoleDefPtr = InSceneAsset.GetRolesAsset()->FindRoleDefinitionByName(InAnimTrack.Role);
-	check(RoleDefPtr);
+	SectionIdx = InAnimTrack.SectionIdx;
+	AnimSetIdx = InAnimTrack.AnimSetIdx;
+	AnimTrackIdx = InAnimTrack.AnimTrackIdx;
+}
+
+const FContextualAnimTrack& FContextualAnimSceneBinding::GetAnimTrack() const
+{ 
+	if(const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
+	{
+		return *AnimTrack;
+	}
+
+	return FContextualAnimTrack::EmptyTrack;
+}
+
+void FContextualAnimSceneBinding::SetAnimTrack(const FContextualAnimTrack& InAnimTrack) 
+{ 
+	SectionIdx = InAnimTrack.SectionIdx;
+	AnimSetIdx = InAnimTrack.AnimSetIdx;
+	AnimTrackIdx = InAnimTrack.AnimTrackIdx;
+}
+
+const FContextualAnimRoleDefinition& FContextualAnimSceneBinding::GetRoleDef() const
+{ 
+	if(const FContextualAnimRoleDefinition* RoleDef = SceneAsset->GetRolesAsset()->FindRoleDefinitionByName(GetAnimTrack().Role))
+	{
+		return *RoleDef;
+	}
+	
+	return FContextualAnimRoleDefinition::InvalidRoleDefinition;
 }
 
 UContextualAnimSceneActorComponent* FContextualAnimSceneBinding::GetSceneActorComponent() const
@@ -330,8 +366,25 @@ const FContextualAnimIKTargetDefContainer& FContextualAnimSceneBinding::GetIKTar
 	return GetSceneAsset().GetIKTargetDefsForRoleInSection(GetAnimTrack().SectionIdx, GetAnimTrack().Role);
 }
 
+bool FContextualAnimSceneBinding::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+{
+	Context.NetSerialize(Ar, Map, bOutSuccess);
+	Ar << SceneAsset;
+	Ar << SectionIdx;
+	Ar << AnimSetIdx;
+	Ar << AnimTrackIdx;
+	bOutSuccess = true;
+	return true;
+}
+
 // FContextualAnimSceneBindings
 ///////////////////////////////////////////////////////////////////////
+
+bool FContextualAnimSceneBindings::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+{
+	bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<10>(Ar, Data, Map);
+	return true;
+}
 
 bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
 {

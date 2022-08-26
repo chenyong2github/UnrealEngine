@@ -176,7 +176,7 @@ float UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Bi
 	AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
 	const UAnimMontage* Montage = PlayAnimation(*AnimInstance, *AnimTrack.Animation);
-	Binding.AnimTrackPtr = &AnimTrack;
+	Binding.SetAnimTrack(AnimTrack);
 
 	AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 

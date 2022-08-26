@@ -215,13 +215,15 @@ struct FContextualAnimRoleDefinition
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FName Name;
+	FName Name = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	bool bIsCharacter = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	FTransform MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
+
+	static const FContextualAnimRoleDefinition InvalidRoleDefinition;
 };
 
 // FContextualAnimSetPivotDefinition
@@ -294,6 +296,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindingContext
 
 	//@TODO: Add accessors for GameplayTags
 
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
 private:
 
 	TWeakObjectPtr<AActor> Actor = nullptr;
@@ -303,6 +307,15 @@ private:
 	TOptional<FVector> ExternalVelocity;
 
 	FGameplayTagContainer ExternalGameplayTags;
+};
+
+template<>
+struct TStructOpsTypeTraits<FContextualAnimSceneBindingContext> : public TStructOpsTypeTraitsBase2<FContextualAnimSceneBindingContext>
+{
+	enum
+	{
+		WithNetSerializer = true
+	};
 };
 
 /** Represent an actor bound to a role in the scene */
@@ -321,11 +334,12 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 	FORCEINLINE FVector GetVelocity()  const { return GetContext().GetVelocity(); }
 
 	/** Returns the track in the scene asset used by this actor */
-	FORCEINLINE const FContextualAnimTrack& GetAnimTrack() const { check(AnimTrackPtr);  return *AnimTrackPtr; }
-	FORCEINLINE void SetAnimTrack(const FContextualAnimTrack& InAnimTrack) { AnimTrackPtr = &InAnimTrack; }
+	const FContextualAnimTrack& GetAnimTrack() const;
+	
+	void SetAnimTrack(const FContextualAnimTrack& InAnimTrack);
 
 	/** Returns the role definition used by this actor */
-	FORCEINLINE const FContextualAnimRoleDefinition& GetRoleDef() const { check(RoleDefPtr); return *RoleDefPtr; }
+	const FContextualAnimRoleDefinition& GetRoleDef() const;
 
 	/** Returns the SceneInstance we belong to (if any) */
 	FORCEINLINE const UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstancePtr.Get(); }
@@ -351,6 +365,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 
 	UContextualAnimSceneActorComponent* GetSceneActorComponent() const;
 
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
 	static const FContextualAnimSceneBinding InvalidBinding;
 
 private:
@@ -362,14 +378,21 @@ private:
 	/** Scene Asset we are bound to */
 	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
 
-	/** Ptr to the animation data in the scene asset used by this actor */
-	const FContextualAnimTrack* AnimTrackPtr = nullptr;
-
-	/** Ptr to the role definition used by this actor */
-	const FContextualAnimRoleDefinition* RoleDefPtr = nullptr;
-
 	/** Ptr back to the scene instance we belong to (if any) */
 	TWeakObjectPtr<const UContextualAnimSceneInstance> SceneInstancePtr = nullptr;
+
+	int32 SectionIdx = INDEX_NONE;
+	int32 AnimSetIdx = INDEX_NONE;
+	int32 AnimTrackIdx = INDEX_NONE;
+};
+
+template<>
+struct TStructOpsTypeTraits<FContextualAnimSceneBinding> : public TStructOpsTypeTraitsBase2<FContextualAnimSceneBinding>
+{
+	enum
+	{
+		WithNetSerializer = true
+	};
 };
 
 USTRUCT(BlueprintType)
@@ -407,11 +430,22 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	void CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const;
 	bool CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, FContextualAnimSetPivot& OutScenePivot) const;
 
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+
 private:
 
 	/** List of actors bound to each role in the SceneAsset */
 	UPROPERTY()
 	TArray<FContextualAnimSceneBinding> Data;
+};
+
+template<>
+struct TStructOpsTypeTraits<FContextualAnimSceneBindings> : public TStructOpsTypeTraitsBase2<FContextualAnimSceneBindings>
+{
+	enum
+	{
+		WithNetSerializer = true
+	};
 };
 
 USTRUCT(BlueprintType)
