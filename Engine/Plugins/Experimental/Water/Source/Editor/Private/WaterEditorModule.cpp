@@ -194,6 +194,11 @@ void FWaterEditorModule::OnLevelActorAddedToWorld(AActor* Actor)
 			FBox Bounds;
 			for (ALandscape* FoundLandscape : FoundLandscapes)
 			{
+				if (!IsValid(FoundLandscape))
+				{
+					continue;
+				}
+
 				const FBox LandscapeBounds = FoundLandscape->GetComponentsBoundingBox(bNonColliding, bIncludeChildActors);
 				Bounds += LandscapeBounds;
 
