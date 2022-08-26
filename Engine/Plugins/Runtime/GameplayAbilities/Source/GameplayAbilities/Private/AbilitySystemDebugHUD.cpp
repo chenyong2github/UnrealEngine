@@ -324,7 +324,7 @@ void AAbilitySystemDebugHUD::NotifyExtensionEnableChanged(UWorld* InWorld)
 	}
 	else if (HUD && !bAnyExtensionEnabled)
 	{
-		FEditorDelegates::PostPIEStarted.Remove(PostWorldInitDelegateHandle);
+		FWorldDelegates::OnPostWorldInitialization.Remove(PostWorldInitDelegateHandle);
 		UDebugDrawService::Unregister(DrawDebugDelegateHandle);
 		HUD->Destroy();
 	}
