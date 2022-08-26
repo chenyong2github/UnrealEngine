@@ -18,13 +18,6 @@ IMPLEMENT_MODULE(FMassSmartObjectsModule, MassSmartObjects)
 void FMassSmartObjectsModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
-
-	TArray<FCoreRedirect> Redirects;
-	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("SmartObjectMassBehaviorConfig"), TEXT("SmartObjectMassBehaviorDefinition"));
-	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("MassProcessor_SmartObjectTimedBehavior"), TEXT("MassSmartObjectTimedBehaviorProcessor"));
-	Redirects.Emplace(ECoreRedirectFlags::Type_Class, TEXT("MassProcessor_SmartObjectCandidatesFinder"), TEXT("MassSmartObjectCandidatesFinderProcessor"));
-
-	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassSmartObject"));
 }
 
 

@@ -19,11 +19,6 @@ IMPLEMENT_MODULE(FMassMovementModule, MassMovement)
 void FMassMovementModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
-
-	TArray<FCoreRedirect> Redirects;
-	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("VelocityComponent"), TEXT("MassVelocityFragment"));
-	
-	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassMovement"));
 }
 
 

@@ -18,11 +18,6 @@ IMPLEMENT_MODULE(FMassNavigationModule, MassNavigation)
 void FMassNavigationModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
-
-	TArray<FCoreRedirect> Redirects;
-//	Redirects.Emplace(ECoreRedirectFlags::Type_Struct, TEXT("AvoidanceComponent"), TEXT("MassAvoidanceFragment"));
-	
-	FCoreRedirects::AddRedirectList(Redirects, TEXT("MassNavigation"));
 }
 
 
