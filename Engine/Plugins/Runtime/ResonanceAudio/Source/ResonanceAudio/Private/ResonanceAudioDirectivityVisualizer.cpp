@@ -3,6 +3,7 @@
 //
 
 #include "ResonanceAudioDirectivityVisualizer.h"
+#include "ResonanceAudioConstants.h"
 
 #include "UObject/ConstructorHelpers.h"
 

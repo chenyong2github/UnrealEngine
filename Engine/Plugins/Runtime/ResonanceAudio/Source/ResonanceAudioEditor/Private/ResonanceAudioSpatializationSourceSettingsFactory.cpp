@@ -4,6 +4,7 @@
 
 #include "ResonanceAudioSpatializationSourceSettingsFactory.h"
 #include "ResonanceAudioSpatializationSourceSettings.h"
+#include "ResonanceAudioConstants.h"
 
 #include "AudioAnalytics.h"
 #include "UObject/ObjectMacros.h"

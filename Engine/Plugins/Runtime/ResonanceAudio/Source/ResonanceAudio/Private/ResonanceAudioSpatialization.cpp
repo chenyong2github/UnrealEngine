@@ -1,5 +1,6 @@
 #include "ResonanceAudioSpatialization.h"
 
+#include "ResonanceAudioConstants.h"
 #include "ResonanceAudioModule.h"
 #include "ResonanceAudioSettings.h"
 
