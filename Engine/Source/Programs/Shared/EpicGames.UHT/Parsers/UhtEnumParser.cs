@@ -92,6 +92,18 @@ namespace EpicGames.UHT.Parsers
 					}
 					else
 					{
+						if (enumObject.CppForm == UhtEnumCppForm.Regular)
+						{
+							if (topScope.TokenReader.TryOptional(":"))
+							{
+								UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
+
+								if (enumType.Value != "int")
+								{
+									topScope.TokenReader.LogError($"Regular enums only support 'int' as the value size");
+								}
+							}
+						}
 						if ((enumObject.EnumFlags & EEnumFlags.Flags) != 0)
 						{
 							topScope.TokenReader.LogError("The 'Flags' specifier can only be used on enum classes");
@@ -116,6 +128,16 @@ namespace EpicGames.UHT.Parsers
 							topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 
 							UhtToken innerEnumToken = topScope.TokenReader.GetIdentifier("enumeration type name");
+
+							if (topScope.TokenReader.TryOptional(":"))
+							{
+								UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
+
+								if (enumType.Value != "int")
+								{
+									topScope.TokenReader.LogError($"Namespace enums only support 'int' as the value size");
+								}
+							}
 
 							topScope.TokenReader.Require('{');
 							enumObject.CppType = $"{enumObject.SourceName}::{innerEnumToken.Value}";

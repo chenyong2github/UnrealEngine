@@ -1120,6 +1120,22 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 			Throwf(TEXT("ICE: Mismatch of underlying enum type between pre-parser and parser"));
 		}
 	}
+	else if (CppForm == UEnum::ECppForm::Regular)
+	{
+		if (MatchSymbol(TEXT(':')))
+		{
+			FToken BaseToken;
+			if (!GetIdentifier(BaseToken))
+			{
+				Throwf(TEXT("Missing enum base"));
+			}
+
+			if (!BaseToken.IsValue(TEXT("int"), ESearchCase::CaseSensitive))
+			{
+				LogError(TEXT("Regular enums only support 'int' as the value size"));
+			}
+		}
+	}
 	else
 	{
 		if (EnumHasAnyFlags(Flags, EEnumFlags::Flags))
@@ -1154,6 +1170,20 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 			}
 
 			EnumDef.SetCppType(FString::Printf(TEXT("%s::%s"), *EnumIdentifier, *InnerEnumToken.GetTokenValue()));
+
+			if (MatchSymbol(TEXT(':')))
+			{
+				FToken BaseToken;
+				if (!GetIdentifier(BaseToken))
+				{
+					Throwf(TEXT("Missing enum base"));
+				}
+
+				if (!BaseToken.IsValue(TEXT("int"), ESearchCase::CaseSensitive))
+				{
+					LogError(TEXT("Namespace enums only support 'int' as the value size"));
+				}
+			}
 
 			RequireSymbol( TEXT('{'), TEXT("'Enum'") );
 		}
