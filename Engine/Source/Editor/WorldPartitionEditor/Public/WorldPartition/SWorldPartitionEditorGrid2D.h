@@ -35,6 +35,7 @@ public:
 	SWorldPartitionEditorGrid2D();
 	~SWorldPartitionEditorGrid2D();
 
+protected:
 	void Construct(const FArguments& InArgs);
 
 	virtual void CreateRegionFromSelection();
@@ -60,7 +61,7 @@ public:
 	virtual int32 PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 	virtual FReply FocusSelection();
-protected:
+
 	void UpdateTransform() const;
 	void UpdateSelectionBox();
 	void ClearSelection();
@@ -91,7 +92,6 @@ protected:
 	bool bIsDragSelecting;
 	bool bIsPanning;
 	bool bShowActors;
-	bool bShowProfiling;
 	FVector2D MouseCursorPos;
 	FVector2D MouseCursorPosWorld;
 	FVector2D LastMouseCursorPosWorldDrag;
@@ -129,7 +129,6 @@ protected:
 	TSet<FGuid> ShownActorGuids;
 	TSet<FGuid> DirtyActorGuids;
 	FLoaderInterfaceSet ShownLoaderInterfaces;
-	FLoaderInterfaceSet HighlightedLoaderInterfaces;
 	FLoaderInterfaceSet HoveredLoaderInterfaces;
 	FLoaderInterfaceStack HoveredLoaderInterfacesStack;
 	FLoaderInterface HoveredLoaderInterface;
