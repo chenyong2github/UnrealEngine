@@ -140,6 +140,16 @@ namespace
 			}
 		}
 	}
+
+	void SetTransceiverDirection(webrtc::RtpTransceiverInterface& InTransceiver, webrtc::RtpTransceiverDirection InDirection)
+	{
+		#if WEBRTC_VERSION == 84
+			InTransceiver.SetDirection(InDirection);
+		#else
+			webrtc::RTCError Result = InTransceiver.SetDirectionWithError(InDirection);
+			checkf(Result.ok(), TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), *FString(Result.message()));
+		#endif
+	}
 } // namespace
 
 // self registering/deregistering object for polling stats
@@ -227,7 +237,14 @@ TUniquePtr<FPixelStreamingPeerConnection> FPixelStreamingPeerConnection::Create(
 
 	TUniquePtr<FPixelStreamingPeerConnection> NewPeerConnection = TUniquePtr<FPixelStreamingPeerConnection>(new FPixelStreamingPeerConnection());
 	NewPeerConnection->IsSFU = IsSFU;
-	NewPeerConnection->PeerConnection = PeerConnectionFactory->CreatePeerConnection(RTCConfig, nullptr, nullptr, NewPeerConnection.Get());
+
+	#if WEBRTC_VERSION == 84
+		NewPeerConnection->PeerConnection = PeerConnectionFactory->CreatePeerConnection(RTCConfig, nullptr, nullptr, NewPeerConnection.Get());
+	#else
+		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::PeerConnectionInterface>> Result = PeerConnectionFactory->CreatePeerConnectionOrError(RTCConfig, webrtc::PeerConnectionDependencies(NewPeerConnection.Get()));
+		checkf(Result.ok(), TEXT("Failed to create Peer Connection. Msg=%s"), *FString(Result.error().message()));
+		NewPeerConnection->PeerConnection = Result.MoveValue();
+	#endif
 
 	return NewPeerConnection;
 }
@@ -380,7 +397,7 @@ void FPixelStreamingPeerConnection::SetVideoSource(rtc::scoped_refptr<webrtc::Vi
 			bHasVideoTransceiver = true;
 			Sender->SetTrack(VideoTrack);
 			Sender->SetStreams({ GetVideoStreamID() });
-			Transceiver->SetDirection(webrtc::RtpTransceiverDirection::kSendOnly);
+			SetTransceiverDirection(*Transceiver, webrtc::RtpTransceiverDirection::kSendOnly);
 			webrtc::RtpParameters ExistingParams = Sender->GetParameters();
 			ExistingParams.degradation_preference = Settings::GetDegradationPreference();
 		}
@@ -396,7 +413,7 @@ void FPixelStreamingPeerConnection::SetVideoSource(rtc::scoped_refptr<webrtc::Vi
 
 		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Result = PeerConnection->AddTransceiver(VideoTrack, TransceiverOptions);
 		checkf(Result.ok(), TEXT("Failed to add Video transceiver to PeerConnection. Msg=%s"), *FString(Result.error().message()));
-		Result.value()->SetDirection(webrtc::RtpTransceiverDirection::kSendOnly);
+		SetTransceiverDirection(*Result.value(), webrtc::RtpTransceiverDirection::kSendOnly);
 		webrtc::RtpParameters ExistingParams = Result.value()->sender()->GetParameters();
 		ExistingParams.degradation_preference = Settings::GetDegradationPreference();
 	}
@@ -440,7 +457,7 @@ void FPixelStreamingPeerConnection::SetAudioSource(rtc::scoped_refptr<webrtc::Au
 			bHasAudioTransceiver = true;
 			Sender->SetTrack(AudioTrack);
 			Sender->SetStreams({ GetAudioStreamID() });
-			Transceiver->SetDirection(AudioTransceiverDirection);
+			SetTransceiverDirection(*Transceiver, AudioTransceiverDirection);
 		}
 	}
 
@@ -449,13 +466,13 @@ void FPixelStreamingPeerConnection::SetAudioSource(rtc::scoped_refptr<webrtc::Au
 		// Add the track
 		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> Result = PeerConnection->AddTrack(AudioTrack, { GetAudioStreamID() });
 		checkf(Result.ok(), TEXT("Failed to add audio track to PeerConnection. Msg=%s"), *FString(Result.error().message()));
-		// Result.value()->SetDirection(AudioTransceiverDirection); // TODO why cant we do something simpler like this?
+		// SetTransceiverDirection(*Result.value(), AudioTransceiverDirection); // TODO why cant we do something simpler like this?
 		for (auto& Transceiver : PeerConnection->GetTransceivers())
 		{
 			rtc::scoped_refptr<webrtc::RtpSenderInterface> Sender = Transceiver->sender();
 			if (Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
 			{
-				Transceiver->SetDirection(AudioTransceiverDirection);
+				SetTransceiverDirection(*Transceiver, AudioTransceiverDirection);
 			}
 		}
 	}
@@ -535,7 +552,13 @@ TSharedPtr<FPixelStreamingDataChannel> FPixelStreamingPeerConnection::CreateData
 	DataChannelConfig.negotiated = Negotiated;
 	DataChannelConfig.id = Id;
 
-	return FPixelStreamingDataChannel::Create(PeerConnection->CreateDataChannel("datachannel", &DataChannelConfig));
+	#if WEBRTC_VERSION == 84
+		return FPixelStreamingDataChannel::Create(PeerConnection->CreateDataChannel("datachannel", &DataChannelConfig));
+	#else
+		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::DataChannelInterface>> Result = PeerConnection->CreateDataChannelOrError("datachannel", &DataChannelConfig);
+		checkf(Result.ok(), TEXT("Failed to create Data Channel. Msg=%s"), *FString(Result.error().message()));
+		return FPixelStreamingDataChannel::Create(Result.MoveValue());
+	#endif
 }
 
 void FPixelStreamingPeerConnection::SetWebRTCStatsCallback(rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> InCallback)
