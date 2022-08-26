@@ -275,12 +275,14 @@ void UAnimGraphNode_LinkedAnimLayer::ValidateAnimNodeDuringCompilation(USkeleton
 	}
 }
 
-UObject* UAnimGraphNode_LinkedAnimLayer::GetJumpTargetForDoubleClick() const
-{
-	auto JumpTargetFromClass = [this](UClass* InClass)
-	{
-		UObject* JumpTargetObject = nullptr;
 
+void UAnimGraphNode_LinkedAnimLayer::GetLinkTarget(UObject*& OutTargetGraph, UBlueprint*& OutTargetBlueprint) const
+{
+	OutTargetGraph = nullptr;
+	OutTargetBlueprint = nullptr;
+
+	auto JumpTargetFromClass = [this](UClass* InClass, UObject*& OutTargetGraph, UBlueprint*& OutTargetBlueprint)
+	{
 		UAnimBlueprint* TargetAnimBlueprint = InClass ? CastChecked<UAnimBlueprint>(InClass->ClassGeneratedBy) : nullptr;
 
 		while (TargetAnimBlueprint != nullptr)
@@ -292,8 +294,9 @@ UObject* UAnimGraphNode_LinkedAnimLayer::GetJumpTargetForDoubleClick() const
 			UEdGraph** FoundGraph = Graphs.FindByPredicate([this](UEdGraph* InGraph) { return InGraph->GetFName() == Node.Layer; });
 			if (FoundGraph)
 			{
-				JumpTargetObject = *FoundGraph;
-				return JumpTargetObject;
+				OutTargetBlueprint = TargetAnimBlueprint;
+				OutTargetGraph = *FoundGraph;
+				return;
 			}
 			else
 			{
@@ -308,41 +311,63 @@ UObject* UAnimGraphNode_LinkedAnimLayer::GetJumpTargetForDoubleClick() const
 		UEdGraph** FoundGraph = Graphs.FindByPredicate([this](UEdGraph* InGraph) { return InGraph->GetFName() == Node.Layer; });
 		if (FoundGraph)
 		{
-			JumpTargetObject = *FoundGraph;
+			OutTargetBlueprint = nullptr;
+			OutTargetGraph = *FoundGraph;
+			return;
 		}
-
-		return JumpTargetObject;
 	};
 
 	// First try a concrete class, if any
 
 	const FAnimNode_LinkedAnimGraph* RuntimeNode = GetLinkedAnimGraphNode();
 
-
-	UObject* JumpTargetObject = nullptr;
-
 	if (UObject* TargetInstance = RuntimeNode->GetTargetInstance<UObject>())
 	{
-		JumpTargetObject = JumpTargetFromClass(TargetInstance->GetClass());
+		JumpTargetFromClass(TargetInstance->GetClass(), OutTargetGraph, OutTargetBlueprint);
 	}
-	if (JumpTargetObject == nullptr)
+	if (OutTargetGraph == nullptr)
 	{
-		JumpTargetObject = JumpTargetFromClass(RuntimeNode->InstanceClass);
+		JumpTargetFromClass(RuntimeNode->InstanceClass, OutTargetGraph, OutTargetBlueprint);
 	}
-	if(JumpTargetObject == nullptr)
+	if (OutTargetGraph == nullptr)
 	{
 		// then try the interface
-		JumpTargetObject = JumpTargetFromClass(*Node.Interface);
+		JumpTargetFromClass(*Node.Interface, OutTargetGraph, OutTargetBlueprint);
 	}
 
-	return JumpTargetObject;
+}
+
+
+UObject* UAnimGraphNode_LinkedAnimLayer::GetJumpTargetForDoubleClick() const
+{
+	UObject* TargetGraph;
+	UBlueprint* TargetBlueprint;
+
+	GetLinkTarget(TargetGraph, TargetBlueprint);
+	return TargetGraph;
 }
 
 void UAnimGraphNode_LinkedAnimLayer::JumpToDefinition() const
 {
-	if (UEdGraph* HyperlinkTarget = Cast<UEdGraph>(GetJumpTargetForDoubleClick()))
+
+	UObject* TargetGraph;
+	UBlueprint* TargetBlueprint;
+
+	GetLinkTarget(TargetGraph, TargetBlueprint);
+
+	if (UAnimationGraph* HyperlinkTarget = Cast<UAnimationGraph>(TargetGraph))
 	{
 		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(HyperlinkTarget);
+
+		if (TargetBlueprint != nullptr)
+		{
+			const FAnimNode_LinkedAnimGraph* RuntimeNode = GetLinkedAnimGraphNode();
+
+			if (UObject* TargetInstance = RuntimeNode->GetTargetInstance<UObject>())
+			{
+				TargetBlueprint->SetObjectBeingDebugged(TargetInstance);
+			}
+		}
 	}
 	else
 	{

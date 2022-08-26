@@ -54,6 +54,9 @@ public:
 	void UpdateGuidForLayer();
 
 protected:
+
+	void GetLinkTarget(UObject* &OutTargetGraph, UBlueprint* &OutTargetBlueprint) const;
+
 	// ----- UI CALLBACKS ----- //
 	// Handlers for layer combo
 	void GetLayerNames(TArray<TSharedPtr<FString>>& OutStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems);
