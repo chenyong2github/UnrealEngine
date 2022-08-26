@@ -152,106 +152,42 @@ void FPhysicsControlComponentImpl::ResetControls(bool bKeepControlRecords)
 }
 
 //======================================================================================================================
-// Currently this looks for world-space targets from the controls, and forms a strength-weighted
-// average of them if there are multiple targets. However, it would probably be better to replace
-// this with an explicit kinematic target on each body modifier, as it is a little unintuitive to
-// make zero strength physical controls. UE-159655
 void FPhysicsControlComponentImpl::ApplyKinematicTarget(const FPhysicsBodyModifier& BodyModifier) const
 {
-	FBodyInstance* BodyInstance = GetBodyInstance(BodyModifier.MeshComponent, BodyModifier.BoneName);
+	FBodyInstance* BodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
+		BodyModifier.MeshComponent, BodyModifier.BoneName);
 	if (!BodyInstance)
 	{
 		return;
 	}
 
-	// First find any controls that are (a) acting in world space (b) driving the modified object
-	float PositionWeight = 0.0f;
-	float OrientationWeight = 0.0f;
-	FVector WeightedPosition(ForceInitToZero);
-	FVector4 WeightedOrientation(ForceInitToZero);
-	for (const TPair<FName, FPhysicsControlRecord>& PhysicsControlRecordPair : PhysicsControlRecords)
+	// Seems like static and skeletal meshes need to be handled differently
+	FTransform TM = BodyInstance->GetUnrealWorldTransform();
+	FTransform KinematicTarget(BodyModifier.KinematicTargetOrientation, BodyModifier.KinematicTargetPosition);
+	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BodyModifier.MeshComponent.Get()))
 	{
-		const FPhysicsControlRecord& Record = PhysicsControlRecordPair.Value;
-		FBodyInstance* ParentBodyInstance = GetBodyInstance(
-			Record.PhysicsControl.ParentMeshComponent, Record.PhysicsControl.ParentBoneName);
-
-		if (!ParentBodyInstance)
+		if (BodyModifier.bUseSkeletalAnimation)
 		{
-			FBodyInstance* ChildBodyInstance = GetBodyInstance(
-				Record.PhysicsControl.ChildMeshComponent, Record.PhysicsControl.ChildBoneName);
-			if (BodyInstance == ChildBodyInstance)
+			FCachedSkeletalMeshData::FBoneData BoneData;
+			if (GetBoneData(BoneData, SkeletalMeshComponent, BodyModifier.BoneName))
 			{
-				FTransform TargetTM;
-				FVector TargetVelocity;
-				FVector TargetAngularVelocity;
-				CalculateControlTargetData(TargetTM, TargetVelocity, TargetAngularVelocity, Record, false);
-
-				// TargetTM is actually the target for the control point, but we will be setting the body TM
-				// so we need to remove the offset
-				TargetTM.AddToTranslation(TargetTM.GetRotation() * -Record.PhysicsControl.ControlSettings.ControlPoint);
-
-				// TODO note that this isn't using the multipliers, or the force limits etc. Using an explicit
-				// kinematic target will solve this
-				float LinearWeight = Record.PhysicsControl.ControlData.LinearStrength + UE_SMALL_NUMBER;
-				float AngularWeight = Record.PhysicsControl.ControlData.AngularStrength + UE_SMALL_NUMBER;
-
-				WeightedPosition += TargetTM.GetTranslation() * LinearWeight;
-				PositionWeight += LinearWeight;
-
-				FQuat Q = TargetTM.GetRotation();
-				Q.EnforceShortestArcWith(FQuat::Identity);
-				WeightedOrientation += FVector4(Q.X, Q.Y, Q.Z, Q.W) * AngularWeight;
-				OrientationWeight += AngularWeight;
+				FTransform BoneTM = BoneData.GetTM();
+				KinematicTarget = KinematicTarget * BoneTM;
 			}
 		}
-	}
-
-	if (PositionWeight <= 0 && OrientationWeight <= 0)
-	{
-		return;
-	}
-
-	// Seems like static and skeletal meshes need to be handled differently
-	if (BodyModifier.MeshComponent.IsA<USkeletalMeshComponent>())
-	{
-		FTransform NewTM = BodyInstance->GetUnrealWorldTransform();
-		if (PositionWeight)
-		{
-			FVector NewPosition = WeightedPosition / PositionWeight;
-			NewTM.SetLocation(NewPosition);
-		}
-		if (OrientationWeight)
-		{
-			WeightedOrientation /= OrientationWeight;
-			FQuat TargetOrientation = FQuat(
-				WeightedOrientation.X, WeightedOrientation.Y, WeightedOrientation.Z, WeightedOrientation.W);
-			TargetOrientation.Normalize();
-			NewTM.SetRotation(TargetOrientation);
-		}
-
-		BodyInstance->SetBodyTransform(NewTM, ETeleportType::None);
+		ETeleportType TT = DetectTeleport(TM, KinematicTarget) ? ETeleportType::ResetPhysics : ETeleportType::None;
+		BodyInstance->SetBodyTransform(KinematicTarget, TT);
 	}
 	else
 	{
-		if (PositionWeight)
-		{
-			FVector TargetPosition = WeightedPosition / PositionWeight;
-			BodyModifier.MeshComponent->SetWorldLocation(TargetPosition, false, nullptr, ETeleportType::None);
-		}
-
-		if (OrientationWeight)
-		{
-			WeightedOrientation /= OrientationWeight;
-			FQuat TargetOrientation = FQuat(
-				WeightedOrientation.X, WeightedOrientation.Y, WeightedOrientation.Z, WeightedOrientation.W);
-			TargetOrientation.Normalize();
-			BodyModifier.MeshComponent->SetWorldRotation(TargetOrientation, false, nullptr, ETeleportType::None);
-		}
+		ETeleportType TT = DetectTeleport(TM, KinematicTarget) ? ETeleportType::ResetPhysics : ETeleportType::None;
+		BodyModifier.MeshComponent->SetWorldTransform(KinematicTarget, false, nullptr, TT);
 	}
 }
 
 //======================================================================================================================
-void FPhysicsControlComponentImpl::AddSkeletalMeshReference(USkeletalMeshComponent* InSkeletalMeshComponent)
+void FPhysicsControlComponentImpl::AddSkeletalMeshReferenceForCaching(
+	USkeletalMeshComponent* InSkeletalMeshComponent)
 {
 	check(InSkeletalMeshComponent);
 	for (TPair<TObjectPtr<USkeletalMeshComponent>, FCachedSkeletalMeshData>& CachedSkeletalMeshDataPair :
@@ -271,31 +207,89 @@ void FPhysicsControlComponentImpl::AddSkeletalMeshReference(USkeletalMeshCompone
 }
 
 //======================================================================================================================
-void FPhysicsControlComponentImpl::RemoveSkeletalMeshReference(USkeletalMeshComponent* InSkeletalMeshComponent)
+bool FPhysicsControlComponentImpl::RemoveSkeletalMeshReferenceForCaching(
+	USkeletalMeshComponent* InSkeletalMeshComponent)
 {
 	check(InSkeletalMeshComponent);
 	if (!InSkeletalMeshComponent)
 	{
 		UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Invalid skeletal mesh component"));
-		return;
+		return false;
 	}
 
 	for (auto It = CachedSkeletalMeshDatas.CreateIterator(); It; ++It)
 	{
 		TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = It.Key();
-		FCachedSkeletalMeshData& CachedSkeletalMeshData = It.Value();
+		FCachedSkeletalMeshData& Data = It.Value();
 		if (SkeletalMeshComponent == InSkeletalMeshComponent)
 		{
-			if (--CachedSkeletalMeshData.ReferenceCount == 0)
+			if (--Data.ReferenceCount == 0)
 			{
 				Owner->PrimaryComponentTick.RemovePrerequisite(
 					InSkeletalMeshComponent, InSkeletalMeshComponent->PrimaryComponentTick);
 				It.RemoveCurrent();
+				return true;
 			}
+			return false;
+		}
+	}
+	UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to remove skeletal mesh component reference for caching"));
+	return false;
+}
+
+//======================================================================================================================
+void FPhysicsControlComponentImpl::AddSkeletalMeshReferenceForModifier(
+	USkeletalMeshComponent* InSkeletalMeshComponent)
+{
+	check(InSkeletalMeshComponent);
+	for (TPair<TObjectPtr<USkeletalMeshComponent>, FModifiedSkeletalMeshData>& ModifiedSkeletalMeshDataPair :
+		ModifiedSkeletalMeshDatas)
+	{
+		TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = ModifiedSkeletalMeshDataPair.Key;
+		if (SkeletalMeshComponent == InSkeletalMeshComponent)
+		{
+			FModifiedSkeletalMeshData& ModifiedSkeletalMeshData = ModifiedSkeletalMeshDataPair.Value;
+			++ModifiedSkeletalMeshData.ReferenceCount;
 			return;
 		}
 	}
-	UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to remove skeletal mesh component dependency"));
+	FModifiedSkeletalMeshData& Data = ModifiedSkeletalMeshDatas.Add(InSkeletalMeshComponent);
+	Data.ReferenceCount = 1;
+	Data.bOriginalUpdateMeshWhenKinematic = InSkeletalMeshComponent->bUpdateMeshWhenKinematic;
+	Data.OriginalKinematicBonesUpdateType = InSkeletalMeshComponent->KinematicBonesUpdateType;
+	InSkeletalMeshComponent->bUpdateMeshWhenKinematic = true;
+	InSkeletalMeshComponent->KinematicBonesUpdateType = EKinematicBonesUpdateToPhysics::SkipAllBones;
+}
+
+//======================================================================================================================
+bool FPhysicsControlComponentImpl::RemoveSkeletalMeshReferenceForModifier(
+	USkeletalMeshComponent* InSkeletalMeshComponent)
+{
+	check(InSkeletalMeshComponent);
+	if (!InSkeletalMeshComponent)
+	{
+		UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Invalid skeletal mesh component"));
+		return false;
+	}
+
+	for (auto It = ModifiedSkeletalMeshDatas.CreateIterator(); It; ++It)
+	{
+		TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent = It.Key();
+		FModifiedSkeletalMeshData& Data = It.Value();
+		if (SkeletalMeshComponent == InSkeletalMeshComponent)
+		{
+			if (--Data.ReferenceCount == 0)
+			{
+				InSkeletalMeshComponent->bUpdateMeshWhenKinematic = Data.bOriginalUpdateMeshWhenKinematic;
+				InSkeletalMeshComponent->KinematicBonesUpdateType = Data.OriginalKinematicBonesUpdateType;
+				It.RemoveCurrent();
+				return true;
+			}
+			return false;
+		}
+	}
+	UE_LOG(LogPhysicsControlComponent, Warning, TEXT("Failed to remove skeletal mesh component reference for modifier"));
+	return false;
 }
 
 //======================================================================================================================
@@ -524,12 +518,12 @@ bool FPhysicsControlComponentImpl::ApplyControlStrengths(
 	FVector LinearDamping;
 	FVector MaxForce = Data.MaxForce * Multipliers.MaxForceMultiplier;
 
-	ConvertSpringParams(
+	UE::PhysicsControlComponent::ConvertStrengthToSpringParams(
 		AngularSpring, AngularDamping,
 		Data.AngularStrength * Multipliers.AngularStrengthMultiplier,
 		Data.AngularDampingRatio,
 		Data.AngularExtraDamping * Multipliers.AngularExtraDampingMultiplier);
-	ConvertSpringParams(
+	UE::PhysicsControlComponent::ConvertStrengthToSpringParams(
 		LinearSpring, LinearDamping,
 		Data.LinearStrength * Multipliers.LinearStrengthMultiplier,
 		Data.LinearDampingRatio,
@@ -578,10 +572,10 @@ void FPhysicsControlComponentImpl::ApplyControl(FPhysicsControlRecord& Record)
 		return;
 	}
 
-	FBodyInstance* ParentBodyInstance = GetBodyInstance(
+	FBodyInstance* ParentBodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
 		Record.PhysicsControl.ParentMeshComponent, Record.PhysicsControl.ParentBoneName);
 
-	FBodyInstance* ChildBodyInstance = GetBodyInstance(
+	FBodyInstance* ChildBodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
 		Record.PhysicsControl.ChildMeshComponent, Record.PhysicsControl.ChildBoneName);
 
 	if (!ParentBodyInstance && !ChildBodyInstance)

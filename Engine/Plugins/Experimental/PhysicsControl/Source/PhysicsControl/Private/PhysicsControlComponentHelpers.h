@@ -5,22 +5,46 @@
 #include "UObject/NameTypes.h"
 
 struct FBodyInstance;
+struct FPhysicsControlData;
+struct FConstraintProfileProperties;
+
 class UMeshComponent;
 class USkeletalMeshComponent;
+
+namespace UE
+{
+namespace PhysicsControlComponent
+{
 
 /** 
  * Converts strength/damping ratio/extra damping into spring stiffness/damping.
  */
-void ConvertSpringParams(
+void ConvertStrengthToSpringParams(
 	double& OutSpring, double& OutDamping, 
 	double InStrength, double InDampingRatio, double InExtraDamping);
 
 /** 
  * Converts strength/damping ratio/extra damping into spring stiffness/damping 
  */
-void ConvertSpringParams(
+void ConvertStrengthToSpringParams(
 	FVector& OutSpring, FVector& OutDamping, 
 	const FVector& InStrength, float InDampingRatio, const FVector& InExtraDamping);
+
+/**
+ * Converts spring/damping values into strength/damping ratio/extra damping. This tries to get
+ * as much damping into the damping ratio term as possible, without letting it go above 1.
+ */
+void ConvertSpringToStrengthParams(
+	double& OutStrength, double& OutDampingRatio, double& OutExtraDamping,
+	double InSpring, double InDamping);
+
+/**
+ * Converts the drive settings from the constraint profile into the control data strength/damping etc. 
+ * Approximations will be made if (a) the linear drive has different values for the x/y/z axes, or (b)
+ * the constraint profile is set to use twist/swing instead of slerp for the angular drive.
+ */
+void ConvertConstraintProfileToControlData(
+	FPhysicsControlData& OutControlData, const FConstraintProfileProperties& InProfileProperties);
 
 /** 
  * Attempts to find a BodyInstance from the mesh. If it is a static mesh the single body instance
@@ -35,3 +59,6 @@ FBodyInstance* GetBodyInstance(UMeshComponent* MeshComponent, const FName BoneNa
  * the root without finding a physical bone.
  */
 FName GetPhysicalParentBone(USkeletalMeshComponent* SkeletalMeshComponent, FName BoneName);
+
+} // namespace PhysicsControlComponent
+} // namespace UE

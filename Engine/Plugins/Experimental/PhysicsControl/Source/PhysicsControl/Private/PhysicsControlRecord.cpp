@@ -28,9 +28,9 @@ FConstraintInstance* FPhysicsControlRecord::CreateConstraint(UObject* Constraint
 	}
 	FConstraintInstance* ConstraintInstance = PhysicsControlState.ConstraintInstance.Get();
 
-	FBodyInstance* ParentBody = GetBodyInstance(
+	FBodyInstance* ParentBody = UE::PhysicsControlComponent::GetBodyInstance(
 		PhysicsControl.ParentMeshComponent, PhysicsControl.ParentBoneName);
-	FBodyInstance* ChildBody = GetBodyInstance(
+	FBodyInstance* ChildBody = UE::PhysicsControlComponent::GetBodyInstance(
 		PhysicsControl.ChildMeshComponent, PhysicsControl.ChildBoneName);
 
 	if (PhysicsControl.ParentMeshComponent && !PhysicsControl.ParentBoneName.IsNone() && !ParentBody)
@@ -83,7 +83,7 @@ void FPhysicsControlRecord::UpdateConstraintControlPoint()
 //======================================================================================================================
 void FPhysicsControlRecord::ResetControlPoint()
 {
-	FBodyInstance* ChildBodyInstance = GetBodyInstance(
+	FBodyInstance* ChildBodyInstance = UE::PhysicsControlComponent::GetBodyInstance(
 		PhysicsControl.ChildMeshComponent, PhysicsControl.ChildBoneName);
 
 	PhysicsControl.ControlSettings.ControlPoint = ChildBodyInstance

@@ -54,6 +54,9 @@ struct PHYSICSCONTROL_API FPhysicsControlLimbBones
 
 	/** The names of the bones in the limb */
 	TArray<FName> BoneNames;
+
+	/** Indicates if the first bone in this limb was included due to "IncludeParentBone". */
+	bool bFirstBoneIsAdditional = false;
 };
 
 /**

@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "UObject/ObjectMacros.h"
 #include "PhysicsControlData.h"
+#include "Components/SkeletalMeshComponent.h"
 
 struct FConstraintInstance;
 struct FBodyInstance;
@@ -31,7 +31,7 @@ struct FPhysicsControlState
 /**
  * There will be a PhysicsControlRecord created at runtime for every Control that has been created
  */
-struct FPhysicsControlRecord : public TSharedFromThis<FPhysicsControlRecord>
+struct FPhysicsControlRecord
 {
 	FPhysicsControlRecord(const FPhysicsControl& InControl)
 		: PhysicsControl(InControl)
@@ -60,28 +60,79 @@ struct FPhysicsControlRecord : public TSharedFromThis<FPhysicsControlRecord>
 /**
  * There will be a PhysicsBodyModifier created at runtime for every BodyInstance involved in the component
  */
-struct FPhysicsBodyModifier : public TSharedFromThis<FPhysicsBodyModifier>
+struct FPhysicsBodyModifier
 {
 	FPhysicsBodyModifier(
 		TObjectPtr<UMeshComponent> InMeshComponent, 
 		const FName&               InBoneName, 
 		EPhysicsMovementType       InMovementType, 
-		float                      InGravityMultiplier)
-	: MeshComponent(InMeshComponent), BoneName(InBoneName)
-	, MovementType(InMovementType), GravityMultiplier(InGravityMultiplier)
-	, bPendingDestroy(false)
+		float                      InGravityMultiplier,
+		bool                       InUseSkeletalAnimation)
+		: MeshComponent(InMeshComponent)
+		, BoneName(InBoneName)
+		, MovementType(InMovementType)
+		, GravityMultiplier(InGravityMultiplier)
+		, KinematicTargetPosition(FVector::ZeroVector)
+		, KinematicTargetOrientation(FQuat::Identity)
+		, bUseSkeletalAnimation(InUseSkeletalAnimation)
+		, bPendingDestroy(false)
 	{}
 
 	/**  The mesh that will be modified. */
 	TObjectPtr<UMeshComponent> MeshComponent;
 
 	/** The name of the skeletal mesh bone or the name of the static mesh body that will be modified. */
-	FName                      BoneName;
+	FName BoneName;
 
-	EPhysicsMovementType       MovementType;
-	float                      GravityMultiplier;
+	/** How the associated body should move. */
+	EPhysicsMovementType MovementType;
 
-	bool bPendingDestroy;
+	/**
+	 * Multiplier for gravity applied to the body. Note that if the body itself has gravity disabled, then
+	 * setting this to 1 will not enable gravity.
+	 */
+	float GravityMultiplier;
+
+	/** 
+	 * The target position when kinematic. Note that this is applied on top of any animation 
+	 * target if bUseSkeletalAnimation is set. 
+	 */
+	FVector KinematicTargetPosition;
+
+	/**
+	 * The target orientation when kinematic. Note that this is applied on top of any animation
+	 * target if bUseSkeletalAnimation is set.
+	 */
+	FQuat KinematicTargetOrientation;
+
+	/** If true then the target will be applied on top of the skeletal animation (if there is any) */
+	uint8 bUseSkeletalAnimation:1;
+
+	/** Indicates if this should be deleted on the next tick */
+	uint8 bPendingDestroy:1;
+};
+
+/**
+ * Used internally/only at runtime to track when a SkeletalMeshComponent is being controlled through
+ * a modifier, and to restore settings when that stops.
+ */
+struct FModifiedSkeletalMeshData
+{
+public: 
+	FModifiedSkeletalMeshData() : ReferenceCount(0) {}
+
+public:
+
+	/** The original setting for restoration when we're deleted */
+	uint8 bOriginalUpdateMeshWhenKinematic : 1;
+
+	/** The original setting for restoration when we're deleted */
+	EKinematicBonesUpdateToPhysics::Type OriginalKinematicBonesUpdateType;
+
+	/**
+	 * Track when skeletal meshes are going to be used so this entry can be removed
+	 */
+	int32 ReferenceCount;
 };
 
 /**

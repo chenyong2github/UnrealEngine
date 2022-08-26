@@ -15,10 +15,11 @@ class UMeshComponent;
 UENUM(BlueprintType)
 enum class EPhysicsMovementType : uint8
 {
-	// Default means that the simulation mode and transform won't be changed when set in a Body Modifier
-	Default,
-	// Kinematic means that the object won't be simulated, but will be moved to the average of any
-	// world-space control targets (if there are any), weighted by strength.
+	// Static means that the object won't be simulated, and it won't be moved according to the
+	// kinematic target set in the Body Modifier (though something else might move it)
+	Static,
+	// Kinematic means that the object won't be simulated, but will be moved according to the
+	// kinematic target set in the Body Modifier.
 	Kinematic,
 	// Simulated means that the object will be controlled by the physics solver
 	Simulated

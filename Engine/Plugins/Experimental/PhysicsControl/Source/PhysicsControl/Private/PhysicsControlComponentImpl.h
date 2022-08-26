@@ -59,12 +59,24 @@ public:
 	/**
 	 * Starts caching skeletal mesh poses, and registers for a tick pre-requisite
 	 */
-	void AddSkeletalMeshReference(USkeletalMeshComponent* SkeletalMeshComponent);
+	void AddSkeletalMeshReferenceForCaching(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	/**
-	 * Stops caching skeletal mesh poses (if this is the last one), and deregisters for a tick pre-requisite
+	 * Stops caching skeletal mesh poses (if this is the last one), and deregisters for a tick pre-requisite.
+	 * Returns true if this was the last reference, false otherwise.
 	 */
-	void RemoveSkeletalMeshReference(USkeletalMeshComponent* SkeletalMeshComponent);
+	bool RemoveSkeletalMeshReferenceForCaching(USkeletalMeshComponent* SkeletalMeshComponent);
+
+	/**
+	 * Records that a modifier is working with the skeletal mesh and stores original data if necessary
+	 */
+	void AddSkeletalMeshReferenceForModifier(USkeletalMeshComponent* SkeletalMeshComponent);
+
+	/**
+	 * Records that a modifier has stopped working with the skeletal mesh and restores original data if necessary.
+	 * Returns true if this was the last reference, false otherwise.
+	 */
+	bool RemoveSkeletalMeshReferenceForModifier(USkeletalMeshComponent* SkeletalMeshComponent);
 
 	/** Update the constraint based on the record. */
 	void ApplyControl(FPhysicsControlRecord& Record);
@@ -107,8 +119,11 @@ public:
 	// beginning of each tick.
 	TMap<TObjectPtr<USkeletalMeshComponent>, FCachedSkeletalMeshData> CachedSkeletalMeshDatas;
 
-	TMap<FName, FPhysicsControlRecord> PhysicsControlRecords;
+	// Track which skeletons have been affected by a body modifier - some settings get overridden
+	// and then need to be restored when the last body modifier is destroyed.
+	TMap<TObjectPtr<USkeletalMeshComponent>, FModifiedSkeletalMeshData> ModifiedSkeletalMeshDatas;
 
+	TMap<FName, FPhysicsControlRecord> PhysicsControlRecords;
 	TMap<FName, FPhysicsBodyModifier> PhysicsBodyModifiers;
 
 private:
