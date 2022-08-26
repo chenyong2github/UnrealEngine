@@ -13,7 +13,6 @@
 #include "UnrealEngine.h"
 #include "RenderGraphEvent.h"
 
-
 static TAutoConsoleVariable<float> CVarDynamicResMinSP(
 	TEXT("r.DynamicRes.MinScreenPercentage"),
 	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultMinResolutionFraction),
@@ -85,6 +84,15 @@ static TAutoConsoleVariable<int32> CVarTimingMeasureModel(
 	TEXT(" 0: Same as stat unit (default);\n 1: Timestamp queries."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarUpperBoundQuantization(
+	TEXT("r.DynamicRes.UpperBoundQuantization"),
+	DynamicRenderScaling::FHeuristicSettings::kDefaultUpperBoundQuantization,
+	TEXT("Quantization step count to use for upper bound screen percentage.\n")
+	TEXT("If non-zero, rendertargets will be resized based on the dynamic resolution fraction, saving GPU time during clears and resolves.\n")
+	TEXT("Only recommended for use with the transient allocator (on supported platforms) with a large transient texture cache (e.g RHI.TransientAllocator.TextureCacheSize=512)"),
+	ECVF_RenderThreadSafe | ECVF_Default);
+
+
 
 DynamicRenderScaling::FHeuristicSettings GetPrimaryDynamicResolutionSettings()
 {
@@ -92,6 +100,7 @@ DynamicRenderScaling::FHeuristicSettings GetPrimaryDynamicResolutionSettings()
 	BudgetSetting.Model = DynamicRenderScaling::EHeuristicModel::Quadratic;
 	BudgetSetting.MinResolutionFraction      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarDynamicResMinSP);
 	BudgetSetting.MaxResolutionFraction      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarDynamicResMaxSP);
+	BudgetSetting.UpperBoundQuantization     = CVarUpperBoundQuantization.GetValueOnAnyThread();
 	// BudgetSetting.BudgetMs depends on the cost of other buckets.
 	BudgetSetting.ChangeThreshold            = DynamicRenderScaling::GetPercentageCVarToFraction(CVarChangeThreshold);
 	BudgetSetting.IncreaseAmortizationFactor = CVarIncreaseAmortizationFactor.GetValueOnAnyThread();
@@ -140,6 +149,7 @@ void FDynamicResolutionHeuristicProxy::ResetInternal()
 
 	NumberOfFramesSinceScreenPercentageChange = 0;
 	CurrentFrameResolutionFractions.SetAll(1.0f);
+	CurrentFrameMaxResolutionFractions.SetAll(1.0f);
 
 	// Ignore previous frame timings.
 	IgnoreFrameRemainingCount = 1;
@@ -504,18 +514,41 @@ void FDynamicResolutionHeuristicProxy::RefreshCurentFrameResolutionFraction_Rend
 	{
 		NumberOfFramesSinceScreenPercentageChange++;
 	}
-}
-
-// static
-DynamicRenderScaling::TMap<float> FDynamicResolutionHeuristicProxy::GetResolutionFractionUpperBounds()
-{
-	DynamicRenderScaling::TMap<float> MaxResolutionFractions;
+	
+	// Compute max resolution for each budget by quantizing the new resolution fraction (falls back to the MaxResolution setting if BudgetSetting.UpperBoundQuantization==0)
+	DynamicRenderScaling::TMap<float> NewMaxResolutionFractions;
 	for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
 	{
 		const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
-		MaxResolutionFractions[Budget] = Budget.GetSettings().MaxResolutionFraction;
+		DynamicRenderScaling::FHeuristicSettings BudgetSettings = Budget.GetSettings();
+
+		if (BudgetSettings.IsEnabled() || Budget == GDynamicPrimaryResolutionFraction)
+		{
+			float NewMaxResolutionFraction = BudgetSettings.MaxResolutionFraction;
+			if (BudgetSettings.UpperBoundQuantization > 0)
+			{
+				float CurrentResolutionFraction = NewResolutionFractions[Budget];
+				float AvailableRange = BudgetSettings.MaxResolutionFraction - BudgetSettings.MinResolutionFraction;
+				float QuantizationStepSize = AvailableRange / float(BudgetSettings.UpperBoundQuantization);
+				NewMaxResolutionFraction = FMath::CeilToFloat(CurrentResolutionFraction / QuantizationStepSize) * QuantizationStepSize;
+				NewMaxResolutionFraction = FMath::Min(NewMaxResolutionFraction, BudgetSettings.MaxResolutionFraction);
+			}
+			NewMaxResolutionFractions[Budget] = NewMaxResolutionFraction;
+		}
+		else
+		{
+			NewMaxResolutionFractions[Budget] = 1.0f;
+		}
 	}
-	return MaxResolutionFractions;
+
+	CurrentFrameMaxResolutionFractions = NewMaxResolutionFractions;
+}
+
+// static
+DynamicRenderScaling::TMap<float> FDynamicResolutionHeuristicProxy::GetResolutionFractionUpperBounds() const
+{
+	check(IsInGameThread() || IsInRenderingThread());
+	return CurrentFrameMaxResolutionFractions;
 }
 
 

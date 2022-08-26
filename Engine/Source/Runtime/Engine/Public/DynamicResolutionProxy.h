@@ -50,7 +50,7 @@ public:
 
 
 	/** Returns the view fraction upper bound. */
-	static DynamicRenderScaling::TMap<float> GetResolutionFractionUpperBounds();
+	DynamicRenderScaling::TMap<float> GetResolutionFractionUpperBounds() const;
 
 	/** Creates a default dynamic resolution state using this proxy that queries GPU timing from the RHI. */
 	static TSharedPtr< class IDynamicResolutionState > CreateDefaultState();
@@ -107,6 +107,7 @@ private:
 
 	// Current frame's view fraction.
 	DynamicRenderScaling::TMap<float> CurrentFrameResolutionFractions;
+	DynamicRenderScaling::TMap<float> CurrentFrameMaxResolutionFractions;
 	DynamicRenderScaling::TMap<int32> BudgetHistorySizes;
 
 	// Frame counter to allocate unique ID for CommitPreviousFrameGPUTimings_RenderThread().

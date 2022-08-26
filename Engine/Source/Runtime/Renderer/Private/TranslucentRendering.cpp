@@ -73,6 +73,15 @@ static TAutoConsoleVariable<float> CVarTranslucencyChangeThreshold(
 	TEXT("Minimal increase percentage threshold to alow when changing resolution of translucency."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarTranslucencyUpperBoundQuantization(
+	TEXT("r.Translucency.DynamicRes.UpperBoundQuantization"),
+	DynamicRenderScaling::FHeuristicSettings::kDefaultUpperBoundQuantization,
+	TEXT("Quantization step count to use for upper bound screen percentage.\n")
+	TEXT("If non-zero, rendertargets will be resized based on the dynamic resolution fraction, saving GPU time during clears and resolves.\n")
+	TEXT("Only recommended for use with the transient allocator (on supported platforms) with a large transient texture cache (e.g RHI.TransientAllocator.TextureCacheSize=512)"),
+	ECVF_RenderThreadSafe | ECVF_Default);
+
+
 int32 GSeparateTranslucencyUpsampleMode = 1;
 static FAutoConsoleVariableRef CVarSeparateTranslucencyUpsampleMode(
 	TEXT("r.SeparateTranslucencyUpsampleMode"),
@@ -92,7 +101,6 @@ static TAutoConsoleVariable<int32> CVarParallelTranslucency(
 	TEXT("Toggles parallel translucency rendering. Parallel rendering must be enabled for this to have an effect."),
 	ECVF_RenderThreadSafe);
 
-
 DynamicRenderScaling::FHeuristicSettings GetDynamicTranslucencyResolutionSettings()
 {
 	DynamicRenderScaling::FHeuristicSettings BucketSetting;
@@ -103,6 +111,7 @@ DynamicRenderScaling::FHeuristicSettings GetDynamicTranslucencyResolutionSetting
 	BucketSetting.BudgetMs              = CVarTranslucencyTimeBudget.GetValueOnAnyThread();
 	BucketSetting.ChangeThreshold       = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyChangeThreshold);
 	BucketSetting.TargetedHeadRoom      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyTargetedHeadRoomPercentage);
+	BucketSetting.UpperBoundQuantization = CVarTranslucencyUpperBoundQuantization.GetValueOnAnyThread();
 	return BucketSetting;
 }
 

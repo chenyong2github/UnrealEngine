@@ -38,6 +38,7 @@ struct RENDERCORE_API FHeuristicSettings final
 	static constexpr float kDefaultTargetedHeadRoom = 0.05f;
 	static constexpr float kDefaultIncreaseAmortizationFactor = 0.9f;
 	static constexpr int32 kDefaultFractionQuantization = 0;
+	static constexpr int32 kDefaultUpperBoundQuantization = 0;
 
 
 	EHeuristicModel Model = EHeuristicModel::Unknown;
@@ -50,7 +51,8 @@ struct RENDERCORE_API FHeuristicSettings final
 	float TargetedHeadRoom           = kDefaultTargetedHeadRoom;
 	float IncreaseAmortizationFactor = kDefaultIncreaseAmortizationFactor;
 	int32 FractionQuantization       = kDefaultFractionQuantization;
-	
+	int32 UpperBoundQuantization     = kDefaultUpperBoundQuantization;
+
 
 	/** Returns whether the heuristic is enabled or not. */
 	bool IsEnabled() const;
