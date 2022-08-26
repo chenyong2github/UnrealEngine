@@ -3,4 +3,4 @@
 #include "WaveformTransformationsWidgetsModule.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE(FWaveformTransformationsWidgetsModule, WaveformTransformations);
+IMPLEMENT_MODULE(FWaveformTransformationsWidgetsModule, WaveformTransformationsWidgets);
