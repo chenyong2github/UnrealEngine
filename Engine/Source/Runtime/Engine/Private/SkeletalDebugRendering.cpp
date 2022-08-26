@@ -335,6 +335,11 @@ void DrawBones(
 	for (int32 Index = 0; Index < RequiredBones.Num(); ++Index)
 	{
 		const int32 BoneIndex = RequiredBones[Index];
+		if ((!BoneColors.IsEmpty() && BoneIndex >= BoneColors.Num()) ||
+			BoneIndex >= WorldTransforms.Num())
+		{
+			continue;
+		}
 
 		// skips bones that should not be drawn
 		const bool bDoDraw = DrawConfig.bForceDraw || DrawConfig.BoneDrawMode == EBoneDrawMode::All || BonesToDraw[BoneIndex];
@@ -360,6 +365,10 @@ void DrawBones(
 		for (int32 ChildIndex = 0; ChildIndex < RefSkeleton.GetNum(); ++ChildIndex)
 		{
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(ChildIndex);
+			if (ParentIndex >= WorldTransforms.Num())
+			{
+				continue;
+			}
 			if (ParentIndex == BoneIndex && RequiredBones.Contains(ChildIndex))
 			{
 				ChildPositions.Add(WorldTransforms[ChildIndex].GetLocation());
