@@ -2,22 +2,24 @@
 
 #pragma once
 
+#include "DatasmithCore.h"
+
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "DatasmithCore.h"
 #include "MeshDescription.h"
 #include "Misc/SecureHash.h"
+#include "DatasmithCloth.h"
 
 class FArchive;
 
 
-struct FDatasmithMeshModels
+struct DATASMITHCORE_API FDatasmithMeshModels
 {
 	FString MeshName;
 	bool bIsCollisionMesh = false;
 	TArray<FMeshDescription> SourceModels;
 
-	DATASMITHCORE_API friend void operator << (FArchive& Ar, FDatasmithMeshModels& Models);
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithMeshModels& Models);
 };
 
 struct DATASMITHCORE_API FDatasmithPackedMeshes
@@ -28,5 +30,22 @@ struct DATASMITHCORE_API FDatasmithPackedMeshes
 };
 
 DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath);
-DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path);
+
+
+
+struct DATASMITHCORE_API FDatasmithClothInfo
+{
+	FDatasmithCloth Cloth;
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithClothInfo& Info);
+};
+
+struct DATASMITHCORE_API FDatasmithPackedCloths
+{
+	TArray<FDatasmithClothInfo> ClothInfos;
+
+	FMD5Hash Serialize(FArchive& Ar, bool bSaveCompressed=true);
+};
+
+
+DATASMITHCORE_API FDatasmithPackedCloths GetDatasmithClothFromFile(const FString& Path);
 

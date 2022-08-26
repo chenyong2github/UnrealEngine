@@ -42,6 +42,8 @@ public:
 	 */
 	bool ExportToUObject(TSharedPtr<IDatasmithMeshElement>& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV);
 
+	bool ExportCloth(class FDatasmithCloth& Cloth, TSharedPtr<class IDatasmithClothElement>& ClothElement, const TCHAR* FilePath, const TCHAR* AssetsOutputPath) const;
+
 	/**
 	 * @return The error that happened during the last export, if any
 	 */
@@ -49,5 +51,4 @@ public:
 
 private:
 	TUniquePtr<class FDatasmithMeshExporterImpl> Impl;
-	bool bAllowOldSerialization = false;
 };

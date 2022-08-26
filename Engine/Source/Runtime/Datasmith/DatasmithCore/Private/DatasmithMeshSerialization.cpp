@@ -10,11 +10,24 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
-void operator<<(FArchive& Ar, FDatasmithMeshModels& Models)
+FArchive& operator<<(FArchive& Ar, FDatasmithMeshModels& Models)
 {
 	Ar << Models.MeshName;
 	Ar << Models.bIsCollisionMesh;
 	Ar << Models.SourceModels;
+
+	return Ar;
+}
+
+
+FArchive& operator<<(FArchive& Ar, FDatasmithClothInfo& Info)
+{
+	uint8 Version = 0;
+	Ar << Version;
+
+	Ar << Info.Cloth;
+
+	return Ar;
 }
 
 
@@ -151,9 +164,10 @@ FMD5Hash FDatasmithPackedMeshes::Serialize(FArchive& Ar, bool bCompressed)
 	// | CustomVersions  | v0 | internal structures use them, we have to pass them along
 	// | Mesh buffer     | v0 | may be compressed, the actual payload
 
-	FString Guard = Ar.IsLoading() ? TEXT("") : TEXT("FDatasmithPackedMeshes");
+	const TCHAR* StaticGuard = TEXT("FDatasmithPackedMeshes");
+	FString Guard = Ar.IsLoading() ? TEXT("") : StaticGuard;
 	Ar << Guard;
-	if (!ensure(Guard == TEXT("FDatasmithPackedMeshes")))
+	if (!ensure(Guard == StaticGuard))
 	{
 		Ar.SetError();
 		return {};
@@ -350,24 +364,110 @@ FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath)
 	return Result;
 }
 
-FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path)
-{
-	// #ue_ds_cloth_note: asset serialization
-	FDatasmithPackedMeshes Result;
 
-	TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(*Path) );
+FMD5Hash FDatasmithPackedCloths::Serialize(FArchive& Ar, bool bSaveCompressed)
+{
+	using namespace DatasmithMeshSerializationImpl;
+	// structure          from
+	// | Guard           | v0 | constant string, prevents loading of invalid buffers
+	// | SerialVersion   | v0 | this structure versioning
+	// | BufferType      | v0 | describe the payload
+	// | UEVer           | v0 | global engine version
+	// | LicenseeUEVer   | v0 |
+	// | Payload buffer  | v0 | may be compressed
+
+	const TCHAR* StaticGuard = TEXT("FDatasmithPackedCloths");
+	FString Guard = Ar.IsLoading() ? TEXT("") : StaticGuard;
+	Ar << Guard;
+	if (!ensure(Guard == StaticGuard))
+	{
+		Ar.SetError();
+		return {};
+	}
+
+	uint32 SerialVersion = 0;
+	Ar << SerialVersion;
+
+	enum EBufferType{ Cloths, CompressedCloth };
+	uint8 BufferType = bSaveCompressed ? CompressedCloth : Cloths;
+	Ar << BufferType;
+
+	FMD5Hash OutHash;
+	if (Ar.IsLoading())
+	{
+		FPackageFileVersion LoadingUEVer;
+		Ar << LoadingUEVer;
+		Ar.SetUEVer(LoadingUEVer);
+
+		int32 LoadingLicenseeUEVer = 0;
+		Ar << LoadingLicenseeUEVer;
+		Ar.SetLicenseeUEVer(LoadingLicenseeUEVer);
+
+		FCustomVersionContainer CustomVersions;
+		CustomVersions.Serialize(Ar);
+
+		// content
+		TArray<uint8> Bytes;
+		Ar << Bytes;
+		if (BufferType == CompressedCloth)
+		{
+			DecompressInline(Bytes);
+		}
+
+		FMemoryReader BytesReader(Bytes, true);
+		BytesReader.SetLicenseeUEVer(Ar.LicenseeUEVer());
+		BytesReader.SetUEVer(Ar.UEVer());
+		BytesReader.SetCustomVersions(CustomVersions);
+		BytesReader << ClothInfos;
+	}
+	else
+	{
+		FPackageFileVersion SavingUEVer = Ar.UEVer();
+		Ar << SavingUEVer;
+
+		int32 SavingLicenseeUEVer = Ar.LicenseeUEVer();
+		Ar << SavingLicenseeUEVer;
+
+		{
+			TArray<uint8> Bytes;
+			FMemoryWriter BytesWriter(Bytes, true);
+			BytesWriter << ClothInfos;
+			if (BufferType == CompressedCloth)
+			{
+				CompressInline(Bytes, ECompressionMethod::ECM_Default);
+			}
+
+			FCustomVersionContainer MeshesCustomVersions = BytesWriter.GetCustomVersions();
+			MeshesCustomVersions.Serialize(Ar);
+
+			Ar << Bytes;
+
+			FMD5 Md5;
+			Md5.Update(Bytes.GetData(), Bytes.Num());
+			OutHash.Set(Md5);
+		}
+	}
+
+	return OutHash;
+}
+
+
+FDatasmithPackedCloths GetDatasmithClothFromFile(const FString& Path)
+{
+	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileReader(*Path));
 	if ( !Archive.IsValid() )
 	{
 		UE_LOG(LogDatasmith, Warning, TEXT("Cannot read file %s"), *Path);
-		return Result;
+		return {};
 	}
 
+	FDatasmithPackedCloths Result;
 	Result.Serialize(*Archive);
 
 	if (Archive->IsError())
 	{
-		Result = FDatasmithPackedMeshes{};
 		UE_LOG(LogDatasmith, Warning, TEXT("Failed to read cloth from %s"), *Path);
+		return {};
 	}
 
 	return Result;

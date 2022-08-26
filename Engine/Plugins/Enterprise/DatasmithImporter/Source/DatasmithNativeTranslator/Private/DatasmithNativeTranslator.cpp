@@ -142,9 +142,6 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 				OutMeshPayload.LodMeshes.Add(MoveTemp(SourceModel));
 			}
 		}
-
-		// Do not wait until garbage collection to free memory of the models
-		DatasmithMesh.SourceModels.Reset();
 	}
 
 	return OutMeshPayload.LodMeshes.Num() != 0;
@@ -159,6 +156,22 @@ bool FDatasmithNativeTranslator::LoadLevelSequence(const TSharedRef<IDatasmithLe
 	{
 		return AnimSerializer.Deserialize(LevelSequenceElement, LevelSequenceElement->GetFile());
 	}
+	return false;
+}
+
+bool FDatasmithNativeTranslator::LoadCloth(const TSharedRef<IDatasmithClothElement> ClothElement, FDatasmithClothElementPayload& OutClothPayload)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithNativeTranslator::LoadCloth);
+
+	FString FilePath = ClothElement->GetFile();
+	FDatasmithPackedCloths Pack = GetDatasmithClothFromFile(FilePath);
+
+	if (Pack.ClothInfos.IsValidIndex(0))
+	{
+		OutClothPayload.Cloth = MoveTemp(Pack.ClothInfos[0].Cloth);
+		return true;
+	}
+
 	return false;
 }
 

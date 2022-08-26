@@ -3,6 +3,7 @@
 #include "DatasmithMeshExporter.h"
 
 #include "DatasmithCore.h"
+#include "DatasmithCloth.h"
 #include "DatasmithExporterManager.h"
 #include "DatasmithMesh.h"
 #include "DatasmithMeshUObject.h"
@@ -156,7 +157,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithMeshExporter::ExportToUObject(const 
 	FString FullPath(GetMeshFilePath(Filepath, Filename));
 
 	TSharedPtr<IDatasmithMeshElement> ExportedMeshElement;
-	FDatasmithMeshExporterOptions ExportOptions(MoveTemp(FullPath), Mesh, LightmapUV, CollisionMesh);
+	FDatasmithMeshExporterOptions ExportOptions(FullPath, Mesh, LightmapUV, CollisionMesh);
 	Impl->DoExport(ExportedMeshElement, ExportOptions);
 
 	return ExportedMeshElement;
@@ -171,6 +172,34 @@ bool FDatasmithMeshExporter::ExportToUObject(TSharedPtr<IDatasmithMeshElement>& 
 	return Impl->DoExport(MeshElement, ExportOptions);
 }
 
+
+bool FDatasmithMeshExporter::ExportCloth(FDatasmithCloth& Cloth, TSharedPtr<IDatasmithClothElement>& ClothElement, const TCHAR* FilePath, const TCHAR* AssetsOutputPath) const
+{
+	FString Path = FPaths::SetExtension(FilePath, TEXT(".udscloth"));
+	FPaths::NormalizeFilename(Path);
+	FString RelativeFilePath = Path;
+	if (AssetsOutputPath)
+	{
+		FString Tmp(AssetsOutputPath);
+		Tmp += TEXT('/');
+		FPaths::MakePathRelativeTo(RelativeFilePath, *Tmp);
+	}
+	ClothElement->SetFile(*RelativeFilePath);
+
+	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileWriter(*Path));
+	if (!Archive.IsValid())
+	{
+		Impl->LastError = FString::Printf(TEXT("Failed writing to file %s"), *Path);
+		return false;
+	}
+
+	FDatasmithPackedCloths Pack;
+	FDatasmithClothInfo& Info = Pack.ClothInfos.AddDefaulted_GetRef();
+	Info.Cloth = Cloth;
+	FMD5Hash OutHash = Pack.Serialize(*Archive);
+
+	return true;
+}
 
 FString FDatasmithMeshExporter::GetLastError() const
 {

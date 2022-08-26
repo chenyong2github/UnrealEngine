@@ -11,6 +11,8 @@
 
 class FDatasmithMesh;
 
+
+
 class DATASMITHCORE_API FDatasmithClothPattern
 {
 public:
@@ -20,6 +22,7 @@ public:
 
 public:
 	bool IsValid() { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0 && SimTriangleIndices.Num(); }
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithClothPattern& Pattern);
 };
 
 
@@ -28,27 +31,30 @@ class FDatasmithClothPresetProperty
 public:
 	FName Name;
 	double Value;
+
+public:
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithClothPresetProperty& Property);
 };
+
 
 class DATASMITHCORE_API FDatasmithClothPresetPropertySet
 {
 public:
 	FString SetName;
 	TArray<FDatasmithClothPresetProperty> Properties;
+
+public:
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithClothPresetPropertySet& PropertySet);
 };
 
-/*
- * Structure of a Cloth
- * - One Thin Mesh:
- * - base for physics simulation
- *
- * - One Thick Mesh
- * - aka. render mesh
- */
+
 class DATASMITHCORE_API FDatasmithCloth
 {
 public:
 	TArray<FDatasmithClothPattern> Patterns;
 	TArray<FDatasmithClothPresetPropertySet> PropertySets;
+
+public:
+	friend FArchive& operator<<(FArchive& Ar, FDatasmithCloth& Cloth);
 };
 
