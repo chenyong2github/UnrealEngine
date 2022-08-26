@@ -35,17 +35,14 @@ enum ERootParameterKeys
 	RPK_RootParameterKeyCount,
 };
 
+class FD3D12RootSignature;
+
 class FD3D12RootSignatureDesc
 {
 public:
 	explicit FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShaderState& QBSS, const D3D12_RESOURCE_BINDING_TIER ResourceBindingTier);
 
 	inline const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetDesc() const { return RootDesc; }
-
-	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticGraphicsRootSignatureDesc();
-	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticComputeRootSignatureDesc();
-	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticRayTracingGlobalRootSignatureDesc();
-	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticRayTracingLocalRootSignatureDesc();
 
 	static constexpr uint32 MaxRootParameters = 32;	// Arbitrary max, increase as needed.
 
@@ -98,6 +95,11 @@ public:
 	void Init(const FD3D12QuantizedBoundShaderState& InQBSS);
 	void Init(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& InDesc, uint32 BindingSpace = 0);
 	void Init(ID3DBlob* const InBlob, uint32 BindingSpace = 0);
+
+	void InitStaticGraphicsRootSignature(bool bBindlessResources, bool bBindlessSamplers);
+	void InitStaticComputeRootSignatureDesc(bool bBindlessResources, bool bBindlessSamplers);
+	void InitStaticRayTracingGlobalRootSignatureDesc(bool bBindlessResources, bool bBindlessSamplers);
+	void InitStaticRayTracingLocalRootSignatureDesc();
 
 	ID3D12RootSignature* GetRootSignature() const { return RootSignature.GetReference(); }
 	ID3DBlob* GetRootSignatureBlob() const { return RootSignatureBlob.GetReference(); }

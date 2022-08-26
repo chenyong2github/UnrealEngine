@@ -176,12 +176,9 @@ void FD3D12PipelineStateCache::OnPSOCreated(FD3D12PipelineState* PipelineState, 
 	}
 }
 
-void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* GraphicsRootSignature, ID3D12RootSignature* ComputeRootSignature)
+void FD3D12PipelineStateCache::RebuildFromDiskCache()
 {
 	FRWScopeLock Lock(DiskCachesCS, SLT_Write);
-
-	UNREFERENCED_PARAMETER(GraphicsRootSignature);
-	UNREFERENCED_PARAMETER(ComputeRootSignature);
 
 	if (IsInErrorState())
 	{

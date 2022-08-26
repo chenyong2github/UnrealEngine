@@ -222,32 +222,20 @@ public:
 #if USE_STATIC_ROOT_SIGNATURE
 	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature()
 	{
-		static const FD3D12RootSignature StaticGraphicsRootSignature(this, FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc());
 		return &StaticGraphicsRootSignature;
 	}
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature()
 	{
-		static const FD3D12RootSignature StaticComputeRootSignature(this, FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc());
 		return &StaticComputeRootSignature;
 	}
 	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingGlobalRootSignature()
 	{
-		static const FD3D12RootSignature StaticRootSignature(this, FD3D12RootSignatureDesc::GetStaticRayTracingGlobalRootSignatureDesc(), 1 /*RAY_TRACING_REGISTER_SPACE_GLOBAL*/);
-		return &StaticRootSignature;
+		return &StaticRayTracingGlobalRootSignature;
 	}
 	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingLocalRootSignature()
 	{
-		static const FD3D12RootSignature StaticRootSignature(this, FD3D12RootSignatureDesc::GetStaticRayTracingLocalRootSignatureDesc(), 0 /*RAY_TRACING_REGISTER_SPACE_LOCAL*/);
-		return &StaticRootSignature;
+		return &StaticRayTracingLocalRootSignature;
 	}
-#else // USE_STATIC_ROOT_SIGNATURE
-	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature() { return nullptr; }
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-	FORCEINLINE const FD3D12RootSignature* GetStaticMeshRootSignature() { return nullptr; }
-#endif
-	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature() { return nullptr; }
-	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingGlobalRootSignature() { return nullptr; }
-	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingLocalRootSignature() { return nullptr; }
 #endif // USE_STATIC_ROOT_SIGNATURE
 
 	FORCEINLINE FD3D12RootSignature* GetRootSignature(const FD3D12QuantizedBoundShaderState& QBSS) 
@@ -635,4 +623,11 @@ protected:
 	FD3D12Device* Devices[MAX_NUM_GPUS];
 
 	uint32 DebugFlags;
+
+#if USE_STATIC_ROOT_SIGNATURE
+	FD3D12RootSignature StaticGraphicsRootSignature;
+	FD3D12RootSignature StaticComputeRootSignature;
+	FD3D12RootSignature StaticRayTracingGlobalRootSignature;
+	FD3D12RootSignature StaticRayTracingLocalRootSignature;
+#endif
 };

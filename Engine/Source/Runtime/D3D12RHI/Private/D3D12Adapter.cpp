@@ -274,6 +274,12 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, DefaultAsyncComputeContextRedirector(this, ED3D12CommandQueueType::Async, true)
 	, FrameCounter(0)
 	, DebugFlags(0)
+#if USE_STATIC_ROOT_SIGNATURE
+	, StaticGraphicsRootSignature(this)
+	, StaticComputeRootSignature(this)
+	, StaticRayTracingGlobalRootSignature(this)
+	, StaticRayTracingLocalRootSignature(this)
+#endif
 {
 	FMemory::Memzero(&UploadHeapAllocator, sizeof(UploadHeapAllocator));
 	FMemory::Memzero(&Devices, sizeof(Devices));
@@ -319,14 +325,6 @@ FD3D12Adapter::~FD3D12Adapter()
 void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
 {
 	OwningRHI = RHI;
-
-#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	if (Desc.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_0 && Desc.MaxSupportedShaderModel >= D3D_SHADER_MODEL_6_6 && Desc.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3)
-	{
-		bBindlessResourcesAllowed = (RHIGetBindlessResourcesConfiguration(SP_PCD3D_SM6) != ERHIBindlessConfiguration::Disabled);
-		bBindlessSamplersAllowed = (RHIGetBindlessSamplersConfiguration(SP_PCD3D_SM6) != ERHIBindlessConfiguration::Disabled);
-	}
-#endif
 }
 
 /** Callback function called when the GPU crashes, when Aftermath is enabled */
@@ -1206,11 +1204,34 @@ void FD3D12Adapter::InitializeDevices()
 		FString DriverBlobFilename = PIPELINE_STATE_FILE_LOCATION / FString::Printf(TEXT("D3DDriverByteCodeBlob_%s"), *UniqueDeviceCachePath);
 
 		PipelineStateCache.Init(GraphicsCacheFile, ComputeCacheFile, DriverBlobFilename);
+		PipelineStateCache.RebuildFromDiskCache();
 
-		ID3D12RootSignature* StaticGraphicsRS = (GetStaticGraphicsRootSignature()) ? GetStaticGraphicsRootSignature()->GetRootSignature() : nullptr;
-		ID3D12RootSignature* StaticComputeRS = (GetStaticComputeRootSignature()) ? GetStaticComputeRootSignature()->GetRootSignature() : nullptr;
+		ERHIBindlessConfiguration BindlessResourcesConfig = ERHIBindlessConfiguration::Disabled;
+		ERHIBindlessConfiguration BindlessSamplersConfig = ERHIBindlessConfiguration::Disabled;
 
-		PipelineStateCache.RebuildFromDiskCache(StaticGraphicsRS, StaticComputeRS);
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (Desc.MaxSupportedFeatureLevel >= D3D_FEATURE_LEVEL_12_0 && Desc.MaxSupportedShaderModel >= D3D_SHADER_MODEL_6_6 && Desc.ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3)
+		{
+			BindlessResourcesConfig = RHIGetBindlessResourcesConfiguration(GMaxRHIShaderPlatform);
+			BindlessSamplersConfig = RHIGetBindlessSamplersConfiguration(GMaxRHIShaderPlatform);
+
+			bBindlessResourcesAllowed = (BindlessResourcesConfig != ERHIBindlessConfiguration::Disabled);
+			bBindlessSamplersAllowed = (BindlessSamplersConfig != ERHIBindlessConfiguration::Disabled);
+		}
+#endif
+
+#if USE_STATIC_ROOT_SIGNATURE
+		const bool bBindlessResourcesGraphics = (BindlessResourcesConfig == ERHIBindlessConfiguration::AllShaders);
+		const bool bBindlessSamplersGraphics = (BindlessSamplersConfig == ERHIBindlessConfiguration::AllShaders);
+
+		const bool bBindlessResourcesRayTracing = (BindlessResourcesConfig != ERHIBindlessConfiguration::Disabled);
+		const bool bBindlessSamplersRayTracing = (BindlessSamplersConfig != ERHIBindlessConfiguration::Disabled);
+
+		StaticGraphicsRootSignature.InitStaticGraphicsRootSignature(bBindlessResourcesGraphics, bBindlessSamplersGraphics);
+		StaticComputeRootSignature.InitStaticComputeRootSignatureDesc(bBindlessResourcesGraphics, bBindlessSamplersGraphics);
+		StaticRayTracingGlobalRootSignature.InitStaticRayTracingGlobalRootSignatureDesc(bBindlessResourcesRayTracing, bBindlessSamplersRayTracing);
+		StaticRayTracingLocalRootSignature.InitStaticRayTracingLocalRootSignatureDesc();
+#endif
 	}
 }
 
