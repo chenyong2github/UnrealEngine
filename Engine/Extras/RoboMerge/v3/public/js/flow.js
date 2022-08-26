@@ -5,15 +5,17 @@ class Info {
         this.tooltip = tooltip;
         this.name = name;
         this.sources = sources;
-        this.forcedDests = new Set();
+        this.forcedEdges = new Set();
         this.defaultDests = new Set();
         this.blockAssetDests = new Set();
         this.importance = 0;
     }
     update(branch, getId) {
-        this.forcedDests = new Set([...this.forcedDests, ...branch.def.forceFlowTo.map(getId)]);
-        this.defaultDests = new Set([...this.defaultDests, ...branch.def.defaultFlow.map(getId)]);
-        this.blockAssetDests = new Set([...this.blockAssetDests, ...branch.def.blockAssetTargets.map(getId)]);
+        const edgeId = (alias) => branch.def.name + '->' + getId(alias);
+        // shuld really do the same for default and block assets
+        this.forcedEdges = new Set([...this.forcedEdges, ...branch.def.forceFlowTo.map(edgeId)]);
+        this.defaultDests = new Set([...this.defaultDests, ...branch.def.defaultFlow.map(edgeId)]);
+        this.blockAssetDests = new Set([...this.blockAssetDests, ...branch.def.blockAssetTargets.map(edgeId)]);
     }
 }
 const EDGE_STYLES = {
@@ -187,7 +189,8 @@ class Graph {
         const dstInfo = this.aliases.get(decoratedAlias(srcBranchStatus.bot, dst));
         ++srcInfo.importance;
         ++dstInfo.importance;
-        const isForced = srcInfo.forcedDests.has(dstInfo.id);
+        const hasEdge = (edges, target) => edges.has(srcBranchStatus.def.name + '->' + target.id);
+        const isForced = hasEdge(srcInfo.forcedEdges, dstInfo);
         if (!isForced && this.options.showOnlyForced) {
             return;
         }
@@ -195,8 +198,8 @@ class Graph {
         this.connectedNodes.add(dstInfo.id);
         const edgeStyle = srcBranchStatus.def.convertIntegratesToEdits ? 'roboshelf' :
             isForced ? 'forced' :
-                srcInfo.defaultDests.has(dstInfo.id) ? 'defaultFlow' :
-                    srcInfo.blockAssetDests.has(dstInfo.id) ? 'blockAssets' : 'onRequest';
+                hasEdge(srcInfo.defaultDests, dstInfo) ? 'defaultFlow' :
+                    hasEdge(srcInfo.blockAssetDests, dstInfo) ? 'blockAssets' : 'onRequest';
         const styles = [...EDGE_STYLES[edgeStyle]];
         const link = { src: srcInfo.id, dst: dstInfo.id, styles };
         this.links.push(link);

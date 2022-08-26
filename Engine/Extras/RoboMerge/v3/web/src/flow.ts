@@ -5,7 +5,7 @@ import { BranchDefForStatus, BranchStatus } from "../../src/robo/status-types"
 class Info {
 	graphNodeColor?: string
 
-	forcedDests = new Set<string>()
+	forcedEdges = new Set<string>()
 	defaultDests = new Set<string>()
 	blockAssetDests = new Set<string>()
 
@@ -16,9 +16,11 @@ class Info {
 	}
 
 	update(branch: BranchStatus, getId: (alias: string) => string) {
-		this.forcedDests = new Set([...this.forcedDests, ...branch.def.forceFlowTo.map(getId)])
-		this.defaultDests = new Set([...this.defaultDests, ...branch.def.defaultFlow.map(getId)])
-		this.blockAssetDests = new Set([...this.blockAssetDests, ...branch.def.blockAssetTargets.map(getId)])
+
+		const edgeId = (alias: string) => branch.def.name + '->' + getId(alias)
+		this.forcedEdges = new Set([...this.forcedEdges, ...branch.def.forceFlowTo.map(edgeId)])
+		this.defaultDests = new Set([...this.defaultDests, ...branch.def.defaultFlow.map(edgeId)])
+		this.blockAssetDests = new Set([...this.blockAssetDests, ...branch.def.blockAssetTargets.map(edgeId)])
 	}
 }
 
@@ -258,7 +260,10 @@ class Graph {
 		++srcInfo.importance
 		++dstInfo.importance
 
-		const isForced = srcInfo.forcedDests.has(dstInfo.id)
+		const hasEdge = (edges: Set<string>, target: Info) => 
+			edges.has(srcBranchStatus.def.name + '->' + target.id)
+
+		const isForced = hasEdge(srcInfo.forcedEdges, dstInfo)
 		if (!isForced && this.options.showOnlyForced) {
 			return
 		}
@@ -269,8 +274,8 @@ class Graph {
 		const edgeStyle =
 			srcBranchStatus.def.convertIntegratesToEdits ?	'roboshelf' :
 			isForced ?										'forced' :
-			srcInfo.defaultDests.has(dstInfo.id) ?			'defaultFlow' :
-			srcInfo.blockAssetDests.has(dstInfo.id) ?		'blockAssets' : 'onRequest'
+			hasEdge(srcInfo.defaultDests, dstInfo) ?		'defaultFlow' :
+			hasEdge(srcInfo.blockAssetDests, dstInfo) ?		'blockAssets' : 'onRequest'
 
 		const styles = [...EDGE_STYLES[edgeStyle]]
 
