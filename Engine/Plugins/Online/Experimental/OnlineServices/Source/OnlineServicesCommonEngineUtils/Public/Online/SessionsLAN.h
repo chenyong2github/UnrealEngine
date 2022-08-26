@@ -64,11 +64,11 @@ public:
 
 protected:
 	TOptional<FOnlineError> TryHostLANSession();
-	void FindLANSessions(const FAccountId& LocalUserId);
+	void FindLANSessions(const FAccountId& LocalAccountId);
 	void StopLANSession();
 	void OnValidQueryPacketReceived(uint8* PacketData, int32 PacketLength, uint64 ClientNonce);
-	void OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength, const FAccountId LocalUserId);
-	void OnLANSearchTimeout(const FAccountId LocalUserId);
+	void OnValidResponsePacketReceived(uint8* PacketData, int32 PacketLength, const FAccountId LocalAccountId);
+	void OnLANSearchTimeout(const FAccountId LocalAccountId);
 	virtual void AppendSessionToPacket(FNboSerializeToBuffer& Packet, const FSessionLAN& Session) = 0;
 	virtual void ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session) = 0;
 

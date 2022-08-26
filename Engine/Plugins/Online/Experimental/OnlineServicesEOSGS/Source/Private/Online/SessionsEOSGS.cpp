@@ -1162,8 +1162,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 		Op.SetResult(FLeaveSession::Result{ });
 
 		FSessionLeft SessionLeftEvent;
-		SessionLeftEvent.LocalAccountIds.Add(OpParams.LocalAccountId);
-		//SessionLeftEvent.LocalAccountIds.Append(OpParams.AdditionalLocalUsers); // TODO: Process multiple users in Session destruction
+		SessionLeftEvent.LocalAccountId = OpParams.LocalAccountId;
 		SessionEvents.OnSessionLeft.Broadcast(SessionLeftEvent);
 	})
 	.Enqueue(GetSerialQueue());
@@ -1842,24 +1841,24 @@ TOnlineAsyncOpHandle<FRejectSessionInvite> FSessionsEOSGS::RejectSessionInvite(F
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddSessionMembers::Params&& Params)
+TOnlineAsyncOpHandle<FAddSessionMember> FSessionsEOSGS::AddSessionMember(FAddSessionMember::Params&& Params)
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
 	if (Result.IsOk() && Result.GetOkValue().Session->GetSessionSettings().bIsLANSession)
 	{
-		return FSessionsLAN::AddSessionMembers(MoveTemp(Params));
+		return FSessionsLAN::AddSessionMember(MoveTemp(Params));
 	}
 
 	// EOSGS Sessions
 
-	TOnlineAsyncOpRef<FAddSessionMembers> Op = GetOp<FAddSessionMembers>(MoveTemp(Params));
+	TOnlineAsyncOpRef<FAddSessionMember> Op = GetOp<FAddSessionMember>(MoveTemp(Params));
 
-	Op->Then([this](TOnlineAsyncOp<FAddSessionMembers>& Op, TPromise<const EOS_Sessions_RegisterPlayersCallbackInfo*>&& Promise)
+	Op->Then([this](TOnlineAsyncOp<FAddSessionMember>& Op, TPromise<const EOS_Sessions_RegisterPlayersCallbackInfo*>&& Promise)
 	{
-		const FAddSessionMembers::Params& OpParams = Op.GetParams();
+		const FAddSessionMember::Params& OpParams = Op.GetParams();
 
-		FOnlineError StateCheck = CheckAddSessionMembersState(OpParams);
+		FOnlineError StateCheck = CheckAddSessionMemberState(OpParams);
 		if (StateCheck != Errors::Success())
 		{
 			Op.SetError(MoveTemp(StateCheck));
@@ -1871,17 +1870,10 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 		Options.ApiVersion = EOS_SESSIONS_REGISTERPLAYERS_API_LATEST;
 		static_assert(EOS_SESSIONS_REGISTERPLAYERS_API_LATEST == 2, "EOS_Sessions_RegisterPlayersOptions updated, check new fields");
 
-		Options.PlayersToRegisterCount = OpParams.NewSessionMembers.Num();
+		Options.PlayersToRegisterCount = 1;
 
-		TArray<EOS_ProductUserId> PlayersToRegister;
-		TArray<FAccountId> SessionMemberIds;
-		OpParams.NewSessionMembers.GenerateKeyArray(SessionMemberIds);		
-		for (FAccountId IdHandle : SessionMemberIds)
-		{
-			// TODO: Do this with ResolveAccountIds instead
-			PlayersToRegister.Add(GetProductUserIdChecked(IdHandle));
-		}
-
+		// TODO: Do this with ResolveAccountIds instead
+		TArray<EOS_ProductUserId> PlayersToRegister = { GetProductUserIdChecked(OpParams.LocalAccountId) };
 		Options.PlayersToRegister = PlayersToRegister.GetData();
 
 		const FTCHARToUTF8 SessionNameUtf8(*OpParams.SessionName.ToString());
@@ -1889,7 +1881,7 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 
 		EOS_Async(EOS_Sessions_RegisterPlayers, SessionsHandle, Options, MoveTemp(Promise));
 	})
-	.Then([this](TOnlineAsyncOp<FAddSessionMembers>& Op, const EOS_Sessions_RegisterPlayersCallbackInfo* Result)
+	.Then([this](TOnlineAsyncOp<FAddSessionMember>& Op, const EOS_Sessions_RegisterPlayersCallbackInfo* Result)
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
@@ -1897,7 +1889,7 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 			return;
 		}
 
-		TOnlineResult<FAddSessionMembers> ImplResult = AddSessionMembersImpl(Op.GetParams());
+		TOnlineResult<FAddSessionMember> ImplResult = AddSessionMemberImpl(Op.GetParams());
 		if (ImplResult.IsOk())
 		{
 			Op.SetResult(MoveTemp(ImplResult.GetOkValue()));
@@ -1912,24 +1904,24 @@ TOnlineAsyncOpHandle<FAddSessionMembers> FSessionsEOSGS::AddSessionMembers(FAddS
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers(FRemoveSessionMembers::Params&& Params)
+TOnlineAsyncOpHandle<FRemoveSessionMember> FSessionsEOSGS::RemoveSessionMember(FRemoveSessionMember::Params&& Params)
 {
 	// LAN Sessions
 	TOnlineResult<FGetSessionByName> Result = GetSessionByName({ Params.SessionName });
 	if (Result.IsOk() && Result.GetOkValue().Session->GetSessionSettings().bIsLANSession)
 	{
-		return FSessionsLAN::RemoveSessionMembers(MoveTemp(Params));
+		return FSessionsLAN::RemoveSessionMember(MoveTemp(Params));
 	}
 
 	// EOSGS Sessions
 
-	TOnlineAsyncOpRef<FRemoveSessionMembers> Op = GetOp<FRemoveSessionMembers>(MoveTemp(Params));
+	TOnlineAsyncOpRef<FRemoveSessionMember> Op = GetOp<FRemoveSessionMember>(MoveTemp(Params));
 
-	Op->Then([this](TOnlineAsyncOp<FRemoveSessionMembers>& Op, TPromise<const EOS_Sessions_UnregisterPlayersCallbackInfo*>&& Promise)
+	Op->Then([this](TOnlineAsyncOp<FRemoveSessionMember>& Op, TPromise<const EOS_Sessions_UnregisterPlayersCallbackInfo*>&& Promise)
 	{
-		const FRemoveSessionMembers::Params& OpParams = Op.GetParams();
+		const FRemoveSessionMember::Params& OpParams = Op.GetParams();
 
-		FOnlineError StateCheck = CheckRemoveSessionMembersState(OpParams);
+		FOnlineError StateCheck = CheckRemoveSessionMemberState(OpParams);
 		if (StateCheck != Errors::Success())
 		{
 			Op.SetError(MoveTemp(StateCheck));
@@ -1941,15 +1933,10 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 		Options.ApiVersion = EOS_SESSIONS_UNREGISTERPLAYERS_API_LATEST;
 		static_assert(EOS_SESSIONS_UNREGISTERPLAYERS_API_LATEST == 2, "EOS_Sessions_UnregisterPlayersOptions updated, check new fields");
 
-		Options.PlayersToUnregisterCount = OpParams.SessionMemberIds.Num();
+		Options.PlayersToUnregisterCount = 1;
 
-		TArray<EOS_ProductUserId> PlayersToUnregister;
-		for (FAccountId IdHandle : OpParams.SessionMemberIds)
-		{
-			// TODO: Do this with ResolveAccountIds instead
-			PlayersToUnregister.Add(GetProductUserIdChecked(IdHandle));
-		}
-
+		// TODO: Do this with ResolveAccountIds instead
+		TArray<EOS_ProductUserId> PlayersToUnregister{ GetProductUserIdChecked(OpParams.LocalAccountId) };
 		Options.PlayersToUnregister = PlayersToUnregister.GetData();
 
 		const FTCHARToUTF8 SessionNameUtf8(*OpParams.SessionName.ToString());
@@ -1957,7 +1944,7 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 
 		EOS_Async(EOS_Sessions_UnregisterPlayers, SessionsHandle, Options, MoveTemp(Promise));
 	})
-	.Then([this](TOnlineAsyncOp<FRemoveSessionMembers>& Op, const EOS_Sessions_UnregisterPlayersCallbackInfo* Result)
+	.Then([this](TOnlineAsyncOp<FRemoveSessionMember>& Op, const EOS_Sessions_UnregisterPlayersCallbackInfo* Result)
 	{
 		if (Result->ResultCode != EOS_EResult::EOS_Success)
 		{
@@ -1965,7 +1952,7 @@ TOnlineAsyncOpHandle<FRemoveSessionMembers> FSessionsEOSGS::RemoveSessionMembers
 			return;
 		}
 
-		TOnlineResult<FRemoveSessionMembers> ImplResult = RemoveSessionMembersImpl(Op.GetParams());
+		TOnlineResult<FRemoveSessionMember> ImplResult = RemoveSessionMemberImpl(Op.GetParams());
 		if (ImplResult.IsOk())
 		{
 			Op.SetResult(MoveTemp(ImplResult.GetOkValue()));

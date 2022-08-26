@@ -156,8 +156,8 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 		NewSessionLANRef->SessionId = FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).GetNextSessionId();
 		NewSessionLANRef->SessionSettings = OpParams.SessionSettings;
 
-		// For LAN sessions, we'll add all the Session members manually instead of calling JoinSession since there is no API calls involved
-		NewSessionLANRef->SessionSettings.SessionMembers.Append(OpParams.LocalAccounts);
+		// For LAN sessions, we'll add the Session member manually instead of calling JoinSession since there is no API calls involved
+		NewSessionLANRef->SessionSettings.SessionMembers.Emplace(OpParams.LocalAccountId, OpParams.SessionMemberData);
 
 		// We save the local object for the session, and set up the appropriate references
 		AllSessionsById.Emplace(NewSessionLANRef->SessionId, NewSessionLANRef);
@@ -316,11 +316,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 
 		Op.SetResult(FJoinSession::Result{ });
 
-		TArray<FAccountId> LocalAccountIds;
-		LocalAccountIds.Reserve(OpParams.LocalAccounts.Num());
-		OpParams.LocalAccounts.GenerateKeyArray(LocalAccountIds);
-
-		FSessionJoined SessionJoinedEvent = { MoveTemp(LocalAccountIds), FoundSession->GetSessionId() };
+		FSessionJoined SessionJoinedEvent = { OpParams.LocalAccountId, FoundSession->GetSessionId() };
 		
 		SessionEvents.OnSessionJoined.Broadcast(SessionJoinedEvent);
 	})
@@ -368,7 +364,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 		Op.SetResult(FLeaveSession::Result{ });
 
 		FSessionLeft SessionLeftEvent;
-		SessionLeftEvent.LocalAccountIds.Append(OpParams.LocalAccounts);
+		SessionLeftEvent.LocalAccountId = OpParams.LocalAccountId;
 		SessionEvents.OnSessionLeft.Broadcast(SessionLeftEvent);
 	})
 	.Enqueue(GetSerialQueue());

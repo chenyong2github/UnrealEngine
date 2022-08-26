@@ -210,8 +210,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FStartMatchmaking> StartMatchmaking(FStartMatchmaking::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FAddSessionMembers> AddSessionMembers(FAddSessionMembers::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FRemoveSessionMembers> RemoveSessionMembers(FRemoveSessionMembers::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FAddSessionMember> AddSessionMember(FAddSessionMember::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FRemoveSessionMember> RemoveSessionMember(FRemoveSessionMember::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
 	virtual TOnlineResult<FGetSessionInvites> GetSessionInvites(FGetSessionInvites::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
@@ -231,8 +231,8 @@ protected:
 	void ClearSessionByName(const FName& SessionName);
 	void ClearSessionById(const FOnlineSessionIdHandle& SessionId);
 
-	TOnlineResult<FAddSessionMembers> AddSessionMembersImpl(const FAddSessionMembers::Params& Params);
-	TOnlineResult<FRemoveSessionMembers> RemoveSessionMembersImpl(const FRemoveSessionMembers::Params& Params);
+	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
+	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
 
 	TOnlineResult<FRegisterPlayers> RegisterPlayersImpl(const FRegisterPlayers::Params& Params);
 	TOnlineResult<FUnregisterPlayers> UnregisterPlayersImpl(const FUnregisterPlayers::Params& Params);
@@ -251,9 +251,9 @@ protected:
 	FOnlineError CheckJoinSessionParams(const FJoinSession::Params& Params);
 	FOnlineError CheckJoinSessionState(const FJoinSession::Params& Params);
 
-	FOnlineError CheckAddSessionMembersState(const FAddSessionMembers::Params& Params);
+	FOnlineError CheckAddSessionMemberState(const FAddSessionMember::Params& Params);
 
-	FOnlineError CheckRemoveSessionMembersState(const FRemoveSessionMembers::Params& Params);
+	FOnlineError CheckRemoveSessionMemberState(const FRemoveSessionMember::Params& Params);
 
 	FOnlineError CheckLeaveSessionState(const FLeaveSession::Params& Params);
 
@@ -266,7 +266,7 @@ protected:
 	FOnlineError CheckUnregisterPlayersState(const FUnregisterPlayers::Params& Params);
 
 private:
-	TOptional<FOnlineError> CheckSessionExistsByName(const FAccountId& LocalUserId, const FName& SessionName);
+	TOptional<FOnlineError> CheckSessionExistsByName(const FAccountId& LocalAccountId, const FName& SessionName);
 
 protected:
 
