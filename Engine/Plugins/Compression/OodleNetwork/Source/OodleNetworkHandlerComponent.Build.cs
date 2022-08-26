@@ -32,9 +32,6 @@ public class OodleNetworkHandlerComponent : ModuleRules
 		PublicDependencyModuleNames.Add("Engine");
 		PublicDependencyModuleNames.Add("Analytics");
 
-		PCHUsage = PCHUsageMode.UseSharedPCHs;
-		PrivatePCHHeaderFile = "Private/OodleNetworkHandlerComponentPCH.h";
-
 		// We depend on the .udic files, otherwise those dictionaries don't pass-through to final builds!
 		RuntimeDependencies.Add("$(ProjectDir)/Content/Oodle/...", StagedFileType.UFS);
 
