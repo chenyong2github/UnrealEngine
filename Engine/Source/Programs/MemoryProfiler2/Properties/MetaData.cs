@@ -15,9 +15,9 @@ using System.Resources;
 
 [assembly: ComVisible( false )]
 [assembly: NeutralResourcesLanguageAttribute( "" )]
-
+/*
 #if !SPECIFIC_VERSION
 // Automatically generate a version number based on the time of compilation
 [assembly: AssemblyVersion( "1.0.*" )]
 #endif
-
+*/

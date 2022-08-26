@@ -8,6 +8,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using Timer = System.Windows.Forms.Timer;
 
 namespace MemoryProfiler2
 {
@@ -58,7 +59,7 @@ namespace MemoryProfiler2
 			}
 
 			// Build the WinForm tree
-			if (FilterTagsTreeView.Handle != null) // This if statement exists to force the native tree view handle to be created
+			if (FilterTagsTreeView.Handle != IntPtr.Zero) // This if statement exists to force the native tree view handle to be created
 			{
 				bool bIsFiltering = InFilterTerms != null && InFilterTerms.Length > 0;
 
