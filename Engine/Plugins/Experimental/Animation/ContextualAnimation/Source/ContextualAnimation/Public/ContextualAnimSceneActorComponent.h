@@ -12,8 +12,6 @@ class AActor;
 class FPrimitiveSceneProxy;
 class UAnimInstance;
 class UAnimMontage;
-class UContextualAnimSceneInstance;
-struct FContextualAnimSceneBinding;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FContextualAnimSceneActorCompDelegate, class UContextualAnimSceneActorComponent*, SceneActorComponent);
 
@@ -40,6 +38,7 @@ public:
 
 	UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer);
 
+	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
@@ -47,11 +46,13 @@ public:
 
 	virtual void AddIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) override;
 
-	/** Called from the scene instance when the actor owner of this component joins an scene */
-	void OnJoinedScene(const FContextualAnimSceneBinding* Binding);
+	/** Called when the actor owner of this component joins an scene */
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
+	void OnJoinedScene(const FContextualAnimSceneBindings& InBindings);
 	
 	/** Called from the scene instance when the actor owner of this component leave an scene */
-	void OnLeftScene(const FContextualAnimSceneBinding* Binding);
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Actor Component")
+	void OnLeftScene();
 
 	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Actor Component")
 	const TArray<FContextualAnimIKTarget>& GetIKTargets() const { return IKTargets; }
@@ -61,8 +62,8 @@ public:
 
 protected:
 
-	/** Ptr back to the binding that represent us in the scene instance we are part of */
-	const FContextualAnimSceneBinding* BindingPtr = nullptr;
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_Bindings)
+	FContextualAnimSceneBindings Bindings;
 
 	/** List of IKTarget for this frame */
 	UPROPERTY()
@@ -76,6 +77,9 @@ protected:
 	 */
 	UFUNCTION()
 	void OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion);
+
+	UFUNCTION()
+	void OnRep_Bindings();
 
 private:
 

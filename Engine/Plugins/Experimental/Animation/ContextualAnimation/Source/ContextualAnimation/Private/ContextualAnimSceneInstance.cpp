@@ -140,7 +140,7 @@ float UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 
 	if (UContextualAnimSceneActorComponent* SceneActorComp = Binding.GetSceneActorComponent())
 	{
-		SceneActorComp->OnJoinedScene(&Binding);
+		SceneActorComp->OnJoinedScene(Bindings);
 	}
 
 	OnActorJoined.Broadcast(this, Actor);
@@ -305,7 +305,7 @@ void UContextualAnimSceneInstance::OnMontageBlendingOut(UAnimMontage* Montage, b
 
 			if (UContextualAnimSceneActorComponent* SceneActorComp = Binding.GetSceneActorComponent())
 			{
-				SceneActorComp->OnLeftScene(&Binding);
+				SceneActorComp->OnLeftScene();
 			}
 
 			OnActorLeft.Broadcast(this, Actor);

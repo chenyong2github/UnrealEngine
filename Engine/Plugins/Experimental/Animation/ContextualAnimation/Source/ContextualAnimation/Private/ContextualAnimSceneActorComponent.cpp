@@ -7,11 +7,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "ContextualAnimManager.h"
-#include "ContextualAnimSceneInstance.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimUtilities.h"
 #include "AnimNotifyState_IKWindow.h"
 #include "EngineUtils.h"
+#include "Net/UnrealNetwork.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 TAutoConsoleVariable<int32> CVarContextualAnimIKDebug(TEXT("a.ContextualAnim.IK.Debug"), 0, TEXT("Draw Debug IK Targets"));
@@ -24,6 +24,44 @@ UContextualAnimSceneActorComponent::UContextualAnimSceneActorComponent(const FOb
 {
 	PrimaryComponentTick.bCanEverTick = false;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
+	SetIsReplicatedByDefault(true);
+}
+
+void UContextualAnimSceneActorComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME_CONDITION(UContextualAnimSceneActorComponent, Bindings, COND_SimulatedOnly);
+}
+
+void UContextualAnimSceneActorComponent::OnRep_Bindings()
+{
+	if(Bindings.Num() > 0)
+	{
+		if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
+		{
+			// Start listening to TickPose if we joined an scene where we need IK
+			if (Binding->GetIKTargetDefs().IKTargetDefs.Num() > 0)
+			{
+				USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
+				if (SkelMeshComp && !SkelMeshComp->OnTickPose.IsBoundToObject(this))
+				{
+					SkelMeshComp->OnTickPose.AddUObject(this, &UContextualAnimSceneActorComponent::OnTickPose);
+				}
+			}
+
+			OnJoinedSceneDelegate.Broadcast(this);
+		}
+	}
+	else
+	{
+		USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
+		if (SkelMeshComp && SkelMeshComp->OnTickPose.IsBoundToObject(this))
+		{
+			SkelMeshComp->OnTickPose.RemoveAll(this);
+		}
+
+		OnLeftSceneDelegate.Broadcast(this);
+	}
 }
 
 FBoxSphereBounds UContextualAnimSceneActorComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -57,39 +95,41 @@ void UContextualAnimSceneActorComponent::OnUnregister()
 	}
 }
 
-void UContextualAnimSceneActorComponent::OnJoinedScene(const FContextualAnimSceneBinding* Binding)
+void UContextualAnimSceneActorComponent::OnJoinedScene(const FContextualAnimSceneBindings& InBindings)
 {
-	check(Binding);
-	BindingPtr = Binding;
-
-	// Start listening to TickPose if we joined an scene where we need IK
-	if (Binding->GetIKTargetDefs().IKTargetDefs.Num() > 0)
+	if (const FContextualAnimSceneBinding* Binding = InBindings.FindBindingByActor(GetOwner()))
 	{
-		if (USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner()))
-		{
-			SkelMeshComp->OnTickPose.AddUObject(this, &UContextualAnimSceneActorComponent::OnTickPose);
-		}
-	}
+		Bindings = InBindings;
 
-	OnJoinedSceneDelegate.Broadcast(this);
+		// Start listening to TickPose if we joined an scene where we need IK
+		if (Binding->GetIKTargetDefs().IKTargetDefs.Num() > 0)
+		{
+			USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
+			if (SkelMeshComp && !SkelMeshComp->OnTickPose.IsBoundToObject(this))
+			{
+				SkelMeshComp->OnTickPose.AddUObject(this, &UContextualAnimSceneActorComponent::OnTickPose);
+			}
+		}
+
+		OnJoinedSceneDelegate.Broadcast(this);
+	}
 }
 
-void UContextualAnimSceneActorComponent::OnLeftScene(const FContextualAnimSceneBinding* Binding)
+void UContextualAnimSceneActorComponent::OnLeftScene()
 {
-	check(Binding);
-
-	OnLeftSceneDelegate.Broadcast(this);
-
-	// Stop listening to TickPose if we were
-	if (Binding->GetIKTargetDefs().IKTargetDefs.Num() > 0)
+	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByActor(GetOwner()))
 	{
-		if (USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner()))
+		OnLeftSceneDelegate.Broadcast(this);
+
+		// Stop listening to TickPose if we were
+		USkeletalMeshComponent* SkelMeshComp = UContextualAnimUtilities::TryGetSkeletalMeshComponent(GetOwner());
+		if (SkelMeshComp && SkelMeshComp->OnTickPose.IsBoundToObject(this))
 		{
 			SkelMeshComp->OnTickPose.RemoveAll(this);
 		}
-	}
 
-	BindingPtr = nullptr;
+		Bindings.Reset();
+	}
 }
 
 void UContextualAnimSceneActorComponent::OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion)
@@ -102,7 +142,11 @@ void UContextualAnimSceneActorComponent::UpdateIKTargets()
 {
 	IKTargets.Reset();
 
-	check(BindingPtr);
+	const FContextualAnimSceneBinding* BindingPtr = Bindings.FindBindingByActor(GetOwner());
+	if (BindingPtr == nullptr)
+	{
+		return;
+	}
 
 	const FAnimMontageInstance* MontageInstance = BindingPtr->GetAnimMontageInstance();
 	if(MontageInstance == nullptr)
@@ -125,7 +169,7 @@ void UContextualAnimSceneActorComponent::UpdateIKTargets()
 		// @TODO: IKTargetTransform will be off by 1 frame if we tick before target. 
 		// Should we at least add an option to the SceneAsset to setup tick dependencies or should this be entirely up to the user?
 
-		if (const FContextualAnimSceneBinding* TargetBinding = BindingPtr->GetSceneInstance()->FindBindingByRole(IKTargetDef.TargetRoleName))
+		if (const FContextualAnimSceneBinding* TargetBinding = Bindings.FindBindingByRole(IKTargetDef.TargetRoleName))
 		{
 			if (const USkeletalMeshComponent* TargetSkelMeshComp = TargetBinding->GetSkeletalMeshComponent())
 			{
