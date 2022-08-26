@@ -504,7 +504,7 @@ bool AActor::ReplicateSubobjects(UActorChannel *Channel, FOutBunch *Bunch, FRepl
 
 	for (UActorComponent* ActorComp : ReplicatedComponents)
 	{
-		if (ActorComp && ActorComp->GetIsReplicated())
+		if (ActorComp && ActorComp->GetReplicationCondition() != COND_Never)
 		{
 			UActorChannel::SetCurrentSubObjectOwner(ActorComp);
 			WroteSomething |= ActorComp->ReplicateSubobjects(Channel, Bunch, RepFlags);		// Lets the component add subobjects before replicating its own properties.
@@ -517,7 +517,7 @@ bool AActor::ReplicateSubobjects(UActorChannel *Channel, FOutBunch *Bunch, FRepl
 
 ELifetimeCondition AActor::AllowActorComponentToReplicate(const UActorComponent* ComponentToReplicate) const
 {
-	return ComponentToReplicate->GetIsReplicated() ? COND_None : COND_Never;
+	return ComponentToReplicate->GetReplicationCondition();
 }
 
 void AActor::SetReplicatedComponentNetCondition(const UActorComponent* ReplicatedComponent, ELifetimeCondition NetCondition)
