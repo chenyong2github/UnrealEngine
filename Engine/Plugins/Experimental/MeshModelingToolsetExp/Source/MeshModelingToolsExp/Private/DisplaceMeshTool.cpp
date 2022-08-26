@@ -1167,6 +1167,12 @@ void UDisplaceMeshTool::ValidateSubdivisions()
 void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	using namespace DisplaceMeshToolLocals;
+	
+	if (AreAllTargetsValid() == false)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidTargets", "Target mesh is no longer valid"), EToolMessageLevel::UserWarning);
+		return;
+	}
 
 	if (PropertySet && Property)
 	{
