@@ -95,7 +95,7 @@ void PartitionedFftFilter::ResetFreqDomainBuffers(size_t new_filter_size) {
   DCHECK_LE(filter_size_, max_filter_size_);
 
   const size_t old_num_partitions = num_partitions_;
-  num_partitions_ = filter_size_ / frames_per_buffer_;
+  num_partitions_ = std::max(static_cast<size_t>(1), filter_size_ / frames_per_buffer_);
   const size_t min_num_partitions =
       std::min(old_num_partitions, num_partitions_);
 

@@ -80,7 +80,7 @@ void MultiChannelIir::Process(AudioBuffer::Channel* interleaved_buffer) {
 
   const size_t num_channel_chunks = num_channels_ / SIMD_LENGTH;
   const size_t num_buffer_chunks = interleaved_buffer->size() / SIMD_LENGTH;
-  const size_t delay_length_in_chunks = num_channel_chunks * num_coefficients_;
+  const size_t delay_length_in_chunks = std::max(static_cast<size_t>(1), num_channel_chunks * num_coefficients_);
 
   for (size_t current_frame = 0, individual_frame = 0;
        current_frame < num_buffer_chunks;

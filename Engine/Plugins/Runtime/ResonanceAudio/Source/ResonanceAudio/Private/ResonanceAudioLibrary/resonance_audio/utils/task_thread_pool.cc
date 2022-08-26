@@ -189,7 +189,10 @@ bool TaskThreadPool::RunOnWorkerThread(TaskThreadPool::TaskClosure closure) {
     std::lock_guard<std::mutex> lock(worker_available_mutex_);
     --num_worker_threads_available_;
   }
-  available_worker_thread->Run(std::move(closure));
+
+  if(available_worker_thread)
+    available_worker_thread->Run(std::move(closure));
+
   return true;
 }
 
