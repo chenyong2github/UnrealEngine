@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Views/Widgets/SCollectionSelectionButton.h"
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
