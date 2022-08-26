@@ -7,6 +7,7 @@
 #include "NDISkeletalMeshCommon.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayInt.h"
+#include "Experimental/NiagaraDataInterfaceSkeletalMeshUvMapping.h"
 #include "NiagaraStats.h"
 #include "SkeletalMeshTypes.h"
 #include "Templates/AlignmentTemplates.h"
@@ -1078,7 +1079,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV(FVectorVMExternalFu
 	checkf(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
 	checkf(InstData->bMeshValid, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
-	if (InstData->UvMapping)
+	const FSkeletalMeshUvMapping* UvMapping = InstData->UvMapping ? InstData->UvMapping.GetMappingData() : nullptr;
+
+	if (UvMapping)
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
@@ -1091,7 +1094,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV(FVectorVMExternalFu
 
 			if (Enabled)
 			{
-				TriangleIndex = InstData->UvMapping.FindFirstTriangle(SourceUv, Tolerance, BaryCoord);
+				FVector BaryCoordD;
+				TriangleIndex = UvMapping->FindFirstTriangle(SourceUv, Tolerance, BaryCoordD);
+				BaryCoord = FVector3f(BaryCoordD);
 			}
 
 			OutTriangleIndex.SetAndAdvance(TriangleIndex);
@@ -1148,7 +1153,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb(FVectorVMExternal
 	checkf(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
 	checkf(InstData->bMeshValid, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
-	if (InstData->UvMapping)
+	const FSkeletalMeshUvMapping* UvMapping = InstData->UvMapping ? InstData->UvMapping.GetMappingData() : nullptr;
+
+	if (UvMapping)
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
@@ -1160,7 +1167,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb(FVectorVMExternal
 			int32 TriangleIndex = INDEX_NONE;
 			if (Enabled)
 			{
-				TriangleIndex = InstData->UvMapping.FindFirstTriangle(FBox2D(MinExtent, MaxExtent), BaryCoord);
+				FVector BaryCoordD;
+				TriangleIndex = UvMapping->FindFirstTriangle(FBox2D(MinExtent, MaxExtent), BaryCoordD);
+				BaryCoord = FVector3f(BaryCoordD);
 			}
 
 			OutTriangleIndex.SetAndAdvance(TriangleIndex);

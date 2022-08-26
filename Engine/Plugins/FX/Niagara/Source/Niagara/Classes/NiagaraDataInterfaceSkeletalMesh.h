@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Containers/Array.h"
 #include "Engine/SkeletalMesh.h"
+#include "Experimental/NiagaraMeshUvMappingHandle.h"
 #include "NiagaraDataInterfaceMeshCommon.h"
 #include "NiagaraParameterStore.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -17,7 +18,7 @@ struct FSkeletalMeshSkinningData;
 struct FSkeletalMeshConnectivity;
 class FSkeletalMeshConnectivityProxy;
 struct FSkeletalMeshUvMapping;
-class FSkeletalMeshUvMappingBufferProxy;
+class FMeshUvMappingBufferProxy;
 struct FNDISkeletalMesh_InstanceData;
 class FSkinWeightVertexBuffer;
 struct FSkeletalMeshSamplingRegion;
@@ -241,47 +242,6 @@ private:
 	bool bForceDataRefresh;
 };
 
-struct FSkeletalMeshUvMappingUsage
-{
-	FSkeletalMeshUvMappingUsage() = default;
-	FSkeletalMeshUvMappingUsage(bool InRequiresCpuAccess, bool InrequiresGpuAccess)
-		: RequiresCpuAccess(InRequiresCpuAccess)
-		, RequiresGpuAccess(InrequiresGpuAccess)
-	{}
-
-	bool IsValid() const { return RequiresCpuAccess || RequiresGpuAccess; }
-
-	bool RequiresCpuAccess = false;
-	bool RequiresGpuAccess = false;
-};
-
-struct NIAGARA_API FSkeletalMeshUvMappingHandle
-{
-	FSkeletalMeshUvMappingHandle();
-	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingUsage InUsage, const TSharedPtr<struct FSkeletalMeshUvMapping>& InUvMappingData, bool bNeedsDataImmediately);
-	FSkeletalMeshUvMappingHandle(const FSkeletalMeshUvMappingHandle& Other) = delete;
-	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingHandle&& Other) noexcept;
-	~FSkeletalMeshUvMappingHandle();
-
-	FSkeletalMeshUvMappingHandle& operator=(const FSkeletalMeshUvMappingHandle& Other) = delete;
-	FSkeletalMeshUvMappingHandle& operator=(FSkeletalMeshUvMappingHandle&& Other) noexcept;
-	explicit operator bool() const;
-
-	FSkeletalMeshUvMappingUsage Usage;
-
-	void FindOverlappingTriangles(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const;
-	int32 FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector3f& BarycentricCoord) const;
-	int32 FindFirstTriangle(const FBox2D& InUvBox, FVector3f& BarycentricCoord) const;
-	const FSkeletalMeshUvMappingBufferProxy* GetQuadTreeProxy() const;
-	int32 GetUvSetIndex() const;
-	int32 GetLodIndex() const;
-
-	void PinAndInvalidateHandle();
-
-private:
-	TSharedPtr<FSkeletalMeshUvMapping> UvMappingData;
-};
-
 struct FSkeletalMeshConnectivityUsage
 {
 	FSkeletalMeshConnectivityUsage() = default;
@@ -333,7 +293,7 @@ class NIAGARA_API FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
 
 public:
 	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
-	FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
+	FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
 	FSkeletalMeshConnectivityHandle GetCachedConnectivity(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately);
 
 	virtual void Tick(ETickingGroup TickGroup, float DeltaSeconds) override;
@@ -1130,7 +1090,7 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer = nullptr;
 	const FSkinWeightDataVertexBuffer* MeshSkinWeightBuffer = nullptr;
 	const FSkinWeightLookupVertexBuffer* MeshSkinWeightLookupBuffer = nullptr;
-	const FSkeletalMeshUvMappingBufferProxy* UvMappingBuffer = nullptr;
+	const FMeshUvMappingBufferProxy* UvMappingBuffer = nullptr;
 	const FSkeletalMeshConnectivityProxy* ConnectivityBuffer = nullptr;
 
 	bool bIsGpuUniformlyDistributedSampling = false;

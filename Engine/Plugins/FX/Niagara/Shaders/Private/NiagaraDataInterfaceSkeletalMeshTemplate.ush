@@ -511,188 +511,30 @@ void GetFilteredTriangleAt_{ParameterName}(int FilteredIndex, out int OutTriangl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Uv Mapping
-
-// Evaluates QuadTree for a single point
-bool QuadTreeTriangleOverlap_{ParameterName}(float2 Uv, float Tolerance, int TriangleIndex, out float3 OutBaryCoord)
-{
-	if ({ParameterName}_MeshNumTexCoord > 0)
-	{
-        uint IndexBufferOffset = TriangleIndex * 3;
-		uint VertexIndex0 = {ParameterName}_MeshIndexBuffer[IndexBufferOffset  ];
-		uint VertexIndex1 = {ParameterName}_MeshIndexBuffer[IndexBufferOffset+1];
-		uint VertexIndex2 = {ParameterName}_MeshIndexBuffer[IndexBufferOffset+2];
-
-		uint Stride = {ParameterName}_MeshNumTexCoord;
-		float2 UV0 = {ParameterName}_MeshTexCoordBuffer[VertexIndex0 * Stride + {ParameterName}_UvMappingSet];
-		float2 UV1 = {ParameterName}_MeshTexCoordBuffer[VertexIndex1 * Stride + {ParameterName}_UvMappingSet];
-		float2 UV2 = {ParameterName}_MeshTexCoordBuffer[VertexIndex2 * Stride + {ParameterName}_UvMappingSet];
-
-		OutBaryCoord = GetBaryCentric2D(Uv, UV0, UV1, UV2);
-
-		if (all(OutBaryCoord > -Tolerance) && all(OutBaryCoord < (1.0f + Tolerance)))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool QuadTreeNodeContains_{ParameterName}(int NodeBufferOffset, float2 Uv, float Tolerance, out int OutTriangleIndex, out float3 OutBaryCoord)
-{
-	if (NodeBufferOffset == -1)
-	{
-		return false;
-	}
-
-	const int TriangleCount = {ParameterName}_UvMappingBuffer[NodeBufferOffset + DISkelMesh_ElementCountOffset];
-	for (int TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
-	{
-		int TriangleIndex = {ParameterName}_UvMappingBuffer[NodeBufferOffset + DISkelMesh_TriangleIndexOffset + TriangleIt];
-		if (QuadTreeTriangleOverlap_{ParameterName}(Uv, Tolerance, TriangleIndex, OutBaryCoord))
-		{
-			OutTriangleIndex = TriangleIndex;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-// Evaluates QuadTree for an AABB region
-bool QuadTreeTriangleAabbOverlap_{ParameterName}(float2 UvRef, float2 UvExtentScale, float2 UvExtentBias, int TriangleIndex, out float3 OutBaryCoord)
-{
-	if ({ParameterName}_MeshNumTexCoord > 0)
-	{
-        uint IndexBufferOffset = TriangleIndex * 3;
-		uint VertexIndex0 = {ParameterName}_MeshIndexBuffer[IndexBufferOffset  ];
-		uint VertexIndex1 = {ParameterName}_MeshIndexBuffer[IndexBufferOffset+1];
-		uint VertexIndex2 = {ParameterName}_MeshIndexBuffer[IndexBufferOffset+2];
-
-		uint Stride = {ParameterName}_MeshNumTexCoord;
-		float2 UV0 = {ParameterName}_MeshTexCoordBuffer[VertexIndex0 * Stride + {ParameterName}_UvMappingSet];
-		float2 UV1 = {ParameterName}_MeshTexCoordBuffer[VertexIndex1 * Stride + {ParameterName}_UvMappingSet];
-		float2 UV2 = {ParameterName}_MeshTexCoordBuffer[VertexIndex2 * Stride + {ParameterName}_UvMappingSet];
-
-		// evaluate whether our triangle intersects with our AABB, if it does, then generate the barycentric coordinate for the center of the AABB
-		const bool Intersection = DISkelMesh_NormalizedAabbTriangleIntersection(
-				UV0 * UvExtentScale + UvExtentBias,
-				UV1 * UvExtentScale + UvExtentBias,
-				UV2 * UvExtentScale + UvExtentBias);
-
-		if (Intersection)
-		{
-			OutBaryCoord = GetClosestBaryCentric2D(UvRef, UV0, UV1, UV2);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool QuadTreeNodeContains_{ParameterName}Aabb(int NodeBufferOffset, float2 UvMin, float2 UvMax, out int OutTriangleIndex, out float3 OutBaryCoord)
-{
-	if (NodeBufferOffset == -1)
-	{
-		return false;
-	}
-
-	const int TriangleCount = {ParameterName}_UvMappingBuffer[NodeBufferOffset + DISkelMesh_ElementCountOffset];
-	if (TriangleCount == 0)
-	{
-		return false;
-	}
-
-	const float2 UvRef = 0.5f * (UvMin + UvMax);
-	const float2 UvExtentScale = 1.0f / (UvMax - UvMin);
-	const float2 UvExtentBias = 1.0f - UvMax * UvExtentScale;
-
-	for (int TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
-	{
-		float3 BaryCoord;
-		int TriangleIndex = {ParameterName}_UvMappingBuffer[NodeBufferOffset + DISkelMesh_TriangleIndexOffset + TriangleIt];
-		if (QuadTreeTriangleAabbOverlap_{ParameterName}(UvRef, UvExtentScale, UvExtentBias, TriangleIndex, BaryCoord))
-		{
-			OutTriangleIndex = TriangleIndex;
-			OutBaryCoord = BaryCoord;
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void GetTriangleCoordAtUV_{ParameterName}(bool Enabled, float2 InUv, float InTolerance, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
 {
-	OutTriangle = -1;
-	OutBaryCoord = float3(0.0f, 0.0f, 0.0f);
-	OutIsValid = false;
+	UvMappingParameters MappingParam;
+	MappingParam.NumUVs = {ParameterName}_MeshNumTexCoord;
+	MappingParam.IndexBuffer = {ParameterName}_MeshIndexBuffer;
+	MappingParam.UVBuffer = {ParameterName}_MeshTexCoordBuffer;
+	MappingParam.UvMappingBuffer = {ParameterName}_UvMappingBuffer;
+	MappingParam.UvMappingBufferLength = {ParameterName}_UvMappingBufferLength;
+	MappingParam.UvMappingSet = {ParameterName}_UvMappingSet;
 
-	if (!Enabled || {ParameterName}_UvMappingBufferLength < DISkelMesh_MinValidUvMappingBufferSize)
-	{
-		return;
-	}
-
-	int NodeBufferOffset = 0;
-
-	float2 MidPoint = float2(0.5f, 0.5f);
-	float2 Extent = float2(0.5f, 0.5f);
-
-	while (NodeBufferOffset != -1)
-	{
-		if (QuadTreeNodeContains_{ParameterName}(NodeBufferOffset, InUv, InTolerance, OutTriangle, OutBaryCoord))
-		{
-			OutIsValid = true;
-			return;
-		}
-
-		Extent *= 0.5f;
-
-		const bool LessX = InUv.x < MidPoint.x;
-		const bool LessY = InUv.y < MidPoint.y;
-
-		MidPoint += Extent * float2(LessX ? -1.0f : 1.0f, LessY ? -1.0f : 1.0f);
-		int ChildIndex = LessX ? (LessY ? 2 : 0) : (LessY ? 3 : 1);
-
-		NodeBufferOffset = {ParameterName}_UvMappingBuffer[NodeBufferOffset + ChildIndex];
-	}
+	UvMapping_GetTriangleCoordAtUV(MappingParam, Enabled, InUv, InTolerance, OutTriangle, OutBaryCoord, OutIsValid);
 }
 
 void GetTriangleCoordInAabb_{ParameterName}(bool Enabled, float2 InUvMin, float2 InUvMax, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
 {
-	OutTriangle = -1;
-	OutBaryCoord = float3(0.0f, 0.0f, 0.0f);
-	OutIsValid = false;
+	UvMappingParameters MappingParam;
+	MappingParam.NumUVs = {ParameterName}_MeshNumTexCoord;
+	MappingParam.IndexBuffer = {ParameterName}_MeshIndexBuffer;
+	MappingParam.UVBuffer = {ParameterName}_MeshTexCoordBuffer;
+	MappingParam.UvMappingBuffer = {ParameterName}_UvMappingBuffer;
+	MappingParam.UvMappingBufferLength = {ParameterName}_UvMappingBufferLength;
+	MappingParam.UvMappingSet = {ParameterName}_UvMappingSet;
 
-	if (!Enabled || {ParameterName}_UvMappingBufferLength < DISkelMesh_MinValidUvMappingBufferSize)
-	{
-		return;
-	}
-
-	int NodeBufferOffset = 0;
-
-	const float2 UvRegionCenter = 0.5f * (InUvMin + InUvMax);
-	float2 MidPoint = float2(0.5f, 0.5f);
-	float2 Extent = float2(0.5f, 0.5f);
-
-	while (NodeBufferOffset != -1)
-	{
-		if (QuadTreeNodeContains_{ParameterName}Aabb(NodeBufferOffset, InUvMin, InUvMax, OutTriangle, OutBaryCoord))
-		{
-			OutIsValid = true;
-			return;
-		}
-
-		Extent *= 0.5f;
-
-		const bool LessX = UvRegionCenter.x < MidPoint.x;
-		const bool LessY = UvRegionCenter.y < MidPoint.y;
-
-		MidPoint += Extent * float2(LessX ? -1.0f : 1.0f, LessY ? -1.0f : 1.0f);
-		int ChildIndex = LessX ? (LessY ? 2 : 0) : (LessY ? 3 : 1);
-
-		NodeBufferOffset = {ParameterName}_UvMappingBuffer[NodeBufferOffset + ChildIndex];
-	}
+	UvMapping_GetTriangleCoordInAabb(MappingParam, Enabled, InUvMin, InUvMax, OutTriangle, OutBaryCoord, OutIsValid);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

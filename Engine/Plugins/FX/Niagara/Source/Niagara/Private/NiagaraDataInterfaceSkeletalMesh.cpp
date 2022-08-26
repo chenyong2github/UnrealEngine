@@ -12,7 +12,7 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceSkeletalMeshConnectivity.h"
-#include "NiagaraDataInterfaceSkeletalMeshUvMapping.h"
+#include "Experimental/NiagaraDataInterfaceSkeletalMeshUvMapping.h"
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
@@ -696,7 +696,7 @@ void FNDI_SkeletalMesh_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaS
 	}
 }
 
-FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex, FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately)
+FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex, int32 InUvSetIndex, FMeshUvMappingUsage Usage, bool bNeedsDataImmediately)
 {
 	check(MeshObject.Get() != nullptr);
 
@@ -706,14 +706,14 @@ FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping
 	}
 
 	// Attempt to Find data
+	auto MappingMatchPredicate = [&](const TSharedPtr<FSkeletalMeshUvMapping>& UvMapping)
+	{
+		return UvMapping->Matches(MeshObject, InLodIndex, InUvSetIndex);
+	};
+
 	{
 		FRWScopeLock ReadLock(CachedUvMappingGuard, SLT_ReadOnly);
-		TSharedPtr<FSkeletalMeshUvMapping>* Existing = CachedUvMapping.FindByPredicate([&](const TSharedPtr<FSkeletalMeshUvMapping>& UvMapping)
-			{
-				return UvMapping->Matches(MeshObject, InLodIndex, InUvSetIndex);
-			});
-
-		if (Existing)
+		if (TSharedPtr<FSkeletalMeshUvMapping>* Existing = CachedUvMapping.FindByPredicate(MappingMatchPredicate))
 		{
 			return FSkeletalMeshUvMappingHandle(Usage, *Existing, bNeedsDataImmediately);
 		}
@@ -721,6 +721,11 @@ FSkeletalMeshUvMappingHandle FNDI_SkeletalMesh_GeneratedData::GetCachedUvMapping
 
 	// We need to add
 	FRWScopeLock WriteLock(CachedUvMappingGuard, SLT_Write);
+	if (TSharedPtr<FSkeletalMeshUvMapping>* Existing = CachedUvMapping.FindByPredicate(MappingMatchPredicate))
+	{
+		return FSkeletalMeshUvMappingHandle(Usage, *Existing, bNeedsDataImmediately);
+	}
+
 	return FSkeletalMeshUvMappingHandle(
 		Usage,
 		CachedUvMapping.Add_GetRef(MakeShared<FSkeletalMeshUvMapping>(MeshObject, InLodIndex, InUvSetIndex)),
@@ -738,14 +743,15 @@ FSkeletalMeshConnectivityHandle FNDI_SkeletalMesh_GeneratedData::GetCachedConnec
 	}
 
 	// Attempt to Find data
+	auto ConnectivityMatchPredicate = [&](const TSharedPtr<FSkeletalMeshConnectivity>& Connectivity)
+	{
+		return Connectivity->CanBeUsed(MeshObject, InLodIndex);
+	};
+
+
 	{
 		FRWScopeLock ReadLock(CachedConnectivityGuard, SLT_ReadOnly);
-		TSharedPtr<FSkeletalMeshConnectivity>* Existing = CachedConnectivity.FindByPredicate([&](const TSharedPtr<FSkeletalMeshConnectivity>& Connectivity)
-		{
-			return Connectivity->CanBeUsed(MeshObject, InLodIndex);
-		});
-
-		if (Existing)
+		if (TSharedPtr<FSkeletalMeshConnectivity>* Existing = CachedConnectivity.FindByPredicate(ConnectivityMatchPredicate))
 		{
 			return FSkeletalMeshConnectivityHandle(Usage, *Existing, bNeedsDataImmediately);
 		}
@@ -753,6 +759,11 @@ FSkeletalMeshConnectivityHandle FNDI_SkeletalMesh_GeneratedData::GetCachedConnec
 
 	// We need to add
 	FRWScopeLock WriteLock(CachedConnectivityGuard, SLT_Write);
+	if (TSharedPtr<FSkeletalMeshConnectivity>* Existing = CachedConnectivity.FindByPredicate(ConnectivityMatchPredicate))
+	{
+		return FSkeletalMeshConnectivityHandle(Usage, *Existing, bNeedsDataImmediately);
+	}
+
 	return FSkeletalMeshConnectivityHandle(
 		Usage,
 		CachedConnectivity.Add_GetRef(MakeShared<FSkeletalMeshConnectivity>(MeshObject, InLodIndex)),
@@ -1340,104 +1351,6 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 }
 
 //////////////////////////////////////////////////////////////////////////
-//FNiagaraDataInterfaceParametersCS_SkeletalMesh
-struct FNDISkeletalMeshParametersName
-{
-	FString MeshIndexBufferName;
-	FString MeshVertexBufferName;
-	FString MeshSkinWeightBufferName;
-	FString MeshSkinWeightLookupBufferName;
-	FString MeshCurrBonesBufferName;
-	FString MeshPrevBonesBufferName;
-	FString MeshCurrSamplingBonesBufferName;
-	FString MeshPrevSamplingBonesBufferName;
-	FString MeshTangentBufferName;
-	FString MeshTexCoordBufferName;
-	FString MeshColorBufferName;
-	FString MeshTriangleSamplerProbAliasBufferName;
-	FString MeshNumSamplingRegionTrianglesName;
-	FString MeshNumSamplingRegionVerticesName;
-	FString MeshSamplingRegionsProbAliasBufferName;
-	FString MeshSampleRegionsTriangleIndicesName;
-	FString MeshSampleRegionsVerticesName;
-	FString MeshTriangleMatricesOffsetBufferName;
-	FString MeshTriangleCountName;
-	FString MeshVertexCountName;
-	FString MeshWeightStrideName;
-	FString MeshSkinWeightIndexSizeName;
-	FString MeshNumTexCoordName;
-	FString MeshNumWeightsName;
-	FString NumBonesName;
-	FString NumFilteredBonesName;
-	FString NumUnfilteredBonesName;
-	FString RandomMaxBoneName;
-	FString ExcludeBoneIndexName;
-	FString FilteredAndUnfilteredBonesName;
-	FString NumFilteredSocketsName;
-	FString FilteredSocketBoneOffsetName;
-	FString UvMappingBufferName;
-	FString UvMappingBufferLengthName;
-	FString UvMappingSetName;
-	FString ConnectivityBufferName;
-	FString ConnectivityBufferLengthName;
-	FString ConnectivityMaxAdjacentPerVertexName;
-	FString InstanceTransformName;
-	FString InstancePrevTransformName;
-	FString InstanceRotationName;
-	FString InstancePrevRotationName;
-	FString InstanceInvDeltaTimeName;
-	FString EnabledFeaturesName;
-};
-
-static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName& Names, const FString& Suffix)
-{
-	Names.MeshIndexBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshIndexBufferName + Suffix;
-	Names.MeshVertexBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshVertexBufferName + Suffix;
-	Names.MeshSkinWeightBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightBufferName + Suffix;
-	Names.MeshSkinWeightLookupBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightLookupBufferName + Suffix;
-	Names.MeshCurrBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshCurrBonesBufferName + Suffix;
-	Names.MeshPrevBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshPrevBonesBufferName + Suffix;
-	Names.MeshCurrSamplingBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshCurrSamplingBonesBufferName + Suffix;
-	Names.MeshPrevSamplingBonesBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshPrevSamplingBonesBufferName + Suffix;
-	Names.MeshTangentBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTangentBufferName + Suffix;
-	Names.MeshTexCoordBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTexCoordBufferName + Suffix;
-	Names.MeshColorBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshColorBufferName + Suffix;
-	Names.MeshTriangleSamplerProbAliasBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleSamplerProbAliasBufferName + Suffix;
-	Names.MeshNumSamplingRegionTrianglesName = UNiagaraDataInterfaceSkeletalMesh::MeshNumSamplingRegionTrianglesName + Suffix;
-	Names.MeshNumSamplingRegionVerticesName = UNiagaraDataInterfaceSkeletalMesh::MeshNumSamplingRegionVerticesName + Suffix;
-	Names.MeshSamplingRegionsProbAliasBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshSamplingRegionsProbAliasBufferName + Suffix;
-	Names.MeshSampleRegionsTriangleIndicesName = UNiagaraDataInterfaceSkeletalMesh::MeshSampleRegionsTriangleIndicesName + Suffix;
-	Names.MeshSampleRegionsVerticesName = UNiagaraDataInterfaceSkeletalMesh::MeshSampleRegionsVerticesName + Suffix;
-	Names.MeshTriangleMatricesOffsetBufferName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleMatricesOffsetBufferName + Suffix;
-	Names.MeshTriangleCountName = UNiagaraDataInterfaceSkeletalMesh::MeshTriangleCountName + Suffix;
-	Names.MeshVertexCountName = UNiagaraDataInterfaceSkeletalMesh::MeshVertexCountName + Suffix;
-	Names.MeshWeightStrideName = UNiagaraDataInterfaceSkeletalMesh::MeshWeightStrideName + Suffix;
-	Names.MeshSkinWeightIndexSizeName = UNiagaraDataInterfaceSkeletalMesh::MeshSkinWeightIndexSizeName + Suffix;
-	Names.MeshNumTexCoordName = UNiagaraDataInterfaceSkeletalMesh::MeshNumTexCoordName + Suffix;
-	Names.MeshNumWeightsName = UNiagaraDataInterfaceSkeletalMesh::MeshNumWeightsName + Suffix;
-	Names.NumBonesName = UNiagaraDataInterfaceSkeletalMesh::NumBonesName + Suffix;
-	Names.NumFilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredBonesName + Suffix;
-	Names.NumUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::NumUnfilteredBonesName + Suffix;
-	Names.RandomMaxBoneName = UNiagaraDataInterfaceSkeletalMesh::RandomMaxBoneName + Suffix;
-	Names.ExcludeBoneIndexName = UNiagaraDataInterfaceSkeletalMesh::ExcludeBoneIndexName + Suffix;
-	Names.FilteredAndUnfilteredBonesName = UNiagaraDataInterfaceSkeletalMesh::FilteredAndUnfilteredBonesName + Suffix;
-	Names.NumFilteredSocketsName = UNiagaraDataInterfaceSkeletalMesh::NumFilteredSocketsName + Suffix;
-	Names.FilteredSocketBoneOffsetName = UNiagaraDataInterfaceSkeletalMesh::FilteredSocketBoneOffsetName + Suffix;
-	Names.UvMappingBufferName = UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferName + Suffix;
-	Names.UvMappingBufferLengthName = UNiagaraDataInterfaceSkeletalMesh::UvMappingBufferLengthName + Suffix;
-	Names.UvMappingSetName = UNiagaraDataInterfaceSkeletalMesh::UvMappingSetName + Suffix;
-	Names.ConnectivityBufferName = UNiagaraDataInterfaceSkeletalMesh::ConnectivityBufferName + Suffix;
-	Names.ConnectivityBufferLengthName = UNiagaraDataInterfaceSkeletalMesh::ConnectivityBufferLengthName + Suffix;
-	Names.ConnectivityMaxAdjacentPerVertexName = UNiagaraDataInterfaceSkeletalMesh::ConnectivityMaxAdjacentPerVertexName + Suffix;
-	Names.InstanceTransformName = UNiagaraDataInterfaceSkeletalMesh::InstanceTransformName + Suffix;
-	Names.InstancePrevTransformName = UNiagaraDataInterfaceSkeletalMesh::InstancePrevTransformName + Suffix;
-	Names.InstanceRotationName = UNiagaraDataInterfaceSkeletalMesh::InstanceRotationName + Suffix;
-	Names.InstancePrevRotationName = UNiagaraDataInterfaceSkeletalMesh::InstancePrevRotationName + Suffix;
-	Names.InstanceInvDeltaTimeName = UNiagaraDataInterfaceSkeletalMesh::InstanceInvDeltaTimeName + Suffix;
-	Names.EnabledFeaturesName = UNiagaraDataInterfaceSkeletalMesh::EnabledFeaturesName + Suffix;
-}
-
-//////////////////////////////////////////////////////////////////////////
 
 void FNiagaraDataInterfaceProxySkeletalMesh::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
 {
@@ -1814,7 +1727,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		const bool SupportUvMappingCpu = UsedByCpuUvMapping && MeshValid;
 		const bool SupportUvMappingGpu = UsedByGpuUvMapping && MeshValid && Interface->IsUsedWithGPUEmitter();
 
-		FSkeletalMeshUvMappingUsage UvMappingUsage(SupportUvMappingCpu, SupportUvMappingGpu);
+		FMeshUvMappingUsage UvMappingUsage(SupportUvMappingCpu, SupportUvMappingGpu);
 
 		if (UvMappingUsage.IsValid())
 		{
@@ -2890,6 +2803,7 @@ void UNiagaraDataInterfaceSkeletalMesh::ModifyCompilationEnvironment(EShaderPlat
 void UNiagaraDataInterfaceSkeletalMesh::GetCommonHLSL(FString& OutHLSL)
 {
 	OutHLSL.Appendf(TEXT("#include \"%s\"\n"), NDISkelMeshLocal::CommonShaderFile);
+	OutHLSL.Append(TEXT("#include \"/Plugin/FX/Niagara/Private/Experimental/NiagaraUvMappingUtils.ush\"\n"));
 }
 
 void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)

@@ -36,6 +36,10 @@ float3			{ParameterName}_SystemLWCTile;
 int				{ParameterName}_InstanceDistanceFieldIndex;
 #endif
 
+Buffer<int>		{ParameterName}_UvMappingBuffer;
+uint			{ParameterName}_UvMappingBufferLength;
+uint			{ParameterName}_UvMappingSet;
+
 //////////////////////////////////////////////////////////////////////////
 // Fwd declarations
 void RandomSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section);
@@ -588,4 +592,33 @@ void QueryDistanceField_{ParameterName}(bool bExecute, float3 WorldPosition, boo
 	OutIsValid = false;
 	OutDistance = MaxDistance;
 #endif
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Uv Mapping
+void GetTriangleCoordAtUV_{ParameterName}(bool Enabled, float2 InUv, float InTolerance, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
+{
+	UvMappingParameters MappingParam;
+	MappingParam.NumUVs = {ParameterName}_NumUVs;
+	MappingParam.IndexBuffer = {ParameterName}_IndexBuffer;
+	MappingParam.UVBuffer = {ParameterName}_UVBuffer;
+	MappingParam.UvMappingBuffer = {ParameterName}_UvMappingBuffer;
+	MappingParam.UvMappingBufferLength = {ParameterName}_UvMappingBufferLength;
+	MappingParam.UvMappingSet = {ParameterName}_UvMappingSet;
+
+	UvMapping_GetTriangleCoordAtUV(MappingParam, Enabled, InUv, InTolerance, OutTriangle, OutBaryCoord, OutIsValid);
+}
+
+void GetTriangleCoordInAabb_{ParameterName}(bool Enabled, float2 InUvMin, float2 InUvMax, out int OutTriangle, out float3 OutBaryCoord, out bool OutIsValid)
+{
+	UvMappingParameters MappingParam;
+	MappingParam.NumUVs = {ParameterName}_NumUVs;
+	MappingParam.IndexBuffer = {ParameterName}_IndexBuffer;
+	MappingParam.UVBuffer = {ParameterName}_UVBuffer;
+	MappingParam.UvMappingBuffer = {ParameterName}_UvMappingBuffer;
+	MappingParam.UvMappingBufferLength = {ParameterName}_UvMappingBufferLength;
+	MappingParam.UvMappingSet = {ParameterName}_UvMappingSet;
+
+	UvMapping_GetTriangleCoordInAabb(MappingParam, Enabled, InUvMin, InUvMax, OutTriangle, OutBaryCoord, OutIsValid);
 }

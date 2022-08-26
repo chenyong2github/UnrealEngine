@@ -4,6 +4,7 @@
 #include "NiagaraDataInterfaceMeshCommon.h"
 #include "StaticMeshResources.h"
 #include "Engine/StaticMesh.h"
+#include "Experimental/NiagaraMeshUvMappingHandle.h"
 #include "NiagaraDataInterfaceStaticMesh.generated.h"
 
 UENUM()
@@ -233,6 +234,11 @@ protected:
 	void VMGetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
 	void VMGetWorldVelocity(FVectorVMExternalFunctionContext& Context);
 
+	// VM UV mapping functions
+	void VMGetTriangleCoordAtUV(FVectorVMExternalFunctionContext& Context);
+	void VMGetTriangleCoordInAabb(FVectorVMExternalFunctionContext& Context);
+	void VMBuildUvMapping(FVectorVMExternalFunctionContext& Context);;
+
 	// Deprecated VM Functions
 	template<typename TTransformHandler>
 	void VMGetVertexPosition_Deprecated(FVectorVMExternalFunctionContext& Context);
@@ -244,4 +250,21 @@ protected:
 	void VMGetTriangleTangentBasis_Deprecated(FVectorVMExternalFunctionContext& Context);
 	template<typename TTransformHandler>
 	void VMGetTriangleNormal_Deprecated(FVectorVMExternalFunctionContext& Context);
+};
+
+class NIAGARA_API FNDI_StaticMesh_GeneratedData : public FNDI_GeneratedData
+{
+	FRWLock CachedUvMappingGuard;
+	TArray<TSharedPtr<FStaticMeshUvMapping>> CachedUvMapping;
+
+public:
+	FStaticMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<UStaticMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
+
+	virtual void Tick(ETickingGroup TickGroup, float DeltaSeconds) override;
+
+	static TypeHash GetTypeHash()
+	{
+		static const TypeHash Hash = ::GetTypeHash(TEXT("FNDI_StaticMesh_GeneratedData"));
+		return Hash;
+	}
 };
