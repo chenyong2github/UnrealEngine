@@ -2813,7 +2813,7 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 		if (Property->HasAnyPropertyFlags(CPF_Parm))
 		{
 			++Function->NumParms;
-			Function->ParmsSize = Property->GetOffset_ForUFunction() + Property->GetSize();
+			Function->ParmsSize = IntCastChecked<int16, int32>(Property->GetOffset_ForUFunction() + Property->GetSize());
 
 			if (Property->HasAnyPropertyFlags(CPF_OutParm))
 			{
@@ -2822,7 +2822,7 @@ void FKismetCompilerContext::SetCalculatedMetaDataAndFlags(UFunction* Function, 
 
 			if (Property->HasAnyPropertyFlags(CPF_ReturnParm))
 			{
-				Function->ReturnValueOffset = Property->GetOffset_ForUFunction();
+				Function->ReturnValueOffset = IntCastChecked<uint16, int32>(Property->GetOffset_ForUFunction());
 			}
 		}
 		else

@@ -1900,13 +1900,13 @@ void SSCS_RowWidget::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBox
 {
 	InfoBox->AddSlot()
 		.AutoHeight()
-		.Padding(0, 1)
+		.Padding(0.0f, 1.0f)
 		[
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.Padding(0, 0, 4, 0)
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 			[
 				SNew(STextBlock)
 				.TextStyle(FAppStyle::Get(), bImportant ? "SCSEditor.ComponentTooltip.ImportantLabel" : "SCSEditor.ComponentTooltip.Label")
@@ -1950,7 +1950,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 				InfoBox->AddSlot()
 					.AutoHeight()
 					.HAlign(HAlign_Center)
-					.Padding(FMargin(0, 2, 0, 4))
+					.Padding(FMargin(0.0f, 2.0f, 0.0f, 4.0f))
 					[
 						SNew(STextBlock)
 						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.ClassDescription")
@@ -1990,13 +1990,13 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 
 	TSharedRef<SBorder> TooltipContent = SNew(SBorder)
 		.BorderImage(FAppStyle::GetBrush("NoBorder"))
-		.Padding(0)
+		.Padding(0.0f)
 		[
 			SNew(SVerticalBox)
 			
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(0, 0, 0, 4)
+			.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 			[
 				SNew(SVerticalBox)
 
@@ -2008,7 +2008,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(2)
+					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.Title")
@@ -2022,7 +2022,7 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 			[
 				SNew(SBorder)
 				.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				.Padding(2)
+				.Padding(2.0f)
 				[
 					InfoBox
 				]
@@ -3637,13 +3637,13 @@ TSharedRef<SToolTip> SSCS_RowWidget_ActorRoot::CreateToolTipWidget() const
 
 	TSharedRef<SBorder> TooltipContent = SNew(SBorder)
 		.BorderImage(FAppStyle::GetBrush("NoBorder"))
-		.Padding(0)
+		.Padding(0.0f)
 		[
 			SNew(SVerticalBox)
 
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(0, 0, 0, 4)
+			.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 			[
 				SNew(SVerticalBox)
 
@@ -3655,7 +3655,7 @@ TSharedRef<SToolTip> SSCS_RowWidget_ActorRoot::CreateToolTipWidget() const
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(4)
+					.Padding(4.0f)
 					[
 						SNew(STextBlock)
 						.TextStyle(FAppStyle::Get(), "SCSEditor.ComponentTooltip.Title")
@@ -3669,7 +3669,7 @@ TSharedRef<SToolTip> SSCS_RowWidget_ActorRoot::CreateToolTipWidget() const
 			[
 				SNew(SBorder)
 				.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				.Padding(4)
+				.Padding(4.0f)
 				[
 					InfoBox
 				]
@@ -3992,7 +3992,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	ButtonBox = SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
-	.Padding(0,0,4,0)
+	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 	.AutoWidth()
 	[
 		SNew(SComponentClassCombo)
@@ -4004,7 +4004,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	]
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
-	.Padding(0,0,4,0)
+	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 	.AutoWidth()
 	[
 		SAssignNew(ExtensionPanel, SExtensionPanel)
@@ -4016,7 +4016,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
-	.Padding(0,0,4,0)
+	.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 	.AutoWidth()
 	[
 		SNew(SPositiveActionButton)

@@ -126,7 +126,7 @@ void SFilterableObjectList::InternalConstruct()
 		// The (possibly filtered) list of items
 		+SVerticalBox::Slot()
 			.FillHeight(1)
-			.Padding(2)
+			.Padding(2.0f)
 		[
 			SNew(SBorder)
 			[

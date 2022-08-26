@@ -30,7 +30,7 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 	.MenuContent()
 	[
 		SNew(SBox)
-		.MinDesiredWidth(300)
+		.MinDesiredWidth(300.0f)
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()

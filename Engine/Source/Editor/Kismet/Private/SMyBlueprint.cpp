@@ -528,7 +528,7 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 					.Padding(2, 0, 0, 0)
 					[
 						SNew(SComboButton)
-						.ContentPadding(0)
+						.ContentPadding(0.0f)
 						.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 						.HasDownArrow(false)
 						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
@@ -794,7 +794,7 @@ TSharedRef<SWidget> SMyBlueprint::OnGetSectionWidget(TSharedRef<SWidget> RowWidg
 					.Visibility(this, &SMyBlueprint::OnGetSectionTextVisibility, WeakRowWidget, InSectionID)
 					.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
 					.OnGetMenuContent(this, &SMyBlueprint::OnGetFunctionListMenu)
-					.ContentPadding(0)
+					.ContentPadding(0.0f)
 					.HasDownArrow(true)
 					.ButtonContent()
 					[

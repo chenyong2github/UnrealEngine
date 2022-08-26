@@ -245,7 +245,7 @@ private:
 	TSharedPtr< FUICommandList > CommandList;
 
 	/** The current desired size of the timeline */
-	FVector2D TimelineDesiredSize;
+	FVector2f TimelineDesiredSize;
 
 	/** The nominal desired height of a single timeline track at 1.0x height */
 	float NominalTimelineDesiredHeight;

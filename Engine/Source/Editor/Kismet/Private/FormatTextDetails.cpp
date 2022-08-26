@@ -137,7 +137,7 @@ void FFormatTextArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& Node
 			.Padding(2, 0)
 			[
 				SNew(SButton)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.OnClicked(this, &FFormatTextArgumentLayout::OnMoveArgumentUp)
 				.IsEnabled( bIsMoveUpEnabled )
 				[
@@ -150,7 +150,7 @@ void FFormatTextArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& Node
 			.Padding(2, 0)
 			[
 				SNew(SButton)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.OnClicked(this, &FFormatTextArgumentLayout::OnMoveArgumentDown)
 				.IsEnabled( bIsMoveDownEnabled )
 				[

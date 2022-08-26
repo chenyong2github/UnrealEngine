@@ -739,8 +739,8 @@ void SFindInBlueprints::ConditionallyAddCacheBar()
 				{
 					TSharedRef<SWidget> DisplayWidget = 
 						SNew(SBox)
-						.MaxDesiredHeight(512)
-						.MaxDesiredWidth(512)
+						.MaxDesiredHeight(512.0f)
+						.MaxDesiredWidth(512.0f)
 						.Content()
 						[
 							SNew(SBorder)

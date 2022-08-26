@@ -99,7 +99,7 @@ void SScrubControlPanel::Construct( const SScrubControlPanel::FArguments& InArgs
 		.AutoWidth()
 		[
 			SNew(SBorder)
-			.Padding(0)
+			.Padding(0.0f)
 			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Visibility(this, &SScrubControlPanel::GetRealtimeControlVisibility, false)
 			[
@@ -111,7 +111,7 @@ void SScrubControlPanel::Construct( const SScrubControlPanel::FArguments& InArgs
 		.AutoWidth()
 		[
 			SNew(SBorder)
-			.Padding(0)
+			.Padding(0.0f)
 			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Visibility(this, &SScrubControlPanel::GetRealtimeControlVisibility, true)
 			[

@@ -508,7 +508,7 @@ void SWatchViewer::Construct(const FArguments& InArgs, TArray<TSharedRef<FWatchR
 	ChildSlot
 	[
 		SNew(SBorder)
-		.Padding(4)
+		.Padding(4.0f)
 		.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 		[
 			SNew(SOverlay)
@@ -673,7 +673,7 @@ void SWatchTreeWidgetItem::Construct(const FArguments& InArgs, SWatchViewer* InO
 	this->WatchRow = InArgs._WatchToVisualize;
 	Owner = InOwner;
 
-	SMultiColumnTableRow< TSharedRef<FWatchRow> >::Construct(SMultiColumnTableRow< TSharedRef<FWatchRow> >::FArguments().Padding(1), InOwnerTableView);
+	SMultiColumnTableRow<TSharedRef<FWatchRow>>::Construct(SMultiColumnTableRow<TSharedRef<FWatchRow>>::FArguments().Padding(1.0f), InOwnerTableView);
 }
 
 TSharedRef<SWidget> SWatchTreeWidgetItem::GenerateWidgetForColumn(const FName& ColumnName)

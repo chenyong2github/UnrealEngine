@@ -125,7 +125,7 @@ private:
 	TAttribute<TOptional<float>> MaxHeight;
 
 	// must be mutable to be changed in ComputeDesiredSize
-	mutable TOptional<float> CachedXSize;
+	mutable TOptional<double> CachedXSize;
 };
 
 void SPinValueInspector::Construct(const FArguments& InArgs)

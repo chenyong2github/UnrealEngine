@@ -347,7 +347,7 @@ void SCallStackViewer::Construct(const FArguments& InArgs, TArray<TSharedRef<FCa
 	ChildSlot
 	[
 		SNew(SBorder)
-		.Padding(4)
+		.Padding(4.0f)
 		.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 		[
 			SNew(SOverlay)
@@ -538,12 +538,13 @@ void CallStackViewer::UpdateDisplayedCallstack(TArrayView<const FFrame* const> S
 				}
 			}
 
+			int32 ScriptOffset = UE_PTRDIFF_TO_INT32(StackNode->Code - StackNode->Node->Script.GetData() - 1);
 			Private_CallStackSource.Add(
 				MakeShared<FCallStackRow>(
 					StackNode->Object,
 					StackNode->Node->GetOuter()->GetFName(),
 					StackNode->Node->GetFName(),
-					StackNode->Code - StackNode->Node->Script.GetData() - 1,
+					ScriptOffset,
 					ECallstackLanguages::Blueprints,
 					ScopeDisplayName,
 					FunctionDisplayName

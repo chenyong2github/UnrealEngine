@@ -301,12 +301,12 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 	// Build the widget layout
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage( FAppStyle::GetBrush("Menu.Background") )
-		.Padding(5)
+		.Padding(5.0f)
 		[
 			// Achieving fixed width by nesting items within a fixed width box.
 			SNew(SBox)
-			.WidthOverride(400)
-			.HeightOverride(400)
+			.WidthOverride(400.0f)
+			.HeightOverride(400.0f)
 			[
 				SNew(SVerticalBox)
 
@@ -321,7 +321,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(0, 0, (ContextIcon != NULL) ? 5 : 0, 0)
+					.Padding(0.0f, 0.0f, (ContextIcon != nullptr) ? 5.0f : 0.0f, 0.0f)
 					[
 						SNew(SImage)
 						.ColorAndOpacity(TypeColor)

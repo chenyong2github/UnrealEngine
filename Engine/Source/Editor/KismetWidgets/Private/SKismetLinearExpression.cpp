@@ -210,7 +210,7 @@ TSharedRef<SWidget> SKismetLinearExpression::MakeNodeWidget(const UEdGraphNode* 
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
-				.Padding(4)
+				.Padding(4.0f)
 				[
 					SNew(STextBlock).Text(LOCTEXT("BeginExpression", "("))
 				];

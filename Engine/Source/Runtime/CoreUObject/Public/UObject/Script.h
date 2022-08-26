@@ -129,7 +129,7 @@ enum EFunctionFlags : uint32
 	FUNC_None				= 0x00000000,
 
 	FUNC_Final				= 0x00000001,	// Function is final (prebindable, non-overridable function).
-	FUNC_RequiredAPI			= 0x00000002,	// Indicates this function is DLL exported/imported.
+	FUNC_RequiredAPI		= 0x00000002,	// Indicates this function is DLL exported/imported.
 	FUNC_BlueprintAuthorityOnly= 0x00000004,   // Function will only run if the object has network authority
 	FUNC_BlueprintCosmetic	= 0x00000008,   // Function is cosmetic in nature and should not be invoked on dedicated servers
 	// FUNC_				= 0x00000010,   // unused.
@@ -181,7 +181,7 @@ ENUM_CLASS_FLAGS(EFunctionFlags)
 //
 // Evaluatable expression item types.
 //
-enum EExprToken
+enum EExprToken : uint8
 {
 	// Variable references.
 	EX_LocalVariable		= 0x00,	// A local variable.
@@ -294,10 +294,10 @@ enum EExprToken
 	EX_ArrayGetByRef		= 0x6B,
 	EX_ClassSparseDataVariable = 0x6C, // Sparse data variable
 	EX_FieldPathConst		= 0x6D,
-	EX_Max					= 0x100,
+	EX_Max					= 0xFF,
 };
 
-enum ECastToken
+enum ECastToken : uint8
 {
 	CST_ObjectToInterface		= 0x00,
 	CST_ObjectToBool			= 0x01,

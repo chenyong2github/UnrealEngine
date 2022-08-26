@@ -380,7 +380,7 @@ TSharedRef<SWidget> SBlueprintLibraryPalette::ConstructClassFilterDropdownConten
 		[
 			// achieving fixed width by nesting items within a fixed width box.
 			SNew(SBox)
-				.WidthOverride(350)
+				.WidthOverride(350.0f)
 			[
 				SNew(SVerticalBox)
 				

@@ -258,9 +258,9 @@ UEdGraphNode* FBlueprintActionMenuItem::PerformAction(UEdGraph* ParentGraph, UEd
 		{
 			UEdGraphNode* FromNode = FromPin->GetOwningNode();
 			check(FromNode != nullptr);
-			float const FromNodeX = FromNode->NodePosX;
+			const double FromNodeX = FromNode->NodePosX;
 
-			static const float MinNodeDistance = 60.f; // min distance between spawned nodes (to keep them from overlapping)
+			static const double MinNodeDistance = 60.0; // min distance between spawned nodes (to keep them from overlapping)
 			if (MinNodeDistance > FMath::Abs(FromNodeX - Location.X))
 			{
 				ModifiedLocation.X = FromNodeX - MinNodeDistance;
@@ -272,7 +272,7 @@ UEdGraphNode* FBlueprintActionMenuItem::PerformAction(UEdGraph* ParentGraph, UEd
 	}
 
 	TSet<const UEdGraphNode*> NodesToFocus;
-	int32 const PreSpawnNodeCount = ParentGraph->Nodes.Num();
+	const int32 PreSpawnNodeCount = ParentGraph->Nodes.Num();
 
 	UEdGraphNode* LastSpawnedNode = nullptr;
 	auto BoundObjIt = Bindings.CreateConstIterator();
@@ -287,7 +287,7 @@ UEdGraphNode* FBlueprintActionMenuItem::PerformAction(UEdGraph* ParentGraph, UEd
 			}
 		}
 
-		int32 const PreInvokeNodeCount = ParentGraph->Nodes.Num();
+		const int32 PreInvokeNodeCount = ParentGraph->Nodes.Num();
 
 		bool bNewNode = false;
 		LastSpawnedNode = InvokeAction(Action, ParentGraph, ModifiedLocation, BindingsSubset, /*out*/ bNewNode);
@@ -316,7 +316,7 @@ UEdGraphNode* FBlueprintActionMenuItem::PerformAction(UEdGraph* ParentGraph, UEd
 
 	if (bSelectNewNode)
 	{
-		int32 const PostSpawnCount = ParentGraph->Nodes.Num();
+		const int32 PostSpawnCount = ParentGraph->Nodes.Num();
 		for (int32 NodeIndex = PreSpawnNodeCount; NodeIndex < PostSpawnCount; ++NodeIndex)
 		{
 			NodesToFocus.Add(ParentGraph->Nodes[NodeIndex]);

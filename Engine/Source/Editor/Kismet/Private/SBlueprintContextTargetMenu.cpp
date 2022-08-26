@@ -505,7 +505,7 @@ bool FContextMenuTargetProfile::LoadProfile()
 /**  */
 namespace BlueprintContextTargetMenuImpl
 {
-	static FText GetContextTargetDisplayName(UEnum* Enum, int32 EnumIndex)
+	static FText GetContextTargetDisplayName(const UEnum* Enum, int32 EnumIndex)
 	{
 		if (Enum != nullptr)
 		{
@@ -522,10 +522,10 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 	OnTargetMaskChanged = InArgs._OnTargetMaskChanged;
 
 	FSlateFontInfo HeaderFontStyle = FAppStyle::GetFontStyle("BlueprintEditor.ActionMenu.ContextDescriptionFont");
-	HeaderFontStyle.Size -= 2.f;
-	FText const HeaderText = ContextMenuTargetProfileImpl::GetProfileDescription(MenuContext);
+	HeaderFontStyle.Size -= 2;
+	const FText HeaderText = ContextMenuTargetProfileImpl::GetProfileDescription(MenuContext);
 
-	FText const MenuToolTip = LOCTEXT("MenuToolTip", "Select whose functions/variables you want to see.\nNOTE: Unchecking everything is akin to 'SHOW EVERYTHING' (you're choosing to have NO target context and to not limit the scope)");
+	const FText MenuToolTip = LOCTEXT("MenuToolTip", "Select whose functions/variables you want to see.\nNOTE: Unchecking everything is akin to 'SHOW EVERYTHING' (you're choosing to have NO target context and to not limit the scope)");
 
 	TSharedRef<SWidget> CustomContentWidget = InArgs._CustomTargetContent.Widget;
 	if (CustomContentWidget != SNullWidget::NullWidget)
@@ -555,7 +555,7 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 		.ToolTipText(MenuToolTip)
 		[
 			SNew(SBox)
-				.MinDesiredWidth(200)
+				.MinDesiredWidth(200.0f)
 				.ToolTipText(MenuToolTip)
 				.Padding(FMargin(0.f, 0.f, 0.f, 18.f))
 			[
@@ -602,8 +602,8 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 		];
 	}
 
-	UEnum* const TargetEnum = StaticEnum<EContextTargetFlags::Type>();
-	uint32 const GreatestFlag = (EContextTargetFlags::ContextTargetFlagsEnd & ~1);
+	const UEnum* TargetEnum = StaticEnum<EContextTargetFlags::Type>();
+	const uint32 GreatestFlag = (EContextTargetFlags::ContextTargetFlagsEnd & ~1);
 
 	int32  ColIndex = 0;
 	for (int32 BitMaskOffset = 0; (1 << BitMaskOffset) <= GreatestFlag; ++BitMaskOffset)
@@ -621,7 +621,7 @@ void SBlueprintContextTargetMenu::Construct(const FArguments& InArgs, const FBlu
 			continue;
 		}
 		
-		FText const MenuName = BlueprintContextTargetMenuImpl::GetContextTargetDisplayName(TargetEnum, BitMaskOffset);
+		const FText MenuName = BlueprintContextTargetMenuImpl::GetContextTargetDisplayName(TargetEnum, BitMaskOffset);
 		const FContextMenuTargetProfile& ProfileRef = TargetProfile;
 
 		Columns[ColIndex]->AddSlot()

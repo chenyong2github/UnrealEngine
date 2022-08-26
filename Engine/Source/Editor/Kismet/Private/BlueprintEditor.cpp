@@ -6175,8 +6175,8 @@ void FBlueprintEditor::MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, 
 
 		for (UEdGraphNode* ExpandedNode : AverageNodes)
 		{
-			ExpandedNode->NodePosX = (ExpandedNode->NodePosX - AvgNodePosition.X) + SourcePos.X;
-			ExpandedNode->NodePosY = (ExpandedNode->NodePosY - AvgNodePosition.Y) + SourcePos.Y;
+			ExpandedNode->NodePosX = static_cast<int32>((ExpandedNode->NodePosX - AvgNodePosition.X) + SourcePos.X);
+			ExpandedNode->NodePosY = static_cast<int32>((ExpandedNode->NodePosY - AvgNodePosition.Y) + SourcePos.Y);
 
 			ExpandedNode->SnapToGrid(SNodePanel::GetSnapGridSize());
 
@@ -6340,8 +6340,8 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 			check(NewNode != nullptr);
 			NewNode->CreateNewGuid();
 
-			NewNode->NodePosX = SpawnPos.X;
-			NewNode->NodePosY = SpawnPos.Y;
+			NewNode->NodePosX = static_cast<int32>(SpawnPos.X);
+			NewNode->NodePosY = static_cast<int32>(SpawnPos.Y);
 
 			NewNode->SetFlags(RF_Transactional);
 			NewNode->AllocateDefaultPins();
@@ -7231,7 +7231,7 @@ private:
 		return bResult;
 	}
 
-	void InitializeNewNode(UK2Node* NewNode, UK2Node* OldNode, float NodePosX = 0.0f, float NodePosY = 0.0f)
+	void InitializeNewNode(UK2Node* NewNode, UK2Node* OldNode, int32 NodePosX = 0, int32 NodePosY = 0)
 	{	
 		NewNode->NodePosX = OldNode ? OldNode->NodePosX : NodePosX;
 		NewNode->NodePosY = OldNode ? OldNode->NodePosY : NodePosY;
@@ -7264,7 +7264,7 @@ private:
 			check(NewTarget);
 			NewTarget->SetFromProperty(Property, true, Property->GetOwnerClass());
 			AddedTargets.Add(NewTarget);
-			const float AutoNodeOffsetX = 160.0f;
+			const int32 AutoNodeOffsetX = 160;
 			InitializeNewNode(NewTarget, OldTarget, OldCall->NodePosX - AutoNodeOffsetX, OldCall->NodePosY);
 		}
 
@@ -7389,8 +7389,8 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 			UEdGraphNode* Node = *It;
 			FocusedGraphEd->SetNodeSelection(Node, true);
 
-			Node->NodePosX = (Node->NodePosX - AvgNodePosition.X) + GraphLocation.X;
-			Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + GraphLocation.Y;
+			Node->NodePosX = static_cast<int32>((Node->NodePosX - AvgNodePosition.X) + GraphLocation.X);
+			Node->NodePosY = static_cast<int32>((Node->NodePosY - AvgNodePosition.Y) + GraphLocation.Y);
 
 			Node->SnapToGrid(SNodePanel::GetSnapGridSize());
 
@@ -8362,12 +8362,12 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 	// Keep track of the statistics of the node positions so the new nodes can be located reasonably well
-	float SumNodeX = 0.0f;
-	float SumNodeY = 0.0f;
-	float MinNodeX = 1e9f;
-	float MinNodeY = 1e9f;
-	float MaxNodeX = -1e9f;
-	float MaxNodeY = -1e9f;
+	int32 SumNodeX = 0;
+	int32 SumNodeY = 0;
+	int32 MinNodeX = std::numeric_limits<int32>::max();
+	int32 MinNodeY = std::numeric_limits<int32>::max();
+	int32 MaxNodeX = std::numeric_limits<int32>::min();
+	int32 MaxNodeY = std::numeric_limits<int32>::min();
 
 	UEdGraphNode* InterfaceTemplateNode = nullptr;
 
@@ -8376,7 +8376,7 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 	bool bDiscardReturnNode = true;
 
 	// For collapsing to functions can use a single event as a template for the function. This event MUST be deleted at the end, and the pins pre-generated. 
-	if(InGatewayNode->GetClass() == UK2Node_CallFunction::StaticClass())
+	if (InGatewayNode->GetClass() == UK2Node_CallFunction::StaticClass())
 	{
 		for (UEdGraphNode* Node : InCollapsableNodes)
 		{
@@ -8411,10 +8411,10 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 		// Update stats
 		SumNodeX += Node->NodePosX;
 		SumNodeY += Node->NodePosY;
-		MinNodeX = FMath::Min<float>(MinNodeX, Node->NodePosX);
-		MinNodeY = FMath::Min<float>(MinNodeY, Node->NodePosY);
-		MaxNodeX = FMath::Max<float>(MaxNodeX, Node->NodePosX);
-		MaxNodeY = FMath::Max<float>(MaxNodeY, Node->NodePosY);
+		MinNodeX = FMath::Min<int32>(MinNodeX, Node->NodePosX);
+		MinNodeY = FMath::Min<int32>(MinNodeY, Node->NodePosY);
+		MaxNodeX = FMath::Max<int32>(MaxNodeX, Node->NodePosX);
+		MaxNodeY = FMath::Max<int32>(MaxNodeY, Node->NodePosY);
 
 		// Move the node over
 		InSourceGraph->Nodes.Remove(Node);
@@ -8422,7 +8422,7 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 		Node->Rename(/*NewName=*/ nullptr, /*NewOuter=*/ InDestinationGraph);
 
 		// Move the sub-graph to the new graph
-		if(UK2Node_Composite* Composite = Cast<UK2Node_Composite>(Node))
+		if (UK2Node_Composite* Composite = Cast<UK2Node_Composite>(Node))
 		{
 			InSourceGraph->SubGraphs.Remove(Composite->BoundGraph);
 			InDestinationGraph->SubGraphs.Add(Composite->BoundGraph);
@@ -8477,7 +8477,7 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 				UEdGraphPin* RemotePortPin = nullptr;
 
 				// Function graphs have a single exec path through them, so only one exec pin for input and another for output. In this fashion, they must not be handled by name.
-				if(InGatewayNode->GetClass() == UK2Node_CallFunction::StaticClass() && LocalPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+				if (InGatewayNode->GetClass() == UK2Node_CallFunction::StaticClass() && LocalPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
 				{
 					LocalPortPin = LocalPort->Pins[0];
 					RemotePortPin = K2Schema->FindExecutionPin(*InGatewayNode, (LocalPortPin->Direction == EGPD_Input)? EGPD_Output : EGPD_Input);
@@ -8485,7 +8485,7 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 				else
 				{
 					// If there is a custom event being used as a template, we must check to see if any connected pins have already been built
-					if(InterfaceTemplateNode && LocalPin->Direction == EGPD_Input)
+					if (InterfaceTemplateNode && LocalPin->Direction == EGPD_Input)
 					{
 						// Find the pin on the entry node, we will use that pin's name to find the pin on the remote port
 						UEdGraphPin* EntryNodePin = InEntryNode->FindPin(LocalPin->LinkedTo[0]->PinName);
@@ -8497,11 +8497,11 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 						}
 					}
 
-					if(LocalPin->LinkedTo[0]->GetOwningNode() != InEntryNode)
+					if (LocalPin->LinkedTo[0]->GetOwningNode() != InEntryNode)
 					{
 						const FName UniquePortName = InGatewayNode->CreateUniquePinName(LocalPin->PinName);
 
-						if(!RemotePortPin && !LocalPortPin)
+						if (!RemotePortPin && !LocalPortPin)
 						{
 							if (LocalPin->Direction == EGPD_Output)
 							{
@@ -8514,7 +8514,7 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 								PinType.bIsWeakPointer = false;
 							}
 							RemotePortPin = InGatewayNode->CreatePin(LocalPin->Direction, PinType, UniquePortName);
-							LocalPortPin = LocalPort->CreateUserDefinedPin(UniquePortName, PinType, (LocalPin->Direction == EGPD_Input)? EGPD_Output : EGPD_Input);
+							LocalPortPin = LocalPort->CreateUserDefinedPin(UniquePortName, PinType, (LocalPin->Direction == EGPD_Input) ? EGPD_Output : EGPD_Input);
 						}
 					}
 				}
@@ -8581,9 +8581,9 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 	const int32 NumNodes = InCollapsableNodes.Num();
 
 	// Remove the template node if one was used for generating the function
-	if(InterfaceTemplateNode)
+	if (InterfaceTemplateNode)
 	{
-		if(NumNodes == 0)
+		if (NumNodes == 0)
 		{
 			SumNodeX = InterfaceTemplateNode->NodePosX;
 			SumNodeY = InterfaceTemplateNode->NodePosY;
@@ -8593,18 +8593,18 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 	}
 
 	// Using the result pin, we will ensure that there is a path through the function by checking if it is connected. If it is not, link it to the entry node.
-	if(UEdGraphPin* ResultExecFunc = K2Schema->FindExecutionPin(*InResultNode, EGPD_Input))
+	if (UEdGraphPin* ResultExecFunc = K2Schema->FindExecutionPin(*InResultNode, EGPD_Input))
 	{
-		if(ResultExecFunc->LinkedTo.Num() == 0)
+		if (ResultExecFunc->LinkedTo.Num() == 0)
 		{
 			K2Schema->FindExecutionPin(*InEntryNode, EGPD_Output)->MakeLinkTo(K2Schema->FindExecutionPin(*InResultNode, EGPD_Input));
 		}
 	}
 
-	const float CenterX = NumNodes == 0? SumNodeX : SumNodeX / NumNodes;
-	const float CenterY = NumNodes == 0? SumNodeY : SumNodeY / NumNodes;
-	const float MinusOffsetX = 160.0f; //@TODO: Random magic numbers
-	const float PlusOffsetX = 300.0f;
+	const int32 CenterX = (NumNodes == 0) ? SumNodeX : SumNodeX / NumNodes;
+	const int32 CenterY = (NumNodes == 0) ? SumNodeY : SumNodeY / NumNodes;
+	const int32 MinusOffsetX = 160; //@TODO: Random magic numbers
+	const int32 PlusOffsetX = 300;
 
 	// Put the gateway node at the center of the empty space in the old graph
 	InGatewayNode->NodePosX = CenterX;
@@ -8613,7 +8613,7 @@ void FBlueprintEditor::CollapseNodesIntoGraph(UEdGraphNode* InGatewayNode, UK2No
 
 	// Put the entry and exit nodes on either side of the nodes in the new graph
 	//@TODO: Should we recenter the whole ensemble?
-	if(NumNodes != 0)
+	if (NumNodes != 0)
 	{
 		InEntryNode->NodePosX = MinNodeX - MinusOffsetX;
 		InEntryNode->NodePosY = CenterY;

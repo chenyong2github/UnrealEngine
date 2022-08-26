@@ -159,7 +159,7 @@ void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, F
 						+ SHorizontalBox::Slot()
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
-						.Padding(0)
+						.Padding(0.0f)
 						[
 							SNew(SButton)
 							.ContentPadding(FMargin(3.0, 2.0))
@@ -578,7 +578,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	.ValueContent()
 	[
 		SAssignNew(NewComboButton, SComboButton)
-		.ContentPadding(FMargin(0,0,5,0))
+		.ContentPadding(FMargin(0.0f, 0.0f, 5.0f, 0.0f))
 		.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableCategoryChangeEnabled)
 		.ToolTip(CategoryTooltip)
 		.ButtonContent()
@@ -3148,7 +3148,7 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
-		.Padding(0)
+		.Padding(0.0f)
 		.FillWidth(1.0f)
 		[
 			SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(K2Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
@@ -3649,7 +3649,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				.ValueContent()
 				[
 					SAssignNew(AccessSpecifierComboButton, SComboButton)
-					.ContentPadding(0)
+					.ContentPadding(0.0f)
 					.ButtonContent()
 					[
 						SNew(STextBlock)
@@ -3855,7 +3855,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				+SVerticalBox::Slot()
 				[
 					SNew(SComboButton)
-						.ContentPadding(0)
+						.ContentPadding(0.0f)
 						.IsEnabled_Static(&LocalCustomEventUtils::IsNotCustomEventOverride, FunctionEntryNodePtr)
 						.ToolTipText_Static(&LocalCustomEventUtils::GetDisabledTooltip, FunctionEntryNodePtr)
 						.ButtonContent()

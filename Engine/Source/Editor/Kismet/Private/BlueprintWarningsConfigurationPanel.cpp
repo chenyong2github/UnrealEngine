@@ -190,7 +190,7 @@ void SBlueprintWarningsConfigurationPanel::Construct(const FArguments& InArgs)
 			.Padding(0.0f, 16.0f, 0.0f, 0.0f)
 		[
 			SAssignNew(Label, SBorder)
-				.Padding(3)
+				.Padding(3.0f)
 				.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 				.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 			[
@@ -269,25 +269,27 @@ void SBlueprintWarningsConfigurationPanel::UpdateSelectedWarningBehaviors(EBluep
 		{
 			// update config data:
 			FName CurrentIdentifer = Declaration->WarningIdentifier;
-			FBlueprintWarningSettings* WarningEntry = RuntimeSettings->WarningSettings.FindByPredicate(
+			int WarningEntryIndex = RuntimeSettings->WarningSettings.IndexOfByPredicate(
 				[CurrentIdentifer](const FBlueprintWarningSettings& Entry) -> bool
 				{
 					return Entry.WarningIdentifier == CurrentIdentifer;
 				}
 			);
+
 			switch(NewBehavior)
 			{
 			case EBlueprintWarningBehavior::Warn:
-				if( WarningEntry )
+				if (WarningEntryIndex >= 0)
 				{
-					RuntimeSettings->WarningSettings.RemoveAtSwap(WarningEntry - &(RuntimeSettings->WarningSettings[0]));
+					RuntimeSettings->WarningSettings.RemoveAtSwap(WarningEntryIndex);
 				}
 				break;
 			case EBlueprintWarningBehavior::Error:
 			case EBlueprintWarningBehavior::Suppress:
-				if( WarningEntry )
+				if (WarningEntryIndex >= 0)
 				{
-					WarningEntry->WarningBehavior = NewBehavior;
+					FBlueprintWarningSettings& WarningEntry = RuntimeSettings->WarningSettings[WarningEntryIndex];
+					WarningEntry.WarningBehavior = NewBehavior;
 				}
 				else
 				{
@@ -295,9 +297,7 @@ void SBlueprintWarningsConfigurationPanel::UpdateSelectedWarningBehaviors(EBluep
 					NewEntry.WarningIdentifier = CurrentIdentifer;
 					NewEntry.WarningDescription = Declaration->WarningDescription;
 					NewEntry.WarningBehavior = NewBehavior;
-					RuntimeSettings->WarningSettings.Add(
-						NewEntry
-					);
+					RuntimeSettings->WarningSettings.Add(NewEntry);
 				}
 				break;
 			}

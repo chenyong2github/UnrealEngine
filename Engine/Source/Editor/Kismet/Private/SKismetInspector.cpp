@@ -80,14 +80,14 @@ public:
 				.AutoWidth()
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.Padding(2)
+				.Padding(2.0f)
 				[
 					SNew(SImage)
 					.Image(FAppStyle::Get().GetBrush("Icons.Warning"))
 				]
 				+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
-					.Padding(2)
+					.Padding(2.0f)
 					[
 						SNew(SRichTextBlock)
 						.DecoratorStyleSet(&FAppStyle::Get())
@@ -423,7 +423,7 @@ void SKismetInspector::Construct(const FArguments& InArgs)
 		.FillHeight(1.0f)
 		[
 			SAssignNew( ContextualEditingBorderWidget, SBorder )
-			.Padding(0)
+			.Padding(0.0f)
 			.BorderImage( FAppStyle::GetBrush("NoBorder") )
 		]
 	];

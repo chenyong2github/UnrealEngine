@@ -63,7 +63,7 @@ public:
 	
 	void Serialize( void* V, int64 Length ) override
 	{
-		int32 iStart = ScriptBuffer.AddUninitialized( Length );
+		int32 iStart = ScriptBuffer.AddUninitialized(IntCastChecked<int32, int64>(Length));
 		FMemory::Memcpy( &(ScriptBuffer[iStart]), V, Length );
 	}
 
@@ -125,14 +125,14 @@ public:
 	{
 		checkSlow(E < 0xFF);
 
-		uint8 B = E; 
+		uint8 B = static_cast<uint8>(E); 
 		Serialize(&B, 1); 
 		return *this;
 	}
 
 	FArchive& operator<<(ECastToken E)
 	{
-		uint8 B = E; 
+		uint8 B = static_cast<uint8>(E);
 		Serialize(&B, 1); 
 		return *this;
 	}
@@ -148,7 +148,7 @@ public:
 
 	FArchive& operator<<(EPropertyType E)
 	{
-		uint8 B = E; 
+		uint8 B = static_cast<uint8>(E);
 		Serialize(&B, 1); 
 		return *this;
 	}
@@ -800,11 +800,11 @@ public:
 				if (EnumPtr)
 				{
 					//Get value from enum string
-					Value = EnumPtr->GetValueByName(*(Term->Name));
+					Value = IntCastChecked<uint8, int64>(EnumPtr->GetValueByName(*(Term->Name)));
 				}
 				else
 				{
-					Value = FCString::Atoi(*(Term->Name));
+					Value = IntCastChecked<uint8, int32>(FCString::Atoi(*(Term->Name)));
 				}
 
 				Writer << EX_ByteConst;
@@ -1632,7 +1632,8 @@ public:
 		EmitTerm(DestinationExpression);
 
 		Writer << EX_Cast;
-		uint8 CastType = !bIsInterfaceCast ? CST_ObjectToBool : CST_InterfaceToBool;
+		ECastToken CastToken = !bIsInterfaceCast ? CST_ObjectToBool : CST_InterfaceToBool;
+		uint8 CastType = static_cast<uint8>(CastToken);
 		Writer << CastType;
 		
 		FProperty* TargetProperty = !bIsInterfaceCast ? ((FProperty*)(GetDefault<FObjectProperty>())) : ((FProperty*)(GetDefault<FInterfaceProperty>()));
@@ -1863,7 +1864,7 @@ public:
 
 		Writer << EX_SwitchValue;
 		// number of cases (without default)
-		uint16 NumCases = ((Statement.RHS.Num() - 2) / TermsPerCase);
+		uint16 NumCases = IntCastChecked<uint16, int32>((Statement.RHS.Num() - 2) / TermsPerCase);
 		Writer << NumCases;
 		// end goto index
 		CodeSkipSizeType PatchUpNeededAtOffset = Writer.EmitPlaceholderSkip();

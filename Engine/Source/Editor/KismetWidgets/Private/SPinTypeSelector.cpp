@@ -424,7 +424,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 		// Only have a combo button with an icon
 		Widget = SAssignNew( TypeComboButton, SComboButton )
 			.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, false)
-			.ContentPadding(0)
+			.ContentPadding(0.0f)
 			.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
 			.HasDownArrow(false)
 			.ButtonStyle(FAppStyle::Get(),  "BlueprintEditor.CompactPinTypeSelector")
@@ -448,7 +448,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				.ComboButtonStyle(FAppStyle::Get(),"BlueprintEditor.CompactVariableTypeSelector")
 				.MenuPlacement(EMenuPlacement::MenuPlacement_ComboBoxRight)
 				.OnGetMenuContent(this, &SPinTypeSelector::GetPinContainerTypeMenuContent)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.ToolTip(IDocumentation::Get()->CreateToolTip(TAttribute<FText>(this, &SPinTypeSelector::GetToolTipForContainerWidget), NULL, *PinTypeSelectorStatics::BigTooltipDocLink, TEXT("Containers")))
 				.IsEnabled(TargetPinType.Get().PinCategory != UEdGraphSchema_K2::PC_Exec)
 				.Visibility(InArgs._bAllowArrays ? EVisibility::Visible : EVisibility::Collapsed)
@@ -474,7 +474,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				SAssignNew(TypeComboButton, SComboButton)
 				.ComboButtonStyle(FAppStyle::Get(), "ComboButton")
 				.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, false)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ButtonContent()
@@ -523,7 +523,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				[
 					SAssignNew( SecondaryTypeComboButton, SComboButton )
 					.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, true )
-					.ContentPadding(0)
+					.ContentPadding(0.0f)
 					.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxSecondaryType)
 					.ButtonContent()
 					[
@@ -1246,7 +1246,7 @@ TSharedRef<SWidget> SPinTypeSelector::GetPinContainerTypeMenuContent()
 				.ColorAndOpacity(this, &SPinTypeSelector::GetTypeIconColor)
 			]
 			+ SHorizontalBox::Slot()
-			.Padding(4.0f,2.0f)
+			.Padding(4.0f, 2.0f)
 			[
 				SNew(STextBlock)
 				.Text(PinTypeSelectorStatics::Labels[(int32)PinContainerType])

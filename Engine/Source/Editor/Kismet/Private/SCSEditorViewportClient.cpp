@@ -264,8 +264,8 @@ void FSCSEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 
 		TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
 
-		const int32 HalfX = 0.5f * Viewport->GetSizeXY().X;
-		const int32 HalfY = 0.5f * Viewport->GetSizeXY().Y;
+		const int32 HalfX = Viewport->GetSizeXY().X / 2;
+		const int32 HalfY = Viewport->GetSizeXY().Y / 2;
 
 		TArray<FSubobjectEditorTreeNodePtrType> SelectedNodes = BlueprintEditorPtr.Pin()->GetSelectedSubobjectEditorTreeNodes();
 
@@ -279,8 +279,8 @@ void FSCSEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& Vi
 				const FPlane Proj = View.Project(WidgetLocation);
 				if(Proj.W > 0.0f)
 				{
-					const int32 XPos = HalfX + (HalfX * Proj.X);
-					const int32 YPos = HalfY + (HalfY * (Proj.Y * -1));
+					const int32 XPos = static_cast<int32>(HalfX + (HalfX * Proj.X));
+					const int32 YPos = static_cast<int32>(HalfY + (HalfY * Proj.Y * -1.0));
 					DrawAngles(&Canvas, XPos, YPos, GetCurrentWidgetAxis(), GetWidgetMode(), GetWidgetCoordSystem().Rotator(), WidgetLocation);
 				}
 			}
@@ -781,15 +781,15 @@ void FSCSEditorViewportClient::ResetCamera()
 	}
 
 	// Clamp zoom to the actor's bounding sphere radius
-	float OrbitZoom = ThumbnailInfo->OrbitZoom;
-	if (PreviewActorBounds.SphereRadius + OrbitZoom < 0)
+	double OrbitZoom = ThumbnailInfo->OrbitZoom;
+	if (PreviewActorBounds.SphereRadius + OrbitZoom < 0.0)
 	{
 		OrbitZoom = -PreviewActorBounds.SphereRadius;
 	}
 
 	ToggleOrbitCamera(true);
 	{
-		float TargetDistance = PreviewActorBounds.SphereRadius;
+		double TargetDistance = PreviewActorBounds.SphereRadius;
 		if(TargetDistance <= 0.0f)
 		{
 			TargetDistance = AutoViewportOrbitCameraTranslate;

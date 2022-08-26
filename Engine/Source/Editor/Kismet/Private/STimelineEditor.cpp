@@ -125,8 +125,8 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 	check(TimelineObj); // We shouldn't have any tracks if there is no track object!
 
 	// Get a pointer to the track this widget is for
-	CurveBasePtr = NULL;
-	FTTTrackBase* TrackBase = NULL;
+	CurveBasePtr = nullptr;
+	FTTTrackBase* TrackBase = nullptr;
 	bool bDrawCurve = true;
 
 	FTTTrackId TrackId = TimelineObj->GetDisplayTrackId(InTrack->DisplayIndex);
@@ -231,7 +231,7 @@ void STimelineEdTrack::Construct(const FArguments& InArgs, TSharedPtr<FTimelineE
 					// External Curve Label
 					+SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(2)
+					.Padding(2.0f)
 					[
 						SNew(STextBlock)
 						.Text(LOCTEXT("ExternalCurveLabel", "External Curve"))
@@ -451,7 +451,7 @@ void STimelineEdTrack::SwitchToExternalCurve(UCurveBase* AssetCurvePtr)
 		FTTTrackId TrackId = TimelineObj->GetDisplayTrackId(Track->DisplayIndex);
 		FTTTrackBase::ETrackType TrackType = (FTTTrackBase::ETrackType)TrackId.TrackType;
 
-		FTTTrackBase* TrackBase = NULL;
+		FTTTrackBase* TrackBase = nullptr;
 		if(TrackType == FTTTrackBase::TT_Event)
 		{
 			if(AssetCurvePtr->IsA(UCurveFloat::StaticClass()))
@@ -526,8 +526,8 @@ void STimelineEdTrack::UseInternalCurve( )
 		FTTTrackId TrackId = TimelineObj->GetDisplayTrackId(Track->DisplayIndex);
 		FTTTrackBase::ETrackType TrackType = (FTTTrackBase::ETrackType)TrackId.TrackType;
 
-		FTTTrackBase* TrackBase = NULL;
-		UCurveBase* CurveBase = NULL;
+		FTTTrackBase* TrackBase = nullptr;
+		UCurveBase* CurveBase = nullptr;
 
 		if(TrackType == FTTTrackBase::TT_Event)
 		{
@@ -644,7 +644,7 @@ FString STimelineEdTrack::GetExternalCurvePath( ) const
 
 UCurveBase* STimelineEdTrack::CreateCurveAsset()
 {
-	UCurveBase* AssetCurve = NULL;
+	UCurveBase* AssetCurve = nullptr;
 
 	TSharedPtr<STimelineEditor> TimelineEd = TimelineEdPtr.Pin();
 	check(TimelineEd.IsValid());
@@ -749,7 +749,7 @@ UCurveBase* STimelineEdTrack::CreateCurveAsset()
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 
@@ -954,10 +954,10 @@ void STimelineEditor::Construct(const FArguments& InArgs, TSharedPtr<FBlueprintE
 	NewTrackPendingRename = NAME_None;
 
 	Kismet2Ptr = InKismet2;
-	TimelineObj = NULL;
+	TimelineObj = nullptr;
 
 	NominalTimelineDesiredHeight = 300.0f;
-	TimelineDesiredSize = FVector2D(128.0f, NominalTimelineDesiredHeight);
+	TimelineDesiredSize = FVector2f(128.0f, NominalTimelineDesiredHeight);
 
 	// Leave these uninitialized at first.  We'll zoom to fit the tracks which will set the correct values
 	ViewMinInput = 0.f;
@@ -1237,7 +1237,7 @@ void STimelineEditor::OnTimelineTickGroupChanged(TSharedPtr<FString> NewValue, E
 
 FText STimelineEditor::GetTimelineName() const
 {
-	if(TimelineObj != NULL)
+	if(TimelineObj != nullptr)
 	{
 		return FText::FromString(TimelineObj->GetVariableName().ToString());
 	}
@@ -1269,7 +1269,7 @@ float STimelineEditor::GetViewMinOutput() const
 
 float STimelineEditor::GetTimelineLength() const
 {
-	return (TimelineObj != NULL) ? TimelineObj->TimelineLength : 0.f;
+	return (TimelineObj != nullptr) ? TimelineObj->TimelineLength : 0.f;
 }
 
 void STimelineEditor::SetInputViewRange(float InViewMinInput, float InViewMaxInput)
@@ -1404,7 +1404,7 @@ UCurveBase* STimelineEditor::CreateNewCurve(FTTTrackBase::ETrackType Type )
 	UBlueprint* Blueprint = Kismet2->GetBlueprintObj();
 	UClass* OwnerClass = Blueprint->GeneratedClass;
 	check(OwnerClass);
-	UCurveBase* NewCurve = NULL;
+	UCurveBase* NewCurve = nullptr;
 	if(Type == FTTTrackBase::TT_Event)
 	{
 		NewCurve = NewObject<UCurveFloat>(OwnerClass, NAME_None, RF_Public);
@@ -1433,7 +1433,7 @@ bool STimelineEditor::CanDeleteSelectedTracks() const
 
 void STimelineEditor::OnDeleteSelectedTracks()
 {
-	if(TimelineObj != NULL)
+	if(TimelineObj != nullptr)
 	{
 		TSharedPtr<FBlueprintEditor> Kismet2 = Kismet2Ptr.Pin();
 		UBlueprint* Blueprint = Kismet2->GetBlueprintObj();
@@ -1507,7 +1507,7 @@ void STimelineEditor::OnTimelineChanged()
 	TSharedPtr<FTimelineEdTrack> NewlyCreatedTrack;
 
 	// If we have a timeline,
-	if(TimelineObj != NULL)
+	if(TimelineObj != nullptr)
 	{
 		// Iterate over tracks and create entries in the array that drives the list widget
 		for (int32 i = 0; i < TimelineObj->GetNumDisplayTracks(); ++i)
@@ -1664,7 +1664,7 @@ void STimelineEditor::OnIgnoreTimeDilationChanged(ECheckBoxState NewType)
 FText STimelineEditor::GetLengthString() const
 {
 	FString LengthString(TEXT("0.0"));
-	if(TimelineObj != NULL)
+	if(TimelineObj != nullptr)
 	{
 		LengthString = FString::Printf(TEXT("%.2f"), TimelineObj->TimelineLength);
 	}
@@ -1674,7 +1674,7 @@ FText STimelineEditor::GetLengthString() const
 void STimelineEditor::OnLengthStringChanged(const FText& NewString, ETextCommit::Type CommitInfo)
 {
 	bool bCommitted = (CommitInfo == ETextCommit::OnEnter) || (CommitInfo == ETextCommit::OnUserMovedFocus);
-	if(TimelineObj != NULL && bCommitted)
+	if(TimelineObj != nullptr && bCommitted)
 	{
 		float NewLength = FCString::Atof( *NewString.ToString() );
 		if(NewLength > KINDA_SMALL_NUMBER)
@@ -1769,7 +1769,7 @@ void STimelineEditor::OnTrackNameCommitted( const FText& StringName, ETextCommit
 
 void STimelineEditor::OnReorderTracks(int32 DisplayIndex, int32 DirectionDelta)
 {
-	if (TimelineObj != NULL)
+	if (TimelineObj != nullptr)
 	{
 		const FScopedTransaction Transaction(LOCTEXT("TimelineEditor_DeleteTrack", "Delete track"));
 
@@ -1956,7 +1956,7 @@ TSharedRef<SWidget> STimelineEditor::MakeAddButton()
 
 FVector2D STimelineEditor::GetTimelineDesiredSize() const
 {
-	return TimelineDesiredSize;
+	return FVector2D{ TimelineDesiredSize };
 }
 
 void STimelineEditor::SetSizeScaleValue(float NewValue)
