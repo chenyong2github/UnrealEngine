@@ -247,7 +247,7 @@ public:
 	FText GetWindowTitle()
 	{
 		FFormatNamedArguments WindowTitleArgs;
-		WindowTitleArgs.Add(TEXT("DatasmithSDKVersion"), FText::FromString(FDatasmithUtils::GetEnterpriseVersionAsString()));
+		WindowTitleArgs.Add(TEXT("DatasmithSDKVersion"), FText::FromString(FDatasmithUtils::GetEnterpriseVersionAsString(true)));
 		return FText::Format(LOCTEXT("DatasmithMessagesWindowTitle", "Datasmith Messages v.{DatasmithSDKVersion}"), WindowTitleArgs);
 	}
 

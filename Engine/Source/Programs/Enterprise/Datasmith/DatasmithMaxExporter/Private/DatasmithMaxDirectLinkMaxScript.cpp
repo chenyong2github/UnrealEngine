@@ -87,7 +87,7 @@ Value* OnLoad_cf(Value **arg_list, int count)
 		MessagesDialog = Ui::CreateMessagesWindow();
 	}
 
-	LogInfo(FString::Printf(TEXT("Initialized Datasmith SDK v.%s"), *FDatasmithUtils::GetEnterpriseVersionAsString()));
+	LogInfo(FString::Printf(TEXT("Initialized Datasmith SDK v.%s"), *FDatasmithUtils::GetEnterpriseVersionAsString(true)));
 
 	return bool_result(bResult);
 }
