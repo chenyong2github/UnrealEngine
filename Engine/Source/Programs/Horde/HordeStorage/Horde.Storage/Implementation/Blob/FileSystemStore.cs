@@ -147,7 +147,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
+        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck)
         {
             FileInfo filePath = GetFilesystemPath(ns, blob);
 

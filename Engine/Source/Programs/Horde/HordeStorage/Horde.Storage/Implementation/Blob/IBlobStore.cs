@@ -22,7 +22,7 @@ namespace Horde.Storage.Implementation
         Task<BlobIdentifier> PutObject(NamespaceId ns, Stream content, BlobIdentifier identifier);
 
         Task<BlobContents> GetObject(NamespaceId ns, BlobIdentifier blob, LastAccessTrackingFlags flags = LastAccessTrackingFlags.DoTracking);
-        Task<bool> Exists(NamespaceId ns, BlobIdentifier blob);
+        Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck = false);
 
         // Delete a object
         Task DeleteObject(NamespaceId ns, BlobIdentifier blob);

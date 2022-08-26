@@ -94,7 +94,7 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier)
+        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier, bool forceCheck = false)
         {
             return Task.FromResult(_memoryCache.TryGetValue(BuildKey(ns, blobIdentifier), out _));
         }

@@ -408,7 +408,7 @@ public class BlobService : IBlobService
     {
         IBlobStore store = _blobStores.Last();
 
-        using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExists");
+        using IScope scope = Tracer.Instance.StartActive("HierarchicalStore.ObjectExistsInRoot");
         scope.Span.ResourceName = blob.ToString();
         scope.Span.SetTag("BlobStore", store.GetType().Name);
         if (await store.Exists(ns, blob))

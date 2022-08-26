@@ -58,7 +58,7 @@ public class CachedBlobIndex : IBlobIndex
 
     public async Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier)
     {
-        return await _fileSystemStore.Exists(ns, blobIdentifier);
+        return await _fileSystemStore.Exists(ns, blobIdentifier, forceCheck: false);
     }
 
     public async Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs)

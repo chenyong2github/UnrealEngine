@@ -135,7 +135,7 @@ namespace Horde.Storage.Implementation
             }
         }
 
-        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier)
+        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier, bool forceCheck)
         {
             BlobContainerClient container = new BlobContainerClient(_connectionString, SanitizeNamespace(ns));
             if (!await container.ExistsAsync())

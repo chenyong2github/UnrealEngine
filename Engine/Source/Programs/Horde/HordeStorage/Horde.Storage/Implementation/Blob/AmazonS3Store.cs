@@ -166,10 +166,10 @@ namespace Horde.Storage.Implementation
             return new BlobContents(new InstrumentedStream(response.ResponseStream, "s3-get"), response.ContentLength);
         }
 
-        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier)
+        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blobIdentifier, bool forceCheck)
         {
             NamespacePolicy policies = _namespacePolicyResolver.GetPoliciesForNs(ns);
-            if (_settings.UseBlobIndexForExistsCheck && policies.UseBlobIndexForSlowExists)
+            if (_settings.UseBlobIndexForExistsCheck && policies.UseBlobIndexForSlowExists && !forceCheck)
             {
                 return await _blobIndex.BlobExistsInRegion(ns, blobIdentifier);
             }

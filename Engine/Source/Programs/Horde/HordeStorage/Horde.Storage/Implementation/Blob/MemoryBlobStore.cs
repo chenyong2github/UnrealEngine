@@ -103,7 +103,7 @@ namespace Horde.Storage.Implementation
             return Task.CompletedTask;
         }
 
-        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
+        public Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck = false)
         {
             if (!_blobs.TryGetValue(ns, value: out ConcurrentDictionary<BlobIdentifier, BlobContainer>? namespaceContainer))
             {

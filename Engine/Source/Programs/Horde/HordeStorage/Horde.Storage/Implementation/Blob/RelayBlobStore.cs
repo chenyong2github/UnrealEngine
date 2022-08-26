@@ -74,7 +74,7 @@ namespace Horde.Storage.Implementation
             return new BlobContents(await response.Content.ReadAsStreamAsync(), contentLength.Value);
         }
 
-        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob)
+        public async Task<bool> Exists(NamespaceId ns, BlobIdentifier blob, bool forceCheck)
         {
             using HttpRequestMessage headObjectRequest = BuildHttpRequest(HttpMethod.Head, new Uri($"api/v1/blobs/{ns}/{blob}", UriKind.Relative));
             HttpResponseMessage response = await HttpClient.SendAsync(headObjectRequest);
