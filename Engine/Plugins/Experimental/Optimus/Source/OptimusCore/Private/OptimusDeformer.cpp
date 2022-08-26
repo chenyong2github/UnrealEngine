@@ -2165,7 +2165,8 @@ void UOptimusDeformer::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 UMeshDeformerInstanceSettings* UOptimusDeformer::CreateSettingsInstance(UMeshComponent* InMeshComponent)
 {
 	const FName SettingsName(GetName() + TEXT("_Settings"));
-	UOptimusDeformerInstanceSettings *Settings = NewObject<UOptimusDeformerInstanceSettings>(InMeshComponent, SettingsName);
+	const EObjectFlags CreateObjectFlags = InMeshComponent->HasAnyFlags(RF_ArchetypeObject) ? RF_Public : RF_NoFlags; // Make public when stored in a BP.
+	UOptimusDeformerInstanceSettings *Settings = NewObject<UOptimusDeformerInstanceSettings>(InMeshComponent, SettingsName, CreateObjectFlags);
 	Settings->InitializeSettings(this, InMeshComponent);
 	return Settings;
 }
