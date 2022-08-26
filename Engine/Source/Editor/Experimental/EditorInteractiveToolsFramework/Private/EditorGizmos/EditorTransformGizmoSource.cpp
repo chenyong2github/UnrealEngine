@@ -89,6 +89,16 @@ bool UEditorTransformGizmoSource::GetVisible() const
 	return false;
 }
 
+EGizmoTransformScaleType UEditorTransformGizmoSource::GetScaleType() const
+{
+	if (GEditor->UsePercentageBasedScaling())
+	{
+		return EGizmoTransformScaleType::PercentageBased;
+	}
+
+	return EGizmoTransformScaleType::Default;
+}
+
 FEditorModeTools& UEditorTransformGizmoSource::GetModeTools() const
 {
 	return GLevelEditorModeTools();

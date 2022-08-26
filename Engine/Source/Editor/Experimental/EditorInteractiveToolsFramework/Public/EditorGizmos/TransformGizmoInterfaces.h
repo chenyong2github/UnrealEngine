@@ -20,6 +20,13 @@ enum class EGizmoTransformMode : uint8
 	Max
 };
 
+UENUM()
+enum class EGizmoTransformScaleType : uint8
+{
+	Default,
+	PercentageBased
+};
+
 UINTERFACE()
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmoSource : public UInterface
 {
@@ -58,27 +65,10 @@ public:
 	 */
 	virtual bool GetVisible() const PURE_VIRTUAL(ITransformGizmoSource::GetVisible, return false;);
 
-};
-
-
-UINTERFACE()
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UTransformGizmoTarget : public UInterface
-{
-	GENERATED_BODY()
-};
-
-/**
- * ITransformGizmoTarget is an interface for updating transform gizmo related state
- * which matches interfaces provided in the Editor.
- */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API ITransformGizmoTarget
-{
-	GENERATED_BODY()
-public:
-
 	/*
-	 * Set the current axis when the gizmo is interacting
+	 * Get current scale type
 	 */
-	virtual void SetCurrentAxis(EAxisList::Type CurrentAxis) PURE_VIRTUAL(ITransformGizmoTarget::SetCurrentAxis, );
+	virtual EGizmoTransformScaleType GetScaleType() const PURE_VIRTUAL(ITransformGizmoSource::GetScaleType, return EGizmoTransformScaleType::Default;);
 };
+
 

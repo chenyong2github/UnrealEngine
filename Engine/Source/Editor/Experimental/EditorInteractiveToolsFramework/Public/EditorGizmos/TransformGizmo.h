@@ -427,7 +427,7 @@ protected:
 	virtual void UpdateInteractingState(bool bInInteracting, ETransformGizmoPartIdentifier InPartId);
 
 	/**
-	 * Translate and scale axis click-drag handling methods 
+	 * Translate axis click-drag handling methods 
 	 */ 
 
 	/** Handle click press for translate X axis */
@@ -439,29 +439,14 @@ protected:
 	/** Handle click press for translate Z axis */
 	virtual void OnClickPressTranslateZAxis(const FInputDeviceRay& PressPos);
 
-	/** Handle click press for scale X axis */
-	virtual void OnClickPressScaleXAxis(const FInputDeviceRay& PressPos);
-
-	/** Handle click press for scale Y axis */
-	virtual void OnClickPressScaleYAxis(const FInputDeviceRay& PressPos);
-
-	/** Handle click press for scale Z axis */
-	virtual void OnClickPressScaleZAxis(const FInputDeviceRay& PressPos);
-
 	/** Handle click press for translate and scale X axes */
 	virtual void OnClickPressAxis(const FInputDeviceRay& PressPos);
 
 	/** Handle click drag for translate axes */
 	virtual void OnClickDragTranslateAxis(const FInputDeviceRay& DragPos);
 
-	/** Handle click drag for scale axes */
-	virtual void OnClickDragScaleAxis(const FInputDeviceRay& DragPos);
-
 	/** Handle click release for translate axes */
 	virtual void OnClickReleaseTranslateAxis(const FInputDeviceRay& ReleasePos);
-
-	/** Handle click release for scale axes */
-	virtual void OnClickReleaseScaleAxis(const FInputDeviceRay& ReleasePos);
 
 	/**
 	 * Translate and scale planar click-drag handling methods
@@ -476,41 +461,20 @@ protected:
 	/** Handle click press for translate XZ planar */
 	virtual void OnClickPressTranslateXZPlanar(const FInputDeviceRay& PressPos);
 
-	/** Handle click press for scale XY planar */
-	virtual void OnClickPressScaleXYPlanar(const FInputDeviceRay& PressPos);
-
-	/** Handle click press for scale YZ planar */
-	virtual void OnClickPressScaleYZPlanar(const FInputDeviceRay& PressPos);
-
-	/** Handle click press for scale XZ planar */
-	virtual void OnClickPressScaleXZPlanar(const FInputDeviceRay& PressPos);
-
 	/** Handle click press for generic planar */
 	virtual void OnClickPressPlanar(const FInputDeviceRay& PressPos);
 
 	/** Handle click drag for translate planar */
 	virtual void OnClickDragTranslatePlanar(const FInputDeviceRay& DragPos);
 
-	/** Handle click drag for scale planar */
-	virtual void OnClickDragScalePlanar(const FInputDeviceRay& DragPos);
-
 	/** Handle click release for translate planar */
 	virtual void OnClickReleaseTranslatePlanar(const FInputDeviceRay& ReleasePos);
-
-	/** Handle click release for scale planar */
-	virtual void OnClickReleaseScalePlanar(const FInputDeviceRay& ReleasePos);
 
 	/** Compute translate axis delta based on start/end params */
 	virtual FVector ComputeAxisTranslateDelta(double InStartParam, double InEndParam);
 
-	/** Compute scale axis delta based on start/end params */
-	virtual FVector ComputeAxisScaleDelta(double InStartParam, double InEndParam);
-
 	/** Compute translate planar delta based on world space start/end points */
 	virtual FVector ComputePlanarTranslateDelta(const FVector& InStartPoint, const FVector& InEndPoint);
-
-	/** Compute scale planar delta based on world space start/end points */
-	virtual FVector ComputePlanarScaleDelta(const FVector& InStartPoint, const FVector& InEndPoint);
 
 	/**
 	 * Screen-space translate interaction methods
@@ -567,24 +531,63 @@ protected:
 	virtual FQuat ComputeAngularRotateDelta(double InStartAngle, double InEndAngle);
 
 	/**
- 	 * Screen-space helper methods
-	 */
-
-	/** Returns 2D vector projection of input axis onto the current viewing plane */
-	virtual FVector2D GetScreenProjectedAxis(const FVector& InAxis);
-
-	/**
 	* Scale click-drag handling methods
 	*/
+
+	/** Handle click press for scale X axis */
+	virtual void OnClickPressScaleXAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale Y axis */
+	virtual void OnClickPressScaleYAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale Z axis */
+	virtual void OnClickPressScaleZAxis(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale XY planar */
+	virtual void OnClickPressScaleXYPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale YZ planar */
+	virtual void OnClickPressScaleYZPlanar(const FInputDeviceRay& PressPos);
+
+	/** Handle click press for scale XZ planar */
+	virtual void OnClickPressScaleXZPlanar(const FInputDeviceRay& PressPos);
 
 	/** Handle click press for uniform scale */
 	virtual void OnClickPressScaleXYZ(const FInputDeviceRay& PressPos);
 
+	/** Handle click press for all scale methods */
+	virtual void OnClickPressScale(const FInputDeviceRay& PressPos);
+
+	/** Handle click drag for scale axes */
+	virtual void OnClickDragScaleAxis(const FInputDeviceRay& DragPos);
+
+	/** Handle click drag for scale planar */
+	virtual void OnClickDragScalePlanar(const FInputDeviceRay& DragPos);
+
 	/** Handle click drag for uniform scale */
 	virtual void OnClickDragScaleXYZ(const FInputDeviceRay& DragPos);
 
+	/** Handle click drag for all scale */
+	virtual void OnClickDragScale(const FInputDeviceRay& DragPos);
+
+	/** Handle click release for scale axes */
+	virtual void OnClickReleaseScaleAxis(const FInputDeviceRay& ReleasePos);
+
+	/** Handle click release for scale planar */
+	virtual void OnClickReleaseScalePlanar(const FInputDeviceRay& ReleasePos);
+
 	/** Handle click release for uniform scale */
 	virtual void OnClickReleaseScaleXYZ(const FInputDeviceRay& ReleasePos);
+
+	/** Compute scale delta based on screen space start/end positions */
+	virtual FVector ComputeScaleDelta(const FVector2D& InStartPos, const FVector2D& InEndPos, FVector2D& OutScreenDelta);
+
+	/**
+	 * Screen-space helper method
+	 */
+
+	/** Returns 2D vector projection of input axis onto input view plane */
+	FVector2D GetScreenProjectedAxis(const UGizmoViewContext* View, const FVector& InLocalAxis, const FTransform& InLocalToWorld = FTransform::Identity) const;
 
 	/**
 	 * Apply transform delta methods
@@ -640,9 +643,15 @@ protected:
 	/** Array of function pointers, indexed by gizmo part id, to handle click release behavior */
 	TArray<TFunction<void(UTransformGizmo* TransformGizmo, const FInputDeviceRay& ReleasePos)> > OnClickReleaseFunctions;
 
-	/** Scale delta is multiplied by this amount */
+	/** Array of function pointers, indexed by gizmo part id, to handle update hovering state */
+	TArray<TFunction<void(UTransformGizmo* TransformGizmo, bool bInHover, uint32 InHitParts)> > OnUpdateHoverFunctions;
+
+	/** Array of function pointers, indexed by gizmo part id, to handle update interacting state */
+	TArray<TFunction<void(UTransformGizmo* TransformGizmo, bool bInInteracting, uint32 InHitPart)> > OnUpdateInteractingFunctions;
+
+	/** Percentage-based scale multiplier */
 	UPROPERTY()
-	double ScaleMultiplier = 0.05;
+	double ScaleMultiplier = 0.01;
 
 	/** Current transform */
 	UPROPERTY()
@@ -721,11 +730,15 @@ protected:
 	UPROPERTY()
 	FVector2D InteractionScreenAxisDirection;
 
-	/** Active interaction screen start pos planar (only valid between state target BeginModify/EndModify) */
+	/** Active interaction screen start pos (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
 	FVector2D InteractionScreenStartPos;
 
-	/** Active interaction screen current pos planar (only valid between state target BeginModify/EndModify) */
+	/** Active interaction screen end pos (only valid between state target BeginModify/EndModify) */
+	UPROPERTY()
+	FVector2D InteractionScreenEndPos;
+
+	/** Active interaction screen current pos (only valid between state target BeginModify/EndModify) */
 	UPROPERTY()
 	FVector2D InteractionScreenCurrPos;
 

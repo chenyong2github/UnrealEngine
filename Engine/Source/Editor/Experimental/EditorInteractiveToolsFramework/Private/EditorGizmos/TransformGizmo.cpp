@@ -827,7 +827,7 @@ FVector UTransformGizmo::GetWorldAxis(const FVector& InAxis)
 {
 	if (TransformGizmoSource->GetGizmoCoordSystemSpace() == EToolContextCoordinateSystem::Local)
 	{
-		return CurrentTransform.GetRotation().RotateVector(InAxis);
+		return CurrentTransform.TransformVectorNoScale(InAxis);
 	}
 	
 	return InAxis;
@@ -938,9 +938,6 @@ void UTransformGizmo::UpdateHoverState(bool bInHover, ETransformGizmoPartIdentif
 		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
 		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
 		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
-		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXYPlanar));
-		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYZPlanar));
-		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXZPlanar));
 		break;
 	case ETransformGizmoPartIdentifier::ScaleXYPlanar:
 		HitTarget->UpdateHoverState(bInHover, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
@@ -964,14 +961,16 @@ void UTransformGizmo::UpdateInteractingState(bool bInInteracting, ETransformGizm
 	switch (InHitPartId)
 	{
 	case ETransformGizmoPartIdentifier::ScaleUniform:
+	{
 		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
 		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
 		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleZAxis));
-		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXYPlanar));
-		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYZPlanar));
-		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXZPlanar));
 		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleUniform));
+		GizmoElementRoot->UpdatePartVisibleState(!bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXYPlanar));
+		GizmoElementRoot->UpdatePartVisibleState(!bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYZPlanar));
+		GizmoElementRoot->UpdatePartVisibleState(!bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXZPlanar));
 		break;
+	}
 	case ETransformGizmoPartIdentifier::ScaleXYPlanar:
 		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleXAxis));
 		HitTarget->UpdateInteractingState(bInInteracting, static_cast<uint32>(ETransformGizmoPartIdentifier::ScaleYAxis));
@@ -1097,30 +1096,6 @@ void UTransformGizmo::OnClickPressTranslateZAxis(const FInputDeviceRay& PressPos
 	OnClickPressAxis(PressPos);
 }
 
-void UTransformGizmo::OnClickPressScaleXAxis(const FInputDeviceRay& PressPos)
-{
-	InteractionAxisOrigin = CurrentTransform.GetLocation();
-	InteractionAxisDirection = GetWorldAxis(FVector::XAxisVector);
-	InteractionAxisList = EAxisList::X;
-	OnClickPressAxis(PressPos);
-}
-
-void UTransformGizmo::OnClickPressScaleYAxis(const FInputDeviceRay& PressPos)
-{
-	InteractionAxisOrigin = CurrentTransform.GetLocation();
-	InteractionAxisDirection = GetWorldAxis(FVector::YAxisVector);
-	InteractionAxisList = EAxisList::Y;
-	OnClickPressAxis(PressPos);
-}
-
-void UTransformGizmo::OnClickPressScaleZAxis(const FInputDeviceRay& PressPos)
-{
-	InteractionAxisOrigin = CurrentTransform.GetLocation();
-	InteractionAxisDirection = GetWorldAxis(FVector::ZAxisVector);
-	InteractionAxisList = EAxisList::Z;
-	OnClickPressAxis(PressPos);
-}
-
 void UTransformGizmo::OnClickPressAxis(const FInputDeviceRay& PressPos)
 {
 	InteractionAxisStartParam = GetNearestRayParamToInteractionAxis(PressPos);
@@ -1136,20 +1111,7 @@ void UTransformGizmo::OnClickDragTranslateAxis(const FInputDeviceRay& DragPos)
 	InteractionAxisCurrParam = AxisNearestParam;
 }
 
-void UTransformGizmo::OnClickDragScaleAxis(const FInputDeviceRay& DragPos)
-{
-	float AxisNearestParam = GetNearestRayParamToInteractionAxis(DragPos);
-	FVector Delta = ComputeAxisScaleDelta(InteractionAxisCurrParam, AxisNearestParam);
-	ApplyScaleDelta(Delta);
-	InteractionAxisCurrParam = AxisNearestParam;
-}
-
 void UTransformGizmo::OnClickReleaseTranslateAxis(const FInputDeviceRay& InReleasePos)
-{
-	bInInteraction = false;
-}
-
-void UTransformGizmo::OnClickReleaseScaleAxis(const FInputDeviceRay& InReleasePos)
 {
 	bInInteraction = false;
 }
@@ -1184,36 +1146,6 @@ void UTransformGizmo::OnClickPressTranslateXZPlanar(const FInputDeviceRay& Press
 	OnClickPressPlanar(PressPos);
 }
 
-void UTransformGizmo::OnClickPressScaleXYPlanar(const FInputDeviceRay& PressPos)
-{
-	InteractionPlanarOrigin = CurrentTransform.GetLocation();
-	InteractionPlanarNormal = GetWorldAxis(FVector::ZAxisVector);
-	InteractionPlanarAxisX = GetWorldAxis(FVector::XAxisVector);
-	InteractionPlanarAxisY = GetWorldAxis(FVector::YAxisVector);
-	InteractionAxisList = EAxisList::XY;
-	OnClickPressPlanar(PressPos);
-}
-
-void UTransformGizmo::OnClickPressScaleYZPlanar(const FInputDeviceRay& PressPos)
-{
-	InteractionPlanarOrigin = CurrentTransform.GetLocation();
-	InteractionPlanarNormal = GetWorldAxis(FVector::XAxisVector);
-	InteractionPlanarAxisX = GetWorldAxis(FVector::YAxisVector);
-	InteractionPlanarAxisY = GetWorldAxis(FVector::ZAxisVector);
-	InteractionAxisList = EAxisList::YZ;
-	OnClickPressPlanar(PressPos);
-}
-
-void UTransformGizmo::OnClickPressScaleXZPlanar(const FInputDeviceRay& PressPos)
-{
-	InteractionPlanarOrigin = CurrentTransform.GetLocation();
-	InteractionPlanarNormal = GetWorldAxis(FVector::YAxisVector);
-	InteractionPlanarAxisX = GetWorldAxis(FVector::ZAxisVector);
-	InteractionPlanarAxisY = GetWorldAxis(FVector::XAxisVector);
-	InteractionAxisList = EAxisList::XZ;
-	OnClickPressPlanar(PressPos);
-}
-
 void UTransformGizmo::OnClickPressPlanar(const FInputDeviceRay& PressPos)
 {
 	float HitDepth;
@@ -1237,24 +1169,7 @@ void UTransformGizmo::OnClickDragTranslatePlanar(const FInputDeviceRay& DragPos)
 	}
 }
 
-void UTransformGizmo::OnClickDragScalePlanar(const FInputDeviceRay& DragPos)
-{
-	float HitDepth;
-	if (GetRayParamIntersectionWithInteractionPlane(DragPos, HitDepth))
-	{
-		FVector HitPoint = DragPos.WorldRay.Origin + DragPos.WorldRay.Direction * HitDepth;
-		FVector Delta = ComputePlanarScaleDelta(InteractionPlanarCurrPoint, HitPoint);
-		ApplyScaleDelta(Delta);
-		InteractionPlanarCurrPoint = HitPoint;
-	}
-}
-
 void UTransformGizmo::OnClickReleaseTranslatePlanar(const FInputDeviceRay& InReleasePos)
-{
-	bInInteraction = false;
-}
-
-void UTransformGizmo::OnClickReleaseScalePlanar(const FInputDeviceRay& InReleasePos)
 {
 	bInInteraction = false;
 }
@@ -1265,32 +1180,9 @@ FVector UTransformGizmo::ComputeAxisTranslateDelta(double InStartParam, double I
 	return InteractionAxisDirection * ParamDelta;
 }
 
-FVector UTransformGizmo::ComputeAxisScaleDelta(double InStartParam, double InEndParam)
-{
-	const double ParamDelta = InEndParam - InStartParam;
-	const float ScaleApplied = ParamDelta * ScaleMultiplier;
-
-	return FVector(InteractionAxisList & EAxisList::X ? ScaleApplied : 0.0,
-		InteractionAxisList & EAxisList::Y ? ScaleApplied : 0.0,
-		InteractionAxisList & EAxisList::Z ? ScaleApplied : 0.0);
-}
-
 FVector UTransformGizmo::ComputePlanarTranslateDelta(const FVector& InStartPoint, const FVector& InEndPoint)
 {
 	return InEndPoint - InStartPoint;
-}
-
-FVector UTransformGizmo::ComputePlanarScaleDelta(const FVector& InStartPoint, const FVector& InEndPoint)
-{
-	FVector Delta = InEndPoint - InStartPoint;
-	float DragUp = FVector::DotProduct(Delta, InteractionPlanarAxisX);
-	float DragSide = FVector::DotProduct(Delta, InteractionPlanarAxisY);
-	const float ScaleApplied = FMath::Abs(DragUp) > FMath::Abs(DragSide) ? DragUp * ScaleMultiplier : DragSide * ScaleMultiplier;
-
-	return FVector(
-		InteractionAxisList & EAxisList::X ? ScaleApplied : 0.0,
-		InteractionAxisList & EAxisList::Y ? ScaleApplied : 0.0,
-		InteractionAxisList & EAxisList::Z ? ScaleApplied : 0.0);
 }
 
 void UTransformGizmo::OnClickPressScreenSpaceTranslate(const FInputDeviceRay& PressPos)
@@ -1315,19 +1207,138 @@ void UTransformGizmo::OnClickReleaseScreenSpaceTranslate(const FInputDeviceRay& 
 	bInInteraction = false;
 }
 
+void UTransformGizmo::OnClickPressScaleXAxis(const FInputDeviceRay& PressPos)
+{
+	InteractionAxisList = EAxisList::X;
+	OnClickPressScale(PressPos);
+}
+
+void UTransformGizmo::OnClickPressScaleYAxis(const FInputDeviceRay& PressPos)
+{
+	InteractionAxisList = EAxisList::Y;
+	OnClickPressScale(PressPos);
+}
+
+void UTransformGizmo::OnClickPressScaleZAxis(const FInputDeviceRay& PressPos)
+{
+	InteractionAxisList = EAxisList::Z;
+	OnClickPressScale(PressPos);
+}
+
+void UTransformGizmo::OnClickPressScaleXYPlanar(const FInputDeviceRay& PressPos)
+{
+	InteractionAxisList = EAxisList::XY;
+	OnClickPressScale(PressPos);
+}
+
+void UTransformGizmo::OnClickPressScaleYZPlanar(const FInputDeviceRay& PressPos)
+{
+	InteractionAxisList = EAxisList::YZ;
+	OnClickPressScale(PressPos);
+}
+
+void UTransformGizmo::OnClickPressScaleXZPlanar(const FInputDeviceRay& PressPos)
+{
+	InteractionAxisList = EAxisList::XZ;
+	OnClickPressScale(PressPos);
+}
+
 void UTransformGizmo::OnClickPressScaleXYZ(const FInputDeviceRay& PressPos)
 {
-	// @todo - interaction handling coming soon?	bInInteraction = true;
+	InteractionAxisList = EAxisList::XYZ;
+	OnClickPressScale(PressPos);
+}
+
+void UTransformGizmo::OnClickPressScale(const FInputDeviceRay& PressPos)
+{
+	FVector2D AxisDir(0.0, 0.0);
+
+	if (InteractionAxisList & EAxisList::X)
+	{
+		AxisDir += GetScreenProjectedAxis(GizmoViewContext, FVector::XAxisVector, CurrentTransform);
+	}
+	if (InteractionAxisList & EAxisList::Y)
+	{
+		AxisDir += GetScreenProjectedAxis(GizmoViewContext, FVector::YAxisVector, CurrentTransform);
+	}
+	if (InteractionAxisList & EAxisList::Z)
+	{
+		AxisDir += GetScreenProjectedAxis(GizmoViewContext, FVector::ZAxisVector, CurrentTransform);
+	}
+
+	InteractionScreenAxisDirection = AxisDir.GetSafeNormal();
+	InteractionScreenStartPos = InteractionScreenEndPos = InteractionScreenCurrPos = PressPos.ScreenPosition;
+	bInInteraction = true;
+}
+
+void UTransformGizmo::OnClickDragScaleAxis(const FInputDeviceRay& DragPos)
+{
+	OnClickDragScale(DragPos);
+}
+
+void UTransformGizmo::OnClickDragScalePlanar(const FInputDeviceRay& DragPos)
+{
+	OnClickDragScale(DragPos);
 }
 
 void UTransformGizmo::OnClickDragScaleXYZ(const FInputDeviceRay& DragPos)
 {
-	// @todo - interaction handling coming soon
+	OnClickDragScale(DragPos);
+}
+
+void UTransformGizmo::OnClickDragScale(const FInputDeviceRay& DragPos)
+{
+	FVector2D ScreenDelta = DragPos.ScreenPosition - InteractionScreenCurrPos;
+
+	if (TransformGizmoSource->GetScaleType() != EGizmoTransformScaleType::PercentageBased)
+	{
+		ScreenDelta *= ScaleMultiplier;
+	}
+
+	InteractionScreenEndPos += ScreenDelta;
+
+	FVector ScaleDelta = ComputeScaleDelta(InteractionScreenStartPos, InteractionScreenEndPos, ScreenDelta);
+
+	if (ScaleDelta.X != 0.0 || ScaleDelta.Y != 0.0 || ScaleDelta.Z != 0.0)
+	{
+		ApplyScaleDelta(ScaleDelta);
+		InteractionScreenEndPos -= ScreenDelta;
+		InteractionScreenCurrPos = DragPos.ScreenPosition;
+	}
+}
+
+void UTransformGizmo::OnClickReleaseScaleAxis(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
+}
+
+void UTransformGizmo::OnClickReleaseScalePlanar(const FInputDeviceRay& InReleasePos)
+{
+	bInInteraction = false;
 }
 
 void UTransformGizmo::OnClickReleaseScaleXYZ(const FInputDeviceRay& InReleasePos)
 {
 	bInInteraction = false;
+}
+
+FVector UTransformGizmo::ComputeScaleDelta(const FVector2D& InStartPos, const FVector2D& InEndPos, FVector2D& OutScreenDelta)
+{
+	const FVector2D DragDir = InEndPos - InStartPos;
+	const double ScaleDelta = FVector2D::DotProduct(InteractionScreenAxisDirection, DragDir);
+
+	const FVector Scale(
+		(InteractionAxisList & EAxisList::X) ? ScaleDelta : 0.0f,
+		(InteractionAxisList & EAxisList::Y) ? ScaleDelta : 0.0f,
+		(InteractionAxisList & EAxisList::Z) ? ScaleDelta : 0.0f);
+
+	const float ScaleMax = Scale.GetMax();
+	const float ScaleMin = Scale.GetMin();
+	const float ScaleApplied = (ScaleMax > -ScaleMin) ? ScaleMax : ScaleMin;
+
+	OutScreenDelta = InteractionScreenAxisDirection * ScaleApplied;
+
+	return Scale;
 }
 
 void UTransformGizmo::OnClickPressRotateXAxis(const FInputDeviceRay& PressPos)
@@ -1369,7 +1380,7 @@ FVector2D UTransformGizmo::GetScreenRotateAxisDir(const FVector& InAxis0, const 
 
 	const FVector AxisDir = (Axis1 - Axis0) * Direction;
 
-	return GetScreenProjectedAxis(AxisDir);
+	return GetScreenProjectedAxis(GizmoViewContext, AxisDir);
 }
 
 void UTransformGizmo::OnClickDragRotateAxis(const FInputDeviceRay& DragPos)
@@ -1462,18 +1473,32 @@ void UTransformGizmo::OnClickReleaseScreenSpaceRotate(const FInputDeviceRay& InR
 	bInInteraction = false;
 }
 
-FVector2D UTransformGizmo::GetScreenProjectedAxis(const FVector& InAxis)
+FVector2D UTransformGizmo::GetScreenProjectedAxis(const UGizmoViewContext* View, const FVector& InLocalAxis, const FTransform& InLocalToWorld) const
 {
-	check(GizmoViewContext);
+	FVector2D Origin;
+	FVector2D AxisEnd;
+	const FVector WorldOrigin = InLocalToWorld.GetTranslation();
+	const FVector WorldAxisEnd = WorldOrigin + InLocalToWorld.TransformVectorNoScale(InLocalAxis * 64.0);
 
-	if (FMath::IsNearlyEqual(FVector::DotProduct(GizmoViewContext->GetViewDirection(), InAxis), 1.0))
+	if (View->ScreenToPixel(View->WorldToScreen(WorldOrigin), Origin) &&
+		View->ScreenToPixel(View->WorldToScreen(WorldAxisEnd), AxisEnd))
 	{
-		return FVector2D(1.0, 1.0);
+		// If both the origin and the axis endpoint are in front of the camera, trivially calculate the viewport space axis direction
+		return (AxisEnd - Origin).GetSafeNormal();
 	}
 	
-	const float ScreenX = FVector::DotProduct(InAxis, GizmoViewContext->GetViewRight());
-	const float ScreenY = FVector::DotProduct(InAxis, GizmoViewContext->GetViewUp());
-	return FVector2D(ScreenX, ScreenY);
+	// If either the origin or axis endpoint are behind the camera, translate the entire widget in front of the camera in the view direction before performing the
+	// viewport space calculation
+	const FMatrix InvViewMatrix = View->ViewMatrices.GetInvViewMatrix();
+	const FVector ViewLocation = InvViewMatrix.GetOrigin();
+	const FVector ViewDirection = InvViewMatrix.GetUnitAxis(EAxis::Z);
+	const FVector Offset = ViewDirection * (FVector::DotProduct(ViewLocation - WorldOrigin, ViewDirection) + 100.0f);
+	const FVector AdjustedWidgetOrigin = WorldOrigin + Offset;
+	const FVector AdjustedWidgetAxisEnd = WorldAxisEnd + Offset;
+
+	View->ScreenToPixel(View->WorldToScreen(AdjustedWidgetOrigin), Origin);
+	View->ScreenToPixel(View->WorldToScreen(AdjustedWidgetAxisEnd), AxisEnd);
+	return -(AxisEnd - Origin).GetSafeNormal();	
 }
 
 void UTransformGizmo::ApplyTranslateDelta(const FVector& InTranslateDelta)

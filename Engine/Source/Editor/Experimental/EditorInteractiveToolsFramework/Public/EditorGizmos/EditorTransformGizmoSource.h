@@ -54,6 +54,11 @@ public:
 	 */
 	virtual bool GetVisible() const;
 
+	/**
+ 	 * Get current scale type
+	 */
+	virtual EGizmoTransformScaleType GetScaleType() const;
+
 public:
 	static UEditorTransformGizmoSource* Construct(
 		UObject* Outer = (UObject*)GetTransientPackage())
