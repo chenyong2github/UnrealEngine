@@ -361,6 +361,7 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
 
 private:
+	// Only callable from FNativeGameplayTag, these functions do less error checking and can happen after initial tag loading is done
 	void AddNativeGameplayTag(FNativeGameplayTag* TagSource);
 	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
 
@@ -480,6 +481,9 @@ public:
 	/** Loads tag inis contained in the specified path */
 	void AddTagIniSearchPath(const FString& RootDir);
 
+	/** Tries to remove the specified search path, will return true if anything was removed */
+	bool RemoveTagIniSearchPath(const FString& RootDir);
+
 	/** Gets all the current directories to look for tag sources in */
 	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
 
@@ -543,6 +547,9 @@ public:
 	{
 		return bUseFastReplication;
 	}
+
+	/** If we are allowed to unload tags */
+	bool ShouldUnloadTags() const;
 
 	/** Returns the hash of NetworkGameplayTagNodeIndex */
 	uint32 GetNetworkGameplayTagNodeIndexHash() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndexHash; }
@@ -782,7 +789,11 @@ private:
 
 	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
 
+	/** Called in both editor and game when the tag tree changes during startup or editing */
 	void BroadcastOnGameplayTagTreeChanged();
+
+	/** Call after modifying the tag tree nodes, this will either call the full editor refresh or a limited game refresh */
+	void HandleGameplayTagTreeChanged(bool bRecreateTree);
 
 	// Tag Sources
 	///////////////////////////////////////////////////////
@@ -820,6 +831,9 @@ private:
 
 	/** Cached runtime value for whether we should warn when loading invalid tags */
 	bool bShouldClearInvalidTags;
+
+	/** Cached runtime value for whether we should allow unloading of tags */
+	bool bShouldAllowUnloadingTags;
 
 	/** True if native tags have all been added and flushed */
 	bool bDoneAddingNativeTags;

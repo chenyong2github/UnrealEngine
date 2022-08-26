@@ -1796,6 +1796,10 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		verify(FPluginUtils::UnloadPluginAssets(StateProperties.PluginName));
 #endif //if WITH_EDITOR
 
+		// Try to remove the gameplay tags, this might be ignored depending on project settings
+		const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
+		UGameplayTagsManager::Get().RemoveTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
+
 		bRequestedGC = true;
 		GarbageCollectAndUpdateStateMachineDeferred();
 	}

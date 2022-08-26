@@ -44,6 +44,7 @@ const FName UGameplayTagsManager::NAME_GameplayTagFilter("GameplayTagFilter");
 
 DECLARE_CYCLE_STAT(TEXT("Load Gameplay Tags"), STAT_GameplayTags_LoadGameplayTags, STATGROUP_GameplayTags);
 DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Add Tag *.ini Search Path"), STAT_GameplayTags_AddTagIniSearchPath, STATGROUP_GameplayTags);
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Remove Tag *.ini Search Path"), STAT_GameplayTags_RemoveTagIniSearchPath, STATGROUP_GameplayTags);
 
 #if !(UE_BUILD_SHIPPING)
 
@@ -177,6 +178,7 @@ UGameplayTagsManager::UGameplayTagsManager(const FObjectInitializer& ObjectIniti
 	bShouldWarnOnInvalidTags = true;
 	bShouldClearInvalidTags = false;
 	bDoneAddingNativeTags = false;
+	bShouldAllowUnloadingTags = false;
 	NetIndexFirstBitSegment = 16;
 	NetIndexTrueBitNum = 16;
 	NumBitsForContainerSize = 6;
@@ -284,12 +286,32 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 
 		PathInfo->bWasAddedToTree = true;
 
-		if (!bIsConstructingGameplayTagTree)
-		{
-			InvalidateNetworkIndex();
-			BroadcastOnGameplayTagTreeChanged();
-		}
+		HandleGameplayTagTreeChanged(false);
 	}
+}
+
+bool UGameplayTagsManager::RemoveTagIniSearchPath(const FString& RootDir)
+{
+	SCOPE_SECONDS_ACCUMULATOR(STAT_GameplayTags_RemoveTagIniSearchPath);
+
+	if (!ShouldUnloadTags())
+	{
+		// Can't unload at all
+		return false;
+	}
+
+	FGameplayTagSearchPathInfo* PathInfo = RegisteredSearchPaths.Find(RootDir);
+
+	if (PathInfo)
+	{
+		// Clear out the path and then recreate the tree
+		RegisteredSearchPaths.Remove(RootDir);
+
+		HandleGameplayTagTreeChanged(true);
+
+		return true;
+	}
+	return false;
 }
 
 void UGameplayTagsManager::GetTagSourceSearchPaths(TArray<FString>& OutPaths)
@@ -528,6 +550,18 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			bShouldClearInvalidTags = MutableDefault->ClearInvalidTags;
 			NumBitsForContainerSize = MutableDefault->NumBitsForContainerSize;
 			NetIndexFirstBitSegment = MutableDefault->NetIndexFirstBitSegment;
+
+#if WITH_EDITOR
+			if (GIsEditor)
+			{
+				bShouldAllowUnloadingTags = MutableDefault->AllowEditorTagUnloading;
+			}
+			else
+#endif
+			{
+				bShouldAllowUnloadingTags = MutableDefault->AllowGameTagUnloading;
+			}
+
 		}
 
 		if (ShouldUseFastReplication())
@@ -673,6 +707,26 @@ bool UGameplayTagsManager::ShouldImportTagsFromINI() const
 	}
 
 	return MutableDefault->ImportTagsFromConfig;
+}
+
+bool UGameplayTagsManager::ShouldUnloadTags() const
+{
+#if WITH_EDITOR
+	if (bShouldAllowUnloadingTags && GIsEditor && GEngine)
+	{
+		// Check if we have an active PIE index without linking GEditor, and compare to game setting
+		FWorldContext* PIEWorldContext = GEngine->GetWorldContextFromPIEInstance(0);
+		UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
+
+		if (PIEWorldContext && !MutableDefault->AllowGameTagUnloading)
+		{
+			UE_LOG(LogGameplayTags, Warning, TEXT("Ignoring request to unload tags during Play In Editor because AllowGameTagUnloading=false"));
+			return false;
+		}
+	}
+#endif
+
+	return bShouldAllowUnloadingTags;
 }
 
 void UGameplayTagsManager::GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const
@@ -1088,8 +1142,7 @@ void UGameplayTagsManager::MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNod
 #endif
 }
 
-void
-UGameplayTagsManager::BroadcastOnGameplayTagTreeChanged()
+void UGameplayTagsManager::BroadcastOnGameplayTagTreeChanged()
 {
 	if (bDeferBroadcastOnGameplayTagTreeChanged)
 	{
@@ -1098,6 +1151,37 @@ UGameplayTagsManager::BroadcastOnGameplayTagTreeChanged()
 	else
 	{
 		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
+	}
+}
+
+void UGameplayTagsManager::HandleGameplayTagTreeChanged(bool bRecreateTree)
+{
+	// Don't do anything during a reconstruct or before initial native tags are done loading
+	if (!bIsConstructingGameplayTagTree && bDoneAddingNativeTags)
+	{
+		if (bRecreateTree)
+		{
+#if WITH_EDITOR
+			if (GIsEditor)
+			{
+				// In the editor refresh everything
+				EditorRefreshGameplayTagTree();
+				return;
+			}
+#endif
+			DestroyGameplayTagTree();
+			ConstructGameplayTagTree();
+		}
+		else
+		{
+			// Refresh if we're done adding tags
+			if (ShouldUseFastReplication())
+			{
+				InvalidateNetworkIndex();
+			}
+
+			BroadcastOnGameplayTagTreeChanged();
+		}
 	}
 }
 
@@ -1943,24 +2027,22 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 
 void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource)
 {
+	// This adds it to the temporary tree, but expects the caller to add it to FNativeGameplayTag::GetRegisteredNativeTags for later refreshes
 	AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
-	InvalidateNetworkIndex();
-	BroadcastOnGameplayTagTreeChanged();
+
+	HandleGameplayTagTreeChanged(false);
 }
 
 void UGameplayTagsManager::RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource)
 {
-	// TODO This is awful, need to invalidate the tag tree, not rebuild it.
+	if (!ShouldUnloadTags())
 	{
-#if WITH_EDITOR
-		EditorRefreshGameplayTagTree();
-#else
-	//TODO - Removing tags isn't really a thing right now, but setting this up for the future.
-	//DestroyGameplayTagTree();
-	//ConstructGameplayTagTree();
-	//OnEditorRefreshGameplayTagTree.Broadcast();
-#endif
+		// Ignore if not allowed right now
+		return;
 	}
+
+	// ~FNativeGameplayTag already removed the tag from the global list, so recreate the tree
+	HandleGameplayTagTreeChanged(true);
 }
 
 void UGameplayTagsManager::CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleMulticastDelegate::FDelegate Delegate)

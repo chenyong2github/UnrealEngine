@@ -112,6 +112,14 @@ class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 	UPROPERTY(config, EditAnywhere, Category = GameplayTags, meta = (ConfigRestartRequired = true))
 	bool ClearInvalidTags;
 
+	/** If true, will allow unloading of tags in the editor when plugins are removed */
+	UPROPERTY(config, EditAnywhere, Category = "Advanced Gameplay Tags")
+	bool AllowEditorTagUnloading;
+
+	/** If true, will allow unloading of tags in a non-editor gebuild when plugins are removed, this is potentially unsafe and affects requests to unload during play in editor */
+	UPROPERTY(config, EditAnywhere, Category = "Advanced Gameplay Tags")
+	bool AllowGameTagUnloading;
+
 	/** If true, will replicate gameplay tags by index instead of name. For this to work, tags must be identical on client and server */
 	UPROPERTY(config, EditAnywhere, Category = "Advanced Replication")
 	bool FastReplication;
