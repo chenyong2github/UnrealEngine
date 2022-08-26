@@ -244,8 +244,6 @@ void UContextualAnimSceneActorComponent::AddIKGoals_Implementation(TMap<FName, F
 		Goal.RotationSpace = EIKRigGoalSpace::World;
 		OutGoals.Add(Goal.Name, Goal);
 	}
-
-	IKTargets.Reset();
 }
 
 const FContextualAnimIKTarget& UContextualAnimSceneActorComponent::GetIKTargetByGoalName(FName GoalName) const
