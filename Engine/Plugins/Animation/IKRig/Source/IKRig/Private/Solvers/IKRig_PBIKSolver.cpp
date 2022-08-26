@@ -142,8 +142,6 @@ void UIKRigPBIKSolver::GetBonesWithSettings(TSet<FName>& OutBonesWithSettings) c
 	}
 }
 
-#if WITH_EDITOR
-
 void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 {
 	if(UIKRigPBIKSolver* Settings = Cast<UIKRigPBIKSolver>(InSettings))
@@ -183,6 +181,21 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 	}
 }
 
+void UIKRigPBIKSolver::RemoveGoal(const FName& GoalName)
+{
+	// ensure goal even exists in this solver
+	const int32 GoalIndex = GetIndexOfGoal(GoalName);
+	if (GoalIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	// remove it
+	Effectors.RemoveAt(GoalIndex);
+}
+
+#if WITH_EDITOR
+
 FText UIKRigPBIKSolver::GetNiceName() const
 {
 	return FText(LOCTEXT("SolverName", "Full Body IK"));
@@ -211,19 +224,6 @@ void UIKRigPBIKSolver::AddGoal(const UIKRigEffectorGoal& NewGoal)
 	NewEffector->GoalName = NewGoal.GoalName;
 	NewEffector->BoneName = NewGoal.BoneName;
 	Effectors.Add(NewEffector);
-}
-
-void UIKRigPBIKSolver::RemoveGoal(const FName& GoalName)
-{
-	// ensure goal even exists in this solver
-	const int32 GoalIndex = GetIndexOfGoal(GoalName);
-	if (GoalIndex == INDEX_NONE)
-	{
-		return;
-	}
-
-	// remove it
-	Effectors.RemoveAt(GoalIndex);
 }
 
 void UIKRigPBIKSolver::RenameGoal(const FName& OldName, const FName& NewName)
@@ -352,19 +352,6 @@ bool UIKRigPBIKSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKRi
 	return false;
 }
 
-int32 UIKRigPBIKSolver::GetIndexOfGoal(const FName& OldName) const
-{
-	for (int32 i=0; i<Effectors.Num(); ++i)
-	{
-		if (Effectors[i]->GoalName == OldName)
-		{
-			return i;
-		}
-	}
-
-	return INDEX_NONE;
-}
-
 void UIKRigPBIKSolver::PostLoad()
 {
 	Super::PostLoad();
@@ -386,5 +373,18 @@ void UIKRigPBIKSolver::PostLoad()
 }
 
 #endif
+
+int32 UIKRigPBIKSolver::GetIndexOfGoal(const FName& OldName) const
+{
+	for (int32 i=0; i<Effectors.Num(); ++i)
+	{
+		if (Effectors[i]->GoalName == OldName)
+		{
+			return i;
+		}
+	}
+
+	return INDEX_NONE;
+}
 
 #undef LOCTEXT_NAMESPACE

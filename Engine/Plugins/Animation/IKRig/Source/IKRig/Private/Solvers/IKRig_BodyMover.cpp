@@ -208,6 +208,8 @@ void UIKRig_BodyMover::SetRootBone(const FName& RootBoneName)
 	RootBone = RootBoneName;
 }
 
+#endif
+
 int32 UIKRig_BodyMover::GetIndexOfGoal(const FName& OldName) const
 {
 	for (int32 i=0; i<Effectors.Num(); ++i)
@@ -220,7 +222,5 @@ int32 UIKRig_BodyMover::GetIndexOfGoal(const FName& OldName) const
 
 	return INDEX_NONE;
 }
-
-#endif
 
 #undef LOCTEXT_NAMESPACE
