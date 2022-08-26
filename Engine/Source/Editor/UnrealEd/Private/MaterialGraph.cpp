@@ -638,31 +638,34 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 							// Wire up non-execution input pins
 							// Implicitly generated property inputs are not returned by GetInputs(), so check index is within valid range.
 							FExpressionInput* ExpressionInput = ExpressionInputs.IsValidIndex(Pin->SourceIndex) ? ExpressionInputs[Pin->SourceIndex] : nullptr;
-							if (Pin->LinkedTo.Num() > 0)
+							if (ExpressionInput)
 							{
-								UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];
-								UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(ConnectedPin->GetOwningNode());
+								if (Pin->LinkedTo.Num() > 0)
+								{
+									UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];
+									UMaterialGraphNode* ConnectedNode = Cast<UMaterialGraphNode>(ConnectedPin->GetOwningNode());
 
-								if (ExpressionInput && !ConnectedNode->MaterialExpression->IsExpressionConnected(ExpressionInput, ConnectedPin->SourceIndex))
+									if (ConnectedNode && !ConnectedNode->MaterialExpression->IsExpressionConnected(ExpressionInput, ConnectedPin->SourceIndex))
+									{
+										if (!bModifiedExpression)
+										{
+											bModifiedExpression = true;
+											Expression->Modify();
+										}
+
+										ConnectedNode->MaterialExpression->Modify();
+										ExpressionInput->Connect(ConnectedPin->SourceIndex, ConnectedNode->MaterialExpression);
+									}
+								}
+								else if (ExpressionInput->Expression)
 								{
 									if (!bModifiedExpression)
 									{
 										bModifiedExpression = true;
 										Expression->Modify();
 									}
-
-									ConnectedNode->MaterialExpression->Modify();
-									ExpressionInput->Connect(ConnectedPin->SourceIndex, ConnectedNode->MaterialExpression);
+									ExpressionInput->Expression = NULL;
 								}
-							}
-							else if (ExpressionInput && ExpressionInput->Expression)
-							{
-								if (!bModifiedExpression)
-								{
-									bModifiedExpression = true;
-									Expression->Modify();
-								}
-								ExpressionInput->Expression = NULL;
 							}
 						}
 						else if (Pin->Direction == EGPD_Output && Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
