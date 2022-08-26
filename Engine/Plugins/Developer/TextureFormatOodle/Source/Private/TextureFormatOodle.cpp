@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TextureFormatOodlePCH.h"
 #include "CoreMinimal.h"
 #include "ImageCore.h"
 #include "DDSFile.h"
@@ -18,6 +17,7 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Misc/FileHelper.h"
+#include "Runtime/Launch/Resources/Version.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "DerivedDataBuildFunctionFactory.h"

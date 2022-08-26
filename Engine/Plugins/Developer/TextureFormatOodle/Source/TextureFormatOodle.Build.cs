@@ -68,9 +68,6 @@ public class TextureFormatOodle : ModuleRules
 	{
 		ShortName = "TextureFormatOodle";
 
-		PCHUsage = PCHUsageMode.UseSharedPCHs;
-		PrivatePCHHeaderFile = "Private/TextureFormatOodlePCH.h";
-
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"CoreUObject",
