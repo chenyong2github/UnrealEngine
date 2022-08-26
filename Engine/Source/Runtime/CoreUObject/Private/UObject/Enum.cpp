@@ -21,7 +21,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEnum, Log, All);
 -----------------------------------------------------------------------------*/
 
 FRWLock UEnum::AllEnumNamesLock;
-TMap<FName, UEnum*> UEnum::AllEnumNames;
+TMap<FName, TMap<FName, UEnum*> > UEnum::AllEnumNames;
 
 UEnum::UEnum(const FObjectInitializer& ObjectInitializer)
 	: UField(ObjectInitializer)
@@ -262,12 +262,14 @@ bool UEnum::IsValidEnumName(FName InName) const
 void UEnum::AddNamesToMasterList()
 {
 	FWriteScopeLock ScopeLock(AllEnumNamesLock);
+	EnumPackage = GetPackage()->GetFName();
+	TMap<FName, UEnum*>& PackageEnumValues = AllEnumNames.FindOrAdd(EnumPackage);
 	for (TPair<FName, int64> Kvp : Names)
 	{
-		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
+		UEnum* Enum = PackageEnumValues.FindRef(Kvp.Key);
 		if (Enum == nullptr || Enum->HasAnyFlags(RF_NewerVersionExists))
 		{
-			AllEnumNames.Add(Kvp.Key, this);
+			PackageEnumValues.Add(Kvp.Key, this);
 		}
 		else if (Enum != this && Enum->GetOutermost() != GetTransientPackage())
 		{
@@ -278,12 +280,14 @@ void UEnum::AddNamesToMasterList()
 
 void UEnum::AddNamesToPrimaryList()
 {
+	EnumPackage = GetPackage()->GetFName();
+	TMap<FName, UEnum*>& PackageEnumValues = AllEnumNames.FindOrAdd(EnumPackage);
 	for (TPair<FName, int64> Kvp : Names)
 	{
-		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
+		UEnum* Enum = PackageEnumValues.FindRef(Kvp.Key);
 		if (Enum == nullptr || Enum->HasAnyFlags(RF_NewerVersionExists))
 		{
-			AllEnumNames.Add(Kvp.Key, this);
+			PackageEnumValues.Add(Kvp.Key, this);
 		}
 		else if (Enum != this && Enum->GetOutermost() != GetTransientPackage())
 		{
@@ -295,26 +299,165 @@ void UEnum::AddNamesToPrimaryList()
 void UEnum::RemoveNamesFromMasterList()
 {
 	FWriteScopeLock ScopeLock(AllEnumNamesLock);
-	for (TPair<FName, int64> Kvp : Names)
+	TMap<FName, UEnum*>* PackageEnumValues = AllEnumNames.Find(EnumPackage);
+	if (PackageEnumValues != nullptr)
 	{
-		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
-		if (Enum == this)
+		for (TPair<FName, int64> Kvp : Names)
 		{
-			AllEnumNames.Remove(Kvp.Key);
+			UEnum* Enum = PackageEnumValues->FindRef(Kvp.Key);
+			if (Enum == this)
+			{
+				PackageEnumValues->Remove(Kvp.Key);
+			}
+		}
+		if (PackageEnumValues->Num() == 0)
+		{
+			AllEnumNames.Remove(EnumPackage);
 		}
 	}
 }
 
 void UEnum::RemoveNamesFromPrimaryList()
 {
-	for (TPair<FName, int64> Kvp : Names)
+	TMap<FName, UEnum*>* PackageEnumValues = AllEnumNames.Find(EnumPackage);
+	if (PackageEnumValues != nullptr)
 	{
-		UEnum* Enum = AllEnumNames.FindRef(Kvp.Key);
-		if (Enum == this)
+		for (TPair<FName, int64> Kvp : Names)
 		{
-			AllEnumNames.Remove(Kvp.Key);
+			UEnum* Enum = PackageEnumValues->FindRef(Kvp.Key);
+			if (Enum == this)
+			{
+				PackageEnumValues->Remove(Kvp.Key);
+			}
+		}
+		if (PackageEnumValues->Num() == 0)
+		{
+			AllEnumNames.Remove(EnumPackage);
 		}
 	}
+}
+
+UEnum* UEnum::LookupAllEnumNamesWithOptions(FName PackageName, EFindFirstObjectOptions Options, TFunctionRef<bool(FName)> CompareNameFunction)
+{
+	UEnum* TheEnum = nullptr;
+	bool bLastFoundEnumWasNative = false;
+
+	auto LookupAllEnumNamesInPackageWithOptions = [Options, &CompareNameFunction, &bLastFoundEnumWasNative](UEnum*& OutEnum, FName CurrentPackageName, const TMap<FName, UEnum*>& EnumNameToUEnumMap)
+	{		
+		bool bIsNativePackageOrDontCare = !(Options & EFindFirstObjectOptions::NativeFirst) || FPackageName::IsScriptPackage(FNameBuilder(CurrentPackageName));
+
+		for (const TPair<FName, UEnum*>& ValueNameToEnumPair : EnumNameToUEnumMap)
+		{
+			if (CompareNameFunction(ValueNameToEnumPair.Key))
+			{
+				if (OutEnum)
+				{
+					if (!!(Options & EFindFirstObjectOptions::EnsureIfAmbiguous))
+					{
+						ensureAlwaysMsgf(false, TEXT("Ambiguous results in LookupAllEnumNamesWithOptions: first enum found \"%s\" but it could also be: \"%s\""),
+							*OutEnum->GetPathName(), *ValueNameToEnumPair.Value->GetPathName());
+					}
+
+					if (bIsNativePackageOrDontCare && !bLastFoundEnumWasNative)
+					{
+						OutEnum = ValueNameToEnumPair.Value;
+						bLastFoundEnumWasNative = bIsNativePackageOrDontCare;
+					}
+				}
+				else
+				{
+					OutEnum = ValueNameToEnumPair.Value;
+					bLastFoundEnumWasNative = bIsNativePackageOrDontCare;
+
+					// If we don't want to check if the search is ambiguous and we don't care if the enum is native or not (or we do care and it's native), abort now
+					if (!(Options & EFindFirstObjectOptions::EnsureIfAmbiguous) && bIsNativePackageOrDontCare)
+					{
+						break;
+					}
+				}
+			}
+		}
+	};
+
+	if (!PackageName.IsNone())
+	{
+		// Fast path, we only need to look in the specified package
+		const TMap<FName, UEnum*>* EnumNameToUEnumMap = AllEnumNames.Find(PackageName);
+		if (EnumNameToUEnumMap)
+		{
+			LookupAllEnumNamesInPackageWithOptions(TheEnum, PackageName, *EnumNameToUEnumMap);
+		}
+	}
+	else
+	{
+		// Slow path, look through all existing packages
+		for (const TPair<FName, TMap<FName, UEnum*>>& PackageToValuesPair : AllEnumNames)
+		{
+			LookupAllEnumNamesInPackageWithOptions(TheEnum, PackageToValuesPair.Key, PackageToValuesPair.Value);
+
+			if (TheEnum && bLastFoundEnumWasNative && !(Options & EFindFirstObjectOptions::EnsureIfAmbiguous))
+			{
+				break;
+			}
+		}
+	}
+
+	return TheEnum;
+}
+
+int64 UEnum::LookupEnumName(FName PackageName, FName TestName, EFindFirstObjectOptions Options /*= EFindFirstObjectOptions::None*/, UEnum** OutFoundEnum /*= nullptr*/)
+{
+	FReadScopeLock ScopeLock(AllEnumNamesLock);
+	UEnum* TheEnum = nullptr;
+	if (!PackageName.IsNone() && Options == EFindFirstObjectOptions::None)
+	{
+		TMap<FName, UEnum*>* PackageEnumValues = AllEnumNames.Find(PackageName);
+		if (PackageEnumValues)
+		{
+			TheEnum = PackageEnumValues->FindRef(TestName);
+		}
+	}
+	else
+	{
+		if (Options == EFindFirstObjectOptions::None)
+		{
+			// If no options are specified we can just look the value name up with a TMap lookup for each of the packages until we find a match
+			for (const TPair<FName, TMap<FName, UEnum*>>& PackageToValuesPair : AllEnumNames)
+			{
+				TheEnum = PackageToValuesPair.Value.FindRef(TestName);
+				if (TheEnum)
+				{
+					break;
+				}
+			}
+		}
+		else
+		{
+			TheEnum = LookupAllEnumNamesWithOptions(PackageName, Options, [TestName](FName EnumValueName) { return TestName == EnumValueName; });
+		}
+	}
+
+	if (OutFoundEnum != nullptr)
+	{
+		*OutFoundEnum = TheEnum;
+	}
+	return (TheEnum != nullptr) ? TheEnum->GetValueByName(TestName) : INDEX_NONE;
+}
+
+int64 UEnum::LookupEnumNameSlow(FName PackageName, const TCHAR* InTestShortName, EFindFirstObjectOptions Options /*= EFindFirstObjectOptions::None*/, UEnum** OutFoundEnum /*= nullptr*/)
+{
+	FReadScopeLock ScopeLock(AllEnumNamesLock);
+	FName TestName(InTestShortName);
+	FString TestShortName(FString(TEXT("::")) + InTestShortName);
+	UEnum* TheEnum = LookupAllEnumNamesWithOptions(PackageName, Options, [TestName, &TestShortName](FName EnumValueName) { return TestName == EnumValueName || EnumValueName.ToString().Contains(TestShortName); });
+
+	if (OutFoundEnum != nullptr)
+	{
+		*OutFoundEnum = TheEnum;
+	}
+	int64 Result = (TheEnum != nullptr) ? TheEnum->GetValueByName(InTestShortName) : INDEX_NONE;
+
+	return Result;
 }
 
 FString UEnum::GenerateEnumPrefix() const
@@ -638,7 +781,7 @@ bool UEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, UEnum::ECppForm InCpp
 		if (!ContainsExistingMax())
 		{
 			FName MaxEnumItem = *GenerateFullEnumName(*(GenerateEnumPrefix() + TEXT("_MAX")));
-			if (LookupEnumName(MaxEnumItem) != INDEX_NONE)
+			if (LookupEnumName(GetOutermost()->GetFName(), MaxEnumItem) != INDEX_NONE)
 			{
 				// the MAX identifier is already being used by another enum
 				return false;
@@ -806,7 +949,7 @@ int64 UEnum::ParseEnum(const TCHAR*& Str)
 	if (FParse::AlnumToken(ParsedStr, Token))
 	{
 		FName TheName = FName(*Token, FNAME_Find);
-		int64 Result = LookupEnumName(TheName);
+		int64 Result = LookupEnumName(FName(), TheName);
 		if (Result != INDEX_NONE)
 		{
 			Str = ParsedStr;

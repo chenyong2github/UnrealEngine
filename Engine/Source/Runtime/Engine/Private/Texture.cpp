@@ -1227,12 +1227,12 @@ void UTexture::SetDeterministicLightingGuid()
 UEnum* UTexture::GetPixelFormatEnum()
 {
 	// Lookup the pixel format enum so that the pixel format can be serialized by name.
-	static FName PixelFormatUnknownName(TEXT("PF_Unknown"));
-	static UEnum* PixelFormatEnum = NULL;
-	if (PixelFormatEnum == NULL)
+	static UEnum* PixelFormatEnum = nullptr;
+	if (PixelFormatEnum == nullptr)
 	{
+		FTopLevelAssetPath PixelFormatEnumPath(TEXT("/Script/CoreUObject"), TEXT("EPixelFormat"));
 		check(IsInGameThread());
-		UEnum::LookupEnumName(PixelFormatUnknownName, &PixelFormatEnum);
+		PixelFormatEnum = FindObject<UEnum>(PixelFormatEnumPath);
 		check(PixelFormatEnum);
 	}
 	return PixelFormatEnum;

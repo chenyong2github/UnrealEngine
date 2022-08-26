@@ -424,11 +424,11 @@ int32 SConvexDecomposition::GetVertsPerHullCount() const
 
 static UEnum& GetFeatureImportanceEnum()
 {
-	static FName FeatureImportanceName(TEXT("EMeshFeatureImportance::Off"));
-	static UEnum* FeatureImportanceEnum = NULL;
-	if (FeatureImportanceEnum == NULL)
+	static UEnum* FeatureImportanceEnum = nullptr;
+	if (FeatureImportanceEnum == nullptr)
 	{
-		UEnum::LookupEnumName(FeatureImportanceName, &FeatureImportanceEnum);
+		FTopLevelAssetPath MeshFeatureImportanceEnumPath(TEXT("/Script/Engine"), TEXT("EMeshFeatureImportance"));
+		FeatureImportanceEnum = FindObject<UEnum>(MeshFeatureImportanceEnumPath);
 		check(FeatureImportanceEnum);
 	}
 	return *FeatureImportanceEnum;
@@ -436,11 +436,11 @@ static UEnum& GetFeatureImportanceEnum()
 
 static UEnum& GetTerminationCriterionEunum()
 {
-	static FName Name(TEXT("EStaticMeshReductionTerimationCriterion::Triangles"));
-	static UEnum* EnumPtr = NULL;
-	if (EnumPtr == NULL)
+	static UEnum* EnumPtr = nullptr;
+	if (EnumPtr == nullptr)
 	{
-		UEnum::LookupEnumName(Name, &EnumPtr);
+		FTopLevelAssetPath StaticMeshReductionTerimationCriterionEnumPath(TEXT("/Script/Engine"), TEXT("EStaticMeshReductionTerimationCriterion"));
+		EnumPtr = FindObject<UEnum>(StaticMeshReductionTerimationCriterionEnumPath);
 		check(EnumPtr);
 	}
 	return *EnumPtr;

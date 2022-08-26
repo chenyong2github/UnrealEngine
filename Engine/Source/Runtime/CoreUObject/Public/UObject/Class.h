@@ -2053,44 +2053,42 @@ public:
 	 */
 	virtual FString GenerateFullEnumName(const TCHAR* InEnumName) const;
 
-	/** searches the list of all enum value names for the specified name
-	 * @return the value the specified name represents if found, otherwise INDEX_NONE
+	/**
+	 * Searches the list of all enum value names for the specified name
+	 * @param PackageName Package where the enum was defined (/Script/ModuleName or uasset package name in case of script defined enums). If an empty (None) name is specified the function will look through all enums to find a match
+	 * @param TestName Fully qualified enum value name (EEnumName::ValueName)
+	 * @Param Options Optional options that may limit search results or define ambiguous search result behavior
+	 * @param OutFoundEnum Optional address of a variable where the resulting UEnum object should be stored
+	 * @return The value the specified name represents if found, otherwise INDEX_NONE
 	 */
-	static int64 LookupEnumName(FName TestName, UEnum** FoundEnum = nullptr)
-	{
-		FReadScopeLock ScopeLock(AllEnumNamesLock);
-		UEnum* TheEnum = AllEnumNames.FindRef(TestName);
-		if (FoundEnum != nullptr)
-		{
-			*FoundEnum = TheEnum;
-		}
-		return (TheEnum != nullptr) ? TheEnum->GetValueByName(TestName) : INDEX_NONE;
-	}
+	static int64 LookupEnumName(FName PackageName, FName TestName, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, UEnum** OutFoundEnum = nullptr);
 
 	/** searches the list of all enum value names for the specified name
 	 * @return the value the specified name represents if found, otherwise INDEX_NONE
 	 */
+	UE_DEPRECATED(5.2, "LookupEnumName that takes only enum name is deprecated. Please use the version of this function that also takes enum package name.")
+	static int64 LookupEnumName(FName TestName, UEnum** FoundEnum = nullptr)
+	{
+		return LookupEnumName(FName(), TestName, EFindFirstObjectOptions::None, FoundEnum);
+	}
+
+	/** 
+	 * Searches the list of all enum value names for the specified name
+	 * @param PackageName Package where the enum was defined (/Script/ModuleName or uasset package name in case of script defined enums). If an empty (None) name is specified the function will look through all native enums to find a match
+	 * @param InTestShortName Fully qualified or short enum value name (EEnumName::ValueName or ValueName)
+	 * @Param Options Optional Options that may limit search results or define ambiguous search result behavior
+	 * @param OutFoundEnum Optional address of a variable where the resulting UEnum object should be stored
+	 * @return The value the specified name represents if found, otherwise INDEX_NONE
+	 */
+	static int64 LookupEnumNameSlow(FName PackageName, const TCHAR* InTestShortName, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, UEnum** OutFoundEnum = nullptr);
+
+	/** searches the list of all enum value names for the specified name
+	 * @return the value the specified name represents if found, otherwise INDEX_NONE
+	 */
+	UE_DEPRECATED(5.2, "LookupEnumNameSlow that takes only enum name is deprecated. Please use the version of this function that also takes enum package name.")
 	static int64 LookupEnumNameSlow(const TCHAR* InTestShortName, UEnum** FoundEnum = nullptr)
 	{
-		int64 Result = LookupEnumName(InTestShortName, FoundEnum);
-		if (Result == INDEX_NONE)
-		{
-			FString TestShortName = FString(TEXT("::")) + InTestShortName;
-			UEnum* TheEnum = nullptr;
-			for (TMap<FName, UEnum*>::TIterator It(AllEnumNames); It; ++It)
-			{
-				if (It.Key().ToString().Contains(TestShortName) )
-				{
-					TheEnum = It.Value();
-				}
-			}
-			if (FoundEnum != nullptr)
-			{
-				*FoundEnum = TheEnum;
-			}
-			Result = (TheEnum != nullptr) ? TheEnum->GetValueByName(InTestShortName) : INDEX_NONE;
-		}
-		return Result;
+		return LookupEnumNameSlow(FName(), InTestShortName, EFindFirstObjectOptions::None, FoundEnum);
 	}
 
 	/** parses the passed in string for a name, then searches for that name in any Enum (in any package)
@@ -2335,11 +2333,14 @@ protected:
 	/** pointer to function used to look up the enum's display name. Currently only assigned for UEnums generated for nativized blueprints */
 	FEnumDisplayNameFn EnumDisplayNameFn;
 
+	/** Package name this enum was in when its names were being added to the master list */
+	FName EnumPackage;
+
 	/** lock to be taken when accessing AllEnumNames */
 	static FRWLock AllEnumNamesLock;
 
 	/** global list of all value names used by all enums in memory, used for property text import */
-	static TMap<FName, UEnum*> AllEnumNames;
+	static TMap<FName, TMap<FName, UEnum*> > AllEnumNames;
 
 	/** adds the Names in this enum to the master AllEnumNames list */
 	UE_DEPRECATED(5.1, "AddNamesToMasterList is deprecated, please use AddNamesToPrimaryList instead.")
@@ -2349,6 +2350,16 @@ protected:
 	void AddNamesToPrimaryList();
 
 private:
+
+	/**
+	 * Searches the list of all enum value names and returns a UEnum object that contains an enum value name matching the provided comparison function criteria
+	 * @param PackageName Package where the enum was defined (/Script/ModuleName or uasset package name in case of script defined enums). If an empty (None) name is specified the function will look through all native enums to find a match
+	 * @Param Options Options that may limit search results or define ambiguous search result behavior
+	 * @param CompareNameFunction Functions used to compare the existing enum value names with the one that should be found
+	 * @return UEnum object if a matching enum value name was found otherwise nullptr
+	 */
+	static UEnum* LookupAllEnumNamesWithOptions(FName PackageName, EFindFirstObjectOptions Options, TFunctionRef<bool(FName)> CompareNameFunction);
+
 	FORCEINLINE static FString GetValueAsString_Internal( const TCHAR* EnumPath, const int64 EnumeratorValue)
 	{
 		UEnum* EnumClass = FindObject<UEnum>( nullptr, EnumPath );

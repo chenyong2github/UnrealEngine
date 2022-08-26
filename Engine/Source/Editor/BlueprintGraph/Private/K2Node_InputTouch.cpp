@@ -55,11 +55,11 @@ void UK2Node_InputTouch::PostLoad()
 
 UEnum* UK2Node_InputTouch::GetTouchIndexEnum()
 {
-	static UEnum* TouchIndexEnum = NULL;
-	if(NULL == TouchIndexEnum)
+	static UEnum* TouchIndexEnum = nullptr;
+	if (nullptr == TouchIndexEnum)
 	{
-		FName TouchIndexEnumName(TEXT("ETouchIndex::Touch1"));
-		UEnum::LookupEnumName(TouchIndexEnumName, &TouchIndexEnum);
+		FTopLevelAssetPath TouchIndexEnumPath(TEXT("/Script/InputCore"), TEXT("ETouchIndex"));
+		TouchIndexEnum = FindObject<UEnum>(TouchIndexEnumPath);
 		check(TouchIndexEnum);
 	}
 	return TouchIndexEnum;

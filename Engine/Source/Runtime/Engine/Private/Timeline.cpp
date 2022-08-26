@@ -30,11 +30,11 @@ DECLARE_CYCLE_STAT(TEXT("TimelineComp Tick"), STAT_TimelineCompTick, STATGROUP_D
 
 UEnum* FTimeline::GetTimelineDirectionEnum()
 {
-	static UEnum* TimelineDirectionEnum = NULL;
-	if(NULL == TimelineDirectionEnum)
+	static UEnum* TimelineDirectionEnum = nullptr;
+	if (nullptr == TimelineDirectionEnum)
 	{
-		FName TimelineDirectionEnumName(TEXT("ETimelineDirection::Forward"));
-		UEnum::LookupEnumName(TimelineDirectionEnumName, &TimelineDirectionEnum);
+		FTopLevelAssetPath TimelineDirectionEnumEnumPath(TEXT("/Script/Engine"), TEXT("ETimelineDirection"));
+		TimelineDirectionEnum = FindObject<UEnum>(TimelineDirectionEnumEnumPath);
 		check(TimelineDirectionEnum);
 	}
 	return TimelineDirectionEnum;
