@@ -11837,8 +11837,8 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "DrawStatsHUD" ), STAT_DrawStatsHUD, STATGROUP_StatSystem );
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DebugHUD);
 
-	// We cannot draw without a canvas
-	if (Canvas == NULL)
+	// We cannot draw without a world or a canvas.
+	if (World == NULL || Canvas == NULL)
 	{
 		return;
 	}
