@@ -67,6 +67,12 @@ void FAutomationRHITest::Define()
 			bool bResult = RunOnRenderThreadSynchronous(FRHITextureTests::Test_UpdateTexture2D);
 			TestEqual("RHI Update Texture2D failed", bResult, 1);
 		});
+		
+		It("RHI Multiple Lock Texture2D", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHITextureTests::Test_MultipleLockTexture2D);
+			TestEqual("RHI Multiple Lock Texture2D failed", bResult, 1);
+		});
 	});
 
 	Describe("Test RHI Copy", [this]
