@@ -11146,6 +11146,14 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
 
 	SequencerCommandBindings->MapAction(
+		Commands.JumpToStartViewport,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToStart));
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpToEndViewport,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpToEnd));
+
+	SequencerCommandBindings->MapAction(
 		Commands.StepForward,
 		FExecuteAction::CreateSP(this, &FSequencer::StepForward),
 		EUIActionRepeatMode::RepeatEnabled);
@@ -11318,6 +11326,8 @@ void FSequencer::BindCommands()
 		CurveEditorSharedBindings->MapAction(Commands.PlayForward, *SequencerCommandBindings->GetActionForCommand(Commands.PlayForward));
 		CurveEditorSharedBindings->MapAction(Commands.JumpToStart, *SequencerCommandBindings->GetActionForCommand(Commands.JumpToStart));
 		CurveEditorSharedBindings->MapAction(Commands.JumpToEnd, *SequencerCommandBindings->GetActionForCommand(Commands.JumpToEnd));
+		CurveEditorSharedBindings->MapAction(Commands.JumpToStartViewport, *SequencerCommandBindings->GetActionForCommand(Commands.JumpToStartViewport));
+		CurveEditorSharedBindings->MapAction(Commands.JumpToEndViewport, *SequencerCommandBindings->GetActionForCommand(Commands.JumpToEndViewport));
 		CurveEditorSharedBindings->MapAction(Commands.ShuttleBackward, *SequencerCommandBindings->GetActionForCommand(Commands.ShuttleBackward));
 		CurveEditorSharedBindings->MapAction(Commands.ShuttleForward, *SequencerCommandBindings->GetActionForCommand(Commands.ShuttleForward));
 		CurveEditorSharedBindings->MapAction(Commands.Pause, *SequencerCommandBindings->GetActionForCommand(Commands.Pause));

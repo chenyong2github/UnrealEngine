@@ -42,7 +42,13 @@ public:
 
 	/** Jump to end of playback */
 	TSharedPtr< FUICommandInfo > JumpToEnd;
-	
+
+	/** Jump to start of playback */
+	TSharedPtr< FUICommandInfo > JumpToStartViewport;
+
+	/** Jump to end of playback */
+	TSharedPtr< FUICommandInfo > JumpToEndViewport;
+
 	/** Shuttle forward */
 	TSharedPtr< FUICommandInfo > ShuttleForward;
 
