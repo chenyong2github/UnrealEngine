@@ -19,10 +19,8 @@ limitations under the License.
 
 #include "HAL/PlatformCrt.h"
 
-THIRD_PARTY_INCLUDES_START
 #include <cstdint>
 #include <istream>
-THIRD_PARTY_INCLUDES_END
 
 #include "base/integral_types.h"
 
