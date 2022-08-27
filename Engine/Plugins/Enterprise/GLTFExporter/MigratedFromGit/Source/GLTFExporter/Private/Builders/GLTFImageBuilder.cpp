@@ -21,9 +21,20 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 
 	if (ImageIndex == INDEX_NONE)
 	{
-		FGLTFJsonImage Image;
-		Image.Uri = SaveImageToFile(CompressedData, CompressedByteLength, MimeType, Name);
-		ImageIndex = FGLTFJsonBuilder::AddImage(Image);
+		FGLTFJsonImage JsonImage;
+
+		if (bIsGlbFile)
+		{
+			JsonImage.Name = Name;
+			JsonImage.MimeType = MimeType;
+			JsonImage.BufferView = AddBufferView(CompressedData, CompressedByteLength);
+		}
+		else
+		{
+			JsonImage.Uri = SaveImageToFile(CompressedData, CompressedByteLength, MimeType, Name);
+		}
+
+		ImageIndex = FGLTFJsonBuilder::AddImage(JsonImage);
 	}
 
 	return ImageIndex;
