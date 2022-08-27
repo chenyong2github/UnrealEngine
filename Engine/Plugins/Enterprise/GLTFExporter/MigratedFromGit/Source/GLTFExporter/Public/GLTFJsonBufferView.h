@@ -4,6 +4,7 @@
 
 #include "GLTFJsonEnums.h"
 #include "GLTFJsonObject.h"
+#include "GLTFJsonUtilities.h"
 
 struct GLTFEXPORTER_API FGLTFJsonBufferView : FGLTFJsonObject
 {
@@ -24,5 +25,24 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView : FGLTFJsonObject
 		, ByteStride(0)
 		, Target(EGLTFJsonBufferTarget::None)
 	{
+		// check that view fits completely inside the buffer
+	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	{
+		JsonWriter.WriteObjectStart();
+
+		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+
+		JsonWriter.WriteValue(TEXT("buffer"), Buffer);
+		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
+
+		if (ByteOffset != 0) JsonWriter.WriteValue(TEXT("byteOffset"), ByteOffset);
+		if (ByteStride != 0) JsonWriter.WriteValue(TEXT("byteStride"), ByteStride);
+
+		if (Target != EGLTFJsonBufferTarget::None) JsonWriter.WriteValue(TEXT("target"), BufferTargetToNumber(Target));
+
+		JsonWriter.WriteObjectEnd();
 	}
 };

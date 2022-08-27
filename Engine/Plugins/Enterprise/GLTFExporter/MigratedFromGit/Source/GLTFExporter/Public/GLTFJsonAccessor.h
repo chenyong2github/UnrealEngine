@@ -4,6 +4,7 @@
 
 #include "GLTFJsonEnums.h"
 #include "GLTFJsonObject.h"
+#include "GLTFJsonUtilities.h"
 
 struct GLTFEXPORTER_API FGLTFJsonAccessor : FGLTFJsonObject
 {
@@ -27,5 +28,37 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor : FGLTFJsonObject
 		, Normalized(false)
 		, MinMaxLength(0)
 	{
+	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	{
+		JsonWriter.WriteObjectStart();
+
+		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+
+		JsonWriter.WriteValue(TEXT("bufferView"), BufferView);
+		JsonWriter.WriteValue(TEXT("count"), Count);
+		JsonWriter.WriteValue(TEXT("type"), AccessorTypeToString(Type));
+		JsonWriter.WriteValue(TEXT("componentType"), ComponentTypeToNumber(ComponentType));
+
+		if (MinMaxLength > 0)
+		{
+			JsonWriter.WriteArrayStart(TEXT("min"));
+			for (int32 ComponentIndex = 0; ComponentIndex < MinMaxLength; ++ComponentIndex)
+			{
+				JsonWriter.WriteValue(Min[ComponentIndex]);
+			}
+			JsonWriter.WriteArrayEnd();
+
+			JsonWriter.WriteArrayStart(TEXT("max"));
+			for (int32 ComponentIndex = 0; ComponentIndex < MinMaxLength; ++ComponentIndex)
+			{
+				JsonWriter.WriteValue(Max[ComponentIndex]);
+			}
+			JsonWriter.WriteArrayEnd();
+		}
+
+		JsonWriter.WriteObjectEnd();
 	}
 };
