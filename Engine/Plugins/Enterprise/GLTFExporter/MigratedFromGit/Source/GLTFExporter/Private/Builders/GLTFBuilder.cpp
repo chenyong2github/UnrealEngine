@@ -126,9 +126,9 @@ void FGLTFBuilder::WriteLogMessageToConsole(const FLogMessage& LogMessage)
 {
 	switch (LogMessage.Key)
 	{
-		case EGLTFMessageSeverity::Info: UE_LOG(LogGLTFExporter, Display, TEXT("%s"), *LogMessage.Value); break;
+		case EGLTFMessageSeverity::Info:    UE_LOG(LogGLTFExporter, Display, TEXT("%s"), *LogMessage.Value); break;
 		case EGLTFMessageSeverity::Warning: UE_LOG(LogGLTFExporter, Warning, TEXT("%s"), *LogMessage.Value); break;
-		case EGLTFMessageSeverity::Error: UE_LOG(LogGLTFExporter, Error, TEXT("%s"), *LogMessage.Value); break;
+		case EGLTFMessageSeverity::Error:   UE_LOG(LogGLTFExporter, Error, TEXT("%s"), *LogMessage.Value); break;
 		default:
 			checkNoEntry();
 			break;
@@ -141,9 +141,9 @@ TSharedRef<FTokenizedMessage> FGLTFBuilder::CreateTokenizedMessage(const FLogMes
 
 	switch (LogMessage.Key)
 	{
-		case EGLTFMessageSeverity::Info: MessageSeverity = EMessageSeverity::Type::Info; break;
+		case EGLTFMessageSeverity::Info:    MessageSeverity = EMessageSeverity::Type::Info; break;
 		case EGLTFMessageSeverity::Warning: MessageSeverity = EMessageSeverity::Type::Warning; break;
-		case EGLTFMessageSeverity::Error: MessageSeverity = EMessageSeverity::Type::Error; break;
+		case EGLTFMessageSeverity::Error:   MessageSeverity = EMessageSeverity::Type::Error; break;
 		default:
 			checkNoEntry();
 			break;
