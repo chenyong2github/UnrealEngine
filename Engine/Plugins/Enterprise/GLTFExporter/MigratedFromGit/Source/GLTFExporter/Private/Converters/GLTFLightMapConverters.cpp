@@ -52,7 +52,7 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Add(FGLTFConvertBuilder& Builder,
 
 	const bool bUseHighQualityLightMap = true;
 	const ULightMapTexture2D* Texture = LightMapInteraction.GetTexture(bUseHighQualityLightMap);
-	const FGLTFJsonTextureIndex TextureIndex = Builder.GetOrAddLightMapTexture(Texture);
+	const FGLTFJsonTextureIndex TextureIndex = Builder.GetOrAddTexture(Texture);
 
 	if (TextureIndex == INDEX_NONE)
 	{
