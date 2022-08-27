@@ -13,12 +13,12 @@ TextureFilter FGLTFConverterUtility::GetDefaultFilter(TextureGroup LODGroup)
 
 	switch (TextureLODGroup.Filter)
 	{
-		case ETextureSamplerFilter::Point:             return TextureFilter::TF_Nearest;
-		case ETextureSamplerFilter::Bilinear:          return TextureFilter::TF_Bilinear;
-		case ETextureSamplerFilter::Trilinear:         return TextureFilter::TF_Trilinear;
-		case ETextureSamplerFilter::AnisotropicPoint:  return TextureFilter::TF_Nearest;
-		case ETextureSamplerFilter::AnisotropicLinear: return TextureFilter::TF_Trilinear;
-		default:                                       return TextureFilter::TF_Default; // fallback
+		case ETextureSamplerFilter::Point:             return TF_Nearest;
+		case ETextureSamplerFilter::Bilinear:          return TF_Bilinear;
+		case ETextureSamplerFilter::Trilinear:         return TF_Trilinear;
+		case ETextureSamplerFilter::AnisotropicPoint:  return TF_Nearest;
+		case ETextureSamplerFilter::AnisotropicLinear: return TF_Trilinear;
+		default:                                       return TF_Default; // fallback
 	}
 }
 

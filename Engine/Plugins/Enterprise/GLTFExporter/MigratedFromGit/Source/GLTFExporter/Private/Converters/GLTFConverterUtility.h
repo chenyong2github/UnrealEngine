@@ -95,10 +95,10 @@ struct FGLTFConverterUtility
 	{
 		switch (Mode)
 		{
-			case EBlendMode::BLEND_Opaque:      return EGLTFJsonAlphaMode::Opaque;
-			case EBlendMode::BLEND_Translucent: return EGLTFJsonAlphaMode::Blend;
-			case EBlendMode::BLEND_Masked:      return EGLTFJsonAlphaMode::Mask;
-			default:                            return EGLTFJsonAlphaMode::Opaque; // fallback
+			case BLEND_Opaque:      return EGLTFJsonAlphaMode::Opaque;
+			case BLEND_Translucent: return EGLTFJsonAlphaMode::Blend;
+			case BLEND_Masked:      return EGLTFJsonAlphaMode::Mask;
+			default:                return EGLTFJsonAlphaMode::Opaque; // fallback
 		}
 	}
 
@@ -106,10 +106,10 @@ struct FGLTFConverterUtility
 	{
 		switch (Address)
 		{
-			case TextureAddress::TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
-			case TextureAddress::TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
-			case TextureAddress::TA_Clamp:  return EGLTFJsonTextureWrap::ClampToEdge;
-			default:                        return EGLTFJsonTextureWrap::Repeat; // fallback
+			case TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
+			case TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
+			case TA_Clamp:  return EGLTFJsonTextureWrap::ClampToEdge;
+			default:        return EGLTFJsonTextureWrap::Repeat; // fallback
 		}
 	}
 
@@ -117,10 +117,10 @@ struct FGLTFConverterUtility
 	{
 		switch (Filter)
 		{
-			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::NearestMipmapNearest;
-			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
-			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
-			default:                          return EGLTFJsonTextureFilter::None;
+			case TF_Nearest:   return EGLTFJsonTextureFilter::NearestMipmapNearest;
+			case TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
+			case TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
+			default:           return EGLTFJsonTextureFilter::None;
 		}
 	}
 
@@ -128,10 +128,10 @@ struct FGLTFConverterUtility
 	{
 		switch (Filter)
 		{
-			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
-			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::Linear;
-			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::Linear;
-			default:                          return EGLTFJsonTextureFilter::None;
+			case TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
+			case TF_Bilinear:  return EGLTFJsonTextureFilter::Linear;
+			case TF_Trilinear: return EGLTFJsonTextureFilter::Linear;
+			default:           return EGLTFJsonTextureFilter::None;
 		}
 	}
 
