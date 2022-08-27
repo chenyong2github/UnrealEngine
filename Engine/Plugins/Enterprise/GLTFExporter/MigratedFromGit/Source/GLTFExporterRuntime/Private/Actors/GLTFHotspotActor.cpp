@@ -49,7 +49,7 @@ AGLTFHotspotActor::AGLTFHotspotActor(const FObjectInitializer& ObjectInitializer
 	DefaultToggledHoveredImage(nullptr),
 	ActiveImage(nullptr),
 	ActiveImageSize(0.0f, 0.0f),
-	bToggled(bToggled),
+	bToggled(false),
 	bIsInteractable(true),
 	RealtimeSecondsWhenLastInSight(0.0f),
 	RealtimeSecondsWhenLastHidden(0.0f)
