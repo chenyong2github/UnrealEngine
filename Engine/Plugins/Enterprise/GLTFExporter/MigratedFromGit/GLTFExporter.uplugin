@@ -22,7 +22,8 @@
 		},
 		{
 			"Name": "GLTFExporterRuntime",
-			"Type": "Runtime"
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
