@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFContainerBuilder.h"
+#include "Builders/GLTFMemoryArchive.h"
 
 void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 {
@@ -35,20 +36,20 @@ FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLT
 
 void FGLTFContainerBuilder::WriteGlb(FArchive& Archive)
 {
-	FBufferArchive JsonData;
+	FGLTFMemoryArchive JsonData;
 	WriteJson(JsonData);
 
-	const FBufferArchive* BufferData = GetBufferData();
-	WriteGlb(Archive, &JsonData, BufferData);
+	const TArray64<uint8>* BufferData = GetBufferData();
+	WriteGlb(Archive, JsonData, BufferData);
 }
 
-void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const FBufferArchive* JsonData, const FBufferArchive* BinaryData)
+void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const TArray64<uint8>& JsonData, const TArray64<uint8>* BinaryData)
 {
-	const uint32 JsonChunkType = 0x4E4F534A; // "JSON" in ASCII
-	const uint32 BinaryChunkType = 0x004E4942; // "BIN" in ASCII
+	constexpr uint32 JsonChunkType = 0x4E4F534A; // "JSON" in ASCII
+	constexpr uint32 BinaryChunkType = 0x004E4942; // "BIN" in ASCII
 	uint32 FileSize =
 		3 * sizeof(uint32) +
-		2 * sizeof(uint32) + GetPaddedChunkSize(JsonData->Num());
+		2 * sizeof(uint32) + GetPaddedChunkSize(JsonData.Num());
 
 	if (BinaryData != nullptr)
 	{
@@ -56,7 +57,7 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const FBufferArchive* Js
 	}
 
 	WriteHeader(Archive, FileSize);
-	WriteChunk(Archive, JsonChunkType, *JsonData, 0x20);
+	WriteChunk(Archive, JsonChunkType, JsonData, 0x20);
 
 	if (BinaryData != nullptr)
 	{
@@ -66,15 +67,15 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const FBufferArchive* Js
 
 void FGLTFContainerBuilder::WriteHeader(FArchive& Archive, uint32 FileSize)
 {
-	const uint32 FileSignature = 0x46546C67; // "glTF" in ASCII
-	const uint32 FileVersion = 2;
+	constexpr uint32 FileSignature = 0x46546C67; // "glTF" in ASCII
+	constexpr uint32 FileVersion = 2;
 
 	WriteInt(Archive, FileSignature);
 	WriteInt(Archive, FileVersion);
 	WriteInt(Archive, FileSize);
 }
 
-void FGLTFContainerBuilder::WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray<uint8>& ChunkData, uint8 ChunkTrailingByte)
+void FGLTFContainerBuilder::WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray64<uint8>& ChunkData, uint8 ChunkTrailingByte)
 {
 	const uint32 ChunkLength = GetPaddedChunkSize(ChunkData.Num());
 	const uint32 ChunkTrailing = GetTrailingChunkSize(ChunkData.Num());
@@ -90,7 +91,7 @@ void FGLTFContainerBuilder::WriteInt(FArchive& Archive, uint32 Value)
 	Archive.SerializeInt(Value, MAX_uint32);
 }
 
-void FGLTFContainerBuilder::WriteData(FArchive& Archive, const TArray<uint8>& Data)
+void FGLTFContainerBuilder::WriteData(FArchive& Archive, const TArray64<uint8>& Data)
 {
 	Archive.Serialize(const_cast<uint8*>(Data.GetData()), Data.Num());
 }
