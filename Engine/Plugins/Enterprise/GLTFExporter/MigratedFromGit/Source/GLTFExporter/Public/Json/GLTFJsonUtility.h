@@ -197,6 +197,40 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static int32 GetComponentCount(EGLTFJsonAccessorType AccessorType)
+	{
+		switch (AccessorType)
+		{
+		case EGLTFJsonAccessorType::Scalar: return 1;
+		case EGLTFJsonAccessorType::Vec2:   return 2;
+		case EGLTFJsonAccessorType::Vec3:   return 3;
+		case EGLTFJsonAccessorType::Vec4:   return 4;
+		case EGLTFJsonAccessorType::Mat2:   return 4;
+		case EGLTFJsonAccessorType::Mat3:   return 9;
+		case EGLTFJsonAccessorType::Mat4:   return 16;
+		default:                            return 0;
+		}
+	}
+
+	static int32 GetComponentSize(EGLTFJsonComponentType ComponentType)
+	{
+		switch (ComponentType)
+		{
+		case EGLTFJsonComponentType::S8:
+		case EGLTFJsonComponentType::U8:
+			return 1;
+		case EGLTFJsonComponentType::S16:
+		case EGLTFJsonComponentType::U16:
+			return 2;
+		case EGLTFJsonComponentType::S32:
+		case EGLTFJsonComponentType::U32:
+		case EGLTFJsonComponentType::F32:
+			return 4;
+		default:
+			return 0;
+		}
+	}
+
 	static EGLTFJsonComponentType ParseComponentType(int32 ComponentType)
 	{
 		switch (ComponentType)
