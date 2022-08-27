@@ -30,10 +30,10 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 				{
 					if (const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true))
 					{
-						const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSets);
-						if (VariationIndex != INDEX_NONE)
+						const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSets);
+						if (LevelVariantSetsIndex != INDEX_NONE)
 						{
-							Scene.Variations.Add(VariationIndex);
+							Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
 						}
 					}
 				}
