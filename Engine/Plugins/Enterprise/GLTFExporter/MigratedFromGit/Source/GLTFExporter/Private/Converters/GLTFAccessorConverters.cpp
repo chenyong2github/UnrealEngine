@@ -145,12 +145,13 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 		{
 			ComponentType = EGLTFJsonComponentType::S16;
 			BufferViewIndex = ConvertBufferView<FGLTFPackedVector16, FPackedRGBA16N>(MeshSection, VertexBuffer);
+			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFPackedVector16);
 		}
 		else
 		{
 			ComponentType = EGLTFJsonComponentType::S8;
 			BufferViewIndex = ConvertBufferView<FGLTFPackedVector8, FPackedNormal>(MeshSection, VertexBuffer);
-			Builder.GetBufferView(BufferViewIndex).ByteStride = 4;
+			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFPackedVector8);
 		}
 	}
 	else
