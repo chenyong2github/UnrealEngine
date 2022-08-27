@@ -69,7 +69,7 @@ public:
 	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* BackdropActor);
 	FGLTFJsonVariationIndex GetOrAddVariation(const ALevelVariantSetsActor* LevelVariantSetsActor);
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent);
-	FGLTFJsonHotspotIndex GetOrAddHotspot(const AGLTFInteractionHotspotActor* HotspotActor);
+	FGLTFJsonHotspotIndex GetOrAddHotspot(const AGLTFHotspotActor* HotspotActor);
 
 private:
 

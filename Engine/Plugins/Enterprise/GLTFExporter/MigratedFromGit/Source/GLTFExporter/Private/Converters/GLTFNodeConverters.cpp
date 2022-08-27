@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Actors/GLTFInteractionHotspotActor.h"
+#include "Actors/GLTFHotspotActor.h"
 
 FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 {
@@ -31,7 +31,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
 		}
 	}
-	else if (const AGLTFInteractionHotspotActor* HotspotActor = Cast<AGLTFInteractionHotspotActor>(Actor))
+	else if (const AGLTFHotspotActor* HotspotActor = Cast<AGLTFHotspotActor>(Actor))
 	{
 		if (Builder.ExportOptions->bExportInteractionHotspots)
 		{

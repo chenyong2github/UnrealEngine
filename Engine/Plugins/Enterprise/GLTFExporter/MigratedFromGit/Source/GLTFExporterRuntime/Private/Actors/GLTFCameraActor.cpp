@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Actors/GLTFOrbitCameraActor.h"
+#include "Actors/GLTFCameraActor.h"
 #include "Components/InputComponent.h"
 
 namespace
@@ -19,7 +19,7 @@ namespace
 	const float DistanceSensitivityScale = 0.1f;
 }
 
-AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectInitializer)
+AGLTFCameraActor::AGLTFCameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Focus(nullptr)
 	, DistanceMin(100.0f)
@@ -43,7 +43,7 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 }
 
 #if WITH_EDITOR
-void AGLTFOrbitCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void AGLTFCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -65,7 +65,7 @@ void AGLTFOrbitCameraActor::PostEditChangeProperty(FPropertyChangedEvent& Proper
 }
 #endif // WITH_EDITOR
 
-void AGLTFOrbitCameraActor::BeginPlay()
+void AGLTFCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -87,13 +87,13 @@ void AGLTFOrbitCameraActor::BeginPlay()
 
 	if (InputComponent)
 	{
-		InputComponent->BindAxisKey(EKeys::MouseX, this, &AGLTFOrbitCameraActor::OnMouseX);
-		InputComponent->BindAxisKey(EKeys::MouseY, this, &AGLTFOrbitCameraActor::OnMouseY);
-		InputComponent->BindAxisKey(EKeys::MouseWheelAxis, this, &AGLTFOrbitCameraActor::OnMouseWheelAxis);
+		InputComponent->BindAxisKey(EKeys::MouseX, this, &AGLTFCameraActor::OnMouseX);
+		InputComponent->BindAxisKey(EKeys::MouseY, this, &AGLTFCameraActor::OnMouseY);
+		InputComponent->BindAxisKey(EKeys::MouseWheelAxis, this, &AGLTFCameraActor::OnMouseWheelAxis);
 	}
 }
 
-void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
+void AGLTFCameraActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
@@ -126,29 +126,29 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 	SetActorTransform(ResultTransform);
 }
 
-void AGLTFOrbitCameraActor::PreInitializeComponents()
+void AGLTFCameraActor::PreInitializeComponents()
 {
 	AutoReceiveInput = static_cast<EAutoReceiveInput::Type>(GetAutoActivatePlayerIndex() + 1);
 
 	Super::PreInitializeComponents();
 }
 
-void AGLTFOrbitCameraActor::PostActorCreated()
+void AGLTFCameraActor::PostActorCreated()
 {
 	SetAutoActivateForPlayer(EAutoReceiveInput::Player0);
 }
 
-void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
+void AGLTFCameraActor::OnMouseX(float AxisValue)
 {
 	TargetYaw += AxisValue * OrbitSensitivity * OrbitSensitivityScale;
 }
 
-void AGLTFOrbitCameraActor::OnMouseY(float AxisValue)
+void AGLTFCameraActor::OnMouseY(float AxisValue)
 {
 	TargetPitch = ClampPitch(TargetPitch - AxisValue * OrbitSensitivity * OrbitSensitivityScale);
 }
 
-void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
+void AGLTFCameraActor::OnMouseWheelAxis(float AxisValue)
 {
 	if (!FMath::IsNearlyZero(AxisValue))
 	{
@@ -160,17 +160,17 @@ void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
 	}
 }
 
-float AGLTFOrbitCameraActor::ClampDistance(float Value) const
+float AGLTFCameraActor::ClampDistance(float Value) const
 {
 	return FMath::Clamp(Value, DistanceMin, DistanceMax);
 }
 
-float AGLTFOrbitCameraActor::ClampPitch(float Value) const
+float AGLTFCameraActor::ClampPitch(float Value) const
 {
 	return FMath::Clamp(Value, PitchAngleMin, PitchAngleMax);
 }
 
-float AGLTFOrbitCameraActor::ClampYaw(float Value) const
+float AGLTFCameraActor::ClampYaw(float Value) const
 {
 	const int32 CycleIndex = AngleCycleIndex(Value);
 	const float Offset = 360.0f * static_cast<float>(FMath::Abs(FMath::Min(CycleIndex, 0)));
@@ -178,26 +178,26 @@ float AGLTFOrbitCameraActor::ClampYaw(float Value) const
 	return FMath::Fmod(Value + Offset, 360.0f);
 }
 
-void AGLTFOrbitCameraActor::RemoveInertia()
+void AGLTFCameraActor::RemoveInertia()
 {
 	Yaw = TargetYaw;
 	Pitch = TargetPitch;
 	Distance = TargetDistance;
 }
 
-FRotator AGLTFOrbitCameraActor::GetLookAtRotation(const FVector TargetPosition) const
+FRotator AGLTFCameraActor::GetLookAtRotation(const FVector TargetPosition) const
 {
 	const FVector EyePosition = GetActorLocation();
 
 	return FRotationMatrix::MakeFromXZ(TargetPosition - EyePosition, FVector::UpVector).Rotator();
 }
 
-FVector AGLTFOrbitCameraActor::GetFocusPosition() const
+FVector AGLTFCameraActor::GetFocusPosition() const
 {
 	return this->Focus != nullptr ? this->Focus->GetActorLocation() : FVector::ZeroVector;
 }
 
-bool AGLTFOrbitCameraActor::SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player)
+bool AGLTFCameraActor::SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player)
 {
 	// TODO: remove hack by adding proper API access to ACameraActor (or by other means)
 	FProperty* Property = GetClass()->FindPropertyByName(TEXT("AutoActivateForPlayer"));

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Actors/GLTFInteractionHotspotActor.h"
+#include "Actors/GLTFHotspotActor.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Animation/AnimSequence.h"
 #include "Components/SphereComponent.h"
@@ -27,7 +27,7 @@ namespace
 	const FName NAME_OpacityParameter = TEXT("OpacityMask");
 }
 
-AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitializer& ObjectInitializer)
+AGLTFHotspotActor::AGLTFHotspotActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	Image(nullptr),
 	HoveredImage(nullptr),
@@ -72,9 +72,9 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	SphereComponent->SetGenerateOverlapEvents(false);
 
 	// Respond to interactions with the sphere-component
-	SphereComponent->OnBeginCursorOver.AddDynamic(this, &AGLTFInteractionHotspotActor::BeginCursorOver);
-	SphereComponent->OnEndCursorOver.AddDynamic(this, &AGLTFInteractionHotspotActor::EndCursorOver);
-	SphereComponent->OnClicked.AddDynamic(this, &AGLTFInteractionHotspotActor::Clicked);
+	SphereComponent->OnBeginCursorOver.AddDynamic(this, &AGLTFHotspotActor::BeginCursorOver);
+	SphereComponent->OnEndCursorOver.AddDynamic(this, &AGLTFHotspotActor::EndCursorOver);
+	SphereComponent->OnClicked.AddDynamic(this, &AGLTFHotspotActor::Clicked);
 
 	struct FConstructorStatics
 	{
@@ -110,7 +110,7 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 
 
 #if WITH_EDITOR
-void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void AGLTFHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -140,7 +140,7 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 }
 #endif // WITH_EDITOR
 
-void AGLTFInteractionHotspotActor::PostRegisterAllComponents()
+void AGLTFHotspotActor::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
@@ -148,7 +148,7 @@ void AGLTFInteractionHotspotActor::PostRegisterAllComponents()
 	UpdateActiveImageFromState(EGLTFHotspotState::Default);
 }
 
-void AGLTFInteractionHotspotActor::Tick(float DeltaTime)
+void AGLTFHotspotActor::Tick(float DeltaTime)
 {
 	UWorld* World = GetWorld();
 
@@ -226,7 +226,7 @@ void AGLTFInteractionHotspotActor::Tick(float DeltaTime)
 	}
 }
 
-void AGLTFInteractionHotspotActor::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
+void AGLTFHotspotActor::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
 {
 	if (bIsInteractable)
 	{
@@ -234,12 +234,12 @@ void AGLTFInteractionHotspotActor::BeginCursorOver(UPrimitiveComponent* TouchedC
 	}
 }
 
-void AGLTFInteractionHotspotActor::EndCursorOver(UPrimitiveComponent* TouchedComponent)
+void AGLTFHotspotActor::EndCursorOver(UPrimitiveComponent* TouchedComponent)
 {
 	UpdateActiveImageFromState(bToggled ? EGLTFHotspotState::Toggled :  EGLTFHotspotState::Default);
 }
 
-void AGLTFInteractionHotspotActor::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
+void AGLTFHotspotActor::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
 	if (!bIsInteractable)
 	{
@@ -274,7 +274,7 @@ void AGLTFInteractionHotspotActor::Clicked(UPrimitiveComponent* TouchedComponent
 	UpdateActiveImageFromState(bToggled ? EGLTFHotspotState::ToggledHovered :  EGLTFHotspotState::Hovered);
 }
 
-void AGLTFInteractionHotspotActor::UpdateActiveImageFromState(EGLTFHotspotState State)
+void AGLTFHotspotActor::UpdateActiveImageFromState(EGLTFHotspotState State)
 {
 	UTexture2D* NewImage = const_cast<UTexture2D*>(GetImageForState(State));
 
@@ -291,7 +291,7 @@ void AGLTFInteractionHotspotActor::UpdateActiveImageFromState(EGLTFHotspotState 
 	UpdateSpriteSize();
 }
 
-void AGLTFInteractionHotspotActor::SetupSpriteElement() const
+void AGLTFHotspotActor::SetupSpriteElement() const
 {
 	UMaterialInstanceDynamic* MaterialInstance;
 
@@ -315,12 +315,12 @@ void AGLTFInteractionHotspotActor::SetupSpriteElement() const
 	BillboardComponent->SetElements({ Element });
 }
 
-UMaterialInstanceDynamic* AGLTFInteractionHotspotActor::GetSpriteMaterial() const
+UMaterialInstanceDynamic* AGLTFHotspotActor::GetSpriteMaterial() const
 {
 	return static_cast<UMaterialInstanceDynamic*>(BillboardComponent->GetMaterial(0));
 }
 
-void AGLTFInteractionHotspotActor::UpdateSpriteSize()
+void AGLTFHotspotActor::UpdateSpriteSize()
 {
 	const FIntPoint ViewportSize = GetCurrentViewportSize();
 
@@ -344,12 +344,12 @@ void AGLTFInteractionHotspotActor::UpdateSpriteSize()
 	}
 }
 
-void AGLTFInteractionHotspotActor::SetSpriteOpacity(const float Opacity) const
+void AGLTFHotspotActor::SetSpriteOpacity(const float Opacity) const
 {
 	GetSpriteMaterial()->SetScalarParameterValue(NAME_OpacityParameter, Opacity);
 }
 
-FIntPoint AGLTFInteractionHotspotActor::GetCurrentViewportSize()
+FIntPoint AGLTFHotspotActor::GetCurrentViewportSize()
 {
 	// TODO: verify that correct size is calculated in the various play-modes and in the editor
 
@@ -384,7 +384,7 @@ FIntPoint AGLTFInteractionHotspotActor::GetCurrentViewportSize()
 	{
 		if (!Viewport->ViewportResizedEvent.IsBoundToObject(this))
 		{
-			Viewport->ViewportResizedEvent.AddUObject(this, &AGLTFInteractionHotspotActor::ViewportResized);
+			Viewport->ViewportResizedEvent.AddUObject(this, &AGLTFHotspotActor::ViewportResized);
 		}
 
 		return Viewport->GetSizeXY();
@@ -395,12 +395,12 @@ FIntPoint AGLTFInteractionHotspotActor::GetCurrentViewportSize()
 	}
 }
 
-void AGLTFInteractionHotspotActor::ViewportResized(FViewport*, uint32)
+void AGLTFHotspotActor::ViewportResized(FViewport*, uint32)
 {
 	UpdateSpriteSize();
 }
 
-void AGLTFInteractionHotspotActor::ValidateAnimation()
+void AGLTFHotspotActor::ValidateAnimation()
 {
 	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
 	{
@@ -423,7 +423,7 @@ void AGLTFInteractionHotspotActor::ValidateAnimation()
 	}
 }
 
-const UTexture2D* AGLTFInteractionHotspotActor::GetImageForState(EGLTFHotspotState State) const
+const UTexture2D* AGLTFHotspotActor::GetImageForState(EGLTFHotspotState State) const
 {
 	const UTexture2D* CurrentImage = DefaultImage;
 	const UTexture2D* CurrentHoveredImage = DefaultHoveredImage;

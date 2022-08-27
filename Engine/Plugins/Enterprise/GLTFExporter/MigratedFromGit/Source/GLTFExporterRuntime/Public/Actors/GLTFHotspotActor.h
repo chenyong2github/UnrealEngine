@@ -3,7 +3,7 @@
 #pragma once
 
 #include "GameFramework/Actor.h"
-#include "GLTFInteractionHotspotActor.generated.h"
+#include "GLTFHotspotActor.generated.h"
 
 class ASkeletalMeshActor;
 class UAnimSequence;
@@ -26,13 +26,13 @@ enum class EGLTFHotspotState : uint8
 /**
  * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of skeletal animations when cursor input is enabled.
  */
-UCLASS(BlueprintType, Blueprintable, HideCategories = (Sprite, Physics, Collision, Navigation), DisplayName = "GLTF Interaction Hotspot Actor")
-class GLTFEXPORTERRUNTIME_API AGLTFInteractionHotspotActor : public AActor
+UCLASS(BlueprintType, Blueprintable, HideCategories = (Sprite, Physics, Collision, Navigation), DisplayName = "GLTF Hotspot")
+class GLTFEXPORTERRUNTIME_API AGLTFHotspotActor : public AActor
 {
 	GENERATED_BODY()
 	//~ Begin UObject Interface
 public:
-	AGLTFInteractionHotspotActor(const FObjectInitializer& ObjectInitializer);
+	AGLTFHotspotActor(const FObjectInitializer& ObjectInitializer);
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
