@@ -97,6 +97,10 @@ void FGLTFTextureCubeTask::Complete()
 	if (bIsHDR)
 	{
 		JsonTexture->Encoding = Builder.GetTextureHDREncoding();
+		if (JsonTexture->Encoding == EGLTFJsonHDREncoding::None)
+		{
+			bToSRGB = true;
+		}
 	}
 
 	TGLTFSharedArray<FColor> Pixels;
