@@ -8,43 +8,8 @@
 
 namespace
 {
-	template <typename VertexBufferType>
-	void ValidateVertexBuffer(FGLTFConvertBuilder& Builder, const VertexBufferType* VertexBuffer, const TCHAR* MeshName)
-	{
-		if (VertexBuffer == nullptr)
-		{
-			return;
-		}
-
-		bool bZeroNormals;
-		bool bZeroTangents;
-
-		if (VertexBuffer->GetUseHighPrecisionTangentBasis())
-		{
-			CheckTangentVectors<VertexBufferType, FPackedRGBA16N>(VertexBuffer, bZeroNormals, bZeroTangents);
-		}
-		else
-		{
-			CheckTangentVectors<VertexBufferType, FPackedNormal>(VertexBuffer, bZeroNormals, bZeroTangents);
-		}
-
-		if (bZeroNormals)
-		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Mesh %s has some nearly zero-length normals which can create some issues. Consider checking 'Recompute Normals' in the asset settings"),
-				MeshName));
-		}
-
-		if (bZeroTangents)
-		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Mesh %s has some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
-				MeshName));
-		}
-	}
-
-	template <typename VertexBufferType, typename TangentVectorType>
-	void CheckTangentVectors(const VertexBufferType* VertexBuffer, bool& bOutZeroNormals, bool& bOutZeroTangents)
+	template <typename TangentVectorType>
+	void CheckTangentVectors(const FStaticMeshVertexBuffer* VertexBuffer, bool& bOutZeroNormals, bool& bOutZeroTangents)
 	{
 		bool bZeroNormals = false;
 		bool bZeroTangents = false;
@@ -68,6 +33,56 @@ namespace
 		bOutZeroNormals = bZeroNormals;
 		bOutZeroTangents = bZeroTangents;
 	}
+
+	void ValidateVertexBuffer(FGLTFConvertBuilder& Builder, const FStaticMeshVertexBuffer* VertexBuffer, const TCHAR* MeshName)
+	{
+		if (VertexBuffer == nullptr)
+		{
+			return;
+		}
+
+		bool bZeroNormals;
+		bool bZeroTangents;
+
+		if (VertexBuffer->GetUseHighPrecisionTangentBasis())
+		{
+			CheckTangentVectors<FPackedRGBA16N>(VertexBuffer, bZeroNormals, bZeroTangents);
+		}
+		else
+		{
+			CheckTangentVectors<FPackedNormal>(VertexBuffer, bZeroNormals, bZeroTangents);
+		}
+
+		if (bZeroNormals)
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Mesh %s has some nearly zero-length normals which can create some issues. Consider checking 'Recompute Normals' in the asset settings"),
+				MeshName));
+		}
+
+		if (bZeroTangents)
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Mesh %s has some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
+				MeshName));
+		}
+	}
+
+	bool HasVertexColors(const FColorVertexBuffer* VertexBuffer)
+	{
+		const uint32 VertexCount = VertexBuffer->GetNumVertices();
+
+		for (uint32 VertexIndex = 0; VertexIndex < VertexCount; VertexIndex++)
+		{
+			const FColor& Color = VertexBuffer->VertexColor(VertexIndex);
+			if (Color != FColor::White)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 void FGLTFStaticMeshTask::Complete()
@@ -79,6 +94,17 @@ void FGLTFStaticMeshTask::Complete()
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
 	const FColorVertexBuffer* ColorBuffer = &MeshLOD.VertexBuffers.ColorVertexBuffer;
+
+	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Vertex colors in mesh %s will act as a multiplier for base color in glTF, regardless of material, which may produce undesirable results."),
+			*StaticMesh->GetName()));
+	}
+	else
+	{
+		ColorBuffer = nullptr;
+	}
 
 	if (StaticMeshComponent != nullptr && StaticMeshComponent->LODData.IsValidIndex(LODIndex))
 	{
@@ -122,10 +148,8 @@ void FGLTFStaticMeshTask::Complete()
 			// TODO: report warning?
 		}
 
-		if (Builder.ExportOptions->bExportVertexColors)
+		if (ColorBuffer != nullptr)
 		{
-			// TODO: report warning (about vertex colors may be represented differently in glTF)
-
 			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
@@ -157,6 +181,17 @@ void FGLTFSkeletalMeshTask::Complete()
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
 	const FColorVertexBuffer* ColorBuffer = &MeshLOD.StaticVertexBuffers.ColorVertexBuffer;
 	const FSkinWeightVertexBuffer* SkinWeightBuffer = MeshLOD.GetSkinWeightVertexBuffer();
+
+	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Vertex colors in mesh %s will act as a multiplier for base color in glTF, regardless of material, which may produce undesirable results."),
+			*SkeletalMesh->GetName()));
+	}
+	else
+	{
+		ColorBuffer = nullptr;
+	}
 
 	if (SkeletalMeshComponent != nullptr && SkeletalMeshComponent->LODInfo.IsValidIndex(LODIndex))
 	{
@@ -201,10 +236,8 @@ void FGLTFSkeletalMeshTask::Complete()
 			// TODO: report warning?
 		}
 
-		if (Builder.ExportOptions->bExportVertexColors)
+		if (ColorBuffer != nullptr)
 		{
-			// TODO: report warning (about vertex colors may be represented differently in glTF)
-
 			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
