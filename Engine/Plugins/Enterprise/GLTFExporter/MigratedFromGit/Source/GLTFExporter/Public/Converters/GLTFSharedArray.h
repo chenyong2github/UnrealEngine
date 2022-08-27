@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-template <typename ElementType, typename ArrayType = TArray<ElementType>, ESPMode Mode = ESPMode::Fast>
+template <typename ElementType, typename ArrayType = TArray<ElementType>, ESPMode Mode = ESPMode::ThreadSafe>
 class TGLTFSharedArray : public TSharedRef<ArrayType, Mode>
 {
 public:

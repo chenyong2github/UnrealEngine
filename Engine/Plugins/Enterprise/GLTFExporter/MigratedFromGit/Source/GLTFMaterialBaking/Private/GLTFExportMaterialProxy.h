@@ -352,6 +352,8 @@ public:
 	{
 		return UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	}
+
+	virtual enum EStrataBlendMode GetStrataBlendMode() const override { return EStrataBlendMode::SBM_Opaque; }
 #else
 	virtual const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type FeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const override
 	{
