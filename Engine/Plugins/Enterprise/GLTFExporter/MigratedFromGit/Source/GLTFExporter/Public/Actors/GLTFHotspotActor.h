@@ -62,63 +62,63 @@ public:
 
 	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation")
-	ASkeletalMeshActor* SkeletalMeshActor;
+	TObjectPtr<ASkeletalMeshActor> SkeletalMeshActor;
 
 	/* The animation sequence that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor != nullptr"))
-	UAnimSequence* AnimationSequence;
+	TObjectPtr<UAnimSequence> AnimationSequence;
 
 	/* The level sequence that will be played in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor == nullptr"))
-	ULevelSequence* LevelSequence;
+	TObjectPtr<ULevelSequence> LevelSequence;
 
 	/* The billboard image that will be shown when the hotspot is in an inactive state or one without a specified image. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance")
-	UTexture2D* Image;
+	TObjectPtr<UTexture2D> Image;
 
 	/** The optional billboard image that will be shown when a cursor enters the hotspot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance", meta=(EditCondition="Image != nullptr"))
-	UTexture2D* HoveredImage;
+	TObjectPtr<UTexture2D> HoveredImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance", meta=(EditCondition="Image != nullptr"))
-	UTexture2D* ToggledImage;
+	TObjectPtr<UTexture2D> ToggledImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click and a cursor enters it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance", meta=(EditCondition="Image != nullptr"))
-	UTexture2D* ToggledHoveredImage;
+	TObjectPtr<UTexture2D> ToggledHoveredImage;
 
 private:
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UMaterialBillboardComponent* BillboardComponent;
+	TObjectPtr<UMaterialBillboardComponent> BillboardComponent;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	USphereComponent* SphereComponent;
+	TObjectPtr<USphereComponent> SphereComponent;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UMaterialInterface* DefaultMaterial;
+	TObjectPtr<UMaterialInterface> DefaultMaterial;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UTexture2D* DefaultImage;
+	TObjectPtr<UTexture2D> DefaultImage;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UTexture2D* DefaultHoveredImage;
+	TObjectPtr<UTexture2D> DefaultHoveredImage;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UTexture2D* DefaultToggledImage;
+	TObjectPtr<UTexture2D> DefaultToggledImage;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UTexture2D* DefaultToggledHoveredImage;
+	TObjectPtr<UTexture2D> DefaultToggledHoveredImage;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UMaterialInterface* DefaultIconMaterial;
+	TObjectPtr<UMaterialInterface> DefaultIconMaterial;
 
 	UPROPERTY(Transient, DuplicateTransient)
-	const UTexture* ActiveImage;
+	TObjectPtr<const UTexture> ActiveImage;
 
 	UPROPERTY(Instanced, Transient)
-	ULevelSequencePlayer* LevelSequencePlayer;
+	TObjectPtr<ULevelSequencePlayer> LevelSequencePlayer;
 
 	FVector2D ActiveImageSize;
 
