@@ -8,21 +8,21 @@
 #include "Engine.h"
 
 template <typename... InputTypes>
-class FGLTFNodeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonNodeIndex, InputTypes...>
+class TGLTFNodeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonNodeIndex, InputTypes...>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFComponentConverter final : public FGLTFNodeConverter<const USceneComponent*>
+class FGLTFComponentConverter final : public TGLTFNodeConverter<const USceneComponent*>
 {
-	using FGLTFNodeConverter::FGLTFNodeConverter;
+	using TGLTFNodeConverter::TGLTFNodeConverter;
 
 	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent) override;
 };
 
-class FGLTFActorConverter final : public FGLTFNodeConverter<const AActor*>
+class FGLTFActorConverter final : public TGLTFNodeConverter<const AActor*>
 {
-	using FGLTFNodeConverter::FGLTFNodeConverter;
+	using TGLTFNodeConverter::TGLTFNodeConverter;
 
 	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override;
 };
