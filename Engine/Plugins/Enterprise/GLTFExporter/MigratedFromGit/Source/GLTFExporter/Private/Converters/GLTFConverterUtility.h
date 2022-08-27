@@ -47,7 +47,7 @@ struct FGLTFConverterUtility
 
 	static FGLTFInt8Vector4 ConvertNormal(const FPackedNormal& Normal)
 	{
-		return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y };
+		return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y, 0 };
 	}
 
 	static FGLTFVector4 ConvertTangent(const FVector& Tangent)
