@@ -2,7 +2,6 @@
 
 #include "Converters/GLTFConverterUtility.h"
 #include "Engine/TextureLODSettings.h"
-#include "Engine/Blueprint.h"
 
 TextureFilter FGLTFConverterUtility::GetDefaultFilter(TextureGroup LODGroup)
 {
@@ -20,25 +19,4 @@ TextureFilter FGLTFConverterUtility::GetDefaultFilter(TextureGroup LODGroup)
 		case ETextureSamplerFilter::AnisotropicLinear: return TF_Trilinear;
 		default:                                       return TF_Default; // fallback
 	}
-}
-
-bool FGLTFConverterUtility::IsSkySphereBlueprint(const UBlueprint* Blueprint)
-{
-	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/Engine/EngineSky/BP_Sky_Sphere.BP_Sky_Sphere"));
-}
-
-bool FGLTFConverterUtility::IsHDRIBackdropBlueprint(const UBlueprint* Blueprint)
-{
-	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/HDRIBackdrop/Blueprints/HDRIBackdrop.HDRIBackdrop"));
-}
-
-bool FGLTFConverterUtility::IsSelected(const UActorComponent* ActorComponent)
-{
-	if (ActorComponent == nullptr)
-	{
-		return false;
-	}
-
-	const AActor* Owner = ActorComponent->GetOwner();
-	return Owner != nullptr && Owner->IsSelected();
 }

@@ -3,93 +3,89 @@
 #include "Converters/GLTFLevelConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFActorUtility.h"
 
 FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent)
 {
 	const AActor* Owner = SceneComponent->GetOwner();
+	if (Owner == nullptr)
+	{
+		// TODO: report invalid scene component
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	const bool bIsRootComponent = Owner->GetRootComponent() == SceneComponent;
+	const bool bIsRootNode = bIsRootComponent && FGLTFActorUtility::IsRootActor(Owner, Builder.bSelectedActorsOnly);
+
 	const USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
-	const UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(Owner != nullptr ? Owner->GetClass() : nullptr);
+	const FGLTFJsonNodeIndex ParentNodeIndex = Builder.GetOrAddNode(ParentComponent);
 
-	const bool bSelectedOnly = Builder.bSelectedActorsOnly;
-	const bool bIsRootComponent = Owner != nullptr && Owner->GetRootComponent() == SceneComponent;
-	const bool bRootNode = bIsRootComponent && (ParentComponent == nullptr || (bSelectedOnly && !FGLTFConverterUtility::IsSelected(ParentComponent)));
-
-	const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode();
+	const FGLTFJsonNodeIndex NodeIndex = Builder.AddChildNode(ParentNodeIndex);
 	FGLTFJsonNode& Node = Builder.GetNode(NodeIndex);
 	Node.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + SceneComponent->GetName() : Name;
 
 	// TODO: add support for non-uniform scaling (Unreal doesn't treat combined transforms as simple matrix multiplication)
-	const FTransform Transform = bRootNode ? SceneComponent->GetComponentTransform() : SceneComponent->GetRelativeTransform();
+	const FTransform Transform = bIsRootNode ? SceneComponent->GetComponentTransform() : SceneComponent->GetRelativeTransform();
 	Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation());
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
 	Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
 
-	if (FGLTFConverterUtility::IsSkySphereBlueprint(Blueprint))
-	{
-		// Ignore mesh and light components that are part of BP_SkySphere
-	}
-	else if (FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint))
-	{
-		if (bIsRootComponent)
-		{
-			// TODO: add support for backdrop
-		}
-	}
-	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
+	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
 	}
 
-	const TArray<USceneComponent*>& ChildComponents = SceneComponent->GetAttachChildren();
+	return NodeIndex;
+}
 
-	TArray<FGLTFJsonNodeIndex> Children;
-	Children.Reserve(ChildComponents.Num());
-
-	for (const USceneComponent* ChildComponent : ChildComponents)
+FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor)
+{
+	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
 	{
-		if (ChildComponent != nullptr && (!bSelectedOnly || FGLTFConverterUtility::IsSelected(ChildComponent)))
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
+	if (FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
+	{
+		// Ignore mesh and light components that are part of BP_SkySphere
+		// TODO: add support for BP_SkySphere later?
+	}
+	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
+	{
+		// TODO: add support for backdrop
+	}
+	else
+	{
+		for (const UActorComponent* Component : Actor->GetComponents())
 		{
-			const FGLTFJsonNodeIndex ChildNodeIndex = Builder.GetOrAddNode(ChildComponent);
-			if (ChildNodeIndex != INDEX_NONE)
+			const USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
+			if (SceneComponent != nullptr)
 			{
-				Children.Add(ChildNodeIndex);
+				Builder.GetOrAddNode(SceneComponent);
 			}
 		}
 	}
 
-	// TODO: refactor this workaround for no longer valid reference to node (due to calling Builder.GetOrAddNode)
-	Builder.GetNode(NodeIndex).Children = Children;
-
-	return NodeIndex;
+	const USceneComponent* RootComponent = Actor->GetRootComponent();
+	return Builder.GetOrAddNode(RootComponent);
 }
 
 FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULevel* Level)
 {
-	const bool bSelectedOnly = Builder.bSelectedActorsOnly;
-
 	FGLTFJsonScene Scene;
 	Scene.Name = Name;
 
 	// TODO: export Level->Model ?
 
-	const TArray<AActor*>& Actors = Level->Actors;
-	for (const AActor* Actor : Actors)
+	for (const AActor* Actor : Level->Actors)
 	{
-		if (Actor != nullptr && (!bSelectedOnly || Actor->IsSelected()))
+		// TODO: add support for ALevelVariantSetsActor
+
+		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
+		if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
 		{
-			const USceneComponent* RootComponent = Actor->GetRootComponent();
-			if (RootComponent != nullptr)
-			{
-				const USceneComponent* ParentComponent = RootComponent->GetAttachParent();
-				if (ParentComponent == nullptr || (bSelectedOnly && !FGLTFConverterUtility::IsSelected(ParentComponent)))
-				{
-					FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(RootComponent);
-					if (NodeIndex != INDEX_NONE)
-					{
-						Scene.Nodes.Add(NodeIndex);
-					}
-				}
-			}
+			Scene.Nodes.Add(NodeIndex);
 		}
 	}
 
