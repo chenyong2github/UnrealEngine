@@ -14,6 +14,16 @@ enum class EGLTFExporterTextureFormat : uint8
 };
 
 UENUM(BlueprintType)
+enum class EGLTFExporterTextureHDREncoding : uint8
+{
+	None,
+	HDR,
+	RGBM,
+	RGBD,
+	RGBE
+};
+
+UENUM(BlueprintType)
 enum class EGLTFExporterTextureSize : uint8
 {
 	POT_1 UMETA(DisplayName = "1 x 1"),
@@ -67,6 +77,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	EGLTFExporterTextureFormat TextureFormat;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
+	EGLTFExporterTextureHDREncoding TextureHDREncoding;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	uint32 bExportLightmaps : 1;
