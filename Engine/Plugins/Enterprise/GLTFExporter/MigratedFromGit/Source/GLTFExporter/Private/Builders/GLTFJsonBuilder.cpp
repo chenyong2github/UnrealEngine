@@ -15,20 +15,20 @@ void FGLTFJsonBuilder::WriteJson(FArchive& Archive)
 
 TSet<EGLTFJsonExtension> FGLTFJsonBuilder::GetCustomExtensionsUsed() const
 {
-	static const TSet<EGLTFJsonExtension> AllCustomExtensions =
-	{
-		EGLTFJsonExtension::EPIC_AnimationHotspots,
-		EGLTFJsonExtension::EPIC_AnimationPlayback,
-		EGLTFJsonExtension::EPIC_BlendModes,
-		EGLTFJsonExtension::EPIC_CameraControls,
-		EGLTFJsonExtension::EPIC_HDRIBackdrops,
-		EGLTFJsonExtension::EPIC_LevelVariantSets,
-		EGLTFJsonExtension::EPIC_LightmapTextures,
-		EGLTFJsonExtension::EPIC_SkySpheres,
-		EGLTFJsonExtension::EPIC_TextureHDREncoding
-	};
+	const TCHAR CustomPrefix[] = TEXT("EPIC_");
 
-	return JsonRoot.Extensions.Used.Intersect(AllCustomExtensions);
+	TSet<EGLTFJsonExtension> CustomExtensions;
+
+	for (EGLTFJsonExtension Extension : JsonRoot.Extensions.Used)
+	{
+		const TCHAR* ExtensionString = FGLTFJsonUtility::ToString(Extension);
+		if (FCString::Strncmp(ExtensionString, CustomPrefix, (sizeof(CustomPrefix) / sizeof(TCHAR)) - 1) == 0)
+		{
+			CustomExtensions.Add(Extension);
+		}
+	}
+
+	return CustomExtensions;
 }
 
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)
