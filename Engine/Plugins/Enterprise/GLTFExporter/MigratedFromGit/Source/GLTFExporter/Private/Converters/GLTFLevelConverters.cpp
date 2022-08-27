@@ -62,7 +62,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	{
 		if (Builder.ExportOptions->bExportCameras)
 		{
-			// TODO: do we need to support scale for cameras, i.e should we add a leaf-node?
+			// TODO: do we need to support scale for camera-nodes?
 			// TODO: conversion of camera direction should be done in separate converter
 			FGLTFJsonNode CameraNode;
 			CameraNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ACameraActor
@@ -79,7 +79,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	{
 		if (Builder.ExportOptions->ShouldExportLight(LightComponent->Mobility))
 		{
-			// TODO: do we need to support scale for lights, i.e should we add a leaf-node?
+			// TODO: do we need to support scale for light-nodes?
 			// TODO: conversion of light direction should be done in separate converter
 			FGLTFJsonNode LightNode;
 			LightNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ALight
