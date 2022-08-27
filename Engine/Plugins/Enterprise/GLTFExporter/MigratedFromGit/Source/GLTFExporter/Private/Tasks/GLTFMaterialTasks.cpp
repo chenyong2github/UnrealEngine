@@ -179,10 +179,8 @@ bool FGLTFMaterialTask::TryGetAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJ
 {
 	const EBlendMode BlendMode = Material->GetBlendMode();
 
-	// TODO: add support for additional blend modes (like Additive and Modulate)?
-
-	const EGLTFJsonAlphaMode AlphaMode = FGLTFConverterUtility::ConvertAlphaMode(BlendMode);
-	if (AlphaMode == EGLTFJsonAlphaMode::None)
+	const EGLTFJsonAlphaMode ConvertedAlphaMode = FGLTFConverterUtility::ConvertAlphaMode(BlendMode);
+	if (ConvertedAlphaMode == EGLTFJsonAlphaMode::None)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("Unsupported blend mode (%s) in material %s"),
@@ -191,8 +189,18 @@ bool FGLTFMaterialTask::TryGetAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJ
 		return false;
 	}
 
-	OutAlphaMode = AlphaMode;
-	OutBlendMode = AlphaMode == EGLTFJsonAlphaMode::Blend ? FGLTFConverterUtility::ConvertBlendMode(BlendMode) : EGLTFJsonBlendMode::None;
+	const EGLTFJsonBlendMode ConvertedBlendMode = ConvertedAlphaMode == EGLTFJsonAlphaMode::Blend ? FGLTFConverterUtility::ConvertBlendMode(BlendMode) : EGLTFJsonBlendMode::None;
+	if (ConvertedBlendMode != EGLTFJsonBlendMode::None && !Builder.ExportOptions->bExportExtraBlendModes)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Extra blend mode (%s) in material %s disabled by export options"),
+			*FGLTFNameUtility::GetName(BlendMode),
+			*Material->GetName()));
+		return false;
+	}
+
+	OutAlphaMode = ConvertedAlphaMode;
+	OutBlendMode = ConvertedBlendMode;
 	return true;
 }
 
