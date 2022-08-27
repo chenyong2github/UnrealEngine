@@ -21,7 +21,7 @@ namespace
 			return CapturedPropSegments;
 		}
 	};
-} // anonymous namespace
+}
 
 FGLTFJsonVariationIndex FGLTFVariationConverter::Convert(const ALevelVariantSetsActor* LevelVariantSetsActor)
 {
