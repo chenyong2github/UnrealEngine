@@ -14,7 +14,7 @@ namespace
 AGLTFCameraActor::AGLTFCameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Mode(EGLTFCameraControlMode::FreeLook)
-	, Focus(nullptr)
+	, Target(nullptr)
 	, PitchAngleMin(-90.0f)
 	, PitchAngleMax(90.0f)
 	, YawAngleMin(0.0f)
@@ -48,13 +48,13 @@ void AGLTFCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	{
 		const FName PropertyName = PropertyThatChanged->GetFName();
 
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, Focus))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, Target))
 		{
-			if (Focus == this)
+			if (Target == this)
 			{
-				Focus = nullptr;
+				Target = nullptr;
 				// TODO: don't use LogTemp
-				UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be the camera's own actor"));
+				UE_LOG(LogTemp, Warning, TEXT("The camera target must not be the camera's own actor"));
 			}
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, PitchAngleMin))
@@ -237,7 +237,7 @@ FRotator AGLTFCameraActor::GetLookAtRotation(const FVector TargetPosition) const
 
 FVector AGLTFCameraActor::GetFocusPosition() const
 {
-	return this->Focus != nullptr ? this->Focus->GetActorLocation() : FVector::ZeroVector;
+	return this->Target != nullptr ? this->Target->GetActorLocation() : FVector::ZeroVector;
 }
 
 bool AGLTFCameraActor::SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player)

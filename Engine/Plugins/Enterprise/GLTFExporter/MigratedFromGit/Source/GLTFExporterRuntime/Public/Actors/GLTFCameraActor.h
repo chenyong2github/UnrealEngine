@@ -73,7 +73,7 @@ public:
 
 	/* Actor which the camera will focus on and subsequently orbit when using Third Person mode. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraControlMode::Orbital"))
-	AActor* Focus;
+	AActor* Target;
 
 	/* Minimum pitch angle (in degrees) for the camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
