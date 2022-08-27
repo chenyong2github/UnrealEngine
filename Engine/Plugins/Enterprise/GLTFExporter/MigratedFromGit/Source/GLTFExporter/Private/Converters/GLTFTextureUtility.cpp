@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNormalMapPreview.h"
+#include "Converters/GLTFSimpleTexture2DPreview.h"
 #include "CanvasItem.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
@@ -182,6 +183,12 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	{
 		BatchedElementParameters = new FGLTFNormalMapPreview();
 	}
+	else if (IsHDR(InSource))
+	{
+		// NOTE: Simple preview parameters are used to prevent any modifications
+		// such as gamma-correction from being applied during rendering.
+		BatchedElementParameters = new FGLTFSimpleTexture2DPreview();
+	}
 
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 	FCanvasTileItem TileItem(InPosition, InSource->Resource, InSize, FLinearColor::White);
@@ -230,6 +237,11 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 	{
 		const void* FaceDataPtr = static_cast<const uint8*>(MipDataPtr) + MipSize * CubeFace;
 		FaceTexture = CreateTransientTexture(FaceDataPtr, MipSize, Size, Format, TextureCube->SRGB);
+
+		if (IsHDR(TextureCube))
+		{
+			FaceTexture->CompressionSettings = TC_HDR;
+		}
 	}
 	const_cast<FByteBulkData&>(BulkData).Unlock();
 
@@ -256,6 +268,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderT
 		}
 
 		FaceTexture = CreateTransientTexture(Pixels.GetData(), Pixels.Num() * sizeof(FFloat16Color), Size, PF_FloatRGBA, false);
+		FaceTexture->CompressionSettings = TC_HDR;
 	}
 	else
 	{
