@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
-	"Version": 9,
-	"VersionName": "0.9",
+	"Version": 10,
+	"VersionName": "1.0",
 	"FriendlyName": "glTF Exporter",
-	"Description": "An exporter for Khronos glTF 3D models.",
+	"Description": "An exporter for Khronos glTF 2.0.",
 	"Category": "Exporters",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
