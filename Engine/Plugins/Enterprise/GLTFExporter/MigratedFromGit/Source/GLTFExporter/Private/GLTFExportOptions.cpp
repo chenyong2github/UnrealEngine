@@ -219,7 +219,8 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyName == TEXT("bExportLightmaps") ||
 		PropertyName == TEXT("ExportScale") ||
 		PropertyName == TEXT("bExportLights") ||
-		PropertyName == TEXT("bExportCameras"))
+		PropertyName == TEXT("bExportCameras") ||
+		PropertyName == TEXT("bExportHDRIBackdrops"))
 	{
 		return true;
 	}
