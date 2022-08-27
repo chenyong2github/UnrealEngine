@@ -18,6 +18,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 
 	if (MaterialIndex == INDEX_NONE)
 	{
+		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export material %s"), *Material->GetName()));
 		return false;
 	}
 
@@ -38,7 +39,11 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 	}
 	else
 	{
-		// TODO: should we report an error if no preview mesh was found?
+		Builder.AddErrorMessage(FString::Printf(
+			TEXT("Failed to export material %s because of missing preview-mesh"),
+			*Material->GetName()));
+
+		return false;
 	}
 
 	return true;
