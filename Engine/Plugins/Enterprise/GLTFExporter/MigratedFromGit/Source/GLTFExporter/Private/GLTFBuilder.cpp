@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFBuilder.h"
-#include "GLTFConversionMesh.h"
+#include "GLTFMeshBuilder.h"
 #include "Misc/Base64.h"
 
 FGLTFBuilder::FGLTFBuilder()
@@ -43,5 +43,5 @@ void FGLTFBuilder::Serialize(FArchive& Archive)
 
 FGLTFJsonMeshIndex FGLTFBuilder::AppendMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
 {
-	return FGLTFConversionMesh(StaticMesh, LODIndex).AppendMesh(*this);
+	return FGLTFMeshBuilder(StaticMesh, LODIndex).AppendMesh(*this);
 }

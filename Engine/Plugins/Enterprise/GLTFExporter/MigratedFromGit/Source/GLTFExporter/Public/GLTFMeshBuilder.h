@@ -6,22 +6,22 @@
 #include "GLTFBuilder.h"
 #include "Engine.h"
 
-struct GLTFEXPORTER_API FGLTFConversionSection
+struct GLTFEXPORTER_API FGLTFSectionBuilder
 {
 	FString Name;
 
 	TArray<uint32> Indices;
 
-	FGLTFConversionSection(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray);
+	FGLTFSectionBuilder(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray);
 
 	FGLTFJsonAccessorIndex AppendAccessorForIndices(FGLTFBuilder& Builder) const;
 };
 
-struct GLTFEXPORTER_API FGLTFConversionMesh
+struct GLTFEXPORTER_API FGLTFMeshBuilder
 {
 	FString Name;
 
-	TArray<FGLTFConversionSection> Sections;
+	TArray<FGLTFSectionBuilder> Sections;
 
 	TArray<FVector>   Positions;
 	TArray<FColor>    Colors;
@@ -32,7 +32,7 @@ struct GLTFEXPORTER_API FGLTFConversionMesh
 
 	FBox BoundingBox;
 
-	FGLTFConversionMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
+	FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex);
 
 	FGLTFJsonAccessorIndex AppendAccessorForPositions(FGLTFBuilder& Builder) const;
 	FGLTFJsonAccessorIndex AppendAccessorForColors(FGLTFBuilder& Builder) const;
