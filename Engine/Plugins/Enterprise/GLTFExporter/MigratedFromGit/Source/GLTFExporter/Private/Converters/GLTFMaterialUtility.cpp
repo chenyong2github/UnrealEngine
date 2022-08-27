@@ -3,6 +3,7 @@
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
+#include "GLTFMaterialStatistics.h"
 #include "GLTFMaterialAnalyzer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
@@ -516,14 +517,12 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 	};
 
 	bool bRequiresVertexData = false;
-
-	int32 NumTextureCoordinates;
-	bool bPropertyRequiresVertexData;
+	FGLTFMaterialStatistics MaterialStatistics;
 
 	for (const EMaterialProperty Property: Properties)
 	{
-		AnalyzeMaterialProperty(Material, Property, NumTextureCoordinates, bPropertyRequiresVertexData);
-		bRequiresVertexData |= bPropertyRequiresVertexData;
+		AnalyzeMaterialProperty(Material, Property, MaterialStatistics);
+		bRequiresVertexData |= MaterialStatistics.bRequiresVertexData;
 	}
 
 	return bRequiresVertexData;
@@ -542,13 +541,10 @@ bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>
 	return false;
 }
 
-void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData)
+void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, EMaterialProperty InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
 {
 	UGLTFMaterialAnalyzer* Analyzer = NewObject<UGLTFMaterialAnalyzer>();
-	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty);
-
-	OutNumTextureCoordinates = Analyzer->AllocatedUserTexCoords.FindLast(true) + 1;
-	bOutRequiresVertexData = Analyzer->bUsesVertexColor || Analyzer->bUsesTransformVector || Analyzer->bNeedsWorldPositionExcludingShaderOffsets || Analyzer->bUsesAOMaterialMask || Analyzer->bUsesVertexPosition;
+	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty, OutMaterialStatistics);
 }
 
 const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const UMaterialInterface* Material)
