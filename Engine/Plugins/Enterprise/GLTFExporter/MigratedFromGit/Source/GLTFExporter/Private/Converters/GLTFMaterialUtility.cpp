@@ -451,6 +451,6 @@ void FGLTFMaterialUtility::ExpandAllFunctionExpressions(TArray<UMaterialExpressi
 	}
 
 	InOutExpressions.RemoveAll([](const UMaterialExpression* Expression) {
-        return Expression->IsA<UMaterialExpressionMaterialFunctionCall>() || Expression->IsA<UMaterialExpressionMaterialAttributeLayers>();
-    });
+		return Expression->IsA<UMaterialExpressionMaterialFunctionCall>() || Expression->IsA<UMaterialExpressionMaterialAttributeLayers>();
+	});
 }

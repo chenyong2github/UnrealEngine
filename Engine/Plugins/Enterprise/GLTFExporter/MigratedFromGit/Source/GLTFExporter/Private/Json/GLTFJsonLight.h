@@ -13,13 +13,13 @@ struct FGLTFJsonSpotLight
 	float OuterConeAngle;
 
 	FGLTFJsonSpotLight()
-        : InnerConeAngle(0)
-        , OuterConeAngle(PI / 2.0f)
+		: InnerConeAngle(0)
+		, OuterConeAngle(PI / 2.0f)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 

@@ -1244,13 +1244,13 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& O
 	const FString TextureName = Material->GetName() + TEXT("_") + PropertyName;
 	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
-	    PropertyBakeOutput.Pixels,
-	    PropertyBakeOutput.Size,
+		PropertyBakeOutput.Pixels,
+		PropertyBakeOutput.Size,
 		Material->GetName() + TEXT("_") + PropertyName,
 		EGLTFJsonTextureFilter::Nearest,
 		EGLTFJsonTextureFilter::Nearest,
 		EGLTFJsonTextureWrap::ClampToEdge,
-        EGLTFJsonTextureWrap::ClampToEdge);
+		EGLTFJsonTextureWrap::ClampToEdge);
 
 	OutTexInfo.Index = TextureIndex;
 	return true;

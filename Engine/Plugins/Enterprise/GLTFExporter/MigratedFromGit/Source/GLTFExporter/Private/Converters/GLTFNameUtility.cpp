@@ -21,7 +21,7 @@ namespace
 	}
 
 	template <typename ActorType>
-    FString GetActorNameIfOwnerOfType(const UActorComponent* Component)
+	FString GetActorNameIfOwnerOfType(const UActorComponent* Component)
 	{
 		if (const ActorType* Owner = Cast<ActorType>(Component->GetOwner()))
 		{

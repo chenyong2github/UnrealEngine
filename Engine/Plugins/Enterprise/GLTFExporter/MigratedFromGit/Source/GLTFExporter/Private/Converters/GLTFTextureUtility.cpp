@@ -18,7 +18,7 @@ bool FGLTFTextureUtility::CanPNGCompressFormat(ETextureSourceFormat InFormat, ER
 		case TSF_G8:      OutFormat = ERGBFormat::Gray; OutBitDepth = 8;  return true;
 		case TSF_G16:     OutFormat = ERGBFormat::Gray; OutBitDepth = 16; return true;
 		default:
-            return false;
+			return false;
 	}
 }
 
@@ -33,7 +33,7 @@ bool FGLTFTextureUtility::CanPNGCompressFormat(EPixelFormat InFormat, ERGBFormat
 		case PF_G8:                 OutFormat = ERGBFormat::Gray; OutBitDepth = 8;  return true;
 		case PF_G16:                OutFormat = ERGBFormat::Gray; OutBitDepth = 16; return true;
 		default:
-            return false;
+			return false;
 	}
 }
 

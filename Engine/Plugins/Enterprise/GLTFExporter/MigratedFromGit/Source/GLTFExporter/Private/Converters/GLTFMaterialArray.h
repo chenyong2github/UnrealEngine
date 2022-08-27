@@ -83,7 +83,7 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 private:
 
 	template <typename MeshMaterialType>
-    const UMaterialInterface* GetOverride(const TArray<MeshMaterialType>& Originals, int32 Index) const
+	const UMaterialInterface* GetOverride(const TArray<MeshMaterialType>& Originals, int32 Index) const
 	{
 		if (IsValidIndex(Index) && (*this)[Index] != nullptr)
 		{

@@ -27,8 +27,8 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 			break;
 
 		default:
-		    // TODO: report error (unsupported camera type)
-		    return FGLTFJsonCameraIndex(INDEX_NONE);
+			// TODO: report error (unsupported camera type)
+			return FGLTFJsonCameraIndex(INDEX_NONE);
 	}
 
 	const AActor* Owner = CameraComponent->GetOwner();

@@ -61,7 +61,7 @@ struct FGLTFConverterUtility
 			FMath::Max(Color.G, 0.0f),
 			FMath::Max(Color.B, 0.0f),
 			FMath::Max(Color.A, 0.0f)
-        };
+		};
 	}
 
 	static FGLTFPackedColor ConvertColor(const FColor& Color)
