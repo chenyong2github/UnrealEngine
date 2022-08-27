@@ -18,11 +18,11 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportClearCoatMaterials = true;
 	BakeMaterialInputs = EGLTFMaterialBakeMode::Simple;
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
-	bExportVertexColors = false;
-	bExportMeshQuantization = true;
 	DefaultLevelOfDetail = 0;
-	bExportLevelSequences = true;
+	bExportVertexColors = false;
 	bExportVertexSkinWeights = true;
+	bExportMeshQuantization = true;
+	bExportLevelSequences = true;
 	bExportAnimationSequences = true;
 	bRetargetBoneTransforms = true;
 	bExportPlaybackSettings = true;
@@ -37,10 +37,10 @@ void UGLTFExportOptions::ResetToDefault()
 	ExportLights = EGLTFExportLightMobility::MovableAndStationary;
 	bExportCameras = true;
 	bExportCameraControls = true;
+	bExportAnimationHotspots = true;
 	bExportHDRIBackdrops = true;
 	bExportSkySpheres = true;
 	bExportVariantSets = true;
-	bExportAnimationHotspots = true;
 	ExportMaterialVariants = EGLTFMaterialBakeMode::Simple;
 	bExportMeshVariants = true;
 	bExportVisibilityVariants = true;
