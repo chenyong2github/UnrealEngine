@@ -1076,6 +1076,15 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 		return true;
 	}
 
+	if (Property == MP_Normal || Property == MP_CustomOutput /* ClearCoatBottomNormal */)
+	{
+		// TODO: In some cases baking normal can result in constant vector that differs slight from default (i.e 0,0,1).
+		// Yet often, when looking at such a material, it should be exactly default. Needs further investigation.
+		// Maybe because of incorrect sRGB conversion? For now, assume a constant normal is always default.
+		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		return true;
+	}
+
 	// NOTE: since this function is meant to bake to a texture, we assume that the property
 	// that was passed into the function is using a non-constant expression.
 	// We therefore treat a constant result with non-default value as a failure.
