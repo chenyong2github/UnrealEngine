@@ -50,7 +50,9 @@ FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const FStaticMeshLODResource
 FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
 {
 	const FStaticMeshLODResources* StaticMeshLOD = &StaticMesh->GetLODForExport(LODIndex);
-	return ConvertMesh(StaticMeshLOD, OverrideVertexColors, DesiredName.IsEmpty() ? StaticMesh->GetName() + TEXT("_LOD") + FString::FromInt(LODIndex) : DesiredName);
+	FString Name = DesiredName.IsEmpty() ? StaticMesh->GetName() : DesiredName;
+	if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+	return ConvertMesh(StaticMeshLOD, OverrideVertexColors, Name);
 }
 
 FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
