@@ -35,7 +35,7 @@
 		{
 			"Name": "GLTFMaterialBaking",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [ "Win64", "Win32", "Mac" ]
 		}
 	],

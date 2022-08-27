@@ -8,7 +8,6 @@
 #include "UObject/UObjectGlobals.h"
 #include "MaterialBakingStructures.h"
 #include "MaterialBakingHelpers.h"
-#include "AddCustomAttributeHack.h"
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
@@ -265,7 +264,7 @@ void FMaterialBakingModule::StartupModule()
 	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FMaterialBakingModule::OnObjectModified);
 
 	// NOTE: Because the attribute definition of TransmittanceColor is not registered by the engine, we have to do it here
-	AddCustomAttributeHack(FGuid(0xF2D8C70E, 0x42ECA0D1, 0x4652D0AD, 0xB785A065), "TransmittanceColor", "GetThinTranslucentMaterialOutput", MCT_Float3, FVector4(0.5, 0.5, 0.5, 0));
+	FMaterialAttributeDefinitionMap::AddCustomAttribute(FGuid(0xF2D8C70E, 0x42ECA0D1, 0x4652D0AD, 0xB785A065), "TransmittanceColor", "GetThinTranslucentMaterialOutput", MCT_Float3, FVector4(0.5, 0.5, 0.5, 0));
 }
 
 void FMaterialBakingModule::ShutdownModule()
