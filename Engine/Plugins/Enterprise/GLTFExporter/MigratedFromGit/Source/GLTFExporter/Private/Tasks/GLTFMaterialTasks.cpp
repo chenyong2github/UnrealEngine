@@ -1292,7 +1292,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		return true;
 	}
 
-	if (Property == MP_Normal || Property == MP_CustomOutput /* ClearCoatBottomNormal */)
+	if (FGLTFMaterialUtility::IsNormalMap(Property))
 	{
 		// TODO: In some cases baking normal can result in constant vector that differs slight from default (i.e 0,0,1).
 		// Yet often, when looking at such a material, it should be exactly default. Needs further investigation.
@@ -1387,14 +1387,12 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 	const EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
 	const EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
-	const bool bIsNormalMap = PropertyBakeOutput.Property == MP_Normal || PropertyBakeOutput.Property == MP_CustomOutput /* ClearCoatBottomNormal */;
-
 	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
 		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
-		bIsNormalMap,
+		FGLTFMaterialUtility::IsNormalMap(PropertyBakeOutput.Property),
 		GetBakedTextureName(PropertyName),
 		TextureMinFilter,
 		TextureMagFilter,

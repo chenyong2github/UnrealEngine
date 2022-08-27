@@ -21,6 +21,11 @@ UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 	return DefaultMaterial;
 }
 
+bool FGLTFMaterialUtility::IsNormalMap(EMaterialProperty Property)
+{
+	return Property == MP_Normal || Property == MP_CustomOutput /* ClearCoatBottomNormal */;
+}
+
 const TCHAR* FGLTFMaterialUtility::GetPropertyName(EMaterialProperty Property)
 {
 	// TODO: replace this hardcoded list with some lookup function that should be in the engine.
@@ -288,7 +293,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		}
 	}
 
-	if (Property == MP_Normal || Property == MP_CustomOutput)
+	if (IsNormalMap(Property))
 	{
 		// Convert normalmaps to use +Y (OpenGL / WebGL standard)
 		FGLTFTextureUtility::FlipGreenChannel(BakedPixels);
