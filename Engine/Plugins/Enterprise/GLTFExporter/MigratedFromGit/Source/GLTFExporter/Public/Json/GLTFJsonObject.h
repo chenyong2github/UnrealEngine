@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonValue.h"
 #include "Json/GLTFJsonWriter.h"
 
-struct IGLTFJsonObject : IGLTFJsonValue
+struct GLTFEXPORTER_API IGLTFJsonObject : IGLTFJsonValue
 {
 	virtual void WriteValue(IGLTFJsonWriter& Writer) const override final
 	{

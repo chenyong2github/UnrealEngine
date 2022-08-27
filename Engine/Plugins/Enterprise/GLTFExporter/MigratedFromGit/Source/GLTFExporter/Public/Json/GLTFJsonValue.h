@@ -4,7 +4,7 @@
 
 class IGLTFJsonWriter;
 
-struct IGLTFJsonValue
+struct GLTFEXPORTER_API IGLTFJsonValue
 {
 	virtual ~IGLTFJsonValue() = default;
 

@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 
-struct FGLTFJsonAsset : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAsset : IGLTFJsonObject
 {
 	FString Version;
 	FString Generator;
@@ -15,18 +15,5 @@ struct FGLTFJsonAsset : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("version"), Version);
-
-		if (!Generator.IsEmpty())
-		{
-			Writer.Write(TEXT("generator"), Generator);
-		}
-
-		if (!Copyright.IsEmpty())
-		{
-			Writer.Write(TEXT("copyright"), Copyright);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

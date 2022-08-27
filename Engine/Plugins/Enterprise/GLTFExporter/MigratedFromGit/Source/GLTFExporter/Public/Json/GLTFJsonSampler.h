@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 
-struct FGLTFJsonSampler : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonSampler : IGLTFJsonObject
 {
 	FString Name;
 
@@ -23,31 +23,5 @@ struct FGLTFJsonSampler : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		if (MinFilter != EGLTFJsonTextureFilter::None)
-		{
-			Writer.Write(TEXT("minFilter"), MinFilter);
-		}
-
-		if (MagFilter != EGLTFJsonTextureFilter::None)
-		{
-			Writer.Write(TEXT("magFilter"), MagFilter);
-		}
-
-		if (WrapS != EGLTFJsonTextureWrap::Repeat)
-		{
-			Writer.Write(TEXT("wrapS"), WrapS);
-		}
-
-		if (WrapT != EGLTFJsonTextureWrap::Repeat)
-		{
-			Writer.Write(TEXT("wrapT"), WrapT);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

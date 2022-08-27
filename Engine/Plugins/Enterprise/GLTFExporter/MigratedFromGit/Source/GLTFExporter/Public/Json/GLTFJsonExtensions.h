@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonEnums.h"
 
-struct FGLTFJsonExtensions
+struct GLTFEXPORTER_API FGLTFJsonExtensions
 {
 	TSet<EGLTFJsonExtension> Used;
 	TSet<EGLTFJsonExtension> Required;

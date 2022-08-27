@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
 
-struct FGLTFJsonImage : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonImage : IGLTFJsonObject
 {
 	FString Name;
 	FString Uri;
@@ -20,26 +20,5 @@ struct FGLTFJsonImage : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		if (!Uri.IsEmpty())
-		{
-			Writer.Write(TEXT("uri"), Uri);
-		}
-
-		if (MimeType != EGLTFJsonMimeType::None)
-		{
-			Writer.Write(TEXT("mimeType"), MimeType);
-		}
-
-		if (BufferView != INDEX_NONE)
-		{
-			Writer.Write(TEXT("bufferView"), BufferView);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

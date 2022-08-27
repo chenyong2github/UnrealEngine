@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonColor.h"
 
-struct FGLTFJsonSpotLight : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonSpotLight : IGLTFJsonObject
 {
 	float InnerConeAngle;
 	float OuterConeAngle;
@@ -17,21 +17,10 @@ struct FGLTFJsonSpotLight : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!FMath::IsNearlyEqual(InnerConeAngle, 0, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("innerConeAngle"), InnerConeAngle);
-		}
-
-		if (!FMath::IsNearlyEqual(OuterConeAngle, HALF_PI, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("outerConeAngle"), OuterConeAngle);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonLight : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonLight : IGLTFJsonObject
 {
 	FString Name;
 
@@ -52,36 +41,5 @@ struct FGLTFJsonLight : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		Writer.Write(TEXT("type"), Type);
-
-		if (!Color.IsNearlyEqual(FGLTFJsonColor3::White, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("color"), Color);
-		}
-
-		if (!FMath::IsNearlyEqual(Intensity, 1, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("intensity"), Intensity);
-		}
-
-		if (Type == EGLTFJsonLightType::Point || Type == EGLTFJsonLightType::Spot)
-		{
-			if (!FMath::IsNearlyEqual(Range, 0, Writer.DefaultTolerance))
-			{
-				Writer.Write(TEXT("range"), Range);
-			}
-
-			if (Type == EGLTFJsonLightType::Spot)
-			{
-				Writer.Write(TEXT("spot"), Spot);
-			}
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

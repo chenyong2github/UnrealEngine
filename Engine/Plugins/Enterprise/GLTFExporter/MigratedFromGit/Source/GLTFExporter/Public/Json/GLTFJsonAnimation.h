@@ -7,7 +7,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonAnimationPlayback.h"
 
-struct FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
 {
 	FGLTFJsonNodeIndex Node;
 	EGLTFJsonTargetPath Path;
@@ -17,27 +17,18 @@ struct FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("node"), Node);
-		Writer.Write(TEXT("path"), Path);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonAnimationChannel : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimationChannel : IGLTFJsonObject
 {
 	FGLTFJsonAnimationSamplerIndex Sampler;
 	FGLTFJsonAnimationChannelTarget Target;
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("sampler"), Sampler);
-
-		Writer.Write(TEXT("target"), Target);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonAnimationSampler : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimationSampler : IGLTFJsonObject
 {
 	FGLTFJsonAccessorIndex Input;
 	FGLTFJsonAccessorIndex Output;
@@ -49,19 +40,10 @@ struct FGLTFJsonAnimationSampler : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("input"), Input);
-		Writer.Write(TEXT("output"), Output);
-
-		if (Interpolation != EGLTFJsonInterpolation::Linear)
-		{
-			Writer.Write(TEXT("interpolation"), Interpolation);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonAnimation : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonObject
 {
 	FString Name;
 
@@ -70,21 +52,5 @@ struct FGLTFJsonAnimation : IGLTFJsonObject
 
 	FGLTFJsonAnimationPlayback Playback;
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		Writer.Write(TEXT("channels"), Channels);
-		Writer.Write(TEXT("samplers"), Samplers);
-
-		if (Playback != FGLTFJsonAnimationPlayback())
-		{
-			Writer.StartExtensions();
-			Writer.Write(EGLTFJsonExtension::EPIC_AnimationPlayback, Playback);
-			Writer.EndExtensions();
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

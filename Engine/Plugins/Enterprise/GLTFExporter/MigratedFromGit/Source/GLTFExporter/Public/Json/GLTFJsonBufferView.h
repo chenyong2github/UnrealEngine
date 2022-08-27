@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
 
-struct FGLTFJsonBufferView : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonObject
 {
 	FString Name;
 
@@ -24,32 +24,7 @@ struct FGLTFJsonBufferView : IGLTFJsonObject
 		, ByteStride(0)
 		, Target(EGLTFJsonBufferTarget::None)
 	{
-		// check that view fits completely inside the buffer
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		Writer.Write(TEXT("buffer"), Buffer);
-		Writer.Write(TEXT("byteLength"), ByteLength);
-
-		if (ByteOffset != 0)
-		{
-			Writer.Write(TEXT("byteOffset"), ByteOffset);
-		}
-
-		if (ByteStride != 0)
-		{
-			Writer.Write(TEXT("byteStride"), ByteStride);
-		}
-
-		if (Target != EGLTFJsonBufferTarget::None)
-		{
-			Writer.Write(TEXT("target"), Target);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

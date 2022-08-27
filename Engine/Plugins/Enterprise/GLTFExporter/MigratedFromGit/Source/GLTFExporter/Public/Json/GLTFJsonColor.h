@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonArray.h"
 
 template <typename BaseType>
-struct TGLTFJsonColor : BaseType, IGLTFJsonArray
+struct GLTFEXPORTER_API TGLTFJsonColor : BaseType, IGLTFJsonArray
 {
 	TGLTFJsonColor(const BaseType& Other)
 		: BaseType(Other)
@@ -59,7 +59,7 @@ struct TGLTFJsonColor : BaseType, IGLTFJsonArray
 	}
 };
 
-struct FGLTFJsonColor3 : TGLTFJsonColor<FGLTFColor3>
+struct GLTFEXPORTER_API FGLTFJsonColor3 : TGLTFJsonColor<FGLTFColor3>
 {
 	static const FGLTFJsonColor3 Black;
 	static const FGLTFJsonColor3 White;
@@ -68,7 +68,7 @@ struct FGLTFJsonColor3 : TGLTFJsonColor<FGLTFColor3>
 	using TGLTFJsonColor::operator=;
 };
 
-struct FGLTFJsonColor4 : TGLTFJsonColor<FGLTFColor4>
+struct GLTFEXPORTER_API FGLTFJsonColor4 : TGLTFJsonColor<FGLTFColor4>
 {
 	static const FGLTFJsonColor4 Black;
 	static const FGLTFJsonColor4 White;

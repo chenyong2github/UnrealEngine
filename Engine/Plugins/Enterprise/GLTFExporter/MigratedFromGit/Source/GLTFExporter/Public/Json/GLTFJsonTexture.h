@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 
-struct FGLTFJsonTexture : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonTexture : IGLTFJsonObject
 {
 	FString Name;
 
@@ -20,32 +20,5 @@ struct FGLTFJsonTexture : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		if (Sampler != INDEX_NONE)
-		{
-			Writer.Write(TEXT("sampler"), Sampler);
-		}
-
-		if (Source != INDEX_NONE)
-		{
-			Writer.Write(TEXT("source"), Source);
-		}
-
-		if (Encoding != EGLTFJsonHDREncoding::None)
-		{
-			Writer.StartExtensions();
-
-			Writer.StartExtension(EGLTFJsonExtension::EPIC_TextureHDREncoding);
-			Writer.Write(TEXT("encoding"), Encoding);
-			Writer.EndExtension();
-
-			Writer.EndExtensions();
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

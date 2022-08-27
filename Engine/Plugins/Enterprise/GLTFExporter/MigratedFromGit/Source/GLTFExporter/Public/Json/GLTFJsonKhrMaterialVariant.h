@@ -5,24 +5,17 @@
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 
-struct FGLTFJsonKhrMaterialVariantMapping : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariantMapping : IGLTFJsonObject
 {
 	FGLTFJsonMaterialIndex                   Material;
 	TArray<FGLTFJsonKhrMaterialVariantIndex> Variants;
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("material"), Material);
-		Writer.Write(TEXT("variants"), Variants);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonKhrMaterialVariant : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariant : IGLTFJsonObject
 {
 	FString Name;
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("name"), Name);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
