@@ -6,8 +6,6 @@
 #include "Components/GLTFInteractionHotspotComponent.h"
 #include "GLTFInteractionHotspotActor.generated.h"
 
-class USceneComponent;
-
 /**
  * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of skeletal animations when cursor input is enabled.
  */
@@ -29,22 +27,27 @@ private:
 	void ForwardPropertiesToComponent();
 
 public:
+	/** List of skeletal meshes and animations to be played when the hotspot is interacted with */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	TArray<FGLTFAnimation> Animations;
 
+	/** The billboard image that will be shown when the hotspot is in an inactive state */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* DefaultSprite;
 
+	/** The optional billboard image that will be shown when a cursor enters the hotspot */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* HighlightSprite;
 
+	/** The optional billboard image that will be shown when the hotspot is toggled by a click */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
-	UTexture2D* ClickSprite;
+	UTexture2D* ToggledSprite;
 
 private:
 	UPROPERTY()
 	USceneComponent* SceneComponent;
 
-	UPROPERTY()
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "GLTF Interaction Hotspot")
 	UGLTFInteractionHotspotComponent* InteractionHotspotComponent;
 };

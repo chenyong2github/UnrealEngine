@@ -6,6 +6,7 @@
 #include "Engine/CollisionProfile.h"
 #include "UObject/ConstructorHelpers.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Animation/AnimSingleNodeInstance.h"
 
 namespace
 {
@@ -16,8 +17,9 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	: Super(ObjectInitializer),
 	DefaultSprite(nullptr),
 	HighlightSprite(nullptr),
-	ClickSprite(nullptr),
-	ShapeBodySetup(nullptr)
+	ToggledSprite(nullptr),
+	ShapeBodySetup(nullptr),
+	bToggled(bToggled)
 {
 	// Setup the most minimalistic collision profile for mouse input events
 	SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -32,6 +34,7 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	OnClicked.AddDynamic(this, &UGLTFInteractionHotspotComponent::Clicked);
 }
 
+#if WITH_EDITOR
 void UGLTFInteractionHotspotComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
@@ -46,6 +49,7 @@ void UGLTFInteractionHotspotComponent::PostEditChangeProperty(FPropertyChangedEv
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 void UGLTFInteractionHotspotComponent::BeginPlay()
 {
@@ -77,7 +81,7 @@ void UGLTFInteractionHotspotComponent::SetSprite(class UTexture2D* NewSprite)
 
 void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
 {
-	if (HighlightSprite != nullptr)
+	if ((ToggledSprite == nullptr || !bToggled) && HighlightSprite != nullptr)
 	{
 		SetSprite(HighlightSprite);
 	}
@@ -85,19 +89,54 @@ void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* Touc
 
 void UGLTFInteractionHotspotComponent::EndCursorOver(UPrimitiveComponent* TouchedComponent)
 {
-	SetSprite(DefaultSprite);
+	if (ToggledSprite == nullptr || !bToggled)
+	{
+		SetSprite(DefaultSprite);
+	}
 }
 
 void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
+	if (!bToggled && ToggledSprite != nullptr)
+	{
+		SetSprite(ToggledSprite);
+	}
+	else
+	{
+		SetSprite(DefaultSprite);
+	}
+
+	const bool bReverseAnimation = bToggled;
+
 	for (TArray<FGLTFAnimation>::TConstIterator Animation = Animations.CreateConstIterator(); Animation; ++Animation)
 	{
 		if (Animation->SkeletalMeshActor != nullptr && Animation->AnimationSequence != nullptr)
 		{
 			USkeletalMeshComponent* SkeletalMeshComponent = Animation->SkeletalMeshActor->GetSkeletalMeshComponent();
-			SkeletalMeshComponent->PlayAnimation(Animation->AnimationSequence, false);
+			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
+			const float AbsolutePlayRate = FMath::Abs(SkeletalMeshComponent->GetPlayRate());
+
+			if (SkeletalMeshComponent->IsPlaying())
+			{
+				UAnimSingleNodeInstance* SingleNodeInstance = SkeletalMeshComponent->GetSingleNodeInstance();
+				
+				if (SingleNodeInstance != nullptr && SingleNodeInstance->GetAnimationAsset() == Animation->AnimationSequence)
+				{
+					// If the same animation is already playing, just reverse the play rate for a smooth transition
+					SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * -1.0f);
+					
+					continue;
+				}
+			}
+			
+			SkeletalMeshComponent->SetAnimation(Animation->AnimationSequence);
+			SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * (bReverseAnimation ? -1.0f : 1.0f));
+			SkeletalMeshComponent->SetPosition(bReverseAnimation ? Animation->AnimationSequence->GetPlayLength() : 0.0f);
+			SkeletalMeshComponent->Play(false);
 		}
 	}
+
+	bToggled = !bToggled;
 }
 
 void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
