@@ -70,4 +70,17 @@ struct FGLTFMaterialUtility
 
 	static bool MaterialNeedsVertexData(const UMaterialInterface* Material);
 	static bool MaterialsNeedVertexData(const TArray<const UMaterialInterface*>& Materials);
+
+	static const UMaterialInterface* GetInterface(const UMaterialInterface* Material);
+	static const UMaterialInterface* GetInterface(const FStaticMaterial& Material);
+	static const UMaterialInterface* GetInterface(const FSkeletalMaterial& Material);
+
+	static void ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<UMaterialInterface*>& Defaults);
+	static void ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<FStaticMaterial>& Defaults);
+	static void ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<FSkeletalMaterial>& Defaults);
+
+private:
+
+	template <typename MaterialType>
+	static void ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<MaterialType>& Defaults);
 };

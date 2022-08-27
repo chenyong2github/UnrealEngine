@@ -28,7 +28,7 @@ public:
 	OutputType Add(InputTypes... Inputs)
 	{
 		Sanitize(Inputs...);
-		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
+		const InputKeyType InputKey(Inputs...);
 		OutputType NewOutput = Convert(Forward<InputTypes>(Inputs)...);
 
 		SavedOutputs.Add(InputKey, NewOutput);
@@ -38,7 +38,7 @@ public:
 	OutputType GetOrAdd(InputTypes... Inputs)
 	{
 		Sanitize(Inputs...);
-		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
+		const InputKeyType InputKey(Inputs...);
 		if (OutputType* SavedOutput = SavedOutputs.Find(InputKey))
 		{
 			return *SavedOutput;
