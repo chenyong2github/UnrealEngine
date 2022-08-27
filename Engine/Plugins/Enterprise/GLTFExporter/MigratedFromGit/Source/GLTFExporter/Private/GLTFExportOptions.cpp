@@ -220,6 +220,19 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 	return true;
 }
 
+void UGLTFExportOptions::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyFName = PropertyChangedEvent.GetPropertyName();
+
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultLevelOfDetail))
+	{
+		if (DefaultLevelOfDetail < 0)
+		{
+			DefaultLevelOfDetail = 0;
+		}
+	}
+}
+
 FIntPoint UGLTFExportOptions::GetDefaultMaterialBakeSize() const
 {
 	const int32 Size = 1 << static_cast<int>(DefaultMaterialBakeSize);
