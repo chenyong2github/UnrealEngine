@@ -175,3 +175,12 @@ enum class EGLTFJsonCameraControlMode
 	FreeLook,
 	Orbital
 };
+
+enum class EGLTFJsonBufferViewErrorFlags : uint8
+{
+	None = 0,
+	ContainsZeroLengthVectors = 1 << 0,
+	/** Note that zero-length vectors are not treated as non unit-length vectors */
+	ContainsNonUnitLengthVectors = 1 << 1,
+};
+ENUM_CLASS_FLAGS(EGLTFJsonBufferViewErrorFlags);

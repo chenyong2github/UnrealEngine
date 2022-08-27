@@ -10,38 +10,40 @@ namespace
 	template <typename DestinationType, typename SourceType>
 	struct TGLTFVertexNormalUtility
 	{
-		static DestinationType Convert(TStaticMeshVertexTangentDatum<SourceType> Vertex)
+		static DestinationType Convert(const SourceType& Normal)
 		{
-			return FGLTFConverterUtility::ConvertNormal(Vertex.TangentZ);
+			return FGLTFConverterUtility::ConvertNormal(Normal);
 		}
 	};
 
 	template <typename SourceType>
 	struct TGLTFVertexNormalUtility<FGLTFJsonVector3, SourceType>
 	{
-		static FGLTFJsonVector3 Convert(TStaticMeshVertexTangentDatum<SourceType> Vertex)
+		static FGLTFJsonVector3 Convert(const SourceType& Normal)
 		{
-			return FGLTFConverterUtility::ConvertNormal(Vertex.TangentZ.ToFVector());
+			return FGLTFConverterUtility::ConvertNormal(Normal.ToFVector());
 		}
 	};
 
 	template <typename DestinationType, typename SourceType>
 	struct TGLTFVertexTangentUtility
 	{
-		static DestinationType Convert(TStaticMeshVertexTangentDatum<SourceType> Vertex)
+		static DestinationType Convert(const SourceType& Tangent)
 		{
-			return FGLTFConverterUtility::ConvertTangent(Vertex.TangentX);
+			return FGLTFConverterUtility::ConvertTangent(Tangent);
 		}
 	};
 
 	template <typename SourceType>
 	struct TGLTFVertexTangentUtility<FGLTFJsonVector4, SourceType>
 	{
-		static FGLTFJsonVector4 Convert(TStaticMeshVertexTangentDatum<SourceType> Vertex)
+		static FGLTFJsonVector4 Convert(const SourceType& Tangent)
 		{
-			return FGLTFConverterUtility::ConvertTangent(Vertex.TangentX.ToFVector());
+			return FGLTFConverterUtility::ConvertTangent(Tangent.ToFVector());
 		}
 	};
+
+	const float UnitLengthToleranceSq = FMath::Pow(1.006f, 2.0f) - 1.0f;	// Slightly less than the tolerance used by the glTF Validator for Vec3
 }
 
 FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer)
@@ -191,13 +193,41 @@ FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGL
 	TArray<DestinationType> Normals;
 	Normals.AddUninitialized(VertexCount);
 
+	bool bHasZeroVectors = false;
+	bool bHasNonUnitVectors = false;
+
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		Normals[VertexIndex] = TGLTFVertexNormalUtility<DestinationType, SourceType>::Convert(VertexTangents[MappedVertexIndex]);
+		SourceType Normal = VertexTangents[MappedVertexIndex].TangentZ;
+		FVector NormalVector = Normal.ToFVector();
+
+		if (NormalVector.IsNearlyZero())
+		{
+			bHasZeroVectors = true;
+		}
+		else if (!NormalVector.IsUnit(UnitLengthToleranceSq))
+		{
+			bHasNonUnitVectors = true;
+		}
+
+		Normals[VertexIndex] = TGLTFVertexNormalUtility<DestinationType, SourceType>::Convert(Normal);
 	}
 
-	return Builder.AddBufferView(Normals, EGLTFJsonBufferTarget::ArrayBuffer);
+	const FGLTFJsonBufferViewIndex BufferViewIndex = Builder.AddBufferView(Normals, EGLTFJsonBufferTarget::ArrayBuffer);
+	FGLTFJsonBufferView& BufferView = Builder.GetBufferView(BufferViewIndex);
+
+	if (bHasZeroVectors)
+	{
+		BufferView.ErrorFlags |= EGLTFJsonBufferViewErrorFlags::ContainsZeroLengthVectors;
+	}
+
+	if (bHasNonUnitVectors)
+	{
+		BufferView.ErrorFlags |= EGLTFJsonBufferViewErrorFlags::ContainsNonUnitLengthVectors;
+	}
+
+	return BufferViewIndex;
 }
 
 FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
@@ -265,13 +295,41 @@ FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FG
 	TArray<DestinationType> Tangents;
 	Tangents.AddUninitialized(VertexCount);
 
+	bool bHasZeroVectors = false;
+	bool bHasNonUnitVectors = false;
+
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		Tangents[VertexIndex] = TGLTFVertexTangentUtility<DestinationType, SourceType>::Convert(VertexTangents[MappedVertexIndex]);
+		SourceType Tangent = VertexTangents[MappedVertexIndex].TangentX;
+		FVector TangentVector = Tangent.ToFVector();
+
+		if (TangentVector.IsNearlyZero())
+		{
+			bHasZeroVectors = true;
+		}
+		else if (!TangentVector.IsUnit(UnitLengthToleranceSq))
+		{
+			bHasNonUnitVectors = true;
+		}
+
+		Tangents[VertexIndex] = TGLTFVertexTangentUtility<DestinationType, SourceType>::Convert(Tangent);
 	}
 
-	return Builder.AddBufferView(Tangents, EGLTFJsonBufferTarget::ArrayBuffer);
+	const FGLTFJsonBufferViewIndex BufferViewIndex = Builder.AddBufferView(Tangents, EGLTFJsonBufferTarget::ArrayBuffer);
+	FGLTFJsonBufferView& BufferView = Builder.GetBufferView(BufferViewIndex);
+
+	if (bHasZeroVectors)
+	{
+		BufferView.ErrorFlags |= EGLTFJsonBufferViewErrorFlags::ContainsZeroLengthVectors;
+	}
+
+	if (bHasNonUnitVectors)
+	{
+		BufferView.ErrorFlags |= EGLTFJsonBufferViewErrorFlags::ContainsNonUnitLengthVectors;
+	}
+
+	return BufferViewIndex;
 }
 
 FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, uint32 UVIndex)
