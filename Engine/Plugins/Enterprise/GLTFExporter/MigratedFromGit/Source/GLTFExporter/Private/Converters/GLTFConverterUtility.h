@@ -83,6 +83,13 @@ struct FGLTFConverterUtility
 
 		// Not checking if quaternion is normalized
 		// e.g. some sources use non-unit Quats for rotation tangents
+
+		// Return the identity quaternion when possible (depending on tolerance)
+		if (Rotation.Equals(FQuat::Identity))
+		{
+			return FGLTFJsonQuaternion::Identity;
+		}
+
 		return { -Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W };
 	}
 
