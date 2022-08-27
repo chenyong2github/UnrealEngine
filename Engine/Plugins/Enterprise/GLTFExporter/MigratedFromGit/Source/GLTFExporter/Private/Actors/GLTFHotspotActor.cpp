@@ -20,9 +20,7 @@
 #include "Slate/SceneViewport.h"
 #endif
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 using namespace UE;
-#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogGLTFHotspot, Log, All);
 
@@ -455,11 +453,7 @@ void AGLTFHotspotActor::ValidateAnimation()
 	{
 		if (const USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->GetSkeletalMeshAsset())
 		{
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 			const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
-#else
-			const USkeleton* Skeleton = SkeletalMesh->Skeleton;
-#endif
 
 			if (Skeleton != AnimationSequence->GetSkeleton())
 			{

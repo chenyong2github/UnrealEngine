@@ -21,11 +21,7 @@ FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, co
 		return nullptr;
 	}
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	const USkeleton* MeshSkeleton = SkeletalMesh->GetSkeleton();
-#else
-	const USkeleton* MeshSkeleton = SkeletalMesh->Skeleton;
-#endif
 
 	if (AnimSkeleton != MeshSkeleton)
 	{

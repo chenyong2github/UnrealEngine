@@ -261,11 +261,7 @@ FGLTFJsonNode* FGLTFStaticSocketConverter::Convert(FGLTFJsonNode* RootNode, cons
 
 FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
-#else
-	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
-#endif
 
 	const USkeletalMeshSocket* Socket = SkeletalMesh->FindSocket(SocketName);
 	if (Socket != nullptr)
@@ -297,11 +293,7 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 
 FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
-#else
-	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
-#endif
 
 	// TODO: add support for [Principal]PoseComponent?
 
