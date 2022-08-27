@@ -31,16 +31,16 @@ public:
 		return {};
 	}
 
-	OutputType Add(const FString& DesiredName, InputTypes... Inputs)
+	OutputType Add(InputTypes... Inputs)
 	{
 		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
-		OutputType NewOutput = Convert(DesiredName, Forward<InputTypes>(Inputs)...);
+		OutputType NewOutput = Convert(Forward<InputTypes>(Inputs)...);
 
 		SavedOutputs.Add(InputKey, NewOutput);
 		return NewOutput;
 	}
 
-	OutputType GetOrAdd(const FString& DesiredName, InputTypes... Inputs)
+	OutputType GetOrAdd(InputTypes... Inputs)
 	{
 		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
 		if (OutputType* SavedOutput = SavedOutputs.Find(InputKey))
@@ -48,7 +48,7 @@ public:
 			return *SavedOutput;
 		}
 
-		OutputType NewOutput = Convert(DesiredName, Forward<InputTypes>(Inputs)...);
+		OutputType NewOutput = Convert(Forward<InputTypes>(Inputs)...);
 
 		SavedOutputs.Add(InputKey, NewOutput);
 		return NewOutput;
@@ -56,7 +56,7 @@ public:
 
 protected:
 
-	virtual OutputType Convert(const FString& Name, InputTypes... Inputs) = 0;
+	virtual OutputType Convert(InputTypes... Inputs) = 0;
 
 	FGLTFConvertBuilder& Builder;
 

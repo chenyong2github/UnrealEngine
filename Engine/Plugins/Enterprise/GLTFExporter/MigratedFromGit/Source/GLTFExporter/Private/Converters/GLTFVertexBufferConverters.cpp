@@ -6,7 +6,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Math/NumericLimits.h"
 
-FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(const FString& Name, const FPositionVertexBuffer* VertexBuffer)
+FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(const FPositionVertexBuffer* VertexBuffer)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	if (VertexCount == 0)
@@ -38,8 +38,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(const FString
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(Positions, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(Positions);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec3;
@@ -55,7 +54,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(const FString
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFColorVertexBufferConverter::Convert(const FString& Name, const FColorVertexBuffer* VertexBuffer)
+FGLTFJsonAccessorIndex FGLTFColorVertexBufferConverter::Convert(const FColorVertexBuffer* VertexBuffer)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	if (VertexCount == 0)
@@ -72,8 +71,7 @@ FGLTFJsonAccessorIndex FGLTFColorVertexBufferConverter::Convert(const FString& N
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(Colors, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(Colors);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::U8;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
@@ -82,7 +80,7 @@ FGLTFJsonAccessorIndex FGLTFColorVertexBufferConverter::Convert(const FString& N
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFNormalVertexBufferConverter::Convert(const FString& Name, const FStaticMeshVertexBuffer* VertexBuffer)
+FGLTFJsonAccessorIndex FGLTFNormalVertexBufferConverter::Convert(const FStaticMeshVertexBuffer* VertexBuffer)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	if (VertexCount == 0)
@@ -99,8 +97,7 @@ FGLTFJsonAccessorIndex FGLTFNormalVertexBufferConverter::Convert(const FString& 
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(Normals, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(Normals);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec3;
@@ -108,7 +105,7 @@ FGLTFJsonAccessorIndex FGLTFNormalVertexBufferConverter::Convert(const FString& 
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFTangentVertexBufferConverter::Convert(const FString& Name, const FStaticMeshVertexBuffer* VertexBuffer)
+FGLTFJsonAccessorIndex FGLTFTangentVertexBufferConverter::Convert(const FStaticMeshVertexBuffer* VertexBuffer)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	if (VertexCount == 0)
@@ -125,8 +122,7 @@ FGLTFJsonAccessorIndex FGLTFTangentVertexBufferConverter::Convert(const FString&
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(Tangents, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(Tangents);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
@@ -134,7 +130,7 @@ FGLTFJsonAccessorIndex FGLTFTangentVertexBufferConverter::Convert(const FString&
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFUVVertexBufferConverter::Convert(const FString& Name, const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
+FGLTFJsonAccessorIndex FGLTFUVVertexBufferConverter::Convert(const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	if (VertexCount == 0 || UVIndex < 0 || VertexBuffer->GetNumTexCoords() <= static_cast<uint32>(UVIndex))
@@ -151,8 +147,7 @@ FGLTFJsonAccessorIndex FGLTFUVVertexBufferConverter::Convert(const FString& Name
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(UVs, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(UVs);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec2;
@@ -160,13 +155,13 @@ FGLTFJsonAccessorIndex FGLTFUVVertexBufferConverter::Convert(const FString& Name
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Convert(const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset, FGLTFBoneMap BoneMap)
+FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset, FGLTFBoneMap BoneMap)
 {
-	return VertexBuffer->Use16BitBoneIndex() ? Convert<uint16>(Name, VertexBuffer, InfluenceOffset, BoneMap) : Convert<uint8>(Name, VertexBuffer, InfluenceOffset, BoneMap);
+	return VertexBuffer->Use16BitBoneIndex() ? Convert<uint16>(VertexBuffer, InfluenceOffset, BoneMap) : Convert<uint8>(VertexBuffer, InfluenceOffset, BoneMap);
 }
 
 template <typename IndexType>
-FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Convert(const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap)
+FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	const int32 MaxInfluenceCount = VertexBuffer->GetMaxBoneInfluences();
@@ -199,8 +194,7 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Convert(const FStrin
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(BoneIndices, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(BoneIndices);
 	JsonAccessor.ComponentType = FGLTFConverterUtility::GetComponentType<IndexType>();
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
@@ -208,7 +202,7 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Convert(const FStrin
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Convert(const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex)
+FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	const int32 MaxInfluenceCount = VertexBuffer->GetMaxBoneInfluences();
@@ -238,8 +232,7 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Convert(const FStri
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
-	JsonAccessor.BufferView = Builder.AddBufferView(BoneWeights, Name);
+	JsonAccessor.BufferView = Builder.AddBufferView(BoneWeights);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::U8;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;

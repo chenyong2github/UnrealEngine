@@ -13,7 +13,7 @@ class FGLTFMaterialConverter final : public TGLTFConverter<FGLTFJsonMaterialInde
 {
 	using TGLTFConverter::TGLTFConverter;
 
-	FGLTFJsonMaterialIndex Convert(const FString& Name, const UMaterialInterface* Material) override;
+	FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override;
 
 	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel, const UMaterialInterface* Material) const;
 

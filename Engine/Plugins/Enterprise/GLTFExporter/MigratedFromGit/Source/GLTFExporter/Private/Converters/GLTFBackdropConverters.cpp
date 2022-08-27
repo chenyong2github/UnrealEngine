@@ -5,7 +5,7 @@
 #include "Converters/GLTFActorUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const FString& Name, const AActor* Actor)
+FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* Actor)
 {
 	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
 	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
@@ -14,7 +14,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const FString& Name, cons
 	}
 
 	FGLTFJsonBackdrop JsonBackdrop;
-	JsonBackdrop.Name = Name;
+	Actor->GetName(JsonBackdrop.Name);
 
 	const UStaticMesh* Mesh;
 	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("Mesh"), Mesh))
@@ -36,9 +36,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const FString& Name, cons
 		{
 			const ECubeFace CubeFace = static_cast<ECubeFace>(CubeFaceIndex);
 			const EGLTFJsonCubeFace JsonCubeFace = FGLTFConverterUtility::ConvertCubeFace(CubeFace);
-			const int32 JsonCubeFaceIndex = static_cast<int32>(JsonCubeFace);
-
-			JsonBackdrop.Cubemap[JsonCubeFaceIndex] = Builder.GetOrAddTexture(Cubemap, CubeFace, Cubemap->GetName() + TEXT("_") + FGLTFJsonUtility::ToString(JsonCubeFace));
+			JsonBackdrop.Cubemap[static_cast<int32>(JsonCubeFace)] = Builder.GetOrAddTexture(Cubemap, CubeFace);
 		}
 	}
 	else

@@ -4,12 +4,12 @@
 #include "Json/FGLTFJsonHotspot.h"
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFJsonHotspotIndex FGLTFHotspotComponentConverter::Convert(const FString& Name, const UGLTFInteractionHotspotComponent* HotspotComponent)
+FGLTFJsonHotspotIndex FGLTFHotspotComponentConverter::Convert(const UGLTFInteractionHotspotComponent* HotspotComponent)
 {
 	// TODO: should we warn and / or return INDEX_NONE if the hotspot has no valid Image assigned?
 
 	FGLTFJsonHotspot JsonHotspot;
-	JsonHotspot.Name = Name;
+	HotspotComponent->GetName(JsonHotspot.Name);
 	JsonHotspot.Animation = FGLTFJsonAnimationIndex(INDEX_NONE);	// TODO: assign the animation property once we have support for exporting animations
 	JsonHotspot.Image = Builder.GetOrAddTexture(HotspotComponent->Image);
 	JsonHotspot.HoveredImage = Builder.GetOrAddTexture(HotspotComponent->HoveredImage);
