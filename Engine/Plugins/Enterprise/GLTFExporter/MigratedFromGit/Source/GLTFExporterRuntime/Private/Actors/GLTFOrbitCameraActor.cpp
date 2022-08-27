@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Actors/GLTFOrbitCameraActor.h"
+#include "Components/InputComponent.h"
 
 namespace
 {
