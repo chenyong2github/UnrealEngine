@@ -20,17 +20,17 @@ struct FGLTFJsonTextureTransform : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (!Offset.IsNearlyEqual(FGLTFJsonVector2::Zero))
+		if (!Offset.IsNearlyEqual(FGLTFJsonVector2::Zero, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("offset"), Offset);
 		}
 
-		if (!Scale.IsNearlyEqual(FGLTFJsonVector2::One))
+		if (!Scale.IsNearlyEqual(FGLTFJsonVector2::One, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("scale"), Scale);
 		}
 
-		if (!FMath::IsNearlyEqual(Rotation, 0))
+		if (!FMath::IsNearlyEqual(Rotation, 0, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("rotation"), Rotation);
 		}

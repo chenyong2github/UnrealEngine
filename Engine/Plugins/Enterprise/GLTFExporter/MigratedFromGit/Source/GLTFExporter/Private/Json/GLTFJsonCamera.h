@@ -47,14 +47,14 @@ struct FGLTFJsonPerspective : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (!FMath::IsNearlyEqual(AspectRatio, 0))
+		if (!FMath::IsNearlyEqual(AspectRatio, 0, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("aspectRatio"), AspectRatio);
 		}
 
 		Writer.Write(TEXT("yfov"), YFov);
 
-		if (!FMath::IsNearlyEqual(ZFar, 0))
+		if (!FMath::IsNearlyEqual(ZFar, 0, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("zfar"), ZFar);
 		}

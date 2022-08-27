@@ -10,10 +10,13 @@ class IGLTFJsonWriter
 {
 public:
 
+	float DefaultTolerance;
+
 	FGLTFJsonExtensions& Extensions;
 
 	IGLTFJsonWriter(FGLTFJsonExtensions& Extensions)
-		: Extensions(Extensions)
+		: DefaultTolerance(0)
+		, Extensions(Extensions)
 	{
 	}
 

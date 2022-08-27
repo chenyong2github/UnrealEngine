@@ -137,9 +137,10 @@ struct FGLTFJsonRoot : IGLTFJsonObject
 		}
 	}
 
-	void WriteJson(FArchive& Archive, bool bPrettyJson)
+	void WriteJson(FArchive& Archive, bool bPrettyJson, float DefaultTolerance)
 	{
 		TSharedRef<IGLTFJsonWriter> Writer = IGLTFJsonWriter::Create(Archive, bPrettyJson, Extensions);
+		Writer->DefaultTolerance = DefaultTolerance;
 		Writer->Write(this);
 		Writer->Close();
 	}
