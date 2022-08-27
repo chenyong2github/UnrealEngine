@@ -47,19 +47,9 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 #endif
 	}
 
-	virtual int32 ObjectWorldPosition() override
-	{
-		return Compiler->ObjectWorldPosition();
-	}
-
 	virtual int32 DistanceCullFade() override
 	{
 		return Compiler->Constant(1.0f);
-	}
-
-	virtual int32 ActorWorldPosition() override
-	{
-		return Compiler->ActorWorldPosition();
 	}
 
 	virtual int32 ParticleRelativeTime() override
@@ -96,21 +86,6 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 	virtual int32 ParticleSize() override
 	{
 		return Compiler->Constant2(0.0f, 0.0f);
-	}
-
-	virtual int32 ObjectRadius() override
-	{
-		return Compiler->Constant(500);
-	}
-
-	virtual int32 ObjectBounds() override
-	{
-		return Compiler->ObjectBounds();
-	}
-
-	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override
-	{
-		return Compiler->PreSkinnedLocalBounds(OutputIndex);
 	}
 
 	virtual int32 CameraVector() override
