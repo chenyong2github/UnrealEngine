@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "GLTFJsonEnums.h"
 #include "Engine/EngineTypes.h"
 
 struct GLTFEXPORTER_API FGLTFConverterUtility
@@ -24,10 +23,15 @@ struct GLTFEXPORTER_API FGLTFConverterUtility
 		return ConvertVector(Scale);
 	}
 
-	static inline FVector4 ConvertTangent(const FVector4& Tangent)
+	static inline FVector ConvertNormal(const FVector& Normal)
+	{
+		return ConvertVector(Normal);
+	}
+
+	static inline FVector4 ConvertTangent(const FVector& Tangent)
 	{
 		// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
-		return FVector4(ConvertVector(Tangent), Tangent.W);
+		return FVector4(ConvertVector(Tangent), 1.0f);
 	}
 
 	static inline FColor ConvertColor(const FColor& Color)
