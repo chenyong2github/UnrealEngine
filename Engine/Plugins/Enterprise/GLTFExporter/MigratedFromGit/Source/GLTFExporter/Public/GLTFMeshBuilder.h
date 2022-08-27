@@ -6,22 +6,11 @@
 #include "GLTFContainerBuilder.h"
 #include "Engine.h"
 
-struct GLTFEXPORTER_API FGLTFSectionBuilder
+struct GLTFEXPORTER_API FGLTFAttributesBuilder
 {
 	FString Name;
 
-	TArray<uint32> Indices;
-
-	FGLTFSectionBuilder(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray);
-
-	FGLTFJsonAccessorIndex AddAccessorForIndices(FGLTFContainerBuilder& Container) const;
-};
-
-struct GLTFEXPORTER_API FGLTFMeshBuilder
-{
-	FString Name;
-
-	TArray<FGLTFSectionBuilder> Sections;
+	FBox BoundingBox;
 
 	TArray<FVector>   Positions;
 	TArray<FColor>    Colors;
@@ -30,16 +19,40 @@ struct GLTFEXPORTER_API FGLTFMeshBuilder
 	TArray<FVector2D> UV0s;
 	TArray<FVector2D> UV1s;
 
-	FBox BoundingBox;
+	FGLTFAttributesBuilder(const FString& Name, const FStaticMeshLODResources& LODMesh, const FColorVertexBuffer* OverrideVertexColors);
+
+	FGLTFJsonAccessorIndex AddPositions(FGLTFContainerBuilder& Container) const;
+	FGLTFJsonAccessorIndex AddColors(FGLTFContainerBuilder& Container) const;
+	FGLTFJsonAccessorIndex AddNormals(FGLTFContainerBuilder& Container) const;
+	FGLTFJsonAccessorIndex AddTangents(FGLTFContainerBuilder& Container) const;
+	FGLTFJsonAccessorIndex AddUV0s(FGLTFContainerBuilder& Container) const;
+	FGLTFJsonAccessorIndex AddUV1s(FGLTFContainerBuilder& Container) const;
+
+	FGLTFJsonAttributes AddAttributes(FGLTFContainerBuilder& Container) const;
+};
+
+struct GLTFEXPORTER_API FGLTFPrimitiveBuilder
+{
+	FString Name;
+
+	TArray<uint32> Indices;
+
+	FGLTFPrimitiveBuilder(const FString& Name, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray);
+
+	FGLTFJsonAccessorIndex AddIndices(FGLTFContainerBuilder& Container) const;
+
+	FGLTFJsonPrimitive AddPrimitive(FGLTFContainerBuilder& Container, const FGLTFJsonAttributes& JsonAttributes) const;
+};
+
+struct GLTFEXPORTER_API FGLTFMeshBuilder
+{
+	FString Name;
+	
+	FGLTFAttributesBuilder Attributes;
+	TArray<FGLTFPrimitiveBuilder> Primitives;
 
 	FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors);
-
-	FGLTFJsonAccessorIndex AddAccessorForPositions(FGLTFContainerBuilder& Container) const;
-	FGLTFJsonAccessorIndex AddAccessorForColors(FGLTFContainerBuilder& Container) const;
-	FGLTFJsonAccessorIndex AddAccessorForNormals(FGLTFContainerBuilder& Container) const;
-	FGLTFJsonAccessorIndex AddAccessorForTangents(FGLTFContainerBuilder& Container) const;
-	FGLTFJsonAccessorIndex AddAccessorForUV0s(FGLTFContainerBuilder& Container) const;
-	FGLTFJsonAccessorIndex AddAccessorForUV1s(FGLTFContainerBuilder& Container) const;
+	FGLTFMeshBuilder(const FString& Name, const FStaticMeshLODResources& LODMesh, const FColorVertexBuffer* OverrideVertexColors);
 
 	FGLTFJsonMeshIndex AddMesh(FGLTFContainerBuilder& Container) const;
 };
