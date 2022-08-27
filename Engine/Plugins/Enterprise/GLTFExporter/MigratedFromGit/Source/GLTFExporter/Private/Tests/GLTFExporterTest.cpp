@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "UnrealExporter.h"
 #include "Serialization/BufferArchive.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -53,7 +52,7 @@ bool FGLTFExporterTest::RunTest(const FString& Parameters)
 	FString ControlFilePath = "";
 	Parameters.Split(ParamDelimiter, &AssetPath, &ControlFilePath);
 
-	UObject* ObjectToExport = LoadObject<UObject>(NULL, *AssetPath, NULL, LOAD_None, NULL);
+	UObject* ObjectToExport = LoadObject<UObject>(nullptr, *AssetPath, nullptr, LOAD_None, nullptr);
 
 	if (ObjectToExport == nullptr) {
 		AddError(FString::Printf(TEXT("Failed to find test asset %s"), *AssetPath));
