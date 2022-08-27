@@ -68,12 +68,10 @@ float FGLTFTextureUtility::GetCubeFaceRotation(ECubeFace CubeFace)
 
 TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 {
-	// TODO: should this be the running platform?
-	const ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
-	const UTextureLODSettings& TextureLODSettings = RunningPlatform->GetTextureLODSettings();
-	const FTextureLODGroup& TextureLODGroup = TextureLODSettings.GetTextureLODGroup(LODGroup);
+	const UTextureLODSettings* TextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
+	const ETextureSamplerFilter Filter = TextureLODSettings->GetTextureLODGroup(LODGroup).Filter;
 
-	switch (TextureLODGroup.Filter)
+	switch (Filter)
 	{
 		case ETextureSamplerFilter::Point:             return TF_Nearest;
 		case ETextureSamplerFilter::Bilinear:          return TF_Bilinear;
