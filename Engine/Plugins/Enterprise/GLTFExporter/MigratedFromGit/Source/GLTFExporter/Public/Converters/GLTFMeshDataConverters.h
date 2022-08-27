@@ -12,9 +12,20 @@ typedef TGLTFConverter<const FGLTFMeshData*, const USkeletalMesh*, const USkelet
 template <typename MeshType, typename MeshComponentType>
 class TGLTFMeshDataConverter : public FGLTFBuilderContext, public TGLTFConverter<const FGLTFMeshData*, const MeshType*, const MeshComponentType*, int32>
 {
-	TArray<TUniquePtr<FGLTFMeshData>> Outputs;
+public:
 
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+	TGLTFMeshDataConverter(TGLTFMeshDataConverter&&) = default;
+	TGLTFMeshDataConverter& operator=(TGLTFMeshDataConverter&&) = default;
+
+	TGLTFMeshDataConverter(const TGLTFMeshDataConverter&) = delete;
+	TGLTFMeshDataConverter& operator=(const TGLTFMeshDataConverter&) = delete;
+
+private:
+
+	// TODO: standardize converters that are responsible for deleting their output
+	TArray<TUniquePtr<FGLTFMeshData>> Outputs;
 
 	virtual void Sanitize(const MeshType*& Mesh, const MeshComponentType*& MeshComponent, int32& LODIndex) override;
 

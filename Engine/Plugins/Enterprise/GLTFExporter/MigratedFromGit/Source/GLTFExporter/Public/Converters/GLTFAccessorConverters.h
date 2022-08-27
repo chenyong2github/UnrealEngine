@@ -16,21 +16,21 @@ typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FSkinW
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FSkinWeightVertexBuffer*, uint32> IGLTFBoneWeightBufferConverter;
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*> IGLTFIndexBufferConverter;
 
-class FGLTFPositionBufferConverter final : public FGLTFBuilderContext, public IGLTFPositionBufferConverter
+class GLTFEXPORTER_API FGLTFPositionBufferConverter final : public FGLTFBuilderContext, public IGLTFPositionBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer) override;
 };
 
-class FGLTFColorBufferConverter final : public FGLTFBuilderContext, public IGLTFColorBufferConverter
+class GLTFEXPORTER_API FGLTFColorBufferConverter final : public FGLTFBuilderContext, public IGLTFColorBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer) override;
 };
 
-class FGLTFNormalBufferConverter final : public FGLTFBuilderContext, public IGLTFNormalBufferConverter
+class GLTFEXPORTER_API FGLTFNormalBufferConverter final : public FGLTFBuilderContext, public IGLTFNormalBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -40,7 +40,7 @@ class FGLTFNormalBufferConverter final : public FGLTFBuilderContext, public IGLT
 	FGLTFJsonBufferView* ConvertBufferView(const FGLTFMeshSection* MeshSection, const void* TangentData);
 };
 
-class FGLTFTangentBufferConverter final : public FGLTFBuilderContext, public IGLTFTangentBufferConverter
+class GLTFEXPORTER_API FGLTFTangentBufferConverter final : public FGLTFBuilderContext, public IGLTFTangentBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -50,7 +50,7 @@ class FGLTFTangentBufferConverter final : public FGLTFBuilderContext, public IGL
 	FGLTFJsonBufferView* ConvertBufferView(const FGLTFMeshSection* MeshSection, const void* TangentData);
 };
 
-class FGLTFUVBufferConverter final : public FGLTFBuilderContext, public IGLTFUVBufferConverter
+class GLTFEXPORTER_API FGLTFUVBufferConverter final : public FGLTFBuilderContext, public IGLTFUVBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -60,7 +60,7 @@ class FGLTFUVBufferConverter final : public FGLTFBuilderContext, public IGLTFUVB
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, uint32 UVIndex, const uint8* SourceData) const;
 };
 
-class FGLTFBoneIndexBufferConverter final : public FGLTFBuilderContext, public IGLTFBoneIndexBufferConverter
+class GLTFEXPORTER_API FGLTFBoneIndexBufferConverter final : public FGLTFBuilderContext, public IGLTFBoneIndexBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -76,7 +76,7 @@ class FGLTFBoneIndexBufferConverter final : public FGLTFBuilderContext, public I
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset, const uint8* SourceData, CallbackType GetVertexInfluenceOffsetCount) const;
 };
 
-class FGLTFBoneWeightBufferConverter final : public FGLTFBuilderContext, public IGLTFBoneWeightBufferConverter
+class GLTFEXPORTER_API FGLTFBoneWeightBufferConverter final : public FGLTFBuilderContext, public IGLTFBoneWeightBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -89,7 +89,7 @@ class FGLTFBoneWeightBufferConverter final : public FGLTFBuilderContext, public 
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset, const uint8* SourceData, CallbackType GetVertexInfluenceOffsetCount) const;
 };
 
-class FGLTFIndexBufferConverter final : public FGLTFBuilderContext, public IGLTFIndexBufferConverter
+class GLTFEXPORTER_API FGLTFIndexBufferConverter final : public FGLTFBuilderContext, public IGLTFIndexBufferConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

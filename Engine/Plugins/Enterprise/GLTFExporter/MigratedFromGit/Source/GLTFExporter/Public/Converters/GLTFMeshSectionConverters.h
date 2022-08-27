@@ -9,6 +9,17 @@
 template <typename MeshLODType>
 class TGLTFMeshSectionConverter final : public TGLTFConverter<const FGLTFMeshSection*, const MeshLODType*, FGLTFIndexArray>
 {
+public:
+
+	TGLTFMeshSectionConverter() = default;
+	TGLTFMeshSectionConverter(TGLTFMeshSectionConverter&&) = default;
+	TGLTFMeshSectionConverter& operator=(TGLTFMeshSectionConverter&&) = default;
+
+	TGLTFMeshSectionConverter(const TGLTFMeshSectionConverter&) = delete;
+	TGLTFMeshSectionConverter& operator=(const TGLTFMeshSectionConverter&) = delete;
+
+private:
+
 	TArray<TUniquePtr<FGLTFMeshSection>> Outputs;
 
 	virtual const FGLTFMeshSection* Convert(const MeshLODType* MeshLOD, FGLTFIndexArray SectionIndices) override

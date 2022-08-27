@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "UObject/GCObjectScopeGuard.h"
 
-class FGLTFBuilder
+class GLTFEXPORTER_API FGLTFBuilder
 {
 public:
 

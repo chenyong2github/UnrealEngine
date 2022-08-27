@@ -4,7 +4,7 @@
 
 #include "Builders/GLTFConvertBuilder.h"
 
-class FGLTFContainerBuilder : public FGLTFConvertBuilder
+class GLTFEXPORTER_API FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
 public:
 

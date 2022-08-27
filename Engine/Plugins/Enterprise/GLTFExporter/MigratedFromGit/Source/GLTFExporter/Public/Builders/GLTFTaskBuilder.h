@@ -5,7 +5,7 @@
 #include "Builders/GLTFLogBuilder.h"
 #include "Tasks/GLTFDelayedTask.h"
 
-class FGLTFTaskBuilder : public FGLTFLogBuilder
+class GLTFEXPORTER_API FGLTFTaskBuilder : public FGLTFLogBuilder
 {
 public:
 

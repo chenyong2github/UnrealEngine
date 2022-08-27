@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Converters/GLTFIndexArray.h"
 
-struct FGLTFMeshSection
+struct GLTFEXPORTER_API FGLTFMeshSection
 {
 	FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const FGLTFIndexArray& SectionIndices);
 	FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const FGLTFIndexArray& SectionIndices);

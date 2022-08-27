@@ -13,7 +13,7 @@ enum class EGLTFTaskPriority : uint8
 	MAX
 };
 
-class FGLTFDelayedTask
+class GLTFEXPORTER_API FGLTFDelayedTask
 {
 public:
 

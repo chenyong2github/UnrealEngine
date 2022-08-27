@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Serialization/MemoryArchive.h"
 
-class FGLTFMemoryArchive final : public FMemoryArchive, public TArray64<uint8>
+class GLTFEXPORTER_API FGLTFMemoryArchive final : public FMemoryArchive, public TArray64<uint8>
 {
 public:
 

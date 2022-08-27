@@ -8,7 +8,7 @@
 
 typedef TGLTFConverter<FGLTFJsonSkin*, FGLTFJsonNode*, const USkeletalMesh*> IGLTFSkinConverter;
 
-class FGLTFSkinConverter final : public FGLTFBuilderContext, public IGLTFSkinConverter
+class GLTFEXPORTER_API FGLTFSkinConverter final : public FGLTFBuilderContext, public IGLTFSkinConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

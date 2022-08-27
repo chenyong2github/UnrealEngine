@@ -6,6 +6,7 @@
 
 class UMaterialInterface;
 
+// TODO: should we add GLTFEXPORTER_API ?
 class FGLTFMaterialArray : public TArray<const UMaterialInterface*>
 {
 public:

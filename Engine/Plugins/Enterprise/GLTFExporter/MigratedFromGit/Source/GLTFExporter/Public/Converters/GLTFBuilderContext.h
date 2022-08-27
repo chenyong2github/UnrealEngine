@@ -4,7 +4,7 @@
 
 class FGLTFConvertBuilder;
 
-class FGLTFBuilderContext
+class GLTFEXPORTER_API FGLTFBuilderContext
 {
 public:
 

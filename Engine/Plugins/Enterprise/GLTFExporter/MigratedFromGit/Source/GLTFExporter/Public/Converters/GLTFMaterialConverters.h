@@ -12,7 +12,7 @@
 
 typedef TGLTFConverter<FGLTFJsonMaterial*, const UMaterialInterface*, const FGLTFMeshData*, FGLTFIndexArray> IGLTFMaterialConverter;
 
-class FGLTFMaterialConverter final : public FGLTFBuilderContext, public IGLTFMaterialConverter
+class GLTFEXPORTER_API FGLTFMaterialConverter final : public FGLTFBuilderContext, public IGLTFMaterialConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

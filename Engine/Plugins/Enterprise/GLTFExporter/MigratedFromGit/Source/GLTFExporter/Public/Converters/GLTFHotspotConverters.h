@@ -9,7 +9,7 @@
 
 typedef TGLTFConverter<FGLTFJsonHotspot*, const AGLTFHotspotActor*> IGLTFHotspotConverter;
 
-class FGLTFHotspotConverter final : public FGLTFBuilderContext, public IGLTFHotspotConverter
+class GLTFEXPORTER_API FGLTFHotspotConverter final : public FGLTFBuilderContext, public IGLTFHotspotConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
