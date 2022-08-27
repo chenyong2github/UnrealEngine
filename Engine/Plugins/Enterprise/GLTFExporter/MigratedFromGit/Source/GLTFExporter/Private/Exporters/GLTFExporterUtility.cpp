@@ -7,8 +7,8 @@
 
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
 {
+#if WITH_EDITORONLY_DATA
 	// The following implementation is based of FMaterialInstanceEditor::RefreshPreviewAsset
-
 	const UStaticMesh* PreviewMesh = Cast<UStaticMesh>(Material->PreviewMesh.TryLoad());
 	if (PreviewMesh == nullptr)
 	{
@@ -24,13 +24,13 @@ const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface
 		}
 	}
 
-	if (PreviewMesh == nullptr)
+	if (PreviewMesh != nullptr)
 	{
-		// Use a default sphere instead if the parent material's preview mesh is also invalid
-		PreviewMesh = GUnrealEd->GetThumbnailManager()->EditorSphere;
+		return PreviewMesh;
 	}
+#endif
 
-	return PreviewMesh;
+	return LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/EditorMeshes/EditorSphere.EditorSphere"));
 }
 
 const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* AnimSequence)
