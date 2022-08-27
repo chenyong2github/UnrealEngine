@@ -34,16 +34,16 @@ bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
 	}
 }
 
-void FGLTFTextureUtility::FullyLoad(const UTexture* Texture)
+void FGLTFTextureUtility::FullyLoad(const UTexture* InTexture)
 {
-	UTexture* MutableTexture = const_cast<UTexture*>(Texture);
+	UTexture* Texture = const_cast<UTexture*>(InTexture);
 
 #if WITH_EDITOR
-	FTextureCompilingManager::Get().FinishCompilation({ MutableTexture });
+	FTextureCompilingManager::Get().FinishCompilation({ Texture });
 #endif
 
-	MutableTexture->SetForceMipLevelsToBeResident(30.0f);
-	MutableTexture->WaitForStreaming();
+	Texture->SetForceMipLevelsToBeResident(30.0f);
+	Texture->WaitForStreaming();
 }
 
 bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)

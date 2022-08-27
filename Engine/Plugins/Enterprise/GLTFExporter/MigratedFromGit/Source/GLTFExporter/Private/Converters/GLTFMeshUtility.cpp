@@ -2,6 +2,32 @@
 
 #include "Converters/GLTFMeshUtility.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "StaticMeshCompiler.h"
+#include "SkeletalMeshCompiler.h"
+
+void FGLTFMeshUtility::FullyLoad(const UStaticMesh* InStaticMesh)
+{
+	UStaticMesh* StaticMesh = const_cast<UStaticMesh*>(InStaticMesh);
+
+#if WITH_EDITOR
+	FStaticMeshCompilingManager::Get().FinishCompilation({ StaticMesh });
+#endif
+
+	StaticMesh->SetForceMipLevelsToBeResident(30.0f);
+	StaticMesh->WaitForStreaming();
+}
+
+void FGLTFMeshUtility::FullyLoad(const USkeletalMesh* InSkeletalMesh)
+{
+	USkeletalMesh* SkeletalMesh = const_cast<USkeletalMesh*>(InSkeletalMesh);
+
+#if WITH_EDITOR
+	FSkeletalMeshCompilingManager::Get().FinishCompilation({ SkeletalMesh });
+#endif
+
+	SkeletalMesh->SetForceMipLevelsToBeResident(30.0f);
+	SkeletalMesh->WaitForStreaming();
+}
 
 const UMaterialInterface* FGLTFMeshUtility::GetDefaultMaterial()
 {

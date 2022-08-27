@@ -8,6 +8,9 @@ class FSkeletalMeshLODRenderData;
 
 struct FGLTFMeshUtility
 {
+	static void FullyLoad(const UStaticMesh* InStaticMesh);
+	static void FullyLoad(const USkeletalMesh* InSkeletalMesh);
+
 	static const UMaterialInterface* GetDefaultMaterial();
 
 	static const TArray<FStaticMaterial>& GetMaterials(const UStaticMesh* StaticMesh);

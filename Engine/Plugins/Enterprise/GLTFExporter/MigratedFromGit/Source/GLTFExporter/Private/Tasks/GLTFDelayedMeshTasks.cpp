@@ -109,6 +109,7 @@ namespace
 
 void FGLTFDelayedStaticMeshTask::Process()
 {
+	FGLTFMeshUtility::FullyLoad(StaticMesh);
 	JsonMesh->Name = StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : StaticMesh->GetName();
 
 	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
@@ -206,6 +207,7 @@ void FGLTFDelayedStaticMeshTask::Process()
 
 void FGLTFDelayedSkeletalMeshTask::Process()
 {
+	FGLTFMeshUtility::FullyLoad(SkeletalMesh);
 	JsonMesh->Name = SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
 
 	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
