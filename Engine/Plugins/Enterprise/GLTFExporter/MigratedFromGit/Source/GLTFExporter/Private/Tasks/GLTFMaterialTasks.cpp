@@ -1227,6 +1227,9 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 	{
 		OutTexCoord = MeshData->TexCoord;
 
+		// TODO: use a smaller texture size when calculating overlapping uv's? The results are more correct when
+		// using the exact same size as the baked texture, but it also incurs an extra processing cost.
+
 		const float MaxOverlapPercentage = 1.0f;
 		const float OverlapPercentage = FGLTFMaterialUtility::CalcOverlappingUVPercentage(MeshData->TexCoord, TextureSize, MeshData->Description, SectionIndices);
 
