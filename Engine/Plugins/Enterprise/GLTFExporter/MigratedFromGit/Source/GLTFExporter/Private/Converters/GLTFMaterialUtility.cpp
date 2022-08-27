@@ -123,9 +123,31 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 
 FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
 {
+	EMaterialProperty SpecialProperty = MP_MAX;
+	FScalarMaterialInput OldMetallic;
+	FScalarMaterialInput OldRoughness;
+
 	if (Property == MP_CustomData0 || Property == MP_CustomData1)
 	{
-		// TODO: add special support
+		// TODO: replace this hack by adding proper support for ClearCoat properties in MaterialBaking module
+
+		UMaterial* ParentMaterial = const_cast<UMaterial*>(Material->GetMaterial());
+
+		SpecialProperty = Property;
+		if (Property == MP_CustomData0)
+		{
+			Property = MP_Metallic;
+			OldMetallic = ParentMaterial->Metallic;
+			ParentMaterial->Metallic = ParentMaterial->ClearCoat;
+		}
+		else if (Property == MP_CustomData1)
+		{
+			Property = MP_Roughness;
+			OldRoughness = ParentMaterial->Roughness;
+			ParentMaterial->Roughness = ParentMaterial->ClearCoatRoughness;
+		}
+
+		ParentMaterial->ForceRecompileForRendering();
 	}
 
 	TArray<FMeshData*> MeshSettings;
@@ -184,6 +206,24 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		// TODO: is the current conversion from sRGB => linear correct?
 		// It seems to give correct results for some properties, but not all.
 		PropertyBakeOutput.ConstantValue = Pixel;
+	}
+
+	if (SpecialProperty != MP_MAX)
+	{
+		// TODO: replace this hack by adding proper support for ClearCoat properties in MaterialBaking module
+
+		UMaterial* ParentMaterial = const_cast<UMaterial*>(Material->GetMaterial());
+
+		if (SpecialProperty == MP_CustomData0)
+		{
+			ParentMaterial->Metallic = OldMetallic;
+		}
+		else if (SpecialProperty == MP_CustomData1)
+		{
+			ParentMaterial->Roughness = OldRoughness;
+		}
+
+		ParentMaterial->ForceRecompileForRendering();
 	}
 
 	return PropertyBakeOutput;
