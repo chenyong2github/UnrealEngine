@@ -276,8 +276,7 @@ bool FGLTFVariationConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& Ou
 	TArray<int32> SectionIndices;
 
 	if (Builder.ExportOptions->bVariantMaterialBakeUsingMeshData &&
-		Builder.ExportOptions->bMaterialBakeUsingMeshData &&
-		Builder.ExportOptions->bBakeMaterialInputs)
+		Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
 	{
 		const int32 DefaultLODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
 
