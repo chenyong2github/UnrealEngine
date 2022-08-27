@@ -5,6 +5,7 @@
 #include "Builders/GLTFImageBuilder.h"
 #include "Converters/GLTFAccessorConverters.h"
 #include "Converters/GLTFMeshConverters.h"
+#include "Converters/GLTFMeshDataConverters.h"
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFSamplerConverters.h"
 #include "Converters/GLTFTextureConverters.h"
@@ -29,6 +30,9 @@ protected:
 public:
 
 	const bool bSelectedActorsOnly;
+
+	FGLTFStaticMeshDataConverter StaticMeshDataConverter;
+	FGLTFSkeletalMeshDataConverter SkeletalMeshDataConverter;
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer);
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer);

@@ -24,7 +24,7 @@ void FGLTFStaticMeshTask::Complete()
 
 	const FGLTFMeshData* MeshData =
 		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bMaterialBakeUsingMeshData ?
-			MeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
+			Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
 	if (MeshData != nullptr && MeshData->Description.IsEmpty())
 	{
@@ -92,7 +92,7 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	const FGLTFMeshData* MeshData =
 		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bMaterialBakeUsingMeshData ?
-			MeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
+			Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
 	if (MeshData != nullptr && MeshData->Description.IsEmpty())
 	{
