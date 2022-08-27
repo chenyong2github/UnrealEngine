@@ -2,6 +2,7 @@
 
 #include "Exporters/GLTFExporter.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "AssetExportTask.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "GLTFExportOptions.h"
 
@@ -22,8 +23,12 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 
 bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UGLTFExportOptions* Options = NewObject<UGLTFExportOptions>();
-	FGCObjectScopeGuard OptionsGuard(Options);
+	UGLTFExportOptions* Options = GetAutomatedExportOptions();
+	if (Options == nullptr)
+	{
+		Options = NewObject<UGLTFExportOptions>();
+		FGCObjectScopeGuard OptionsGuard(Options);
+	}
 
 	if (!FillExportOptions(Options))
 	{
@@ -85,4 +90,14 @@ bool UGLTFExporter::FillExportOptions(UGLTFExportOptions* ExportOptions)
 
 	SetShowExportOption(!bExportAll);
 	return true;
+}
+
+UGLTFExportOptions* UGLTFExporter::GetAutomatedExportOptions() const
+{
+	if (ExportTask && ExportTask->bAutomated)
+	{
+		return Cast<UGLTFExportOptions>(ExportTask->Options);
+	}
+
+	return nullptr;
 }

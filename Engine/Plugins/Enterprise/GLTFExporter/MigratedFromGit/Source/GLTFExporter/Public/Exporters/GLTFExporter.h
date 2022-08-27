@@ -27,4 +27,6 @@ protected:
 private:
 
 	bool FillExportOptions(UGLTFExportOptions* ExportOptions);
+
+	UGLTFExportOptions* GetAutomatedExportOptions() const;
 };
