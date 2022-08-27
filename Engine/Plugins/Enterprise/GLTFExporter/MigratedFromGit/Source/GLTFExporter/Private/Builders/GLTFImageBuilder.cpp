@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFImageBuilder.h"
-#include "Builders/GLTFBuilderUtility.h"
+#include "Builders/GLTFFileUtility.h"
 #include "Builders/GLTFImageUtility.h"
 #include "Misc/FileHelper.h"
 
@@ -94,8 +94,8 @@ EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPo
 
 FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
-	const TCHAR* Extension = FGLTFBuilderUtility::GetFileExtension(MimeType);
-	const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(Name, Extension, UniqueImageUris);
+	const TCHAR* Extension = FGLTFFileUtility::GetFileExtension(MimeType);
+	const FString ImageUri = FGLTFFileUtility::GetUniqueFilename(Name, Extension, UniqueImageUris);
 
 	const TArrayView<const uint8> ImageData(static_cast<const uint8*>(CompressedData), CompressedByteLength);
 	const FString ImagePath = FPaths::Combine(DirPath, ImageUri);
