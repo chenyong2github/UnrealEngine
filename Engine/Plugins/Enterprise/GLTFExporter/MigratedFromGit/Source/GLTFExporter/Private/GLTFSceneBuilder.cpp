@@ -40,27 +40,6 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	return Container.AddNode(Node);
 }
 
-void FGLTFNodeBuilder::_DebugLog() const
-{
-	FString Path;
-	auto Component = SceneComponent;
-
-	do
-	{
-		auto Actor = Component->GetOwner();
-		auto ActorName = Actor ? Actor->GetName() : TEXT("null");
-		Path = TEXT(" / ") + ActorName + TEXT("_") + Component->GetName() + Path;
-		Component = Component->GetAttachParent();
-	} while (Component != nullptr);
-
-	UE_LOG(LogGLTFExporter, Log, TEXT("%s [%d] %s"), *Path, AttachedComponents.Num(), bTopLevel ? TEXT("*") : TEXT(""));
-
-	for (auto& AttachedComponent : AttachedComponents)
-	{
-		AttachedComponent._DebugLog();
-	}
-}
-
 FGLTFSceneBuilder::FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly)
 {
 	World->GetName(Name);
@@ -85,8 +64,6 @@ FGLTFSceneBuilder::FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly)
 			}
 		}
 	}
-
-	_DebugLog(); // TODO: remove
 }
 
 FGLTFJsonSceneIndex FGLTFSceneBuilder::AddScene(FGLTFContainerBuilder& Container) const
@@ -101,14 +78,4 @@ FGLTFJsonSceneIndex FGLTFSceneBuilder::AddScene(FGLTFContainerBuilder& Container
 	}
 
 	return Container.AddScene(Scene);
-}
-
-void FGLTFSceneBuilder::_DebugLog() const
-{
-	UE_LOG(LogGLTFExporter, Log, TEXT("Level %s:"), *Name);
-
-	for (auto& TopLevelComponent : TopLevelComponents)
-	{
-		TopLevelComponent._DebugLog();
-	}
 }
