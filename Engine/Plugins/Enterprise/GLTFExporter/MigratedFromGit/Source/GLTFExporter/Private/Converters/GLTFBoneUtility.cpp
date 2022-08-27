@@ -54,6 +54,10 @@ void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequenc
 	FBoneContainer BoneContainer;
 	BoneContainer.InitializeTo(BoneIndices, FCurveEvaluationOption(true), *AnimSequence->GetSkeleton());
 
+	// NOTE: Some assets may only have raw data, some only compressed data.
+	const bool bHasRawData = AnimSequence->GetRawAnimationData().Num() != 0;
+	BoneContainer.SetUseRAWData(bHasRawData);
+
 	const int32 FrameCount = FrameTimestamps.Num();
 	OutBoneTransformsByFrame.AddDefaulted(FrameCount);
 
