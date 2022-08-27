@@ -68,7 +68,7 @@ struct FGLTFJsonPrimitive
 
 		if (Mode != EGLTFJsonPrimitiveMode::None)
 		{
-			JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToNumber(Mode));
+			JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToInteger(Mode));
 		}
 
 		JsonWriter.WriteObjectEnd();
