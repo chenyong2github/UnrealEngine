@@ -112,6 +112,8 @@ struct FGLTFConverterUtility
 	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter, TextureGroup LODGroup);
 	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup);
 
+	static EGLTFJsonCubeFace ConvertCubeFace(ECubeFace CubeFace);
+
 	template <typename EnumType>
 	static FString GetEnumDisplayName(EnumType Value)
 	{
