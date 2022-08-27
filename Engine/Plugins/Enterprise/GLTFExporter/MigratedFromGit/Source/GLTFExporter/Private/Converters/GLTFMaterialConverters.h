@@ -14,4 +14,6 @@ class FGLTFMaterialConverter final : public FGLTFBuilderContext, public TGLTFCon
 	virtual void Sanitize(const UMaterialInterface*& Material, const UStaticMesh*& Mesh, int32& LODIndex) override;
 
 	virtual FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material, const UStaticMesh* Mesh, int32 LODIndex) override;
+
+	static bool MaterialNeedsVertexData(UMaterialInterface* Material);
 };
