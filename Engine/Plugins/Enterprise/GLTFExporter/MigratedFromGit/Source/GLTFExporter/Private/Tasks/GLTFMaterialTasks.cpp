@@ -363,7 +363,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return true;
 	}
 
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		return true;
 	}
@@ -486,7 +486,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		return true;
 	}
 
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		return true;
 	}
@@ -613,7 +613,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return true;
 	}
 
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		return true;
 	}
@@ -701,7 +701,7 @@ bool FGLTFMaterialTask::TryGetEmissive(FGLTFJsonMaterial& JsonMaterial, const FM
 	}
 	else
 	{
-		if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+		if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 		{
 			JsonMaterial.EmissiveTexture.Index = FGLTFJsonTextureIndex(INDEX_NONE);
 			return true;
@@ -994,7 +994,7 @@ bool FGLTFMaterialTask::TryGetSourceTexture(FGLTFJsonTextureInfo& OutTexInfo, co
 
 bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32& OutTexCoord, FGLTFJsonTextureTransform& OutTransform, const FMaterialPropertyEx& Property, const TArray<FLinearColor>& AllowedMasks) const
 {
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		return false;
 	}
@@ -1127,7 +1127,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		return true;
 	}
 
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
 		return true;
@@ -1166,7 +1166,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		return true;
 	}
 
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
 		return true;
@@ -1205,7 +1205,7 @@ inline bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return true;
 	}
 
-	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
 		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
 		return true;
@@ -1240,7 +1240,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 	if (!PropertyBakeOutput.bIsConstant)
 	{
-		if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+		if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 		{
 			OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
 			return true;

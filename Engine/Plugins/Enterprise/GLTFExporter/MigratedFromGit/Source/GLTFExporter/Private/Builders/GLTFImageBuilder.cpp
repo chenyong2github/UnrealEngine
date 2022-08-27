@@ -37,7 +37,7 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint 
 			break;
 
 		case EGLTFJsonMimeType::JPEG:
-			FGLTFImageUtility::CompressToJPEG(Pixels, Size, ExportOptions->TextureCompressionQuality, CompressedData);
+			FGLTFImageUtility::CompressToJPEG(Pixels, Size, ExportOptions->TextureImageQuality, CompressedData);
 			break;
 
 		default:
@@ -78,17 +78,17 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 
 EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type) const
 {
-	switch (ExportOptions->TextureCompression)
+	switch (ExportOptions->TextureImageFormat)
 	{
-		case EGLTFTextureCompression::None:
+		case EGLTFTextureImageFormat::None:
 			return EGLTFJsonMimeType::None;
 
-		case EGLTFTextureCompression::PNG:
+		case EGLTFTextureImageFormat::PNG:
 			return EGLTFJsonMimeType::PNG;
 
-		case EGLTFTextureCompression::JPEG:
+		case EGLTFTextureImageFormat::JPEG:
 			return
-				!EnumHasAllFlags(static_cast<EGLTFTextureType>(ExportOptions->NoLossyCompressionFor), Type) &&
+				!EnumHasAllFlags(static_cast<EGLTFTextureType>(ExportOptions->NoLossyImageFormatFor), Type) &&
 				(bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size)) ?
 				EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
 
