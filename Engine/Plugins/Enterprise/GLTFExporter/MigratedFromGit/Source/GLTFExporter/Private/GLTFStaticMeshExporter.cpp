@@ -9,8 +9,16 @@ UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& Objec
 	SupportedClass = UStaticMesh::StaticClass();
 }
 
-bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
 	UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
-	return Super::ExportBinary(StaticMesh, Type, Ar, Warn, FileIndex, PortFlags);
+
+	if (!FillExportOptions())
+	{
+		// User cancelled the export
+		return false;
+	}
+
+	// TODO: implement
+	return true;
 }

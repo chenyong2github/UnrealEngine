@@ -17,20 +17,6 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	ExportOptions = NewObject<UGLTFExportOptions>(this, TEXT("GLTF Export Options"));
 }
 
-bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
-{
-	check(Object);
-
-	if (!FillExportOptions())
-	{
-		// User cancelled the export
-		return false;
-	}
-
-	// TODO: implement
-	return false;
-}
-
 bool UGLTFExporter::FillExportOptions()
 {
 	bool ExportAll = GetBatchMode() && !GetShowExportOption();
