@@ -20,8 +20,6 @@ class FGLTFLevelVariantSetsConverter final : public TGLTFConverter<FGLTFJsonLeve
 	bool TryParseVisibilityPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const;
 	bool TryParseMaterialPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const;
 
-	// bool TryParseJsonVariantNode(FGLTFConvertBuilder& Builder, FGLTFJsonVariantNodeProperties& OutVariantNode, const UVariantObjectBinding* Binding) const;
-
 	template<typename T>
 	bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue) const;
 
