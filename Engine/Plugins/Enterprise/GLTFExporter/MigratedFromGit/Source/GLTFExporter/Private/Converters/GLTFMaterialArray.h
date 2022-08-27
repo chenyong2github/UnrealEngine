@@ -55,6 +55,24 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 		return *this;
 	}
 
+	bool operator==(const TArray<FStaticMaterial>& Other) const
+	{
+		if (Other.Num() != Num())
+		{
+			return false;
+		}
+
+		for (int32 Index = 0; Index < Num(); ++Index)
+		{
+			if (Other[Index].MaterialInterface != (*this)[Index])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	bool operator==(const TArray& Other) const
 	{
 		return static_cast<const TArray&>(*this) == Other;
