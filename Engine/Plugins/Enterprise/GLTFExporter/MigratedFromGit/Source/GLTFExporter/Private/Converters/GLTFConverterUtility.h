@@ -102,21 +102,21 @@ struct FGLTFConverterUtility
 		}
 	}
 
-	static EGLTFJsonTextureFilter ConvertFilter(TextureFilter Filter)
+	static EGLTFJsonTextureFilter ConvertFilter(TextureFilter Filter, TextureGroup LODGroup)
 	{
 		switch (Filter)
 		{
 			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
 			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
 			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
-			case TextureFilter::TF_Default:   return EGLTFJsonTextureFilter::None; // TODO: handle this case better
+			case TextureFilter::TF_Default:   return ConvertFilter(GetDefaultFilter(LODGroup));
 			default:                          return EGLTFJsonTextureFilter::None;
 		}
 	}
 
-	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Wrap)
+	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Address)
 	{
-		switch (Wrap)
+		switch (Address)
 		{
 			case TextureAddress::TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
 			case TextureAddress::TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
@@ -124,6 +124,21 @@ struct FGLTFConverterUtility
 			default:                        return EGLTFJsonTextureWrap::Repeat; // fallback
 		}
 	}
+
+	static EGLTFJsonTextureFilter ConvertFilter(ETextureSamplerFilter Filter)
+	{
+		switch (Filter)
+		{
+			case ETextureSamplerFilter::Point:             return EGLTFJsonTextureFilter::Nearest;
+			case ETextureSamplerFilter::Bilinear:          return EGLTFJsonTextureFilter::LinearMipmapNearest;
+			case ETextureSamplerFilter::Trilinear:         return EGLTFJsonTextureFilter::LinearMipmapLinear;
+			case ETextureSamplerFilter::AnisotropicPoint:  return EGLTFJsonTextureFilter::Nearest; // TODO: is this correct?
+			case ETextureSamplerFilter::AnisotropicLinear: return EGLTFJsonTextureFilter::LinearMipmapLinear; // TODO: is this correct?
+			default:                                       return EGLTFJsonTextureFilter::None;
+		}
+	}
+
+	static ETextureSamplerFilter GetDefaultFilter(TextureGroup Group);
 
 	static bool IsSkySphereBlueprint(const UBlueprint* Blueprint);
 
