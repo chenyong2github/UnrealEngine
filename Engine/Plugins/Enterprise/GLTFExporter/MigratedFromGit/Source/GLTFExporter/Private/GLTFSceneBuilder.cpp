@@ -31,6 +31,12 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	Node.Rotation = ConvertRotation(Transform.GetRotation());
 	Node.Scale = ConvertScale(Transform.GetScale3D());
 
+	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent);
+	if (StaticMeshComponent != nullptr)
+	{
+		Node.Mesh = Container.AddMesh(StaticMeshComponent);
+	}
+
 	for (const FGLTFNodeBuilder& AttachedComponent : AttachedComponents)
 	{
 		FGLTFJsonNodeIndex ChildIndex = AttachedComponent.AddNode(Container);

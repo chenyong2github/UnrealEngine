@@ -56,6 +56,13 @@ FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMesh* StaticMesh,
 	return FGLTFMeshBuilder(StaticMesh, LODIndex).AddMesh(*this);
 }
 
+FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMeshComponent* StaticMeshComponent)
+{
+	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+	const int32 LODIndex = StaticMeshComponent->ForcedLodModel > 0 ? StaticMeshComponent->ForcedLodModel - 1 : /* auto-select */ 0;
+	return AddMesh(StaticMesh, LODIndex);
+}
+
 FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const UWorld* World, bool bSelectedOnly)
 {
 	return FGLTFSceneBuilder(World, bSelectedOnly).AddScene(*this);
