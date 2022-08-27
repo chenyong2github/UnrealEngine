@@ -23,7 +23,7 @@
 #include "Json/GLTFJsonLight.h"
 #include "Json/GLTFJsonLightMap.h"
 #include "Json/GLTFJsonSkySphere.h"
-#include "Json/GLTFJsonLevelVariantSets.h"
+#include "Json/GLTFJsonEpicLevelVariantSets.h"
 #include "Json/GLTFJsonWriter.h"
 
 struct FGLTFJsonRoot : IGLTFJsonObject
@@ -52,7 +52,7 @@ struct FGLTFJsonRoot : IGLTFJsonObject
 	TArray<TUniquePtr<FGLTFJsonLight>>      Lights;
 	TArray<TUniquePtr<FGLTFJsonLightMap>>   LightMaps;
 	TArray<TUniquePtr<FGLTFJsonSkySphere>>  SkySpheres;
-	TArray<TUniquePtr<FGLTFJsonLevelVariantSets>>  LevelVariantSets;
+	TArray<TUniquePtr<FGLTFJsonEpicLevelVariantSets>>  EpicLevelVariantSets;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
@@ -77,7 +77,7 @@ struct FGLTFJsonRoot : IGLTFJsonObject
 		if (Skins.Num() > 0) Writer.Write(TEXT("skins"), Skins);
 		if (Textures.Num() > 0) Writer.Write(TEXT("textures"), Textures);
 
-		if (Backdrops.Num() > 0 || Hotspots.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || LevelVariantSets.Num() > 0)
+		if (Backdrops.Num() > 0 || Hotspots.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || EpicLevelVariantSets.Num() > 0)
 		{
 			Writer.StartExtensions();
 
@@ -95,10 +95,10 @@ struct FGLTFJsonRoot : IGLTFJsonObject
 				Writer.EndExtension();
 			}
 
-			if (LevelVariantSets.Num() > 0)
+			if (EpicLevelVariantSets.Num() > 0)
 			{
 				Writer.StartExtension(EGLTFJsonExtension::EPIC_LevelVariantSets);
-				Writer.Write(TEXT("levelVariantSets"), LevelVariantSets);
+				Writer.Write(TEXT("levelVariantSets"), EpicLevelVariantSets);
 				Writer.EndExtension();
 			}
 

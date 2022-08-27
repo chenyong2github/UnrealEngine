@@ -10,7 +10,7 @@ struct FGLTFJsonScene : IGLTFJsonObject
 	FString Name;
 
 	TArray<FGLTFJsonNodeIndex> Nodes;
-	TArray<FGLTFJsonLevelVariantSetsIndex>  LevelVariantSets;
+	TArray<FGLTFJsonEpicLevelVariantSetsIndex>  EpicLevelVariantSets;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
@@ -24,12 +24,12 @@ struct FGLTFJsonScene : IGLTFJsonObject
 			Writer.Write(TEXT("nodes"), Nodes);
 		}
 
-		if (LevelVariantSets.Num() > 0)
+		if (EpicLevelVariantSets.Num() > 0)
 		{
 			Writer.StartExtensions();
 
 			Writer.StartExtension(EGLTFJsonExtension::EPIC_LevelVariantSets);
-			Writer.Write(TEXT("levelVariantSets"), LevelVariantSets);
+			Writer.Write(TEXT("levelVariantSets"), EpicLevelVariantSets);
 			Writer.EndExtension();
 
 			Writer.EndExtensions();

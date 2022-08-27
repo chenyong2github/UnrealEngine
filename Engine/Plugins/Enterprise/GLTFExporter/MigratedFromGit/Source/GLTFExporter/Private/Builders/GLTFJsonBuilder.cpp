@@ -129,9 +129,9 @@ FGLTFJsonSkySphereIndex FGLTFJsonBuilder::AddSkySphere(const FGLTFJsonSkySphere&
 	return FGLTFJsonSkySphereIndex(JsonRoot.SkySpheres.Add(MakeUnique<FGLTFJsonSkySphere>(JsonSkySphere)));
 }
 
-FGLTFJsonLevelVariantSetsIndex FGLTFJsonBuilder::AddLevelVariantSets(const FGLTFJsonLevelVariantSets& JsonLevelVariantSets)
+FGLTFJsonEpicLevelVariantSetsIndex FGLTFJsonBuilder::AddEpicLevelVariantSets(const FGLTFJsonEpicLevelVariantSets& JsonEpicLevelVariantSets)
 {
-	return FGLTFJsonLevelVariantSetsIndex(JsonRoot.LevelVariantSets.Add(MakeUnique<FGLTFJsonLevelVariantSets>(JsonLevelVariantSets)));
+	return FGLTFJsonEpicLevelVariantSetsIndex(JsonRoot.EpicLevelVariantSets.Add(MakeUnique<FGLTFJsonEpicLevelVariantSets>(JsonEpicLevelVariantSets)));
 }
 
 FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex, const FGLTFJsonNode& JsonNode)
@@ -248,9 +248,9 @@ FGLTFJsonSkySphere& FGLTFJsonBuilder::GetSkySphere(FGLTFJsonSkySphereIndex SkySp
 	return *JsonRoot.SkySpheres[SkySphereIndex];
 }
 
-FGLTFJsonLevelVariantSets& FGLTFJsonBuilder::GetLevelVariantSets(FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex)
+FGLTFJsonEpicLevelVariantSets& FGLTFJsonBuilder::GetEpicLevelVariantSets(FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex)
 {
-	return *JsonRoot.LevelVariantSets[LevelVariantSetsIndex];
+	return *JsonRoot.EpicLevelVariantSets[EpicLevelVariantSetsIndex];
 }
 
 FGLTFJsonNodeIndex FGLTFJsonBuilder::GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex)

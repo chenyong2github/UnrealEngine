@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFLevelVariantSetsConverters.h"
+#include "Converters/GLTFEpicLevelVariantSetsConverters.h"
 #include "Converters/GLTFVariantUtility.h"
 #include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
@@ -16,19 +16,19 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 
-FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
+FGLTFJsonEpicLevelVariantSetsIndex FGLTFEpicLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
-	FGLTFJsonLevelVariantSets JsonLevelVariantSets;
+	FGLTFJsonEpicLevelVariantSets JsonLevelVariantSets;
 	LevelVariantSets->GetName(JsonLevelVariantSets.Name);
 
 	for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
 	{
-		FGLTFJsonVariantSet JsonVariantSet;
+		FGLTFJsonEpicVariantSet JsonVariantSet;
 		JsonVariantSet.Name = VariantSet->GetDisplayText().ToString();
 
 		for (const UVariant* Variant: VariantSet->GetVariants())
 		{
-			FGLTFJsonVariant JsonVariant;
+			FGLTFJsonEpicVariant JsonVariant;
 			if (TryParseVariant(JsonVariant, Variant))
 			{
 				JsonVariantSet.Variants.Add(JsonVariant);
@@ -43,15 +43,15 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ULe
 
 	if (JsonLevelVariantSets.VariantSets.Num() == 0)
 	{
-		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
+		return FGLTFJsonEpicLevelVariantSetsIndex(INDEX_NONE);
 	}
 
-	return Builder.AddLevelVariantSets(JsonLevelVariantSets);
+	return Builder.AddEpicLevelVariantSets(JsonLevelVariantSets);
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseVariant(FGLTFJsonEpicVariant& OutVariant, const UVariant* Variant) const
 {
-	FGLTFJsonVariant JsonVariant;
+	FGLTFJsonEpicVariant JsonVariant;
 
 	for (const UVariantObjectBinding* Binding: Variant->GetBindings())
 	{
@@ -76,7 +76,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFJsonVariant& OutVarian
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonEpicVariant& OutVariant, const UVariantObjectBinding* Binding) const
 {
 	bool bHasParsedAnyProperty = false;
 
@@ -125,7 +125,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonVariant& Ou
 	return bHasParsedAnyProperty;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -165,14 +165,14 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVa
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
 
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
 	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.bIsVisible = bIsVisible;
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
 {
 	UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(const_cast<UPropertyValue*>(Property));
 	if (MaterialProperty == nullptr)
@@ -262,20 +262,20 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 		}
 	}
 
-	FGLTFJsonVariantMaterial VariantMaterial;
+	FGLTFJsonEpicVariantMaterial VariantMaterial;
 	VariantMaterial.Material = Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
 	VariantMaterial.Index = MaterialIndex;
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
 	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.Materials.Add(VariantMaterial);
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -325,14 +325,14 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVa
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh, OverrideMaterials);
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
 	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.Mesh = MeshIndex;
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -382,7 +382,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJson
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh, OverrideMaterials);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
 	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.Mesh = MeshIndex;

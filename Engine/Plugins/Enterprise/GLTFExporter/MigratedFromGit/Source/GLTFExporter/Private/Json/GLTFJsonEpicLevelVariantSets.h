@@ -6,12 +6,12 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Misc/Optional.h"
 
-struct FGLTFJsonVariantMaterial : IGLTFJsonObject
+struct FGLTFJsonEpicVariantMaterial : IGLTFJsonObject
 {
 	FGLTFJsonMaterialIndex Material;
 	int32                  Index;
 
-	FGLTFJsonVariantMaterial()
+	FGLTFJsonEpicVariantMaterial()
 		: Material(INDEX_NONE)
 		, Index(INDEX_NONE)
 	{
@@ -28,13 +28,13 @@ struct FGLTFJsonVariantMaterial : IGLTFJsonObject
 	}
 };
 
-struct FGLTFJsonVariantNodeProperties : IGLTFJsonObject
+struct FGLTFJsonEpicVariantNodeProperties : IGLTFJsonObject
 {
 	FGLTFJsonNodeIndex Node;
 	TOptional<bool>    bIsVisible;
 
-	TOptional<FGLTFJsonMeshIndex>    Mesh;
-	TArray<FGLTFJsonVariantMaterial> Materials;
+	TOptional<FGLTFJsonMeshIndex>        Mesh;
+	TArray<FGLTFJsonEpicVariantMaterial> Materials;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
@@ -64,13 +64,13 @@ struct FGLTFJsonVariantNodeProperties : IGLTFJsonObject
 	}
 };
 
-struct FGLTFJsonVariant : IGLTFJsonObject
+struct FGLTFJsonEpicVariant : IGLTFJsonObject
 {
 	FString Name;
 	bool    bIsActive;
 
 	FGLTFJsonTextureIndex Thumbnail;
-	TMap<FGLTFJsonNodeIndex, FGLTFJsonVariantNodeProperties> Nodes;
+	TMap<FGLTFJsonNodeIndex, FGLTFJsonEpicVariantNodeProperties> Nodes;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
@@ -82,17 +82,17 @@ struct FGLTFJsonVariant : IGLTFJsonObject
 			Writer.Write(TEXT("thumbnail"), Thumbnail);
 		}
 
-		TArray<FGLTFJsonVariantNodeProperties> NodeValues;
+		TArray<FGLTFJsonEpicVariantNodeProperties> NodeValues;
 		Nodes.GenerateValueArray(NodeValues);
 		Writer.Write(TEXT("nodes"), NodeValues);
 	}
 };
 
-struct FGLTFJsonVariantSet : IGLTFJsonObject
+struct FGLTFJsonEpicVariantSet : IGLTFJsonObject
 {
 	FString Name;
 
-	TArray<FGLTFJsonVariant> Variants;
+	TArray<FGLTFJsonEpicVariant> Variants;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
@@ -105,11 +105,11 @@ struct FGLTFJsonVariantSet : IGLTFJsonObject
 	}
 };
 
-struct FGLTFJsonLevelVariantSets : IGLTFJsonObject
+struct FGLTFJsonEpicLevelVariantSets : IGLTFJsonObject
 {
 	FString Name;
 
-	TArray<FGLTFJsonVariantSet> VariantSets;
+	TArray<FGLTFJsonEpicVariantSet> VariantSets;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
