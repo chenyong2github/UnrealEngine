@@ -15,7 +15,7 @@ class FGLTFMaterialTask : public FGLTFTask
 {
 public:
 
-	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, TArray<int32> SectionIndices, FGLTFJsonMaterialIndex MaterialIndex)
+	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices, FGLTFJsonMaterialIndex MaterialIndex)
 		: FGLTFTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, UVOverlapChecker(UVOverlapChecker)
@@ -39,7 +39,7 @@ private:
 	FGLTFUVOverlapChecker& UVOverlapChecker;
 	const UMaterialInterface* Material;
 	const FGLTFMeshData* MeshData;
-	const TArray<int32> SectionIndices;
+	const FGLTFIndexArray SectionIndices;
 	const FGLTFJsonMaterialIndex MaterialIndex;
 
 	TSet<FMaterialPropertyEx> MeshDataBakedProperties;

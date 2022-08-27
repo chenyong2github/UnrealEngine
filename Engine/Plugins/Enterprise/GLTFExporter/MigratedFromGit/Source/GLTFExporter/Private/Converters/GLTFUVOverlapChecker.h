@@ -3,13 +3,14 @@
 #pragma once
 
 #include "Converters/GLTFConverter.h"
+#include "Converters/GLTFIndexArray.h"
 #include "Engine.h"
 
-class FGLTFUVOverlapChecker final : public TGLTFConverter<float, const FMeshDescription*, const TArray<int32>, int32>
+class FGLTFUVOverlapChecker final : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>
 {
-	virtual void Sanitize(const FMeshDescription*& Description, const TArray<int32>& SectionIndices, int32& TexCoord) override;
+	virtual void Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord) override;
 
-	virtual float Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord) override;
+	virtual float Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord) override;
 
 	static UMaterialInterface* GetMaterial();
 };

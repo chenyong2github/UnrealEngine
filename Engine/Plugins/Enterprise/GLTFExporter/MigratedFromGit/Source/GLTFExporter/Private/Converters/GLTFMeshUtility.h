@@ -2,14 +2,15 @@
 
 #pragma once
 
+#include "Converters/GLTFIndexArray.h"
 #include "Engine.h"
 
 class FSkeletalMeshLODRenderData;
 
 struct FGLTFMeshUtility
 {
-	static TArray<int32> GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex);
-	static TArray<int32> GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex);
+	static FGLTFIndexArray GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex);
+	static FGLTFIndexArray GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex);
 
 	static int32 GetLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 DefaultLOD);
 	static int32 GetLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 DefaultLOD);

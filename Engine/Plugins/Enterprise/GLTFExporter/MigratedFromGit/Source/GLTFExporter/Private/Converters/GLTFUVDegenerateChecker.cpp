@@ -4,7 +4,7 @@
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 
-void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, TArray<int32>& SectionIndices, int32& TexCoord)
+void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord)
 {
 	if (Description != nullptr)
 	{
@@ -28,7 +28,7 @@ void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, TA
 	}
 }
 
-float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, TArray<int32> SectionIndices, int32 TexCoord)
+float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{
