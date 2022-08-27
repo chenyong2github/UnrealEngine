@@ -44,7 +44,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportAnimationHotspots = false;
 	bExportHDRIBackdrops = false;
 	bExportSkySpheres = false;
-	bExportVariantSets = false;
+	VariantSetsMode = EGLTFVariantSetsMode::None;
 	ExportMaterialVariants = EGLTFMaterialVariantMode::UseMeshData;
 	bExportMeshVariants = true;
 	bExportVisibilityVariants = true;

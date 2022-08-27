@@ -28,7 +28,7 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 				// TODO: should a LevelVariantSet be exported even if not selected for export?
 				if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 				{
-					if (Builder.ExportOptions->bExportVariantSets)
+					if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
 					{
 						if (const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true))
 						{
@@ -38,6 +38,10 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 								Scene.EpicLevelVariantSets.Add(EpicLevelVariantSetsIndex);
 							}
 						}
+					}
+					else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
+					{
+						// TODO: implement
 					}
 				}
 
