@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonTexture
@@ -12,6 +13,13 @@ struct FGLTFJsonTexture
 	FGLTFJsonSamplerIndex Sampler;
 
 	FGLTFJsonImageIndex Source;
+
+	EGLTFJsonHDREncoding Encoding;
+
+	FGLTFJsonTexture()
+		: Encoding(EGLTFJsonHDREncoding::None)
+	{
+	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -31,6 +39,20 @@ struct FGLTFJsonTexture
 		if (Source != INDEX_NONE)
 		{
 			JsonWriter.WriteValue(TEXT("source"), Source);
+		}
+
+		if (Encoding != EGLTFJsonHDREncoding::None)
+		{
+			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_TextureHDREncoding;
+			Extensions.Used.Add(Extension);
+
+			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+
+			JsonWriter.WriteValue(TEXT("encoding"), FGLTFJsonUtility::ToString(Encoding));
+
+			JsonWriter.WriteObjectEnd();
+			JsonWriter.WriteObjectEnd();
 		}
 
 		JsonWriter.WriteObjectEnd();

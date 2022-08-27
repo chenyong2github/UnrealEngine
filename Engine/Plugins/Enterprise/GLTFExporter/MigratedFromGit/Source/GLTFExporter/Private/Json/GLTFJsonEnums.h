@@ -27,6 +27,13 @@ enum class EGLTFJsonShadingModel
 	ClearCoat
 };
 
+enum class EGLTFJsonHDREncoding
+{
+	None = -1,
+    RGBE,
+    RGBM
+};
+
 enum class EGLTFJsonAccessorType
 {
 	None = -1,
