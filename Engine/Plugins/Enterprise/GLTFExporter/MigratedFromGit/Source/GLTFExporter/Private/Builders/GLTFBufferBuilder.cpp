@@ -37,6 +37,12 @@ FGLTFBufferBuilder::~FGLTFBufferBuilder()
 	}
 }
 
+const TArray<uint8>& FGLTFBufferBuilder::GetBufferData() const
+{
+	check(bIsGlbFile);
+	return *static_cast<FBufferArchive*>(BufferArchive.Get());
+}
+
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
 {
 	if (BufferArchive == nullptr)
