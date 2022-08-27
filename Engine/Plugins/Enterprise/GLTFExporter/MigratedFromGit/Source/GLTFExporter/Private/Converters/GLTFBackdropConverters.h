@@ -7,9 +7,9 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
-class FGLTFBackdropConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonBackdropIndex, const AActor*>
+class FGLTFBackdropConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonBackdropIndex, const AActor*>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonBackdropIndex Convert(const AActor* Actor) override final;
+	virtual FGLTFJsonBackdropIndex Convert(const AActor* BackdropActor) override;
 };

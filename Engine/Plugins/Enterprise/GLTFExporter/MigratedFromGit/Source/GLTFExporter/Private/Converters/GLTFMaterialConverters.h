@@ -10,11 +10,11 @@
 
 struct FGLTFPropertyBakeOutput;
 
-class FGLTFMaterialConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*>
+class FGLTFMaterialConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override final;
+	virtual FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override;
 
 	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel, const UMaterialInterface* Material) const;
 

@@ -5,30 +5,30 @@
 #include "Converters/GLTFActorUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* Actor)
+FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 {
-	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
+	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(BackdropActor);
 	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
 	{
 		return FGLTFJsonBackdropIndex(INDEX_NONE);
 	}
 
 	FGLTFJsonBackdrop JsonBackdrop;
-	Actor->GetName(JsonBackdrop.Name);
+	BackdropActor->GetName(JsonBackdrop.Name);
 
 	const UStaticMesh* Mesh;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("Mesh"), Mesh))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Mesh"), Mesh))
 	{
 		// TODO: avoid exporting the mesh material (use gltf default material)
 		JsonBackdrop.Mesh = Builder.GetOrAddMesh(Mesh);
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Mesh for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Mesh for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	const UTextureCube* Cubemap;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("Cubemap"), Cubemap))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Cubemap"), Cubemap))
 	{
 		// TODO: add a proper custom gltf extension with its own converters for cubemaps
 
@@ -41,57 +41,57 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* Actor)
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Cubemap for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Cubemap for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	float Intensity;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("Intensity"), Intensity))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Intensity"), Intensity))
 	{
 		JsonBackdrop.Intensity = Intensity;
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Intensity for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Intensity for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	float Size;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("Size"), Size))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Size"), Size))
 	{
 		JsonBackdrop.Size = Size;
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Size for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Size for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	FVector ProjectionCenter;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("ProjectionCenter"), ProjectionCenter))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("ProjectionCenter"), ProjectionCenter))
 	{
 		JsonBackdrop.ProjectionCenter = FGLTFConverterUtility::ConvertPosition(ProjectionCenter, Builder.ExportOptions->ExportScale);
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export ProjectionCenter for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export ProjectionCenter for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	float LightingDistanceFactor;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("LightingDistanceFactor"), LightingDistanceFactor))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("LightingDistanceFactor"), LightingDistanceFactor))
 	{
 		JsonBackdrop.LightingDistanceFactor = LightingDistanceFactor;
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export LightingDistanceFactor for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export LightingDistanceFactor for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	bool UseCameraProjection;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("UseCameraProjection"), UseCameraProjection))
+	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("UseCameraProjection"), UseCameraProjection))
 	{
 		JsonBackdrop.UseCameraProjection = UseCameraProjection;
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export UseCameraProjection for HDRIBackdrop %s"), *Actor->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export UseCameraProjection for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
 	return Builder.AddBackdrop(JsonBackdrop);

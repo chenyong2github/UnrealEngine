@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 
-FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const ULevel* Level)
+FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const ULevel* Level)
 {
 	FGLTFJsonScene Scene;
 

@@ -13,30 +13,30 @@ class FGLTFTextureConverter : public FGLTFBuilderContext, public TGLTFConverter<
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFTexture2DConverter : public FGLTFTextureConverter<const UTexture2D*>
+class FGLTFTexture2DConverter final : public FGLTFTextureConverter<const UTexture2D*>
 {
 	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override;
 };
 
-class FGLTFTextureCubeConverter : public FGLTFTextureConverter<const UTextureCube*, ECubeFace>
+class FGLTFTextureCubeConverter final : public FGLTFTextureConverter<const UTextureCube*, ECubeFace>
 {
 	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override;
 };
 
-class FGLTFTextureRenderTarget2DConverter : public FGLTFTextureConverter<const UTextureRenderTarget2D*>
+class FGLTFTextureRenderTarget2DConverter final : public FGLTFTextureConverter<const UTextureRenderTarget2D*>
 {
 	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override;
 };
 
-class FGLTFTextureRenderTargetCubeConverter : public FGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace>
+class FGLTFTextureRenderTargetCubeConverter final : public FGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace>
 {
 	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override;
 };
