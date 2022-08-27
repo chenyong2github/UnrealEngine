@@ -13,7 +13,14 @@ class TGLTFMeshDataConverter final : public TGLTFConverter<const FGLTFMeshData*,
 
 	const FGLTFMeshData* Convert(const MeshType* Mesh, const MeshComponentType* MeshComponent, int32 LODIndex)
 	{
-		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshData>(Mesh, MeshComponent, LODIndex)).Get();
+		TUniquePtr<FGLTFMeshData> Output = MakeUnique<FGLTFMeshData>(Mesh, MeshComponent, LODIndex);
+
+		if (MeshComponent != nullptr)
+		{
+			Output->Parent = GetOrAdd(Mesh, nullptr, LODIndex);
+		}
+
+		return Outputs.Add_GetRef(MoveTemp(Output)).Get();
 	}
 };
 
