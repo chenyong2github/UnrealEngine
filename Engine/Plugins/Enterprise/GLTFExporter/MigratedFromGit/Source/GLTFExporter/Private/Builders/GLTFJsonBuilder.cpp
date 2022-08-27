@@ -160,6 +160,6 @@ bool FGLTFJsonBuilder::IsCustomExtension(EGLTFJsonExtension Extension)
 {
 	const TCHAR CustomPrefix[] = TEXT("EPIC_");
 
-	const TCHAR* ExtensionString = FGLTFJsonUtility::GetValue(Extension);
+	const TCHAR* ExtensionString = FGLTFJsonUtilities::GetValue(Extension);
 	return FCString::Strncmp(ExtensionString, CustomPrefix, GetNum(CustomPrefix) - 1) == 0;
 }

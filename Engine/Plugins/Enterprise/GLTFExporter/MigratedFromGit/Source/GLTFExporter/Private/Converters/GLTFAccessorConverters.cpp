@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFAccessorConverters.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFBufferAdapter.h"
 #include "Builders/GLTFConvertBuilder.h"
 
@@ -47,7 +47,7 @@ FGLTFJsonAccessor* FGLTFPositionBufferConverter::Convert(const FGLTFMeshSection*
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const FVector& Position = *reinterpret_cast<const FVector*>(SourceData + Stride * MappedVertexIndex);
-		Positions[VertexIndex] = FGLTFConverterUtility::ConvertPosition(Position, Builder.ExportOptions->ExportUniformScale);
+		Positions[VertexIndex] = FGLTFCoreUtilities::ConvertPosition(Position, Builder.ExportOptions->ExportUniformScale);
 	}
 
 	FGLTFJsonAccessor* JsonAccessor = Builder.AddAccessor();
@@ -108,7 +108,7 @@ FGLTFJsonAccessor* FGLTFColorBufferConverter::Convert(const FGLTFMeshSection* Me
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const FColor& Color = *reinterpret_cast<const FColor*>(SourceData + Stride * MappedVertexIndex);
-		Colors[VertexIndex] = FGLTFConverterUtility::ConvertColor(Color);
+		Colors[VertexIndex] = FGLTFCoreUtilities::ConvertColor(Color);
 	}
 
 	FGLTFJsonAccessor* JsonAccessor = Builder.AddAccessor();
@@ -196,7 +196,7 @@ FGLTFJsonBufferView* FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMe
 		const FVector SafeNormal = TangentData[MappedVertexIndex].TangentZ.ToFVector().GetSafeNormal();
 
 		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector3>::Value, FVector, SourceType>::Type IntermediateType;
-		Normals[VertexIndex] = FGLTFConverterUtility::ConvertNormal(IntermediateType(SafeNormal));
+		Normals[VertexIndex] = FGLTFCoreUtilities::ConvertNormal(IntermediateType(SafeNormal));
 	}
 
 	return Builder.AddBufferView(Normals, EGLTFJsonBufferTarget::ArrayBuffer);
@@ -275,7 +275,7 @@ FGLTFJsonBufferView* FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFM
 		const FVector SafeTangent = VertexTangents[MappedVertexIndex].TangentX.ToFVector().GetSafeNormal();
 
 		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector4>::Value, FVector, SourceType>::Type IntermediateType;
-		Tangents[VertexIndex] = FGLTFConverterUtility::ConvertTangent(IntermediateType(SafeTangent));
+		Tangents[VertexIndex] = FGLTFCoreUtilities::ConvertTangent(IntermediateType(SafeTangent));
 	}
 
 	return Builder.AddBufferView(Tangents, EGLTFJsonBufferTarget::ArrayBuffer);
@@ -327,7 +327,7 @@ FGLTFJsonAccessor* FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* MeshS
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const SourceType& UV = UVData[UVCount * MappedVertexIndex + UVIndex];
-		UVs[VertexIndex] = FGLTFConverterUtility::ConvertUV(UV);
+		UVs[VertexIndex] = FGLTFCoreUtilities::ConvertUV(UV);
 	}
 
 	FGLTFJsonAccessor* JsonAccessor = Builder.AddAccessor();
@@ -439,7 +439,7 @@ FGLTFJsonAccessor* FGLTFBoneIndexBufferConverter::Convert(const FGLTFMeshSection
 
 	FGLTFJsonAccessor* JsonAccessor = Builder.AddAccessor();
 	JsonAccessor->BufferView = Builder.AddBufferView(BoneIndices, EGLTFJsonBufferTarget::ArrayBuffer);
-	JsonAccessor->ComponentType = FGLTFConverterUtility::GetComponentType<DestinationType>();
+	JsonAccessor->ComponentType = FGLTFCoreUtilities::GetComponentType<DestinationType>();
 	JsonAccessor->Count = VertexCount;
 	JsonAccessor->Type = EGLTFJsonAccessorType::Vec4;
 
@@ -572,7 +572,7 @@ FGLTFJsonAccessor* FGLTFIndexBufferConverter::Convert(const FGLTFMeshSection* Me
 
 	FGLTFJsonAccessor* JsonAccessor = Builder.AddAccessor();
 	JsonAccessor->BufferView = Builder.AddBufferView(Indices, EGLTFJsonBufferTarget::ElementArrayBuffer, sizeof(IndexType));
-	JsonAccessor->ComponentType = FGLTFConverterUtility::GetComponentType<IndexType>();
+	JsonAccessor->ComponentType = FGLTFCoreUtilities::GetComponentType<IndexType>();
 	JsonAccessor->Count = IndexCount;
 	JsonAccessor->Type = EGLTFJsonAccessorType::Scalar;
 

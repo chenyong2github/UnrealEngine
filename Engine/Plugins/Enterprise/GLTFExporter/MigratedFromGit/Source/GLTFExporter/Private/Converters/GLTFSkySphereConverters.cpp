@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFSkySphereConverters.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFCurveUtility.h"
@@ -32,7 +32,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 		const FTransform ParentTransform = ParentComponent->GetSocketTransform(SocketName);
 		const FTransform RelativeTransform = Transform.GetRelativeTransform(ParentTransform);
 
-		JsonSkySphere->Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
+		JsonSkySphere->Scale = FGLTFCoreUtilities::ConvertScale(RelativeTransform.GetScale3D());
 		JsonSkySphere->SkySphereMesh = Builder.AddUniqueMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefaultMaterial() });
 	}
 	else
@@ -111,7 +111,7 @@ void FGLTFSkySphereConverter::ConvertColorProperty(const AActor* Actor, const TC
 	FLinearColor LinearColor;
 	if (FGLTFActorUtility::TryGetPropertyValue(Actor, PropertyName, LinearColor))
 	{
-		OutValue = FGLTFConverterUtility::ConvertColor(LinearColor, Builder.ExportOptions->bStrictCompliance);
+		OutValue = FGLTFCoreUtilities::ConvertColor(LinearColor, Builder.ExportOptions->bStrictCompliance);
 	}
 	else
 	{

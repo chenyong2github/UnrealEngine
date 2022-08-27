@@ -2,7 +2,7 @@
 
 #include "Tasks/GLTFDelayedTextureTasks.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Engine/Texture2D.h"
@@ -69,7 +69,7 @@ FString FGLTFDelayedTextureCubeTask::GetName()
 
 void FGLTFDelayedTextureCubeTask::Process()
 {
-	JsonTexture->Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
+	JsonTexture->Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtilities::GetValue(FGLTFCoreUtilities::ConvertCubeFace(CubeFace));
 
 	const bool bFromSRGB = TextureCube->SRGB;
 	if (bFromSRGB != bToSRGB)
@@ -165,7 +165,7 @@ FString FGLTFDelayedTextureRenderTargetCubeTask::GetName()
 
 void FGLTFDelayedTextureRenderTargetCubeTask::Process()
 {
-	JsonTexture->Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
+	JsonTexture->Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtilities::GetValue(FGLTFCoreUtilities::ConvertCubeFace(CubeFace));
 
 	const bool bFromSRGB = RenderTargetCube->SRGB;
 	if (bFromSRGB != bToSRGB)

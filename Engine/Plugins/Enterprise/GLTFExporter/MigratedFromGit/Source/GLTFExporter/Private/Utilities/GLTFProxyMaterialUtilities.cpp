@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utilities/GLTFProxyMaterialUtilities.h"
-#include "Json/GLTFJsonUtility.h"
+#include "Utilities/GLTFJsonUtilities.h"
 #include "UserData/GLTFMaterialUserData.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -34,7 +34,7 @@ UMaterial* FGLTFProxyMaterialUtilities::GetBaseMaterial(EGLTFJsonShadingModel Sh
 	UMaterial* Material = Materials[Index];
 	if (Material == nullptr)
 	{
-		const FString Name = FGLTFJsonUtility::GetValue(ShadingModel);
+		const FString Name = FGLTFJsonUtilities::GetValue(ShadingModel);
 		const FString Path = PROXY_MATERIAL_ROOT_PATH PROXY_MATERIAL_NAME_PREFIX + Name + TEXT(".") PROXY_MATERIAL_NAME_PREFIX + Name;
 
 		Material = LoadObject<UMaterial>(nullptr, *Path);

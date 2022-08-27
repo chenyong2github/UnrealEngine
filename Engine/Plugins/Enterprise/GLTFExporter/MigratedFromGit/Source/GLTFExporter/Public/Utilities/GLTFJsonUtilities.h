@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Json/GLTFJsonEnums.h"
 
-struct GLTFEXPORTER_API FGLTFJsonUtility
+struct GLTFEXPORTER_API FGLTFJsonUtilities
 {
 	template <typename EnumType, typename = typename TEnableIf<TIsEnum<EnumType>::Value>::Type>
 	static int32 GetValue(EnumType Enum)
