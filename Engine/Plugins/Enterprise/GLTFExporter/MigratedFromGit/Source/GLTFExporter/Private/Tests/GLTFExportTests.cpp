@@ -15,7 +15,7 @@ namespace
 {
 	// TODO Turn into config variable?
 	const TCHAR* TestDefinitionsFilePath = TEXT("Tests/ExportTests.json");
-	const TCHAR* ParameterDelimiter = TEXT("c8a4fd9d525c0ac433fd7d24ce2a3eca");
+	const TCHAR* ParameterDelimiter = TEXT(";");
 
 } // anonymous namespace
 
