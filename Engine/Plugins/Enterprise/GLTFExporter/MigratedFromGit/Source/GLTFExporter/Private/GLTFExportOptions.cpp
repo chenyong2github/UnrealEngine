@@ -207,6 +207,11 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportOrbitalCameras))
+	{
+		return bExportCameras;
+	}
+
 	return true;
 }
 

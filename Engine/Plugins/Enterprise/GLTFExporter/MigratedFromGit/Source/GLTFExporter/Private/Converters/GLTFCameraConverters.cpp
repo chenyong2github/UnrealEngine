@@ -60,12 +60,6 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 					*Owner->GetName()));
 			}
 		}
-		else
-		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("OrbitalCamera %s disabled by export options"),
-				*Owner->GetName()));
-		}
 	}
 
 	return Builder.AddCamera(Camera);
