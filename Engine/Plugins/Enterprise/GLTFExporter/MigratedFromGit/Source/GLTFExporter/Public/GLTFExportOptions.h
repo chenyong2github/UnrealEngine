@@ -6,7 +6,7 @@
 #include "GLTFExportOptions.generated.h"
 
 UENUM(BlueprintType)
-enum class EGLTFExporterMaterialBakeSize : uint8
+enum class EGLTFMaterialBakeSizePOT : uint8
 {
 	POT_1 UMETA(DisplayName = "1 x 1"),
 	POT_2 UMETA(DisplayName = "2 x 2"),
@@ -25,14 +25,14 @@ enum class EGLTFExporterMaterialBakeSize : uint8
 };
 
 UENUM(BlueprintType)
-enum class EGLTFExporterTextureCompression : uint8
+enum class EGLTFTextureCompression : uint8
 {
 	PNG,
     JPEG UMETA(DisplayName = "JPEG (if no alpha)")
 };
 
 UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
-enum class EGLTFExporterTextureFlags : uint8
+enum class EGLTFTextureGroupFlags : uint8
 {
 	None = 0 UMETA(Hidden),
 
@@ -42,17 +42,17 @@ enum class EGLTFExporterTextureFlags : uint8
 
 	All = HDR | Normalmaps | Lightmaps UMETA(Hidden)
 };
-ENUM_CLASS_FLAGS(EGLTFExporterTextureFlags);
+ENUM_CLASS_FLAGS(EGLTFTextureGroupFlags);
 
 UENUM(BlueprintType)
-enum class EGLTFExporterTextureHDREncoding : uint8
+enum class EGLTFTextureHDREncoding : uint8
 {
 	None,
 	RGBM
 };
 
 UENUM(BlueprintType)
-enum class EGLTFExporterLightMobility : uint8
+enum class EGLTFExportLightMobility : uint8
 {
 	None,
 	MovableOnly,
@@ -80,7 +80,7 @@ public:
 	bool bMaterialBakeUsingMeshData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bBakeMaterialInputs"))
-	EGLTFExporterMaterialBakeSize DefaultMaterialBakeSize;
+	EGLTFMaterialBakeSizePOT DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
 	bool bExportVertexColors;
@@ -107,12 +107,12 @@ public:
 	bool bExportPlaybackSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
-	EGLTFExporterTextureCompression TextureCompression;
+	EGLTFTextureCompression TextureCompression;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
 	int32 TextureCompressionQuality;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFExporterTextureFlags, EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureGroupFlags, EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
 	int32 LosslessCompressTextures;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
@@ -122,7 +122,7 @@ public:
 	bool bExportLightmaps;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
-	EGLTFExporterTextureHDREncoding TextureHDREncoding;
+	EGLTFTextureHDREncoding TextureHDREncoding;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta =
 		(DisplayName = "Export Uniform Scale",
@@ -133,7 +133,7 @@ public:
 	bool bExportHiddenInGame;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
-	EGLTFExporterLightMobility ExportLights;
+	EGLTFExportLightMobility ExportLights;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportCameras;
