@@ -15,4 +15,6 @@ public:
 private:
 
 	void WriteGlb(FArchive& Archive) const;
+
+	void BundleWebViewer();
 };
