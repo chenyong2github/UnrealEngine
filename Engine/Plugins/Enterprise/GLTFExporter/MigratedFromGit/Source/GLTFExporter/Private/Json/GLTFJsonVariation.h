@@ -131,7 +131,7 @@ struct FGLTFJsonVariantSet
 	}
 };
 
-struct FGLTFJsonLevelVariantSets
+struct FGLTFJsonVariation
 {
 	FString Name;
 

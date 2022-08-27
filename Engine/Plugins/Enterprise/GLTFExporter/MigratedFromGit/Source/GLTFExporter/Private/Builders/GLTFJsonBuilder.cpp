@@ -68,9 +68,9 @@ FGLTFJsonBackdropIndex FGLTFJsonBuilder::AddBackdrop(const FGLTFJsonBackdrop& Js
 	return FGLTFJsonBackdropIndex(JsonRoot.Backdrops.Add(JsonBackdrop));
 }
 
-FGLTFJsonLevelVariantSetsIndex FGLTFJsonBuilder::AddLevelVariantSets(const FGLTFJsonLevelVariantSets& LevelVariantSets)
+FGLTFJsonVariationIndex FGLTFJsonBuilder::AddVariation(const FGLTFJsonVariation& JsonVariation)
 {
-	return FGLTFJsonLevelVariantSetsIndex(JsonRoot.LevelVariantSets.Add(LevelVariantSets));
+	return FGLTFJsonVariationIndex(JsonRoot.Variations.Add(JsonVariation));
 }
 
 FGLTFJsonLightMapIndex FGLTFJsonBuilder::AddLightMap(const FGLTFJsonLightMap& JsonLightMap)
@@ -172,9 +172,9 @@ FGLTFJsonBackdrop& FGLTFJsonBuilder::GetBackdrop(FGLTFJsonBackdropIndex Backdrop
 	return JsonRoot.Backdrops[BackdropIndex];
 }
 
-FGLTFJsonLevelVariantSets& FGLTFJsonBuilder::GetLevelVariantSets(FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex)
+FGLTFJsonVariation& FGLTFJsonBuilder::GetVariation(FGLTFJsonVariationIndex VariationIndex)
 {
-	return JsonRoot.LevelVariantSets[LevelVariantSetsIndex];
+	return JsonRoot.Variations[VariationIndex];
 }
 
 FGLTFJsonLightMap& FGLTFJsonBuilder::GetLightMap(FGLTFJsonLightMapIndex LightMapIndex)

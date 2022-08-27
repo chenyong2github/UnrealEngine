@@ -13,7 +13,7 @@
 #include "Converters/GLTFCameraConverters.h"
 #include "Converters/GLTFLightConverters.h"
 #include "Converters/GLTFBackdropConverters.h"
-#include "Converters/GLTFVariantSetConverters.h"
+#include "Converters/GLTFVarationConverters.h"
 #include "Converters/GLTFLightMapConverters.h"
 #include "Converters/GLTFHotspotConverters.h"
 
@@ -59,7 +59,7 @@ public:
 	FGLTFJsonLightIndex GetOrAddLight(const ULightComponent* LightComponent);
 
 	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* Actor);
-	FGLTFJsonLevelVariantSetsIndex GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor);
+	FGLTFJsonVariationIndex GetOrAddVariation(const ALevelVariantSetsActor* LevelVariantSetsActor);
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent);
 	FGLTFJsonHotspotIndex GetOrAddHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent);
 
@@ -96,7 +96,7 @@ private:
 	FGLTFLightComponentConverter LightComponentConverter = *this;
 
 	FGLTFBackdropConverter BackdropConverter = *this;
-	FGLTFLevelVariantSetsConverter LevelVariantSetsConverter = *this;
+	FGLTFVariationConverter VariationConverter = *this;
 	FGLTFLightMapConverter LightMapConverter = *this;
 	FGLTFHotspotComponentConverter HotspotComponentConverter = *this;
 };
