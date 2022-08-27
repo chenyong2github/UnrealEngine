@@ -5,6 +5,7 @@
 #include "Builders/GLTFBufferBuilder.h"
 #include "Converters/GLTFVertexBufferConverters.h"
 #include "Converters/GLTFStaticMeshConverters.h"
+#include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFLevelConverters.h"
 
 class FGLTFConvertBuilder : public FGLTFBufferBuilder
@@ -19,6 +20,9 @@ public:
 
 	FGLTFJsonBufferViewIndex GetOrAddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName = TEXT(""));
 	FGLTFJsonAccessorIndex GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName = TEXT(""));
+
+	FGLTFJsonMaterialIndex GetOrAddMaterial(const UMaterialInterface* Material, const FString& DesiredName = TEXT(""));
+
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex = 0, const FColorVertexBuffer* OverrideVertexColors = nullptr, const FString& DesiredName = TEXT(""));
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName = TEXT(""));
 
@@ -37,6 +41,8 @@ private:
 	FGLTFIndexBufferConverter IndexBufferConverter;
 	FGLTFStaticMeshSectionConverter StaticMeshSectionConverter;
 	FGLTFStaticMeshConverter StaticMeshConverter;
+
+	FGLTFMaterialConverter MaterialConverter;
 
 	FGLTFSceneComponentConverter SceneComponentConverter;
 	FGLTFLevelConverter LevelConverter;

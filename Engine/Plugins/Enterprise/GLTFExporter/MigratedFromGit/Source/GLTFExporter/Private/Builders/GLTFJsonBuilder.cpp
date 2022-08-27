@@ -26,6 +26,11 @@ FGLTFJsonBufferViewIndex FGLTFJsonBuilder::AddBufferView(const FGLTFJsonBufferVi
 	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(JsonBufferView));
 }
 
+FGLTFJsonMaterialIndex FGLTFJsonBuilder::AddMaterial(const FGLTFJsonMaterial& JsonMaterial)
+{
+	return FGLTFJsonMaterialIndex(JsonRoot.Materials.Add(JsonMaterial));
+}
+
 FGLTFJsonMeshIndex FGLTFJsonBuilder::AddMesh(const FGLTFJsonMesh& JsonMesh)
 {
 	return FGLTFJsonMeshIndex(JsonRoot.Meshes.Add(JsonMesh));
