@@ -7,7 +7,7 @@
 
 struct FGLTFBuilderUtility
 {
-	static FString GetMeshName(const UStaticMesh* StaticMesh, int32 LODIndex);
+	static FString GetLODName(const UObject* Object, int32 LODIndex);
 
 	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType);
 
