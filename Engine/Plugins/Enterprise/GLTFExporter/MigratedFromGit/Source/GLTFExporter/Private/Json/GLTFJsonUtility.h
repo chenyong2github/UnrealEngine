@@ -163,8 +163,8 @@ struct FGLTFJsonUtility
 	{
 		switch (Value)
 		{
-			case EGLTFJsonPlayerCameraMode::FirstPerson: return TEXT("firstPerson");
-			case EGLTFJsonPlayerCameraMode::ThirdPerson: return TEXT("thirdPerson");
+			case EGLTFJsonPlayerCameraMode::FreeLook: return TEXT("freeLook");
+			case EGLTFJsonPlayerCameraMode::Orbital:  return TEXT("orbital");
 			default:
 				checkNoEntry();
 				return TEXT("");

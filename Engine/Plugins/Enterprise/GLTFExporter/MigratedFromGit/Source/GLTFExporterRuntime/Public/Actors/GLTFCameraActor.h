@@ -8,15 +8,15 @@
 UENUM(BlueprintType)
 enum class EGLTFCameraMode : uint8
 {
-	FirstPerson,
-	ThirdPerson
+	FreeLook,
+	Orbital
 };
 
 /**
  * GLTF-compatible camera that will carry over settings and simulate the behavior in the resulting viewer.
  * Supports two modes:
- * - FirstPerson: Allows the user to rotate the camera without modifying its position.
- * - ThirdPerson: Focuses one actor in the scene and orbits it through mouse control.
+ * - FreeLook: Allows the user to rotate the camera without modifying its position.
+ * - Orbital: Focuses one actor in the scene and orbits it through mouse control.
  */
 UCLASS(BlueprintType, Blueprintable, DisplayName = "GLTF Camera")
 class GLTFEXPORTERRUNTIME_API AGLTFCameraActor : public ACameraActor
@@ -72,7 +72,7 @@ public:
 	EGLTFCameraMode Mode;
 
 	/* Actor which the camera will focus on and subsequently orbit when using Third Person mode. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraMode::ThirdPerson"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraMode::Orbital"))
 	AActor* Focus;
 
 	/* Minimum pitch angle (in degrees) for the camera. */

@@ -118,8 +118,8 @@ EGLTFJsonPlayerCameraMode FGLTFConverterUtility::ConvertPlayerCameraMode(EGLTFCa
 {
 	switch (CameraMode)
 	{
-		case EGLTFCameraMode::FirstPerson: return EGLTFJsonPlayerCameraMode::FirstPerson;
-		case EGLTFCameraMode::ThirdPerson: return EGLTFJsonPlayerCameraMode::ThirdPerson;
-		default:                           return EGLTFJsonPlayerCameraMode::None; // TODO: add error handling in callers
+		case EGLTFCameraMode::FreeLook: return EGLTFJsonPlayerCameraMode::FreeLook;
+		case EGLTFCameraMode::Orbital:  return EGLTFJsonPlayerCameraMode::Orbital;
+		default:                        return EGLTFJsonPlayerCameraMode::None; // TODO: add error handling in callers
 	}
 }
