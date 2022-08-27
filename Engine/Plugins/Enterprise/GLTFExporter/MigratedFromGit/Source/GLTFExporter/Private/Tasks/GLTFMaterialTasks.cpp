@@ -404,6 +404,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		Builder,
 		CombineSources,
 		TextureSize,
+		false,
 		GetBakedTextureName(TEXT("BaseColor")),
 		TextureMinFilter,
 		TextureMagFilter,
@@ -568,6 +569,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		Builder,
 		CombineSources,
 		TextureSize,
+		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
 		GetBakedTextureName(TEXT("MetallicRoughness")),
 		TextureMinFilter,
 		TextureMagFilter,
@@ -734,6 +736,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		Builder,
 		CombineSources,
 		TextureSize,
+		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
 		GetBakedTextureName(TEXT("ClearCoatRoughness")),
 		TextureMinFilter,
 		TextureMagFilter,
@@ -1307,6 +1310,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
+		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
 		GetBakedTextureName(PropertyName),
 		EGLTFJsonTextureFilter::Nearest,
 		EGLTFJsonTextureFilter::Nearest,
@@ -1386,6 +1390,7 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
+		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
 		GetBakedTextureName(PropertyName),
 		TextureMinFilter,
 		TextureMagFilter,
