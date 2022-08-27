@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Converters/GLTFRawTypes.h"
 #include "Converters/GLTFPackedTypes.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonVector2.h"
@@ -21,31 +22,31 @@ struct FGLTFConverterUtility
 		return Length * ConversionScale;
 	}
 
-	static FGLTFJsonVector3 ConvertVector(const FVector& Vector)
+	static FGLTFRawVector3 ConvertVector(const FVector& Vector)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
 		// glTF uses a right-handed coordinate system, with Y up.
 		return { Vector.X, Vector.Z, Vector.Y };
 	}
 
-	static FGLTFJsonVector3 ConvertPosition(const FVector& Position, const float ConversionScale)
+	static FGLTFRawVector3 ConvertPosition(const FVector& Position, const float ConversionScale)
 	{
 		return ConvertVector(Position * ConversionScale);
 	}
 
-	static FGLTFJsonVector3 ConvertScale(const FVector& Scale)
+	static FGLTFRawVector3 ConvertScale(const FVector& Scale)
 	{
 		return ConvertVector(Scale);
 	}
 
-	static FGLTFJsonVector3 ConvertNormal(const FVector& Normal)
+	static FGLTFRawVector3 ConvertNormal(const FVector& Normal)
 	{
 		return ConvertVector(Normal);
 	}
 
 	static FGLTFPackedVector16 ConvertNormal(const FPackedRGBA16N& Normal)
 	{
-		return { Normal.X, Normal.Z, Normal.Y };
+		return { Normal.X, Normal.Z, Normal.Y, 0 };
 	}
 
 	static FGLTFPackedVector8 ConvertNormal(const FPackedNormal& Normal)
@@ -53,7 +54,7 @@ struct FGLTFConverterUtility
 		return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y };
 	}
 
-	static FGLTFJsonVector4 ConvertTangent(const FVector& Tangent)
+	static FGLTFRawVector4 ConvertTangent(const FVector& Tangent)
 	{
 		// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
 		return { ConvertVector(Tangent), 1.0f };
@@ -69,7 +70,7 @@ struct FGLTFConverterUtility
 		return { Tangent.Vector.X, Tangent.Vector.Z, Tangent.Vector.Y, MAX_int8 /* = 1.0 */ };
 	}
 
-	static FGLTFJsonVector2 ConvertUV(const FVector2D& UV)
+	static FGLTFRawVector2 ConvertUV(const FVector2D& UV)
 	{
 		// No conversion actually needed, this is primarily for type-safety.
 		return { UV.X, UV.Y };
@@ -103,7 +104,7 @@ struct FGLTFConverterUtility
 		return { Color.R, Color.G, Color.B, Color.A };
 	}
 
-	static FGLTFJsonQuaternion ConvertRotation(const FQuat& Rotation)
+	static FGLTFRawQuaternion ConvertRotation(const FQuat& Rotation)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
 		// glTF uses a right-handed coordinate system, with Y up.
@@ -117,21 +118,21 @@ struct FGLTFConverterUtility
 		// e.g. some sources use non-unit Quats for rotation tangents
 
 		// Return the identity quaternion when possible (depending on tolerance)
-		if (Rotation.Equals(FQuat::Identity))
+		if (Rotation.Equals(FQuat::Identity)) // TODO: doesn't this potentially remove intentional deviance from identity?
 		{
-			return FGLTFJsonQuaternion::Identity;
+			return FGLTFRawQuaternion(0, 0, 0, 1); // TODO: make static const
 		}
 
 		const FQuat Normalized = Rotation.GetNormalized();
 		return { -Normalized.X, -Normalized.Z, -Normalized.Y, Normalized.W };
 	}
 
-	static FGLTFJsonMatrix4 ConvertMatrix(const FMatrix& Matrix)
+	static FGLTFRawMatrix4 ConvertMatrix(const FMatrix& Matrix)
 	{
 		// Unreal stores matrix elements in row major order.
 		// glTF stores matrix elements in column major order.
 
-		FGLTFJsonMatrix4 Result;
+		FGLTFRawMatrix4 Result;
 		for (int32 Row = 0; Row < 4; ++Row)
 		{
 			for (int32 Col = 0; Col < 4; ++Col)
@@ -142,7 +143,7 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
-	static FGLTFJsonMatrix4 ConvertTransform(const FTransform& Transform, const float ConversionScale)
+	static FGLTFRawMatrix4 ConvertTransform(const FTransform& Transform, const float ConversionScale)
 	{
 		const FQuat Rotation = Transform.GetRotation();
 		const FVector Translation = Transform.GetTranslation();

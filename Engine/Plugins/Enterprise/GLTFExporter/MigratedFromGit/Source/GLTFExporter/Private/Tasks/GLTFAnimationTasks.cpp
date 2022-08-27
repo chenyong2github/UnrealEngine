@@ -96,7 +96,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 		if (KeyPositions.Num() > 0)
 		{
-			TArray<FGLTFJsonVector3> Translations;
+			TArray<FGLTFRawVector3> Translations;
 			Translations.AddUninitialized(KeyPositions.Num());
 
 			for (int32 Key = 0; Key < KeyPositions.Num(); ++Key)
@@ -128,7 +128,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 		if (KeyRotations.Num() > 0)
 		{
-			TArray<FGLTFJsonQuaternion> Rotations;
+			TArray<FGLTFRawQuaternion> Rotations;
 			Rotations.AddUninitialized(KeyRotations.Num());
 
 			for (int32 Key = 0; Key < KeyRotations.Num(); ++Key)
@@ -160,7 +160,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 		if (KeyScales.Num() > 0)
 		{
-			TArray<FGLTFJsonVector3> Scales;
+			TArray<FGLTFRawVector3> Scales;
 			Scales.AddUninitialized(KeyScales.Num());
 
 			for (int32 Key = 0; Key < KeyScales.Num(); ++Key)
@@ -297,7 +297,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Translation))
 					{
-						TArray<FGLTFJsonVector3> Translations;
+						TArray<FGLTFRawVector3> Translations;
 						Translations.AddUninitialized(FrameCount);
 
 						for (int32 Frame = 0; Frame < FrameCount; ++Frame)
@@ -332,7 +332,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Rotation))
 					{
-						TArray<FGLTFJsonQuaternion> Rotations;
+						TArray<FGLTFRawQuaternion> Rotations;
 						Rotations.AddUninitialized(FrameCount);
 
 						for (int32 Frame = 0; Frame < FrameCount; ++Frame)
@@ -370,7 +370,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Scale))
 					{
-						TArray<FGLTFJsonVector3> Scales;
+						TArray<FGLTFRawVector3> Scales;
 						Scales.AddUninitialized(FrameCount);
 
 						for (int32 Frame = 0; Frame < FrameCount; ++Frame)

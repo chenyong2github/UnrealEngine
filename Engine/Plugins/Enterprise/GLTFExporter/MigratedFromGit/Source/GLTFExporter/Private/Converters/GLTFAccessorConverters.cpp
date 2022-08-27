@@ -30,7 +30,7 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
-	TArray<FGLTFJsonVector3> Positions;
+	TArray<FGLTFRawVector3> Positions;
 	Positions.AddUninitialized(VertexCount);
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
@@ -40,12 +40,12 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 	}
 
 	// More accurate bounding box if based on raw vertex values
-	FGLTFJsonVector3 MinPosition = VertexCount > 0 ? Positions[0] : FGLTFJsonVector3::Zero;
-	FGLTFJsonVector3 MaxPosition = VertexCount > 0 ? Positions[0] : FGLTFJsonVector3::Zero;
+	FGLTFRawVector3 MinPosition = VertexCount > 0 ? Positions[0] : FGLTFRawVector3(0, 0, 0); // TODO: make static const
+	FGLTFRawVector3 MaxPosition = VertexCount > 0 ? Positions[0] : FGLTFRawVector3(0, 0, 0); // TODO: make static const
 
 	for (uint32 VertexIndex = 1; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		const FGLTFJsonVector3& Position = Positions[VertexIndex];
+		const FGLTFRawVector3& Position = Positions[VertexIndex];
 		MinPosition.X = FMath::Min(MinPosition.X, Position.X);
 		MinPosition.Y = FMath::Min(MinPosition.Y, Position.Y);
 		MinPosition.Z = FMath::Min(MinPosition.Z, Position.Z);
@@ -134,8 +134,8 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 	{
 		ComponentType = EGLTFJsonComponentType::F32;
 		BufferViewIndex = bHighPrecision
-			? ConvertBufferView<FGLTFJsonVector3, FPackedRGBA16N>(MeshSection, VertexBuffer)
-			: ConvertBufferView<FGLTFJsonVector3, FPackedNormal>(MeshSection, VertexBuffer);
+			? ConvertBufferView<FGLTFRawVector3, FPackedRGBA16N>(MeshSection, VertexBuffer)
+			: ConvertBufferView<FGLTFRawVector3, FPackedNormal>(MeshSection, VertexBuffer);
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -172,7 +172,7 @@ FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGL
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const FVector SafeNormal = VertexTangents[MappedVertexIndex].TangentZ.ToFVector().GetSafeNormal();
 
-		typedef typename TConditional<TIsSame<DestinationType, FGLTFJsonVector3>::Value, FVector, SourceType>::Type IntermediateType;
+		typedef typename TConditional<TIsSame<DestinationType, FGLTFRawVector3>::Value, FVector, SourceType>::Type IntermediateType;
 		Normals[VertexIndex] = FGLTFConverterUtility::ConvertNormal(IntermediateType(SafeNormal));
 	}
 
@@ -211,8 +211,8 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 	{
 		ComponentType = EGLTFJsonComponentType::F32;
 		BufferViewIndex = bHighPrecision
-			? ConvertBufferView<FGLTFJsonVector4, FPackedRGBA16N>(MeshSection, VertexBuffer)
-			: ConvertBufferView<FGLTFJsonVector4, FPackedNormal>(MeshSection, VertexBuffer);
+			? ConvertBufferView<FGLTFRawVector4, FPackedRGBA16N>(MeshSection, VertexBuffer)
+			: ConvertBufferView<FGLTFRawVector4, FPackedNormal>(MeshSection, VertexBuffer);
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -249,7 +249,7 @@ FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FG
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const FVector SafeTangent = VertexTangents[MappedVertexIndex].TangentX.ToFVector().GetSafeNormal();
 
-		typedef typename TConditional<TIsSame<DestinationType, FGLTFJsonVector4>::Value, FVector, SourceType>::Type IntermediateType;
+		typedef typename TConditional<TIsSame<DestinationType, FGLTFRawVector4>::Value, FVector, SourceType>::Type IntermediateType;
 		Tangents[VertexIndex] = FGLTFConverterUtility::ConvertTangent(IntermediateType(SafeTangent));
 	}
 
@@ -275,7 +275,7 @@ FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* M
 
 	// TODO: report warning or add support for half float precision UVs, i.e. !VertexBuffer->GetUseFullPrecisionUVs()?
 
-	TArray<FGLTFJsonVector2> UVs;
+	TArray<FGLTFRawVector2> UVs;
 	UVs.AddUninitialized(VertexCount);
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)

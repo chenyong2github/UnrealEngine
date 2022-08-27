@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonImage
+struct FGLTFJsonImage : IGLTFJsonObject
 {
 	FString Name;
 	FString Uri;
@@ -21,31 +20,26 @@ struct FGLTFJsonImage
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (!Uri.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("uri"), Uri);
+			Writer.Write(TEXT("uri"), Uri);
 		}
 
 		if (MimeType != EGLTFJsonMimeType::None)
 		{
-			JsonWriter.WriteValue(TEXT("mimeType"), FGLTFJsonUtility::ToString(MimeType));
+			Writer.Write(TEXT("mimeType"), MimeType);
 		}
 
 		if (BufferView != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("bufferView"), BufferView);
+			Writer.Write(TEXT("bufferView"), BufferView);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

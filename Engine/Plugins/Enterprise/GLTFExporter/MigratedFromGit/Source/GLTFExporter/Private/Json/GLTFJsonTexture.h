@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonTexture
+struct FGLTFJsonTexture : IGLTFJsonObject
 {
 	FString Name;
 
@@ -21,40 +20,32 @@ struct FGLTFJsonTexture
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (Sampler != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("sampler"), Sampler);
+			Writer.Write(TEXT("sampler"), Sampler);
 		}
 
 		if (Source != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("source"), Source);
+			Writer.Write(TEXT("source"), Source);
 		}
 
 		if (Encoding != EGLTFJsonHDREncoding::None)
 		{
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_TextureHDREncoding;
-			Extensions.Used.Add(Extension);
+			Writer.StartExtensions();
 
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
-			JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+			Writer.StartExtension(EGLTFJsonExtension::EPIC_TextureHDREncoding);
+			Writer.Write(TEXT("encoding"), Encoding);
+			Writer.EndExtension();
 
-			JsonWriter.WriteValue(TEXT("encoding"), FGLTFJsonUtility::ToString(Encoding));
-
-			JsonWriter.WriteObjectEnd();
-			JsonWriter.WriteObjectEnd();
+			Writer.EndExtensions();
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Json/GLTFJsonVector3.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonArray.h"
+#include "Converters/GLTFRawTypes.h"
 
-struct FGLTFJsonVector4
+struct FGLTFJsonVector4 : IGLTFJsonArray
 {
 	float X, Y, Z, W;
 
@@ -18,25 +17,17 @@ struct FGLTFJsonVector4
 	{
 	}
 
-	FGLTFJsonVector4(const FGLTFJsonVector3& Vector3, float W)
-		: X(Vector3.X), Y(Vector3.Y), Z(Vector3.Z), W(W)
+	FGLTFJsonVector4(const FGLTFRawVector4& Raw)
+		: X(Raw.X), Y(Raw.Y), Z(Raw.Z), W(Raw.W)
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteArrayStart();
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, Z);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, W);
-		JsonWriter.WriteArrayEnd();
-	}
-
-	operator FGLTFJsonVector3() const
-	{
-		return { X, Y, Z };
+		Writer.Write(X);
+		Writer.Write(Y);
+		Writer.Write(Z);
+		Writer.Write(W);
 	}
 
 	bool operator==(const FGLTFJsonVector4& Other) const

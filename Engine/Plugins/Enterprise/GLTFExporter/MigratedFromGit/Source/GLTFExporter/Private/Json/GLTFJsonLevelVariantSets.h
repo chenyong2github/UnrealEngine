@@ -2,13 +2,11 @@
 
 #pragma once
 
-#include "GLTFJsonIndex.h"
-#include "Json/GLTFJsonExtensions.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonObject.h"
+#include "Json/GLTFJsonIndex.h"
 #include "Misc/Optional.h"
 
-struct FGLTFJsonVariantMaterial
+struct FGLTFJsonVariantMaterial : IGLTFJsonObject
 {
 	FGLTFJsonMaterialIndex Material;
 	int32                  Index;
@@ -19,23 +17,18 @@ struct FGLTFJsonVariantMaterial
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("material"), Material);
+		Writer.Write(TEXT("material"), Material);
 
 		if (Index != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("index"), Index);
+			Writer.Write(TEXT("index"), Index);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonVariantNodeProperties
+struct FGLTFJsonVariantNodeProperties : IGLTFJsonObject
 {
 	FGLTFJsonNodeIndex Node;
 	TOptional<bool>    bIsVisible;
@@ -43,112 +36,88 @@ struct FGLTFJsonVariantNodeProperties
 	TOptional<FGLTFJsonMeshIndex>    Mesh;
 	TArray<FGLTFJsonVariantMaterial> Materials;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (Node != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("node"), Node);
+			Writer.Write(TEXT("node"), Node);
 		}
 
-		JsonWriter.WriteObjectStart(TEXT("properties"));
+		Writer.StartObject(TEXT("properties"));
 
 		if (bIsVisible.IsSet())
 		{
-			JsonWriter.WriteValue(TEXT("visible"), bIsVisible.GetValue());
+			Writer.Write(TEXT("visible"), bIsVisible.GetValue());
 		}
 
 		if (Mesh.IsSet())
 		{
-			JsonWriter.WriteValue(TEXT("mesh"), Mesh.GetValue());
+			Writer.Write(TEXT("mesh"), Mesh.GetValue());
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials, Extensions);
+		if (Materials.Num() > 0)
+		{
+			Writer.Write(TEXT("materials"), Materials);
+		}
 
-		JsonWriter.WriteObjectEnd();
-		JsonWriter.WriteObjectEnd();
+		Writer.EndObject();
 	}
 };
 
-struct FGLTFJsonVariant
+struct FGLTFJsonVariant : IGLTFJsonObject
 {
-	typedef TMap<FGLTFJsonNodeIndex, FGLTFJsonVariantNodeProperties> FNodeProperties;
-
 	FString Name;
 	bool    bIsActive;
 
 	FGLTFJsonTextureIndex Thumbnail;
-	FNodeProperties       Nodes;
+	TMap<FGLTFJsonNodeIndex, FGLTFJsonVariantNodeProperties> Nodes;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-		JsonWriter.WriteValue(TEXT("name"), Name);
-		JsonWriter.WriteValue(TEXT("active"), bIsActive);
+		Writer.Write(TEXT("name"), Name);
+		Writer.Write(TEXT("active"), bIsActive);
 
 		if (Thumbnail != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("thumbnail"), Thumbnail);
+			Writer.Write(TEXT("thumbnail"), Thumbnail);
 		}
 
-		JsonWriter.WriteArrayStart(TEXT("nodes"));
-
-		for (const auto& DataPair: Nodes)
-		{
-			if (DataPair.Key != INDEX_NONE)
-			{
-				DataPair.Value.WriteObject(JsonWriter, Extensions);
-			}
-		}
-
-		JsonWriter.WriteArrayEnd();
-		JsonWriter.WriteObjectEnd();
+		TArray<FGLTFJsonVariantNodeProperties> NodeValues;
+		Nodes.GenerateValueArray(NodeValues);
+		Writer.Write(TEXT("nodes"), NodeValues);
 	}
 };
 
-struct FGLTFJsonVariantSet
+struct FGLTFJsonVariantSet : IGLTFJsonObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonVariant> Variants;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("variants"), Variants, Extensions);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("variants"), Variants);
 	}
 };
 
-struct FGLTFJsonLevelVariantSets
+struct FGLTFJsonLevelVariantSets : IGLTFJsonObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonVariantSet> VariantSets;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("variantSets"), VariantSets, Extensions);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("variantSets"), VariantSets);
 	}
 };

@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonColor4.h"
-#include "Json/GLTFJsonExtensions.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonSkySphereColorCurve
+struct FGLTFJsonSkySphereColorCurve : IGLTFJsonArray
 {
 	struct FKey
 	{
@@ -22,31 +21,26 @@ struct FGLTFJsonSkySphereColorCurve
 
 	TArray<FComponentCurve> ComponentCurves;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteArrayStart();
-
 		for (int32 ComponentIndex = 0; ComponentIndex < ComponentCurves.Num(); ++ComponentIndex)
 		{
 			const FComponentCurve& ComponentCurve = ComponentCurves[ComponentIndex];
 
-			JsonWriter.WriteArrayStart();
+			Writer.StartArray();
 
 			for (const FKey& Key: ComponentCurve.Keys)
 			{
-				FGLTFJsonUtility::WriteExactValue(JsonWriter, Key.Time);
-				FGLTFJsonUtility::WriteExactValue(JsonWriter, Key.Value);
+				Writer.Write(Key.Time);
+				Writer.Write(Key.Value);
 			}
 
-			JsonWriter.WriteArrayEnd();
+			Writer.EndArray();
 		}
-
-		JsonWriter.WriteArrayEnd();
 	}
 };
 
-struct FGLTFJsonSkySphere
+struct FGLTFJsonSkySphere : IGLTFJsonObject
 {
 	FString Name;
 
@@ -99,78 +93,63 @@ struct FGLTFJsonSkySphere
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteValue(TEXT("skySphereMesh"), SkySphereMesh);
-		JsonWriter.WriteValue(TEXT("skyTexture"), SkyTexture);
-		JsonWriter.WriteValue(TEXT("cloudsTexture"), CloudsTexture);
-		JsonWriter.WriteValue(TEXT("starsTexture"), StarsTexture);
+		Writer.Write(TEXT("skySphereMesh"), SkySphereMesh);
+		Writer.Write(TEXT("skyTexture"), SkyTexture);
+		Writer.Write(TEXT("cloudsTexture"), CloudsTexture);
+		Writer.Write(TEXT("starsTexture"), StarsTexture);
 
 		if (DirectionalLight != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("directionalLight"), DirectionalLight);
+			Writer.Write(TEXT("directionalLight"), DirectionalLight);
 		}
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("sunHeight"), SunHeight);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("sunBrightness"), SunBrightness);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("starsBrightness"), StarsBrightness);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("cloudSpeed"), CloudSpeed);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("cloudOpacity"), CloudOpacity);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("horizonFalloff"), HorizonFalloff);
+		Writer.Write(TEXT("sunHeight"), SunHeight);
+		Writer.Write(TEXT("sunBrightness"), SunBrightness);
+		Writer.Write(TEXT("starsBrightness"), StarsBrightness);
+		Writer.Write(TEXT("cloudSpeed"), CloudSpeed);
+		Writer.Write(TEXT("cloudOpacity"), CloudOpacity);
+		Writer.Write(TEXT("horizonFalloff"), HorizonFalloff);
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("sunRadius"), SunRadius);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("noisePower1"), NoisePower1);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("noisePower2"), NoisePower2);
+		Writer.Write(TEXT("sunRadius"), SunRadius);
+		Writer.Write(TEXT("noisePower1"), NoisePower1);
+		Writer.Write(TEXT("noisePower2"), NoisePower2);
 
-		JsonWriter.WriteValue(TEXT("colorsDeterminedBySunPosition"), bColorsDeterminedBySunPosition);
+		Writer.Write(TEXT("colorsDeterminedBySunPosition"), bColorsDeterminedBySunPosition);
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("zenithColor"));
-		ZenithColor.WriteArray(JsonWriter);
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("horizonColor"));
-		HorizonColor.WriteArray(JsonWriter);
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("cloudColor"));
-		CloudColor.WriteArray(JsonWriter);
+		Writer.Write(TEXT("zenithColor"), ZenithColor);
+		Writer.Write(TEXT("horizonColor"), HorizonColor);
+		Writer.Write(TEXT("cloudColor"), CloudColor);
 
 		if (OverallColor != FGLTFJsonColor4::White)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("overallColor"));
-			OverallColor.WriteArray(JsonWriter);
+			Writer.Write(TEXT("overallColor"), OverallColor);
 		}
 
 		if (ZenithColorCurve.ComponentCurves.Num() >= 3)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("zenithColorCurve"));
-			ZenithColorCurve.WriteArray(JsonWriter);
+			Writer.Write(TEXT("zenithColorCurve"), ZenithColorCurve);
 		}
 
 		if (HorizonColorCurve.ComponentCurves.Num() >= 3)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("horizonColorCurve"));
-			HorizonColorCurve.WriteArray(JsonWriter);
+			Writer.Write(TEXT("horizonColorCurve"), HorizonColorCurve);
 		}
 
 		if (CloudColorCurve.ComponentCurves.Num() >= 3)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("cloudColorCurve"));
-			CloudColorCurve.WriteArray(JsonWriter);
+			Writer.Write(TEXT("cloudColorCurve"), CloudColorCurve);
 		}
 
 		if (Scale != FGLTFJsonVector3::One)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
-			Scale.WriteArray(JsonWriter);
+			Writer.Write(TEXT("scale"), Scale);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

@@ -2,13 +2,12 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonAnimationPlayback.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonAnimationChannelTarget
+struct FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
 {
 	FGLTFJsonNodeIndex Node;
 	EGLTFJsonTargetPath Path;
@@ -18,38 +17,27 @@ struct FGLTFJsonAnimationChannelTarget
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("node"), Node);
-		JsonWriter.WriteValue(TEXT("path"), FGLTFJsonUtility::ToString(Path));
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("node"), Node);
+		Writer.Write(TEXT("path"), Path);
 	}
 };
 
-struct FGLTFJsonAnimationChannel
+struct FGLTFJsonAnimationChannel : IGLTFJsonObject
 {
 	FGLTFJsonAnimationSamplerIndex Sampler;
 	FGLTFJsonAnimationChannelTarget Target;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
+		Writer.Write(TEXT("sampler"), Sampler);
 
-		JsonWriter.WriteValue(TEXT("sampler"), Sampler);
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("target"));
-		Target.WriteObject(JsonWriter, Extensions);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("target"), Target);
 	}
 };
 
-struct FGLTFJsonAnimationSampler
+struct FGLTFJsonAnimationSampler : IGLTFJsonObject
 {
 	FGLTFJsonAccessorIndex Input;
 	FGLTFJsonAccessorIndex Output;
@@ -61,24 +49,19 @@ struct FGLTFJsonAnimationSampler
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("input"), Input);
-		JsonWriter.WriteValue(TEXT("output"), Output);
+		Writer.Write(TEXT("input"), Input);
+		Writer.Write(TEXT("output"), Output);
 
 		if (Interpolation != EGLTFJsonInterpolation::Linear)
 		{
-			JsonWriter.WriteValue(TEXT("interpolation"), FGLTFJsonUtility::ToString(Interpolation));
+			Writer.Write(TEXT("interpolation"), Interpolation);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonAnimation
+struct FGLTFJsonAnimation : IGLTFJsonObject
 {
 	FString Name;
 
@@ -87,30 +70,21 @@ struct FGLTFJsonAnimation
 
 	FGLTFJsonAnimationPlayback Playback;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("channels"), Channels, Extensions, true);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers, Extensions, true);
+		Writer.Write(TEXT("channels"), Channels);
+		Writer.Write(TEXT("samplers"), Samplers);
 
 		if (Playback != FGLTFJsonAnimationPlayback())
 		{
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationPlayback;
-			Extensions.Used.Add(Extension);
-
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
-			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-			Playback.WriteObject(JsonWriter, Extensions);
-			JsonWriter.WriteObjectEnd();
+			Writer.StartExtensions();
+			Writer.Write(EGLTFJsonExtension::EPIC_AnimationPlayback, Playback);
+			Writer.EndExtensions();
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

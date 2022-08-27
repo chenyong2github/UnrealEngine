@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "Json/GLTFJsonArray.h"
 #include "Json/GLTFJsonColor3.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonColor4
+struct FGLTFJsonColor4 : IGLTFJsonArray
 {
 	float R, G, B, A;
 
@@ -23,15 +22,12 @@ struct FGLTFJsonColor4
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteArrayStart();
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, R);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, G);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, B);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, A);
-		JsonWriter.WriteArrayEnd();
+		Writer.Write(R);
+		Writer.Write(G);
+		Writer.Write(B);
+		Writer.Write(A);
 	}
 
 	operator FGLTFJsonColor3() const

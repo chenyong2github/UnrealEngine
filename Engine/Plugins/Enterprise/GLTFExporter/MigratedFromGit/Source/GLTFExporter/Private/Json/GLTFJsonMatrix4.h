@@ -2,38 +2,31 @@
 
 #pragma once
 
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonArray.h"
+#include "Converters/GLTFRawTypes.h"
 
-struct FGLTFJsonMatrix4
+struct FGLTFJsonMatrix4 : IGLTFJsonArray, FGLTFRawMatrix4
 {
-	float M[16];
-
 	static const FGLTFJsonMatrix4 Identity;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	FGLTFJsonMatrix4(const FGLTFRawMatrix4& Raw)
 	{
-		JsonWriter.WriteArrayStart();
-
-		for(int32 I = 0; I < 16; ++I)
-		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, M[I]);
-		}
-
-		JsonWriter.WriteArrayEnd();
+		*static_cast<FGLTFRawMatrix4*>(this) = Raw;
 	}
 
-	float& operator()(int32 Row, int32 Col)
+	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		return M[Row * 4 + Col];
+		for (int32 i = 0; i < 16; ++i)
+		{
+			Writer.Write(Cells[i]);
+		}
 	}
 
 	bool operator==(const FGLTFJsonMatrix4& Other) const
 	{
-		for(int32 I = 0; I < 16; ++I)
+		for (int32 i = 0; i < 16; ++i)
 		{
-			if (M[I] != Other.M[I])
+			if (Cells[i] != Other.Cells[i])
 			{
 				return false;
 			}

@@ -2,14 +2,13 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonColor3.h"
 #include "Json/GLTFJsonColor4.h"
 #include "Json/GLTFJsonTextureTransform.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonTextureInfo
+struct FGLTFJsonTextureInfo : IGLTFJsonObject
 {
 	FGLTFJsonTextureIndex Index;
 	int32 TexCoord;
@@ -21,30 +20,21 @@ struct FGLTFJsonTextureInfo
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("index"), Index);
+		Writer.Write(TEXT("index"), Index);
 
 		if (TexCoord != 0)
 		{
-			JsonWriter.WriteValue(TEXT("texCoord"), TexCoord);
+			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
 		if (Transform != FGLTFJsonTextureTransform())
 		{
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_TextureTransform;
-			Extensions.Used.Add(Extension);
-
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
-			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-			Transform.WriteObject(JsonWriter, Extensions);
-			JsonWriter.WriteObjectEnd();
+			Writer.StartExtensions();
+			Writer.Write(EGLTFJsonExtension::KHR_TextureTransform, Transform);
+			Writer.EndExtensions();
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
@@ -57,24 +47,19 @@ struct FGLTFJsonNormalTextureInfo : FGLTFJsonTextureInfo
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("index"), Index);
+		Writer.Write(TEXT("index"), Index);
 
 		if (TexCoord != 0)
 		{
-			JsonWriter.WriteValue(TEXT("texCoord"), TexCoord);
+			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
 		if (Scale != 1)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("scale"), Scale);
+			Writer.Write(TEXT("scale"), Scale);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
@@ -87,28 +72,23 @@ struct FGLTFJsonOcclusionTextureInfo : FGLTFJsonTextureInfo
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("index"), Index);
+		Writer.Write(TEXT("index"), Index);
 
 		if (TexCoord != 0)
 		{
-			JsonWriter.WriteValue(TEXT("texCoord"), TexCoord);
+			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
 		if (Strength != 1)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("strength"), Strength);
+			Writer.Write(TEXT("strength"), Strength);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonPBRMetallicRoughness
+struct FGLTFJsonPBRMetallicRoughness : IGLTFJsonObject
 {
 	FGLTFJsonColor4 BaseColorFactor;
 	FGLTFJsonTextureInfo BaseColorTexture;
@@ -124,44 +104,36 @@ struct FGLTFJsonPBRMetallicRoughness
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (BaseColorFactor != FGLTFJsonColor4::White)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("baseColorFactor"));
-			BaseColorFactor.WriteArray(JsonWriter);
+			Writer.Write(TEXT("baseColorFactor"), BaseColorFactor);
 		}
 
 		if (BaseColorTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("baseColorTexture"));
-			BaseColorTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("baseColorTexture"), BaseColorTexture);
 		}
 
 		if (MetallicFactor != 1)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("metallicFactor"), MetallicFactor);
+			Writer.Write(TEXT("metallicFactor"), MetallicFactor);
 		}
 
 		if (RoughnessFactor != 1)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("roughnessFactor"), RoughnessFactor);
+			Writer.Write(TEXT("roughnessFactor"), RoughnessFactor);
 		}
 
 		if (MetallicRoughnessTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("metallicRoughnessTexture"));
-			MetallicRoughnessTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("metallicRoughnessTexture"), MetallicRoughnessTexture);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonClearCoatExtension
+struct FGLTFJsonClearCoatExtension : IGLTFJsonObject
 {
 	float ClearCoatFactor;
 	FGLTFJsonTextureInfo ClearCoatTexture;
@@ -177,44 +149,36 @@ struct FGLTFJsonClearCoatExtension
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (ClearCoatFactor != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("clearcoatFactor"), ClearCoatFactor);
+			Writer.Write(TEXT("clearcoatFactor"), ClearCoatFactor);
 		}
 
 		if (ClearCoatTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("clearcoatTexture"));
-			ClearCoatTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("clearcoatTexture"), ClearCoatTexture);
 		}
 
 		if (ClearCoatRoughnessFactor != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("clearcoatRoughnessFactor"), ClearCoatRoughnessFactor);
+			Writer.Write(TEXT("clearcoatRoughnessFactor"), ClearCoatRoughnessFactor);
 		}
 
 		if (ClearCoatRoughnessTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("clearcoatRoughnessTexture"));
-			ClearCoatRoughnessTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("clearcoatRoughnessTexture"), ClearCoatRoughnessTexture);
 		}
 
 		if (ClearCoatNormalTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("clearcoatNormalTexture"));
-			ClearCoatNormalTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("clearcoatNormalTexture"), ClearCoatNormalTexture);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonMaterial
+struct FGLTFJsonMaterial : IGLTFJsonObject
 {
 	FString Name;
 
@@ -247,97 +211,76 @@ struct FGLTFJsonMaterial
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (ShadingModel != EGLTFJsonShadingModel::None)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("pbrMetallicRoughness"));
-			PBRMetallicRoughness.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("pbrMetallicRoughness"), PBRMetallicRoughness);
 		}
 
 		if (NormalTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("normalTexture"));
-			NormalTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("normalTexture"), NormalTexture);
 		}
 
 		if (OcclusionTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("occlusionTexture"));
-			OcclusionTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("occlusionTexture"), OcclusionTexture);
 		}
 
 		if (EmissiveTexture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("emissiveTexture"));
-			EmissiveTexture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("emissiveTexture"), EmissiveTexture);
 		}
 
 		if (EmissiveFactor != FGLTFJsonColor3::Black)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("emissiveFactor"));
-			EmissiveFactor.WriteArray(JsonWriter);
+			Writer.Write(TEXT("emissiveFactor"), EmissiveFactor);
 		}
 
 		if (AlphaMode != EGLTFJsonAlphaMode::Opaque)
 		{
-			JsonWriter.WriteValue(TEXT("alphaMode"), FGLTFJsonUtility::ToString(AlphaMode));
+			Writer.Write(TEXT("alphaMode"), AlphaMode);
 		}
 
 		if (AlphaMode == EGLTFJsonAlphaMode::Mask && AlphaCutoff != 0.5f)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("alphaCutoff"), AlphaCutoff);
+			Writer.Write(TEXT("alphaCutoff"), AlphaCutoff);
 		}
 
 		if (DoubleSided)
 		{
-			JsonWriter.WriteValue(TEXT("doubleSided"), DoubleSided);
+			Writer.Write(TEXT("doubleSided"), DoubleSided);
 		}
 
 		if (BlendMode != EGLTFJsonBlendMode::None || ShadingModel == EGLTFJsonShadingModel::Unlit || ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			Writer.StartExtensions();
 
 			if (BlendMode != EGLTFJsonBlendMode::None)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_BlendModes;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteObjectStart();
-				JsonWriter.WriteValue(TEXT("blendMode"), FGLTFJsonUtility::ToString(BlendMode));
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_BlendModes);
+				Writer.Write(TEXT("blendMode"), BlendMode);
+				Writer.EndExtension();
 			}
 
 			if (ShadingModel == EGLTFJsonShadingModel::Unlit)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_MaterialsUnlit;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteObjectStart(); // Write empty object
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::KHR_MaterialsUnlit);
+				// Write empty object
+				Writer.EndExtension();
 			}
 			else if (ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_MaterialsClearCoat;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-				ClearCoat.WriteObject(JsonWriter, Extensions);
+				Writer.Write(EGLTFJsonExtension::KHR_MaterialsClearCoat, ClearCoat);
 			}
 
-			JsonWriter.WriteObjectEnd();
+			Writer.EndExtensions();
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

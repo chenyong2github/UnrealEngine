@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonMaterial.h"
 #include "Json/GLTFJsonVector4.h"
 
-struct FGLTFJsonLightMap
+struct FGLTFJsonLightMap : IGLTFJsonObject
 {
 	FString              Name;
 	FGLTFJsonTextureInfo Texture;
@@ -16,35 +17,25 @@ struct FGLTFJsonLightMap
 	FGLTFJsonLightMap()
 		: LightMapScale(FGLTFJsonVector4::One)
 		, LightMapAdd(FGLTFJsonVector4::Zero)
-		, CoordinateScaleBias({ 1, 1, 0, 0 })
+		, CoordinateScaleBias(1, 1, 0, 0)
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (Texture.Index != INDEX_NONE)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("texture"));
-			Texture.WriteObject(JsonWriter, Extensions);
+			Writer.Write(TEXT("texture"), Texture);
 		}
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("lightmapScale"));
-		LightMapScale.WriteArray(JsonWriter);
+		Writer.Write(TEXT("lightmapScale"), LightMapScale);
+		Writer.Write(TEXT("lightmapAdd"), LightMapAdd);
+		Writer.Write(TEXT("coordinateScaleBias"), CoordinateScaleBias);
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("lightmapAdd"));
-		LightMapAdd.WriteArray(JsonWriter);
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("coordinateScaleBias"));
-		CoordinateScaleBias.WriteArray(JsonWriter);
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

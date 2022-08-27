@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonVector4.h"
 
-struct FGLTFJsonCameraControl
+struct FGLTFJsonCameraControl : IGLTFJsonObject
 {
 	EGLTFJsonCameraControlMode Mode;
 	FGLTFJsonNodeIndex Target;
@@ -35,46 +36,41 @@ struct FGLTFJsonCameraControl
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToString(Mode));
+		Writer.Write(TEXT("mode"), Mode);
 
 		if (Target != INDEX_NONE && Mode == EGLTFJsonCameraControlMode::Orbital)
 		{
-			JsonWriter.WriteValue(TEXT("target"), Target);
+			Writer.Write(TEXT("target"), Target);
 		}
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxDistance"), MaxDistance);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("minDistance"), MinDistance);
+		Writer.Write(TEXT("maxDistance"), MaxDistance);
+		Writer.Write(TEXT("minDistance"), MinDistance);
 
 		if (!FMath::IsNearlyEqual(MaxPitch, 90.0f))
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxPitch"), MaxPitch);
+			Writer.Write(TEXT("maxPitch"), MaxPitch);
 		}
 
 		if (!FMath::IsNearlyEqual(MinPitch, -90.0f))
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("minPitch"), MinPitch);
+			Writer.Write(TEXT("minPitch"), MinPitch);
 		}
 
 		if (!FMath::IsNearlyEqual(MaxYaw, 360.0f))
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxYaw"), MaxYaw);
+			Writer.Write(TEXT("maxYaw"), MaxYaw);
 		}
 
 		if (!FMath::IsNearlyEqual(MinYaw, 0.0f))
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("minYaw"), MinYaw);
+			Writer.Write(TEXT("minYaw"), MinYaw);
 		}
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("rotationSensitivity"), RotationSensitivity);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("rotationInertia"), RotationInertia);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("dollySensitivity"), DollySensitivity);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("dollyDuration"), DollyDuration);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("rotationSensitivity"), RotationSensitivity);
+		Writer.Write(TEXT("rotationInertia"), RotationInertia);
+		Writer.Write(TEXT("dollySensitivity"), DollySensitivity);
+		Writer.Write(TEXT("dollyDuration"), DollyDuration);
 	}
 };
