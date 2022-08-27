@@ -147,6 +147,59 @@ struct FGLTFJsonPBRMetallicRoughness
 	}
 };
 
+struct FGLTFJsonClearCoatExtension
+{
+	float ClearCoatFactor;
+	FGLTFJsonTextureInfo ClearCoatTexture;
+
+	float ClearCoatRoughnessFactor;
+	FGLTFJsonTextureInfo ClearCoatRoughnessTexture;
+
+	FGLTFJsonNormalTextureInfo ClearCoatNormalTexture;
+
+	FGLTFJsonClearCoatExtension()
+        : ClearCoatFactor(0)
+        , ClearCoatRoughnessFactor(0)
+	{
+	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	{
+		JsonWriter.WriteObjectStart();
+
+		if (ClearCoatFactor != 0)
+		{
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("clearcoatFactor"), ClearCoatFactor);
+		}
+
+		if (ClearCoatTexture.Index != INDEX_NONE)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("clearcoatTexture"));
+			ClearCoatTexture.WriteObject(JsonWriter, Extensions);
+		}
+
+		if (ClearCoatRoughnessFactor != 0)
+		{
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("clearcoatRoughnessFactor"), ClearCoatRoughnessFactor);
+		}
+
+		if (ClearCoatRoughnessTexture.Index != INDEX_NONE)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("clearcoatRoughnessTexture"));
+			ClearCoatRoughnessTexture.WriteObject(JsonWriter, Extensions);
+		}
+
+		if (ClearCoatNormalTexture.Index != INDEX_NONE)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("clearcoatNormalTexture"));
+			ClearCoatNormalTexture.WriteObject(JsonWriter, Extensions);
+		}
+
+		JsonWriter.WriteObjectEnd();
+	}
+};
+
 struct FGLTFJsonMaterial
 {
 	FString Name;
@@ -165,6 +218,8 @@ struct FGLTFJsonMaterial
 	float AlphaCutoff;
 
 	bool DoubleSided;
+
+	FGLTFJsonClearCoatExtension ClearCoat;
 
 	FGLTFJsonMaterial()
 		: ShadingModel(EGLTFJsonShadingModel::Default)
@@ -248,7 +303,7 @@ struct FGLTFJsonMaterial
 					break;
 
 				case EGLTFJsonShadingModel::ClearCoat:
-					// TODO: add support
+					ClearCoat.WriteObject(JsonWriter, Extensions);
 					break;
 
 				default:
