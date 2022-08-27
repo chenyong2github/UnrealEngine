@@ -21,8 +21,14 @@ public:
 	const UGLTFExportOptions* const ExportOptions;
 
 	FIntPoint GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const;
+	TextureFilter GetBakeFilterForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const;
+	TextureAddress GetBakeTilingForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const;
 
 	EGLTFJsonHDREncoding GetTextureHDREncoding() const;
 
 	bool ShouldExportLight(EComponentMobility::Type LightMobility) const;
+
+private:
+
+	static EGLTFMaterialPropertyGroup GetPropertyGroup(const FMaterialPropertyEx& Property);
 };

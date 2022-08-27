@@ -3,8 +3,6 @@
 #include "GLTFExportOptions.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
 
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -19,7 +17,8 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportExtraBlendModes = true;
 	BakeMaterialInputs = EGLTFMaterialBakeMode::Simple;
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
-	DefaultLevelOfDetail = 0;
+	DefaultMaterialBakeFilter = TF_Trilinear;
+	DefaultMaterialBakeTiling = TA_Wrap;
 	bExportVertexColors = false;
 	bExportVertexSkinWeights = true;
 	bExportMeshQuantization = true;

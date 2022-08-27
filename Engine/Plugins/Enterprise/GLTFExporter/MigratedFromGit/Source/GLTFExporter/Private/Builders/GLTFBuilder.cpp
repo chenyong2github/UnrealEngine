@@ -14,18 +14,52 @@ FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* Ex
 
 FIntPoint FGLTFBuilder::GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const
 {
-	int32 Size = 1 << (static_cast<uint8>(ExportOptions->DefaultMaterialBakeSize) - static_cast<uint8>(EGLTFMaterialBakeSizePOT::POT_1));
+	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
+	EGLTFMaterialBakeSizePOT DefaultValue = ExportOptions->DefaultMaterialBakeSize;
 
-	if (const UGLTFMaterialUserData* UserData = UGLTFMaterialUserData::GetUserData(Material))
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->OverrideBakeSettings.Find(PropertyGroup))
 	{
-		EGLTFOverrideMaterialBakeSizePOT OverridePOT = UserData->GetBakeSizeForProperty(Property.Type);
-		if (OverridePOT != EGLTFOverrideMaterialBakeSizePOT::NoOverride)
+		if (BakeSettings->bOverrideSize)
 		{
-			Size = 1 << (static_cast<uint8>(OverridePOT) - static_cast<uint8>(EGLTFOverrideMaterialBakeSizePOT::POT_1));
+			DefaultValue = BakeSettings->Size;
 		}
 	}
 
-	return { Size, Size };
+	const EGLTFMaterialBakeSizePOT Size = UGLTFMaterialExportOptions::GetBakeSizeForPropertyGroup(Material, PropertyGroup, DefaultValue);
+	const int32 PixelSize = 1 << static_cast<uint8>(Size);
+	return { PixelSize, PixelSize };
+}
+
+TextureFilter FGLTFBuilder::GetBakeFilterForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const
+{
+	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
+	TextureFilter DefaultValue = ExportOptions->DefaultMaterialBakeFilter;
+
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->OverrideBakeSettings.Find(PropertyGroup))
+	{
+		if (BakeSettings->bOverrideFilter)
+		{
+			DefaultValue = BakeSettings->Filter;
+		}
+	}
+
+	return UGLTFMaterialExportOptions::GetBakeFilterForPropertyGroup(Material, PropertyGroup, DefaultValue);
+}
+
+TextureAddress FGLTFBuilder::GetBakeTilingForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const
+{
+	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
+	TextureAddress DefaultValue = ExportOptions->DefaultMaterialBakeTiling;
+
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->OverrideBakeSettings.Find(PropertyGroup))
+	{
+		if (BakeSettings->bOverrideTiling)
+		{
+			DefaultValue = BakeSettings->Tiling;
+		}
+	}
+
+	return UGLTFMaterialExportOptions::GetBakeTilingForPropertyGroup(Material, PropertyGroup, DefaultValue);
 }
 
 EGLTFJsonHDREncoding FGLTFBuilder::GetTextureHDREncoding() const
@@ -53,5 +87,35 @@ bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) con
 			return LightMobility == EComponentMobility::Movable;
 		default:
 			return false;
+	}
+}
+
+EGLTFMaterialPropertyGroup FGLTFBuilder::GetPropertyGroup(const FMaterialPropertyEx& Property)
+{
+	switch (Property.Type)
+	{
+		case MP_BaseColor:
+        case MP_Opacity:
+        case MP_OpacityMask:
+            return EGLTFMaterialPropertyGroup::BaseColorOpacity;
+		case MP_Metallic:
+        case MP_Roughness:
+            return EGLTFMaterialPropertyGroup::MetallicRoughness;
+		case MP_EmissiveColor:
+			return EGLTFMaterialPropertyGroup::EmissiveColor;
+		case MP_Normal:
+			return EGLTFMaterialPropertyGroup::Normal;
+		case MP_AmbientOcclusion:
+			return EGLTFMaterialPropertyGroup::AmbientOcclusion;
+		case MP_CustomData0:
+        case MP_CustomData1:
+            return EGLTFMaterialPropertyGroup::ClearCoatRoughness;
+		case MP_CustomOutput:
+			if (Property.CustomOutput == TEXT("ClearCoatBottomNormal"))
+			{
+				return EGLTFMaterialPropertyGroup::ClearCoatBottomNormal;
+			}
+		default:
+			return EGLTFMaterialPropertyGroup::None;
 	}
 }
