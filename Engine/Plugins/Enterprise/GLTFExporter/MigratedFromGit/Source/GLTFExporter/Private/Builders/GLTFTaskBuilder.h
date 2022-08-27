@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Builders/GLTFBuilder.h"
-#include "Builders/GLTFTask.h"
+#include "Tasks/GLTFTask.h"
 
 class FGLTFTaskBuilder : public FGLTFBuilder
 {
@@ -12,6 +12,12 @@ protected:
 	FGLTFTaskBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
 public:
+
+	template <typename TaskType, typename... TaskArgTypes, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
+    bool SetupTask(TaskArgTypes&&... Args)
+	{
+		return SetupTask(MakeUnique<TaskType>(Forward<TaskArgTypes>(Args)...));
+	}
 
 	template <typename TaskType, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
 	bool SetupTask(TUniquePtr<TaskType> Task)
