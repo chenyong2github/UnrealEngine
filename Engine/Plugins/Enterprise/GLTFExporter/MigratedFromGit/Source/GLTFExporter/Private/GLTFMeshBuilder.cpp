@@ -178,6 +178,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForColors(FGLTFContainerBuil
 	Accessor.ComponentType = EGLTFJsonComponentType::U8;
 	Accessor.Count = Colors.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec4;
+	Accessor.bNormalized = true;
 
 	return Container.JsonRoot.Accessors.Add(Accessor);
 }
