@@ -186,7 +186,7 @@ void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, co
 {
 	bOutOperationCanceled = false;
 
-	LoadOptions();
+	// TODO: call LoadOptions();
 
 	//Return if we do not show the export options or we are running automation test or we are unattended
 	if (!bShowOptionDialog || GIsAutomationTesting || FApp::IsUnattended())
@@ -197,5 +197,5 @@ void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, co
 	bOutExportAll = false;
 
 	SGLTFExportOptionsWindow::ShowDialog(this, FullPath, bBatchMode, bOutOperationCanceled, bOutExportAll);
-	SaveOptions();
+	// TODO: call SaveOptions();
 }
