@@ -21,12 +21,14 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteL
 		case EGLTFJsonMimeType::PNG:
 			if (!FGLTFBuilderUtility::CompressImage(RawData, ByteLength, Width, Height, RawFormat, BitDepth, ImageData, EImageFormat::PNG, Quality))
 			{
+				// TODO: report error
 				return FGLTFJsonImageIndex(INDEX_NONE);
 			}
 			break;
 		case EGLTFJsonMimeType::JPEG:
 			if (!FGLTFBuilderUtility::CompressImage(RawData, ByteLength, Width, Height, RawFormat, BitDepth, ImageData, EImageFormat::JPEG, Quality))
 			{
+				// TODO: report error
 				return FGLTFJsonImageIndex(INDEX_NONE);
 			}
 			break;
@@ -45,7 +47,7 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteL
 	return ImageIndex;
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, int32 Width, int32 Height, EPixelFormat PixelFormat, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteLength, int32 Width, int32 Height, EPixelFormat PixelFormat, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
 {
 	ERGBFormat RawFormat;
 	int32 BitDepth;
@@ -53,15 +55,22 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, in
 
 	switch (PixelFormat)
 	{
-		case PF_B8G8R8A8: RawFormat = ERGBFormat::BGRA; BitDepth = 8;  bFloatFormat = false; break;
-		case PF_R8G8B8A8: RawFormat = ERGBFormat::RGBA; BitDepth = 8;  bFloatFormat = false; break;
-		case PF_G8:       RawFormat = ERGBFormat::Gray; BitDepth = 8;  bFloatFormat = false; break;
+		case PF_B8G8R8A8:           RawFormat = ERGBFormat::BGRA; BitDepth = 8;  bFloatFormat = false; break;
+		case PF_R8G8B8A8:           RawFormat = ERGBFormat::RGBA; BitDepth = 8;  bFloatFormat = false; break;
+		case PF_R16G16B16A16_UNORM: RawFormat = ERGBFormat::RGBA; BitDepth = 16; bFloatFormat = false; break;
+		case PF_FloatRGBA:          RawFormat = ERGBFormat::RGBA; BitDepth = 16; bFloatFormat = true;  break;
+		case PF_L8:                 RawFormat = ERGBFormat::Gray; BitDepth = 8;  bFloatFormat = false; break;
+		case PF_G8:                 RawFormat = ERGBFormat::Gray; BitDepth = 8;  bFloatFormat = false; break;
+		case PF_G16:                RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = false; break;
+		case PF_R16F:               RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = true;  break;
+		case PF_R16F_FILTER:        RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = true;  break;
+		case PF_R32_FLOAT:          RawFormat = ERGBFormat::Gray; BitDepth = 32; bFloatFormat = true;  break;
 		default:
 			// TODO: report error
 			return FGLTFJsonImageIndex(INDEX_NONE);
 	}
 
-	return AddImage(Pixels.GetData(), Pixels.Num() * Pixels.GetTypeSize(), Width, Height, RawFormat, BitDepth, bFloatFormat, Name, MimeType, Quality);
+	return AddImage(RawData, ByteLength, Width, Height, RawFormat, BitDepth, bFloatFormat, Name, MimeType, Quality);
 }
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FTextureSource& Image, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
