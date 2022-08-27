@@ -94,6 +94,10 @@ public:
 
 	// TODO: add support for overriding more export options
 
+	/** If assigned, export will use the proxy instead of the original material. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "General")
+	UMaterialInterface* Proxy;
+
 	/** Default bake settings for this material in general. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings", meta = (ShowOnlyInnerProperties))
 	FGLTFOverrideMaterialBakeSettings Default;
@@ -101,6 +105,8 @@ public:
 	/** Input-specific bake settings that override the defaults above. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings")
 	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> Inputs;
+
+	static const UMaterialInterface* ResolveProxy(const UMaterialInterface* Material);
 
 	static EGLTFMaterialBakeSizePOT GetBakeSizeForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, EGLTFMaterialBakeSizePOT DefaultValue);
 	static TextureFilter GetBakeFilterForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, TextureFilter DefaultValue);

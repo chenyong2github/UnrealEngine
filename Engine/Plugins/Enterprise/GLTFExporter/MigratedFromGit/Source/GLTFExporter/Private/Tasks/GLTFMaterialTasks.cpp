@@ -50,6 +50,8 @@ namespace
 
 void FGLTFMaterialTask::Complete()
 {
+	Material = Builder.ResolveProxy(Material);
+
 	{
 		const UMaterial* ParentMaterial = Material->GetMaterial();
 

@@ -14,6 +14,35 @@ FGLTFOverrideMaterialBakeSettings::FGLTFOverrideMaterialBakeSettings()
 {
 }
 
+const UMaterialInterface* UGLTFMaterialExportOptions::ResolveProxy(const UMaterialInterface* Material)
+{
+	TSet<const UMaterialInterface*> PreviousProxies;
+
+	for (;;)
+	{
+		const UGLTFMaterialExportOptions* UserData = const_cast<UMaterialInterface*>(Material)->GetAssetUserData<UGLTFMaterialExportOptions>();
+		if (UserData == nullptr)
+		{
+			return Material;
+		}
+
+		const UMaterialInterface* Proxy = UserData->Proxy;
+		if (Proxy == nullptr)
+		{
+			return Material;
+		}
+
+		if (PreviousProxies.Contains(Proxy))
+		{
+			// report warning about cyclic references
+			return Material;
+		}
+
+		PreviousProxies.Add(Proxy);
+		Material = Proxy;
+	}
+}
+
 EGLTFMaterialBakeSizePOT UGLTFMaterialExportOptions::GetBakeSizeForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, EGLTFMaterialBakeSizePOT DefaultValue)
 {
 	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = GetBakeSettingsByPredicate(Material, PropertyGroup, [](const FGLTFOverrideMaterialBakeSettings& Settings) { return Settings.bOverrideSize; }))
