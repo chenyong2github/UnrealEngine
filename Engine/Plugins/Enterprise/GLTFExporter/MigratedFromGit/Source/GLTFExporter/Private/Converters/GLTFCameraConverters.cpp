@@ -62,9 +62,9 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 			PlayerCamera.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
 			PlayerCamera.MaxPitch = CameraActor->PitchAngleMax;
 			PlayerCamera.MinPitch = CameraActor->PitchAngleMin;
-			PlayerCamera.DollySensitivity = CameraActor->DollySensitivity;
 			PlayerCamera.RotationSensitivity = CameraActor->RotationSensitivity;
 			PlayerCamera.RotationInertia = CameraActor->RotationInertia;
+			PlayerCamera.DollySensitivity = CameraActor->DollySensitivity;
 			PlayerCamera.DollyDuration = CameraActor->DollyDuration;
 
 			Camera.PlayerCamera = PlayerCamera;
