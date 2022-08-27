@@ -7,7 +7,6 @@
 #include "Converters/GLTFImageUtility.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "MaterialUtilities.h"
 #include "ImageUtils.h"
 
 FGLTFMaterialProxyFactory::FGLTFMaterialProxyFactory(const UGLTFProxyOptions* Options)
@@ -269,9 +268,12 @@ UMaterialInstanceConstant* FGLTFMaterialProxyFactory::CreateInstancedMaterial(UM
 		return nullptr;
 	}
 
-	UPackage* Package = FindOrCreatePackage(TEXT("M_GLTF_") + OriginalMaterial->GetName());
-	const FString BaseName = TEXT("GLTF_") + OriginalMaterial->GetName(); // prefix "M_" is added automatically by CreateInstancedMaterial
-	return FMaterialUtilities::CreateInstancedMaterial(BaseMaterial, Package, BaseName, RF_Public | RF_Standalone);
+	const FString BaseName = TEXT("MI_GLTF_") + OriginalMaterial->GetName();
+	UPackage* Package = FindOrCreatePackage(BaseName);
+
+	UMaterialInstanceConstant* MaterialInstance = NewObject<UMaterialInstanceConstant>(Package, *BaseName, RF_Public | RF_Standalone);
+	MaterialInstance->Parent = BaseMaterial;
+	return MaterialInstance;
 }
 
 UPackage* FGLTFMaterialProxyFactory::FindOrCreatePackage(const FString& BaseName)
