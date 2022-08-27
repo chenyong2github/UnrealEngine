@@ -10,7 +10,9 @@
 #include "Converters/GLTFSharedArray.h"
 #include "GLTFExportOptions.h"
 
-class FGLTFImageConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonImageIndex, TGLTFSuperfluous<FString>, EGLTFTextureType, bool, FIntPoint, TGLTFSharedArray<FColor>>
+typedef TGLTFConverter<FGLTFJsonImageIndex, TGLTFSuperfluous<FString>, EGLTFTextureType, bool, FIntPoint, TGLTFSharedArray<FColor>> IGLTFImageConverter;
+
+class FGLTFImageConverter final : public FGLTFBuilderContext, public IGLTFImageConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

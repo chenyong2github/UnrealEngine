@@ -6,7 +6,9 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-class FGLTFSkinConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSkinIndex, FGLTFJsonNodeIndex, const USkeletalMesh*>
+typedef TGLTFConverter<FGLTFJsonSkinIndex, FGLTFJsonNodeIndex, const USkeletalMesh*> IGLTFSkinConverter;
+
+class FGLTFSkinConverter final : public FGLTFBuilderContext, public IGLTFSkinConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

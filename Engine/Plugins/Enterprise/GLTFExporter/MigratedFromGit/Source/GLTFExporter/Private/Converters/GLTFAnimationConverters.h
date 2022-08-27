@@ -9,36 +9,35 @@
 class ULevelSequence;
 class ALevelSequenceActor;
 
-template <typename... InputTypes>
-class TGLTFAnimationConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAnimationIndex, InputTypes...>
+typedef TGLTFConverter<FGLTFJsonAnimationIndex, FGLTFJsonNodeIndex, const USkeletalMesh*, const UAnimSequence*> IGLTFAnimationConverter;
+typedef TGLTFConverter<FGLTFJsonAnimationIndex, FGLTFJsonNodeIndex, const USkeletalMeshComponent*> IGLTFAnimationDataConverter;
+typedef TGLTFConverter<FGLTFJsonAnimationIndex, const ULevel*, const ULevelSequence*> IGLTFLevelSequenceConverter;
+typedef TGLTFConverter<FGLTFJsonAnimationIndex, const ALevelSequenceActor*> IGLTFLevelSequenceDataConverter;
+
+class FGLTFAnimationConverter final : public FGLTFBuilderContext, public IGLTFAnimationConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
-};
-
-class FGLTFAnimationConverter final : public TGLTFAnimationConverter<FGLTFJsonNodeIndex, const USkeletalMesh*, const UAnimSequence*>
-{
-	using TGLTFAnimationConverter::TGLTFAnimationConverter;
 
 	virtual FGLTFJsonAnimationIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence) override;
 };
 
-class FGLTFAnimationDataConverter final : public TGLTFAnimationConverter<FGLTFJsonNodeIndex, const USkeletalMeshComponent*>
+class FGLTFAnimationDataConverter final : public FGLTFBuilderContext, public IGLTFAnimationDataConverter
 {
-	using TGLTFAnimationConverter::TGLTFAnimationConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonAnimationIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent) override;
 };
 
-class FGLTFLevelSequenceConverter final : public TGLTFAnimationConverter<const ULevel*, const ULevelSequence*>
+class FGLTFLevelSequenceConverter final : public FGLTFBuilderContext, public IGLTFLevelSequenceConverter
 {
-	using TGLTFAnimationConverter::TGLTFAnimationConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonAnimationIndex Convert(const ULevel* Level, const ULevelSequence*) override;
 };
 
-class FGLTFLevelSequenceDataConverter final : public TGLTFAnimationConverter<const ALevelSequenceActor*>
+class FGLTFLevelSequenceDataConverter final : public FGLTFBuilderContext, public IGLTFLevelSequenceDataConverter
 {
-	using TGLTFAnimationConverter::TGLTFAnimationConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonAnimationIndex Convert(const ALevelSequenceActor* LevelSequenceActor) override;
 };

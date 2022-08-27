@@ -7,7 +7,9 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Actors/GLTFHotspotActor.h"
 
-class FGLTFHotspotConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonHotspotIndex, const AGLTFHotspotActor*>
+typedef TGLTFConverter<FGLTFJsonHotspotIndex, const AGLTFHotspotActor*> IGLTFHotspotConverter;
+
+class FGLTFHotspotConverter final : public FGLTFBuilderContext, public IGLTFHotspotConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
