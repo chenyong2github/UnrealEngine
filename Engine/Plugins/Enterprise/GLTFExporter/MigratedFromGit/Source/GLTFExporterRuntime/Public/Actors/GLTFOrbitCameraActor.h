@@ -65,6 +65,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
 	float PitchAngleMax;
 
+	/* Duration (in seconds) that it takes the camera to complete a change in distance. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	float DollyDuration;
+
 	/* Deceleration that occurs after orbital movement. The higher the value, the longer it takes to settle. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
 	float OrbitInertia;
