@@ -153,11 +153,64 @@ FReply SGLTFExportOptionsWindow::OnResetToDefaultClick() const
 	return FReply::Handled();
 }
 
-void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool BatchMode, bool& OutOperationCanceled, bool& bOutExportAll)
+inline FReply SGLTFExportOptionsWindow::OnExport()
+{
+	bShouldExport = true;
+	if (WidgetWindow.IsValid())
+	{
+		WidgetWindow.Pin()->RequestDestroyWindow();
+	}
+	return FReply::Handled();
+}
+
+inline FReply SGLTFExportOptionsWindow::OnExportAll()
+{
+	bShouldExportAll = true;
+	return OnExport();
+}
+
+inline FReply SGLTFExportOptionsWindow::OnCancel()
+{
+	bShouldExport = false;
+	bShouldExportAll = false;
+	if (WidgetWindow.IsValid())
+	{
+		WidgetWindow.Pin()->RequestDestroyWindow();
+	}
+	return FReply::Handled();
+}
+
+inline FReply SGLTFExportOptionsWindow::OnKeyDown(const FGeometry & MyGeometry, const FKeyEvent & InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == EKeys::Escape)
+	{
+		return OnCancel();
+	}
+
+	return FReply::Unhandled();
+}
+
+inline bool SGLTFExportOptionsWindow::ShouldExport() const
+{
+	return bShouldExport;
+}
+
+inline bool SGLTFExportOptionsWindow::ShouldExportAll() const
+{
+	return bShouldExportAll;
+}
+
+inline SGLTFExportOptionsWindow::SGLTFExportOptionsWindow()
+	: ExportOptions(nullptr)
+	, bShouldExport(false)
+	, bShouldExportAll(false)
+{}
+
+void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll)
 {
 	check(ExportOptions != nullptr);
 
-	OutOperationCanceled = false;
+	bOutOperationCanceled = false;
 	bOutExportAll = false;
 
 	TSharedPtr<SWindow> ParentWindow;
@@ -186,7 +239,7 @@ void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, con
 		.ExportOptions(ExportOptions)
 		.WidgetWindow(Window)
 		.FullPath(FText::FromString(FullPath))
-		.BatchMode(BatchMode)
+		.BatchMode(bBatchMode)
 	);
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
@@ -197,7 +250,7 @@ void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, con
 	}
 	else
 	{
-		OutOperationCanceled = true;
+		bOutOperationCanceled = true;
 	}
 }
 

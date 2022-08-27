@@ -30,63 +30,25 @@ public:
 
 public:
 	void Construct(const FArguments& InArgs);
+
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	FReply OnExport()
-	{
-		bShouldExport = true;
-		if ( WidgetWindow.IsValid() )
-		{
-			WidgetWindow.Pin()->RequestDestroyWindow();
-		}
-		return FReply::Handled();
-	}
+	FReply OnExport();
 
-	FReply OnExportAll()
-	{
-		bShouldExportAll = true;
-		return OnExport();
-	}
+	FReply OnExportAll();
 
-	FReply OnCancel()
-	{
-		bShouldExport = false;
-		bShouldExportAll = false;
-		if ( WidgetWindow.IsValid() )
-		{
-			WidgetWindow.Pin()->RequestDestroyWindow();
-		}
-		return FReply::Handled();
-	}
+	FReply OnCancel();
 
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
-	{
-		if( InKeyEvent.GetKey() == EKeys::Escape )
-		{
-			return OnCancel();
-		}
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
-		return FReply::Unhandled();
-	}
+	bool ShouldExport() const;
 
-	bool ShouldExport() const
-	{
-		return bShouldExport;
-	}
+	bool ShouldExportAll() const;
 
-	bool ShouldExportAll() const
-	{
-		return bShouldExportAll;
-	}
-
-	SGLTFExportOptionsWindow()
-		: ExportOptions(nullptr)
-		, bShouldExport(false)
-		, bShouldExportAll(false)
-	{}
+	SGLTFExportOptionsWindow();
 
 public:
-	static void ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool BatchMode, bool& OutOperationCanceled, bool& bOutExportAll);
+	static void ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool BatchMode, bool& bOutOperationCanceled, bool& bOutExportAll);
 
 private:
 	FReply OnResetToDefaultClick() const;
