@@ -16,7 +16,7 @@ struct GLTFEXPORTER_API FGLTFConverterUtility
 
 	static inline FVector ConvertPosition(const FVector& Position)
 	{
-		return ConvertVector(Position);
+		return ConvertVector(Position) * 0.01f; // TODO: use options export scale instead of hardcoded value
 	}
 
 	static inline FVector ConvertScale(const FVector& Scale)
