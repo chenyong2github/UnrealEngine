@@ -157,7 +157,6 @@ void FGLTFStaticMeshTask::Complete()
 
 	const TArray<FStaticMaterial>& MaterialSlots = FGLTFMeshUtility::GetMaterials(StaticMesh);
 	const int32 MaterialCount = MaterialSlots.Num();
-	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
@@ -262,7 +261,6 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	const TArray<FSkeletalMaterial>& MaterialSlots = FGLTFMeshUtility::GetMaterials(SkeletalMesh);
 	const uint16 MaterialCount = MaterialSlots.Num();
-	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
 	for (uint16 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{

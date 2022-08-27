@@ -53,7 +53,11 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 	}
 #endif
 
-	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
+	FGLTFJsonMesh JsonMesh;
+	const int32 MaterialCount = FGLTFMeshUtility::GetMaterials(StaticMesh).Num();
+	JsonMesh.Primitives.AddDefaulted(MaterialCount);
+
+	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh(JsonMesh);
 	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, StaticMesh, StaticMeshComponent, Materials, LODIndex, MeshIndex);
 	return MeshIndex;
 }
@@ -102,7 +106,11 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 	}
 #endif
 
-	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
+	FGLTFJsonMesh JsonMesh;
+	const int32 MaterialCount = FGLTFMeshUtility::GetMaterials(SkeletalMesh).Num();
+	JsonMesh.Primitives.AddDefaulted(MaterialCount);
+
+	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh(JsonMesh);
 	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, SkeletalMesh, SkeletalMeshComponent, Materials, LODIndex, MeshIndex);
 	return MeshIndex;
 }
