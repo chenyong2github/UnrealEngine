@@ -17,19 +17,19 @@
 			"Name": "GLTFExporter",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [ "Win64", "Win32", "Mac" ]
+			"WhitelistPlatforms": [ "Win64", "Win32", "Mac", "Linux" ]
 		},
 		{
 			"Name": "GLTFMaterialAnalyzer",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64", "Win32", "Mac" ]
+			"WhitelistPlatforms": [ "Win64", "Win32", "Mac", "Linux" ]
 		},
 		{
 			"Name": "GLTFMaterialBaking",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64", "Win32", "Mac" ]
+			"WhitelistPlatforms": [ "Win64", "Win32", "Mac", "Linux" ]
 		}
 	],
 	"Plugins": [
