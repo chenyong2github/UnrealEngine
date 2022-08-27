@@ -161,6 +161,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
 	EGLTFMaterialBakeMode ExportMaterialVariants;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
+	bool bExportMeshVariants;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
+	bool bExportVisibilityVariants;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
 	bool bBundleWebViewer;
 
