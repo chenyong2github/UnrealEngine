@@ -297,8 +297,8 @@ bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarge
 		return Resource->ReadPixels(OutPixels);
 	}
 
-	TArray<FLinearColor> HDRPixels;
-	if (!Resource->ReadLinearColorPixels(HDRPixels))
+	TArray<FFloat16Color> HDRPixels;
+	if (!Resource->ReadFloat16Pixels(HDRPixels))
 	{
 		return false;
 	}
@@ -319,13 +319,13 @@ bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarge
 	return true;
 }
 
-void FGLTFTextureUtility::EncodeRGBM(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels, float MaxRange)
+void FGLTFTextureUtility::EncodeRGBM(const TArray<FFloat16Color>& InPixels, TArray<FColor>& OutPixels, float MaxRange)
 {
 	OutPixels.AddUninitialized(InPixels.Num());
 
 	for (int32 Index = 0; Index < InPixels.Num(); ++Index)
 	{
-		const FLinearColor& Color = InPixels[Index];
+		const FFloat16Color& Color = InPixels[Index];
 		FLinearColor RGBM;
 
 		RGBM.R = FMath::Sqrt(Color.R);
@@ -347,13 +347,13 @@ void FGLTFTextureUtility::EncodeRGBM(const TArray<FLinearColor>& InPixels, TArra
 	}
 }
 
-void FGLTFTextureUtility::EncodeRGBE(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels)
+void FGLTFTextureUtility::EncodeRGBE(const TArray<FFloat16Color>& InPixels, TArray<FColor>& OutPixels)
 {
 	OutPixels.AddUninitialized(InPixels.Num());
 
 	for (int32 Index = 0; Index < InPixels.Num(); ++Index)
 	{
-		OutPixels[Index] = InPixels[Index].ToRGBE();
+		OutPixels[Index] = FLinearColor(InPixels[Index]).ToRGBE();
 	}
 }
 
