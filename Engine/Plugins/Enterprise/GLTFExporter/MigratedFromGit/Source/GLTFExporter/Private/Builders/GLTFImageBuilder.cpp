@@ -62,10 +62,11 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteL
 	return AddImage(ImageData.GetData(), ImageData.Num(), EGLTFJsonMimeType::PNG, Name);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, const FString& Name)
 {
+	check(Pixels.Num() == Size.X * Size.Y);
 	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
-	return AddImage(Pixels, ByteLength, Size, ERGBFormat::BGRA, 8, Name);
+	return AddImage(Pixels.GetData(), ByteLength, Size, ERGBFormat::BGRA, 8, Name);
 }
 
 FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
