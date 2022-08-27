@@ -7,6 +7,36 @@
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
+struct FGLTFJsonSpotLight
+{
+	float InnerConeAngle;
+	float OuterConeAngle;
+
+	FGLTFJsonSpotLight()
+        : InnerConeAngle(0)
+        , OuterConeAngle(PI / 2.0f)
+	{
+	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	{
+		JsonWriter.WriteObjectStart();
+
+		if (InnerConeAngle != 0)
+		{
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("innerConeAngle"), InnerConeAngle);
+		}
+
+		if (OuterConeAngle != PI / 2.0f)
+		{
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("outerConeAngle"), OuterConeAngle);
+		}
+
+		JsonWriter.WriteObjectEnd();
+	}
+};
+
 struct FGLTFJsonLight
 {
 	FString Name;
@@ -18,16 +48,13 @@ struct FGLTFJsonLight
 	float Intensity;
 	float Range;
 
-	float InnerConeAngle;
-	float OuterConeAngle;
+	FGLTFJsonSpotLight Spot;
 
 	FGLTFJsonLight()
 		: Type(EGLTFJsonLightType::None)
 		, Color(FGLTFJsonColor3::White)
 		, Intensity(1)
 		, Range(0)
-		, InnerConeAngle(0)
-		, OuterConeAngle(PI / 2.0f)
 	{
 	}
 
@@ -63,15 +90,8 @@ struct FGLTFJsonLight
 
 			if (Type == EGLTFJsonLightType::Spot)
 			{
-				if (InnerConeAngle != 0)
-				{
-					FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("innerConeAngle"), InnerConeAngle);
-				}
-
-				if (OuterConeAngle != PI / 2.0f)
-				{
-					FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("outerConeAngle"), OuterConeAngle);
-				}
+				JsonWriter.WriteIdentifierPrefix(TEXT("spot"));
+				Spot.WriteObject(JsonWriter, Extensions);
 			}
 		}
 

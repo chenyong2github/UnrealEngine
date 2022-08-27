@@ -55,8 +55,13 @@ struct FGLTFConverterUtility
 
 	static FGLTFJsonColor4 ConvertColor(const FLinearColor& Color)
 	{
-		// No conversion actually needed, this is primarily for type-safety.
-		return { Color.R, Color.G, Color.B, Color.A };
+		// Just make sure its non-negative (which can happen when using MakeFromColorTemperature).
+		return {
+			FMath::Max(Color.R, 0.0f),
+			FMath::Max(Color.G, 0.0f),
+			FMath::Max(Color.B, 0.0f),
+			FMath::Max(Color.A, 0.0f)
+        };
 	}
 
 	static FGLTFPackedColor ConvertColor(const FColor& Color)
