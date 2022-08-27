@@ -101,55 +101,55 @@ public:
 	void RegisterObjectVariant(const UObject* Object, const UPropertyValue* Property);
 	const TArray<const UPropertyValue*>* GetObjectVariants(const UObject* Object) const;
 
+	TUniquePtr<IGLTFPositionBufferConverter> PositionBufferConverter = MakeUnique<FGLTFPositionBufferConverter>(*this);
+	TUniquePtr<IGLTFColorBufferConverter> ColorBufferConverter = MakeUnique<FGLTFColorBufferConverter>(*this);
+	TUniquePtr<IGLTFNormalBufferConverter> NormalBufferConverter = MakeUnique<FGLTFNormalBufferConverter>(*this);
+	TUniquePtr<IGLTFTangentBufferConverter> TangentBufferConverter = MakeUnique<FGLTFTangentBufferConverter>(*this);
+	TUniquePtr<IGLTFUVBufferConverter> UVBufferConverter = MakeUnique<FGLTFUVBufferConverter>(*this);
+	TUniquePtr<IGLTFBoneIndexBufferConverter> BoneIndexBufferConverter = MakeUnique<FGLTFBoneIndexBufferConverter>(*this);
+	TUniquePtr<IGLTFBoneWeightBufferConverter> BoneWeightBufferConverter = MakeUnique<FGLTFBoneWeightBufferConverter>(*this);
+	TUniquePtr<IGLTFIndexBufferConverter> IndexBufferConverter = MakeUnique<FGLTFIndexBufferConverter>(*this);
+
+	TUniquePtr<IGLTFStaticMeshConverter> StaticMeshConverter = MakeUnique<FGLTFStaticMeshConverter>(*this);
+	TUniquePtr<IGLTFSkeletalMeshConverter> SkeletalMeshConverter = MakeUnique<FGLTFSkeletalMeshConverter>(*this);
+
+	TUniquePtr<IGLTFMaterialConverter> MaterialConverter = MakeUnique<FGLTFMaterialConverter>(*this);
+	TUniquePtr<IGLTFStaticMeshDataConverter> StaticMeshDataConverter = MakeUnique<FGLTFStaticMeshDataConverter>(*this);
+	TUniquePtr<IGLTFSkeletalMeshDataConverter> SkeletalMeshDataConverter = MakeUnique<FGLTFSkeletalMeshDataConverter>(*this);
+
+	TUniquePtr<IGLTFSamplerConverter> SamplerConverter = MakeUnique<FGLTFSamplerConverter>(*this);
+	TUniquePtr<IGLTFTexture2DConverter> Texture2DConverter = MakeUnique<FGLTFTexture2DConverter>(*this);
+	TUniquePtr<IGLTFTextureCubeConverter> TextureCubeConverter = MakeUnique<FGLTFTextureCubeConverter>(*this);
+	TUniquePtr<IGLTFTextureRenderTarget2DConverter> TextureRenderTarget2DConverter = MakeUnique<FGLTFTextureRenderTarget2DConverter>(*this);
+	TUniquePtr<IGLTFTextureRenderTargetCubeConverter> TextureRenderTargetCubeConverter = MakeUnique<FGLTFTextureRenderTargetCubeConverter>(*this);
+	TUniquePtr<IGLTFTextureLightMapConverter> TextureLightMapConverter = MakeUnique<FGLTFTextureLightMapConverter>(*this);
+	TUniquePtr<IGLTFImageConverter> ImageConverter = MakeUnique<FGLTFImageConverter>(*this);
+
+	TUniquePtr<IGLTFSkinConverter> SkinConverter = MakeUnique<FGLTFSkinConverter>(*this);
+	TUniquePtr<IGLTFAnimationConverter> AnimationConverter = MakeUnique<FGLTFAnimationConverter>(*this);
+	TUniquePtr<IGLTFAnimationDataConverter> AnimationDataConverter = MakeUnique<FGLTFAnimationDataConverter>(*this);
+	TUniquePtr<IGLTFLevelSequenceConverter> LevelSequenceConverter = MakeUnique<FGLTFLevelSequenceConverter>(*this);
+	TUniquePtr<IGLTFLevelSequenceDataConverter> LevelSequenceDataConverter = MakeUnique<FGLTFLevelSequenceDataConverter>(*this);
+
+	TUniquePtr<IGLTFActorConverter> ActorConverter = MakeUnique<FGLTFActorConverter>(*this);
+	TUniquePtr<IGLTFComponentConverter> ComponentConverter = MakeUnique<FGLTFComponentConverter>(*this);
+	TUniquePtr<IGLTFComponentSocketConverter> ComponentSocketConverter = MakeUnique<FGLTFComponentSocketConverter>(*this);
+	TUniquePtr<IGLTFStaticSocketConverter> StaticSocketConverter = MakeUnique<FGLTFStaticSocketConverter>(*this);
+	TUniquePtr<IGLTFSkeletalSocketConverter> SkeletalSocketConverter = MakeUnique<FGLTFSkeletalSocketConverter>(*this);
+	TUniquePtr<IGLTFSkeletalBoneConverter> SkeletalBoneConverter = MakeUnique<FGLTFSkeletalBoneConverter>(*this);
+	TUniquePtr<IGLTFSceneConverter> SceneConverter = MakeUnique<FGLTFSceneConverter>(*this);
+
+	TUniquePtr<IGLTFCameraConverter> CameraConverter = MakeUnique<FGLTFCameraConverter>(*this);
+	TUniquePtr<IGLTFLightConverter> LightConverter = MakeUnique<FGLTFLightConverter>(*this);
+	TUniquePtr<IGLTFBackdropConverter> BackdropConverter = MakeUnique<FGLTFBackdropConverter>(*this);
+	TUniquePtr<IGLTFLightMapConverter> LightMapConverter = MakeUnique<FGLTFLightMapConverter>(*this);
+	TUniquePtr<IGLTFHotspotConverter> HotspotConverter = MakeUnique<FGLTFHotspotConverter>(*this);
+	TUniquePtr<IGLTFSkySphereConverter> SkySphereConverter = MakeUnique<FGLTFSkySphereConverter>(*this);
+
+	TUniquePtr<IGLTFEpicLevelVariantSetsConverter> EpicLevelVariantSetsConverter = MakeUnique<FGLTFEpicLevelVariantSetsConverter>(*this);
+	TUniquePtr<IGLTFKhrMaterialVariantConverter> KhrMaterialVariantConverter = MakeUnique<FGLTFKhrMaterialVariantConverter>(*this);
+
 private:
-
-	FGLTFPositionBufferConverter PositionBufferConverter{ *this };
-	FGLTFColorBufferConverter ColorBufferConverter{ *this };
-	FGLTFNormalBufferConverter NormalBufferConverter{ *this };
-	FGLTFTangentBufferConverter TangentBufferConverter{ *this };
-	FGLTFUVBufferConverter UVBufferConverter{ *this };
-	FGLTFBoneIndexBufferConverter BoneIndexBufferConverter{ *this };
-	FGLTFBoneWeightBufferConverter BoneWeightBufferConverter{ *this };
-	FGLTFIndexBufferConverter IndexBufferConverter{ *this };
-
-	FGLTFStaticMeshConverter StaticMeshConverter{ *this };
-	FGLTFSkeletalMeshConverter SkeletalMeshConverter{ *this };
-
-	FGLTFMaterialConverter MaterialConverter{ *this };
-	FGLTFStaticMeshDataConverter StaticMeshDataConverter{ *this };
-	FGLTFSkeletalMeshDataConverter SkeletalMeshDataConverter{ *this };
-
-	FGLTFSamplerConverter SamplerConverter{ *this };
-	FGLTFTexture2DConverter Texture2DConverter{ *this };
-	FGLTFTextureCubeConverter TextureCubeConverter{ *this };
-	FGLTFTextureRenderTarget2DConverter TextureRenderTarget2DConverter{ *this };
-	FGLTFTextureRenderTargetCubeConverter TextureRenderTargetCubeConverter{ *this };
-	FGLTFTextureLightMapConverter TextureLightMapConverter{ *this };
-	FGLTFImageConverter ImageConverter{ *this };
-
-	FGLTFSkinConverter SkinConverter{ *this };
-	FGLTFAnimationConverter AnimationConverter{ *this };
-	FGLTFAnimationDataConverter AnimationDataConverter{ *this };
-	FGLTFLevelSequenceConverter LevelSequenceConverter{ *this };
-	FGLTFLevelSequenceDataConverter LevelSequenceDataConverter{ *this };
-
-	FGLTFActorConverter ActorConverter{ *this };
-	FGLTFComponentConverter ComponentConverter{ *this };
-	FGLTFComponentSocketConverter ComponentSocketConverter{ *this };
-	FGLTFStaticSocketConverter StaticSocketConverter{ *this };
-	FGLTFSkeletalSocketConverter SkeletalSocketConverter{ *this };
-	FGLTFSkeletalBoneConverter SkeletalBoneConverter{ *this };
-	FGLTFSceneConverter SceneConverter{ *this };
-
-	FGLTFCameraConverter CameraConverter{ *this };
-	FGLTFLightConverter LightConverter{ *this };
-	FGLTFBackdropConverter BackdropConverter{ *this };
-	FGLTFLightMapConverter LightMapConverter{ *this };
-	FGLTFHotspotConverter HotspotConverter{ *this };
-	FGLTFSkySphereConverter SkySphereConverter{ *this };
-
-	FGLTFEpicLevelVariantSetsConverter EpicLevelVariantSetsConverter{ *this };
-	FGLTFKhrMaterialVariantConverter KhrMaterialVariantConverter{ *this };
 
 	TMap<const UObject*, TArray<const UPropertyValue*>> ObjectVariants;
 };

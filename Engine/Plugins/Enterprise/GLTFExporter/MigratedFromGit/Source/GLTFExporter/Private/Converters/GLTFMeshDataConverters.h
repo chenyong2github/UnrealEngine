@@ -6,6 +6,9 @@
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFBuilderContext.h"
 
+typedef TGLTFConverter<const FGLTFMeshData*, const UStaticMesh*, const UStaticMeshComponent*, int32> IGLTFStaticMeshDataConverter;
+typedef TGLTFConverter<const FGLTFMeshData*, const USkeletalMesh*, const USkeletalMeshComponent*, int32> IGLTFSkeletalMeshDataConverter;
+
 template <typename MeshType, typename MeshComponentType>
 class TGLTFMeshDataConverter : public FGLTFBuilderContext, public TGLTFConverter<const FGLTFMeshData*, const MeshType*, const MeshComponentType*, int32>
 {
