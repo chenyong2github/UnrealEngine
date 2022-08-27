@@ -195,7 +195,6 @@ FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGL
 
 	bool bHasZeroVectors = false;
 	bool bHasNonUnitVectors = false;
-	const bool bNormalizeVectors = Builder.ExportOptions->bNormalizeNonZeroVectors;
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
@@ -203,20 +202,16 @@ FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGL
 		SourceType Normal = VertexTangents[MappedVertexIndex].TangentZ;
 		FVector NormalVector = Normal.ToFVector();
 
-		const bool bIsZero = NormalVector.IsNearlyZero();
-		const bool bIsUnit = NormalVector.IsUnit(UnitLengthToleranceSq);
-		bool bNeedsNormalizing = !bIsZero && !bIsUnit;
-
-		if (bNormalizeVectors && bNeedsNormalizing)
+		if (NormalVector.IsNearlyZero())
 		{
-			NormalVector = NormalVector.GetSafeNormal();
-			Normal = NormalVector;
-			bNeedsNormalizing = false;
+			bHasZeroVectors = true;
+		}
+		else if (!NormalVector.IsUnit(UnitLengthToleranceSq))
+		{
+			bHasNonUnitVectors = true;
 		}
 
 		Normals[VertexIndex] = TGLTFVertexNormalUtility<DestinationType, SourceType>::Convert(Normal);
-		bHasZeroVectors |= bIsZero;
-		bHasNonUnitVectors |= bNeedsNormalizing;
 	}
 
 	const FGLTFJsonBufferViewIndex BufferViewIndex = Builder.AddBufferView(Normals, EGLTFJsonBufferTarget::ArrayBuffer);
@@ -302,7 +297,6 @@ FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FG
 
 	bool bHasZeroVectors = false;
 	bool bHasNonUnitVectors = false;
-	const bool bNormalizeVectors = Builder.ExportOptions->bNormalizeNonZeroVectors;
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
@@ -310,20 +304,16 @@ FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FG
 		SourceType Tangent = VertexTangents[MappedVertexIndex].TangentX;
 		FVector TangentVector = Tangent.ToFVector();
 
-		const bool bIsZero = TangentVector.IsNearlyZero();
-		const bool bIsUnit = TangentVector.IsUnit(UnitLengthToleranceSq);
-		bool bNeedsNormalizing = !bIsZero && !bIsUnit;
-
-		if (bNormalizeVectors && bNeedsNormalizing)
+		if (TangentVector.IsNearlyZero())
 		{
-			TangentVector = TangentVector.GetSafeNormal();
-			Tangent = TangentVector;
-			bNeedsNormalizing = false;
+			bHasZeroVectors = true;
+		}
+		else if (!TangentVector.IsUnit(UnitLengthToleranceSq))
+		{
+			bHasNonUnitVectors = true;
 		}
 
 		Tangents[VertexIndex] = TGLTFVertexTangentUtility<DestinationType, SourceType>::Convert(Tangent);
-		bHasZeroVectors |= bIsZero;
-		bHasNonUnitVectors |= bNeedsNormalizing;
 	}
 
 	const FGLTFJsonBufferViewIndex BufferViewIndex = Builder.AddBufferView(Tangents, EGLTFJsonBufferTarget::ArrayBuffer);
