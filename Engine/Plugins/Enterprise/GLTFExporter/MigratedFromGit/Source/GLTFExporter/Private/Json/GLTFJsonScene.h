@@ -27,22 +27,17 @@ struct FGLTFJsonScene
 			JsonWriter.WriteValue(TEXT("nodes"), Nodes);
 		}
 
-		const bool bWriteExtensions = LevelVariantSets.Num() > 0;
-
-		if (bWriteExtensions)
+		if (LevelVariantSets.Num() > 0)
 		{
+			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
+			Extensions.Used.Add(Extension);
+
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
 
-			if (LevelVariantSets.Num() > 0)
-			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
-				Extensions.Used.Add(Extension);
+			JsonWriter.WriteValue(TEXT("levelVariantSets"), LevelVariantSets);
 
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("levelVariantSets"), LevelVariantSets);
-				JsonWriter.WriteObjectEnd();
-			}
-
+			JsonWriter.WriteObjectEnd();
 			JsonWriter.WriteObjectEnd();
 		}
 

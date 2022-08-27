@@ -133,4 +133,15 @@ struct FGLTFJsonUtility
 			JsonWriter.WriteArrayEnd();
 		}
 	}
+
+	template <class WriterType, class ElementType, SIZE_T Size>
+    static void WriteFixedArray(WriterType& JsonWriter, const FString& Identifier, const ElementType (&Array)[Size])
+	{
+		JsonWriter.WriteArrayStart(Identifier);
+		for (const ElementType& Element : Array)
+		{
+			JsonWriter.WriteValue(Element);
+		}
+		JsonWriter.WriteArrayEnd();
+	}
 };
