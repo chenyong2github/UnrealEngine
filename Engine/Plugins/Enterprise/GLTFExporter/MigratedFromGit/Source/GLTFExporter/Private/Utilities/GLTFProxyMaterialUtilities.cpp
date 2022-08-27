@@ -55,7 +55,7 @@ void FGLTFProxyMaterialUtilities::SetProxyMaterial(UMaterialInterface* OriginalM
 	UGLTFMaterialExportOptions* UserData = OriginalMaterial->GetAssetUserData<UGLTFMaterialExportOptions>();
 	if (UserData == nullptr)
 	{
-		UserData = NewObject<UGLTFMaterialExportOptions>();
+		UserData = NewObject<UGLTFMaterialExportOptions>(OriginalMaterial, NAME_None, RF_Public | RF_Transactional);
 		OriginalMaterial->AddAssetUserData(UserData);
 	}
 

@@ -45,9 +45,9 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 	UMaterialInstanceConstant* ProxyMaterial = CreateInstancedMaterial(OriginalMaterial, JsonMaterial->ShadingModel);
 	if (ProxyMaterial != nullptr)
 	{
-		SetUserData(ProxyMaterial, OriginalMaterial);
+		FGLTFProxyMaterialUtilities::SetProxyMaterial(OriginalMaterial, ProxyMaterial);
 		SetBaseProperties(ProxyMaterial, OriginalMaterial);
-		SetProxyProperties(ProxyMaterial, *JsonMaterial);
+		SetProxyParameters(ProxyMaterial, *JsonMaterial);
 	}
 
 	return ProxyMaterial;
@@ -59,19 +59,6 @@ void FGLTFMaterialProxyFactory::OpenLog()
 	{
 		Builder.OpenLog();
 	}
-}
-
-void FGLTFMaterialProxyFactory::SetUserData(UMaterialInstanceConstant* ProxyMaterial, UMaterialInterface* OriginalMaterial)
-{
-	UGLTFMaterialExportOptions* UserData = OriginalMaterial->GetAssetUserData<UGLTFMaterialExportOptions>();
-	if (UserData == nullptr)
-	{
-		UserData = NewObject<UGLTFMaterialExportOptions>();
-		OriginalMaterial->AddAssetUserData(UserData);
-	}
-
-	UserData->Proxy = ProxyMaterial;
-	OriginalMaterial->Modify();
 }
 
 void FGLTFMaterialProxyFactory::SetBaseProperties(UMaterialInstanceConstant* ProxyMaterial, UMaterialInterface* OriginalMaterial)
@@ -100,7 +87,7 @@ void FGLTFMaterialProxyFactory::SetBaseProperties(UMaterialInstanceConstant* Pro
 	}
 }
 
-void FGLTFMaterialProxyFactory::SetProxyProperties(UMaterialInstanceConstant* ProxyMaterial, const FGLTFJsonMaterial& JsonMaterial)
+void FGLTFMaterialProxyFactory::SetProxyParameters(UMaterialInstanceConstant* ProxyMaterial, const FGLTFJsonMaterial& JsonMaterial)
 {
 	SetProxyParameter(ProxyMaterial, FGLTFProxyMaterialInfo::BaseColorFactor, JsonMaterial.PBRMetallicRoughness.BaseColorFactor);
 	SetProxyParameter(ProxyMaterial, FGLTFProxyMaterialInfo::BaseColor, JsonMaterial.PBRMetallicRoughness.BaseColorTexture);
