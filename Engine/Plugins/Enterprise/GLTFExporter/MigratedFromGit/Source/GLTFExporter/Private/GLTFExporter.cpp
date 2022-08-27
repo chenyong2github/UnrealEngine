@@ -19,16 +19,16 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 
 bool UGLTFExporter::FillExportOptions()
 {
-	bool ExportAll = GetBatchMode() && !GetShowExportOption();
-	bool ExportCancel = false;
+	bool bExportAll = GetBatchMode() && !GetShowExportOption();
+	bool bExportCancel = false;
 
-	ExportOptions->FillOptions(GetBatchMode(), GetShowExportOption(), UExporter::CurrentFilename, ExportCancel, ExportAll);
-	if (ExportCancel)
+	ExportOptions->FillOptions(GetBatchMode(), GetShowExportOption(), UExporter::CurrentFilename, bExportCancel, bExportAll);
+	if (bExportCancel)
 	{
 		SetCancelBatch(GetBatchMode());
 		return false;
 	}
 
-	SetShowExportOption(!ExportAll);
+	SetShowExportOption(!bExportAll);
 	return true;
 }

@@ -46,7 +46,7 @@ public:
 	SGLTFExportOptionsWindow();
 
 public:
-	static void ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool BatchMode, bool& bOutOperationCanceled, bool& bOutExportAll);
+	static void ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll);
 
 private:
 	FReply OnResetToDefaultClick() const;
@@ -56,6 +56,6 @@ private:
 	TSharedPtr<class IDetailsView> DetailsView;
 	TWeakPtr< SWindow > WidgetWindow;
 	TSharedPtr< SButton > ImportButton;
-	bool			bShouldExport;
-	bool			bShouldExportAll;
+	bool bShouldExport;
+	bool bShouldExportAll;
 };
