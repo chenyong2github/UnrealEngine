@@ -6,7 +6,8 @@ public class GLTFMaterialAnalyzer : ModuleRules
 {
 	public GLTFMaterialAnalyzer(ReadOnlyTargetRules Target) : base(Target)
 	{
-		bTreatAsEngineModule = true;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		bTreatAsEngineModule = true; // Only necessary when plugin installed in project
 
 		PublicDependencyModuleNames .AddRange(
 			new string[]
