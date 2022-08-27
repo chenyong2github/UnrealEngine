@@ -3,6 +3,24 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
+const TArray<FStaticMaterial>& FGLTFMeshUtility::GetMaterials(const UStaticMesh* StaticMesh)
+{
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	return StaticMesh->GetStaticMaterials();
+#else
+	return StaticMesh->StaticMaterials;
+#endif
+}
+
+const TArray<FSkeletalMaterial>& FGLTFMeshUtility::GetMaterials(const USkeletalMesh* SkeletalMesh)
+{
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	return SkeletalMesh->GetMaterials();
+#else
+	return SkeletalMesh->Materials;
+#endif
+}
+
 FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
 {
 	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD.Sections;

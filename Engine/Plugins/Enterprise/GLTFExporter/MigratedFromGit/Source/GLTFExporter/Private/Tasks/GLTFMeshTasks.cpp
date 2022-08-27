@@ -155,12 +155,7 @@ void FGLTFStaticMeshTask::Complete()
 
 	ValidateVertexBuffer(Builder, &VertexBuffer, *StaticMesh->GetName());
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
-	const TArray<FStaticMaterial>& MaterialSlots = StaticMesh->GetStaticMaterials();
-#else
-	const TArray<FStaticMaterial>& MaterialSlots = StaticMesh->StaticMaterials;
-#endif
-
+	const TArray<FStaticMaterial>& MaterialSlots = FGLTFMeshUtility::GetMaterials(StaticMesh);
 	const int32 MaterialCount = MaterialSlots.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
@@ -265,12 +260,7 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	ValidateVertexBuffer(Builder, &VertexBuffer, *SkeletalMesh->GetName());
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
-	const TArray<FSkeletalMaterial>& MaterialSlots = SkeletalMesh->GetMaterials();
-#else
-	const TArray<FSkeletalMaterial>& MaterialSlots = SkeletalMesh->Materials;
-#endif
-
+	const TArray<FSkeletalMaterial>& MaterialSlots = FGLTFMeshUtility::GetMaterials(SkeletalMesh);
 	const uint16 MaterialCount = MaterialSlots.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 

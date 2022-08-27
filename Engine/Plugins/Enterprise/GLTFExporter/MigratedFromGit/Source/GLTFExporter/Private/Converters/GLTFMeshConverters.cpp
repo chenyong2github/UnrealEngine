@@ -18,11 +18,7 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 	}
 	else
 	{
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
-		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMesh->GetStaticMaterials());
-#else
-		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMesh->StaticMaterials);
-#endif
+		FGLTFMaterialUtility::ResolveOverrides(Materials, FGLTFMeshUtility::GetMaterials(StaticMesh));
 	}
 
 	if (LODIndex < 0)
@@ -70,11 +66,7 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 	}
 	else
 	{
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
-		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMesh->GetMaterials());
-#else
-		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMesh->Materials);
-#endif
+		FGLTFMaterialUtility::ResolveOverrides(Materials, FGLTFMeshUtility::GetMaterials(SkeletalMesh));
 	}
 
 	if (LODIndex < 0)
