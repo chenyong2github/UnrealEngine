@@ -44,6 +44,7 @@ public:
 	FGLTFJsonSceneIndex GetOrAddScene(const UWorld* World, const FString& DesiredName = TEXT(""));
 
 	FGLTFJsonCameraIndex GetOrAddCamera(const UCameraComponent* CameraComponent, const FString& DesiredName = TEXT(""));
+	FGLTFJsonLightIndex GetOrAddLight(const ULightComponent* LightComponent, const FString& DesiredName = TEXT(""));
 
 	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* Actor, const FString& DesiredName = TEXT(""));
 	FGLTFJsonLevelVariantSetsIndex GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor, const FString& DesiredName = TEXT(""));
@@ -71,7 +72,9 @@ private:
 	FGLTFSceneComponentConverter SceneComponentConverter;
 	FGLTFActorConverter ActorConverter;
 	FGLTFLevelConverter LevelConverter;
+
 	FGLTFCameraComponentConverter CameraComponentConverter;
+	FGLTFLightComponentConverter LightComponentConverter;
 
 	FGLTFBackdropConverter BackdropConverter;
 	FGLTFLevelVariantSetsConverter LevelVariantSetsConverter;
