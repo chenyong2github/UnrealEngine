@@ -4,7 +4,8 @@
 
 namespace
 {
-	// Positive angles are indexed from 0 and negative angles from -1
+	// Uniquely identifies an angle by how many times it has crossed the 0-360 degree range.
+	// Positive angles are indexed from 0 and negative angles from -1.
 	int32 AngleCycleIndex(float Angle)
 	{
 		return (static_cast<int32>(Angle) / 360) + ((Angle < 0.0f) ? -1 : 0);
