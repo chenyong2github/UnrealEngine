@@ -96,7 +96,7 @@ void FGLTFAnimSequenceTask::Complete()
 			for (int32 Key = 0; Key < KeyPositions.Num(); ++Key)
 			{
 				const FVector KeyPosition = KeyTransforms[Key].GetTranslation();
-				Translations[Key] = FGLTFConverterUtility::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportScale);
+				Translations[Key] = FGLTFConverterUtility::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);
 			}
 
 			JsonInputAccessor.Count = Translations.Num();
@@ -299,7 +299,7 @@ void FGLTFLevelSequenceTask::Complete()
 							Channels[1]->Evaluate(FrameTime, Translation.Y);
 							Channels[2]->Evaluate(FrameTime, Translation.Z);
 
-							Translations[Frame] = FGLTFConverterUtility::ConvertPosition(Translation, Builder.ExportOptions->ExportScale);
+							Translations[Frame] = FGLTFConverterUtility::ConvertPosition(Translation, Builder.ExportOptions->ExportUniformScale);
 						}
 
 						FGLTFJsonAccessor JsonOutputAccessor;

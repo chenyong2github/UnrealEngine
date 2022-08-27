@@ -115,10 +115,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding"))
 	EGLTFTextureHDREncoding TextureHDREncoding;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta =
-		(DisplayName = "Export Uniform Scale",
-		 ToolTip = "Scale factor used for exporting assets, by default: 0.01, for conversion from centimeters(Unreal default) to meters(glTF)."))
-	float ExportScale;
+	/** Scale factor used for exporting assets (0.01 by default) for conversion from centimeters (Unreal default) to meters (glTF). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
+	float ExportUniformScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportHiddenInGame;

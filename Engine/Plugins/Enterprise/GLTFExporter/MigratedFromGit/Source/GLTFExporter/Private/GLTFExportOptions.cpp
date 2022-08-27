@@ -32,7 +32,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportTextureTransforms = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFTextureHDREncoding::RGBM;
-	ExportScale = 0.01;
+	ExportUniformScale = 0.01;
 	bExportHiddenInGame = false;
 	ExportLights = EGLTFExportLightMobility::MovableAndStationary;
 	bExportCameras = true;
