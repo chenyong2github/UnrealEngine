@@ -52,7 +52,6 @@ void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequenc
 	FMemMark Mark(FMemStack::Get()); // Make sure to free stack allocations made by FCompactPose, FBlendedCurve, and FStackCustomAttributes when end of scope
 
 	FBoneContainer BoneContainer;
-	BoneContainer.SetUseRAWData(true);
 	BoneContainer.InitializeTo(BoneIndices, FCurveEvaluationOption(true), *AnimSequence->GetSkeleton());
 
 	const int32 FrameCount = FrameTimestamps.Num();
