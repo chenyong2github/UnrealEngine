@@ -13,6 +13,24 @@ void FGLTFJsonBuilder::WriteJson(FArchive& Archive) const
 	JsonRoot.ToJson(&Archive, bIsGlbFile, ExportOptions->bAllExtensionsRequired);
 }
 
+TSet<EGLTFJsonExtension> FGLTFJsonBuilder::GetCustomExtensionsUsed() const
+{
+	static const TSet<EGLTFJsonExtension> AllCustomExtensions =
+	{
+		EGLTFJsonExtension::EPIC_AnimationHotspots,
+		EGLTFJsonExtension::EPIC_AnimationPlayback,
+		EGLTFJsonExtension::EPIC_BlendModes,
+		EGLTFJsonExtension::EPIC_CameraControls,
+		EGLTFJsonExtension::EPIC_HDRIBackdrops,
+		EGLTFJsonExtension::EPIC_LevelVariantSets,
+		EGLTFJsonExtension::EPIC_LightmapTextures,
+		EGLTFJsonExtension::EPIC_SkySpheres,
+		EGLTFJsonExtension::EPIC_TextureHDREncoding
+	};
+
+	return JsonRoot.Extensions.Used.Intersect(AllCustomExtensions);
+}
+
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)
 {
 	JsonRoot.Extensions.Used.Add(Extension);
