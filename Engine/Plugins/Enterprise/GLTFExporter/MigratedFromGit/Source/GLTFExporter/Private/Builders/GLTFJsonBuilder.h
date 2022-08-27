@@ -15,6 +15,8 @@ public:
 
 	FGLTFJsonSceneIndex& DefaultScene;
 
+	void AddExtension(EGLTFJsonExtension Extension, bool bIsRequired = false);
+
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor = {});
 	FGLTFJsonAnimationIndex AddAnimation(const FGLTFJsonAnimation& JsonAnimation = {});
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer = {});
