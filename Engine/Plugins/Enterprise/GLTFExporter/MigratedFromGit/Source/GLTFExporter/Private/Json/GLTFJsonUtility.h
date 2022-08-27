@@ -19,6 +19,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonExtension::KHR_LightsPunctual:      return TEXT("KHR_lights_punctual");
 			case EGLTFJsonExtension::KHR_MaterialsClearCoat:  return TEXT("KHR_materials_clearcoat");
 			case EGLTFJsonExtension::KHR_MaterialsUnlit:      return TEXT("KHR_materials_unlit");
+			case EGLTFJsonExtension::KHR_MaterialsVariants:   return TEXT("KHR_materials_variants");
 			case EGLTFJsonExtension::KHR_MeshQuantization:    return TEXT("KHR_mesh_quantization");
 			case EGLTFJsonExtension::KHR_TextureTransform:    return TEXT("KHR_texture_transform");
 			case EGLTFJsonExtension::EPIC_AnimationHotspots:  return TEXT("EPIC_animation_hotspots");

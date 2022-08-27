@@ -72,3 +72,4 @@ struct FGLTFJsonLightIndex : FGLTFJsonIndex<FGLTFJsonLightIndex> { using FGLTFJs
 struct FGLTFJsonLightMapIndex : FGLTFJsonIndex<FGLTFJsonLightMapIndex> { using FGLTFJsonIndex::FGLTFJsonIndex; };
 struct FGLTFJsonSkySphereIndex : FGLTFJsonIndex<FGLTFJsonSkySphereIndex> { using FGLTFJsonIndex::FGLTFJsonIndex; };
 struct FGLTFJsonEpicLevelVariantSetsIndex : FGLTFJsonIndex<FGLTFJsonEpicLevelVariantSetsIndex> { using FGLTFJsonIndex::FGLTFJsonIndex; };
+struct FGLTFJsonKhrMaterialVariantIndex : FGLTFJsonIndex<FGLTFJsonKhrMaterialVariantIndex> { using FGLTFJsonIndex::FGLTFJsonIndex; };

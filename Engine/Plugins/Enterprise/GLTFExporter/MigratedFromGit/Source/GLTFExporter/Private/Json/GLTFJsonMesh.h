@@ -5,6 +5,7 @@
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonKhrMaterialVariant.h"
 
 struct FGLTFJsonAttributes : IGLTFJsonObject
 {
@@ -51,6 +52,8 @@ struct FGLTFJsonPrimitive : IGLTFJsonObject
 	EGLTFJsonPrimitiveMode Mode;
 	FGLTFJsonAttributes    Attributes;
 
+	TArray<FGLTFJsonKhrMaterialVariantMapping> KhrMaterialVariantMappings;
+
 	FGLTFJsonPrimitive()
 		: Mode(EGLTFJsonPrimitiveMode::Triangles)
 	{
@@ -73,6 +76,17 @@ struct FGLTFJsonPrimitive : IGLTFJsonObject
 		if (Mode != EGLTFJsonPrimitiveMode::Triangles)
 		{
 			Writer.Write(TEXT("mode"), Mode);
+		}
+
+		if (KhrMaterialVariantMappings.Num() > 0)
+		{
+			Writer.StartExtensions();
+
+			Writer.StartExtension(EGLTFJsonExtension::KHR_MaterialsVariants);
+			Writer.Write(TEXT("mappings"), KhrMaterialVariantMappings);
+			Writer.EndExtension();
+
+			Writer.EndExtensions();
 		}
 	}
 };
