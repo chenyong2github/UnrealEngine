@@ -91,6 +91,9 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, c
 		const FStaticMeshSection& Section = LODResources.Sections[SectionIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer,
 			Name + (SectionCount == 1 ? TEXT("_Indices") : TEXT("_Indices_Section") + FString::FromInt(SectionIndex)));
+
+		const UMaterialInterface* Material = StaticMesh->GetMaterial(Section.MaterialIndex);
+		if (Material != nullptr) JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
 	}
 
 	return Builder.AddMesh(JsonMesh);
