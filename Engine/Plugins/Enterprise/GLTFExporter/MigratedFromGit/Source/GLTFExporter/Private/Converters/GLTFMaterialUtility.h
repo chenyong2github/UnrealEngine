@@ -43,7 +43,7 @@ struct FGLTFMaterialUtility
 	static const FExpressionInput* GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property);
 
 	template<class InputType>
-    static const FMaterialInput<InputType>* GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property)
+	static const FMaterialInput<InputType>* GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property)
 	{
 		const FExpressionInput* ExpressionInput = GetInputForProperty(Material, Property);
 		return static_cast<const FMaterialInput<InputType>*>(ExpressionInput);

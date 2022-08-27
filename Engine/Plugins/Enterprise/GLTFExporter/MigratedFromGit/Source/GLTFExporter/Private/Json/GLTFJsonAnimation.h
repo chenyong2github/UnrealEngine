@@ -14,12 +14,12 @@ struct FGLTFJsonAnimationChannelTarget
 	EGLTFJsonTargetPath Path;
 
 	FGLTFJsonAnimationChannelTarget()
-        : Path(EGLTFJsonTargetPath::None)
+		: Path(EGLTFJsonTargetPath::None)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -36,7 +36,7 @@ struct FGLTFJsonAnimationChannel
 	FGLTFJsonAnimationChannelTarget Target;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -57,12 +57,12 @@ struct FGLTFJsonAnimationSampler
 	EGLTFJsonInterpolation Interpolation;
 
 	FGLTFJsonAnimationSampler()
-        : Interpolation(EGLTFJsonInterpolation::Linear)
+		: Interpolation(EGLTFJsonInterpolation::Linear)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 

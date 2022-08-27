@@ -9,10 +9,10 @@ class FGLTFSkinWeightDataVertexBufferHack : public FVertexBuffer
 public:
 
 	FORCEINLINE uint32 GetBoneIndexByteSize() const
-    { return (Use16BitBoneIndex() ? sizeof(FBoneIndex16) : sizeof(FBoneIndex8)); }
+	{ return (Use16BitBoneIndex() ? sizeof(FBoneIndex16) : sizeof(FBoneIndex8)); }
 
-    FORCEINLINE bool Use16BitBoneIndex() const
-    { return bUse16BitBoneIndex; }
+	FORCEINLINE bool Use16BitBoneIndex() const
+	{ return bUse16BitBoneIndex; }
 
 	uint32 GetBoneIndex(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const
 	{
@@ -36,17 +36,17 @@ public:
 	}
 
 	uint8 GetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const
-    {
-    	if (InfluenceIndex < VertexInfluenceCount)
-    	{
-    		uint8* BoneData = Data + VertexWeightOffset;
-    		uint32 BoneWeightOffset = GetBoneIndexByteSize() * VertexInfluenceCount;
-    		return BoneData[BoneWeightOffset + InfluenceIndex];
-    	}
-    	else
-    	{
-    		return 0;
-    	}
+	{
+		if (InfluenceIndex < VertexInfluenceCount)
+		{
+			uint8* BoneData = Data + VertexWeightOffset;
+			uint32 BoneWeightOffset = GetBoneIndexByteSize() * VertexInfluenceCount;
+			return BoneData[BoneWeightOffset + InfluenceIndex];
+		}
+		else
+		{
+			return 0;
+		}
 	}
 
 	// guaranteed only to be valid if the vertex buffer is valid

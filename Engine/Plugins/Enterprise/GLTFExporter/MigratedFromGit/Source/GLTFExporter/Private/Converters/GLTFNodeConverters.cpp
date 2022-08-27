@@ -193,9 +193,9 @@ FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent*
 		// TODO: add support for more socket types
 
 		Builder.AddWarningMessage(
-            FString::Printf(TEXT("Can't export socket %s because it belongs to an unsupported mesh component %s"),
-            *SocketName.ToString(),
-            *SceneComponent->GetName()));
+			FString::Printf(TEXT("Can't export socket %s because it belongs to an unsupported mesh component %s"),
+			*SocketName.ToString(),
+			*SceneComponent->GetName()));
 	}
 
 	return NodeIndex;

@@ -45,7 +45,7 @@ class FGLTFTangentBufferConverter final : public TGLTFAccessorConverter<const FG
 	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer) override;
 
 	template <typename DestinationType, typename SourceType>
-    FGLTFJsonBufferViewIndex ConvertBufferView(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer);
+	FGLTFJsonBufferViewIndex ConvertBufferView(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer);
 };
 
 class FGLTFUVBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FStaticMeshVertexBuffer*, uint32>
@@ -79,5 +79,5 @@ class FGLTFIndexBufferConverter final : public TGLTFAccessorConverter<const FGLT
 	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection) override;
 
 	template <typename IndexType>
-    FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection) const;
+	FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection) const;
 };

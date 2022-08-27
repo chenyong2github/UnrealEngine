@@ -54,8 +54,8 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 		if (MaterialIndex == INDEX_NONE)
 		{
 			Builder.AddErrorMessage(
-                FString::Printf(TEXT("Failed to export material %s"),
-                *Material->GetName()));
+				FString::Printf(TEXT("Failed to export material %s"),
+				*Material->GetName()));
 			return false;
 		}
 	}

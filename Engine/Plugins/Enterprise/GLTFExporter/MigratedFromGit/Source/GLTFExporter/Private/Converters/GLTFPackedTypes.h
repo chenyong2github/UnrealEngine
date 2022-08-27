@@ -22,7 +22,7 @@ struct FGLTFPackedVector8
 	int8 X, Y, Z, W;
 
 	FGLTFPackedVector8(int8 X, int8 Y, int8 Z, int8 W = 0)
-        : X(X), Y(Y), Z(Z), W(W)
+		: X(X), Y(Y), Z(Z), W(W)
 	{
 	}
 };
@@ -33,7 +33,7 @@ struct FGLTFPackedVector16
 	int16 X, Y, Z, W;
 
 	FGLTFPackedVector16(int16 X, int16 Y, int16 Z, int16 W = 0)
-        : X(X), Y(Y), Z(Z), W(W)
+		: X(X), Y(Y), Z(Z), W(W)
 	{
 	}
 };

@@ -10,8 +10,8 @@ class FGLTFBinaryHashKey
 public:
 
 	FGLTFBinaryHashKey(const void* RawData, int64 ByteLength)
-        : Hash(FCrc::MemCrc32(RawData, ByteLength))
-        , Bytes(static_cast<const uint8*>(RawData), ByteLength)
+		: Hash(FCrc::MemCrc32(RawData, ByteLength))
+		, Bytes(static_cast<const uint8*>(RawData), ByteLength)
 	{
 	}
 
@@ -35,7 +35,7 @@ private:
 	bool CompareBytes(const FGLTFBinaryHashKey& Other) const
 	{
 		return Bytes.Num() == Other.Bytes.Num()
-            && FMemory::Memcmp(Bytes.GetData(), Other.Bytes.GetData(), Bytes.Num()) == 0;
+			&& FMemory::Memcmp(Bytes.GetData(), Other.Bytes.GetData(), Bytes.Num()) == 0;
 	}
 
 	const uint32 Hash;

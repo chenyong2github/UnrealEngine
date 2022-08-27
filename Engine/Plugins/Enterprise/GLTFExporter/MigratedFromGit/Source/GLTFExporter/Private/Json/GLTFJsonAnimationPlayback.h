@@ -16,10 +16,10 @@ struct FGLTFJsonAnimationPlayback
 	float StartTime;
 
 	FGLTFJsonAnimationPlayback()
-        : bLoop(true)
-        , bAutoPlay(true)
-        , PlayRate(1)
-        , StartTime(0)
+		: bLoop(true)
+		, bAutoPlay(true)
+		, PlayRate(1)
+		, StartTime(0)
 	{
 	}
 
@@ -59,9 +59,9 @@ struct FGLTFJsonAnimationPlayback
 	bool operator==(const FGLTFJsonAnimationPlayback& Other) const
 	{
 		return bLoop == Other.bLoop
-            && bAutoPlay == Other.bAutoPlay
-            && PlayRate == Other.PlayRate
-            && StartTime == Other.StartTime;
+			&& bAutoPlay == Other.bAutoPlay
+			&& PlayRate == Other.PlayRate
+			&& StartTime == Other.StartTime;
 	}
 
 	bool operator!=(const FGLTFJsonAnimationPlayback& Other) const

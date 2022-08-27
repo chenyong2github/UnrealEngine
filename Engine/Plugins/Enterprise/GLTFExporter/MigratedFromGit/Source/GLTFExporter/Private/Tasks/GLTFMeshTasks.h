@@ -23,7 +23,7 @@ public:
 		, StaticMeshComponent(StaticMeshComponent)
 		, Materials(Materials)
 		, LODIndex(LODIndex)
-        , MeshIndex(MeshIndex)
+		, MeshIndex(MeshIndex)
 	{
 	}
 
