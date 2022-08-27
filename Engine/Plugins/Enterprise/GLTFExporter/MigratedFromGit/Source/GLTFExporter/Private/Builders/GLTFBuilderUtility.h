@@ -18,14 +18,4 @@ struct FGLTFBuilderUtility
 
 		return Name;
 	}
-
-	template <typename ElementType, typename AllocatorType>
-	static TArray<const ElementType*, AllocatorType> MakeArrayOfPointersConst(const TArray<ElementType*, AllocatorType>& ArrayOfPointers)
-	{
-		TArray<const ElementType*, AllocatorType> ArrayOfConstPointers;
-		ArrayOfConstPointers.AddUninitialized(ArrayOfPointers.Num());
-
-		FMemory::Memcpy(ArrayOfConstPointers.GetData(), ArrayOfPointers.GetData(), ArrayOfPointers.Num() * sizeof(ElementType*));
-		return ArrayOfConstPointers;
-	}
 };
