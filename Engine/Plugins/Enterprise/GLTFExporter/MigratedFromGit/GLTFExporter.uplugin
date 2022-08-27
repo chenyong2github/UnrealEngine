@@ -12,7 +12,6 @@
 	"SupportURL": "",
 	"EngineVersion": "4.27.0",
 	"CanContainContent": true,
-	"IsBetaVersion": true,
 	"Modules": [
 		{
 			"Name": "GLTFExporter",
