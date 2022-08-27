@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
+#include "NormalMapPreview.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
@@ -210,8 +211,16 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	{
 		check(Source.Texture);
 
+		TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
+
+		if (Source.Texture->IsNormalMap())
+		{
+			BatchedElementParameters = new FNormalMapBatchedElementParameters();
+		}
+
 		FCanvasTileItem TileItem(TilePosition, Source.Texture->Resource, TileSize, Source.TintColor);
 
+		TileItem.BatchedElementParameters = BatchedElementParameters;
 		TileItem.BlendMode = Source.BlendMode;
 		TileItem.Draw(&Canvas);
 	}
