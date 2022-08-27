@@ -24,5 +24,5 @@ public:
 private:
 
 	FGLTFJsonBufferIndex BufferIndex;
-	TArray<uint8> BufferData;
+	TArray64<uint8> BufferData;
 };

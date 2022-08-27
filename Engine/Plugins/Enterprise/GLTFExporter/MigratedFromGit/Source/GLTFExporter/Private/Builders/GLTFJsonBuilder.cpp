@@ -26,6 +26,11 @@ FGLTFJsonBufferViewIndex FGLTFJsonBuilder::AddBufferView(const FGLTFJsonBufferVi
 	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(JsonBufferView));
 }
 
+FGLTFJsonImageIndex FGLTFJsonBuilder::AddImage(const FGLTFJsonImage& JsonImage)
+{
+	return FGLTFJsonImageIndex(JsonRoot.Images.Add(JsonImage));
+}
+
 FGLTFJsonMaterialIndex FGLTFJsonBuilder::AddMaterial(const FGLTFJsonMaterial& JsonMaterial)
 {
 	return FGLTFJsonMaterialIndex(JsonRoot.Materials.Add(JsonMaterial));
@@ -41,9 +46,19 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::AddNode(const FGLTFJsonNode& JsonNode)
 	return FGLTFJsonNodeIndex(JsonRoot.Nodes.Add(JsonNode));
 }
 
+FGLTFJsonSamplerIndex FGLTFJsonBuilder::AddSampler(const FGLTFJsonSampler& JsonSampler)
+{
+	return FGLTFJsonSamplerIndex(JsonRoot.Samplers.Add(JsonSampler));
+}
+
 FGLTFJsonSceneIndex FGLTFJsonBuilder::AddScene(const FGLTFJsonScene& JsonScene)
 {
 	return FGLTFJsonSceneIndex(JsonRoot.Scenes.Add(JsonScene));
+}
+
+FGLTFJsonTextureIndex FGLTFJsonBuilder::AddTexture(const FGLTFJsonTexture& JsonTexture)
+{
+	return FGLTFJsonTextureIndex(JsonRoot.Textures.Add(JsonTexture));
 }
 
 bool FGLTFJsonBuilder::Serialize(FArchive& Archive, const FString& FilePath)

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "Builders/GLTFBufferBuilder.h"
+#include "Builders/GLTFImageBuilder.h"
 #include "Converters/GLTFVertexBufferConverters.h"
 #include "Converters/GLTFStaticMeshConverters.h"
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFLevelConverters.h"
 
-class FGLTFConvertBuilder : public FGLTFBufferBuilder
+class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
 public:
 
