@@ -118,20 +118,24 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FTextureSource& Image, con
 bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 {
 	const FString ImageDir = FPaths::GetPath(FilePath);
+	TSet<FString> UniqueImageUris;
 
 	for (const auto& DataPair : ImageDataLookup)
 	{
 		const TArray64<uint8>& ImageData = DataPair.Value;
 		FGLTFJsonImage& JsonImage = GetImage(DataPair.Key);
 
-		const FString ImageUri = JsonImage.Name + FGLTFBuilderUtility::GetFileExtension(JsonImage.MimeType);
-		const FString ImagePath = FPaths::Combine(ImageDir, ImageUri);
+		const TCHAR* Extension = FGLTFBuilderUtility::GetFileExtension(JsonImage.MimeType);
+		const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(JsonImage.Name, Extension, UniqueImageUris);
 
+		const FString ImagePath = FPaths::Combine(ImageDir, ImageUri);
 		if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
 		{
 			// TODO: report error
 			continue;
 		}
+
+		UniqueImageUris.Add(ImageUri);
 
 		JsonImage.Uri = ImageUri;
 		JsonImage.Name.Empty(); // URI already contains name
