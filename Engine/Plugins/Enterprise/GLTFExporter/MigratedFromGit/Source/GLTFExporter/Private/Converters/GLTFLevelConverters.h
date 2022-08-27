@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "GLTFExportOptions.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Converters/GLTFConverter.h"
 #include "Engine.h"
-#include "GLTFExportOptions.h"
 
 class FGLTFSceneComponentConverter final : public TGLTFConverter<FGLTFJsonNodeIndex, const USceneComponent*>
 {
