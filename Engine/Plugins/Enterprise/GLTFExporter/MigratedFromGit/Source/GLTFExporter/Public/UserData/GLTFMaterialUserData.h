@@ -86,7 +86,7 @@ struct FGLTFOverrideMaterialBakeSettings
 
 /** glTF-specific user data that can be added to material assets to override export options */
 UCLASS(BlueprintType, meta = (DisplayName = "GLTF Material Export Options"))
-class GLTFEXPORTERRUNTIME_API UGLTFMaterialExportOptions : public UAssetUserData
+class GLTFEXPORTER_API UGLTFMaterialExportOptions : public UAssetUserData
 {
 	GENERATED_BODY()
 

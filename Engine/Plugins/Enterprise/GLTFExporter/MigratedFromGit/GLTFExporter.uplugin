@@ -21,12 +21,6 @@
 			"WhitelistPlatforms": [ "Win64", "Win32", "Mac" ]
 		},
 		{
-			"Name": "GLTFExporterRuntime",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64", "Win32", "Mac" ]
-		},
-		{
 			"Name": "GLTFMaterialAnalyzer",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
