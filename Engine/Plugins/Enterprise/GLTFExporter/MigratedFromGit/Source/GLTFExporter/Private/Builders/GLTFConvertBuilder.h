@@ -20,7 +20,6 @@
 #include "Converters/GLTFLightMapConverters.h"
 #include "Converters/GLTFHotspotConverters.h"
 #include "Converters/GLTFSkySphereConverters.h"
-#include "Converters/GLTFUVAnalysisConverters.h"
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
@@ -35,7 +34,6 @@ public:
 	// TODO: find a better place for this types of indirect converters
 	FGLTFStaticMeshDataConverter StaticMeshDataConverter;
 	FGLTFSkeletalMeshDataConverter SkeletalMeshDataConverter;
-	FGLTFUVAnalysisConverter UVAnalysisConverter;
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer);
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer);

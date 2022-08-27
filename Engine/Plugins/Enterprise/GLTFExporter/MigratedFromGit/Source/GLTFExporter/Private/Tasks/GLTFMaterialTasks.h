@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Tasks/GLTFTask.h"
-#include "Converters/GLTFMeshData.h"
 #include "Builders/GLTFConvertBuilder.h"
+#include "Converters/GLTFUVOverlapChecker.h"
+#include "Converters/GLTFMeshData.h"
 #include "MaterialPropertyEx.h"
 #include "Engine.h"
 
@@ -14,9 +15,10 @@ class FGLTFMaterialTask : public FGLTFTask
 {
 public:
 
-	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, TArray<int32> SectionIndices, FGLTFJsonMaterialIndex MaterialIndex)
+	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, TArray<int32> SectionIndices, FGLTFJsonMaterialIndex MaterialIndex)
 		: FGLTFTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
+		, UVOverlapChecker(UVOverlapChecker)
 		, Material(Material)
 		, MeshData(MeshData)
 		, SectionIndices(SectionIndices)
@@ -34,6 +36,7 @@ public:
 private:
 
 	FGLTFConvertBuilder& Builder;
+	FGLTFUVOverlapChecker& UVOverlapChecker;
 	const UMaterialInterface* Material;
 	const FGLTFMeshData* MeshData;
 	const TArray<int32> SectionIndices;

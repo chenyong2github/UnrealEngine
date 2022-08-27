@@ -1,14 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFUVAnalysisConverters.h"
-#include "Converters/GLTFMaterialUtility.h"
+#include "Converters/GLTFUVOverlapChecker.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 #include "Modules/ModuleManager.h"
-#include "GLTFMaterialBaking/Public/IMaterialBakingModule.h"
-#include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
+#include "IMaterialBakingModule.h"
+#include "MaterialBakingStructures.h"
 
-void FGLTFUVAnalysisConverter::Sanitize(const FMeshDescription*& Description, const TArray<int32>& SectionIndices, int32& TexCoord)
+void FGLTFUVOverlapChecker::Sanitize(const FMeshDescription*& Description, const TArray<int32>& SectionIndices, int32& TexCoord)
 {
 	if (Description != nullptr)
 	{
@@ -32,43 +31,29 @@ void FGLTFUVAnalysisConverter::Sanitize(const FMeshDescription*& Description, co
 	}
 }
 
-FGLTFUVAnalysis FGLTFUVAnalysisConverter::Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord)
+float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{
-		// TODO: add warning?
+		// TODO: report warning?
 
 		return -1;
 	}
 
 	// TODO: investigate if the fixed size is high enough to properly calculate overlap
 	const FIntPoint TextureSize(512, 512);
-
-	return CalcOverlapPercentage(TexCoord, TextureSize, *Description, SectionIndices);
-}
-
-const UMaterialInterface* FGLTFUVAnalysisConverter::GetOverlapMaterial()
-{
-	static const UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/OverlappingUVs.OverlappingUVs"));
-	check(Material);
-	return Material;
-}
-
-float FGLTFUVAnalysisConverter::CalcOverlapPercentage(int32 TexCoord, const FIntPoint& OutputSize, const FMeshDescription& MeshDescription, const TArray<int32>& MeshSectionIndices)
-{
-	const UMaterialInterface* Material = GetOverlapMaterial();
 	const FMaterialPropertyEx Property = MP_EmissiveColor;
 
 	FMeshData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 	MeshSet.TextureCoordinateIndex = TexCoord;
-	MeshSet.RawMeshDescription = const_cast<FMeshDescription*>(&MeshDescription);
-	MeshSet.MaterialIndices = MeshSectionIndices; // NOTE: MaterialIndices is actually section indices
+	MeshSet.RawMeshDescription = const_cast<FMeshDescription*>(Description);
+	MeshSet.MaterialIndices = SectionIndices; // NOTE: MaterialIndices is actually section indices
 
 	FMaterialDataEx MatSet;
-	MatSet.Material = const_cast<UMaterialInterface*>(Material);
-	MatSet.PropertySizes.Add(Property, OutputSize);
-	MatSet.BlendMode = Material->GetBlendMode();
+	MatSet.Material = GetMaterial();
+	MatSet.PropertySizes.Add(Property, TextureSize);
+	MatSet.BlendMode = MatSet.Material->GetBlendMode();
 	MatSet.bPerformBorderSmear = false;
 
 	TArray<FMeshData*> MeshSettings;
@@ -81,8 +66,13 @@ float FGLTFUVAnalysisConverter::CalcOverlapPercentage(int32 TexCoord, const FInt
 
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 
-	FBakeOutputEx& BakeOutput = BakeOutputs[0];
-	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(Property));
+	const FBakeOutputEx& BakeOutput = BakeOutputs[0];
+	const TArray<FColor>& BakedPixels = BakeOutput.PropertyData.FindChecked(Property);
+
+	if (BakedPixels.Num() <= 0)
+	{
+		return -1;
+	}
 
 	// NOTE: the emissive value of each pixel will be incremented by 10 each time a triangle is drawn on it.
 	// Therefore a value of 0.0 indicates an unreferenced pixel, a value of 10.0 indicates a uniquely referenced pixel,
@@ -91,8 +81,8 @@ float FGLTFUVAnalysisConverter::CalcOverlapPercentage(int32 TexCoord, const FInt
 	// so to be safe we set the limit at 15 instead of 10 to prevent incorrectly flagging some pixels as overlapping.
 	const float EmissiveThreshold = 15.0f;
 
-	uint32 ProcessedPixels = 0;
-	uint32 OverlappingPixels = 0;
+	float ProcessedPixels = 0;
+	float OverlappingPixels = 0;
 
 	if (BakeOutput.EmissiveScale > EmissiveThreshold)
 	{
@@ -112,7 +102,12 @@ float FGLTFUVAnalysisConverter::CalcOverlapPercentage(int32 TexCoord, const FInt
 		}
 	}
 
-	return ProcessedPixels > 0
-		? (static_cast<float>(OverlappingPixels) / ProcessedPixels) * 100.0f
-		: 0.0f;
+	return OverlappingPixels / ProcessedPixels;
+}
+
+UMaterialInterface* FGLTFUVOverlapChecker::GetMaterial()
+{
+	static UMaterialInterface* Material = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/OverlappingUVs.OverlappingUVs"));
+	check(Material);
+	return Material;
 }
