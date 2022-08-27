@@ -32,10 +32,6 @@ protected:
 	virtual void OnRegister() override;
 	//~ End UActorComponent Interface
 
-public:
-
-	virtual void SetSprite(class UTexture2D* NewSprite);
-
 private:
 	UFUNCTION()
 	void BeginCursorOver(UPrimitiveComponent* TouchedComponent);
@@ -48,7 +44,11 @@ private:
 
 	void UpdateCollisionVolume();
 	float GetBillboardBoundingRadius() const;
-	UTexture2D* GetActiveImage(bool bCursorOver) const;
+	UTexture2D* CalculateActiveImage(bool bCursorOver) const;
+
+protected:
+
+	virtual void SetActiveImage(class UTexture2D* NewImage);
 
 public:
 	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
@@ -83,6 +83,11 @@ private:
 	UPROPERTY(transient, duplicatetransient)
 	UMaterialInstanceDynamic* DefaultMaterial;
 
+	UPROPERTY(transient, duplicatetransient)
+	UTexture* ActiveImage;
+
+	FVector2D ActiveImageSize;
+
 	bool bToggled;
 
 	void CreateDefaultSpriteElement();
@@ -90,6 +95,4 @@ private:
 	FMaterialSpriteElement& GetSpriteElement();
 
 	UMaterialInstanceDynamic* GetSpriteMaterial() const;
-
-	void UpdateSpriteSize(const FVector2D& PixelSize);
 };
