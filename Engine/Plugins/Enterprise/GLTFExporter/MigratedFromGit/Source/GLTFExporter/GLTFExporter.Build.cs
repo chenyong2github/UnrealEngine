@@ -6,22 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public GLTFExporter(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PublicIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-				}
-				);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -40,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"Mainframe",
 					"InputCore",
 					"EditorStyle",
+					"Projects",
 					"RenderCore",
 					"RHI",
 					"MaterialBaking"

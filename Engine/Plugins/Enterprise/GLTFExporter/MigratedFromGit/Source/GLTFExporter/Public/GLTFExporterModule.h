@@ -6,6 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+#define GLTFEXPORTER_MODULE_NAME TEXT("GLTFExporter")
+
 DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
 
 /**
@@ -21,7 +23,7 @@ public:
 	 */
 	static IGLTFExporterModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IGLTFExporterModule>("GLTFExporter");
+		return FModuleManager::LoadModuleChecked<IGLTFExporterModule>(GLTFEXPORTER_MODULE_NAME);
 	}
 
 	/**
@@ -31,6 +33,6 @@ public:
 	 */
 	static bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded("GLTFExporter");
+		return FModuleManager::Get().IsModuleLoaded(GLTFEXPORTER_MODULE_NAME);
 	}
 };
