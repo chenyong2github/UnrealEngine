@@ -2,38 +2,14 @@
 
 #pragma once
 
-#include "Engine.h"
+#include "CoreMinimal.h"
 #include "Json/GLTFJsonEnums.h"
-
-enum class EImageFormat : int8;
-enum class ERGBFormat : int8;
 
 struct FGLTFBuilderUtility
 {
-	static FString GetMeshName(const UStaticMesh* StaticMesh, int32 LODIndex)
-	{
-		FString Name;
+	static FString GetMeshName(const UStaticMesh* StaticMesh, int32 LODIndex);
 
-		if (StaticMesh != nullptr)
-		{
-			StaticMesh->GetName(Name);
-			if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
-		}
-
-		return Name;
-	}
-
-	static bool CompressImage(const void* RawData, int64 ByteLength, int32 InWidth, int32 InHeight, ERGBFormat InRawFormat, int32 InBitDepth, TArray64<uint8>& OutCompressedData, EImageFormat OutCompressionFormat, int32 OutCompressionQuality);
-
-	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType)
-	{
-		switch (MimeType)
-		{
-			case EGLTFJsonMimeType::PNG:  return TEXT(".png");
-			case EGLTFJsonMimeType::JPEG: return TEXT(".jpg");
-			default:                      return TEXT(".unknown");
-		}
-	}
+	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType);
 
 	static FString GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames);
 };

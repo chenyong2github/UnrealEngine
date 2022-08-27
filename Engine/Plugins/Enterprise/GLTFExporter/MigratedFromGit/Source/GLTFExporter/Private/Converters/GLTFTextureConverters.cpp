@@ -43,12 +43,30 @@ FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Add(FGLTFConvertBuilder& Bui
 
 FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTexture2D* Texture2D)
 {
-	// TODO: add RGBE encoding information for TSF_RGBE8 and TSF_BGRE8
+	FGLTFJsonImageIndex ImageIndex;
 
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;
+
+	if (Texture2D->Source.IsPNGCompressed())
+	{
+		// TODO: add support for non-compressed formats?
+		// TODO: add RGBE encoding information for TSF_RGBE8 and TSF_BGRE8
+
+		const FByteBulkData& BulkData = FGLTFTextureUtility::GetBulkData(Texture2D->Source);
+
+		const void* RawData = BulkData.LockReadOnly();
+		ImageIndex = Builder.AddImage(RawData, BulkData.GetBulkDataSize(), EGLTFJsonMimeType::PNG, JsonTexture.Name);
+		BulkData.Unlock();
+	}
+	else
+	{
+		// TODO: implement support
+		return FGLTFJsonTextureIndex(INDEX_NONE);
+	}
+
+	JsonTexture.Source = ImageIndex;
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
-	JsonTexture.Source = Builder.AddImage(Texture2D->Source, Name);
 
 	return Builder.AddTexture(JsonTexture);
 }

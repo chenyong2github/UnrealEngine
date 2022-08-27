@@ -2,117 +2,54 @@
 
 #include "Builders/GLTFImageBuilder.h"
 #include "Builders/GLTFBuilderUtility.h"
+#include "IImageWrapperModule.h"
 #include "IImageWrapper.h"
-#include "Engine/Texture.h"
+#include "Misc/FileHelper.h"
 
 FGLTFImageBuilder::FGLTFImageBuilder(const UGLTFExportOptions* ExportOptions)
 	: FGLTFBufferBuilder(ExportOptions)
 {
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteLength, int32 Width, int32 Height, ERGBFormat RawFormat, int32 BitDepth, bool bFloatFormat, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
-	TArray64<uint8> ImageData;
-
-	if (bFloatFormat)
-	{
-		// TODO: implement support
-		return FGLTFJsonImageIndex(INDEX_NONE);
-	}
-	else
-	{
-		switch (MimeType)
-		{
-		case EGLTFJsonMimeType::PNG:
-			if (!FGLTFBuilderUtility::CompressImage(RawData, ByteLength, Width, Height, RawFormat, BitDepth, ImageData, EImageFormat::PNG, Quality))
-			{
-				// TODO: report error
-				return FGLTFJsonImageIndex(INDEX_NONE);
-			}
-			break;
-		case EGLTFJsonMimeType::JPEG:
-			if (!FGLTFBuilderUtility::CompressImage(RawData, ByteLength, Width, Height, RawFormat, BitDepth, ImageData, EImageFormat::JPEG, Quality))
-			{
-				// TODO: report error
-				return FGLTFJsonImageIndex(INDEX_NONE);
-			}
-			break;
-		default:
-			// TODO: report error
-			return FGLTFJsonImageIndex(INDEX_NONE);
-		}
-	}
-
 	FGLTFJsonImage Image;
 	Image.Name = Name;
 	Image.MimeType = MimeType;
-
 	const FGLTFJsonImageIndex ImageIndex = FGLTFJsonBuilder::AddImage(Image);
-	ImageDataLookup.Add(ImageIndex, ImageData);
+
+	TArray64<uint8>& ImageData = ImageDataLookup.Add(ImageIndex);
+	ImageData.Append(static_cast<const uint8*>(CompressedData), CompressedByteLength);
 	return ImageIndex;
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteLength, int32 Width, int32 Height, EPixelFormat PixelFormat, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteLength, FIntPoint Size, ERGBFormat Format, int32 BitDepth, const FString& Name)
 {
-	ERGBFormat RawFormat;
-	int32 BitDepth;
-	bool bFloatFormat;
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 
-	switch (PixelFormat)
-	{
-		case PF_B8G8R8A8:           RawFormat = ERGBFormat::BGRA; BitDepth = 8;  bFloatFormat = false; break;
-		case PF_R8G8B8A8:           RawFormat = ERGBFormat::RGBA; BitDepth = 8;  bFloatFormat = false; break;
-		case PF_R16G16B16A16_UNORM: RawFormat = ERGBFormat::RGBA; BitDepth = 16; bFloatFormat = false; break;
-		case PF_FloatRGBA:          RawFormat = ERGBFormat::RGBA; BitDepth = 16; bFloatFormat = true;  break;
-		case PF_L8:                 RawFormat = ERGBFormat::Gray; BitDepth = 8;  bFloatFormat = false; break;
-		case PF_G8:                 RawFormat = ERGBFormat::Gray; BitDepth = 8;  bFloatFormat = false; break;
-		case PF_G16:                RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = false; break;
-		case PF_R16F:               RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = true;  break;
-		case PF_R16F_FILTER:        RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = true;  break;
-		case PF_R32_FLOAT:          RawFormat = ERGBFormat::Gray; BitDepth = 32; bFloatFormat = true;  break;
-		default:
-			// TODO: report error
-			return FGLTFJsonImageIndex(INDEX_NONE);
-	}
-
-	return AddImage(RawData, ByteLength, Width, Height, RawFormat, BitDepth, bFloatFormat, Name, MimeType, Quality);
-}
-
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FTextureSource& Image, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
-{
-	// TODO: are these always zero?
-	const int32 BlockIndex = 0;
-	const int32 LayerIndex = 0;
-	const int32 MipIndex = 0;
-
-	ERGBFormat RawFormat;
-	int32 BitDepth;
-	bool bFloatFormat;
-
-	const ETextureSourceFormat SourceFormat = Image.GetFormat(LayerIndex);
-	switch (SourceFormat)
-	{
-		case TSF_BGRA8:   RawFormat = ERGBFormat::BGRA; BitDepth = 8;  bFloatFormat = false; break;
-		case TSF_RGBA8:   RawFormat = ERGBFormat::RGBA; BitDepth = 8;  bFloatFormat = false; break;
-		case TSF_BGRE8:   RawFormat = ERGBFormat::BGRA; BitDepth = 8;  bFloatFormat = false; break;
-		case TSF_RGBE8:   RawFormat = ERGBFormat::RGBA; BitDepth = 8;  bFloatFormat = false; break;
-		case TSF_RGBA16:  RawFormat = ERGBFormat::RGBA; BitDepth = 16; bFloatFormat = false; break;
-		case TSF_RGBA16F: RawFormat = ERGBFormat::RGBA; BitDepth = 16; bFloatFormat = true;  break;
-		case TSF_G8:      RawFormat = ERGBFormat::Gray; BitDepth = 8;  bFloatFormat = false; break;
-		case TSF_G16:     RawFormat = ERGBFormat::Gray; BitDepth = 16; bFloatFormat = false; break;
-		default:
-			// TODO: report error
-			return FGLTFJsonImageIndex(INDEX_NONE);
-	}
-
-	TArray64<uint8> RawData;
-	if (!const_cast<FTextureSource&>(Image).GetMipData(RawData, BlockIndex, LayerIndex, MipIndex))
+	if (!ImageWrapper.IsValid())
 	{
 		// TODO: report error
 		return FGLTFJsonImageIndex(INDEX_NONE);
 	}
 
-	return AddImage(RawData.GetData(), RawData.Num(), Image.GetSizeX(), Image.GetSizeY(), RawFormat, BitDepth, bFloatFormat, Name, MimeType, Quality);
+	const bool bFormatSupported = ImageWrapper->SetRaw(RawData, ByteLength, Size.X, Size.Y, Format, BitDepth);
+
+	if (!bFormatSupported)
+	{
+		// TODO: report error
+		return FGLTFJsonImageIndex(INDEX_NONE);
+	}
+
+	const TArray64<uint8>& ImageData = ImageWrapper->GetCompressed();
+	return AddImage(ImageData.GetData(), ImageData.Num(), EGLTFJsonMimeType::PNG, Name);
+}
+
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, const FString& Name)
+{
+	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
+	return AddImage(Pixels, ByteLength, Size, ERGBFormat::BGRA, 8, Name);
 }
 
 bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)

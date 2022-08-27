@@ -12,11 +12,10 @@ public:
 
 	FGLTFImageBuilder(const UGLTFExportOptions* ExportOptions);
 
-	FGLTFJsonImageIndex AddImage(const void* RawData, int64 ByteLength, int32 Width, int32 Height, ERGBFormat RawFormat, int32 BitDepth, bool bFloatFormat, const FString& Name = TEXT(""), EGLTFJsonMimeType MimeType = EGLTFJsonMimeType::PNG, int32 Quality = 100);
+	FGLTFJsonImageIndex AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
+	FGLTFJsonImageIndex AddImage(const void* RawData, int64 ByteLength, FIntPoint Size, ERGBFormat Format, int32 BitDepth, const FString& Name);
 
-	FGLTFJsonImageIndex AddImage(const void* RawData, int64 ByteLength, int32 Width, int32 Height, EPixelFormat PixelFormat = EPixelFormat::PF_B8G8R8A8, const FString& Name = TEXT(""), EGLTFJsonMimeType MimeType = EGLTFJsonMimeType::PNG, int32 Quality = 100);
-
-	FGLTFJsonImageIndex AddImage(const FTextureSource& Image, const FString& Name = TEXT(""), EGLTFJsonMimeType MimeType = EGLTFJsonMimeType::PNG, int32 Quality = 100);
+	FGLTFJsonImageIndex AddImage(const FColor* Pixels, FIntPoint Size, const FString& Name);
 
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath) override;
 
