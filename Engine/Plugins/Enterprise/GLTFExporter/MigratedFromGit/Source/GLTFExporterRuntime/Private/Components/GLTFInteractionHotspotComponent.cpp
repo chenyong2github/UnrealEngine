@@ -22,7 +22,7 @@ namespace
 	const FName NAME_InteractionHotspotTag = TEXT("InteractionHotspot");
 	const FName NAME_LevelEditorModule = TEXT("LevelEditor");
 	const FName NAME_SpriteParameter = TEXT("Sprite");
-	const FName NAME_OpacityParameter = TEXT("Opacity");
+	const FName NAME_OpacityParameter = TEXT("OpacityMask");
 }
 
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
