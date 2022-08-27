@@ -369,11 +369,10 @@ FIntPoint AGLTFHotspotActor::GetCurrentViewportSize()
 #if WITH_EDITOR
 		else
 		{
-			if (FModuleManager::Get().IsModuleLoaded(NAME_LevelEditorModule))
+			FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(NAME_LevelEditorModule);
+			if (LevelEditorModule != nullptr)
 			{
-				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditorModule);
-
-				if (const TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport())
+				if (const TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule->GetFirstActiveLevelViewport())
 				{
 					Viewport = ActiveLevelViewport->GetActiveViewport();
 				}

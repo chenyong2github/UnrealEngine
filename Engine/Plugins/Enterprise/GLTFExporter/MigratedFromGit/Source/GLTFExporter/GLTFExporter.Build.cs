@@ -6,32 +6,43 @@ namespace UnrealBuildTool.Rules
 	{
 		public GLTFExporter(ReadOnlyTargetRules Target) : base(Target)
 		{
-		    // NOTE: ugly hack to access plugin info (should propose change to engine)
-			var BindingFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-			var FieldInfo = typeof(ModuleRules).GetField("Plugin", BindingFlags);
-			var Plugin = FieldInfo != null ? FieldInfo.GetValue(this) as PluginInfo : null;
-
-			if (Plugin != null && Plugin.Descriptor != null)
+			if (IsPlugin)
 			{
-				PrivateDefinitions.Add("GLTFEXPORTER_FRIENDLY_NAME=TEXT(\"" + Plugin.Descriptor.FriendlyName + "\")");
-				PrivateDefinitions.Add("GLTFEXPORTER_VERSION_NAME=TEXT(\"" + Plugin.Descriptor.VersionName + "\")");
+				// NOTE: ugly hack to access plugin info (should propose change to engine)
+				var BindingFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+				var FieldInfo = typeof(ModuleRules).GetField("Plugin", BindingFlags);
+				var Plugin = FieldInfo != null ? FieldInfo.GetValue(this) as PluginInfo : null;
+				var PluginDescriptor = Plugin != null ? Plugin.Descriptor : null;
+
+				if (PluginDescriptor != null)
+				{
+					PrivateDefinitions.Add("GLTFEXPORTER_FRIENDLY_NAME=TEXT(\"" + PluginDescriptor.FriendlyName + "\")");
+					PrivateDefinitions.Add("GLTFEXPORTER_VERSION_NAME=TEXT(\"" + PluginDescriptor.VersionName + "\")");
+				}
 			}
 
-			PrivateDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames .AddRange(
 				new string[]
 				{
 					"Core",
 					"CoreUObject",
 					"Engine",
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
 					"Json",
 					"RenderCore",
 					"RHI",
+					"ImageWrapper",
 					"LevelSequence",
 					"MovieScene",
 					"MovieSceneTracks",
 					"VariantManagerContent",
 				}
-				);
+			);
 
 			if (Target.bBuildEditor)
 			{
@@ -45,14 +56,15 @@ namespace UnrealBuildTool.Rules
 						"Mainframe",
 						"InputCore",
 						"EditorStyle",
+						"PropertyEditor",
 						"Projects",
 						"MeshMergeUtilities",
 						"MeshDescription",
 						"StaticMeshDescription",
 						"GLTFMaterialBaking",
-						"GLTFMaterialAnalyzer"
+						"GLTFMaterialAnalyzer",
 					}
-					);
+				);
 			}
 		}
 	}

@@ -4,7 +4,6 @@
 #include "MaterialRenderItem.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "ExportMaterialProxy.h"
-#include "Interfaces/IMainFrameModule.h"
 #include "UObject/UObjectGlobals.h"
 #include "MaterialBakingStructures.h"
 #include "MaterialBakingHelpers.h"

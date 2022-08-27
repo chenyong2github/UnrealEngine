@@ -6,14 +6,20 @@ public class GLTFMaterialAnalyzer : ModuleRules
 {
 	public GLTFMaterialAnalyzer(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames .AddRange(
 			new string[]
 			{
 				"Core",
 				"CoreUObject",
 				"Engine",
+			}
+		);
+
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
 				"RenderCore",
-				"RHI"
+				"RHI",
 			}
 		);
 
