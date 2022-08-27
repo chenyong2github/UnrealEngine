@@ -551,8 +551,8 @@ bool FGLTFMaterialConverter::TryGetBakedTexture(FGLTFConvertBuilder& Builder, FG
 	{
 		case MP_BaseColor: PropertyName = TEXT("BaseColor"); break;
 		case MP_Normal: PropertyName = TEXT("Normal"); break;
-		case MP_EmissiveColor: PropertyName = TEXT("EmissiveColor"); break;
-		case MP_AmbientOcclusion: PropertyName = TEXT("AmbientOcclusion"); break;
+		case MP_EmissiveColor: PropertyName = TEXT("Emissive"); break;
+		case MP_AmbientOcclusion: PropertyName = TEXT("Occlusion"); break;
 		default:
 			// TODO: support for more properties
 			return false;
