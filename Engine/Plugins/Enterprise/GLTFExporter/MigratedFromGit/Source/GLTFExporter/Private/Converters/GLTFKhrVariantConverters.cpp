@@ -144,8 +144,17 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	// so we need to call UProperty::GetRecordedData first to make that happen.
 	MaterialProperty->GetRecordedData();
 
-	// TODO: find way to determine whether the material is null because "None" was selected, or because it failed to resolve
 	const UMaterialInterface* Material = MaterialProperty->GetMaterial();
+	if (Material == nullptr)
+	{
+		// TODO: find way to determine whether the material is null because "None" was selected, or because it failed to resolve
+
+		Builder.LogWarning(FString::Printf(
+			TEXT("No material assigned, the property will be skipped. Context: %s"),
+			*GetLogContext(MaterialProperty)));
+		return false;
+	}
+
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(MeshComponent);
 
