@@ -55,15 +55,20 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 		const TArray<FVector>& KeyScales = Track.ScaleKeys;
 
 		const int32 MaxKeys = FMath::Max3(KeyPositions.Num(), KeyRotations.Num(), KeyScales.Num());
+		if (MaxKeys == 0)
+		{
+			continue;
+		}
+
 		TArray<FTransform> KeyTransforms;
 		KeyTransforms.AddUninitialized(MaxKeys);
 
 		for (int32 Key = 0; Key < KeyTransforms.Num(); ++Key)
 		{
-			const FVector& Position = KeyPositions.IsValidIndex(Key) ? KeyPositions[Key] : FVector::ZeroVector;
-			const FQuat& Rotation = KeyRotations.IsValidIndex(Key) ? KeyRotations[Key] : FQuat::Identity;
-			const FVector& Scale = KeyScales.IsValidIndex(Key) ? KeyScales[Key] : FVector::OneVector;
-			KeyTransforms[Key] = { Rotation, Position, Scale };
+			const FVector& KeyPosition = KeyPositions.IsValidIndex(Key) ? KeyPositions[Key] : FVector::ZeroVector;
+			const FQuat& KeyRotation = KeyRotations.IsValidIndex(Key) ? KeyRotations[Key] : FQuat::Identity;
+			const FVector& KeyScale = KeyScales.IsValidIndex(Key) ? KeyScales[Key] : FVector::OneVector;
+			KeyTransforms[Key] = { KeyRotation, KeyPosition, KeyScale };
 		}
 
 		const int32 SkeletonBoneIndex = AnimSequence->GetSkeletonIndexFromRawDataTrackIndex(TrackIndex);
@@ -85,8 +90,8 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 
 			for (int32 Key = 0; Key < KeyPositions.Num(); ++Key)
 			{
-				const FVector Position = KeyTransforms[Key].GetTranslation();
-				Translations[Key] = FGLTFConverterUtility::ConvertPosition(Position, Builder.ExportOptions->ExportScale);
+				const FVector KeyPosition = KeyTransforms[Key].GetTranslation();
+				Translations[Key] = FGLTFConverterUtility::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportScale);
 			}
 
 			JsonInputAccessor.Count = Translations.Num();
@@ -117,8 +122,8 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 
 			for (int32 Key = 0; Key < KeyRotations.Num(); ++Key)
 			{
-				const FQuat Rotation = KeyTransforms[Key].GetRotation();
-				Rotations[Key] = FGLTFConverterUtility::ConvertRotation(Rotation);
+				const FQuat KeyRotation = KeyTransforms[Key].GetRotation();
+				Rotations[Key] = FGLTFConverterUtility::ConvertRotation(KeyRotation);
 			}
 
 			JsonInputAccessor.Count = Rotations.Num();
@@ -149,8 +154,8 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 
 			for (int32 Key = 0; Key < KeyScales.Num(); ++Key)
 			{
-				const FVector Scale = KeyTransforms[Key].GetScale3D();
-				Scales[Key] = FGLTFConverterUtility::ConvertScale(Scale);
+				const FVector KeyScale = KeyTransforms[Key].GetScale3D();
+				Scales[Key] = FGLTFConverterUtility::ConvertScale(KeyScale);
 			}
 
 			JsonInputAccessor.Count = Scales.Num();

@@ -23,15 +23,31 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 	}
 
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
+	if (MeshIndex == INDEX_NONE)
+	{
+		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export skeletal mesh %s"), *SkeletalMesh->GetName()));
+		return false;
+	}
 
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;
 	const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
 
 	const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMesh);
+	if (SkinIndex == INDEX_NONE)
+	{
+		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export skeletal mesh skin %s"), *SkeletalMesh->GetName()));
+		return false;
+	}
+
 	Builder.GetNode(NodeIndex).Skin = SkinIndex;
 
-	Builder.GetOrAddAnimation(NodeIndex, SkeletalMesh, AnimSequence);
+	const FGLTFJsonAnimationIndex AnimationIndex =  Builder.GetOrAddAnimation(NodeIndex, SkeletalMesh, AnimSequence);
+	if (AnimationIndex == INDEX_NONE)
+	{
+		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export skeletal animation %s"), *SkeletalMesh->GetName()));
+		return false;
+	}
 
 	FGLTFJsonScene Scene;
 	Scene.Nodes.Add(NodeIndex);
