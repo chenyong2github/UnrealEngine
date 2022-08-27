@@ -73,6 +73,11 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	const ConstructorHelpers::FObjectFinder<UMaterial> MaterialRef(TEXT("/GLTFExporter/Materials/Hotspot"));
 	DefaultMaterial = MaterialRef.Object;
 
+#if WITH_EDITORONLY_DATA
+	const ConstructorHelpers::FObjectFinder<UMaterial> IconMaterialRef(TEXT("/GLTFExporter/Materials/HotspotIcon"));
+	DefaultIconMaterial = IconMaterialRef.Object;
+#endif // WITH_EDITORONLY_DATA
+
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 }
@@ -299,7 +304,18 @@ UTexture2D* AGLTFInteractionHotspotActor::CalculateActiveImage(bool bCursorOver)
 
 void AGLTFInteractionHotspotActor::SetupSpriteElement() const
 {
-	UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(DefaultMaterial, GetTransientPackage());
+	UMaterialInstanceDynamic* MaterialInstance;
+
+#if WITH_EDITORONLY_DATA
+	if (GetWorld() != nullptr && GetWorld()->WorldType == EWorldType::Editor)
+	{
+		MaterialInstance = UMaterialInstanceDynamic::Create(DefaultIconMaterial, GetTransientPackage());
+	}
+	else
+#endif // WITH_EDITORONLY_DATA
+	{
+		MaterialInstance = UMaterialInstanceDynamic::Create(DefaultMaterial, GetTransientPackage());
+	}
 
 	FMaterialSpriteElement Element;
 	Element.Material = MaterialInstance;

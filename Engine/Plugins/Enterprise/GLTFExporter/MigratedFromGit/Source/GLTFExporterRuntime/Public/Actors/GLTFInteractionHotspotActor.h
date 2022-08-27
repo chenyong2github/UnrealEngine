@@ -79,6 +79,11 @@ private:
 	UPROPERTY(transient, duplicatetransient)
 	UMaterialInterface* DefaultMaterial;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient, duplicatetransient)
+	UMaterialInterface* DefaultIconMaterial;
+#endif // WITH_EDITORONLY_DATA
+
 	UPROPERTY(transient, duplicatetransient)
 	UTexture* ActiveImage;
 
