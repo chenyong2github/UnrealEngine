@@ -38,7 +38,7 @@ namespace
 		if (bZeroTangents)
 		{
 			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Mesh %s chas some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
+				TEXT("Mesh %s has some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
 				MeshName));
 		}
 	}
