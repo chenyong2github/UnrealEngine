@@ -5,7 +5,8 @@
 
 const UMaterialInterface* FGLTFMeshUtility::GetDefaultMaterial()
 {
-	return UMaterial::GetDefaultMaterial(MD_Surface);
+	static UMaterial* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+	return DefaultMaterial;
 }
 
 const TArray<FStaticMaterial>& FGLTFMeshUtility::GetMaterials(const UStaticMesh* StaticMesh)
