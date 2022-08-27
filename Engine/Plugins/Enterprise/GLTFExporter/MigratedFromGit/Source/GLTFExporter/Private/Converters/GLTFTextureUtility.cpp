@@ -4,9 +4,9 @@
 #include "IImageWrapper.h"
 #include "NormalMapPreview.h"
 
-bool FGLTFTextureUtility::IsHDRFormat(EPixelFormat Format)
+bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)
 {
-	return CalculateImageBytes(1, 1, 0, Format) > 4;
+	return Texture->CompressionSettings == TC_HDR || Texture->CompressionSettings == TC_HDR_Compressed;
 }
 
 bool FGLTFTextureUtility::CanPNGCompressFormat(ETextureSourceFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth)
@@ -195,12 +195,16 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 
 UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace)
 {
-	UTexture2D* FaceTexture;
-	const EPixelFormat Format = RenderTargetCube->GetFormat();
-	const FIntPoint Size(RenderTargetCube->SizeX, RenderTargetCube->SizeX);
 	FTextureRenderTargetCubeResource* Resource = static_cast<FTextureRenderTargetCubeResource*>(RenderTargetCube->Resource);
+	if (Resource == nullptr)
+	{
+		return nullptr;
+	}
 
-	if (IsHDRFormat(Format))
+	const FIntPoint Size(RenderTargetCube->SizeX, RenderTargetCube->SizeX);
+	UTexture2D* FaceTexture;
+
+	if (IsHDR(RenderTargetCube))
 	{
 		TArray<FFloat16Color> Pixels;
 		if (!Resource->ReadPixels(Pixels, FReadSurfaceDataFlags(RCM_UNorm, CubeFace)))
