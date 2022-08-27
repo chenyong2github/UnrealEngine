@@ -3,6 +3,7 @@
 #include "Converters/GLTFTextureConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFTextureUtility.h"
 
 FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTexture* Texture)
 {
@@ -14,20 +15,13 @@ FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Add(FGLTFConvertBuilder& Bui
 	JsonSampler.MinFilter = FGLTFConverterUtility::ConvertMinFilter(Texture->Filter, Texture->LODGroup);
 	JsonSampler.MagFilter = FGLTFConverterUtility::ConvertMagFilter(Texture->Filter, Texture->LODGroup);
 
-	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
-	{
-		JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(Texture2D->AddressX);
-		JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(Texture2D->AddressY);
-	}
-	else if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
-	{
-		JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(RenderTarget2D->AddressX);
-		JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(RenderTarget2D->AddressY);
-	}
-	else
-	{
-		// TODO: handle this?
-	}
+	const TextureAddress AddressX = FGLTFTextureUtility::GetAddressX(Texture);
+	const TextureAddress AddressY = FGLTFTextureUtility::GetAddressY(Texture);
+
+	// TODO: report error if AddressX == TA_MAX || AddressY == TA_MAX
+
+	JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(AddressX);
+	JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(AddressY);
 
 	return Builder.AddSampler(JsonSampler);
 }
