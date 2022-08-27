@@ -23,9 +23,11 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 
 			// TODO: add support for exporting Level->Model?
 
+			TArray<AActor*> LevelActors(Level->Actors); // iterate using copy, in case new temporary actors are added during conversion
+
 			if (Builder.ExportOptions->VariantSetsMode != EGLTFVariantSetsMode::None)
 			{
-				for (const AActor* Actor : Level->Actors)
+				for (const AActor* Actor : LevelActors)
 				{
 					// TODO: should a LevelVariantSet be exported even if not selected for export?
 					if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
@@ -60,7 +62,7 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 				}
 			}
 
-			for (const AActor* Actor : Level->Actors)
+			for (const AActor* Actor : LevelActors)
 			{
 				FGLTFJsonNode* JsonNode = Builder.AddUniqueNode(Actor);
 				if (JsonNode != nullptr && Builder.IsRootActor(Actor))
