@@ -63,6 +63,7 @@ void AGLTFOrbitCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// TODO: Focus the scene AABB center if all else fails
 	if (this->Focus == nullptr || this->Focus == this)
 	{
 		UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("The camera focus must not be null or the camera itself."));
@@ -100,7 +101,8 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 	const int32 YawCycleIndex = AngleCycleIndex(Yaw);
 	const int32 TargetYawCycleIndex = AngleCycleIndex(TargetYaw);
 
-	// Clamp the angles to a positive 360 degrees while they are within the same cycle
+	// Clamp the angles to a positive 360 degrees while they are within the same cycle.
+	// It is important that this doesn't happen during a transition as it will otherwise be skewed.
 	if (YawCycleIndex == TargetYawCycleIndex && YawCycleIndex != 0)
 	{
 		Yaw = ClampYaw(Yaw);
