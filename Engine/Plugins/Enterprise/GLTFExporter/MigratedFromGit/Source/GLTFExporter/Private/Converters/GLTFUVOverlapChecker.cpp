@@ -47,7 +47,7 @@ float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, FGLTFI
 		FGLTFMeshRenderData MeshSet;
 		MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 		MeshSet.TextureCoordinateIndex = TexCoord;
-		MeshSet.RawMeshDescription = const_cast<FMeshDescription*>(Description);
+		MeshSet.MeshDescription = const_cast<FMeshDescription*>(Description);
 		MeshSet.MaterialIndices = SectionIndices; // NOTE: MaterialIndices is actually section indices
 
 		FGLTFMaterialDataEx MatSet;

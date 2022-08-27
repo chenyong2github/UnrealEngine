@@ -114,14 +114,14 @@ struct FGLTFPrimitiveData
 struct FGLTFMeshRenderData
 {
 	FGLTFMeshRenderData()
-		: RawMeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr), PrimitiveData(nullptr)
+		: MeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr), PrimitiveData(nullptr)
 	{}
 
 	/** Ptr to raw mesh data to use for baking out the material data, if nullptr a standard quad is used */
-	FMeshDescription* RawMeshDescription;
+	const FMeshDescription* MeshDescription;
 
 	/** Ptr to original static mesh this mesh data came from */
-	UStaticMesh* Mesh;
+	const UStaticMesh* Mesh;
 
 	/** Transform determinant used to detect mirroring */
 	bool bMirrored;
@@ -137,7 +137,7 @@ struct FGLTFMeshRenderData
 
 	/** Box which's space contains the UV coordinates used to bake out the material */
 	FBox2D TextureCoordinateBox;
-	
+
 	/** Specific texture coordinate index to use as texture coordinates to bake out the material (is overruled if CustomTextureCoordinates contains any data) */
 	int32 TextureCoordinateIndex;
 
