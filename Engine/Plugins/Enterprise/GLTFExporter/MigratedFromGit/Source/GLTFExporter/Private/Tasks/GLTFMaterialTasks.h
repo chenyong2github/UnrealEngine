@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Tasks/GLTFTask.h"
+#include "Converters/GLTFMeshData.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Engine.h"
 
@@ -12,18 +13,13 @@ class FGLTFMaterialTask : public FGLTFTask
 {
 public:
 
-	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UObject* MeshOrComponent, int32 LODIndex, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMaterialIndex MaterialIndex)
+	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMaterialIndex MaterialIndex)
         : FGLTFTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, Material(Material)
-		, LODIndex(LODIndex)
+		, MeshData(MeshData)
 		, OverrideMaterials(OverrideMaterials)
 		, MaterialIndex(MaterialIndex)
-		, StaticMesh(Cast<UStaticMesh>(MeshOrComponent))
-		, StaticMeshComponent(Cast<UStaticMeshComponent>(MeshOrComponent))
-		, SkeletalMesh(Cast<USkeletalMesh>(MeshOrComponent))
-		, SkeletalMeshComponent(Cast<USkeletalMeshComponent>(MeshOrComponent))
-		, bHasValidMeshOrComponent(StaticMesh != nullptr || StaticMeshComponent != nullptr || SkeletalMesh != nullptr || SkeletalMeshComponent != nullptr)
 	{
 	}
 
@@ -38,15 +34,9 @@ private:
 
 	FGLTFConvertBuilder& Builder;
 	const UMaterialInterface* Material;
-	const int32 LODIndex;
+	const FGLTFMeshData* MeshData;
 	const FGLTFMaterialArray OverrideMaterials;
 	const FGLTFJsonMaterialIndex MaterialIndex;
-
-	const UStaticMesh* StaticMesh;
-	const UStaticMeshComponent* StaticMeshComponent;
-	const USkeletalMesh* SkeletalMesh;
-	const USkeletalMeshComponent* SkeletalMeshComponent;
-	const bool bHasValidMeshOrComponent;
 
 	bool TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const;
 	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel) const;

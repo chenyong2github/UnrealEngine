@@ -6,6 +6,7 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 #include "Converters/GLTFMeshSectionConverters.h"
+#include "Converters/GLTFMeshDataConverters.h"
 #include "Converters/GLTFMaterialArray.h"
 #include "Engine.h"
 
@@ -24,6 +25,7 @@ class FGLTFStaticMeshConverter final : public TGLTFMeshConverter<const UStaticMe
 	virtual FGLTFJsonMeshIndex Convert(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray OverrideMaterials) override;
 
 	FGLTFStaticMeshSectionConverter MeshSectionConverter;
+	FGLTFStaticMeshDataConverter MeshDataConverter;
 };
 
 class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkeletalMesh*, const USkeletalMeshComponent*, FGLTFMaterialArray>
@@ -35,4 +37,5 @@ class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkelet
 	virtual FGLTFJsonMeshIndex Convert(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray OverrideMaterials) override;
 
 	FGLTFSkeletalMeshSectionConverter MeshSectionConverter;
+	FGLTFSkeletalMeshDataConverter MeshDataConverter;
 };

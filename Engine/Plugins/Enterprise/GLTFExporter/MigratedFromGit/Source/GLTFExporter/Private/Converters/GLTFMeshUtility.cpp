@@ -4,31 +4,6 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "PlatformInfo.h"
 
-int32 FGLTFMeshUtility::GetLOD(const UObject* MeshOrComponent, int32 DefaultLOD)
-{
-	if (const UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshOrComponent))
-	{
-		return GetLOD(StaticMesh, nullptr, DefaultLOD);
-	}
-
-	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshOrComponent))
-	{
-		return GetLOD(SkeletalMesh, nullptr, DefaultLOD);
-	}
-
-	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshOrComponent))
-	{
-		return GetLOD(StaticMeshComponent->GetStaticMesh(), StaticMeshComponent, DefaultLOD);
-	}
-
-	if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshOrComponent))
-	{
-		return GetLOD(SkeletalMeshComponent->SkeletalMesh, SkeletalMeshComponent, DefaultLOD);
-	}
-
-	return -1;
-}
-
 int32 FGLTFMeshUtility::GetLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 DefaultLOD)
 {
 	const int32 ForcedLOD = StaticMeshComponent != nullptr ? StaticMeshComponent->ForcedLodModel - 1 : -1;

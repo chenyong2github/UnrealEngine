@@ -140,44 +140,14 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponen
 	return SkeletalMeshConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, OverrideMaterials);
 }
 
-FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material)
+FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, const FGLTFMaterialArray& OverrideMaterials)
 {
 	if (Material == nullptr)
 	{
 		return FGLTFJsonMaterialIndex(INDEX_NONE);
 	}
 
-	return MaterialConverter.GetOrAdd(Material, nullptr, {});
-}
-
-FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const UStaticMesh* Mesh, const FGLTFMaterialArray& OverrideMaterials)
-{
-	if (Material == nullptr)
-	{
-		return FGLTFJsonMaterialIndex(INDEX_NONE);
-	}
-
-	return MaterialConverter.GetOrAdd(Material, Mesh, OverrideMaterials);
-}
-
-FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const USkeletalMesh* Mesh, const FGLTFMaterialArray& OverrideMaterials)
-{
-	if (Material == nullptr)
-	{
-		return FGLTFJsonMaterialIndex(INDEX_NONE);
-	}
-
-	return MaterialConverter.GetOrAdd(Material, Mesh, OverrideMaterials);
-}
-
-FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const UMeshComponent* MeshComponent, const FGLTFMaterialArray& OverrideMaterials)
-{
-	if (Material == nullptr)
-	{
-		return FGLTFJsonMaterialIndex(INDEX_NONE);
-	}
-
-	return MaterialConverter.GetOrAdd(Material, MeshComponent, OverrideMaterials);
+	return MaterialConverter.GetOrAdd(Material, MeshData, OverrideMaterials);
 }
 
 FGLTFJsonSamplerIndex FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Texture)

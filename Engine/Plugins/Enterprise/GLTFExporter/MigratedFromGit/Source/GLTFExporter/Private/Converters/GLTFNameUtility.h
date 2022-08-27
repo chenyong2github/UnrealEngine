@@ -18,9 +18,6 @@ struct FGLTFNameUtility
 		return Enum->GetDisplayNameTextByValue(Value).ToString();
 	}
 
-	static FString GetName(const UStaticMesh* StaticMesh, int32 LODIndex);
-	static FString GetName(const USkeletalMesh* SkeletalMesh, int32 LODIndex);
-
 	static FString GetName(const USceneComponent* Component);
 
 	static FString GetName(const UStaticMeshComponent* Component);

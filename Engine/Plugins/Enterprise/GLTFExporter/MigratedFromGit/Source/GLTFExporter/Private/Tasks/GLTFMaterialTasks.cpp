@@ -13,9 +13,6 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
-#include "MeshDescription.h"
-#include "StaticMeshAttributes.h"
-#include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
 
 namespace
 {
@@ -1356,43 +1353,17 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 	const FIntPoint DefaultTextureSize = Builder.GetDefaultMaterialBakeSize();
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
-	FMeshDescription MeshDescription;
 	TArray<int32> MeshMaterialIndices;
 
-	bool bUseMeshData = bHasValidMeshOrComponent;
-
-	if (bUseMeshData)
+	if (MeshData != nullptr)
 	{
-		FStaticMeshAttributes(MeshDescription).Register();
-		TArray<FSectionInfo> Sections;
+		const TArray<FSectionInfo>& Sections = MeshData->Sections;
 		const TArray<UMaterialInterface*> SectionMaterials;
-
-		if (StaticMesh != nullptr)
-		{
-			FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, MeshDescription);
-			FMeshMergeHelpers::ExtractSections(StaticMesh, LODIndex, Sections);
-		}
-		else if (StaticMeshComponent != nullptr)
-		{
-			FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, MeshDescription, true);
-			FMeshMergeHelpers::ExtractSections(StaticMeshComponent, LODIndex, Sections);
-		}
-		else if (SkeletalMesh != nullptr)
-		{
-			// TODO: add support for skeletal meshes by implementing custom utilities for retrieving mesh & sections
-
-			bUseMeshData = false;
-		}
-		else if (SkeletalMeshComponent != nullptr)
-		{
-			FMeshMergeHelpers::RetrieveMesh(const_cast<USkeletalMeshComponent*>(SkeletalMeshComponent), LODIndex, MeshDescription, true);
-			FMeshMergeHelpers::ExtractSections(SkeletalMeshComponent, LODIndex, Sections);
-		}
 
 		// Add material indices of all sections that reference the current material
 		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
 		{
-			FSectionInfo& Section = Sections[SectionIndex];
+			const FSectionInfo& Section = Sections[SectionIndex];
 			const UMaterialInterface* OverrideMaterial = OverrideMaterials.IsValidIndex(SectionIndex) ? OverrideMaterials[SectionIndex] : nullptr;
 			const UMaterialInterface* SectionMaterial = OverrideMaterial != nullptr ? OverrideMaterial : Section.Material;
 
@@ -1417,7 +1388,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		Property,
 		Material,
 		OutTexCoord,
-		bUseMeshData ? &MeshDescription : nullptr,
+		MeshData != nullptr ? &MeshData->Description : nullptr,
 		MeshMaterialIndices,
 		bCopyAlphaFromRedChannel);
 
@@ -1457,21 +1428,9 @@ FString FGLTFMaterialTask::GetMaterialName() const
 {
 	FString MaterialName = Material->GetName();
 
-	if (StaticMesh != nullptr)
+	if (MeshData != nullptr)
 	{
-		MaterialName += TEXT("_") + FGLTFNameUtility::GetName(StaticMesh, LODIndex);
-	}
-	else if (StaticMeshComponent != nullptr)
-	{
-		MaterialName += TEXT("_") + FGLTFNameUtility::GetName(StaticMeshComponent);
-	}
-	else if (SkeletalMesh != nullptr)
-	{
-		MaterialName += TEXT("_") + FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
-	}
-	else if (SkeletalMeshComponent != nullptr)
-	{
-		MaterialName += TEXT("_") + FGLTFNameUtility::GetName(SkeletalMeshComponent);
+		MaterialName += TEXT("_") + MeshData->Name;
 	}
 
 	return MaterialName;

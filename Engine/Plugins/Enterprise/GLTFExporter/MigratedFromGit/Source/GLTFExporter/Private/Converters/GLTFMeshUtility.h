@@ -6,8 +6,6 @@
 
 struct FGLTFMeshUtility
 {
-	static int32 GetLOD(const UObject* MeshOrComponent, int32 DefaultLOD);
-
 	static int32 GetLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 DefaultLOD);
 	static int32 GetLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 DefaultLOD);
 
