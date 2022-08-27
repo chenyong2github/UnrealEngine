@@ -6,6 +6,18 @@
 
 struct GLTFEXPORTER_API FGLTFJsonUtility
 {
+	static inline const TCHAR* ExtensionToString(EGLTFExtension Extension)
+	{
+		switch (Extension)
+		{
+			case EGLTFExtension::KHR_LightsPunctual:     return TEXT("KHR_lights_punctual");
+			case EGLTFExtension::KHR_MaterialsUnlit:     return TEXT("KHR_materials_unlit");
+			case EGLTFExtension::KHR_MaterialsClearCoat: return TEXT("KHR_materials_clearcoat");
+			case EGLTFExtension::KHR_MeshQuantization:   return TEXT("KHR_mesh_quantization");
+			default:                                     return TEXT("unknown");
+		}
+	}
+
 	static inline const TCHAR* AlphaModeToString(EGLTFJsonAlphaMode Mode)
 	{
 		switch (Mode)

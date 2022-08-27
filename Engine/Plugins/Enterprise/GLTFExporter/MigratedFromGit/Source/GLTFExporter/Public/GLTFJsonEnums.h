@@ -4,6 +4,14 @@
 
 #include "CoreMinimal.h"
 
+enum class EGLTFExtension
+{
+	KHR_LightsPunctual,
+	KHR_MaterialsUnlit,
+	KHR_MaterialsClearCoat,
+	KHR_MeshQuantization
+};
+
 enum class EGLTFJsonAccessorType
 {
 	None = -1,

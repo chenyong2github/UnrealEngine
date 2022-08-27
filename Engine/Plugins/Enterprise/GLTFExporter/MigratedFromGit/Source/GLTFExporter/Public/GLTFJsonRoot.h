@@ -50,7 +50,11 @@ struct GLTFEXPORTER_API FGLTFJsonAsset
 
 struct GLTFEXPORTER_API FGLTFJsonRoot
 {
-	FGLTFJsonAsset      Asset;
+	FGLTFJsonAsset Asset;
+
+	TSet<EGLTFExtension> ExtensionsUsed;
+	TSet<EGLTFExtension> ExtensionsRequired;
+
 	FGLTFJsonSceneIndex DefaultScene;
 
 	TArray<FGLTFJsonAccessor>   Accessors;
@@ -72,6 +76,28 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
 		Asset.WriteObject(JsonWriter);
+
+		if (ExtensionsUsed.Num() > 0)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("extensionsUsed"));
+			JsonWriter.WriteArrayStart();
+			for (const EGLTFExtension& Extension : ExtensionsUsed)
+			{
+				JsonWriter.WriteValue(FGLTFJsonUtility::ExtensionToString(Extension));
+			}
+			JsonWriter.WriteArrayEnd();
+		}
+
+		if (ExtensionsRequired.Num() > 0)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("extensionsRequired"));
+			JsonWriter.WriteArrayStart();
+			for (const EGLTFExtension& Extension : ExtensionsRequired)
+			{
+				JsonWriter.WriteValue(FGLTFJsonUtility::ExtensionToString(Extension));
+			}
+			JsonWriter.WriteArrayEnd();
+		}
 
 		if (DefaultScene != INDEX_NONE)
 		{
