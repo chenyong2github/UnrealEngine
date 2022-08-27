@@ -183,4 +183,17 @@ struct FGLTFJsonUtility
 				return TEXT("");
 		}
 	}
+
+	static const TCHAR* GetValue(EGLTFJsonShadingModel Enum)
+	{
+		switch (Enum)
+		{
+			case EGLTFJsonShadingModel::Default:   return TEXT("Default");
+			case EGLTFJsonShadingModel::Unlit:     return TEXT("Unlit");
+			case EGLTFJsonShadingModel::ClearCoat: return TEXT("ClearCoat");
+			default:
+				checkNoEntry();
+			return TEXT("");
+		}
+	}
 };
