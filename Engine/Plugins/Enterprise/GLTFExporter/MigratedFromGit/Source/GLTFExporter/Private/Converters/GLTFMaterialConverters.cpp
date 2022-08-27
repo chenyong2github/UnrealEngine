@@ -278,6 +278,7 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 
 	const FLinearColor MetallicMask(0.0f, 0.0f, 1.0f, 0.0f);
 	const FLinearColor RoughnessMask(0.0f, 1.0f, 0.0f, 0.0f);
+	const FLinearColor AlphaMask(0.0f, 0.0f, 0.0f, 1.0f);
 
 	const bool bHasMetallicSourceTexture = TryGetSourceTexture(MetallicTexture, MetallicTexCoord, MetallicInput, MaterialInstance, { MetallicMask });
 	const bool bHasRoughnessSourceTexture = TryGetSourceTexture(RoughnessTexture, RoughnessTexCoord, RoughnessInput, MaterialInstance, { RoughnessMask });
@@ -372,7 +373,7 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 
 	const TArray<FGLTFTextureCombineSource> CombineSources =
 	{
-		{ MetallicTexture, MetallicMask },
+		{ MetallicTexture, MetallicMask + AlphaMask, SE_BLEND_Opaque },
 		{ RoughnessTexture, RoughnessMask }
 	};
 
