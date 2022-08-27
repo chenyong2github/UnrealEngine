@@ -6,7 +6,7 @@
 
 enum class EGLTFTaskPriority : uint8
 {
-	Actor,
+	Actor, // TODO: add and implement tasks for actors
     Mesh,
     Animation,
     Material,
