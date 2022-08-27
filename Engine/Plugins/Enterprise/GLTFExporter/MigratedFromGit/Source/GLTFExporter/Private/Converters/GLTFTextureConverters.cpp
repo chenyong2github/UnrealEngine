@@ -75,7 +75,7 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 		{
 			if (FGLTFTextureUtility::HasAnyAdjustment(Texture2D))
 			{
-				Builder.AddWarningMessage(FString::Printf(TEXT("Adjustments for texture %s are unsupported because source is used for export"), *JsonTexture.Name));
+				Builder.AddWarningMessage(FString::Printf(TEXT("Adjustments for texture %s are not supported when exporting source data"), *JsonTexture.Name));
 			}
 		}
 		else
