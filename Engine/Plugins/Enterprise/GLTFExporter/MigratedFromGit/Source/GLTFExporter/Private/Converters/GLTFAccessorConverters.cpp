@@ -2,7 +2,6 @@
 
 #include "Converters/GLTFAccessorConverters.h"
 #include "Converters/GLTFConverterUtility.h"
-#include "Converters/GLTFSkinWeightVertexBufferHack.h"
 #include "Builders/GLTFConvertBuilder.h"
 
 // TODO: Unreal-style implementation of std::conditional to avoid mixing in STL. Should be added to the engine.
@@ -333,8 +332,7 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexBufferConverter::Convert(const FGLTFMeshSec
 
 		for (int32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
 		{
-			// TODO: remove hack
-			const uint32 UnmappedBoneIndex = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneIndex(MappedVertexIndex, InfluenceOffset + InfluenceIndex);
+			const uint32 UnmappedBoneIndex = VertexBuffer->GetBoneIndex(MappedVertexIndex, InfluenceOffset + InfluenceIndex);
 			VertexBones.Index[InfluenceIndex] = static_cast<IndexType>(BoneMap[UnmappedBoneIndex]);
 		}
 	}
@@ -380,8 +378,7 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightBufferConverter::Convert(const FGLTFMeshSe
 
 		for (uint32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
 		{
-			// TODO: remove hack
-			const uint8 BoneWeight = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneWeight(MappedVertexIndex, InfluenceOffset + InfluenceIndex);
+			const uint8 BoneWeight = VertexBuffer->GetBoneWeight(MappedVertexIndex, InfluenceOffset + InfluenceIndex);
 			VertexWeights.Weights[InfluenceIndex] = BoneWeight;
 		}
 	}

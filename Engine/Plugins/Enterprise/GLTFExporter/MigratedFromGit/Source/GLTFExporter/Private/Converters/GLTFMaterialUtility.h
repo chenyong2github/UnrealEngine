@@ -41,6 +41,9 @@ struct FGLTFMaterialUtility
 
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
 
+	static FGuid GetAttributeID(const FMaterialPropertyEx& Property);
+	static FGuid GetAttributeIDChecked(const FMaterialPropertyEx& Property);
+
 	static FVector4 GetPropertyDefaultValue(const FMaterialPropertyEx& Property);
 	static FVector4 GetPropertyMask(const FMaterialPropertyEx& Property);
 
