@@ -42,6 +42,26 @@ bool FGLTFTextureUtility::IsCubemap(const UTexture* Texture)
 	return Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>();
 }
 
+bool FGLTFTextureUtility::HasAnyAdjustment(const UTexture* Texture)
+{
+	const float ErrorTolerance = KINDA_SMALL_NUMBER;
+
+	if (!FMath::IsNearlyEqual(Texture->AdjustBrightness, 1.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustBrightnessCurve, 1.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustSaturation, 1.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustVibrance, 0.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustRGBCurve, 1.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustHue, 0.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustMinAlpha, 0.0f, ErrorTolerance) ||
+		!FMath::IsNearlyEqual(Texture->AdjustMaxAlpha, 1.0f, ErrorTolerance) ||
+		Texture->bChromaKeyTexture)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 float FGLTFTextureUtility::GetCubeFaceRotation(ECubeFace CubeFace)
 {
 	switch (CubeFace)
