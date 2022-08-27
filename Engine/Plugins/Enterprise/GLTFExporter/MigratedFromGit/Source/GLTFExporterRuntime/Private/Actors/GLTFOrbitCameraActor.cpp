@@ -65,6 +65,11 @@ void AGLTFOrbitCameraActor::PostEditChangeProperty(FPropertyChangedEvent& Proper
 void AGLTFOrbitCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (this->Focus == nullptr || this->Focus == this)
+	{
+		UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("The camera focus must not be null or the camera itself."));
+	}
 	
 	Distance = ClampDistance(Distance);
 	Pitch = ClampPitch(Pitch);
@@ -96,7 +101,7 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 	Pitch = FMath::Lerp(Pitch, TargetPitch, Alpha);
 	//Distance = FMath::Lerp(Distance, TargetDistance, Alpha);
 
-	const FVector FocusPosition = (this->Focus != nullptr) ? this->Focus->GetActorLocation() : FVector::ZeroVector;
+	const FVector FocusPosition = (this->Focus != nullptr && this->Focus != this) ? this->Focus->GetActorLocation() : FVector::ZeroVector;
 	const FTransform FocusTransform = FTransform(FocusPosition);
 	const FTransform DollyTransform = FTransform(-FVector::ForwardVector * Distance);
 	const FTransform RotationTransform = FTransform(FQuat::MakeFromEuler(FVector(0.0f, Pitch, Yaw)));
