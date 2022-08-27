@@ -5,7 +5,7 @@
 #include "Core/GLTFQuaternion.h"
 #include "Json/GLTFJsonArray.h"
 
-struct FGLTFJsonQuaternion final : TGLTFQuaternion<float>, IGLTFJsonArray
+struct FGLTFJsonQuaternion : TGLTFQuaternion<float>, IGLTFJsonArray
 {
 	static const TGLTFQuaternion Identity;
 
