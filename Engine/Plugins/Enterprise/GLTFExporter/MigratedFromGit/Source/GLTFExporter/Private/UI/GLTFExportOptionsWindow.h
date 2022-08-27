@@ -14,6 +14,7 @@ class SButton;
 class GLTFEXPORTER_API SGLTFExportOptionsWindow : public SCompoundWidget
 {
 public:
+
 	SLATE_BEGIN_ARGS(SGLTFExportOptionsWindow)
 		: _ExportOptions(nullptr)
 		, _BatchMode()
@@ -25,7 +26,6 @@ public:
 		SLATE_ARGUMENT( bool, BatchMode )
 	SLATE_END_ARGS()
 
-public:
 	void Construct(const FArguments& InArgs);
 
 	virtual bool SupportsKeyboardFocus() const override { return true; }
@@ -44,13 +44,12 @@ public:
 
 	SGLTFExportOptionsWindow();
 
-public:
 	static void ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll);
 
 private:
+
 	FReply OnResetToDefaultClick() const;
 
-private:
 	UGLTFExportOptions* ExportOptions;
 	TSharedPtr<class IDetailsView> DetailsView;
 	TWeakPtr<SWindow> WidgetWindow;

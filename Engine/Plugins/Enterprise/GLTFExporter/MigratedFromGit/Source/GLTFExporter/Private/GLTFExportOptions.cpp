@@ -2,8 +2,6 @@
 
 #include "GLTFExportOptions.h"
 #include "UI/GLTFExportOptionsWindow.h"
-#include "Misc/App.h"
-
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -12,6 +10,7 @@
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/App.h"
 
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
