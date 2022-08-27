@@ -35,8 +35,8 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 	if (Worlds.Num() > 1)
 	{
 		Builder.AddErrorMessage(
-            FString::Printf(TEXT("Failed to export level variant sets %s because more than one level referenced"),
-            *LevelVariantSets->GetName()));
+			FString::Printf(TEXT("Failed to export level variant sets %s because more than one level referenced"),
+			*LevelVariantSets->GetName()));
 		return false;
 	}
 

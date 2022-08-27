@@ -81,10 +81,10 @@ struct FGLTFConverterUtility
 		{
 			return {
 				FMath::Clamp(Color.R, 0.0f, 1.0f),
-                FMath::Clamp(Color.G, 0.0f, 1.0f),
-                FMath::Clamp(Color.B, 0.0f, 1.0f),
-                FMath::Clamp(Color.A, 0.0f, 1.0f)
-            };
+				FMath::Clamp(Color.G, 0.0f, 1.0f),
+				FMath::Clamp(Color.B, 0.0f, 1.0f),
+				FMath::Clamp(Color.A, 0.0f, 1.0f)
+			};
 		}
 
 		// Just make sure its non-negative (which can happen when using MakeFromColorTemperature).

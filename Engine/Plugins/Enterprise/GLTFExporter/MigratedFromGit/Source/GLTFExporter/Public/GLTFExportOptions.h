@@ -14,7 +14,7 @@ enum class EGLTFTextureImageFormat : uint8
 	/** Always use PNG (lossless compression). */
 	PNG,
 	/** If texture does not have an alpha channel, use JPEG (lossy compression); otherwise fallback to PNG. */
-    JPEG UMETA(DisplayName = "JPEG (if no alpha)")
+	JPEG UMETA(DisplayName = "JPEG (if no alpha)")
 };
 
 UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
@@ -24,7 +24,7 @@ enum class EGLTFTextureType : uint8
 
 	HDR = 1 << 0,
 	Normalmaps = 1 << 1,
-    Lightmaps = 1 << 2,
+	Lightmaps = 1 << 2,
 
 	All = HDR | Normalmaps | Lightmaps UMETA(Hidden)
 };
@@ -57,10 +57,10 @@ enum class EGLTFMaterialVariantMode : uint8
 {
 	/** Never export material variants. */
 	None,
-    /** Export material variants but only use a simple quad if a material input needs to be baked out. */
-    Simple,
-    /** Export material variants and allow usage of the mesh data if a material input needs to be baked out with vertex data. */
-    UseMeshData,
+	/** Export material variants but only use a simple quad if a material input needs to be baked out. */
+	Simple,
+	/** Export material variants and allow usage of the mesh data if a material input needs to be baked out with vertex data. */
+	UseMeshData,
 };
 
 UCLASS(Config=EditorPerProjectUserSettings, HideCategories=(DebugProperty))

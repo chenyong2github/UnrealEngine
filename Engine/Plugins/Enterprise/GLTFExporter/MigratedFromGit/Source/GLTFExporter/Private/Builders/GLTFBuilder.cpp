@@ -100,12 +100,12 @@ EGLTFMaterialPropertyGroup FGLTFBuilder::GetPropertyGroup(const FMaterialPropert
 	switch (Property.Type)
 	{
 		case MP_BaseColor:
-        case MP_Opacity:
-        case MP_OpacityMask:
-            return EGLTFMaterialPropertyGroup::BaseColorOpacity;
+		case MP_Opacity:
+		case MP_OpacityMask:
+			return EGLTFMaterialPropertyGroup::BaseColorOpacity;
 		case MP_Metallic:
-        case MP_Roughness:
-            return EGLTFMaterialPropertyGroup::MetallicRoughness;
+		case MP_Roughness:
+			return EGLTFMaterialPropertyGroup::MetallicRoughness;
 		case MP_EmissiveColor:
 			return EGLTFMaterialPropertyGroup::EmissiveColor;
 		case MP_Normal:
@@ -113,8 +113,8 @@ EGLTFMaterialPropertyGroup FGLTFBuilder::GetPropertyGroup(const FMaterialPropert
 		case MP_AmbientOcclusion:
 			return EGLTFMaterialPropertyGroup::AmbientOcclusion;
 		case MP_CustomData0:
-        case MP_CustomData1:
-            return EGLTFMaterialPropertyGroup::ClearCoatRoughness;
+		case MP_CustomData1:
+			return EGLTFMaterialPropertyGroup::ClearCoatRoughness;
 		case MP_CustomOutput:
 			if (Property.CustomOutput == TEXT("ClearCoatBottomNormal"))
 			{
