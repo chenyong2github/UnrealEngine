@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonObject.h"
-#include "Json/GLTFJsonVector2.h"
+#include "Json/GLTFJsonVector.h"
 
 struct FGLTFJsonTextureTransform : IGLTFJsonObject
 {

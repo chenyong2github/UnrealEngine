@@ -2,46 +2,47 @@
 
 #pragma once
 
+#include "Core/GLTFQuaternion.h"
 #include "Json/GLTFJsonArray.h"
-#include "Converters/GLTFRawTypes.h"
 
-struct FGLTFJsonQuaternion : IGLTFJsonArray
+struct FGLTFJsonQuaternion final : TGLTFQuaternion<float>, IGLTFJsonArray
 {
-	float X, Y, Z, W;
+	static const TGLTFQuaternion Identity;
 
-	static const FGLTFJsonQuaternion Identity;
-
-	FGLTFJsonQuaternion(float X, float Y, float Z, float W)
-		: X(X), Y(Y), Z(Z), W(W)
+	FGLTFJsonQuaternion(const TGLTFQuaternion& Other)
+		: TGLTFQuaternion(Other)
 	{
 	}
 
-	FGLTFJsonQuaternion(const FGLTFRawQuaternion& Raw)
-		: X(Raw.X), Y(Raw.Y), Z(Raw.Z), W(Raw.W)
+	FGLTFJsonQuaternion& operator=(const TGLTFQuaternion& Other)
 	{
+		*static_cast<TGLTFQuaternion*>(this) = Other;
+		return *this;
 	}
 
 	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		Writer.Write(X);
-		Writer.Write(Y);
-		Writer.Write(Z);
-		Writer.Write(W);
+		for (int32 i = 0; i < 4; ++i)
+		{
+			Writer.Write(Components[i]);
+		}
 	}
 
-	bool operator==(const FGLTFJsonQuaternion& Other) const
+	bool operator==(const TGLTFQuaternion& Other) const
 	{
-		return X == Other.X
-			&& Y == Other.Y
-			&& Z == Other.Z
-			&& W == Other.W;
+		for (uint32 i = 0; i < GetNum(Components); ++i)
+		{
+			if (Components[i] != Other.Components[i])
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
-	bool operator!=(const FGLTFJsonQuaternion& Other) const
+	bool operator!=(const TGLTFQuaternion& Other) const
 	{
-		return X != Other.X
-			|| Y != Other.Y
-			|| Z != Other.Z
-			|| W != Other.W;
+		return !(*this == Other);
 	}
 };

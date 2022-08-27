@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonColor3.h"
+#include "Json/GLTFJsonColor.h"
 
 struct FGLTFJsonSpotLight : IGLTFJsonObject
 {

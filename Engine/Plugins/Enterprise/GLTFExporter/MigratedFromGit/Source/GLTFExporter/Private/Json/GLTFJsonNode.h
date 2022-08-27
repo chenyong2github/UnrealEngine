@@ -4,8 +4,8 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonMatrix4.h"
-#include "Json/GLTFJsonVector3.h"
+#include "Json/GLTFJsonMatrix.h"
+#include "Json/GLTFJsonVector.h"
 #include "Json/GLTFJsonQuaternion.h"
 
 struct FGLTFJsonNode : IGLTFJsonObject

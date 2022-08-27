@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonVector4.h"
+#include "Json/GLTFJsonVector.h"
 
 struct FGLTFJsonCameraControl : IGLTFJsonObject
 {

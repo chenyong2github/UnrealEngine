@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonMaterial.h"
-#include "Json/GLTFJsonVector4.h"
+#include "Json/GLTFJsonVector.h"
 
 struct FGLTFJsonLightMap : IGLTFJsonObject
 {
@@ -17,7 +17,7 @@ struct FGLTFJsonLightMap : IGLTFJsonObject
 	FGLTFJsonLightMap()
 		: LightMapScale(FGLTFJsonVector4::One)
 		, LightMapAdd(FGLTFJsonVector4::Zero)
-		, CoordinateScaleBias(1, 1, 0, 0)
+		, CoordinateScaleBias({ 1, 1, 0, 0 })
 	{
 	}
 

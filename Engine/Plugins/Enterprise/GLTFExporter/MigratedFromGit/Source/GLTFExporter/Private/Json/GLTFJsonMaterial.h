@@ -4,8 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonColor3.h"
-#include "Json/GLTFJsonColor4.h"
+#include "Json/GLTFJsonColor.h"
 #include "Json/GLTFJsonTextureTransform.h"
 
 struct FGLTFJsonTextureInfo : IGLTFJsonObject
