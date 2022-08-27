@@ -46,6 +46,10 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 				OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
 				OrbitCamera.MaxAngle = OrbitCameraActor->PitchAngleMax;
 				OrbitCamera.MinAngle = OrbitCameraActor->PitchAngleMin;
+				OrbitCamera.DistanceSensitivity = OrbitCameraActor->DistanceSensitivity;
+				OrbitCamera.OrbitSensitivity = OrbitCameraActor->OrbitSensitivity;
+				OrbitCamera.OrbitInertia = OrbitCameraActor->OrbitInertia;
+				OrbitCamera.DollyDuration = OrbitCameraActor->DollyDuration;
 
 				Camera.OrbitCamera = OrbitCamera;
 			}
