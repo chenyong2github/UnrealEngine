@@ -14,9 +14,9 @@
 
 struct FGLTFConverterUtility
 {
-	static float ConvertLength(const float Length, const float ExportScale)
+	static float ConvertLength(const float Length, const float ConversionScale)
 	{
-		return Length * ExportScale;
+		return Length * ConversionScale;
 	}
 
 	static FGLTFJsonVector3 ConvertVector(const FVector& Vector)
@@ -26,9 +26,9 @@ struct FGLTFConverterUtility
 		return { Vector.X, Vector.Z, Vector.Y };
 	}
 
-	static FGLTFJsonVector3 ConvertPosition(const FVector& Position, const float ExportScale)
+	static FGLTFJsonVector3 ConvertPosition(const FVector& Position, const float ConversionScale)
 	{
-		return ConvertVector(Position * ExportScale);
+		return ConvertVector(Position * ConversionScale);
 	}
 
 	static FGLTFJsonVector3 ConvertScale(const FVector& Scale)
