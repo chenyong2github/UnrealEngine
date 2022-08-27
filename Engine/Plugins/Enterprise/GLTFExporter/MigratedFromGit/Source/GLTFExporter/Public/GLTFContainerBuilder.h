@@ -30,5 +30,7 @@ struct GLTFEXPORTER_API FGLTFContainerBuilder
 
 	FGLTFJsonMeshIndex AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
 
+	FGLTFJsonSceneIndex AddScene(const UWorld* World, bool bSelectedOnly = false);
+
 	void Serialize(FArchive& Archive);
 };

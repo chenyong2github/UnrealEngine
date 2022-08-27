@@ -2,6 +2,7 @@
 
 #include "GLTFContainerBuilder.h"
 #include "GLTFMeshBuilder.h"
+#include "GLTFSceneBuilder.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder()
 	: BufferBuilder(AddBuffer(FGLTFJsonBuffer()))
@@ -53,4 +54,9 @@ void FGLTFContainerBuilder::Serialize(FArchive& Archive)
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	return FGLTFMeshBuilder(StaticMesh, LODIndex).AddMesh(*this);
+}
+
+FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const UWorld* World, bool bSelectedOnly)
+{
+	return FGLTFSceneBuilder(World, bSelectedOnly).AddScene(*this);
 }
