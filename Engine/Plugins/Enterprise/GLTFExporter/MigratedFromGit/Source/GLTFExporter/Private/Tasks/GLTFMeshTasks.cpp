@@ -122,9 +122,9 @@ void FGLTFStaticMeshTask::Complete()
 			// TODO: report warning in case the mesh actually has data, which means we failed to extract a mesh description.
 			MeshData = nullptr;
 		}
-		else if (MeshData->TexCoord < 0)
+		else if (MeshData->BakeUsingTexCoord < 0)
 		{
-			// TODO: report warning (about missing lightmap texture coordinate for baking with mesh data).
+			// TODO: report warning (about missing texture coordinate for baking with mesh data).
 			MeshData = nullptr;
 		}
 	}
@@ -214,9 +214,9 @@ void FGLTFSkeletalMeshTask::Complete()
 			// TODO: report warning in case the mesh actually has data, which means we failed to extract a mesh description.
 			MeshData = nullptr;
 		}
-		else if (MeshData->TexCoord < 0)
+		else if (MeshData->BakeUsingTexCoord < 0)
 		{
-			// TODO: report warning (about missing non-overlapping texture coordinate for baking with mesh data).
+			// TODO: report warning (about missing texture coordinate for baking with mesh data).
 			MeshData = nullptr;
 		}
 	}

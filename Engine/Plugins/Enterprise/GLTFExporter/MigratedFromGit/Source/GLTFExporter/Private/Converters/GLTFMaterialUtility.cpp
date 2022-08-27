@@ -165,8 +165,11 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	MeshSet.MaterialIndices = MeshSectionIndices; // NOTE: MaterialIndices is actually section indices
 	if (MeshData != nullptr)
 	{
-		MeshSet.PrimitiveData = &MeshData->PrimitiveData;
 		MeshSet.RawMeshDescription = const_cast<FMeshDescription*>(&MeshData->Description);
+		MeshSet.LightMap = MeshData->LightMap;
+		MeshSet.LightMapIndex = MeshData->LightMapTexCoord;
+		MeshSet.LightmapResourceCluster = MeshData->LightMapResourceCluster;
+		MeshSet.PrimitiveData = &MeshData->PrimitiveData;
 	}
 
 	FMaterialDataEx MatSet;
