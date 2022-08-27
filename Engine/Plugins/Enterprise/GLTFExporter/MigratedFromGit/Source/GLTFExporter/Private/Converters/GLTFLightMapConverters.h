@@ -11,5 +11,5 @@ class FGLTFLightMapConverter : public FGLTFBuilderContext, public TGLTFConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonLightMapIndex Convert(const UStaticMeshComponent* StaticMeshComponent) override final;
+	virtual FGLTFJsonLightMapIndex Convert(const UStaticMeshComponent* StaticMeshComponent) override final;
 };

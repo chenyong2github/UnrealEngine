@@ -7,30 +7,36 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
-class FGLTFTexture2DConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*>
+template <typename... InputTypes>
+class FGLTFTextureConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, InputTypes...>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
-
-	FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override final;
 };
 
-class FGLTFTextureCubeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureCube*, ECubeFace>
+class FGLTFTexture2DConverter : public FGLTFTextureConverter<const UTexture2D*>
 {
-	using FGLTFBuilderContext::FGLTFBuilderContext;
+	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override final;
 };
 
-class FGLTFTextureRenderTarget2DConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTarget2D*>
+class FGLTFTextureCubeConverter : public FGLTFTextureConverter<const UTextureCube*, ECubeFace>
 {
-	using FGLTFBuilderContext::FGLTFBuilderContext;
+	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override final;
 };
 
-class FGLTFTextureRenderTargetCubeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTargetCube*, ECubeFace>
+class FGLTFTextureRenderTarget2DConverter : public FGLTFTextureConverter<const UTextureRenderTarget2D*>
 {
-	using FGLTFBuilderContext::FGLTFBuilderContext;
+	using FGLTFTextureConverter::FGLTFTextureConverter;
 
-	FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override final;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override final;
+};
+
+class FGLTFTextureRenderTargetCubeConverter : public FGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace>
+{
+	using FGLTFTextureConverter::FGLTFTextureConverter;
+
+	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override final;
 };

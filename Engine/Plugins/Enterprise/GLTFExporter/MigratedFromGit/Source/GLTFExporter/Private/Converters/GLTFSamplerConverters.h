@@ -11,5 +11,5 @@ class FGLTFTextureSamplerConverter : public FGLTFBuilderContext, public TGLTFCon
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonSamplerIndex Convert(const UTexture* Texture) override final;
+	virtual FGLTFJsonSamplerIndex Convert(const UTexture* Texture) override final;
 };

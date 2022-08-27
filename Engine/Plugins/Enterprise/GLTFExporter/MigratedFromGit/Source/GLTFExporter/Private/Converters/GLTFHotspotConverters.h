@@ -12,5 +12,5 @@ class FGLTFHotspotComponentConverter : public FGLTFBuilderContext, public TGLTFC
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonHotspotIndex Convert(const UGLTFInteractionHotspotComponent* HotspotComponent) override final;
+	virtual FGLTFJsonHotspotIndex Convert(const UGLTFInteractionHotspotComponent* HotspotComponent) override final;
 };
