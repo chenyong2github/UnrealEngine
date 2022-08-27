@@ -31,6 +31,7 @@ public:
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName = TEXT(""));
 
 	FGLTFJsonMaterialIndex GetOrAddMaterial(const UMaterialInterface* Material, const FString& DesiredName = TEXT(""));
+	FGLTFJsonSamplerIndex GetOrAddSampler(const UTexture* Texture, const FString& DesiredName = TEXT(""));
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTexture2D* Texture, const FString& DesiredName = TEXT(""));
 	FGLTFJsonTextureIndex GetOrAddTexture(const ULightMapTexture2D* LightMapTexture2D, const FString& DesiredName = TEXT(""));
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName = TEXT(""));
@@ -54,6 +55,7 @@ private:
 	FGLTFStaticMeshConverter StaticMeshConverter;
 
 	FGLTFMaterialConverter MaterialConverter;
+	FGLTFTextureSamplerConverter TextureSamplerConverter;
 	FGLTFTexture2DConverter Texture2DConverter;
 	FGLTFLightMapTexture2DConverter LightMapTexture2DConverter;
 	FGLTFLightMapConverter LightMapConverter;

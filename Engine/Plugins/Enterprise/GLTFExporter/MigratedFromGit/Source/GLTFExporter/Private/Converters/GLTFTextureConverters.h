@@ -6,6 +6,11 @@
 #include "Converters/GLTFConverter.h"
 #include "Engine.h"
 
+class FGLTFTextureSamplerConverter final : public TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*>
+{
+	FGLTFJsonSamplerIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTexture* Texture) override;
+};
+
 class FGLTFTexture2DConverter final : public TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*>
 {
 	FGLTFJsonTextureIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTexture2D* Texture2D) override;
