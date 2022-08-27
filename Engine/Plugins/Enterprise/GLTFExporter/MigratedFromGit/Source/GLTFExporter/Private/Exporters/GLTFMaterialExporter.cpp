@@ -25,7 +25,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 	const UStaticMesh* PreviewMesh = FGLTFExporterUtility::GetPreviewMesh(Material);
 	if (PreviewMesh != nullptr)
 	{
-		const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, 0, nullptr, { Material }, "PreviewMesh");
+		const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, -1, nullptr, { Material }, "PreviewMesh");
 
 		FGLTFJsonNode Node;
 		Node.Mesh = MeshIndex;
