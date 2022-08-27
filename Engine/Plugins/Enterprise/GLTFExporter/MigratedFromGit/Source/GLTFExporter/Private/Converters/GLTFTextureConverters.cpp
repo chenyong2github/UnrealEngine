@@ -69,17 +69,21 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 			const void* RawData = Source.LockMip(0);
 			ImageIndex = Builder.AddImage(RawData, Source.CalcMipSize(0), Size, RGBFormat, BitDepth, JsonTexture.Name);
 			Source.UnlockMip(0);
-
-			if (ImageIndex != INDEX_NONE)
-			{
-				// TODO: add warning if the texture has one or more adjustments,
-				// since adjustments are not applied when exporting via source.
-			}
 		}
 
-		if (ImageIndex == INDEX_NONE && bPreferSourceExport)
+		if (ImageIndex != INDEX_NONE)
 		{
-			Builder.AddWarningMessage(FString::Printf(TEXT("Unable to export source for texture %s, render data will be used as fallback"), *JsonTexture.Name));
+			if (FGLTFTextureUtility::HasAnyAdjustment(Texture2D))
+			{
+				Builder.AddWarningMessage(FString::Printf(TEXT("Adjustments for texture %s are unsupported because source is used for export"), *JsonTexture.Name));
+			}
+		}
+		else
+		{
+			if (bPreferSourceExport)
+			{
+				Builder.AddWarningMessage(FString::Printf(TEXT("Unable to export source for texture %s, render data will be used as fallback"), *JsonTexture.Name));
+			}
 		}
 	}
 
