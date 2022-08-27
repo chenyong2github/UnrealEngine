@@ -7,16 +7,20 @@
 
 struct FGLTFMaterialAnalysis;
 
-UCLASS()
+UCLASS(NotBlueprintType, Transient)
 class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
 {
 	GENERATED_BODY()
 
 public:
 
-	void AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis);
+	static void AnalyzeMaterialPropertyEx(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis);
 
 private:
+
+	UGLTFMaterialAnalyzer();
+
+	void ResetToDefaults();
 
 	UMaterialExpressionCustomOutput* GetCustomOutputExpression() const;
 

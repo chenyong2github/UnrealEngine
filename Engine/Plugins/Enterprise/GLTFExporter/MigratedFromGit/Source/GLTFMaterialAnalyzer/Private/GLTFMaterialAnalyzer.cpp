@@ -5,24 +5,37 @@
 #include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
 #include "Materials/HLSLMaterialTranslator.h"
 
-void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis)
+UGLTFMaterialAnalyzer::UGLTFMaterialAnalyzer()
 {
-	Property = InProperty;
-	CustomOutput = InCustomOutput;
-	Material = const_cast<UMaterialInterface*>(InMaterial);
-	Analysis = &OutAnalysis;
+	ResetToDefaults();
+}
+
+void UGLTFMaterialAnalyzer::ResetToDefaults()
+{
+	Property = MP_MAX;
+	CustomOutput = {};
+	Material = nullptr;
+	Analysis = nullptr;
+}
+
+void UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis)
+{
+	// TODO: use a shared UGLTFMaterialAnalyzer instance instead of creating a new one for each invocation
+	UGLTFMaterialAnalyzer* Analyzer = NewObject<UGLTFMaterialAnalyzer>();
+
+	Analyzer->Property = InProperty;
+	Analyzer->CustomOutput = InCustomOutput;
+	Analyzer->Material = const_cast<UMaterialInterface*>(InMaterial);
+	Analyzer->Analysis = &OutAnalysis;
 
 	// NOTE: When analyzing custom outputs, the property *must* be set to MP_MAX or the compiler will refuse to compile the output
 	const EMaterialProperty SafeProperty = InProperty == MP_CustomOutput ? MP_MAX : InProperty;
 
 	int32 DummyNumTextureCoordinates; // Dummy value from built-in analysis not used since it's insufficient
 	bool DummyRequiresVertexData; // Dummy value from built-in analysis not used since it's insufficient
-	Super::AnalyzeMaterialProperty(SafeProperty, DummyNumTextureCoordinates, DummyRequiresVertexData);
+	Analyzer->AnalyzeMaterialProperty(SafeProperty, DummyNumTextureCoordinates, DummyRequiresVertexData);
 
-	Property = MP_MAX;
-	CustomOutput = {};
-	Material = nullptr;
-	Analysis = nullptr;
+	Analyzer->ResetToDefaults();
 }
 
 UMaterialExpressionCustomOutput* UGLTFMaterialAnalyzer::GetCustomOutputExpression() const
@@ -41,11 +54,16 @@ UMaterialExpressionCustomOutput* UGLTFMaterialAnalyzer::GetCustomOutputExpressio
 
 FMaterialResource* UGLTFMaterialAnalyzer::GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel)
 {
-	return Material->GetMaterialResource(InFeatureLevel, QualityLevel);
+	return Material != nullptr ? Material->GetMaterialResource(InFeatureLevel, QualityLevel) : nullptr;
 }
 
 int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, const FGuid& AttributeID)
 {
+	if (Material == nullptr)
+	{
+		return INDEX_NONE;
+	}
+
 	class FTranslatorHack : public FHLSLMaterialTranslator
 	{
 		using FHLSLMaterialTranslator::FHLSLMaterialTranslator;
@@ -59,7 +77,12 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 	if (Property == MP_CustomOutput)
 	{
 		UMaterialExpressionCustomOutput* CustomOutputExpression = GetCustomOutputExpression();
-		Result = CustomOutputExpression != nullptr ? CustomOutputExpression->Compile(Compiler, 0) : INDEX_NONE;
+		if (CustomOutputExpression == nullptr)
+		{
+			return INDEX_NONE;
+		}
+
+		Result = CustomOutputExpression->Compile(Compiler, 0);
 	}
 	else
 	{
@@ -88,5 +111,5 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 
 bool UGLTFMaterialAnalyzer::IsPropertyActive(EMaterialProperty InProperty) const
 {
-	return Material->IsPropertyActive(InProperty);
+	return Material != nullptr && Material->IsPropertyActive(InProperty);
 }
