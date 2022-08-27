@@ -54,20 +54,20 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 
 	if (CameraActor != nullptr)
 	{
-		if (Builder.ExportOptions->bExportOrbitalCameras)
+		if (Builder.ExportOptions->bExportPlayerCameras)
 		{
-			FGLTFJsonOrbitCamera OrbitCamera;
-			OrbitCamera.Focus = Builder.GetOrAddNode(CameraActor->Focus);
-			OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, ExportScale);
-			OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
-			OrbitCamera.MaxAngle = CameraActor->PitchAngleMax;
-			OrbitCamera.MinAngle = CameraActor->PitchAngleMin;
-			OrbitCamera.DistanceSensitivity = CameraActor->DollySensitivity;
-			OrbitCamera.OrbitSensitivity = CameraActor->RotationSensitivity;
-			OrbitCamera.OrbitInertia = CameraActor->RotationInertia;
-			OrbitCamera.DollyDuration = CameraActor->DollyDuration;
+			FGLTFJsonPlayerCamera PlayerCamera;
+			PlayerCamera.Focus = Builder.GetOrAddNode(CameraActor->Focus);
+			PlayerCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, ExportScale);
+			PlayerCamera.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
+			PlayerCamera.MaxAngle = CameraActor->PitchAngleMax;
+			PlayerCamera.MinAngle = CameraActor->PitchAngleMin;
+			PlayerCamera.DistanceSensitivity = CameraActor->DollySensitivity;
+			PlayerCamera.OrbitSensitivity = CameraActor->RotationSensitivity;
+			PlayerCamera.OrbitInertia = CameraActor->RotationInertia;
+			PlayerCamera.DollyDuration = CameraActor->DollyDuration;
 
-			Camera.OrbitCamera = OrbitCamera;
+			Camera.PlayerCamera = PlayerCamera;
 		}
 	}
 
