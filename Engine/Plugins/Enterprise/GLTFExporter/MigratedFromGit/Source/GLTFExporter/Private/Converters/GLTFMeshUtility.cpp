@@ -107,7 +107,7 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const USkeletalMesh* SkeletalMesh, const U
 
 void FGLTFMeshUtility::RetrieveMesh(USkeletalMesh* SkeletalMesh, int32 LODIndex, FMeshDescription& OutDescription)
 {
-	// NOTE: this is a workaround for the fact that there's no overload for FGLTFMeshUtility::RetrieveMesh
+	// NOTE: this is a workaround for the fact that there's no overload for FMeshMergeHelpers::RetrieveMesh
 	// that accepts a USkeletalMesh, only a USkeletalMeshComponent.
 	// Writing a custom function that would work on "standalone" skeletal meshes is problematic since
 	// we would need to implement an equivalent of USkinnedMeshComponent::GetCPUSkinnedVertices too.
