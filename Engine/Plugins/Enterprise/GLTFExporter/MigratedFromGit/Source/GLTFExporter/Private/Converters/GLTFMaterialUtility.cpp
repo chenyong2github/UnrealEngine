@@ -36,16 +36,16 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	RenderTarget2D->AddToRoot();
 	RenderTarget2D->ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 	RenderTarget2D->InitCustomFormat(OutputSize.X, OutputSize.Y, OutputPixelFormat, false);
-	RenderTarget2D->TargetGamma = 0;
+	RenderTarget2D->TargetGamma = 0.0f;
 
 	FRenderTarget* RenderTarget = RenderTarget2D->GameThread_GetRenderTargetResource();
-	FCanvas Canvas(RenderTarget, nullptr, 0, 0, 0, GMaxRHIFeatureLevel);
+	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 
 	Canvas.SetRenderTarget_GameThread(RenderTarget);
-	Canvas.Clear({ 0, 0, 0, 0 });
+	Canvas.Clear({ 0.0f, 0.0f, 0.0f, 0.0f });
 
 	const FVector2D TileSize(OutputSize.X, OutputSize.Y);
-	const FVector2D TilePosition(0, 0);
+	const FVector2D TilePosition(0.0f, 0.0f);
 
 	for (const FGLTFTextureCombineSource& Source: Sources)
 	{
@@ -77,7 +77,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	TArray<FMeshData*> MeshSettings;
 
 	FMeshData MeshSet;
-	MeshSet.TextureCoordinateBox = { { 0, 0 }, { 1, 1 } };
+	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 
 	// TODO: Do we need to fill in any more info in MeshSet?
 
