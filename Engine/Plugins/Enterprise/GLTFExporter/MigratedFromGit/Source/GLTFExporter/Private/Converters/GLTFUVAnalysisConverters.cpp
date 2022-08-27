@@ -32,19 +32,19 @@ void FGLTFUVAnalysisConverter::Sanitize(const FMeshDescription*& Description, co
 	}
 }
 
-const FGLTFUVAnalysis* FGLTFUVAnalysisConverter::Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord)
+FGLTFUVAnalysis FGLTFUVAnalysisConverter::Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{
 		// TODO: add warning?
 
-		return nullptr;
+		return -1;
 	}
 
 	// TODO: investigate if the fixed size is high enough to properly calculate overlap
 	const FIntPoint TextureSize(512, 512);
 
-	return Outputs.Add_GetRef(MakeUnique<FGLTFUVAnalysis>(CalcOverlapPercentage(TexCoord, TextureSize, *Description, SectionIndices))).Get();
+	return CalcOverlapPercentage(TexCoord, TextureSize, *Description, SectionIndices);
 }
 
 const UMaterialInterface* FGLTFUVAnalysisConverter::GetOverlapMaterial()

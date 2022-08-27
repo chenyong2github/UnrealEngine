@@ -168,16 +168,16 @@ void FGLTFMaterialTask::Complete()
 		// that as parameter to the UV analysis converter instead of MeshData.
 
 		const float MaxOverlapPercentage = 1.0f;
-		const FGLTFUVAnalysis* UVAnalysis = Builder.UVAnalysisConverter.GetOrAdd(&MeshData->Description, SectionIndices, MeshData->TexCoord);
+		const FGLTFUVAnalysis UVAnalysis = Builder.UVAnalysisConverter.GetOrAdd(&MeshData->Description, SectionIndices, MeshData->TexCoord);
 
-		if (UVAnalysis != nullptr && UVAnalysis->OverlapPercentage > MaxOverlapPercentage)
+		if (UVAnalysis.OverlapPercentage > MaxOverlapPercentage)
 		{
 			Builder.AddWarningMessage(FString::Printf(
 				TEXT("Material %s is baked using TexCoord %d of %s which has %.2f%% overlapping UVs and may produce incorrect results"),
 				*Material->GetName(),
 				MeshData->TexCoord,
 				*MeshData->Name,
-				UVAnalysis->OverlapPercentage));
+				UVAnalysis.OverlapPercentage));
 		}
 	}
 }

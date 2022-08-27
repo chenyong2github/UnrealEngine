@@ -6,13 +6,11 @@
 #include "Converters/GLTFUVAnalysis.h"
 #include "Engine.h"
 
-class FGLTFUVAnalysisConverter final : public TGLTFConverter<const FGLTFUVAnalysis*, const FMeshDescription*, const TArray<int32>, int32>
+class FGLTFUVAnalysisConverter final : public TGLTFConverter<FGLTFUVAnalysis, const FMeshDescription*, const TArray<int32>, int32>
 {
-	TArray<TUniquePtr<FGLTFUVAnalysis>> Outputs;
-
 	virtual void Sanitize(const FMeshDescription*& Description, const TArray<int32>& SectionIndices, int32& TexCoord) override;
 
-	virtual const FGLTFUVAnalysis* Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord) override;
+	virtual FGLTFUVAnalysis Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord) override;
 
 	static const UMaterialInterface* GetOverlapMaterial();
 
