@@ -8,20 +8,6 @@ The glTF Exporter lets UE4 content creators showcase any scene or model on the w
 Currently, the plugin works with both Unreal Engine **4.25** and **4.26**. It has primarily been tested on Windows but is designed to be platform-independent.
 
 
-## Installation
-
-- Alt 1: Install to project:
-  1. Go to project folder which contains `[ProjectName].uproject`
-  1. Create a folder called `Plugins` (if it doesn't already exist)
-  1. Copy this `GLTFExporter` folder into the `Plugins` folder
-
-- Alt 2: Install to Unreal Engine:
-  1. Go to the plugin folder of Unreal Engine which is `Engine/Plugins`
-  1. Copy this `GLTFExporter` folder into the `Plugins` folder
-
-In Unreal Editor, open `Menu -> Edit -> Plugins` and make sure `glTF Exporter` is installed and enabled.
-
-
 ## Usage
 
 - Alt 1: Export asset via Content Browser
