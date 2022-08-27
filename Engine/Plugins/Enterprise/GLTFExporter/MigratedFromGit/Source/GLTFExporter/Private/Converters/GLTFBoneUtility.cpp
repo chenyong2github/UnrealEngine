@@ -26,7 +26,7 @@ void FGLTFBoneUtility::GetFrameTimestamps(const UAnimSequence* AnimSequence, TAr
 	const int32 FrameCount = AnimSequence->GetNumberOfSampledKeys();
 	OutFrameTimestamps.AddUninitialized(FrameCount);
 
-	const float SequenceLength = AnimSequence->SequenceLength;
+	const float SequenceLength = AnimSequence->GetPlayLength();
 	const float FrameLength = FrameCount > 1 ? SequenceLength / (FrameCount - 1) : 0;
 
 	for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
@@ -70,7 +70,7 @@ void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequenc
 	FBlendedCurve Curve;
 	Curve.InitFrom(BoneContainer);
 
-	FStackCustomAttributes Attributes;
+	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData PoseData(Pose, Curve, Attributes);
 
 	for (int32 Frame = 0; Frame < FrameCount; ++Frame)

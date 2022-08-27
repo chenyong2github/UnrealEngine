@@ -17,8 +17,6 @@ public:
 
 private:
 
-	UGLTFMaterialAnalyzer();
-
 	void ResetToDefaults();
 
 	UMaterialExpressionCustomOutput* GetCustomOutputExpression() const;
@@ -29,11 +27,11 @@ private:
 
 	virtual bool IsPropertyActive(EMaterialProperty InProperty) const override;
 
-	EMaterialProperty Property;
+	EMaterialProperty Property = MP_MAX;
 	FString CustomOutput;
 
 	// ReSharper disable once CppUE4ProbableMemoryIssuesWithUObject
-	UMaterialInterface* Material;
+	UMaterialInterface* Material = nullptr;
 
-	FGLTFMaterialAnalysis* Analysis;
+	FGLTFMaterialAnalysis* Analysis = nullptr;
 };
