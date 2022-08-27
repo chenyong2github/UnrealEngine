@@ -17,6 +17,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
 	bBakeMaterialInputs = true;
+	bBakeMaterialInputsUsingMeshData = true;
 	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	bExportVertexColors = false;
 	bQuantizeVertexNormals = true;
@@ -75,6 +76,11 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportOrbitalCameras))
 	{
 		return bExportCameras;
+	}
+
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bBakeMaterialInputsUsingMeshData))
+	{
+		return bBakeMaterialInputs;
 	}
 
 	return true;
