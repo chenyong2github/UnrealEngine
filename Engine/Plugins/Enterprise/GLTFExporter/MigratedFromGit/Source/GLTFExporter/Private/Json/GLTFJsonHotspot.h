@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GLTFJsonIndex.h"
+#include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonExtensions.h"
 #include "Serialization/JsonSerializer.h"
 

@@ -21,7 +21,7 @@
 #include "Json/GLTFJsonVariation.h"
 #include "Json/GLTFJsonLightMap.h"
 #include "Json/GLTFJsonLight.h"
-#include "Json/FGLTFJsonHotspot.h"
+#include "Json/GLTFJsonHotspot.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 
 

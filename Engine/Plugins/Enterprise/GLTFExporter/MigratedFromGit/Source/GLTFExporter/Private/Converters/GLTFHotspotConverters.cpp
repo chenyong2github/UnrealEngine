@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GLTFHotspotConverters.h"
-#include "Json/FGLTFJsonHotspot.h"
+#include "Converters/GLTFHotspotConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Animation/SkeletalMeshActor.h"
 
