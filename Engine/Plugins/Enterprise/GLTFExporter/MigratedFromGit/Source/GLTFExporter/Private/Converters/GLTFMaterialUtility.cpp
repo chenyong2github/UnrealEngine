@@ -128,10 +128,10 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	TArray<FBakeOutputEx> BakeOutputs;
 	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("GLTFMaterialBaking");
 
-	//Module.SetLinearBake(true);
+	Module.SetLinearBake(true);
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 	const bool bIsLinearBake = Module.IsLinearBake(Property);
-	//Module.SetLinearBake(false);
+	Module.SetLinearBake(false);
 
 	FBakeOutputEx& BakeOutput = BakeOutputs[0];
 
