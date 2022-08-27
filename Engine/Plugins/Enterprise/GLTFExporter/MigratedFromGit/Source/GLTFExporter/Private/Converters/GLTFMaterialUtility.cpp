@@ -34,7 +34,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
 
 	RenderTarget2D->AddToRoot();
-	RenderTarget2D->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	RenderTarget2D->ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 	RenderTarget2D->InitCustomFormat(OutputSize.X, OutputSize.Y, OutputPixelFormat, false);
 	RenderTarget2D->TargetGamma = 0;
 
@@ -42,7 +42,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	FCanvas Canvas(RenderTarget, nullptr, 0, 0, 0, GMaxRHIFeatureLevel);
 
 	Canvas.SetRenderTarget_GameThread(RenderTarget);
-	Canvas.Clear(FLinearColor(0, 0, 0, 0));
+	Canvas.Clear({ 0, 0, 0, 0 });
 
 	const FVector2D TileSize(OutputSize.X, OutputSize.Y);
 	const FVector2D TilePosition(0, 0);
@@ -77,7 +77,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	TArray<FMeshData*> MeshSettings;
 
 	FMeshData MeshSet;
-	MeshSet.TextureCoordinateBox = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
+	MeshSet.TextureCoordinateBox = { { 0, 0 }, { 1, 1 } };
 
 	// TODO: Do we need to fill in any more info in MeshSet?
 
@@ -117,7 +117,8 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		}
 	}
 
-	return {
+	return
+	{
 		MaterialProperty,
 		PF_B8G8R8A8,
 		BakedPixels,
