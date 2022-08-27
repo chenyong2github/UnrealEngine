@@ -11,10 +11,14 @@
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
 #include "Json/GLTFJsonCamera.h"
-#include "Json/GLTFJsonLight.h"
 
 struct FGLTFConverterUtility
 {
+	static float ConvertLength(const float Length)
+	{
+		return Length * 0.01f; // TODO: use options export scale instead of hardcoded value
+	}
+
 	static FGLTFJsonVector3 ConvertVector(const FVector& Vector)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
@@ -114,11 +118,6 @@ struct FGLTFConverterUtility
 		// Unreal uses degrees.
 		// glTF uses radians.
 		return FMath::DegreesToRadians(Angle);
-	}
-
-	static float ConvertLightRange(const float Radius)
-	{
-		return Radius * 0.01f; // TODO: use options export scale instead of hardcoded value
 	}
 
 	static EGLTFJsonCameraType ConvertCameraType(ECameraProjectionMode::Type ProjectionMode);

@@ -105,13 +105,11 @@ EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
 
 FGLTFJsonOrthographic FGLTFConverterUtility::ConvertOrthographic(const FMinimalViewInfo& View)
 {
-	// TODO: do we need to convert any property from world units?
-
 	FGLTFJsonOrthographic Orthographic;
-	Orthographic.XMag = View.OrthoWidth;
-	Orthographic.YMag = View.OrthoWidth / View.AspectRatio; // TODO: is this correct?
-	Orthographic.ZFar = View.OrthoFarClipPlane;
-	Orthographic.ZNear = View.OrthoNearClipPlane;
+	Orthographic.XMag = ConvertLength(View.OrthoWidth);
+	Orthographic.YMag = ConvertLength(View.OrthoWidth / View.AspectRatio); // TODO: is this correct?
+	Orthographic.ZFar = ConvertLength(View.OrthoFarClipPlane);
+	Orthographic.ZNear = ConvertLength(View.OrthoNearClipPlane);
 	return Orthographic;
 }
 
@@ -120,8 +118,8 @@ FGLTFJsonPerspective FGLTFConverterUtility::ConvertPerspective(const FMinimalVie
 	FGLTFJsonPerspective Perspective;
 	Perspective.AspectRatio = View.AspectRatio;
 	Perspective.YFov = ConvertFieldOfView(View);
-	Perspective.ZFar = 0; // infinite
-	Perspective.ZNear = GNearClippingPlane; // TODO: need to convert units?
+	Perspective.ZFar = ConvertLength(WORLD_MAX); // TODO: make sure the assumption that Unreal cameras have no draw distance is correct.
+	Perspective.ZNear = ConvertLength(GNearClippingPlane);
 	return Perspective;
 }
 
