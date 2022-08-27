@@ -137,11 +137,6 @@ struct FGLTFConverterUtility
 
 	static EGLTFJsonCubeFace ConvertCubeFace(ECubeFace CubeFace);
 
-	static FGLTFJsonOrthographic ConvertOrthographic(const FMinimalViewInfo& View);
-	static FGLTFJsonPerspective ConvertPerspective(const FMinimalViewInfo& View);
-
-	static float ConvertFieldOfView(const FMinimalViewInfo& View);
-
 	template <typename ComponentType>
 	static EGLTFJsonComponentType GetComponentType()
 	{
