@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Components/GLTFInteractionHotspotComponent.h"
+#include "Actors/GLTFInteractionHotspotActor.h"
 
 FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* SceneComponent)
 {
@@ -83,22 +83,23 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
 		}
 	}
-	else if (const UGLTFInteractionHotspotComponent* HotspotComponent = Cast<UGLTFInteractionHotspotComponent>(SceneComponent))
+	else if (Owner->IsA<AGLTFInteractionHotspotActor>() && bIsRootComponent)
 	{
 		if (Builder.ExportOptions->bExportInteractionHotspots)
 		{
+			const AGLTFInteractionHotspotActor* HotspotActor = Cast<AGLTFInteractionHotspotActor>(Owner);
+
 			if (bExportNonUniformScale)
 			{
 				FGLTFJsonNode HotspotNode;
-				HotspotNode.Name = FGLTFNameUtility::GetName(HotspotComponent);
+				HotspotNode.Name = Owner->GetName();	// TODO: should we add a custom GetName-function in FGLTFNameUtility for this?
 				HotspotNode.Scale = ComponentNodeScale;
-
-				HotspotNode.Hotspot = Builder.GetOrAddHotspot(HotspotComponent);
+				HotspotNode.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
 				Builder.AddChildComponentNode(NodeIndex, HotspotNode);
 			}
 			else
 			{
-				Node.Hotspot = Builder.GetOrAddHotspot(HotspotComponent);
+				Node.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
 			}
 		}
 	}
