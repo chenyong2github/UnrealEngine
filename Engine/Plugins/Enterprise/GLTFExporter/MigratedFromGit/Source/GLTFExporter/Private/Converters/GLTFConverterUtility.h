@@ -163,4 +163,12 @@ struct FGLTFConverterUtility
 	static bool IsHDRIBackdropBlueprint(const UBlueprint* Blueprint);
 
 	static bool IsSelected(const UActorComponent* ActorComponent);
+
+	template <typename EnumType>
+    static FString GetEnumDisplayName(EnumType Value)
+	{
+		const UEnum* Enum = StaticEnum<EMaterialShadingModel>();
+		check(Enum);
+		return Enum->GetDisplayNameTextByValue(Value).ToString();
+	}
 };
