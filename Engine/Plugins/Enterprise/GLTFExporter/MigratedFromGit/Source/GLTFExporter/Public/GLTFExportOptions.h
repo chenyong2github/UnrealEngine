@@ -104,6 +104,9 @@ public:
 	EGLTFExporterTextureFormat TextureFormat;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
+	uint32 bExportSourceTextures : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	uint32 bExportLightmaps : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)

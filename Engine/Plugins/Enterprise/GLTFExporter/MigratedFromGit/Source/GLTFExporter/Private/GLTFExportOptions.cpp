@@ -23,6 +23,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	NormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
+	bExportSourceTextures = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
 	ExportScale = 0.01;
@@ -198,6 +199,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultMaterialBakeSize) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportVertexColors) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultLevelOfDetail) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportSourceTextures) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportLightmaps) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, ExportScale) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, ExportLights) ||
