@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExportOptions.h"
-#include "GLTFExportOptionsWindow.h"
+#include "UI/GLTFExportOptionsWindow.h"
 #include "Misc/App.h"
 
 #include "UObject/ObjectMacros.h"
