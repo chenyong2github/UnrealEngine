@@ -456,11 +456,11 @@ void AGLTFHotspotActor::ValidateAnimation()
 	{
 		if (USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
 		{
-			if (SkeletalMesh->Skeleton != AnimationSequence->GetSkeleton())
+			if (SkeletalMesh->GetSkeleton() != AnimationSequence->GetSkeleton())
 			{
-				if (SkeletalMesh->Skeleton != nullptr)
+				if (SkeletalMesh->GetSkeleton() != nullptr)
 				{
-					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->Skeleton->GetName());
+					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->GetSkeleton()->GetName());
 				}
 				else
 				{

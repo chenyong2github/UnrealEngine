@@ -82,7 +82,7 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const UStaticMesh* StaticMesh, const UStat
 
 	if (StaticMesh != nullptr)
 	{
-		return GetValueForRunningPlatform<int32>(StaticMesh->MinLOD);
+		return GetValueForRunningPlatform<int32>(StaticMesh->GetMinLOD());
 	}
 
 	return -1;
@@ -97,7 +97,7 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const USkeletalMesh* SkeletalMesh, const U
 
 	if (SkeletalMesh != nullptr)
 	{
-		return GetValueForRunningPlatform<int32>(SkeletalMesh->MinLod);
+		return GetValueForRunningPlatform<int32>(SkeletalMesh->GetMinLod());
 	}
 
 	return -1;

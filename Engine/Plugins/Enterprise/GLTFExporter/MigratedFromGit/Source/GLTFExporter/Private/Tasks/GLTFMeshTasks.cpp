@@ -131,7 +131,7 @@ void FGLTFStaticMeshTask::Complete()
 
 	ValidateVertexBuffer(Builder, VertexBuffer, *StaticMesh->GetName());
 
-	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
+	const int32 MaterialCount = StaticMesh->GetStaticMaterials().Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
@@ -223,7 +223,7 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	ValidateVertexBuffer(Builder, VertexBuffer, *SkeletalMesh->GetName());
 
-	const uint16 MaterialCount = SkeletalMesh->Materials.Num();
+	const uint16 MaterialCount = SkeletalMesh->GetMaterials().Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
 	for (uint16 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
