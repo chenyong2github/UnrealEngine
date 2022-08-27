@@ -82,6 +82,7 @@ public:
 	float DistanceSensitivity;
 
 private:
+	FVector FocusPosition;
 	float Distance;
 	float Pitch;
 	float Yaw;
