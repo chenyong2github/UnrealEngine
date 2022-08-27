@@ -15,6 +15,7 @@ public:
 
 	OutputType Get(InputTypes&&... Inputs) const
 	{
+		Sanitize(Inputs...);
 		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
 		if (OutputType* SavedOutput = SavedOutputs.Find(InputKey))
 		{
@@ -26,6 +27,7 @@ public:
 
 	OutputType Add(InputTypes... Inputs)
 	{
+		Sanitize(Inputs...);
 		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
 		OutputType NewOutput = Convert(Forward<InputTypes>(Inputs)...);
 
@@ -35,6 +37,7 @@ public:
 
 	OutputType GetOrAdd(InputTypes... Inputs)
 	{
+		Sanitize(Inputs...);
 		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
 		if (OutputType* SavedOutput = SavedOutputs.Find(InputKey))
 		{
@@ -48,6 +51,8 @@ public:
 	}
 
 protected:
+
+	virtual void Sanitize(InputTypes&... Inputs) { }
 
 	virtual OutputType Convert(InputTypes... Inputs) = 0;
 

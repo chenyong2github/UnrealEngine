@@ -95,17 +95,7 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMe
 		return FGLTFJsonMeshIndex(INDEX_NONE);
 	}
 
-	if (LODIndex < 0)
-	{
-		LODIndex = ExportOptions->DefaultLevelOfDetail;
-	}
-
-	if (!ExportOptions->bExportVertexColors)
-	{
-		OverrideVertexColors = nullptr;
-	}
-
-	return StaticMeshConverter.GetOrAdd(StaticMesh, LODIndex, OverrideVertexColors, OverrideMaterials == StaticMesh->StaticMaterials ? FGLTFMaterialArray() : OverrideMaterials);
+	return StaticMeshConverter.GetOrAdd(StaticMesh, LODIndex, OverrideVertexColors, OverrideMaterials);
 }
 
 FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent)
@@ -130,17 +120,7 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* Skelet
 		return FGLTFJsonMeshIndex(INDEX_NONE);
 	}
 
-	if (LODIndex < 0)
-	{
-		LODIndex = ExportOptions->DefaultLevelOfDetail;
-	}
-
-	if (!ExportOptions->bExportVertexColors)
-	{
-		OverrideVertexColors = nullptr;
-	}
-
-	return SkeletalMeshConverter.GetOrAdd(SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials == SkeletalMesh->Materials ? FGLTFMaterialArray() : OverrideMaterials);
+	return SkeletalMeshConverter.GetOrAdd(SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials);
 }
 
 FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponent* SkeletalMeshComponent)
