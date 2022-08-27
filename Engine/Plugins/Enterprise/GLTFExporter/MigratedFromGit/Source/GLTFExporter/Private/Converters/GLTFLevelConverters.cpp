@@ -54,18 +54,18 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	{
 		// TODO: conversion of camera direction should be done in separate converter
 		FGLTFJsonNode CameraNode;
-		CameraNode.Name = Node.Name + TEXT("_CameraNode");
+		CameraNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ACameraActor
 		CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
-		CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
+		CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent, CameraNode.Name);
 		Builder.AddChildNode(NodeIndex, CameraNode);
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
 		// TODO: conversion of light direction should be done in separate converter
 		FGLTFJsonNode LightNode;
-		LightNode.Name = Node.Name + TEXT("_LightNode");
+		LightNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ALight
 		LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
-		LightNode.Light = Builder.GetOrAddLight(LightComponent);
+		LightNode.Light = Builder.GetOrAddLight(LightComponent, LightNode.Name);
 		Builder.AddChildNode(NodeIndex, LightNode);
 	}
 
