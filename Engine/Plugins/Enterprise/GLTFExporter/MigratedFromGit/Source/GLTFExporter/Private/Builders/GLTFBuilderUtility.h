@@ -23,7 +23,7 @@ struct FGLTFBuilderUtility
 		return Name;
 	}
 
-	static bool CompressImage(const TArray64<uint8>& InRawData, int32 InWidth, int32 InHeight, ERGBFormat InRawFormat, int32 InBitDepth, TArray64<uint8>& OutCompressedData, EImageFormat OutCompressionFormat, int32 OutCompressionQuality);
+	static bool CompressImage(const void* RawData, int64 ByteLength, int32 InWidth, int32 InHeight, ERGBFormat InRawFormat, int32 InBitDepth, TArray64<uint8>& OutCompressedData, EImageFormat OutCompressionFormat, int32 OutCompressionQuality);
 
 	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType)
 	{
