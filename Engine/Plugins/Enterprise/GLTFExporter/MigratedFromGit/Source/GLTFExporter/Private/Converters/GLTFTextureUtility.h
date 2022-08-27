@@ -4,8 +4,15 @@
 
 #include "Engine.h"
 
+enum class ERGBFormat : int8;
+
 struct FGLTFTextureUtility
 {
+	static bool IsHDRFormat(EPixelFormat Format);
+
+	static bool CanPNGCompressFormat(ETextureSourceFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth);
+	static bool CanPNGCompressFormat(EPixelFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth);
+
 	static bool IsCubemap(const UTexture* Texture);
 
 	static TextureFilter GetDefaultFilter(TextureGroup Group);
