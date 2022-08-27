@@ -3,7 +3,6 @@
 #pragma once
 
 #include "SceneTypes.h"
-#include "UObject/NameTypes.h"
 
 /** Structure extending EMaterialProperty to allow detailed information about custom output */
 struct FMaterialPropertyEx
@@ -23,7 +22,7 @@ struct FMaterialPropertyEx
 		, CustomOutput(CustomOutput)
 	{}
 
-	bool IsCustomOutput() const
+	FORCEINLINE bool IsCustomOutput() const
 	{
 		return Type == MP_CustomOutput;
 	}
@@ -43,19 +42,7 @@ struct FMaterialPropertyEx
 		return !Other.IsCustomOutput() ? GetTypeHash(Other.Type) : GetTypeHash(Other.CustomOutput);
 	}
 
-	FString ToString() const
-	{
-		if (!IsCustomOutput())
-		{
-			const UEnum* Enum = StaticEnum<EMaterialProperty>();
-			FName Name = Enum->GetNameByValue(Type);
-			FString TrimmedName = Name.ToString();
-			TrimmedName.RemoveFromStart(TEXT("MP_"), ESearchCase::CaseSensitive);
-			return TrimmedName;
-		}
-
-		return CustomOutput.ToString();
-	}
+	MATERIALBAKING_API FString ToString() const;
 
 	/** The material property */
 	EMaterialProperty Type;
