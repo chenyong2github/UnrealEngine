@@ -8,6 +8,7 @@
 #include "Engine.h"
 
 struct FGLTFJsonColor4;
+struct FGLTFJsonSkySphereColorCurve;
 
 class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSkySphereIndex, const AActor*>
 {
@@ -23,5 +24,6 @@ class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public TGLTFCo
 	void ConvertProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, ValueType& OutValue) const;
 
 	void ConvertColorProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, FGLTFJsonColor4& OutValue) const;
+	void ConvertColorCurveProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, FGLTFJsonSkySphereColorCurve& OutValue) const;
 	void ConvertScalarParameter(const AActor& Actor, const UMaterialInstance* Material, const TCHAR* ParameterName, const TCHAR* ExportedPropertyName, float& OutValue) const;
 };
