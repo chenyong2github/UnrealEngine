@@ -7,14 +7,17 @@
 #include "UObject/ConstructorHelpers.h"
 #include "PhysicsEngine/BodySetup.h"
 
+namespace
+{
+	static const float DefaultCollisionVolumeRadius = 50.0f;
+} // Anonymous namespace
+
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
-	SkeletalMeshActor(nullptr),
-	AnimationSequence(nullptr),
 	DefaultSprite(nullptr),
 	HighlightSprite(nullptr),
 	ClickSprite(nullptr),
-	Radius(50.0f)
+	ShapeBodySetup(nullptr)
 {
 	// Setup the most minimalistic collision profile for mouse input events
 	SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -41,10 +44,6 @@ void UGLTFInteractionHotspotComponent::PostEditChangeProperty(FPropertyChangedEv
 		{
 			SetSprite(DefaultSprite);
 		}
-		else if (PropertyName == TEXT("Radius"))
-		{
-			SetRadius(Radius);
-		}
 	}
 }
 
@@ -59,7 +58,7 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 {
 	ShapeBodySetup = NewObject<UBodySetup>(this);
 	ShapeBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
-	ShapeBodySetup->AggGeom.SphereElems.Add(Radius);
+	ShapeBodySetup->AggGeom.SphereElems.Add(DefaultCollisionVolumeRadius);
 	
 	BodyInstance.InitBody(ShapeBodySetup, GetWorldTransform(), this, GetWorld()->GetPhysicsScene());
 
@@ -74,11 +73,6 @@ void UGLTFInteractionHotspotComponent::SetSprite(class UTexture2D* NewSprite)
 	Super::SetSprite(NewSprite);
 
 	UpdateCollisionVolume();
-}
-
-void UGLTFInteractionHotspotComponent::SetRadius(float NewRadius)
-{
-	// TODO: Implement
 }
 
 void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
@@ -96,10 +90,13 @@ void UGLTFInteractionHotspotComponent::EndCursorOver(UPrimitiveComponent* Touche
 
 void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
-	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
+	for (TArray<FGLTFAnimation>::TConstIterator Animation = Animations.CreateConstIterator(); Animation; ++Animation)
 	{
-		USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
-		SkeletalMeshComponent->PlayAnimation(AnimationSequence, false);
+		if (Animation->SkeletalMeshActor != nullptr && Animation->AnimationSequence != nullptr)
+		{
+			USkeletalMeshComponent* SkeletalMeshComponent = Animation->SkeletalMeshActor->GetSkeletalMeshComponent();
+			SkeletalMeshComponent->PlayAnimation(Animation->AnimationSequence, false);
+		}
 	}
 }
 
@@ -113,8 +110,9 @@ void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
 
 		check(ShapeBodySetup->AggGeom.SphereElems.Num() == 1);
 
-		if (!FMath::IsNearlyEqual(ShapeBodySetup->AggGeom.SphereElems[0].Radius, BillboardBoundingRadius) && Radius != 0.0f) {
-			BodyInstance.UpdateBodyScale(FVector(BillboardBoundingRadius / Radius), true);
+		if (!FMath::IsNearlyEqual(ShapeBodySetup->AggGeom.SphereElems[0].Radius, BillboardBoundingRadius) && DefaultCollisionVolumeRadius != 0.0f)
+		{
+			BodyInstance.UpdateBodyScale(FVector(BillboardBoundingRadius / DefaultCollisionVolumeRadius), true);
 		}
 	}
 }
@@ -123,7 +121,7 @@ FTransform UGLTFInteractionHotspotComponent::GetWorldTransform() const
 {
 	const AActor* Owner = GetOwner();
 
-	return Owner ? (Owner->GetTransform() * GetComponentTransform()) : GetComponentTransform();
+	return (Owner != nullptr) ? (Owner->GetTransform() * GetComponentTransform()) : GetComponentTransform();
 }
 
 float UGLTFInteractionHotspotComponent::GetBillboardBoundingRadius() const
