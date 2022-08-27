@@ -20,6 +20,17 @@ struct FGLTFAnimation
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	UAnimSequence* AnimationSequence;
+
+	bool operator == (const FGLTFAnimation& OtherAnimation) const
+	{
+		return SkeletalMeshActor == OtherAnimation.SkeletalMeshActor &&
+			AnimationSequence == OtherAnimation.AnimationSequence;
+	}
+
+	bool operator != (const FGLTFAnimation& OtherAnimation) const
+	{
+		return !(*this == OtherAnimation);
+	}
 };
 
 /**
