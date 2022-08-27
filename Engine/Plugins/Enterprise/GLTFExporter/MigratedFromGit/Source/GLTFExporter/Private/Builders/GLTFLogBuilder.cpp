@@ -4,6 +4,7 @@
 #include "GLTFExporterModule.h"
 #include "Misc/FeedbackContext.h"
 #if WITH_EDITOR
+#include "Interfaces/IPluginManager.h"
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 #endif
@@ -14,9 +15,12 @@ FGLTFLogBuilder::FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptio
 #if WITH_EDITOR
 	if (!FApp::IsUnattended())
 	{
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);
+		const FString& PluginFriendlyName = Plugin->GetDescriptor().FriendlyName;
+
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 		LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
-		LogListing->SetLabel(FText::FromString(GLTFEXPORTER_FRIENDLY_NAME));
+		LogListing->SetLabel(FText::FromString(PluginFriendlyName));
 	}
 #endif
 }
