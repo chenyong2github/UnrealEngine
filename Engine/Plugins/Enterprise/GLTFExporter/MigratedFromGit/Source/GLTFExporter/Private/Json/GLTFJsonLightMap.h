@@ -36,6 +36,5 @@ struct FGLTFJsonLightMap : IGLTFJsonObject
 		Writer.Write(TEXT("lightmapScale"), LightMapScale);
 		Writer.Write(TEXT("lightmapAdd"), LightMapAdd);
 		Writer.Write(TEXT("coordinateScaleBias"), CoordinateScaleBias);
-
 	}
 };

@@ -61,7 +61,7 @@ struct FGLTFJsonLight : IGLTFJsonObject
 
 		Writer.Write(TEXT("type"), Type);
 
-		if (Color != FGLTFJsonColor3::White)
+		if (!Color.IsNearlyEqual(FGLTFJsonColor3::White))
 		{
 			Writer.Write(TEXT("color"), Color);
 		}

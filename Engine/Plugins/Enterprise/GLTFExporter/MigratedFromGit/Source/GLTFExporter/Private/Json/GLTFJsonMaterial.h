@@ -28,7 +28,7 @@ struct FGLTFJsonTextureInfo : IGLTFJsonObject
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (Transform != FGLTFJsonTextureTransform())
+		if (!Transform.IsDefault())
 		{
 			Writer.StartExtensions();
 			Writer.Write(EGLTFJsonExtension::KHR_TextureTransform, Transform);
@@ -105,7 +105,7 @@ struct FGLTFJsonPBRMetallicRoughness : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (BaseColorFactor != FGLTFJsonColor4::White)
+		if (!BaseColorFactor.IsNearlyEqual(FGLTFJsonColor4::White))
 		{
 			Writer.Write(TEXT("baseColorFactor"), BaseColorFactor);
 		}
@@ -237,7 +237,7 @@ struct FGLTFJsonMaterial : IGLTFJsonObject
 			Writer.Write(TEXT("emissiveTexture"), EmissiveTexture);
 		}
 
-		if (EmissiveFactor != FGLTFJsonColor3::Black)
+		if (!EmissiveFactor.IsNearlyEqual(FGLTFJsonColor3::Black))
 		{
 			Writer.Write(TEXT("emissiveFactor"), EmissiveFactor);
 		}

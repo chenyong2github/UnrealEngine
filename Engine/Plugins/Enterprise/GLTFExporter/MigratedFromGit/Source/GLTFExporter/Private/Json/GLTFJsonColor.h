@@ -30,22 +30,17 @@ struct TGLTFJsonColor final : BaseType, IGLTFJsonArray
 		}
 	}
 
-	bool operator==(const BaseType& Other) const
+	bool IsNearlyEqual(const BaseType& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		for (uint32 i = 0; i < GetNum(BaseType::Components); ++i)
+		for (int32 i = 0; i < GetNum(BaseType::Components); ++i)
 		{
-			if (BaseType::Components[i] != Other.Components[i])
+			if (!FMath::IsNearlyEqual(BaseType::Components[i], Other.Components[i], Tolerance))
 			{
 				return false;
 			}
 		}
 
 		return true;
-	}
-
-	bool operator!=(const BaseType& Other) const
-	{
-		return !(*this == Other);
 	}
 };
 

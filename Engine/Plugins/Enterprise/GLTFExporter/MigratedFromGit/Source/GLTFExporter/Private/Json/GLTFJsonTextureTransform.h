@@ -20,12 +20,12 @@ struct FGLTFJsonTextureTransform : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (Offset != FGLTFJsonVector2::Zero)
+		if (!Offset.IsNearlyEqual(FGLTFJsonVector2::Zero))
 		{
 			Writer.Write(TEXT("offset"), Offset);
 		}
 
-		if (Scale != FGLTFJsonVector2::One)
+		if (!Scale.IsNearlyEqual(FGLTFJsonVector2::One))
 		{
 			Writer.Write(TEXT("scale"), Scale);
 		}
@@ -36,15 +36,22 @@ struct FGLTFJsonTextureTransform : IGLTFJsonObject
 		}
 	}
 
-	bool operator==(const FGLTFJsonTextureTransform& Other) const
+	bool IsNearlyEqual(const FGLTFJsonTextureTransform& Other) const
 	{
-		return Offset == Other.Offset
-			&& Scale == Other.Scale
+		return Offset.IsNearlyEqual(Other.Offset)
+			&& Scale.IsNearlyEqual(Other.Scale)
+			&& FMath::IsNearlyEqual(Rotation, Other.Rotation);
+	}
+
+	bool IsExactEqual(const FGLTFJsonTextureTransform& Other) const
+	{
+		return Offset.X == Other.Offset.X && Offset.Y == Other.Offset.Y
+			&& Scale.X == Other.Scale.X && Scale.Y == Other.Scale.Y
 			&& Rotation == Other.Rotation;
 	}
 
-	bool operator!=(const FGLTFJsonTextureTransform& Other) const
+	bool IsDefault() const
 	{
-		return !(*this == Other);
+		return IsExactEqual(FGLTFJsonTextureTransform());
 	}
 };

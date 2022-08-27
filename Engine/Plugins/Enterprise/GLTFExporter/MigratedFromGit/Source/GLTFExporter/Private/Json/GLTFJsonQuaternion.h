@@ -28,21 +28,9 @@ struct FGLTFJsonQuaternion final : TGLTFQuaternion<float>, IGLTFJsonArray
 		}
 	}
 
-	bool operator==(const TGLTFQuaternion& Other) const
+	bool IsNearlyEqual(const TGLTFQuaternion& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		for (uint32 i = 0; i < GetNum(Components); ++i)
-		{
-			if (Components[i] != Other.Components[i])
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	bool operator!=(const TGLTFQuaternion& Other) const
-	{
-		return !(*this == Other);
+		return (FMath::Abs(X - Other.X) <= Tolerance && FMath::Abs(Y - Other.Y) <= Tolerance && FMath::Abs(Z - Other.Z) <= Tolerance && FMath::Abs(W - Other.W) <= Tolerance)
+			|| (FMath::Abs(X + Other.X) <= Tolerance && FMath::Abs(Y + Other.Y) <= Tolerance && FMath::Abs(Z + Other.Z) <= Tolerance && FMath::Abs(W + Other.W) <= Tolerance);
 	}
 };
