@@ -268,7 +268,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Convert(const FStaticMes
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer)
+FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FSkelMeshRenderSection* MeshSection, const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
 {
 	const uint32 IndexCount = MeshSection->NumTriangles * 3;
 	if (IndexCount == 0)
@@ -276,11 +276,10 @@ FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FSkelMes
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	const uint8 IndexTypeSize = IndexContainer->GetDataTypeSize();
-	const bool bIs32Bit = IndexTypeSize == sizeof(uint32);
+	const bool bIs32Bit = IndexBuffer->GetResourceDataSize() == IndexBuffer->Num() * sizeof(uint32);
+	const uint8 IndexTypeSize = bIs32Bit ? sizeof(uint32) : sizeof(uint16);
 	const uint32 FirstIndex = MeshSection->BaseIndex;
 
-	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = IndexContainer->GetIndexBuffer();
 	const void* IndexDataPtr = const_cast<FRawStaticIndexBuffer16or32Interface*>(IndexBuffer)->GetPointerTo(FirstIndex);
 	const int32 IndexDataSize = IndexCount * IndexTypeSize;
 
