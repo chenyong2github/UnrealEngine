@@ -20,7 +20,7 @@ struct FMeshData;
 struct FBakeOutput;
 struct FBakeOutputEx;
 
-class MATERIALBAKING_API IMaterialBakingModule : public IModuleInterface
+class GLTFMATERIALBAKING_API IMaterialBakingModule : public IModuleInterface
 {
 public:
 	/** Bakes out material properties according to MaterialSettings using MeshSettings and stores the output in Output */

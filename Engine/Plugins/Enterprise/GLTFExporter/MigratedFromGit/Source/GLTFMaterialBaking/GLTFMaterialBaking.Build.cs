@@ -30,8 +30,5 @@ public class GLTFMaterialBaking : ModuleRules
 
 		// NOTE: ugly hack to access HLSLMaterialTranslator to bake shading model
 		PrivateIncludePaths.Add(EngineDirectory + "/Source/Runtime/Engine/Private");
-
-		// NOTE: avoid renaming all instaces of MATERIALBAKING_API by redirecting it to GLTFMATERIALBAKING_API
-		PublicDefinitions.Add("MATERIALBAKING_API=GLTFMATERIALBAKING_API");
 	}
 }

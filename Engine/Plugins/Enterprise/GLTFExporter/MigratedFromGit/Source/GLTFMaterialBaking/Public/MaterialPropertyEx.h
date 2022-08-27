@@ -42,7 +42,7 @@ struct FMaterialPropertyEx
 		return !Other.IsCustomOutput() ? GetTypeHash(Other.Type) : GetTypeHash(Other.CustomOutput);
 	}
 
-	MATERIALBAKING_API FString ToString() const;
+	GLTFMATERIALBAKING_API FString ToString() const;
 
 	/** The material property */
 	EMaterialProperty Type;
