@@ -59,9 +59,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 		}
 		else
 		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Camera %s disabled by export options"),
-				*Owner->GetName()));	// TODO: choose a more unique name if owner is not ACameraActor
+			Builder.AddWarningMessage(FString::Printf(TEXT("Camera %s disabled by export options"), *Owner->GetName()));
 		}
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
@@ -77,9 +75,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 		}
 		else
 		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Light %s disabled by export options"),
-				*Owner->GetName()));	// TODO: choose a more unique name if owner is not ALight
+			Builder.AddWarningMessage(FString::Printf(TEXT("Light %s disabled by export options"), *Owner->GetName()));
 		}
 	}
 
