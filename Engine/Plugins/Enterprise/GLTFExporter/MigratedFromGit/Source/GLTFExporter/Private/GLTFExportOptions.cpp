@@ -20,6 +20,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportPreviewMesh = true;
 	bAllExtensionsRequired = true;
 	bExportVertexColors = true;
+	NormalExportMethod = EGLTFExporterNormalExportMethod::NormalsAndTangents;
 	bTangentDataQuantization = false;
 	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Auto;
 	DefaultLevelOfDetail = 0;
