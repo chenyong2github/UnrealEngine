@@ -60,5 +60,5 @@ struct FGLTFMaterialUtility
 	static uint32 GetMaskComponentCount(const FExpressionInput& ExpressionInput);
 
 	static bool TryGetTextureCoordinateIndex(const UMaterialExpressionTextureSample* TextureSampler, int32& TexCoord);
-	static void GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32> TexCoordIndices);
+	static void GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32>& OutTexCoords);
 };
