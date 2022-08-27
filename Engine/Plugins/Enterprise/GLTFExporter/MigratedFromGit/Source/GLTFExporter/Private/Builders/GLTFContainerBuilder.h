@@ -10,5 +10,5 @@ public:
 
 	FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
 
-	bool Serialize(FArchive& Archive);
+	void Write(FArchive& Archive) const;
 };

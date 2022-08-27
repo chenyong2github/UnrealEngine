@@ -7,7 +7,7 @@ FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLT
 {
 }
 
-bool FGLTFContainerBuilder::Serialize(FArchive& Archive)
+void FGLTFContainerBuilder::Write(FArchive& Archive) const
 {
-	return FGLTFJsonBuilder::Serialize(Archive);
+	WriteJson(Archive);
 }

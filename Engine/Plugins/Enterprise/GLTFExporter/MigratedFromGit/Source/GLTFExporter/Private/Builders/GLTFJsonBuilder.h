@@ -11,7 +11,7 @@ protected:
 
 	FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
-	bool Serialize(FArchive& Archive);
+	void WriteJson(FArchive& Archive) const;
 
 public:
 
