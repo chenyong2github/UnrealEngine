@@ -24,13 +24,19 @@ FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Add(FGLTFConvertBuilder& Bui
 		JsonSampler.MagFilter = FGLTFConverterUtility::ConvertMagFilter(Texture->Filter, Texture->LODGroup);
 	}
 
-	const TextureAddress AddressX = FGLTFTextureUtility::GetAddressX(Texture);
-	const TextureAddress AddressY = FGLTFTextureUtility::GetAddressY(Texture);
+	if (FGLTFTextureUtility::IsCubemap(Texture))
+	{
+		JsonSampler.WrapS = EGLTFJsonTextureWrap::ClampToEdge;
+		JsonSampler.WrapT = EGLTFJsonTextureWrap::ClampToEdge;
+	}
+	else
+	{
+		const TTuple<TextureAddress, TextureAddress> AddressXY = FGLTFTextureUtility::GetAddressXY(Texture);
+		// TODO: report error if AddressX == TA_MAX or AddressY == TA_MAX
 
-	// TODO: report error if AddressX == TA_MAX || AddressY == TA_MAX
-
-	JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(AddressX);
-	JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(AddressY);
+		JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(AddressXY.Get<0>());
+		JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(AddressXY.Get<1>());
+	}
 
 	return Builder.AddSampler(JsonSampler);
 }
