@@ -28,7 +28,8 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"RHI",
 					"MaterialBaking",
-					"VariantManagerContent"
+					"VariantManagerContent",
+					"GLTFExporterRuntime"
 				}
 				);
 		}
