@@ -25,7 +25,7 @@ void UGLTFExportOptions::ResetToDefault()
 	DefaultMaterialBakeTiling = TA_Wrap;
 	bExportVertexColors = false;
 	bExportVertexSkinWeights = true;
-	bExportMeshQuantization = true;
+	bUseMeshQuantization = false;
 	bExportLevelSequences = true;
 	bExportAnimationSequences = true;
 	bRetargetBoneTransforms = true;
