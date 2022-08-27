@@ -221,7 +221,22 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		}
 	}
 
-	virtual EMaterialCompilerType GetCompilerType() const override { return EMaterialCompilerType::MaterialProxy; }
+	virtual EMaterialCompilerType GetCompilerType() const override
+	{
+		return EMaterialCompilerType::MaterialProxy;
+	}
+
+#if !(ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
+	virtual int32 PreSkinVertexOffset() override
+	{
+		return Compiler->PreSkinVertexOffset();
+	}
+
+	virtual int32 PostSkinVertexOffset() override
+	{
+		return Compiler->PostSkinVertexOffset();
+	}
+#endif
 };
 
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
@@ -235,7 +250,12 @@ public:
 		, bSynchronousCompilation(bInSynchronousCompilation)
 		, ProxyBlendMode(ProxyBlendMode)
 	{
+
+#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
+#else
+		SetQualityLevelProperties(GMaxRHIFeatureLevel, EMaterialQualityLevel::High);
+#endif
 		Material = InMaterialInterface->GetMaterial();
 		ReferencedTextures = InMaterialInterface->GetReferencedTextures();
 
