@@ -25,7 +25,6 @@ struct FGLTFJsonVariantNode
 
 		JsonWriter.WriteObjectStart(TEXT("properties"));
 
-		// TODO: should Visible always be written, with false as default?
 		if (bIsVisible.IsSet())
 		{
 			JsonWriter.WriteValue(TEXT("visible"), bIsVisible.GetValue());
