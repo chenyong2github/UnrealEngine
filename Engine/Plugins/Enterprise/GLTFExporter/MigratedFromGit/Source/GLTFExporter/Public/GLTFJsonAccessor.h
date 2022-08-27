@@ -44,7 +44,7 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 		JsonWriter.WriteValue(TEXT("count"), Count);
 		JsonWriter.WriteValue(TEXT("type"), AccessorTypeToString(Type));
 		JsonWriter.WriteValue(TEXT("componentType"), ComponentTypeToNumber(ComponentType));
-		if (bNormalized) JsonWriter.WriteValue(TEXT("componentType"), bNormalized);
+		if (bNormalized) JsonWriter.WriteValue(TEXT("normalized"), bNormalized);
 
 		if (MinMaxLength > 0)
 		{
