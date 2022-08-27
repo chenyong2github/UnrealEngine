@@ -97,6 +97,50 @@ FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Propert
 	return FVector4();
 }
 
+FVector4 FGLTFMaterialUtility::GetPropertyMask(EMaterialProperty Property)
+{
+	// TODO: replace with GMaterialPropertyAttributesMap lookup (when public API available)
+
+	switch (Property)
+	{
+		case MP_EmissiveColor:          return FVector4(1,1,1,0);
+		case MP_Opacity:                return FVector4(1,0,0,0);
+		case MP_OpacityMask:            return FVector4(1,0,0,0);
+		case MP_BaseColor:              return FVector4(1,1,1,0);
+		case MP_Metallic:               return FVector4(1,0,0,0);
+		case MP_Specular:               return FVector4(1,0,0,0);
+		case MP_Roughness:              return FVector4(1,0,0,0);
+		case MP_Anisotropy:             return FVector4(1,0,0,0);
+		case MP_Normal:                 return FVector4(1,1,1,0);
+		case MP_Tangent:                return FVector4(1,1,1,0);
+		case MP_WorldPositionOffset:    return FVector4(1,1,1,0);
+		case MP_WorldDisplacement:      return FVector4(1,1,1,0);
+		case MP_TessellationMultiplier: return FVector4(1,0,0,0);
+		case MP_SubsurfaceColor:        return FVector4(1,1,1,0);
+		case MP_CustomData0:            return FVector4(1,0,0,0);
+		case MP_CustomData1:            return FVector4(1,0,0,0);
+		case MP_AmbientOcclusion:       return FVector4(1,0,0,0);
+		case MP_Refraction:             return FVector4(1,1,0,0);
+		case MP_PixelDepthOffset:       return FVector4(1,0,0,0);
+		case MP_ShadingModel:           return FVector4(1,0,0,0);
+		default:                        break;
+	}
+
+	if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
+	{
+		return FVector4(1,1,0,0);
+	}
+
+	// TODO: replace workaround for ClearCoatBottomNormal
+	if (Property == MP_CustomOutput)
+	{
+		return FVector4(1,1,1,0);
+	}
+
+	check(false);
+	return FVector4();
+}
+
 const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property)
 {
 	// TODO: replace workaround for ClearCoatBottomNormal

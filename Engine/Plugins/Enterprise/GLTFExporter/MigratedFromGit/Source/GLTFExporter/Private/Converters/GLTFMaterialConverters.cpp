@@ -1068,7 +1068,8 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 		return StoreBakedPropertyTexture(Builder, OutTexInfo, PropertyBakeOutput, PropertyName, Material);
 	}
 
-	if (PropertyBakeOutput.ConstantValue == FLinearColor(FGLTFMaterialUtility::GetPropertyDefaultValue(Property)))
+	const FVector4 MaskedConstant = FVector4(PropertyBakeOutput.ConstantValue) * FGLTFMaterialUtility::GetPropertyMask(Property);
+	if (MaskedConstant == FGLTFMaterialUtility::GetPropertyDefaultValue(Property))
 	{
 		// Constant value is the same as the property's default so we can set gltf to default.
 		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
