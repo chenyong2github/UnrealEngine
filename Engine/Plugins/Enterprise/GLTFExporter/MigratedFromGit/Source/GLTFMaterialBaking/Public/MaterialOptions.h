@@ -61,13 +61,13 @@ struct FPropertyEntry
 
 /** Options object to define what and how a material should be baked out */
 UCLASS(config = Editor, Blueprintable)
-class MATERIALBAKING_API UMaterialOptions : public UObject 
+class MATERIALBAKING_API UGLTFMaterialOptions : public UObject 
 {
 	GENERATED_BODY()
 
 public:
 
-	UMaterialOptions()
+	UGLTFMaterialOptions()
 		: TextureSize(128, 128), bUseMeshData(false), bUseSpecificUVIndex(false), TextureCoordinateIndex(0)
 	{
 		Properties.Add(MP_BaseColor);
@@ -101,24 +101,24 @@ public:
 
 /** Asset bake options object */
 UCLASS(Config = Editor, Blueprintable)
-class MATERIALBAKING_API UAssetBakeOptions : public UObject
+class MATERIALBAKING_API UGLTFAssetBakeOptions : public UObject
 {
 	GENERATED_BODY()
 public:
 
-	UAssetBakeOptions()
+	UGLTFAssetBakeOptions()
 	{
 	}
 };
 
 /** Material merge options object */
 UCLASS(Config = Editor, Blueprintable)
-class MATERIALBAKING_API UMaterialMergeOptions: public UObject
+class MATERIALBAKING_API UGLTFMaterialMergeOptions: public UObject
 {
 	GENERATED_BODY()
 public:
 
-	UMaterialMergeOptions() : Method(EMaterialBakeMethod::IndividualMaterial), BlendMode(EBlendMode::BLEND_Opaque)
+	UGLTFMaterialMergeOptions() : Method(EMaterialBakeMethod::IndividualMaterial), BlendMode(EBlendMode::BLEND_Opaque)
 	{
 	}
 

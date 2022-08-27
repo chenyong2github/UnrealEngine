@@ -39,8 +39,8 @@ void FPropertyEntryCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> Pr
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = CustomizationUtils.GetPropertyUtilities()->GetSelectedObjects();
 
 	// Try and find material options instance in currently edited objects
-	const TWeakObjectPtr<UObject>* MaterialOptionsPtr = SelectedObjects.FindByPredicate([](TWeakObjectPtr<UObject> Object) { return Cast<UMaterialOptions>(Object.Get()); });
-	CurrentOptions = MaterialOptionsPtr ? Cast<UMaterialOptions>((MaterialOptionsPtr)->Get()) : nullptr;
+	const TWeakObjectPtr<UObject>* MaterialOptionsPtr = SelectedObjects.FindByPredicate([](TWeakObjectPtr<UObject> Object) { return Cast<UGLTFMaterialOptions>(Object.Get()); });
+	CurrentOptions = MaterialOptionsPtr ? Cast<UGLTFMaterialOptions>((MaterialOptionsPtr)->Get()) : nullptr;
 	
 	const int32 Index = PropertyHandle->GetIndexInArray();
 
@@ -127,15 +127,15 @@ void FMaterialOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	TArray<TWeakObjectPtr<UObject>> WeakObjects;
 	DetailBuilder.GetObjectsBeingCustomized(WeakObjects);
 	// Try and find material options instance in currently edited objects
-	UMaterialOptions* CurrentOptions = Cast<UMaterialOptions>((WeakObjects.FindByPredicate([](TWeakObjectPtr<UObject> Object) { return Cast<UMaterialOptions>(Object.Get()); }))->Get());
+	UGLTFMaterialOptions* CurrentOptions = Cast<UGLTFMaterialOptions>((WeakObjects.FindByPredicate([](TWeakObjectPtr<UObject> Object) { return Cast<UGLTFMaterialOptions>(Object.Get()); }))->Get());
 
-	TSharedRef<IPropertyHandle> TextureSizePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMaterialOptions, TextureSize));
+	TSharedRef<IPropertyHandle> TextureSizePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UGLTFMaterialOptions, TextureSize));
 	if (TextureSizePropertyHandle->IsValidHandle())
 	{
 		AddTextureSizeClamping(TextureSizePropertyHandle);
 	}
 
-	TSharedRef<IPropertyHandle> PropertiesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMaterialOptions, Properties));
+	TSharedRef<IPropertyHandle> PropertiesHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UGLTFMaterialOptions, Properties));
 	if (PropertiesHandle->IsValidHandle())
 	{
 		// Setup delegate for when the number of Material Property items changes

@@ -9,7 +9,7 @@
 #include "IMaterialBakingModule.h"
 
 class UTextureRenderTarget2D;
-class UMaterialOptions;
+class UGLTFMaterialOptions;
 class UMaterialInterface;
 
 class FExportMaterialProxy;

@@ -33,7 +33,7 @@ void SMaterialOptions::Construct(const FArguments& InArgs)
 
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	// Register instance property customization
-	DetailsView->RegisterInstancedCustomPropertyLayout(UMaterialOptions::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([=]() { return FMaterialOptionsCustomization::MakeInstance(InArgs._NumLODs); }));
+	DetailsView->RegisterInstancedCustomPropertyLayout(UGLTFMaterialOptions::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([=]() { return FMaterialOptionsCustomization::MakeInstance(InArgs._NumLODs); }));
 
 	// Set provided objects on SDetailsView
 	DetailsView->SetObjects(InArgs._SettingsObjects, true);
@@ -78,7 +78,7 @@ void SMaterialOptions::Construct(const FArguments& InArgs)
 FReply SMaterialOptions::OnConfirm()
 {
 	// Ensure the user has selected at least one LOD index
-	if (GetMutableDefault<UMaterialOptions>()->LODIndices.Num() == 0)
+	if (GetMutableDefault<UGLTFMaterialOptions>()->LODIndices.Num() == 0)
 	{
 		FText Title = LOCTEXT("MaterialBake_SelectLODErrorTitle", "Invalid options");
 		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MaterialBake_SelectLODError", "Ensure that atleast one LOD index is selected."), &Title);
