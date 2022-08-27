@@ -62,7 +62,7 @@ public:
 	ASkeletalMeshActor* SkeletalMeshActor;
 
 	/* The animation that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="SkeletalMeshActor != nullptr"))
 	UAnimSequence* AnimationSequence;
 
 	/* The billboard image that will be shown when the hotspot is in an inactive state or one without a specified image. */
