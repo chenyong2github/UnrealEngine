@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Builders/GLTFJsonBuilder.h"
-#include "Serialization/BufferArchive.h"
 
 class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
