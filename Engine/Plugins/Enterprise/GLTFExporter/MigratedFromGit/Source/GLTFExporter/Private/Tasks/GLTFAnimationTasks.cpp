@@ -23,7 +23,7 @@ void FGLTFAnimSequenceTask::Complete()
 	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
 
 	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	JsonAnimation.Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name
+	JsonAnimation.Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name due to limitation in certain gltf viewers
 
 	TArray<float> Timestamps;
 	Timestamps.AddUninitialized(FrameCount);
@@ -32,6 +32,8 @@ void FGLTFAnimSequenceTask::Complete()
 	{
 		Timestamps[Frame] = AnimSequence->GetTimeAtFrame(Frame);
 	}
+
+	// TODO: add animation data accessor converters to reuse track information
 
 	FGLTFJsonAccessor JsonInputAccessor;
 	JsonInputAccessor.BufferView = Builder.AddBufferView(Timestamps);
@@ -203,14 +205,14 @@ void FGLTFLevelSequenceTask::Complete()
 	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
-	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+	FFrameRate DisplayRate = MovieScene->GetDisplayRate(); // TODO: add option to switch between DisplayRate and TickResolution?
 	TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
 
 	int32 FrameOffset = FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(PlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
 	int32 FrameCount = FFrameRate::TransformTime(FFrameTime(FFrameNumber(MovieScene::DiscreteSize(PlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1;
 
 	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	JsonAnimation.Name = Sequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name
+	JsonAnimation.Name = Sequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name due to limitation in certain gltf viewers
 
 	TArray<float> Timestamps;
 	TArray<FFrameTime> FrameTimes;
@@ -222,6 +224,8 @@ void FGLTFLevelSequenceTask::Complete()
 		Timestamps[Frame] = DisplayRate.AsSeconds(Frame);
 		FrameTimes[Frame] = FFrameRate::TransformTime(FFrameTime(FrameOffset + Frame), DisplayRate, TickResolution);
 	}
+
+	// TODO: add animation data accessor converters to reuse track information
 
 	FGLTFJsonAccessor JsonInputAccessor;
 	JsonInputAccessor.BufferView = Builder.AddBufferView(Timestamps);

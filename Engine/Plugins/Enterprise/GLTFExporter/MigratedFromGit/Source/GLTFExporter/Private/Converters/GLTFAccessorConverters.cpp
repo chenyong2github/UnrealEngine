@@ -293,6 +293,8 @@ FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* M
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	// TODO: report warning or add support for half float precision UVs, i.e. !VertexBuffer->GetUseFullPrecisionUVs()?
+
 	TArray<FGLTFJsonVector2> UVs;
 	UVs.AddUninitialized(VertexCount);
 

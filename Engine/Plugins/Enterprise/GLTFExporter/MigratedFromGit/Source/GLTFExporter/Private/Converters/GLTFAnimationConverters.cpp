@@ -79,6 +79,7 @@ FGLTFJsonAnimationIndex FGLTFLevelSequenceDataConverter::Convert(const ALevelSeq
 		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
 		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation.Playback;
 
+		// TODO: report warning if loop count is not 0 or -1 (infinite)
 		JsonPlayback.bLoop = LevelSequenceActor->PlaybackSettings.LoopCount.Value != 0;
 		JsonPlayback.bAutoPlay = LevelSequenceActor->PlaybackSettings.bAutoPlay;
 		JsonPlayback.PlayRate = LevelSequenceActor->PlaybackSettings.PlayRate;

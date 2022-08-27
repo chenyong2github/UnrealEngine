@@ -93,7 +93,7 @@ void FGLTFStaticMeshTask::Complete()
 	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = &MeshLOD.VertexBuffers.ColorVertexBuffer;
+	const FColorVertexBuffer* ColorBuffer = &MeshLOD.VertexBuffers.ColorVertexBuffer; // TODO: add support for overriding color buffer by component
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
@@ -153,10 +153,12 @@ void FGLTFStaticMeshTask::Complete()
 			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
+		// TODO: report warning if both Mesh Quantization (export options) and Use High Precision Tangent Basis (vertex buffer) are disabled
 		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, VertexBuffer);
 		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, VertexBuffer);
 
 		const uint32 UVCount = VertexBuffer->GetNumTexCoords();
+		// TODO: report warning or option to limit UV channels since most viewers don't support more than 2?
 		JsonPrimitive.Attributes.TexCoords.AddUninitialized(UVCount);
 
 		for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
@@ -179,8 +181,10 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = &MeshLOD.StaticVertexBuffers.ColorVertexBuffer;
-	const FSkinWeightVertexBuffer* SkinWeightBuffer = MeshLOD.GetSkinWeightVertexBuffer();
+	const FColorVertexBuffer* ColorBuffer = &MeshLOD.StaticVertexBuffers.ColorVertexBuffer; // TODO: add support for overriding color buffer by component
+	const FSkinWeightVertexBuffer* SkinWeightBuffer = MeshLOD.GetSkinWeightVertexBuffer(); // TODO: add support for overriding skin weight buffer by component
+	// TODO: add support for skin weight profiles?
+	// TODO: add support for morph targets
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
@@ -241,10 +245,12 @@ void FGLTFSkeletalMeshTask::Complete()
 			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
+		// TODO: report warning if both Mesh Quantization (export options) and Use High Precision Tangent Basis (vertex buffer) are disabled
 		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, VertexBuffer);
 		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, VertexBuffer);
 
 		const uint32 UVCount = VertexBuffer->GetNumTexCoords();
+		// TODO: report warning or option to limit UV channels since most viewers don't support more than 2?
 		JsonPrimitive.Attributes.TexCoords.AddUninitialized(UVCount);
 
 		for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
@@ -255,6 +261,7 @@ void FGLTFSkeletalMeshTask::Complete()
 		if (Builder.ExportOptions->bExportVertexSkinWeights)
 		{
 			const uint32 GroupCount = (SkinWeightBuffer->GetMaxBoneInfluences() + 3) / 4;
+			// TODO: report warning or option to limit groups (of joints and weights) since most viewers don't support more than one?
 			JsonPrimitive.Attributes.Joints.AddUninitialized(GroupCount);
 			JsonPrimitive.Attributes.Weights.AddUninitialized(GroupCount);
 

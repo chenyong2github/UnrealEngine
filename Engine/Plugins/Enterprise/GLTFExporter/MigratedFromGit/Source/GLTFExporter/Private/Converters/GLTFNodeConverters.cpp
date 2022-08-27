@@ -112,6 +112,9 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
 	Node.Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
 
+	// TODO: don't export invisible components unless visibility is variable due to variant sets
+
+	// TODO: should hidden in game be configurable like this?
 	if (!SceneComponent->bHiddenInGame || Builder.ExportOptions->bExportHiddenInGame)
 	{
 		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
