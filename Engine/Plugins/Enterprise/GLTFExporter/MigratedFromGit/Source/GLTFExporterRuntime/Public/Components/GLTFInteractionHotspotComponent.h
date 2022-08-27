@@ -89,6 +89,10 @@ private:
 
 	bool bToggled;
 
+	float RealtimeSecondsWhenLastInSight;
+
+	float RealtimeSecondsWhenLastHidden;
+
 	void CreateDefaultSpriteElement();
 
 	FMaterialSpriteElement& GetSpriteElement();
@@ -96,4 +100,6 @@ private:
 	UMaterialInstanceDynamic* GetSpriteMaterial() const;
 
 	void UpdateSpriteSize();
+
+	void SetSpriteOpacity(const float Opacity) const;
 };
