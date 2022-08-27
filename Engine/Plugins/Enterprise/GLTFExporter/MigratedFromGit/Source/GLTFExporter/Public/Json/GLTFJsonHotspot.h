@@ -14,7 +14,13 @@ struct GLTFEXPORTER_API FGLTFJsonHotspot : IGLTFJsonIndexedObject
 	FGLTFJsonTexture*   ToggledImage;
 	FGLTFJsonTexture*   ToggledHoveredImage;
 
-	FGLTFJsonHotspot(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonHotspot, void>;
+
+	FGLTFJsonHotspot(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Animation(nullptr)
 		, Image(nullptr)
@@ -23,6 +29,4 @@ struct GLTFEXPORTER_API FGLTFJsonHotspot : IGLTFJsonIndexedObject
 		, ToggledHoveredImage(nullptr)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

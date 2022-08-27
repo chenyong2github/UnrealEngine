@@ -11,11 +11,15 @@ struct GLTFEXPORTER_API FGLTFJsonBuffer : IGLTFJsonIndexedObject
 	FString URI;
 	int64   ByteLength;
 
-	FGLTFJsonBuffer(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonBuffer, void>;
+
+	FGLTFJsonBuffer(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, ByteLength(0)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

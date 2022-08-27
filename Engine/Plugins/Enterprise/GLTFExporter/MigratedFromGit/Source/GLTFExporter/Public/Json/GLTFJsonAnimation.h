@@ -39,15 +39,19 @@ struct GLTFEXPORTER_API FGLTFJsonAnimationSampler : IGLTFJsonIndexedObject
 
 	EGLTFJsonInterpolation Interpolation;
 
-	FGLTFJsonAnimationSampler(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonAnimationSampler, void>;
+
+	FGLTFJsonAnimationSampler(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Input(nullptr)
 		, Output(nullptr)
 		, Interpolation(EGLTFJsonInterpolation::Linear)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
 struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonIndexedObject
@@ -59,10 +63,14 @@ struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonIndexedObject
 
 	FGLTFJsonAnimationPlayback Playback;
 
-	FGLTFJsonAnimation(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonAnimation, void>;
+
+	FGLTFJsonAnimation(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

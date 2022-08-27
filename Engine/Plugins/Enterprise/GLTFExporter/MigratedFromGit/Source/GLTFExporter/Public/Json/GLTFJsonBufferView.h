@@ -16,7 +16,13 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonIndexedObject
 
 	EGLTFJsonBufferTarget Target;
 
-	FGLTFJsonBufferView(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonBufferView, void>;
+
+	FGLTFJsonBufferView(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Buffer(nullptr)
 		, ByteLength(0)
@@ -25,6 +31,4 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonIndexedObject
 		, Target(EGLTFJsonBufferTarget::None)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

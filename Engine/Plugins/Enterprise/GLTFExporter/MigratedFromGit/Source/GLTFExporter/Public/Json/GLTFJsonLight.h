@@ -31,7 +31,13 @@ struct GLTFEXPORTER_API FGLTFJsonLight : IGLTFJsonIndexedObject
 
 	FGLTFJsonSpotLight Spot;
 
-	FGLTFJsonLight(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonLight, void>;
+
+	FGLTFJsonLight(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Type(EGLTFJsonLightType::None)
 		, Color(FGLTFJsonColor3::White)
@@ -39,6 +45,4 @@ struct GLTFEXPORTER_API FGLTFJsonLight : IGLTFJsonIndexedObject
 		, Range(0)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

@@ -20,7 +20,13 @@ struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonIndexedObject
 	float LightingDistanceFactor;
 	bool UseCameraProjection;
 
-	FGLTFJsonBackdrop(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonBackdrop, void>;
+
+	FGLTFJsonBackdrop(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Mesh(nullptr)
 		, Cubemap{nullptr}
@@ -32,6 +38,4 @@ struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonIndexedObject
 		, UseCameraProjection(false)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

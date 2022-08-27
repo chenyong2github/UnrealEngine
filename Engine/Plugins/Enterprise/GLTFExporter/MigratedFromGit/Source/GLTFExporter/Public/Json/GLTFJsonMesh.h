@@ -52,10 +52,14 @@ struct GLTFEXPORTER_API FGLTFJsonMesh : IGLTFJsonIndexedObject
 
 	TArray<FGLTFJsonPrimitive> Primitives;
 
-	FGLTFJsonMesh(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonMesh, void>;
+
+	FGLTFJsonMesh(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

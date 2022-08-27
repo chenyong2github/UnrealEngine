@@ -56,7 +56,13 @@ struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonIndexedObject
 
 	FGLTFJsonVector3 Scale;
 
-	FGLTFJsonSkySphere(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonSkySphere, void>;
+
+	FGLTFJsonSkySphere(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, SkySphereMesh(nullptr)
 		, SkyTexture(nullptr)
@@ -80,6 +86,4 @@ struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonIndexedObject
 		, Scale(FGLTFJsonVector3::One)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

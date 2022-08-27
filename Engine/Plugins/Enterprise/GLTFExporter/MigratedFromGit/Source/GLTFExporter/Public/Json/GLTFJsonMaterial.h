@@ -106,7 +106,13 @@ struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonIndexedObject
 
 	FGLTFJsonClearCoatExtension ClearCoat;
 
-	FGLTFJsonMaterial(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonMaterial, void>;
+
+	FGLTFJsonMaterial(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, ShadingModel(EGLTFJsonShadingModel::Default)
 		, EmissiveFactor(FGLTFJsonColor3::Black)
@@ -116,6 +122,4 @@ struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonIndexedObject
 		, BlendMode(EGLTFJsonBlendMode::None)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

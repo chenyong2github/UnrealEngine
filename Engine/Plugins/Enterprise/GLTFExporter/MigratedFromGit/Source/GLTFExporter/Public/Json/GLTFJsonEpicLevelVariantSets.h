@@ -66,10 +66,14 @@ struct GLTFEXPORTER_API FGLTFJsonEpicLevelVariantSets : IGLTFJsonIndexedObject
 
 	TArray<FGLTFJsonEpicVariantSet> VariantSets;
 
-	FGLTFJsonEpicLevelVariantSets(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonEpicLevelVariantSets, void>;
+
+	FGLTFJsonEpicLevelVariantSets(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
