@@ -15,21 +15,21 @@ namespace
 
 	// Scales to convert from the export-friendly sensitivity-values stored in our properties
 	// to values that we can use when processing axis-values (to get similar results as in the viewer).
-	const float OrbitSensitivityScale = 16.667f;
-	const float DistanceSensitivityScale = 0.1f;
+	const float RotationSensitivityScale = 16.667f;
+	const float DollySensitivityScale = 0.1f;
 }
 
 AGLTFCameraActor::AGLTFCameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Focus(nullptr)
-	, DistanceMin(100.0f)
-	, DistanceMax(1000.0f)
 	, PitchAngleMin(-90.0f)
 	, PitchAngleMax(90.0f)
+	, DistanceMin(100.0f)
+	, DistanceMax(1000.0f)
 	, DollyDuration(0.2f)
-	, OrbitInertia(0.1f)
-	, OrbitSensitivity(0.3f)
-	, DistanceSensitivity(0.5f)
+	, DollySensitivity(0.5f)
+	, RotationInertia(0.1f)
+	, RotationSensitivity(0.3f)
 	, Distance(0.0f)
 	, Pitch(0.0f)
 	, Yaw(0.0f)
@@ -104,7 +104,7 @@ void AGLTFCameraActor::Tick(float DeltaSeconds)
 		Distance = FMath::InterpEaseInOut(DollyStartDistance, TargetDistance, (DollyDuration - DollyTime) / DollyDuration, 1.2f);
 	}
 
-	const float Alpha = (OrbitInertia == 0.0f) ? 1.0f : FMath::Min(DeltaSeconds / OrbitInertia, 1.0f);
+	const float Alpha = (RotationInertia == 0.0f) ? 1.0f : FMath::Min(DeltaSeconds / RotationInertia, 1.0f);
 	Yaw = FMath::Lerp(Yaw, TargetYaw, Alpha);
 	Pitch = FMath::Lerp(Pitch, TargetPitch, Alpha);
 
@@ -141,19 +141,19 @@ void AGLTFCameraActor::PostActorCreated()
 
 void AGLTFCameraActor::OnMouseX(float AxisValue)
 {
-	TargetYaw += AxisValue * OrbitSensitivity * OrbitSensitivityScale;
+	TargetYaw += AxisValue * RotationSensitivity * RotationSensitivityScale;
 }
 
 void AGLTFCameraActor::OnMouseY(float AxisValue)
 {
-	TargetPitch = ClampPitch(TargetPitch - AxisValue * OrbitSensitivity * OrbitSensitivityScale);
+	TargetPitch = ClampPitch(TargetPitch - AxisValue * RotationSensitivity * RotationSensitivityScale);
 }
 
 void AGLTFCameraActor::OnMouseWheelAxis(float AxisValue)
 {
 	if (!FMath::IsNearlyZero(AxisValue))
 	{
-		const float DeltaDistance = -AxisValue * (TargetDistance * DistanceSensitivity * DistanceSensitivityScale);
+		const float DeltaDistance = -AxisValue * (TargetDistance * DollySensitivity * DollySensitivityScale);
 
 		DollyTime = DollyDuration;
 		TargetDistance = ClampDistance(TargetDistance + DeltaDistance);
