@@ -41,7 +41,10 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 	JsonInputAccessor.Min[0] = 0;
 
 	FBoneContainer BoneContainer;
-	FGLTFBoneUtility::InitializeToSkeleton(BoneContainer, Skeleton);
+	if (Builder.ExportOptions->bRetargetBoneTransforms)
+	{
+		FGLTFBoneUtility::InitializeToSkeleton(BoneContainer, Skeleton);
+	}
 
 	const EGLTFJsonInterpolation Interpolation = FGLTFConverterUtility::ConvertInterpolation(AnimSequence->Interpolation);
 	const TArray<FName>& TrackNames = AnimSequence->GetAnimationTrackNames();
@@ -75,7 +78,7 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 		const int32 BoneIndex = const_cast<USkeleton*>(Skeleton)->GetMeshBoneIndexFromSkeletonBoneIndex(SkeletalMesh, SkeletonBoneIndex);
 		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
 
-		if (Skeleton->GetBoneTranslationRetargetingMode(SkeletonBoneIndex) != EBoneTranslationRetargetingMode::Animation)
+		if (Builder.ExportOptions->bRetargetBoneTransforms && Skeleton->GetBoneTranslationRetargetingMode(SkeletonBoneIndex) != EBoneTranslationRetargetingMode::Animation)
 		{
 			for (int32 Key = 0; Key < KeyTransforms.Num(); ++Key)
 			{

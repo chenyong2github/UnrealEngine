@@ -24,6 +24,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	DefaultLevelOfDetail = 0;
 	bExportVertexSkinWeights = true;
 	bExportAnimationSequences = true;
+	bRetargetBoneTransforms = true;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportSourceTextures = true;
 	bExportLightmaps = true;
