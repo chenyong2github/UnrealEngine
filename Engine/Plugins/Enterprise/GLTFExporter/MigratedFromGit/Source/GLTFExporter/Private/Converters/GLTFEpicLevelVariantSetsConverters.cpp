@@ -162,7 +162,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 		return false;
 	}
 
-	Builder.VariantReferenceChecker.GetOrAdd(Property, Owner);
+	Builder.RegisterObjectVariant(Owner, Property);
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
@@ -229,7 +229,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	const UMaterialInterface* Material = MaterialProperty->GetMaterial();
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 
-	Builder.VariantReferenceChecker.GetOrAdd(Property, Owner);
+	Builder.RegisterObjectVariant(Owner, Property);
 
 	FGLTFJsonEpicVariantMaterial VariantMaterial;
 	VariantMaterial.Material = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
@@ -290,7 +290,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJs
 		return false;
 	}
 
-	Builder.VariantReferenceChecker.GetOrAdd(Property, Owner);
+	Builder.RegisterObjectVariant(Owner, Property);
 
 	const FGLTFMaterialArray OverrideMaterials(MeshComponent->OverrideMaterials);
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
@@ -349,7 +349,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTF
 		return false;
 	}
 
-	Builder.VariantReferenceChecker.GetOrAdd(Property, Owner);
+	Builder.RegisterObjectVariant(Owner, Property);
 
 	const FGLTFMaterialArray OverrideMaterials(MeshComponent->OverrideMaterials);
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);

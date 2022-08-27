@@ -21,7 +21,6 @@
 #include "Converters/GLTFHotspotConverters.h"
 #include "Converters/GLTFKhrVariantConverters.h"
 #include "Converters/GLTFSkySphereConverters.h"
-#include "Converters/GLTFVariantReferenceChecker.h"
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
@@ -32,9 +31,6 @@ protected:
 public:
 
 	const bool bSelectedActorsOnly;
-
-	// TODO: find a better place for this types of indirect converters
-	FGLTFVariantReferenceChecker VariantReferenceChecker;
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer);
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer);
@@ -90,11 +86,15 @@ public:
 	FGLTFJsonCameraIndex GetOrAddCamera(const UCameraComponent* CameraComponent);
 	FGLTFJsonLightIndex GetOrAddLight(const ULightComponent* LightComponent);
 	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* BackdropActor);
-	FGLTFJsonEpicLevelVariantSetsIndex GetOrAddEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets);
-	FGLTFJsonKhrMaterialVariantIndex GetOrAddKhrMaterialVariant(const UVariant* Variant);
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent);
 	FGLTFJsonHotspotIndex GetOrAddHotspot(const AGLTFHotspotActor* HotspotActor);
 	FGLTFJsonSkySphereIndex GetOrAddSkySphere(const AActor* SkySphereActor);
+
+	FGLTFJsonEpicLevelVariantSetsIndex GetOrAddEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets);
+	FGLTFJsonKhrMaterialVariantIndex GetOrAddKhrMaterialVariant(const UVariant* Variant);
+
+	void RegisterObjectVariant(const UObject* Object, const UPropertyValue* Property);
+	const TArray<const UPropertyValue*>* GetObjectVariants(const UObject* Object) const;
 
 private:
 
@@ -138,9 +138,12 @@ private:
 	FGLTFCameraConverter CameraConverter{ *this };
 	FGLTFLightConverter LightConverter{ *this };
 	FGLTFBackdropConverter BackdropConverter{ *this };
-	FGLTFEpicLevelVariantSetsConverter EpicLevelVariantSetsConverter{ *this };
-	FGLTFKhrMaterialVariantConverter KhrMaterialVariantConverter{ *this };
 	FGLTFLightMapConverter LightMapConverter{ *this };
 	FGLTFHotspotConverter HotspotConverter{ *this };
 	FGLTFSkySphereConverter SkySphereConverter{ *this };
+
+	FGLTFEpicLevelVariantSetsConverter EpicLevelVariantSetsConverter{ *this };
+	FGLTFKhrMaterialVariantConverter KhrMaterialVariantConverter{ *this };
+
+	TMap<const UObject*, TArray<const UPropertyValue*>> ObjectVariants;
 };
