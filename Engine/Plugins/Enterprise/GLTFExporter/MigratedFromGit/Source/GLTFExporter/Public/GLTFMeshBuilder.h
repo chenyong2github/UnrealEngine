@@ -32,7 +32,7 @@ struct GLTFEXPORTER_API FGLTFMeshBuilder
 
 	FBox BoundingBox;
 
-	FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex);
+	FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors);
 
 	FGLTFJsonAccessorIndex AddAccessorForPositions(FGLTFContainerBuilder& Container) const;
 	FGLTFJsonAccessorIndex AddAccessorForColors(FGLTFContainerBuilder& Container) const;

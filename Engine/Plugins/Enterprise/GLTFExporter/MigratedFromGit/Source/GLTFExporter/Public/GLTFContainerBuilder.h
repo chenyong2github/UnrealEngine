@@ -28,7 +28,7 @@ struct GLTFEXPORTER_API FGLTFContainerBuilder
 		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
 	}
 
-	FGLTFJsonMeshIndex AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
+	FGLTFJsonMeshIndex AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex = 0, const FColorVertexBuffer* OverrideVertexColors = nullptr);
 	FGLTFJsonMeshIndex AddMesh(const UStaticMeshComponent* StaticMeshComponent);
 
 	FGLTFJsonSceneIndex AddScene(const UWorld* World, bool bSelectedOnly = false);
