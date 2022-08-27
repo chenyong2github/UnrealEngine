@@ -452,23 +452,6 @@ void FGLTFMaterialUtility::ExpandAllFunctionExpressions(TArray<UMaterialExpressi
 	});
 }
 
-FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelField& ShadingModels)
-{
-	FString Result;
-
-	for (uint32 Index = 0; Index < MSM_MAX; Index++)
-	{
-		const EMaterialShadingModel ShadingModel = static_cast<EMaterialShadingModel>(Index);
-		if (ShadingModels.HasShadingModel(ShadingModel))
-		{
-			FString Name = FGLTFNameUtility::GetName(ShadingModel);
-			Result += Result.IsEmpty() ? Name : TEXT(", ") + Name;
-		}
-	}
-
-	return Result;
-}
-
 bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 {
 	if (Material == nullptr)

@@ -68,8 +68,6 @@ struct FGLTFMaterialUtility
 
 	static void ExpandAllFunctionExpressions(TArray<UMaterialExpression*>& InOutExpressions);
 
-	static FString ShadingModelsToString(const FMaterialShadingModelField& ShadingModels);
-
 	static bool NeedsMeshData(const UMaterialInterface* Material);
 	static bool NeedsMeshData(const TArray<const UMaterialInterface*>& Materials);
 

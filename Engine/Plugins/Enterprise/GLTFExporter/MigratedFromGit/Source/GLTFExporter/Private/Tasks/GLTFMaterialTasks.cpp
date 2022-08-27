@@ -211,11 +211,14 @@ bool FGLTFMaterialTask::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingMode
 		const FGLTFPropertyBakeOutput BakeOutput = BakeMaterialProperty(MP_ShadingModel, TexCoord, { 1, 1 });
 		ShadingModel = static_cast<EMaterialShadingModel>(BakeOutput.Pixels[0].R);
 
-		Builder.AddWarningMessage(
-			FString::Printf(TEXT("Multiple shading models (%s) in material %s will be reduced to one (%s)"),
-			*FGLTFMaterialUtility::ShadingModelsToString(ShadingModels),
-			*Material->GetName(),
-			*FGLTFNameUtility::GetName(ShadingModel)));
+		if (!ShadingModels.HasShadingModel(ShadingModel))
+		{
+			ShadingModel = ShadingModels.GetFirstShadingModel();
+			Builder.AddWarningMessage(
+				FString::Printf(TEXT("Failed to properly evaluate shading model expression in material %s, will export as %s"),
+				*Material->GetName(),
+				*FGLTFNameUtility::GetName(ShadingModel)));
+		}
 	}
 
 	const EGLTFJsonShadingModel ConvertedShadingModel = FGLTFConverterUtility::ConvertShadingModel(ShadingModel);
