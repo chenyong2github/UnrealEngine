@@ -1349,6 +1349,8 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 				OutTexCoord = 1; // assume ambient occlusion uses TexCoord1 when multiple
 			}
 		}
+
+		// TODO: should we perhaps always use the lightmap coordinate index for baking to guarantee unique uvs?
 	}
 	else
 	{
@@ -1358,6 +1360,25 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 	const FIntPoint DefaultTextureSize = Builder.ExportOptions->GetDefaultMaterialBakeSize();
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
+	FMeshDescription* MeshDescription = nullptr;
+
+	// Only use the mesh for baking if the material property requires it
+	if (Mesh != nullptr)
+	{
+		int32 NumTextureCoordinates;
+		bool bRequiresVertexData;
+		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bRequiresVertexData);
+
+		if (bRequiresVertexData)
+		{
+			MeshDescription = Mesh->GetMeshDescription(LODIndex);
+			if (MeshDescription == nullptr)
+			{
+				// TODO: add warning
+			}
+		}
+	}
+
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = FGLTFMaterialUtility::BakeMaterialProperty(
@@ -1365,8 +1386,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		Property,
 		Material,
 		OutTexCoord,
-		const_cast<UStaticMesh*>(Mesh),
-		LODIndex,
+		MeshDescription,
 		bCopyAlphaFromRedChannel);
 
 	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)
