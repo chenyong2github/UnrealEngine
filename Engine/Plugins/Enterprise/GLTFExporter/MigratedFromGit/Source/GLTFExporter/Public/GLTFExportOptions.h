@@ -118,6 +118,9 @@ public:
 	float ExportScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
+	uint32 bExportHiddenInGame : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	EGLTFExporterLightMobility bExportLights;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
