@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Actors/GLTFOrbitCameraActor.h"
-//#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -18,8 +17,6 @@ namespace
 		return (static_cast<int32>(Angle) / 360) + ((Angle < 0.0f) ? -1 : 0);
 	}
 } // Anonymous namespace
-
-#define DEBUGGLTFORBITCAMERA 0
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFOrbitCamera, Log, All);
 
@@ -105,7 +102,6 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 	const float Alpha = (OrbitInertia == 0.0f) ? 1.0f : FMath::Min(DeltaSeconds / OrbitInertia, 1.0f);
 	Yaw = FMath::Lerp(Yaw, TargetYaw, Alpha);
 	Pitch = FMath::Lerp(Pitch, TargetPitch, Alpha);
-	//Distance = FMath::Lerp(Distance, TargetDistance, Alpha);
 
 	const int32 YawCycleIndex = AngleCycleIndex(Yaw);
 	const int32 TargetYawCycleIndex = AngleCycleIndex(TargetYaw);
@@ -141,10 +137,6 @@ void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
 	}
 
 	TargetYaw += AxisValue * OrbitSensitivity;
-
-#if DEBUGGLTFORBITCAMERA
-	UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("AGLTFOrbitCameraActor::OnMouseX(), %f"), AxisValue);
-#endif
 }
 
 void AGLTFOrbitCameraActor::OnMouseY(float AxisValue)
@@ -155,10 +147,6 @@ void AGLTFOrbitCameraActor::OnMouseY(float AxisValue)
 	}
 
 	TargetPitch = ClampPitch(TargetPitch + AxisValue * OrbitSensitivity);
-
-#if DEBUGGLTFORBITCAMERA
-	UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("AGLTFOrbitCameraActor::OnMouseY(), %f"), AxisValue);
-#endif
 }
 
 void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
@@ -171,10 +159,6 @@ void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
 	DollyTime = DollyDuration;
 	TargetDistance = ClampDistance(TargetDistance + -AxisValue * DistanceSensitivity);
 	DollyStartDistance = Distance;
-
-#if DEBUGGLTFORBITCAMERA
-	UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("AGLTFOrbitCameraActor::OnMouseWheelAxis(), %f"), AxisValue);
-#endif
 }
 
 float AGLTFOrbitCameraActor::ClampDistance(float Value) const
