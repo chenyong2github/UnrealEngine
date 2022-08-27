@@ -10,11 +10,11 @@
 struct FGLTFJsonLightMap
 {
 	FString              Name;
+	FGLTFJsonTextureInfo Texture;
 	FGLTFJsonVector4     ValueScale;
 	FGLTFJsonVector4     ValueOffset;
 	FGLTFJsonVector2     CoordinateScale;
 	FGLTFJsonVector2     CoordinateOffset;
-	FGLTFJsonTextureInfo Texture;
 
 	FGLTFJsonLightMap()
 		: ValueScale(FGLTFJsonVector4::One)
