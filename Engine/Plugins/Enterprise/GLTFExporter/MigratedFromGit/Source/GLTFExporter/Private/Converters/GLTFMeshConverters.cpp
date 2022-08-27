@@ -12,14 +12,7 @@
 
 void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
 {
-	if (StaticMeshComponent != nullptr)
-	{
-		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMeshComponent->GetMaterials());
-	}
-	else
-	{
-		FGLTFMaterialUtility::ResolveOverrides(Materials, FGLTFMeshUtility::GetMaterials(StaticMesh));
-	}
+	FGLTFMeshUtility::ResolveMaterials(Materials, StaticMeshComponent, StaticMesh);
 
 	LODIndex = Builder.SanitizeLOD(StaticMesh, StaticMeshComponent, LODIndex);
 
@@ -61,14 +54,7 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 
 void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
 {
-	if (SkeletalMeshComponent != nullptr)
-	{
-		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMeshComponent->GetMaterials());
-	}
-	else
-	{
-		FGLTFMaterialUtility::ResolveOverrides(Materials, FGLTFMeshUtility::GetMaterials(SkeletalMesh));
-	}
+	FGLTFMeshUtility::ResolveMaterials(Materials, SkeletalMeshComponent, SkeletalMesh);
 
 	LODIndex = Builder.SanitizeLOD(SkeletalMesh, SkeletalMeshComponent, LODIndex);
 
