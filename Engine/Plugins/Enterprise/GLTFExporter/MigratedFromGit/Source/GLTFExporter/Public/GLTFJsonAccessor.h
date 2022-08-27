@@ -56,7 +56,7 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::AccessorTypeToString(Type));
 		JsonWriter.WriteValue(TEXT("componentType"), FGLTFJsonUtility::ComponentTypeToNumber(ComponentType));
 
-		if (bNormalized) 
+		if (bNormalized)
 		{
 			JsonWriter.WriteValue(TEXT("normalized"), bNormalized);
 		}

@@ -10,16 +10,16 @@ template <class IndexType, class KeyType, class ConverterType>
 struct GLTFEXPORTER_API TGLTFIndexedObjects
 {
 	TMap<KeyType, IndexType> IndexLookup;
-	
+
 	template <typename... ArgsType>
-    FORCEINLINE IndexType Find(ArgsType&&... Args) const
+	FORCEINLINE IndexType Find(ArgsType&&... Args) const
 	{
 		const KeyType Key(Forward<ArgsType>(Args)...);
 		return IndexLookup.FindRef(Key);
 	}
 
 	template <typename... ArgsType>
-    FORCEINLINE IndexType Convert(FGLTFIndexedBuilder& Builder, const FString& DesiredName, ArgsType&&... Args)
+	FORCEINLINE IndexType Convert(FGLTFIndexedBuilder& Builder, const FString& DesiredName, ArgsType&&... Args)
 	{
 		const KeyType Key(Forward<ArgsType>(Args)...);
 
