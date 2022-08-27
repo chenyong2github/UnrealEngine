@@ -5,9 +5,18 @@
 #include "Camera/CameraActor.h"
 #include "GLTFCameraActor.generated.h"
 
+UENUM(BlueprintType)
+enum class EGLTFCameraMode : uint8
+{
+	FirstPerson,
+	ThirdPerson
+};
+
 /**
  * GLTF-compatible camera that will carry over settings and simulate the behavior in the resulting viewer.
- * Focuses one actor in the scene and orbits it through mouse control.
+ * Supports two modes:
+ * - FirstPerson: Allows the user to rotate the camera without modifying its position.
+ * - ThirdPerson: Focuses one actor in the scene and orbits it through mouse control.
  */
 UCLASS(BlueprintType, Blueprintable, DisplayName = "GLTF Camera")
 class GLTFEXPORTERRUNTIME_API AGLTFCameraActor : public ACameraActor
@@ -55,8 +64,13 @@ private:
 	bool SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player);
 
 public:
-	/* Actor which the camera will focus on and subsequently orbit. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
+
+	/* Camera mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
+	EGLTFCameraMode Mode;
+
+	/* Actor which the camera will focus on and subsequently orbit when using Third Person mode. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraMode::ThirdPerson"))
 	AActor* Focus;
 
 	/* Minimum pitch angle (in degrees) for the camera. */
