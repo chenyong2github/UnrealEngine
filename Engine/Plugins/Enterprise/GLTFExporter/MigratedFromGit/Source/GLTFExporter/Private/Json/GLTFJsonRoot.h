@@ -4,12 +4,12 @@
 
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonAccessor.h"
-#include "Json/GLTFJsonBufferView.h"
 #include "Json/GLTFJsonBuffer.h"
+#include "Json/GLTFJsonBufferView.h"
 #include "Json/GLTFJsonMaterial.h"
 #include "Json/GLTFJsonMesh.h"
-#include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonNode.h"
+#include "Json/GLTFJsonScene.h"
 
 #include "Containers/Set.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -101,75 +101,13 @@ struct FGLTFJsonRoot
 			JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
 		}
 
-		if (Accessors.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("accessors"));
-			for (const FGLTFJsonAccessor& Accessor : Accessors)
-			{
-				Accessor.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (BufferViews.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("bufferViews"));
-			for (const FGLTFJsonBufferView& BufferView : BufferViews)
-			{
-				BufferView.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (Materials.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("materials"));
-			for (const FGLTFJsonMaterial& Material : Materials)
-			{
-				Material.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (Meshes.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("meshes"));
-			for (const FGLTFJsonMesh& Mesh : Meshes)
-			{
-				Mesh.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (Nodes.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("nodes"));
-			for (const FGLTFJsonNode& Node : Nodes)
-			{
-				Node.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (Scenes.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("scenes"));
-			for (const FGLTFJsonScene& Scene : Scenes)
-			{
-				Scene.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (Buffers.Num() > 0)
-		{
-			JsonWriter.WriteArrayStart(TEXT("buffers"));
-			for (const FGLTFJsonBuffer& Buffer : Buffers)
-			{
-				Buffer.WriteObject(JsonWriter);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("accessors"), Accessors);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("buffers"), Buffers);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("bufferViews"), BufferViews);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("meshes"), Meshes);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes);
 
 		JsonWriter.WriteObjectEnd();
 	}
