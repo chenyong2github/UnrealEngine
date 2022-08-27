@@ -20,6 +20,10 @@ FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const
 	}
 
 	FGLTFJsonKhrMaterialVariant MaterialVariant;
+
+	// TODO: add warning if the variant name is not unique, i.e it's already used?
+	// While material variants are technically allowed to use the same name, it may
+	// cause confusion when trying to select the correct variant in a viewer.
 	MaterialVariant.Name = Variant->GetDisplayText().ToString();
 
 	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterialIndex> TPrimitiveMaterial;
