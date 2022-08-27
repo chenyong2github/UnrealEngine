@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonAnimation.h"
+#include "Json/GLTFJsonNode.h"
+#include "Json/GLTFJsonAccessor.h"
 
 void FGLTFJsonAnimationChannelTarget::WriteObject(IGLTFJsonWriter& Writer) const
 {

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Math/UnrealMathUtility.h"
+
 class UCurveLinearColor;
 
 struct FGLTFCurveUtility

@@ -3,6 +3,7 @@
 #include "Converters/GLTFHotspotConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Animation/SkeletalMeshActor.h"
+#include "Components/SkeletalMeshComponent.h"
 
 FGLTFJsonHotspot* FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* HotspotActor)
 {
@@ -28,7 +29,7 @@ FGLTFJsonHotspot* FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Hotspo
 			FGLTFJsonNode* RootNode = Builder.AddUniqueNode(SkeletalMeshActor);
 
 			const USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
-			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
+			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh())
 			{
 				if (const UAnimSequence* AnimSequence = HotspotActor->AnimationSequence)
 				{

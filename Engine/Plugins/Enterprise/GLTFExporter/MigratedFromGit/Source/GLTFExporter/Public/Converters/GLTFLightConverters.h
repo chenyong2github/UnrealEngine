@@ -6,6 +6,8 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
+class ULightComponent;
+
 typedef TGLTFConverter<FGLTFJsonLight*, const ULightComponent*> IGLTFLightConverter;
 
 class GLTFEXPORTER_API FGLTFLightConverter : public FGLTFBuilderContext, public IGLTFLightConverter

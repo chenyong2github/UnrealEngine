@@ -4,11 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "MeshDescription.h"
+#include "SceneTypes.h"
 
 #if WITH_EDITOR
 // TODO: remove dependency to GLTFMaterialBaking in public header
 #include "GLTFMaterialBakingStructures.h"
 #endif
+
+class FLightmapResourceCluster;
+class UStaticMesh;
+class UStaticMeshComponent;
+class USkeletalMesh;
+class USkeletalMeshComponent;
 
 struct GLTFEXPORTER_API FGLTFMeshData
 {

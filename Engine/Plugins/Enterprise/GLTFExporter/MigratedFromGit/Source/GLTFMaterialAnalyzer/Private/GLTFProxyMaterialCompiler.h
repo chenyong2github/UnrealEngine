@@ -50,11 +50,7 @@ public:
 		return Compiler->ObjectBounds();
 	}
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) override
-#else
-	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override
-#endif
 	{
 		// NOTE: because there is no overridable compiler method for ObjectLocalBounds in engine this is our only option currently
 		if (Custom->Code.Contains(TEXT("GetPrimitiveData(Parameters).LocalObjectBounds")))
@@ -62,11 +58,7 @@ public:
 			bUsesObjectLocalBounds = true;
 		}
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 		return Compiler->CustomExpression(Custom, OutputIndex, CompiledInputs);
-#else
-		return Compiler->CustomExpression(Custom, CompiledInputs);
-#endif
 	}
 
 	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override
@@ -101,12 +93,10 @@ public:
 		return Default; // ignore all non-default branches in this runtime switch
 	}
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	virtual int32 ReflectionCapturePassSwitch(int32 Default, int32 Reflection) override
 	{
 		return Default; // ignore all non-default branches in this runtime switch
 	}
-#endif
 
 	virtual int32 ReflectionAboutCustomWorldNormal(int32 CustomWorldNormal, int32 bNormalizeCustomWorldNormal) override
 	{
@@ -157,16 +147,4 @@ public:
 	{
 		return EMaterialCompilerType::MaterialProxy;
 	}
-
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 26)
-	virtual int32 PreSkinVertexOffset() override
-	{
-		return Compiler->PreSkinVertexOffset();
-	}
-
-	virtual int32 PostSkinVertexOffset() override
-	{
-		return Compiler->PostSkinVertexOffset();
-	}
-#endif
 };

@@ -3,6 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
+
+class AActor;
 
 struct FGLTFBlueprintUtility
 {

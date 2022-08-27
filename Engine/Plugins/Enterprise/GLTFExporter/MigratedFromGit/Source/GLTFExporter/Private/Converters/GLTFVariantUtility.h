@@ -7,6 +7,8 @@
 class FGLTFConvertBuilder;
 struct FCapturedPropSegment;
 class ULevelVariantSets;
+class UMaterialInterface;
+class UMeshComponent;
 class UVariantSet;
 class UVariant;
 class UVariantObjectBinding;

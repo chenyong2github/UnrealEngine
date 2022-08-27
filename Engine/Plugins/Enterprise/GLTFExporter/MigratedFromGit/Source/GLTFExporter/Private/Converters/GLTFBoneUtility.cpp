@@ -3,6 +3,9 @@
 #include "Converters/GLTFBoneUtility.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/AttributesRuntime.h"
+#include "ReferenceSkeleton.h"
 
 FTransform FGLTFBoneUtility::GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex)
 {

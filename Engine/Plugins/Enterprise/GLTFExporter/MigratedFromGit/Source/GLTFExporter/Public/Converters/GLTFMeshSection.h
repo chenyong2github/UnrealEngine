@@ -3,7 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BoneIndices.h"
 #include "Converters/GLTFIndexArray.h"
+
+class FSkeletalMeshLODRenderData;
+struct FSkelMeshRenderSection;
+struct FStaticMeshLODResources;
+struct FStaticMeshSection;
 
 struct GLTFEXPORTER_API FGLTFMeshSection
 {

@@ -3,10 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Class.h"
+#include "UObject/ReflectedTypeAccessors.h"
 
 class ULightComponent;
 class UCameraComponent;
 class AGLTFHotspotActor;
+
+class UCameraComponent;
+class ULightComponent;
+class USceneComponent;
+class USkeletalMeshComponent;
+class UStaticMeshComponent;
 
 struct FGLTFNameUtility
 {

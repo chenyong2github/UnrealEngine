@@ -4,10 +4,13 @@
 
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFSharedArray.h"
+#include "MaterialExpressionIO.h"
 
 struct FGLTFMaterialAnalysis;
 struct FGLTFMaterialPropertyEx;
+class UMaterialExpressionTextureSample;
 class UMaterialInstanceConstant;
+class UMaterialInterface;
 
 struct FGLTFPropertyBakeOutput
 {

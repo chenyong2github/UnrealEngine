@@ -6,6 +6,8 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
+class UStaticMeshComponent;
+
 typedef TGLTFConverter<FGLTFJsonLightMap*, const UStaticMeshComponent*> IGLTFLightMapConverter;
 
 class GLTFEXPORTER_API FGLTFLightMapConverter : public FGLTFBuilderContext, public IGLTFLightMapConverter

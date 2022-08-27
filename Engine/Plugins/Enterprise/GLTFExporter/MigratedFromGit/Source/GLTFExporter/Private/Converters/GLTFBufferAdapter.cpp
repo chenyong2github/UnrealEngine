@@ -3,6 +3,14 @@
 #include "Converters/GLTFBufferAdapter.h"
 #include "Converters/GLTFBufferUtility.h"
 
+#include "Rendering/ColorVertexBuffer.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "RawIndexBuffer.h"
+#include "RHI.h"
+#include "RHIResources.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
+#include "Rendering/StaticMeshVertexBuffer.h"
+
 class FGLTFBufferAdapterCPU final : public IGLTFBufferAdapter
 {
 public:

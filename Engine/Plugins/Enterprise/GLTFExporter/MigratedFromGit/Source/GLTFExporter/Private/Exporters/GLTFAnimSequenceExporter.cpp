@@ -4,6 +4,7 @@
 #include "Exporters/GLTFExporterUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Animation/AnimSequence.h"
+#include "Engine/SkeletalMesh.h"
 
 UGLTFAnimSequenceExporter::UGLTFAnimSequenceExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

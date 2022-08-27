@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshUtility.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Materials/Material.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "StaticMeshCompiler.h"
-#include "SkeletalMeshCompiler.h"
+#include "SkinnedAssetCompiler.h"
 
 void FGLTFMeshUtility::FullyLoad(const UStaticMesh* InStaticMesh)
 {
@@ -22,7 +26,7 @@ void FGLTFMeshUtility::FullyLoad(const USkeletalMesh* InSkeletalMesh)
 	USkeletalMesh* SkeletalMesh = const_cast<USkeletalMesh*>(InSkeletalMesh);
 
 #if WITH_EDITOR
-	FSkeletalMeshCompilingManager::Get().FinishCompilation({ SkeletalMesh });
+	FSkinnedAssetCompilingManager::Get().FinishCompilation({ SkeletalMesh });
 #endif
 
 	SkeletalMesh->SetForceMipLevelsToBeResident(30.0f);

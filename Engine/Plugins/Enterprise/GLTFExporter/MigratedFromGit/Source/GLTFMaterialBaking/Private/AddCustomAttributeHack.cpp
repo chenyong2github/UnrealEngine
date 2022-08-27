@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AddCustomAttributeHack.h"
-#include "MaterialShared.h"
 
 // NOTE: to access the raw array of custom attributes we need to use a dummy friend class
 class FMaterialAttributePropertyDetails

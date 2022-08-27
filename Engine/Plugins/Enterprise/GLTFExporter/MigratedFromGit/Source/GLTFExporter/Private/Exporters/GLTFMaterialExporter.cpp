@@ -3,6 +3,7 @@
 #include "Exporters/GLTFMaterialExporter.h"
 #include "Exporters/GLTFExporterUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
 

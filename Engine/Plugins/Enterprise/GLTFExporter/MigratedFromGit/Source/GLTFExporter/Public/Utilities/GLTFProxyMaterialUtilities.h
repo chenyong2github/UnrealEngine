@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Json/GLTFJsonEnums.h"
+#include "MaterialTypes.h"
+#include "UObject/ObjectMacros.h"
 
+class UMaterial;
 class UMaterialInstance;
 class UMaterialInstanceDynamic;
 class UMaterialInstanceConstant;
+class UMaterialInterface;
+class UTexture;
 
 class GLTFEXPORTER_API FGLTFProxyMaterialUtilities
 {

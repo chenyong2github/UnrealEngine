@@ -5,6 +5,7 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFIndexArray.h"
 
+class UMaterialInterface;
 struct FMeshDescription;
 
 class GLTFEXPORTER_API FGLTFUVOverlapChecker : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>

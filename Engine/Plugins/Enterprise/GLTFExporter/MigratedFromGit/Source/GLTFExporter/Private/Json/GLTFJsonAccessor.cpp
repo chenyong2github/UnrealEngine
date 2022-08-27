@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonAccessor.h"
+#include "Json/GLTFJsonBufferView.h"
 
 void FGLTFJsonAccessor::WriteObject(IGLTFJsonWriter& Writer) const
 {

@@ -39,7 +39,7 @@ void FGLTFTextureUtilities::CombineMetallicAndRoughness(const UTexture* Metallic
 void FGLTFTextureUtilities::CombineTextures(const UTexture* TextureA, const FMatrix& ColorTransformA, const UTexture* TextureB, const FMatrix& ColorTransformB, const FLinearColor& BackgroundColor, UTextureRenderTarget2D* OutRenderTarget)
 {
 	FRenderTarget* RenderTarget = OutRenderTarget->GameThread_GetRenderTargetResource();
-	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
+	FCanvas Canvas(RenderTarget, nullptr, FGameTime(), GMaxRHIFeatureLevel);
 
 	// TODO: use different white texture depending on if target is SRGB or not
 	const FTexture* TextureResourceA = TextureA != nullptr ? TextureA->GetResource() : GetWhiteTexture();

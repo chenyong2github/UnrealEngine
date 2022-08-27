@@ -9,6 +9,8 @@
 #include "LevelSequenceActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/SkeletalMeshSocket.h"
 
@@ -221,8 +223,11 @@ FGLTFJsonNode* FGLTFComponentSocketConverter::Convert(const USceneComponent* Sce
 		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
 		{
 			// TODO: add support for SocketOverrideLookup?
-			const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
-			return Builder.AddUniqueNode(JsonNode, SkeletalMesh, SocketName);
+			// #ueent_correction_to_review
+			if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkinnedMeshComponent->GetSkinnedAsset()))
+			{
+				return Builder.AddUniqueNode(JsonNode, SkeletalMesh, SocketName);
+			}
 		}
 
 		// TODO: add support for more socket types

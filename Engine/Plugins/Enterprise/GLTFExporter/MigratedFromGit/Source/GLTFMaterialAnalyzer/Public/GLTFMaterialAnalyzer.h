@@ -2,19 +2,24 @@
 
 #pragma once
 
-#include "Materials/MaterialInterface.h"
+#include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
+
 #include "GLTFMaterialAnalysis.h"
+
+#include "Materials/MaterialInstance.h"
+
 #include "GLTFMaterialAnalyzer.generated.h"
 
 UCLASS(NotBlueprintType, Transient)
-class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
+class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInstance
 {
 	GENERATED_BODY()
 
 public:
 
 	static void AnalyzeMaterialPropertyEx(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis);
-
+	
 private:
 
 	void ResetToDefaults();

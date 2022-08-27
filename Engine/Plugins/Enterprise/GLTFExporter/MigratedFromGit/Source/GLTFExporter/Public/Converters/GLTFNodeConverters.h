@@ -6,6 +6,12 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
+class AActor;
+class USceneComponent;
+class UStaticMesh;
+class USkeletalMesh;
+//struct FGLTFJsonNode;
+
 typedef TGLTFConverter<FGLTFJsonNode*, const AActor*> IGLTFActorConverter;
 typedef TGLTFConverter<FGLTFJsonNode*, const USceneComponent*> IGLTFComponentConverter;
 typedef TGLTFConverter<FGLTFJsonNode*, const USceneComponent*, FName> IGLTFComponentSocketConverter;

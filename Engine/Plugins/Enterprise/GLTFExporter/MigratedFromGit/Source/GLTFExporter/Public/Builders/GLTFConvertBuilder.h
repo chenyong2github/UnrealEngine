@@ -23,6 +23,8 @@
 #include "Converters/GLTFKhrVariantConverters.h"
 #include "Converters/GLTFSkySphereConverters.h"
 
+class UMeshComponent;
+
 class GLTFEXPORTER_API FGLTFConvertBuilder : public FGLTFBufferBuilder
 {
 public:

@@ -3,10 +3,15 @@
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFNameUtility.h"
 
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
 #if WITH_EDITOR
-#include "StaticMeshAttributes.h"
-#include "Engine/MapBuildDataRegistry.h"
 #include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
+#include "Editor.h"
+#include "Engine/MapBuildDataRegistry.h"
+#include "StaticMeshAttributes.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #endif
 
@@ -87,7 +92,7 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 
 #if WITH_EDITOR
 		PrimitiveData = { SkeletalMeshComponent };
-		FMeshMergeHelpers::RetrieveMesh(const_cast<USkeletalMeshComponent*>(SkeletalMeshComponent), LODIndex, Description, true);
+		FMeshMergeHelpers::RetrieveMesh(SkeletalMeshComponent, LODIndex, Description, true);
 #endif
 	}
 	else

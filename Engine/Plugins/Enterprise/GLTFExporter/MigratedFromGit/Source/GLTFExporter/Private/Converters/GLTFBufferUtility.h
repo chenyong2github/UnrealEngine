@@ -4,6 +4,16 @@
 
 #include "CoreMinimal.h"
 
+class FColorVertexBuffer;
+class FPositionVertexBuffer;
+class FRawStaticIndexBuffer;
+class FRawStaticIndexBuffer16or32Interface;
+class FRHIBuffer;
+class FSkinWeightVertexBuffer;
+class FSkinWeightDataVertexBuffer;
+class FSkinWeightLookupVertexBuffer;
+class FStaticMeshVertexBuffer;
+
 struct FGLTFBufferUtility
 {
 	static bool HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer);
