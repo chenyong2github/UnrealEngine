@@ -1,0 +1,225 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Converters/GLTFKhrVariantConverters.h"
+#include "Converters/GLTFVariantUtility.h"
+#include "Converters/GLTFMeshUtility.h"
+#include "Builders/GLTFContainerBuilder.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "VariantObjectBinding.h"
+#include "PropertyValueMaterial.h"
+#include "LevelVariantSets.h"
+#include "PropertyValue.h"
+#include "VariantSet.h"
+#include "Variant.h"
+
+FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const UVariant* Variant)
+{
+	if (Variant == nullptr || Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::None)
+	{
+		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
+	}
+
+	FGLTFJsonKhrMaterialVariant MaterialVariant;
+	MaterialVariant.Name = Variant->GetDisplayText().ToString();
+
+	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterialIndex> TPrimitiveMaterial;
+	TArray<TPrimitiveMaterial> PrimitiveMaterials;
+
+	for (const UVariantObjectBinding* Binding: Variant->GetBindings())
+	{
+		for (const UPropertyValue* Property: Binding->GetCapturedProperties())
+		{
+			if (!const_cast<UPropertyValue*>(Property)->Resolve() || !Property->HasRecordedData())
+			{
+				continue;
+			}
+
+			if (Property->IsA<UPropertyValueMaterial>())
+			{
+				FGLTFJsonPrimitive* Primitive = nullptr;
+				FGLTFJsonMaterialIndex MaterialIndex;
+
+				if (TryParseMaterialProperty(Primitive, MaterialIndex, Property))
+				{
+					PrimitiveMaterials.Add(MakeTuple(Primitive, MaterialIndex));
+				}
+			}
+		}
+	}
+
+	if (PrimitiveMaterials.Num() < 1)
+	{
+		// TODO: add warning and / or allow unused material variants to be added?
+
+		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
+	}
+
+	const FGLTFJsonKhrMaterialVariantIndex MaterialVariantIndex = Builder.AddKhrMaterialVariant(MaterialVariant);
+
+	for (const TPrimitiveMaterial& PrimitiveMaterial: PrimitiveMaterials)
+	{
+		FGLTFJsonPrimitive* Primitive = PrimitiveMaterial.Key;
+		const FGLTFJsonMaterialIndex MaterialIndex = PrimitiveMaterial.Value;
+
+		FGLTFJsonKhrMaterialVariantMapping* ExistingMapping = Primitive->KhrMaterialVariantMappings.FindByPredicate(
+			[MaterialIndex](const FGLTFJsonKhrMaterialVariantMapping& Mapping)
+			{
+				return Mapping.Material == MaterialIndex;
+			});
+
+		if (ExistingMapping != nullptr)
+		{
+			ExistingMapping->Variants.AddUnique(MaterialVariantIndex);
+		}
+		else
+		{
+			FGLTFJsonKhrMaterialVariantMapping Mapping;
+			Mapping.Material = MaterialIndex;
+			Mapping.Variants.Add(MaterialVariantIndex);
+
+			Primitive->KhrMaterialVariantMappings.Add(Mapping);
+		}
+	}
+
+	return MaterialVariantIndex;
+}
+
+bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterialIndex& OutMaterialIndex, const UPropertyValue* Property) const
+{
+	UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(const_cast<UPropertyValue*>(Property));
+	if (MaterialProperty == nullptr)
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Material property is invalid, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
+	if (Target == nullptr)
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const AActor* Owner = Target->GetOwner();
+	if (Owner == nullptr)
+	{
+		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const UMeshComponent* MeshComponent = Cast<UMeshComponent>(Target);
+	if (MeshComponent == nullptr)
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Target object for property has no mesh-component, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const TArray<FCapturedPropSegment>& CapturedPropSegments = FGLTFVariantUtility::GetCapturedPropSegments(MaterialProperty);
+	const int32 NumPropSegments = CapturedPropSegments.Num();
+
+	if (NumPropSegments < 1)
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Failed to parse element index to apply the material to, the property will be skipped. Context: %s"),
+			*GetLogContext(MaterialProperty)));
+		return false;
+	}
+
+	// NOTE: UPropertyValueMaterial::GetMaterial does *not* ensure that the recorded data has been loaded,
+	// so we need to call UProperty::GetRecordedData first to make that happen.
+	MaterialProperty->GetRecordedData();
+
+	// TODO: find way to determine whether the material is null because "None" was selected, or because it failed to resolve
+	const UMaterialInterface* Material = MaterialProperty->GetMaterial();
+	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
+	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(MeshComponent);
+
+	OutPrimitive = &Builder.GetMesh(MeshIndex).Primitives[MaterialIndex];
+	OutMaterialIndex = GetResolvedMaterialForComponent(Material, MaterialIndex, MeshComponent);
+
+	return true;
+}
+
+FGLTFJsonMaterialIndex FGLTFKhrMaterialVariantConverter::GetResolvedMaterialForComponent(const UMaterialInterface* Material, int32 MaterialIndex, const UMeshComponent* MeshComponent) const
+{
+	const FGLTFMeshData* MeshData = nullptr;
+	FGLTFIndexArray SectionIndices;
+
+	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
+	{
+		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
+		{
+			const int32 DefaultLODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
+
+			if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
+			{
+				const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+				const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, DefaultLODIndex);
+				const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
+
+				SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
+				MeshData = Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex);
+			}
+			else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
+			{
+				const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+				const int32 LODIndex = FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, DefaultLODIndex);
+				const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+				const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
+
+				SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
+				MeshData = Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex);
+			}
+		}
+		else
+		{
+			// TODO: report warning (about materials won't be exported using mesh data because BakeMaterialInputs is not set to UseMeshData)
+		}
+	}
+
+	return Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
+}
+
+FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UPropertyValue* Property) const
+{
+	const UVariantObjectBinding* Parent = Property->GetParent();
+	return GetLogContext(Parent) + TEXT("/") + Property->GetFullDisplayString();
+}
+
+FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UVariantObjectBinding* Binding) const
+{
+	const UVariant* Parent = const_cast<UVariantObjectBinding*>(Binding)->GetParent();
+	return GetLogContext(Parent) + TEXT("/") + Binding->GetDisplayText().ToString();
+}
+
+FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UVariant* Variant) const
+{
+	const UVariantSet* Parent = const_cast<UVariant*>(Variant)->GetParent();
+	return GetLogContext(Parent) + TEXT("/") + Variant->GetDisplayText().ToString();
+}
+
+FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UVariantSet* VariantSet) const
+{
+	const ULevelVariantSets* Parent = const_cast<UVariantSet*>(VariantSet)->GetParent();
+	return GetLogContext(Parent) + TEXT("/") + VariantSet->GetDisplayText().ToString();
+}
+
+FString FGLTFKhrMaterialVariantConverter::GetLogContext(const ULevelVariantSets* LevelVariantSets) const
+{
+	return LevelVariantSets->GetName();
+}

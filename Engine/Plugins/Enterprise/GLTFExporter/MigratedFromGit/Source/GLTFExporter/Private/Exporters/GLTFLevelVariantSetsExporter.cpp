@@ -66,7 +66,13 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 	}
 	else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
 	{
-		// TODO: implement
+		if (Builder.GetRoot().KhrMaterialVariants.Num() < 1)
+		{
+			Builder.LogError(
+				FString::Printf(TEXT("Failed to export any supported variant from level variant sets %s"),
+				*LevelVariantSets->GetName()));
+			return false;
+		}
 	}
 
 	Builder.DefaultScene = SceneIndex;
