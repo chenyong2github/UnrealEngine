@@ -8,6 +8,7 @@
 #include "Json/GLTFJsonVector3.h"
 #include "Json/GLTFJsonVector4.h"
 #include "Json/GLTFJsonColor4.h"
+#include "Json/GLTFJsonMatrix4.h"
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
 #include "Json/GLTFJsonCamera.h"
@@ -93,20 +94,35 @@ struct FGLTFConverterUtility
 		return { -Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W };
 	}
 
-	static FMatrix ConvertMatrix(const FMatrix& Matrix)
+	static FGLTFJsonMatrix4 ConvertMatrix(const FMatrix& Matrix)
 	{
 		// Unreal stores matrix elements in row major order.
 		// glTF stores matrix elements in column major order.
 
-		FMatrix Result;
+		FGLTFJsonMatrix4 Result;
 		for (int32 Row = 0; Row < 4; ++Row)
 		{
 			for (int32 Col = 0; Col < 4; ++Col)
 			{
-				Result.M[Col][Row] = Matrix.M[Row][Col];
+				Result(Row, Col) = Matrix.M[Row][Col];
 			}
 		}
 		return Result;
+	}
+
+	static FGLTFJsonMatrix4 ConvertTransform(const FTransform& Transform, const float ConversionScale)
+	{
+		const FQuat Rotation = Transform.GetRotation();
+		const FVector Translation = Transform.GetTranslation();
+		const FVector Scale = Transform.GetScale3D();
+
+		const FQuat ConvertedRotation(-Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W);
+		const FVector ConvertedTranslation = FVector(Translation.X, Translation.Z, Translation.Y) * ConversionScale;
+		const FVector ConvertedScale(Scale.X, Scale.Z, Scale.Y);
+
+		const FTransform ConvertedTransform(ConvertedRotation, ConvertedTranslation, ConvertedScale);
+		const FMatrix Matrix = ConvertedTransform.ToMatrixWithScale(); // TODO: should it be ToMatrixNoScale()?
+		return ConvertMatrix(Matrix);
 	}
 
 	static FGLTFJsonQuaternion ConvertCameraDirection()

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonMatrix4.h"
 #include "Json/GLTFJsonVector3.h"
 #include "Json/GLTFJsonQuaternion.h"
 #include "Serialization/JsonSerializer.h"
@@ -11,9 +12,19 @@ struct FGLTFJsonNode
 {
 	FString Name;
 
-	FGLTFJsonVector3    Translation;
-	FGLTFJsonQuaternion Rotation;
-	FGLTFJsonVector3    Scale;
+	bool bUseMatrix;
+
+	union
+	{
+		FGLTFJsonMatrix4 Matrix;
+
+		struct
+		{
+			FGLTFJsonVector3    Translation;
+			FGLTFJsonQuaternion Rotation;
+			FGLTFJsonVector3    Scale;
+		};
+	};
 
 	FGLTFJsonCameraIndex    Camera;
 	FGLTFJsonSkinIndex      Skin;
@@ -25,7 +36,8 @@ struct FGLTFJsonNode
 	TArray<FGLTFJsonNodeIndex> Children;
 
 	FGLTFJsonNode()
-		: Translation(FGLTFJsonVector3::Zero)
+		: bUseMatrix(false)
+		, Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
 		, Scale(FGLTFJsonVector3::One)
 	{
@@ -41,22 +53,33 @@ struct FGLTFJsonNode
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		if (Translation != FGLTFJsonVector3::Zero)
+		if (bUseMatrix)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("translation"));
-			Translation.WriteArray(JsonWriter);
+			if (Matrix != FGLTFJsonMatrix4::Identity)
+			{
+				JsonWriter.WriteIdentifierPrefix(TEXT("matrix"));
+				Matrix.WriteArray(JsonWriter);
+			}
 		}
-
-		if (Rotation != FGLTFJsonQuaternion::Identity)
+		else
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("rotation"));
-			Rotation.WriteArray(JsonWriter);
-		}
+			if (Translation != FGLTFJsonVector3::Zero)
+			{
+				JsonWriter.WriteIdentifierPrefix(TEXT("translation"));
+				Translation.WriteArray(JsonWriter);
+			}
 
-		if (Scale != FGLTFJsonVector3::One)
-		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
-			Scale.WriteArray(JsonWriter);
+			if (Rotation != FGLTFJsonQuaternion::Identity)
+			{
+				JsonWriter.WriteIdentifierPrefix(TEXT("rotation"));
+				Rotation.WriteArray(JsonWriter);
+			}
+
+			if (Scale != FGLTFJsonVector3::One)
+			{
+				JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
+				Scale.WriteArray(JsonWriter);
+			}
 		}
 
 		if (Camera != INDEX_NONE)
