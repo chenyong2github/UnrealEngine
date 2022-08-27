@@ -64,8 +64,8 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 	}
 
 	// More accurate bounding box if based on raw vertex values
-	FGLTFJsonVector3 MinPosition = Positions[0];
-	FGLTFJsonVector3 MaxPosition = Positions[0];
+	FGLTFJsonVector3 MinPosition = VertexCount > 0 ? Positions[0] : FGLTFJsonVector3::Zero;
+	FGLTFJsonVector3 MaxPosition = VertexCount > 0 ? Positions[0] : FGLTFJsonVector3::Zero;
 
 	for (uint32 VertexIndex = 1; VertexIndex < VertexCount; ++VertexIndex)
 	{
