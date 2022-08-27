@@ -12,12 +12,12 @@ struct FGLTFJsonColor4
 	static const FGLTFJsonColor4 Black;
 	static const FGLTFJsonColor4 White;
 
-	FGLTFJsonColor4(float R, float G, float B, float A)
+	FGLTFJsonColor4(float R, float G, float B, float A = 1.0f)
         : R(R), G(G), B(B), A(A)
 	{
 	}
 
-	FGLTFJsonColor4(const FGLTFJsonColor3& Color3, float A)
+	FGLTFJsonColor4(const FGLTFJsonColor3& Color3, float A = 1.0f)
         : R(Color3.R), G(Color3.G), B(Color3.B), A(A)
 	{
 	}
@@ -31,6 +31,11 @@ struct FGLTFJsonColor4
 		JsonWriter.WriteValue(B);
 		JsonWriter.WriteValue(A);
 		JsonWriter.WriteArrayEnd();
+	}
+
+	operator FGLTFJsonColor3() const
+	{
+		return { R, G, B };
 	}
 
 	bool operator==(const FGLTFJsonColor4& Other) const
