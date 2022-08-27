@@ -6,6 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public GLTFExporterRuntime(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PCHUsage = PCHUsageMode.NoPCHs;
+			bPrecompile = true;
+
 			PublicIncludePaths.AddRange(
 				new string[] {
 				}
