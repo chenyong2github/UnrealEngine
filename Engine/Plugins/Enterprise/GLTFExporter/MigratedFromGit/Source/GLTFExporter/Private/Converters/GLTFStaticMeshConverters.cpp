@@ -55,7 +55,7 @@ FGLTFJsonAccessorIndex FGLTFColorVertexBufferConverter::Add(FGLTFConvertBuilder&
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	TArray<FGLTFColor> Colors;
+	TArray<FGLTFPackedColor> Colors;
 	Colors.AddUninitialized(VertexCount);
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)

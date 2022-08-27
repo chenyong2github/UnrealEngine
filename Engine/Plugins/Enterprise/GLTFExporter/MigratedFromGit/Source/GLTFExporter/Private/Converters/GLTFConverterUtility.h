@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Converters/GLTFColor.h"
+#include "Converters/GLTFPackedColor.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Engine/EngineTypes.h"
 
@@ -36,7 +36,7 @@ struct FGLTFConverterUtility
 		return FVector4(ConvertVector(Tangent), 1.0f);
 	}
 
-	static FGLTFColor ConvertColor(const FColor& Color)
+	static FGLTFPackedColor ConvertColor(const FColor& Color)
 	{
 		// UE4 uses ABGR or ARGB depending on endianness.
 		// glTF always uses RGBA independent of endianness.
