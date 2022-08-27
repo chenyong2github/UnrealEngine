@@ -10,16 +10,35 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFInteractionHotsp
 	FGLTFJsonHotspot JsonHotspot;
 	HotspotActor->GetName(JsonHotspot.Name);
 
-	if (const ASkeletalMeshActor* SkeletalMeshActor = HotspotActor->SkeletalMeshActor)
+	if (!Builder.ExportOptions->bExportVertexSkinWeights)
 	{
-		const FGLTFJsonNodeIndex RootNode = Builder.GetOrAddNode(SkeletalMeshActor);
-		if (const USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
+		Builder.AddWarningMessage(
+			FString::Printf(TEXT("Can't export animation in hotspot %s because vertex skin weights are disabled by export options"),
+			*JsonHotspot.Name));
+	}
+	else if (!Builder.ExportOptions->bExportAnimationSequences)
+	{
+		Builder.AddWarningMessage(
+			FString::Printf(TEXT("Can't export animation in hotspot %s because animation sequences are disabled by export options"),
+			*JsonHotspot.Name));
+	}
+	else
+	{
+		if (const ASkeletalMeshActor* SkeletalMeshActor = HotspotActor->SkeletalMeshActor)
 		{
-			if (const UAnimSequence* AnimSequence = HotspotActor->AnimationSequence)
+			const FGLTFJsonNodeIndex RootNode = Builder.GetOrAddNode(SkeletalMeshActor);
+			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
 			{
-				if (SkeletalMesh->Skeleton == AnimSequence->GetSkeleton())
+				if (const UAnimSequence* AnimSequence = HotspotActor->AnimationSequence)
 				{
-					JsonHotspot.Animation = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
+					if (SkeletalMesh->Skeleton == AnimSequence->GetSkeleton())
+					{
+						JsonHotspot.Animation = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
+					}
+					else
+					{
+						// TODO: report warning
+					}
 				}
 				else
 				{
@@ -35,10 +54,6 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFInteractionHotsp
 		{
 			// TODO: report warning
 		}
-	}
-	else
-	{
-		// TODO: report warning
 	}
 
 	JsonHotspot.Image = Builder.GetOrAddTexture(HotspotActor->Image);
