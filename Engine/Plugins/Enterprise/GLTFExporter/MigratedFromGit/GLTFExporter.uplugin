@@ -13,10 +13,14 @@
 	"EngineVersion": "4.25.0",
 	"CanContainContent": true,
 	"IsBetaVersion": true,
-	"Modules":
-	[
+	"Modules": [
 		{
 			"Name": "GLTFExporter",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GLTFExporterRuntime",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
