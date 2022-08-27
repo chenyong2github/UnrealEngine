@@ -6,6 +6,8 @@ public class GLTFMaterialAnalyzer : ModuleRules
 {
 	public GLTFMaterialAnalyzer(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bTreatAsEngineModule = true;
+
 		PublicDependencyModuleNames .AddRange(
 			new string[]
 			{
