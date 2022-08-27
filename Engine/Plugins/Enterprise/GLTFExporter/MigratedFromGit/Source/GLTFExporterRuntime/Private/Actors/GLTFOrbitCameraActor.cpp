@@ -128,31 +128,16 @@ void AGLTFOrbitCameraActor::PreInitializeComponents()
 
 void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
 {
-	if (AxisValue == 0.0f)
-	{
-		return;
-	}
-
 	TargetYaw += AxisValue * OrbitSensitivity;
 }
 
 void AGLTFOrbitCameraActor::OnMouseY(float AxisValue)
 {
-	if (AxisValue == 0.0f)
-	{
-		return;
-	}
-
 	TargetPitch = ClampPitch(TargetPitch + AxisValue * OrbitSensitivity);
 }
 
 void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
 {
-	if (AxisValue == 0.0f)
-	{
-		return;
-	}
-
 	DollyTime = DollyDuration;
 	TargetDistance = ClampDistance(TargetDistance + -AxisValue * DistanceSensitivity);
 	DollyStartDistance = Distance;
