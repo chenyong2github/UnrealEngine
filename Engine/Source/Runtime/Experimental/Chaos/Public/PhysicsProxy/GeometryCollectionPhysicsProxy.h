@@ -560,7 +560,13 @@ public:
 
 	void Reset(int32 NumTransforms);
 	int32 Num() const { return DamageData.Num(); }
-	const FDamageData& operator[](int32 TransformIndex) const { return DamageData[TransformIndex]; }
+	const FDamageData& operator[](int32 TransformIndex) const 
+	{ 
+		static FDamageData DefaultDamageData;
+		if (DamageData.IsValidIndex(TransformIndex))
+			return DamageData[TransformIndex]; 
+		return DefaultDamageData;
+	}
 	void SampleDamage(int32 TransformIndex, float Damage, float DamageThreshold);
 	
 private:
