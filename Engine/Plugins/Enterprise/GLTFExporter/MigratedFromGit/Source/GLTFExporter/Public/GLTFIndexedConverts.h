@@ -4,6 +4,7 @@
 
 #include "GLTFJsonIndex.h"
 #include "GLTFStaticMeshConverters.h"
+#include "GLTFLevelConverters.h"
 #include "Engine.h"
 
 struct FGLTFContainerBuilder;
@@ -47,4 +48,7 @@ struct GLTFEXPORTER_API FGLTFIndexedConverts
 	TGLTFIndexedConvert<FGLTFJsonBufferViewIndex, TTuple<const FRawStaticIndexBuffer*>, FGLTFStaticMeshIndexBufferConverter> StaticMeshIndexBuffers;
 	TGLTFIndexedConvert<FGLTFJsonAccessorIndex, TTuple<const FStaticMeshSection*, const FRawStaticIndexBuffer*>, FGLTFStaticMeshSectionConverter> StaticMeshSections;
 	TGLTFIndexedConvert<FGLTFJsonMeshIndex, TTuple<const FStaticMeshLODResources*, const FColorVertexBuffer*>, FGLTFStaticMeshConverter> StaticMeshes;
+
+	TGLTFIndexedConvert<FGLTFJsonNodeIndex, TTuple<const USceneComponent*, bool, bool>, FGLTFSceneComponentConverter> SceneComponents;
+	TGLTFIndexedConvert<FGLTFJsonSceneIndex, TTuple<const ULevel*, bool>, FGLTFLevelConverter> Levels;
 };
