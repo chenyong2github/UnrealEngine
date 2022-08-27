@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFDegenerateUVSectionsChecker.h"
+#include "Converters/GLTFUVDegenerateChecker.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 
-void FGLTFDegenerateUVSectionsChecker::Sanitize(const FMeshDescription*& Description, int32& SectionIndex, int32& TexCoord)
+void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, int32& SectionIndex, int32& TexCoord)
 {
 	if (Description != nullptr)
 	{
@@ -25,7 +25,7 @@ void FGLTFDegenerateUVSectionsChecker::Sanitize(const FMeshDescription*& Descrip
 	}
 }
 
-bool FGLTFDegenerateUVSectionsChecker::Convert(const FMeshDescription* Description, int32 SectionIndex, int32 TexCoord)
+bool FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, int32 SectionIndex, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{
@@ -33,6 +33,8 @@ bool FGLTFDegenerateUVSectionsChecker::Convert(const FMeshDescription* Descripti
 
 		return false;
 	}
+
+	// TODO: since we are not really checking for degenerate UVs, but simply if all UVs have the same value or not, we should call this class something else
 
 	const FPolygonGroupID PolygonGroupID = FPolygonGroupID(SectionIndex);
 	const TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs =

@@ -7,7 +7,7 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFUVOverlapChecker.h"
-#include "Converters/GLTFDegenerateUVSectionsChecker.h"
+#include "Converters/GLTFUVDegenerateChecker.h"
 #include "Engine.h"
 
 class FGLTFMaterialConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*, const FGLTFMeshData*, TArray<int32>>
@@ -19,5 +19,5 @@ class FGLTFMaterialConverter final : public FGLTFBuilderContext, public TGLTFCon
 	virtual FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, TArray<int32> SectionIndices) override;
 
 	FGLTFUVOverlapChecker UVOverlapChecker;
-	FGLTFDegenerateUVSectionsChecker DegenerateUVSectionsChecker;
+	FGLTFUVDegenerateChecker UVDegenerateChecker;
 };
