@@ -5,6 +5,7 @@
 #include "Converters/GLTFSimpleTexture2DPreview.h"
 #include "Converters/GLTFCubemapFacePreview.h"
 #include "CanvasItem.h"
+#include "CanvasTypes.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -356,9 +357,9 @@ void FGLTFTextureUtility::EncodeRGBM(const TArray<FFloat16Color>& InPixels, TArr
 		const FFloat16Color& Color = InPixels[Index];
 		FLinearColor RGBM;
 
-		RGBM.R = FMath::Sqrt(Color.R);
-		RGBM.G = FMath::Sqrt(Color.G);
-		RGBM.B = FMath::Sqrt(Color.B);
+		RGBM.R = FMath::Sqrt(Color.R.GetFloat());
+		RGBM.G = FMath::Sqrt(Color.G.GetFloat());
+		RGBM.B = FMath::Sqrt(Color.B.GetFloat());
 
 		RGBM.R /= MaxRange;
 		RGBM.G /= MaxRange;
