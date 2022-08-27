@@ -18,8 +18,10 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 {
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
-	bExtensionsRequired = true;
+	bAllExtensionsRequired = true;
 	bExportVertexColors = true;
+	bTangentDataQuantization = false;
+	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Auto;
 	DefaultLevelOfDetail = 0;
 	bMapSkeletalMotionToRoot = false;
 	bExportUnlitMaterials = true;

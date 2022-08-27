@@ -6,6 +6,14 @@
 #include "GLTFExportOptions.generated.h"
 
 UENUM(BlueprintType)
+enum class EGLTFExporterNormalizeUVCoordinates : uint8
+{
+	Always,
+    Auto,
+	Never,
+};
+
+UENUM(BlueprintType)
 enum class EGLTFExporterTextureFormat : uint8
 {
 	PNG,
@@ -54,10 +62,16 @@ public:
 	uint32 bExportPreviewMesh : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-	uint32 bExtensionsRequired : 1;
+	uint32 bAllExtensionsRequired : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	uint32 bExportVertexColors : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
+	uint32 bTangentDataQuantization : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
+    EGLTFExporterNormalizeUVCoordinates bNormalizeUVCoordinates;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	int32 DefaultLevelOfDetail;
