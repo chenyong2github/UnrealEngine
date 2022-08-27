@@ -31,6 +31,7 @@ public:
 
 	const bool bSelectedActorsOnly;
 
+	// TODO: find a better place for this types of indirect converters
 	FGLTFStaticMeshDataConverter StaticMeshDataConverter;
 	FGLTFSkeletalMeshDataConverter SkeletalMeshDataConverter;
 
