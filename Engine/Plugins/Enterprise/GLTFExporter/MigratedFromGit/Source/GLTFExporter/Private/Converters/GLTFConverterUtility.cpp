@@ -52,7 +52,7 @@ EGLTFJsonAlphaMode FGLTFConverterUtility::ConvertBlendMode(EBlendMode Mode)
 		case BLEND_Opaque:      return EGLTFJsonAlphaMode::Opaque;
 		case BLEND_Translucent: return EGLTFJsonAlphaMode::Blend;
 		case BLEND_Masked:      return EGLTFJsonAlphaMode::Mask;
-		default:                return EGLTFJsonAlphaMode::Opaque; // fallback
+		default:                return EGLTFJsonAlphaMode::None;
 	}
 }
 
