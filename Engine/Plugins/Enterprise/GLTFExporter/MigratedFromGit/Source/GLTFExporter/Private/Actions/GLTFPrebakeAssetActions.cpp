@@ -6,6 +6,7 @@
 #include "Actions/GLTFEditorStyle.h"
 #include "Options/GLTFPrebakeOptions.h"
 #include "UI/GLTFPrebakeOptionsWindow.h"
+#include "GLTFExporterModule.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "GLTFPrebakeAssetActions"
@@ -52,7 +53,7 @@ void FGLTFPrebakeAssetActions::OnPrebake(TArray<FWeakObjectPtr> Objects) const
 	{
 		if (UMaterialInterface* Material = Cast<UMaterialInterface>(Object.Get()))
 		{
-			// TODO
+			IGLTFExporterModule::PrebakeMaterial(Material, Options);
 		}
 	}
 }

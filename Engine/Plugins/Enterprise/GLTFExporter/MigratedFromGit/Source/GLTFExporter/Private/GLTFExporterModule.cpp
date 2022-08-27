@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExporterModule.h"
+#include "Converters/GLTFMaterialPrebaker.h"
 #include "Actions/GLTFPrebakeAssetActions.h"
 #include "Interfaces/IPluginManager.h"
 #if WITH_EDITOR
@@ -12,6 +13,17 @@ class FAssetTypeActions_Base;
 #endif
 
 DEFINE_LOG_CATEGORY(LogGLTFExporter);
+
+UMaterialInterface* IGLTFExporterModule::PrebakeMaterial(UMaterialInterface* Material, const UGLTFPrebakeOptions* Options)
+{
+#if WITH_EDITOR
+	FGLTFMaterialPrebaker Prebaker(Options);
+	Prebaker.RootPath = FPaths::GetPath(Material->GetPathName());
+	return Prebaker.Prebake(Material);
+#else
+	return nullptr;
+#endif
+}
 
 class FGLTFExporterModule final : public IGLTFExporterModule
 {
