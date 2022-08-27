@@ -11,4 +11,8 @@ public:
 	FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
 
 	void Write(FArchive& Archive) const;
+
+private:
+
+	void WriteGlb(FArchive& Archive) const;
 };
