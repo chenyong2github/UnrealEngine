@@ -26,6 +26,12 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	if (VertexBuffer->GetVertexData() == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
@@ -76,6 +82,12 @@ FGLTFJsonAccessorIndex FGLTFColorBufferConverter::Convert(const FGLTFMeshSection
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	if (VertexBuffer->GetVertexData() == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
@@ -105,6 +117,13 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	const void* TangentData = const_cast<FStaticMeshVertexBuffer*>(VertexBuffer)->GetTangentData();
+	if (TangentData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	FGLTFJsonBufferViewIndex BufferViewIndex;
 	EGLTFJsonComponentType ComponentType;
 
@@ -118,13 +137,13 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 		if (bHighPrecision)
 		{
 			ComponentType = EGLTFJsonComponentType::S16;
-			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, VertexBuffer);
+			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, TangentData);
 			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFInt16Vector4);
 		}
 		else
 		{
 			ComponentType = EGLTFJsonComponentType::S8;
-			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, VertexBuffer);
+			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, TangentData);
 			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFInt8Vector4);
 		}
 	}
@@ -132,8 +151,8 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 	{
 		ComponentType = EGLTFJsonComponentType::F32;
 		BufferViewIndex = bHighPrecision
-			? ConvertBufferView<FGLTFVector3, FPackedRGBA16N>(MeshSection, VertexBuffer)
-			: ConvertBufferView<FGLTFVector3, FPackedNormal>(MeshSection, VertexBuffer);
+			? ConvertBufferView<FGLTFVector3, FPackedRGBA16N>(MeshSection, TangentData)
+			: ConvertBufferView<FGLTFVector3, FPackedNormal>(MeshSection, TangentData);
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -147,17 +166,10 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 }
 
 template <typename DestinationType, typename SourceType>
-FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
+FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMeshSection* MeshSection, const void* TangentData)
 {
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
-
-	const void* TangentData = const_cast<FStaticMeshVertexBuffer*>(VertexBuffer)->GetTangentData();
-	if (TangentData == nullptr)
-	{
-		// TODO: report error
-		return FGLTFJsonBufferViewIndex(INDEX_NONE);
-	}
 
 	typedef TStaticMeshVertexTangentDatum<SourceType> VertexTangentType;
 	const VertexTangentType* VertexTangents = static_cast<const VertexTangentType*>(TangentData);
@@ -184,6 +196,13 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	const void* TangentData = const_cast<FStaticMeshVertexBuffer*>(VertexBuffer)->GetTangentData();
+	if (TangentData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	FGLTFJsonBufferViewIndex BufferViewIndex;
 	EGLTFJsonComponentType ComponentType;
 
@@ -197,20 +216,20 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 		if (bHighPrecision)
 		{
 			ComponentType = EGLTFJsonComponentType::S16;
-			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, VertexBuffer);
+			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, TangentData);
 		}
 		else
 		{
 			ComponentType = EGLTFJsonComponentType::S8;
-			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, VertexBuffer);
+			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, TangentData);
 		}
 	}
 	else
 	{
 		ComponentType = EGLTFJsonComponentType::F32;
 		BufferViewIndex = bHighPrecision
-			? ConvertBufferView<FGLTFVector4, FPackedRGBA16N>(MeshSection, VertexBuffer)
-			: ConvertBufferView<FGLTFVector4, FPackedNormal>(MeshSection, VertexBuffer);
+			? ConvertBufferView<FGLTFVector4, FPackedRGBA16N>(MeshSection, TangentData)
+			: ConvertBufferView<FGLTFVector4, FPackedNormal>(MeshSection, TangentData);
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -224,17 +243,10 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 }
 
 template <typename DestinationType, typename SourceType>
-FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
+FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFMeshSection* MeshSection, const void* TangentData)
 {
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
-
-	const void* TangentData = const_cast<FStaticMeshVertexBuffer*>(VertexBuffer)->GetTangentData();
-	if (TangentData == nullptr)
-	{
-		// TODO: report error
-		return FGLTFJsonBufferViewIndex(INDEX_NONE);
-	}
 
 	typedef TStaticMeshVertexTangentDatum<SourceType> VertexTangentType;
 	const VertexTangentType* VertexTangents = static_cast<const VertexTangentType*>(TangentData);
@@ -258,6 +270,12 @@ FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* M
 {
 	if (VertexBuffer == nullptr || VertexBuffer->GetNumVertices() == 0)
 	{
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
+	if (const_cast<FStaticMeshVertexBuffer*>(VertexBuffer)->GetTexCoordData() == nullptr)
+	{
+		// TODO: report error
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
@@ -306,6 +324,12 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexBufferConverter::Convert(const FGLTFMeshSec
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	if (VertexBuffer->GetDataVertexBuffer()->GetWeightData() == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	const uint32 InfluenceCount = VertexBuffer->GetMaxBoneInfluences();
 	if (InfluenceOffset >= InfluenceCount)
 	{
@@ -350,6 +374,12 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightBufferConverter::Convert(const FGLTFMeshSe
 {
 	if (VertexBuffer == nullptr || VertexBuffer->GetNumVertices() == 0)
 	{
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
+	if (VertexBuffer->GetDataVertexBuffer()->GetWeightData() == nullptr)
+	{
+		// TODO: report error
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
