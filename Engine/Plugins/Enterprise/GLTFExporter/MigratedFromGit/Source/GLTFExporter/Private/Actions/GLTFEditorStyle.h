@@ -21,10 +21,10 @@ public:
 	 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);
 	 	check(Plugin.IsValid());
 
-	 	FSlateStyleSet::SetContentRoot(Plugin->GetContentDir());
+	 	FSlateStyleSet::SetContentRoot(Plugin->GetBaseDir() / TEXT("Resources"));
 
-	 	const FVector2D Icon16x16(16.0f, 16.0f);
-	 	Set("Icon16x16", new FSlateImageBrush(FSlateStyleSet::RootToContentDir(TEXT("Icon16x16.png")), Icon16x16));
+	 	const FVector2D IconSize(16.0f, 16.0f);
+	 	Set("Icon16", new FSlateImageBrush(FSlateStyleSet::RootToContentDir(TEXT("Icon16.png")), IconSize));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	 }
