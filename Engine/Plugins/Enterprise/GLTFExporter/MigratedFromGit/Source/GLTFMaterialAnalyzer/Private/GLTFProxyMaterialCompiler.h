@@ -8,10 +8,32 @@ class FGLTFProxyMaterialCompiler : public FProxyMaterialCompiler
 {
 	using FProxyMaterialCompiler::FProxyMaterialCompiler;
 
+	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override
+	{
+		return Direct; // ignore all non-default branches in this runtime switch
+	}
+
+	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override
+	{
+		return Default; // ignore all non-default branches in this runtime switch
+	}
+
 	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) override
 	{
-		return Normal; // ignore RayTraced branch
+		return Normal; // ignore all non-default branches in this runtime switch
 	}
+
+	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override
+	{
+		return Default; // ignore all non-default branches in this runtime switch
+	}
+
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
+	virtual int32 ReflectionCapturePassSwitch(int32 Default, int32 Reflection) override
+	{
+		return Default; // ignore all non-default branches in this runtime switch
+	}
+#endif
 
 	virtual int32 ReflectionAboutCustomWorldNormal(int32 CustomWorldNormal, int32 bNormalizeCustomWorldNormal) override
 	{
