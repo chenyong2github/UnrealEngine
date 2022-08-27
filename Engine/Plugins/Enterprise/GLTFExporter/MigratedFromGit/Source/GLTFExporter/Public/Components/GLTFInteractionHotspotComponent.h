@@ -76,23 +76,28 @@ private:
 
 	void UpdateCollisionVolume();
 	float GetBillboardBoundingRadius() const;
+	UTexture2D* GetActiveImage(bool bCursorOver) const;
 
 public:
 	/** List of skeletal meshes and animations to be played when the hotspot is interacted with. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	TArray<FGLTFAnimation> Animations;
 
-	/** The billboard image that will be shown when the hotspot is in an inactive state or one without a specified sprite. */
+	/** The billboard image that will be shown when the hotspot is in an idle state or one without a specified image. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
-	UTexture2D* DefaultSprite;
+	UTexture2D* Image;
 
 	/** The optional billboard image that will be shown when a cursor enters the hotspot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
-	UTexture2D* HighlightSprite;
+	UTexture2D* HoveredImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
-	UTexture2D* ToggledSprite;
+	UTexture2D* ToggledImage;
+
+	/** The optional billboard image that will be shown when the hotspot is toggled by a click and a cursor enters it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UTexture2D* ToggledHoveredImage;
 
 private:
 	UPROPERTY(transient, duplicatetransient)
