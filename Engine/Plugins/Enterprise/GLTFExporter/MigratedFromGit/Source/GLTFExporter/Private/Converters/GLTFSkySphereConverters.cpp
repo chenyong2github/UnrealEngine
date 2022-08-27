@@ -176,7 +176,7 @@ void FGLTFSkySphereConverter::ConvertColorCurveProperty(const AActor& Actor, con
 		if (FGLTFCurveUtility::HasAnyAdjustment(*ColorCurve))
 		{
 			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Adjustments for %s in Sky Sphere %s are not supported and will be ignored"),
+				TEXT("Adjustments for %s in Sky Sphere %s are not supported"),
 				ExportedPropertyName,
 				*Actor.GetName()));
 		}
