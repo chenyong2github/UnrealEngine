@@ -68,7 +68,6 @@ namespace FMaterialBakingHelpersImpl
 
 		check(InOutPixels.Num() == ImageWidth*ImageHeight);
 
-		const uint32 MagentaMask = FColor(255, 0, 255).DWColor();
 		const int32 PaddedImageWidth = ImageWidth + 2;
 		const int32 PaddedImageHeight = ImageHeight + 2;
 

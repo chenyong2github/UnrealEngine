@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Core/GLTFCore.h"
+#include "CoreTypes.h"
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack(push, 1)

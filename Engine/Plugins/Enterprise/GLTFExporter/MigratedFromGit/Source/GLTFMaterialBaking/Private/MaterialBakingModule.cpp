@@ -512,7 +512,6 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 		}
 
 		const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
-		const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
 		FBakeOutputEx& CurrentOutput = Output[MaterialIndex];
 
 		TArray<FMaterialPropertyEx> MaterialPropertiesToBakeOut;

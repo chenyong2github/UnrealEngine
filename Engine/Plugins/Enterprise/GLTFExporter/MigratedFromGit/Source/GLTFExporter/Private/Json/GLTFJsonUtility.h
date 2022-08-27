@@ -193,7 +193,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonShadingModel::ClearCoat: return TEXT("ClearCoat");
 			default:
 				checkNoEntry();
-			return TEXT("");
+				return TEXT("");
 		}
 	}
 };
