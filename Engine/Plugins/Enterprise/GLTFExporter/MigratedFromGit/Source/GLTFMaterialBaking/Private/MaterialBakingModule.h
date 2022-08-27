@@ -10,7 +10,6 @@
 #include "MaterialPropertyEx.h"
 
 class UTextureRenderTarget2D;
-class UGLTFMaterialOptions;
 class UMaterialInterface;
 
 class FExportMaterialProxy;
@@ -33,9 +32,6 @@ public:
 
 	/** Bakes out material properties according to extended MaterialSettings using MeshSettings and stores the output in Output */
 	virtual void BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutputEx>& Output) override;
-
-	/** Promps a slate window to allow the user to populate specific material baking settings used while baking out materials */
-	virtual bool SetupMaterialBakeSettings(TArray<TWeakObjectPtr<UObject>>& OptionObjects, int32 NumLODs) override;
 
 protected:
 	/* Creates and adds or reuses a RenderTarget from the pool */

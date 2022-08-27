@@ -5,10 +5,6 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "ExportMaterialProxy.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "MaterialOptionsWindow.h"
-#include "MaterialOptions.h"
-#include "PropertyEditorModule.h"
-#include "MaterialOptionsCustomization.h"
 #include "UObject/UObjectGlobals.h"
 #include "MaterialBakingStructures.h"
 #include "Framework/Application/SlateApplication.h"
@@ -263,10 +259,6 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyFormat.Add(MP_ShadingModel, PF_B8G8R8A8);
 	PerPropertyFormat.Add(TEXT("ClearCoatBottomNormal"), PF_B8G8R8A8);
 
-	// Register property customization
-	FPropertyEditorModule& Module = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	Module.RegisterCustomPropertyTypeLayout(TEXT("PropertyEntry"), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPropertyEntryCustomization::MakeInstance));
-	
 	// Register callback for modified objects
 	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FMaterialBakingModule::OnObjectModified);
 }
@@ -696,34 +688,6 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 	{
 		CleanupMaterialProxies();
 	}
-}
-
-bool FMaterialBakingModule::SetupMaterialBakeSettings(TArray<TWeakObjectPtr<UObject>>& OptionObjects, int32 NumLODs)
-{
-	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(LOCTEXT("WindowTitle", "Material Baking Options"))
-		.SizingRule(ESizingRule::Autosized);
-
-	TSharedPtr<SMaterialOptions> Options;
-
-	Window->SetContent
-	(
-		SAssignNew(Options, SMaterialOptions)
-		.WidgetWindow(Window)
-		.NumLODs(NumLODs)
-		.SettingsObjects(OptionObjects)
-	);
-
-	TSharedPtr<SWindow> ParentWindow;
-	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
-	{
-		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
-		ParentWindow = MainFrame.GetParentWindow();
-		FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
-		return !Options->WasUserCancelled();
-	}
-
-	return false;
 }
 
 void FMaterialBakingModule::CleanupMaterialProxies()
