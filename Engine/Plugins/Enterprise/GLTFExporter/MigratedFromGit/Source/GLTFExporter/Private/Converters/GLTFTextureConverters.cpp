@@ -76,20 +76,6 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 			return FGLTFJsonTextureIndex(INDEX_NONE);
 		}
 	}
-	else if (FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->GetPixelFormat(), RGBFormat, BitDepth))
-	{
-		if (!FGLTFTextureUtility::LoadPlatformData(const_cast<UTexture2D*>(Texture2D)))
-		{
-			// TODO: report error
-			return FGLTFJsonTextureIndex(INDEX_NONE);
-		}
-
-		const FByteBulkData& BulkData = Texture2D->PlatformData->Mips[0].BulkData;
-		const void* RawData = BulkData.LockReadOnly();
-
-		ImageIndex = Builder.AddImage(RawData, BulkData.GetBulkDataSize(), Size, RGBFormat, BitDepth, JsonTexture.Name);
-		BulkData.Unlock();
-	}
 	else
 	{
 		const EPixelFormat RenderTargetFormat = FGLTFTextureUtility::IsHDRFormat(Texture2D->GetPixelFormat()) ? PF_FloatRGBA : PF_B8G8R8A8;
