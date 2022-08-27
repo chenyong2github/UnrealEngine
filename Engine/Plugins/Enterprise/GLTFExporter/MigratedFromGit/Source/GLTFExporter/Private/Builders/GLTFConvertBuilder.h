@@ -10,6 +10,7 @@
 #include "Converters/GLTFSamplerConverters.h"
 #include "Converters/GLTFTextureConverters.h"
 #include "Converters/GLTFNodeConverters.h"
+#include "Converters/GLTFSkinConverters.h"
 #include "Converters/GLTFSceneConverters.h"
 #include "Converters/GLTFCameraConverters.h"
 #include "Converters/GLTFLightConverters.h"
@@ -50,6 +51,10 @@ public:
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTextureRenderTarget2D* Texture);
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace);
 
+	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName);
+	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex);
+	FGLTFJsonSkinIndex GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh);
+
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent);
 	FGLTFJsonNodeIndex GetOrAddNode(const AActor* Actor);
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level);
@@ -82,6 +87,10 @@ private:
 	FGLTFTextureCubeConverter TextureCubeConverter{ *this };
 	FGLTFTextureRenderTarget2DConverter TextureRenderTarget2DConverter{ *this };
 	FGLTFTextureRenderTargetCubeConverter TextureRenderTargetCubeConverter{ *this };
+
+	FGLTFSkeletalSocketConverter SkeletalSocketConverter{ *this };
+	FGLTFSkeletalBoneConverter SkeletalBoneConverter{ *this };
+	FGLTFSkinConverter SkinConverter{ *this };
 
 	FGLTFComponentConverter ComponentConverter{ *this };
 	FGLTFActorConverter ActorConverter{ *this };

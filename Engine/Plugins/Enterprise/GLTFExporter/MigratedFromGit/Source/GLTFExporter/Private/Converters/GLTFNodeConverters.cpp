@@ -142,3 +142,66 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 
 	return RootNodeIndex;
 }
+
+FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
+{
+	const USkeletalMeshSocket* Socket = SkeletalMesh->FindSocket(SocketName);
+	if (Socket != nullptr)
+	{
+		FGLTFJsonNode Node;
+		Node.Name = SocketName.ToString();
+
+		// TODO: add support for non-uniform scaling
+		const FTransform Transform = Socket->GetSocketLocalTransform();
+		Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation(), Builder.ExportOptions->ExportScale);
+		Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
+		Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
+
+		const int32 ParentBone = SkeletalMesh->RefSkeleton.FindBoneIndex(Socket->BoneName);
+		const FGLTFJsonNodeIndex ParentNode = ParentBone != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
+		return Builder.AddChildNode(ParentNode, Node);
+	}
+
+	const int32 BoneIndex = SkeletalMesh->RefSkeleton.FindBoneIndex(SocketName);
+	if (BoneIndex != INDEX_NONE)
+	{
+		return Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
+	}
+
+	// TODO: report error
+	return FGLTFJsonNodeIndex(INDEX_NONE);
+}
+
+FGLTFJsonNodeIndex FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex)
+{
+	// TODO: add support for MasterPoseComponent?
+
+	const TArray<FMeshBoneInfo>& BoneInfos = SkeletalMesh->RefSkeleton.GetRefBoneInfo();
+	if (!BoneInfos.IsValidIndex(BoneIndex))
+	{
+		// TODO: report error
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	const FMeshBoneInfo& BoneInfo = BoneInfos[BoneIndex];
+
+	FGLTFJsonNode Node;
+	Node.Name = BoneInfo.Name.ToString();
+
+	const TArray<FTransform>& BonePoses = SkeletalMesh->RefSkeleton.GetRefBonePose();
+	if (BonePoses.IsValidIndex(BoneIndex))
+	{
+		// TODO: add support for non-uniform scaling
+		const FTransform& BonePose = BonePoses[BoneIndex];
+		Node.Translation = FGLTFConverterUtility::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportScale);
+		Node.Rotation = FGLTFConverterUtility::ConvertRotation(BonePose.GetRotation());
+		Node.Scale = FGLTFConverterUtility::ConvertScale(BonePose.GetScale3D());
+	}
+	else
+	{
+		// TODO: report error
+	}
+
+	const FGLTFJsonNodeIndex ParentNode = BoneInfo.ParentIndex != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneInfo.ParentIndex) : RootNode;
+	return Builder.AddChildNode(ParentNode, Node);
+}

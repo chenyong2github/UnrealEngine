@@ -25,6 +25,7 @@ public:
 	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode = {});
 	FGLTFJsonSamplerIndex AddSampler(const FGLTFJsonSampler& JsonSampler = {});
 	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene = {});
+	FGLTFJsonSkinIndex AddSkin(const FGLTFJsonSkin& JsonSkin = {});
 	FGLTFJsonTextureIndex AddTexture(const FGLTFJsonTexture& JsonTexture = {});
 	FGLTFJsonBackdropIndex AddBackdrop(const FGLTFJsonBackdrop& JsonBackdrop = {});
 	FGLTFJsonVariationIndex AddVariation(const FGLTFJsonVariation& JsonVariation = {});
@@ -45,6 +46,7 @@ public:
 	FGLTFJsonNode& GetNode(FGLTFJsonNodeIndex NodeIndex);
 	FGLTFJsonSampler& GetSampler(FGLTFJsonSamplerIndex SamplerIndex);
 	FGLTFJsonScene& GetScene(FGLTFJsonSceneIndex SceneIndex);
+	FGLTFJsonSkin& GetSkin(FGLTFJsonSkinIndex SkinIndex);
 	FGLTFJsonTexture& GetTexture(FGLTFJsonTextureIndex TextureIndex);
 	FGLTFJsonBackdrop& GetBackdrop(FGLTFJsonBackdropIndex BackdropIndex);
 	FGLTFJsonVariation& GetVariation(FGLTFJsonVariationIndex VariationIndex);
