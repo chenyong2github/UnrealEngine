@@ -25,13 +25,11 @@
 
 class FGLTFConvertBuilder : public FGLTFBufferBuilder
 {
-protected:
-
-	FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors);
-
 public:
 
 	const TSet<AActor*> SelectedActors;
+
+	FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors = {});
 
 	bool IsSelectedActor(const AActor* Object) const;
 	bool IsRootActor(const AActor* Actor) const;

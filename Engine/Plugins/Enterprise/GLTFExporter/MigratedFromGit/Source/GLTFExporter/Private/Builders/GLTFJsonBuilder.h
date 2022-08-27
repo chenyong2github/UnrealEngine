@@ -7,17 +7,15 @@
 
 class FGLTFJsonBuilder : public FGLTFTaskBuilder
 {
-protected:
+public:
+
+	FGLTFJsonSceneIndex& DefaultScene;
 
 	FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
 	void WriteJson(FArchive& Archive);
 
 	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
-
-public:
-
-	FGLTFJsonSceneIndex& DefaultScene;
 
 	void AddExtension(EGLTFJsonExtension Extension, bool bIsRequired = false);
 

@@ -10,11 +10,9 @@ class IMessageLogListing;
 
 class FGLTFLogBuilder : public FGLTFBuilder
 {
-protected:
+public:
 
 	FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
-
-public:
 
 	void LogSuggestion(const FString& Message);
 
