@@ -54,8 +54,6 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, c
 		return FGLTFJsonMeshIndex(INDEX_NONE);
 	}
 
-	const int32 PrimaryUVIndex = 0; // TODO: make this configurable?
-	const int32 LightmapUVIndex = StaticMesh->LightMapCoordinateIndex != PrimaryUVIndex ? StaticMesh->LightMapCoordinateIndex : INDEX_NONE;
 	const FStaticMeshLODResources& LODResources = StaticMesh->GetLODForExport(LODIndex);
 
 	FGLTFJsonMesh JsonMesh;
@@ -70,8 +68,14 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, c
 	JsonAttributes.Color0 = Builder.GetOrAddColorAccessor(ColorBuffer, Name + TEXT("_Colors"));
 	JsonAttributes.Normal = Builder.GetOrAddNormalAccessor(VertexBuffer, Name + TEXT("_Normals"));
 	JsonAttributes.Tangent = Builder.GetOrAddTangentAccessor(VertexBuffer, Name + TEXT("_Tangents"));
-	JsonAttributes.TexCoord0 = Builder.GetOrAddUVAccessor(VertexBuffer, PrimaryUVIndex, Name + TEXT("_UV") + FString::FromInt(PrimaryUVIndex) + TEXT("s"));
-	JsonAttributes.TexCoord1 = Builder.GetOrAddUVAccessor(VertexBuffer, LightmapUVIndex, Name + TEXT("_UV") + FString::FromInt(LightmapUVIndex) + TEXT("s"));
+
+	const uint32 UVCount = VertexBuffer->GetNumTexCoords();
+	JsonAttributes.TexCoords.AddUninitialized(UVCount);
+
+	for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
+	{
+		JsonAttributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(VertexBuffer, UVIndex, Name + TEXT("_UV") + FString::FromInt(UVIndex) + TEXT("s"));
+	}
 
 	const FRawStaticIndexBuffer* IndexBuffer = &LODResources.IndexBuffer;
 	Builder.GetOrAddIndexBufferView(IndexBuffer, Name + TEXT("_Indices"));
