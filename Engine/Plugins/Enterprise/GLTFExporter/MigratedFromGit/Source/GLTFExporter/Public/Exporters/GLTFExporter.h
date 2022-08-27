@@ -9,7 +9,7 @@
 class FGLTFContainerBuilder;
 class UGLTFExportOptions;
 
-UCLASS()
+UCLASS(Abstract)
 class GLTFEXPORTER_API UGLTFExporter : public UExporter
 {
 public:
