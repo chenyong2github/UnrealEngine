@@ -6,6 +6,7 @@
 #include "Converters/GLTFCubemapFacePreview.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "TextureCompiler.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -31,6 +32,18 @@ bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
 		default:
 			return false;
 	}
+}
+
+void FGLTFTextureUtility::FullyLoad(const UTexture* Texture)
+{
+	UTexture* MutableTexture = const_cast<UTexture*>(Texture);
+
+#if WITH_EDITOR
+	FTextureCompilingManager::Get().FinishCompilation({ MutableTexture });
+#endif
+
+	MutableTexture->SetForceMipLevelsToBeResident(30.0f);
+	MutableTexture->WaitForStreaming();
 }
 
 bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)
@@ -174,10 +187,6 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	{
 		return false;
 	}
-
-	// Fully stream in the texture before drawing it.
-	const_cast<UTexture2D*>(InSource)->SetForceMipLevelsToBeResident(30.0f, true);
-	const_cast<UTexture2D*>(InSource)->WaitForStreaming();
 
 	TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
 
