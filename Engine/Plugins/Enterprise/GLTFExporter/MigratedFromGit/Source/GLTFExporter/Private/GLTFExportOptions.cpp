@@ -27,7 +27,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportUnlitMaterials = false;
 	bExportClearCoatMaterials = false;
 	bBakeMaterialInputs = true;
-	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_512;
+	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	TextureFormat = EGLTFExporterTextureFormat::None;
 	bExportLightmaps = false;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::None;
