@@ -119,7 +119,7 @@ void FGLTFDelayedStaticMeshTask::Process()
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
-		Builder.LogWarning(FString::Printf(
+		Builder.LogSuggestion(FString::Printf(
 			TEXT("Vertex colors in mesh %s will act as a multiplier for base color in glTF, regardless of material, which may produce undesirable results"),
 			*StaticMesh->GetName()));
 	}
@@ -222,7 +222,7 @@ void FGLTFDelayedSkeletalMeshTask::Process()
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
-		Builder.LogWarning(FString::Printf(
+		Builder.LogSuggestion(FString::Printf(
 			TEXT("Vertex colors in mesh %s will act as a multiplier for base color in glTF, regardless of material, which may produce undesirable results"),
 			*SkeletalMesh->GetName()));
 	}
