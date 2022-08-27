@@ -36,7 +36,6 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Add(FGLTFConvertB
 			}
 		}
 
-		// TODO: allow sets without any variants?
 		if (JsonVariantSet.Variants.Num() > 0)
 		{
 			JsonLevelVariantSets.VariantSets.Add(JsonVariantSet);
@@ -45,7 +44,6 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Add(FGLTFConvertB
 
 	if (JsonLevelVariantSets.VariantSets.Num() == 0)
 	{
-		// TODO: allow level variant sets without any variant sets?
 		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
 	}
 
@@ -67,7 +65,6 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariant(FGLTFConvertBuilder& Bu
 
 	if (JsonVariant.Nodes.Num() == 0)
 	{
-		// TODO: allow variants without nodes?
 		return false;
 	}
 
