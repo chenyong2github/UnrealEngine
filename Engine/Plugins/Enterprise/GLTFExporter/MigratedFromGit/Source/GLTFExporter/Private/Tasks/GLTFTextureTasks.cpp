@@ -37,8 +37,8 @@ void FGLTFTexture2DTask::Complete()
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(Texture2D->GetPixelFormat());
 	const EGLTFExporterTextureFlags Flags =
-		(Texture2D->IsNormalMap() ? EGLTFExporterTextureFlags::Normalmaps : EGLTFExporterTextureFlags::None) |
-		(bIsHDR ? EGLTFExporterTextureFlags::HDR : EGLTFExporterTextureFlags::None);
+		Texture2D->IsNormalMap() ? EGLTFExporterTextureFlags::Normalmaps :
+		bIsHDR ? EGLTFExporterTextureFlags::HDR : EGLTFExporterTextureFlags::None;
 
 	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Flags, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
