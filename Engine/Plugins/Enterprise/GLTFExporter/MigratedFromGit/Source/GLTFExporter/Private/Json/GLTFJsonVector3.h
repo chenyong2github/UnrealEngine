@@ -18,8 +18,8 @@ struct FGLTFJsonVector3
 	{
 	}
 
-	FGLTFJsonVector3(const FGLTFJsonVector2& Vector3, float Z)
-        : X(Vector3.X), Y(Vector3.Y), Z(Z)
+	FGLTFJsonVector3(const FGLTFJsonVector2& Vector2, float Z)
+        : X(Vector2.X), Y(Vector2.Y), Z(Z)
 	{
 	}
 
