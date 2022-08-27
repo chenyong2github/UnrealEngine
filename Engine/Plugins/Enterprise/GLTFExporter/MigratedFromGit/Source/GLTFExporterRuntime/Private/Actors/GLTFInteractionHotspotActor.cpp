@@ -33,8 +33,13 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	HoveredImage(nullptr),
 	ToggledImage(nullptr),
 	ToggledHoveredImage(nullptr),
+	BillboardComponent(nullptr),
 	SphereComponent(nullptr),
 	DefaultMaterial(nullptr),
+	DefaultImage(nullptr),
+	DefaultHoveredImage(nullptr),
+	DefaultToggledImage(nullptr),
+	DefaultToggledHoveredImage(nullptr),
 	ActiveImage(nullptr),
 	ActiveImageSize(0.0f, 0.0f),
 	bToggled(bToggled),
@@ -71,13 +76,33 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	SphereComponent->OnEndCursorOver.AddDynamic(this, &AGLTFInteractionHotspotActor::EndCursorOver);
 	SphereComponent->OnClicked.AddDynamic(this, &AGLTFInteractionHotspotActor::Clicked);
 
-	const ConstructorHelpers::FObjectFinder<UMaterial> MaterialRef(TEXT("/GLTFExporter/Materials/Hotspot"));
-	DefaultMaterial = MaterialRef.Object;
+	struct FConstructorStatics
+	{
+		ConstructorHelpers::FObjectFinder<UMaterial> DefaultMaterial;
+		ConstructorHelpers::FObjectFinder<UMaterial> DefaultIconMaterial;
+		ConstructorHelpers::FObjectFinder<UTexture2D> DefaultImage;
+		ConstructorHelpers::FObjectFinder<UTexture2D> DefaultHoveredImage;
+		ConstructorHelpers::FObjectFinder<UTexture2D> DefaultToggledImage;
+		ConstructorHelpers::FObjectFinder<UTexture2D> DefaultToggledHoveredImage;
 
-#if WITH_EDITORONLY_DATA
-	const ConstructorHelpers::FObjectFinder<UMaterial> IconMaterialRef(TEXT("/GLTFExporter/Materials/HotspotIcon"));
-	DefaultIconMaterial = IconMaterialRef.Object;
-#endif // WITH_EDITORONLY_DATA
+		FConstructorStatics()
+			: DefaultMaterial(TEXT("/GLTFExporter/Materials/Hotspot"))
+			, DefaultIconMaterial(TEXT("/GLTFExporter/Materials/HotspotIcon"))
+			, DefaultImage(TEXT("/GLTFExporter/Textures/Hotspots/Image"))
+			, DefaultHoveredImage(TEXT("/GLTFExporter/Textures/Hotspots/HoveredImage"))
+			, DefaultToggledImage(TEXT("/GLTFExporter/Textures/Hotspots/ToggledImage"))
+			, DefaultToggledHoveredImage(TEXT("/GLTFExporter/Textures/Hotspots/ToggledHoveredImage"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	DefaultMaterial = ConstructorStatics.DefaultMaterial.Object;
+	DefaultIconMaterial = ConstructorStatics.DefaultIconMaterial.Object;
+	DefaultImage = ConstructorStatics.DefaultImage.Object;
+	DefaultHoveredImage = ConstructorStatics.DefaultHoveredImage.Object;
+	DefaultToggledImage = ConstructorStatics.DefaultToggledImage.Object;
+	DefaultToggledHoveredImage = ConstructorStatics.DefaultToggledHoveredImage.Object;
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
