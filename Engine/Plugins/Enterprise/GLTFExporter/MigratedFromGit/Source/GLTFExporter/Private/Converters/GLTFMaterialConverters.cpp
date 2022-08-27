@@ -44,6 +44,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 		if (!bRequiresVertexData)
 		{
 			Mesh = nullptr;
+			LODIndex = -1;
 		}
 	}
 }
