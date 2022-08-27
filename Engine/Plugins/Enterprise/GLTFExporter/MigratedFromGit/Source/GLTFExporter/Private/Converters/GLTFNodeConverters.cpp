@@ -53,13 +53,19 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			MeshNode.Name = FGLTFNameUtility::GetName(StaticMeshComponent);
 			MeshNode.Scale = ComponentNodeScale;
 			MeshNode.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
-			MeshNode.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+			if (Builder.ExportOptions->bExportLightmaps)
+			{
+				MeshNode.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+			}
 			Builder.AddChildComponentNode(NodeIndex, MeshNode);
 		}
 		else
 		{
 			Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
-			Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+			if (Builder.ExportOptions->bExportLightmaps)
+			{
+				Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+			}
 		}
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
@@ -95,10 +101,6 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 				Node.Hotspot = Builder.GetOrAddHotspot(HotspotComponent);
 			}
 		}
-		else
-		{
-			Builder.AddWarningMessage(FString::Printf(TEXT("Interaction-hotspot %s disabled by export options"), *Owner->GetName()));
-		}
 	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
 	{
@@ -112,10 +114,6 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
 			Builder.AddChildComponentNode(NodeIndex, CameraNode);
 		}
-		else
-		{
-			Builder.AddWarningMessage(FString::Printf(TEXT("Camera %s disabled by export options"), *Owner->GetName()));
-		}
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
@@ -128,10 +126,6 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			LightNode.Scale = ComponentNodeScale;
 			LightNode.Light = Builder.GetOrAddLight(LightComponent);
 			Builder.AddChildComponentNode(NodeIndex, LightNode);
-		}
-		else
-		{
-			Builder.AddWarningMessage(FString::Printf(TEXT("Light %s disabled by export options"), *Owner->GetName()));
 		}
 	}
 
@@ -162,12 +156,6 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 		{
 			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
 			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
-		}
-		else
-		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("HDRIBackdrop %s disabled by export options"),
-				*Actor->GetName()));
 		}
 	}
 	else
