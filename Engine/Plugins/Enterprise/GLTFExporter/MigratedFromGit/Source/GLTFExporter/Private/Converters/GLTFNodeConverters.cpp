@@ -64,14 +64,6 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	{
 		Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
 	}
-	else if (Owner->IsA<AGLTFInteractionHotspotActor>() && bIsRootComponent)
-	{
-		if (Builder.ExportOptions->bExportInteractionHotspots)
-		{
-			const AGLTFInteractionHotspotActor* HotspotActor = Cast<AGLTFInteractionHotspotActor>(Owner);
-			Node.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
-		}
-	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
 	{
 		if (Builder.ExportOptions->bExportCameras)
@@ -124,6 +116,14 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 		{
 			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
 			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+		}
+	}
+	else if (const AGLTFInteractionHotspotActor* HotspotActor = Cast<AGLTFInteractionHotspotActor>(Actor))
+	{
+		if (Builder.ExportOptions->bExportInteractionHotspots)
+		{
+			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+			RootNode.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
 		}
 	}
 	else
