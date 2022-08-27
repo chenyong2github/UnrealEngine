@@ -1002,7 +1002,10 @@ void FVersionedNiagaraEmitterData::ForEachScript(TAction Func) const
 	Func(SpawnScriptProps.Script);
 	Func(UpdateScriptProps.Script);
 
-	Func(GPUComputeScript);
+	if (GPUComputeScript)
+	{
+		Func(GPUComputeScript);
+	}
 
 	for (auto& EventScriptProps : EventHandlerScriptProps)
 	{
