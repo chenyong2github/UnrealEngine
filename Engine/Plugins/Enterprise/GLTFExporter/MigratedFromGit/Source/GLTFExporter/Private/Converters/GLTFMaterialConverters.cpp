@@ -276,7 +276,21 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, const F
 			}
 		}
 
-		// TODO: add support for output mask
+		const uint32 MaskComponentCount = FGLTFMaterialUtility::GetMaskComponentCount(MaterialInput);
+
+		if (MaskComponentCount > 0)
+		{
+			const FLinearColor Mask = FGLTFMaterialUtility::ConvertMaskToColor(MaterialInput);
+
+			Value *= Mask;
+
+			if (MaskComponentCount == 1)
+			{
+				const float ComponentValue = Value.R + Value.G + Value.B + Value.A;
+				Value = { ComponentValue, ComponentValue, ComponentValue, ComponentValue };
+			}
+		}
+
 		OutValue = Value;
 		return true;
 	}
@@ -348,8 +362,16 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalar
 			}
 		}
 
-		// TODO: add support for output mask
-		OutValue = Value.R;
+		const uint32 MaskComponentCount = FGLTFMaterialUtility::GetMaskComponentCount(MaterialInput);
+
+		if (MaskComponentCount > 0)
+		{
+			const FLinearColor Mask = FGLTFMaterialUtility::ConvertMaskToColor(MaterialInput);
+			Value *= Mask;
+		}
+
+		// TODO: is this a correct assumption, that the max component should be used as value?
+		OutValue = Value.GetMax();
 		return true;
 	}
 
