@@ -153,18 +153,18 @@ void FGLTFTextureLightMapTask::Complete()
 		return;
 	}
 
-	ERGBFormat RGBFormat;
-	uint32 BitDepth;
-	if (!FGLTFTextureUtility::CanPNGCompressFormat(Source.GetFormat(), RGBFormat, BitDepth))
+	const ETextureSourceFormat SourceFormat = Source.GetFormat();
+	if (SourceFormat != TSF_BGRA8)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export lightmap texture %s because of unsupported format %s"), *JsonTexture.Name, *FGLTFNameUtility::GetName(Source.GetFormat())));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export lightmap texture %s because of unsupported source format %s"), *JsonTexture.Name, *FGLTFNameUtility::GetName(SourceFormat)));
 		return;
 	}
 
 	const FIntPoint Size = { Source.GetSizeX(), Source.GetSizeY() };
+	const int64 ByteLength = Source.CalcMipSize(0);
 
 	const void* RawData = Source.LockMip(0);
-	JsonTexture.Source = Builder.AddImage(RawData, Source.CalcMipSize(0), Size, RGBFormat, BitDepth, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(static_cast<const FColor*>(RawData), ByteLength, Size, JsonTexture.Name);
 	Source.UnlockMip(0);
 
 	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMap);

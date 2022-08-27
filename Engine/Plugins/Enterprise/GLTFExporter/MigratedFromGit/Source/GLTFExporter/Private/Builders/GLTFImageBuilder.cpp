@@ -11,6 +11,40 @@ FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportO
 {
 }
 
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, const FString& Name)
+{
+	check(Pixels.Num() == Size.X * Size.Y);
+	return AddImage(Pixels.GetData(), Size, Name);
+}
+
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, int64 ByteLength, FIntPoint Size, const FString& Name)
+{
+	check(ByteLength == Size.X * Size.Y * sizeof(FColor));
+	return AddImage(Pixels, Size, Name);
+}
+
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, const FString& Name)
+{
+	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+
+	if (!ImageWrapper.IsValid())
+	{
+		// TODO: report error
+		return FGLTFJsonImageIndex(INDEX_NONE);
+	}
+
+	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
+	if (!ImageWrapper->SetRaw(Pixels, ByteLength, Size.X, Size.Y, ERGBFormat::BGRA, 8))
+	{
+		// TODO: report error
+		return FGLTFJsonImageIndex(INDEX_NONE);
+	}
+
+	const TArray64<uint8>& ImageData = ImageWrapper->GetCompressed();
+	return AddImage(ImageData.GetData(), ImageData.Num(), EGLTFJsonMimeType::PNG, Name);
+}
+
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
 	// TODO: should this function be renamed to GetOrAddImage?
@@ -37,36 +71,6 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 	}
 
 	return ImageIndex;
-}
-
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteLength, FIntPoint Size, ERGBFormat Format, int32 BitDepth, const FString& Name)
-{
-	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
-	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
-
-	if (!ImageWrapper.IsValid())
-	{
-		// TODO: report error
-		return FGLTFJsonImageIndex(INDEX_NONE);
-	}
-
-	const bool bFormatSupported = ImageWrapper->SetRaw(RawData, ByteLength, Size.X, Size.Y, Format, BitDepth);
-
-	if (!bFormatSupported)
-	{
-		// TODO: report error
-		return FGLTFJsonImageIndex(INDEX_NONE);
-	}
-
-	const TArray64<uint8>& ImageData = ImageWrapper->GetCompressed();
-	return AddImage(ImageData.GetData(), ImageData.Num(), EGLTFJsonMimeType::PNG, Name);
-}
-
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, const FString& Name)
-{
-	check(Pixels.Num() == Size.X * Size.Y);
-	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
-	return AddImage(Pixels.GetData(), ByteLength, Size, ERGBFormat::BGRA, 8, Name);
 }
 
 FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)

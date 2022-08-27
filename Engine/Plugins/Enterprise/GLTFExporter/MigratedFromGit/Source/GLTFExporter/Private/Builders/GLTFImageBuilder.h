@@ -5,8 +5,6 @@
 #include "Builders/GLTFBufferBuilder.h"
 #include "Builders/GLTFBinaryHashKey.h"
 
-enum class ERGBFormat : int8;
-
 class FGLTFImageBuilder : public FGLTFBufferBuilder
 {
 protected:
@@ -15,12 +13,13 @@ protected:
 
 public:
 
-	FGLTFJsonImageIndex AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
-	FGLTFJsonImageIndex AddImage(const void* RawData, int64 ByteLength, FIntPoint Size, ERGBFormat Format, int32 BitDepth, const FString& Name);
-
 	FGLTFJsonImageIndex AddImage(const TArray<FColor>& Pixels, FIntPoint Size, const FString& Name);
+	FGLTFJsonImageIndex AddImage(const FColor* Pixels, int64 ByteLength, FIntPoint Size, const FString& Name);
 
 private:
+
+	FGLTFJsonImageIndex AddImage(const FColor* Pixels, FIntPoint Size, const FString& Name);
+	FGLTFJsonImageIndex AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
 
 	FString SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
 
