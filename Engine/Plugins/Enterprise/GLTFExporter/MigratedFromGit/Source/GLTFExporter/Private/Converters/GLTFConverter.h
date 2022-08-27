@@ -4,19 +4,12 @@
 
 #include "CoreMinimal.h"
 
-class FGLTFConvertBuilder;
-
 template <typename OutputType, typename... InputTypes>
 class TGLTFConverter
 {
 	typedef TTuple<InputTypes...> InputKeyType;
 
 public:
-
-	TGLTFConverter(FGLTFConvertBuilder& Builder)
-		: Builder(Builder)
-	{
-	}
 
 	virtual ~TGLTFConverter() = default;
 
@@ -57,8 +50,6 @@ public:
 protected:
 
 	virtual OutputType Convert(InputTypes... Inputs) = 0;
-
-	FGLTFConvertBuilder& Builder;
 
 private:
 

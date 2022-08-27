@@ -5,15 +5,16 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonMaterial.h"
 #include "Converters/GLTFConverter.h"
+#include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
 struct FGLTFPropertyBakeOutput;
 
-class FGLTFMaterialConverter final : public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*>
+class FGLTFMaterialConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*>
 {
-	using TGLTFConverter::TGLTFConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override;
+	FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override final;
 
 	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel, const UMaterialInterface* Material) const;
 
