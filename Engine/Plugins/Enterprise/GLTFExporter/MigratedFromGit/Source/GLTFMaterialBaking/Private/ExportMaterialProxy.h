@@ -437,8 +437,6 @@ public:
 			case MP_Anisotropy:
 			case MP_Metallic:
 			case MP_AmbientOcclusion:
-			case MP_CustomData0:
-			case MP_CustomData1:
 				// Only return for Opaque and Masked...
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
@@ -448,6 +446,8 @@ public:
 
 			case MP_Opacity:
 			case MP_OpacityMask:
+			case MP_CustomData0:
+			case MP_CustomData1:
 			{
 				return MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate);
 			}
