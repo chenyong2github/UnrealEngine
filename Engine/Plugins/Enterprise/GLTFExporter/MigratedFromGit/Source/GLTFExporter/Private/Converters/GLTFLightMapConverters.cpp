@@ -58,7 +58,7 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Add(FGLTFConvertBuilder& Builder,
 	const FVector4& LightMapScale = LightMapInteraction.GetScaleArray()[0];
 
 	FGLTFJsonLightMap JsonLightMap;
-	JsonLightMap.Name = Name.IsEmpty() ? StaticMeshComponent->GetName() : Name;
+	JsonLightMap.Name = Name.IsEmpty() ? StaticMeshComponent->GetName() : Name; // TODO: use better name (similar to light and camera)
 	JsonLightMap.Texture.Index = TextureIndex;
 	JsonLightMap.Texture.TexCoord = CoordinateIndex;
 	JsonLightMap.LightMapScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };

@@ -214,7 +214,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		return true;
 	}
 
-	return false; // TODO: change to true for each option implemented and support by the object to be exported.
+	return false; // TODO: change to true for each option implemented and relevant to the object selected for export.
 }
 
 FIntPoint UGLTFExportOptions::GetDefaultMaterialBakeSize() const
