@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialRenderItem.h"
-#include "MaterialBakingStructures.h"
+#include "GLTFMaterialBakingStructures.h"
 
 #include "EngineModule.h"
 #include "StaticMeshAttributes.h"

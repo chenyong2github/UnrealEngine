@@ -5,7 +5,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "GLTFExportMaterialProxy.h"
 #include "UObject/UObjectGlobals.h"
-#include "MaterialBakingStructures.h"
+#include "GLTFMaterialBakingStructures.h"
 #include "GLTFMaterialBakingHelpers.h"
 #include "AddCustomAttributeHack.h"
 #include "Async/Async.h"
