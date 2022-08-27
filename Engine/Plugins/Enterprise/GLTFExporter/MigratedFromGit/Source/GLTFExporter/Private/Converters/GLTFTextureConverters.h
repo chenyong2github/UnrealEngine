@@ -16,12 +16,16 @@ class FGLTFTexture2DConverter final : public TGLTFTextureConverter<const UTextur
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
 
+	virtual void Sanitize(const UTexture2D*& Texture2D, bool& bToSRGB) override;
+
 	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D, bool bToSRGB) override;
 };
 
 class FGLTFTextureCubeConverter final : public TGLTFTextureConverter<const UTextureCube*, ECubeFace, bool>
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
+
+	virtual void Sanitize(const UTextureCube*& TextureCube, ECubeFace& CubeFace, bool& bToSRGB) override;
 
 	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
@@ -30,12 +34,16 @@ class FGLTFTextureRenderTarget2DConverter final : public TGLTFTextureConverter<c
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
 
+	virtual void Sanitize(const UTextureRenderTarget2D*& RenderTarget2D, bool& bToSRGB) override;
+
 	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB) override;
 };
 
 class FGLTFTextureRenderTargetCubeConverter final : public TGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace, bool>
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
+
+	virtual void Sanitize(const UTextureRenderTargetCube*& RenderTargetCube, ECubeFace& CubeFace, bool& bToSRGB) override;
 
 	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
