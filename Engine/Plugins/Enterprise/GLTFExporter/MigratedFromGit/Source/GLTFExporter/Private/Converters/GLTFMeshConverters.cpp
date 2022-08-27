@@ -6,11 +6,16 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMeshTasks.h"
 
-void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, FGLTFMaterialArray& OverrideMaterials, int32& LODIndex)
+void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
 {
-	const TArray<UMaterialInterface*> Materials = StaticMeshComponent != nullptr
-		? OverrideMaterials.GetOverrides(StaticMeshComponent->GetMaterials())
-		: OverrideMaterials.GetOverrides(StaticMesh->StaticMaterials);
+	if (StaticMeshComponent != nullptr)
+	{
+		Materials.FillIn(StaticMeshComponent->GetMaterials());
+	}
+	else
+	{
+		Materials.FillIn(StaticMesh->StaticMaterials);
+	}
 
 	if (LODIndex < 0)
 	{
@@ -32,32 +37,25 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 			StaticMeshComponent = nullptr;
 		}
 	}
-
-	// Clean up override materials to only contain items that differ from the original materials
-	OverrideMaterials = FGLTFMaterialArray(Materials);
-
-	if (StaticMeshComponent != nullptr)
-	{
-		OverrideMaterials.ClearRedundantOverrides(StaticMeshComponent->GetMaterials());
-	}
-	else
-	{
-		OverrideMaterials.ClearRedundantOverrides(StaticMesh->StaticMaterials);
-	}
 }
 
-FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh,  const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray OverrideMaterials, int32 LODIndex)
+FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh,  const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex)
 {
 	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
-	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, MeshDataConverter, StaticMesh, StaticMeshComponent, OverrideMaterials, LODIndex, MeshIndex);
+	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, MeshDataConverter, StaticMesh, StaticMeshComponent, Materials, LODIndex, MeshIndex);
 	return MeshIndex;
 }
 
-void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& OverrideMaterials, int32& LODIndex)
+void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
 {
-	const TArray<UMaterialInterface*> Materials = SkeletalMeshComponent != nullptr
-		? OverrideMaterials.GetOverrides(SkeletalMeshComponent->GetMaterials())
-		: OverrideMaterials.GetOverrides(SkeletalMesh->Materials);
+	if (SkeletalMeshComponent != nullptr)
+	{
+		Materials.FillIn(SkeletalMeshComponent->GetMaterials());
+	}
+	else
+	{
+		Materials.FillIn(SkeletalMesh->Materials);
+	}
 
 	if (LODIndex < 0)
 	{
@@ -79,23 +77,11 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 			SkeletalMeshComponent = nullptr;
 		}
 	}
-
-	// Clean up override materials to only contain items that differ from the original materials
-	OverrideMaterials = FGLTFMaterialArray(Materials);
-
-	if (SkeletalMeshComponent != nullptr)
-	{
-		OverrideMaterials.ClearRedundantOverrides(SkeletalMeshComponent->GetMaterials());
-	}
-	else
-	{
-		OverrideMaterials.ClearRedundantOverrides(SkeletalMesh->Materials);
-	}
 }
 
-FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray OverrideMaterials, int32 LODIndex)
+FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex)
 {
 	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
-	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, MeshDataConverter, SkeletalMesh, SkeletalMeshComponent, OverrideMaterials, LODIndex, MeshIndex);
+	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, MeshDataConverter, SkeletalMesh, SkeletalMeshComponent, Materials, LODIndex, MeshIndex);
 	return MeshIndex;
 }

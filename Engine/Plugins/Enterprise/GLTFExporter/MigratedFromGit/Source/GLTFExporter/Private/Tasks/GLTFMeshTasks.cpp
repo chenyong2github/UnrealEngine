@@ -57,16 +57,8 @@ void FGLTFStaticMeshTask::Complete()
 			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, VertexBuffer, UVIndex);
 		}
 
-		const UMaterialInterface* Material = StaticMeshComponent != nullptr
-			? OverrideMaterials.GetOverride(StaticMeshComponent->GetMaterials(), MaterialIndex)	// TODO: cache component materials once instead of retrieving multiple times
-			: OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, MaterialIndex);
-
-		if (Material == nullptr)
-		{
-			Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, OverrideMaterials);
+		const UMaterialInterface* Material = Materials[MaterialIndex];
+		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, Materials);
 	}
 }
 
@@ -144,15 +136,7 @@ void FGLTFSkeletalMeshTask::Complete()
 			}
 		}
 
-		const UMaterialInterface* Material = SkeletalMeshComponent != nullptr
-			? OverrideMaterials.GetOverride(SkeletalMeshComponent->GetMaterials(), MaterialIndex)	// TODO: cache component materials once instead of retrieving multiple times
-			: OverrideMaterials.GetOverride(SkeletalMesh->Materials, MaterialIndex);
-
-		if (Material == nullptr)
-		{
-			Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, OverrideMaterials);
+		const UMaterialInterface* Material = Materials[MaterialIndex];
+		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, Materials);
 	}
 }
