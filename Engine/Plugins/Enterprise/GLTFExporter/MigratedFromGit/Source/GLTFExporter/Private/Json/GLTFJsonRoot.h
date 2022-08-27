@@ -78,7 +78,7 @@ struct FGLTFJsonRoot
 			JsonWriter.WriteArrayStart();
 			for (const EGLTFJsonExtension& Extension : ExtensionsUsed)
 			{
-				JsonWriter.WriteValue(FGLTFJsonUtility::ExtensionToString(Extension));
+				JsonWriter.WriteValue(FGLTFJsonUtility::ToString(Extension));
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -89,7 +89,7 @@ struct FGLTFJsonRoot
 			JsonWriter.WriteArrayStart();
 			for (const EGLTFJsonExtension& Extension : ExtensionsRequired)
 			{
-				JsonWriter.WriteValue(FGLTFJsonUtility::ExtensionToString(Extension));
+				JsonWriter.WriteValue(FGLTFJsonUtility::ToString(Extension));
 			}
 			JsonWriter.WriteArrayEnd();
 		}
