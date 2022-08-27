@@ -75,9 +75,9 @@ struct FGLTFJsonUtility
 	}
 
 	template <class WriterType, class ElementType, class AllocatorType>
-	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const TArray<ElementType, AllocatorType>& ObjectArray)
+	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const TArray<ElementType, AllocatorType>& ObjectArray, bool bWriteIfEmpty = false)
 	{
-		if (ObjectArray.Num() > 0)
+		if (ObjectArray.Num() > 0 || bWriteIfEmpty)
 		{
 			JsonWriter.WriteArrayStart(Identifier);
 			for (const ElementType& Object : ObjectArray)

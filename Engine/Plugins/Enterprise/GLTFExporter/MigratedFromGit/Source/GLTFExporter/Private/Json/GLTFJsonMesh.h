@@ -96,12 +96,7 @@ struct FGLTFJsonMesh
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteArrayStart(TEXT("primitives"));
-		for (const FGLTFJsonPrimitive& Primitive : Primitives)
-		{
-			Primitive.WriteObject(JsonWriter);
-		}
-		JsonWriter.WriteArrayEnd();
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("primitives"), Primitives, true);
 
 		JsonWriter.WriteObjectEnd();
 	}

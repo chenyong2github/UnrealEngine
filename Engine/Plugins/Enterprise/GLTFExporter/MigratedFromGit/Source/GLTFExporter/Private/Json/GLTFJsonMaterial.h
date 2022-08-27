@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "GLTFJsonUtility.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonColor3.h"
 #include "Json/GLTFJsonColor4.h"
+#include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonTextureInfo
