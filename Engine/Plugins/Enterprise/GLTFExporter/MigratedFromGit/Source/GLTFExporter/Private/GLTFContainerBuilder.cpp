@@ -83,9 +83,15 @@ FGLTFJsonAccessorIndex FGLTFContainerBuilder::ConvertIndexAccessor(const FStatic
 	return IndexedConverts.StaticMeshSections.Convert(*this, DesiredName, MeshSection, IndexBuffer);
 }
 
+FGLTFJsonMeshIndex FGLTFContainerBuilder::ConvertMesh(const FStaticMeshLODResources* StaticMeshLOD, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
+{
+	return IndexedConverts.StaticMeshes.Convert(*this, DesiredName, StaticMeshLOD, OverrideVertexColors);
+}
+
 FGLTFJsonMeshIndex FGLTFContainerBuilder::ConvertMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
 {
-	return IndexedConverts.StaticMeshes.Convert(*this, DesiredName, StaticMesh, LODIndex, OverrideVertexColors);
+	const FStaticMeshLODResources* StaticMeshLOD = &StaticMesh->GetLODForExport(LODIndex);
+	return ConvertMesh(StaticMeshLOD, OverrideVertexColors, DesiredName.IsEmpty() ? StaticMesh->GetName() + TEXT("_LOD") + FString::FromInt(LODIndex) : DesiredName);
 }
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::ConvertMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)

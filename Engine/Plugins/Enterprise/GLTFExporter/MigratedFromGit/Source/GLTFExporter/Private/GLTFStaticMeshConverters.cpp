@@ -208,34 +208,28 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Convert(FGLTFContainerBu
 	return Container.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(FGLTFContainerBuilder& Container, const FString& Name, const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors)
+FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(FGLTFContainerBuilder& Container, const FString& Name, const FStaticMeshLODResources* StaticMeshLOD, const FColorVertexBuffer* OverrideVertexColors)
 {
-	const FStaticMeshLODResources& LODMesh = StaticMesh->GetLODForExport(LODIndex);
-	const FPositionVertexBuffer* PositionBuffer = &LODMesh.VertexBuffers.PositionVertexBuffer;
-	const FStaticMeshVertexBuffer* VertexBuffer = &LODMesh.VertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &LODMesh.VertexBuffers.ColorVertexBuffer;
-
 	FGLTFJsonMesh JsonMesh;
 	JsonMesh.Name = Name;
 
-	if (JsonMesh.Name.IsEmpty())
-	{
-		StaticMesh->GetName(JsonMesh.Name);
-		if (LODIndex != 0) JsonMesh.Name += TEXT("_LOD") + FString::FromInt(LODIndex);
-	}
+	const FPositionVertexBuffer* PositionBuffer = &StaticMeshLOD->VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer* VertexBuffer = &StaticMeshLOD->VertexBuffers.StaticMeshVertexBuffer;
+	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &StaticMeshLOD->VertexBuffers.ColorVertexBuffer;
 
 	FGLTFJsonAttributes JsonAttributes;
-	JsonAttributes.Position = Container.ConvertPositionAccessor(PositionBuffer, Name + TEXT("_Positions"));
-	JsonAttributes.Normal = Container.ConvertNormalAccessor(VertexBuffer, Name + TEXT("_Normals"));
-	JsonAttributes.Tangent = Container.ConvertTangentAccessor(VertexBuffer, Name + TEXT("_Tangents"));
-	JsonAttributes.TexCoord0 = Container.ConvertUV0Accessor(VertexBuffer, Name + TEXT("_UV0s"));
-	JsonAttributes.TexCoord1 = Container.ConvertUV1Accessor(VertexBuffer, Name + TEXT("_UV1s"));
-	JsonAttributes.Color0 = Container.ConvertColorAccessor(ColorBuffer, Name + TEXT("_Colors"));
+	JsonAttributes.Position = Container.ConvertPositionAccessor(PositionBuffer, Name.IsEmpty() ? Name : Name + TEXT("_Positions"));
+	JsonAttributes.Normal = Container.ConvertNormalAccessor(VertexBuffer, Name.IsEmpty() ? Name : Name + TEXT("_Normals"));
+	JsonAttributes.Tangent = Container.ConvertTangentAccessor(VertexBuffer, Name.IsEmpty() ? Name : Name + TEXT("_Tangents"));
+	JsonAttributes.TexCoord0 = Container.ConvertUV0Accessor(VertexBuffer, Name.IsEmpty() ? Name : Name + TEXT("_UV0s"));
+	JsonAttributes.TexCoord1 = Container.ConvertUV1Accessor(VertexBuffer, Name.IsEmpty() ? Name : Name + TEXT("_UV1s"));
+	JsonAttributes.Color0 = Container.ConvertColorAccessor(ColorBuffer, Name.IsEmpty() ? Name : Name + TEXT("_Colors"));
 
-	const FRawStaticIndexBuffer* IndexBuffer = &LODMesh.IndexBuffer;
-	Container.ConvertIndexBufferView(IndexBuffer, Name + TEXT("_Indices"));
+	const FRawStaticIndexBuffer* IndexBuffer = &StaticMeshLOD->IndexBuffer;
+	Container.ConvertIndexBufferView(IndexBuffer, Name.IsEmpty() ? Name : Name + TEXT("_Indices"));
 
-	const int32 SectionCount = LODMesh.Sections.Num();
+	const TArray<FStaticMeshSection>& Sections = StaticMeshLOD->Sections;
+	const int32 SectionCount = Sections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
 
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
@@ -243,8 +237,8 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(FGLTFContainerBuilder& Cont
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
 		JsonPrimitive.Attributes = JsonAttributes;
 
-		const FString SectionName = JsonMesh.Name + (SectionCount != 0 ? TEXT("_Indices_Section") + FString::FromInt(SectionIndex) : TEXT("_Indices"));
-		JsonPrimitive.Indices = Container.ConvertIndexAccessor(&LODMesh.Sections[SectionIndex], IndexBuffer, SectionName);
+		JsonPrimitive.Indices = Container.ConvertIndexAccessor(&Sections[SectionIndex], IndexBuffer,
+			Name.IsEmpty() ? Name : JsonMesh.Name + (SectionCount != 0 ? TEXT("_Indices_Section") + FString::FromInt(SectionIndex) : TEXT("_Indices")));
 	}
 
 	return Container.AddMesh(JsonMesh);

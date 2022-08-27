@@ -49,5 +49,5 @@ struct GLTFEXPORTER_API FGLTFStaticMeshSectionConverter
 
 struct GLTFEXPORTER_API FGLTFStaticMeshConverter
 {
-	static FGLTFJsonMeshIndex Convert(FGLTFContainerBuilder& Container, const FString& Name, const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors);
+	static FGLTFJsonMeshIndex Convert(FGLTFContainerBuilder& Container, const FString& Name, const FStaticMeshLODResources* StaticMeshLOD, const FColorVertexBuffer* OverrideVertexColors);
 };
