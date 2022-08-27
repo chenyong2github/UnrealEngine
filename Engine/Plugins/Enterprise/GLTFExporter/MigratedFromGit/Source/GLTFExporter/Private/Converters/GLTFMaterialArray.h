@@ -2,39 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "GLTFHashableArray.h"
 
 class UMaterialInterface;
 
-// The reason behind a custom material array type are two:
-// 1. Forwarding a TArray by copy in FGLTFConverter::GetOrAdd twice will result in a empty array
-// 2. There is no GetTypeHash for generic arrays
-struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
+struct FGLTFMaterialArray : FGLTFHashableArray<const UMaterialInterface*>
 {
-	FGLTFMaterialArray()
-	{
-	}
-
-	FGLTFMaterialArray(const TArray& Other)
-		: TArray(Other)
-	{
-	}
-
-	FGLTFMaterialArray(const FGLTFMaterialArray& Other)
-		: TArray(Other)
-	{
-	}
-
-	template <typename ElementType, typename AllocatorType>
-	explicit FGLTFMaterialArray(const TArray<ElementType, AllocatorType>& Other)
-		: TArray(Other)
-	{
-	}
-
-	FGLTFMaterialArray(std::initializer_list<const UMaterialInterface*> InitList)
-		: TArray(InitList)
-	{
-	}
+	using FGLTFHashableArray::FGLTFHashableArray;
+	using FGLTFHashableArray::operator=;
+	using FGLTFHashableArray::operator==;
+	using FGLTFHashableArray::operator!=;
 
 	void FillIn(const TArray<UMaterialInterface*>& Defaults)
 	{
@@ -49,20 +26,6 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 	void FillIn(const TArray<FSkeletalMaterial>& Defaults)
 	{
 		return FillIn<FSkeletalMaterial>(Defaults);
-	}
-
-	using TArray::operator=;
-	using TArray::operator==;
-	using TArray::operator!=;
-
-	friend uint32 GetTypeHash(const TArray& Array)
-	{
-		uint32 Hash = GetTypeHash(Array.Num());
-		for (const UMaterialInterface* Material : Array)
-		{
-			Hash = HashCombine(Hash, GetTypeHash(Material));
-		}
-		return Hash;
 	}
 
 private:
