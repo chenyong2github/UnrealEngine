@@ -317,6 +317,7 @@ UGLTFExportOptions* FGLTFMaterialPrebaker::CreateExportOptions(const UGLTFPrebak
 	ExportOptions->DefaultMaterialBakeFilter = PrebakeOptions->DefaultMaterialBakeFilter;
 	ExportOptions->DefaultMaterialBakeTiling = PrebakeOptions->DefaultMaterialBakeTiling;
 	ExportOptions->DefaultInputBakeSettings = PrebakeOptions->DefaultInputBakeSettings;
+	ExportOptions->bAdjustNormalmaps = false;
 	return ExportOptions;
 }
 
