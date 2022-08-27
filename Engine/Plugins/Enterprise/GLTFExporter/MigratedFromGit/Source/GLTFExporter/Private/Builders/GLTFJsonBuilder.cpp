@@ -95,6 +95,18 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex
 	return ChildIndex;
 }
 
+FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNodeIndex ParentIndex, const FGLTFJsonNode& JsonNode)
+{
+	const FGLTFJsonNodeIndex ChildIndex = AddChildNode(ParentIndex, JsonNode);
+
+	if (ParentIndex != INDEX_NONE)
+	{
+		GetNode(ParentIndex).ComponentNode = ChildIndex;
+	}
+
+	return ChildIndex;
+}
+
 FGLTFJsonAccessor& FGLTFJsonBuilder::GetAccessor(FGLTFJsonAccessorIndex AccessorIndex)
 {
 	return JsonRoot.Accessors[AccessorIndex];
@@ -170,7 +182,7 @@ FGLTFJsonLight& FGLTFJsonBuilder::GetLight(FGLTFJsonLightIndex LightIndex)
 	return JsonRoot.Lights[LightIndex];
 }
 
-FGLTFJsonNodeIndex FGLTFJsonBuilder::GetLeafNodeIndex(FGLTFJsonNodeIndex NodeIndex)
+FGLTFJsonNodeIndex FGLTFJsonBuilder::GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex)
 {
 	if (NodeIndex == INDEX_NONE)
 	{
@@ -178,7 +190,7 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::GetLeafNodeIndex(FGLTFJsonNodeIndex NodeInd
 	}
 
 	const FGLTFJsonNode& Node = GetNode(NodeIndex);
-	return Node.LeafNode != INDEX_NONE ? Node.LeafNode : NodeIndex;
+	return Node.ComponentNode != INDEX_NONE ? Node.ComponentNode : NodeIndex;
 }
 
 bool FGLTFJsonBuilder::Serialize(FArchive& Archive, const FString& FilePath)
