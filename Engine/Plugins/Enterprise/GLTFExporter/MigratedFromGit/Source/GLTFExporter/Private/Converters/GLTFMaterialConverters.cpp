@@ -11,7 +11,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 	if (MeshData == nullptr ||
 		!Builder.ExportOptions->bBakeMaterialInputs ||
 		!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
-		!FGLTFMaterialUtility::MaterialNeedsVertexData(Material))
+		!FGLTFMaterialUtility::NeedsMeshData(Material))
 	{
 		MeshData = nullptr;
 		SectionIndices = {};
