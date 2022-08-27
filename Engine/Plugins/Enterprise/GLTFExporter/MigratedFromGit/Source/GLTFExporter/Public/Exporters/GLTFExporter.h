@@ -9,6 +9,16 @@
 class FGLTFContainerBuilder;
 class UGLTFExportOptions;
 
+USTRUCT(BlueprintType)
+struct FGLTFExportMessages
+{
+	GENERATED_USTRUCT_BODY()
+
+	TArray<FString> Suggestions;
+	TArray<FString> Warnings;
+	TArray<FString> Errors;
+};
+
 UCLASS(Abstract)
 class GLTFEXPORTER_API UGLTFExporter : public UExporter
 {
@@ -20,11 +30,16 @@ public:
 
 	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags) override;
 
+	UFUNCTION(BlueprintCallable, Category = "Miscellaneous")
+	static bool ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, FGLTFExportMessages& OutMessages);
+	static bool ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options = nullptr);
+
 protected:
 
 	virtual bool AddObject(FGLTFContainerBuilder& Builder, const UObject* Object);
 
 private:
 
-	UGLTFExportOptions* GetExportOptions();
+	const UGLTFExportOptions* GetExportOptions();
+	FString GetFilePath() const;
 };

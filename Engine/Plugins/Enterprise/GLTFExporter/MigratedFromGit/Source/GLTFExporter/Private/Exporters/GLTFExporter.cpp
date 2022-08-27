@@ -23,7 +23,7 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 
 bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UGLTFExportOptions* Options = GetExportOptions();
+	const UGLTFExportOptions* Options = GetExportOptions();
 	if (Options == nullptr)
 	{
 		// User cancelled the export
@@ -34,7 +34,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
-	FGLTFContainerBuilder Builder(CurrentFilename, Options, bSelectedOnly);
+	FGLTFContainerBuilder Builder(GetFilePath(), Options, bSelectedOnly);
 	Builder.ClearLog();
 
 	const bool bSuccess = AddObject(Builder, Object);
@@ -53,12 +53,55 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	return bSuccess;
 }
 
+bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, FGLTFExportMessages& OutMessages)
+{
+	if (Object == nullptr)
+	{
+		OutMessages.Errors.Add(TEXT("No object to export"));
+		return false;
+	}
+
+	UGLTFExporter* Exporter = Cast<UGLTFExporter>(FindExporter(Object, TEXT("gltf")));
+	if (Exporter == nullptr)
+	{
+		OutMessages.Errors.Add(FString::Printf(TEXT("Couldn't find exporter for object of type %s"), *Object->GetClass()->GetName()));
+		return false;
+	}
+
+	FGLTFContainerBuilder Builder(Filename, Options, false);
+	bool bSuccess = Exporter->AddObject(Builder, Object);
+
+	OutMessages.Suggestions = Builder.GetLoggedSuggestions();
+	OutMessages.Warnings = Builder.GetLoggedWarnings();
+	OutMessages.Errors = Builder.GetLoggedErrors();
+
+	if (bSuccess)
+	{
+		FBufferArchive Buffer;
+		Builder.Write(Buffer, nullptr);
+
+		if (!FFileHelper::SaveArrayToFile(Buffer, *Filename))
+		{
+			OutMessages.Errors.Add(FString::Printf(TEXT("Couldn't save file: %s"), *Filename));
+			bSuccess = false;
+		}
+	}
+
+	return bSuccess;
+}
+
+bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options)
+{
+	FGLTFExportMessages Messages;
+	return ExportToGLTF(Object, Filename, Options, Messages);
+}
+
 bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	return false;
 }
 
-UGLTFExportOptions* UGLTFExporter::GetExportOptions()
+const UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 {
 	UGLTFExportOptions* Options = nullptr;
 	bool bAutomatedTask = GIsAutomationTesting || FApp::IsUnattended();
@@ -99,4 +142,9 @@ UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 #endif
 
 	return Options;
+}
+
+FString UGLTFExporter::GetFilePath() const
+{
+	return ExportTask != nullptr ? ExportTask->Filename : CurrentFilename;
 }
