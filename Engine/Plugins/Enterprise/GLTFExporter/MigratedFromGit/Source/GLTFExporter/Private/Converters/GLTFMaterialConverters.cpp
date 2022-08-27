@@ -155,6 +155,23 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	const bool bHasMetallicSourceTexture = TryGetSourceTexture(MetallicTexture, MetallicTexCoord, MetallicInput, MaterialInstance);
 	const bool bHasRoughnessSourceTexture = TryGetSourceTexture(RoughnessTexture, RoughnessTexCoord, RoughnessInput, MaterialInstance);
 
+	// Detect the "happy path" where both inputs share the same texture, and both inputs correctly masked.
+	if (bHasMetallicSourceTexture && bHasRoughnessSourceTexture)
+	{
+		const FIntVector4 MetallicMask(0, 0, 1, 0);
+		const FIntVector4 RoughnessMask(0, 1, 0, 0);
+
+		if (MetallicTexture == RoughnessTexture &&
+			MetallicTexCoord == RoughnessTexCoord &&
+			MetallicMask == FGLTFMaterialUtility::ConvertMaskToVector(MetallicInput) &&
+			RoughnessMask == FGLTFMaterialUtility::ConvertMaskToVector(RoughnessInput))
+		{
+			OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture);
+			OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
+			return true;
+		}
+	}
+
 	int32 TexCoord = 0;
 	FIntPoint TextureSize(512, 512);	// TODO: make default baking-resolution configurable
 	EGLTFJsonTextureWrap TextureWrap = EGLTFJsonTextureWrap::ClampToEdge;
