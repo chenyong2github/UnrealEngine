@@ -23,6 +23,18 @@ struct TGLTFQuaternion
 
 		ComponentType Components[4] GCC_PACK(1);
 	};
+
+	TGLTFQuaternion(
+		ComponentType X,
+		ComponentType Y,
+		ComponentType Z,
+		ComponentType W
+	)
+		: X(X)
+		, Y(Y)
+		, Z(Z)
+		, W(W)
+	{}
 };
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK

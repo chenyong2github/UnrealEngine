@@ -21,6 +21,14 @@ struct TGLTFVector2
 
 		ComponentType Components[2] GCC_PACK(1);
 	};
+
+	TGLTFVector2(
+		ComponentType X,
+		ComponentType Y
+	)
+		: X(X)
+		, Y(Y)
+	{}
 };
 
 template <typename ComponentType>
@@ -37,6 +45,16 @@ struct TGLTFVector3
 
 		ComponentType Components[3] GCC_PACK(1);
 	};
+
+	TGLTFVector3(
+		ComponentType X,
+		ComponentType Y,
+		ComponentType Z
+	)
+		: X(X)
+		, Y(Y)
+		, Z(Z)
+	{}
 };
 
 template <typename ComponentType>
@@ -54,6 +72,18 @@ struct TGLTFVector4
 
 		ComponentType Components[4] GCC_PACK(1);
 	};
+
+	TGLTFVector4(
+		ComponentType X,
+		ComponentType Y,
+		ComponentType Z,
+		ComponentType W
+	)
+		: X(X)
+		, Y(Y)
+		, Z(Z)
+		, W(W)
+	{}
 };
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
