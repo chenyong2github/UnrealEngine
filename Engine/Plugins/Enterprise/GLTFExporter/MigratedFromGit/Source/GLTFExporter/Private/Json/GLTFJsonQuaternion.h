@@ -20,6 +20,24 @@ struct FGLTFJsonQuaternion : TGLTFQuaternion<float>, IGLTFJsonArray
 		return *this;
 	}
 
+	bool operator==(const TGLTFQuaternion& Other) const
+	{
+		for (SIZE_T i = 0; i < GetNum(Components); ++i)
+		{
+			if (Components[i] != Other.Components[i])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool operator!=(const TGLTFQuaternion& Other) const
+	{
+		return !(*this == Other);
+	}
+
 	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
 		for (int32 i = 0; i < 4; ++i)

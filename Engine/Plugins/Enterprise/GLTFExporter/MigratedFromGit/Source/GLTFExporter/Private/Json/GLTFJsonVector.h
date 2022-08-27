@@ -22,6 +22,24 @@ struct TGLTFJsonVector : BaseType, IGLTFJsonArray
 		return *this;
 	}
 
+	bool operator==(const BaseType& Other) const
+	{
+		for (SIZE_T i = 0; i < GetNum(BaseType::Components); ++i)
+		{
+			if (BaseType::Components[i] != Other.Components[i])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool operator!=(const BaseType& Other) const
+	{
+		return !(*this == Other);
+	}
+
 	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
 		for (SIZE_T i = 0; i < GetNum(BaseType::Components); ++i)
