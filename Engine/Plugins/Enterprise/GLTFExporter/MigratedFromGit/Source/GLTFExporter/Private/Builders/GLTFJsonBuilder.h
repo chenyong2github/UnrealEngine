@@ -3,15 +3,15 @@
 #pragma once
 
 #include "Json/GLTFJsonRoot.h"
+#include "Builders/GLTFBuilder.h"
 
-class FGLTFJsonBuilder
+class FGLTFJsonBuilder : public FGLTFBuilder
 {
 public:
 
 	FGLTFJsonSceneIndex& DefaultScene;
 
 	FGLTFJsonBuilder();
-	virtual ~FGLTFJsonBuilder();
 
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
