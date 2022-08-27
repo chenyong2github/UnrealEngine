@@ -5,6 +5,16 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
+#include "Engine/Texture2D.h"
+#include "Engine/TextureCube.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTargetCube.h"
+#include "Engine/LightMapTexture2D.h"
+
+FString FGLTFTexture2DTask::GetName()
+{
+	return Texture2D->GetName();
+}
 
 void FGLTFTexture2DTask::Complete()
 {
@@ -50,6 +60,11 @@ void FGLTFTexture2DTask::Complete()
 
 	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
+}
+
+FString FGLTFTextureCubeTask::GetName()
+{
+	return TextureCube->GetName();
 }
 
 void FGLTFTextureCubeTask::Complete()
@@ -101,6 +116,11 @@ void FGLTFTextureCubeTask::Complete()
 	JsonTexture.Sampler = Builder.GetOrAddSampler(TextureCube);
 }
 
+FString FGLTFTextureRenderTarget2DTask::GetName()
+{
+	return RenderTarget2D->GetName();
+}
+
 void FGLTFTextureRenderTarget2DTask::Complete()
 {
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
@@ -134,6 +154,11 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 
 	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTarget2D);
+}
+
+FString FGLTFTextureRenderTargetCubeTask::GetName()
+{
+	return RenderTargetCube->GetName();
 }
 
 void FGLTFTextureRenderTargetCubeTask::Complete()
@@ -185,6 +210,11 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 }
 
 #if WITH_EDITOR
+
+FString FGLTFTextureLightMapTask::GetName()
+{
+	return LightMap->GetName();
+}
 
 void FGLTFTextureLightMapTask::Complete()
 {

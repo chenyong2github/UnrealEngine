@@ -6,6 +6,9 @@
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFCurveUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "Engine/DirectionalLight.h"
+#include "Curves/CurveLinearColor.h"
+#include "Materials/MaterialInstance.h"
 
 FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphereActor)
 {

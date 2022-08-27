@@ -7,6 +7,10 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Actors/GLTFHotspotActor.h"
 #include "LevelSequenceActor.h"
+#include "Camera/CameraComponent.h"
+#include "Components/LightComponent.h"
+#include "Engine/StaticMeshSocket.h"
+#include "Engine/SkeletalMeshSocket.h"
 
 FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 {

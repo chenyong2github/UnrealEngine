@@ -4,7 +4,6 @@
 
 #include "Tasks/GLTFTask.h"
 #include "Builders/GLTFConvertBuilder.h"
-#include "Engine.h"
 
 class FGLTFTexture2DTask : public FGLTFTask
 {
@@ -19,10 +18,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return Texture2D->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Complete() override;
 
@@ -48,10 +44,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return TextureCube->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Complete() override;
 
@@ -77,10 +70,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return RenderTarget2D->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Complete() override;
 
@@ -106,10 +96,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return RenderTargetCube->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Complete() override;
 
@@ -136,10 +123,7 @@ public:
 	{
 	}
 
-	virtual FString GetName() override
-	{
-		return LightMap->GetName();
-	}
+	virtual FString GetName() override;
 
 	virtual void Complete() override;
 

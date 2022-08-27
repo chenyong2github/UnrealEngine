@@ -7,7 +7,6 @@
 #include "Converters/GLTFMeshSectionConverters.h"
 #include "Converters/GLTFMaterialArray.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Engine.h"
 
 class FGLTFStaticMeshTask : public FGLTFTask
 {

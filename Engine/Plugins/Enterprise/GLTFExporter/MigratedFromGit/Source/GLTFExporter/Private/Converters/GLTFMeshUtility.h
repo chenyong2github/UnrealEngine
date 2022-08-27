@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Converters/GLTFIndexArray.h"
-#include "Engine.h"
 
 class FSkeletalMeshLODRenderData;
 

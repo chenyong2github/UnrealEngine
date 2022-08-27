@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFNameUtility.h"
+#include "Engine/StaticMeshActor.h"
 #include "Animation/SkeletalMeshActor.h"
-#include "Engine.h"
+#include "Components/LightComponent.h"
+#include "Engine/Light.h"
+#include "Camera/CameraComponent.h"
+#include "Camera/CameraActor.h"
 
 namespace
 {

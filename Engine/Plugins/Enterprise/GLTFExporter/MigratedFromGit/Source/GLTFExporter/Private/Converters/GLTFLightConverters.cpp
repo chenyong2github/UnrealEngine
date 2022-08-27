@@ -4,6 +4,9 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
+#include "Components/LightComponent.h"
+#include "Components/PointLightComponent.h"
+#include "Components/SpotLightComponent.h"
 
 FGLTFJsonLightIndex FGLTFLightConverter::Convert(const ULightComponent* LightComponent)
 {
