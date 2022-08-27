@@ -82,7 +82,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	MeshSet->TextureCoordinateBox = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
 
-	// TODO: Do we need to fill in any info in MeshSet?
+	// TODO: Do we need to fill in any more info in MeshSet?
 
 	MeshSettings.Add(MeshSet);
 
@@ -99,8 +99,11 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 
-	TArray<FColor> BakedPixels = MoveTemp(BakeOutputs[0].PropertyData.FindChecked(MaterialProperty));
-	const FIntPoint BakedSize = BakeOutputs[0].PropertySizes.FindChecked(MaterialProperty);
+	FBakeOutput BakeOutput = BakeOutputs[0];
+
+	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(MaterialProperty));
+	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(MaterialProperty);
+	const float EmissiveScale = BakeOutput.EmissiveScale;
 
 	if (bCopyAlphaFromRedChannel)
 	{
@@ -121,7 +124,8 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		MaterialProperty,
 		PF_B8G8R8A8,
 		BakedPixels,
-		BakedSize
+		BakedSize,
+		EmissiveScale
 	};
 }
 
