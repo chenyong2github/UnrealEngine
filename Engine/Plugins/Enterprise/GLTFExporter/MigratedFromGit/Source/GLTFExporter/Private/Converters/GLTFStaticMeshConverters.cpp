@@ -174,10 +174,12 @@ FGLTFJsonBufferViewIndex FGLTFStaticMeshIndexBufferConverter::Add(FGLTFConvertBu
 		IndexBuffer->GetCopy(Indices);
 		return Builder.AddBufferView(Indices, Name, sizeof(uint32), EGLTFJsonBufferTarget::ElementArrayBuffer);
 	}
-
-	const uint16* IndexData = IndexBuffer->AccessStream16();
-	const int32 IndexDataSize = IndexBuffer->GetIndexDataSize();
-	return Builder.AddBufferView(IndexData, IndexDataSize, Name, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
+	else
+	{
+		const uint16* IndexData = IndexBuffer->AccessStream16();
+		const int32 IndexDataSize = IndexBuffer->GetIndexDataSize();
+		return Builder.AddBufferView(IndexData, IndexDataSize, Name, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
+	}
 }
 
 FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const FStaticMeshSection*, const FRawStaticIndexBuffer*> Params)
