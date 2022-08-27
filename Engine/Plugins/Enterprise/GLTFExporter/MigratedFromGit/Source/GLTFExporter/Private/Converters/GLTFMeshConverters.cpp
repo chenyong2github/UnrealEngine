@@ -108,6 +108,11 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, in
 		OverrideVertexColors = nullptr;
 	}
 
+	if (!Builder.ExportOptions->bExportVertexSkinWeights)
+	{
+		OverrideSkinWeights = nullptr;
+	}
+
 	if (OverrideMaterials == SkeletalMesh->Materials)
 	{
 		OverrideMaterials.Empty();
