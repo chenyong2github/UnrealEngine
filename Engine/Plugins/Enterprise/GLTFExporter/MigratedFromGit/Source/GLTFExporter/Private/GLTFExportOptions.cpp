@@ -204,6 +204,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportCameras) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHDRIBackdrops) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportVariantSets) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportInteractionHotspots) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportNonUniformScale) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportPreviewMesh))
 	{
