@@ -20,7 +20,7 @@ FGLTFJsonAccessorIndex FGLTFSectionBuilder::AddAccessorForIndices(FGLTFContainer
 {
 	if (Indices.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_Indices");
@@ -116,7 +116,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForPositions(FGLTFContainerB
 {
 	if (Positions.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_Positions");
@@ -146,7 +146,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForNormals(FGLTFContainerBui
 {
 	if (Normals.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_Normals");
@@ -166,7 +166,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForColors(FGLTFContainerBuil
 {
 	if (Colors.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_Colors");
@@ -187,7 +187,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForTangents(FGLTFContainerBu
 {
 	if (Tangents.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_Tangents");
@@ -207,7 +207,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForUV0s(FGLTFContainerBuilde
 {
 	if (UV0s.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_UV0s");
@@ -227,7 +227,7 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForUV1s(FGLTFContainerBuilde
 {
 	if (UV1s.Num() == 0)
 	{
-		return INDEX_NONE;
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
 	const FString AttributeName = Name + TEXT("_UV1s");
