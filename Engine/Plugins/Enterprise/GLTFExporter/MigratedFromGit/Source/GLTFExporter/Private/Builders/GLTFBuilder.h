@@ -4,6 +4,7 @@
 
 #include "GLTFExportOptions.h"
 #include "Json/GLTFJsonEnums.h"
+#include "MaterialPropertyEx.h"
 
 class FGLTFBuilder
 {
@@ -19,7 +20,7 @@ public:
 
 	const UGLTFExportOptions* const ExportOptions;
 
-	FIntPoint GetDefaultMaterialBakeSize() const;
+	FIntPoint GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const;
 
 	EGLTFJsonHDREncoding GetTextureHDREncoding() const;
 
