@@ -33,12 +33,10 @@ public:
 	FGLTFJsonAccessorIndex GetOrAddJointAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap);
 	FGLTFJsonAccessorIndex GetOrAddWeightAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex);
 
-	FGLTFJsonBufferViewIndex GetOrAddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer);
 	FGLTFJsonAccessorIndex GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer);
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex = -1, const FColorVertexBuffer* OverrideVertexColors = nullptr, const FGLTFMaterialArray& OverrideMaterials = {});
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent);
 
-	FGLTFJsonBufferViewIndex GetOrAddIndexBufferView(const FMultiSizeIndexContainer* IndexContainer);
 	FGLTFJsonAccessorIndex GetOrAddIndexAccessor(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer);
 	FGLTFJsonMeshIndex GetOrAddMesh(const USkeletalMesh* SkeletalMesh, int32 LODIndex = -1, const FColorVertexBuffer* OverrideVertexColors = nullptr, const FSkinWeightVertexBuffer* OverrideSkinWeights = nullptr, const FGLTFMaterialArray& OverrideMaterials = {});
 	FGLTFJsonMeshIndex GetOrAddMesh(const USkeletalMeshComponent* SkeletalMeshComponent);
@@ -73,11 +71,9 @@ private:
 	FGLTFBoneIndexVertexBufferConverter BoneIndexVertexBufferConverter = *this;
 	FGLTFBoneWeightVertexBufferConverter BoneWeightVertexBufferConverter = *this;
 
-	FGLTFIndexBufferConverter IndexBufferConverter = *this;
 	FGLTFStaticMeshSectionConverter StaticMeshSectionConverter = *this;
 	FGLTFStaticMeshConverter StaticMeshConverter = *this;
 
-	FGLTFIndexContainerConverter IndexContainerConverter = *this;
 	FGLTFSkeletalMeshSectionConverter SkeletalMeshSectionConverter = *this;
 	FGLTFSkeletalMeshConverter SkeletalMeshConverter = *this;
 

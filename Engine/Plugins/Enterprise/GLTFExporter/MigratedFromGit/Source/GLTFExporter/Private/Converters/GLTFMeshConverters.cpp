@@ -43,7 +43,6 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 	}
 
 	const FRawStaticIndexBuffer* IndexBuffer = &MeshLOD.IndexBuffer;
-	Builder.GetOrAddIndexBufferView(IndexBuffer);
 
 	const int32 SectionCount = MeshLOD.Sections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
@@ -123,7 +122,6 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 	*/
 
 	const FMultiSizeIndexContainer* IndexContainer = &MeshLOD.MultiSizeIndexContainer;
-	Builder.GetOrAddIndexBufferView(IndexContainer);
 
 	const int32 SectionCount = MeshLOD.RenderSections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
