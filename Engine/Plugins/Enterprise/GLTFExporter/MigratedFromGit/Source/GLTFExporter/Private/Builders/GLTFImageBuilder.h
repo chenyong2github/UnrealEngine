@@ -24,8 +24,6 @@ private:
 
 	FString SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
 
-	const FString ImageDirPath;
-
 	TSet<FString> UniqueImageUris;
 	TMap<FGLTFBinaryHashKey, FGLTFJsonImageIndex> UniqueImageIndices;
 };

@@ -16,5 +16,7 @@ public:
 
 	const FString FilePath;
 
+	const FString DirPath;
+
 	const UGLTFExportOptions* const ExportOptions;
 };
