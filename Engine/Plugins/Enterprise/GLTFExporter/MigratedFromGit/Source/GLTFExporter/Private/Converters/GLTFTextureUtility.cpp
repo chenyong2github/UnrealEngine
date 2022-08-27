@@ -92,12 +92,12 @@ TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const U
 	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
 		AddressX = Texture2D->AddressX;
-		AddressY = Texture2D->AddressX;
+		AddressY = Texture2D->AddressY;
 	}
 	else if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
 	{
 		AddressX = RenderTarget2D->AddressX;
-		AddressY = RenderTarget2D->AddressX;
+		AddressY = RenderTarget2D->AddressY;
 	}
 	else
 	{
