@@ -30,14 +30,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 
 	// TODO: check if a property is active before trying to get it (i.e. Material->IsPropertyActive)
 
-	if (JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Blend || JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Mask)
-	{
-		if (!TryGetBaseColorAndOpacity(Builder, JsonMaterial.PBRMetallicRoughness, Material))
-		{
-			// TODO: handle failure?
-		}
-	}
-	else
+	if (JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Opaque)
 	{
 		if (!TryGetConstantColor(JsonMaterial.PBRMetallicRoughness.BaseColorFactor, MP_BaseColor, Material))
 		{
@@ -48,6 +41,15 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 					// TODO: handle failure?
 				}
 			}
+		}
+
+		JsonMaterial.PBRMetallicRoughness.BaseColorFactor.A = 1.0f; // make sure base color is opaque
+	}
+	else
+	{
+		if (!TryGetBaseColorAndOpacity(Builder, JsonMaterial.PBRMetallicRoughness, Material))
+		{
+			// TODO: handle failure?
 		}
 	}
 
