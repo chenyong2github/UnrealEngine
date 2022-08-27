@@ -84,6 +84,8 @@ class GLTFEXPORTERRUNTIME_API UGLTFMaterialExportOptions : public UAssetUserData
 
 public:
 
+	// TODO: add support for overriding more export options
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings", meta = (ShowOnlyInnerProperties))
 	FGLTFOverrideMaterialBakeSettings Default;
 
