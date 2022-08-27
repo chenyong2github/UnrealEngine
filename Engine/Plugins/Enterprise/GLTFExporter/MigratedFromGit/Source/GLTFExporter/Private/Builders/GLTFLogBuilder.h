@@ -28,6 +28,8 @@ public:
 
 	const TArray<FString>& GetLoggedErrors() const;
 
+	bool HasLoggedMessages() const;
+
 	void OpenLog() const;
 
 	void ClearLog();

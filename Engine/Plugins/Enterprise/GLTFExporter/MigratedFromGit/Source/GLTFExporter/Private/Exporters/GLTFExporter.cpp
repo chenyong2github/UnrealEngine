@@ -45,7 +45,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	// TODO: should we copy messages to UAssetExportTask::Errors?
 
-	if (!FApp::IsUnattended())
+	if (!FApp::IsUnattended() && Builder.HasLoggedMessages())
 	{
 		Builder.OpenLog();
 	}
