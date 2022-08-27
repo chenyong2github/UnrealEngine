@@ -46,22 +46,6 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteL
 	return AddImage(ImageData.GetData(), ImageData.Num(), EGLTFJsonMimeType::PNG, Name);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FByteBulkData& BulkData, EGLTFJsonMimeType MimeType, const FString& Name)
-{
-	const void* RawData = BulkData.LockReadOnly();
-	const FGLTFJsonImageIndex ImageIndex = AddImage(RawData, BulkData.GetBulkDataSize(), MimeType, Name);
-	BulkData.Unlock();
-	return ImageIndex;
-}
-
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FByteBulkData& BulkData, FIntPoint Size, ERGBFormat Format, int32 BitDepth, const FString& Name)
-{
-	const void* RawData = BulkData.LockReadOnly();
-	const FGLTFJsonImageIndex ImageIndex = AddImage(RawData, BulkData.GetBulkDataSize(), Size, Format, BitDepth, Name);
-	BulkData.Unlock();
-	return ImageIndex;
-}
-
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, const FString& Name)
 {
 	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
