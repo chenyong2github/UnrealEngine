@@ -41,22 +41,20 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
-		const FGLTFJsonNodeIndex LeafNodeIndex = Builder.AddChildNode(NodeIndex);
-		FGLTFJsonNode& LeafNode = Builder.GetNode(LeafNodeIndex);
-		LeafNode.Name = Node.Name + TEXT("_STATICMESH");
-
-		LeafNode.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
-		LeafNode.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
-		LeafNode.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+		FGLTFJsonNode MeshNode;
+		MeshNode.Name = Node.Name + TEXT("_STATICMESH");
+		MeshNode.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
+		MeshNode.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
+		MeshNode.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+		Builder.AddChildNode(NodeIndex, MeshNode);
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 	{
-		const FGLTFJsonNodeIndex LeafNodeIndex = Builder.AddChildNode(NodeIndex);
-		FGLTFJsonNode& LeafNode = Builder.GetNode(LeafNodeIndex);
-		LeafNode.Name = Node.Name + TEXT("_SKELETALMESH");
-
-		LeafNode.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
-		LeafNode.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
+		FGLTFJsonNode MeshNode;
+		MeshNode.Name = Node.Name + TEXT("_SKELETALMESH");
+		MeshNode.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
+		MeshNode.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
+		Builder.AddChildNode(NodeIndex, MeshNode);
 	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
 	{
