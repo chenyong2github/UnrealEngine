@@ -57,13 +57,13 @@ public:
 	uint32 bExtensionsRequired : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
-	uint32 bExportVertexColor : 1;
+	uint32 bExportVertexColors : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
-	uint32 bExportUnlitMaterial : 1;
+	uint32 bExportUnlitMaterials : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
-	uint32 bExportClearCoatMaterial : 1;
+	uint32 bExportClearCoatMaterials : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Material)
 	uint32 bBakeMaterialInputs : 1;
@@ -81,27 +81,27 @@ public:
 	uint32 bExportLightmaps : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene, meta =
-		(DisplayName = "Import Uniform Scale",
+		(DisplayName = "Export Uniform Scale",
 		 ToolTip = "Scale factor used for exporting assets, by default: 0.01, for conversion from centimeters(Unreal default) to meters(glTF)."))
 	float ExportScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportLight : 1;
+	uint32 bExportLights : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportCamera : 1;
+	uint32 bExportCameras : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportReflectionCapture : 1;
+	uint32 bExportReflectionCaptures : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportHDRIBackdrop : 1;
+	uint32 bExportHDRIBackdrops : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportVariantSets : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportAnimationTrigger : 1;
+	uint32 bExportInteractionHotspots : 1;
 
 	/* Set all the UProperty to the CDO value */
 	void ResetToDefault();
