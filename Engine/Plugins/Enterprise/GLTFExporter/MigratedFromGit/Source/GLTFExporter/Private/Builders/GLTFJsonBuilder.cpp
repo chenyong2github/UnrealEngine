@@ -14,19 +14,16 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOpt
 
 void FGLTFJsonBuilder::WriteJson(FArchive& Archive)
 {
-	JsonRoot.ToJson(&Archive, !bIsGlbFile);
+	JsonRoot.WriteJson(Archive, !bIsGlbFile);
 }
 
 TSet<EGLTFJsonExtension> FGLTFJsonBuilder::GetCustomExtensionsUsed() const
 {
-	const TCHAR CustomPrefix[] = TEXT("EPIC_");
-
 	TSet<EGLTFJsonExtension> CustomExtensions;
 
 	for (EGLTFJsonExtension Extension : JsonRoot.Extensions.Used)
 	{
-		const TCHAR* ExtensionString = FGLTFJsonUtility::GetValue(Extension);
-		if (FCString::Strncmp(ExtensionString, CustomPrefix, (sizeof(CustomPrefix) / sizeof(TCHAR)) - 1) == 0)
+		if (IsCustomExtension(Extension))
 		{
 			CustomExtensions.Add(Extension);
 		}
@@ -277,4 +274,12 @@ FString FGLTFJsonBuilder::GetGeneratorString() const
 	return ExportOptions->bIncludeGeneratorVersion
 		? TEXT(EPIC_PRODUCT_NAME) TEXT(" ") ENGINE_VERSION_STRING TEXT(" ") + PluginDescriptor.FriendlyName + TEXT(" ") + PluginDescriptor.VersionName
 		: TEXT(EPIC_PRODUCT_NAME) TEXT(" ") + PluginDescriptor.FriendlyName;
+}
+
+bool FGLTFJsonBuilder::IsCustomExtension(EGLTFJsonExtension Extension)
+{
+	const TCHAR CustomPrefix[] = TEXT("EPIC_");
+
+	const TCHAR* ExtensionString = FGLTFJsonUtility::GetValue(Extension);
+	return FCString::Strncmp(ExtensionString, CustomPrefix, GetNum(CustomPrefix) - 1) == 0;
 }
