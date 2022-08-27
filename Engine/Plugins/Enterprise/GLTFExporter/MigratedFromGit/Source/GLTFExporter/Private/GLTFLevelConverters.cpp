@@ -4,7 +4,7 @@
 
 #include "GLTFLevelConverters.h"
 #include "GLTFContainerBuilder.h"
-#include "GLTFConversionUtilities.h"
+#include "GLTFConverterUtility.h"
 
 FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode)
 {
@@ -16,11 +16,11 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Bu
 	Node.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + SceneComponent->GetName() : Name;
 
 	const FTransform Transform = bRootNode ? SceneComponent->GetComponentTransform() : SceneComponent->GetRelativeTransform();
-	Node.Translation = ConvertPosition(Transform.GetTranslation());
-	Node.Rotation = ConvertRotation(Transform.GetRotation());
-	Node.Scale = ConvertScale(Transform.GetScale3D());
+	Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation());
+	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
+	Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
 	
-	if (IsSkySphereBlueprint(Blueprint))
+	if (FGLTFConverterUtility::IsSkySphereBlueprint(Blueprint))
 	{
 		// Ignore components
 	}
@@ -28,7 +28,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Bu
 	{
 		Node.Mesh = Builder.ConvertMesh(StaticMeshComponent);
 	}
-	else if (IsHDRIBackdropBlueprint(Blueprint) && bIsRootComponent)
+	else if (FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint) && bIsRootComponent)
 	{
 		// TODO: add support for backdrop
 	}
@@ -42,7 +42,10 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Bu
 			if (!bSelectedOnly || ChildOwner->IsSelected())
 			{
 				FGLTFJsonNodeIndex NodeIndex = Builder.ConvertNode(ChildComponent, bSelectedOnly, false);
-				if (NodeIndex != INDEX_NONE) Node.Children.Add(NodeIndex);
+				if (NodeIndex != INDEX_NONE)
+				{
+					Node.Children.Add(NodeIndex);
+				}
 			}
 		}
 	}
@@ -69,7 +72,10 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(FGLTFIndexedBuilder& Builder, c
 				if (ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected()))
 				{
 					FGLTFJsonNodeIndex NodeIndex = Builder.ConvertNode(RootComponent, bSelectedOnly, true);
-					if (NodeIndex != INDEX_NONE) Scene.Nodes.Add(NodeIndex);
+					if (NodeIndex != INDEX_NONE)
+					{
+						Scene.Nodes.Add(NodeIndex);
+					}
 				}
 			}
 		}

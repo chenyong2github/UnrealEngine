@@ -2,7 +2,7 @@
 
 #include "GLTFStaticMeshConverters.h"
 #include "GLTFContainerBuilder.h"
-#include "GLTFConversionUtilities.h"
+#include "GLTFConverterUtility.h"
 
 FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const FPositionVertexBuffer* VertexBuffer)
 {
@@ -17,7 +17,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(FGLTFIndexedB
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		Positions[VertexIndex] = ConvertPosition(VertexBuffer->VertexPosition(VertexIndex));
+		Positions[VertexIndex] = FGLTFConverterUtility::ConvertPosition(VertexBuffer->VertexPosition(VertexIndex));
 	}
 
 	FBox BoundingBox;
@@ -60,7 +60,7 @@ FGLTFJsonAccessorIndex FGLTFColorVertexBufferConverter::Convert(FGLTFIndexedBuil
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		Colors[VertexIndex] = ConvertColor(VertexBuffer->VertexColor(VertexIndex));
+		Colors[VertexIndex] = FGLTFConverterUtility::ConvertColor(VertexBuffer->VertexColor(VertexIndex));
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -87,7 +87,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshNormalVertexBufferConverter::Convert(FGLTF
 	
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		Normals[VertexIndex] = ConvertVector(VertexBuffer->VertexTangentZ(VertexIndex));
+		Normals[VertexIndex] = FGLTFConverterUtility::ConvertVector(VertexBuffer->VertexTangentZ(VertexIndex));
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -113,7 +113,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshTangentVertexBufferConverter::Convert(FGLT
 	
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		Tangents[VertexIndex] = ConvertVector(VertexBuffer->VertexTangentX(VertexIndex));
+		Tangents[VertexIndex] = FGLTFConverterUtility::ConvertVector(VertexBuffer->VertexTangentX(VertexIndex));
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
