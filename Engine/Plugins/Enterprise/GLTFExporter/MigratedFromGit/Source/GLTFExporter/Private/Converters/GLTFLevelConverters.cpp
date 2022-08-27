@@ -46,6 +46,10 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 			Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
 		}
 	}
+	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
+	{
+		Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
+	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
 	{
 		// TODO: conversion of camera direction should be done in separate converter
