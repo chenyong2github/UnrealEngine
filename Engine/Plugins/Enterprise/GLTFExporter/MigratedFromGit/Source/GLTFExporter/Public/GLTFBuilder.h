@@ -5,14 +5,14 @@
 #include "GLTFJsonRoot.h"
 #include "Engine.h"
 
-struct GLTFEXPORTER_API FGLTFContainer
+struct GLTFEXPORTER_API FGLTFBuilder
 {
 	FGLTFJsonRoot JsonRoot;
 
 	const FGLTFJsonBufferIndex MergedBufferIndex;
 	TArray<uint8> MergedBufferData;
 
-	FGLTFContainer();
+	FGLTFBuilder();
 
 	template <class ElementType>
 	FGLTFJsonBufferViewIndex AppendBufferView(const TArray<ElementType>& Array, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer)
