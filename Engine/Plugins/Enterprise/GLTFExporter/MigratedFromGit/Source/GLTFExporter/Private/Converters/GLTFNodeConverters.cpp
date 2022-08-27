@@ -87,6 +87,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			if (SkinIndex != INDEX_NONE)
 			{
 				Builder.GetNode(NodeIndex).Skin = SkinIndex;
+
 				if (Builder.ExportOptions->bExportAnimationSequences)
 				{
 					Builder.GetOrAddAnimation(NodeIndex, SkeletalMeshComponent);
