@@ -24,9 +24,9 @@ struct GLTFEXPORTER_API FGLTFConvertedMesh
 	TArray<FGLTFConvertedSection> Sections;
 
 	TArray<FVector>   Positions;
+	TArray<FColor>    Colors;
 	TArray<FVector>   Normals;
 	TArray<FVector4>  Tangents;
-	TArray<FColor>    Colors;
 	TArray<FVector2D> UV0s;
 	TArray<FVector2D> UV1s;
 
@@ -35,9 +35,9 @@ struct GLTFEXPORTER_API FGLTFConvertedMesh
 	FGLTFConvertedMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
 
 	FGLTFJsonIndex AppendAccessorForPositions(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonIndex AppendAccessorForColors(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 	FGLTFJsonIndex AppendAccessorForNormals(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 	FGLTFJsonIndex AppendAccessorForTangents(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
-	FGLTFJsonIndex AppendAccessorForColors(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 	FGLTFJsonIndex AppendAccessorForUV0s(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 	FGLTFJsonIndex AppendAccessorForUV1s(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 
