@@ -153,7 +153,7 @@ FReply SGLTFExportOptionsWindow::OnResetToDefaultClick() const
 	return FReply::Handled();
 }
 
-inline FReply SGLTFExportOptionsWindow::OnExport()
+FReply SGLTFExportOptionsWindow::OnExport()
 {
 	bShouldExport = true;
 	if (WidgetWindow.IsValid())
@@ -163,13 +163,13 @@ inline FReply SGLTFExportOptionsWindow::OnExport()
 	return FReply::Handled();
 }
 
-inline FReply SGLTFExportOptionsWindow::OnExportAll()
+FReply SGLTFExportOptionsWindow::OnExportAll()
 {
 	bShouldExportAll = true;
 	return OnExport();
 }
 
-inline FReply SGLTFExportOptionsWindow::OnCancel()
+FReply SGLTFExportOptionsWindow::OnCancel()
 {
 	bShouldExport = false;
 	bShouldExportAll = false;
@@ -180,7 +180,7 @@ inline FReply SGLTFExportOptionsWindow::OnCancel()
 	return FReply::Handled();
 }
 
-inline FReply SGLTFExportOptionsWindow::OnKeyDown(const FGeometry & MyGeometry, const FKeyEvent & InKeyEvent)
+FReply SGLTFExportOptionsWindow::OnKeyDown(const FGeometry & MyGeometry, const FKeyEvent & InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
@@ -190,17 +190,17 @@ inline FReply SGLTFExportOptionsWindow::OnKeyDown(const FGeometry & MyGeometry, 
 	return FReply::Unhandled();
 }
 
-inline bool SGLTFExportOptionsWindow::ShouldExport() const
+bool SGLTFExportOptionsWindow::ShouldExport() const
 {
 	return bShouldExport;
 }
 
-inline bool SGLTFExportOptionsWindow::ShouldExportAll() const
+bool SGLTFExportOptionsWindow::ShouldExportAll() const
 {
 	return bShouldExportAll;
 }
 
-inline SGLTFExportOptionsWindow::SGLTFExportOptionsWindow()
+SGLTFExportOptionsWindow::SGLTFExportOptionsWindow()
 	: ExportOptions(nullptr)
 	, bShouldExport(false)
 	, bShouldExportAll(false)
