@@ -28,8 +28,8 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementBase : public UObject
 public:
 
 	static constexpr float DefaultViewDependentAngleTol = 0.052f;			// ~3 degrees
-	static constexpr float DefaultViewAlignAxialMaxCosAngleTol = 0.998f;	// Cos(DefaultViewDependentAngleTol)
-	static constexpr float DefaultViewAlignPlanarMinCosAngleTol = 0.052f;	// Cos(HALF_PI - DefaultViewDependentAngleTol)
+	static constexpr float DefaultViewDependentAxialMaxCosAngleTol = 0.998f;	// Cos(DefaultViewDependentAngleTol)
+	static constexpr float DefaultViewDependentPlanarMinCosAngleTol = 0.052f;	// Cos(HALF_PI - DefaultViewDependentAngleTol)
 
 	static constexpr float DefaultViewAlignAngleTol = 0.052f;				// ~3 degrees
 	static constexpr float DefaultViewAlignMaxCosAngleTol = 0.998f;			// Cos(DefaultViewAlignAngleTol)
@@ -353,12 +353,12 @@ protected:
 	// Axial view alignment minimum cos angle tolerance, computed based on ViewDependentAngleTol. 
 	// When the cos of the angle between the view direction and the axis is less than this value, this object should not be culled.
 	UPROPERTY()
-	float ViewDependentAxialMaxCosAngleTol = DefaultViewAlignAxialMaxCosAngleTol;
+	float ViewDependentAxialMaxCosAngleTol = DefaultViewDependentAxialMaxCosAngleTol;
 
 	// Planar view alignment minimum cos angle tolerance, computed based on ViewDependentAngleTol. 
 	// When the cos of the angle between the view direction and the axis is greater than this value, this object should not be culled.
 	UPROPERTY()
-	float ViewDependentPlanarMinCosAngleTol = DefaultViewAlignPlanarMinCosAngleTol;
+	float ViewDependentPlanarMinCosAngleTol = DefaultViewDependentPlanarMinCosAngleTol;
 
 	// View align type: None, PointEye, or PointWorld.
 	// PointEye rotates this axis to align with the view up axis.

@@ -59,7 +59,7 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 		// angle between the vector from torus center to ring center and the vector from torus center to ring edge.
 		double MinCosAngle = 
 			FMath::Max(InnerRadius * 1.5 / FMath::Sqrt(OuterRadius * OuterRadius + InnerRadius * InnerRadius), 
-				DefaultViewAlignPlanarMinCosAngleTol);
+				DefaultViewDependentPlanarMinCosAngleTol);
 
 		bool bAtGlancingAngle = FMath::Abs(FVector::DotProduct(WorldNormal, ViewToTorusCenter)) <= MinCosAngle;
 

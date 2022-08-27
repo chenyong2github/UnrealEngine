@@ -75,11 +75,11 @@ bool UGizmoElementBase::GetViewDependentVisibility(const FVector& InViewLocation
 	bool bVisibleViewDependent;
 	if (ViewDependentType == EGizmoElementViewDependentType::Axis)
 	{
-		bVisibleViewDependent = FMath::Abs(FVector::DotProduct(ViewDependentAxis, ViewDir)) < DefaultViewAlignAxialMaxCosAngleTol;
+		bVisibleViewDependent = FMath::Abs(FVector::DotProduct(ViewDependentAxis, ViewDir)) < DefaultViewDependentAxialMaxCosAngleTol;
 	}
 	else // (ViewDependentType == EGizmoElementViewDependentType::Plane)
 	{
-		bVisibleViewDependent = FMath::Abs(FVector::DotProduct(ViewDependentAxis, ViewDir)) > DefaultViewAlignPlanarMinCosAngleTol;
+		bVisibleViewDependent = FMath::Abs(FVector::DotProduct(ViewDependentAxis, ViewDir)) > DefaultViewDependentPlanarMinCosAngleTol;
 	}
 
 	return bVisibleViewDependent;
@@ -133,7 +133,7 @@ bool UGizmoElementBase::GetViewAlignRot(const FVector& InViewLocation, const FVe
 	else if (ViewAlignType == EGizmoElementViewAlignType::Axial)
 	{
 		// if Axis and Dir are almost coincident, do not adjust the rotation
-		if ((FMath::Abs(FVector::DotProduct(ViewAlignAxis, -LocalViewDir))) >= DefaultViewAlignAxialMaxCosAngleTol)
+		if ((FMath::Abs(FVector::DotProduct(ViewAlignAxis, -LocalViewDir))) >= DefaultViewAlignMaxCosAngleTol)
 		{
 			return false;
 		}
