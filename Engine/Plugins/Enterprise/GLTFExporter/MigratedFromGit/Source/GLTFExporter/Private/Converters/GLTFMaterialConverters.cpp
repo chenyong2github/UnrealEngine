@@ -14,6 +14,32 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 		MeshData = nullptr;
 		SectionIndices = {};
 	}
+
+	if (MeshData != nullptr)
+	{
+		const FGLTFMeshData* ParentMeshData = MeshData->GetParent();
+		const TArray<int32>* DegenerateSections = DegenerateUVSectionsChecker.GetOrAdd(&ParentMeshData->Description, MeshData->TexCoord);
+		if (DegenerateSections != nullptr)
+		{
+			bool bHasDegenerateUVs = false;
+			for (const int32 SectionIndex : SectionIndices)
+			{
+				bHasDegenerateUVs |= DegenerateSections->Contains(SectionIndex);
+			}
+
+			if (bHasDegenerateUVs)
+			{
+				Builder.AddWarningMessage(FString::Printf(
+					TEXT("Material %s is using mesh data from %s but the lightmap UVs (channel %d) are degenerate. Simple baking will be used as fallback"),
+					*Material->GetName(),
+					*ParentMeshData->Name,
+					MeshData->TexCoord));
+
+				MeshData = nullptr;
+				SectionIndices = {};
+			}
+		}
+	}
 }
 
 FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, TArray<int32> SectionIndices)
