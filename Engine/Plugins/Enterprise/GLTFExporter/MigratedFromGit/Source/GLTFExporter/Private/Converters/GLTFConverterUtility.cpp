@@ -128,6 +128,6 @@ FGLTFJsonPerspective FGLTFConverterUtility::ConvertPerspective(const FMinimalVie
 float FGLTFConverterUtility::ConvertFieldOfView(const FMinimalViewInfo& View)
 {
 	const float HorizontalFOV = FMath::DegreesToRadians(View.FOV);
-	const float VerticalFOV = FMath::Atan(FMath::Tan(HorizontalFOV) / View.AspectRatio);
+	const float VerticalFOV = 2 * FMath::Atan(FMath::Tan(HorizontalFOV / 2) / View.AspectRatio);
 	return VerticalFOV;
 }
