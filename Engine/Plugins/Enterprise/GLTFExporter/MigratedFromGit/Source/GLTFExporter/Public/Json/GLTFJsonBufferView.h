@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -16,8 +16,9 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonObject
 
 	EGLTFJsonBufferTarget Target;
 
-	FGLTFJsonBufferView()
-		: ByteLength(0)
+	FGLTFJsonBufferView(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, ByteLength(0)
 		, ByteOffset(0)
 		, ByteStride(0)
 		, Target(EGLTFJsonBufferTarget::None)

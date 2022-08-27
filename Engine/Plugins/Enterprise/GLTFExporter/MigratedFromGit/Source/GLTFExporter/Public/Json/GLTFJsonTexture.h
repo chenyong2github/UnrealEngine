@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonTexture : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonTexture : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -14,8 +14,9 @@ struct GLTFEXPORTER_API FGLTFJsonTexture : IGLTFJsonObject
 
 	EGLTFJsonHDREncoding Encoding;
 
-	FGLTFJsonTexture()
-		: Encoding(EGLTFJsonHDREncoding::None)
+	FGLTFJsonTexture(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, Encoding(EGLTFJsonHDREncoding::None)
 	{
 	}
 

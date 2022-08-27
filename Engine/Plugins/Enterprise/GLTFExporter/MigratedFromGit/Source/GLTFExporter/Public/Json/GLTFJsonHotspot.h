@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonHotspot : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonHotspot : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -13,6 +13,11 @@ struct GLTFEXPORTER_API FGLTFJsonHotspot : IGLTFJsonObject
 	FGLTFJsonTextureIndex   HoveredImage;
 	FGLTFJsonTextureIndex   ToggledImage;
 	FGLTFJsonTextureIndex   ToggledHoveredImage;
+
+	FGLTFJsonHotspot(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

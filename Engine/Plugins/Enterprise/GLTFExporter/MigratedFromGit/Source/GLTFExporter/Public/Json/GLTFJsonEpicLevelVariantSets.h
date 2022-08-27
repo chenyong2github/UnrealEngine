@@ -49,11 +49,16 @@ struct GLTFEXPORTER_API FGLTFJsonEpicVariantSet : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonEpicLevelVariantSets : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonEpicLevelVariantSets : IGLTFJsonIndexedObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonEpicVariantSet> VariantSets;
+
+	FGLTFJsonEpicLevelVariantSets(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

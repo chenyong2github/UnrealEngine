@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -20,8 +20,9 @@ struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonObject
 	float LightingDistanceFactor;
 	bool UseCameraProjection;
 
-	FGLTFJsonBackdrop()
-		: Intensity(0)
+	FGLTFJsonBackdrop(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, Intensity(0)
 		, Size(0)
 		, Angle(0)
 		, ProjectionCenter(FGLTFJsonVector3::Zero)

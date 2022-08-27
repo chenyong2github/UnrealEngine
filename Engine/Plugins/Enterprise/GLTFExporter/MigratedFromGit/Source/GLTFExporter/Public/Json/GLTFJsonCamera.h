@@ -41,7 +41,7 @@ struct GLTFEXPORTER_API FGLTFJsonPerspective : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonCamera : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonCamera : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -51,8 +51,9 @@ struct GLTFEXPORTER_API FGLTFJsonCamera : IGLTFJsonObject
 	FGLTFJsonOrthographic Orthographic;
 	FGLTFJsonPerspective  Perspective;
 
-	FGLTFJsonCamera()
-		: Type(EGLTFJsonCameraType::None)
+	FGLTFJsonCamera(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, Type(EGLTFJsonCameraType::None)
 	{
 	}
 

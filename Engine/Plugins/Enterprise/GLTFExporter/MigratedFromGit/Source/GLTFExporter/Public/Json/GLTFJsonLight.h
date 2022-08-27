@@ -18,7 +18,7 @@ struct GLTFEXPORTER_API FGLTFJsonSpotLight : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonLight : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonLight : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -31,8 +31,9 @@ struct GLTFEXPORTER_API FGLTFJsonLight : IGLTFJsonObject
 
 	FGLTFJsonSpotLight Spot;
 
-	FGLTFJsonLight()
-		: Type(EGLTFJsonLightType::None)
+	FGLTFJsonLight(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, Type(EGLTFJsonLightType::None)
 		, Color(FGLTFJsonColor3::White)
 		, Intensity(1)
 		, Range(0)

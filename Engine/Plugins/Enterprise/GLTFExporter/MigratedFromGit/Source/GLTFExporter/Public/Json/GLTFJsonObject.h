@@ -16,3 +16,15 @@ struct GLTFEXPORTER_API IGLTFJsonObject : IGLTFJsonValue
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const = 0;
 };
+
+struct GLTFEXPORTER_API IGLTFJsonIndexedObject : IGLTFJsonObject
+{
+	int32 Index;
+
+protected:
+
+	IGLTFJsonIndexedObject(int32 Index)
+		: Index(Index)
+	{
+	}
+};

@@ -4,15 +4,16 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBuffer : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBuffer : IGLTFJsonIndexedObject
 {
 	FString Name;
 
 	FString URI;
 	int64   ByteLength;
 
-	FGLTFJsonBuffer()
-		: ByteLength(0)
+	FGLTFJsonBuffer(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, ByteLength(0)
 	{
 	}
 

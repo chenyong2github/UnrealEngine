@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonSampler : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonSampler : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -14,8 +14,9 @@ struct GLTFEXPORTER_API FGLTFJsonSampler : IGLTFJsonObject
 	EGLTFJsonTextureWrap WrapS;
 	EGLTFJsonTextureWrap WrapT;
 
-	FGLTFJsonSampler()
-		: MinFilter(EGLTFJsonTextureFilter::None)
+	FGLTFJsonSampler(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, MinFilter(EGLTFJsonTextureFilter::None)
 		, MagFilter(EGLTFJsonTextureFilter::None)
 		, WrapS(EGLTFJsonTextureWrap::Repeat)
 		, WrapT(EGLTFJsonTextureWrap::Repeat)

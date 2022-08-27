@@ -82,7 +82,7 @@ struct GLTFEXPORTER_API FGLTFJsonClearCoatExtension : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -105,8 +105,9 @@ struct GLTFEXPORTER_API FGLTFJsonMaterial : IGLTFJsonObject
 
 	FGLTFJsonClearCoatExtension ClearCoat;
 
-	FGLTFJsonMaterial()
-		: ShadingModel(EGLTFJsonShadingModel::Default)
+	FGLTFJsonMaterial(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, ShadingModel(EGLTFJsonShadingModel::Default)
 		, EmissiveFactor(FGLTFJsonColor3::Black)
 		, AlphaMode(EGLTFJsonAlphaMode::Opaque)
 		, AlphaCutoff(0.5f)

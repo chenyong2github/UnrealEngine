@@ -41,7 +41,7 @@ struct GLTFEXPORTER_API FGLTFJsonAnimationSampler : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -49,6 +49,11 @@ struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonObject
 	TArray<FGLTFJsonAnimationSampler> Samplers;
 
 	FGLTFJsonAnimationPlayback Playback;
+
+	FGLTFJsonAnimation(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
