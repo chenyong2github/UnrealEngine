@@ -54,10 +54,16 @@ void AGLTFOrbitCameraActor::BeginPlay()
 		// It may however prove difficult, since we would need to exclude sky-spheres, backdrops etc when calculating the center.
 	}
 
-	// TODO: calculate distance and direction based on camera offset to focus (similar to viewer camera)
-	Distance = ClampDistance(Distance);
-	Pitch = ClampPitch(Pitch);
-	Yaw = ClampYaw(Yaw);
+	// Ensure that the camera is initially aimed at the focus-position
+	SetActorRotation(GetLookAtRotation(FocusPosition));
+
+	const FVector Position = GetActorLocation();
+	const FRotator Rotation = GetActorRotation();
+
+	// Calculate values based on the current location and orientation
+	Distance = ClampDistance((FocusPosition - Position).Size());
+	Pitch = ClampPitch(Rotation.Pitch);
+	Yaw = ClampYaw(Rotation.Yaw);
 	TargetDistance = Distance;
 	TargetPitch = Pitch;
 	TargetYaw = Yaw;
@@ -150,4 +156,11 @@ void AGLTFOrbitCameraActor::RemoveInertia()
 	Yaw = TargetYaw;
 	Pitch = TargetPitch;
 	Distance = TargetDistance;
+}
+
+FRotator AGLTFOrbitCameraActor::GetLookAtRotation(const FVector TargetPosition) const
+{
+	const FVector EyePosition = GetActorLocation();
+
+	return FRotationMatrix::MakeFromXZ(TargetPosition - EyePosition, FVector::UpVector).Rotator();
 }
