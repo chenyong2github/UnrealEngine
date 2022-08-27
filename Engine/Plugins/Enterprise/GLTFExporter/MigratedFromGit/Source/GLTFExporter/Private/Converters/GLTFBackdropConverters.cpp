@@ -17,6 +17,16 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* BackdropAct
 	FGLTFJsonBackdrop JsonBackdrop;
 	BackdropActor->GetName(JsonBackdrop.Name);
 
+	const USceneComponent* SceneComponent = BackdropActor->GetRootComponent();
+	const FRotator Rotation = SceneComponent->GetComponentRotation();
+
+	// NOTE: when calculating map rotation in the HDRI_Attributes material function using RotateAboutAxis,
+	// an angle in radians is used as input. But RotateAboutAxis expects a value of 1 per full revolution, not 2*PI.
+	// The end result is that the map rotation is always 2*PI more than the actual yaw of the scene component.
+
+	// TODO: remove the 2*PI multiplier if HDRI_Attributes is updated to match map rotation with yaw
+	JsonBackdrop.Angle = FRotator::ClampAxis(Rotation.Yaw * 2.0f * PI);
+
 	const UStaticMesh* Mesh;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Mesh"), Mesh))
 	{
