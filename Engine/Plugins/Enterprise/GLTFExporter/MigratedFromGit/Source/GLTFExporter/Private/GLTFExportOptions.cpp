@@ -24,6 +24,7 @@ void UGLTFExportOptions::ResetToDefault()
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
 	DefaultMaterialBakeFilter = TF_Trilinear;
 	DefaultMaterialBakeTiling = TA_Wrap;
+	DefaultLevelOfDetail = 0;
 	bExportVertexColors = false;
 	bExportVertexSkinWeights = true;
 	bUseMeshQuantization = false;
