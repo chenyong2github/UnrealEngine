@@ -117,19 +117,9 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		}
 	}
 
-	EPixelFormat PixelFormat;
-
-	// NOTE: The texture-format is mapped per property in the MaterialBaking-module via PerPropertyFormat.
-	// It's PF_B8G8R8A8 for all properties except for MP_EmissiveColor (which is PF_FloatRGBA).
-	switch (MaterialProperty)
-	{
-		case MP_EmissiveColor: PixelFormat = PF_FloatRGBA; break;
-		default: PixelFormat = PF_B8G8R8A8; break;
-	}
-
 	return {
 		MaterialProperty,
-		PixelFormat,
+		PF_B8G8R8A8,
 		BakedPixels,
 		BakedSize
 	};
