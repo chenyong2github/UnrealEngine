@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonExtensions.h"
 #include "Json/GLTFJsonAccessor.h"
 #include "Json/GLTFJsonBuffer.h"
 #include "Json/GLTFJsonBufferView.h"
@@ -13,8 +14,6 @@
 #include "Json/GLTFJsonSampler.h"
 #include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonTexture.h"
-
-#include "Containers/Set.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 
 
@@ -51,8 +50,7 @@ struct FGLTFJsonRoot
 {
 	FGLTFJsonAsset Asset;
 
-	TSet<EGLTFJsonExtension> ExtensionsUsed;
-	TSet<EGLTFJsonExtension> ExtensionsRequired;
+	FGLTFJsonExtensions Extensions;
 
 	FGLTFJsonSceneIndex DefaultScene;
 
@@ -70,13 +68,12 @@ struct FGLTFJsonRoot
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
+		FGLTFJsonExtensions AllExtensions(Extensions);
+
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
 		Asset.WriteObject(JsonWriter);
-
-		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), ExtensionsUsed);
-		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), ExtensionsRequired);
 
 		if (DefaultScene != INDEX_NONE)
 		{
@@ -93,6 +90,9 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures);
+
+		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), AllExtensions.Used);
+		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), AllExtensions.Required);
 
 		JsonWriter.WriteObjectEnd();
 	}
