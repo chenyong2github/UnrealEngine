@@ -65,7 +65,12 @@ void AGLTFCameraActor::BeginPlay()
 
 	if (Mode == EGLTFCameraMode::FirstPerson)
 	{
-		// TODO: implement
+		const FRotator Rotation = GetActorRotation();
+
+		Pitch = ClampPitch(Rotation.Pitch);
+		Yaw = ClampYaw(Rotation.Yaw);
+		TargetPitch = Pitch;
+		TargetYaw = Yaw;
 	}
 	else if (Mode == EGLTFCameraMode::ThirdPerson)
 	{
@@ -104,7 +109,11 @@ void AGLTFCameraActor::Tick(float DeltaSeconds)
 
 	if (Mode == EGLTFCameraMode::FirstPerson)
 	{
-		// TODO: implement
+		const float Alpha = (RotationInertia == 0.0f) ? 1.0f : FMath::Min(DeltaSeconds / RotationInertia, 1.0f);
+		Yaw = FMath::Lerp(Yaw, TargetYaw, Alpha);
+		Pitch = FMath::Lerp(Pitch, TargetPitch, Alpha);
+
+		SetActorRotation(FQuat::MakeFromEuler(FVector(0.0f, Pitch, Yaw)));
 	}
 	else if (Mode == EGLTFCameraMode::ThirdPerson)
 	{
