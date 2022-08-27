@@ -23,7 +23,7 @@ struct TGLTFJsonMatrix : BaseType, IGLTFJsonArray
 
 	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		for (int32 i = 0; i < GetNum(BaseType::Elements); ++i)
+		for (SIZE_T i = 0; i < GetNum(BaseType::Elements); ++i)
 		{
 			Writer.Write(BaseType::Elements[i]);
 		}
@@ -31,7 +31,7 @@ struct TGLTFJsonMatrix : BaseType, IGLTFJsonArray
 
 	bool IsNearlyEqual(const BaseType& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		for (int32 i = 0; i < GetNum(BaseType::Elements); ++i)
+		for (SIZE_T i = 0; i < GetNum(BaseType::Elements); ++i)
 		{
 			if (!FMath::IsNearlyEqual(BaseType::Elements[i], Other.Elements[i], Tolerance))
 			{
