@@ -6,7 +6,7 @@
 
 struct GLTFEXPORTER_API FGLTFJsonUtility
 {
-	static inline const TCHAR* ExtensionToString(EGLTFExtension Extension)
+	static const TCHAR* ExtensionToString(EGLTFExtension Extension)
 	{
 		switch (Extension)
 		{
@@ -18,7 +18,7 @@ struct GLTFEXPORTER_API FGLTFJsonUtility
 		}
 	}
 
-	static inline const TCHAR* AlphaModeToString(EGLTFJsonAlphaMode Mode)
+	static const TCHAR* AlphaModeToString(EGLTFJsonAlphaMode Mode)
 	{
 		switch (Mode)
 		{
@@ -29,22 +29,22 @@ struct GLTFEXPORTER_API FGLTFJsonUtility
 		}
 	}
 
-	static inline int32 PrimitiveModeToNumber(EGLTFJsonPrimitiveMode Mode)
+	static int32 PrimitiveModeToNumber(EGLTFJsonPrimitiveMode Mode)
 	{
 		return static_cast<int32>(Mode);
 	}
 
-	static inline int32 FilterToNumber(EGLTFJsonSamplerFilter Filter)
+	static int32 FilterToNumber(EGLTFJsonSamplerFilter Filter)
 	{
 		return static_cast<int32>(Filter);
 	}
 
-	static inline int32 WrapModeToNumber(EGLTFJsonSamplerWrap Wrap)
+	static int32 WrapModeToNumber(EGLTFJsonSamplerWrap Wrap)
 	{
 		return static_cast<int32>(Wrap);
 	}
 
-	static inline const TCHAR* AccessorTypeToString(EGLTFJsonAccessorType Type)
+	static const TCHAR* AccessorTypeToString(EGLTFJsonAccessorType Type)
 	{
 		switch (Type)
 		{
@@ -59,12 +59,12 @@ struct GLTFEXPORTER_API FGLTFJsonUtility
 		}
 	}
 
-	static inline int32 ComponentTypeToNumber(EGLTFJsonComponentType Type)
+	static int32 ComponentTypeToNumber(EGLTFJsonComponentType Type)
 	{
 		return static_cast<int32>(Type);
 	}
 
-	static inline int32 BufferTargetToNumber(EGLTFJsonBufferTarget Target)
+	static int32 BufferTargetToNumber(EGLTFJsonBufferTarget Target)
 	{
 		return static_cast<int32>(Target);
 	}

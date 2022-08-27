@@ -7,42 +7,42 @@
 
 struct GLTFEXPORTER_API FGLTFConverterUtility
 {
-	static inline FVector ConvertVector(const FVector& Vector)
+	static FVector ConvertVector(const FVector& Vector)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
 		// glTF uses a right-handed coordinate system, with Y up.
 		return { Vector.X, Vector.Z, Vector.Y };
 	}
 
-	static inline FVector ConvertPosition(const FVector& Position)
+	static FVector ConvertPosition(const FVector& Position)
 	{
 		return ConvertVector(Position) * 0.01f; // TODO: use options export scale instead of hardcoded value
 	}
 
-	static inline FVector ConvertScale(const FVector& Scale)
+	static FVector ConvertScale(const FVector& Scale)
 	{
 		return ConvertVector(Scale);
 	}
 
-	static inline FVector ConvertNormal(const FVector& Normal)
+	static FVector ConvertNormal(const FVector& Normal)
 	{
 		return ConvertVector(Normal);
 	}
 
-	static inline FVector4 ConvertTangent(const FVector& Tangent)
+	static FVector4 ConvertTangent(const FVector& Tangent)
 	{
 		// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
 		return FVector4(ConvertVector(Tangent), 1.0f);
 	}
 
-	static inline FGLTFColor ConvertColor(const FColor& Color)
+	static FGLTFColor ConvertColor(const FColor& Color)
 	{
 		// UE4 uses ABGR or ARGB depending on endianness.
 		// glTF always uses RGBA independent of endianness.
 		return { Color.R, Color.G, Color.B, Color.A };
 	}
 
-	static inline FQuat ConvertRotation(const FQuat& Rotation)
+	static FQuat ConvertRotation(const FQuat& Rotation)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
 		// glTF uses a right-handed coordinate system, with Y up.
@@ -58,7 +58,7 @@ struct GLTFEXPORTER_API FGLTFConverterUtility
 		return Result;
 	}
 
-	static inline FMatrix ConvertMatrix(const FMatrix& Matrix)
+	static FMatrix ConvertMatrix(const FMatrix& Matrix)
 	{
 		// Unreal stores matrix elements in row major order.
 		// glTF stores matrix elements in column major order.
@@ -74,7 +74,7 @@ struct GLTFEXPORTER_API FGLTFConverterUtility
 		return Result;
 	}
 
-	static inline EGLTFJsonAlphaMode ConvertAlphaMode(const EBlendMode Mode)
+	static EGLTFJsonAlphaMode ConvertAlphaMode(const EBlendMode Mode)
 	{
 		switch (Mode)
 		{
