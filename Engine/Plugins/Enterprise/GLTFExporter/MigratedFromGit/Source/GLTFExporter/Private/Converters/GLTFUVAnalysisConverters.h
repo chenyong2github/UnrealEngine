@@ -13,4 +13,8 @@ class FGLTFUVAnalysisConverter final : public TGLTFConverter<const FGLTFUVAnalys
 	virtual void Sanitize(const FMeshDescription*& Description, const TArray<int32>& SectionIndices, int32& TexCoord) override;
 
 	virtual const FGLTFUVAnalysis* Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord) override;
+
+	static const UMaterialInterface* GetOverlapMaterial();
+
+	static float CalcOverlapPercentage(int32 TexCoord, const FIntPoint& OutputSize, const FMeshDescription& MeshDescription, const TArray<int32>& MeshSectionIndices);
 };
