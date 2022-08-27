@@ -21,8 +21,8 @@ struct FGLTFTextureCombineSource
 
 struct FGLTFPropertyBakeOutput
 {
-	FORCEINLINE FGLTFPropertyBakeOutput(const FMaterialPropertyEx& Property, EPixelFormat PixelFormat, TArray<FColor>& Pixels, FIntPoint Size, float EmissiveScale)
-		: Property(Property), PixelFormat(PixelFormat), Pixels(Pixels), Size(Size), EmissiveScale(EmissiveScale), bIsConstant(false)
+	FORCEINLINE FGLTFPropertyBakeOutput(const FMaterialPropertyEx& Property, EPixelFormat PixelFormat, TArray<FColor>& Pixels, FIntPoint Size, float EmissiveScale, bool bIsSRGB)
+		: Property(Property), PixelFormat(PixelFormat), Pixels(Pixels), Size(Size), EmissiveScale(EmissiveScale), bIsSRGB(bIsSRGB), bIsConstant(false)
 	{}
 
 	const FMaterialPropertyEx& Property;
@@ -30,7 +30,7 @@ struct FGLTFPropertyBakeOutput
 	TArray<FColor> Pixels;
 	FIntPoint Size;
 	float EmissiveScale;
-
+	bool bIsSRGB;
 	bool bIsConstant;
 	FLinearColor ConstantValue;
 };
@@ -41,6 +41,7 @@ struct FGLTFMaterialUtility
 
 #if WITH_EDITOR
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
+	static bool IsSRGB(const FMaterialPropertyEx& Property);
 
 	static FGuid GetAttributeID(const FMaterialPropertyEx& Property);
 	static FGuid GetAttributeIDChecked(const FMaterialPropertyEx& Property);
@@ -65,8 +66,6 @@ struct FGLTFMaterialUtility
 
 	static FGLTFJsonTextureIndex AddCombinedTexture(FGLTFConvertBuilder& Builder, const TArray<FGLTFTextureCombineSource>& CombineSources, const FIntPoint& TextureSize, bool bIgnoreAlpha, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT);
 	static FGLTFJsonTextureIndex AddTexture(FGLTFConvertBuilder& Builder, const TArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT);
-
-	static void TransformToLinear(TArray<FColor>& InOutPixels);
 
 	static FLinearColor GetMask(const FExpressionInput& ExpressionInput);
 	static uint32 GetMaskComponentCount(const FExpressionInput& ExpressionInput);
