@@ -84,7 +84,7 @@ struct FGLTFJsonRoot
 	TArray<TUniquePtr<FGLTFJsonVariation>>  Variations;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, bool bAllExtensionsRequired)
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter)
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -177,11 +177,6 @@ struct FGLTFJsonRoot
 			JsonWriter.WriteObjectEnd();
 		}
 
-		if (bAllExtensionsRequired)
-		{
-			Extensions.Required.Append(Extensions.Used);
-		}
-
 		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), Extensions.Used);
 		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), Extensions.Required);
 
@@ -189,22 +184,22 @@ struct FGLTFJsonRoot
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void ToJson(FArchive* const Archive, bool bAllExtensionsRequired)
+	void ToJson(FArchive* const Archive)
 	{
 		TSharedRef<TJsonWriter<CharType, PrintPolicy>> JsonWriter = TJsonWriterFactory<CharType, PrintPolicy>::Create(Archive);
-		WriteObject(*JsonWriter, bAllExtensionsRequired);
+		WriteObject(*JsonWriter);
 		JsonWriter->Close();
 	}
 
-	void ToJson(FArchive* const Archive, bool bCondensedPrint, bool bAllExtensionsRequired)
+	void ToJson(FArchive* const Archive, bool bCondensedPrint)
 	{
 		if (bCondensedPrint)
 		{
-			ToJson<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive, bAllExtensionsRequired);
+			ToJson<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive);
 		}
 		else
 		{
-			ToJson<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive, bAllExtensionsRequired);
+			ToJson<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive);
 		}
 	}
 };

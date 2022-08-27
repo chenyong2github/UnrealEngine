@@ -47,7 +47,18 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-public:
+	/** Scale factor used for exporting assets (0.01 by default) for conversion from centimeters (Unreal default) to meters (glTF). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General)
+	float ExportUniformScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General)
+	bool bExportPreviewMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General)
+	bool bBundleWebViewer;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General)
+	bool bShowFilesWhenDone;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	bool bExportUnlitMaterials;
@@ -115,10 +126,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding"))
 	EGLTFTextureHDREncoding TextureHDREncoding;
 
-	/** Scale factor used for exporting assets (0.01 by default) for conversion from centimeters (Unreal default) to meters (glTF). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
-	float ExportUniformScale;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportHiddenInGame;
 
@@ -151,18 +158,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
 	bool bExportVisibilityVariants;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
-	bool bBundleWebViewer;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
-	bool bExportPreviewMesh;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
-	bool bAllExtensionsRequired;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
-	bool bShowFilesWhenDone;
 
 	void ResetToDefault();
 };
