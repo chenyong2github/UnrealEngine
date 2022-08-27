@@ -1226,6 +1226,19 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 	else
 	{
 		OutTexCoord = MeshData->TexCoord;
+
+		const float MaxOverlapPercentage = 1.0f;
+		const float OverlapPercentage = FGLTFMaterialUtility::CalcOverlappingUVPercentage(MeshData->TexCoord, TextureSize, MeshData->Description, SectionIndices);
+
+		if (OverlapPercentage > MaxOverlapPercentage)
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("%s for material %s is baked using mesh data, but TexCoord %d is overlapping (%.2f%%) and may produce incorrect results"),
+				*Property.ToString(),
+				*Material->GetName(),
+				OutTexCoord,
+				OverlapPercentage));
+		}
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
