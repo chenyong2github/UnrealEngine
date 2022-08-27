@@ -5,6 +5,9 @@
 #include "Components/BillboardComponent.h"
 #include "GLTFInteractionHotspotComponent.generated.h"
 
+class ASkeletalMeshActor;
+class UAnimSequence;
+
 /**
  * 
  */
@@ -12,11 +15,18 @@ UCLASS(BlueprintType, Blueprintable, meta = (BlueprintSpawnableComponent), Displ
 class GLTFEXPORTER_API UGLTFInteractionHotspotComponent : public UBillboardComponent
 {
 	GENERATED_UCLASS_BODY()
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ASkeletalMeshActor* SkeletalMeshActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimSequence* AnimationSequence;
+
+	//~ Begin UActorComponent Interface.
 	virtual void BeginPlay() override;
+	//~ End UActorComponent Interface.
 
-	virtual bool ShouldCreatePhysicsState() const { return true; }
-
+private:
 	UFUNCTION()
 	void BeginCursorOver(UPrimitiveComponent* TouchedComponent);
 
