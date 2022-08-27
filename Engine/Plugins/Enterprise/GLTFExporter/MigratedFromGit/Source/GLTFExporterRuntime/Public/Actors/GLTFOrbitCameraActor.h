@@ -16,6 +16,7 @@ class GLTFEXPORTERRUNTIME_API AGLTFOrbitCameraActor : public ACameraActor
 	//~ Begin UObject Interface
 public:
 	AGLTFOrbitCameraActor(const FObjectInitializer& ObjectInitializer);
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
@@ -47,7 +48,7 @@ private:
 
 	FRotator GetLookAtRotation(const FVector TargetPosition) const;
 
-	FVector GetFocusPosition(bool* bOutHasValidFocusActor = nullptr) const;
+	FVector GetFocusPosition() const;
 
 	bool SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player);
 
