@@ -34,7 +34,8 @@ namespace UnrealBuildTool.Rules
 					"MaterialBaking",
 					"VariantManagerContent",
 					"GLTFExporterRuntime",
-					"MeshMergeUtilities"
+					"MeshMergeUtilities",
+					"zlib"
 				}
 				);
 		}
