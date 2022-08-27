@@ -11,7 +11,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
 
 UCLASS()
-class UGLTFExporter : public UExporter
+class GLTFEXPORTER_API UGLTFExporter : public UExporter
 {
 public:
 	GENERATED_BODY()
