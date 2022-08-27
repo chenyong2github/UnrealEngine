@@ -773,6 +773,13 @@ void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 	}
 }
 
+bool FMaterialBakingModule::IsLinearBake(FMaterialPropertyEx Property)
+{
+	const EPropertyColorSpace* OverrideColorSpace = PerPropertyColorSpace.Find(Property);
+	const EPropertyColorSpace ColorSpace = OverrideColorSpace ? *OverrideColorSpace : DefaultColorSpace;
+	return ColorSpace == EPropertyColorSpace::Linear;
+}
+
 void FMaterialBakingModule::CleanupMaterialProxies()
 {
 	for (auto Iterator : MaterialProxyPool)
