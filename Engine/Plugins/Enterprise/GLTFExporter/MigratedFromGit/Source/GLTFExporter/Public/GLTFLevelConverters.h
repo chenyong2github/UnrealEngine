@@ -9,10 +9,10 @@ struct FGLTFIndexedBuilder;
 
 struct GLTFEXPORTER_API FGLTFSceneComponentConverter
 {
-	static FGLTFJsonNodeIndex Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode = false);
+	static FGLTFJsonNodeIndex Add(FGLTFIndexedBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode = false);
 };
 
 struct GLTFEXPORTER_API FGLTFLevelConverter
 {
-	static FGLTFJsonSceneIndex Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const ULevel* Level, bool bSelectedOnly);
+	static FGLTFJsonSceneIndex Add(FGLTFIndexedBuilder& Builder, const FString& Name, const ULevel* Level, bool bSelectedOnly);
 };
