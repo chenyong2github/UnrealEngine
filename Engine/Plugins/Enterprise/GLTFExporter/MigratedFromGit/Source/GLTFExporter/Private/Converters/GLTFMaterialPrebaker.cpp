@@ -22,6 +22,13 @@ UMaterialInterface* FGLTFMaterialPrebaker::Prebake(UMaterialInterface* OriginalM
 		return OriginalMaterial;
 	}
 
+	if (FGLTFMaterialUtility::NeedsMeshData(OriginalMaterial))
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Material %s uses mesh data but prebaking will only use a simple quad as mesh data currently"),
+			*OriginalMaterial->GetName()));
+	}
+
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(OriginalMaterial);
 	if (MaterialIndex == INDEX_NONE)
 	{
@@ -279,6 +286,7 @@ UGLTFExportOptions* FGLTFMaterialPrebaker::CreateExportOptions(const UGLTFPrebak
 	UGLTFExportOptions* ExportOptions = NewObject<UGLTFExportOptions>();
 	ExportOptions->ResetToDefault();
 	ExportOptions->bExportProxyMaterials = false;
+	ExportOptions->BakeMaterialInputs = EGLTFMaterialBakeMode::Simple;
 	ExportOptions->DefaultMaterialBakeSize = PrebakeOptions->DefaultMaterialBakeSize;
 	ExportOptions->DefaultMaterialBakeFilter = PrebakeOptions->DefaultMaterialBakeFilter;
 	ExportOptions->DefaultMaterialBakeTiling = PrebakeOptions->DefaultMaterialBakeTiling;
