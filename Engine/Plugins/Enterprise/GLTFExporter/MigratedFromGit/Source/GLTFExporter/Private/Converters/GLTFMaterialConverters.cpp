@@ -7,6 +7,8 @@
 
 void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const FGLTFMeshData*& MeshData, FGLTFIndexArray& SectionIndices)
 {
+	Material = Builder.ResolveProxy(Material);
+
 	if (MeshData == nullptr ||
 		Builder.ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::UseMeshData ||
 		!FGLTFMaterialUtility::NeedsMeshData(Material))
