@@ -94,7 +94,7 @@ bool UGLTFExporter::FillExportOptions(UGLTFExportOptions* ExportOptions)
 
 UGLTFExportOptions* UGLTFExporter::GetAutomatedExportOptions() const
 {
-	if (ExportTask && ExportTask->bAutomated)
+	if (ExportTask != nullptr && ExportTask->bAutomated)
 	{
 		return Cast<UGLTFExportOptions>(ExportTask->Options);
 	}
