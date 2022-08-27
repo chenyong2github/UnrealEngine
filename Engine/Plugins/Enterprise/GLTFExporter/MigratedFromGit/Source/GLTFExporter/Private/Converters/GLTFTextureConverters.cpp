@@ -102,10 +102,6 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 		UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, true);
 		RenderTarget->TargetGamma = 2.2f;
 
-		// TODO: normal-maps are not correctly rendered to the render-target, the resulting pixels have no data in the blue channel.
-		// This may be due to the textures in question using PF_BC5 as pixel-format, or something else entirely.
-		// There may be similar issues with other texture-types that we haven't had the chance to test yet.
-
 		FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
 
 		TArray<FColor> Pixels;
