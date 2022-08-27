@@ -168,6 +168,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	FMaterialDataEx MatSet;
 	MatSet.Material = const_cast<UMaterialInterface*>(Material);
 	MatSet.PropertySizes.Add(Property, OutputSize);
+	MatSet.bTangentSpaceNormal = true;
 
 	TArray<FMeshData*> MeshSettings;
 	TArray<FMaterialDataEx*> MatSettings;

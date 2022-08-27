@@ -17,6 +17,7 @@ struct FMaterialData
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
 		, BlendMode(BLEND_Opaque)
+		, bTangentSpaceNormal(false)
 	{}
 
 	/** Material to bake out */
@@ -27,6 +28,8 @@ struct FMaterialData
 	bool bPerformBorderSmear;
 	/** Blend mode to use when baking */
 	EBlendMode BlendMode;
+	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
+	bool bTangentSpaceNormal;
 };
 
 /** Structure containing extended information about the material and properties which is being baked out */
@@ -36,6 +39,7 @@ struct FMaterialDataEx
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
 		, BlendMode(BLEND_Opaque)
+		, bTangentSpaceNormal(false)
 	{}
 
 	/** Material to bake out */
@@ -46,6 +50,8 @@ struct FMaterialDataEx
 	bool bPerformBorderSmear;
 	/** Blend mode to use when baking */
 	EBlendMode BlendMode;
+	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
+	bool bTangentSpaceNormal;
 };
 
 struct FMeshData

@@ -239,13 +239,14 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, EBlendMode ProxyBlendMode = BLEND_Opaque)
+	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, EBlendMode ProxyBlendMode = BLEND_Opaque, bool bTangentSpaceNormal = false)
 		: FMaterial()
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
 		, CustomOutputToCompile(InCustomOutputToCompile)
 		, bSynchronousCompilation(bInSynchronousCompilation)
 		, ProxyBlendMode(ProxyBlendMode)
+		, bTangentSpaceNormal(bTangentSpaceNormal)
 	{
 
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
@@ -461,7 +462,7 @@ public:
 				{
 					return CompileNormalEncoding(
 						&ProxyCompiler,
-						MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate));
+						CompileNormalTransform(&ProxyCompiler, MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate)));
 				}
 				break;
 			case MP_Refraction:
@@ -722,7 +723,7 @@ private:
 
 		if (CustomOutputToCompile == TEXT("ClearCoatBottomNormal"))
 		{
-			Result = CompileNormalEncoding(Compiler, Result);
+			Result = CompileNormalEncoding(Compiler, CompileNormalTransform(Compiler, Result));
 		}
 
 		if (ForceCastFlags & MFCF_ForceCast)
@@ -747,14 +748,14 @@ private:
 		return nullptr;
 	}
 
+	int32 CompileNormalTransform(FMaterialCompiler* Compiler, int32 NormalInput) const
+	{
+		return bTangentSpaceNormal && !Material->bTangentSpaceNormal
+			? Compiler->TransformVector(MCB_World, MCB_Tangent, NormalInput) : NormalInput;
+	}
+
 	int32 CompileNormalEncoding(FMaterialCompiler* Compiler, int32 NormalInput) const
 	{
-		// TODO: make this configurable instead of assuming that we always want tangent-space normals
-		if (!Material->bTangentSpaceNormal)
-		{
-			NormalInput = Compiler->TransformVector(MCB_World, MCB_Tangent, NormalInput);
-		}
-
 		return Compiler->Add(
 			Compiler->Mul(NormalInput, Compiler->Constant(0.5f)), // [-1,1] * 0.5
 			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
@@ -808,5 +809,10 @@ private:
 	FString CustomOutputToCompile;
 	FGuid Id;
 	bool bSynchronousCompilation;
+
+public:
+	/** The blend mode used when baking the proxy material */
 	EBlendMode ProxyBlendMode;
+	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
+	bool bTangentSpaceNormal;
 };
