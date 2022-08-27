@@ -1110,6 +1110,12 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 			return false;
 		}
 
+		if (!Builder.ExportOptions->bExportTextureTransforms && OutTransform != FGLTFJsonTextureTransform())
+		{
+			Builder.AddWarningMessage(FString::Printf(TEXT("Texture transform for property %s in material %s disabled by export options"), *FGLTFNameUtility::GetName(Property), *Material->GetName()));
+			OutTransform = {};
+		}
+
 		return true;
 	}
 
@@ -1135,6 +1141,12 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 		{
 			// TODO: report error (failed to identify texture coordinate index)
 			return false;
+		}
+
+		if (!Builder.ExportOptions->bExportTextureTransforms && OutTransform != FGLTFJsonTextureTransform())
+		{
+			Builder.AddWarningMessage(FString::Printf(TEXT("Texture transform for property %s in material %s disabled by export options"), *FGLTFNameUtility::GetName(Property), *Material->GetName()));
+			OutTransform = {};
 		}
 
 		return true;
