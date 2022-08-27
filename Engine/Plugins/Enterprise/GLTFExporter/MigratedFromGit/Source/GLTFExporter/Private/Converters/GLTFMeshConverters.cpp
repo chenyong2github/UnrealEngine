@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshConverters.h"
+#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMeshTasks.h"
 #include "Rendering/SkeletalMeshRenderData.h"
@@ -9,7 +10,7 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, int32& L
 {
 	if (LODIndex < 0)
 	{
-		LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, 0);
+		LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(StaticMesh));
 	}
 
 	if (!Builder.ExportOptions->bExportVertexColors)
@@ -42,7 +43,7 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, in
 {
 	if (LODIndex < 0)
 	{
-		LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, 0);
+		LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(SkeletalMesh));
 	}
 
 	if (!Builder.ExportOptions->bExportVertexColors)
