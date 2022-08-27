@@ -42,7 +42,7 @@ private:
 	const TArray<int32> SectionIndices;
 	const FGLTFJsonMaterialIndex MaterialIndex;
 
-	TArray<FMaterialPropertyEx> MeshDataBakedProperties;
+	TSet<FMaterialPropertyEx> MeshDataBakedProperties;
 
 	void ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;
