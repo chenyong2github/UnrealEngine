@@ -32,6 +32,11 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
+	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
 	const bool bIsRootComponent = Owner->GetRootComponent() == SceneComponent;
 	const bool bIsRootNode = bIsRootComponent && FGLTFActorUtility::IsRootActor(Owner, Builder.bSelectedActorsOnly);
 
