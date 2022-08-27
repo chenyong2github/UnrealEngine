@@ -239,7 +239,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderT
 	return FaceTexture;
 }
 
-bool FGLTFTextureUtility::ReadEncodedPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding& OutEncoding)
+bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels)
 {
 	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(InRenderTarget->Resource);
 	if (Resource == nullptr)
@@ -247,18 +247,34 @@ bool FGLTFTextureUtility::ReadEncodedPixels(const UTextureRenderTarget2D* InRend
 		return false;
 	}
 
-	if (IsHDRFormat(InRenderTarget->GetFormat()))
-	{
-		TArray<FLinearColor> HDRPixels;
-		Resource->ReadLinearColorPixels(HDRPixels);
+	return Resource->ReadPixels(OutPixels);
+}
 
-		EncodeRGBM(HDRPixels, OutPixels);
-		OutEncoding = EGLTFJsonHDREncoding::RGBM;
-	}
-	else
+bool FGLTFTextureUtility::ReadEncodedPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding Encoding)
+{
+	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(InRenderTarget->Resource);
+	if (Resource == nullptr)
 	{
-		Resource->ReadPixels(OutPixels);
-		OutEncoding = EGLTFJsonHDREncoding::None;
+		return false;
+	}
+
+	TArray<FLinearColor> HDRPixels;
+	if (!Resource->ReadLinearColorPixels(HDRPixels))
+	{
+		return false;
+	}
+
+	switch (Encoding)
+	{
+		case EGLTFJsonHDREncoding::RGBM:
+			EncodeRGBM(HDRPixels, OutPixels);
+			break;
+
+		// TODO: add encoding for RGBE
+
+		default:
+			checkNoEntry();
+			break;
 	}
 
 	return true;
