@@ -128,9 +128,12 @@ void AGLTFOrbitCameraActor::OnMouseY(float AxisValue)
 
 void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
 {
-	DollyTime = DollyDuration;
-	TargetDistance = ClampDistance(TargetDistance + -AxisValue * DistanceSensitivity);
-	DollyStartDistance = Distance;
+	if (!FMath::IsNearlyZero(AxisValue))
+	{
+		DollyTime = DollyDuration;
+		TargetDistance = ClampDistance(TargetDistance + -AxisValue * DistanceSensitivity);
+		DollyStartDistance = Distance;
+	}
 }
 
 float AGLTFOrbitCameraActor::ClampDistance(float Value) const
