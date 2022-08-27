@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExporterModule.h"
+#include "Json/GLTFJsonEnums.h"
+#include "Converters/GLTFObjectArrayScopeGuard.h"
+#include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Actions/GLTFProxyAssetActions.h"
 #include "Interfaces/IPluginManager.h"
 #if WITH_EDITOR
@@ -32,6 +35,23 @@ public:
 #if WITH_EDITOR
 	void PostEngineInit()
 	{
+		LoadProxyParentsForCook();
+		AddProxyAssetActions();
+	}
+
+	static void LoadProxyParentsForCook()
+	{
+		static FGLTFObjectArrayScopeGuard ScopeGuard;
+
+		constexpr int32 NumMaterials = static_cast<int32>(EGLTFJsonShadingModel::NumShadingModels);
+		for (int32 i = 0; i < NumMaterials; ++i)
+		{
+			ScopeGuard.Add(FGLTFProxyMaterialUtilities::GetBaseMaterial(static_cast<EGLTFJsonShadingModel>(i)));
+		}
+	}
+
+	void AddProxyAssetActions()
+	{
 		if (FAssetToolsModule::IsModuleLoaded())
 		{
 			IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
@@ -48,11 +68,9 @@ public:
 			}
 		}
 	}
-#endif
 
-	virtual void ShutdownModule() override
+	void RemoveProxyAssetActions()
 	{
-#if WITH_EDITOR
 		if (FAssetToolsModule::IsModuleLoaded())
 		{
 			IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
@@ -63,6 +81,13 @@ public:
 		}
 
 		AssetTypeActionsArray.Empty();
+	}
+#endif
+
+	virtual void ShutdownModule() override
+	{
+#if WITH_EDITOR
+		RemoveProxyAssetActions();
 #endif
 	}
 
