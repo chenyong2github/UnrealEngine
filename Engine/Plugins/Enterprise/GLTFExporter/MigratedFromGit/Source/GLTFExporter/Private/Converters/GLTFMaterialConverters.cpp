@@ -155,16 +155,16 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	const bool bHasMetallicSourceTexture = TryGetSourceTexture(MetallicTexture, MetallicTexCoord, MetallicInput, MaterialInstance);
 	const bool bHasRoughnessSourceTexture = TryGetSourceTexture(RoughnessTexture, RoughnessTexCoord, RoughnessInput, MaterialInstance);
 
+	const FLinearColor MetallicMask(0, 0, 1, 0);
+	const FLinearColor RoughnessMask(0, 1, 0, 0);
+
 	// Detect the "happy path" where both inputs share the same texture, and both inputs correctly masked.
 	if (bHasMetallicSourceTexture && bHasRoughnessSourceTexture)
 	{
-		const FIntVector4 MetallicMask(0, 0, 1, 0);
-		const FIntVector4 RoughnessMask(0, 1, 0, 0);
-
 		if (MetallicTexture == RoughnessTexture &&
 			MetallicTexCoord == RoughnessTexCoord &&
-			MetallicMask == FGLTFMaterialUtility::ConvertMaskToVector(MetallicInput) &&
-			RoughnessMask == FGLTFMaterialUtility::ConvertMaskToVector(RoughnessInput))
+			MetallicMask.Equals(FGLTFMaterialUtility::GetMask(MetallicInput)) &&
+			RoughnessMask.Equals(FGLTFMaterialUtility::GetMask(RoughnessInput)))
 		{
 			OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture);
 			OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
@@ -230,8 +230,8 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 
 	const TArray<FGLTFTextureCombineSource> CombineSources =
 	{
-		{MetallicTexture, FLinearColor(0, 0, 1, 0)},
-		{RoughnessTexture, FLinearColor(0, 1, 0, 0)}
+		{MetallicTexture, MetallicMask},
+		{RoughnessTexture, RoughnessMask}
 	};
 
 	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddCombinedTexture(
@@ -299,7 +299,7 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, const F
 
 		if (MaskComponentCount > 0)
 		{
-			const FLinearColor Mask = FGLTFMaterialUtility::ConvertMaskToColor(MaterialInput);
+			const FLinearColor Mask = FGLTFMaterialUtility::GetMask(MaterialInput);
 
 			Value *= Mask;
 
@@ -385,7 +385,7 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalar
 
 		if (MaskComponentCount > 0)
 		{
-			const FLinearColor Mask = FGLTFMaterialUtility::ConvertMaskToColor(MaterialInput);
+			const FLinearColor Mask = FGLTFMaterialUtility::GetMask(MaterialInput);
 			Value *= Mask;
 		}
 
