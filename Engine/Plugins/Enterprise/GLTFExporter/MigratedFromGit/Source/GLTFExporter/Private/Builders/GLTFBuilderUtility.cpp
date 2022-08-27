@@ -30,3 +30,8 @@ FString FGLTFBuilderUtility::GetUniqueFilename(const FString& BaseFilename, cons
 
 	return Filename;
 }
+
+bool FGLTFBuilderUtility::IsGlbFile(const FString& Filename)
+{
+	return FPaths::GetExtension(Filename).Equals(TEXT("glb"), ESearchCase::IgnoreCase);
+}

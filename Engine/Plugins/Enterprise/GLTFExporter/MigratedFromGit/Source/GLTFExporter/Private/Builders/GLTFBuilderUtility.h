@@ -10,4 +10,6 @@ struct FGLTFBuilderUtility
 	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType);
 
 	static FString GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames);
+
+	static bool IsGlbFile(const FString& Filename);
 };
