@@ -63,6 +63,8 @@ private:
 
 	bool SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player);
 
+	bool UsesYawLimits() const;
+
 public:
 
 	/* Camera mode */
@@ -80,6 +82,14 @@ public:
 	/* Maximum pitch angle (in degrees) for the camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
 	float PitchAngleMax;
+
+	/* Minimum yaw angle (in degrees) for the camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
+	float YawAngleMin;
+
+	/* Maximum yaw angle (in degrees) for the camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
+	float YawAngleMax;
 
 	/* Closest distance the camera can approach the focused actor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
