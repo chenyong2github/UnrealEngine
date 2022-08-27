@@ -15,6 +15,11 @@ bool UGLTFStaticMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const UO
 	const UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
 
+	if (MeshIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;
 	const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
