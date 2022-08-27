@@ -27,6 +27,21 @@ const TArray<FCapturedPropSegment>& FGLTFVariantUtility::GetCapturedPropSegments
 #endif
 }
 
+bool FGLTFVariantUtility::IsStaticMeshProperty(const UPropertyValue* Property)
+{
+	return Property->GetPropertyName() == TEXT("StaticMesh") && Property->GetPropertyClass()->IsChildOf(FObjectPropertyBase::StaticClass());
+}
+
+bool FGLTFVariantUtility::IsSkeletalMeshProperty(const UPropertyValue* Property)
+{
+	return Property->GetPropertyName() == TEXT("SkeletalMesh") && Property->GetPropertyClass()->IsChildOf(FObjectPropertyBase::StaticClass());
+}
+
+bool FGLTFVariantUtility::IsVisibleProperty(const UPropertyValue* Property)
+{
+	return Property->GetPropertyName() == TEXT("bVisible") && Property->GetPropertyClass() == FBoolProperty::StaticClass();
+}
+
 bool FGLTFVariantUtility::TryGetPropertyValue(UPropertyValue* Property, void* OutData, uint32 OutSize)
 {
 	if (Property == nullptr || !Property->HasRecordedData())
