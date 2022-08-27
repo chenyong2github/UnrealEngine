@@ -6,6 +6,7 @@
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Actors/GLTFHotspotActor.h"
+#include "LevelSequenceActor.h"
 
 FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 {
@@ -29,6 +30,13 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 		{
 			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
 			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+		}
+	}
+	else if (const ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
+	{
+		if (Builder.ExportOptions->bExportLevelSequences)
+		{
+			Builder.GetOrAddAnimation(LevelSequenceActor);
 		}
 	}
 	else if (const AGLTFHotspotActor* HotspotActor = Cast<AGLTFHotspotActor>(Actor))
