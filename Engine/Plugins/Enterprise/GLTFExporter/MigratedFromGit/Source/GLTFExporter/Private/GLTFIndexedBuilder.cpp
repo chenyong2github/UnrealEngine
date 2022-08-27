@@ -2,52 +2,52 @@
 
 #include "GLTFIndexedBuilder.h"
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	return PositionVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	return ColorVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	return StaticMeshNormalVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	return StaticMeshTangentVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertUV0Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddUV0Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	return StaticMeshUV0VertexBuffers.Convert(*this, DesiredName, VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertUV1Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddUV1Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	return StaticMeshUV1VertexBuffers.Convert(*this, DesiredName, VertexBuffer);
 }
 
-FGLTFJsonBufferViewIndex FGLTFIndexedBuilder::ConvertIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
+FGLTFJsonBufferViewIndex FGLTFIndexedBuilder::GetOrAddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
 {
 	return StaticMeshIndexBuffers.Convert(*this, DesiredName, IndexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFIndexedBuilder::ConvertIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
 {
 	return StaticMeshSections.Convert(*this, DesiredName, MeshSection, IndexBuffer);
 }
 
-FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const FStaticMeshLODResources* StaticMeshLOD, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFIndexedBuilder::GetOrAddMesh(const FStaticMeshLODResources* StaticMeshLOD, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
 {
 	return StaticMeshes.Convert(*this, DesiredName, StaticMeshLOD, OverrideVertexColors);
 }
 
-FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFIndexedBuilder::GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
 {
 	const FStaticMeshLODResources* StaticMeshLOD = &StaticMesh->GetLODForExport(LODIndex);
 	FString Name = DesiredName.IsEmpty() ? StaticMesh->GetName() : DesiredName;
@@ -57,29 +57,29 @@ FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMesh* StaticMes
 		Name += TEXT("_LOD") + FString::FromInt(LODIndex);
 	}
 
-	return ConvertMesh(StaticMeshLOD, OverrideVertexColors, Name);
+	return GetOrAddMesh(StaticMeshLOD, OverrideVertexColors, Name);
 }
 
-FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFIndexedBuilder::GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
 {
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	const int32 LODIndex = StaticMeshComponent->ForcedLodModel > 0 ? StaticMeshComponent->ForcedLodModel - 1 : /* auto-select */ 0;
 	const FColorVertexBuffer* OverrideVertexColors = LODIndex < StaticMeshComponent->LODData.Num() ? StaticMeshComponent->LODData[LODIndex].OverrideVertexColors : nullptr;
 
-	return ConvertMesh(StaticMesh, LODIndex, OverrideVertexColors, DesiredName);
+	return GetOrAddMesh(StaticMesh, LODIndex, OverrideVertexColors, DesiredName);
 }
 
-FGLTFJsonNodeIndex FGLTFIndexedBuilder::ConvertNode(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode, const FString& DesiredName)
+FGLTFJsonNodeIndex FGLTFIndexedBuilder::GetOrAddNode(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode, const FString& DesiredName)
 {
 	return SceneComponents.Convert(*this, DesiredName, SceneComponent, bSelectedOnly, bRootNode);
 }
 
-FGLTFJsonSceneIndex FGLTFIndexedBuilder::ConvertScene(const ULevel* Level, bool bSelectedOnly, const FString& DesiredName)
+FGLTFJsonSceneIndex FGLTFIndexedBuilder::GetOrAddScene(const ULevel* Level, bool bSelectedOnly, const FString& DesiredName)
 {
 	return Levels.Convert(*this, DesiredName, Level, bSelectedOnly);
 }
 
-FGLTFJsonSceneIndex FGLTFIndexedBuilder::ConvertScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName)
+FGLTFJsonSceneIndex FGLTFIndexedBuilder::GetOrAddScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName)
 {
-	return ConvertScene(World->PersistentLevel, bSelectedOnly, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
+	return GetOrAddScene(World->PersistentLevel, bSelectedOnly, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
 }
