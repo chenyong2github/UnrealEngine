@@ -61,7 +61,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
-				const FVector KeyPosition = FrameTransforms[Frame][BoneIndex].GetTranslation();
+				const FVector3f KeyPosition = FrameTransforms[Frame][BoneIndex].GetTranslation();
 				Translations[Frame] = FGLTFCoreUtilities::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);
 			}
 
@@ -89,7 +89,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
-				const FQuat KeyRotation = FrameTransforms[Frame][BoneIndex].GetRotation();
+				const FQuat4f KeyRotation = FQuat4f(FrameTransforms[Frame][BoneIndex].GetRotation());
 				Rotations[Frame] = FGLTFCoreUtilities::ConvertRotation(KeyRotation);
 			}
 
@@ -117,7 +117,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
-				const FVector KeyScale = FrameTransforms[Frame][BoneIndex].GetScale3D();
+				const FVector3f KeyScale = FrameTransforms[Frame][BoneIndex].GetScale3D();
 				Scales[Frame] = FGLTFCoreUtilities::ConvertScale(KeyScale);
 			}
 
@@ -261,7 +261,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							continue;
 						}
 
-						FVector DefaultTranslation = RelativeTransform.GetTranslation();
+						FVector3f DefaultTranslation = FVector3f(RelativeTransform.GetTranslation());
 						TArray<FGLTFVector3> Translations;
 						Translations.AddUninitialized(FrameCount);
 
@@ -269,7 +269,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 						{
 							FFrameTime& FrameTime = FrameTimes[Frame];
 
-							FVector Translation = DefaultTranslation;
+							FVector3f Translation = DefaultTranslation;
 							if (MaskX) Channels[IndexX]->Evaluate(FrameTime, Translation.X);
 							if (MaskY) Channels[IndexY]->Evaluate(FrameTime, Translation.Y);
 							if (MaskZ) Channels[IndexZ]->Evaluate(FrameTime, Translation.Z);
@@ -311,7 +311,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							continue;
 						}
 
-						FRotator DefaultRotator = RelativeTransform.GetRotation().Rotator();
+						FRotator3f DefaultRotator = FRotator3f(RelativeTransform.GetRotation().Rotator());
 						TArray<FGLTFQuaternion> Rotations;
 						Rotations.AddUninitialized(FrameCount);
 
@@ -319,7 +319,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 						{
 							FFrameTime& FrameTime = FrameTimes[Frame];
 
-							FRotator Rotator = DefaultRotator;
+							FRotator3f Rotator = DefaultRotator;
 							if (MaskX) Channels[IndexX]->Evaluate(FrameTime, Rotator.Roll);
 							if (MaskY) Channels[IndexY]->Evaluate(FrameTime, Rotator.Pitch);
 							if (MaskZ) Channels[IndexZ]->Evaluate(FrameTime, Rotator.Yaw);
@@ -364,7 +364,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							continue;
 						}
 
-						FVector DefaultScale = RelativeTransform.GetScale3D();
+						FVector3f DefaultScale = FVector3f(RelativeTransform.GetScale3D());
 						TArray<FGLTFVector3> Scales;
 						Scales.AddUninitialized(FrameCount);
 
@@ -372,7 +372,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 						{
 							FFrameTime& FrameTime = FrameTimes[Frame];
 
-							FVector Scale = DefaultScale;
+							FVector3f Scale = DefaultScale;
 							if (MaskX) Channels[IndexX]->Evaluate(FrameTime, Scale.X);
 							if (MaskY) Channels[IndexY]->Evaluate(FrameTime, Scale.Y);
 							if (MaskZ) Channels[IndexZ]->Evaluate(FrameTime, Scale.Z);

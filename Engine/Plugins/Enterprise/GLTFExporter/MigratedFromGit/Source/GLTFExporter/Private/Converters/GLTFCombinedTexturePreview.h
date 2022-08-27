@@ -22,8 +22,8 @@ private:
 
 	const FTexture* TextureA;
 	const FTexture* TextureB;
-	FMatrix ColorTransformA;
-	FMatrix ColorTransformB;
+	FMatrix44f ColorTransformA;
+	FMatrix44f ColorTransformB;
 	FLinearColor BackgroundColor;
 
 	/** Binds vertex and pixel shaders for this element */

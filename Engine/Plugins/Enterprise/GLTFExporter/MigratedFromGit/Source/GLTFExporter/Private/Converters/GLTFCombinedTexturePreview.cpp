@@ -43,7 +43,7 @@ public:
 	 * Set shader parameters.
 	 * @param SampleTexture - The texture to sample.
 	 */
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* InTextureA, const FTexture* InTextureB, const FMatrix& InColorTransformA, const FMatrix& InColorTransformB, const FLinearColor& InBackgroundColor)
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* InTextureA, const FTexture* InTextureB, const FMatrix44f& InColorTransformA, const FMatrix44f& InColorTransformB, const FLinearColor& InBackgroundColor)
 	{
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI,TextureA,TextureSamplerA,InTextureA);

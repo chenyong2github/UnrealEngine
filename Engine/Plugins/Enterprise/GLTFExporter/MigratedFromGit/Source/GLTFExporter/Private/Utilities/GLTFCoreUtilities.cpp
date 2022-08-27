@@ -9,24 +9,24 @@ float FGLTFCoreUtilities::ConvertLength(const float Length, const float Conversi
 	return Length * ConversionScale;
 }
 
-FGLTFVector3 FGLTFCoreUtilities::ConvertVector(const FVector& Vector)
+FGLTFVector3 FGLTFCoreUtilities::ConvertVector(const FVector3f& Vector)
 {
 	// UE4 uses a left-handed coordinate system, with Z up.
 	// glTF uses a right-handed coordinate system, with Y up.
 	return { Vector.X, Vector.Z, Vector.Y };
 }
 
-FGLTFVector3 FGLTFCoreUtilities::ConvertPosition(const FVector& Position, const float ConversionScale)
+FGLTFVector3 FGLTFCoreUtilities::ConvertPosition(const FVector3f& Position, const float ConversionScale)
 {
 	return ConvertVector(Position * ConversionScale);
 }
 
-FGLTFVector3 FGLTFCoreUtilities::ConvertScale(const FVector& Scale)
+FGLTFVector3 FGLTFCoreUtilities::ConvertScale(const FVector3f& Scale)
 {
 	return ConvertVector(Scale);
 }
 
-FGLTFVector3 FGLTFCoreUtilities::ConvertNormal(const FVector& Normal)
+FGLTFVector3 FGLTFCoreUtilities::ConvertNormal(const FVector3f& Normal)
 {
 	return ConvertVector(Normal);
 }
@@ -41,7 +41,7 @@ FGLTFInt8Vector4 FGLTFCoreUtilities::ConvertNormal(const FPackedNormal& Normal)
 	return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y, 0 };
 }
 
-FGLTFVector4 FGLTFCoreUtilities::ConvertTangent(const FVector& Tangent)
+FGLTFVector4 FGLTFCoreUtilities::ConvertTangent(const FVector3f& Tangent)
 {
 	// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
 	return { Tangent.X, Tangent.Z, Tangent.Y, 1.0f };
@@ -57,7 +57,7 @@ FGLTFInt8Vector4 FGLTFCoreUtilities::ConvertTangent(const FPackedNormal& Tangent
 	return { Tangent.Vector.X, Tangent.Vector.Z, Tangent.Vector.Y, MAX_int8 /* = 1.0 */ };
 }
 
-FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2D& UV)
+FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2f& UV)
 {
 	// No conversion actually needed, this is primarily for type-safety.
 	return { UV.X, UV.Y };
@@ -65,7 +65,7 @@ FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2D& UV)
 
 FGLTFVector2 FGLTFCoreUtilities::ConvertUV(const FVector2DHalf& UV)
 {
-	return ConvertUV(FVector2D(UV));
+	return ConvertUV(FVector2f(UV));
 }
 
 FGLTFColor4 FGLTFCoreUtilities::ConvertColor(const FLinearColor& Color, bool bForceLDR)
@@ -115,12 +115,12 @@ FGLTFUInt8Color4 FGLTFCoreUtilities::ConvertColor(const FColor& Color)
 	return { Color.R, Color.G, Color.B, Color.A };
 }
 
-FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FRotator& Rotation)
+FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FRotator3f& Rotation)
 {
 	return ConvertRotation(Rotation.Quaternion());
 }
 
-FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FQuat& Rotation)
+FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FQuat4f& Rotation)
 {
 	// UE4 uses a left-handed coordinate system, with Z up.
 	// glTF uses a right-handed coordinate system, with Y up.
@@ -130,11 +130,11 @@ FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FQuat& Rotation)
 	// also, as handedness is changed rotation is inversed - hence negation
 	// therefore glTFRotation = (-qX, -qZ, -qY, qw)
 
-	const FQuat Normalized = Rotation.GetNormalized();
+	const FQuat4f Normalized = Rotation.GetNormalized();
 	return { -Normalized.X, -Normalized.Z, -Normalized.Y, Normalized.W };
 }
 
-FGLTFMatrix4 FGLTFCoreUtilities::ConvertMatrix(const FMatrix& Matrix)
+FGLTFMatrix4 FGLTFCoreUtilities::ConvertMatrix(const FMatrix44f& Matrix)
 {
 	// Unreal stores matrix elements in row major order.
 	// glTF stores matrix elements in column major order.
@@ -150,18 +150,18 @@ FGLTFMatrix4 FGLTFCoreUtilities::ConvertMatrix(const FMatrix& Matrix)
 	return Result;
 }
 
-FGLTFMatrix4 FGLTFCoreUtilities::ConvertTransform(const FTransform& Transform, const float ConversionScale)
+FGLTFMatrix4 FGLTFCoreUtilities::ConvertTransform(const FTransform3f& Transform, const float ConversionScale)
 {
-	const FQuat Rotation = Transform.GetRotation();
-	const FVector Translation = Transform.GetTranslation();
-	const FVector Scale = Transform.GetScale3D();
+	const FQuat4f Rotation = Transform.GetRotation();
+	const FVector3f Translation = Transform.GetTranslation();
+	const FVector3f Scale = Transform.GetScale3D();
 
-	const FQuat ConvertedRotation(-Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W);
-	const FVector ConvertedTranslation = FVector(Translation.X, Translation.Z, Translation.Y) * ConversionScale;
-	const FVector ConvertedScale(Scale.X, Scale.Z, Scale.Y);
+	const FQuat4f ConvertedRotation(-Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W);
+	const FVector3f ConvertedTranslation = FVector(Translation.X, Translation.Z, Translation.Y) * ConversionScale;
+	const FVector3f ConvertedScale(Scale.X, Scale.Z, Scale.Y);
 
-	const FTransform ConvertedTransform(ConvertedRotation, ConvertedTranslation, ConvertedScale);
-	const FMatrix Matrix = ConvertedTransform.ToMatrixWithScale(); // TODO: should it be ToMatrixNoScale()?
+	const FTransform3f ConvertedTransform(ConvertedRotation, ConvertedTranslation, ConvertedScale);
+	const FMatrix44f Matrix = ConvertedTransform.ToMatrixWithScale(); // TODO: should it be ToMatrixNoScale()?
 	return ConvertMatrix(Matrix);
 }
 
@@ -184,7 +184,7 @@ FGLTFQuaternion FGLTFCoreUtilities::GetLocalCameraRotation()
 	// Unreal uses +X axis as camera direction in Unreal coordinates.
 	// glTF uses +Y as camera direction in Unreal coordinates.
 
-	static FGLTFQuaternion Rotation = ConvertRotation(FRotator(0, 90, 0));
+	static FGLTFQuaternion Rotation = ConvertRotation(FRotator3f(0, 90, 0));
 	return Rotation;
 }
 
@@ -193,7 +193,7 @@ FGLTFQuaternion FGLTFCoreUtilities::GetLocalLightRotation()
 	// Unreal uses +X axis as light direction in Unreal coordinates.
 	// glTF uses +Y as light direction in Unreal coordinates.
 
-	static FGLTFQuaternion Rotation = ConvertRotation(FRotator(0, 90, 0));
+	static FGLTFQuaternion Rotation = ConvertRotation(FRotator3f(0, 90, 0));
 	return Rotation;
 }
 
