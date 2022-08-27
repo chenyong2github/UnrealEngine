@@ -24,4 +24,6 @@ public:
 private:
 
 	TMap<FGLTFJsonImageIndex, TArray64<uint8>> ImageDataLookup;
+
+	FGLTFJsonImageIndex FindImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType) const;
 };
