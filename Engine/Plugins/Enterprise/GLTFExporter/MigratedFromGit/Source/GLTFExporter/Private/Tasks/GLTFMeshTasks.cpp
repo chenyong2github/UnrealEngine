@@ -23,7 +23,7 @@ void FGLTFStaticMeshTask::Complete()
 	}
 
 	const FGLTFMeshData* MeshData =
-        Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ?
+        Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bMaterialBakeUsingMeshData ?
             MeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
 	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
@@ -85,7 +85,7 @@ void FGLTFSkeletalMeshTask::Complete()
 	}
 
 	const FGLTFMeshData* MeshData =
-		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ?
+		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bMaterialBakeUsingMeshData ?
 			MeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
 	if (SkeletalMeshComponent == nullptr)
