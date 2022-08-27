@@ -6,9 +6,9 @@
 
 FGLTFBuilder::FGLTFBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions)
 	: FileName(FPaths::GetCleanFilename(FileName))
-	, bIsGLB(FileName.EndsWith(TEXT(".glb"), ESearchCase::IgnoreCase))
+	, bIsGLB(this->FileName.EndsWith(TEXT(".glb"), ESearchCase::IgnoreCase))
 	, ExportOptions(SanitizeExportOptions(ExportOptions))
-	, ExportOptionsGuard(ExportOptions)
+	, ExportOptionsGuard(this->ExportOptions)
 {
 }
 

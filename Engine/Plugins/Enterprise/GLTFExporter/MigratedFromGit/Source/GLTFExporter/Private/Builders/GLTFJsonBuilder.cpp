@@ -12,7 +12,7 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FileName, const UGLTFExportOpt
 	JsonRoot.Asset.Generator = GetGeneratorString();
 }
 
-void FGLTFJsonBuilder::WriteJson(FArchive& Archive)
+void FGLTFJsonBuilder::WriteJsonArchive(FArchive& Archive)
 {
 	JsonRoot.WriteJson(Archive, !bIsGLB, ExportOptions->bSkipNearDefaultValues ? KINDA_SMALL_NUMBER : 0);
 }

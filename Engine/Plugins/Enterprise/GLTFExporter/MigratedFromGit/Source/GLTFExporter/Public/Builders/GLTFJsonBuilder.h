@@ -11,9 +11,7 @@ public:
 
 	FGLTFJsonScene*& DefaultScene;
 
-	FGLTFJsonBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
-
-	void WriteJson(FArchive& Archive);
+	FGLTFJsonBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr);
 
 	void AddExtension(EGLTFJsonExtension Extension, bool bIsRequired = false);
 
@@ -41,6 +39,8 @@ public:
 	const FGLTFJsonRoot& GetRoot() const;
 
 protected:
+
+	void WriteJsonArchive(FArchive& Archive);
 
 	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
 

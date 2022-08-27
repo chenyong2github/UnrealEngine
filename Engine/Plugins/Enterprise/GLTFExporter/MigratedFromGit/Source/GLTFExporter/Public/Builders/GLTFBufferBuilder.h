@@ -8,7 +8,7 @@ class GLTFEXPORTER_API FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 protected:
 
-	FGLTFBufferBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
+	FGLTFBufferBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr);
 	~FGLTFBufferBuilder();
 
 	const FGLTFMemoryArchive* GetBufferData() const;

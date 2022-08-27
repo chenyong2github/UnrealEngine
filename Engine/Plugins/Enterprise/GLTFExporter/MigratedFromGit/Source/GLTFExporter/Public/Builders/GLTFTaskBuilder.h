@@ -9,7 +9,7 @@ class GLTFEXPORTER_API FGLTFTaskBuilder : public FGLTFLogBuilder
 {
 public:
 
-	FGLTFTaskBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
+	FGLTFTaskBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr);
 
 	template <typename TaskType, typename... TaskArgTypes, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFDelayedTask>::Value>::Type>
 	bool ScheduleSlowTask(TaskArgTypes&&... Args)
@@ -25,7 +25,7 @@ public:
 
 	bool ScheduleSlowTask(TUniquePtr<FGLTFDelayedTask> Task);
 
-	void ProcessSlowTasks(FFeedbackContext* Context = GWarn);
+	void ProcessSlowTasks(FFeedbackContext* Context = nullptr);
 
 private:
 

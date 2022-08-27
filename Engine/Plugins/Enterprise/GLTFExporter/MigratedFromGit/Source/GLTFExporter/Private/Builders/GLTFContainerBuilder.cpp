@@ -8,15 +8,17 @@ FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FileName, const UGLT
 {
 }
 
-void FGLTFContainerBuilder::WriteToArchive(FArchive& Archive)
+void FGLTFContainerBuilder::WriteInternalArchive(FArchive& Archive)
 {
+	ProcessSlowTasks();
+
 	if (bIsGLB)
 	{
-		WriteGlb(Archive);
+		WriteGlbArchive(Archive);
 	}
 	else
 	{
-		WriteJson(Archive);
+		WriteJsonArchive(Archive);
 	}
 
 	const TSet<EGLTFJsonExtension> CustomExtensions = GetCustomExtensionsUsed();
@@ -32,24 +34,41 @@ void FGLTFContainerBuilder::WriteToArchive(FArchive& Archive)
 	}
 }
 
-bool FGLTFContainerBuilder::WriteAllFiles(const FString& DirPath, bool bOverwrite)
+bool FGLTFContainerBuilder::WriteAllFiles(const FString& DirPath, uint32 WriteFlags)
 {
 	FGLTFMemoryArchive Archive;
-	WriteToArchive(Archive);
+	WriteInternalArchive(Archive);
 
 	const FString FilePath = FPaths::Combine(DirPath, FileName);
-	if (!SaveToFile(FilePath, Archive, bOverwrite))
+	if (!SaveToFile(FilePath, Archive, WriteFlags))
 	{
 		return false;
 	}
 
-	return WriteExternalFiles(DirPath, bOverwrite);
+	return WriteExternalFiles(DirPath, WriteFlags);
 }
 
-void FGLTFContainerBuilder::WriteGlb(FArchive& Archive)
+bool FGLTFContainerBuilder::WriteAllFiles(const FString& DirPath, TArray<FString>& OutFilePaths, uint32 WriteFlags)
+{
+	if (!WriteAllFiles(DirPath, WriteFlags))
+	{
+		return false;
+	}
+
+	GetAllFiles(OutFilePaths, DirPath);
+	return true;
+}
+
+void FGLTFContainerBuilder::GetAllFiles(TArray<FString>& OutFilePaths, const FString& DirPath) const
+{
+	OutFilePaths.Add(FPaths::Combine(DirPath, FileName));
+	GetExternalFiles(OutFilePaths, DirPath);
+}
+
+void FGLTFContainerBuilder::WriteGlbArchive(FArchive& Archive)
 {
 	FGLTFMemoryArchive JsonData;
-	WriteJson(JsonData);
+	WriteJsonArchive(JsonData);
 
 	const TArray64<uint8>* BufferData = GetBufferData();
 	WriteGlb(Archive, JsonData, BufferData);
