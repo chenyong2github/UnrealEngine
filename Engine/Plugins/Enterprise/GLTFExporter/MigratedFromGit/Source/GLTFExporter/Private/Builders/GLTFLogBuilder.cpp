@@ -9,8 +9,8 @@
 #include "IMessageLogListing.h"
 #endif
 
-FGLTFLogBuilder::FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: FGLTFBuilder(FilePath, ExportOptions)
+FGLTFLogBuilder::FGLTFLogBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions)
+	: FGLTFBuilder(FileName, ExportOptions)
 {
 #if WITH_EDITOR
 	if (!FApp::IsUnattended())

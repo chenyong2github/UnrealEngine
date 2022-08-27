@@ -7,7 +7,7 @@
 struct GLTFEXPORTER_API FGLTFJsonImage : IGLTFJsonIndexedObject
 {
 	FString Name;
-	FString Uri;
+	FString URI;
 
 	EGLTFJsonMimeType MimeType;
 

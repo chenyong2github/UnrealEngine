@@ -8,9 +8,11 @@ class FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
 public:
 
-	FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors);
+	FGLTFContainerBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors);
 
-	void Write(FArchive& Archive, FFeedbackContext* Context);
+	void WriteToArchive(FArchive& Archive);
+
+	bool WriteAllFiles(const FString& DirPath, bool bOverwrite = true);
 
 protected:
 

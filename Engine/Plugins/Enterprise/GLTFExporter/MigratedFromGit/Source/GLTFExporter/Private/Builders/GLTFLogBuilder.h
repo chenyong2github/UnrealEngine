@@ -12,7 +12,7 @@ class FGLTFLogBuilder : public FGLTFBuilder
 {
 public:
 
-	FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
+	FGLTFLogBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
 
 	void LogSuggestion(const FString& Message);
 

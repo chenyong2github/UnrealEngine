@@ -7,8 +7,8 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"
 
-FGLTFConvertBuilder::FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
-	: FGLTFBufferBuilder(FilePath, ExportOptions)
+FGLTFConvertBuilder::FGLTFConvertBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
+	: FGLTFBufferBuilder(FileName, ExportOptions)
 	, SelectedActors(SelectedActors)
 {
 }

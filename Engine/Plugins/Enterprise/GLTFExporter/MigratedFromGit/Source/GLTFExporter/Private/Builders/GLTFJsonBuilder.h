@@ -3,15 +3,15 @@
 #pragma once
 
 #include "Json/GLTFJsonRoot.h"
-#include "Builders/GLTFTaskBuilder.h"
+#include "Builders/GLTFFileBuilder.h"
 
-class FGLTFJsonBuilder : public FGLTFTaskBuilder
+class FGLTFJsonBuilder : public FGLTFFileBuilder
 {
 public:
 
 	FGLTFJsonScene*& DefaultScene;
 
-	FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
+	FGLTFJsonBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
 
 	void WriteJson(FArchive& Archive);
 

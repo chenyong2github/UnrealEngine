@@ -9,7 +9,7 @@ class FGLTFTaskBuilder : public FGLTFLogBuilder
 {
 public:
 
-	FGLTFTaskBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
+	FGLTFTaskBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
 
 	template <typename TaskType, typename... TaskArgTypes, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
 	bool SetupTask(TaskArgTypes&&... Args)

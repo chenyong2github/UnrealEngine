@@ -41,13 +41,19 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
-	FGLTFContainerBuilder Builder(GetFilePath(), Options, SelectedActors);
+	const FString FilePath = GetFilePath();
+	const FString FileName = FPaths::GetCleanFilename(FilePath);
+	const FString DirPath = FPaths::GetPath(FilePath);
+
+	FGLTFContainerBuilder Builder(FileName, Options, SelectedActors);
 	Builder.ClearLog();
 
-	const bool bSuccess = AddObject(Builder, Object);
+	bool bSuccess = AddObject(Builder, Object);
 	if (bSuccess)
 	{
-		Builder.Write(Archive, Warn);
+		Builder.CompleteAllTasks(Warn);
+		Builder.WriteToArchive(Archive);
+		bSuccess = Builder.WriteExternalFiles(DirPath);
 	}
 
 	// TODO: should we copy messages to UAssetExportTask::Errors?
@@ -60,7 +66,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	return bSuccess;
 }
 
-bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors, FGLTFExportMessages& OutMessages)
+bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& FilePath, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors, FGLTFExportMessages& OutMessages)
 {
 	if (Object == nullptr)
 	{
@@ -75,8 +81,11 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const
 		return false;
 	}
 
-	FGLTFContainerBuilder Builder(Filename, Options, SelectedActors);
-	const bool bSuccess = Exporter->AddObject(Builder, Object);
+	const FString FileName = FPaths::GetCleanFilename(FilePath);
+	const FString DirPath = FPaths::GetPath(FilePath);
+
+	FGLTFContainerBuilder Builder(FileName, Options, SelectedActors);
+	bool bSuccess = Exporter->AddObject(Builder, Object);
 
 	OutMessages.Suggestions = Builder.GetLoggedSuggestions();
 	OutMessages.Warnings = Builder.GetLoggedWarnings();
@@ -84,24 +93,17 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const
 
 	if (bSuccess)
 	{
-		FArchive* Archive = IFileManager::Get().CreateFileWriter(*Filename);
-		if (Archive == nullptr)
-		{
-			OutMessages.Errors.Add(FString::Printf(TEXT("Couldn't save file: %s"), *Filename));
-			return false;
-		}
-
-		Builder.Write(*Archive, nullptr);
-		Archive->Close();
+		Builder.CompleteAllTasks(nullptr);
+		bSuccess = Builder.WriteAllFiles(DirPath);
 	}
 
 	return bSuccess;
 }
 
-bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors)
+bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& FilePath, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors)
 {
 	FGLTFExportMessages Messages;
-	return ExportToGLTF(Object, Filename, Options, SelectedActors, Messages);
+	return ExportToGLTF(Object, FilePath, Options, SelectedActors, Messages);
 }
 
 bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)

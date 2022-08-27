@@ -7,7 +7,7 @@
 
 FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels)
 {
-	TArray64<uint8> CompressedData;
+	const TSharedPtr<FGLTFMemoryArchive> CompressedData = MakeShared<FGLTFMemoryArchive>();
 
 	const EGLTFJsonMimeType MimeType = GetMimeType(Pixels->GetData(), Size, bIgnoreAlpha, Type);
 	switch (MimeType)
@@ -16,11 +16,11 @@ FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGL
 			return nullptr;
 
 		case EGLTFJsonMimeType::PNG:
-			FGLTFImageUtility::CompressToPNG(Pixels->GetData(), Size, CompressedData);
+			FGLTFImageUtility::CompressToPNG(Pixels->GetData(), Size, *CompressedData);
 			break;
 
 		case EGLTFJsonMimeType::JPEG:
-			FGLTFImageUtility::CompressToJPEG(Pixels->GetData(), Size, Builder.ExportOptions->TextureImageQuality, CompressedData);
+			FGLTFImageUtility::CompressToJPEG(Pixels->GetData(), Size, Builder.ExportOptions->TextureImageQuality, *CompressedData);
 			break;
 
 		default:
@@ -30,15 +30,16 @@ FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGL
 
 	FGLTFJsonImage* JsonImage = Builder.AddImage();
 
-	if (Builder.bIsGlbFile)
+	if (Builder.bIsGLB)
 	{
 		JsonImage->Name = Name;
 		JsonImage->MimeType = MimeType;
-		JsonImage->BufferView = Builder.AddBufferView(CompressedData.GetData(), CompressedData.Num());
+		JsonImage->BufferView = Builder.AddBufferView(CompressedData->GetData(), CompressedData->Num());
 	}
 	else
 	{
-		JsonImage->Uri = SaveToFile(CompressedData.GetData(), CompressedData.Num(), MimeType, Name);
+		const TCHAR* Extension = FGLTFImageUtility::GetFileExtension(MimeType);
+		JsonImage->URI = Builder.AddExternalFile(Name + Extension, CompressedData);
 	}
 
 	return JsonImage;
@@ -64,22 +65,4 @@ EGLTFJsonMimeType FGLTFImageConverter::GetMimeType(const FColor* Pixels, FIntPoi
 			checkNoEntry();
 		return EGLTFJsonMimeType::None;
 	}
-}
-
-FString FGLTFImageConverter::SaveToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
-{
-	const TCHAR* Extension = FGLTFImageUtility::GetFileExtension(MimeType);
-	const FString ImageUri = FGLTFImageUtility::GetUniqueFilename(Name, Extension, UniqueImageUris);
-
-	const TArrayView<const uint8> ImageData(static_cast<const uint8*>(CompressedData), CompressedByteLength);
-	const FString ImagePath = FPaths::Combine(Builder.DirPath, ImageUri);
-
-	if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
-	{
-		Builder.LogError(FString::Printf(TEXT("Failed to save image %s to file: %s"), *Name, *ImagePath));
-		return TEXT("");
-	}
-
-	UniqueImageUris.Add(ImageUri);
-	return ImageUri;
 }
