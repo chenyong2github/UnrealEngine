@@ -508,3 +508,54 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 
 	return Result;
 }
+
+bool FGLTFMaterialUtility::MaterialNeedsVertexData(const UMaterialInterface* Material)
+{
+	if (Material == nullptr)
+	{
+		return false;
+	}
+
+	// TODO: only analyze properties that will be needed for this specific material
+
+	const TArray<EMaterialProperty> Properties =
+	{
+		MP_BaseColor,
+		MP_EmissiveColor,
+		MP_Opacity,
+		MP_OpacityMask,
+		MP_Metallic,
+		MP_Roughness,
+		MP_Normal,
+		// MP_CustomOutput,	// NOTE: causes a crash when used with AnalyzeMaterialProperty
+		MP_AmbientOcclusion,
+		MP_CustomData0,
+		MP_CustomData1
+	};
+
+	bool bRequiresVertexData = false;
+
+	int32 NumTextureCoordinates;
+	bool bPropertyRequiresVertexData;
+
+	for (const EMaterialProperty Property: Properties)
+	{
+		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bPropertyRequiresVertexData);
+		bRequiresVertexData |= bPropertyRequiresVertexData;
+	}
+
+	return bRequiresVertexData;
+}
+
+bool FGLTFMaterialUtility::MaterialsNeedVertexData(const TArray<UMaterialInterface*> Materials)
+{
+	for (const UMaterialInterface* Material: Materials)
+	{
+		if (MaterialNeedsVertexData(Material))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

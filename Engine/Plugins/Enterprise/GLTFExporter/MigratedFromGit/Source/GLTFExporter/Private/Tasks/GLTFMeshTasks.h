@@ -6,19 +6,20 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFMeshSectionConverters.h"
 #include "Converters/GLTFMaterialArray.h"
+#include "Converters/GLTFNameUtility.h"
 #include "Engine.h"
 
 class FGLTFStaticMeshTask : public FGLTFTask
 {
 public:
 
-	FGLTFStaticMeshTask(FGLTFConvertBuilder& Builder, FGLTFStaticMeshSectionConverter& MeshSectionConverter, const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMeshIndex MeshIndex)
+	FGLTFStaticMeshTask(FGLTFConvertBuilder& Builder, FGLTFStaticMeshSectionConverter& MeshSectionConverter, const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMeshIndex MeshIndex)
 		: FGLTFTask(EGLTFTaskPriority::Mesh)
 		, Builder(Builder)
 		, MeshSectionConverter(MeshSectionConverter)
 		, StaticMesh(StaticMesh)
+		, StaticMeshComponent(StaticMeshComponent)
 		, LODIndex(LODIndex)
-		, OverrideVertexColors(OverrideVertexColors)
 		, OverrideMaterials(OverrideMaterials)
         , MeshIndex(MeshIndex)
 	{
@@ -26,7 +27,7 @@ public:
 
 	virtual FString GetName() override
 	{
-		return StaticMesh->GetName();
+		return StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : FGLTFNameUtility::GetName(StaticMesh, LODIndex);
 	}
 
 	virtual void Complete() override;
@@ -36,8 +37,8 @@ private:
 	FGLTFConvertBuilder& Builder;
 	FGLTFStaticMeshSectionConverter& MeshSectionConverter;
 	const UStaticMesh* StaticMesh;
+	const UStaticMeshComponent* StaticMeshComponent;
 	int32 LODIndex;
-	const FColorVertexBuffer* OverrideVertexColors;
 	FGLTFMaterialArray OverrideMaterials;
 	const FGLTFJsonMeshIndex MeshIndex;
 };
@@ -46,14 +47,13 @@ class FGLTFSkeletalMeshTask : public FGLTFTask
 {
 public:
 
-	FGLTFSkeletalMeshTask(FGLTFConvertBuilder& Builder, FGLTFSkeletalMeshSectionConverter& MeshSectionConverter, const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMeshIndex MeshIndex)
+	FGLTFSkeletalMeshTask(FGLTFConvertBuilder& Builder, FGLTFSkeletalMeshSectionConverter& MeshSectionConverter, const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMeshIndex MeshIndex)
 		: FGLTFTask(EGLTFTaskPriority::Mesh)
 		, Builder(Builder)
 		, MeshSectionConverter(MeshSectionConverter)
 		, SkeletalMesh(SkeletalMesh)
+		, SkeletalMeshComponent(SkeletalMeshComponent)
 		, LODIndex(LODIndex)
-		, OverrideVertexColors(OverrideVertexColors)
-		, OverrideSkinWeights(OverrideSkinWeights)
 		, OverrideMaterials(OverrideMaterials)
 		, MeshIndex(MeshIndex)
 	{
@@ -61,7 +61,7 @@ public:
 
 	virtual FString GetName() override
 	{
-		return SkeletalMesh->GetName();
+		return SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
 	}
 
 	virtual void Complete() override;
@@ -71,9 +71,8 @@ private:
 	FGLTFConvertBuilder& Builder;
 	FGLTFSkeletalMeshSectionConverter& MeshSectionConverter;
 	const USkeletalMesh* SkeletalMesh;
+	const USkeletalMeshComponent* SkeletalMeshComponent;
 	int32 LODIndex;
-	const FColorVertexBuffer* OverrideVertexColors;
-	const FSkinWeightVertexBuffer* OverrideSkinWeights;
 	FGLTFMaterialArray OverrideMaterials;
 	const FGLTFJsonMeshIndex MeshIndex;
 };

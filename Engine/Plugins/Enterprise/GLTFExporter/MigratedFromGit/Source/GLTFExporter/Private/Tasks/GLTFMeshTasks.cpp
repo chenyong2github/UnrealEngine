@@ -8,14 +8,28 @@
 
 void FGLTFStaticMeshTask::Complete()
 {
+	const uint32 MeshCount = (StaticMeshComponent != nullptr ? 1 : 0) + (StaticMesh != nullptr ? 1 : 0);
+	check(MeshCount == 1);
+
+	if (StaticMeshComponent != nullptr)
+	{
+		StaticMesh = StaticMeshComponent->GetStaticMesh();
+	}
+
 	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
 
 	FGLTFJsonMesh& JsonMesh = Builder.GetMesh(MeshIndex);
-	JsonMesh.Name = FGLTFNameUtility::GetName(StaticMesh, LODIndex);
+	JsonMesh.Name = StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : FGLTFNameUtility::GetName(StaticMesh, LODIndex);
 
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.VertexBuffers.ColorVertexBuffer;
+	const FColorVertexBuffer* ColorBuffer = &MeshLOD.VertexBuffers.ColorVertexBuffer;
+
+	if (StaticMeshComponent != nullptr && StaticMeshComponent->LODData.IsValidIndex(LODIndex))
+	{
+		const FStaticMeshComponentLODInfo& LODInfo = StaticMeshComponent->LODData[LODIndex];
+		ColorBuffer = LODInfo.OverrideVertexColors != nullptr ? LODInfo.OverrideVertexColors : ColorBuffer;
+	}
 
 	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
@@ -49,28 +63,48 @@ void FGLTFStaticMeshTask::Complete()
 			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, VertexBuffer, UVIndex);
 		}
 
-		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, MaterialIndex);
+		const UMaterialInterface* Material = StaticMeshComponent != nullptr
+			? OverrideMaterials.GetOverride(StaticMeshComponent->GetMaterials(), MaterialIndex)	// TODO: cache component materials once instead of retrieving multiple times
+			: OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, MaterialIndex);
+
 		if (Material == nullptr)
 		{
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material, StaticMesh, LODIndex);
+		JsonPrimitive.Material = StaticMeshComponent != nullptr
+			? Builder.GetOrAddMaterial(Material, StaticMeshComponent, LODIndex, OverrideMaterials)
+			: Builder.GetOrAddMaterial(Material, StaticMesh, LODIndex, OverrideMaterials);
 	}
 }
 
 void FGLTFSkeletalMeshTask::Complete()
 {
+	const uint32 MeshCount = (SkeletalMeshComponent != nullptr ? 1 : 0) + (SkeletalMesh != nullptr ? 1 : 0);
+	check(MeshCount == 1);
+
+	if (SkeletalMeshComponent != nullptr)
+	{
+		SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	}
+
 	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
 
 	FGLTFJsonMesh& JsonMesh = Builder.GetMesh(MeshIndex);
-	JsonMesh.Name = FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
+	JsonMesh.Name = SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
 
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
-	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.StaticVertexBuffers.ColorVertexBuffer;
-	const FSkinWeightVertexBuffer* SkinWeightBuffer = OverrideSkinWeights != nullptr ? OverrideSkinWeights : MeshLOD.GetSkinWeightVertexBuffer();
+	const FColorVertexBuffer* ColorBuffer = &MeshLOD.StaticVertexBuffers.ColorVertexBuffer;
+	const FSkinWeightVertexBuffer* SkinWeightBuffer = MeshLOD.GetSkinWeightVertexBuffer();
+
+	if (SkeletalMeshComponent != nullptr && SkeletalMeshComponent->LODInfo.IsValidIndex(LODIndex))
+	{
+		const FSkelMeshComponentLODInfo& LODInfo = SkeletalMeshComponent->LODInfo[LODIndex];
+		ColorBuffer = LODInfo.OverrideVertexColors != nullptr ? LODInfo.OverrideVertexColors : ColorBuffer;
+		SkinWeightBuffer = LODInfo.OverrideSkinWeights != nullptr ? LODInfo.OverrideSkinWeights : SkinWeightBuffer;
+	}
 
 	const uint16 MaterialCount = SkeletalMesh->Materials.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
@@ -117,13 +151,17 @@ void FGLTFSkeletalMeshTask::Complete()
 			}
 		}
 
-		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, MaterialIndex);
+		const UMaterialInterface* Material = SkeletalMeshComponent != nullptr
+			? OverrideMaterials.GetOverride(SkeletalMeshComponent->GetMaterials(), MaterialIndex)	// TODO: cache component materials once instead of retrieving multiple times
+			: OverrideMaterials.GetOverride(SkeletalMesh->Materials, MaterialIndex);
+
 		if (Material == nullptr)
 		{
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		// TODO: should we somehow pass a skeletal mesh for baking?
-		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material, nullptr);
+		JsonPrimitive.Material = SkeletalMeshComponent != nullptr
+			? Builder.GetOrAddMaterial(Material, SkeletalMeshComponent, LODIndex, OverrideMaterials)
+			: Builder.GetOrAddMaterial(Material, SkeletalMesh, LODIndex, OverrideMaterials);
 	}
 }

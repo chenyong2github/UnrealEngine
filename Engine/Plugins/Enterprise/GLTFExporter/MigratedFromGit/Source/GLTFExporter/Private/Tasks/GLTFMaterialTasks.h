@@ -12,13 +12,18 @@ class FGLTFMaterialTask : public FGLTFTask
 {
 public:
 
-	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UStaticMesh* Mesh, int32 LODIndex, FGLTFJsonMaterialIndex MaterialIndex)
+	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UObject* MeshOrComponent, int32 LODIndex, FGLTFMaterialArray OverrideMaterials, FGLTFJsonMaterialIndex MaterialIndex)
         : FGLTFTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, Material(Material)
-		, Mesh(Mesh)
 		, LODIndex(LODIndex)
+		, OverrideMaterials(OverrideMaterials)
 		, MaterialIndex(MaterialIndex)
+		, StaticMesh(Cast<UStaticMesh>(MeshOrComponent))
+		, StaticMeshComponent(Cast<UStaticMeshComponent>(MeshOrComponent))
+		, SkeletalMesh(Cast<USkeletalMesh>(MeshOrComponent))
+		, SkeletalMeshComponent(Cast<USkeletalMeshComponent>(MeshOrComponent))
+		, bHasValidMeshOrComponent(StaticMesh != nullptr || StaticMeshComponent != nullptr || SkeletalMesh != nullptr || SkeletalMeshComponent != nullptr)
 	{
 	}
 
@@ -33,9 +38,15 @@ private:
 
 	FGLTFConvertBuilder& Builder;
 	const UMaterialInterface* Material;
-	const UStaticMesh* Mesh;
 	const int32 LODIndex;
+	const FGLTFMaterialArray OverrideMaterials;
 	const FGLTFJsonMaterialIndex MaterialIndex;
+
+	const UStaticMesh* StaticMesh;
+	const UStaticMeshComponent* StaticMeshComponent;
+	const USkeletalMesh* SkeletalMesh;
+	const USkeletalMeshComponent* SkeletalMeshComponent;
+	const bool bHasValidMeshOrComponent;
 
 	bool TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const;
 	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel) const;
