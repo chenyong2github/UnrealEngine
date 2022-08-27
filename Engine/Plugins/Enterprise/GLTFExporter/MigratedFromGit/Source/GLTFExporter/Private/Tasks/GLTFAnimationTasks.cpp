@@ -17,7 +17,7 @@ void FGLTFAnimSequenceTask::Complete()
 	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
 
 	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	AnimSequence->GetName(JsonAnimation.Name);
+	JsonAnimation.Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name
 
 	TArray<float> Timestamps;
 	Timestamps.AddUninitialized(FrameCount);
@@ -198,7 +198,7 @@ void FGLTFLevelSequenceTask::Complete()
 	int32 FrameCount = FFrameRate::TransformTime(FFrameTime(FFrameNumber(MovieScene::DiscreteSize(PlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1;
 
 	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	Sequence->GetName(JsonAnimation.Name);
+	JsonAnimation.Name = Sequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name
 
 	TArray<float> Timestamps;
 	TArray<FFrameTime> FrameTimes;
