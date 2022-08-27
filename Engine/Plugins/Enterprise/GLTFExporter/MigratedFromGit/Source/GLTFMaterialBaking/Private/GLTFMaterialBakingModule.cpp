@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialBakingModule.h"
+#include "GLTFMaterialBakingModule.h"
 #include "MaterialRenderItem.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "ExportMaterialProxy.h"
+#include "GLTFExportMaterialProxy.h"
 #include "UObject/UObjectGlobals.h"
 #include "MaterialBakingStructures.h"
-#include "MaterialBakingHelpers.h"
+#include "GLTFMaterialBakingHelpers.h"
 #include "AddCustomAttributeHack.h"
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
@@ -21,7 +21,7 @@
 #include "Misc/FileHelper.h"
 #endif
 
-IMPLEMENT_MODULE(FMaterialBakingModule, GLTFMaterialBaking);
+IMPLEMENT_MODULE(FGLTFMaterialBakingModule, GLTFMaterialBaking);
 
 #define LOCTEXT_NAMESPACE "MaterialBakingModule"
 
@@ -211,10 +211,10 @@ namespace FMaterialBakingModuleImpl
 
 	struct FRenderItemKey
 	{
-		const FMeshData* RenderData;
+		const FGLTFMeshRenderData* RenderData;
 		const FIntPoint  RenderSize;
 
-		FRenderItemKey(const FMeshData* InRenderData, const FIntPoint& InRenderSize)
+		FRenderItemKey(const FGLTFMeshRenderData* InRenderData, const FIntPoint& InRenderSize)
 			: RenderData(InRenderData)
 			, RenderSize(InRenderSize)
 		{
@@ -233,7 +233,7 @@ namespace FMaterialBakingModuleImpl
 	}
 }
 
-void FMaterialBakingModule::StartupModule()
+void FGLTFMaterialBakingModule::StartupModule()
 {
 	bEmissiveHDR = false;
 
@@ -261,13 +261,13 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyFormat.Add(TEXT("TransmittanceColor"), PF_B8G8R8A8);
 
 	// Register callback for modified objects
-	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FMaterialBakingModule::OnObjectModified);
+	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FGLTFMaterialBakingModule::OnObjectModified);
 
 	// NOTE: Because the attribute definition of TransmittanceColor is not registered by the engine, we have to do it here
 	AddCustomAttributeHack(FGuid(0xF2D8C70E, 0x42ECA0D1, 0x4652D0AD, 0xB785A065), "TransmittanceColor", "GetThinTranslucentMaterialOutput", MCT_Float3, FVector4(0.5, 0.5, 0.5, 0));
 }
 
-void FMaterialBakingModule::ShutdownModule()
+void FGLTFMaterialBakingModule::ShutdownModule()
 {
 	// Unregister customization and callback
 	FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor");
@@ -279,14 +279,14 @@ void FMaterialBakingModule::ShutdownModule()
 	FCoreUObjectDelegates::OnObjectModified.RemoveAll(this);
 }
 
-void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutput>& Output)
+void FGLTFMaterialBakingModule::BakeMaterials(const TArray<FGLTFMaterialData*>& MaterialSettings, const TArray<FGLTFMeshRenderData*>& MeshSettings, TArray<FGLTFBakeOutput>& Output)
 {
 	// Translate old material data to extended types
-	TArray<FMaterialDataEx> MaterialDataExs;
+	TArray<FGLTFMaterialDataEx> MaterialDataExs;
 	MaterialDataExs.Reserve(MaterialSettings.Num());
-	for (const FMaterialData* MaterialData : MaterialSettings)
+	for (const FGLTFMaterialData* MaterialData : MaterialSettings)
 	{
-		FMaterialDataEx& MaterialDataEx = MaterialDataExs.AddDefaulted_GetRef();
+		FGLTFMaterialDataEx& MaterialDataEx = MaterialDataExs.AddDefaulted_GetRef();
 		MaterialDataEx.Material = MaterialData->Material;
 		MaterialDataEx.bPerformBorderSmear = MaterialData->bPerformBorderSmear;
 		MaterialDataEx.BlendMode = MaterialData->BlendMode;
@@ -300,34 +300,34 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 	}
 
 	// Build an array of pointers to the extended type
-	TArray<FMaterialDataEx*> MaterialSettingsEx;
+	TArray<FGLTFMaterialDataEx*> MaterialSettingsEx;
 	MaterialSettingsEx.Reserve(MaterialDataExs.Num());
-	for (FMaterialDataEx& MaterialDataEx : MaterialDataExs)
+	for (FGLTFMaterialDataEx& MaterialDataEx : MaterialDataExs)
 	{
 		MaterialSettingsEx.Add(&MaterialDataEx);
 	}
 
-	TArray<FBakeOutputEx> BakeOutputExs;
+	TArray<FGLTFBakeOutputEx> BakeOutputExs;
 	BakeMaterials(MaterialSettingsEx, MeshSettings, BakeOutputExs);
 
 	// Translate extended bake output to old types
 	Output.Reserve(BakeOutputExs.Num());
-	for (FBakeOutputEx& BakeOutputEx : BakeOutputExs)
+	for (FGLTFBakeOutputEx& BakeOutputEx : BakeOutputExs)
 	{
-		FBakeOutput& BakeOutput = Output.AddDefaulted_GetRef();
+		FGLTFBakeOutput& BakeOutput = Output.AddDefaulted_GetRef();
 		BakeOutput.EmissiveScale = BakeOutputEx.EmissiveScale;
 
-		for (TPair<FMaterialPropertyEx, FIntPoint>& PropertySizePair : BakeOutputEx.PropertySizes)
+		for (TPair<FGLTFMaterialPropertyEx, FIntPoint>& PropertySizePair : BakeOutputEx.PropertySizes)
 		{
 			BakeOutput.PropertySizes.Add(PropertySizePair.Key.Type, PropertySizePair.Value);
 		}
 
-		for (TPair<FMaterialPropertyEx, TArray<FColor>>& PropertyDataPair : BakeOutputEx.PropertyData)
+		for (TPair<FGLTFMaterialPropertyEx, TArray<FColor>>& PropertyDataPair : BakeOutputEx.PropertyData)
 		{
 			BakeOutput.PropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
 		}
 
-		for (TPair<FMaterialPropertyEx, TArray<FFloat16Color>>& PropertyDataPair : BakeOutputEx.HDRPropertyData)
+		for (TPair<FGLTFMaterialPropertyEx, TArray<FFloat16Color>>& PropertyDataPair : BakeOutputEx.HDRPropertyData)
 		{
 			BakeOutput.HDRPropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
 		}
@@ -359,7 +359,7 @@ static inline void ConvertRawR16G16B16A16FDataToFFloat16Color(uint32 Width, uint
 }
 #endif
 
-void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutputEx>& Output)
+void FGLTFMaterialBakingModule::BakeMaterials(const TArray<FGLTFMaterialDataEx*>& MaterialSettings, const TArray<FGLTFMeshRenderData*>& MeshSettings, TArray<FGLTFBakeOutputEx>& Output)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::BakeMaterials)
 
@@ -410,16 +410,16 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareRenderItems);
 		
-		TMap<FMaterialBakingModuleImpl::FRenderItemKey, FMeshMaterialRenderItem*>* RenderItems = new TMap<FRenderItemKey, FMeshMaterialRenderItem *>();
-		const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
-		const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
+		TMap<FMaterialBakingModuleImpl::FRenderItemKey, FGLTFMeshMaterialRenderItem*>* RenderItems = new TMap<FRenderItemKey, FGLTFMeshMaterialRenderItem *>();
+		const FGLTFMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+		const FGLTFMeshRenderData* CurrentMeshSettings = MeshSettings[MaterialIndex];
 
-		for (TMap<FMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
+		for (TMap<FGLTFMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
 		{
 			FRenderItemKey RenderItemKey(CurrentMeshSettings, PropertySizeIterator.Value());
 			if (RenderItems->Find(RenderItemKey) == nullptr)
 			{
-				RenderItems->Add(RenderItemKey, new FMeshMaterialRenderItem(PropertySizeIterator.Value(), CurrentMeshSettings, &MaterialBakingDynamicMeshBufferAllocator));
+				RenderItems->Add(RenderItemKey, new FGLTFMeshMaterialRenderItem(PropertySizeIterator.Value(), CurrentMeshSettings, &MaterialBakingDynamicMeshBufferAllocator));
 			}
 		}
 
@@ -428,7 +428,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 
 	// We reuse the pipeline depth to prepare render items in advance to avoid stalling the game thread
 	int NextRenderItem = 0;
-	TFuture<TMap<FRenderItemKey, FMeshMaterialRenderItem*>*> PreparedRenderItems[PipelineDepth];
+	TFuture<TMap<FRenderItemKey, FGLTFMeshMaterialRenderItem*>*> PreparedRenderItems[PipelineDepth];
 	for (; NextRenderItem < NumMaterials && NextRenderItem < PipelineDepth; ++NextRenderItem)
 	{
 		PreparedRenderItems[NextRenderItem] = 
@@ -448,7 +448,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 		for (int32 Index = 0; Index < NumMaterials; ++Index)
 		{
 			int32 MaterialIndex = ProcessingOrder[Index];
-			const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+			const FGLTFMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
 
 			TArray<UTexture*> MaterialTextures;
 			CurrentMaterialSettings->Material->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, true, GMaxRHIFeatureLevel, true);
@@ -471,7 +471,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 				}
 			}
 
-			for (TMap<FMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
+			for (TMap<FGLTFMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
 			{
 				// They will be stored in the pool and compiled asynchronously
 				CreateMaterialProxy(CurrentMaterialSettings, PropertySizeIterator.Key());
@@ -489,7 +489,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 		Progress.EnterProgressFrame(1.0f, FText::Format(LOCTEXT("BakingMaterial", "Baking Material {0}/{1}"), Index, NumMaterials));
 
 		int32 MaterialIndex = ProcessingOrder[Index];
-		TMap<FRenderItemKey, FMeshMaterialRenderItem*>* RenderItems;
+		TMap<FRenderItemKey, FGLTFMeshMaterialRenderItem*>* RenderItems;
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(WaitOnPreparedRenderItems)
@@ -511,10 +511,10 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			NextRenderItem++;
 		}
 
-		const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
-		FBakeOutputEx& CurrentOutput = Output[MaterialIndex];
+		const FGLTFMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+		FGLTFBakeOutputEx& CurrentOutput = Output[MaterialIndex];
 
-		TArray<FMaterialPropertyEx> MaterialPropertiesToBakeOut;
+		TArray<FGLTFMaterialPropertyEx> MaterialPropertiesToBakeOut;
 		CurrentMaterialSettings->PropertySizes.GenerateKeyArray(MaterialPropertiesToBakeOut);
 
 		const int32 NumPropertiesToRender = MaterialPropertiesToBakeOut.Num();
@@ -526,7 +526,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			CurrentOutput.PropertySizes = CurrentMaterialSettings->PropertySizes;
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
-				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
+				const FGLTFMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
 				CurrentOutput.PropertyData.Add(Property);
 				if (bEmissiveHDR && Property == MP_EmissiveColor)
 				{
@@ -536,8 +536,8 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
-				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
-				FExportMaterialProxy* ExportMaterialProxy = CreateMaterialProxy(CurrentMaterialSettings, Property);
+				const FGLTFMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
+				FGLTFExportMaterialProxy* ExportMaterialProxy = CreateMaterialProxy(CurrentMaterialSettings, Property);
 
 				if (!ExportMaterialProxy->IsCompilationFinished())
 				{
@@ -561,10 +561,10 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 					ENQUEUE_RENDER_COMMAND(RenderOneMaterial)(
 						[this, RenderItems, RenderTarget, Property, ExportMaterialProxy, &PipelineContext, PipelineIndex, &StagingBufferPool, &NumTasks, bSaveIntermediateTextures, &MaterialSettings, &MeshSettings, MaterialIndex, &Output](FRHICommandListImmediate& RHICmdList)
 						{
-							const FMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
-							const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
+							const FGLTFMaterialDataEx* CurrentMaterialSettings = MaterialSettings[MaterialIndex];
+							const FGLTFMeshRenderData* CurrentMeshSettings = MeshSettings[MaterialIndex];
 
-							FMeshMaterialRenderItem& RenderItem = *RenderItems->FindChecked(FRenderItemKey(CurrentMeshSettings, FIntPoint(RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight())));
+							FGLTFMeshMaterialRenderItem& RenderItem = *RenderItems->FindChecked(FRenderItemKey(CurrentMeshSettings, FIntPoint(RenderTarget->GetSurfaceWidth(), RenderTarget->GetSurfaceHeight())));
 
 							FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(RenderTarget->GetRenderTargetResource(), nullptr,
 								FEngineShowFlags(ESFIM_Game))
@@ -601,7 +601,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(FinalProcessing)
 
-									FBakeOutputEx& CurrentOutput  = Output[MaterialIndex];
+									FGLTFBakeOutputEx& CurrentOutput  = Output[MaterialIndex];
 									TArray<FColor>& OutputColor = CurrentOutput.PropertyData[Property];
 									FIntPoint& OutputSize       = CurrentOutput.PropertySizes[Property];
 
@@ -610,7 +610,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 									if (Property.Type == MP_EmissiveColor)
 									{
 										// Only one thread will write to CurrentOutput.EmissiveScale since there can be only one emissive channel property per FBakeOutputEx
-										FMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, DataWidth, OutputSize, OutputColor, CurrentOutput.EmissiveScale, CurrentMaterialSettings->BackgroundColor);
+										FGLTFMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, DataWidth, OutputSize, OutputColor, CurrentOutput.EmissiveScale, CurrentMaterialSettings->BackgroundColor);
 
 										if (bEmissiveHDR)
 										{
@@ -633,7 +633,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 									if (CurrentMaterialSettings->bPerformBorderSmear)
 									{
 										// This will resize the output to a single pixel if the result is monochrome.
-										FMaterialBakingHelpers::PerformUVBorderSmearAndShrink(OutputColor, OutputSize.X, OutputSize.Y, CurrentMaterialSettings->BackgroundColor);
+										FGLTFMaterialBakingHelpers::PerformUVBorderSmearAndShrink(OutputColor, OutputSize.X, OutputSize.Y, CurrentMaterialSettings->BackgroundColor);
 									}
 #if WITH_EDITOR
 									// If saving intermediates is turned on
@@ -743,12 +743,12 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 	}
 }
 
-void FMaterialBakingModule::SetEmissiveHDR(bool bHDR)
+void FGLTFMaterialBakingModule::SetEmissiveHDR(bool bHDR)
 {
 	bEmissiveHDR = bHDR;
 }
 
-void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
+void FGLTFMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 {
 	// PerPropertyGamma ultimately sets whether the render target is linear
 	PerPropertyColorSpace.Reset();
@@ -772,14 +772,14 @@ void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 	}
 }
 
-bool FMaterialBakingModule::IsLinearBake(FMaterialPropertyEx Property)
+bool FGLTFMaterialBakingModule::IsLinearBake(FGLTFMaterialPropertyEx Property)
 {
 	const EPropertyColorSpace* OverrideColorSpace = PerPropertyColorSpace.Find(Property);
 	const EPropertyColorSpace ColorSpace = OverrideColorSpace ? *OverrideColorSpace : DefaultColorSpace;
 	return ColorSpace == EPropertyColorSpace::Linear;
 }
 
-void FMaterialBakingModule::CleanupMaterialProxies()
+void FGLTFMaterialBakingModule::CleanupMaterialProxies()
 {
 	for (auto Iterator : MaterialProxyPool)
 	{
@@ -788,7 +788,7 @@ void FMaterialBakingModule::CleanupMaterialProxies()
 	MaterialProxyPool.Reset();
 }
 
-UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceLinearGamma, EPixelFormat InPixelFormat, const FIntPoint& InTargetSize, const FColor& BackgroundColor)
+UTextureRenderTarget2D* FGLTFMaterialBakingModule::CreateRenderTarget(bool bInForceLinearGamma, EPixelFormat InPixelFormat, const FIntPoint& InTargetSize, const FColor& BackgroundColor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::CreateRenderTarget)
 
@@ -826,11 +826,11 @@ UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceL
 	return RenderTarget;
 }
 
-FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(const FMaterialDataEx* MaterialSettings, const FMaterialPropertyEx& Property)
+FGLTFExportMaterialProxy* FGLTFMaterialBakingModule::CreateMaterialProxy(const FGLTFMaterialDataEx* MaterialSettings, const FGLTFMaterialPropertyEx& Property)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::CreateMaterialProxy)
 
-	FExportMaterialProxy* Proxy = nullptr;
+	FGLTFExportMaterialProxy* Proxy = nullptr;
 
 	// Find all pooled material proxy matching this material
 	TArray<FMaterialPoolValue> Entries;
@@ -849,14 +849,14 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(const FMaterial
 	// Not found, create a new entry
 	if (Proxy == nullptr)
 	{
-		Proxy = new FExportMaterialProxy(MaterialSettings->Material, Property.Type, Property.CustomOutput.ToString(), false /* bInSynchronousCompilation */, MaterialSettings->BlendMode, MaterialSettings->bTangentSpaceNormal);
+		Proxy = new FGLTFExportMaterialProxy(MaterialSettings->Material, Property.Type, Property.CustomOutput.ToString(), false /* bInSynchronousCompilation */, MaterialSettings->BlendMode, MaterialSettings->bTangentSpaceNormal);
 		MaterialProxyPool.Add(MaterialSettings->Material, FMaterialPoolValue(Property, Proxy));
 	}
 
 	return Proxy;
 }
 
-void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, int32 Color16Pitch, const FIntPoint& OutputSize, TArray<FColor>& OutputColor, float& EmissiveScale, const FColor& BackgroundColor)
+void FGLTFMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, int32 Color16Pitch, const FIntPoint& OutputSize, TArray<FColor>& OutputColor, float& EmissiveScale, const FColor& BackgroundColor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::ProcessEmissiveOutput)
 
@@ -942,7 +942,7 @@ void FMaterialBakingModule::ProcessEmissiveOutput(const FFloat16Color* Color16, 
 	EmissiveScale = GlobalMaxValue;
 }
 
-void FMaterialBakingModule::OnObjectModified(UObject* Object)
+void FGLTFMaterialBakingModule::OnObjectModified(UObject* Object)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::OnObjectModified)
 
@@ -987,7 +987,7 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 				// We have a match, remove the entry from our pool
 				if (bMustDelete)
 				{
-					FExportMaterialProxy* Proxy = It.Value().Value;
+					FGLTFExportMaterialProxy* Proxy = It.Value().Value;
 
 					ENQUEUE_RENDER_COMMAND(DeleteCachedMaterialProxy)(
 						[Proxy](FRHICommandListImmediate& RHICmdList)

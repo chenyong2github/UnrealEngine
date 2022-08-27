@@ -10,17 +10,17 @@ class FSceneViewFamily;
 class FMaterialRenderProxy;
 class FSceneView;
 class FRHICommandListImmediate;
-struct FMaterialData;
-struct FMeshData;
+struct FGLTFMaterialData;
+struct FGLTFMeshRenderData;
 struct FMeshPassProcessorRenderState;
 
 // This will hold onto the resources until not needed anymore.
 // Move constructor makes it easier to send the destruction to another thread (render thread).
-class FMeshBuilderResources : public FMeshBuilderOneFrameResources
+class FGLTFMeshBuilderResources : public FMeshBuilderOneFrameResources
 {
 public:
-	FMeshBuilderResources() = default;
-	FMeshBuilderResources(FMeshBuilderResources&& Other)
+	FGLTFMeshBuilderResources() = default;
+	FGLTFMeshBuilderResources(FGLTFMeshBuilderResources&& Other)
 	{
 		if (this != &Other)
 		{
@@ -46,11 +46,11 @@ public:
 	}
 };
 
-class FMeshMaterialRenderItem : public FCanvasBaseRenderItem
+class FGLTFMeshMaterialRenderItem : public FCanvasBaseRenderItem
 {
 public:
-	FMeshMaterialRenderItem(const FIntPoint& InTextureSize, const FMeshData* InMeshSettings, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
-	virtual ~FMeshMaterialRenderItem();
+	FGLTFMeshMaterialRenderItem(const FIntPoint& InTextureSize, const FGLTFMeshRenderData* InMeshSettings, FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator = nullptr);
+	virtual ~FGLTFMeshMaterialRenderItem();
 
 	/** Begin FCanvasBaseRenderItem overrides */
 	virtual bool Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas) final;
@@ -68,7 +68,7 @@ protected:
 	void PopulateWithMeshData();
 public:
 	/** Mesh settings to use while baking out the material */
-	const FMeshData* MeshSettings;
+	const FGLTFMeshRenderData* MeshSettings;
 	/** The texture size to use while baking */
 	FIntPoint TextureSize;
 	/** Material render proxy (material/shader) to use while baking */
@@ -83,6 +83,6 @@ public:
 private:
 	FMeshBatch MeshElement;
 	bool bMeshElementDirty;
-	FMeshBuilderResources MeshBuilderResources;
+	FGLTFMeshBuilderResources MeshBuilderResources;
 	FDynamicMeshBufferAllocator* DynamicMeshBufferAllocator;
 };

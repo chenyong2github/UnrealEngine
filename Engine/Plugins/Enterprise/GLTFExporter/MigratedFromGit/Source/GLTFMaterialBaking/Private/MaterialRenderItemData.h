@@ -8,10 +8,10 @@
 #include "SceneManagement.h"
 
 /** Simple implementation for light cache to simulated lightmap behaviour (used for accessing prebaked ambient occlusion values) */
-class FMeshRenderInfo : public FLightCacheInterface
+class FGLTFMeshRenderInfo : public FLightCacheInterface
 {
 public:
-	FMeshRenderInfo(const FLightMap* InLightMap, const FShadowMap* InShadowMap, FUniformBufferRHIRef Buffer, const FLightmapResourceCluster* InLightmapResourceCluster)
+	FGLTFMeshRenderInfo(const FLightMap* InLightMap, const FShadowMap* InShadowMap, FUniformBufferRHIRef Buffer, const FLightmapResourceCluster* InLightmapResourceCluster)
 		: FLightCacheInterface()
 	{
 		SetLightMap(InLightMap);

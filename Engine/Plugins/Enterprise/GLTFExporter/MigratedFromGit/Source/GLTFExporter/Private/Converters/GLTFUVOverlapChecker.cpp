@@ -5,7 +5,7 @@
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 #include "Modules/ModuleManager.h"
-#include "IMaterialBakingModule.h"
+#include "IGLTFMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
 #endif
 
@@ -42,31 +42,31 @@ float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, FGLTFI
 	{
 		// TODO: investigate if the fixed size is high enough to properly calculate overlap
 		const FIntPoint TextureSize(512, 512);
-		const FMaterialPropertyEx Property = MP_EmissiveColor;
+		const FGLTFMaterialPropertyEx Property = MP_EmissiveColor;
 
-		FMeshData MeshSet;
+		FGLTFMeshRenderData MeshSet;
 		MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 		MeshSet.TextureCoordinateIndex = TexCoord;
 		MeshSet.RawMeshDescription = const_cast<FMeshDescription*>(Description);
 		MeshSet.MaterialIndices = SectionIndices; // NOTE: MaterialIndices is actually section indices
 
-		FMaterialDataEx MatSet;
+		FGLTFMaterialDataEx MatSet;
 		MatSet.Material = GetMaterial();
 		MatSet.PropertySizes.Add(Property, TextureSize);
 		MatSet.BlendMode = MatSet.Material->GetBlendMode();
 		MatSet.bPerformBorderSmear = false;
 
-		TArray<FMeshData*> MeshSettings;
-		TArray<FMaterialDataEx*> MatSettings;
+		TArray<FGLTFMeshRenderData*> MeshSettings;
+		TArray<FGLTFMaterialDataEx*> MatSettings;
 		MeshSettings.Add(&MeshSet);
 		MatSettings.Add(&MatSet);
 
-		TArray<FBakeOutputEx> BakeOutputs;
-		IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("GLTFMaterialBaking");
+		TArray<FGLTFBakeOutputEx> BakeOutputs;
+		IGLTFMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IGLTFMaterialBakingModule>("GLTFMaterialBaking");
 
 		Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 
-		const FBakeOutputEx& BakeOutput = BakeOutputs[0];
+		const FGLTFBakeOutputEx& BakeOutput = BakeOutputs[0];
 		const TArray<FColor>& BakedPixels = BakeOutput.PropertyData.FindChecked(Property);
 
 		if (BakedPixels.Num() <= 0)

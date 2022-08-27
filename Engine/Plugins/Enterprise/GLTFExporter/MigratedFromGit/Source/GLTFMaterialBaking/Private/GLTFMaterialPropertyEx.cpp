@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialPropertyEx.h"
+#include "GLTFMaterialPropertyEx.h"
 #include "UObject/NameTypes.h"
 
-FString FMaterialPropertyEx::ToString() const
+FString FGLTFMaterialPropertyEx::ToString() const
 {
 	if (!IsCustomOutput())
 	{

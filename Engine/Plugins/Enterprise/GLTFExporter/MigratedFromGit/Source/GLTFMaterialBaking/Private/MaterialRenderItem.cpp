@@ -10,9 +10,9 @@
 
 #define SHOW_WIREFRAME_MESH 0
 
-FMeshMaterialRenderItem::FMeshMaterialRenderItem(
+FGLTFMeshMaterialRenderItem::FGLTFMeshMaterialRenderItem(
 	const FIntPoint& InTextureSize,
-	const FMeshData* InMeshSettings,
+	const FGLTFMeshRenderData* InMeshSettings,
 	FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator)
 	: MeshSettings(InMeshSettings)
 	, TextureSize(InTextureSize)
@@ -22,10 +22,10 @@ FMeshMaterialRenderItem::FMeshMaterialRenderItem(
 	, DynamicMeshBufferAllocator(InDynamicMeshBufferAllocator)
 {
 	GenerateRenderData();
-	LCI = new FMeshRenderInfo(InMeshSettings->LightMap, nullptr, nullptr, InMeshSettings->LightmapResourceCluster);
+	LCI = new FGLTFMeshRenderInfo(InMeshSettings->LightMap, nullptr, nullptr, InMeshSettings->LightmapResourceCluster);
 }
 
-bool FMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
+bool FGLTFMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
 	checkSlow(ViewFamily && MeshSettings && MaterialRenderProxy);
 	// current render target set for the canvas
@@ -63,7 +63,7 @@ bool FMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHIC
 	return true;
 }
 
-bool FMeshMaterialRenderItem::Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope)
+bool FGLTFMeshMaterialRenderItem::Render_GameThread(const FCanvas* Canvas, FRenderThreadScope& RenderScope)
 {
 	RenderScope.EnqueueRenderCommand(
 		[this, Canvas](FRHICommandListImmediate& RHICmdList)
@@ -77,7 +77,7 @@ bool FMeshMaterialRenderItem::Render_GameThread(const FCanvas* Canvas, FRenderTh
 	return true;
 }
 
-void FMeshMaterialRenderItem::GenerateRenderData()
+void FGLTFMeshMaterialRenderItem::GenerateRenderData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMaterialRenderItem::GenerateRenderData)
 
@@ -98,7 +98,7 @@ void FMeshMaterialRenderItem::GenerateRenderData()
 	bMeshElementDirty = true;
 }
 
-FMeshMaterialRenderItem::~FMeshMaterialRenderItem()
+FGLTFMeshMaterialRenderItem::~FGLTFMeshMaterialRenderItem()
 {
 	// Send the release of the buffers to the render thread
 	ENQUEUE_RENDER_COMMAND(ReleaseResources)(
@@ -106,7 +106,7 @@ FMeshMaterialRenderItem::~FMeshMaterialRenderItem()
 	);
 }
 
-void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView* View)
+void FGLTFMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FSceneView* View)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMaterialRenderItem::QueueMaterial)
 
@@ -123,7 +123,7 @@ void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList
 		DynamicMeshBuilder.GetMeshElement(FMatrix::Identity, MaterialRenderProxy, SDPG_Foreground, true, false, 0, MeshBuilderResources, MeshElement);
 
 		// NOTE: Since we can't pass these parameters during creation, we overwrite them here
-		const FPrimitiveData* PrimitiveData = MeshSettings->PrimitiveData;
+		const FGLTFPrimitiveData* PrimitiveData = MeshSettings->PrimitiveData;
 		if (PrimitiveData != nullptr)
 		{
 			FPrimitiveUniformShaderParameters PrimitiveParams = GetPrimitiveUniformShaderParameters(
@@ -178,7 +178,7 @@ void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList
 	GetRendererModule().DrawTileMesh(RHICmdList, DrawRenderState, *View, MeshElement, false /*bIsHitTesting*/, FHitProxyId());
 }
 
-void FMeshMaterialRenderItem::PopulateWithQuadData()
+void FGLTFMeshMaterialRenderItem::PopulateWithQuadData()
 {
 	Vertices.Empty(4);
 	Indices.Empty(6);
@@ -211,7 +211,7 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 	Indices.Append(TriangleIndices, 6);
 }
 
-void FMeshMaterialRenderItem::PopulateWithMeshData()
+void FGLTFMeshMaterialRenderItem::PopulateWithMeshData()
 {
 	const FMeshDescription* RawMesh = MeshSettings->RawMeshDescription;
 

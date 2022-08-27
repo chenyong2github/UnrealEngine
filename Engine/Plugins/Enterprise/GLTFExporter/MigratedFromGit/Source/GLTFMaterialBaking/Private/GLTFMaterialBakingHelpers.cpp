@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MaterialBakingHelpers.h"
+#include "GLTFMaterialBakingHelpers.h"
 #include "Math/Color.h"
 #include "Async/ParallelFor.h"
 
@@ -314,13 +314,13 @@ namespace FMaterialBakingHelpersImpl
 	}
 }
 
-void FMaterialBakingHelpers::PerformUVBorderSmear(TArray<FColor>& InOutPixels, int32 ImageWidth, int32 ImageHeight, int32 MaxIterations, FColor BackgroundColor)
+void FGLTFMaterialBakingHelpers::PerformUVBorderSmear(TArray<FColor>& InOutPixels, int32 ImageWidth, int32 ImageHeight, int32 MaxIterations, FColor BackgroundColor)
 {
 	const uint32 BackgroundMask = BackgroundColor.DWColor();
 	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, ImageWidth, ImageHeight, MaxIterations, false, BackgroundMask);
 }
 
-void FMaterialBakingHelpers::PerformUVBorderSmearAndShrink(TArray<FColor>& InOutPixels, int32& InOutImageWidth, int32& InOutImageHeight, FColor BackgroundColor)
+void FGLTFMaterialBakingHelpers::PerformUVBorderSmearAndShrink(TArray<FColor>& InOutPixels, int32& InOutImageWidth, int32& InOutImageHeight, FColor BackgroundColor)
 {
 	const uint32 BackgroundMask = BackgroundColor.DWColor();
 	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, InOutImageWidth, InOutImageHeight, -1, true, BackgroundMask);
