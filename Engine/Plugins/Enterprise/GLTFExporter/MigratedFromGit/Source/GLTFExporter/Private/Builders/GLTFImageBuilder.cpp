@@ -2,8 +2,7 @@
 
 #include "Builders/GLTFImageBuilder.h"
 #include "Builders/GLTFBuilderUtility.h"
-#include "IImageWrapperModule.h"
-#include "IImageWrapper.h"
+#include "Builders/GLTFImageUtility.h"
 #include "Misc/FileHelper.h"
 
 FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
@@ -25,24 +24,25 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, int64 Byte
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, const FString& Name)
 {
-	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
-	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	TArray64<uint8> CompressedData;
 
-	if (!ImageWrapper.IsValid())
+	const EGLTFJsonMimeType ImageFormat = GetImageFormat(Pixels, Size, bIgnoreAlpha);
+	switch (ImageFormat)
 	{
-		// TODO: report error
-		return FGLTFJsonImageIndex(INDEX_NONE);
+		case EGLTFJsonMimeType::PNG:
+			FGLTFImageUtility::CompressToPNG(Pixels, Size, CompressedData);
+			break;
+
+		case EGLTFJsonMimeType::JPEG:
+			FGLTFImageUtility::CompressToJPEG(Pixels, Size, 0, CompressedData);
+			break;
+
+		default:
+			checkNoEntry();
+			break;
 	}
 
-	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
-	if (!ImageWrapper->SetRaw(Pixels, ByteLength, Size.X, Size.Y, ERGBFormat::BGRA, 8))
-	{
-		// TODO: report error
-		return FGLTFJsonImageIndex(INDEX_NONE);
-	}
-
-	const TArray64<uint8>& ImageData = ImageWrapper->GetCompressed();
-	return AddImage(ImageData.GetData(), ImageData.Num(), EGLTFJsonMimeType::PNG, Name);
+	return AddImage(CompressedData.GetData(), CompressedData.Num(), ImageFormat, Name);
 }
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
@@ -71,6 +71,22 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 	}
 
 	return ImageIndex;
+}
+
+EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha) const
+{
+	switch (ExportOptions->TextureCompression)
+	{
+		case EGLTFExporterTextureCompression::PNG:
+			return EGLTFJsonMimeType::PNG;
+
+		case EGLTFExporterTextureCompression::JPEG:
+			return bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size) ? EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
+
+		default:
+			checkNoEntry();
+			return EGLTFJsonMimeType::None;
+	}
 }
 
 FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
