@@ -14,30 +14,46 @@ typedef TGLTFConverter<FGLTFJsonAnimation*, FGLTFJsonNode*, const USkeletalMeshC
 typedef TGLTFConverter<FGLTFJsonAnimation*, const ULevel*, const ULevelSequence*> IGLTFLevelSequenceConverter;
 typedef TGLTFConverter<FGLTFJsonAnimation*, const ALevelSequenceActor*> IGLTFLevelSequenceDataConverter;
 
-class GLTFEXPORTER_API FGLTFAnimationConverter final : public FGLTFBuilderContext, public IGLTFAnimationConverter
+class GLTFEXPORTER_API FGLTFAnimationConverter : public FGLTFBuilderContext, public IGLTFAnimationConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAnimation* Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence) override;
 };
 
-class GLTFEXPORTER_API FGLTFAnimationDataConverter final : public FGLTFBuilderContext, public IGLTFAnimationDataConverter
+class GLTFEXPORTER_API FGLTFAnimationDataConverter : public FGLTFBuilderContext, public IGLTFAnimationDataConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAnimation* Convert(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent) override;
 };
 
-class GLTFEXPORTER_API FGLTFLevelSequenceConverter final : public FGLTFBuilderContext, public IGLTFLevelSequenceConverter
+class GLTFEXPORTER_API FGLTFLevelSequenceConverter : public FGLTFBuilderContext, public IGLTFLevelSequenceConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAnimation* Convert(const ULevel* Level, const ULevelSequence*) override;
 };
 
-class GLTFEXPORTER_API FGLTFLevelSequenceDataConverter final : public FGLTFBuilderContext, public IGLTFLevelSequenceDataConverter
+class GLTFEXPORTER_API FGLTFLevelSequenceDataConverter : public FGLTFBuilderContext, public IGLTFLevelSequenceDataConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAnimation* Convert(const ALevelSequenceActor* LevelSequenceActor) override;
 };

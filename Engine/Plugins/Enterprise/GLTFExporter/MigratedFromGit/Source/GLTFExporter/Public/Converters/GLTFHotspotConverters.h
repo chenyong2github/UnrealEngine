@@ -9,9 +9,13 @@
 
 typedef TGLTFConverter<FGLTFJsonHotspot*, const AGLTFHotspotActor*> IGLTFHotspotConverter;
 
-class GLTFEXPORTER_API FGLTFHotspotConverter final : public FGLTFBuilderContext, public IGLTFHotspotConverter
+class GLTFEXPORTER_API FGLTFHotspotConverter : public FGLTFBuilderContext, public IGLTFHotspotConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonHotspot* Convert(const AGLTFHotspotActor* HotspotActor) override;
 };

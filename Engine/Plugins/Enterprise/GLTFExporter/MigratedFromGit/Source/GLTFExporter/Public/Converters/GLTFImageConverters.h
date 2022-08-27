@@ -11,11 +11,17 @@
 
 typedef TGLTFConverter<FGLTFJsonImage*, TGLTFSuperfluous<FString>, EGLTFTextureType, bool, FIntPoint, TGLTFSharedArray<FColor>> IGLTFImageConverter;
 
-class GLTFEXPORTER_API FGLTFImageConverter final : public FGLTFBuilderContext, public IGLTFImageConverter
+class GLTFEXPORTER_API FGLTFImageConverter : public FGLTFBuilderContext, public IGLTFImageConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonImage* Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels) override;
+
+private:
 
 	EGLTFJsonMimeType GetMimeType(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type) const;
 };

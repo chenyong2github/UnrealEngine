@@ -16,11 +16,17 @@ class UPropertyValueMaterial;
 
 typedef TGLTFConverter<FGLTFJsonEpicLevelVariantSets*, const ULevelVariantSets*> IGLTFEpicLevelVariantSetsConverter;
 
-class GLTFEXPORTER_API FGLTFEpicLevelVariantSetsConverter final : public FGLTFBuilderContext, public IGLTFEpicLevelVariantSetsConverter
+class GLTFEXPORTER_API FGLTFEpicLevelVariantSetsConverter : public FGLTFBuilderContext, public IGLTFEpicLevelVariantSetsConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonEpicLevelVariantSets* Convert(const ULevelVariantSets* LevelVariantSets) override;
+
+private:
 
 	bool TryParseVariant(FGLTFJsonEpicVariant& OutVariant, const UVariant* Variant) const;
 	bool TryParseVariantBinding(FGLTFJsonEpicVariant& OutVariant, const UVariantObjectBinding* Binding) const;

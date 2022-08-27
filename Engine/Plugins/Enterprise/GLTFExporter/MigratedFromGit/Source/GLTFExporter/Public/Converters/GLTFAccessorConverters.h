@@ -16,55 +16,87 @@ typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FSkinW
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FSkinWeightVertexBuffer*, uint32> IGLTFBoneWeightBufferConverter;
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*> IGLTFIndexBufferConverter;
 
-class GLTFEXPORTER_API FGLTFPositionBufferConverter final : public FGLTFBuilderContext, public IGLTFPositionBufferConverter
+class GLTFEXPORTER_API FGLTFPositionBufferConverter : public FGLTFBuilderContext, public IGLTFPositionBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer) override;
 };
 
-class GLTFEXPORTER_API FGLTFColorBufferConverter final : public FGLTFBuilderContext, public IGLTFColorBufferConverter
+class GLTFEXPORTER_API FGLTFColorBufferConverter : public FGLTFBuilderContext, public IGLTFColorBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer) override;
 };
 
-class GLTFEXPORTER_API FGLTFNormalBufferConverter final : public FGLTFBuilderContext, public IGLTFNormalBufferConverter
+class GLTFEXPORTER_API FGLTFNormalBufferConverter : public FGLTFBuilderContext, public IGLTFNormalBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer) override;
+
+private:
 
 	template <typename DestinationType, typename SourceType>
 	FGLTFJsonBufferView* ConvertBufferView(const FGLTFMeshSection* MeshSection, const void* TangentData);
 };
 
-class GLTFEXPORTER_API FGLTFTangentBufferConverter final : public FGLTFBuilderContext, public IGLTFTangentBufferConverter
+class GLTFEXPORTER_API FGLTFTangentBufferConverter : public FGLTFBuilderContext, public IGLTFTangentBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer) override;
+
+private:
 
 	template <typename DestinationType, typename SourceType>
 	FGLTFJsonBufferView* ConvertBufferView(const FGLTFMeshSection* MeshSection, const void* TangentData);
 };
 
-class GLTFEXPORTER_API FGLTFUVBufferConverter final : public FGLTFBuilderContext, public IGLTFUVBufferConverter
+class GLTFEXPORTER_API FGLTFUVBufferConverter : public FGLTFBuilderContext, public IGLTFUVBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, uint32 UVIndex) override;
+
+private:
 
 	template <typename SourceType>
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, uint32 UVIndex, const uint8* SourceData) const;
 };
 
-class GLTFEXPORTER_API FGLTFBoneIndexBufferConverter final : public FGLTFBuilderContext, public IGLTFBoneIndexBufferConverter
+class GLTFEXPORTER_API FGLTFBoneIndexBufferConverter : public FGLTFBuilderContext, public IGLTFBoneIndexBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset) override;
+
+private:
 
 	template <typename DestinationType>
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset, const uint8* SourceData) const;
@@ -76,11 +108,17 @@ class GLTFEXPORTER_API FGLTFBoneIndexBufferConverter final : public FGLTFBuilder
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset, const uint8* SourceData, CallbackType GetVertexInfluenceOffsetCount) const;
 };
 
-class GLTFEXPORTER_API FGLTFBoneWeightBufferConverter final : public FGLTFBuilderContext, public IGLTFBoneWeightBufferConverter
+class GLTFEXPORTER_API FGLTFBoneWeightBufferConverter : public FGLTFBuilderContext, public IGLTFBoneWeightBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset) override;
+
+private:
 
 	template <typename BoneIndexType>
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset, const uint8* SourceData) const;
@@ -89,11 +127,17 @@ class GLTFEXPORTER_API FGLTFBoneWeightBufferConverter final : public FGLTFBuilde
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset, const uint8* SourceData, CallbackType GetVertexInfluenceOffsetCount) const;
 };
 
-class GLTFEXPORTER_API FGLTFIndexBufferConverter final : public FGLTFBuilderContext, public IGLTFIndexBufferConverter
+class GLTFEXPORTER_API FGLTFIndexBufferConverter : public FGLTFBuilderContext, public IGLTFIndexBufferConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
+protected:
+
 	virtual FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection) override;
+
+private:
 
 	template <typename IndexType>
 	FGLTFJsonAccessor* Convert(const FGLTFMeshSection* MeshSection) const;
