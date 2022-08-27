@@ -2,10 +2,6 @@
 
 #pragma once
 
-#include "GLTFExportOptions.h"
-
-DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
-
 enum class EGLTFMessageSeverity
 {
 	Info,
@@ -13,20 +9,20 @@ enum class EGLTFMessageSeverity
 	Error
 };
 
-class FGLTFBuilder
+class FGLTFMessageBuilder
 {
+protected:
+
+	FGLTFMessageBuilder();
+	virtual ~FGLTFMessageBuilder();
+
 public:
-
-	const UGLTFExportOptions* const ExportOptions;
-
-	FGLTFBuilder(const UGLTFExportOptions* ExportOptions);
-	virtual ~FGLTFBuilder();
 
 	typedef TTuple<EGLTFMessageSeverity, FString> FLogMessage;
 
-	void ClearLogMessages();
+	void ClearMessages();
 
-	void AddLogMessage(EGLTFMessageSeverity Severity, const FString& Message);
+	void AddMessage(EGLTFMessageSeverity Severity, const FString& Message);
 
 	void AddInfoMessage(const FString& Message);
 
@@ -34,9 +30,9 @@ public:
 
 	void AddErrorMessage(const FString& Message);
 
-	const TArray<FLogMessage>& GetLogMessages() const;
+	const TArray<FLogMessage>& GetMessages() const;
 
-	TArray<FLogMessage> GetLogMessages(EGLTFMessageSeverity Severity) const;
+	TArray<FLogMessage> GetMessages(EGLTFMessageSeverity Severity) const;
 
 	TArray<FLogMessage> GetInfoMessages() const;
 
@@ -44,7 +40,7 @@ public:
 
 	TArray<FLogMessage> GetErrorMessages() const;
 
-	int32 GetLogMessageCount() const;
+	int32 GetMessageCount() const;
 
 	int32 GetInfoMessageCount() const;
 
@@ -52,15 +48,15 @@ public:
 
 	int32 GetErrorMessageCount() const;
 
-	void ShowLogMessages() const;
+	void ShowMessages() const;
 
-	void WriteLogMessagesToConsole() const;
+	void WriteMessagesToConsole() const;
 
-protected:
+private:
 
-	TArray<FLogMessage> LogMessages;
-
-	static void WriteLogMessageToConsole(const FLogMessage& LogMessage);
+	static void WriteMessageToConsole(const FLogMessage& LogMessage);
 
 	static TSharedRef<FTokenizedMessage> CreateTokenizedMessage(const FLogMessage& LogMessage);
+
+	TArray<FLogMessage> Messages;
 };

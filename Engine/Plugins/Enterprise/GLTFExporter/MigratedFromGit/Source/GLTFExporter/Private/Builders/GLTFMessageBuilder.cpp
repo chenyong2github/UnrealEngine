@@ -1,99 +1,96 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Builders/GLTFBuilder.h"
+#include "Builders/GLTFMessageBuilder.h"
 #include "GLTFExporterModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 
-DEFINE_LOG_CATEGORY(LogGLTFExporter);
-
-FGLTFBuilder::FGLTFBuilder(const UGLTFExportOptions* ExportOptions)
-	: ExportOptions(ExportOptions)
+FGLTFMessageBuilder::FGLTFMessageBuilder()
 {
 }
 
-FGLTFBuilder::~FGLTFBuilder()
+FGLTFMessageBuilder::~FGLTFMessageBuilder()
 {
 }
 
-void FGLTFBuilder::ClearLogMessages()
+void FGLTFMessageBuilder::ClearMessages()
 {
-	LogMessages.Empty();
+	Messages.Empty();
 }
 
-void FGLTFBuilder::AddLogMessage(EGLTFMessageSeverity Severity, const FString& Message)
+void FGLTFMessageBuilder::AddMessage(EGLTFMessageSeverity Severity, const FString& Message)
 {
-	LogMessages.Emplace(Severity, Message);
+	Messages.Emplace(Severity, Message);
 }
 
-void FGLTFBuilder::AddInfoMessage(const FString& Message)
+void FGLTFMessageBuilder::AddInfoMessage(const FString& Message)
 {
-	AddLogMessage(EGLTFMessageSeverity::Info, Message);
+	AddMessage(EGLTFMessageSeverity::Info, Message);
 }
 
-void FGLTFBuilder::AddWarningMessage(const FString& Message)
+void FGLTFMessageBuilder::AddWarningMessage(const FString& Message)
 {
-	AddLogMessage(EGLTFMessageSeverity::Warning, Message);
+	AddMessage(EGLTFMessageSeverity::Warning, Message);
 }
 
-void FGLTFBuilder::AddErrorMessage(const FString& Message)
+void FGLTFMessageBuilder::AddErrorMessage(const FString& Message)
 {
-	AddLogMessage(EGLTFMessageSeverity::Error, Message);
+	AddMessage(EGLTFMessageSeverity::Error, Message);
 }
 
-const TArray<FGLTFBuilder::FLogMessage>& FGLTFBuilder::GetLogMessages() const
+const TArray<FGLTFMessageBuilder::FLogMessage>& FGLTFMessageBuilder::GetMessages() const
 {
-	return LogMessages;
+	return Messages;
 }
 
-TArray<FGLTFBuilder::FLogMessage> FGLTFBuilder::GetLogMessages(EGLTFMessageSeverity Severity) const
+TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetMessages(EGLTFMessageSeverity Severity) const
 {
-	return LogMessages.FilterByPredicate(
+	return Messages.FilterByPredicate(
 		[Severity](const FLogMessage& LogMessage)
 		{
 			return LogMessage.Key == Severity;
 		});
 }
 
-TArray<FGLTFBuilder::FLogMessage> FGLTFBuilder::GetInfoMessages() const
+TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetInfoMessages() const
 {
-	return GetLogMessages(EGLTFMessageSeverity::Info);
+	return GetMessages(EGLTFMessageSeverity::Info);
 }
 
-TArray<FGLTFBuilder::FLogMessage> FGLTFBuilder::GetWarningMessages() const
+TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetWarningMessages() const
 {
-	return GetLogMessages(EGLTFMessageSeverity::Warning);
+	return GetMessages(EGLTFMessageSeverity::Warning);
 }
 
-TArray<FGLTFBuilder::FLogMessage> FGLTFBuilder::GetErrorMessages() const
+TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetErrorMessages() const
 {
-	return GetLogMessages(EGLTFMessageSeverity::Error);
+	return GetMessages(EGLTFMessageSeverity::Error);
 }
 
-int32 FGLTFBuilder::GetLogMessageCount() const
+int32 FGLTFMessageBuilder::GetMessageCount() const
 {
-	return LogMessages.Num();
+	return Messages.Num();
 }
 
-int32 FGLTFBuilder::GetInfoMessageCount() const
+int32 FGLTFMessageBuilder::GetInfoMessageCount() const
 {
 	return GetInfoMessages().Num();
 }
 
-int32 FGLTFBuilder::GetWarningMessageCount() const
+int32 FGLTFMessageBuilder::GetWarningMessageCount() const
 {
 	return GetWarningMessages().Num();
 }
 
-int32 FGLTFBuilder::GetErrorMessageCount() const
+int32 FGLTFMessageBuilder::GetErrorMessageCount() const
 {
 	return GetErrorMessages().Num();
 }
 
-void FGLTFBuilder::ShowLogMessages() const
+void FGLTFMessageBuilder::ShowMessages() const
 {
-	if (LogMessages.Num() > 0)
+	if (Messages.Num() > 0)
 	{
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 		const TSharedRef<IMessageLogListing> LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
@@ -104,7 +101,7 @@ void FGLTFBuilder::ShowLogMessages() const
 		LogListing->SetLabel(FText::FromString(PluginDescriptor.FriendlyName));
 		LogListing->ClearMessages();
 
-		for (const FLogMessage& Message : LogMessages)
+		for (const FLogMessage& Message : Messages)
 		{
 			LogListing->AddMessage(CreateTokenizedMessage(Message));
 		}
@@ -113,15 +110,15 @@ void FGLTFBuilder::ShowLogMessages() const
 	}
 }
 
-void FGLTFBuilder::WriteLogMessagesToConsole() const
+void FGLTFMessageBuilder::WriteMessagesToConsole() const
 {
-	for (const FLogMessage& Message : LogMessages)
+	for (const FLogMessage& Message : Messages)
 	{
-		WriteLogMessageToConsole(Message);
+		WriteMessageToConsole(Message);
 	}
 }
 
-void FGLTFBuilder::WriteLogMessageToConsole(const FLogMessage& LogMessage)
+void FGLTFMessageBuilder::WriteMessageToConsole(const FLogMessage& LogMessage)
 {
 	switch (LogMessage.Key)
 	{
@@ -134,7 +131,7 @@ void FGLTFBuilder::WriteLogMessageToConsole(const FLogMessage& LogMessage)
 	}
 }
 
-TSharedRef<FTokenizedMessage> FGLTFBuilder::CreateTokenizedMessage(const FLogMessage& LogMessage)
+TSharedRef<FTokenizedMessage> FGLTFMessageBuilder::CreateTokenizedMessage(const FLogMessage& LogMessage)
 {
 	EMessageSeverity::Type MessageSeverity = EMessageSeverity::Type::CriticalError;
 
