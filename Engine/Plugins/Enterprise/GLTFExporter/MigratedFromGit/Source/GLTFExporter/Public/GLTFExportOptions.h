@@ -65,14 +65,17 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-	uint32 bBundleWebViewer : 1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
+	uint32 bExportUnlitMaterials : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-	uint32 bExportPreviewMesh : 1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
+	uint32 bExportClearCoatMaterials : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-	uint32 bAllExtensionsRequired : 1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
+	uint32 bBakeMaterialInputs : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
+	EGLTFExporterMaterialBakeSize DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bExportVertexColors : 1;
@@ -91,18 +94,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
 	uint32 bMapSkeletalMotionToRoot : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
-	uint32 bExportUnlitMaterials : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
-	uint32 bExportClearCoatMaterials : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
-	uint32 bBakeMaterialInputs : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
-	EGLTFExporterMaterialBakeSize DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	EGLTFExporterTextureFormat TextureFormat;
@@ -139,6 +130,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportInteractionHotspots : 1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+    uint32 bBundleWebViewer : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+    uint32 bExportPreviewMesh : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+    uint32 bAllExtensionsRequired : 1;
+
 	/* Set all the each property to the CDO value */
 	void ResetToDefault();
 
@@ -159,4 +159,6 @@ public:
 	void FillOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& bOutOperationCanceled, bool& bOutExportAll);
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+
+	FIntPoint GetDefaultMaterialBakeSize() const;
 };
