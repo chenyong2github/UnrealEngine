@@ -6,44 +6,45 @@
 #include "Converters/GLTFActorUtility.h"
 #include "LevelVariantSetsActor.h"
 
-FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const ULevel* Level)
+FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 {
 	FGLTFJsonScene Scene;
+	World->GetName(Scene.Name);
 
-	if (const UWorld* World = Level->GetWorld())
+	for (int32 Index = 0; Index < World->GetNumLevels(); ++Index)
 	{
-		World->GetName(Scene.Name);
-	}
-	else
-	{
-		Level->GetName(Scene.Name);
-	}
-
-	// TODO: export Level->Model ?
-
-	for (const AActor* Actor : Level->Actors)
-	{
-		// TODO: should a LevelVariantSet be exported even if not selected for export?
-		if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
+		ULevel* Level = World->GetLevel(Index);
+		if (Level == nullptr)
 		{
-			if (Builder.ExportOptions->bExportVariantSets)
+			continue;
+		}
+
+		// TODO: export Level->Model ?
+
+		for (const AActor* Actor : Level->Actors)
+		{
+			// TODO: should a LevelVariantSet be exported even if not selected for export?
+			if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 			{
-				if (const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true))
+				if (Builder.ExportOptions->bExportVariantSets)
 				{
-					const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSets);
-					if (VariationIndex != INDEX_NONE)
+					if (const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true))
 					{
-						Scene.Variations.Add(VariationIndex);
+						const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSets);
+						if (VariationIndex != INDEX_NONE)
+						{
+							Scene.Variations.Add(VariationIndex);
+						}
 					}
 				}
 			}
-		}
 
-		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
-		if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
-		{
-			// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene. This change may require node converters to support cyclic calls.
-			Scene.Nodes.Add(NodeIndex);
+			const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
+			if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
+			{
+				// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene. This change may require node converters to support cyclic calls.
+				Scene.Nodes.Add(NodeIndex);
+			}
 		}
 	}
 

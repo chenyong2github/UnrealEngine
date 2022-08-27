@@ -337,16 +337,6 @@ FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNodeIndex RootNode
 	return SkeletalBoneConverter.GetOrAdd(RootNode, SkeletalMesh, BoneIndex);
 }
 
-FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const ULevel* Level)
-{
-	if (Level == nullptr)
-	{
-		return FGLTFJsonSceneIndex(INDEX_NONE);
-	}
-
-	return SceneConverter.GetOrAdd(Level);
-}
-
 FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World)
 {
 	if (World == nullptr)
@@ -354,7 +344,7 @@ FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World)
 		return FGLTFJsonSceneIndex(INDEX_NONE);
 	}
 
-	return GetOrAddScene(World->PersistentLevel);
+	return SceneConverter.GetOrAdd(World);
 }
 
 FGLTFJsonCameraIndex FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent* CameraComponent)
