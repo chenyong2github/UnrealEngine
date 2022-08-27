@@ -1170,6 +1170,12 @@ FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(FGLTFConver
 		if (TexCoords.Num() > 1)
 		{
 			// TODO: report multiple texture coordinates found, will use first
+
+			// TODO: replace this hardcoded hack with something more configurable and proper
+			if (Property == MP_AmbientOcclusion && TexCoords.Contains(1))
+			{
+				OutTexCoord = 1; // assume ambient occlusion uses TexCoord1 when multiple
+			}
 		}
 	}
 	else
