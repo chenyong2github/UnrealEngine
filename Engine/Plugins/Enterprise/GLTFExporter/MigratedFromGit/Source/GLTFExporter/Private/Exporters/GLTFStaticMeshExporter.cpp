@@ -10,18 +10,9 @@ UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& Objec
 	SupportedClass = UStaticMesh::StaticClass();
 }
 
-bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFStaticMeshExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
-
-	if (!FillExportOptions())
-	{
-		// User cancelled the export
-		return false;
-	}
-
-	FGLTFContainerBuilder Builder;
-
 	FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
 
 	FGLTFJsonNode Node;
@@ -33,6 +24,5 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 	FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
 
 	Builder.DefaultScene = SceneIndex;
-
-	return Builder.Serialize(Archive, CurrentFilename);
+	return true;
 }

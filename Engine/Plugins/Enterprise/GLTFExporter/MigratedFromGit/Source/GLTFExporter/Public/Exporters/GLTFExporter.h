@@ -6,8 +6,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Exporters/Exporter.h"
-#include "GLTFExportOptions.h"
 #include "GLTFExporter.generated.h"
+
+class FGLTFContainerBuilder;
+class UGLTFExportOptions;
 
 UCLASS()
 class GLTFEXPORTER_API UGLTFExporter : public UExporter
@@ -16,12 +18,15 @@ public:
 
 	GENERATED_BODY()
 
-	UGLTFExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	UGLTFExporter(const FObjectInitializer& ObjectInitializer);
+
+	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags) override;
 
 protected:
 
-	bool FillExportOptions();
+	virtual bool Add(FGLTFContainerBuilder& Builder, const UObject* Object);
 
-	UPROPERTY(transient)
-	UGLTFExportOptions* ExportOptions;
+private:
+
+	bool FillExportOptions(UGLTFExportOptions* ExportOptions);
 };

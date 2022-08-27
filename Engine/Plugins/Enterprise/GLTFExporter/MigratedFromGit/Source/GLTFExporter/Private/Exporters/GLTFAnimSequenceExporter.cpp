@@ -9,16 +9,9 @@ UGLTFAnimSequenceExporter::UGLTFAnimSequenceExporter(const FObjectInitializer& O
 	SupportedClass = UAnimSequence::StaticClass();
 }
 
-bool UGLTFAnimSequenceExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFAnimSequenceExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UAnimSequence* AnimSequence = CastChecked<UAnimSequence>(Object);
-
-	if (!FillExportOptions())
-	{
-		// User cancelled the export
-		return false;
-	}
-
 	// TODO: implement
 	return true;
 }

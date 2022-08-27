@@ -10,19 +10,11 @@ UGLTFLevelExporter::UGLTFLevelExporter(const FObjectInitializer& ObjectInitializ
 	SupportedClass = UWorld::StaticClass();
 }
 
-bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFLevelExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UWorld* World = CastChecked<UWorld>(Object);
-
-	if (!FillExportOptions())
-	{
-		// User cancelled the export
-		return false;
-	}
-
-	FGLTFContainerBuilder Builder;
 	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World, bSelectedOnly);
-	Builder.DefaultScene = SceneIndex;
 
-	return Builder.Serialize(Archive, CurrentFilename);
+	Builder.DefaultScene = SceneIndex;
+	return true;
 }
