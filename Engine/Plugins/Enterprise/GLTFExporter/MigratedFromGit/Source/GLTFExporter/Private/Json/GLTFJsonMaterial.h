@@ -322,6 +322,7 @@ struct FGLTFJsonMaterial
 
 				default:
 					checkNoEntry();
+					break;
 			}
 
 			JsonWriter.WriteObjectEnd();
