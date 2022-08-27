@@ -30,12 +30,6 @@ namespace UnrealBuildTool.Rules
 					"MaterialBaking"
 				}
 				);
-
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
-				}
-				);
 		}
 	}
 }
