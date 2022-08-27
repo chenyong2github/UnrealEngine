@@ -162,10 +162,19 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 		// TODO: should a LevelVariantSet be exported even if not selected for export?
 		if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 		{
-			const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSetsActor);
-			if (LevelVariantSetsIndex != INDEX_NONE)
+			if (Builder.ExportOptions->bExportVariantSets)
 			{
-				Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
+				const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSetsActor);
+				if (LevelVariantSetsIndex != INDEX_NONE)
+				{
+					Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
+				}
+			}
+			else
+			{
+				Builder.AddWarningMessage(FString::Printf(
+					TEXT("Level Variant Set %s disabled by export options"),
+					*LevelVariantSetsActor->GetName()));
 			}
 		}
 
