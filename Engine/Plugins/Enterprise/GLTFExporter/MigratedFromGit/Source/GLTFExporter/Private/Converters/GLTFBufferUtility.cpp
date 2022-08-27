@@ -138,7 +138,7 @@ const void* FGLTFBufferUtility::GetCPUBuffer(const FSkinWeightLookupVertexBuffer
 	return reinterpret_cast<const FSkinWeightLookupVertexBufferHack*>(VertexBuffer)->Data;
 }
 
-void FGLTFBufferUtility::ReadRHIBuffer(FRHIVertexBuffer* SourceBuffer, TArray<uint8>& OutData)
+void FGLTFBufferUtility::ReadRHIBuffer(FRHIBuffer* SourceBuffer, TArray<uint8>& OutData)
 {
 	OutData.Empty();
 
@@ -153,8 +153,8 @@ void FGLTFBufferUtility::ReadRHIBuffer(FRHIVertexBuffer* SourceBuffer, TArray<ui
 		return;
 	}
 
-	const uint32 Usage = SourceBuffer->GetUsage();
-	if ((Usage & BUF_Static) == 0)
+	const EBufferUsageFlags Usage = SourceBuffer->GetUsage();
+	if ((Usage & BUF_Static) != BUF_Static)
 	{
 		return; // Some RHI implementations only support reading static buffers
 	}
@@ -165,45 +165,9 @@ void FGLTFBufferUtility::ReadRHIBuffer(FRHIVertexBuffer* SourceBuffer, TArray<ui
 	ENQUEUE_RENDER_COMMAND(ReadRHIBuffer)(
 		[SourceBuffer, NumBytes, DstData](FRHICommandListImmediate& RHICmdList)
 		{
-			const void* SrcData = RHICmdList.LockVertexBuffer(SourceBuffer, 0, NumBytes, RLM_ReadOnly);
+			const void* SrcData = RHICmdList.LockBuffer(SourceBuffer, 0, NumBytes, RLM_ReadOnly);
 			FMemory::Memcpy(DstData, SrcData, NumBytes);
-			RHICmdList.UnlockVertexBuffer(SourceBuffer);
-		}
-	);
-
-	FlushRenderingCommands();
-}
-
-void FGLTFBufferUtility::ReadRHIBuffer(FRHIIndexBuffer* SourceBuffer, TArray<uint8>& OutData)
-{
-	OutData.Empty();
-
-	if (SourceBuffer == nullptr)
-	{
-		return;
-	}
-
-	const uint32 NumBytes = SourceBuffer->GetSize();
-	if (NumBytes == 0)
-	{
-		return;
-	}
-
-	const uint32 Usage = SourceBuffer->GetUsage();
-	if ((Usage & BUF_Static) == 0)
-	{
-		return; // Some RHI implementations only support reading static buffers
-	}
-
-	OutData.AddUninitialized(NumBytes);
-	void *DstData = OutData.GetData();
-
-	ENQUEUE_RENDER_COMMAND(ReadRHIBuffer)(
-		[SourceBuffer, NumBytes, DstData](FRHICommandListImmediate& RHICmdList)
-		{
-			const void* SrcData = RHICmdList.LockIndexBuffer(SourceBuffer, 0, NumBytes, RLM_ReadOnly);
-			FMemory::Memcpy(DstData, SrcData, NumBytes);
-			RHICmdList.UnlockIndexBuffer(SourceBuffer);
+			RHICmdList.UnlockBuffer(SourceBuffer);
 		}
 	);
 
