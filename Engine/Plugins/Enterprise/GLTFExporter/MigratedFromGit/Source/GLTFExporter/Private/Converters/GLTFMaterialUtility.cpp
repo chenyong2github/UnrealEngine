@@ -60,7 +60,7 @@ const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMateria
 	// TODO: replace workaround for ClearCoatBottomNormal
 	if (Property == MP_CustomOutput)
 	{
-		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionClearCoatNormalCustomOutput>(GetCustomOutputByName(Material, TEXT("ClearCoatBottomNormal")));
+		const UMaterialExpressionCustomOutput* CustomOutput = GetCustomOutputByName(Material, TEXT("ClearCoatBottomNormal"));
 		return CustomOutput != nullptr ? &CastChecked<UMaterialExpressionClearCoatNormalCustomOutput>(CustomOutput)->Input : nullptr;
 	}
 
@@ -137,38 +137,31 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 
 FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
 {
-	EMaterialProperty SpecialProperty = MP_MAX;
-	FScalarMaterialInput OldMetallic;
-	FScalarMaterialInput OldRoughness;
-	FVectorMaterialInput OldNormal;
+	EMaterialProperty HackProperty = MP_MAX;
+	TTuple<int32, UMaterialExpression*> HackPrevState;
 
 	// TODO: replace this hack by adding proper support for ClearCoat properties in MaterialBaking module
 	if (Property == MP_CustomData0 || Property == MP_CustomData1 || Property == MP_CustomOutput)
 	{
+		switch (Property)
+		{
+			case MP_CustomData0: HackProperty = MP_Metallic; break;
+			case MP_CustomData1: HackProperty = MP_Roughness; break;
+			case MP_CustomOutput: HackProperty = MP_Normal; break;
+			default: checkNoEntry();
+		}
+
 		UMaterial* ParentMaterial = const_cast<UMaterial*>(Material->GetMaterial());
+		ParentMaterial->Modify();
+		{
+			const FExpressionInput& Input = *GetInputForProperty(Material, Property);
+			FExpressionInput& HackInput = *const_cast<FExpressionInput*>(GetInputForProperty(Material, HackProperty));
+			HackPrevState = MakeTuple(HackInput.OutputIndex, HackInput.Expression);
+			HackInput.Connect(Input.OutputIndex, Input.Expression);
+		}
+		ParentMaterial->PostEditChange();
 
-		SpecialProperty = Property;
-		if (Property == MP_CustomData0)
-		{
-			Property = MP_Metallic;
-			OldMetallic = ParentMaterial->Metallic;
-			ParentMaterial->Metallic = ParentMaterial->ClearCoat;
-		}
-		else if (Property == MP_CustomData1)
-		{
-			Property = MP_Roughness;
-			OldRoughness = ParentMaterial->Roughness;
-			ParentMaterial->Roughness = ParentMaterial->ClearCoatRoughness;
-		}
-		else if (Property == MP_CustomOutput)
-		{
-			Property = MP_Normal;
-			OldNormal = ParentMaterial->Normal;
-			const FExpressionInput* ClearCoatBottomNormal = GetInputForProperty(Material, MP_CustomOutput);
-			static_cast<FExpressionInput&>(ParentMaterial->Normal) = *ClearCoatBottomNormal;
-		}
-
-		ParentMaterial->ForceRecompileForRendering();
+		Property = HackProperty;
 	}
 
 	TArray<FMeshData*> MeshSettings;
@@ -230,24 +223,15 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	}
 
 	// TODO: replace this hack by adding proper support for ClearCoat properties in MaterialBaking module
-	if (SpecialProperty != MP_MAX)
+	if (HackProperty != MP_MAX)
 	{
 		UMaterial* ParentMaterial = const_cast<UMaterial*>(Material->GetMaterial());
-
-		if (SpecialProperty == MP_CustomData0)
+		ParentMaterial->Modify();
 		{
-			ParentMaterial->Metallic = OldMetallic;
+			FExpressionInput& HackInput = *const_cast<FExpressionInput*>(GetInputForProperty(Material, HackProperty));
+			HackInput.Connect(HackPrevState.Get<0>(), HackPrevState.Get<1>());
 		}
-		else if (SpecialProperty == MP_CustomData1)
-		{
-			ParentMaterial->Roughness = OldRoughness;
-		}
-		else if (SpecialProperty == MP_CustomOutput)
-		{
-			ParentMaterial->Normal = OldNormal;
-		}
-
-		ParentMaterial->ForceRecompileForRendering();
+		ParentMaterial->PostEditChange();
 	}
 
 	return PropertyBakeOutput;
