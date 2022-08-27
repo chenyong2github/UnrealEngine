@@ -6,6 +6,7 @@
 #include "GLTFMaterialAnalyzer.generated.h"
 
 struct FGLTFMaterialStatistics;
+struct FMaterialPropertyEx;
 
 UCLASS()
 class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
@@ -14,7 +15,7 @@ class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
 
 public:
 
-	void AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, EMaterialProperty InProperty, FGLTFMaterialStatistics& OutMaterialStatistics);
+	void AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialStatistics& OutMaterialStatistics);
 
 private:
 
@@ -23,6 +24,8 @@ private:
 	virtual int32 CompilePropertyEx(FMaterialCompiler* Compiler, const FGuid& AttributeID) override;
 
 	virtual bool IsPropertyActive(EMaterialProperty InProperty) const override;
+
+	const FMaterialPropertyEx* Property;
 
 	// ReSharper disable once CppUE4ProbableMemoryIssuesWithUObject
 	UMaterialInterface* Material;

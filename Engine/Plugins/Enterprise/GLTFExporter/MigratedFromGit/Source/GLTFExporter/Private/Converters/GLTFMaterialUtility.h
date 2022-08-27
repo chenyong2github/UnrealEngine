@@ -6,6 +6,7 @@
 #include "Engine/Texture2D.h"
 
 struct FGLTFMaterialStatistics;
+struct FMaterialPropertyEx;
 
 struct FGLTFTextureCombineSource
 {
@@ -76,7 +77,7 @@ struct FGLTFMaterialUtility
 	static bool NeedsMeshData(const UMaterialInterface* Material);
 	static bool NeedsMeshData(const TArray<const UMaterialInterface*>& Materials);
 
-	static void AnalyzeMaterialProperty(const UMaterialInterface* Material, EMaterialProperty InProperty, FGLTFMaterialStatistics& OutMaterialStatistics);
+	static void AnalyzeMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& InProperty, FGLTFMaterialStatistics& OutMaterialStatistics);
 
 	static const UMaterialInterface* GetInterface(const UMaterialInterface* Material);
 	static const UMaterialInterface* GetInterface(const FStaticMaterial& Material);

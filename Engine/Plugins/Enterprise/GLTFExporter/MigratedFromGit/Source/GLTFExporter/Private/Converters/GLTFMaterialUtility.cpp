@@ -501,7 +501,7 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 	}
 
 	// TODO: only analyze properties that will be needed for this specific material
-	const TArray<EMaterialProperty> Properties =
+	const TArray<FMaterialPropertyEx> Properties =
 	{
 		MP_BaseColor,
 		MP_EmissiveColor,
@@ -513,13 +513,13 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 		MP_AmbientOcclusion,
 		MP_CustomData0,
 		MP_CustomData1,
-		// TODO: add support for custom output ClearCoatBottomNormal
+		{ MP_CustomOutput, FName(TEXT("ClearCoatBottomNormal")) },
 	};
 
 	bool bRequiresVertexData = false;
 	FGLTFMaterialStatistics MaterialStatistics;
 
-	for (const EMaterialProperty Property: Properties)
+	for (const FMaterialPropertyEx& Property: Properties)
 	{
 		AnalyzeMaterialProperty(Material, Property, MaterialStatistics);
 		bRequiresVertexData |= MaterialStatistics.bRequiresVertexData;
@@ -541,8 +541,10 @@ bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>
 	return false;
 }
 
-void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, EMaterialProperty InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
+void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
 {
+	// TODO: use a shared UGLTFMaterialAnalyzer instance instead of creating a new one for each invocation
+
 	UGLTFMaterialAnalyzer* Analyzer = NewObject<UGLTFMaterialAnalyzer>();
 	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty, OutMaterialStatistics);
 }

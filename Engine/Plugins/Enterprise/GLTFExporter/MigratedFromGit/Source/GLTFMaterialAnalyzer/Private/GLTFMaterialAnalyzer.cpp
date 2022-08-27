@@ -2,17 +2,24 @@
 
 #include "GLTFMaterialAnalyzer.h"
 #include "GLTFMaterialStatistics.h"
+#include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
 #include "Materials/HLSLMaterialTranslator.h"
 
-void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, EMaterialProperty InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
+void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
 {
+	Property = &InProperty;
 	Material = const_cast<UMaterialInterface*>(InMaterial);
 	MaterialStatistics = &OutMaterialStatistics;
 
 	int32 NumTextureCoordinates;
 	bool RequiresVertexData;
-	UMaterialInterface::AnalyzeMaterialProperty(InProperty, NumTextureCoordinates, RequiresVertexData);
 
+	// NOTE: When analyzing custom outputs, the property *must* be set to MP_MAX or the compiler will refuse to compile the output
+	const EMaterialProperty TempProperty = InProperty.Type == MP_CustomOutput ? MP_MAX : InProperty.Type;
+
+	UMaterialInterface::AnalyzeMaterialProperty(TempProperty, NumTextureCoordinates, RequiresVertexData);
+
+	Property = nullptr;
 	Material = nullptr;
 	MaterialStatistics = nullptr;
 }
@@ -31,7 +38,28 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 		friend UGLTFMaterialAnalyzer;
 	};
 
-	const int32 Result = Material->CompilePropertyEx(Compiler, AttributeID);
+	int32 Result = INDEX_NONE;
+
+	if (Property->Type == MP_CustomOutput)
+	{
+		const FString CustomOutput = Property->CustomOutput.ToString();
+
+		for (UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
+		{
+			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
+			if (CustomOutputExpression && CustomOutputExpression->GetDisplayName() == CustomOutput)
+			{
+				// TODO: can we rely on OutputIndex always being 0?
+				Result = CustomOutputExpression->Compile(Compiler, 0);
+				break;
+			}
+		}
+	}
+	else
+	{
+		Result = Material->CompilePropertyEx(Compiler, AttributeID);
+	}
+
 	FTranslatorHack* Translator = static_cast<FTranslatorHack*>(Compiler);
 
 	MaterialStatistics->bUsesSceneDepth = Translator->bUsesSceneDepth;

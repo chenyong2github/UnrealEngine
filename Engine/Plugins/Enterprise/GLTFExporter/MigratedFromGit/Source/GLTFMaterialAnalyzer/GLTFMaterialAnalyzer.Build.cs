@@ -12,7 +12,8 @@ public class GLTFMaterialAnalyzer : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"RenderCore"
+				"RenderCore",
+				"GLTFMaterialBaking"	// NOTE: only used to get access to baking structures
 			}
 		);
 
