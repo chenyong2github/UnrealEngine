@@ -12,7 +12,6 @@ void FGLTFTexture2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
-	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
 	const bool bPreferSourceExport = Builder.ExportOptions->bExportSourceTextures;
 
 	// NOTE: export of lightmaps and normalmaps via source data is done to workaround issues
@@ -28,6 +27,7 @@ void FGLTFTexture2DTask::Complete()
 		uint32 BitDepth;
 
 		FTextureSource& Source = const_cast<FTextureSource&>(Texture2D->Source);
+		const FIntPoint Size = { Source.GetSizeX(), Source.GetSizeY() };
 
 		if (Source.IsValid() && FGLTFTextureUtility::CanPNGCompressFormat(Source.GetFormat(), RGBFormat, BitDepth))
 		{
@@ -54,6 +54,8 @@ void FGLTFTexture2DTask::Complete()
 
 	if (ImageIndex == INDEX_NONE && !bRequireSourceExport)
 	{
+		const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
+
 		// TODO: both bForceLinearGamma and TargetGamma=2.2f seem to be necessary for the exported images to match the results
 		// from exporting using the texture's source or its platform-data.
 		// It's not entirely clear why gamma must be set to 2.2 instead of 0.0 (which should use the correct gamma anyway),
