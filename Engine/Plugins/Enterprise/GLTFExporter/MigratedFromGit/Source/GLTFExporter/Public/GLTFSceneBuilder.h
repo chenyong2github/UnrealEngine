@@ -18,9 +18,9 @@ struct GLTFEXPORTER_API FGLTFNodeBuilder
 	
 	FGLTFNodeBuilder(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bTopLevel = false);
 
-	FGLTFJsonNodeIndex AddNode(FGLTFContainerBuilder& Container);
+	FGLTFJsonNodeIndex AddNode(FGLTFContainerBuilder& Container) const;
 
-	void _DebugLog();
+	void _DebugLog() const;
 };
 
 struct GLTFEXPORTER_API FGLTFSceneBuilder
@@ -31,7 +31,7 @@ struct GLTFEXPORTER_API FGLTFSceneBuilder
 
 	FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly);
 
-	FGLTFJsonSceneIndex AddScene(FGLTFContainerBuilder& Container);
+	FGLTFJsonSceneIndex AddScene(FGLTFContainerBuilder& Container) const;
 
-	void _DebugLog();
+	void _DebugLog() const;
 };
