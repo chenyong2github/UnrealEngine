@@ -22,4 +22,9 @@ public:
 	{
 		Collector.AddReferencedObjects(*this);
 	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FGLTFObjectArrayScopeGuard");
+	}
 };
