@@ -53,7 +53,7 @@ public:
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, int32 OutputIndex, TArray<int32>& CompiledInputs) override
 #else
-	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override 
+	virtual int32 CustomExpression(class UMaterialExpressionCustom* Custom, TArray<int32>& CompiledInputs) override
 #endif
 	{
 		// NOTE: because there is no overridable compiler method for ObjectLocalBounds in engine this is our only option currently
@@ -158,7 +158,7 @@ public:
 		return EMaterialCompilerType::MaterialProxy;
 	}
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
+#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 26)
 	virtual int32 PreSkinVertexOffset() override
 	{
 		return Compiler->PreSkinVertexOffset();
