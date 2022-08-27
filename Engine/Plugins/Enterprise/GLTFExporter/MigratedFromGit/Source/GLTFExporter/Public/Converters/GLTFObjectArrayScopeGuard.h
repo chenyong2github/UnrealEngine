@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 
-class FGLTFObjectArrayScopeGuard : public FGCObject, public TArray<UObject*>
+template <typename ObjectType = UObject, typename = typename TEnableIf<TIsDerivedFrom<ObjectType, UObject>::Value>::Type>
+class FGLTFObjectArrayScopeGuard : public FGCObject, public TArray<ObjectType*>
 {
 public:
 
@@ -12,7 +13,7 @@ public:
 	{
 	}
 
-	using TArray<UObject*>::TArray;
+	using TArray<ObjectType*>::TArray;
 
 	/** Non-copyable */
 	FGLTFObjectArrayScopeGuard(const FGLTFObjectArrayScopeGuard&) = delete;
@@ -20,7 +21,7 @@ public:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		Collector.AddReferencedObjects(*this);
+		Collector.AddReferencedObjects<ObjectType>(*this);
 	}
 
 	virtual FString GetReferencerName() const override
