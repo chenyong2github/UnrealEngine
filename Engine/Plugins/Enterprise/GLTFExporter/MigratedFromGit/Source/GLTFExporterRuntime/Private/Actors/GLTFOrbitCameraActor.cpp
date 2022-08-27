@@ -61,7 +61,7 @@ void AGLTFOrbitCameraActor::BeginPlay()
 
 	// Calculate values based on the current location and orientation
 	Distance = ClampDistance((FocusPosition - Position).Size());
-	Pitch = ClampPitch(Rotation.Pitch);
+	Pitch = ClampPitch(-Rotation.Pitch);
 	Yaw = ClampYaw(Rotation.Yaw);
 	TargetDistance = Distance;
 	TargetPitch = Pitch;
