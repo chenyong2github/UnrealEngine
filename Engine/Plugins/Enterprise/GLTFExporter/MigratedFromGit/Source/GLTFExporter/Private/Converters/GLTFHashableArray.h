@@ -36,7 +36,7 @@ struct FGLTFHashableArray : TArray<ElementType>
 	using TArray<ElementType>::operator==;
 	using TArray<ElementType>::operator!=;
 
-	friend uint32 GetTypeHash(const TArray<ElementType>& Array)
+	friend uint32 GetTypeHash(const FGLTFHashableArray<ElementType>& Array)
 	{
 		uint32 Hash = GetTypeHash(Array.Num());
 		for (const ElementType& Element : Array)

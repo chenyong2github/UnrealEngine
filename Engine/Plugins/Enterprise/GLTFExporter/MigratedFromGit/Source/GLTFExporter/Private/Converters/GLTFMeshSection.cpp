@@ -5,18 +5,14 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Algo/MaxElement.h"
 
-FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const int32 MaterialIndex)
+FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const TArray<int32>& SectionIndices)
 {
-	uint32 TotalIndexCount = 0;
+	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD->Sections;
 
-	TArray<const FStaticMeshSection*> Sections;
-	for (const FStaticMeshSection& Section : MeshLOD->Sections)
+	uint32 TotalIndexCount = 0;
+	for (int32 SectionIndex : SectionIndices)
 	{
-		if (Section.MaterialIndex == MaterialIndex)
-		{
-			Sections.Add(&Section);
-			TotalIndexCount += Section.NumTriangles * 3;
-		}
+		TotalIndexCount += Sections[SectionIndex].NumTriangles * 3;
 	}
 
 	IndexMap.Reserve(TotalIndexCount);
@@ -25,10 +21,11 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 
 	TMap<uint32, uint32> IndexLookup;
 
-	for (const FStaticMeshSection* MeshSection : Sections)
+	for (int32 SectionIndex : SectionIndices)
 	{
-		const uint32 IndexOffset = MeshSection->FirstIndex;
-		const uint32 IndexCount = MeshSection->NumTriangles * 3;
+		const FStaticMeshSection& MeshSection = Sections[SectionIndex];
+		const uint32 IndexOffset = MeshSection.FirstIndex;
+		const uint32 IndexCount = MeshSection.NumTriangles * 3;
 
 		for (uint32 Index = 0; Index < IndexCount; Index++)
 		{
@@ -55,19 +52,15 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 	MaxBoneIndex = 0;
 }
 
-FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const uint16 MaterialIndex)
+FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const TArray<int32>& SectionIndices)
 	: MaxBoneIndex(0)
 {
-	uint32 TotalIndexCount = 0;
+	const TArray<FSkelMeshRenderSection>& Sections = MeshLOD->RenderSections;
 
-	TArray<const FSkelMeshRenderSection*> Sections;
-	for (const FSkelMeshRenderSection& Section : MeshLOD->RenderSections)
+	uint32 TotalIndexCount = 0;
+	for (int32 SectionIndex : SectionIndices)
 	{
-		if (Section.MaterialIndex == MaterialIndex)
-		{
-			Sections.Add(&Section);
-			TotalIndexCount += Section.NumTriangles * 3;
-		}
+		TotalIndexCount += Sections[SectionIndex].NumTriangles * 3;
 	}
 
 	IndexMap.Reserve(TotalIndexCount);
@@ -78,10 +71,11 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 
 	const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer = MeshLOD->MultiSizeIndexContainer.GetIndexBuffer();
 
-	for (const FSkelMeshRenderSection* MeshSection : Sections)
+	for (int32 SectionIndex : SectionIndices)
 	{
-		const uint32 IndexOffset = MeshSection->BaseIndex;
-		const uint32 IndexCount = MeshSection->NumTriangles * 3;
+		const FSkelMeshRenderSection& MeshSection = Sections[SectionIndex];
+		const uint32 IndexOffset = MeshSection.BaseIndex;
+		const uint32 IndexCount = MeshSection.NumTriangles * 3;
 		const uint32 BoneMapIndex = BoneMaps.Num();
 
 		for (uint32 Index = 0; Index < IndexCount; Index++)
@@ -104,9 +98,9 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 			IndexBuffer[Index] = NewIndex;
 		}
 
-		BoneMaps.Add(MeshSection->BoneMap);
+		BoneMaps.Add(MeshSection.BoneMap);
 
-		if (const FBoneIndexType* MaxSectionBoneIndex = Algo::MaxElement(MeshSection->BoneMap))
+		if (const FBoneIndexType* MaxSectionBoneIndex = Algo::MaxElement(MeshSection.BoneMap))
 		{
 		    MaxBoneIndex = FMath::Max(*MaxSectionBoneIndex, MaxBoneIndex);
 		}

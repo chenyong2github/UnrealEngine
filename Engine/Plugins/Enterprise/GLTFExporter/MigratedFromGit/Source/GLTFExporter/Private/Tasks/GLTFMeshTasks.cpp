@@ -2,6 +2,7 @@
 
 #include "Tasks/GLTFMeshTasks.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
@@ -30,7 +31,8 @@ void FGLTFStaticMeshTask::Complete()
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, MaterialIndex);
+		const FGLTFHashableArray<int32> SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);
 
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[MaterialIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
@@ -58,7 +60,7 @@ void FGLTFStaticMeshTask::Complete()
 		}
 
 		const UMaterialInterface* Material = Materials[MaterialIndex];
-		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, Materials);
+		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
 	}
 }
 
@@ -96,7 +98,8 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	for (uint16 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, MaterialIndex);
+		const FGLTFHashableArray<int32> SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);
 
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[MaterialIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
@@ -137,6 +140,6 @@ void FGLTFSkeletalMeshTask::Complete()
 		}
 
 		const UMaterialInterface* Material = Materials[MaterialIndex];
-		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, Materials);
+		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
 	}
 }

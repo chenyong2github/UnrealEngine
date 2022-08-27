@@ -4,18 +4,18 @@
 
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFMeshSection.h"
-#include "Engine.h"
+#include "Converters/GLTFHashableArray.h"
 
-template <typename MeshLODType, typename MaterialIndexType>
-class TGLTFMeshSectionConverter final : public TGLTFConverter<const FGLTFMeshSection*, const MeshLODType*, const MaterialIndexType>
+template <typename MeshLODType>
+class TGLTFMeshSectionConverter final : public TGLTFConverter<const FGLTFMeshSection*, const MeshLODType*, FGLTFHashableArray<int32>>
 {
 	TArray<TUniquePtr<FGLTFMeshSection>> Outputs;
 
-	const FGLTFMeshSection* Convert(const MeshLODType* MeshLOD, const MaterialIndexType MaterialIndex)
+	const FGLTFMeshSection* Convert(const MeshLODType* MeshLOD, FGLTFHashableArray<int32> SectionIndices)
 	{
-		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshSection>(MeshLOD, MaterialIndex)).Get();
+		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshSection>(MeshLOD, SectionIndices)).Get();
 	}
 };
 
-typedef TGLTFMeshSectionConverter<FStaticMeshLODResources, int32> FGLTFStaticMeshSectionConverter;
-typedef TGLTFMeshSectionConverter<FSkeletalMeshLODRenderData, uint16> FGLTFSkeletalMeshSectionConverter;
+typedef TGLTFMeshSectionConverter<FStaticMeshLODResources> FGLTFStaticMeshSectionConverter;
+typedef TGLTFMeshSectionConverter<FSkeletalMeshLODRenderData> FGLTFSkeletalMeshSectionConverter;

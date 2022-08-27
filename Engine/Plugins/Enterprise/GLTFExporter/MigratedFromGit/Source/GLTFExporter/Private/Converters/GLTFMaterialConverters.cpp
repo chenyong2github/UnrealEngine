@@ -6,7 +6,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMaterialTasks.h"
 
-void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const FGLTFMeshData*& MeshData, FGLTFMaterialArray& Materials)
+void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const FGLTFMeshData*& MeshData, FGLTFHashableArray<int32>& SectionIndices)
 {
 	if (MeshData == nullptr ||
 		!Builder.ExportOptions->bBakeMaterialInputs ||
@@ -14,11 +14,11 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 		!FGLTFMaterialUtility::MaterialNeedsVertexData(Material))
 	{
 		MeshData = nullptr;
-		Materials = {};
+		SectionIndices = {};
 	}
 }
 
-FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFMaterialArray Materials)
+FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFHashableArray<int32> SectionIndices)
 {
 	if (Material == FGLTFMaterialUtility::GetDefault())
 	{
@@ -26,6 +26,6 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface*
 	}
 
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
-	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, MeshData, Materials, MaterialIndex);
+	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, MeshData, SectionIndices, MaterialIndex);
 	return MaterialIndex;
 }

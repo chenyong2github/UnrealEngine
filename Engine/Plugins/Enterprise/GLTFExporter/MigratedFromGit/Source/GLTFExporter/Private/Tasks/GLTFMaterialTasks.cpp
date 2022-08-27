@@ -1353,31 +1353,6 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 	const FIntPoint DefaultTextureSize = Builder.GetDefaultMaterialBakeSize();
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
-	TArray<int32> MeshSectionIndices;
-
-	if (MeshData != nullptr)
-	{
-		const TArray<FSectionInfo>& Sections = MeshData->Sections;
-		const TArray<UMaterialInterface*> SectionMaterials;
-
-		// Add material indices of all sections that reference the current material
-		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
-		{
-			const FSectionInfo& Section = Sections[SectionIndex];
-			if (Materials[Section.MaterialIndex] == Material)
-			{
-				MeshSectionIndices.Add(SectionIndex);
-			}
-		}
-
-		if (MeshSectionIndices.Num() == 0)
-		{
-			// Fall back to using the first material index,
-			// just like when baking from within the editor
-			MeshSectionIndices.Add(0);
-		}
-	}
-
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = FGLTFMaterialUtility::BakeMaterialProperty(
@@ -1386,7 +1361,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		Material,
 		OutTexCoord,
 		MeshData != nullptr ? &MeshData->Description : nullptr,
-		MeshSectionIndices,
+		SectionIndices,
 		bCopyAlphaFromRedChannel);
 
 	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)
