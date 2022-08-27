@@ -1,21 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBufferBuilder.h"
+#include "Serialization/BufferArchive.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 FGLTFBufferBuilder::FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFJsonBuilder(FilePath, ExportOptions)
 {
-	const FString ExternalBinaryPath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
-	BufferArchive.Reset(IFileManager::Get().CreateFileWriter(*ExternalBinaryPath));
-	if (BufferArchive == nullptr)
+	FGLTFJsonBuffer JsonBuffer;
+
+	if (bIsGlbFile)
 	{
-		// TODO: report error
+		BufferArchive = MakeUnique<FBufferArchive>();
+	}
+	else
+	{
+		const FString ExternalBinaryPath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
+		JsonBuffer.URI = FPaths::GetCleanFilename(ExternalBinaryPath);
+
+		BufferArchive.Reset(IFileManager::Get().CreateFileWriter(*ExternalBinaryPath));
+		if (BufferArchive == nullptr)
+		{
+			// TODO: report error
+		}
 	}
 
-	FGLTFJsonBuffer JsonBuffer;
-	JsonBuffer.URI = FPaths::GetCleanFilename(ExternalBinaryPath);
 	BufferIndex = AddBuffer(JsonBuffer);
 }
 
