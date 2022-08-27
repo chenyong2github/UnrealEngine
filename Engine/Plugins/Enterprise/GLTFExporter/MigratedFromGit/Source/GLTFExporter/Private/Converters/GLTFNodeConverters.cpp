@@ -41,7 +41,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 	}
 	else if (const AGLTFHotspotActor* HotspotActor = Cast<AGLTFHotspotActor>(Actor))
 	{
-		if (Builder.ExportOptions->bExportInteractionHotspots)
+		if (Builder.ExportOptions->bExportAnimationHotspots)
 		{
 			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
 			RootNode.Hotspot = Builder.GetOrAddHotspot(HotspotActor);

@@ -20,11 +20,11 @@
 #include "Slate/SceneViewport.h"
 #endif
 
-DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFInteractionHotspot, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogGLTFHotspot, Log, All);
 
 namespace
 {
-	const FName NAME_InteractionHotspotTag = TEXT("InteractionHotspot");
+	const FName NAME_HotspotTag = TEXT("GLTFHotspot");
 	const FName NAME_LevelEditorModule = TEXT("LevelEditor");
 	const FName NAME_SpriteParameter = TEXT("Sprite");
 	const FName NAME_OpacityParameter = TEXT("OpacityMask");
@@ -64,7 +64,7 @@ AGLTFHotspotActor::AGLTFHotspotActor(const FObjectInitializer& ObjectInitializer
 	AddInstanceComponent(BillboardComponent);
 	SphereComponent->SetupAttachment(RootComponent);
 	SphereComponent->SetMobility(EComponentMobility::Movable);
-	SphereComponent->ComponentTags.Add(NAME_InteractionHotspotTag);
+	SphereComponent->ComponentTags.Add(NAME_HotspotTag);
 	SphereComponent->InitSphereRadius(100.0f);
 	SphereComponent->SetVisibility(false);
 
@@ -200,7 +200,7 @@ void AGLTFHotspotActor::Tick(float DeltaTime)
 		{
 			if (const UPrimitiveComponent* HitComponent = HitResult.GetComponent())
 			{
-				bIsHotspotOccluded = !HitComponent->ComponentTags.Contains(NAME_InteractionHotspotTag);
+				bIsHotspotOccluded = !HitComponent->ComponentTags.Contains(NAME_HotspotTag);
 			}
 		}
 
@@ -458,11 +458,11 @@ void AGLTFHotspotActor::ValidateAnimation()
 			{
 				if (SkeletalMesh->Skeleton != nullptr)
 				{
-					UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->Skeleton->GetName());
+					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->Skeleton->GetName());
 				}
 				else
 				{
-					UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("Animation %s is incompatible because mesh %s has no skeleton, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->GetName());
+					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible because mesh %s has no skeleton, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->GetName());
 				}
 
 				AnimationSequence = nullptr;

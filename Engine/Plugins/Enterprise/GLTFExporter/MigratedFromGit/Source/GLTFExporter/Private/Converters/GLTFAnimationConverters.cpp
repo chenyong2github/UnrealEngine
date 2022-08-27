@@ -45,12 +45,12 @@ FGLTFJsonAnimationIndex FGLTFAnimationDataConverter::Convert(FGLTFJsonNodeIndex 
 	if (AnimationIndex != INDEX_NONE)
 	{
 		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-		FGLTFJsonPlayData& JsonPlayData = JsonAnimation.PlayData;
+		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation.Playback;
 
-		JsonPlayData.Looping = SkeletalMeshComponent->AnimationData.bSavedLooping;
-		JsonPlayData.Playing = SkeletalMeshComponent->AnimationData.bSavedPlaying;
-		JsonPlayData.PlayRate = SkeletalMeshComponent->AnimationData.SavedPlayRate;
-		JsonPlayData.Position = SkeletalMeshComponent->AnimationData.SavedPosition;
+		JsonPlayback.bLoop = SkeletalMeshComponent->AnimationData.bSavedLooping;
+		JsonPlayback.bAutoPlay = SkeletalMeshComponent->AnimationData.bSavedPlaying;
+		JsonPlayback.PlayRate = SkeletalMeshComponent->AnimationData.SavedPlayRate;
+		JsonPlayback.StartTime = SkeletalMeshComponent->AnimationData.SavedPosition;
 	}
 
 	return AnimationIndex;
@@ -77,12 +77,12 @@ FGLTFJsonAnimationIndex FGLTFLevelSequenceDataConverter::Convert(const ALevelSeq
 	if (AnimationIndex != INDEX_NONE)
 	{
 		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-		FGLTFJsonPlayData& JsonPlayData = JsonAnimation.PlayData;
+		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation.Playback;
 
-		JsonPlayData.Looping = LevelSequenceActor->PlaybackSettings.LoopCount.Value != 0;
-		JsonPlayData.Playing = LevelSequenceActor->PlaybackSettings.bAutoPlay;
-		JsonPlayData.PlayRate = LevelSequenceActor->PlaybackSettings.PlayRate;
-		JsonPlayData.Position = LevelSequenceActor->PlaybackSettings.StartTime;
+		JsonPlayback.bLoop = LevelSequenceActor->PlaybackSettings.LoopCount.Value != 0;
+		JsonPlayback.bAutoPlay = LevelSequenceActor->PlaybackSettings.bAutoPlay;
+		JsonPlayback.PlayRate = LevelSequenceActor->PlaybackSettings.PlayRate;
+		JsonPlayback.StartTime = LevelSequenceActor->PlaybackSettings.StartTime;
 	}
 
 	return AnimationIndex;

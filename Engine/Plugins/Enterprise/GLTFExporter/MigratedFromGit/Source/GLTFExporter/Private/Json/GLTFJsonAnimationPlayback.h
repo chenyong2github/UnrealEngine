@@ -5,21 +5,21 @@
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonPlayData
+struct FGLTFJsonAnimationPlayback
 {
 	FString Name;
 
-	bool Looping;
-	bool Playing;
+	bool bLoop;
+	bool bAutoPlay;
 
 	float PlayRate;
-	float Position;
+	float StartTime;
 
-	FGLTFJsonPlayData()
-        : Looping(true)
-        , Playing(true)
+	FGLTFJsonAnimationPlayback()
+        : bLoop(true)
+        , bAutoPlay(true)
         , PlayRate(1)
-        , Position(0)
+        , StartTime(0)
 	{
 	}
 
@@ -33,14 +33,14 @@ struct FGLTFJsonPlayData
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		if (Looping != true)
+		if (bLoop != true)
 		{
-			JsonWriter.WriteValue(TEXT("looping"), Looping);
+			JsonWriter.WriteValue(TEXT("loop"), bLoop);
 		}
 
-		if (Playing != true)
+		if (bAutoPlay != true)
 		{
-			JsonWriter.WriteValue(TEXT("playing"), Playing);
+			JsonWriter.WriteValue(TEXT("autoPlay"), bAutoPlay);
 		}
 
 		if (PlayRate != 1)
@@ -48,23 +48,23 @@ struct FGLTFJsonPlayData
 			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("playRate"), PlayRate);
 		}
 
-		if (Position != 0)
+		if (StartTime != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("position"), Position);
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("startTime"), StartTime);
 		}
 
 		JsonWriter.WriteObjectEnd();
 	}
 
-	bool operator==(const FGLTFJsonPlayData& Other) const
+	bool operator==(const FGLTFJsonAnimationPlayback& Other) const
 	{
-		return Looping == Other.Looping
-            && Playing == Other.Playing
+		return bLoop == Other.bLoop
+            && bAutoPlay == Other.bAutoPlay
             && PlayRate == Other.PlayRate
-            && Position == Other.Position;
+            && StartTime == Other.StartTime;
 	}
 
-	bool operator!=(const FGLTFJsonPlayData& Other) const
+	bool operator!=(const FGLTFJsonAnimationPlayback& Other) const
 	{
 		return !(*this == Other);
 	}

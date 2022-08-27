@@ -58,6 +58,7 @@ void AGLTFCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 			if (Focus == this)
 			{
 				Focus = nullptr;
+				// TODO: don't use LogTemp
 				UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be the camera's own actor"));
 			}
 		}

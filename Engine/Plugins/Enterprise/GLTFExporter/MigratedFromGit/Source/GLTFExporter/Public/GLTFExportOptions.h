@@ -118,7 +118,7 @@ public:
 	uint32 bExportVariantSets : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportInteractionHotspots : 1;
+	uint32 bExportAnimationHotspots : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bBundleWebViewer : 1;
@@ -128,6 +128,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bAllExtensionsRequired : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+	uint32 bShowFilesWhenDone : 1;
 
 	/* Set all the each property to the CDO value */
 	void ResetToDefault();

@@ -35,10 +35,11 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportOrbitalCameras = true;
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
-	bExportInteractionHotspots = true;
+	bExportAnimationHotspots = true;
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
 	bAllExtensionsRequired = false;
+	bShowFilesWhenDone = true;
 }
 
 void UGLTFExportOptions::ResetToDefault()
