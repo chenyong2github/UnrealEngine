@@ -25,13 +25,4 @@ class FGLTFLevelVariantSetsConverter final : public FGLTFBuilderContext, public 
 	bool TryParseMaterialPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const;
 	bool TryParseStaticMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const;
 	bool TryParseSkeletalMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const;
-
-	template<typename T>
-	bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue) const;
-
-	FString GetLogContext(const UPropertyValue* Property) const;
-	FString GetLogContext(const UVariantObjectBinding* Binding) const;
-	FString GetLogContext(const UVariant* Variant) const;
-	FString GetLogContext(const UVariantSet* VariantSet) const;
-	FString GetLogContext(const ULevelVariantSets* LevelVariantSets) const;
 };
