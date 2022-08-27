@@ -8,5 +8,7 @@
 
 class FGLTFBackdropConverter final : public TGLTFConverter<FGLTFJsonBackdropIndex, const AActor*>
 {
-	FGLTFJsonBackdropIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonBackdropIndex Convert(const FString& Name, const AActor* Actor) override;
 };

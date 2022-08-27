@@ -9,25 +9,35 @@
 
 class FGLTFSceneComponentConverter final : public TGLTFConverter<FGLTFJsonNodeIndex, const USceneComponent*>
 {
-	FGLTFJsonNodeIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonNodeIndex Convert(const FString& Name, const USceneComponent* SceneComponent) override;
 };
 
 class FGLTFActorConverter final : public TGLTFConverter<FGLTFJsonNodeIndex, const AActor*>
 {
-	FGLTFJsonNodeIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonNodeIndex Convert(const FString& Name, const AActor* Actor) override;
 };
 
 class FGLTFLevelConverter final : public TGLTFConverter<FGLTFJsonSceneIndex, const ULevel*>
 {
-	FGLTFJsonSceneIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULevel* Level) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonSceneIndex Convert(const FString& Name, const ULevel* Level) override;
 };
 
 class FGLTFCameraComponentConverter final : public TGLTFConverter<FGLTFJsonCameraIndex, const UCameraComponent*>
 {
-	FGLTFJsonCameraIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UCameraComponent* CameraComponent) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonCameraIndex Convert(const FString& Name, const UCameraComponent* CameraComponent) override;
 };
 
 class FGLTFLightComponentConverter final : public TGLTFConverter<FGLTFJsonLightIndex, const ULightComponent*>
 {
-	FGLTFJsonLightIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightComponent* LightComponent) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonLightIndex Convert(const FString& Name, const ULightComponent* LightComponent) override;
 };
