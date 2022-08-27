@@ -10,10 +10,6 @@ FGLTFMessageBuilder::FGLTFMessageBuilder()
 {
 }
 
-FGLTFMessageBuilder::~FGLTFMessageBuilder()
-{
-}
-
 void FGLTFMessageBuilder::ClearMessages()
 {
 	Messages.Empty();

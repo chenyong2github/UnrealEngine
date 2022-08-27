@@ -6,3 +6,10 @@ FGLTFContainerBuilder::FGLTFContainerBuilder(const UGLTFExportOptions* ExportOpt
 	: FGLTFConvertBuilder(ExportOptions, bSelectedActorsOnly)
 {
 }
+
+bool FGLTFContainerBuilder::Serialize(FArchive& Archive, const FString& FilePath)
+{
+	return FGLTFImageBuilder::Serialize(FilePath)
+		&& FGLTFBufferBuilder::Serialize(Archive, FilePath)
+		&& FGLTFJsonBuilder::Serialize(Archive);
+}

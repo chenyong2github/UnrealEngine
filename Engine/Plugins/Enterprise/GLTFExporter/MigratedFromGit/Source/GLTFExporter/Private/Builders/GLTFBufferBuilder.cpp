@@ -9,6 +9,20 @@ FGLTFBufferBuilder::FGLTFBufferBuilder()
 	BufferIndex = AddBuffer();
 }
 
+bool FGLTFBufferBuilder::Serialize(FArchive& Archive, const FString& FilePath)
+{
+	const FString BinaryFilePath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
+
+	if(!FFileHelper::SaveArrayToFile(BufferData, *BinaryFilePath))
+	{
+		// TODO: report error
+		return false;
+	}
+
+	UpdateJsonBufferObject(BinaryFilePath);
+	return true;
+}
+
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
 {
 	uint64 ByteOffset = BufferData.Num();
@@ -37,18 +51,4 @@ void FGLTFBufferBuilder::UpdateJsonBufferObject(const FString& BinaryFilePath)
 	FGLTFJsonBuffer& JsonBuffer = GetBuffer(BufferIndex);
 	JsonBuffer.URI = FPaths::GetCleanFilename(BinaryFilePath);
 	JsonBuffer.ByteLength = BufferData.Num();
-}
-
-bool FGLTFBufferBuilder::Serialize(FArchive& Archive, const FString& FilePath)
-{
-	const FString BinaryFilePath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
-
-	if(!FFileHelper::SaveArrayToFile(BufferData, *BinaryFilePath))
-	{
-		// TODO: report error
-		return false;
-	}
-
-	UpdateJsonBufferObject(BinaryFilePath);
-	return FGLTFJsonBuilder::Serialize(Archive, FilePath);
 }

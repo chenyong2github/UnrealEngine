@@ -10,6 +10,8 @@ protected:
 
 	FGLTFBufferBuilder();
 
+	bool Serialize(FArchive& Archive, const FString& FilePath);
+
 public:
 
 	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::None, uint8 DataAlignment = 4);
@@ -19,8 +21,6 @@ public:
 	{
 		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), BufferTarget, DataAlignment);
 	}
-
-	virtual bool Serialize(FArchive& Archive, const FString& FilePath) override;
 
 private:
 
