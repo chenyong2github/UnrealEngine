@@ -40,7 +40,7 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 	}
 
 	MakeDirectory(RootPath);
-	Builder.CompleteAllTasks();
+	Builder.ProcessSlowTasks();
 
 	UMaterialInstanceConstant* ProxyMaterial = CreateInstancedMaterial(OriginalMaterial, JsonMaterial->ShadingModel);
 	if (ProxyMaterial != nullptr)

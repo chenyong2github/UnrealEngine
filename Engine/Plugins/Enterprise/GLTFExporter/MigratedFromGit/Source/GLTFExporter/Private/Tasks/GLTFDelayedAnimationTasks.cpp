@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Tasks/GLTFAnimationTasks.h"
+#include "Tasks/GLTFDelayedAnimationTasks.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFBoneUtility.h"
@@ -15,7 +15,7 @@
 using namespace UE;
 #endif
 
-void FGLTFAnimSequenceTask::Complete()
+void FGLTFDelayedAnimSequenceTask::Process()
 {
 	// TODO: bone transforms should be absolute (not relative) according to gltf spec
 
@@ -141,7 +141,7 @@ void FGLTFAnimSequenceTask::Complete()
 	}
 }
 
-void FGLTFLevelSequenceTask::Complete()
+void FGLTFDelayedLevelSequenceTask::Process()
 {
 	ULevelSequence* Sequence = const_cast<ULevelSequence*>(LevelSequence);
 	UMovieScene* MovieScene = Sequence->GetMovieScene();

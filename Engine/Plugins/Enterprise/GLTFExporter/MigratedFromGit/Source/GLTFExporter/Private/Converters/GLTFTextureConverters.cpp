@@ -2,7 +2,7 @@
 
 #include "Converters/GLTFTextureConverters.h"
 #include "Converters/GLTFTextureUtility.h"
-#include "Tasks/GLTFTextureTasks.h"
+#include "Tasks/GLTFDelayedTextureTasks.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -21,7 +21,7 @@ FGLTFJsonTexture* FGLTFTexture2DConverter::Convert(const UTexture2D* Texture2D, 
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
 		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTexture2DTask>(Builder, Texture2D, bToSRGB, JsonTexture);
+		Builder.ScheduleSlowTask<FGLTFDelayedTexture2DTask>(Builder, Texture2D, bToSRGB, JsonTexture);
 		return JsonTexture;
 	}
 
@@ -41,7 +41,7 @@ FGLTFJsonTexture* FGLTFTextureCubeConverter::Convert(const UTextureCube* Texture
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
 		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureCubeTask>(Builder, TextureCube, CubeFace, bToSRGB, JsonTexture);
+		Builder.ScheduleSlowTask<FGLTFDelayedTextureCubeTask>(Builder, TextureCube, CubeFace, bToSRGB, JsonTexture);
 		return JsonTexture;
 	}
 
@@ -61,7 +61,7 @@ FGLTFJsonTexture* FGLTFTextureRenderTarget2DConverter::Convert(const UTextureRen
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
 		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureRenderTarget2DTask>(Builder, RenderTarget2D, bToSRGB, JsonTexture);
+		Builder.ScheduleSlowTask<FGLTFDelayedTextureRenderTarget2DTask>(Builder, RenderTarget2D, bToSRGB, JsonTexture);
 		return JsonTexture;
 	}
 
@@ -81,7 +81,7 @@ FGLTFJsonTexture* FGLTFTextureRenderTargetCubeConverter::Convert(const UTextureR
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
 		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, bToSRGB, JsonTexture);
+		Builder.ScheduleSlowTask<FGLTFDelayedTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, bToSRGB, JsonTexture);
 		return JsonTexture;
 	}
 
@@ -94,7 +94,7 @@ FGLTFJsonTexture* FGLTFTextureLightMapConverter::Convert(const ULightMapTexture2
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
 		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureLightMapTask>(Builder, LightMap, JsonTexture);
+		Builder.ScheduleSlowTask<FGLTFDelayedTextureLightMapTask>(Builder, LightMap, JsonTexture);
 		return JsonTexture;
 	}
 #endif

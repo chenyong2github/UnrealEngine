@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Builders/GLTFLogBuilder.h"
-#include "Tasks/GLTFTask.h"
+#include "Tasks/GLTFDelayedTask.h"
 
 class FGLTFTaskBuilder : public FGLTFLogBuilder
 {
@@ -11,26 +11,26 @@ public:
 
 	FGLTFTaskBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
 
-	template <typename TaskType, typename... TaskArgTypes, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
-	bool SetupTask(TaskArgTypes&&... Args)
+	template <typename TaskType, typename... TaskArgTypes, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFDelayedTask>::Value>::Type>
+	bool ScheduleSlowTask(TaskArgTypes&&... Args)
 	{
-		return SetupTask(MakeUnique<TaskType>(Forward<TaskArgTypes>(Args)...));
+		return ScheduleSlowTask(MakeUnique<TaskType>(Forward<TaskArgTypes>(Args)...));
 	}
 
-	template <typename TaskType, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
-	bool SetupTask(TUniquePtr<TaskType> Task)
+	template <typename TaskType, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFDelayedTask>::Value>::Type>
+	bool ScheduleSlowTask(TUniquePtr<TaskType> Task)
 	{
-		return SetupTask(TUniquePtr<FGLTFTask>(Task.Release()));
+		return ScheduleSlowTask(TUniquePtr<FGLTFDelayedTask>(Task.Release()));
 	}
 
-	bool SetupTask(TUniquePtr<FGLTFTask> Task);
+	bool ScheduleSlowTask(TUniquePtr<FGLTFDelayedTask> Task);
 
-	void CompleteAllTasks(FFeedbackContext* Context = GWarn);
+	void ProcessSlowTasks(FFeedbackContext* Context = GWarn);
 
 private:
 
 	static FText GetPriorityMessageFormat(EGLTFTaskPriority Priority);
 
 	int32 PriorityIndexLock;
-	TMap<EGLTFTaskPriority, TArray<TUniquePtr<FGLTFTask>>> TasksByPriority;
+	TMap<EGLTFTaskPriority, TArray<TUniquePtr<FGLTFDelayedTask>>> TasksByPriority;
 };

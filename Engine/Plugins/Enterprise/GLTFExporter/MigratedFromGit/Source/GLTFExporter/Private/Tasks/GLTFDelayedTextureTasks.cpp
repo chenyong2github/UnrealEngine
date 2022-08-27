@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Tasks/GLTFTextureTasks.h"
+#include "Tasks/GLTFDelayedTextureTasks.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
@@ -11,12 +11,12 @@
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/LightMapTexture2D.h"
 
-FString FGLTFTexture2DTask::GetName()
+FString FGLTFDelayedTexture2DTask::GetName()
 {
 	return Texture2D->GetName();
 }
 
-void FGLTFTexture2DTask::Complete()
+void FGLTFDelayedTexture2DTask::Process()
 {
 	Texture2D->GetName(JsonTexture->Name);
 
@@ -62,12 +62,12 @@ void FGLTFTexture2DTask::Complete()
 	JsonTexture->Sampler = Builder.AddUniqueSampler(Texture2D);
 }
 
-FString FGLTFTextureCubeTask::GetName()
+FString FGLTFDelayedTextureCubeTask::GetName()
 {
 	return TextureCube->GetName();
 }
 
-void FGLTFTextureCubeTask::Complete()
+void FGLTFDelayedTextureCubeTask::Process()
 {
 	JsonTexture->Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
 
@@ -119,12 +119,12 @@ void FGLTFTextureCubeTask::Complete()
 	JsonTexture->Sampler = Builder.AddUniqueSampler(TextureCube);
 }
 
-FString FGLTFTextureRenderTarget2DTask::GetName()
+FString FGLTFDelayedTextureRenderTarget2DTask::GetName()
 {
 	return RenderTarget2D->GetName();
 }
 
-void FGLTFTextureRenderTarget2DTask::Complete()
+void FGLTFDelayedTextureRenderTarget2DTask::Process()
 {
 	RenderTarget2D->GetName(JsonTexture->Name);
 
@@ -158,12 +158,12 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	JsonTexture->Sampler = Builder.AddUniqueSampler(RenderTarget2D);
 }
 
-FString FGLTFTextureRenderTargetCubeTask::GetName()
+FString FGLTFDelayedTextureRenderTargetCubeTask::GetName()
 {
 	return RenderTargetCube->GetName();
 }
 
-void FGLTFTextureRenderTargetCubeTask::Complete()
+void FGLTFDelayedTextureRenderTargetCubeTask::Process()
 {
 	JsonTexture->Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
 
@@ -212,12 +212,12 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 
 #if WITH_EDITOR
 
-FString FGLTFTextureLightMapTask::GetName()
+FString FGLTFDelayedTextureLightMapTask::GetName()
 {
 	return LightMap->GetName();
 }
 
-void FGLTFTextureLightMapTask::Complete()
+void FGLTFDelayedTextureLightMapTask::Process()
 {
 	LightMap->GetName(JsonTexture->Name);
 

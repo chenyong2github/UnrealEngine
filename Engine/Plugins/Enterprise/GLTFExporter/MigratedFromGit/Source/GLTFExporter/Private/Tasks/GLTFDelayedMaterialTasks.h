@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Tasks/GLTFTask.h"
+#include "Tasks/GLTFDelayedTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "Converters/GLTFMeshData.h"
@@ -13,12 +13,12 @@
 
 struct FGLTFPropertyBakeOutput;
 
-class FGLTFMaterialTask : public FGLTFTask
+class FGLTFDelayedMaterialTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices, FGLTFJsonMaterial* JsonMaterial)
-		: FGLTFTask(EGLTFTaskPriority::Material)
+	FGLTFDelayedMaterialTask(FGLTFConvertBuilder& Builder, FGLTFUVOverlapChecker& UVOverlapChecker, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices, FGLTFJsonMaterial* JsonMaterial)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, UVOverlapChecker(UVOverlapChecker)
 		, Material(Material)
@@ -33,7 +33,7 @@ public:
 		return Material->GetName();
 	}
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 

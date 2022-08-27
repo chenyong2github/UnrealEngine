@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "Tasks/GLTFTask.h"
+#include "Tasks/GLTFDelayedTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 
-class FGLTFTexture2DTask : public FGLTFTask
+class FGLTFDelayedTexture2DTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFTexture2DTask(FGLTFConvertBuilder& Builder, const UTexture2D* Texture2D, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
-		: FGLTFTask(EGLTFTaskPriority::Texture)
+	FGLTFDelayedTexture2DTask(FGLTFConvertBuilder& Builder, const UTexture2D* Texture2D, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, Texture2D(Texture2D)
 		, bToSRGB(bToSRGB)
@@ -20,7 +20,7 @@ public:
 
 	virtual FString GetName() override;
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
@@ -30,12 +30,12 @@ private:
 	FGLTFJsonTexture* JsonTexture;
 };
 
-class FGLTFTextureCubeTask : public FGLTFTask
+class FGLTFDelayedTextureCubeTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFTextureCubeTask(FGLTFConvertBuilder& Builder, const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
-		: FGLTFTask(EGLTFTaskPriority::Texture)
+	FGLTFDelayedTextureCubeTask(FGLTFConvertBuilder& Builder, const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, TextureCube(TextureCube)
 		, CubeFace(CubeFace)
@@ -46,7 +46,7 @@ public:
 
 	virtual FString GetName() override;
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
@@ -57,12 +57,12 @@ private:
 	FGLTFJsonTexture* JsonTexture;
 };
 
-class FGLTFTextureRenderTarget2DTask : public FGLTFTask
+class FGLTFDelayedTextureRenderTarget2DTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFTextureRenderTarget2DTask(FGLTFConvertBuilder& Builder, const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
-		: FGLTFTask(EGLTFTaskPriority::Texture)
+	FGLTFDelayedTextureRenderTarget2DTask(FGLTFConvertBuilder& Builder, const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, RenderTarget2D(RenderTarget2D)
 		, bToSRGB(bToSRGB)
@@ -72,7 +72,7 @@ public:
 
 	virtual FString GetName() override;
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
@@ -82,12 +82,12 @@ private:
 	FGLTFJsonTexture* JsonTexture;
 };
 
-class FGLTFTextureRenderTargetCubeTask : public FGLTFTask
+class FGLTFDelayedTextureRenderTargetCubeTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFTextureRenderTargetCubeTask(FGLTFConvertBuilder& Builder, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
-		: FGLTFTask(EGLTFTaskPriority::Texture)
+	FGLTFDelayedTextureRenderTargetCubeTask(FGLTFConvertBuilder& Builder, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, RenderTargetCube(RenderTargetCube)
 		, CubeFace(CubeFace)
@@ -98,7 +98,7 @@ public:
 
 	virtual FString GetName() override;
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
@@ -111,12 +111,12 @@ private:
 
 #if WITH_EDITOR
 
-class FGLTFTextureLightMapTask : public FGLTFTask
+class FGLTFDelayedTextureLightMapTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTexture* JsonTexture)
-		: FGLTFTask(EGLTFTaskPriority::Texture)
+	FGLTFDelayedTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTexture* JsonTexture)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, LightMap(LightMap)
 		, JsonTexture(JsonTexture)
@@ -125,7 +125,7 @@ public:
 
 	virtual FString GetName() override;
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 

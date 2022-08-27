@@ -2,18 +2,18 @@
 
 #pragma once
 
-#include "Tasks/GLTFTask.h"
+#include "Tasks/GLTFDelayedTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFMeshSectionConverters.h"
 #include "Converters/GLTFMaterialArray.h"
 #include "Converters/GLTFNameUtility.h"
 
-class FGLTFStaticMeshTask : public FGLTFTask
+class FGLTFDelayedStaticMeshTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFStaticMeshTask(FGLTFConvertBuilder& Builder, FGLTFStaticMeshSectionConverter& MeshSectionConverter, const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMesh* JsonMesh)
-		: FGLTFTask(EGLTFTaskPriority::Mesh)
+	FGLTFDelayedStaticMeshTask(FGLTFConvertBuilder& Builder, FGLTFStaticMeshSectionConverter& MeshSectionConverter, const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMesh* JsonMesh)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Mesh)
 		, Builder(Builder)
 		, MeshSectionConverter(MeshSectionConverter)
 		, StaticMesh(StaticMesh)
@@ -29,7 +29,7 @@ public:
 		return StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : StaticMesh->GetName();
 	}
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
@@ -42,12 +42,12 @@ private:
 	FGLTFJsonMesh* JsonMesh;
 };
 
-class FGLTFSkeletalMeshTask : public FGLTFTask
+class FGLTFDelayedSkeletalMeshTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFSkeletalMeshTask(FGLTFConvertBuilder& Builder, FGLTFSkeletalMeshSectionConverter& MeshSectionConverter, const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMesh* JsonMesh)
-		: FGLTFTask(EGLTFTaskPriority::Mesh)
+	FGLTFDelayedSkeletalMeshTask(FGLTFConvertBuilder& Builder, FGLTFSkeletalMeshSectionConverter& MeshSectionConverter, const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMesh* JsonMesh)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Mesh)
 		, Builder(Builder)
 		, MeshSectionConverter(MeshSectionConverter)
 		, SkeletalMesh(SkeletalMesh)
@@ -63,7 +63,7 @@ public:
 		return SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
 	}
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
