@@ -33,6 +33,6 @@ private:
 
 	FGCObjectScopeGuard ExportOptionsGuard;
 
-	static const UGLTFExportOptions* ValidateExportOptions(const UGLTFExportOptions* ExportOptions);
+	static const UGLTFExportOptions* SanitizeExportOptions(const UGLTFExportOptions* Options);
 	static EGLTFSceneMobility GetSceneMobility(EComponentMobility::Type Mobility);
 };

@@ -8,7 +8,7 @@ FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* Ex
 	: bIsGlbFile(FGLTFFileUtility::IsGlbFile(FilePath))
 	, FilePath(FilePath)
 	, DirPath(FPaths::GetPath(FilePath))
-	, ExportOptions(ValidateExportOptions(ExportOptions))
+	, ExportOptions(SanitizeExportOptions(ExportOptions))
 	, ExportOptionsGuard(ExportOptions)
 {
 }
@@ -77,21 +77,28 @@ bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) con
 	return EnumHasAllFlags(AllowedMobility, QueriedMobility);
 }
 
-const UGLTFExportOptions* FGLTFBuilder::ValidateExportOptions(const UGLTFExportOptions* ExportOptions)
+const UGLTFExportOptions* FGLTFBuilder::SanitizeExportOptions(const UGLTFExportOptions* Options)
 {
+	if (Options == nullptr)
+	{
+		UGLTFExportOptions* NewOptions = NewObject<UGLTFExportOptions>();
+		NewOptions->ResetToDefault();
+		Options = NewOptions;
+	}
+
 	if (!FApp::CanEverRender())
 	{
-		if (ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::Disabled || ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
+		if (Options->BakeMaterialInputs != EGLTFMaterialBakeMode::Disabled || Options->TextureImageFormat != EGLTFTextureImageFormat::None)
 		{
 			// TODO: warn the following options requires rendering support and will be overriden
-			UGLTFExportOptions* OverridenOptions = DuplicateObject(ExportOptions, nullptr);
+			UGLTFExportOptions* OverridenOptions = DuplicateObject(Options, nullptr);
 			OverridenOptions->BakeMaterialInputs = EGLTFMaterialBakeMode::Disabled;
 			OverridenOptions->TextureImageFormat = EGLTFTextureImageFormat::None;
-			return OverridenOptions;
+			Options = OverridenOptions;
 		}
 	}
 
-	return ExportOptions;
+	return Options;
 }
 
 EGLTFSceneMobility FGLTFBuilder::GetSceneMobility(EComponentMobility::Type Mobility)
