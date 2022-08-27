@@ -3,6 +3,9 @@
 #include "Actors/GLTFHotspotActor.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Animation/AnimSequence.h"
+#include "LevelSequenceActor.h"
+#include "LevelSequence.h"
+#include "MovieSceneTimeHelpers.h"
 #include "Components/SphereComponent.h"
 #include "Components/MaterialBillboardComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -136,6 +139,14 @@ void AGLTFHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		{
 			ValidateAnimation();
 		}
+		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, LevelSequenceActor))
+		{
+			if (LevelSequenceActor != nullptr && LevelSequence == nullptr)
+			{
+				LevelSequence = LevelSequenceActor->LoadSequence();
+			}
+			ValidateAnimation();
+		}
 	}
 }
 #endif // WITH_EDITOR
@@ -246,30 +257,7 @@ void AGLTFHotspotActor::Clicked(UPrimitiveComponent* TouchedComponent, FKey Butt
 		return;
 	}
 
-	const bool bReverseAnimation = bToggled;
-
-	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
-	{
-		USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
-		SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
-		const float AbsolutePlayRate = FMath::Abs(SkeletalMeshComponent->GetPlayRate());
-		const UAnimSingleNodeInstance* SingleNodeInstance = SkeletalMeshComponent->GetSingleNodeInstance();
-
-		if (SkeletalMeshComponent->IsPlaying() && SingleNodeInstance != nullptr && SingleNodeInstance->GetAnimationAsset() == AnimationSequence)
-		{
-			// If the same animation is already playing, just reverse the play rate for a smooth transition
-			SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * -1.0f);
-		}
-		else
-		{
-			SkeletalMeshComponent->SetAnimation(AnimationSequence);
-			SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * (bReverseAnimation ? -1.0f : 1.0f));
-			SkeletalMeshComponent->SetPosition(bReverseAnimation ? AnimationSequence->GetPlayLength() : 0.0f);
-			SkeletalMeshComponent->Play(false);
-		}
-	}
-
-	bToggled = !bToggled;
+	ToggleAnimation();
 
 	UpdateActiveImageFromState(bToggled ? EGLTFHotspotState::ToggledHovered :  EGLTFHotspotState::Hovered);
 }
@@ -398,6 +386,57 @@ FIntPoint AGLTFHotspotActor::GetCurrentViewportSize()
 void AGLTFHotspotActor::ViewportResized(FViewport*, uint32)
 {
 	UpdateSpriteSize();
+}
+
+void AGLTFHotspotActor::ToggleAnimation()
+{
+	const bool bReverseAnimation = bToggled;
+	const float TargetPlayRate = bToggled ? -1.0f : 1.0f;
+
+	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
+	{
+		USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
+		SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
+		const UAnimSingleNodeInstance* SingleNodeInstance = SkeletalMeshComponent->GetSingleNodeInstance();
+
+		if (SkeletalMeshComponent->IsPlaying() && SingleNodeInstance != nullptr && SingleNodeInstance->GetAnimationAsset() == AnimationSequence)
+		{
+			// If the same animation is already playing, just reverse the play rate for a smooth transition
+			SkeletalMeshComponent->SetPlayRate(TargetPlayRate);
+		}
+		else
+		{
+			SkeletalMeshComponent->SetAnimation(AnimationSequence);
+			SkeletalMeshComponent->SetPlayRate(TargetPlayRate);
+			SkeletalMeshComponent->SetPosition(bReverseAnimation ? AnimationSequence->GetPlayLength() : 0.0f);
+			SkeletalMeshComponent->Play(false);
+		}
+	}
+	else if (LevelSequenceActor != nullptr && LevelSequence != nullptr)
+	{
+		ULevelSequencePlayer* LevelSequencePlayer = LevelSequenceActor->GetSequencePlayer();
+
+		if (LevelSequencePlayer != nullptr && LevelSequencePlayer->IsPlaying() && LevelSequenceActor->GetSequence() == LevelSequence)
+		{
+			// If the same animation is already playing, just reverse the play rate for a smooth transition
+			LevelSequencePlayer->SetPlayRate(TargetPlayRate);
+		}
+		else
+		{
+			// TODO: improve this calculation
+			const float SequenceLength = LevelSequence->GetMovieScene()->GetTickResolution().AsSeconds(MovieScene::DiscreteSize(LevelSequence->GetMovieScene()->GetPlaybackRange()));
+
+			LevelSequenceActor->PlaybackSettings.PlayRate = TargetPlayRate;
+			LevelSequenceActor->PlaybackSettings.StartTime = bReverseAnimation ? SequenceLength : 0.0f;
+			LevelSequenceActor->PlaybackSettings.bAutoPlay = true;
+			LevelSequenceActor->PlaybackSettings.bPauseAtEnd = true;
+			LevelSequenceActor->PlaybackSettings.LoopCount.Value = 0;
+			LevelSequenceActor->SetSequence(LevelSequence);
+			LevelSequenceActor->GetSequencePlayer()->Play();
+		}
+	}
+
+	bToggled = !bToggled;
 }
 
 void AGLTFHotspotActor::ValidateAnimation()
