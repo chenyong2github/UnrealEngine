@@ -236,6 +236,16 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 		return true;
 	}
 
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Properties %s and %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(BaseColorProperty),
+			FGLTFMaterialUtility::GetPropertyName(OpacityProperty),
+			*Material->GetName()));
+		return false;
+	}
+
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	FIntPoint TextureSize = Builder.ExportOptions->GetDefaultMaterialBakeSize();
 
@@ -389,6 +399,16 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 		OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture);
 		OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
 		return true;
+	}
+
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Properties %s and %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(MetallicProperty),
+			FGLTFMaterialUtility::GetPropertyName(RoughnessProperty),
+			*Material->GetName()));
+		return false;
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
@@ -545,6 +565,16 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 		return true;
 	}
 
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Properties %s and %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(IntensityProperty),
+			FGLTFMaterialUtility::GetPropertyName(RoughnessProperty),
+			*Material->GetName()));
+		return false;
+	}
+
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	FIntPoint TextureSize = Builder.ExportOptions->GetDefaultMaterialBakeSize();
 
@@ -677,6 +707,15 @@ bool FGLTFMaterialConverter::TryGetEmissive(FGLTFConvertBuilder& Builder, FGLTFJ
 	{
 		JsonMaterial.EmissiveFactor = FGLTFJsonColor3::White;	// make sure texture is not multiplied with black
 		return true;
+	}
+
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(EmissiveProperty),
+			*Material->GetName()));
+		return false;
 	}
 
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Builder, EmissiveProperty, Material, JsonMaterial.EmissiveTexture.TexCoord);
@@ -1065,6 +1104,15 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 
 bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor3& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(Property),
+			*Material->GetName()));
+		return false;
+	}
+
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Builder, Property, Material, OutTexInfo.TexCoord);
 
 	if (PropertyBakeOutput.bIsConstant)
@@ -1084,6 +1132,15 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 
 bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor4& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(Property),
+			*Material->GetName()));
+		return false;
+	}
+
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Builder, Property, Material, OutTexInfo.TexCoord);
 
 	if (PropertyBakeOutput.bIsConstant)
@@ -1103,6 +1160,15 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 
 inline bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, float& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(Property),
+			*Material->GetName()));
+		return false;
+	}
+
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Builder, Property, Material, OutTexInfo.TexCoord);
 
 	if (PropertyBakeOutput.bIsConstant)
@@ -1122,6 +1188,15 @@ inline bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuil
 
 bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
+	if (!Builder.ExportOptions->bBakeMaterialInputs)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			FGLTFMaterialUtility::GetPropertyName(Property),
+			*Material->GetName()));
+		return false;
+	}
+
 	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Builder, Property, Material, OutTexInfo.TexCoord);
 
 	if (!PropertyBakeOutput.bIsConstant)
