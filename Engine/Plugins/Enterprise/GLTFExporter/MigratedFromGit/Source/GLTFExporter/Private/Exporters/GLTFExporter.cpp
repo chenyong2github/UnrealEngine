@@ -51,6 +51,9 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		bSuccess = false;
 	}
 
+	// TODO: should we set bSuccess to false if Builder.GetErrorMessageCount() > 0
+	// even if both AddObject and Serialize has reported success?
+
 	if (FApp::IsUnattended())
 	{
 		Builder.WriteLogMessagesToConsole();
