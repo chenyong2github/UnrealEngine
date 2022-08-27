@@ -21,6 +21,8 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	const USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
 	const FGLTFJsonNodeIndex ParentNodeIndex = Builder.GetOrAddNode(ParentComponent);
 
+	// TODO: if node is root, then add it to the scene here to avoid any possible orphan nodes. this change requires level converter to support cyclic calls.
+
 	const FGLTFJsonNodeIndex NodeIndex = Builder.AddChildNode(ParentNodeIndex);
 	FGLTFJsonNode& Node = Builder.GetNode(NodeIndex);
 	Node.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + SceneComponent->GetName() : Name;
@@ -89,6 +91,8 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 	}
 	else
 	{
+		// TODO: to reduce number of nodes, only export components that are of interest
+
 		for (const UActorComponent* Component : Actor->GetComponents())
 		{
 			const USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
