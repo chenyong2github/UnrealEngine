@@ -38,6 +38,9 @@ class UGLTFExportOptions : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+	uint32 bBundleWebViewer : 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bEmbedVertexData : 1;
 

@@ -15,6 +15,7 @@
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bBundleWebViewer = true;
 	bEmbedVertexData = true;
 	bExportVertexColor = true;
 	bExportPreviewMesh = true;
