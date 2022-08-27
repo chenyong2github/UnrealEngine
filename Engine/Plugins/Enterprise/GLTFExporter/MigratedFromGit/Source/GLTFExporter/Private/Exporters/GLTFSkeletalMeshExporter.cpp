@@ -14,26 +14,24 @@ bool UGLTFSkeletalMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 {
 	const USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Object);
 
-	FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
-	if (MeshIndex == nullptr)
+	FGLTFJsonMesh* Mesh = Builder.GetOrAddMesh(SkeletalMesh);
+	if (Mesh == nullptr)
 	{
 		Builder.LogError(FString::Printf(TEXT("Failed to export skeletal mesh %s"), *SkeletalMesh->GetName()));
 		return false;
 	}
 
 	FGLTFJsonNode* Node = Builder.AddNode();
-	Node->Mesh = MeshIndex;
+	Node->Mesh = Mesh;
 
 	if (Builder.ExportOptions->bExportVertexSkinWeights)
 	{
-		FGLTFJsonSkin* SkinIndex = Builder.GetOrAddSkin(Node, SkeletalMesh);
-		if (SkinIndex == nullptr)
+		Node->Skin = Builder.GetOrAddSkin(Node, SkeletalMesh);
+		if (Node->Skin == nullptr)
 		{
 			Builder.LogError(FString::Printf(TEXT("Failed to export bones in skeletal mesh %s"), *SkeletalMesh->GetName()));
 			return false;
 		}
-
-		Node->Skin = SkinIndex;
 	}
 
 	FGLTFJsonScene* Scene = Builder.AddScene();

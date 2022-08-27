@@ -38,11 +38,11 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 			if (const UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(Property))
 			{
 				FGLTFJsonPrimitive* Primitive = nullptr;
-				FGLTFJsonMaterial* MaterialIndex;
+				FGLTFJsonMaterial* JsonMaterial;
 
-				if (TryParseMaterialProperty(Primitive, MaterialIndex, MaterialProperty))
+				if (TryParseMaterialProperty(Primitive, JsonMaterial, MaterialProperty))
 				{
-					PrimitiveMaterials.Add(MakeTuple(Primitive, MaterialIndex));
+					PrimitiveMaterials.Add(MakeTuple(Primitive, JsonMaterial));
 				}
 			}
 		}
@@ -58,12 +58,12 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 	for (const TPrimitiveMaterial& PrimitiveMaterial: PrimitiveMaterials)
 	{
 		FGLTFJsonPrimitive* Primitive = PrimitiveMaterial.Key;
-		FGLTFJsonMaterial* MaterialIndex = PrimitiveMaterial.Value;
+		FGLTFJsonMaterial* Material = PrimitiveMaterial.Value;
 
 		FGLTFJsonKhrMaterialVariantMapping* ExistingMapping = Primitive->KhrMaterialVariantMappings.FindByPredicate(
-			[MaterialIndex](const FGLTFJsonKhrMaterialVariantMapping& Mapping)
+			[Material](const FGLTFJsonKhrMaterialVariantMapping& Mapping)
 			{
-				return Mapping.Material == MaterialIndex;
+				return Mapping.Material == Material;
 			});
 
 		if (ExistingMapping != nullptr)
@@ -73,7 +73,7 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		else
 		{
 			FGLTFJsonKhrMaterialVariantMapping Mapping;
-			Mapping.Material = MaterialIndex;
+			Mapping.Material = Material;
 			Mapping.Variants.Add(MaterialVariant);
 
 			Primitive->KhrMaterialVariantMappings.Add(Mapping);
@@ -83,7 +83,7 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 	return MaterialVariant;
 }
 
-bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterialIndex, const UPropertyValueMaterial* Property) const
+bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterial, const UPropertyValueMaterial* Property) const
 {
 	const UMeshComponent* Target = static_cast<UMeshComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -141,10 +141,10 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we don't need to register this on the actor
 
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
-	FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(Target);
+	FGLTFJsonMesh* JsonMesh = Builder.GetOrAddMesh(Target);
 
-	OutPrimitive = &Builder.GetMesh(MeshIndex).Primitives[MaterialIndex];
-	OutMaterialIndex = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
+	OutPrimitive = &JsonMesh->Primitives[MaterialIndex];
+	OutMaterial = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
 
 	return true;
 }

@@ -32,8 +32,8 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 			*OriginalMaterial->GetName()));
 	}
 
-	FGLTFJsonMaterial* MaterialIndex = Builder.GetOrAddMaterial(OriginalMaterial);
-	if (MaterialIndex == nullptr)
+	FGLTFJsonMaterial* JsonMaterial = Builder.GetOrAddMaterial(OriginalMaterial);
+	if (JsonMaterial == nullptr)
 	{
 		// TODO: report error
 		return nullptr;
@@ -42,14 +42,12 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 	MakeDirectory(RootPath);
 	Builder.CompleteAllTasks();
 
-	const FGLTFJsonMaterial& JsonMaterial = Builder.GetMaterial(MaterialIndex);
-	UMaterialInstanceConstant* ProxyMaterial = CreateInstancedMaterial(OriginalMaterial, JsonMaterial.ShadingModel);
-
+	UMaterialInstanceConstant* ProxyMaterial = CreateInstancedMaterial(OriginalMaterial, JsonMaterial->ShadingModel);
 	if (ProxyMaterial != nullptr)
 	{
 		SetUserData(ProxyMaterial, OriginalMaterial);
 		SetBaseProperties(ProxyMaterial, OriginalMaterial);
-		SetProxyProperties(ProxyMaterial, JsonMaterial);
+		SetProxyProperties(ProxyMaterial, *JsonMaterial);
 	}
 
 	return ProxyMaterial;
@@ -166,32 +164,31 @@ void FGLTFMaterialProxyFactory::SetProxyParameter(UMaterialInstanceConstant* Pro
 	ParameterInfo.UVRotation.Set(ProxyMaterial, TextureInfo.Transform.Rotation, true);
 }
 
-UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTexture* Index, const FGLTFProxyMaterialTextureParameterInfo& ParameterInfo)
+UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTexture* JsonTexture, const FGLTFProxyMaterialTextureParameterInfo& ParameterInfo)
 {
-	if (Index == nullptr)
+	if (JsonTexture == nullptr)
 	{
 		return nullptr;
 	}
 
 	// TODO: fix potential conflict when same texture used for different material properties that have different encoding (sRGB vs Linear, Normalmap compression etc)
 
-	UTexture2D** FoundPtr = Textures.Find(Index);
+	UTexture2D** FoundPtr = Textures.Find(JsonTexture);
 	if (FoundPtr != nullptr)
 	{
 		return *FoundPtr;
 	}
 
-	const FGLTFJsonTexture& JsonTexture = Builder.GetTexture(Index);
-	const FGLTFImageData* ImageData = Images.Find(JsonTexture.Source);
+	const FGLTFImageData* ImageData = Images.Find(JsonTexture->Source);
 	if (ImageData == nullptr)
 	{
 		// TODO: report error
 		return nullptr;
 	}
 
-	const FGLTFJsonSampler& JsonSampler = Builder.GetSampler(JsonTexture.Sampler);
+	const FGLTFJsonSampler& JsonSampler = *JsonTexture->Sampler;
 	UTexture2D* Texture = CreateTexture(ImageData, JsonSampler, ParameterInfo);
-	Textures.Add(Index, Texture);
+	Textures.Add(JsonTexture, Texture);
 	return Texture;
 }
 
@@ -257,9 +254,9 @@ TUniquePtr<IGLTFTexture2DConverter> FGLTFMaterialProxyFactory::CreateTextureConv
 
 		virtual FGLTFJsonTexture* Convert(const UTexture2D* Texture2D, bool bToSRGB) override
 		{
-			FGLTFJsonTexture* TextureIndex = Factory.Builder.AddTexture();
-			Factory.Textures.Add(TextureIndex, const_cast<UTexture2D*>(Texture2D));
-			return TextureIndex;
+			FGLTFJsonTexture* Texture = Factory.Builder.AddTexture();
+			Factory.Textures.Add(Texture, const_cast<UTexture2D*>(Texture2D));
+			return Texture;
 		}
 	};
 
@@ -287,9 +284,9 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateImageConverter(
 			const FString Filename = FGLTFImageUtility::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
 			UniqueFilenames.Add(Filename);
 
-			FGLTFJsonImage* ImageIndex = Factory.Builder.AddImage();
-			Factory.Images.Add(ImageIndex, { Filename, Type, bIgnoreAlpha, Size, Pixels });
-			return ImageIndex;
+			FGLTFJsonImage* Image = Factory.Builder.AddImage();
+			Factory.Images.Add(Image, { Filename, Type, bIgnoreAlpha, Size, Pixels });
+			return Image;
 		}
 	};
 

@@ -40,9 +40,9 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	UWorld* World = Worlds[0];
-	FGLTFJsonScene* SceneIndex = Builder.GetOrAddScene(World);
-	if (SceneIndex == nullptr)
+	const UWorld* World = Worlds[0];
+	FGLTFJsonScene* Scene = Builder.GetOrAddScene(World);
+	if (Scene == nullptr)
 	{
 		Builder.LogError(
 			FString::Printf(TEXT("Failed to export level %s for level variant sets %s"),
@@ -53,8 +53,8 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 
 	if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
 	{
-		FGLTFJsonEpicLevelVariantSets* EpicLevelVariantSetsIndex = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
-		if (EpicLevelVariantSetsIndex == nullptr)
+		FGLTFJsonEpicLevelVariantSets* EpicLevelVariantSets = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
+		if (EpicLevelVariantSets == nullptr)
 		{
 			Builder.LogError(
 				FString::Printf(TEXT("Failed to export level variant sets %s"),
@@ -62,7 +62,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 			return false;
 		}
 
-		Builder.GetScene(SceneIndex).EpicLevelVariantSets.AddUnique(EpicLevelVariantSetsIndex);
+		Scene->EpicLevelVariantSets.AddUnique(EpicLevelVariantSets);
 	}
 	else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
 	{
@@ -75,6 +75,6 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		}
 	}
 
-	Builder.DefaultScene = SceneIndex;
+	Builder.DefaultScene = Scene;
 	return true;
 }

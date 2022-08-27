@@ -101,7 +101,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 
 	const USceneComponent* ParentComponent = !bIsRootNode ? SceneComponent->GetAttachParent() : nullptr;
 	const FName SocketName = SceneComponent->GetAttachSocketName();
-	FGLTFJsonNode* ParentNodeIndex = Builder.GetOrAddNode(ParentComponent, SocketName);
+	FGLTFJsonNode* ParentNode = Builder.GetOrAddNode(ParentComponent, SocketName);
 
 	if (ParentComponent != nullptr && !SceneComponent->IsUsingAbsoluteScale())
 	{
@@ -120,7 +120,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 	const FTransform ParentTransform = ParentComponent != nullptr ? ParentComponent->GetSocketTransform(SocketName) : FTransform::Identity;
 	const FTransform RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
 
-	FGLTFJsonNode* Node = Builder.AddChildNode(ParentNodeIndex);
+	FGLTFJsonNode* Node = Builder.AddChildNode(ParentNode);
 	Node->Name = FGLTFNameUtility::GetName(SceneComponent);
 	Node->Translation = FGLTFConverterUtility::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
 	Node->Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
@@ -146,7 +146,6 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 
 			if (Builder.ExportOptions->bExportVertexSkinWeights)
 			{
-				// TODO: remove need for NodeIndex by adding support for cyclic calls in converter
 				Node->Skin = Builder.GetOrAddSkin(Node, SkeletalMeshComponent);
 				if (Node->Skin != nullptr)
 				{

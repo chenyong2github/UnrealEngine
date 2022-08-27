@@ -49,9 +49,9 @@ void FGLTFAnimSequenceTask::Complete()
 	TArray<TArray<FTransform>> FrameTransforms;
 	FGLTFBoneUtility::GetBoneTransformsByFrame(AnimSequence, Timestamps, BoneIndices, FrameTransforms);
 
-	for (FBoneIndexType BoneIndex : BoneIndices)
+	for (const FBoneIndexType BoneIndex : BoneIndices)
 	{
-		FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
+		FGLTFJsonNode* Node = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
 
 		// TODO: detect if a bone has the same transforms across multiple frames (at least if its the same across all frames) and optimize
 
@@ -79,7 +79,7 @@ void FGLTFAnimSequenceTask::Complete()
 			FGLTFJsonAnimationChannel JsonChannel;
 			JsonChannel.Sampler = JsonSampler;
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Translation;
-			JsonChannel.Target.Node = NodeIndex;
+			JsonChannel.Target.Node = Node;
 			JsonAnimation->Channels.Add(JsonChannel);
 		}
 
@@ -107,7 +107,7 @@ void FGLTFAnimSequenceTask::Complete()
 			FGLTFJsonAnimationChannel JsonChannel;
 			JsonChannel.Sampler = JsonSampler;
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Rotation;
-			JsonChannel.Target.Node = NodeIndex;
+			JsonChannel.Target.Node = Node;
 			JsonAnimation->Channels.Add(JsonChannel);
 		}
 
@@ -135,7 +135,7 @@ void FGLTFAnimSequenceTask::Complete()
 			FGLTFJsonAnimationChannel JsonChannel;
 			JsonChannel.Sampler = JsonSampler;
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Scale;
-			JsonChannel.Target.Node = NodeIndex;
+			JsonChannel.Target.Node = Node;
 			JsonAnimation->Channels.Add(JsonChannel);
 		}
 	}
@@ -188,15 +188,15 @@ void FGLTFLevelSequenceTask::Complete()
 	{
 		for (TWeakObjectPtr<UObject> Object : Player->FindBoundObjects(Binding.GetObjectGuid(), MovieSceneSequenceID::Root))
 		{
-			FGLTFJsonNode* NodeIndex;
+			FGLTFJsonNode* Node;
 
 			if (AActor* Actor = Cast<AActor>(Object.Get()))
 			{
-				NodeIndex = Builder.GetOrAddNode(Actor);
+				Node = Builder.GetOrAddNode(Actor);
 			}
 			else if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object.Get()))
 			{
-				NodeIndex = Builder.GetOrAddNode(SceneComponent);
+				Node = Builder.GetOrAddNode(SceneComponent);
 			}
 			else
 			{
@@ -204,7 +204,7 @@ void FGLTFLevelSequenceTask::Complete()
 				continue;
 			}
 
-			if (NodeIndex == nullptr)
+			if (Node == nullptr)
 			{
 				// TODO: report warning
 				continue;
@@ -273,7 +273,7 @@ void FGLTFLevelSequenceTask::Complete()
 						FGLTFJsonAnimationChannel JsonChannel;
 						JsonChannel.Sampler = JsonSampler;
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Translation;
-						JsonChannel.Target.Node = NodeIndex;
+						JsonChannel.Target.Node = Node;
 						JsonAnimation->Channels.Add(JsonChannel);
 					}
 
@@ -311,7 +311,7 @@ void FGLTFLevelSequenceTask::Complete()
 						FGLTFJsonAnimationChannel JsonChannel;
 						JsonChannel.Sampler = JsonSampler;
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Rotation;
-						JsonChannel.Target.Node = NodeIndex;
+						JsonChannel.Target.Node = Node;
 						JsonAnimation->Channels.Add(JsonChannel);
 					}
 
@@ -346,7 +346,7 @@ void FGLTFLevelSequenceTask::Complete()
 						FGLTFJsonAnimationChannel JsonChannel;
 						JsonChannel.Sampler = JsonSampler;
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Scale;
-						JsonChannel.Target.Node = NodeIndex;
+						JsonChannel.Target.Node = Node;
 						JsonAnimation->Channels.Add(JsonChannel);
 					}
 				}
