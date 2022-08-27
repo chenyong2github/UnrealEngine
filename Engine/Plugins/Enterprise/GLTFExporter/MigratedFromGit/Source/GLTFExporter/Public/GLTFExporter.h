@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Exporters/Exporter.h"
+#include "GLTFExportOptions.h"
 #include "GLTFExporter.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
@@ -22,4 +23,11 @@ public:
 	//~ Begin UExporter Interface
 	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex = 0, uint32 PortFlags = 0) override;
 	//~ End UExporter Interface
+
+protected:
+
+	bool FillExportOptions();
+
+	UPROPERTY(transient)
+	UGLTFExportOptions* ExportOptions;
 };
