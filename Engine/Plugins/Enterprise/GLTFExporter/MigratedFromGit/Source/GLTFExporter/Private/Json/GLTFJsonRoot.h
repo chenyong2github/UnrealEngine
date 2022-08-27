@@ -5,6 +5,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonExtensions.h"
 #include "Json/GLTFJsonAccessor.h"
+#include "Json/GLTFJsonAnimation.h"
 #include "Json/GLTFJsonBuffer.h"
 #include "Json/GLTFJsonBufferView.h"
 #include "Json/GLTFJsonCamera.h"
@@ -62,6 +63,7 @@ struct FGLTFJsonRoot
 	FGLTFJsonSceneIndex DefaultScene;
 
 	TArray<FGLTFJsonAccessor>   Accessors;
+	TArray<FGLTFJsonAnimation>  Animations;
 	TArray<FGLTFJsonBuffer>     Buffers;
 	TArray<FGLTFJsonBufferView> BufferViews;
 	TArray<FGLTFJsonCamera>     Cameras;
@@ -95,6 +97,7 @@ struct FGLTFJsonRoot
 		}
 
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("accessors"), Accessors, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("animations"), Animations, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("buffers"), Buffers, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("bufferViews"), BufferViews, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("cameras"), Cameras, AllExtensions);

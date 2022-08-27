@@ -150,6 +150,8 @@ struct FGLTFConverterUtility
 	static EGLTFJsonCameraType ConvertCameraType(ECameraProjectionMode::Type ProjectionMode);
 	static EGLTFJsonLightType ConvertLightType(ELightComponentType ComponentType);
 
+	static EGLTFJsonInterpolation ConvertInterpolation(const EAnimInterpolationType Type);
+
 	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel);
 
 	static EGLTFJsonAlphaMode ConvertBlendMode(EBlendMode Mode);
