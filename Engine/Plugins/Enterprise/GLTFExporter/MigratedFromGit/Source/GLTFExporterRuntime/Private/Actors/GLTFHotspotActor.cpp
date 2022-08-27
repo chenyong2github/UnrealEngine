@@ -431,7 +431,7 @@ void AGLTFHotspotActor::ToggleAnimation()
 		}
 		else
 		{
-			// TODO: improve this calculation
+			// TODO: is there a simpler way to get the length (in seconds) of a level sequence?
 			const float SequenceLength = LevelSequence->GetMovieScene()->GetTickResolution().AsSeconds(MovieScene::DiscreteSize(LevelSequence->GetMovieScene()->GetPlaybackRange()));
 
 			FMovieSceneSequencePlaybackSettings PlaybackSettings;

@@ -7,7 +7,7 @@
 
 FGLTFJsonSamplerIndex FGLTFSamplerConverter::Convert(const UTexture* Texture)
 {
-	// TODO: maybe we should reuse existing samplers?
+	// TODO: reuse existing samplers, don't create a unique sampler per texture
 
 	FGLTFJsonSampler JsonSampler;
 	Texture->GetName(JsonSampler.Name);
