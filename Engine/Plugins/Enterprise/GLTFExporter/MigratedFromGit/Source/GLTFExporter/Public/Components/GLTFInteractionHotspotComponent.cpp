@@ -62,13 +62,44 @@ void UGLTFInteractionHotspotComponent::BeginPlay()
 
 void UGLTFInteractionHotspotComponent::OnRegister()
 {
-	ShapeBodySetup = NewObject<UBodySetup>(this);
+	ShapeBodySetup = NewObject<UBodySetup>(this, NAME_None, RF_Transient);
+
+	if (GUObjectArray.IsDisregardForGC(this))
+	{
+		ShapeBodySetup->AddToRoot();
+	}
+
+	ShapeBodySetup->AddToCluster(this);
+
+	if (ShapeBodySetup->HasAnyInternalFlags(EInternalObjectFlags::Async) && GUObjectClusters.GetObjectCluster(ShapeBodySetup))
+	{
+		ShapeBodySetup->ClearInternalFlags(EInternalObjectFlags::Async);
+	}
+
 	ShapeBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
-	ShapeBodySetup->AggGeom.SphereElems.Add(UnitSphereRadius);
-	
+	ShapeBodySetup->AggGeom.SphereElems.Add(FKSphereElem(UnitSphereRadius));
+
 	BodyInstance.InitBody(ShapeBodySetup, GetWorldTransform(), this, GetWorld()->GetPhysicsScene());
 
-	RecreatePhysicsState();
+	if (BodyInstance.IsValidBodyInstance())
+	{
+#if WITH_PHYSX
+		FPhysicsCommand::ExecuteWrite(BodyInstance.GetActorReferenceWithWelding(), [this](const FPhysicsActorHandle& Actor)
+		{
+			TArray<FPhysicsShapeHandle> Shapes;
+			BodyInstance.GetAllShapes_AssumesLocked(Shapes);
+
+			for (FPhysicsShapeHandle& Shape : Shapes)
+			{
+				if (BodyInstance.IsShapeBoundToBody(Shape))
+				{
+					FPhysicsInterface::SetUserData(Shape, (void*)ShapeBodySetup->AggGeom.SphereElems[0].GetUserData());
+				}
+			}
+		});
+#endif
+	}
+
 	UpdateCollisionVolume();
 
 	Super::OnRegister();
@@ -161,6 +192,8 @@ void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
 FTransform UGLTFInteractionHotspotComponent::GetWorldTransform() const
 {
 	const AActor* Owner = GetOwner();
+
+	check(Owner != nullptr);
 
 	return (Owner != nullptr) ? (Owner->GetTransform() * GetComponentTransform()) : GetComponentTransform();
 }
