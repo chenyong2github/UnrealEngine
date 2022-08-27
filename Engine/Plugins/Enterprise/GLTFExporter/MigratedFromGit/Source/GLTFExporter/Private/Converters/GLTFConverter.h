@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-struct FGLTFConvertBuilder;
+class FGLTFConvertBuilder;
 
 template <class IndexType, class KeyType>
 class TGLTFConverter

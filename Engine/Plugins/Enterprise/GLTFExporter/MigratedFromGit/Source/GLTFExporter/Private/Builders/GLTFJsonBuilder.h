@@ -4,9 +4,11 @@
 
 #include "Json/GLTFJsonRoot.h"
 
-struct FGLTFJsonBuilder
+class FGLTFJsonBuilder
 {
-	FGLTFJsonRoot JsonRoot;
+public:
+
+	FGLTFJsonSceneIndex& DefaultScene;
 
 	FGLTFJsonBuilder();
 	virtual ~FGLTFJsonBuilder();
@@ -19,4 +21,8 @@ struct FGLTFJsonBuilder
 	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
 
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath);
+
+protected:
+
+	FGLTFJsonRoot JsonRoot;
 };

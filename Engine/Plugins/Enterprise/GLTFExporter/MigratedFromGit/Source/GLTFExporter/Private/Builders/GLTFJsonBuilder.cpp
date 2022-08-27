@@ -3,6 +3,7 @@
 #include "Builders/GLTFJsonBuilder.h"
 
 FGLTFJsonBuilder::FGLTFJsonBuilder()
+	: DefaultScene(JsonRoot.DefaultScene)
 {
 }
 

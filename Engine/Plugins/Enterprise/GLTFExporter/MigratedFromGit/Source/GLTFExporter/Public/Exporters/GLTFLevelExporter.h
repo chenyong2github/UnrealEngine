@@ -9,9 +9,9 @@ UCLASS()
 class GLTFEXPORTER_API UGLTFLevelExporter : public UGLTFExporter
 {
 public:
+
 	GENERATED_BODY()
 
-public:
 	UGLTFLevelExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	//~ Begin UExporter Interface

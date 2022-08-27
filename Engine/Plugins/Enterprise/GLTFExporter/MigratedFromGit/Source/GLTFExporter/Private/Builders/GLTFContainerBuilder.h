@@ -4,6 +4,6 @@
 
 #include "Builders/GLTFConvertBuilder.h"
 
-struct FGLTFContainerBuilder : public FGLTFConvertBuilder
+class FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
 };
