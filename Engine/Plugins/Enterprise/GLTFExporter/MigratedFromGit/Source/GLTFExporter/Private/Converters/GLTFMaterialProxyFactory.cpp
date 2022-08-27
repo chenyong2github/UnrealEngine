@@ -12,8 +12,8 @@
 FGLTFMaterialProxyFactory::FGLTFMaterialProxyFactory(const UGLTFProxyOptions* Options)
 	: Builder(TEXT(""), CreateExportOptions(Options))
 {
-	Builder.ImageConverter = CreateCustomImageConverter();
-	// TODO: override texture converters so that we don't create new assets if a texture asset already exists
+	Builder.Texture2DConverter = CreateTextureConverter();
+	Builder.ImageConverter = CreateImageConverter();
 }
 
 UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* OriginalMaterial)
@@ -262,7 +262,38 @@ UPackage* FGLTFMaterialProxyFactory::FindOrCreatePackage(const FString& BaseName
 	return Package;
 }
 
-TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateCustomImageConverter()
+TUniquePtr<IGLTFTexture2DConverter> FGLTFMaterialProxyFactory::CreateTextureConverter()
+{
+	class FGLTFCustomTexture2DConverter final: public IGLTFTexture2DConverter
+	{
+	public:
+
+		FGLTFMaterialProxyFactory& Factory;
+
+		FGLTFCustomTexture2DConverter(FGLTFMaterialProxyFactory& Factory)
+			: Factory(Factory)
+		{
+		}
+
+	protected:
+
+		virtual void Sanitize(const UTexture2D*& Texture2D, bool& bToSRGB) override
+		{
+			bToSRGB = false; // ignore
+		}
+
+		virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D, bool bToSRGB) override
+		{
+			const FGLTFJsonTextureIndex TextureIndex = Factory.Builder.AddTexture();
+			Factory.Textures.Add(TextureIndex, const_cast<UTexture2D*>(Texture2D));
+			return TextureIndex;
+		}
+	};
+
+	return MakeUnique<FGLTFCustomTexture2DConverter>(*this);
+}
+
+TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateImageConverter()
 {
 	class FGLTFCustomImageConverter final: public IGLTFImageConverter
 	{
