@@ -34,7 +34,7 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint 
 			break;
 
 		case EGLTFJsonMimeType::JPEG:
-			FGLTFImageUtility::CompressToJPEG(Pixels, Size, 0, CompressedData);
+			FGLTFImageUtility::CompressToJPEG(Pixels, Size, ExportOptions->TextureCompressionQuality, CompressedData);
 			break;
 
 		default:

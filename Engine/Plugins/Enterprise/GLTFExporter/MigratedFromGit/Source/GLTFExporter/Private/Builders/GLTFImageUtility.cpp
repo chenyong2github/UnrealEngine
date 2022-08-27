@@ -37,11 +37,6 @@ bool FGLTFImageUtility::CompressToFormat(const FColor* InPixels, FIntPoint InSiz
 
 bool FGLTFImageUtility::CompressToFormat(const void* InRawData, int64 InRawSize, int32 InWidth, int32 InHeight, ERGBFormat InRGBFormat, int32 InBitDepth, EImageFormat InCompressionFormat, int32 InCompressionQuality, TArray64<uint8>& OutCompressedData)
 {
-	if (InCompressionFormat == EImageFormat::JPEG && InRGBFormat == ERGBFormat::Gray)
-	{
-		InCompressionFormat = EImageFormat::GrayscaleJPEG;
-	}
-
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(InCompressionFormat);
 
