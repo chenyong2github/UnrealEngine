@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFConvertBuilder.h"
-#include "GLTFBuilderUtility.h"
+#include "Builders/GLTFBuilderUtility.h"
 
 FGLTFConvertBuilder::FGLTFConvertBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
 	: FGLTFImageBuilder(ExportOptions)
@@ -164,16 +164,6 @@ FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderT
 	return TextureRenderTargetCubeConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture, CubeFace);
 }
 
-FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
-{
-	if (StaticMeshComponent == nullptr)
-	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
-	}
-
-	return LightMapConverter.GetOrAdd(*this, DesiredName, StaticMeshComponent);
-}
-
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, const FString& DesiredName)
 {
 	if (SceneComponent == nullptr)
@@ -214,6 +204,16 @@ FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World, cons
 	return GetOrAddScene(World->PersistentLevel, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
 }
 
+FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Actor, const FString& DesiredName)
+{
+	if (Actor == nullptr)
+	{
+		return FGLTFJsonBackdropIndex(INDEX_NONE);
+	}
+
+	return BackdropConverter.GetOrAdd(*this, DesiredName, Actor);
+}
+
 FGLTFJsonLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor, const FString& DesiredName)
 {
 	if (LevelVariantSetsActor == nullptr)
@@ -222,4 +222,14 @@ FGLTFJsonLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddLevelVariantSets(con
 	}
 
 	return LevelVariantSetsConverter.GetOrAdd(*this, DesiredName, LevelVariantSetsActor);
+}
+
+FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
+{
+	if (StaticMeshComponent == nullptr)
+	{
+		return FGLTFJsonLightMapIndex(INDEX_NONE);
+	}
+
+	return LightMapConverter.GetOrAdd(*this, DesiredName, StaticMeshComponent);
 }
