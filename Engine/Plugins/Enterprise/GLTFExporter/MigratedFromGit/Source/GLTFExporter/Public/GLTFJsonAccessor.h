@@ -4,7 +4,7 @@
 
 #include "GLTFJsonEnums.h"
 #include "GLTFJsonIndex.h"
-#include "GLTFJsonUtilities.h"
+#include "GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct GLTFEXPORTER_API FGLTFJsonAccessor
@@ -42,8 +42,8 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 
 		JsonWriter.WriteValue(TEXT("bufferView"), BufferView);
 		JsonWriter.WriteValue(TEXT("count"), Count);
-		JsonWriter.WriteValue(TEXT("type"), AccessorTypeToString(Type));
-		JsonWriter.WriteValue(TEXT("componentType"), ComponentTypeToNumber(ComponentType));
+		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::AccessorTypeToString(Type));
+		JsonWriter.WriteValue(TEXT("componentType"), FGLTFJsonUtility::ComponentTypeToNumber(ComponentType));
 		if (bNormalized) JsonWriter.WriteValue(TEXT("normalized"), bNormalized);
 
 		if (MinMaxLength > 0)

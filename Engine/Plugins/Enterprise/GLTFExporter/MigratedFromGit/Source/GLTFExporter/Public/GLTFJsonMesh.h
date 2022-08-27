@@ -72,7 +72,7 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive
 
 		if (Indices != INDEX_NONE) JsonWriter.WriteValue(TEXT("indices"), Indices);
 		if (Material != INDEX_NONE) JsonWriter.WriteValue(TEXT("material"), Material);
-		if (Mode != EGLTFJsonPrimitiveMode::None) JsonWriter.WriteValue(TEXT("mode"), PrimitiveModeToNumber(Mode));
+		if (Mode != EGLTFJsonPrimitiveMode::None) JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::PrimitiveModeToNumber(Mode));
 
 		JsonWriter.WriteObjectEnd();
 	}
