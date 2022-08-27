@@ -276,13 +276,14 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 	MeshSet.TextureCoordinateIndex = TexCoord;
 
+	bool bUsesVertexData = false;
+
 	if (Mesh != nullptr)
 	{
 		int32 NumTextureCoordinates;
-		bool bRequiresVertexData;
-		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bRequiresVertexData);
+		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bUsesVertexData);
 
-		if (bRequiresVertexData)
+		if (bUsesVertexData)
 		{
 			if (FMeshDescription* MeshDescription = Mesh->GetMeshDescription(LODIndex))
 			{
@@ -298,6 +299,11 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 					MeshSet.MaterialIndices.Add(PolygonGroupID.GetValue());
 				}
+			}
+			else
+			{
+				// TODO: add warning?
+				bUsesVertexData = false;
 			}
 		}
 	}
@@ -348,6 +354,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	}
 
 	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
+	PropertyBakeOutput.bUsesVertexData = bUsesVertexData;
 
 	if (BakedPixels.Num() == 1)
 	{
