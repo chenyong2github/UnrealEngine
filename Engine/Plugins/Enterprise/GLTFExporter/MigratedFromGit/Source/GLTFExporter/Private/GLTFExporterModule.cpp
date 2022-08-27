@@ -10,7 +10,7 @@ DEFINE_LOG_CATEGORY(LogGLTFExporter);
 /**
  * glTF Exporter module implementation (private)
  */
-class FGLTFExporterModule : public IGLTFExporterModule
+class FGLTFExporterModule final : public IGLTFExporterModule
 {
 
 public:
