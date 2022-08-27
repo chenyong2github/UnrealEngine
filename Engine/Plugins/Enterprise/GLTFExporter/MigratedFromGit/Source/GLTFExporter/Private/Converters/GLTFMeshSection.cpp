@@ -5,67 +5,105 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Algo/MaxElement.h"
 
-FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* OldIndexBuffer)
+FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const int32 MaterialIndex)
 {
-	const uint32 IndexOffset = MeshSection->FirstIndex;
-	const uint32 IndexCount = MeshSection->NumTriangles * 3;
+	uint32 TotalIndexCount = 0;
 
-	IndexMap.Reserve(IndexCount);
-	IndexBuffer.AddUninitialized(IndexCount);
+	TArray<const FStaticMeshSection*> Sections;
+	for (const FStaticMeshSection& Section : MeshLOD->Sections)
+	{
+		if (Section.MaterialIndex == MaterialIndex)
+		{
+			Sections.Add(&Section);
+			TotalIndexCount += Section.NumTriangles * 3;
+		}
+	}
+
+	IndexMap.Reserve(TotalIndexCount);
+	IndexBuffer.AddUninitialized(TotalIndexCount);
+	BoneMapLookup.AddUninitialized(TotalIndexCount);
 
 	TMap<uint32, uint32> IndexLookup;
 
-	for (uint32 Index = 0; Index < IndexCount; Index++)
+	for (const FStaticMeshSection* MeshSection : Sections)
 	{
-		const uint32 OldIndex = OldIndexBuffer->GetIndex(IndexOffset + Index);
-		uint32 NewIndex;
+		const uint32 IndexOffset = MeshSection->FirstIndex;
+		const uint32 IndexCount = MeshSection->NumTriangles * 3;
 
-		if (uint32* FoundIndex = IndexLookup.Find(OldIndex))
+		for (uint32 Index = 0; Index < IndexCount; Index++)
 		{
-			NewIndex = *FoundIndex;
-		}
-		else
-		{
-			NewIndex = IndexMap.Num();
-			IndexLookup.Add(OldIndex, NewIndex);
-			IndexMap.Add(OldIndex);
-		}
+			const uint32 OldIndex = MeshLOD->IndexBuffer.GetIndex(IndexOffset + Index);
+			uint32 NewIndex;
 
-		IndexBuffer[Index] = NewIndex;
+			if (uint32* FoundIndex = IndexLookup.Find(OldIndex))
+			{
+				NewIndex = *FoundIndex;
+			}
+			else
+			{
+				NewIndex = IndexMap.Num();
+				IndexLookup.Add(OldIndex, NewIndex);
+				IndexMap.Add(OldIndex);
+			}
+
+			IndexBuffer[Index] = NewIndex;
+			BoneMapLookup[Index] = 0;
+		}
 	}
 
+	BoneMaps.Add({});
 	MaxBoneIndex = 0;
 }
 
-FGLTFMeshSection::FGLTFMeshSection(const FSkelMeshRenderSection* MeshSection, const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer)
+FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const uint16 MaterialIndex)
 {
-	const uint32 IndexOffset = MeshSection->BaseIndex;
-	const uint32 IndexCount = MeshSection->NumTriangles * 3;
+	uint32 TotalIndexCount = 0;
 
-	IndexMap.Reserve(IndexCount);
-	IndexBuffer.AddUninitialized(IndexCount);
+	TArray<const FSkelMeshRenderSection*> Sections;
+	for (const FSkelMeshRenderSection& Section : MeshLOD->RenderSections)
+	{
+		if (Section.MaterialIndex == MaterialIndex)
+		{
+			Sections.Add(&Section);
+			TotalIndexCount += Section.NumTriangles * 3;
+		}
+	}
+
+	IndexMap.Reserve(TotalIndexCount);
+	IndexBuffer.AddUninitialized(TotalIndexCount);
+	BoneMapLookup.AddUninitialized(TotalIndexCount);
 
 	TMap<uint32, uint32> IndexLookup;
 
-	for (uint32 Index = 0; Index < IndexCount; Index++)
+	const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer = MeshLOD->MultiSizeIndexContainer.GetIndexBuffer();
+
+	for (const FSkelMeshRenderSection* MeshSection : Sections)
 	{
-		const uint32 OldIndex = OldIndexBuffer->Get(IndexOffset + Index);
-		uint32 NewIndex;
+		const uint32 IndexOffset = MeshSection->BaseIndex;
+		const uint32 IndexCount = MeshSection->NumTriangles * 3;
+		const uint32 BoneMapIndex = BoneMaps.Num();
 
-		if (uint32* FoundIndex = IndexLookup.Find(OldIndex))
+		for (uint32 Index = 0; Index < IndexCount; Index++)
 		{
-			NewIndex = *FoundIndex;
-		}
-		else
-		{
-			NewIndex = IndexMap.Num();
-			IndexLookup.Add(OldIndex, NewIndex);
-			IndexMap.Add(OldIndex);
+			const uint32 OldIndex = OldIndexBuffer->Get(IndexOffset + Index);
+			uint32 NewIndex;
+
+			if (uint32* FoundIndex = IndexLookup.Find(OldIndex))
+			{
+				NewIndex = *FoundIndex;
+			}
+			else
+			{
+				NewIndex = IndexMap.Num();
+				IndexLookup.Add(OldIndex, NewIndex);
+				IndexMap.Add(OldIndex);
+			}
+
+			IndexBuffer[Index] = NewIndex;
+			BoneMapLookup[Index] = BoneMapIndex;
 		}
 
-		IndexBuffer[Index] = NewIndex;
+		BoneMaps.Add(MeshSection->BoneMap);
+		MaxBoneIndex = MeshSection->BoneMap.Num() > 0 ? *Algo::MaxElement(MeshSection->BoneMap) : 0;
 	}
-
-	BoneMap = MeshSection->BoneMap;
-	MaxBoneIndex = BoneMap.Num() > 0 ? *Algo::MaxElement(MeshSection->BoneMap) : 0;
 }

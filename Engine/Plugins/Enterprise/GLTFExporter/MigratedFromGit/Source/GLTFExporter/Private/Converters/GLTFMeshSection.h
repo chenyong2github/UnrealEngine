@@ -6,12 +6,13 @@
 
 struct FGLTFMeshSection
 {
-	FGLTFMeshSection(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* OldIndexBuffer);
-	FGLTFMeshSection(const FSkelMeshRenderSection* MeshSection, const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer);
+	FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const int32 MaterialIndex);
+	FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const uint16 MaterialIndex);
 
 	TArray<uint32> IndexMap;
 	TArray<uint32> IndexBuffer;
 
-	TArray<FBoneIndexType> BoneMap;
+	TArray<TArray<FBoneIndexType>> BoneMaps;
+	TArray<uint32> BoneMapLookup;
 	uint32 MaxBoneIndex;
 };
