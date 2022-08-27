@@ -1,47 +1,86 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFContainerBuilder.h"
-#include "GLTFMeshBuilder.h"
 #include "GLTFSceneBuilder.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder()
-	: BufferBuilder(AddBuffer(FGLTFJsonBuffer()))
+	: BufferBuilder(CreateBuffer(FGLTFJsonBuffer()))
 {
 }
 
-FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::CreateAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
 	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor));
 }
 
-FGLTFJsonBufferIndex FGLTFContainerBuilder::AddBuffer(const FGLTFJsonBuffer& JsonBuffer)
+FGLTFJsonBufferIndex FGLTFContainerBuilder::CreateBuffer(const FGLTFJsonBuffer& JsonBuffer)
 {
 	return FGLTFJsonBufferIndex(JsonRoot.Buffers.Add(JsonBuffer));
 }
 
-FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddBufferView(const FGLTFJsonBufferView& JsonBufferView)
+FGLTFJsonBufferViewIndex FGLTFContainerBuilder::CreateBufferView(const FGLTFJsonBufferView& JsonBufferView)
 {
 	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(JsonBufferView));
 }
 
-FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const FGLTFJsonMesh& JsonMesh)
+FGLTFJsonMeshIndex FGLTFContainerBuilder::CreateMesh(const FGLTFJsonMesh& JsonMesh)
 {
 	return FGLTFJsonMeshIndex(JsonRoot.Meshes.Add(JsonMesh));
 }
 
-FGLTFJsonNodeIndex FGLTFContainerBuilder::AddNode(const FGLTFJsonNode& JsonNode)
+FGLTFJsonNodeIndex FGLTFContainerBuilder::CreateNode(const FGLTFJsonNode& JsonNode)
 {
 	return FGLTFJsonNodeIndex(JsonRoot.Nodes.Add(JsonNode));
 }
 
-FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const FGLTFJsonScene& JsonScene)
+FGLTFJsonSceneIndex FGLTFContainerBuilder::CreateScene(const FGLTFJsonScene& JsonScene)
 {
 	return FGLTFJsonSceneIndex(JsonRoot.Scenes.Add(JsonScene));
 }
 
-FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFContainerBuilder::CreateBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
 {
-	return BufferBuilder.AddBufferView(*this, RawData, ByteLength, Name, BufferTarget);
+	return BufferBuilder.CreateBufferView(*this, RawData, ByteLength, Name, BufferTarget);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertPositionAccessor(FGLTFPositionVertexBufferKey(VertexBuffer, Name), *this);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertNormalAccessor(FGLTFStaticMeshVertexBufferKey(VertexBuffer, Name), *this);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertTangentAccessor(FGLTFStaticMeshVertexBufferKey(VertexBuffer, Name), *this);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddUV0Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertUV0Accessor(FGLTFStaticMeshVertexBufferKey(VertexBuffer, Name), *this);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddUV1Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertUV1Accessor(FGLTFStaticMeshVertexBufferKey(VertexBuffer, Name), *this);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertColorAccessor(FGLTFColorVertexBufferKey(VertexBuffer, Name), *this);
+}
+
+FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertIndexBufferView(FGLTFRawStaticIndexBufferKey(IndexBuffer, Name), *this);
+}
+
+FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& Name)
+{
+	return IndexBuilder.FindOrConvertIndexAccessor(FGLTFStaticMeshSectionKey(MeshSection, IndexBuffer, Name), *this);
 }
 
 void FGLTFContainerBuilder::Serialize(FArchive& Archive)
@@ -53,7 +92,7 @@ void FGLTFContainerBuilder::Serialize(FArchive& Archive)
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors)
 {
-	return IndexBuilder.FindOrAdd(FGLTFStaticMeshKey(StaticMesh, LODIndex, OverrideVertexColors), *this);
+	return IndexBuilder.FindOrConvertMesh(FGLTFStaticMeshKey(StaticMesh, LODIndex, OverrideVertexColors), *this);
 }
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMeshComponent* StaticMeshComponent)

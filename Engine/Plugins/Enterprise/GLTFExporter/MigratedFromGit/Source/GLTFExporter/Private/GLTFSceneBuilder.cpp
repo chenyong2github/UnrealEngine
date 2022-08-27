@@ -60,7 +60,7 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 		}
 	}
 
-	return Container.AddNode(Node);
+	return Container.CreateNode(Node);
 }
 
 FGLTFSceneBuilder::FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly)
@@ -94,14 +94,11 @@ FGLTFJsonSceneIndex FGLTFSceneBuilder::AddScene(FGLTFContainerBuilder& Container
 	FGLTFJsonScene Scene;
 	Scene.Name = Name;
 
-	for (const FGLTFNodeBuilder& TopLevelComponent : RootNodes)
+	for (const FGLTFNodeBuilder& RootNode : RootNodes)
 	{
-		FGLTFJsonNodeIndex NodeIndex = TopLevelComponent.AddNode(Container);
-		if (NodeIndex != INDEX_NONE)
-		{
-			Scene.Nodes.Add(NodeIndex);
-		}
+		FGLTFJsonNodeIndex NodeIndex = RootNode.AddNode(Container);
+		if (NodeIndex != INDEX_NONE) Scene.Nodes.Add(NodeIndex);
 	}
 
-	return Container.AddScene(Scene);
+	return Container.CreateScene(Scene);
 }

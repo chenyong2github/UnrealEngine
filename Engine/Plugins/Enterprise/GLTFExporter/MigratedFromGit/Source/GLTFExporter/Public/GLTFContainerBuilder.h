@@ -15,20 +15,30 @@ struct GLTFEXPORTER_API FGLTFContainerBuilder
 
 	FGLTFContainerBuilder();
 
-	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
-	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
-	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView);
-	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh);
-	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode);
-	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
+	FGLTFJsonAccessorIndex CreateAccessor(const FGLTFJsonAccessor& JsonAccessor);
+	FGLTFJsonBufferIndex CreateBuffer(const FGLTFJsonBuffer& JsonBuffer);
+	FGLTFJsonBufferViewIndex CreateBufferView(const FGLTFJsonBufferView& JsonBufferView);
+	FGLTFJsonMeshIndex CreateMesh(const FGLTFJsonMesh& JsonMesh);
+	FGLTFJsonNodeIndex CreateNode(const FGLTFJsonNode& JsonNode);
+	FGLTFJsonSceneIndex CreateScene(const FGLTFJsonScene& JsonScene);
 
-	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
+	FGLTFJsonBufferViewIndex CreateBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
 	template <class ElementType>
-	FGLTFJsonBufferViewIndex AddBufferView(const TArray<ElementType>& Array, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer)
+	FGLTFJsonBufferViewIndex CreateBufferView(const TArray<ElementType>& Array, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer)
 	{
-		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
+		return CreateBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
 	}
+
+	FGLTFJsonAccessorIndex AddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& Name = TEXT(""));
+	FGLTFJsonAccessorIndex AddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name = TEXT(""));
+	FGLTFJsonAccessorIndex AddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name = TEXT(""));
+	FGLTFJsonAccessorIndex AddUV0Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name = TEXT(""));
+	FGLTFJsonAccessorIndex AddUV1Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& Name = TEXT(""));
+	FGLTFJsonAccessorIndex AddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& Name = TEXT(""));
+
+	FGLTFJsonBufferViewIndex AddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& Name = TEXT(""));
+	FGLTFJsonAccessorIndex AddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& Name = TEXT(""));
 
 	FGLTFJsonMeshIndex AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex = 0, const FColorVertexBuffer* OverrideVertexColors = nullptr);
 	FGLTFJsonMeshIndex AddMesh(const UStaticMeshComponent* StaticMeshComponent);
