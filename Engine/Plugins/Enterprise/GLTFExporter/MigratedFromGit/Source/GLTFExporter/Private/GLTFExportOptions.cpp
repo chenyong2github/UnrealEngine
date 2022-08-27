@@ -19,7 +19,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	bExportVertexColors = true;
 	NormalExportMethod = EGLTFExporterNormalExportMethod::NormalsAndTangents;
-	bTangentDataQuantization = false;
+	bUseMeshQuantization = true;
 	NormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
 	bExportVertexSkinWeights = true;
@@ -197,7 +197,6 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 
 	// TODO: remove options that have been implemented in exporters/converters.
 	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, NormalExportMethod) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bTangentDataQuantization) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, NormalizeUVCoordinates) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureFormat) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureHDREncoding) ||
