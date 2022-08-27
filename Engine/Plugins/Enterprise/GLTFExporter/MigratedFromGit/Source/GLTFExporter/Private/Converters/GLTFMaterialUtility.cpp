@@ -56,10 +56,10 @@ const TCHAR* FGLTFMaterialUtility::GetPropertyName(EMaterialProperty Property)
 		case MP_ShadingModel:           return TEXT("ShadingModel");
 		case MP_MaterialAttributes:     return TEXT("MaterialAttributes");
 		case MP_CustomOutput:           return TEXT("ClearCoatBottomNormal");
-		default:                        checkNoEntry();
+		default:
+			checkNoEntry();
+			return TEXT("");
 	}
-
-	return TEXT("");
 }
 
 FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Property)
