@@ -339,7 +339,7 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Buil
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = TextureName;
 	JsonTexture.Sampler = Builder.AddSampler(JsonSampler);
-	JsonTexture.Source = Builder.AddImage(Pixels, TextureSize, TextureName);
+	JsonTexture.Source = Builder.AddImage(Pixels, TextureSize, false, TextureName);
 
 	return Builder.AddTexture(JsonTexture);
 }

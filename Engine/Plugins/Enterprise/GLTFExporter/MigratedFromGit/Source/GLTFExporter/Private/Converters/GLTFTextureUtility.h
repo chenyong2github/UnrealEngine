@@ -8,6 +8,8 @@
 struct FGLTFTextureUtility
 {
 	static bool IsHDR(EPixelFormat Format);
+	static bool IsAlphaless(EPixelFormat PixelFormat);
+
 	static bool IsCubemap(const UTexture* Texture);
 
 	static float GetCubeFaceRotation(ECubeFace CubeFace);
@@ -35,6 +37,8 @@ struct FGLTFTextureUtility
 	static bool LoadPlatformData(UTexture2D* Texture);
 	static bool LoadPlatformData(UTextureCube* TextureCube);
 
-	static void FlipGreenChannel(TArray<FLinearColor>& Pixels);
 	static void FlipGreenChannel(TArray<FColor>& Pixels);
+
+	static bool HasAlphaChannel(const UTexture* Texture);
+	static bool HasAlphaChannel(EPixelFormat PixelFormat);
 };
