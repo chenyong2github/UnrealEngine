@@ -18,5 +18,16 @@ class FGLTFStaticMeshSectionConverter final : public TGLTFConverter<FGLTFJsonAcc
 
 class FGLTFStaticMeshConverter final : public TGLTFConverter<FGLTFJsonMeshIndex, const UStaticMesh*, int32, const FColorVertexBuffer*>
 {
-	FGLTFJsonMeshIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors) override;
+	FGLTFJsonMeshIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, TArray<const UMaterialInterface*> OverrideMaterials) override;
+
+	// TODO: move this to somewhere cleaner
+	friend inline uint32 GetTypeHash(TArray<const UMaterialInterface*> Materials)
+	{
+		uint32 Hash = GetTypeHash(Materials.Num());
+		for (const UMaterialInterface* Material : Materials)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Material));
+		}
+		return Hash;
+	}
 };
