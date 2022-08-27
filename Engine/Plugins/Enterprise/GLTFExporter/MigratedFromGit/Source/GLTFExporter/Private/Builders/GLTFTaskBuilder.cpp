@@ -6,54 +6,70 @@
 
 FGLTFTaskBuilder::FGLTFTaskBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFBuilder(FilePath, ExportOptions)
+	, PriorityIndexLock(INDEX_NONE)
 {
 }
 
 void FGLTFTaskBuilder::CompleteAllTasks(FFeedbackContext* Context)
 {
-	const int32 CategoryCount = static_cast<int32>(EGLTFTaskCategory::MAX);
-	for (int32 CategoryIndex = 0; CategoryIndex < CategoryCount; CategoryIndex++)
+	const int32 PriorityCount = static_cast<int32>(EGLTFTaskPriority::MAX);
+	for (int32 PriorityIndex = 0; PriorityIndex < PriorityCount; PriorityIndex++)
 	{
-		const EGLTFTaskCategory Category = static_cast<EGLTFTaskCategory>(CategoryIndex);
+		PriorityIndexLock = PriorityIndex;
+		const EGLTFTaskPriority Priority = static_cast<EGLTFTaskPriority>(PriorityIndex);
 
-		TArray<TUniquePtr<FGLTFTask>>* Tasks = CategorizedTasks.Find(Category);
+		TArray<TUniquePtr<FGLTFTask>>* Tasks = TasksByPriority.Find(Priority);
 		if (Tasks == nullptr)
 		{
 			continue;
 		}
 
-		const FText FormatMessage = GetCategoryFormatMessage(Category);
-		FScopedSlowTask Progress(Tasks->Num(), FormatMessage, true, *Context);
+		const FText MessageFormat = GetPriorityMessageFormat(Priority);
+		FScopedSlowTask Progress(Tasks->Num(), FText::Format(MessageFormat, FText()), true, *Context);
 		Progress.MakeDialog();
 
 		for (TUniquePtr<FGLTFTask>& Task : *Tasks)
 		{
-			const FText Name = FText::FromString(Task->Name);
-			const FText Message = FText::Format(FormatMessage, Name);
+			const FText Name = FText::FromString(Task->GetName());
+			const FText Message = FText::Format(MessageFormat, Name);
 			Progress.EnterProgressFrame(1, Message);
 
-			Task->Run();
+			Task->Complete();
 		}
 	}
 
-	CategorizedTasks.Empty();
+	TasksByPriority.Empty();
+	PriorityIndexLock = INDEX_NONE;
 }
 
-void FGLTFTaskBuilder::SetupTask(TUniquePtr<FGLTFTask> Task)
+bool FGLTFTaskBuilder::SetupTask(TUniquePtr<FGLTFTask> Task)
 {
-	const EGLTFTaskCategory Category = Task->Category;
-	CategorizedTasks.FindOrAdd(Category).Add(MoveTemp(Task));
-}
-
-FText FGLTFTaskBuilder::GetCategoryFormatMessage(EGLTFTaskCategory Category)
-{
-	switch (Category)
+	const EGLTFTaskPriority Priority = Task->Priority;
+	if (static_cast<int32>(Priority) < static_cast<int32>(EGLTFTaskPriority::MAX))
 	{
-		case EGLTFTaskCategory::Actor:     return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Actors... {0}");
-		case EGLTFTaskCategory::Mesh:      return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Meshes... {0}");
-		case EGLTFTaskCategory::Animation: return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Animations... {0}");
-		case EGLTFTaskCategory::Material:  return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Materials... {0}");
-		case EGLTFTaskCategory::Texture:   return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Textures... {0}");
+		// TODO: report error
+		return false;
+	}
+
+	if (static_cast<int32>(Priority) <= PriorityIndexLock)
+	{
+		// TODO: report error
+		return false;
+	}
+
+	TasksByPriority.FindOrAdd(Priority).Add(MoveTemp(Task));
+	return true;
+}
+
+FText FGLTFTaskBuilder::GetPriorityMessageFormat(EGLTFTaskPriority Priority)
+{
+	switch (Priority)
+	{
+		case EGLTFTaskPriority::Actor:     return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Actors... {0}");
+		case EGLTFTaskPriority::Mesh:      return NSLOCTEXT("GLTFExporter", "MeshTaskMessage", "Meshes... {0}");
+		case EGLTFTaskPriority::Animation: return NSLOCTEXT("GLTFExporter", "AnimationTaskMessage", "Animations... {0}");
+		case EGLTFTaskPriority::Material:  return NSLOCTEXT("GLTFExporter", "MaterialTaskMessage", "Materials... {0}");
+		case EGLTFTaskPriority::Texture:   return NSLOCTEXT("GLTFExporter", "TextureTaskMessage", "Textures... {0}");
 		default:                           checkNoEntry();
 	}
 
