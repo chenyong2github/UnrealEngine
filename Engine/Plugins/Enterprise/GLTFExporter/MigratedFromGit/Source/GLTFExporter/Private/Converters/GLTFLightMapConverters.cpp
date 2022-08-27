@@ -35,7 +35,7 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponen
 		return FGLTFJsonLightMapIndex(INDEX_NONE);
 	}
 
-	const int32 LightMapLODIndex = 0; // TODO: why is this zero?
+	constexpr int32 LightMapLODIndex = 0; // TODO: why is this zero?
 
 	if (!StaticMeshComponent->LODData.IsValidIndex(LightMapLODIndex))
 	{

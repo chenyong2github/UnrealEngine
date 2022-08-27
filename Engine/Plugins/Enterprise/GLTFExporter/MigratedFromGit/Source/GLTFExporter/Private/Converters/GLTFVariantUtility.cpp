@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFVariantUtility.h"
+#include "Builders/GLTFConvertBuilder.h"
 #include "LevelVariantSets.h"
 #include "VariantSet.h"
 #include "Variant.h"
@@ -67,4 +68,19 @@ FString FGLTFVariantUtility::GetLogContext(const UVariantSet* VariantSet)
 FString FGLTFVariantUtility::GetLogContext(const ULevelVariantSets* LevelVariantSets)
 {
 	return LevelVariantSets->GetName();
+}
+
+FGLTFJsonMaterialIndex FGLTFVariantUtility::GetOrAddMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
+{
+	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
+	{
+		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
+		{
+			return Builder.GetOrAddMaterial(Material, MeshComponent, -1, MaterialIndex);
+		}
+
+		// TODO: report warning (about materials won't be export using mesh data because BakeMaterialInputs is not set to UseMeshData)
+	}
+
+	return Builder.GetOrAddMaterial(Material);
 }

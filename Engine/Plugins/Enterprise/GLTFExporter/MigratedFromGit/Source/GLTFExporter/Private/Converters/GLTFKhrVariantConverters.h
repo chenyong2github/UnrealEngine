@@ -17,5 +17,4 @@ class FGLTFKhrMaterialVariantConverter final : public FGLTFBuilderContext, publi
 	virtual FGLTFJsonKhrMaterialVariantIndex Convert(const UVariant* Variant) override;
 
 	bool TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterialIndex& OutMaterialIndex, const UPropertyValue* Property) const;
-	FGLTFJsonMaterialIndex GetResolvedMaterialForComponent(const UMaterialInterface* Material, int32 MaterialIndex, const UMeshComponent* MeshComponent) const;
 };

@@ -135,7 +135,7 @@ void FGLTFStaticMeshTask::Complete()
 	}
 
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
-		Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
+		Builder.GetOrAddMeshData(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
 #if WITH_EDITOR
 	if (MeshData != nullptr)
@@ -239,7 +239,7 @@ void FGLTFSkeletalMeshTask::Complete()
 	}
 
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
-		Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
+		Builder.GetOrAddMeshData(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
 #if WITH_EDITOR
 	if (MeshData != nullptr)

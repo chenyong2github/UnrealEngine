@@ -164,47 +164,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(MeshComponent);
 
 	OutPrimitive = &Builder.GetMesh(MeshIndex).Primitives[MaterialIndex];
-	OutMaterialIndex = GetResolvedMaterialForComponent(Material, MaterialIndex, MeshComponent);
+	OutMaterialIndex = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, MeshComponent, MaterialIndex);
 
 	return true;
-}
-
-FGLTFJsonMaterialIndex FGLTFKhrMaterialVariantConverter::GetResolvedMaterialForComponent(const UMaterialInterface* Material, int32 MaterialIndex, const UMeshComponent* MeshComponent) const
-{
-	const FGLTFMeshData* MeshData = nullptr;
-	FGLTFIndexArray SectionIndices;
-
-	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
-	{
-		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
-		{
-			const int32 DefaultLODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
-
-			if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
-			{
-				const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-				const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, DefaultLODIndex);
-				const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
-
-				SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
-				MeshData = Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex);
-			}
-			else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
-			{
-				const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-				const int32 LODIndex = FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, DefaultLODIndex);
-				const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-				const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
-
-				SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
-				MeshData = Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex);
-			}
-		}
-		else
-		{
-			// TODO: report warning (about materials won't be exported using mesh data because BakeMaterialInputs is not set to UseMeshData)
-		}
-	}
-
-	return Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
 }
