@@ -452,11 +452,16 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, EMateri
 		return false;
 	}
 
+	if (MaterialInput->UseConstant)
+	{
+		OutValue = { MaterialInput->Constant };
+		return true;
+	}
+
 	const UMaterialExpression* Expression = MaterialInput->Expression;
 	if (Expression == nullptr)
 	{
-		// TODO: is this assumption correct?
-		OutValue = { MaterialInput->Constant };
+		OutValue = FLinearColor(FGLTFMaterialUtility::GetPropertyDefaultValue(MaterialProperty));
 		return true;
 	}
 
@@ -553,11 +558,16 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, EMaterialProp
 		return false;
 	}
 
+	if (MaterialInput->UseConstant)
+	{
+		OutValue = MaterialInput->Constant;
+		return true;
+	}
+
 	const UMaterialExpression* Expression = MaterialInput->Expression;
 	if (Expression == nullptr)
 	{
-		// TODO: is this assumption correct?
-		OutValue = MaterialInput->Constant;
+		OutValue = FGLTFMaterialUtility::GetPropertyDefaultValue(MaterialProperty).X;
 		return true;
 	}
 
