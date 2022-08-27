@@ -4,6 +4,7 @@
 #include "Converters/GLTFSkinWeightVertexBufferHack.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
+#include "Math/NumericLimits.h"
 
 FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FPositionVertexBuffer* VertexBuffer)
 {
@@ -190,6 +191,8 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuil
 		{
 			// TODO: remove hack
 			const uint32 BoneIndex = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneIndex(VertexIndex, InfluenceOffset + InfluenceIndex);
+			check(BoneIndex <= TNumericLimits<IndexType>::Max());
+
 			BoneIndices[VertexIndex].Index[InfluenceIndex] = static_cast<IndexType>(BoneIndex);
 		}
 
