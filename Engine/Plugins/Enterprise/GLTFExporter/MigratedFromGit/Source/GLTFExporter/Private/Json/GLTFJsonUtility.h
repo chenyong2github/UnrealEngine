@@ -56,4 +56,11 @@ struct FGLTFJsonUtility
 		FString ExactStringRepresentation = FString::Printf(TEXT("%.9g"), Value);
 		JsonWriter.WriteRawJSONValue(ExactStringRepresentation);
 	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+    static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, const FString& Identifier, float Value)
+	{
+		FString ExactStringRepresentation = FString::Printf(TEXT("%.9g"), Value);
+		JsonWriter.WriteRawJSONValue(Identifier, ExactStringRepresentation);
+	}
 };
