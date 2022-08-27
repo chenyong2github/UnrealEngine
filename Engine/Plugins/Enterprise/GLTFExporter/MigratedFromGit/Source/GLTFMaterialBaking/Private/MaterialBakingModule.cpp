@@ -294,6 +294,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		FMaterialDataEx& MaterialDataEx = MaterialDataExs.AddDefaulted_GetRef();
 		MaterialDataEx.Material = MaterialData->Material;
 		MaterialDataEx.bPerformBorderSmear = MaterialData->bPerformBorderSmear;
+		MaterialDataEx.BlendMode = MaterialData->BlendMode;
 
 		for (const TPair<EMaterialProperty, FIntPoint>& PropertySizePair : MaterialData->PropertySizes)
 		{
@@ -439,7 +440,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			for (TMap<FMaterialPropertyEx, FIntPoint>::TConstIterator PropertySizeIterator = CurrentMaterialSettings->PropertySizes.CreateConstIterator(); PropertySizeIterator; ++PropertySizeIterator)
 			{
 				// They will be stored in the pool and compiled asynchronously
-				CreateMaterialProxy(CurrentMaterialSettings->Material, PropertySizeIterator.Key());
+				CreateMaterialProxy(*CurrentMaterialSettings, PropertySizeIterator.Key());
 			}
 		}
 	}
@@ -499,7 +500,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
 				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
-				FExportMaterialProxy* ExportMaterialProxy = CreateMaterialProxy(CurrentMaterialSettings->Material, Property);
+				FExportMaterialProxy* ExportMaterialProxy = CreateMaterialProxy(*CurrentMaterialSettings, Property);
 
 				if (!ExportMaterialProxy->IsCompilationFinished())
 				{
@@ -773,7 +774,7 @@ UTextureRenderTarget2D* FMaterialBakingModule::CreateRenderTarget(bool bInForceL
 	return RenderTarget;
 }
 
-FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterface* Material, const FMaterialPropertyEx& Property)
+FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(const FMaterialDataEx& MatSettings, const FMaterialPropertyEx& Property)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::CreateMaterialProxy)
 
@@ -781,12 +782,12 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 
 	// Find all pooled material proxy matching this material
 	TArray<FMaterialPoolValue> Entries;
-	MaterialProxyPool.MultiFind(Material, Entries);
+	MaterialProxyPool.MultiFind(MatSettings.Material, Entries);
 
 	// Look for the matching property
 	for (FMaterialPoolValue& Entry : Entries)
 	{
-		if (Entry.Key == Property)
+		if (Entry.Key == Property && Entry.Value->GetBlendMode() == MatSettings.BlendMode)
 		{
 			Proxy = Entry.Value;
 			break;
@@ -796,8 +797,8 @@ FExportMaterialProxy* FMaterialBakingModule::CreateMaterialProxy(UMaterialInterf
 	// Not found, create a new entry
 	if (Proxy == nullptr)
 	{
-		Proxy = new FExportMaterialProxy(Material, Property.Type, Property.CustomOutput.ToString(), false /* bInSynchronousCompilation */);
-		MaterialProxyPool.Add(Material, FMaterialPoolValue(Property, Proxy));
+		Proxy = new FExportMaterialProxy(MatSettings.Material, Property.Type, Property.CustomOutput.ToString(), false /* bInSynchronousCompilation */, MatSettings.BlendMode);
+		MaterialProxyPool.Add(MatSettings.Material, FMaterialPoolValue(Property, Proxy));
 	}
 
 	return Proxy;
