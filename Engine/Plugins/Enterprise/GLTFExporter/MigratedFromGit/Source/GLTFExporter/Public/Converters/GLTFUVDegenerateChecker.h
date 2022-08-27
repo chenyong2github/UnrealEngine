@@ -14,8 +14,6 @@ class GLTFEXPORTER_API FGLTFUVDegenerateChecker : public TGLTFConverter<float, c
 {
 protected:
 
-	virtual void Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord) override;
-
 	virtual float Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord) override;
 
 private:
