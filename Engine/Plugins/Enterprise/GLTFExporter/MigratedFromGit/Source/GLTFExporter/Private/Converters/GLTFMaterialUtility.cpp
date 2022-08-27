@@ -513,7 +513,7 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 		MP_AmbientOcclusion,
 		MP_CustomData0,
 		MP_CustomData1,
-		{ MP_CustomOutput, FName(TEXT("ClearCoatBottomNormal")) },
+		TEXT("ClearCoatBottomNormal"),
 	};
 
 	bool bRequiresVertexData = false;
@@ -546,7 +546,7 @@ void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InM
 	// TODO: use a shared UGLTFMaterialAnalyzer instance instead of creating a new one for each invocation
 
 	UGLTFMaterialAnalyzer* Analyzer = NewObject<UGLTFMaterialAnalyzer>();
-	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty, OutMaterialStatistics);
+	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutMaterialStatistics);
 }
 
 const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const UMaterialInterface* Material)
