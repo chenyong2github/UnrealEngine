@@ -6,7 +6,8 @@
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 
-FGLTFMessageBuilder::FGLTFMessageBuilder()
+FGLTFMessageBuilder::FGLTFMessageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
+	: FGLTFBuilder(FilePath, ExportOptions)
 {
 }
 

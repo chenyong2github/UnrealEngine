@@ -4,12 +4,13 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-FGLTFBufferBuilder::FGLTFBufferBuilder()
+FGLTFBufferBuilder::FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
+	: FGLTFJsonBuilder(FilePath, ExportOptions)
 {
 	BufferIndex = AddBuffer();
 }
 
-bool FGLTFBufferBuilder::Serialize(FArchive& Archive, const FString& FilePath)
+bool FGLTFBufferBuilder::Serialize(FArchive& Archive)
 {
 	const FString BinaryFilePath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
 

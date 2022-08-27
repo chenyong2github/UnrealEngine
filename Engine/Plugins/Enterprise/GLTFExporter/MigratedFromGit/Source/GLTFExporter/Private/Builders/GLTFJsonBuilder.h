@@ -9,7 +9,7 @@ class FGLTFJsonBuilder : public FGLTFMessageBuilder
 {
 protected:
 
-	FGLTFJsonBuilder();
+	FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
 	bool Serialize(FArchive& Archive);
 

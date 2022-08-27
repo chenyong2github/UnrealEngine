@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Builders/GLTFBuilder.h"
+
 enum class EGLTFMessageSeverity
 {
 	Info,
@@ -9,11 +11,11 @@ enum class EGLTFMessageSeverity
 	Error
 };
 
-class FGLTFMessageBuilder
+class FGLTFMessageBuilder : public FGLTFBuilder
 {
 protected:
 
-	FGLTFMessageBuilder();
+	FGLTFMessageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
 public:
 

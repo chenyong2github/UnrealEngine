@@ -2,14 +2,14 @@
 
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFContainerBuilder::FGLTFContainerBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
-	: FGLTFConvertBuilder(ExportOptions, bSelectedActorsOnly)
+FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
+	: FGLTFConvertBuilder(FilePath, ExportOptions, bSelectedActorsOnly)
 {
 }
 
-bool FGLTFContainerBuilder::Serialize(FArchive& Archive, const FString& FilePath)
+bool FGLTFContainerBuilder::Serialize(FArchive& Archive)
 {
-	return FGLTFImageBuilder::Serialize(FilePath)
-		&& FGLTFBufferBuilder::Serialize(Archive, FilePath)
+	return FGLTFImageBuilder::Serialize()
+		&& FGLTFBufferBuilder::Serialize(Archive)
 		&& FGLTFJsonBuilder::Serialize(Archive);
 }
