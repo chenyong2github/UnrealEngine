@@ -9,16 +9,26 @@ FGLTFBufferBuilder::FGLTFBufferBuilder()
 	BufferIndex = AddBuffer(FGLTFJsonBuffer());
 }
 
-FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, uint8 DataAlignment, EGLTFJsonBufferTarget BufferTarget)
 {
+	uint64 ByteOffset = BufferData.Num();
+
+	// Data offset must be a multiple of the size of the glTF component type (given by ByteAlignment).
+	const uint8 Padding = (DataAlignment - (ByteOffset % DataAlignment)) % DataAlignment;
+	if (Padding > 0)
+	{
+		ByteOffset += Padding;
+		BufferData.AddZeroed(Padding);
+	}
+
+	BufferData.Append(static_cast<const uint8*>(RawData), ByteLength);
+
 	FGLTFJsonBufferView JsonBufferView;
 	JsonBufferView.Name = Name;
 	JsonBufferView.Buffer = BufferIndex;
-	JsonBufferView.ByteOffset = BufferData.Num();
+	JsonBufferView.ByteOffset = ByteOffset;
 	JsonBufferView.ByteLength = ByteLength;
 	JsonBufferView.Target = BufferTarget;
-
-	BufferData.Append(static_cast<const uint8*>(RawData), ByteLength);
 
 	return FGLTFJsonBuilder::AddBufferView(JsonBufferView);
 }
