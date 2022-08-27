@@ -64,17 +64,20 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 			CameraControl.MaxPitch = CameraActor->PitchAngleMax;
 			CameraControl.MinPitch = CameraActor->PitchAngleMin;
 
-			// Transform yaw limits to match right-handed system and glTF specification for cameras, i.e
-			// positive rotation is CCW, and camera looks down Z- (instead of X+).
-			const float MaxYaw = FMath::Max(-CameraActor->YawAngleMin, -CameraActor->YawAngleMax) - 90.0f;
-			const float MinYaw = FMath::Min(-CameraActor->YawAngleMin, -CameraActor->YawAngleMax) - 90.0f;
+			if (CameraActor->UsesYawLimits())
+			{
+				// Transform yaw limits to match right-handed system and glTF specification for cameras, i.e
+				// positive rotation is CCW, and camera looks down Z- (instead of X+).
+				const float MaxYaw = FMath::Max(-CameraActor->YawAngleMin, -CameraActor->YawAngleMax) - 90.0f;
+				const float MinYaw = FMath::Min(-CameraActor->YawAngleMin, -CameraActor->YawAngleMax) - 90.0f;
 
-			// We prefer the limits to be in the 0..360 range, but we only use MaxYaw to calculate
-			// the needed offset since we need to keep both limits a fixed distance apart from each other.
-			const float PositiveRangeOffset = FRotator::ClampAxis(MaxYaw) - MaxYaw;
+				// We prefer the limits to be in the 0..360 range, but we only use MaxYaw to calculate
+				// the needed offset since we need to keep both limits a fixed distance apart from each other.
+				const float PositiveRangeOffset = FRotator::ClampAxis(MaxYaw) - MaxYaw;
 
-			CameraControl.MaxYaw = MaxYaw + PositiveRangeOffset;
-			CameraControl.MinYaw = MinYaw + PositiveRangeOffset;
+				CameraControl.MaxYaw = MaxYaw + PositiveRangeOffset;
+				CameraControl.MinYaw = MinYaw + PositiveRangeOffset;
+			}
 
 			CameraControl.RotationSensitivity = CameraActor->RotationSensitivity;
 			CameraControl.RotationInertia = CameraActor->RotationInertia;
