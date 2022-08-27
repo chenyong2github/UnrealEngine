@@ -39,7 +39,10 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"Mainframe",
 					"InputCore",
-					"EditorStyle"
+					"EditorStyle",
+					"RenderCore",
+					"RHI",
+					"MaterialBaking"
 				}
 				);
 
