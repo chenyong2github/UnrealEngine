@@ -12,3 +12,14 @@ bool FGLTFConverterUtility::IsHDRIBackdropBlueprint(const UBlueprint* Blueprint)
 {
 	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/HDRIBackdrop/Blueprints/HDRIBackdrop.HDRIBackdrop"));
 }
+
+bool FGLTFConverterUtility::IsSelected(const UActorComponent* ActorComponent)
+{
+	if (ActorComponent == nullptr)
+	{
+		return false;
+	}
+
+	const AActor* Owner = ActorComponent->GetOwner();
+	return Owner != nullptr && Owner->IsSelected();
+}

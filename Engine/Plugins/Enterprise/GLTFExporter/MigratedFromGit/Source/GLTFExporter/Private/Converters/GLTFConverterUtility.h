@@ -98,4 +98,6 @@ struct FGLTFConverterUtility
 	static bool IsSkySphereBlueprint(const UBlueprint* Blueprint);
 
 	static bool IsHDRIBackdropBlueprint(const UBlueprint* Blueprint);
+
+	static bool IsSelected(const UActorComponent* ActorComponent);
 };
