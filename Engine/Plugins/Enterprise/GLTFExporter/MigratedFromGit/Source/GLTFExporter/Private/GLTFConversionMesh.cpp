@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GLTFMeshConverter.h"
+#include "GLTFConversionMesh.h"
 #include "GLTFConversionUtilities.h"
 
-FGLTFConvertedSection::FGLTFConvertedSection(const FString& SectionName, const FStaticMeshLODResources& LODMesh, int32 SectionIndex)
+FGLTFConversionSection::FGLTFConversionSection(const FString& SectionName, const FStaticMeshLODResources& LODMesh, int32 SectionIndex)
 	: Name(SectionName)
 {
 	FIndexArrayView RawIndices = LODMesh.IndexBuffer.GetArrayView();
@@ -18,7 +18,7 @@ FGLTFConvertedSection::FGLTFConvertedSection(const FString& SectionName, const F
 	}
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedSection::AppendAccessorForIndices(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionSection::AppendAccessorForIndices(FGLTFContainer& Container) const
 {
 	if (Indices.Num() == 0)
 	{
@@ -26,7 +26,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedSection::AppendAccessorForIndices(FGLTFJson
 	}
 
 	const FString AttributeName = Name + TEXT("_Indices");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(Indices, AttributeName, EGLTFJsonBufferTarget::ElementArrayBuffer);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(Indices, AttributeName, EGLTFJsonBufferTarget::ElementArrayBuffer);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -35,10 +35,10 @@ FGLTFJsonAccessorIndex FGLTFConvertedSection::AppendAccessorForIndices(FGLTFJson
 	Accessor.Count = Indices.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Scalar;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFConvertedMesh::FGLTFConvertedMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
+FGLTFConversionMesh::FGLTFConversionMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	StaticMesh->GetName(Name);
 
@@ -48,7 +48,7 @@ FGLTFConvertedMesh::FGLTFConvertedMesh(const UStaticMesh* StaticMesh, int32 LODI
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 	{
 		FString SectionName = Name + TEXT("_Section") + FString::FromInt(SectionIndex);
-		Sections.Add(FGLTFConvertedSection(SectionName, LODMesh, SectionIndex));
+		Sections.Add(FGLTFConversionSection(SectionName, LODMesh, SectionIndex));
 	}
 
 	const int32 PositionCount = LODMesh.VertexBuffers.PositionVertexBuffer.GetNumVertices();
@@ -101,7 +101,7 @@ FGLTFConvertedMesh::FGLTFConvertedMesh(const UStaticMesh* StaticMesh, int32 LODI
 	BoundingBox = StaticMesh->GetBoundingBox();
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForPositions(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForPositions(FGLTFContainer& Container) const
 {
 	if (Positions.Num() == 0)
 	{
@@ -109,7 +109,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForPositions(FGLTFJsonR
 	}
 
 	const FString AttributeName = Name + TEXT("_Positions");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(Positions, AttributeName);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(Positions, AttributeName);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -128,10 +128,10 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForPositions(FGLTFJsonR
 	Accessor.Min[2] = Min.Z;
 	Accessor.MinMaxLength = 3;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForNormals(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForNormals(FGLTFContainer& Container) const
 {
 	if (Normals.Num() == 0)
 	{
@@ -139,7 +139,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForNormals(FGLTFJsonRoo
 	}
 
 	const FString AttributeName = Name + TEXT("_Normals");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(Normals, AttributeName);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(Normals, AttributeName);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -148,10 +148,10 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForNormals(FGLTFJsonRoo
 	Accessor.Count = Normals.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec3;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForColors(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForColors(FGLTFContainer& Container) const
 {
 	if (Colors.Num() == 0)
 	{
@@ -159,7 +159,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForColors(FGLTFJsonRoot
 	}
 
 	const FString AttributeName = Name + TEXT("_Colors");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(Colors, AttributeName);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(Colors, AttributeName);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -168,10 +168,10 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForColors(FGLTFJsonRoot
 	Accessor.Count = Colors.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec4;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForTangents(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForTangents(FGLTFContainer& Container) const
 {
 	if (Tangents.Num() == 0)
 	{
@@ -179,7 +179,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForTangents(FGLTFJsonRo
 	}
 
 	const FString AttributeName = Name + TEXT("_Tangents");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(Tangents, AttributeName);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(Tangents, AttributeName);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -188,10 +188,10 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForTangents(FGLTFJsonRo
 	Accessor.Count = Tangents.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec4;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForUV0s(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForUV0s(FGLTFContainer& Container) const
 {
 	if (UV0s.Num() == 0)
 	{
@@ -199,7 +199,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForUV0s(FGLTFJsonRoot& 
 	}
 
 	const FString AttributeName = Name + TEXT("_UV0s");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(UV0s, AttributeName);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(UV0s, AttributeName);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -208,10 +208,10 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForUV0s(FGLTFJsonRoot& 
 	Accessor.Count = UV0s.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec2;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForUV1s(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForUV1s(FGLTFContainer& Container) const
 {
 	if (UV1s.Num() == 0)
 	{
@@ -219,7 +219,7 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForUV1s(FGLTFJsonRoot& 
 	}
 
 	const FString AttributeName = Name + TEXT("_UV1s");
-	FGLTFJsonBufferViewIndex BufferViewIndex = BufferBuilder.AppendBufferView(UV1s, AttributeName);
+	FGLTFJsonBufferViewIndex BufferViewIndex = Container.AppendBufferView(UV1s, AttributeName);
 
 	FGLTFJsonAccessor Accessor;
 	Accessor.Name = AttributeName;
@@ -228,30 +228,30 @@ FGLTFJsonAccessorIndex FGLTFConvertedMesh::AppendAccessorForUV1s(FGLTFJsonRoot& 
 	Accessor.Count = UV1s.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec2;
 
-	return Root.Accessors.Add(Accessor);
+	return Container.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonMeshIndex FGLTFConvertedMesh::AppendMesh(FGLTFJsonRoot& Root, FGLTFBufferBuilder& BufferBuilder) const
+FGLTFJsonMeshIndex FGLTFConversionMesh::AppendMesh(FGLTFContainer& Container) const
 {
 	FGLTFJsonMesh Mesh;
 	Mesh.Name = Name;
 
 	FGLTFJsonAttributes Attributes;
-	Attributes.Position = AppendAccessorForPositions(Root, BufferBuilder);
-	Attributes.Color0 = AppendAccessorForColors(Root, BufferBuilder);
-	Attributes.Normal = AppendAccessorForNormals(Root, BufferBuilder);
-	Attributes.Tangent = AppendAccessorForTangents(Root, BufferBuilder);
-	Attributes.TexCoord0 = AppendAccessorForUV0s(Root, BufferBuilder);
-	Attributes.TexCoord1 = AppendAccessorForUV1s(Root, BufferBuilder);
+	Attributes.Position = AppendAccessorForPositions(Container);
+	Attributes.Color0 = AppendAccessorForColors(Container);
+	Attributes.Normal = AppendAccessorForNormals(Container);
+	Attributes.Tangent = AppendAccessorForTangents(Container);
+	Attributes.TexCoord0 = AppendAccessorForUV0s(Container);
+	Attributes.TexCoord1 = AppendAccessorForUV1s(Container);
 
-	for (const FGLTFConvertedSection& Section : Sections)
+	for (const FGLTFConversionSection& Section : Sections)
 	{
 		FGLTFJsonPrimitive Primitive;
 		Primitive.Attributes = Attributes;
 
-		Primitive.Indices = Section.AppendAccessorForIndices(Root, BufferBuilder);
+		Primitive.Indices = Section.AppendAccessorForIndices(Container);
 		Mesh.Primitives.Add(Primitive);
 	}
 
-	return Root.Meshes.Add(Mesh);
+	return Container.JsonRoot.Meshes.Add(Mesh);
 }
