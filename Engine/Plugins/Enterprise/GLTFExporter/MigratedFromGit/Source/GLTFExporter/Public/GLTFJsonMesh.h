@@ -31,7 +31,7 @@ struct GLTFEXPORTER_API FGLTFJsonAttributes
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -63,12 +63,12 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("attributes"));
-		Attributes.Write(JsonWriter);
+		Attributes.WriteObject(JsonWriter);
 
 		if (Indices != INDEX_NONE) JsonWriter.WriteValue(TEXT("indices"), Indices);
 		if (Material != INDEX_NONE) JsonWriter.WriteValue(TEXT("material"), Material);
@@ -85,7 +85,7 @@ struct GLTFEXPORTER_API FGLTFJsonMesh
 	TArray<FGLTFJsonPrimitive> Primitives;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -94,7 +94,7 @@ struct GLTFEXPORTER_API FGLTFJsonMesh
 		JsonWriter.WriteArrayStart(TEXT("primitives"));
 		for (const FGLTFJsonPrimitive& Primitive : Primitives)
 		{
-			Primitive.Write(JsonWriter);
+			Primitive.WriteObject(JsonWriter);
 		}
 		JsonWriter.WriteArrayEnd();
 

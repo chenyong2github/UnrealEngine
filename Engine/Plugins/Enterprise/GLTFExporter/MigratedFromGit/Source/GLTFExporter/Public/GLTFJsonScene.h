@@ -12,7 +12,7 @@ struct GLTFEXPORTER_API FGLTFJsonScene
 	TArray<FGLTFJsonNodeIndex> Nodes;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
