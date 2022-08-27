@@ -86,7 +86,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	*/
 
-	if (Material->Normal.Expression != nullptr)
+	if (IsPropertyNonDefault(Material->Normal, MaterialInterface))
 	{
 		if (!TryGetSourceTexture(Builder, JsonMaterial.NormalTexture, Material->Normal, MaterialInterface, { RgbaMask, RgbMask }))
 		{
@@ -97,7 +97,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		}
 	}
 
-	if (Material->AmbientOcclusion.Expression != nullptr)
+	if (IsPropertyNonDefault(Material->AmbientOcclusion, MaterialInterface))
 	{
 		if (!TryGetSourceTexture(Builder, JsonMaterial.OcclusionTexture, Material->AmbientOcclusion, MaterialInterface, { RMask }))
 		{
@@ -388,6 +388,23 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	return true;
 }
 
+bool FGLTFMaterialConverter::IsPropertyNonDefault(const FExpressionInput& MaterialInput, const UMaterialInterface* MaterialInterface) const
+{
+	const bool bUseMaterialAttributes = MaterialInterface->GetMaterial()->bUseMaterialAttributes;
+	if (bUseMaterialAttributes)
+	{
+		return true;
+	}
+
+	const UMaterialExpression* Expression = MaterialInput.Expression;
+	if (Expression == nullptr)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool FGLTFMaterialConverter::TryGetConstantColor(FGLTFJsonColor3& OutValue, const FColorMaterialInput& MaterialInput, const UMaterialInterface* MaterialInterface) const
 {
 	FLinearColor Value;
@@ -415,6 +432,12 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FGLTFJsonColor4& OutValue, cons
 bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, const FColorMaterialInput& MaterialInput, const UMaterialInterface* MaterialInterface) const
 {
 	// TODO: handle emissive color-values above 1.0
+
+	const bool bUseMaterialAttributes = MaterialInterface->GetMaterial()->bUseMaterialAttributes;
+	if (bUseMaterialAttributes)
+	{
+		return false;
+	}
 
 	const UMaterialExpression* Expression = MaterialInput.Expression;
 	if (Expression == nullptr)
@@ -504,6 +527,12 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, const F
 
 bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalarMaterialInput& MaterialInput, const UMaterialInterface* MaterialInterface) const
 {
+	const bool bUseMaterialAttributes = MaterialInterface->GetMaterial()->bUseMaterialAttributes;
+	if (bUseMaterialAttributes)
+	{
+		return false;
+	}
+
 	const UMaterialExpression* Expression = MaterialInput.Expression;
 	if (Expression == nullptr)
 	{
