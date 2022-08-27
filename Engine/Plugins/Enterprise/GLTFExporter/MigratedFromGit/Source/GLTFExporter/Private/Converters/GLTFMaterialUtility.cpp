@@ -117,14 +117,17 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		}
 	}
 
-	return
+	FGLTFPropertyBakeOutput PropertyBakeOutput(MaterialProperty, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
+
+	if (BakedPixels.Num() == 1)
 	{
-		MaterialProperty,
-		PF_B8G8R8A8,
-		BakedPixels,
-		BakedSize,
-		EmissiveScale
-	};
+		const FColor& Pixel = BakedPixels[0];
+
+		PropertyBakeOutput.bIsConstant = true;
+		PropertyBakeOutput.ConstantValue = Pixel;
+	}
+
+	return PropertyBakeOutput;
 }
 
 UTexture2D* FGLTFMaterialUtility::BakeMaterialPropertyToTexture(const FIntPoint& OutputSize, EMaterialProperty MaterialProperty, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel, bool bUseSRGB)

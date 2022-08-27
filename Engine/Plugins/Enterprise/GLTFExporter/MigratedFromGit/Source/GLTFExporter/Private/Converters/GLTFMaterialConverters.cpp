@@ -45,7 +45,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		{
 			if (!TryGetSourceTexture(Builder, JsonMaterial.PBRMetallicRoughness.BaseColorTexture, Material->BaseColor, MaterialInstance, { RgbaMask, RgbMask }))
 			{
-				if (!TryGetBakedTexture(Builder, JsonMaterial.PBRMetallicRoughness.BaseColorTexture, MP_BaseColor, MaterialInterface))
+				if (!TryGetBakedMaterialProperty(Builder, JsonMaterial.PBRMetallicRoughness.BaseColorTexture, JsonMaterial.PBRMetallicRoughness.BaseColorFactor, MP_BaseColor, MaterialInterface))
 				{
 					// TODO: handle failure?
 				}
@@ -66,16 +66,23 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	/*
 	if (!TryGetConstantColor(JsonMaterial.EmissiveFactor, Material->EmissiveColor, MaterialInstance))
 	{
-		const bool bTextureFound = TryGetSourceTexture(Builder, JsonMaterial.EmissiveTexture, Material->EmissiveColor, MaterialInstance, { RgbaMask, RgbMask }) ||
-			TryGetBakedTexture(Builder, JsonMaterial.EmissiveTexture, MP_EmissiveColor, MaterialInterface);
-
-		if (bTextureFound)
+		if (!TryGetSourceTexture(Builder, JsonMaterial.EmissiveTexture, Material->EmissiveColor, MaterialInstance, { RgbaMask, RgbMask }))
 		{
-			JsonMaterial.EmissiveFactor = FGLTFJsonColor3::White; // make sure texture is not multiplied with black
+			if (TryGetBakedMaterialProperty(Builder, JsonMaterial.EmissiveTexture, JsonMaterial.EmissiveFactor, MP_EmissiveColor, MaterialInterface))
+			{
+				if (JsonMaterial.EmissiveTexture.Index != INDEX_NONE)
+				{
+					JsonMaterial.EmissiveFactor = FGLTFJsonColor3::White;	// make sure texture is not multiplied with black
+				}
+			}
+			else
+			{
+				// TODO: handle failure?
+			}
 		}
 		else
 		{
-			// TODO: handle failure?
+			JsonMaterial.EmissiveFactor = FGLTFJsonColor3::White;	// make sure texture is not multiplied with black
 		}
 	}
 	*/
@@ -84,7 +91,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	{
 		if (!TryGetSourceTexture(Builder, JsonMaterial.NormalTexture, Material->Normal, MaterialInstance, { RgbaMask, RgbMask }))
 		{
-			if (!TryGetBakedTexture(Builder, JsonMaterial.NormalTexture, MP_Normal, MaterialInterface))
+			if (!TryGetBakedMaterialProperty(Builder, JsonMaterial.NormalTexture, MP_Normal, MaterialInterface))
 			{
 				// TODO: handle failure?
 			}
@@ -95,7 +102,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	{
 		if (!TryGetSourceTexture(Builder, JsonMaterial.OcclusionTexture, Material->AmbientOcclusion, MaterialInstance, { RMask }))
 		{
-			if (!TryGetBakedTexture(Builder, JsonMaterial.OcclusionTexture, MP_AmbientOcclusion, MaterialInterface))
+			if (!TryGetBakedMaterialProperty(Builder, JsonMaterial.OcclusionTexture, MP_AmbientOcclusion, MaterialInterface))
 			{
 				// TODO: handle failure?
 			}
@@ -568,60 +575,6 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalar
 	return false;
 }
 
-bool FGLTFMaterialConverter::TryGetBakedTexture(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, EMaterialProperty MaterialProperty, const UMaterialInterface* MaterialInterface) const
-{
-	// TODO: make default baking-resolution configurable
-	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
-	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	const FIntPoint TextureSize(512, 512);
-	const uint32 TexCoord = 0;
-
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = FGLTFMaterialUtility::BakeMaterialProperty(
-		TextureSize,
-		MaterialProperty,
-		MaterialInterface);
-
-	// TODO: handle cases where PropertyBakeOutput.EmissiveScale is not 1.0 (when baking EmissiveColor)
-	// TODO: handle the case where TextureSize is 1x1, which means is could be stored in a constant instead of in a texture
-
-	TCHAR* PropertyName;
-
-	switch (MaterialProperty)
-	{
-		case MP_BaseColor: PropertyName = TEXT("BaseColor"); break;
-		case MP_Normal: PropertyName = TEXT("Normal"); break;
-		case MP_EmissiveColor: PropertyName = TEXT("Emissive"); break;
-		case MP_AmbientOcclusion: PropertyName = TEXT("Occlusion"); break;
-		default:
-			// TODO: support for more properties
-			return false;
-	}
-
-	const FString TextureName = MaterialInterface->GetName() + TEXT("_") + PropertyName;
-
-	// TODO: support for other wrapping / filters?
-	const EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::ClampToEdge;
-	const EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::ClampToEdge;
-	const EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
-	const EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
-
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
-		Builder,
-		PropertyBakeOutput.Pixels,
-		PropertyBakeOutput.Size,
-		TextureName,
-		PropertyBakeOutput.PixelFormat,
-		TextureMinFilter,
-		TextureMagFilter,
-		TextureWrapS,
-		TextureWrapT);
-
-	OutTexInfo.TexCoord = TexCoord;
-	OutTexInfo.Index = TextureIndex;
-
-	return true;
-}
-
 bool FGLTFMaterialConverter::TryGetSourceTexture(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, const FExpressionInput& MaterialInput, const UMaterialInstance* MaterialInstance, const TArray<FLinearColor>& AllowedMasks) const
 {
 	const UTexture2D* Texture;
@@ -708,4 +661,106 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 	}
 
 	return false;
+}
+
+bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor3& OutConstant, EMaterialProperty MaterialProperty, const UMaterialInterface* MaterialInterface) const
+{
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(MaterialProperty, MaterialInterface);
+
+	if (PropertyBakeOutput.bIsConstant)
+	{
+		// TODO: is this conversion between FColor & FLinearColor correct with regards to sRGB etc?
+		const FLinearColor ConstantValue = PropertyBakeOutput.ConstantValue;
+
+		OutConstant = FGLTFConverterUtility::ConvertColor(ConstantValue);
+		return true;
+	}
+	else
+	{
+		return StoreBakedPropertyTexture(Builder, OutTexInfo, PropertyBakeOutput, MaterialProperty, MaterialInterface);
+	}
+}
+
+bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor4& OutConstant, EMaterialProperty MaterialProperty, const UMaterialInterface* MaterialInterface) const
+{
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(MaterialProperty, MaterialInterface);
+
+	if (PropertyBakeOutput.bIsConstant)
+	{
+		// TODO: is this conversion between FColor & FLinearColor correct with regards to sRGB etc?
+		const FLinearColor ConstantValue = PropertyBakeOutput.ConstantValue;
+
+		OutConstant = FGLTFConverterUtility::ConvertColor(ConstantValue);
+		return true;
+	}
+	else
+	{
+		return StoreBakedPropertyTexture(Builder, OutTexInfo, PropertyBakeOutput, MaterialProperty, MaterialInterface);
+	}
+}
+
+bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, EMaterialProperty MaterialProperty, const UMaterialInterface* MaterialInterface) const
+{
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(MaterialProperty, MaterialInterface);
+	return StoreBakedPropertyTexture(Builder, OutTexInfo, PropertyBakeOutput, MaterialProperty, MaterialInterface);
+}
+
+FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialProperty MaterialProperty, const UMaterialInterface* MaterialInterface) const
+{
+	// TODO: handle cases where PropertyBakeOutput.EmissiveScale is not 1.0 (when baking EmissiveColor)
+	// TODO: make default baking-resolution configurable
+	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
+	const FIntPoint TextureSize(512, 512);
+
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = FGLTFMaterialUtility::BakeMaterialProperty(
+		TextureSize,
+		MaterialProperty,
+		MaterialInterface);
+
+	return PropertyBakeOutput;
+}
+
+bool FGLTFMaterialConverter::StoreBakedPropertyTexture(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, const FGLTFPropertyBakeOutput& PropertyBakeOutput, EMaterialProperty MaterialProperty, const UMaterialInterface* MaterialInterface) const
+{
+	// TODO: right now a constant property can be saved as a texture. Should we return false instead?
+
+	TCHAR* PropertyName;
+
+	switch (MaterialProperty)
+	{
+		case MP_BaseColor: PropertyName = TEXT("BaseColor"); break;
+		case MP_Normal: PropertyName = TEXT("Normal"); break;
+		case MP_EmissiveColor: PropertyName = TEXT("Emissive"); break;
+		case MP_AmbientOcclusion: PropertyName = TEXT("Occlusion"); break;
+		default:
+			// TODO: support for more properties
+			return false;
+	}
+
+	const FString TextureName = MaterialInterface->GetName() + TEXT("_") + PropertyName;
+
+	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
+	const uint32 TexCoord = 0;
+
+	// TODO: support for other wrapping / filters?
+	const EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::ClampToEdge;
+	const EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::ClampToEdge;
+	const EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	const EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
+
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+		Builder,
+		PropertyBakeOutput.Pixels,
+		PropertyBakeOutput.Size,
+		TextureName,
+		PropertyBakeOutput.PixelFormat,
+		TextureMinFilter,
+		TextureMagFilter,
+		TextureWrapS,
+		TextureWrapT);
+
+	OutTexInfo.TexCoord = TexCoord;
+	OutTexInfo.Index = TextureIndex;
+
+	return true;
 }

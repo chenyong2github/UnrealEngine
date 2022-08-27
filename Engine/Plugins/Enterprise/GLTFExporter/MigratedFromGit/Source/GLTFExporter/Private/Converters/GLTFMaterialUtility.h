@@ -19,7 +19,7 @@ struct FGLTFTextureCombineSource
 struct FGLTFPropertyBakeOutput
 {
 	FORCEINLINE FGLTFPropertyBakeOutput(EMaterialProperty Property, EPixelFormat PixelFormat, TArray<FColor>& Pixels, FIntPoint Size, float EmissiveScale)
-		: Property(Property), PixelFormat(PixelFormat), Pixels(Pixels), Size(Size), EmissiveScale(EmissiveScale)
+		: Property(Property), PixelFormat(PixelFormat), Pixels(Pixels), Size(Size), EmissiveScale(EmissiveScale), bIsConstant(false)
 	{}
 
 	EMaterialProperty Property;
@@ -27,6 +27,9 @@ struct FGLTFPropertyBakeOutput
 	TArray<FColor> Pixels;
 	FIntPoint Size;
 	float EmissiveScale;
+
+	bool bIsConstant;
+	FColor ConstantValue;
 };
 
 struct FGLTFMaterialUtility
