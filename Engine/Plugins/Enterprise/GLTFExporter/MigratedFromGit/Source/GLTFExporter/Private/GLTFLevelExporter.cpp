@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFLevelExporter.h"
+#include "GLTFSceneBuilder.h"
 #include "Engine/World.h"
 
 UGLTFLevelExporter::UGLTFLevelExporter(const FObjectInitializer& ObjectInitializer)
@@ -18,6 +19,8 @@ bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchi
 		// User cancelled the export
 		return false;
 	}
+
+	FGLTFSceneBuilder(World, bSelectedOnly)._DebugLog();
 
 	// TODO: implement
 	return true;
