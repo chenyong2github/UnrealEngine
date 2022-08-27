@@ -7,13 +7,6 @@
 
 FGLTFJsonLightMapIndex FGLTFLightMapConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UStaticMeshComponent* StaticMeshComponent)
 {
-	const AActor* Owner = StaticMeshComponent->GetOwner();
-	if (Owner == nullptr)
-	{
-		// TODO: report invalid mesh component
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
-	}
-
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 
 	if (StaticMesh == nullptr)
@@ -65,7 +58,7 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Add(FGLTFConvertBuilder& Builder,
 	const FVector4& LightMapScale = LightMapInteraction.GetScaleArray()[0];
 
 	FGLTFJsonLightMap JsonLightMap;
-	JsonLightMap.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + StaticMeshComponent->GetName() : Name;
+	JsonLightMap.Name = Name.IsEmpty() ? StaticMeshComponent->GetName() : Name;
 	JsonLightMap.Texture.Index = TextureIndex;
 	JsonLightMap.Texture.TexCoord = CoordinateIndex;
 	JsonLightMap.LightMapScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };
