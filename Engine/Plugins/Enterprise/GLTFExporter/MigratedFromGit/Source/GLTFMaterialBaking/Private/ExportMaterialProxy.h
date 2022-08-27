@@ -115,7 +115,10 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 
 	virtual int32 CameraVector() override
 	{
-		return Compiler->Constant3(0.0f, 0.0f, 1.0f);
+		// NOTE: by using VertexNormal instead of a fixed (world-space) vector, we allow
+		// more correct baking of materials that use the dot-product between the vertex normal
+		// and the camera vector for effects such as fresnel.
+		return Compiler->VertexNormal();
 	}
 
 	virtual int32 ReflectionAboutCustomWorldNormal(int32 CustomWorldNormal, int32 bNormalizeCustomWorldNormal) override
