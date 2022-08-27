@@ -111,7 +111,7 @@ struct FGLTFJsonPBRMetallicRoughness
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -165,9 +165,9 @@ struct FGLTFJsonMaterial
 	bool DoubleSided;
 
 	FGLTFJsonMaterial()
-        : EmissiveFactor(FGLTFJsonColor3::Black)
-        , AlphaMode(EGLTFJsonAlphaMode::Opaque)
-        , AlphaCutoff(0.5f)
+		: EmissiveFactor(FGLTFJsonColor3::Black)
+		, AlphaMode(EGLTFJsonAlphaMode::Opaque)
+		, AlphaCutoff(0.5f)
 		, DoubleSided(false)
 	{
 	}

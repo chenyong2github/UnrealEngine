@@ -13,7 +13,7 @@ class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
 public:
 
-    const bool bSelectedActorsOnly;
+	const bool bSelectedActorsOnly;
 
 	FGLTFConvertBuilder(bool bSelectedActorsOnly)
 		: bSelectedActorsOnly(bSelectedActorsOnly)
