@@ -7,6 +7,22 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Actors/GLTFInteractionHotspotActor.h"
 
+FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent* SceneComponent, FName SocketName)
+{
+	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(SceneComponent);
+
+	if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
+	{
+		// TODO: add support for SocketOverrideLookup?
+		const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
+		return Builder.GetOrAddNode(NodeIndex, SkeletalMesh, SocketName);
+	}
+
+	// TODO: add support for non-skeletalmesh sockets
+
+	return FGLTFJsonNodeIndex(INDEX_NONE);
+}
+
 FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* SceneComponent)
 {
 	const AActor* Owner = SceneComponent->GetOwner();

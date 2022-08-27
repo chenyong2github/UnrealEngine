@@ -13,6 +13,13 @@ class TGLTFNodeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGL
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
+class FGLTFComponentSocketConverter final : public TGLTFNodeConverter<const USceneComponent*, FName>
+{
+	using TGLTFNodeConverter::TGLTFNodeConverter;
+
+	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent, FName SocketName) override;
+};
+
 class FGLTFComponentConverter final : public TGLTFNodeConverter<const USceneComponent*>
 {
 	using TGLTFNodeConverter::TGLTFNodeConverter;

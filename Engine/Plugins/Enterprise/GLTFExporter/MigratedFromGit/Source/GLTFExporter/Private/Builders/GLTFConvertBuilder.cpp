@@ -229,6 +229,16 @@ FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode
 	return SkinConverter.GetOrAdd(RootNode, SkeletalMesh);
 }
 
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName)
+{
+	if (SceneComponent == nullptr || SocketName == NAME_None)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	return ComponentSocketConverter.GetOrAdd(SceneComponent, SocketName);
+}
+
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent)
 {
 	if (SceneComponent == nullptr)

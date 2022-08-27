@@ -55,6 +55,7 @@ public:
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex);
 	FGLTFJsonSkinIndex GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh);
 
+	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent);
 	FGLTFJsonNodeIndex GetOrAddNode(const AActor* Actor);
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level);
@@ -92,6 +93,7 @@ private:
 	FGLTFSkeletalBoneConverter SkeletalBoneConverter{ *this };
 	FGLTFSkinConverter SkinConverter{ *this };
 
+	FGLTFComponentSocketConverter ComponentSocketConverter{ *this };
 	FGLTFComponentConverter ComponentConverter{ *this };
 	FGLTFActorConverter ActorConverter{ *this };
 	FGLTFSceneConverter SceneConverter{ *this };
