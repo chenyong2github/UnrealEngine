@@ -176,7 +176,7 @@ void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
 {
 	if (ShapeBodySetup != nullptr)
 	{
-		// TODO: Figure out where this difference stems from
+		// TODO: Figure out why the bounding radius doesn't match the size of the billboard
 		const float Scaling = 0.15;
 		const float BillboardBoundingRadius = GetBillboardBoundingRadius() * Scaling;
 
