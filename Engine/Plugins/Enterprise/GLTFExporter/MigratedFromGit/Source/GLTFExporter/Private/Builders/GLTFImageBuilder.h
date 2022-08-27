@@ -12,8 +12,6 @@ protected:
 
 	FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
-	bool Serialize();
-
 public:
 
 	FGLTFJsonImageIndex AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
@@ -23,7 +21,12 @@ public:
 
 private:
 
-	TMap<FGLTFJsonImageIndex, TArray64<uint8>> ImageDataLookup;
+	FString SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
 
 	FGLTFJsonImageIndex FindImage(const void* CompressedData, int64 CompressedByteLength) const;
+
+	TMap<FGLTFJsonImageIndex, TArray64<uint8>> ImageDataLookup;
+
+	const FString ImageDirPath;
+	TSet<FString> UniqueImageUris;
 };
