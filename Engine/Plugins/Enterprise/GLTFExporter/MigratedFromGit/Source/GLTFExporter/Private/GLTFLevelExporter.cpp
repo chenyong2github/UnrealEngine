@@ -24,6 +24,5 @@ bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchi
 	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World, bSelectedOnly);
 	Builder.JsonRoot.DefaultScene = SceneIndex;
 
-	Builder.Serialize(Archive);
-	return true;
+	return Builder.Serialize(Archive, CurrentFilename);
 }
