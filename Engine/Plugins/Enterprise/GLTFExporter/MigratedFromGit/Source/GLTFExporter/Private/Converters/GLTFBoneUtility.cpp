@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFBoneUtility.h"
+#include "Sections/MovieScene3DTransformSection.h"
+
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 #include "Animation/AnimationPoseData.h"
 #endif
@@ -90,4 +92,25 @@ void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequenc
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	Attributes.Empty();
 #endif
+}
+
+const FMovieSceneDoubleChannel* FGLTFBoneUtility::GetTranslationChannels(const UMovieScene3DTransformSection* TransformSection)
+{
+	// TODO: fix ugly workaround hack in engine api to access channels without GetChannelProxy (which doesn't work properly in UE5)
+	static const FProperty* Property = UMovieScene3DTransformSection::StaticClass()->FindPropertyByName(TEXT("Translation"));
+	return Property->ContainerPtrToValuePtr<FMovieSceneDoubleChannel>(TransformSection);
+}
+
+const FMovieSceneDoubleChannel* FGLTFBoneUtility::GetRotationChannels(const UMovieScene3DTransformSection* TransformSection)
+{
+	// TODO: fix ugly workaround hack in engine api to access channels without GetChannelProxy (which doesn't work properly in UE5)
+	static const FProperty* Property = UMovieScene3DTransformSection::StaticClass()->FindPropertyByName(TEXT("Rotation"));
+	return Property->ContainerPtrToValuePtr<FMovieSceneDoubleChannel>(TransformSection);
+}
+
+const FMovieSceneDoubleChannel* FGLTFBoneUtility::GetScaleChannels(const UMovieScene3DTransformSection* TransformSection)
+{
+	// TODO: fix ugly workaround hack in engine api to access channels without GetChannelProxy (which doesn't work properly in UE5)
+	static const FProperty* Property = UMovieScene3DTransformSection::StaticClass()->FindPropertyByName(TEXT("Scale"));
+	return Property->ContainerPtrToValuePtr<FMovieSceneDoubleChannel>(TransformSection);
 }
