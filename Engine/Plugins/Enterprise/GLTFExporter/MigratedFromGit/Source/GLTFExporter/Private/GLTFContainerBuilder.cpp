@@ -4,13 +4,23 @@
 #include "GLTFMeshBuilder.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder()
-	: BufferBuilder(JsonRoot)
+	: BufferBuilder(AddBuffer(FGLTFJsonBuffer()))
 {
 }
 
 FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
 	return JsonRoot.Accessors.Add(JsonAccessor);
+}
+
+FGLTFJsonBufferIndex FGLTFContainerBuilder::AddBuffer(const FGLTFJsonBuffer& JsonBuffer)
+{
+	return JsonRoot.Buffers.Add(JsonBuffer);
+}
+
+FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddBufferView(const FGLTFJsonBufferView& JsonBufferView)
+{
+	return JsonRoot.BufferViews.Add(JsonBufferView);
 }
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const FGLTFJsonMesh& JsonMesh)
@@ -30,12 +40,13 @@ FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const FGLTFJsonScene& JsonSc
 
 FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
 {
-	return BufferBuilder.AddBufferView(RawData, ByteLength, Name, BufferTarget);
+	return BufferBuilder.AddBufferView(*this, RawData, ByteLength, Name, BufferTarget);
 }
 
 void FGLTFContainerBuilder::Serialize(FArchive& Archive)
 {
-	BufferBuilder.UpdateMergedBuffer();
+	FGLTFJsonBuffer& JsonBuffer = JsonRoot.Buffers[BufferBuilder.BufferIndex];
+	BufferBuilder.UpdateBuffer(JsonBuffer);
 	JsonRoot.Serialize(&Archive, true);
 }
 
