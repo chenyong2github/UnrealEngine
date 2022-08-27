@@ -32,8 +32,8 @@ enum class EGLTFExporterTextureSize : uint8
 	POT_8192 UMETA(DisplayName = "8192 x 8192")
 };
 
-UCLASS(config = EditorPerProjectUserSettings, MinimalAPI)
-class UGLTFExportOptions : public UObject
+UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
+class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -41,14 +41,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bBundleWebViewer : 1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Exporter)
+	uint32 bExportPreviewMesh : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
+	uint32 bExtensionsRequired : 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bEmbedVertexData : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	uint32 bExportVertexColor : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
-	uint32 bExportPreviewMesh : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
 	uint32 bExportUnlitMaterial : 1;
