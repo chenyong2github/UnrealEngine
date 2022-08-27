@@ -88,13 +88,13 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 				HotspotNode.Scale = ComponentNodeScale;
 
 				// TODO: use better / more unique name for the hotspot?
-				HotspotNode.InteractionHotspot = Builder.GetOrAddInteractionHotspot(HotspotComponent, Owner->GetName());
+				HotspotNode.Hotspot = Builder.GetOrAddHotspot(HotspotComponent, Owner->GetName());
 				Builder.AddChildComponentNode(NodeIndex, HotspotNode);
 			}
 			else
 			{
 				// TODO: use better / more unique name for the hotspot?
-				Node.InteractionHotspot = Builder.GetOrAddInteractionHotspot(HotspotComponent, Owner->GetName());
+				Node.Hotspot = Builder.GetOrAddHotspot(HotspotComponent, Owner->GetName());
 			}
 		}
 		else
