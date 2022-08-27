@@ -23,6 +23,16 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, int32& L
 	{
 		OverrideMaterials.Empty();
 	}
+
+	if (LODIndex >= 0 && StaticMesh->GetNumLODs() > LODIndex)
+	{
+		const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
+
+		if (OverrideVertexColors != nullptr && OverrideVertexColors == &MeshLOD.VertexBuffers.ColorVertexBuffer)
+		{
+			OverrideVertexColors = nullptr;
+		}
+	}
 }
 
 FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials)
@@ -100,6 +110,23 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, in
 	if (OverrideMaterials == SkeletalMesh->Materials)
 	{
 		OverrideMaterials.Empty();
+	}
+
+	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+
+	if (LODIndex >= 0 && RenderData->LODRenderData.Num() > LODIndex)
+	{
+		const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
+
+		if (OverrideVertexColors != nullptr && OverrideVertexColors == &MeshLOD.StaticVertexBuffers.ColorVertexBuffer)
+		{
+			OverrideVertexColors = nullptr;
+		}
+
+		if (OverrideSkinWeights != nullptr && OverrideSkinWeights == MeshLOD.GetSkinWeightVertexBuffer())
+		{
+			OverrideSkinWeights = nullptr;
+		}
 	}
 }
 
