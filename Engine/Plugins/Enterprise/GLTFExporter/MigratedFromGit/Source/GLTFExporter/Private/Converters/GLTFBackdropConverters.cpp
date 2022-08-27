@@ -43,8 +43,8 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-        // TODO: report error
-    }
+		// TODO: report error
+	}
 
 	float Intensity;
 	if (FGLTFActorUtility::TryGetPropertyValue(Actor, TEXT("Intensity"), Intensity))
