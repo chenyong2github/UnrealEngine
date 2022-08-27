@@ -9,8 +9,7 @@ class FGLTFBufferBuilder : public FGLTFJsonBuilder
 protected:
 
 	FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
-
-	bool Serialize(FArchive& Archive);
+	~FGLTFBufferBuilder();
 
 public:
 
@@ -24,8 +23,6 @@ public:
 
 private:
 
-	void UpdateJsonBufferObject(const FString& BinaryFilePath);
-
 	FGLTFJsonBufferIndex BufferIndex;
-	TArray64<uint8> BufferData;
+	TUniquePtr<FArchive> BufferArchive;
 };

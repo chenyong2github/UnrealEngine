@@ -7,36 +7,48 @@
 FGLTFBufferBuilder::FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFJsonBuilder(FilePath, ExportOptions)
 {
-	BufferIndex = AddBuffer();
-}
-
-bool FGLTFBufferBuilder::Serialize(FArchive& Archive)
-{
-	const FString BinaryFilePath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
-
-	if(!FFileHelper::SaveArrayToFile(BufferData, *BinaryFilePath))
+	const FString ExternalBinaryPath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
+	BufferArchive.Reset(IFileManager::Get().CreateFileWriter(*ExternalBinaryPath));
+	if (BufferArchive == nullptr)
 	{
 		// TODO: report error
-		return false;
 	}
 
-	UpdateJsonBufferObject(BinaryFilePath);
-	return true;
+	FGLTFJsonBuffer JsonBuffer;
+	JsonBuffer.URI = FPaths::GetCleanFilename(ExternalBinaryPath);
+	BufferIndex = AddBuffer(JsonBuffer);
+}
+
+FGLTFBufferBuilder::~FGLTFBufferBuilder()
+{
+	if (BufferArchive != nullptr)
+	{
+		BufferArchive->Close();
+	}
 }
 
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
 {
-	uint64 ByteOffset = BufferData.Num();
+	if (BufferArchive == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonBufferViewIndex(INDEX_NONE);
+	}
+
+	uint64 ByteOffset = BufferArchive->Tell();
 
 	// Data offset must be a multiple of the size of the glTF component type (given by ByteAlignment).
-	const uint8 Padding = (DataAlignment - (ByteOffset % DataAlignment)) % DataAlignment;
+	const int64 Padding = (DataAlignment - (ByteOffset % DataAlignment)) % DataAlignment;
 	if (Padding > 0)
 	{
 		ByteOffset += Padding;
-		BufferData.AddZeroed(Padding);
+		BufferArchive->Seek(ByteOffset);
 	}
 
-	BufferData.Append(static_cast<const uint8*>(RawData), ByteLength);
+	BufferArchive->Serialize(const_cast<void*>(RawData), ByteLength);
+
+	FGLTFJsonBuffer& JsonBuffer = GetBuffer(BufferIndex);
+	JsonBuffer.ByteLength = BufferArchive->Tell();
 
 	FGLTFJsonBufferView JsonBufferView;
 	JsonBufferView.Buffer = BufferIndex;
@@ -45,11 +57,4 @@ FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, 
 	JsonBufferView.Target = BufferTarget;
 
 	return FGLTFJsonBuilder::AddBufferView(JsonBufferView);
-}
-
-void FGLTFBufferBuilder::UpdateJsonBufferObject(const FString& BinaryFilePath)
-{
-	FGLTFJsonBuffer& JsonBuffer = GetBuffer(BufferIndex);
-	JsonBuffer.URI = FPaths::GetCleanFilename(BinaryFilePath);
-	JsonBuffer.ByteLength = BufferData.Num();
 }
