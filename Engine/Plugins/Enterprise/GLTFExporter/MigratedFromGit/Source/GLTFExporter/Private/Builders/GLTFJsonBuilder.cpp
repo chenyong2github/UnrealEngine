@@ -141,36 +141,6 @@ FGLTFJsonKhrMaterialVariant* FGLTFJsonBuilder::AddKhrMaterialVariant()
 	return JsonRoot.KhrMaterialVariants.Add();
 }
 
-FGLTFJsonNode* FGLTFJsonBuilder::AddChildNode(FGLTFJsonNode* ParentNode, FGLTFJsonNode* ChildNode)
-{
-	if (ChildNode == nullptr)
-	{
-		ChildNode = AddNode();
-	}
-
-	if (ParentNode != nullptr)
-	{
-		ParentNode->Children.Add(ChildNode);
-	}
-
-	return ChildNode;
-}
-
-FGLTFJsonNode* FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNode* ParentNode, FGLTFJsonNode* ChildNode)
-{
-	if (ChildNode == nullptr)
-	{
-		ChildNode = AddChildNode(ParentNode, ChildNode);
-	}
-
-	if (ParentNode != nullptr)
-	{
-		ParentNode->ComponentNode = ChildNode;
-	}
-
-	return ChildNode;
-}
-
 const FGLTFJsonRoot& FGLTFJsonBuilder::GetRoot() const
 {
 	return JsonRoot;
