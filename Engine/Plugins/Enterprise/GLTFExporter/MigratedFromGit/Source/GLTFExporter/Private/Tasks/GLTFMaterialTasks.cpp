@@ -201,6 +201,16 @@ EMaterialShadingModel FGLTFMaterialTask::GetShadingModel() const
 
 	if (PossibilitesCount > 1)
 	{
+		if (!FApp::CanEverRender())
+		{
+			EMaterialShadingModel ShadingModel = FGLTFMaterialUtility::GetRichestShadingModel(Possibilites);
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Can't evaluate shading model expression in material %s because renderer missing, will export as %s"),
+				*Material->GetName(),
+				*FGLTFNameUtility::GetName(ShadingModel)));
+			return ShadingModel;
+		}
+
 		if (Material->IsShadingModelFromMaterialExpression())
 		{
 			const FMaterialShadingModelField Evaluation = FGLTFMaterialUtility::EvaluateShadingModelExpression(Material);
