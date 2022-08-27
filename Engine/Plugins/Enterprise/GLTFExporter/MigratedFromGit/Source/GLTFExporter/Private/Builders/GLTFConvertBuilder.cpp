@@ -8,7 +8,7 @@
 #include "Engine/TextureRenderTargetCube.h"
 
 FGLTFConvertBuilder::FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
-	: FGLTFImageBuilder(FilePath, ExportOptions)
+	: FGLTFBufferBuilder(FilePath, ExportOptions)
 	, SelectedActors(SelectedActors)
 {
 }
@@ -314,6 +314,11 @@ FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderT
 	}
 
 	return TextureRenderTargetCubeConverter.GetOrAdd(Texture, CubeFace, bToSRGB);
+}
+
+FGLTFJsonImageIndex FGLTFConvertBuilder::GetOrAddImage(TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
+{
+	return ImageConverter.GetOrAdd(Name, Type, bIgnoreAlpha, Size, Pixels);
 }
 
 FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh)

@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilder.h"
-#include "Builders/GLTFFileUtility.h"
 #include "Converters/GLTFMeshUtility.h"
 #include "UserData/GLTFMaterialUserData.h"
 
 FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: bIsGlbFile(FGLTFFileUtility::IsGlbFile(FilePath))
+	: bIsGlbFile(FPaths::GetExtension(FilePath).Equals(TEXT("glb"), ESearchCase::IgnoreCase))
 	, FilePath(FilePath)
 	, DirPath(FPaths::GetPath(FilePath))
 	, ExportOptions(SanitizeExportOptions(ExportOptions))

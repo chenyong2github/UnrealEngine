@@ -6,14 +6,20 @@
 
 class UMaterialInterface;
 
-typedef TArray<const UMaterialInterface*> FGLTFMaterialArray;
-
-inline uint32 GetTypeHash(const FGLTFMaterialArray& MaterialArray)
+class FGLTFMaterialArray : public TArray<const UMaterialInterface*>
 {
-	uint32 Hash = GetTypeHash(MaterialArray.Num());
-	for (const UMaterialInterface* Material : MaterialArray)
+public:
+
+	using TArray::TArray;
+	using TArray::operator=;
+
+	friend uint32 GetTypeHash(const FGLTFMaterialArray& MaterialArray)
 	{
-		Hash = HashCombine(Hash, GetTypeHash(Material));
+		uint32 Hash = GetTypeHash(MaterialArray.Num());
+		for (const UMaterialInterface* Material : MaterialArray)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Material));
+		}
+		return Hash;
 	}
-	return Hash;
-}
+};

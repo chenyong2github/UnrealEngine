@@ -1,9 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Builders/GLTFImageUtility.h"
+#include "Converters/GLTFImageUtility.h"
 #include "Modules/ModuleManager.h"
 #include "IImageWrapperModule.h"
 #include "IImageWrapper.h"
+
+const TCHAR* FGLTFImageUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
+{
+	switch (MimeType)
+	{
+		case EGLTFJsonMimeType::PNG:  return TEXT(".png");
+		case EGLTFJsonMimeType::JPEG: return TEXT(".jpg");
+		default:
+			checkNoEntry();
+		return TEXT("");
+	}
+}
+
+FString FGLTFImageUtility::GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames)
+{
+	FString Filename = BaseFilename + FileExtension;
+	if (!UniqueFilenames.Contains(Filename))
+	{
+		return Filename;
+	}
+
+	int32 Suffix = 1;
+	do
+	{
+		Filename = BaseFilename + TEXT('_') + FString::FromInt(Suffix) + FileExtension;
+		Suffix++;
+	}
+	while (UniqueFilenames.Contains(Filename));
+
+	return Filename;
+}
 
 bool FGLTFImageUtility::NoAlphaNeeded(const FColor* Pixels, FIntPoint Size)
 {

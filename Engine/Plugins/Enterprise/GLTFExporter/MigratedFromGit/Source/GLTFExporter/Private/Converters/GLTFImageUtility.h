@@ -3,12 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Json/GLTFJsonEnums.h"
 
 enum class ERGBFormat : int8;
 enum class EImageFormat : int8;
 
 struct FGLTFImageUtility
 {
+	static const TCHAR* GetFileExtension(EGLTFJsonMimeType MimeType);
+
+	static FString GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames);
+
 	static bool NoAlphaNeeded(const FColor* Pixels, FIntPoint Size);
 
 	static bool CompressToPNG(const FColor* InPixels, FIntPoint InSize, TArray64<uint8>& OutCompressedData);
