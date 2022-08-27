@@ -6,7 +6,6 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "Modules/ModuleManager.h"
-
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
 
@@ -48,7 +47,7 @@ FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Propert
 	return FVector4();
 }
 
-const FExpressionInput* FGLTFMaterialUtility::GetInputFromProperty(const UMaterialInterface* Material, EMaterialProperty Property)
+const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property)
 {
 	UMaterial* UnderlyingMaterial = const_cast<UMaterial*>(Material->GetMaterial());
 	return UnderlyingMaterial->GetExpressionInputForProperty(Property);
