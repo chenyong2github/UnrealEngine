@@ -25,9 +25,14 @@ namespace EpicGames.Horde.Storage.Bundles
 		Initial = 0,
 
 		/// <summary>
+		/// Added compression format enum
+		/// </summary>
+		CompressionFormat = 1,
+
+		/// <summary>
 		/// The current version number
 		/// </summary>
-		Current = Initial,
+		Current = CompressionFormat,
 	}
 
 	/// <summary>
@@ -103,10 +108,31 @@ namespace EpicGames.Horde.Storage.Bundles
 	}
 
 	/// <summary>
+	/// Indicates the compression format in the bundle
+	/// </summary>
+	public enum BundleCompressionFormat
+	{
+		/// <summary>
+		/// Packets are uncompressed
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// LZ4 compression
+		/// </summary>
+		LZ4 = 1,
+	}
+
+	/// <summary>
 	/// Header for the contents of a bundle.
 	/// </summary>
 	public class BundleHeader
 	{
+		/// <summary>
+		/// Compression format for the bundle
+		/// </summary>
+		public BundleCompressionFormat CompressionFormat { get; }
+
 		/// <summary>
 		/// References to nodes in other bundles
 		/// </summary>
@@ -125,11 +151,13 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// <summary>
 		/// Constructs a new bundle header
 		/// </summary>
+		/// <param name="compressionFormat">Compression format for bundle packets</param>
 		/// <param name="imports">Imports from other bundles</param>
 		/// <param name="exports">Exports for nodes</param>
 		/// <param name="packets">Compression packets within the bundle</param>
-		public BundleHeader(IReadOnlyList<BundleImport> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
+		public BundleHeader(BundleCompressionFormat compressionFormat, IReadOnlyList<BundleImport> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
 		{
+			CompressionFormat = compressionFormat;
 			Imports = imports;
 			Exports = exports;
 			Packets = packets;
@@ -143,9 +171,18 @@ namespace EpicGames.Horde.Storage.Bundles
 		public BundleHeader(IMemoryReader reader)
 		{
 			BundleVersion version = (BundleVersion)reader.ReadUnsignedVarInt();
-			if (version != BundleVersion.Current)
+			if (version > BundleVersion.Current)
 			{
-				throw new InvalidDataException();
+				throw new InvalidDataException($"Unknown bundle version {(int)version}. Max supported is {(int)BundleVersion.Current}.");
+			}
+
+			if (version >= BundleVersion.CompressionFormat)
+			{
+				CompressionFormat = (BundleCompressionFormat)reader.ReadUnsignedVarInt();
+			}
+			else
+			{
+				CompressionFormat = BundleCompressionFormat.LZ4;
 			}
 
 			Imports = reader.ReadVariableLengthArray(() => new BundleImport(reader));
@@ -161,6 +198,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		{
 			writer.WriteUnsignedVarInt((ulong)BundleVersion.Current);
 
+			writer.WriteUnsignedVarInt((ulong)CompressionFormat);
 			writer.WriteVariableLengthArray(Imports, x => x.Write(writer));
 			writer.WriteVariableLengthArray(Exports, x => x.Write(writer));
 			writer.WriteVariableLengthArray(Packets, x => x.Write(writer));

@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,11 @@ namespace EpicGames.Horde.Storage.Bundles
 		/// Maximum payload size for the root blob
 		/// </summary>
 		public int MaxInlineBlobSize { get; set; } = 1024 * 64;
+
+		/// <summary>
+		/// Compression format to use
+		/// </summary>
+		public BundleCompressionFormat CompressionFormat { get; set; } = BundleCompressionFormat.LZ4;
 
 		/// <summary>
 		/// Minimum size of a block to be compressed
@@ -311,7 +317,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				ReadOnlyMemory<byte> encodedPacket = bundle.Payload.Slice(packetOffset, packet.EncodedLength).AsSingleSegment();
 
 				byte[] decodedPacket = new byte[packet.DecodedLength];
-				LZ4Codec.Decode(encodedPacket.Span, decodedPacket);
+				Decode(header.CompressionFormat, encodedPacket.Span, decodedPacket);
 
 				int nodeOffset = 0;
 				for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
@@ -818,7 +824,7 @@ namespace EpicGames.Horde.Storage.Bundles
 				// If we can't fit this data into the current block, flush the contents of it first
 				if (blockSize > 0 && blockSize + nodeData.Length > _options.MinCompressionPacketSize)
 				{
-					FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), builder, packets);
+					FlushPacket(_options.CompressionFormat, context.PacketBuffer.AsMemory(0, blockSize), builder, packets);
 					blockSize = 0;
 				}
 
@@ -842,30 +848,63 @@ namespace EpicGames.Horde.Storage.Bundles
 				}
 				else
 				{
-					FlushPacket(nodeData.First, builder, packets);
+					FlushPacket(_options.CompressionFormat, nodeData.First, builder, packets);
 				}
 			}
-			FlushPacket(context.PacketBuffer.AsMemory(0, blockSize), builder, packets);
+			FlushPacket(_options.CompressionFormat, context.PacketBuffer.AsMemory(0, blockSize), builder, packets);
 
 			// Flush the data
-			BundleHeader header = new BundleHeader(imports, exports, packets);
+			BundleHeader header = new BundleHeader(_options.CompressionFormat, imports, exports, packets);
 			return new Bundle(header, builder.AsSequence());
 		}
 
-		static void FlushPacket(ReadOnlyMemory<byte> inputData, ByteArrayBuilder builder, List<BundlePacket> packets)
+		static void FlushPacket(BundleCompressionFormat format, ReadOnlyMemory<byte> inputData, ByteArrayBuilder builder, List<BundlePacket> packets)
 		{
 			if (inputData.Length > 0)
 			{
-				int maxSize = LZ4Codec.MaximumOutputSize(inputData.Length);
-
-				ReadOnlySpan<byte> inputSpan = inputData.Span;
-				Span<byte> outputSpan = builder.GetMemory(maxSize).Span;
-
-				int encodedLength = LZ4Codec.Encode(inputSpan, outputSpan);
-				packets.Add(new BundlePacket(encodedLength, inputData.Length));
-
+				int encodedLength = Encode(format, inputData.Span, builder);
 				Debug.Assert(encodedLength >= 0);
-				builder.Advance(encodedLength);
+				packets.Add(new BundlePacket(encodedLength, inputData.Length));
+			}
+		}
+
+		static int Encode(BundleCompressionFormat format, ReadOnlySpan<byte> inputSpan, ByteArrayBuilder builder)
+		{
+			switch (format)
+			{
+				case BundleCompressionFormat.None:
+					{
+						builder.Append(inputSpan);
+						builder.Advance(inputSpan.Length);
+						return inputSpan.Length;
+					}
+				case BundleCompressionFormat.LZ4:
+					{
+						int maxSize = LZ4Codec.MaximumOutputSize(inputSpan.Length);
+
+						Span<byte> outputSpan = builder.GetMemory(maxSize).Span;
+						int encodedLength = LZ4Codec.Encode(inputSpan, outputSpan);
+						builder.Advance(encodedLength);
+
+						return encodedLength;
+					}
+				default:
+					throw new InvalidDataException($"Invalid compression format '{(int)format}'");
+			}
+		}
+
+		static void Decode(BundleCompressionFormat format, ReadOnlySpan<byte> inputSpan, Span<byte> outputSpan)
+		{
+			switch (format)
+			{
+				case BundleCompressionFormat.None:
+					inputSpan.CopyTo(outputSpan);
+					break;
+				case BundleCompressionFormat.LZ4:
+					LZ4Codec.Decode(inputSpan, outputSpan);
+					break;
+				default:
+					throw new InvalidDataException($"Invalid compression format '{(int)format}'");
 			}
 		}
 
