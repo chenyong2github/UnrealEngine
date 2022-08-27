@@ -19,14 +19,11 @@ struct FGLTFJsonBufferView
 
 	EGLTFJsonBufferTarget Target;
 
-	EGLTFJsonBufferViewErrorFlags ErrorFlags;
-
 	FGLTFJsonBufferView()
 		: ByteLength(0)
 		, ByteOffset(0)
 		, ByteStride(0)
 		, Target(EGLTFJsonBufferTarget::None)
-		, ErrorFlags(EGLTFJsonBufferViewErrorFlags::None)
 	{
 		// check that view fits completely inside the buffer
 	}
