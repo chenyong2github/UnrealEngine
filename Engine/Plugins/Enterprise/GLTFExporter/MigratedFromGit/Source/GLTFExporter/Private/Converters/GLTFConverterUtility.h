@@ -91,6 +91,17 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
+	static EGLTFJsonShadingModel ConvertShadingModel(const EMaterialShadingModel ShadingModel)
+	{
+		switch (ShadingModel)
+		{
+			case MSM_Unlit:      return EGLTFJsonShadingModel::Unlit;
+			case MSM_DefaultLit: return EGLTFJsonShadingModel::Default;
+			case MSM_ClearCoat:  return EGLTFJsonShadingModel::ClearCoat;
+			default:             return EGLTFJsonShadingModel::None;
+		}
+	}
+
 	static EGLTFJsonAlphaMode ConvertBlendMode(const EBlendMode Mode)
 	{
 		switch (Mode)

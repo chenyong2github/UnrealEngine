@@ -50,6 +50,15 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	JsonMaterial.AlphaCutoff = Material->GetOpacityMaskClipValue();
 	JsonMaterial.DoubleSided = Material->IsTwoSided();
 
+	if (!TryGetShadingModel(JsonMaterial.ShadingModel, Material))
+	{
+		// TODO: handle failure?
+	}
+
+	const FLinearColor RgbaMask(1.0f, 1.0f, 1.0f, 1.0f);
+	const FLinearColor RgbMask(1.0f, 1.0f, 1.0f, 0.0f);
+	const FLinearColor RMask(1.0f, 0.0f, 0.0f, 0.0f);
+
 	// TODO: check if a property is active before trying to get it (i.e. Material->IsPropertyActive)
 
 	if (JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Opaque)
@@ -108,6 +117,35 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 
 	return Builder.AddMaterial(JsonMaterial);
+}
+
+bool FGLTFMaterialConverter::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingModel, const UMaterialInterface* Material) const
+{
+	const FMaterialShadingModelField ShadingModels = Material->GetShadingModels();
+	const int32 ShadingModelCount = ShadingModels.CountShadingModels();
+
+	if (ShadingModelCount <= 0)
+	{
+		// TODO: report missing shading model
+		return false;
+	}
+
+	if (ShadingModelCount > 1)
+	{
+		// TODO: report support limited to first shading model
+	}
+
+	const EMaterialShadingModel ShadingModel = ShadingModels.GetFirstShadingModel();
+	const EGLTFJsonShadingModel ConvertedShadingModel = FGLTFConverterUtility::ConvertShadingModel(ShadingModel);
+
+	if (ConvertedShadingModel == EGLTFJsonShadingModel::None)
+	{
+		// TODO: report unsupported shading model
+		return false;
+	}
+
+	OutShadingModel = ConvertedShadingModel;
+	return true;
 }
 
 bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Builder, FGLTFJsonPBRMetallicRoughness& OutPBRParams, const UMaterialInterface* Material) const
