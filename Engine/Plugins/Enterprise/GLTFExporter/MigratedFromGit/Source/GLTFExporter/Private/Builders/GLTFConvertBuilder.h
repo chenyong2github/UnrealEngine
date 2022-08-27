@@ -15,10 +15,7 @@ public:
 
 	const bool bSelectedActorsOnly;
 
-	FGLTFConvertBuilder(bool bSelectedActorsOnly)
-		: bSelectedActorsOnly(bSelectedActorsOnly)
-	{
-	}
+	FGLTFConvertBuilder(bool bSelectedActorsOnly);
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));

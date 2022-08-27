@@ -2,5 +2,5 @@
 
 #include "Json/GLTFJsonColor3.h"
 
-const FGLTFJsonColor3 FGLTFJsonColor3::Black(0, 0, 0);
-const FGLTFJsonColor3 FGLTFJsonColor3::White(1, 1, 1);
+const FGLTFJsonColor3 FGLTFJsonColor3::Black(0.0f, 0.0f, 0.0f);
+const FGLTFJsonColor3 FGLTFJsonColor3::White(1.0f, 1.0f, 1.0f);
