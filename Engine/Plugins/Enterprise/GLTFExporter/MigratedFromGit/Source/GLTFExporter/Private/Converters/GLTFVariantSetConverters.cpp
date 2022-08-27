@@ -100,31 +100,25 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 	{
 		if (Property->Resolve())
 		{
-			// TODO: should we use another way to identify the properties we are interested in?
-			// Right now we use the property-catagory and property-class, but we might use the class
-			// of the parent container and the display-name of the property instead.
-			// Or something completely different...
+			// TODO: handle failure to resolve property (or force resolve it somehow)
+			continue;
+		}
 
-			const EPropertyValueCategory PropCategory = Property->GetPropCategory();
-			const FFieldClass* PropClass = Property->GetPropertyClass();
+		const FFieldClass* PropertyClass = Property->GetPropertyClass();
+		const FName& PropertyName = Property->GetPropertyName();
 
-			if (PropCategory == EPropertyValueCategory::Visibility && PropClass == FBoolProperty::StaticClass())
+		if (PropertyName == TEXT("bVisible") && PropertyClass->IsChildOf(FBoolProperty::StaticClass()))
+		{
+			bool bIsVisible;
+			if (TryGetPropertyValue(Property, bIsVisible))
 			{
-				bool bIsVisible;
-				if (TryGetPropertyValue(Property, bIsVisible))
-				{
-					JsonVariantNode.bIsVisible = bIsVisible;
-					bHasAnyProperty = true;
-				}
-			}
-			else
-			{
-				// TODO: handle more properties
+				JsonVariantNode.bIsVisible = bIsVisible;
+				bHasAnyProperty = true;
 			}
 		}
 		else
 		{
-			// TODO: handle failure to resolve property (or force resolve it somehow)
+			// TODO: handle more properties
 		}
 	}
 
