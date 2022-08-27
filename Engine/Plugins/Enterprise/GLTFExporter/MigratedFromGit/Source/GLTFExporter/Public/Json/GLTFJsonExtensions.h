@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "Json/GLTFJsonCore.h"
+#include "CoreMinimal.h"
+#include "Json/GLTFJsonEnums.h"
 
 struct GLTFEXPORTER_API FGLTFJsonExtensions
 {

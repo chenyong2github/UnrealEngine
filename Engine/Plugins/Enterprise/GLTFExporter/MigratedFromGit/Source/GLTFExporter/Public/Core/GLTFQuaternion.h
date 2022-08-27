@@ -9,7 +9,7 @@
 #endif
 
 template <typename ComponentType>
-struct GLTFEXPORTER_API TGLTFQuaternion
+struct TGLTFQuaternion
 {
 	union
 	{

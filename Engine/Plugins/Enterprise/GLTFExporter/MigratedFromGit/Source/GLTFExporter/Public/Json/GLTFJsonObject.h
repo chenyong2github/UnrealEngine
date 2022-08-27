@@ -3,28 +3,10 @@
 #pragma once
 
 #include "Json/GLTFJsonValue.h"
-#include "Json/GLTFJsonWriter.h"
 
 struct GLTFEXPORTER_API IGLTFJsonObject : IGLTFJsonValue
 {
-	virtual void WriteValue(IGLTFJsonWriter& Writer) const override final
-	{
-		Writer.StartObject();
-		WriteObject(Writer);
-		Writer.EndObject();
-	}
+	virtual void WriteValue(IGLTFJsonWriter& Writer) const override final;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const = 0;
-};
-
-struct GLTFEXPORTER_API IGLTFJsonIndexedObject : IGLTFJsonObject
-{
-	int32 Index;
-
-protected:
-
-	IGLTFJsonIndexedObject(int32 Index)
-		: Index(Index)
-	{
-	}
 };

@@ -4,6 +4,7 @@
 
 #include "Core/GLTFQuaternion.h"
 #include "Json/GLTFJsonArray.h"
+#include "Json/GLTFJsonWriter.h"
 
 struct GLTFEXPORTER_API FGLTFJsonQuaternion : TGLTFQuaternion<float>, IGLTFJsonArray
 {
