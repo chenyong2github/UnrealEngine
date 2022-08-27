@@ -27,18 +27,6 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builde
 	return FGLTFJsonTextureIndex(INDEX_NONE);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureRenderTarget2D* RenderTarget2D)
-{
-	// TODO: implement support
-	return FGLTFJsonTextureIndex(INDEX_NONE);
-}
-
-FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureRenderTargetCube* RenderTargetCube)
-{
-	// TODO: implement support
-	return FGLTFJsonTextureIndex(INDEX_NONE);
-}
-
 FGLTFJsonTextureIndex FGLTFLightMapTexture2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightMapTexture2D* LightMap)
 {
 	// TODO: implement support
