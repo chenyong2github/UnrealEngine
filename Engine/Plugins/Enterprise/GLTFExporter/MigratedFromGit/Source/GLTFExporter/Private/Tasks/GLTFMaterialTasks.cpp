@@ -5,6 +5,8 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "Utilities/GLTFProxyMaterialUtilities.h"
+#include "Materials/GLTFProxyMaterialInfo.h"
 #if WITH_EDITOR
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialExpressionConstant.h"
@@ -60,12 +62,19 @@ void FGLTFMaterialTask::Complete()
 	JsonMaterial.AlphaCutoff = Material->GetOpacityMaskClipValue();
 	JsonMaterial.DoubleSided = Material->IsTwoSided();
 
+	if (const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
+	{
+		// TODO: remove ugly hack for dynamic instances
+		FGLTFProxyMaterialUtilities::GetOpacityMaskClipValue(MaterialInstance, JsonMaterial.AlphaCutoff);
+		FGLTFProxyMaterialUtilities::GetTwoSided(MaterialInstance, JsonMaterial.DoubleSided);
+	}
+
 	ConvertShadingModel(JsonMaterial.ShadingModel);
 	ConvertAlphaMode(JsonMaterial.AlphaMode, JsonMaterial.BlendMode);
 
-	if (FGLTFMaterialUtility::IsProxyMaterial(BaseMaterial))
+	if (FGLTFProxyMaterialUtilities::IsProxyMaterial(BaseMaterial))
 	{
-		GetProxyProperties(JsonMaterial);
+		GetProxyParameters(JsonMaterial);
 		return;
 	}
 
@@ -212,98 +221,98 @@ FString FGLTFMaterialTask::GetBakedTextureName(const FString& PropertyName) cons
 	return GetMaterialName() + TEXT("_") + PropertyName;
 }
 
-void FGLTFMaterialTask::GetProxyProperties(FGLTFJsonMaterial& OutMaterial) const
+void FGLTFMaterialTask::GetProxyParameters(FGLTFJsonMaterial& OutMaterial) const
 {
-	GetProxyProperty(TEXT("Base Color Factor"), OutMaterial.PBRMetallicRoughness.BaseColorFactor);
-	GetProxyProperty(TEXT("Base Color"), OutMaterial.PBRMetallicRoughness.BaseColorTexture, EGLTFMaterialPropertyGroup::BaseColorOpacity);
+	GetProxyParameter(FGLTFProxyMaterialInfo::BaseColorFactor, OutMaterial.PBRMetallicRoughness.BaseColorFactor);
+	GetProxyParameter(FGLTFProxyMaterialInfo::BaseColor, OutMaterial.PBRMetallicRoughness.BaseColorTexture);
 
 	if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::Default || OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 	{
-		GetProxyProperty(TEXT("Emissive Factor"), OutMaterial.EmissiveFactor);
-		GetProxyProperty(TEXT("Emissive"), OutMaterial.EmissiveTexture, EGLTFMaterialPropertyGroup::EmissiveColor);
+		GetProxyParameter(FGLTFProxyMaterialInfo::EmissiveFactor, OutMaterial.EmissiveFactor);
+		GetProxyParameter(FGLTFProxyMaterialInfo::Emissive, OutMaterial.EmissiveTexture);
 
-		GetProxyProperty(TEXT("Metallic Factor"), OutMaterial.PBRMetallicRoughness.MetallicFactor);
-		GetProxyProperty(TEXT("Roughness Factor"), OutMaterial.PBRMetallicRoughness.RoughnessFactor);
-		GetProxyProperty(TEXT("Metallic Roughness"), OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture, EGLTFMaterialPropertyGroup::MetallicRoughness);
+		GetProxyParameter(FGLTFProxyMaterialInfo::MetallicFactor, OutMaterial.PBRMetallicRoughness.MetallicFactor);
+		GetProxyParameter(FGLTFProxyMaterialInfo::RoughnessFactor, OutMaterial.PBRMetallicRoughness.RoughnessFactor);
+		GetProxyParameter(FGLTFProxyMaterialInfo::MetallicRoughness, OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
 
-		GetProxyProperty(TEXT("Normal Scale"), OutMaterial.NormalTexture.Scale);
-		GetProxyProperty(TEXT("Normal"), OutMaterial.NormalTexture, EGLTFMaterialPropertyGroup::Normal);
+		GetProxyParameter(FGLTFProxyMaterialInfo::NormalScale, OutMaterial.NormalTexture.Scale);
+		GetProxyParameter(FGLTFProxyMaterialInfo::Normal, OutMaterial.NormalTexture);
 
-		GetProxyProperty(TEXT("Occlusion Strength"), OutMaterial.OcclusionTexture.Strength);
-		GetProxyProperty(TEXT("Occlusion"), OutMaterial.OcclusionTexture, EGLTFMaterialPropertyGroup::AmbientOcclusion);
+		GetProxyParameter(FGLTFProxyMaterialInfo::OcclusionStrength, OutMaterial.OcclusionTexture.Strength);
+		GetProxyParameter(FGLTFProxyMaterialInfo::Occlusion, OutMaterial.OcclusionTexture);
 
 		if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
-			GetProxyProperty(TEXT("Clear Coat Factor"), OutMaterial.ClearCoat.ClearCoatFactor);
-			GetProxyProperty(TEXT("Clear Coat"), OutMaterial.ClearCoat.ClearCoatTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness); // TODO: add property group for clear coat intensity only
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatFactor, OutMaterial.ClearCoat.ClearCoatFactor);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoat, OutMaterial.ClearCoat.ClearCoatTexture);
 
-			GetProxyProperty(TEXT("Clear Coat Roughness Factor"), OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
-			GetProxyProperty(TEXT("Clear Coat Roughness"), OutMaterial.ClearCoat.ClearCoatRoughnessTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatRoughnessFactor, OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatRoughness, OutMaterial.ClearCoat.ClearCoatRoughnessTexture);
 
-			GetProxyProperty(TEXT("Clear Coat Normal Scale"), OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
-			GetProxyProperty(TEXT("Clear Coat Normal"), OutMaterial.ClearCoat.ClearCoatNormalTexture, EGLTFMaterialPropertyGroup::ClearCoatBottomNormal); // TODO: this should actually be top normal
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatNormalScale, OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
+			GetProxyParameter(FGLTFProxyMaterialInfo::ClearCoatNormal, OutMaterial.ClearCoat.ClearCoatNormalTexture);
 		}
 	}
 }
 
-void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, float& OutValue) const
+void FGLTFMaterialTask::GetProxyParameter(const TGLTFProxyMaterialParameterInfo<float>& ParameterInfo, float& OutValue) const
 {
-	FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName, OutValue);
+	ParameterInfo.Get(Material, OutValue, true);
 }
 
-void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const
+void FGLTFMaterialTask::GetProxyParameter(const TGLTFProxyMaterialParameterInfo<FLinearColor>& ParameterInfo, FGLTFJsonColor3& OutValue) const
 {
 	FLinearColor Value;
-	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName, Value))
+	if (ParameterInfo.Get(Material, Value, true))
 	{
 		OutValue = FGLTFConverterUtility::ConvertColor3(Value, false);
 	}
 }
 
-void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const
+void FGLTFMaterialTask::GetProxyParameter(const TGLTFProxyMaterialParameterInfo<FLinearColor>& ParameterInfo, FGLTFJsonColor4& OutValue) const
 {
 	FLinearColor Value;
-	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName, Value))
+	if (ParameterInfo.Get(Material, Value, true))
 	{
 		OutValue = FGLTFConverterUtility::ConvertColor(Value, false);
 	}
 }
 
-void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue, EGLTFMaterialPropertyGroup PropertyGroup) const
+void FGLTFMaterialTask::GetProxyParameter(const FGLTFProxyMaterialTextureParameterInfo& ParameterInfo, FGLTFJsonTextureInfo& OutValue) const
 {
 	UTexture* Texture;
-	if (!FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" Texture"), Texture) || Texture == nullptr)
+	if (!ParameterInfo.Texture.Get(Material, Texture, true) || Texture == nullptr)
 	{
 		return;
 	}
 
-	const bool bSRGB = PropertyGroup == EGLTFMaterialPropertyGroup::BaseColorOpacity || PropertyGroup == EGLTFMaterialPropertyGroup::EmissiveColor;
+	const bool bSRGB = ParameterInfo == FGLTFProxyMaterialInfo::BaseColor || ParameterInfo == FGLTFProxyMaterialInfo::Emissive;
 	OutValue.Index = Builder.GetOrAddTexture(Texture, bSRGB);
 
-	float TexCoord;
-	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Index"), TexCoord))
+	float UVIndex;
+	if (ParameterInfo.UVIndex.Get(Material, UVIndex, true))
 	{
-		OutValue.TexCoord = FMath::RoundToInt(TexCoord);
+		OutValue.TexCoord = FMath::RoundToInt(UVIndex);
 	}
 
-	FLinearColor Offset;
-	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Offset"), Offset))
+	FLinearColor UVOffset;
+	if (ParameterInfo.UVOffset.Get(Material, UVOffset, true))
 	{
-		OutValue.Transform.Offset.X = Offset.R;
-		OutValue.Transform.Offset.Y = Offset.G;
+		OutValue.Transform.Offset.X = UVOffset.R;
+		OutValue.Transform.Offset.Y = UVOffset.G;
 	}
 
-	FLinearColor Scale;
-	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Scale"), Scale))
+	FLinearColor UVScale;
+	if (ParameterInfo.UVScale.Get(Material, UVScale, true))
 	{
-		OutValue.Transform.Scale.X = Scale.R;
-		OutValue.Transform.Scale.Y = Scale.G;
+		OutValue.Transform.Scale.X = UVScale.R;
+		OutValue.Transform.Scale.Y = UVScale.G;
 	}
 
-	float Rotation;
-	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Rotation"), Rotation))
+	float UVRotation;
+	if (ParameterInfo.UVRotation.Get(Material, UVRotation, true))
 	{
-		OutValue.Transform.Rotation = Rotation;
+		OutValue.Transform.Rotation = UVRotation;
 	}
 
 	if (!Builder.ExportOptions->bExportTextureTransforms && !OutValue.Transform.IsExactlyDefault())
@@ -311,7 +320,7 @@ void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonT
 		Builder.LogWarning(FString::Printf(
 			TEXT("Texture coordinates [%d] in %s for material %s are transformed, but texture transform is disabled by export options"),
 			OutValue.TexCoord,
-			*FGLTFNameUtility::GetName(PropertyGroup),
+			*ParameterInfo.Texture.ToString(),
 			*Material->GetName()));
 		OutValue.Transform = {};
 	}
@@ -438,7 +447,11 @@ void FGLTFMaterialTask::ConvertShadingModel(EGLTFJsonShadingModel& OutShadingMod
 
 void FGLTFMaterialTask::ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const
 {
-	const EBlendMode BlendMode = Material->GetBlendMode();
+	EBlendMode BlendMode = Material->GetBlendMode();
+	if (const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
+	{
+		FGLTFProxyMaterialUtilities::GetBlendMode(MaterialInstance, BlendMode); // TODO: remove ugly hack for dynamic instances
+	}
 
 	OutAlphaMode = FGLTFConverterUtility::ConvertAlphaMode(BlendMode);
 	if (OutAlphaMode == EGLTFJsonAlphaMode::None)

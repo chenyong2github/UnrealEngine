@@ -4,22 +4,10 @@
 
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFSharedArray.h"
-#include "Engine/Texture2D.h"
 
 struct FGLTFMaterialAnalysis;
 struct FMaterialPropertyEx;
 class UMaterialInstanceConstant;
-
-struct FGLTFTextureCombineSource
-{
-	constexpr FGLTFTextureCombineSource(const UTexture2D* Texture, FLinearColor TintColor = { 1.0f, 1.0f, 1.0f, 1.0f }, ESimpleElementBlendMode BlendMode = SE_BLEND_Additive)
-		: Texture(Texture), TintColor(TintColor), BlendMode(BlendMode)
-	{}
-
-	const UTexture2D* Texture;
-	FLinearColor TintColor;
-	ESimpleElementBlendMode BlendMode;
-};
 
 struct FGLTFPropertyBakeOutput
 {
@@ -41,20 +29,7 @@ struct FGLTFMaterialUtility
 {
 	static UMaterialInterface* GetDefaultMaterial();
 
-	static UMaterialInterface* GetProxyBaseMaterial(EGLTFJsonShadingModel ShadingModel);
-
-	static bool IsProxyMaterial(const UMaterial* Material);
-	static bool IsProxyMaterial(const UMaterialInterface* Material);
-
-	static bool GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, float& OutValue);
-	static bool GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, FLinearColor& OutValue);
-	static bool GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, UTexture*& OutValue);
-
 #if WITH_EDITOR
-	static void SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, float Value);
-	static void SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, const FLinearColor& Value);
-	static void SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, UTexture* Value);
-
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
 	static bool IsSRGB(const FMaterialPropertyEx& Property);
 
@@ -68,7 +43,7 @@ struct FGLTFMaterialUtility
 
 	static const FExpressionInput* GetInputForProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property);
 
-	template<class InputType>
+	template <class InputType>
 	static const FMaterialInput<InputType>* GetInputForProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property)
 	{
 		const FExpressionInput* ExpressionInput = GetInputForProperty(Material, Property);
