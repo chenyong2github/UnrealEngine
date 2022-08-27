@@ -26,7 +26,7 @@ struct FGLTFJsonAsset
 	FGLTFJsonAsset();
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -73,23 +73,23 @@ struct FGLTFJsonRoot
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
-		Asset.WriteObject(JsonWriter);
+		Asset.WriteObject(JsonWriter, AllExtensions);
 
 		if (DefaultScene != INDEX_NONE)
 		{
 			JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("accessors"), Accessors);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("buffers"), Buffers);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("bufferViews"), BufferViews);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("images"), Images);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("meshes"), Meshes);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("accessors"), Accessors, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("buffers"), Buffers, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("bufferViews"), BufferViews, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("images"), Images, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("meshes"), Meshes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
 
 		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), AllExtensions.Used);
 		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), AllExtensions.Required);

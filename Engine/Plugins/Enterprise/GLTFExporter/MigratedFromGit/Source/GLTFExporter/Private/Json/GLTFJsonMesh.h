@@ -19,7 +19,7 @@ struct FGLTFJsonAttributes
 	FGLTFJsonAccessorIndex Weights0;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -54,12 +54,12 @@ struct FGLTFJsonPrimitive
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("attributes"));
-		Attributes.WriteObject(JsonWriter);
+		Attributes.WriteObject(JsonWriter, Extensions);
 
 		if (Indices != INDEX_NONE)
 		{
@@ -87,7 +87,7 @@ struct FGLTFJsonMesh
 	TArray<FGLTFJsonPrimitive> Primitives;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -96,7 +96,7 @@ struct FGLTFJsonMesh
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("primitives"), Primitives, true);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("primitives"), Primitives, Extensions, true);
 
 		JsonWriter.WriteObjectEnd();
 	}
