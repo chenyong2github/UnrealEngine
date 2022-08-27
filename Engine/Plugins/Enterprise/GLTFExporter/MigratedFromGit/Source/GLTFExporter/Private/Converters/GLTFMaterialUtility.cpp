@@ -452,6 +452,45 @@ void FGLTFMaterialUtility::ExpandAllFunctionExpressions(TArray<UMaterialExpressi
 	});
 }
 
+EMaterialShadingModel FGLTFMaterialUtility::GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels)
+{
+	if (ShadingModels.HasShadingModel(MSM_ClearCoat))
+	{
+		return MSM_ClearCoat;
+	}
+
+	if (ShadingModels.HasShadingModel(MSM_DefaultLit))
+	{
+		return MSM_DefaultLit;
+	}
+
+	if (ShadingModels.HasShadingModel(MSM_Unlit))
+	{
+		return MSM_Unlit;
+	}
+
+	// TODO: add more shading models when conversion supported
+
+	return ShadingModels.GetFirstShadingModel();
+}
+
+FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelField& ShadingModels)
+{
+	FString Result;
+
+	for (uint32 Index = 0; Index < MSM_NUM; Index++)
+	{
+		const EMaterialShadingModel ShadingModel = static_cast<EMaterialShadingModel>(Index);
+		if (ShadingModels.HasShadingModel(ShadingModel))
+		{
+			FString Name = FGLTFNameUtility::GetName(ShadingModel);
+			Result += Result.IsEmpty() ? Name : TEXT(", ") + Name;
+		}
+	}
+
+	return Result;
+}
+
 bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 {
 	if (Material == nullptr)
