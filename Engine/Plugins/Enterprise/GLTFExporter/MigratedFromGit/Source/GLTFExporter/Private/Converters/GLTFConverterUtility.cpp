@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
+#include "Actors/GLTFCameraActor.h"
 
 EGLTFJsonCameraType FGLTFConverterUtility::ConvertCameraType(ECameraProjectionMode::Type ProjectionMode)
 {
@@ -110,5 +111,15 @@ EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
 		case CubeFace_PosZ:	return EGLTFJsonCubeFace::PosY;
 		case CubeFace_NegZ:	return EGLTFJsonCubeFace::NegY;
 		default:            return EGLTFJsonCubeFace::None; // TODO: add error handling in callers
+	}
+}
+
+EGLTFJsonPlayerCameraMode FGLTFConverterUtility::ConvertPlayerCameraMode(EGLTFCameraMode CameraMode)
+{
+	switch (CameraMode)
+	{
+		case EGLTFCameraMode::FirstPerson: return EGLTFJsonPlayerCameraMode::FirstPerson;
+		case EGLTFCameraMode::ThirdPerson: return EGLTFJsonPlayerCameraMode::ThirdPerson;
+		default:                           return EGLTFJsonPlayerCameraMode::None; // TODO: add error handling in callers
 	}
 }

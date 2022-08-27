@@ -160,3 +160,10 @@ enum class EGLTFJsonLightType
 	Point,
 	Spot
 };
+
+enum class EGLTFJsonPlayerCameraMode
+{
+	None = -1,
+	FirstPerson,
+	ThirdPerson
+};
