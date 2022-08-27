@@ -19,39 +19,45 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 	FGLTFJsonMesh JsonMesh;
 	JsonMesh.Name = FGLTFNameUtility::GetName(StaticMesh, LODIndex);
 
+	const FRawStaticIndexBuffer* IndexBuffer = &MeshLOD.IndexBuffer;
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
 	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.VertexBuffers.ColorVertexBuffer;
-	const FRawStaticIndexBuffer* IndexBuffer = &MeshLOD.IndexBuffer;
 
 	const int32 SectionCount = MeshLOD.Sections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
 
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 	{
-		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
-		const FStaticMeshSection& Section = MeshLOD.Sections[SectionIndex];
+		const FStaticMeshSection* Section = &MeshLOD.Sections[SectionIndex];
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(Section, IndexBuffer);
 
-		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer);
-		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(PositionBuffer);
+		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
+		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
+
+		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, PositionBuffer);
+		if (JsonPrimitive.Attributes.Position == INDEX_NONE)
+		{
+			// TODO: report warning
+		}
 
 		if (Builder.ExportOptions->bExportVertexColors)
 		{
-			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ColorBuffer);
+			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
-		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(VertexBuffer);
-		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(VertexBuffer);
+		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, VertexBuffer);
+		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, VertexBuffer);
 
 		const uint32 UVCount = VertexBuffer->GetNumTexCoords();
 		JsonPrimitive.Attributes.TexCoords.AddUninitialized(UVCount);
 
 		for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
 		{
-			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(VertexBuffer, UVIndex);
+			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, VertexBuffer, UVIndex);
 		}
 
-		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, Section.MaterialIndex);
+		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, Section->MaterialIndex);
 		if (Material != nullptr)
 		{
 			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
@@ -75,38 +81,43 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 	FGLTFJsonMesh JsonMesh;
 	JsonMesh.Name = FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
 
+	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = MeshLOD.MultiSizeIndexContainer.GetIndexBuffer();
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
 	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.StaticVertexBuffers.ColorVertexBuffer;
 	const FSkinWeightVertexBuffer* SkinWeightBuffer = OverrideSkinWeights != nullptr ? OverrideSkinWeights : MeshLOD.GetSkinWeightVertexBuffer();
-
-	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = MeshLOD.MultiSizeIndexContainer.GetIndexBuffer();
 
 	const int32 SectionCount = MeshLOD.RenderSections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
 
 	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 	{
-		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
-		const FSkelMeshRenderSection& Section = MeshLOD.RenderSections[SectionIndex];
+		const FSkelMeshRenderSection* Section = &MeshLOD.RenderSections[SectionIndex];
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(Section, IndexBuffer);
 
-		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer);
-		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(PositionBuffer);
+		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
+		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
+
+		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, PositionBuffer);
+		if (JsonPrimitive.Attributes.Position == INDEX_NONE)
+		{
+			// TODO: report warning
+		}
 
 		if (Builder.ExportOptions->bExportVertexColors)
 		{
-			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ColorBuffer);
+			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
-		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(VertexBuffer);
-		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(VertexBuffer);
+		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, VertexBuffer);
+		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, VertexBuffer);
 
 		const uint32 UVCount = VertexBuffer->GetNumTexCoords();
 		JsonPrimitive.Attributes.TexCoords.AddUninitialized(UVCount);
 
 		for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
 		{
-			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(VertexBuffer, UVIndex);
+			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, VertexBuffer, UVIndex);
 		}
 
 		/* TODO: enable export of vertex skin data when crash bug fixed
@@ -115,16 +126,14 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 		JsonPrimitive.Attributes.Joints.AddUninitialized(GroupCount);
 		JsonPrimitive.Attributes.Weights.AddUninitialized(GroupCount);
 
-		const FGLTFBoneMap BoneMap = FGLTFBoneMap(Section.BoneMap);
-
 		for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 		{
-			JsonPrimitive.Attributes.Joints[GroupIndex] = Builder.GetOrAddJointAccessor(SkinWeightBuffer, GroupIndex, BoneMap, Name + TEXT("_Joints") + FString::FromInt(GroupIndex));
-			JsonPrimitive.Attributes.Weights[GroupIndex] = Builder.GetOrAddWeightAccessor(SkinWeightBuffer, GroupIndex, Name + TEXT("_Weights") + FString::FromInt(GroupIndex));
+			JsonPrimitive.Attributes.Joints[GroupIndex] = Builder.GetOrAddJointAccessor(ConvertedSection, SkinWeightBuffer, GroupIndex * 4);
+			JsonPrimitive.Attributes.Weights[GroupIndex] = Builder.GetOrAddWeightAccessor(ConvertedSection, SkinWeightBuffer, GroupIndex * 4);
 		}
 		*/
 
-		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, Section.MaterialIndex);
+		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, Section->MaterialIndex);
 		if (Material != nullptr)
 		{
 			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
