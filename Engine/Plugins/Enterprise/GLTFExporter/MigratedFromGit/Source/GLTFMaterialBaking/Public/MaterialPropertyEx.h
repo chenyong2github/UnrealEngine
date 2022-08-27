@@ -28,44 +28,14 @@ struct FMaterialPropertyEx
 		return Type == MP_CustomOutput;
 	}
 
-	bool Equals(const FMaterialPropertyEx& Other) const
+	FORCEINLINE bool operator ==(const FMaterialPropertyEx& Other) const
 	{
 		return Type == Other.Type && (!IsCustomOutput() || CustomOutput == Other.CustomOutput);
 	}
 
-	int32 Compare(const FMaterialPropertyEx& Other) const
-	{
-		return !IsCustomOutput() || !Other.IsCustomOutput() ? Type - Other.Type : CustomOutput.Compare(Other.CustomOutput);
-	}
-
-	FORCEINLINE bool operator ==(const FMaterialPropertyEx& Other) const
-	{
-		return Equals(Other);
-	}
-
 	FORCEINLINE bool operator !=(const FMaterialPropertyEx& Other) const
 	{
-		return !Equals(Other);
-	}
-
-	FORCEINLINE bool operator >=(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) >= 0;
-	}
-
-	FORCEINLINE bool operator >(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) > 0;
-	}
-
-	FORCEINLINE bool operator <=(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) <= 0;
-	}
-
-	FORCEINLINE bool operator <(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) < 0;
+		return !(*this == Other);
 	}
 
 	friend FORCEINLINE uint32 GetTypeHash(const FMaterialPropertyEx& Other)

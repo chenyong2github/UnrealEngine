@@ -38,7 +38,7 @@ FGuid FGLTFMaterialUtility::GetAttributeID(const FMaterialPropertyEx& Property)
 FGuid FGLTFMaterialUtility::GetAttributeIDChecked(const FMaterialPropertyEx& Property)
 {
 	const FGuid AttributeID = GetAttributeID(Property);
-	check(AttributeID != FMaterialAttributeDefinitionMap::GetID(MP_MAX));
+	check(AttributeID != FMaterialAttributeDefinitionMap::GetDefaultID());
 	return AttributeID;
 }
 
