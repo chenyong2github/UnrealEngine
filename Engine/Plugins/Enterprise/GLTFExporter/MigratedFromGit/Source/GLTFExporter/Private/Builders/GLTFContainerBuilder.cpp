@@ -1,33 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFContainerBuilder.h"
-#include "Builders/GLTFContainerUtility.h"
-#include "Builders/GLTFZipUtility.h"
-#include "GLTFExporterModule.h"
-#include "Interfaces/IPluginManager.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
 	: FGLTFConvertBuilder(FilePath, ExportOptions, bSelectedActorsOnly)
 {
-}
-
-void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
-{
-	CompleteAllTasks(Context);
-
-	if (bIsGlbFile)
-	{
-		WriteGlb(Archive);
-	}
-	else
-	{
-		WriteJson(Archive);
-	}
-
-	if (ExportOptions->bBundleWebViewer)
-	{
-		BundleWebViewer();
-	}
 }
 
 void FGLTFContainerBuilder::WriteGlb(FArchive& Archive) const
@@ -37,75 +14,68 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive) const
 
 	const TArray<uint8>& BufferData = GetBufferData();
 
-	FGLTFContainerUtility::WriteGlb(Archive, JsonData, BufferData);
+	WriteGlb(Archive, JsonData, BufferData);
 }
 
-void FGLTFContainerBuilder::BundleWebViewer()
+void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const TArray<uint8>& JsonData, const TArray<uint8>& BinaryData)
 {
-	const FString PluginDir = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME)->GetBaseDir();
-	const FString ArchiveFile = PluginDir / TEXT("Resources") / TEXT("GLTFWebViewer.zip");
+	const uint32 JsonChunkType = 0x4E4F534A; // "JSON" in ASCII
+	const uint32 BinaryChunkType = 0x004E4942; // "BIN" in ASCII
+	const uint32 FileSize =
+        3 * sizeof(uint32) +
+        2 * sizeof(uint32) + GetPaddedChunkSize(JsonData.Num()) +
+        2 * sizeof(uint32) + GetPaddedChunkSize(BinaryData.Num());
 
-	if (!FPaths::FileExists(ArchiveFile))
-	{
-		AddWarningMessage(FString::Printf(TEXT("No web viewer found at %s"), *ArchiveFile));
-		return;
-	}
-
-	if (!FGLTFZipUtility::ExtractAllFiles(ArchiveFile, DirPath))
-	{
-		AddErrorMessage(FString::Printf(TEXT("Failed to extract web viewer at %s"), *ArchiveFile));
-		return;
-	}
-
-	UpdateWebViewerIndex();
+	WriteHeader(Archive, FileSize);
+	WriteChunk(Archive, JsonChunkType, JsonData, 0x20);
+	WriteChunk(Archive, BinaryChunkType, BinaryData, 0x0);
 }
 
-void FGLTFContainerBuilder::UpdateWebViewerIndex()
+void FGLTFContainerBuilder::WriteHeader(FArchive& Archive, uint32 FileSize)
 {
-	const FString IndexFile = DirPath / TEXT("index.json");
+	const uint32 FileSignature = 0x46546C67; // "glTF" in ASCII
+	const uint32 FileVersion = 2;
 
-	if (!FPaths::FileExists(IndexFile))
+	WriteInt(Archive, FileSignature);
+	WriteInt(Archive, FileVersion);
+	WriteInt(Archive, FileSize);
+}
+
+void FGLTFContainerBuilder::WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray<uint8>& ChunkData, uint8 ChunkTrailingByte)
+{
+	const uint32 ChunkLength = GetPaddedChunkSize(ChunkData.Num());
+	const uint32 ChunkTrailing = GetTrailingChunkSize(ChunkData.Num());
+
+	WriteInt(Archive, ChunkLength);
+	WriteInt(Archive, ChunkType);
+	WriteData(Archive, ChunkData);
+	WriteFill(Archive, ChunkTrailing, ChunkTrailingByte);
+}
+
+void FGLTFContainerBuilder::WriteInt(FArchive& Archive, uint32 Value)
+{
+	Archive.SerializeInt(Value, MAX_uint32);
+}
+
+void FGLTFContainerBuilder::WriteData(FArchive& Archive, const TArray<uint8>& Data)
+{
+	Archive.Serialize(const_cast<uint8*>(Data.GetData()), Data.Num());
+}
+
+void FGLTFContainerBuilder::WriteFill(FArchive& Archive, int32 Size, uint8 Value)
+{
+	while (--Size >= 0)
 	{
-		AddWarningMessage(FString::Printf(TEXT("No index file found at %s"), *IndexFile));
-		return;
-	}
-
-	TSharedPtr<FJsonObject> JsonObject;
-	if (!ReadJsonFile(IndexFile, JsonObject))
-	{
-		AddWarningMessage(FString::Printf(TEXT("Failed to read index file at %s"), *IndexFile));
-		return;
-	}
-
-	JsonObject->SetArrayField(TEXT("assets"), { MakeShared<FJsonValueString>(FPaths::GetCleanFilename(FilePath)) });
-
-	if (!WriteJsonFile(IndexFile, JsonObject.ToSharedRef()))
-	{
-		AddWarningMessage(FString::Printf(TEXT("Failed to write index file at %s"), *IndexFile));
+		Archive.Serialize(&Value, sizeof(Value));
 	}
 }
 
-bool FGLTFContainerBuilder::ReadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& JsonObject)
+int32 FGLTFContainerBuilder::GetPaddedChunkSize(int32 Size)
 {
-	FString JsonContent;
-	if (!FFileHelper::LoadFileToString(JsonContent, *FilePath))
-	{
-		return false;
-	}
-
-	const TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonContent);
-	return FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid();
+	return (Size + 3) & ~3;
 }
 
-bool FGLTFContainerBuilder::WriteJsonFile(const FString& FilePath, const TSharedRef<FJsonObject>& JsonObject)
+int32 FGLTFContainerBuilder::GetTrailingChunkSize(int32 Size)
 {
-	FString JsonContent;
-	const TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonContent);
-
-	if (!FJsonSerializer::Serialize(JsonObject, JsonWriter))
-	{
-		return false;
-	}
-
-	return FFileHelper::SaveStringToFile(JsonContent, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8);
+	return (4 - (Size & 3)) & 3;
 }

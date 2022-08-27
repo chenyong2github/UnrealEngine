@@ -1,6 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilderUtility.h"
+#include "GLTFExporterModule.h"
+#include "Interfaces/IPluginManager.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "Misc/FileHelper.h"
+
+#if PLATFORM_LINUX || PLATFORM_MAC
+// TODO: uncomment when GLTFLaunchHelper added for linux and macos
+// #include <sys/stat.h>
+#endif
+
+FString FGLTFBuilderUtility::GetPluginDir()
+{
+	return IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME)->GetBaseDir();
+}
 
 const TCHAR* FGLTFBuilderUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
 {
@@ -36,4 +51,51 @@ FString FGLTFBuilderUtility::GetUniqueFilename(const FString& BaseFilename, cons
 bool FGLTFBuilderUtility::IsGlbFile(const FString& Filename)
 {
 	return FPaths::GetExtension(Filename).Equals(TEXT("glb"), ESearchCase::IgnoreCase);
+}
+
+bool FGLTFBuilderUtility::ReadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& JsonObject)
+{
+	FString JsonContent;
+	if (!FFileHelper::LoadFileToString(JsonContent, *FilePath))
+	{
+		return false;
+	}
+
+	const TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(JsonContent);
+	return FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid();
+}
+
+bool FGLTFBuilderUtility::WriteJsonFile(const FString& FilePath, const TSharedRef<FJsonObject>& JsonObject)
+{
+	FString JsonContent;
+	const TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonContent);
+
+	if (!FJsonSerializer::Serialize(JsonObject, JsonWriter))
+	{
+		return false;
+	}
+
+	return FFileHelper::SaveStringToFile(JsonContent, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8);
+}
+
+bool FGLTFBuilderUtility::SetExecutable(const TCHAR* Filename, bool bIsExecutable)
+{
+/* TODO: uncomment when GLTFLaunchHelper added for linux and macos
+#if PLATFORM_LINUX || PLATFORM_MAC
+	struct stat FileInfo;
+	FTCHARToUTF8 FilenameUtf8(Filename);
+	bool bSuccess = false;
+	// Set executable permission bit
+	if (stat(FilenameUtf8.Get(), &FileInfo) == 0)
+	{
+		mode_t ExeFlags = S_IXUSR | S_IXGRP | S_IXOTH;
+		FileInfo.st_mode = bIsExecutable ? (FileInfo.st_mode | ExeFlags) : (FileInfo.st_mode & ~ExeFlags);
+		bSuccess = chmod(FilenameUtf8.Get(), FileInfo.st_mode) == 0;
+	}
+	return bSuccess;
+#else
+	return true;
+#endif
+*/
+	return true;
 }
