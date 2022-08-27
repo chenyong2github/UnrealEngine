@@ -3,7 +3,6 @@
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
-#include "GLTFMaterialAnalysis.h"
 #include "GLTFMaterialAnalyzer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
@@ -16,6 +15,7 @@
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "MeshDescription.h"
+#include "Misc/DefaultValueHelper.h"
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 {
@@ -358,6 +358,13 @@ FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(
 {
 	FGLTFMaterialAnalysis Analysis;
 	AnalyzeMaterialProperty(Material, MP_ShadingModel, Analysis);
+
+	int32 Value;
+	if (FDefaultValueHelper::ParseInt(Analysis.ParameterCode, Value))
+	{
+		return static_cast<EMaterialShadingModel>(Value);
+    }
+
 	return Analysis.ShadingModels;
 }
 

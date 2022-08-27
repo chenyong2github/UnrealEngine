@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFMaterialAnalyzer.h"
-#include "GLTFMaterialAnalysis.h"
-#include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
+#include "GLTFProxyMaterialCompiler.h"
 #include "Materials/HLSLMaterialTranslator.h"
 
 UGLTFMaterialAnalyzer::UGLTFMaterialAnalyzer()
@@ -64,14 +63,7 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 		return INDEX_NONE;
 	}
 
-	class FTranslatorHack : public FHLSLMaterialTranslator
-	{
-		using FHLSLMaterialTranslator::FHLSLMaterialTranslator;
-
-		friend UGLTFMaterialAnalyzer;
-	};
-
-	FTranslatorHack* Translator = static_cast<FTranslatorHack*>(Compiler);
+	FGLTFProxyMaterialCompiler ProxyCompiler(Compiler);
 	int32 Result;
 
 	if (Property == MP_CustomOutput)
@@ -82,23 +74,37 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 			return INDEX_NONE;
 		}
 
-		Result = CustomOutputExpression->Compile(Compiler, 0);
+		Result = CustomOutputExpression->Compile(&ProxyCompiler, 0);
 	}
 	else
 	{
-		Result = Material->CompilePropertyEx(Translator, AttributeID);
+		Result = Material->CompilePropertyEx(&ProxyCompiler, AttributeID);
 	}
 
-	Analysis->TextureCoordinates = Translator->AllocatedUserTexCoords;
-	Analysis->ShadingModels = Translator->ShadingModelsFromCompilation;
+	class FHLSLMaterialTranslatorHack : public FHLSLMaterialTranslator
+	{
+		using FHLSLMaterialTranslator::FHLSLMaterialTranslator;
+
+		friend UGLTFMaterialAnalyzer;
+	};
+
+	FHLSLMaterialTranslatorHack* TranslatorHack = static_cast<FHLSLMaterialTranslatorHack*>(Compiler);
+
+	Analysis->TextureCoordinates = TranslatorHack->AllocatedUserTexCoords;
+	Analysis->ShadingModels = TranslatorHack->ShadingModelsFromCompilation;
+
+	if (Result != INDEX_NONE)
+	{
+		Analysis->ParameterCode = TranslatorHack->GetParameterCode(Result);
+	}
 
 	// TODO: investigate if we need to check more conditions to determine that vertex data is required
 	Analysis->bRequiresVertexData =
-		Translator->bUsesVertexColor ||
-		Translator->bUsesTransformVector ||
-		Translator->bNeedsWorldPositionExcludingShaderOffsets ||
-		Translator->bUsesAOMaterialMask ||
-		Translator->bUsesVertexPosition;
+		TranslatorHack->bUsesVertexColor ||
+		TranslatorHack->bUsesTransformVector ||
+		TranslatorHack->bNeedsWorldPositionExcludingShaderOffsets ||
+		TranslatorHack->bUsesAOMaterialMask ||
+		TranslatorHack->bUsesVertexPosition;
 
 	return Result;
 }

@@ -3,9 +3,8 @@
 #pragma once
 
 #include "Materials/MaterialInterface.h"
+#include "GLTFMaterialAnalysis.h"
 #include "GLTFMaterialAnalyzer.generated.h"
-
-struct FGLTFMaterialAnalysis;
 
 UCLASS(NotBlueprintType, Transient)
 class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
