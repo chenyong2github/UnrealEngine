@@ -13,6 +13,7 @@
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
+#include "MeshDescription.h"
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 {
@@ -283,12 +284,23 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 		if (bRequiresVertexData)
 		{
-			MeshSet.Mesh = Mesh;
-			MeshSet.RawMeshDescription =  Mesh->GetMeshDescription(LODIndex);
+			if (FMeshDescription* MeshDescription = Mesh->GetMeshDescription(LODIndex))
+			{
+				MeshSet.RawMeshDescription = MeshDescription;
+				MeshSet.LightMapIndex = Mesh->LightMapCoordinateIndex;
+
+				// NOTE: we use polygon group ID's instead of material indices since that's what
+				// FMeshMaterialRenderItem::PopulateWithMeshData compares MeshSet.MaterialIndices against.
+				for (const auto& PolygonGroupID: MeshDescription->PolygonGroups().GetElementIDs())
+				{
+					// TODO: should we only add polygon groups that are actually using the material
+					// we're trying to bake? Or would that prevent us from baking materials using unrelated meshes?
+
+					MeshSet.MaterialIndices.Add(PolygonGroupID.GetValue());
+				}
+			}
 		}
 	}
-
-	// TODO: Do we need to fill in any more info in MeshSet?
 
 	MeshSettings.Add(&MeshSet);
 
