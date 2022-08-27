@@ -193,7 +193,7 @@ FGLTFJsonBufferView* FGLTFNormalBufferConverter::ConvertBufferView(const FGLTFMe
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		const FVector3f SafeNormal = TangentData[MappedVertexIndex].TangentZ.ToFVector().GetSafeNormal();
+		const FVector3f SafeNormal = TangentData[MappedVertexIndex].TangentZ.ToFVector3f().GetSafeNormal();
 
 		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector3>::Value, FVector3f, SourceType>::Type IntermediateType;
 		Normals[VertexIndex] = FGLTFCoreUtilities::ConvertNormal(IntermediateType(SafeNormal));
@@ -272,7 +272,7 @@ FGLTFJsonBufferView* FGLTFTangentBufferConverter::ConvertBufferView(const FGLTFM
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
-		const FVector3f SafeTangent = VertexTangents[MappedVertexIndex].TangentX.ToFVector().GetSafeNormal();
+		const FVector3f SafeTangent = VertexTangents[MappedVertexIndex].TangentX.ToFVector3f().GetSafeNormal();
 
 		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector4>::Value, FVector3f, SourceType>::Type IntermediateType;
 		Tangents[VertexIndex] = FGLTFCoreUtilities::ConvertTangent(IntermediateType(SafeTangent));

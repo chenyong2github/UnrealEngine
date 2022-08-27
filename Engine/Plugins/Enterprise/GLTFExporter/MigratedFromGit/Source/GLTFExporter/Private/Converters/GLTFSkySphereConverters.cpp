@@ -32,7 +32,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 		const FTransform ParentTransform = ParentComponent->GetSocketTransform(SocketName);
 		const FTransform RelativeTransform = Transform.GetRelativeTransform(ParentTransform);
 
-		JsonSkySphere->Scale = FGLTFCoreUtilities::ConvertScale(RelativeTransform.GetScale3D());
+		JsonSkySphere->Scale = FGLTFCoreUtilities::ConvertScale(FVector3f(RelativeTransform.GetScale3D()));
 		JsonSkySphere->SkySphereMesh = Builder.AddUniqueMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefaultMaterial() });
 	}
 	else

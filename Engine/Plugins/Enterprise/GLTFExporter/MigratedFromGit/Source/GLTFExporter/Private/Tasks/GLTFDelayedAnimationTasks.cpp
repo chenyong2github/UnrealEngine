@@ -62,7 +62,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
-				const FVector3f KeyPosition = FrameTransforms[Frame][BoneIndex].GetTranslation();
+				const FVector3f KeyPosition = FVector3f(FrameTransforms[Frame][BoneIndex].GetTranslation());
 				Translations[Frame] = FGLTFCoreUtilities::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);
 			}
 
@@ -118,7 +118,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
-				const FVector3f KeyScale = FrameTransforms[Frame][BoneIndex].GetScale3D();
+				const FVector3f KeyScale = FVector3f(FrameTransforms[Frame][BoneIndex].GetScale3D());
 				Scales[Frame] = FGLTFCoreUtilities::ConvertScale(KeyScale);
 			}
 
