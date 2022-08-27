@@ -24,15 +24,18 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 
 	if (FGLTFConverterUtility::IsSkySphereBlueprint(Blueprint))
 	{
-		// Ignore components
+		// Ignore mesh and light components that are part of BP_SkySphere
+	}
+	else if (FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint))
+	{
+		if (bIsRootComponent)
+		{
+			// TODO: add support for backdrop
+		}
 	}
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
-	}
-	else if (FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint) && bIsRootComponent)
-	{
-		// TODO: add support for backdrop
 	}
 
 	const TArray<USceneComponent*>& Children = SceneComponent->GetAttachChildren();
