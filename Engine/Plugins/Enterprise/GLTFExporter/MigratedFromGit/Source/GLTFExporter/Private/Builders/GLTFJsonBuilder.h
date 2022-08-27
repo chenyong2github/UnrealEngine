@@ -15,8 +15,6 @@ public:
 
 	void WriteJson(FArchive& Archive);
 
-	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
-
 	void AddExtension(EGLTFJsonExtension Extension, bool bIsRequired = false);
 
 	FGLTFJsonAccessor* AddAccessor();
@@ -41,6 +39,10 @@ public:
 	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant();
 
 	const FGLTFJsonRoot& GetRoot() const;
+
+protected:
+
+	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
 
 private:
 
