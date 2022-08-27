@@ -11,7 +11,7 @@ UGLTFSkeletalMeshExporter::UGLTFSkeletalMeshExporter(const FObjectInitializer& O
 
 bool UGLTFSkeletalMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Object);
+	const USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Object);
 
 	if (!FillExportOptions())
 	{

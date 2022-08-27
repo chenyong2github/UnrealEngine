@@ -13,7 +13,7 @@ UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& Objec
 
 bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
+	const UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
 
 	if (!FillExportOptions())
 	{
