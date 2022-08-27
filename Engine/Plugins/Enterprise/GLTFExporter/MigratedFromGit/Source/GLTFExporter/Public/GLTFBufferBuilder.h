@@ -7,9 +7,9 @@
 
 struct GLTFEXPORTER_API FGLTFBufferBuilder
 {
-	FGLTFJsonRoot JsonRoot;
+	FGLTFJsonRoot& JsonRoot;
 
-	const FGLTFJsonBufferIndex MergedBufferIndex;
+	FGLTFJsonBufferIndex MergedBufferIndex;
 	TArray<uint8> MergedBufferData;
 
 	FGLTFBufferBuilder(FGLTFJsonRoot& JsonRoot);

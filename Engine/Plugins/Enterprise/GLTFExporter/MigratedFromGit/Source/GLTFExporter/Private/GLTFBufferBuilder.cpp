@@ -5,8 +5,9 @@
 #include "Misc/Base64.h"
 
 FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonRoot& JsonRoot)
-	: MergedBufferIndex(JsonRoot.Buffers.AddDefaulted(1))
+	: JsonRoot(JsonRoot)
 {
+	MergedBufferIndex = JsonRoot.Buffers.AddDefaulted(1);
 }
 
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
