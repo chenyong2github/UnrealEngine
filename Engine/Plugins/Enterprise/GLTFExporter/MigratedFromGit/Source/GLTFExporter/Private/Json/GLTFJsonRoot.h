@@ -15,7 +15,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 
 
-struct GLTFEXPORTER_API FGLTFJsonAsset
+struct FGLTFJsonAsset
 {
 	FString Version;
 	FString Generator;
@@ -48,7 +48,7 @@ struct GLTFEXPORTER_API FGLTFJsonAsset
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonRoot
+struct FGLTFJsonRoot
 {
 	FGLTFJsonAsset Asset;
 

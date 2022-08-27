@@ -4,7 +4,7 @@
 
 #include "Builders/GLTFJsonBuilder.h"
 
-struct GLTFEXPORTER_API FGLTFBufferBuilder : public FGLTFJsonBuilder
+struct FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 	FGLTFJsonBufferIndex BufferIndex;
 	TArray<uint8> BufferData;

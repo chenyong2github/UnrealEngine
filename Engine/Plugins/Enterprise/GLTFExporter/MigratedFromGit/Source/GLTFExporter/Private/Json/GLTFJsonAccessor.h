@@ -7,7 +7,7 @@
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonAccessor
+struct FGLTFJsonAccessor
 {
 	FString Name;
 

@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonAttributes
+struct FGLTFJsonAttributes
 {
 	FGLTFJsonAccessorIndex Position; // always required
 	FGLTFJsonAccessorIndex Normal;
@@ -48,7 +48,7 @@ struct GLTFEXPORTER_API FGLTFJsonAttributes
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonPrimitive
+struct FGLTFJsonPrimitive
 {
 	FGLTFJsonAccessorIndex Indices;
 	FGLTFJsonMaterialIndex Material;
@@ -89,7 +89,7 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonMesh
+struct FGLTFJsonMesh
 {
 	FString Name;
 

@@ -6,7 +6,7 @@
 #include "Converters/GLTFStaticMeshConverters.h"
 #include "Converters/GLTFLevelConverters.h"
 
-struct GLTFEXPORTER_API FGLTFConvertBuilder : public FGLTFBufferBuilder
+struct FGLTFConvertBuilder : public FGLTFBufferBuilder
 {
 	FGLTFPositionVertexBufferConverter PositionVertexBufferConverter;
 	FGLTFColorVertexBufferConverter ColorVertexBufferConverter;

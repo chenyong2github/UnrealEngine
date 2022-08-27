@@ -5,17 +5,11 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBuffer
+struct FGLTFJsonScene
 {
 	FString Name;
 
-	FString URI;
-	int64   ByteLength;
-
-	FGLTFJsonBuffer()
-		: ByteLength(0)
-	{
-	}
+	TArray<FGLTFJsonNodeIndex> Nodes;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
@@ -27,12 +21,10 @@ struct GLTFEXPORTER_API FGLTFJsonBuffer
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		if (!URI.IsEmpty())
+		if (Nodes.Num() > 0)
 		{
-			JsonWriter.WriteValue(TEXT("uri"), URI);
+			JsonWriter.WriteValue(TEXT("nodes"), Nodes);
 		}
-
-		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
 
 		JsonWriter.WriteObjectEnd();
 	}

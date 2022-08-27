@@ -6,7 +6,7 @@
 
 // UE4 uses an endianness dependent memory layout (ABGR for little endian, ARGB for big endian)
 // glTF uses RGBA independent of endianness, hence why we need this dedicated struct
-struct GLTFEXPORTER_API FGLTFColor
+struct FGLTFColor
 {
 	uint8 R,G,B,A;
 
