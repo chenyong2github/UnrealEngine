@@ -44,7 +44,7 @@ FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, cons
 
 	FGLTFJsonAccessor JsonAccessor;
 	JsonAccessor.BufferView = Builder.AddBufferView(InverseBindMatrices);
-	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::Float;
 	JsonAccessor.Count = BoneCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Mat4;
 
