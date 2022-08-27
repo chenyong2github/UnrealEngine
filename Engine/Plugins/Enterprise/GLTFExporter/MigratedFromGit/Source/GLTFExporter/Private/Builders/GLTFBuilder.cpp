@@ -23,7 +23,7 @@ EGLTFJsonHDREncoding FGLTFBuilder::GetTextureHDREncoding() const
 	{
 		case EGLTFExporterTextureHDREncoding::None: return EGLTFJsonHDREncoding::None;
 		case EGLTFExporterTextureHDREncoding::RGBM: return EGLTFJsonHDREncoding::RGBM;
-		case EGLTFExporterTextureHDREncoding::RGBE: return EGLTFJsonHDREncoding::RGBE;
+		// TODO: add more encodings (like RGBE) when viewer supports them
 		default:
 			checkNoEntry();
 			return EGLTFJsonHDREncoding::None;
