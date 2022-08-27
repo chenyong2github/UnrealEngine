@@ -52,11 +52,11 @@ struct FGLTFJsonTextureTransform : IGLTFJsonObject
 
 	bool IsNearlyDefault(float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		return IsNearlyEqual(FGLTFJsonTextureTransform(), Tolerance);
+		return IsNearlyEqual({}, Tolerance);
 	}
 
 	bool IsExactlyDefault() const
 	{
-		return IsExactlyEqual(FGLTFJsonTextureTransform());
+		return IsExactlyEqual({});
 	}
 };

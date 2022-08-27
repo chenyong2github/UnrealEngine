@@ -50,7 +50,7 @@ private:
 	void GetProxyProperty(const FString& PropertyName, float& OutValue) const;
 	void GetProxyProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const;
 	void GetProxyProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const;
-	void GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const;
+	void GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue, EGLTFMaterialPropertyGroup PropertyGroup) const;
 
 	EMaterialShadingModel GetShadingModel() const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;

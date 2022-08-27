@@ -211,33 +211,33 @@ FString FGLTFMaterialTask::GetBakedTextureName(const FString& PropertyName) cons
 void FGLTFMaterialTask::GetProxyProperties(FGLTFJsonMaterial& OutMaterial) const
 {
 	GetProxyProperty(TEXT("Base Color Factor"), OutMaterial.PBRMetallicRoughness.BaseColorFactor);
-	GetProxyProperty(TEXT("Base Color"), OutMaterial.PBRMetallicRoughness.BaseColorTexture);
+	GetProxyProperty(TEXT("Base Color"), OutMaterial.PBRMetallicRoughness.BaseColorTexture, EGLTFMaterialPropertyGroup::BaseColorOpacity);
 
 	if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::Default || OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 	{
 		GetProxyProperty(TEXT("Emissive Factor"), OutMaterial.EmissiveFactor);
-		GetProxyProperty(TEXT("Emissive"), OutMaterial.EmissiveTexture);
+		GetProxyProperty(TEXT("Emissive"), OutMaterial.EmissiveTexture, EGLTFMaterialPropertyGroup::EmissiveColor);
 
 		GetProxyProperty(TEXT("Metallic Factor"), OutMaterial.PBRMetallicRoughness.MetallicFactor);
 		GetProxyProperty(TEXT("Roughness Factor"), OutMaterial.PBRMetallicRoughness.RoughnessFactor);
-		GetProxyProperty(TEXT("Metallic Roughness"), OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
+		GetProxyProperty(TEXT("Metallic Roughness"), OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture, EGLTFMaterialPropertyGroup::MetallicRoughness);
 
 		GetProxyProperty(TEXT("Normal Scale"), OutMaterial.NormalTexture.Scale);
-		GetProxyProperty(TEXT("Normal"), OutMaterial.NormalTexture);
+		GetProxyProperty(TEXT("Normal"), OutMaterial.NormalTexture, EGLTFMaterialPropertyGroup::Normal);
 
 		GetProxyProperty(TEXT("Occlusion Strength"), OutMaterial.OcclusionTexture.Strength);
-		GetProxyProperty(TEXT("Occlusion"), OutMaterial.OcclusionTexture);
+		GetProxyProperty(TEXT("Occlusion"), OutMaterial.OcclusionTexture, EGLTFMaterialPropertyGroup::AmbientOcclusion);
 
 		if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
 			GetProxyProperty(TEXT("Clear Coat Factor"), OutMaterial.ClearCoat.ClearCoatFactor);
-			GetProxyProperty(TEXT("Clear Coat"), OutMaterial.ClearCoat.ClearCoatTexture);
+			GetProxyProperty(TEXT("Clear Coat"), OutMaterial.ClearCoat.ClearCoatTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness); // TODO: add property group for clear coat intensity only
 
 			GetProxyProperty(TEXT("Clear Coat Roughness Factor"), OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
-			GetProxyProperty(TEXT("Clear Coat Roughness"), OutMaterial.ClearCoat.ClearCoatRoughnessTexture);
+			GetProxyProperty(TEXT("Clear Coat Roughness"), OutMaterial.ClearCoat.ClearCoatRoughnessTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness);
 
 			GetProxyProperty(TEXT("Clear Coat Normal Scale"), OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
-			GetProxyProperty(TEXT("Clear Coat Normal"), OutMaterial.ClearCoat.ClearCoatNormalTexture);
+			GetProxyProperty(TEXT("Clear Coat Normal"), OutMaterial.ClearCoat.ClearCoatNormalTexture, EGLTFMaterialPropertyGroup::ClearCoatBottomNormal); // TODO: this should actually be top normal
 		}
 	}
 }
@@ -265,7 +265,7 @@ void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonC
 	}
 }
 
-void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const
+void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue, EGLTFMaterialPropertyGroup PropertyGroup) const
 {
 	UTexture* Texture;
 	if (!FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" Texture"), Texture) || Texture == nullptr)
@@ -299,6 +299,16 @@ void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonT
 	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Rotation"), Rotation))
 	{
 		OutValue.Transform.Rotation = Rotation;
+	}
+
+	if (!Builder.ExportOptions->bExportTextureTransforms && !OutValue.Transform.IsExactlyDefault())
+	{
+		Builder.LogWarning(FString::Printf(
+			TEXT("Texture coordinates [%d] in %s for material %s are transformed, but texture transform is disabled by export options"),
+			OutValue.TexCoord,
+			*FGLTFNameUtility::GetName(PropertyGroup),
+			*Material->GetName()));
+		OutValue.Transform = {};
 	}
 }
 
