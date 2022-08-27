@@ -52,8 +52,8 @@ struct FGLTFJsonRoot
 {
 	FGLTFJsonAsset Asset;
 
-	TSet<EGLTFExtension> ExtensionsUsed;
-	TSet<EGLTFExtension> ExtensionsRequired;
+	TSet<EGLTFJsonExtension> ExtensionsUsed;
+	TSet<EGLTFJsonExtension> ExtensionsRequired;
 
 	FGLTFJsonSceneIndex DefaultScene;
 
@@ -81,7 +81,7 @@ struct FGLTFJsonRoot
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("extensionsUsed"));
 			JsonWriter.WriteArrayStart();
-			for (const EGLTFExtension& Extension : ExtensionsUsed)
+			for (const EGLTFJsonExtension& Extension : ExtensionsUsed)
 			{
 				JsonWriter.WriteValue(FGLTFJsonUtility::ExtensionToString(Extension));
 			}
@@ -92,7 +92,7 @@ struct FGLTFJsonRoot
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("extensionsRequired"));
 			JsonWriter.WriteArrayStart();
-			for (const EGLTFExtension& Extension : ExtensionsRequired)
+			for (const EGLTFJsonExtension& Extension : ExtensionsRequired)
 			{
 				JsonWriter.WriteValue(FGLTFJsonUtility::ExtensionToString(Extension));
 			}

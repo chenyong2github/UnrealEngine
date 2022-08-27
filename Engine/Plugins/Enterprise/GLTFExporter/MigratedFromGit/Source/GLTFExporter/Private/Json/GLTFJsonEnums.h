@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-enum class EGLTFExtension
+enum class EGLTFJsonExtension
 {
 	KHR_LightsPunctual,
 	KHR_MaterialsUnlit,
