@@ -21,6 +21,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonExtension::KHR_MaterialsUnlit:     return TEXT("KHR_materials_unlit");
 			case EGLTFJsonExtension::KHR_MaterialsClearCoat: return TEXT("KHR_materials_clearcoat");
 			case EGLTFJsonExtension::KHR_MeshQuantization:   return TEXT("KHR_mesh_quantization");
+			case EGLTFJsonExtension::EPIC_LightMapTextures:  return TEXT("EPIC_lightmap_textures");
 			default:                                         return TEXT("unknown");
 		}
 	}

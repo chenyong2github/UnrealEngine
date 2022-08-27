@@ -15,9 +15,10 @@ struct FGLTFJsonNode
 	FGLTFJsonQuaternion Rotation;
 	FGLTFJsonVector3    Scale;
 
-	FGLTFJsonCameraIndex Camera;
-	FGLTFJsonSkinIndex   Skin;
-	FGLTFJsonMeshIndex   Mesh;
+	FGLTFJsonCameraIndex    Camera;
+	FGLTFJsonSkinIndex      Skin;
+	FGLTFJsonMeshIndex      Mesh;
+	FGLTFJsonLightMapIndex  LightMap;
 
 	TArray<FGLTFJsonNodeIndex> Children;
 
@@ -69,6 +70,26 @@ struct FGLTFJsonNode
 		if (Mesh != INDEX_NONE)
 		{
 			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
+		}
+
+		const bool bWriteExtensions = LightMap != INDEX_NONE;
+
+		if (bWriteExtensions)
+		{
+			JsonWriter.WriteObjectStart(TEXT("extensions"));
+
+			if (LightMap != INDEX_NONE)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightMapTextures;
+
+				Extensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+				JsonWriter.WriteValue(TEXT("lightmap"), LightMap);
+				JsonWriter.WriteObjectEnd();
+			}
+
+			JsonWriter.WriteObjectEnd();
 		}
 
 		if (Children.Num() > 0)
