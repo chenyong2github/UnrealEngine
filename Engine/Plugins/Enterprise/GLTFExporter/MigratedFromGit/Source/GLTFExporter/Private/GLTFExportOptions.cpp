@@ -21,14 +21,14 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportVertexColors = true;
 	NormalExportMethod = EGLTFExporterNormalExportMethod::NormalsAndTangents;
 	bTangentDataQuantization = false;
-	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
+	NormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
 	ExportScale = 0.01;
 	bExportHiddenInGame = false;
-	bExportLights = EGLTFExporterLightMobility::MovableAndStationary;
+	ExportLights = EGLTFExporterLightMobility::MovableAndStationary;
 	bExportCameras = true;
 	bExportOrbitalCameras = false;
 	bExportReflectionCaptures = false;
@@ -218,7 +218,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultLevelOfDetail) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportLightmaps) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, ExportScale) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportLights) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, ExportLights) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportCameras) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHDRIBackdrops) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportVariantSets) ||
@@ -240,7 +240,7 @@ FIntPoint UGLTFExportOptions::GetDefaultMaterialBakeSize() const
 
 bool UGLTFExportOptions::ShouldExportLight(EComponentMobility::Type LightMobility) const
 {
-	switch (bExportLights)
+	switch (ExportLights)
 	{
 		case EGLTFExporterLightMobility::All:
 			return true;
