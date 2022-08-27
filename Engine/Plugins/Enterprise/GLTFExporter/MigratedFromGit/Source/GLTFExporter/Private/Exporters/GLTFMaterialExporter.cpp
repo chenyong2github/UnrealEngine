@@ -23,7 +23,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 			const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, { Material });
 			if (MeshIndex == INDEX_NONE)
 			{
-				Builder.AddErrorMessage(
+				Builder.LogError(
 					FString::Printf(TEXT("Failed to export preview mesh %s for material %s"),
 					*Material->GetName(),
 					*PreviewMesh->GetName()));
@@ -42,7 +42,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 		}
 		else
 		{
-			Builder.AddErrorMessage(
+			Builder.LogError(
 				FString::Printf(TEXT("Failed to export material %s because of missing preview mesh"),
 				*Material->GetName()));
 			return false;
@@ -53,7 +53,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 		const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material);
 		if (MaterialIndex == INDEX_NONE)
 		{
-			Builder.AddErrorMessage(
+			Builder.LogError(
 				FString::Printf(TEXT("Failed to export material %s"),
 				*Material->GetName()));
 			return false;

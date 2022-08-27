@@ -93,7 +93,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 		const FVector ParentScale = ParentComponent->GetComponentScale();
 		if (!ParentScale.IsUniform())
 		{
-			Builder.AddWarningMessage(
+			Builder.LogWarning(
 				FString::Printf(TEXT("Non-uniform parent scale (%s) for component %s (in actor %s) may be represented differently in glTF"),
 				*ParentScale.ToString(),
 				*SceneComponent->GetName(),
@@ -195,7 +195,7 @@ FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent*
 
 		// TODO: add support for more socket types
 
-		Builder.AddWarningMessage(
+		Builder.LogWarning(
 			FString::Printf(TEXT("Can't export socket %s because it belongs to an unsupported mesh component %s"),
 			*SocketName.ToString(),
 			*SceneComponent->GetName()));

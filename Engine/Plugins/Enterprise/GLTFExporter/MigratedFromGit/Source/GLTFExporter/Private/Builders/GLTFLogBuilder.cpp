@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Builders/GLTFMessageBuilder.h"
+#include "Builders/GLTFLogBuilder.h"
 #include "GLTFExporterModule.h"
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 #include "Misc/FeedbackContext.h"
 
-FGLTFMessageBuilder::FGLTFMessageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
+FGLTFLogBuilder::FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFBuilder(FilePath, ExportOptions)
 {
 	if (!FApp::IsUnattended())
@@ -17,40 +17,40 @@ FGLTFMessageBuilder::FGLTFMessageBuilder(const FString& FilePath, const UGLTFExp
 	}
 }
 
-void FGLTFMessageBuilder::AddSuggestionMessage(const FString& Message)
+void FGLTFLogBuilder::LogSuggestion(const FString& Message)
 {
 	Suggestions.Add(Message);
 	PrintToLog(ELogLevel::Suggestion, Message);
 }
 
-void FGLTFMessageBuilder::AddWarningMessage(const FString& Message)
+void FGLTFLogBuilder::LogWarning(const FString& Message)
 {
 	Warnings.Add(Message);
 	PrintToLog(ELogLevel::Warning, Message);
 }
 
-void FGLTFMessageBuilder::AddErrorMessage(const FString& Message)
+void FGLTFLogBuilder::LogError(const FString& Message)
 {
 	Errors.Add(Message);
 	PrintToLog(ELogLevel::Error, Message);
 }
 
-const TArray<FString>& FGLTFMessageBuilder::GetSuggestionMessages() const
+const TArray<FString>& FGLTFLogBuilder::GetLoggedSuggestions() const
 {
 	return Suggestions;
 }
 
-const TArray<FString>& FGLTFMessageBuilder::GetWarningMessages() const
+const TArray<FString>& FGLTFLogBuilder::GetLoggedWarnings() const
 {
 	return Warnings;
 }
 
-const TArray<FString>& FGLTFMessageBuilder::GetErrorMessages() const
+const TArray<FString>& FGLTFLogBuilder::GetLoggedErrors() const
 {
 	return Errors;
 }
 
-void FGLTFMessageBuilder::OpenLog() const
+void FGLTFLogBuilder::OpenLog() const
 {
 	if (LogListing != nullptr)
 	{
@@ -58,7 +58,7 @@ void FGLTFMessageBuilder::OpenLog() const
 	}
 }
 
-void FGLTFMessageBuilder::ClearLog()
+void FGLTFLogBuilder::ClearLog()
 {
 	Suggestions.Empty();
 	Warnings.Empty();
@@ -70,7 +70,7 @@ void FGLTFMessageBuilder::ClearLog()
 	}
 }
 
-void FGLTFMessageBuilder::PrintToLog(ELogLevel Level, const FString& Message) const
+void FGLTFLogBuilder::PrintToLog(ELogLevel Level, const FString& Message) const
 {
 #if !NO_LOGGING
 	ELogVerbosity::Type Verbosity;

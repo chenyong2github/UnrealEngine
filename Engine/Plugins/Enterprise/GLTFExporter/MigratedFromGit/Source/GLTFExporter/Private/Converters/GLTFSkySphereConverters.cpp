@@ -35,7 +35,7 @@ FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphere
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export property SkySphereMesh for Sky Sphere %s"), *SkySphereActor->GetName()));
+		Builder.LogWarning(FString::Printf(TEXT("Failed to export property SkySphereMesh for Sky Sphere %s"), *SkySphereActor->GetName()));
 	}
 
 	const ADirectionalLight* DirectionalLight = nullptr;
@@ -45,7 +45,7 @@ FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphere
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export property Directional light actor for Sky Sphere %s"), *SkySphereActor->GetName()));
+		Builder.LogWarning(FString::Printf(TEXT("Failed to export property Directional light actor for Sky Sphere %s"), *SkySphereActor->GetName()));
 	}
 
 	const UMaterialInstance* SkyMaterial = nullptr;
@@ -63,7 +63,7 @@ FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphere
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export property Sky material for Sky Sphere %s"),
 			*SkySphereActor->GetName()));
 	}
@@ -95,7 +95,7 @@ void FGLTFSkySphereConverter::ConvertProperty(const AActor* Actor, const TCHAR* 
 
 	if (!FGLTFActorUtility::TryGetPropertyValue(Actor, PropertyName, OutValue))
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export property %s for Sky Sphere %s"),
 			PropertyName,
 			*Actor->GetName()));
@@ -113,7 +113,7 @@ void FGLTFSkySphereConverter::ConvertColorProperty(const AActor* Actor, const TC
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export property %s for Sky Sphere %s"),
 			PropertyName,
 			*Actor->GetName()));
@@ -131,7 +131,7 @@ void FGLTFSkySphereConverter::ConvertColorCurveProperty(const AActor* Actor, con
 	{
 		if (FGLTFCurveUtility::HasAnyAdjustment(*ColorCurve))
 		{
-			Builder.AddWarningMessage(FString::Printf(
+			Builder.LogWarning(FString::Printf(
 				TEXT("Adjustments for property %s in Sky Sphere %s are not supported"),
 				PropertyName,
 				*Actor->GetName()));
@@ -157,7 +157,7 @@ void FGLTFSkySphereConverter::ConvertColorCurveProperty(const AActor* Actor, con
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export property %s for Sky Sphere %s"),
 			PropertyName,
 			*Actor->GetName()));
@@ -170,7 +170,7 @@ void FGLTFSkySphereConverter::ConvertScalarParameter(const AActor* Actor, const 
 
 	if (!Material->GetScalarParameterValue(ParameterName, OutValue))
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export parameter %s (in material %s) for Sky Sphere %s"),
 			ParameterName,
 			*Material->GetName(),
@@ -201,7 +201,7 @@ void FGLTFSkySphereConverter::ConvertTextureParameter(const AActor* Actor, const
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export texture %s (used in material %s) for Sky Sphere %s"),
 			TexturePath,
 			*Material->GetName(),

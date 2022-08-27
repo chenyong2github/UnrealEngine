@@ -33,7 +33,7 @@ bool FGLTFBufferBuilder::InitializeBuffer()
 		BufferArchive.Reset(IFileManager::Get().CreateFileWriter(*ExternalBinaryPath));
 		if (BufferArchive == nullptr)
 		{
-			AddErrorMessage(FString::Printf(TEXT("Failed to write external binary buffer to file: %s"), *ExternalBinaryPath));
+			LogError(FString::Printf(TEXT("Failed to write external binary buffer to file: %s"), *ExternalBinaryPath));
 			return false;
 		}
 	}

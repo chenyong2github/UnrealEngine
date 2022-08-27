@@ -55,14 +55,14 @@ namespace
 
 		if (bZeroNormals)
 		{
-			Builder.AddWarningMessage(FString::Printf(
+			Builder.LogWarning(FString::Printf(
 				TEXT("Mesh %s has some nearly zero-length normals which can create some issues. Consider checking 'Recompute Normals' in the asset settings"),
 				MeshName));
 		}
 
 		if (bZeroTangents)
 		{
-			Builder.AddWarningMessage(FString::Printf(
+			Builder.LogWarning(FString::Printf(
 				TEXT("Mesh %s has some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
 				MeshName));
 		}
@@ -97,7 +97,7 @@ void FGLTFStaticMeshTask::Complete()
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Vertex colors in mesh %s will act as a multiplier for base color in glTF, regardless of material, which may produce undesirable results."),
 			*StaticMesh->GetName()));
 	}
@@ -188,7 +188,7 @@ void FGLTFSkeletalMeshTask::Complete()
 
 	if (Builder.ExportOptions->bExportVertexColors && HasVertexColors(ColorBuffer))
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Vertex colors in mesh %s will act as a multiplier for base color in glTF, regardless of material, which may produce undesirable results."),
 			*SkeletalMesh->GetName()));
 	}

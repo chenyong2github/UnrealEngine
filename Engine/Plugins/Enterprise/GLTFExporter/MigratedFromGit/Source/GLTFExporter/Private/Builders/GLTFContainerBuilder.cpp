@@ -24,7 +24,7 @@ void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 			return FGLTFJsonUtility::GetValue(Extension);
 		});
 
-		AddWarningMessage(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
+		LogWarning(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
 	}
 }
 

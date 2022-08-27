@@ -108,7 +108,7 @@ FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 Com
 
 	if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
 	{
-		AddErrorMessage(FString::Printf(TEXT("Failed to save image %s to file: %s"), *Name, *ImagePath));
+		LogError(FString::Printf(TEXT("Failed to save image %s to file: %s"), *Name, *ImagePath));
 		return TEXT("");
 	}
 
