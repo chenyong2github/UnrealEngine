@@ -410,9 +410,9 @@ public:
 				// Only return for Opaque and Masked...
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
-					return Compiler->Add(
-						Compiler->Mul(MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate), Compiler->Constant(0.5f)), // [-1,1] * 0.5
-						Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
+					return CompileNormalTransform(
+						Compiler,
+						MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate));
 				}
 				break;
 			case MP_ShadingModel:
@@ -657,6 +657,11 @@ private:
 		if (ExpressionInput)
 		{
 			Result = ExpressionInput->Compile(Compiler);
+
+			if (CustomOutputToCompile ==  TEXT("ClearCoatBottomNormal"))
+			{
+				Result = CompileNormalTransform(Compiler, Result);
+			}
 		}
 		else
 		{
@@ -704,6 +709,13 @@ private:
 		// NOTE: ugly hack to workaround casting shading model (uint) to float
 		static_cast<FMaterialCompilerHack*>(Compiler)->SetParameterType(Code, MCT_Float1);
 		return Compiler->Div(Code, Compiler->Constant(255)); // [0,255] / 255
+	}
+
+	int32 CompileNormalTransform(FMaterialCompiler* Compiler, int32 ExpressionIndex) const
+	{
+		return Compiler->Add(
+			Compiler->Mul(ExpressionIndex, Compiler->Constant(0.5f)), // [-1,1] * 0.5
+			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 	}
 
 private:
