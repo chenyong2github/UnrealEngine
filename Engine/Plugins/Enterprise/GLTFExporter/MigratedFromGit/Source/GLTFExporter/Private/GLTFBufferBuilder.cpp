@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFBufferBuilder.h"
-#include "GLTFMeshBuilder.h"
+#include "GLTFContainerBuilder.h"
 #include "Misc/Base64.h"
 
 FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonBufferIndex BufferIndex)
