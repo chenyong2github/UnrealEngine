@@ -5,7 +5,7 @@
 #include "Engine.h"
 #include "Json/GLTFJsonEnums.h"
 
-enum class EImageFormat : signed char;
+enum class EImageFormat : int8;
 enum class ERGBFormat : int8;
 
 struct FGLTFBuilderUtility
