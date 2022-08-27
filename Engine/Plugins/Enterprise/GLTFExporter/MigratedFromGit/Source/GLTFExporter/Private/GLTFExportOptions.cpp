@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExportOptions.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
-#include "UObject/UObjectBaseUtility.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/App.h"
 
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+{
+	ResetToDefault();
+}
+
+void UGLTFExportOptions::ResetToDefault()
 {
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
@@ -43,21 +44,6 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportPreviewMesh = true;
 	bAllExtensionsRequired = false;
 	bShowFilesWhenDone = true;
-}
-
-void UGLTFExportOptions::ResetToDefault()
-{
-	ReloadConfig();
-}
-
-void UGLTFExportOptions::LoadOptions()
-{
-	LoadConfig(nullptr, *GEditorPerProjectIni);
-}
-
-void UGLTFExportOptions::SaveOptions()
-{
-	SaveConfig(CPF_Config, *GEditorPerProjectIni);
 }
 
 bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
