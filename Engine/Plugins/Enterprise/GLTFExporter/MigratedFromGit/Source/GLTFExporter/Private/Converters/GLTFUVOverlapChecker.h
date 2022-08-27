@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFIndexArray.h"
 #include "Engine.h"
@@ -14,3 +16,5 @@ class FGLTFUVOverlapChecker final : public TGLTFConverter<float, const FMeshDesc
 
 	static UMaterialInterface* GetMaterial();
 };
+
+#endif

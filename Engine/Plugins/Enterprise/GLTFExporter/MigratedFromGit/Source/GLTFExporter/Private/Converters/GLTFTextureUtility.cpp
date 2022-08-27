@@ -141,8 +141,10 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	Texture->PlatformData->Mips[0].BulkData.Unlock();
 
 	Texture->SRGB = bSRGB ? 1 : 0;
+#if WITH_EDITOR
 	Texture->CompressionNone = true;
 	Texture->MipGenSettings = TMGS_NoMipmaps;
+#endif
 
 	Texture->UpdateResource();
 	return Texture;
@@ -352,17 +354,15 @@ bool FGLTFTextureUtility::LoadPlatformData(UTexture2D* Texture)
 		return false;
 	}
 
+#if WITH_EDITOR
 	if (Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
 	{
 		// TODO: is this correct handling?
 		Texture->ForceRebuildPlatformData();
-		if (Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
-		{
-			return false;
-		}
 	}
+#endif
 
-	return true;
+	return Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() != 0;
 }
 
 bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
@@ -372,17 +372,15 @@ bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
 		return false;
 	}
 
+#if WITH_EDITOR
 	if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
 	{
 		// TODO: is this correct handling?
 		TextureCube->ForceRebuildPlatformData();
-		if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
-		{
-			return false;
-		}
 	}
+#endif
 
-	return true;
+	return TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() != 0;
 }
 
 void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)

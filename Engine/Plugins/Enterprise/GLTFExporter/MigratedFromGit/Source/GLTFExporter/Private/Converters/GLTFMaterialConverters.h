@@ -19,6 +19,8 @@ class FGLTFMaterialConverter final : public FGLTFBuilderContext, public TGLTFCon
 
 	virtual FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices) override;
 
+#if WITH_EDITOR
 	FGLTFUVOverlapChecker UVOverlapChecker;
 	FGLTFUVDegenerateChecker UVDegenerateChecker;
+#endif
 };

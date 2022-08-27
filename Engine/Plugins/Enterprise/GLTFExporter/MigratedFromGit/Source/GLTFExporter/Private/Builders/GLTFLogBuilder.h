@@ -4,7 +4,9 @@
 
 #include "Builders/GLTFBuilder.h"
 
+#if WITH_EDITOR
 class IMessageLogListing;
+#endif
 
 class FGLTFLogBuilder : public FGLTFBuilder
 {
@@ -45,5 +47,7 @@ private:
 	TArray<FString> Warnings;
 	TArray<FString> Errors;
 
+#if WITH_EDITOR
 	TSharedPtr<IMessageLogListing> LogListing;
+#endif
 };

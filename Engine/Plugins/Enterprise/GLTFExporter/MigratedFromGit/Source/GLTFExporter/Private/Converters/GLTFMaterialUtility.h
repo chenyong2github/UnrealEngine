@@ -39,6 +39,7 @@ struct FGLTFMaterialUtility
 {
 	static UMaterialInterface* GetDefault();
 
+#if WITH_EDITOR
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
 
 	static FGuid GetAttributeID(const FMaterialPropertyEx& Property);
@@ -77,10 +78,11 @@ struct FGLTFMaterialUtility
 	static EMaterialShadingModel GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels);
 	static FString ShadingModelsToString(const FMaterialShadingModelField& ShadingModels);
 
+	static void AnalyzeMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis);
+#endif
+
 	static bool NeedsMeshData(const UMaterialInterface* Material);
 	static bool NeedsMeshData(const TArray<const UMaterialInterface*>& Materials);
-
-	static void AnalyzeMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis);
 
 	static const UMaterialInterface* GetInterface(const UMaterialInterface* Material);
 	static const UMaterialInterface* GetInterface(const FStaticMaterial& Material);

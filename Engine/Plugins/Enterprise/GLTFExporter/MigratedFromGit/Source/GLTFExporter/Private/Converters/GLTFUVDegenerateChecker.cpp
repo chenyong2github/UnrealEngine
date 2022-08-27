@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EDITOR
+
 #include "Converters/GLTFUVDegenerateChecker.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
@@ -103,3 +105,5 @@ bool FGLTFUVDegenerateChecker::IsDegenerateTriangle(const TStaticArray<FVector, 
 	const float DoubleAreaSquared = (AB ^ AC).SizeSquared();
 	return DoubleAreaSquared < 2 * SMALL_NUMBER * SMALL_NUMBER;
 }
+
+#endif

@@ -78,6 +78,7 @@ UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 		Options = NewObject<UGLTFExportOptions>();
 	}
 
+#if WITH_EDITOR
 	if (GetShowExportOption() && !bAutomatedTask)
 	{
 		bool bExportAll = GetBatchMode();
@@ -95,6 +96,7 @@ UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 		SetShowExportOption(!bExportAll);
 		Options->SaveConfig();
 	}
+#endif
 
 	return Options;
 }
