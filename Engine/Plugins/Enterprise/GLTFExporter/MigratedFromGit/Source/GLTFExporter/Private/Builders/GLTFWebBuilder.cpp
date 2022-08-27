@@ -39,7 +39,7 @@ void FGLTFWebBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 				return FGLTFJsonUtility::ToString(Extension);
 			});
 
-			AddWarningMessage(FString::Printf(TEXT("Please note that export uses the following extensions that may not be supported in all glTF viewers: %s"), *ExtensionsString));
+			AddWarningMessage(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's bundled glTF viewer: %s"), *ExtensionsString));
 		}
 	}
 }
