@@ -81,3 +81,7 @@ inline EGLTFJsonAlphaMode ConvertAlphaMode(const EBlendMode Mode)
 		default:                            return EGLTFJsonAlphaMode::Opaque; // fallback
 	}
 }
+
+bool IsSkySphereBlueprint(const UBlueprint* Blueprint);
+
+bool IsHDRIBackdropBlueprint(const UBlueprint* Blueprint);
