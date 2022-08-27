@@ -157,6 +157,8 @@ const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMateria
 
 const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByName(const UMaterialInterface* Material, const FString& Name)
 {
+	// TODO: should we also search inside material functions and attribute layers?
+
 	for (const UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
 	{
 		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
@@ -386,22 +388,19 @@ bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressio
 	return false;
 }
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32>& OutTexCoords)
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput& Input, TSet<int32>& OutTexCoords)
 {
-	UMaterialExpression* Expression = ExpressionInput.Expression;
-	if (Expression == nullptr)
+	UMaterialExpression* InputExpression = Input.Expression;
+	if (InputExpression == nullptr)
 	{
 		return;
 	}
 
-	TArray<UMaterialExpression*> InputExpressions;
-	Expression->GetAllInputExpressions(InputExpressions);
+	TArray<UMaterialExpression*> Expressions;
+	InputExpression->GetAllInputExpressions(Expressions);
 
-	GetAllTextureCoordinateIndices(InputExpressions, OutTexCoords);
-}
+	ExpandAllFunctionExpressions(Expressions);
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const TArray<UMaterialExpression*>& Expressions, TSet<int32>& OutTexCoords)
-{
 	for (const UMaterialExpression* Expression : Expressions)
 	{
 		if (const UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression))
@@ -415,30 +414,43 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const TArray<UMaterial
 		{
 			OutTexCoords.Add(TextureCoordinate->CoordinateIndex);
 		}
-		else if (const UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
-		{
-			GetAllTextureCoordinateIndices(FunctionCall->Function->FunctionExpressions, OutTexCoords);
-        }
-		else if (const UMaterialExpressionMaterialAttributeLayers* AttributeLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
-		{
-			const TArray<UMaterialFunctionInterface*>& Layers = AttributeLayers->GetLayers();
-			const TArray<UMaterialFunctionInterface*>& Blends = AttributeLayers->GetBlends();
+	}
+}
 
+void FGLTFMaterialUtility::ExpandAllFunctionExpressions(TArray<UMaterialExpression*>& InOutExpressions)
+{
+	TArray<UMaterialExpression*> UnexpandedExpressions(InOutExpressions);
+
+	for (const UMaterialExpression* UnexpandedExpression : UnexpandedExpressions)
+	{
+		if (const UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(UnexpandedExpression))
+		{
+			if (UMaterialFunctionInterface* Function = FunctionCall->MaterialFunction)
+			{
+				Function->GetAllExpressionsOfType<UMaterialExpression>(InOutExpressions);
+			}
+		}
+		else if (const UMaterialExpressionMaterialAttributeLayers* AttributeLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(UnexpandedExpression))
+		{
 			for (UMaterialFunctionInterface* Layer : AttributeLayers->GetLayers())
 			{
-				if (Layer != nullptr && Layer->GetFunctionExpressions() != nullptr)
+				if (Layer != nullptr)
 				{
-					GetAllTextureCoordinateIndices(*Layer->GetFunctionExpressions(), OutTexCoords);
+					Layer->GetAllExpressionsOfType<UMaterialExpression>(InOutExpressions);
 				}
 			}
 
 			for (UMaterialFunctionInterface* Blend : AttributeLayers->GetBlends())
 			{
-				if (Blend != nullptr && Blend->GetFunctionExpressions() != nullptr)
+				if (Blend != nullptr)
 				{
-					GetAllTextureCoordinateIndices(*Blend->GetFunctionExpressions(), OutTexCoords);
+					Blend->GetAllExpressionsOfType<UMaterialExpression>(InOutExpressions);
 				}
 			}
 		}
 	}
+
+	InOutExpressions.RemoveAll([](const UMaterialExpression* Expression) {
+        return Expression->IsA<UMaterialExpressionMaterialFunctionCall>() || Expression->IsA<UMaterialExpressionMaterialAttributeLayers>();
+    });
 }
