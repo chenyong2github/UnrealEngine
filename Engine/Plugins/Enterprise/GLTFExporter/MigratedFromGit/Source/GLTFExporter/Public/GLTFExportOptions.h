@@ -74,6 +74,9 @@ public:
 	int32 DefaultLevelOfDetail;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
+	uint32 bExportLevelSequences : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
 	uint32 bExportVertexSkinWeights : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
@@ -83,7 +86,7 @@ public:
 	uint32 bRetargetBoneTransforms : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
-	uint32 bExportLevelSequences : 1;
+	uint32 bExportPlaybackSettings : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	uint32 bExportSourceTextures : 1;
