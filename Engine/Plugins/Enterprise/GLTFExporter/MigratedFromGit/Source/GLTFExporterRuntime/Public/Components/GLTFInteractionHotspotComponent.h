@@ -7,8 +7,8 @@
 
 class ASkeletalMeshActor;
 class UAnimSequence;
-class UBodySetup;
 class UTexture2D;
+class USphereComponent;
 
 /**
  * A component to set up hotspots which appear as billboards and allow playback of skeletal animations when cursor input is enabled.
@@ -30,13 +30,9 @@ public:
 
 protected:
 	virtual void OnRegister() override;
-	virtual void OnCreatePhysicsState() override;
 	//~ End UActorComponent Interface
 
-	//~ Begin UPrimitiveComponent Interface
 public:
-	virtual UBodySetup* GetBodySetup() override;
-	//~ End UPrimitiveComponent Interface
 
 	virtual void SetSprite(class UTexture2D* NewSprite);
 
@@ -80,8 +76,9 @@ public:
 	UTexture2D* ToggledHoveredImage;
 
 private:
+
 	UPROPERTY(transient, duplicatetransient)
-	UBodySetup* ShapeBodySetup;
+	USphereComponent* SphereComponent;
 
 	UPROPERTY(transient, duplicatetransient)
 	UMaterialInstanceDynamic* DefaultMaterial;
