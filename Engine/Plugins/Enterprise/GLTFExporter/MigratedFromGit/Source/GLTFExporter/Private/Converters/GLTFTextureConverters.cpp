@@ -62,10 +62,10 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 		ERGBFormat RGBFormat;
 		uint32 BitDepth;
 
-		if (Texture2D->Source.IsValid() && FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->Source.GetFormat(), RGBFormat, BitDepth))
-		{
-			FTextureSource& Source = const_cast<FTextureSource&>(Texture2D->Source);
+		FTextureSource& Source = const_cast<FTextureSource&>(Texture2D->Source);
 
+		if (Source.IsValid() && FGLTFTextureUtility::CanPNGCompressFormat(Source.GetFormat(), RGBFormat, BitDepth))
+		{
 			const void* RawData = Source.LockMip(0);
 			ImageIndex = Builder.AddImage(RawData, Source.CalcMipSize(0), Size, RGBFormat, BitDepth, JsonTexture.Name);
 			Source.UnlockMip(0);
