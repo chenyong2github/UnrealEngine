@@ -10,64 +10,64 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 
-#define LOCTEXT_NAMESPACE "SGLTFProxyOptionsWindow"
+#define LOCTEXT_NAMESPACE "GLTFProxyOptionsWindow"
 
-SGLTFProxyOptionsWindow::SGLTFProxyOptionsWindow() : bUserCancelled(true)
+SGLTFProxyOptionsWindow::SGLTFProxyOptionsWindow()
+	: ProxyOptions(nullptr)
+	, bUserCancelled(true)
 {
-
 }
 
 void SGLTFProxyOptionsWindow::Construct(const FArguments& InArgs)
 {
+	ProxyOptions = InArgs._ProxyOptions;
 	WidgetWindow = InArgs._WidgetWindow;
 
-	// Retrieve property editor module and create a SDetailsView
+	TSharedPtr<SBox> InspectorBox;
+	this->ChildSlot
+	[
+		SNew(SBox)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.Padding(2)
+			[
+				SAssignNew(InspectorBox, SBox)
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(2)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(2)
+				+ SUniformGridPanel::Slot(0, 0)
+				[
+					SAssignNew(ConfirmButton, SButton)
+					.HAlign(HAlign_Center)
+					.Text(LOCTEXT("Confirm", "Confirm"))
+					.OnClicked(this, &SGLTFProxyOptionsWindow::OnConfirm)
+				]
+				+ SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.Text(LOCTEXT("Cancel", "Cancel"))
+					.OnClicked(this, &SGLTFProxyOptionsWindow::OnCancel)
+				]
+			]
+		]
+	];
+
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-
-	// Set provided objects on SDetailsView
-	DetailsView->SetObjects(InArgs._SettingsObjects, true);
-
-	this->ChildSlot
-	[
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.Padding(2)
-		.MaxHeight(500.0f)
-		[
-			DetailsView->AsShared()
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Right)
-		.Padding(2)
-		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(2)
-			+ SUniformGridPanel::Slot(0, 0)
-			[
-				SAssignNew(ConfirmButton, SButton)
-				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("MaterialBakeOptionWindow_Import", "Confirm"))
-				.OnClicked(this, &SGLTFProxyOptionsWindow::OnConfirm)
-			]
-			+ SUniformGridPanel::Slot(1, 0)
-			[
-				SNew(SButton)
-				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("MaterialBakeOptionWindow_Cancel", "Cancel"))
-				.ToolTipText(LOCTEXT("MaterialBakeOptionWindow_Cancel_ToolTip", "Cancels baking out Material"))
-				.OnClicked(this, &SGLTFProxyOptionsWindow::OnCancel)
-			]
-		]
-	];
+	InspectorBox->SetContent(DetailsView->AsShared());
+	DetailsView->SetObject(ProxyOptions);
 }
 
 FReply SGLTFProxyOptionsWindow::OnConfirm()
@@ -82,6 +82,7 @@ FReply SGLTFProxyOptionsWindow::OnConfirm()
 
 FReply SGLTFProxyOptionsWindow::OnCancel()
 {
+	bUserCancelled = true;
 	if (WidgetWindow.IsValid())
 	{
 		WidgetWindow.Pin()->RequestDestroyWindow();
@@ -99,39 +100,30 @@ FReply SGLTFProxyOptionsWindow::OnKeyDown(const FGeometry& MyGeometry, const FKe
 	return FReply::Unhandled();
 }
 
-bool SGLTFProxyOptionsWindow::WasUserCancelled()
-{
-	return bUserCancelled;
-}
-
 bool SGLTFProxyOptionsWindow::ShowDialog(UGLTFProxyOptions* ProxyOptions)
 {
-	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(LOCTEXT("WindowTitle", "Material Baking Options"))
-		.SizingRule(ESizingRule::Autosized);
+	const TSharedRef<SWindow> Window = SNew(SWindow)
+		.Title(LOCTEXT("Title", "Create glTF Proxy Material"))
+		.SizingRule(ESizingRule::UserSized)
+		.AutoCenter(EAutoCenter::PrimaryWorkArea)
+		.ClientSize(FVector2D(500, 250));
 
-	TArray<TWeakObjectPtr<UObject>> OptionObjects = { ProxyOptions };
-	TSharedPtr<SGLTFProxyOptionsWindow> Options;
+	TSharedPtr<SGLTFProxyOptionsWindow> OptionsWindow;
 
 	Window->SetContent
 	(
-		SAssignNew(Options, SGLTFProxyOptionsWindow)
+		SAssignNew(OptionsWindow, SGLTFProxyOptionsWindow)
 		.WidgetWindow(Window)
-		.SettingsObjects(OptionObjects)
+		.ProxyOptions(ProxyOptions)
 	);
 
-	TSharedPtr<SWindow> ParentWindow;
-	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
-	{
-		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
-		ParentWindow = MainFrame.GetParentWindow();
-		FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
-		return !Options->WasUserCancelled();
-	}
+	IMainFrameModule* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>("MainFrame");
+	const TSharedPtr<SWindow> ParentWindow = MainFrame != nullptr ? MainFrame->GetParentWindow() : nullptr;
 
-	return false;
+	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+	return !OptionsWindow->bUserCancelled;
 }
 
-#undef LOCTEXT_NAMESPACE //"SGLTFProxyOptionsWindow"
+#undef LOCTEXT_NAMESPACE
 
 #endif

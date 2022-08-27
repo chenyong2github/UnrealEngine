@@ -27,34 +27,31 @@ public:
 		SLATE_ARGUMENT( bool, BatchMode )
 	SLATE_END_ARGS()
 
+	SGLTFExportOptionsWindow();
+
 	void Construct(const FArguments& InArgs);
 
-	virtual bool SupportsKeyboardFocus() const override { return true; }
-
+	FReply OnReset() const;
 	FReply OnExport();
-
 	FReply OnExportAll();
-
 	FReply OnCancel();
 
+	/* Begin SCompoundWidget overrides */
+	virtual bool SupportsKeyboardFocus() const override { return true; }
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	/* End SCompoundWidget overrides */
 
 	bool ShouldExport() const;
-
 	bool ShouldExportAll() const;
-
-	SGLTFExportOptionsWindow();
 
 	static void ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll);
 
 private:
 
-	FReply OnResetToDefaultClick() const;
-
 	UGLTFExportOptions* ExportOptions;
 	TSharedPtr<class IDetailsView> DetailsView;
 	TWeakPtr<SWindow> WidgetWindow;
-	TSharedPtr<SButton> ImportButton;
+	TSharedPtr<SButton> ExportButton;
 	bool bShouldExport;
 	bool bShouldExportAll;
 };
