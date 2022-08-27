@@ -74,7 +74,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-UTexture2D* FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty MaterialProperty, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty MaterialProperty, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
 {
 	TArray<FMeshData*> MeshSettings;
 
@@ -99,10 +99,8 @@ UTexture2D* FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSi
 
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 
-	const FBakeOutput& Output = BakeOutputs[0];
-
-	TArray<FColor> BakedPixels = Output.PropertyData.FindChecked(MaterialProperty);
-	const FIntPoint BakedSize = Output.PropertySizes.FindChecked(MaterialProperty);
+	TArray<FColor> BakedPixels = MoveTemp(BakeOutputs[0].PropertyData.FindChecked(MaterialProperty));
+	const FIntPoint BakedSize = BakeOutputs[0].PropertySizes.FindChecked(MaterialProperty);
 
 	if (bCopyAlphaFromRedChannel)
 	{
@@ -119,10 +117,28 @@ UTexture2D* FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSi
 		}
 	}
 
+	EPixelFormat PixelFormat;
+
 	// NOTE: The texture-format is mapped per property in the MaterialBaking-module via PerPropertyFormat.
 	// It's PF_B8G8R8A8 for all properties except for MP_EmissiveColor (which is PF_FloatRGBA).
-	// TODO: Should we handle cases the format *may* be something other that what we expect?
-	return CreateTransientTexture(BakedPixels, BakedSize, PF_B8G8R8A8);
+	switch (MaterialProperty)
+	{
+		case MP_EmissiveColor: PixelFormat = PF_FloatRGBA; break;
+		default: PixelFormat = PF_B8G8R8A8; break;
+	}
+
+	return {
+		MaterialProperty,
+		PixelFormat,
+		BakedPixels,
+		BakedSize
+	};
+}
+
+UTexture2D* FGLTFMaterialUtility::BakeMaterialPropertyToTexture(const FIntPoint& OutputSize, EMaterialProperty MaterialProperty, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
+{
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(OutputSize, MaterialProperty, Material, bCopyAlphaFromRedChannel);
+	return CreateTransientTexture(PropertyBakeOutput.Pixels, PropertyBakeOutput.Size, PropertyBakeOutput.PixelFormat);
 }
 
 FGLTFJsonTextureIndex FGLTFMaterialUtility::AddCombinedTexture(FGLTFConvertBuilder& Builder, const TArray<FGLTFTextureCombineSource>& CombineSources, const FIntPoint& TextureSize, const FString& TextureName, EGLTFJsonTextureFilter Filter, EGLTFJsonTextureWrap Wrap)
@@ -137,6 +153,11 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddCombinedTexture(FGLTFConvertBuild
 		return FGLTFJsonTextureIndex(INDEX_NONE);
 	}
 
+	return AddTexture(Builder, Pixels, TextureSize, TextureName, PixelFormat, Filter, Wrap);
+}
+
+FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder, const TArray<FColor>& Pixels, const FIntPoint& TextureSize, const FString& TextureName, EPixelFormat PixelFormat, EGLTFJsonTextureFilter Filter, EGLTFJsonTextureWrap Wrap)
+{
 	// TODO: maybe we should reuse existing samplers?
 	FGLTFJsonSampler JsonSampler;
 	JsonSampler.Name = TextureName;
