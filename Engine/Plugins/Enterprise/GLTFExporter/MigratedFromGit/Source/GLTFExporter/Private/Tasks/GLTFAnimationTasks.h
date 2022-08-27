@@ -11,13 +11,13 @@ class FGLTFAnimSequenceTask : public FGLTFTask
 {
 public:
 
-	FGLTFAnimSequenceTask(FGLTFConvertBuilder& Builder, FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimationIndex AnimationIndex)
+	FGLTFAnimSequenceTask(FGLTFConvertBuilder& Builder, FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimation* JsonAnimation)
 		: FGLTFTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, RootNode(RootNode)
 		, SkeletalMesh(SkeletalMesh)
 		, AnimSequence(AnimSequence)
-		, AnimationIndex(AnimationIndex)
+		, JsonAnimation(JsonAnimation)
 	{
 	}
 
@@ -34,19 +34,19 @@ private:
 	FGLTFJsonNodeIndex RootNode;
 	const USkeletalMesh* SkeletalMesh;
 	const UAnimSequence* AnimSequence;
-	const FGLTFJsonAnimationIndex AnimationIndex;
+	FGLTFJsonAnimation* JsonAnimation;
 };
 
 class FGLTFLevelSequenceTask : public FGLTFTask
 {
 public:
 
-	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ULevel* Level, const ULevelSequence* LevelSequence, FGLTFJsonAnimationIndex AnimationIndex)
+	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ULevel* Level, const ULevelSequence* LevelSequence, FGLTFJsonAnimation* JsonAnimation)
 		: FGLTFTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, Level(Level)
 		, LevelSequence(LevelSequence)
-		, AnimationIndex(AnimationIndex)
+		, JsonAnimation(JsonAnimation)
 	{
 	}
 
@@ -62,5 +62,5 @@ private:
 	FGLTFConvertBuilder& Builder;
 	const ULevel* Level;
 	const ULevelSequence* LevelSequence;
-	const FGLTFJsonAnimationIndex AnimationIndex;
+	FGLTFJsonAnimation* JsonAnimation;
 };

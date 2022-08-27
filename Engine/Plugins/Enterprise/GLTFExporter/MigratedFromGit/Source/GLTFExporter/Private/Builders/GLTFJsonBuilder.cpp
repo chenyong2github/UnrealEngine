@@ -41,6 +41,130 @@ void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequir
 	}
 }
 
+FGLTFJsonAccessor* FGLTFJsonBuilder::AddAccessor()
+{
+	return JsonRoot.Accessors.Add();
+}
+
+FGLTFJsonAnimation* FGLTFJsonBuilder::AddAnimation()
+{
+	return JsonRoot.Animations.Add();
+}
+
+FGLTFJsonBuffer* FGLTFJsonBuilder::AddBuffer()
+{
+	return JsonRoot.Buffers.Add();
+}
+
+FGLTFJsonBufferView* FGLTFJsonBuilder::AddBufferView()
+{
+	return JsonRoot.BufferViews.Add();
+}
+
+FGLTFJsonCamera* FGLTFJsonBuilder::AddCamera()
+{
+	return JsonRoot.Cameras.Add();
+}
+
+FGLTFJsonImage* FGLTFJsonBuilder::AddImage()
+{
+	return JsonRoot.Images.Add();
+}
+
+FGLTFJsonMaterial* FGLTFJsonBuilder::AddMaterial()
+{
+	return JsonRoot.Materials.Add();
+}
+
+FGLTFJsonMesh* FGLTFJsonBuilder::AddMesh()
+{
+	return JsonRoot.Meshes.Add();
+}
+
+FGLTFJsonNode* FGLTFJsonBuilder::AddNode()
+{
+	return JsonRoot.Nodes.Add();
+}
+
+FGLTFJsonSampler* FGLTFJsonBuilder::AddSampler()
+{
+	return JsonRoot.Samplers.Add();
+}
+
+FGLTFJsonScene* FGLTFJsonBuilder::AddScene()
+{
+	return JsonRoot.Scenes.Add();
+}
+
+FGLTFJsonSkin* FGLTFJsonBuilder::AddSkin()
+{
+	return JsonRoot.Skins.Add();
+}
+
+FGLTFJsonTexture* FGLTFJsonBuilder::AddTexture()
+{
+	return JsonRoot.Textures.Add();
+}
+
+FGLTFJsonBackdrop* FGLTFJsonBuilder::AddBackdrop()
+{
+	return JsonRoot.Backdrops.Add();
+}
+
+FGLTFJsonHotspot* FGLTFJsonBuilder::AddHotspot()
+{
+	return JsonRoot.Hotspots.Add();
+}
+
+FGLTFJsonLight* FGLTFJsonBuilder::AddLight()
+{
+	return JsonRoot.Lights.Add();
+}
+
+FGLTFJsonLightMap* FGLTFJsonBuilder::AddLightMap()
+{
+	return JsonRoot.LightMaps.Add();
+}
+
+FGLTFJsonSkySphere* FGLTFJsonBuilder::AddSkySphere()
+{
+	return JsonRoot.SkySpheres.Add();
+}
+
+FGLTFJsonEpicLevelVariantSets* FGLTFJsonBuilder::AddEpicLevelVariantSets()
+{
+	return JsonRoot.EpicLevelVariantSets.Add();
+}
+
+FGLTFJsonKhrMaterialVariant* FGLTFJsonBuilder::AddKhrMaterialVariant()
+{
+	return JsonRoot.KhrMaterialVariants.Add();
+}
+
+FGLTFJsonNode* FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex)
+{
+	FGLTFJsonNode* Child = AddNode();
+
+	if (ParentIndex != INDEX_NONE)
+	{
+		GetNode(ParentIndex).Children.Add(Child->Index);
+	}
+
+	return Child;
+}
+
+FGLTFJsonNode* FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNodeIndex ParentIndex)
+{
+	FGLTFJsonNode* Child = AddChildNode(ParentIndex);
+
+	if (ParentIndex != INDEX_NONE)
+	{
+		GetNode(ParentIndex).ComponentNode = Child->Index;
+	}
+
+	return Child;
+}
+
 FGLTFJsonAccessorIndex FGLTFJsonBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
 	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor)->Index);

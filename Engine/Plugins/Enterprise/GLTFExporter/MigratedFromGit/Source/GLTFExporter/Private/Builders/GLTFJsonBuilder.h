@@ -19,29 +19,53 @@ public:
 
 	void AddExtension(EGLTFJsonExtension Extension, bool bIsRequired = false);
 
-	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor = {});
-	FGLTFJsonAnimationIndex AddAnimation(const FGLTFJsonAnimation& JsonAnimation = {});
-	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer = {});
-	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView = {});
-	FGLTFJsonCameraIndex AddCamera(const FGLTFJsonCamera& JsonCamera = {});
-	FGLTFJsonImageIndex AddImage(const FGLTFJsonImage& JsonImage = {});
-	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial = {});
-	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh = {});
-	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode = {});
-	FGLTFJsonSamplerIndex AddSampler(const FGLTFJsonSampler& JsonSampler = {});
-	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene = {});
-	FGLTFJsonSkinIndex AddSkin(const FGLTFJsonSkin& JsonSkin = {});
-	FGLTFJsonTextureIndex AddTexture(const FGLTFJsonTexture& JsonTexture = {});
-	FGLTFJsonBackdropIndex AddBackdrop(const FGLTFJsonBackdrop& JsonBackdrop = {});
-	FGLTFJsonHotspotIndex AddHotspot(const FGLTFJsonHotspot& JsonHotspot = {});
-	FGLTFJsonLightIndex AddLight(const FGLTFJsonLight& JsonLight = {});
-	FGLTFJsonLightMapIndex AddLightMap(const FGLTFJsonLightMap& JsonLightMap = {});
-	FGLTFJsonSkySphereIndex AddSkySphere(const FGLTFJsonSkySphere& JsonSkySphere = {});
-	FGLTFJsonEpicLevelVariantSetsIndex AddEpicLevelVariantSets(const FGLTFJsonEpicLevelVariantSets& JsonEpicLevelVariantSets = {});
-	FGLTFJsonKhrMaterialVariantIndex AddKhrMaterialVariant(const FGLTFJsonKhrMaterialVariant& JsonKhrMaterialVariant = {});
+	FGLTFJsonAccessor* AddAccessor();
+	FGLTFJsonAnimation* AddAnimation();
+	FGLTFJsonBuffer* AddBuffer();
+	FGLTFJsonBufferView* AddBufferView();
+	FGLTFJsonCamera* AddCamera();
+	FGLTFJsonImage* AddImage();
+	FGLTFJsonMaterial* AddMaterial();
+	FGLTFJsonMesh* AddMesh();
+	FGLTFJsonNode* AddNode();
+	FGLTFJsonSampler* AddSampler();
+	FGLTFJsonScene* AddScene();
+	FGLTFJsonSkin* AddSkin();
+	FGLTFJsonTexture* AddTexture();
+	FGLTFJsonBackdrop* AddBackdrop();
+	FGLTFJsonHotspot* AddHotspot();
+	FGLTFJsonLight* AddLight();
+	FGLTFJsonLightMap* AddLightMap();
+	FGLTFJsonSkySphere* AddSkySphere();
+	FGLTFJsonEpicLevelVariantSets* AddEpicLevelVariantSets();
+	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant();
 
-	FGLTFJsonNodeIndex AddChildNode(FGLTFJsonNodeIndex ParentNodeIndex, const FGLTFJsonNode& JsonNode = {});
-	FGLTFJsonNodeIndex AddChildComponentNode(FGLTFJsonNodeIndex ParentNodeIndex, const FGLTFJsonNode& JsonNode = {});
+	FGLTFJsonNode* AddChildNode(FGLTFJsonNodeIndex ParentNodeIndex);
+	FGLTFJsonNode* AddChildComponentNode(FGLTFJsonNodeIndex ParentNodeIndex);
+
+	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
+	FGLTFJsonAnimationIndex AddAnimation(const FGLTFJsonAnimation& JsonAnimation);
+	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
+	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView);
+	FGLTFJsonCameraIndex AddCamera(const FGLTFJsonCamera& JsonCamera);
+	FGLTFJsonImageIndex AddImage(const FGLTFJsonImage& JsonImage);
+	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial);
+	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh);
+	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode);
+	FGLTFJsonSamplerIndex AddSampler(const FGLTFJsonSampler& JsonSampler);
+	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
+	FGLTFJsonSkinIndex AddSkin(const FGLTFJsonSkin& JsonSkin);
+	FGLTFJsonTextureIndex AddTexture(const FGLTFJsonTexture& JsonTexture);
+	FGLTFJsonBackdropIndex AddBackdrop(const FGLTFJsonBackdrop& JsonBackdrop);
+	FGLTFJsonHotspotIndex AddHotspot(const FGLTFJsonHotspot& JsonHotspot);
+	FGLTFJsonLightIndex AddLight(const FGLTFJsonLight& JsonLight);
+	FGLTFJsonLightMapIndex AddLightMap(const FGLTFJsonLightMap& JsonLightMap);
+	FGLTFJsonSkySphereIndex AddSkySphere(const FGLTFJsonSkySphere& JsonSkySphere);
+	FGLTFJsonEpicLevelVariantSetsIndex AddEpicLevelVariantSets(const FGLTFJsonEpicLevelVariantSets& JsonEpicLevelVariantSets);
+	FGLTFJsonKhrMaterialVariantIndex AddKhrMaterialVariant(const FGLTFJsonKhrMaterialVariant& JsonKhrMaterialVariant);
+
+	FGLTFJsonNodeIndex AddChildNode(FGLTFJsonNodeIndex ParentNodeIndex, const FGLTFJsonNode& JsonNode);
+	FGLTFJsonNodeIndex AddChildComponentNode(FGLTFJsonNodeIndex ParentNodeIndex, const FGLTFJsonNode& JsonNode);
 
 	const FGLTFJsonRoot& GetRoot() const;
 	FGLTFJsonAccessor& GetAccessor(FGLTFJsonAccessorIndex AccessorIndex);

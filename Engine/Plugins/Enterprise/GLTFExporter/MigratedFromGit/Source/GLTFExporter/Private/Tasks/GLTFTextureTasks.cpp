@@ -18,13 +18,12 @@ FString FGLTFTexture2DTask::GetName()
 
 void FGLTFTexture2DTask::Complete()
 {
-	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
-	Texture2D->GetName(JsonTexture.Name);
+	Texture2D->GetName(JsonTexture->Name);
 
 	const bool bFromSRGB = Texture2D->SRGB;
 	if (bFromSRGB != bToSRGB)
 	{
-		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+		JsonTexture->Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D);
@@ -36,13 +35,13 @@ void FGLTFTexture2DTask::Complete()
 
 	if (bIsHDR)
 	{
-		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
+		JsonTexture->Encoding = Builder.GetTextureHDREncoding();
 	}
 
 	TGLTFSharedArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels, JsonTexture.Encoding))
+	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels, JsonTexture->Encoding))
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels for 2D texture %s"), *JsonTexture.Name));
+		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels for 2D texture %s"), *JsonTexture->Name));
 		return;
 	}
 
@@ -59,8 +58,8 @@ void FGLTFTexture2DTask::Complete()
 		Texture2D->IsNormalMap() ? EGLTFTextureType::Normalmaps :
 		bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture.Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
-	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
+	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.GetOrAddSampler(Texture2D);
 }
 
 FString FGLTFTextureCubeTask::GetName()
@@ -70,13 +69,12 @@ FString FGLTFTextureCubeTask::GetName()
 
 void FGLTFTextureCubeTask::Complete()
 {
-	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
-	JsonTexture.Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
+	JsonTexture->Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
 
 	const bool bFromSRGB = TextureCube->SRGB;
 	if (bFromSRGB != bToSRGB)
 	{
-		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+		JsonTexture->Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation and has suitable pixel format
@@ -98,11 +96,11 @@ void FGLTFTextureCubeTask::Complete()
 
 	if (bIsHDR)
 	{
-		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
+		JsonTexture->Encoding = Builder.GetTextureHDREncoding();
 	}
 
 	TGLTFSharedArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels, JsonTexture.Encoding))
+	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels, JsonTexture->Encoding))
 	{
 		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels (cube face %d) for cubemap texture %s"), CubeFace, *TextureCube->GetName()));
 		return;
@@ -113,8 +111,8 @@ void FGLTFTextureCubeTask::Complete()
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(TextureCube->GetPixelFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture.Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
-	JsonTexture.Sampler = Builder.GetOrAddSampler(TextureCube);
+	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.GetOrAddSampler(TextureCube);
 }
 
 FString FGLTFTextureRenderTarget2DTask::GetName()
@@ -124,13 +122,12 @@ FString FGLTFTextureRenderTarget2DTask::GetName()
 
 void FGLTFTextureRenderTarget2DTask::Complete()
 {
-	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
-	RenderTarget2D->GetName(JsonTexture.Name);
+	RenderTarget2D->GetName(JsonTexture->Name);
 
 	const bool bFromSRGB = RenderTarget2D->SRGB;
 	if (bFromSRGB != bToSRGB)
 	{
-		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+		JsonTexture->Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D);
@@ -138,13 +135,13 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 
 	if (bIsHDR)
 	{
-		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
+		JsonTexture->Encoding = Builder.GetTextureHDREncoding();
 	}
 
 	TGLTFSharedArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadPixels(RenderTarget2D, *Pixels, JsonTexture.Encoding))
+	if (!FGLTFTextureUtility::ReadPixels(RenderTarget2D, *Pixels, JsonTexture->Encoding))
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels for 2D render target %s"), *JsonTexture.Name));
+		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels for 2D render target %s"), *JsonTexture->Name));
 		return;
 	}
 
@@ -153,8 +150,8 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTarget2D->GetFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture.Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
-	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTarget2D);
+	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.GetOrAddSampler(RenderTarget2D);
 }
 
 FString FGLTFTextureRenderTargetCubeTask::GetName()
@@ -164,13 +161,12 @@ FString FGLTFTextureRenderTargetCubeTask::GetName()
 
 void FGLTFTextureRenderTargetCubeTask::Complete()
 {
-	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
-	JsonTexture.Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
+	JsonTexture->Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
 
 	const bool bFromSRGB = RenderTargetCube->SRGB;
 	if (bFromSRGB != bToSRGB)
 	{
-		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+		JsonTexture->Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation
@@ -191,11 +187,11 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 
 	if (bIsHDR)
 	{
-		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
+		JsonTexture->Encoding = Builder.GetTextureHDREncoding();
 	}
 
 	TGLTFSharedArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels, JsonTexture.Encoding))
+	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, *Pixels, JsonTexture->Encoding))
 	{
 		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels (cube face %d) for cubemap render target %s"), CubeFace, *RenderTargetCube->GetName()));
 		return;
@@ -206,8 +202,8 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTargetCube->GetFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture.Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
-	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTargetCube);
+	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.GetOrAddSampler(RenderTargetCube);
 }
 
 #if WITH_EDITOR
@@ -219,8 +215,7 @@ FString FGLTFTextureLightMapTask::GetName()
 
 void FGLTFTextureLightMapTask::Complete()
 {
-	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
-	LightMap->GetName(JsonTexture.Name);
+	LightMap->GetName(JsonTexture->Name);
 
 	// NOTE: export of lightmaps via source data is used to work around issues with
 	// quality-loss due to incorrect gamma transformation when rendering to a canvas.
@@ -228,14 +223,14 @@ void FGLTFTextureLightMapTask::Complete()
 	FTextureSource& Source = const_cast<FTextureSource&>(LightMap->Source);
 	if (!Source.IsValid())
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Failed to export lightmap texture %s because of missing source data"), *JsonTexture.Name));
+		Builder.LogWarning(FString::Printf(TEXT("Failed to export lightmap texture %s because of missing source data"), *JsonTexture->Name));
 		return;
 	}
 
 	const ETextureSourceFormat SourceFormat = Source.GetFormat();
 	if (SourceFormat != TSF_BGRA8)
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Failed to export lightmap texture %s because of unsupported source format %s"), *JsonTexture.Name, *FGLTFNameUtility::GetName(SourceFormat)));
+		Builder.LogWarning(FString::Printf(TEXT("Failed to export lightmap texture %s because of unsupported source format %s"), *JsonTexture->Name, *FGLTFNameUtility::GetName(SourceFormat)));
 		return;
 	}
 
@@ -249,8 +244,8 @@ void FGLTFTextureLightMapTask::Complete()
 	TGLTFSharedArray<FColor> Pixels = MakeShared<TArray<FColor>>(static_cast<const FColor*>(RawData), ByteLength / sizeof(FColor));
 	Source.UnlockMip(0);
 
-	JsonTexture.Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
-	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMap);
+	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.GetOrAddSampler(LightMap);
 }
 
 #endif

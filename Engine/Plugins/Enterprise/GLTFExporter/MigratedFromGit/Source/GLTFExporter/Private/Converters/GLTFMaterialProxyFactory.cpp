@@ -257,7 +257,7 @@ TUniquePtr<IGLTFTexture2DConverter> FGLTFMaterialProxyFactory::CreateTextureConv
 
 		virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D, bool bToSRGB) override
 		{
-			const FGLTFJsonTextureIndex TextureIndex = Factory.Builder.AddTexture();
+			const FGLTFJsonTextureIndex TextureIndex = Factory.Builder.AddTexture({});
 			Factory.Textures.Add(TextureIndex, const_cast<UTexture2D*>(Texture2D));
 			return TextureIndex;
 		}
@@ -287,7 +287,7 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateImageConverter(
 			const FString Filename = FGLTFImageUtility::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
 			UniqueFilenames.Add(Filename);
 
-			const FGLTFJsonImageIndex ImageIndex = Factory.Builder.AddImage();
+			const FGLTFJsonImageIndex ImageIndex = Factory.Builder.AddImage({});
 			Factory.Images.Add(ImageIndex, { Filename, Type, bIgnoreAlpha, Size, Pixels });
 			return ImageIndex;
 		}

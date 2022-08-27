@@ -19,8 +19,7 @@ void FGLTFAnimSequenceTask::Complete()
 {
 	// TODO: bone transforms should be absolute (not relative) according to gltf spec
 
-	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	JsonAnimation.Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name due to limitation in certain gltf viewers
+	JsonAnimation->Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(JsonAnimation->Index); // Ensure unique name due to limitation in certain gltf viewers
 
 	TArray<float> Timestamps;
 	FGLTFBoneUtility::GetFrameTimestamps(AnimSequence, Timestamps);
@@ -82,10 +81,10 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonSampler.Interpolation = Interpolation;
 
 			FGLTFJsonAnimationChannel JsonChannel;
-			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation.Samplers.Add(JsonSampler));
+			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Translation;
 			JsonChannel.Target.Node = NodeIndex;
-			JsonAnimation.Channels.Add(JsonChannel);
+			JsonAnimation->Channels.Add(JsonChannel);
 		}
 
 		{
@@ -110,10 +109,10 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonSampler.Interpolation = Interpolation;
 
 			FGLTFJsonAnimationChannel JsonChannel;
-			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation.Samplers.Add(JsonSampler));
+			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Rotation;
 			JsonChannel.Target.Node = NodeIndex;
-			JsonAnimation.Channels.Add(JsonChannel);
+			JsonAnimation->Channels.Add(JsonChannel);
 		}
 
 		{
@@ -138,10 +137,10 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonSampler.Interpolation = Interpolation;
 
 			FGLTFJsonAnimationChannel JsonChannel;
-			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation.Samplers.Add(JsonSampler));
+			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Scale;
 			JsonChannel.Target.Node = NodeIndex;
-			JsonAnimation.Channels.Add(JsonChannel);
+			JsonAnimation->Channels.Add(JsonChannel);
 		}
 	}
 }
@@ -165,8 +164,7 @@ void FGLTFLevelSequenceTask::Complete()
 	int32 FrameOffset = FFrameRate::TransformTime(FFrameTime(MovieScene::DiscreteInclusiveLower(PlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
 	int32 FrameCount = FFrameRate::TransformTime(FFrameTime(FFrameNumber(MovieScene::DiscreteSize(PlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1;
 
-	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	JsonAnimation.Name = Sequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name due to limitation in certain gltf viewers
+	JsonAnimation->Name = Sequence->GetName() + TEXT("_") + FString::FromInt(JsonAnimation->Index); // Ensure unique name due to limitation in certain gltf viewers
 
 	TArray<float> Timestamps;
 	TArray<FFrameTime> FrameTimes;
@@ -278,10 +276,10 @@ void FGLTFLevelSequenceTask::Complete()
 						JsonSampler.Interpolation = EGLTFJsonInterpolation::Linear;
 
 						FGLTFJsonAnimationChannel JsonChannel;
-						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation.Samplers.Add(JsonSampler));
+						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Translation;
 						JsonChannel.Target.Node = NodeIndex;
-						JsonAnimation.Channels.Add(JsonChannel);
+						JsonAnimation->Channels.Add(JsonChannel);
 					}
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Rotation))
@@ -316,10 +314,10 @@ void FGLTFLevelSequenceTask::Complete()
 						JsonSampler.Interpolation = EGLTFJsonInterpolation::Linear;
 
 						FGLTFJsonAnimationChannel JsonChannel;
-						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation.Samplers.Add(JsonSampler));
+						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Rotation;
 						JsonChannel.Target.Node = NodeIndex;
-						JsonAnimation.Channels.Add(JsonChannel);
+						JsonAnimation->Channels.Add(JsonChannel);
 					}
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Scale))
@@ -351,10 +349,10 @@ void FGLTFLevelSequenceTask::Complete()
 						JsonSampler.Interpolation = EGLTFJsonInterpolation::Linear;
 
 						FGLTFJsonAnimationChannel JsonChannel;
-						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation.Samplers.Add(JsonSampler));
+						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Scale;
 						JsonChannel.Target.Node = NodeIndex;
-						JsonAnimation.Channels.Add(JsonChannel);
+						JsonAnimation->Channels.Add(JsonChannel);
 					}
 				}
 			}

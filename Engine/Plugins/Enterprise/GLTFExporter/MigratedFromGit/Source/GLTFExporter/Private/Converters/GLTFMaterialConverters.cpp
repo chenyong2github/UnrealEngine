@@ -47,9 +47,9 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface*
 {
 	if (Material != FGLTFMaterialUtility::GetDefaultMaterial())
 	{
-		const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
-		Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, MaterialIndex);
-		return MaterialIndex;
+		FGLTFJsonMaterial* JsonMaterial = Builder.AddMaterial();
+		Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, JsonMaterial);
+		return JsonMaterial->Index;
 	}
 
 	return FGLTFJsonMaterialIndex(INDEX_NONE); // use default gltf definition
