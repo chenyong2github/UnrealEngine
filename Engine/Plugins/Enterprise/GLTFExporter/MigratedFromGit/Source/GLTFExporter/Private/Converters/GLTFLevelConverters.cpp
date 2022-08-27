@@ -61,12 +61,16 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
-		// TODO: conversion of light direction should be done in separate converter
-		FGLTFJsonNode LightNode;
-		LightNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ALight
-		LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
-		LightNode.Light = Builder.GetOrAddLight(LightComponent, LightNode.Name);
-		Builder.AddChildNode(NodeIndex, LightNode);
+		// TODO: make it configurable whether static lights should be exported or not
+		if (LightComponent->Mobility != EComponentMobility::Static)
+		{
+			// TODO: conversion of light direction should be done in separate converter
+			FGLTFJsonNode LightNode;
+			LightNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ALight
+			LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
+			LightNode.Light = Builder.GetOrAddLight(LightComponent, LightNode.Name);
+			Builder.AddChildNode(NodeIndex, LightNode);
+		}
 	}
 
 	return NodeIndex;

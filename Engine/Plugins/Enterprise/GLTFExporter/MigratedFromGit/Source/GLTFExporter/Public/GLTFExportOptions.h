@@ -53,9 +53,17 @@ enum class EGLTFExporterTextureHDREncoding : uint8
 {
 	None,
 	RGBM,
-	RGBD,
 	RGBE,
 	HDR
+};
+
+UENUM(BlueprintType)
+enum class EGLTFExporterLightMobility : uint8
+{
+	None,
+    MovableOnly,
+	MovableAndStationary,
+    All
 };
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
@@ -110,7 +118,7 @@ public:
 	float ExportScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportLights : 1;
+	EGLTFExporterLightMobility bExportLights;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportCameras : 1;
