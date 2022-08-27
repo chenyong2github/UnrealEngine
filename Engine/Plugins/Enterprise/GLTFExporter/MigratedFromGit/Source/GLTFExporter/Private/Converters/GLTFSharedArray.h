@@ -5,48 +5,17 @@
 #include "CoreMinimal.h"
 
 template <typename ElementType, typename ArrayType = TArray<ElementType>, ESPMode Mode = ESPMode::Fast>
-class TGLTFSharedArray : public TSharedRef<ArrayType>
+class TGLTFSharedArray : public TSharedRef<ArrayType, Mode>
 {
 public:
 
-	template <typename... ArgTypes>
-	TGLTFSharedArray(ArgTypes&&... Args)
-		: TSharedRef(MakeShared<ArrayType>(Forward<ArgTypes>(Args)...))
+	TGLTFSharedArray()
+		: TSharedRef(MakeShared<ArrayType>())
 	{
 	}
 
-	TGLTFSharedArray(TGLTFSharedArray& SharedArray)
-		: TSharedRef(SharedArray)
-	{
-	}
-
-	TGLTFSharedArray(TGLTFSharedArray const& SharedArray)
-		: TSharedRef(SharedArray)
-	{
-	}
-
-	TGLTFSharedArray(TGLTFSharedArray&& SharedArray) noexcept
-		: TSharedRef(SharedArray)
-	{
-	}
-
-	TGLTFSharedArray& operator=(TGLTFSharedArray& Other)
-	{
-		TSharedRef<ArrayType>::operator=(Other);
-		return *this;
-	}
-
-	TGLTFSharedArray& operator=(TGLTFSharedArray const& Other)
-	{
-		TSharedRef<ArrayType>::operator=(Other);
-		return *this;
-	}
-
-	TGLTFSharedArray& operator=(TGLTFSharedArray&& Other) noexcept
-	{
-		TSharedRef<ArrayType>::operator=(Other);
-		return *this;
-	}
+	using TSharedRef<ArrayType>::TSharedRef;
+	using TSharedRef<ArrayType>::operator=;
 
 	bool operator==(const TGLTFSharedArray& Other) const
 	{
@@ -57,9 +26,6 @@ public:
 	{
 		return this->Get() != Other.Get();
 	}
-
-	using TSharedRef<ArrayType>::TSharedRef;
-	using TSharedRef<ArrayType>::operator=;
 
 	friend uint32 GetTypeHash(const TGLTFSharedArray& SharedArray)
 	{
