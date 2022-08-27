@@ -30,6 +30,12 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetPositions(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
 
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 	const uint32 Stride = VertexBuffer->GetStride();
@@ -85,6 +91,12 @@ FGLTFJsonAccessorIndex FGLTFColorBufferConverter::Convert(const FGLTFMeshSection
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetColors(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
 
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 	const uint32 Stride = VertexBuffer->GetStride();
@@ -118,6 +130,12 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetTangents(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
+
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
 
 	FGLTFJsonBufferViewIndex BufferViewIndex;
 	EGLTFJsonComponentType ComponentType;
@@ -193,6 +211,12 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetTangents(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
+
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
 
 	FGLTFJsonBufferViewIndex BufferViewIndex;
 	EGLTFJsonComponentType ComponentType;
@@ -276,6 +300,12 @@ FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* M
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetUVs(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
 
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
 	return VertexBuffer->GetUseFullPrecisionUVs()
 		? Convert<FVector2D>(MeshSection, VertexBuffer, UVIndex, SourceData)
 		: Convert<FVector2DHalf>(MeshSection, VertexBuffer, UVIndex, SourceData);
@@ -318,6 +348,12 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexBufferConverter::Convert(const FGLTFMeshSec
 
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetInfluences(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
+
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
 
 	return MeshSection->MaxBoneIndex > UINT8_MAX
 		? Convert<uint16>(MeshSection, VertexBuffer, InfluenceOffset, SourceData)
@@ -419,6 +455,12 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightBufferConverter::Convert(const FGLTFMeshSe
 
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetInfluences(VertexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
+
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
 
 	return MeshSection->MaxBoneIndex > UINT8_MAX
 		? Convert<uint16>(MeshSection, VertexBuffer, InfluenceOffset, SourceData)

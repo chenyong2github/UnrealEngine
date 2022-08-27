@@ -37,7 +37,13 @@ namespace
 
 		const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetTangents(VertexBuffer);
 		const uint8* SourceData = SourceBuffer->GetData();
-		const uint32 VertexCount= VertexBuffer->GetNumVertices();
+
+		if (SourceData == nullptr)
+		{
+			return;
+		}
+
+		const uint32 VertexCount = VertexBuffer->GetNumVertices();
 		bool bZeroNormals;
 		bool bZeroTangents;
 
@@ -67,8 +73,19 @@ namespace
 
 	bool HasVertexColors(const FColorVertexBuffer* VertexBuffer)
 	{
+		if (VertexBuffer == nullptr)
+		{
+			return false;
+		}
+
 		const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetColors(VertexBuffer);
 		const uint8* SourceData = SourceBuffer->GetData();
+
+		if (SourceData == nullptr)
+		{
+			return false;
+		}
+		
 		const uint32 VertexCount = VertexBuffer->GetNumVertices();
 		const uint32 Stride = VertexBuffer->GetStride();
 
