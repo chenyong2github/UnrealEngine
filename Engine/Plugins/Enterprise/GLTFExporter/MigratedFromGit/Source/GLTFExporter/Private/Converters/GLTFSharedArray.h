@@ -10,12 +10,18 @@ class TGLTFSharedArray : public TSharedRef<ArrayType, Mode>
 public:
 
 	TGLTFSharedArray()
-		: TSharedRef(MakeShared<ArrayType>())
+		: TSharedRef<ArrayType, Mode>(MakeShared<ArrayType>())
 	{
 	}
 
-	using TSharedRef<ArrayType>::TSharedRef;
-	using TSharedRef<ArrayType>::operator=;
+	template <typename OtherType, typename = decltype(ImplicitConv<ArrayType*>(static_cast<OtherType*>(nullptr)))>
+	TGLTFSharedArray(const TSharedRef<OtherType, Mode>& SharedRef)
+	: TSharedRef<ArrayType, Mode>(SharedRef)
+	{
+	}
+
+	using TSharedRef<ArrayType, Mode>::TSharedRef;
+	using TSharedRef<ArrayType, Mode>::operator=;
 
 	bool operator==(const TGLTFSharedArray& Other) const
 	{
