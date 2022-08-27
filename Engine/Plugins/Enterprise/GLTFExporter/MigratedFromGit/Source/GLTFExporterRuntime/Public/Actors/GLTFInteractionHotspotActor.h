@@ -83,31 +83,31 @@ public:
 
 private:
 
-	UPROPERTY(transient, DuplicateTransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UMaterialBillboardComponent* BillboardComponent;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	USphereComponent* SphereComponent;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UMaterialInterface* DefaultMaterial;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UTexture2D* DefaultImage;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UTexture2D* DefaultHoveredImage;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UTexture2D* DefaultToggledImage;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UTexture2D* DefaultToggledHoveredImage;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	UMaterialInterface* DefaultIconMaterial;
 
-	UPROPERTY(transient, duplicatetransient)
+	UPROPERTY(Transient, DuplicateTransient)
 	const UTexture* ActiveImage;
 
 	FVector2D ActiveImageSize;
