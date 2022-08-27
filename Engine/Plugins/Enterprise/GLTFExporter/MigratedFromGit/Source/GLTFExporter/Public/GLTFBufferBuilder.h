@@ -14,7 +14,7 @@ struct GLTFEXPORTER_API FGLTFBufferBuilder
 
 	FGLTFBufferBuilder(FGLTFJsonBufferIndex BufferIndex);
 
-	FGLTFJsonBufferViewIndex CreateBufferView(FGLTFContainerBuilder& Container, const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget);
+	FGLTFJsonBufferViewIndex AddBufferView(FGLTFContainerBuilder& Container, const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget);
 
 	void UpdateBuffer(FGLTFJsonBuffer& JsonBuffer);
 };

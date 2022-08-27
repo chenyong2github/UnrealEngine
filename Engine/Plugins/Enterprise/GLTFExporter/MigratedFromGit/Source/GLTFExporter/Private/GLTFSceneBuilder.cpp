@@ -44,7 +44,7 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	}
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
-		Node.Mesh = Container.AddMesh(StaticMeshComponent);
+		Node.Mesh = Container.ConvertMesh(StaticMeshComponent);
 	}
 	else if (bIsRootComponent && FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint))
 	{
@@ -60,7 +60,7 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 		}
 	}
 
-	return Container.CreateNode(Node);
+	return Container.AddNode(Node);
 }
 
 FGLTFSceneBuilder::FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly)
@@ -100,5 +100,5 @@ FGLTFJsonSceneIndex FGLTFSceneBuilder::AddScene(FGLTFContainerBuilder& Container
 		if (NodeIndex != INDEX_NONE) Scene.Nodes.Add(NodeIndex);
 	}
 
-	return Container.CreateScene(Scene);
+	return Container.AddScene(Scene);
 }
