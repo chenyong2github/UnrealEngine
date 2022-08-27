@@ -57,7 +57,7 @@ void UGLTFExportOptions::LoadOptions()
 		FString Key = Property->GetName();
 
 		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
-		if (Array)
+		if (Array != nullptr)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, false, true, *GEditorPerProjectIni);
 			if (Sec != nullptr)
@@ -144,7 +144,7 @@ void UGLTFExportOptions::SaveOptions()
 		FString Key = Property->GetName();
 
 		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
-		if (Array)
+		if (Array != nullptr)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, true, false, *GEditorPerProjectIni);
 			check(Sec);
