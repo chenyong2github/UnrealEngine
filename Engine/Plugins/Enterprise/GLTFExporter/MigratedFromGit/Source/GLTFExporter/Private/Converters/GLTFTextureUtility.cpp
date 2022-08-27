@@ -99,7 +99,7 @@ TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const U
 	return MakeTuple(AddressX, AddressY);
 }
 
-UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bUseSRGB)
+UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bSRGB)
 {
 	check(CalculateImageBytes(Size.X, Size.Y, 0, Format) == ByteLength);
 
@@ -110,7 +110,7 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	FMemory::Memcpy(MipData, RawData, ByteLength);
 	Texture->PlatformData->Mips[0].BulkData.Unlock();
 
-	Texture->SRGB = bUseSRGB ? 1 : 0;
+	Texture->SRGB = bSRGB ? 1 : 0;
 	Texture->CompressionNone = true;
 	Texture->MipGenSettings = TMGS_NoMipmaps;
 
@@ -118,10 +118,20 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	return Texture;
 }
 
-UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, EPixelFormat Format, bool bInForceLinearGamma)
+UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bIsHDR)
 {
+	// TODO: instead of PF_FloatRGBA (i.e. RTF_RGBA16f) use PF_A32B32G32R32F (i.e. RTF_RGBA32f) to avoid accuracy loss
+	const EPixelFormat PixelFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
+
+	// NOTE: both bForceLinearGamma and TargetGamma=2.2 seem necessary for exported images to match their source data.
+	// It's not entirely clear why gamma must be 2.2 (instead of 0.0) and why bInForceLinearGamma must also be true.
+	const bool bForceLinearGamma = true;
+	const float TargetGamma = 2.2f;
+
 	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
-	RenderTarget->InitCustomFormat(Size.X, Size.Y, Format, bInForceLinearGamma);
+	RenderTarget->InitCustomFormat(Size.X, Size.Y, PixelFormat, bForceLinearGamma);
+
+	RenderTarget->TargetGamma = TargetGamma;
 	return RenderTarget;
 }
 
