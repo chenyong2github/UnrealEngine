@@ -9,6 +9,7 @@
 #include "Converters/GLTFTextureConverters.h"
 #include "Converters/GLTFLevelConverters.h"
 #include "Converters/GLTFLightMapConverters.h"
+#include "Converters/GLTFVariantSetConverters.h"
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
@@ -38,6 +39,7 @@ public:
 	FGLTFJsonNodeIndex GetOrAddNode(const AActor* Actor, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const UWorld* World, const FString& DesiredName = TEXT(""));
+	FGLTFJsonLevelVariantSetsIndex GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor, const FString& DesiredName = TEXT(""));
 
 private:
 
@@ -59,4 +61,5 @@ private:
 	FGLTFSceneComponentConverter SceneComponentConverter;
 	FGLTFActorConverter ActorConverter;
 	FGLTFLevelConverter LevelConverter;
+	FGLTFLevelVariantSetsConverter LevelVariantSetsConverter;
 };
