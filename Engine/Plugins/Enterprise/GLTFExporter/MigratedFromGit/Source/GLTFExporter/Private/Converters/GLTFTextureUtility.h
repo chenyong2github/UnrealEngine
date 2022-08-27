@@ -9,12 +9,13 @@ enum class ERGBFormat : int8;
 
 struct FGLTFTextureUtility
 {
-	static bool IsHDR(const UTexture* Texture);
+	static bool IsHDR(EPixelFormat Format);
 
 	static bool CanPNGCompressFormat(ETextureSourceFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth);
 	static bool CanPNGCompressFormat(EPixelFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth);
 
 	static bool IsCubemap(const UTexture* Texture);
+
 	static float GetCubeFaceRotation(ECubeFace CubeFace);
 
 	static TextureFilter GetDefaultFilter(TextureGroup Group);

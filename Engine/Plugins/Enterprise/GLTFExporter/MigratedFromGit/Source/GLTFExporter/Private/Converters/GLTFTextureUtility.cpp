@@ -4,9 +4,28 @@
 #include "IImageWrapper.h"
 #include "NormalMapPreview.h"
 
-bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)
+bool FGLTFTextureUtility::IsHDR(EPixelFormat Format)
 {
-	return Texture->CompressionSettings == TC_HDR || Texture->CompressionSettings == TC_HDR_Compressed;
+	switch (Format)
+	{
+		case PF_A32B32G32R32F:
+		case PF_FloatRGB:
+		case PF_FloatRGBA:
+		case PF_R32_FLOAT:
+		case PF_G16R16F:
+		case PF_G16R16F_FILTER:
+		case PF_G32R32F:
+		case PF_R16F:
+		case PF_R16F_FILTER:
+		case PF_FloatR11G11B10:
+		case PF_BC6H:
+		case PF_PLATFORM_HDR_0:
+		case PF_PLATFORM_HDR_1:
+		case PF_PLATFORM_HDR_2:
+			return true;
+		default:
+			return false;
+	}
 }
 
 bool FGLTFTextureUtility::CanPNGCompressFormat(ETextureSourceFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth)
@@ -118,10 +137,10 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	return Texture;
 }
 
-UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bIsHDR)
+UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, bool bHDR)
 {
 	// TODO: instead of PF_FloatRGBA (i.e. RTF_RGBA16f) use PF_A32B32G32R32F (i.e. RTF_RGBA32f) to avoid accuracy loss
-	const EPixelFormat PixelFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
+	const EPixelFormat PixelFormat = bHDR ? PF_FloatRGBA : PF_B8G8R8A8;
 
 	// NOTE: both bForceLinearGamma and TargetGamma=2.2 seem necessary for exported images to match their source data.
 	// It's not entirely clear why gamma must be 2.2 (instead of 0.0) and why bInForceLinearGamma must also be true.
@@ -214,7 +233,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderT
 	const FIntPoint Size(RenderTargetCube->SizeX, RenderTargetCube->SizeX);
 	UTexture2D* FaceTexture;
 
-	if (IsHDR(RenderTargetCube))
+	if (IsHDR(RenderTargetCube->GetFormat()))
 	{
 		TArray<FFloat16Color> Pixels;
 		if (!Resource->ReadPixels(Pixels, FReadSurfaceDataFlags(RCM_UNorm, CubeFace)))
