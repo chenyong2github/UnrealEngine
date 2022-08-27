@@ -50,7 +50,7 @@ public class GLTFExporter : ModuleRules
 					"MessageLog",
 					"Slate",
 					"SlateCore",
-					"Mainframe",
+					"MainFrame",
 					"InputCore",
 					"EditorStyle",
 					"PropertyEditor",
