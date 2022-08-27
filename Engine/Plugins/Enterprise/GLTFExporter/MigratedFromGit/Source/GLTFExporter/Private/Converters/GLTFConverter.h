@@ -6,28 +6,29 @@
 
 class FGLTFConvertBuilder;
 
-template <class IndexType, class KeyType>
+template <typename IndexType, typename... ArgTypes>
 class TGLTFConverter
 {
+	typedef TTuple<ArgTypes...> KeyType;
+
 public:
+
 	virtual ~TGLTFConverter() = default;
 
-	template <typename... ArgsType>
-    FORCEINLINE IndexType Get(ArgsType&&... Args) const
+	FORCEINLINE IndexType Get(ArgTypes&&... Args) const
 	{
-		const KeyType Key(Forward<ArgsType>(Args)...);
+		const KeyType Key(Forward<ArgTypes>(Args)...);
 		return IndexLookup.FindRef(Key);
 	}
 
-	template <typename... ArgsType>
-    FORCEINLINE IndexType GetOrAdd(FGLTFConvertBuilder& Builder, const FString& DesiredName, ArgsType&&... Args)
+	FORCEINLINE IndexType GetOrAdd(FGLTFConvertBuilder& Builder, const FString& DesiredName, ArgTypes... Args)
 	{
-		const KeyType Key(Forward<ArgsType>(Args)...);
+		const KeyType Key(Forward<ArgTypes>(Args)...);
 
 		IndexType Index = IndexLookup.FindRef(Key);
 		if (Index == INDEX_NONE)
 		{
-			Index = Add(Builder, DesiredName, Key);
+			Index = Add(Builder, DesiredName, Forward<ArgTypes>(Args)...);
 			IndexLookup.Add(Key, Index);
 		}
 
@@ -36,7 +37,7 @@ public:
 
 private:
 
-	TMap<KeyType, IndexType> IndexLookup;
+	virtual IndexType Add(FGLTFConvertBuilder& Builder, const FString& Name, ArgTypes... Args) = 0;
 
-	virtual IndexType Add(FGLTFConvertBuilder& Builder, const FString& Name, KeyType Key) = 0;
+	TMap<KeyType, IndexType> IndexLookup;
 };
