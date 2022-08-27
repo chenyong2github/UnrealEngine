@@ -95,6 +95,7 @@ using Horde.Build.Server.Notices;
 using Horde.Build.Notifications.Sinks;
 using EpicGames.Horde.Storage.Bundles;
 using StatusCode = Grpc.Core.StatusCode;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Horde.Build
 {
@@ -279,7 +280,7 @@ namespace Horde.Build
 		static IBlobStore CreateBlobStore(IServiceProvider sp, BlobStoreOptions options)
 		{
 			IStorageBackend backend = CreateStorageBackend(sp, options);
-			return new BlobStore(backend);
+			return new BasicBlobStore(sp.GetRequiredService<MongoService>(), backend, sp.GetRequiredService<IMemoryCache>());
 		}
 
 		static ITreeStore CreateTreeStore(IServiceProvider sp, TreeStoreOptions options)
@@ -460,9 +461,9 @@ namespace Horde.Build
 			}
 
 			// Storage providers
-			services.AddSingleton<IStorageBackend<PersistentLogStorage>>(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
-			services.AddSingleton<IStorageBackend<ArtifactCollection>>(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
-			services.AddSingleton<ITreeStore<ReplicationService>>(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<ReplicationService>());
+			services.AddSingleton(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
+			services.AddSingleton(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
+			services.AddSingleton(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<ReplicationService>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
 			

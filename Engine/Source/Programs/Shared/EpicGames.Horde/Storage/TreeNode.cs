@@ -153,9 +153,9 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public static async Task<T?> TryReadTreeAsync<T>(this ITreeStore store, RefName name, CancellationToken cancellationToken = default) where T : TreeNode
+		public static async Task<T?> TryReadTreeAsync<T>(this ITreeStore store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
 		{
-			ITreeBlob? root = await store.TryReadTreeAsync(name, cancellationToken);
+			ITreeBlob? root = await store.TryReadTreeAsync(name, maxAge, cancellationToken);
 			if (root == null)
 			{
 				return null;
@@ -164,9 +164,9 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public static async Task<T> ReadTreeAsync<T>(this ITreeStore store, RefName name, CancellationToken cancellationToken = default) where T : TreeNode
+		public static async Task<T> ReadTreeAsync<T>(this ITreeStore store, RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) where T : TreeNode
 		{
-			T? result = await store.TryReadTreeAsync<T>(name, cancellationToken);
+			T? result = await store.TryReadTreeAsync<T>(name, maxAge, cancellationToken);
 			if (result == null)
 			{
 				throw new RefNameNotFoundException(name);

@@ -318,7 +318,7 @@ namespace Horde.Build.Storage.Backends
 					}
 				}
 
-				await Task.Delay(retryTimes[attempt]);
+				await Task.Delay(retryTimes[attempt], cancellationToken);
 			}
 		}
 

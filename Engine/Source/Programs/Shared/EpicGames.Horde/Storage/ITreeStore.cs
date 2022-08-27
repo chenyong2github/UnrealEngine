@@ -73,9 +73,10 @@ namespace EpicGames.Horde.Storage
 		/// Attempts to read a tree with the given name
 		/// </summary>
 		/// <param name="name">Name of the ref used to store the tree</param>
+		/// <param name="maxAge"></param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Reference to the root of the tree. Null if the ref does not exist.</returns>
-		Task<ITreeBlob?> TryReadTreeAsync(RefName name, CancellationToken cancellationToken = default);
+		Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -162,7 +163,7 @@ namespace EpicGames.Horde.Storage
 			public Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.HasTreeAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<ITreeBlob?> TryReadTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.TryReadTreeAsync(name, cancellationToken);
+			public Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default) => _inner.TryReadTreeAsync(name, maxAge, cancellationToken);
 		}
 
 		/// <summary>

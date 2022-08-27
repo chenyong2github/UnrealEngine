@@ -22,29 +22,31 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Map of ref name to ref data
 		/// </summary>
-		readonly ConcurrentDictionary<RefName, IBlob> _refs = new ConcurrentDictionary<RefName, IBlob>();
+		readonly ConcurrentDictionary<RefName, BlobId> _refs = new ConcurrentDictionary<RefName, BlobId>();
 
 		/// <inheritdoc cref="_blobs"/>
 		public IReadOnlyDictionary<BlobId, IBlob> Blobs => _blobs;
 
 		/// <inheritdoc cref="_refs"/>
-		public IReadOnlyDictionary<RefName, IBlob> Refs => _refs;
+		public IReadOnlyDictionary<RefName, BlobId> Refs => _refs;
 
 		#region Blobs
 
 		/// <inheritdoc/>
-		public Task<IBlob?> TryReadBlobAsync(BlobId blobId, CancellationToken cancellationToken = default)
+		public Task<IBlob> ReadBlobAsync(BlobId blobId, CancellationToken cancellationToken = default)
 		{
-			_blobs.TryGetValue(blobId, out IBlob? blob);
-			return Task.FromResult(blob);
+			return Task.FromResult(_blobs[blobId]);
 		}
 
 		/// <inheritdoc/>
-		public Task<BlobId> WriteBlobAsync(RefName refName, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+		public Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
 		{
 			BlobId blobId = new BlobId(Guid.NewGuid().ToString());
-			_blobs[blobId] = BlobUtils.FromMemory(data.ToArray(), references);
-			return Task.FromResult(blobId);
+
+			IBlob blob = Blob.FromMemory(blobId, data.ToArray(), references);
+			_blobs[blobId] = blob;
+
+			return Task.FromResult(blob);
 		}
 
 		#endregion
@@ -58,16 +60,41 @@ namespace EpicGames.Horde.Storage.Backends
 		public Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.ContainsKey(name));
 
 		/// <inheritdoc/>
-		public Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken)
+		public Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			_refs.TryGetValue(name, out IBlob? blob);
+			IBlob? blob = null;
+			if (_refs.TryGetValue(name, out BlobId blobId))
+			{
+				_blobs.TryGetValue(blobId, out blob);
+			}
 			return Task.FromResult(blob);
 		}
 
-		/// <inheritdoc/>s
-		public Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
+		/// <inheritdoc/>
+		public Task<BlobId> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			_refs[name] = BlobUtils.FromMemory(data.ToArray(), references);
+			if (_refs.TryGetValue(name, out BlobId blobId))
+			{
+				return Task.FromResult(blobId);
+			}
+			else
+			{
+				return Task.FromResult(BlobId.Empty);
+			}
+		}
+
+		/// <inheritdoc/>
+		public async Task<IBlob> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
+		{
+			IBlob blob = await WriteBlobAsync(data, references, name, cancellationToken);
+			_refs[name] = blob.Id;
+			return blob;
+		}
+
+		/// <inheritdoc/>
+		public Task WriteRefTargetAsync(RefName name, BlobId blobId, CancellationToken cancellationToken = default)
+		{
+			_refs[name] = blobId;
 			return Task.CompletedTask;
 		}
 

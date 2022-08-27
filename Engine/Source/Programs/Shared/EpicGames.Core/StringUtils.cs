@@ -453,6 +453,50 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Formats an array of bytes as a hexadecimal string
+		/// </summary>
+		/// <param name="bytes">An array of bytes</param>
+		/// <param name="characters">Buffer to receive the characters</param>
+		public static void FormatUtf8HexString(ReadOnlySpan<byte> bytes, Span<byte> characters)
+		{
+			for (int idx = 0; idx < bytes.Length; idx++)
+			{
+				characters[idx * 2 + 0] = s_hexDigitToUtf8Byte[bytes[idx] >> 4];
+				characters[idx * 2 + 1] = s_hexDigitToUtf8Byte[bytes[idx] & 15];
+			}
+		}
+
+
+		/// <summary>
+		/// Formats a 32-bit unsigned integer as a hexadecimal string
+		/// </summary>
+		/// <param name="value">Value to render</param>
+		/// <returns>Hex string</returns>
+		public static Utf8String FormatUtf8HexString(uint value)
+		{
+			byte[] buffer = new byte[8];
+			FormatUtf8HexString(value, buffer);
+			return new Utf8String(buffer);
+		}
+
+		/// <summary>
+		/// Formats a 32-bit unsigned integer as a hexadecimal string
+		/// </summary>
+		/// <param name="value">Value to render</param>
+		/// <param name="characters">Buffer to receive the characters</param>
+		public static void FormatUtf8HexString(uint value, Span<byte> characters)
+		{
+			characters[0] = s_hexDigitToUtf8Byte[(value >> 28) & 15];
+			characters[1] = s_hexDigitToUtf8Byte[(value >> 24) & 15];
+			characters[2] = s_hexDigitToUtf8Byte[(value >> 20) & 15];
+			characters[3] = s_hexDigitToUtf8Byte[(value >> 16) & 15];
+			characters[4] = s_hexDigitToUtf8Byte[(value >> 12) & 15];
+			characters[5] = s_hexDigitToUtf8Byte[(value >> 8) & 15];
+			characters[6] = s_hexDigitToUtf8Byte[(value >> 4) & 15];
+			characters[7] = s_hexDigitToUtf8Byte[value & 15];
+		}
+
+		/// <summary>
 		/// Quotes a string as a command line argument
 		/// </summary>
 		/// <param name="str">The string to quote</param>

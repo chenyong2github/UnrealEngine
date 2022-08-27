@@ -5,7 +5,6 @@ using EpicGames.Serialization;
 using System;
 using System.ComponentModel;
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -21,6 +20,22 @@ namespace EpicGames.Horde.Storage
 	public struct BlobId : IEquatable<BlobId>
 	{
 		/// <summary>
+		/// Dummy enum to allow invoking the constructor which takes a sanitized full path
+		/// </summary>
+		public enum Sanitize
+		{
+			/// <summary>
+			/// Dummy value
+			/// </summary>
+			None
+		}
+
+		/// <summary>
+		/// Empty blob id
+		/// </summary>
+		public static BlobId Empty { get; } = default;
+
+		/// <summary>
 		/// Identifier for the ref
 		/// </summary>
 		public Utf8String Inner { get; }
@@ -32,6 +47,117 @@ namespace EpicGames.Horde.Storage
 		public BlobId(Utf8String inner)
 		{
 			Inner = inner;
+			ValidateArgument(nameof(inner), inner);
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="inner"></param>
+		/// <param name="sanitize"></param>
+		public BlobId(Utf8String inner, Sanitize sanitize)
+		{
+			Inner = inner;
+			_ = sanitize;
+		}
+
+		/// <summary>
+		/// Create a unique content id, optionally including a ref name
+		/// </summary>
+		/// <param name="serverId">The server id</param>
+		/// <param name="hintRefName">Hint for the ref containing this blob</param>
+		/// <returns>New content id</returns>
+		public static BlobId Create(ServerId serverId, RefName hintRefName = default)
+		{
+			Utf8String prefix = hintRefName.Text;
+			if (prefix.Length == 0)
+			{
+				DateTime now = DateTime.UtcNow.Date;
+				prefix = $"_by_date_/{now.Year}-{now.Month:D2}/{now.Day:D2}";
+			}
+
+			byte[] buffer;
+			Span<byte> span;
+
+			if (serverId.IsValid())
+			{
+				buffer = new byte[serverId.Inner.Length + 1 + prefix.Length + 1 + 24];
+				span = buffer;
+
+				serverId.Inner.Span.CopyTo(span);
+				span = span.Slice(serverId.Inner.Length);
+
+				span[0] = (byte)':';
+				span = span.Slice(1);
+			}
+			else
+			{
+				buffer = new byte[prefix.Length + 1 + 24];
+				span = buffer;
+			}
+
+			prefix.Span.CopyTo(span);
+			span = span.Slice(prefix.Length);
+
+			span[0] = (byte)'/';
+			span = span.Slice(1);
+
+			ContentId.GenerateUniqueId(span);
+			return new BlobId(new Utf8String(buffer), Sanitize.None);
+		}
+
+		/// <summary>
+		/// Validates a given string as a content id
+		/// </summary>
+		/// <param name="name">Name of the argument</param>
+		/// <param name="text">String to validate</param>
+		public static void ValidateArgument(string name, Utf8String text)
+		{
+			if (text.Length == 0)
+			{
+				throw new ArgumentException("Blob identifiers cannot be empty", name);
+			}
+
+			int colonIdx = text.LastIndexOf((byte)':');
+			if (colonIdx != -1)
+			{
+				ServerId.ValidateArgument(name, text.Substring(0, colonIdx));
+			}
+
+			ContentId.ValidateArgument(name, text.Substring(colonIdx + 1));
+		}
+
+		/// <summary>
+		/// Checks whether this blob id is valid
+		/// </summary>
+		/// <returns>True if the identifier is valid</returns>
+		public bool IsValid() => Inner.Length > 0;
+
+		/// <summary>
+		/// Gets the server id for this blob
+		/// </summary>
+		/// <returns>Server id</returns>
+		public ServerId GetServerId()
+		{
+			int colonIdx = Inner.LastIndexOf((byte)':');
+			if (colonIdx == -1)
+			{
+				return ServerId.Empty;
+			}
+			else
+			{
+				return new ServerId(Inner.Substring(0, colonIdx), ServerId.Sanitize.None);
+			}
+		}
+
+		/// <summary>
+		/// Gets the content id for this blob
+		/// </summary>
+		/// <returns>Content id</returns>
+		public ContentId GetContentId()
+		{
+			int colonIdx = Inner.LastIndexOf((byte)':');
+			return new ContentId(Inner.Substring(colonIdx + 1), ContentId.Sanitize.None);
 		}
 
 		/// <inheritdoc/>

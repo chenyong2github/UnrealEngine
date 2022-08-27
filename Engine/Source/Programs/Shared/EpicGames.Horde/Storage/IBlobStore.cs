@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.CodeAnalysis.Rename;
 
 namespace EpicGames.Horde.Storage
 {
@@ -36,6 +37,11 @@ namespace EpicGames.Horde.Storage
 	public interface IBlob
 	{
 		/// <summary>
+		/// Identifier for the blob
+		/// </summary>
+		BlobId Id { get; }
+
+		/// <summary>
 		/// Gets the data for this blob
 		/// </summary>
 		/// <returns></returns>
@@ -61,47 +67,58 @@ namespace EpicGames.Horde.Storage
 		/// <param name="id">The blob identifier</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default);
+		Task<IBlob> ReadBlobAsync(BlobId id, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new object to the store
 		/// </summary>
-		/// <param name="refName">Name of a ref that this blob is being written for. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
 		/// <param name="data">Payload for the object</param>
 		/// <param name="references">Object references</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <param name="hintRefName">Name of a ref that this blob is being written for. While the returned BlobId is guaranteed to be unique, this name can be used as a prefix to aid debugging.</param>
 		/// <returns>Unique identifier for the bundle</returns>
-		Task<BlobId> WriteBlobAsync(RefName refName, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default);
+		Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default);
 
 		#endregion
 
 		#region Refs
 
 		/// <summary>
-		/// Checks if the given ref exists
+		/// Reads data for a ref from the store, along with the blob contents.
 		/// </summary>
-		/// <param name="name">Name of the reference to look for</param>
+		/// <param name="name">The ref name</param>
+		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>True if the ref exists, false if it did not exist</returns>
-		Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken = default);
+		/// <returns></returns>
+		Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
 		/// </summary>
 		/// <param name="name">The ref name</param>
+		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken = default);
+		Task<BlobId> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Writes a new ref to the store
+		/// Writes a new ref to the store which points to a new blob
 		/// </summary>
 		/// <param name="name">Ref to write</param>
 		/// <param name="data">Payload for the object</param>
 		/// <param name="references">Object references</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default);
+		Task<IBlob> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Writes a new ref to the store
+		/// </summary>
+		/// <param name="name">Ref to write</param>
+		/// <param name="blobId">The target for the ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Unique identifier for the blob</returns>
+		Task WriteRefTargetAsync(RefName name, BlobId blobId, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
@@ -134,10 +151,10 @@ namespace EpicGames.Horde.Storage
 			#region Blobs
 
 			/// <inheritdoc/>
-			public Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default) => _inner.TryReadBlobAsync(id, cancellationToken);
+			public Task<IBlob> ReadBlobAsync(BlobId id, CancellationToken cancellationToken = default) => _inner.ReadBlobAsync(id, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<BlobId> WriteBlobAsync(RefName refName, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteBlobAsync(refName, data, references, cancellationToken);
+			public Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default) => _inner.WriteBlobAsync(data, references, hintRefName, cancellationToken);
 
 			#endregion
 
@@ -147,13 +164,16 @@ namespace EpicGames.Horde.Storage
 			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.DeleteRefAsync(name, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<bool> HasRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.HasRefAsync(name, cancellationToken);
+			public Task<IBlob?> TryReadRefAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefAsync(name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<IBlob?> TryReadRefAsync(RefName name, CancellationToken cancellationToken = default) => _inner.TryReadRefAsync(name, cancellationToken);
+			public Task<BlobId> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, data, references, cancellationToken);
+			public Task<IBlob> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, data, references, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task WriteRefTargetAsync(RefName name, BlobId blobId, CancellationToken cancellationToken = default) => _inner.WriteRefTargetAsync(name, blobId, cancellationToken);
 
 			#endregion
 		}
@@ -166,18 +186,72 @@ namespace EpicGames.Horde.Storage
 		public static IBlobStore<T> ForType<T>(this IBlobStore blobStore) => new TypedBlobStore<T>(blobStore);
 
 		/// <summary>
-		/// Reads a blob from the store, throwing an exception if it does not exist
+		/// Checks if the given ref exists
 		/// </summary>
 		/// <param name="store">The store instance to read from</param>
-		/// <param name="id">Id for the blob</param>
+		/// <param name="name">Name of the reference to look for</param>
+		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>True if the ref exists, false if it did not exist</returns>
+		public static async Task<bool> HasRefAsync(this IBlobStore store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		{
+			BlobId blobId = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			return blobId.IsValid();
+		}
+
+		/// <summary>
+		/// Checks if the given ref exists
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="name">Name of the reference to look for</param>
+		/// <param name="maxAge">Maximum age of any cached ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>True if the ref exists, false if it did not exist</returns>
+		public static Task<bool> HasRefAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		{
+			return HasRefAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="name">Id for the ref</param>
+		/// <param name="maxAge">Maximum age of any cached ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static async Task<IBlob> ReadBlobAsync(this IBlobStore store, BlobId id, CancellationToken cancellationToken = default)
+		public static Task<IBlob?> TryReadRefAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
-			IBlob? blob = await store.TryReadBlobAsync(id, cancellationToken);
+			return store.TryReadRefAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="name">Id for the ref</param>
+		/// <param name="maxAge">Maximum age of any cached ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static Task<BlobId> TryReadRefIdAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		{
+			return store.TryReadRefTargetAsync(name, DateTime.UtcNow - maxAge, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="name">Id for the ref</param>
+		/// <param name="cacheTime">Minimum coherency of any cached result</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static async Task<IBlob> ReadRefAsync(this IBlobStore store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		{
+			IBlob? blob = await store.TryReadRefAsync(name, cacheTime, cancellationToken);
 			if (blob == null)
 			{
-				throw new KeyNotFoundException($"Unable to find blob {id}");
+				throw new RefNameNotFoundException(name);
 			}
 			return blob;
 		}
@@ -187,34 +261,65 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="store">The store instance to read from</param>
 		/// <param name="name">Id for the ref</param>
+		/// <param name="maxAge">Maximum age for any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public static async Task<IBlob> ReadRefAsync(this IBlobStore store, RefName name, CancellationToken cancellationToken = default)
+		public static Task<IBlob> ReadRefAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
 		{
-			IBlob? blob = await store.TryReadRefAsync(name, cancellationToken);
-			if (blob == null)
+			return ReadRefAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="name">Id for the ref</param>
+		/// <param name="cacheTime">Minimum coherency of any cached result</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static async Task<BlobId> ReadRefIdAsync(this IBlobStore store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+		{
+			BlobId blobId = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			if (!blobId.IsValid())
 			{
 				throw new RefNameNotFoundException(name);
 			}
-			return blob;
+			return blobId;
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="name">Id for the ref</param>
+		/// <param name="maxAge">Maximum age for any cached result</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static Task<BlobId> ReadRefIdAsync(this IBlobStore store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default)
+		{
+			return ReadRefIdAsync(store, name, DateTime.UtcNow - maxAge, cancellationToken);
 		}
 	}
 
 	/// <summary>
 	/// Utility methods for blobs
 	/// </summary>
-	public static class BlobUtils
+	public static class Blob
 	{
 		class InMemoryBlob : IBlob
 		{
+			/// <inheritdoc/>
+			public BlobId Id { get; }
+
 			/// <inheritdoc/>
 			public ReadOnlyMemory<byte> Data { get; }
 
 			/// <inheritdoc/>
 			public IReadOnlyList<BlobId> References { get; }
 
-			public InMemoryBlob(ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references)
+			public InMemoryBlob(BlobId id, ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references)
 			{
+				Id = id;
 				Data = data;
 				References = references;
 			}
@@ -223,10 +328,11 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Create a blob from memory
 		/// </summary>
+		/// <param name="id">Id for the blob</param>
 		/// <param name="data">Payload for the blob</param>
 		/// <param name="references">References to other blobs</param>
 		/// <returns>Blob instance</returns>
-		public static IBlob FromMemory(ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references) => new InMemoryBlob(data, references);
+		public static IBlob FromMemory(BlobId id, ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references) => new InMemoryBlob(id, data, references);
 
 		/// <summary>
 		/// Serialize a blob into a flat memory buffer
@@ -271,23 +377,25 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Deserialize a blob from a block of memory
 		/// </summary>
+		/// <param name="id">Id for the blob</param>
 		/// <param name="memory">Memory to deserialize from</param>
 		/// <returns>Deserialized blob data. May reference the supplied memory.</returns>
-		public static IBlob Deserialize(ReadOnlyMemory<byte> memory) => Deserialize(new ReadOnlySequence<byte>(memory));
+		public static IBlob Deserialize(BlobId id, ReadOnlyMemory<byte> memory) => Deserialize(id, new ReadOnlySequence<byte>(memory));
 
 		/// <summary>
 		/// Deserialize a blob from a block of memory
 		/// </summary>
+		/// <param name="id">Id for the blob</param>
 		/// <param name="sequence">Sequence to deserialize from</param>
 		/// <returns>Deserialized blob data. May reference the supplied memory.</returns>
-		public static IBlob Deserialize(ReadOnlySequence<byte> sequence)
+		public static IBlob Deserialize(BlobId id, ReadOnlySequence<byte> sequence)
 		{
 			MemoryReader reader = new MemoryReader(sequence.First);
 			IReadOnlyList<BlobId> references = reader.ReadVariableLengthArray(() => reader.ReadBlobId());
 			long length = (long)reader.ReadUnsignedVarInt();
 
 			ReadOnlyMemory<byte> data = sequence.Slice(sequence.First.Length - reader.Memory.Length).AsSingleSegment();
-			return new InMemoryBlob(data, references);
+			return new InMemoryBlob(id, data, references);
 		}
 	}
 }

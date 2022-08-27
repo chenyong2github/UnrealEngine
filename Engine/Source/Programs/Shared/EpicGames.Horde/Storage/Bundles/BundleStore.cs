@@ -285,12 +285,12 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.HasRefAsync(name, cancellationToken);
+		public Task<bool> HasTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.HasRefAsync(name, cancellationToken: cancellationToken);
 
 		/// <inheritdoc/>
-		public async Task<ITreeBlob?> TryReadTreeAsync(RefName name, CancellationToken cancellationToken = default)
+		public async Task<ITreeBlob?> TryReadTreeAsync(RefName name, TimeSpan maxAge = default, CancellationToken cancellationToken = default)
 		{
-			Bundle? bundle = await _blobStore.TryReadBundleAsync(name, cancellationToken);
+			Bundle? bundle = Bundle.FromBlob(await _blobStore.TryReadRefAsync(name, maxAge, cancellationToken));
 			if (bundle == null)
 			{
 				return null;
@@ -413,7 +413,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			Bundle bundle;
 			try
 			{
-				bundle = await _blobStore.ReadBundleAsync(blobId, cancellationToken);
+				bundle = Bundle.FromBlob(await _blobStore.ReadBlobAsync(blobId, cancellationToken));
 			}
 			finally
 			{
@@ -649,12 +649,12 @@ namespace EpicGames.Horde.Storage.Bundles
 			BundleHeader header = bundle.Header;
 
 			// Write it to storage
-			BlobId blobId = await _blobStore.WriteBundleBlobAsync(context.Name, bundle, cancellationToken);
-			string cacheKey = GetBundleCacheKey(blobId);
+			IBlob blob = await _blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), context.Name, cancellationToken);
+			string cacheKey = GetBundleCacheKey(blob.Id);
 			AddBundleToCache(cacheKey, bundle);
 
 			// Create a BundleInfo for it
-			BundleInfo bundleInfo = context.FindOrAddBundle(blobId, nodes.Length);
+			BundleInfo bundleInfo = context.FindOrAddBundle(blob.Id, nodes.Length);
 			for (int idx = 0; idx < nodes.Length; idx++)
 			{
 				bundleInfo.Exports[idx] = nodes[idx];
@@ -709,7 +709,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		async Task FlushInternalAsync(BundleWriteContext context, NodeInfo[] writeNodes, CancellationToken cancellationToken)
 		{
 			Bundle bundle = CreateBundle(context, writeNodes);
-			await _blobStore.WriteBundleRefAsync(context.Name, bundle, cancellationToken);
+			await _blobStore.WriteRefAsync(context.Name, bundle.AsSequence(), bundle.Header.Imports.ConvertAll(x => x.BlobId), cancellationToken);
 		}
 
 		void FindNodesToWrite(NodeInfo root, List<NodeInfo> nodes, HashSet<NodeInfo> uniqueNodes)

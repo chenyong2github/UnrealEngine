@@ -235,7 +235,7 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<ITreeStore<CommitService>>(sp =>
 			{
-				IBlobStore blobStore = new BlobStore(new TransientStorageBackend());
+				IBlobStore blobStore = new BasicBlobStore(sp.GetRequiredService<MongoService>(), new TransientStorageBackend(), sp.GetRequiredService<IMemoryCache>());
 				return new BundleStore(blobStore, new BundleOptions()).ForType<CommitService>();
 			});
 

@@ -426,7 +426,7 @@ namespace Horde.Build.Perforce
 				{
 					RefName prevRefName = GetRefName(stream, values[0]);
 
-					ReplicationNode? contents = await _treeStore.TryReadTreeAsync<ReplicationNode>(prevRefName, cancellationToken);
+					ReplicationNode? contents = await _treeStore.TryReadTreeAsync<ReplicationNode>(prevRefName, cancellationToken: cancellationToken);
 					if (contents == null)
 					{
 						_logger.LogInformation("No content for CL {Change}; creating full snapshot", values[0]);
@@ -506,7 +506,7 @@ namespace Horde.Build.Perforce
 		public async Task<ReplicationNode> ReadCommitTreeAsync(IStream stream, int change, string? filter, bool revisionsOnly, CancellationToken cancellationToken)
 		{
 			RefName name = GetRefName(stream.Id, change, filter, revisionsOnly);
-			return await _treeStore.ReadTreeAsync<ReplicationNode>(name, cancellationToken);
+			return await _treeStore.ReadTreeAsync<ReplicationNode>(name, cancellationToken: cancellationToken);
 		}
 
 		/// <summary>
@@ -612,7 +612,7 @@ namespace Horde.Build.Perforce
 			ITreeWriter writer = _treeStore.CreateTreeWriter(incRefName);
 
 			// Get the current sync state for this change
-			ReplicationNode? syncNode = await _treeStore.TryReadTreeAsync<ReplicationNode>(incRefName, cancellationToken);
+			ReplicationNode? syncNode = await _treeStore.TryReadTreeAsync<ReplicationNode>(incRefName, cancellationToken: cancellationToken);
 			bool deleteIncRef = syncNode != null;
 			if (syncNode == null)
 			{

@@ -28,12 +28,12 @@ namespace Horde.Agent.Commands.Bundles
 			IBlob blob;
 			if (BlobId != null)
 			{
-				blob = await blobStore.ReadBlobAsync(BlobId.Value, CancellationToken.None);
+				blob = await blobStore.ReadBlobAsync(BlobId.Value);
 				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
 			}
 			else
 			{
-				blob = await blobStore.ReadRefAsync(RefName, CancellationToken.None);
+				blob = await blobStore.ReadRefAsync(RefName);
 				logger.LogInformation("Summary for ref {RefId}", RefName);
 			}
 

@@ -20,6 +20,11 @@ namespace EpicGames.Horde.Storage
 	public struct RefName : IEquatable<RefName>, IComparable<RefName>
 	{
 		/// <summary>
+		/// Empty ref name
+		/// </summary>
+		public static RefName Empty { get; } = default;
+
+		/// <summary>
 		/// String for the ref name
 		/// </summary>
 		public Utf8String Text { get; }
@@ -31,51 +36,7 @@ namespace EpicGames.Horde.Storage
 		public RefName(Utf8String text)
 		{
 			Text = text;
-
-			for (int idx = 0; idx < text.Length; idx++)
-			{
-				if (!IsValidCharacter(text[idx]))
-				{
-					throw new ArgumentException($"Character '{(char)text[idx]}' is not valid in ref name ('{text}')", nameof(text));
-				}
-			}
-
-			if (text.Length == 0)
-			{
-				throw new ArgumentException($"Ref name cannot be empty", nameof(text));
-			}
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="text"></param>
-		public RefName(string text)
-			: this(new Utf8String(text))
-		{
-		}
-
-		/// <summary>
-		/// Test whether a character is valid in a ref name
-		/// </summary>
-		/// <param name="c">Character to test</param>
-		/// <returns></returns>
-		public static bool IsValidCharacter(byte c)
-		{
-			switch (c)
-			{
-				case (byte)'<':
-				case (byte)'>':
-				case (byte)':':
-				case (byte)'"':
-				case (byte)'\\':
-				case (byte)'|':
-				case (byte)'*':
-				case (byte)'?':
-					return false;
-				default:
-					return c > 0x20 && c < 0x7f;
-			}
+			ContentId.ValidateArgument(nameof(text), text);
 		}
 
 		/// <inheritdoc/>

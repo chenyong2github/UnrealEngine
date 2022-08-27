@@ -5,6 +5,7 @@ using EpicGames.Serialization;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -61,6 +62,26 @@ namespace EpicGames.Horde.Storage.Bundles
 			Header = new BundleHeader(reader);
 			int length = (int)reader.ReadUnsignedVarInt();
 			Payload = new ReadOnlySequence<byte>(reader.ReadFixedLengthBytes(length));
+		}
+
+		/// <summary>
+		/// Create a bundle from a blob
+		/// </summary>
+		/// <param name="blob">Blob to parse from</param>
+		/// <returns>Bundle parsed from the given blob</returns>
+		[return: NotNullIfNotNull("blob")]
+		public static Bundle? FromBlob(IBlob? blob)
+		{
+			if (blob == null)
+			{
+				return null;
+			}
+
+			ReadOnlyMemory<byte> data = blob.Data;
+			MemoryReader reader = new MemoryReader(data);
+			Bundle bundle = new Bundle(reader);
+			reader.CheckEmpty();
+			return bundle;
 		}
 
 		/// <summary>
@@ -330,80 +351,6 @@ namespace EpicGames.Horde.Storage.Bundles
 			{
 				writer.WriteUnsignedVarInt(References[idx]);
 			}
-		}
-	}
-
-	/// <summary>
-	/// Extension methods for serializing bundles
-	/// </summary>
-	public static class BundleExtensions
-	{
-		/// <summary>
-		/// Read a bundle from a blob store
-		/// </summary>
-		/// <param name="store">Blob store to read from</param>
-		/// <param name="id">Identifier for the blob</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The bundle that was read</returns>
-		public static async Task<Bundle> ReadBundleAsync(this IBlobStore store, BlobId id, CancellationToken cancellationToken)
-		{
-			IBlob blob = await store.ReadBlobAsync(id, cancellationToken);
-			return ReadBundle(blob);
-		}
-
-		/// <summary>
-		/// Read a bundle from a blob store
-		/// </summary>
-		/// <param name="store">Blob store to read from</param>
-		/// <param name="name">Identifier for the blob</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The bundle that was read</returns>
-		public static async Task<Bundle?> TryReadBundleAsync(this IBlobStore store, RefName name, CancellationToken cancellationToken)
-		{
-			IBlob? blob = await store.TryReadRefAsync(name, cancellationToken);
-			if (blob == null)
-			{
-				return null;
-			}
-			return ReadBundle(blob);
-		}
-
-		/// <summary>
-		/// Writes a bundle to a blob store
-		/// </summary>
-		/// <param name="store">Blob store to write to</param>
-		/// <param name="name">Identifier for the blob</param>
-		/// <param name="bundle">Bundle to write</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task WriteBundleRefAsync(this IBlobStore store, RefName name, Bundle bundle, CancellationToken cancellationToken)
-		{
-			ReadOnlySequence<byte> data = bundle.AsSequence();
-			List<BlobId> imports = bundle.Header.Imports.Select(x => x.BlobId).ToList();
-			return store.WriteRefAsync(name, data, imports, cancellationToken);
-		}
-
-		/// <summary>
-		/// Writes a bundle to a blob store
-		/// </summary>
-		/// <param name="store">Blob store to write to</param>
-		/// <param name="name">Name of the root ref</param>
-		/// <param name="bundle">Bundle to write</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Identifier for the blob</returns>
-		public static Task<BlobId> WriteBundleBlobAsync(this IBlobStore store, RefName name, Bundle bundle, CancellationToken cancellationToken)
-		{
-			ReadOnlySequence<byte> data = bundle.AsSequence();
-			List<BlobId> imports = bundle.Header.Imports.Select(x => x.BlobId).ToList();
-			return store.WriteBlobAsync(name, data, imports, cancellationToken);
-		}
-
-		static Bundle ReadBundle(IBlob blob)
-		{
-			ReadOnlyMemory<byte> data = blob.Data;
-			MemoryReader reader = new MemoryReader(data);
-			Bundle bundle = new Bundle(reader);
-			reader.CheckEmpty();
-			return bundle;
 		}
 	}
 }
