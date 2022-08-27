@@ -76,15 +76,10 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else if (FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->GetPixelFormat(), RGBFormat, BitDepth))
 	{
-		if (Texture2D->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+		if (!FGLTFTextureUtility::LoadPlatformData(const_cast<UTexture2D*>(Texture2D)))
 		{
-			// TODO: is this correct handling?
-			const_cast<UTexture2D*>(Texture2D)->ForceRebuildPlatformData();
-			if (Texture2D->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
-			{
-				// TODO: report error
-				return FGLTFJsonTextureIndex(INDEX_NONE);
-			}
+			// TODO: report error
+			return FGLTFJsonTextureIndex(INDEX_NONE);
 		}
 
 		const FByteBulkData& BulkData = Texture2D->PlatformData->Mips[0].BulkData;

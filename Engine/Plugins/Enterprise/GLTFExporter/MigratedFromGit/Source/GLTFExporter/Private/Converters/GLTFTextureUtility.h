@@ -36,4 +36,8 @@ struct FGLTFTextureUtility
 
 	static FColor EncodeRGBM(const FLinearColor& Color, float MaxRange = 8);
 	static void EncodeRGBM(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels, float MaxRange = 8);
+
+	// TODO: maybe use template specialization to avoid the need for duplicated functions
+	static bool LoadPlatformData(UTexture2D* Texture);
+	static bool LoadPlatformData(UTextureCube* TextureCube);
 };
