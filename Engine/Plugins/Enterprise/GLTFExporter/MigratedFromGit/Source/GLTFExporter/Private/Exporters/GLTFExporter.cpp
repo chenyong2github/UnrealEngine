@@ -3,7 +3,7 @@
 #include "Exporters/GLTFExporter.h"
 #include "GLTFExportOptions.h"
 #include "UI/GLTFExportOptionsWindow.h"
-#include "Builders/GLTFWebBuilder.h"
+#include "Builders/GLTFContainerBuilder.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "AssetExportTask.h"
 
@@ -33,7 +33,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
 	FGCObjectScopeGuard OptionsGuard(Options);
-	FGLTFWebBuilder Builder(CurrentFilename, Options, bSelectedOnly);
+	FGLTFContainerBuilder Builder(CurrentFilename, Options, bSelectedOnly);
 
 	const bool bSuccess = AddObject(Builder, Object);
 	if (bSuccess)

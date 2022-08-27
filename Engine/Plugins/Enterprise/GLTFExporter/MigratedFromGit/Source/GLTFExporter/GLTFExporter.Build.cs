@@ -33,7 +33,6 @@ namespace UnrealBuildTool.Rules
 					"MovieSceneTracks",
 					"VariantManagerContent",
 					"MeshMergeUtilities",
-					"zlib",
 					"GLTFMaterialBaking",
 					"GLTFMaterialAnalyzer"
 				}

@@ -36,8 +36,6 @@ In Unreal Editor, open `Menu -> Edit -> Plugins` and make sure `glTF Exporter` i
   1. Change `Save as type` to `.gltf` (or `.glb`) and click `Save`
   1. When `glTF Export Options` window is shown, click `Export`
 
-If the Web Viewer is bundled, run `GLTFLaunchHelper.exe` in the target folder to view the export asset in the Unreal glTF Viewer.
-
 
 ## Documentation
 

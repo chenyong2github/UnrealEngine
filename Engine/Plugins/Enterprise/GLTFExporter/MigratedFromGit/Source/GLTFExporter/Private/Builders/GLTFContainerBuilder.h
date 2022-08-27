@@ -6,9 +6,13 @@
 
 class FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
-protected:
+public:
 
 	FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
+
+	void Write(FArchive& Archive, FFeedbackContext* Context);
+
+protected:
 
 	void WriteGlb(FArchive& Archive);
 
