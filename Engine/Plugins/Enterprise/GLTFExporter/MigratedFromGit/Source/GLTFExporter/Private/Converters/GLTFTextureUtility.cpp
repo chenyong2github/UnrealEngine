@@ -337,3 +337,19 @@ bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
 
 	return true;
 }
+
+void FGLTFTextureUtility::FlipGreenChannel(TArray<FLinearColor>& Pixels)
+{
+	for (FLinearColor& Pixel: Pixels)
+	{
+		Pixel.G = 1.0f - FMath::Clamp(Pixel.G, 0.0f, 1.0f);
+	}
+}
+
+void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)
+{
+	for (FColor& Pixel: Pixels)
+	{
+		Pixel.G = 255 - Pixel.G;
+	}
+}
