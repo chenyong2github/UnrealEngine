@@ -18,6 +18,7 @@
 #include "Converters/GLTFVarationConverters.h"
 #include "Converters/GLTFLightMapConverters.h"
 #include "Converters/GLTFHotspotConverters.h"
+#include "Converters/GLTFSkySphereConverters.h"
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
@@ -72,6 +73,7 @@ public:
 	FGLTFJsonVariationIndex GetOrAddVariation(const ALevelVariantSetsActor* LevelVariantSetsActor);
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent);
 	FGLTFJsonHotspotIndex GetOrAddHotspot(const AGLTFHotspotActor* HotspotActor);
+	FGLTFJsonSkySphereIndex GetOrAddSkySphere(const AActor* SkySphereActor);
 
 private:
 
@@ -114,4 +116,5 @@ private:
 	FGLTFVariationConverter VariationConverter{ *this };
 	FGLTFLightMapConverter LightMapConverter{ *this };
 	FGLTFHotspotConverter HotspotConverter{ *this };
+	FGLTFSkySphereConverter SkySphereConverter{ *this };
 };

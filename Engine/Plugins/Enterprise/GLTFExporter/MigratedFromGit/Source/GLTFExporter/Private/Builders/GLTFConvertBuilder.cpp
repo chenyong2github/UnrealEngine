@@ -405,3 +405,13 @@ FGLTFJsonHotspotIndex FGLTFConvertBuilder::GetOrAddHotspot(const AGLTFHotspotAct
 
 	return HotspotConverter.GetOrAdd(HotspotActor);
 }
+
+FGLTFJsonSkySphereIndex FGLTFConvertBuilder::GetOrAddSkySphere(const AActor* SkySphereActor)
+{
+	if (SkySphereActor == nullptr)
+	{
+		return FGLTFJsonSkySphereIndex(INDEX_NONE);
+	}
+
+	return SkySphereConverter.GetOrAdd(SkySphereActor);
+}

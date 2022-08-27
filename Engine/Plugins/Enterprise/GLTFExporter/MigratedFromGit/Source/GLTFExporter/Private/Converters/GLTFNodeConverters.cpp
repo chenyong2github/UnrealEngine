@@ -21,8 +21,11 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
 	if (FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
 	{
-		// Ignore mesh and light components that are part of BP_SkySphere
-		// TODO: add support for BP_SkySphere later?
+		if (Builder.ExportOptions->bExportSkySpheres)
+		{
+			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+			RootNode.SkySphere = Builder.GetOrAddSkySphere(Actor);
+		}
 	}
 	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
 	{
