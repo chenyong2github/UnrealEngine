@@ -15,6 +15,13 @@ bool UGLTFLevelExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject
 	const UWorld* World = CastChecked<UWorld>(Object);
 	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World);
 
-	Builder.DefaultScene = SceneIndex;
-	return true;
+	if (SceneIndex != INDEX_NONE)
+	{
+		Builder.DefaultScene = SceneIndex;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
