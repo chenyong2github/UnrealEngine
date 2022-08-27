@@ -188,6 +188,10 @@ void FGLTFMaterialTask::Complete()
 				*SectionString));
 		}
 	}
+#else
+	Builder.LogError(FString::Printf(
+		TEXT("Can't properly export material %s in a runtime environment without a glTF proxy. In the Unreal Editor's Content Browser, please right-click on the material, then select Create glTF Proxy Material"),
+		*Material->GetName()));
 #endif
 }
 
