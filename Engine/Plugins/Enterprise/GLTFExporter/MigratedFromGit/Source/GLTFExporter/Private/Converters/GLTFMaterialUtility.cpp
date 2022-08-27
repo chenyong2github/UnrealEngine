@@ -10,6 +10,7 @@
 #include "MaterialBakingStructures.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
+#include "Materials/MaterialExpressionTextureCoordinate.h"
 
 const TCHAR* FGLTFMaterialUtility::GetPropertyName(EMaterialProperty Property)
 {
@@ -221,7 +222,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, bool bCopyAlphaFromRedChannel)
 {
 	EMaterialProperty HackProperty = MP_MAX;
 	TTuple<int32, UMaterialExpression*> HackPrevState;
@@ -254,6 +255,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	FMeshData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
+	MeshSet.TextureCoordinateIndex = TexCoord;
 
 	// TODO: Do we need to fill in any more info in MeshSet?
 
@@ -364,4 +366,49 @@ FLinearColor FGLTFMaterialUtility::GetMask(const FExpressionInput& ExpressionInp
 uint32 FGLTFMaterialUtility::GetMaskComponentCount(const FExpressionInput& ExpressionInput)
 {
 	return ExpressionInput.MaskR + ExpressionInput.MaskG + ExpressionInput.MaskB + ExpressionInput.MaskA;
+}
+
+bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressionTextureSample* TextureSampler, int32& TexCoord)
+{
+	const UMaterialExpression* Expression = TextureSampler->Coordinates.Expression;
+	if (Expression == nullptr)
+	{
+		TexCoord = TextureSampler->ConstCoordinate;
+		return true;
+	}
+
+	if (const UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(Expression))
+	{
+		TexCoord = TextureCoordinate->CoordinateIndex;
+		return true;
+	}
+
+	return false;
+}
+
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32> TexCoordIndices)
+{
+	UMaterialExpression* Expression = ExpressionInput.Expression;
+	if (Expression == nullptr)
+	{
+		return;
+	}
+
+	TArray<UMaterialExpression*> InputExpressions;
+	Expression->GetAllInputExpressions(InputExpressions);
+
+	for (const UMaterialExpression* InputExpression : InputExpressions)
+	{
+		if (const UMaterialExpressionTextureSample* TextureSampler = Cast<UMaterialExpressionTextureSample>(InputExpression))
+		{
+			if (TextureSampler->Coordinates.Expression == nullptr)
+			{
+				TexCoordIndices.Add(TextureSampler->ConstCoordinate);
+			}
+		}
+		else if (const UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(InputExpression))
+		{
+			TexCoordIndices.Add(TextureCoordinate->CoordinateIndex);
+		}
+	}
 }
