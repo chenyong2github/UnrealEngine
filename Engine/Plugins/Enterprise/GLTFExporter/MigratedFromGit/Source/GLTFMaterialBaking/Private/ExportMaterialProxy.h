@@ -411,7 +411,7 @@ public:
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
 					return CompileNormalTransform(
-						Compiler,
+						&ProxyCompiler,
 						MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate));
 				}
 				break;
@@ -419,7 +419,7 @@ public:
 				return CompileShadingModel(Compiler, MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel));
 			case MP_CustomOutput:
 				 // NOTE: Currently we can assume input index is always 0, which it is for all custom outputs that are registered as material attributes
-				return CompileInputForCustomOutput(Compiler, 0, ForceCast_Exact_Replicate);
+				return CompileInputForCustomOutput(&ProxyCompiler, 0, ForceCast_Exact_Replicate);
 			default:
 				return Compiler->Constant(1.0f);
 			}
