@@ -1,11 +1,11 @@
 # glTF Exporter plugin
 
-The glTF Exporter lets UE4 content creators showcase any scene or model on the web in full interactive real-time 3D with minimal effort.
+The glTF Exporter lets Unreal content creators showcase any scene or model on the web in full interactive real-time 3D with minimal effort.
 
 
 ## Compatibility
 
-Currently, the plugin works with Unreal Engine **4.25**, **4.26**, and **4.27**. It has primarily been tested on Windows but is designed to be platform-independent.
+Currently, the plugin works with Unreal Engine 5.0 on Windows, Mac, and Linux.
 
 
 ## Usage

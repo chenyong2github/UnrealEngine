@@ -11,7 +11,7 @@ float FGLTFCoreUtilities::ConvertLength(const float Length, const float Conversi
 
 FGLTFVector3 FGLTFCoreUtilities::ConvertVector(const FVector3f& Vector)
 {
-	// UE4 uses a left-handed coordinate system, with Z up.
+	// Unreal uses a left-handed coordinate system, with Z up.
 	// glTF uses a right-handed coordinate system, with Y up.
 	return { Vector.X, Vector.Z, Vector.Y };
 }
@@ -110,7 +110,7 @@ FGLTFColor3 FGLTFCoreUtilities::ConvertColor3(const FLinearColor& Color, bool bF
 
 FGLTFUInt8Color4 FGLTFCoreUtilities::ConvertColor(const FColor& Color)
 {
-	// UE4 uses ABGR or ARGB depending on endianness.
+	// Unreal uses ABGR or ARGB depending on endianness.
 	// glTF always uses RGBA independent of endianness.
 	return { Color.R, Color.G, Color.B, Color.A };
 }
@@ -122,7 +122,7 @@ FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FRotator3f& Rotation)
 
 FGLTFQuaternion FGLTFCoreUtilities::ConvertRotation(const FQuat4f& Rotation)
 {
-	// UE4 uses a left-handed coordinate system, with Z up.
+	// Unreal uses a left-handed coordinate system, with Z up.
 	// glTF uses a right-handed coordinate system, with Y up.
 	// Rotation = (qX, qY, qZ, qW) = (sin(angle/2) * aX, sin(angle/2) * aY, sin(angle/2) * aZ, cons(angle/2))
 	// where (aX, aY, aZ) - rotation axis, angle - rotation angle

@@ -1,6 +1,6 @@
 # What can be exported?
 
-Because glTF is a data-driven format (even with extensions) not everything in UE4 can be exported to glTF. The range of supported content can be separated into primary and secondary assets. Primary assets are directly exportable by right-clicking on an asset of the following type in the Content Browser and selecting `Asset Actions -> Export...`:
+Because glTF is a data-driven format (even with extensions) not everything in Unreal can be exported to glTF. The range of supported content can be separated into primary and secondary assets. Primary assets are directly exportable by right-clicking on an asset of the following type in the Content Browser and selecting `Asset Actions -> Export...`:
 
 - [Materials](#materials)
 - [Static Meshes](#static-meshes)
@@ -18,7 +18,7 @@ Secondary assets are exported indirectly by being used or referenced in a primar
 
 ## Materials
 
-Like UE4 glTF primarily uses a metallic/roughness PBR (physically based rendering) workflow enabling accurate photorealistic materials. However, unlike UE4, glTF materials do not support arbitrary material expressions. Instead, the format only allows a single texture and/or constant for each material input. Some inputs, like `Metallic`/`Roughness` and `Base Color`/`Opacity (Mask)`, must even share the same texture. So, to convert a UE4 material to glTF, the exporter will automatically use one of the following two methods (ordered by preference):
+Like Unreal, glTF primarily uses a metallic/roughness PBR (physically based rendering) workflow enabling accurate photorealistic materials. However, unlike Unreal, glTF materials do not support arbitrary material expressions. Instead, the format only allows a single texture and/or constant for each material input. Some inputs, like `Metallic`/`Roughness` and `Base Color`/`Opacity (Mask)`, must even share the same texture. So, to convert a Unreal material to glTF, the exporter will automatically use one of the following two methods (ordered by preference):
 
 - Material expression matching
 - Material baking
@@ -37,7 +37,7 @@ Material expression matching is the quicker and more accurate approach but limit
 
 > Currently, expression matching does not support multiplying a texture sample node with a constant.
 
-However, since most UE4 material inputs use more advanced expressions, the exporter will typically fall back to material baking if expression matching fails.
+However, since most Unreal material inputs use more advanced expressions, the exporter will typically fall back to material baking if expression matching fails.
 
 ### Material baking
 
@@ -67,7 +67,7 @@ Finally, its important to note that because each input expression is evaluated p
 
 ### Shading Models
 
-Not all UE4 shading models are supported by glTF. Currently, only the following can be exported:
+Not all Unreal shading models are supported by glTF. Currently, only the following can be exported:
 - `Default Lit`
 - `Clear Coat`
 - `Unlit`
@@ -80,11 +80,11 @@ More complicated expressions (that use non-static variables) may not be fully re
 
 ![Example of Shading Model Expression that can not be evaluated](figures/bad-shadingmodel-expression.png)
 
-It is also worth remembering that while a UE4 material can use different shading models simultaneously (i.e., for different regions), glTF is limited to a single shading model per material. Like before, the exporter will in such a case simply choose one of the final shading models.
+It is also worth remembering that while a Unreal material can use different shading models simultaneously (i.e., for different regions), glTF is limited to a single shading model per material. Like before, the exporter will in such a case simply choose one of the final shading models.
 
 #### Default Lit
 
-The most common and default shading model in UE4 is `Default Lit`, which shares almost the exact same material inputs with the default shading model in glTF:
+The most common and default shading model in Unreal is `Default Lit`, which shares almost the exact same material inputs with the default shading model in glTF:
 
 - `Base Color`
 - `Metallic`
@@ -110,7 +110,7 @@ Nonetheless, there are a few noteworthy differences:
 
    This means that unlike other inputs, `Normal` and `Ambient Occlusion` cannot have a constant non-default value, unless as a 1x1 texture. The reasoning is that constant values for such inputs should be avoided.
 
-3. glTF's metallic/roughness PBR workflow does not support `Specular` (like in UE4).
+3. glTF's metallic/roughness PBR workflow does not support `Specular` (like in Unreal).
 
 #### Clear Coat
 
@@ -170,7 +170,7 @@ Because glTF does not support multiple levels of detail. The exporter will selec
 
 ### Mesh Quantization
 
-To save disk and memory space, the following vertex attributes are quantized in UE4 and glTF:
+To save disk and memory space, the following vertex attributes are quantized in Unreal and glTF:
 
 - Vertex colors (8-bit per component)
 - Vertex normals (8-bit or 16-bit per component)
@@ -189,7 +189,7 @@ Apart from the caveats regarding static meshes, skeletal meshes in glTF also hav
 
 ## Animation Sequences
 
-UE4 animation sequences are fully supported in glTF, as long a vertex skin weights are also exported. Additionally, UE animation retargeting may also be accounted for in the export.
+Unreal animation sequences are fully supported in glTF, as long a vertex skin weights are also exported. Additionally, UE animation retargeting may also be accounted for in the export.
 
 ## Level Sequences
 
@@ -199,7 +199,7 @@ Support for level sequences is restricted to transform tracks in absolute space 
 
 > Please note that export of Level Variant Sets uses the glTF extension `EPIC_level_variant_sets`, which can be turned off in the export options.
 
-In UE4, variant sets can be used to configure almost any property in a scene. The exporter currently only supports the following properties:
+In Unreal, variant sets can be used to configure almost any property in a scene. The exporter currently only supports the following properties:
 
 - `Material` - changing any material asset on a static or skeletal mesh component
 - `Static Mesh` - changing the mesh asset on a static mesh component
@@ -352,7 +352,7 @@ Property   | Description
 `Rotation` | Rotation of the component.
 `Scale`    | Scale of the component.
 
-Due to differences in how UE4 applies scale, non-uniform scale may be represented differently in glTF.
+Due to differences in how Unreal applies scale, non-uniform scale may be represented differently in glTF.
 
 ### Camera Components
 
@@ -443,7 +443,7 @@ The following texture types are supported by the exporter:
 
 > Please note that export of `Light Map Texture 2D` uses the glTF extension `EPIC_lightmap_textures`, which can be turned off in the export options.
 
-To support all texture settings (like color adjustments), the exporter uses the render data (i.e., platform data) stored internally by UE4 (rather than the source data). This ensure the exported texture is identical to the texture rendered in the UE4 editor or in-game. The downside of this approach is that any artifacts introduced by UE4's compression settings will also be exported. Thus, its recommended to use compression settings `UserInterface2D` and `HDR` wherever possible.
+To support all texture settings (like color adjustments), the exporter uses the render data (i.e., platform data) stored internally by Unreal (rather than the source data). This ensure the exported texture is identical to the texture rendered in the Unreal editor or in-game. The downside of this approach is that any artifacts introduced by Unreal's compression settings will also be exported. Thus, its recommended to use compression settings `UserInterface2D` and `HDR` wherever possible.
 
 ### HDR encoding
 

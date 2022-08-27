@@ -16,7 +16,7 @@ A glTF file can have one of two possible file extensions, `.gltf` (JSON) or `.gl
 
 ## Extensions
 
-Due to the complexities of modern 3D graphics, an engine-independent format such as glTF cannot cover all features, especially in a powerful game engine like UE4. The good news is that the glTF base format is specifically designed, as previously mentioned, with extensibility in mind. This extensibility is facilitated using so called glTF extensions.
+Due to the complexities of modern 3D graphics, an engine-independent format such as glTF cannot cover all features, especially in a powerful game engine like Unreal. The good news is that the glTF base format is specifically designed, as previously mentioned, with extensibility in mind. This extensibility is facilitated using so called glTF extensions.
 
 It is important to note that the extensibility does come at a cost - not all applications implement every glTF extension. If an application does not support an extension, it may still be able to load and show other parts of the glTF that do not use the specific extension - unless that extension is stated as explicitly required by the glTF, in which case the application will typically fail to open the entire glTF.
 
@@ -26,7 +26,7 @@ Each glTF extension has a unique name, allowing any application to easily identi
 - Multi-vendor extensions use the reserved prefix `EXT` and are typically supported by more than one vendor (i.e., company or application).
 - Vendor-specific extensions use registered prefixes (like `EPIC`) and are typically supported by at least that vendor. Applications by other vendors may also still support such an extension.
 
-To support many of UE4's features the exporter has implemented the following extensions (all of which can be turned off in the export options):
+To support many of Unreal's features the exporter has implemented the following extensions (all of which can be turned off in the export options):
 
 Extension                   | Description
 ----------------------------|--------------------------------------------------------
@@ -35,10 +35,10 @@ Extension                   | Description
 `KHR_materials_clearcoat`   | Materials with clear coat shading model
 `KHR_mesh_quantization`     | Decrease vertex data size and precision
 `KHR_texture_transform`     | Tiling and mirroring texture coordinates
-`EPIC_lightmap_textures`    | Lightmass baked UE4-encoded lightmaps
-`EPIC_level_variant_sets`   | Scene variants by UE4's variant manager
-`EPIC_hdri_backdrops`       | UE4 backdrop actors for HDR image projection
-`EPIC_sky_spheres`          | UE4's default sky sphere actors
+`EPIC_lightmap_textures`    | Lightmass baked Unreal-encoded lightmaps
+`EPIC_level_variant_sets`   | Scene variants by Unreal's variant manager
+`EPIC_hdri_backdrops`       | Unreal backdrop actors for HDR image projection
+`EPIC_sky_spheres`          | Unreal's default sky sphere actors
 `EPIC_animation_hotspots`   | Exporter-provided actors for interactive animations
 `EPIC_animation_playback`   | Animation looping, auto play, start time, play rate
 `EPIC_camera_controls`      | Exporter-provided actors for user-controlled cameras
