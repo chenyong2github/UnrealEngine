@@ -17,6 +17,19 @@ FIntPoint FGLTFBuilder::GetDefaultMaterialBakeSize() const
 	return { Size, Size };
 }
 
+EGLTFJsonHDREncoding FGLTFBuilder::GetTextureHDREncoding() const
+{
+	switch (ExportOptions->TextureHDREncoding)
+	{
+		case EGLTFExporterTextureHDREncoding::None: return EGLTFJsonHDREncoding::None;
+		case EGLTFExporterTextureHDREncoding::RGBM: return EGLTFJsonHDREncoding::RGBM;
+		case EGLTFExporterTextureHDREncoding::RGBE: return EGLTFJsonHDREncoding::RGBE;
+		default:
+			checkNoEntry();
+			return EGLTFJsonHDREncoding::None;
+	}
+}
+
 bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) const
 {
 	switch (ExportOptions->ExportLights)
