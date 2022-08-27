@@ -29,6 +29,9 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint 
 	const EGLTFJsonMimeType ImageFormat = GetImageFormat(Pixels, Size, bIgnoreAlpha, Type);
 	switch (ImageFormat)
 	{
+		case EGLTFJsonMimeType::None:
+			return FGLTFJsonImageIndex(INDEX_NONE);
+
 		case EGLTFJsonMimeType::PNG:
 			FGLTFImageUtility::CompressToPNG(Pixels, Size, CompressedData);
 			break;
@@ -77,6 +80,9 @@ EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPo
 {
 	switch (ExportOptions->TextureCompression)
 	{
+		case EGLTFTextureCompression::None:
+			return EGLTFJsonMimeType::None;
+
 		case EGLTFTextureCompression::PNG:
 			return EGLTFJsonMimeType::PNG;
 
