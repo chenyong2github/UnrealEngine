@@ -17,8 +17,6 @@ class GLTFEXPORTER_API SGLTFExportOptionsWindow : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SGLTFExportOptionsWindow)
 		: _ExportOptions(nullptr)
-		, _WidgetWindow()
-		, _FullPath()
 		, _BatchMode()
 		{}
 

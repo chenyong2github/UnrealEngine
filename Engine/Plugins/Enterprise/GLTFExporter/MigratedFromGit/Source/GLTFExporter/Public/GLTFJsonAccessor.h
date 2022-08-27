@@ -28,6 +28,8 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 		, ComponentType(EGLTFJsonComponentType::None)
 		, Normalized(false)
 		, MinMaxLength(0)
+		, Min{0}
+		, Max{0}
 	{
 	}
 

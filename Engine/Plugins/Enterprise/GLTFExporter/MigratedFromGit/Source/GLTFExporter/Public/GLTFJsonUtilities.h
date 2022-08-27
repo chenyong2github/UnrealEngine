@@ -11,10 +11,8 @@ inline const TCHAR* AlphaModeToString(EGLTFJsonAlphaMode Mode)
 		case EGLTFJsonAlphaMode::Opaque: return TEXT("OPAQUE");
 		case EGLTFJsonAlphaMode::Blend:  return TEXT("BLEND");
 		case EGLTFJsonAlphaMode::Mask:   return TEXT("MASK");
+		default:                         return TEXT("UNKNOWN");
 	}
-
-	check(false);
-	return TEXT("UNKNOWN");
 }
 
 inline int32 PrimitiveModeToNumber(EGLTFJsonPrimitiveMode Mode)
@@ -43,10 +41,8 @@ inline const TCHAR* AccessorTypeToString(EGLTFJsonAccessorType Type)
 		case EGLTFJsonAccessorType::Mat2:   return TEXT("MAT2");
 		case EGLTFJsonAccessorType::Mat3:   return TEXT("MAT3");
 		case EGLTFJsonAccessorType::Mat4:   return TEXT("MAT4");
+		default:                            return TEXT("UNKNOWN");
 	}
-
-	check(false);
-	return TEXT("UNKNOWN");
 }
 
 inline int32 ComponentTypeToNumber(EGLTFJsonComponentType Type)

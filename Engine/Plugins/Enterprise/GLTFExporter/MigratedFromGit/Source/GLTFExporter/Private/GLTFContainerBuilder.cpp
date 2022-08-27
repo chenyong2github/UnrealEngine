@@ -2,7 +2,6 @@
 
 #include "GLTFContainerBuilder.h"
 #include "GLTFMeshBuilder.h"
-#include "Misc/Base64.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder()
 	: BufferBuilder(JsonRoot)
