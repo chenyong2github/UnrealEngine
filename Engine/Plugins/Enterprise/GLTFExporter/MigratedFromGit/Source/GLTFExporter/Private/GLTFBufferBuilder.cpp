@@ -29,7 +29,7 @@ void FGLTFBufferBuilder::UpdateBuffer(FGLTFJsonBuffer& JsonBuffer)
 	if (JsonBuffer.ByteLength != ByteLength)
 	{
 		JsonBuffer.ByteLength = ByteLength;
-		
+
 		const FString DataBase64 = FBase64::Encode(BufferData.GetData(), ByteLength);
 		JsonBuffer.URI = TEXT("data:application/octet-stream;base64,") + DataBase64;
 	}

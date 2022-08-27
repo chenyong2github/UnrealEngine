@@ -153,7 +153,7 @@ void UGLTFExportOptions::SaveOptions()
 			FScriptArrayHelper_InContainer ArrayHelper(Array, this);
 			for (int32 i = 0; i < ArrayHelper.Num(); i++)
 			{
-				FString	Buffer;
+				FString Buffer;
 				Array->Inner->ExportTextItem(Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags);
 				Sec->Add(*Key, *Buffer);
 			}
@@ -169,7 +169,7 @@ void UGLTFExportOptions::SaveOptions()
 					Key = TempKey;
 				}
 
-				FString	Value;
+				FString Value;
 				Property->ExportText_InContainer(Index, Value, this, this, this, PortFlags);
 				GConfig->SetString(*Section, *Key, *Value, *GEditorPerProjectIni);
 			}

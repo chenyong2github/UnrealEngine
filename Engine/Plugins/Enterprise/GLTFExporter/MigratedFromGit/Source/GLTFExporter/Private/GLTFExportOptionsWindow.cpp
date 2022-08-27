@@ -22,8 +22,8 @@ void SGLTFExportOptionsWindow::Construct(const FArguments& InArgs)
 	ExportOptions = InArgs._ExportOptions;
 	WidgetWindow = InArgs._WidgetWindow;
 
-	check (ExportOptions);
-	
+	check(ExportOptions);
+
 	const FText CancelText = InArgs._BatchMode ? LOCTEXT("GLTFExportOptionsWindow_CancelBatch", "Cancel All") : LOCTEXT("GLTFExportOptionsWindow_Cancel", "Cancel");
 	const FText CancelTooltipText = InArgs._BatchMode ? LOCTEXT("GLTFExportOptionsWindow_Cancel_ToolTip_Batch", "Cancel the batch export.") : LOCTEXT("GLTFExportOptionsWindow_Cancel_ToolTip", "Cancel the current glTF export.");
 
