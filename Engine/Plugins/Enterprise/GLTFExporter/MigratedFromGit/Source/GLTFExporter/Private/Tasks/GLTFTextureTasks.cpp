@@ -12,14 +12,14 @@ void FGLTFTexture2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
-	const bool bPreferSourceExport = Builder.ExportOptions->bExportSourceTextures;
+	// NOTE: export of normalmaps via source data is disabled because we need to manipulate the pixels during conversion.
+	const bool bPreferSourceExport = Texture2D->IsNormalMap() ? false : Builder.ExportOptions->bExportSourceTextures;
 
-	// NOTE: export of lightmaps and normalmaps via source data is done to workaround issues
-	// with using render data for normalmaps (which are compressed to red & green channels) and
-	// lightmaps (which can otherwise suffer quality-loss due to incorrect gamma transformation).
+	// NOTE: export of lightmaps via source data is used to work around issues
+	// with quality-loss due to incorrect gamma transformation when rendering to a canvas.
 
-	// TODO: make sure there are no other special cases than normalmaps and lightmaps that require source-export
-	const bool bRequireSourceExport = Texture2D->IsA<ULightMapTexture2D>() || Texture2D->IsNormalMap();
+	// TODO: make sure there are no other special cases than lightmaps that require source-export
+	const bool bRequireSourceExport = Texture2D->IsA<ULightMapTexture2D>();
 
 	if (bRequireSourceExport || bPreferSourceExport)
 	{
