@@ -21,20 +21,10 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 				continue;
 			}
 
-			// TODO: export Level->Model ?
+			// TODO: add support for exporting Level->Model?
 
 			for (const AActor* Actor : Level->Actors)
 			{
-				if (Actor == Level->GetDefaultBrush())
-				{
-					continue; // TODO: can we safely assume no other actor is ever attached to the default brush?
-				}
-
-				if (World->HasDefaultPhysicsVolume() && Actor == World->GetDefaultPhysicsVolume())
-				{
-					continue; // TODO: can we safely assume no other actor is ever attached to the default physics volume?
-				}
-
 				// TODO: should a LevelVariantSet be exported even if not selected for export?
 				if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 				{
