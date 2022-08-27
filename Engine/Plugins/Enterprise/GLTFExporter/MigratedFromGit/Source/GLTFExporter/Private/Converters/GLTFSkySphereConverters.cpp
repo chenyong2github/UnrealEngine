@@ -3,7 +3,7 @@
 #include "Converters/GLTFSkySphereConverters.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFMaterialUtility.h"
-#include "Converters/GLTFActorUtility.h"
+#include "Converters/GLTFBlueprintUtility.h"
 #include "Converters/GLTFCurveUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/DirectionalLight.h"
@@ -12,7 +12,7 @@
 
 FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActor)
 {
-	if (!FGLTFActorUtility::IsSkySphereBlueprint(FGLTFActorUtility::GetBlueprintPath(SkySphereActor)))
+	if (!FGLTFBlueprintUtility::IsSkySphere(FGLTFBlueprintUtility::GetClassPath(SkySphereActor)))
 	{
 		return nullptr;
 	}
@@ -21,7 +21,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 	SkySphereActor->GetName(JsonSkySphere->Name);
 
 	const UStaticMeshComponent* StaticMeshComponent = nullptr;
-	FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("SkySphereMesh"), StaticMeshComponent);
+	FGLTFBlueprintUtility::TryGetPropertyValue(SkySphereActor, TEXT("SkySphereMesh"), StaticMeshComponent);
 
 	if (StaticMeshComponent != nullptr)
 	{
@@ -41,7 +41,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 	}
 
 	const ADirectionalLight* DirectionalLight = nullptr;
-	if (FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("Directional light actor"), DirectionalLight))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(SkySphereActor, TEXT("Directional light actor"), DirectionalLight))
 	{
 		JsonSkySphere->DirectionalLight = Builder.AddUniqueNode(DirectionalLight);
 	}
@@ -51,7 +51,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 	}
 
 	const UMaterialInstance* SkyMaterial = nullptr;
-	FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("Sky material"), SkyMaterial);
+	FGLTFBlueprintUtility::TryGetPropertyValue(SkySphereActor, TEXT("Sky material"), SkyMaterial);
 
 	if (SkyMaterial != nullptr)
 	{
@@ -95,7 +95,7 @@ void FGLTFSkySphereConverter::ConvertProperty(const AActor* Actor, const TCHAR* 
 {
 	check(Actor != nullptr);
 
-	if (!FGLTFActorUtility::TryGetPropertyValue(Actor, PropertyName, OutValue))
+	if (!FGLTFBlueprintUtility::TryGetPropertyValue(Actor, PropertyName, OutValue))
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to export property %s for Sky Sphere %s"),
@@ -109,7 +109,7 @@ void FGLTFSkySphereConverter::ConvertColorProperty(const AActor* Actor, const TC
 	check(Actor != nullptr);
 
 	FLinearColor LinearColor;
-	if (FGLTFActorUtility::TryGetPropertyValue(Actor, PropertyName, LinearColor))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(Actor, PropertyName, LinearColor))
 	{
 		OutValue = FGLTFCoreUtilities::ConvertColor(LinearColor, Builder.ExportOptions->bStrictCompliance);
 	}
@@ -127,7 +127,7 @@ void FGLTFSkySphereConverter::ConvertColorCurveProperty(const AActor* Actor, con
 	check(Actor != nullptr);
 
 	const UCurveLinearColor* ColorCurve = nullptr;
-	FGLTFActorUtility::TryGetPropertyValue(Actor, PropertyName, ColorCurve);
+	FGLTFBlueprintUtility::TryGetPropertyValue(Actor, PropertyName, ColorCurve);
 
 	if (ColorCurve != nullptr)
 	{

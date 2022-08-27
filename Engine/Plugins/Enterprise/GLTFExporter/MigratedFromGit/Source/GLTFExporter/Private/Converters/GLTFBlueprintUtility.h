@@ -4,15 +4,13 @@
 
 #include "CoreMinimal.h"
 
-struct FGLTFActorUtility
+struct FGLTFBlueprintUtility
 {
-	static bool IsGenericActor(const AActor* Actor);
+	static FString GetClassPath(const AActor* Actor);
 
-	static FString GetBlueprintPath(const AActor* Actor);
+	static bool IsSkySphere(const FString& Path);
 
-	static bool IsSkySphereBlueprint(const FString& Path);
-
-	static bool IsHDRIBackdropBlueprint(const FString& Path);
+	static bool IsHDRIBackdrop(const FString& Path);
 
 	template <class ValueType>
 	static bool TryGetPropertyValue(const UObject* Object, const TCHAR* PropertyName, ValueType& Value)
