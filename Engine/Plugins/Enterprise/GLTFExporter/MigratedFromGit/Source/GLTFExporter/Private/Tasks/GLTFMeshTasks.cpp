@@ -16,26 +16,26 @@ namespace
 			return;
 		}
 
-		bool bHasZeroLengthNormals;
-		bool bHasZeroLengthTangents;
+		bool bZeroNormals;
+		bool bZeroTangents;
 
 		if (VertexBuffer->GetUseHighPrecisionTangentBasis())
 		{
-			AnalyzeTangents<VertexBufferType, FPackedRGBA16N>(VertexBuffer, bHasZeroLengthNormals, bHasZeroLengthTangents);
+			CheckTangentVectors<VertexBufferType, FPackedRGBA16N>(VertexBuffer, bZeroNormals, bZeroTangents);
 		}
 		else
 		{
-			AnalyzeTangents<VertexBufferType, FPackedNormal>(VertexBuffer, bHasZeroLengthNormals, bHasZeroLengthTangents);
+			CheckTangentVectors<VertexBufferType, FPackedNormal>(VertexBuffer, bZeroNormals, bZeroTangents);
 		}
 
-		if (bHasZeroLengthNormals)
+		if (bZeroNormals)
 		{
 			Builder.AddWarningMessage(FString::Printf(
 				TEXT("Mesh %s has some nearly zero-length normals which can create some issues. Consider checking 'Recompute Normals' in the asset settings"),
 				MeshName));
 		}
 
-		if (bHasZeroLengthTangents)
+		if (bZeroTangents)
 		{
 			Builder.AddWarningMessage(FString::Printf(
 				TEXT("Mesh %s chas some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
@@ -44,10 +44,10 @@ namespace
 	}
 
 	template <typename VertexBufferType, typename TangentVectorType>
-	void AnalyzeTangents(const VertexBufferType* VertexBuffer, bool& bOutHasZeroLengthNormals, bool& bOutHasZeroLengthTangents)
+	void CheckTangentVectors(const VertexBufferType* VertexBuffer, bool& bOutZeroNormals, bool& bOutZeroTangents)
 	{
-		bool bHasZeroLengthNormals = false;
-		bool bHasZeroLengthTangents = false;
+		bool bZeroNormals = false;
+		bool bZeroTangents = false;
 
 		typedef TStaticMeshVertexTangentDatum<TangentVectorType> VertexTangentType;
 
@@ -60,13 +60,13 @@ namespace
 			for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 			{
 				const VertexTangentType& VertexTangent = VertexTangents[VertexIndex];
-				bHasZeroLengthNormals |= VertexTangent.TangentZ.ToFVector().IsNearlyZero();
-				bHasZeroLengthTangents |= VertexTangent.TangentX.ToFVector().IsNearlyZero();
+				bZeroNormals |= VertexTangent.TangentZ.ToFVector().IsNearlyZero();
+				bZeroTangents |= VertexTangent.TangentX.ToFVector().IsNearlyZero();
 			}
 		}
 
-		bOutHasZeroLengthNormals = bHasZeroLengthNormals;
-		bOutHasZeroLengthTangents = bHasZeroLengthTangents;
+		bOutZeroNormals = bZeroNormals;
+		bOutZeroTangents = bZeroTangents;
 	}
 }
 
