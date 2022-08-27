@@ -307,7 +307,7 @@ FGLTFJsonAccessor* FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* MeshS
 	}
 
 	return VertexBuffer->GetUseFullPrecisionUVs()
-		? Convert<FVector2D>(MeshSection, VertexBuffer, UVIndex, SourceData)
+		? Convert<FVector2f>(MeshSection, VertexBuffer, UVIndex, SourceData)
 		: Convert<FVector2DHalf>(MeshSection, VertexBuffer, UVIndex, SourceData);
 }
 
