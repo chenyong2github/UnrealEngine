@@ -212,7 +212,8 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 
 	if (PropertyName == TEXT("bExportUnlitMaterials") ||
 		PropertyName == TEXT("bExportClearCoatMaterials") ||
-		PropertyName == TEXT("DefaultMaterialBakeSize"))
+		PropertyName == TEXT("DefaultMaterialBakeSize") ||
+		PropertyName == TEXT("bExportVertexColors"))
 	{
 		return true;
 	}
