@@ -51,7 +51,7 @@ const FGLTFOverrideMaterialBakeSettings* UGLTFMaterialExportOptions::GetBakeSett
 	{
 		if (const UGLTFMaterialExportOptions* UserData = const_cast<UMaterialInterface*>(Material)->GetAssetUserData<UGLTFMaterialExportOptions>())
 		{
-			if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = UserData->PerInput.Find(PropertyGroup))
+			if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = UserData->Inputs.Find(PropertyGroup))
 			{
 				if (Pred(*BakeSettings))
 				{

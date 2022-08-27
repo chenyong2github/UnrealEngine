@@ -90,7 +90,7 @@ public:
 	FGLTFOverrideMaterialBakeSettings Default;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings")
-	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> PerInput;
+	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> Inputs;
 
 	static EGLTFMaterialBakeSizePOT GetBakeSizeForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, EGLTFMaterialBakeSizePOT DefaultValue);
 	static TextureFilter GetBakeFilterForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, TextureFilter DefaultValue);
