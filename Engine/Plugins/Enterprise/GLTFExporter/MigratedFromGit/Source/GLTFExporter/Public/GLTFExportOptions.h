@@ -89,11 +89,22 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportAnimationTrigger : 1;
 
+	/* Set all the UProperty to the CDO value */
 	void ResetToDefault();
 
+	/* Save the UProperty to a local ini to retrieve the value the next time we call function LoadOptions() */
 	void SaveOptions();
 
+	/* Load the UProperty data from a local ini which the value was store by the function SaveOptions() */
 	void LoadOptions();
 
+	/**
+	* Load the export option from the last save state and show the dialog if bShowOptionDialog is true.
+	* FullPath is the export file path we display it in the dialog
+	* If user cancel the dialog, the OutOperationCanceled will be true
+	* bOutExportAll will be true if the user want to use the same option for all other asset he want to export
+	*
+	* The function is saving the dialog state in a user ini file and reload it from there. It is not changing the CDO.
+	*/
 	void FillOptions(bool bShowOptionDialog, const FString& FullPath, bool BatchMode, bool& OutOperationCanceled, bool& bOutExportAll);
 };
