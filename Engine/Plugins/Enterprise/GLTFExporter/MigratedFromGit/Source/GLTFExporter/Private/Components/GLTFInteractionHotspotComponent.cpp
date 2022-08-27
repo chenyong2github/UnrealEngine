@@ -108,6 +108,11 @@ void UGLTFInteractionHotspotComponent::OnCreatePhysicsState()
 	UpdateCollisionVolume();
 }
 
+UBodySetup* UGLTFInteractionHotspotComponent::GetBodySetup()
+{
+	return ShapeBodySetup;
+}
+
 void UGLTFInteractionHotspotComponent::SetSprite(class UTexture2D* NewSprite)
 {
 	Super::SetSprite(NewSprite);

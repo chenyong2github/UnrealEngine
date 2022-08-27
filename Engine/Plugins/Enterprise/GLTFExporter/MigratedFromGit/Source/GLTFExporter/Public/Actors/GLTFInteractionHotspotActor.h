@@ -13,10 +13,10 @@ UCLASS(DisplayName = "GLTF Interaction Hotspot Actor", HideCategories = (Sprite)
 class GLTFEXPORTER_API AGLTFInteractionHotspotActor : public AActor
 {
 	GENERATED_BODY()
-	//~ Begin UObject Interface.
+	//~ Begin UObject Interface
 public:
 	AGLTFInteractionHotspotActor(const FObjectInitializer& ObjectInitializer);
-	//~ End UObject Interface.
+	//~ End UObject Interface
 
 private:
 	UPROPERTY(Category = "GLTF Interaction Hotspot", VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "GLTF Interaction Hotspot", AllowPrivateAccess = "true"))

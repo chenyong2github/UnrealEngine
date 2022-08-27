@@ -41,28 +41,28 @@ class GLTFEXPORTER_API UGLTFInteractionHotspotComponent : public UBillboardCompo
 {
 	GENERATED_UCLASS_BODY()
 public:
-	//~ Begin UObject Interface.
+	//~ Begin UObject Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	//~ End UObject Interface.
+	//~ End UObject Interface
 
-	//~ Begin UActorComponent Interface.
+	//~ Begin UActorComponent Interface
 	virtual void BeginPlay() override;
 
 protected:
 	virtual void OnRegister() override;
 	virtual void OnCreatePhysicsState() override;
-	//~ End UActorComponent Interface.
+	//~ End UActorComponent Interface
 
-	//~ Begin UBillboardComponent Interface.
+	//~ Begin UPrimitiveComponent Interface
 public:
-	virtual void SetSprite(class UTexture2D* NewSprite) override;
-	//~ End UBillboardComponent Interface.
+	virtual UBodySetup* GetBodySetup() override;
+	//~ End UPrimitiveComponent Interface
 
-	//~ Begin UPrimitiveComponent Interface.
-	virtual UBodySetup* GetBodySetup() { return ShapeBodySetup; }
-	//~ End UBillboardComponent Interface.
+	//~ Begin UBillboardComponent Interface
+	virtual void SetSprite(class UTexture2D* NewSprite) override;
+	//~ End UBillboardComponent Interface
 
 private:
 	UFUNCTION()
@@ -78,19 +78,19 @@ private:
 	float GetBillboardBoundingRadius() const;
 
 public:
-	/** List of skeletal meshes and animations to be played when the hotspot is interacted with */
+	/** List of skeletal meshes and animations to be played when the hotspot is interacted with. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	TArray<FGLTFAnimation> Animations;
 
-	/** The billboard image that will be shown when the hotspot is in an inactive state or one without a specified sprite */
+	/** The billboard image that will be shown when the hotspot is in an inactive state or one without a specified sprite. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* DefaultSprite;
 
-	/** The optional billboard image that will be shown when a cursor enters the hotspot */
+	/** The optional billboard image that will be shown when a cursor enters the hotspot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* HighlightSprite;
 
-	/** The optional billboard image that will be shown when the hotspot is toggled by a click */
+	/** The optional billboard image that will be shown when the hotspot is toggled by a click. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* ToggledSprite;
 
