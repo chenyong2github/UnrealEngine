@@ -60,27 +60,27 @@ struct FGLTFOverrideMaterialBakeSettings
 
 	FGLTFOverrideMaterialBakeSettings();
 
-	/** If enabled, override size of the baked out texture. */
+	/** If enabled, default size will be overridden by the corresponding property. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (InlineEditConditionToggle))
 	bool bOverrideSize;
 
-	/** Overriding size of the baked out texture. */
+	/** Overrides default size of the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideSize"))
 	EGLTFMaterialBakeSizePOT Size;
 
-	/** If enabled, override filtering mode used when sampling the baked out texture. */
+	/** If enabled, default filtering mode will be overridden by the corresponding property. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (InlineEditConditionToggle))
 	bool bOverrideFilter;
 
-	/** Overriding filtering mode used when sampling the baked out texture. */
+	/** Overrides the default filtering mode used when sampling the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideFilter", ValidEnumValues="TF_Nearest, TF_Bilinear, TF_Trilinear"))
 	TEnumAsByte<TextureFilter> Filter;
 
-	/** If enabled, override addressing mode used when sampling the baked out texture. */
+	/** If enabled, default addressing mode will be overridden by the corresponding property. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (InlineEditConditionToggle))
 	bool bOverrideTiling;
 
-	/** Overriding addressing mode used when sampling the baked out texture. */
+	/** Overrides the default addressing mode used when sampling the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideTiling"))
 	TEnumAsByte<TextureAddress> Tiling;
 };
