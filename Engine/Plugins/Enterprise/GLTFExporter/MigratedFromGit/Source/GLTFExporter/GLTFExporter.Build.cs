@@ -9,19 +9,28 @@ public class GLTFExporter : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		bTreatAsEngineModule = true; // Only necessary when plugin installed in project
 
-		if (IsPlugin)
 		{
 			// NOTE: ugly hack to access plugin info (should propose change to engine)
-			var BindingFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
-			var FieldInfo = typeof(ModuleRules).GetField("Plugin", BindingFlags);
-			var Plugin = FieldInfo != null ? FieldInfo.GetValue(this) as PluginInfo : null;
-			var PluginDescriptor = Plugin != null ? Plugin.Descriptor : null;
-
-			if (PluginDescriptor != null)
+			var PluginField = typeof(ModuleRules).GetField("Plugin", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+			if (PluginField == null)
 			{
-				PrivateDefinitions.Add("GLTFEXPORTER_FRIENDLY_NAME=TEXT(\"" + PluginDescriptor.FriendlyName + "\")");
-				PrivateDefinitions.Add("GLTFEXPORTER_VERSION_NAME=TEXT(\"" + PluginDescriptor.VersionName + "\")");
+				throw new System.Exception("Missing internal member Plugin");
 			}
+
+			var Plugin = PluginField.GetValue(this) as PluginInfo;
+			if (Plugin == null)
+			{
+				throw new System.Exception("Missing plugin information");
+			}
+
+			var PluginDescriptor = Plugin.Descriptor;
+			if (PluginDescriptor == null)
+			{
+				throw new System.Exception("Missing plugin descriptor");
+			}
+
+			PrivateDefinitions.Add("GLTFEXPORTER_FRIENDLY_NAME=TEXT(\"" + PluginDescriptor.FriendlyName + "\")");
+			PrivateDefinitions.Add("GLTFEXPORTER_VERSION_NAME=TEXT(\"" + PluginDescriptor.VersionName + "\")");
 		}
 
 		PublicDependencyModuleNames .AddRange(
