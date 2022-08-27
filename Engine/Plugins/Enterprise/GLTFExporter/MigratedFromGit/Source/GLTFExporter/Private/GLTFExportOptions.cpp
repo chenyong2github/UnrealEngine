@@ -23,8 +23,8 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	DefaultLevelOfDetail = 0;
 	bExportVertexSkinWeights = true;
 	bExportAnimationSequences = true;
-	bExportLevelSequences = true;
 	bRetargetBoneTransforms = true;
+	bExportLevelSequences = true;
 	bExportSourceTextures = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
