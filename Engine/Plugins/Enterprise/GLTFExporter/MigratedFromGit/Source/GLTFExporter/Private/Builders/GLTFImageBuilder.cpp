@@ -88,7 +88,7 @@ EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPo
 
 		case EGLTFTextureImageFormat::JPEG:
 			return
-				!EnumHasAllFlags(static_cast<EGLTFTextureType>(ExportOptions->NoLossyImageFormatFor), Type) &&
+				(Type == EGLTFTextureType::None || !EnumHasAllFlags(static_cast<EGLTFTextureType>(ExportOptions->NoLossyImageFormatFor), Type)) &&
 				(bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size)) ?
 				EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
 
