@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
+#include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBuffer : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBuffer
 {
 	FString Name;
 

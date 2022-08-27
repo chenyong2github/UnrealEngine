@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
+#include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonNode : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonNode
 {
 	FString Name;
 
@@ -12,11 +13,11 @@ struct GLTFEXPORTER_API FGLTFJsonNode : FGLTFJsonObject
 	FQuat   Rotation;
 	FVector Scale;
 
-	FGLTFJsonIndex Camera;
-	FGLTFJsonIndex Skin;
-	FGLTFJsonIndex Mesh;
+	FGLTFJsonCameraIndex Camera;
+	FGLTFJsonSkinIndex   Skin;
+	FGLTFJsonMeshIndex   Mesh;
 
-	TArray<FGLTFJsonIndex> Children;
+	TArray<FGLTFJsonNodeIndex> Children;
 
 	FGLTFJsonNode()
 		: Translation(FVector::ZeroVector)

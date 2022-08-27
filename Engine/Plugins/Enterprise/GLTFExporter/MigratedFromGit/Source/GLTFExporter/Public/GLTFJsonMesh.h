@@ -3,19 +3,20 @@
 #pragma once
 
 #include "GLTFJsonEnums.h"
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
+#include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonAttributes : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAttributes
 {
-	FGLTFJsonIndex Position; // always required
-	FGLTFJsonIndex Normal;
-	FGLTFJsonIndex Tangent;
-	FGLTFJsonIndex TexCoord0;
-	FGLTFJsonIndex TexCoord1;
-	FGLTFJsonIndex Color0;
+	FGLTFJsonAccessorIndex Position; // always required
+	FGLTFJsonAccessorIndex Normal;
+	FGLTFJsonAccessorIndex Tangent;
+	FGLTFJsonAccessorIndex TexCoord0;
+	FGLTFJsonAccessorIndex TexCoord1;
+	FGLTFJsonAccessorIndex Color0;
 	// skeletal mesh attributes
-	FGLTFJsonIndex Joints0;
-	FGLTFJsonIndex Weights0;
+	FGLTFJsonAccessorIndex Joints0;
+	FGLTFJsonAccessorIndex Weights0;
 
 	FGLTFJsonAttributes()
 		: Position(INDEX_NONE)
@@ -47,10 +48,10 @@ struct GLTFEXPORTER_API FGLTFJsonAttributes : FGLTFJsonObject
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonPrimitive : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonPrimitive
 {
-	FGLTFJsonIndex         Indices;
-	FGLTFJsonIndex         Material;
+	FGLTFJsonAccessorIndex Indices;
+	FGLTFJsonMaterialIndex Material;
 	EGLTFJsonPrimitiveMode Mode;
 	FGLTFJsonAttributes    Attributes;
 
@@ -77,7 +78,7 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive : FGLTFJsonObject
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonMesh : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonMesh
 {
 	FString Name;
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
 #include "GLTFJsonAccessor.h"
 #include "GLTFJsonBufferView.h"
 #include "GLTFJsonBuffer.h"
@@ -15,7 +15,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 
 
-struct GLTFEXPORTER_API FGLTFJsonAsset : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAsset
 {
 	FString Version;
 	FString Generator;
@@ -42,8 +42,8 @@ struct GLTFEXPORTER_API FGLTFJsonAsset : FGLTFJsonObject
 
 struct GLTFEXPORTER_API FGLTFJsonRoot
 {
-	FGLTFJsonAsset Asset;
-	FGLTFJsonIndex DefaultScene;
+	FGLTFJsonAsset      Asset;
+	FGLTFJsonSceneIndex DefaultScene;
 
 	TArray<FGLTFJsonAccessor>   Accessors;
 	TArray<FGLTFJsonBuffer>     Buffers;

@@ -14,7 +14,7 @@ struct GLTFEXPORTER_API FGLTFConvertedSection
 
 	FGLTFConvertedSection(const FString& SectionName, const FStaticMeshLODResources& LODMesh, int32 SectionIndex);
 
-	FGLTFJsonIndex AppendAccessorForIndices(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForIndices(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 };
 
 struct GLTFEXPORTER_API FGLTFConvertedMesh
@@ -34,14 +34,14 @@ struct GLTFEXPORTER_API FGLTFConvertedMesh
 
 	FGLTFConvertedMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
 
-	FGLTFJsonIndex AppendAccessorForPositions(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
-	FGLTFJsonIndex AppendAccessorForColors(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
-	FGLTFJsonIndex AppendAccessorForNormals(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
-	FGLTFJsonIndex AppendAccessorForTangents(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
-	FGLTFJsonIndex AppendAccessorForUV0s(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
-	FGLTFJsonIndex AppendAccessorForUV1s(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForPositions(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForColors(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForNormals(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForTangents(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForUV0s(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonAccessorIndex AppendAccessorForUV1s(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 
-	FGLTFJsonIndex AppendMesh(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
+	FGLTFJsonMeshIndex AppendMesh(FGLTFJsonRoot& JsonRoot, FGLTFBufferBuilder& BufferBuilder) const;
 };
 
 struct GLTFEXPORTER_API FGLTFMeshConverter
@@ -55,7 +55,7 @@ struct GLTFEXPORTER_API FGLTFMeshConverter
 	{
 	}
 
-	FGLTFJsonIndex AppendMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
+	FGLTFJsonMeshIndex AppendMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
 	{
 		return FGLTFConvertedMesh(StaticMesh, LODIndex).AppendMesh(JsonRoot, BufferBuilder);
 	}
