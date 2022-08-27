@@ -53,6 +53,14 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 	return ProxyMaterial;
 }
 
+void FGLTFMaterialProxyFactory::OpenLog()
+{
+	if (Builder.HasLoggedMessages())
+	{
+		Builder.OpenLog();
+	}
+}
+
 void FGLTFMaterialProxyFactory::SetUserData(UMaterialInstanceConstant* ProxyMaterial, UMaterialInterface* OriginalMaterial)
 {
 	UGLTFMaterialExportOptions* UserData = OriginalMaterial->GetAssetUserData<UGLTFMaterialExportOptions>();

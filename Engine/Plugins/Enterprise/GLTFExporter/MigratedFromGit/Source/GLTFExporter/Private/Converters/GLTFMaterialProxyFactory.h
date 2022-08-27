@@ -17,6 +17,7 @@ public:
 	FGLTFMaterialProxyFactory(const UGLTFProxyOptions* Options = nullptr);
 
 	UMaterialInterface* Create(UMaterialInterface* OriginalMaterial);
+	void OpenLog();
 
 	FString RootPath;
 

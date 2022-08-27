@@ -19,12 +19,9 @@ public:
 		 : FSlateStyleSet("GLTFEditorStyle")
 	 {
 	 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);
-	 	check(Plugin.IsValid());
-
 	 	FSlateStyleSet::SetContentRoot(Plugin->GetBaseDir() / TEXT("Resources"));
 
-	 	const FVector2D IconSize(16.0f, 16.0f);
-	 	Set("Icon16", new FSlateImageBrush(FSlateStyleSet::RootToContentDir(TEXT("Icon16.png")), IconSize));
+	 	Set("Icon16", new FSlateImageBrush(FSlateStyleSet::RootToContentDir(TEXT("Icon16.png")), FVector2D(16.0f, 16.0f)));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	 }
