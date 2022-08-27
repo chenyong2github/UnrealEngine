@@ -49,7 +49,7 @@ struct FGLTFJsonPrimitive
 	FGLTFJsonAttributes    Attributes;
 
 	FGLTFJsonPrimitive()
-		: Mode(EGLTFJsonPrimitiveMode::None)
+		: Mode(EGLTFJsonPrimitiveMode::Triangles)
 	{
 	}
 
@@ -71,7 +71,7 @@ struct FGLTFJsonPrimitive
 			JsonWriter.WriteValue(TEXT("material"), Material);
 		}
 
-		if (Mode != EGLTFJsonPrimitiveMode::None)
+		if (Mode != EGLTFJsonPrimitiveMode::Triangles)
 		{
 			JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToInteger(Mode));
 		}

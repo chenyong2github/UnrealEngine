@@ -102,6 +102,29 @@ struct FGLTFConverterUtility
 		}
 	}
 
+	static EGLTFJsonTextureFilter ConvertFilter(TextureFilter Filter)
+	{
+		switch (Filter)
+		{
+			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
+			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
+			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
+			case TextureFilter::TF_Default:   return EGLTFJsonTextureFilter::None; // TODO: handle this case better
+			default:                          return EGLTFJsonTextureFilter::None;
+		}
+	}
+
+	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Wrap)
+	{
+		switch (Wrap)
+		{
+			case TextureAddress::TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
+			case TextureAddress::TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
+			case TextureAddress::TA_Clamp:  return EGLTFJsonTextureWrap::ClampToEdge;
+			default:                        return EGLTFJsonTextureWrap::Repeat; // fallback
+		}
+	}
+
 	static bool IsSkySphereBlueprint(const UBlueprint* Blueprint);
 
 	static bool IsHDRIBackdropBlueprint(const UBlueprint* Blueprint);
