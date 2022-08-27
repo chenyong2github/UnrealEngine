@@ -68,7 +68,7 @@ float FGLTFUVAnalysisConverter::CalcOverlapPercentage(int32 TexCoord, const FInt
 	FMaterialDataEx MatSet;
 	MatSet.Material = const_cast<UMaterialInterface*>(Material);
 	MatSet.PropertySizes.Add(Property, OutputSize);
-	MatSet.BlendMode = BLEND_Additive;
+	MatSet.BlendMode = Material->GetBlendMode();
 	MatSet.bPerformBorderSmear = false;
 
 	TArray<FMeshData*> MeshSettings;
