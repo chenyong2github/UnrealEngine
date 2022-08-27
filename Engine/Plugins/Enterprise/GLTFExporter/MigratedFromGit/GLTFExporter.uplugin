@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 1.0,
-	"VersionName": "1.0",
+	"Version": 0.1,
+	"VersionName": "0.1",
 	"FriendlyName": "glTF Exporter",
 	"Description": "An exporter for Khronos glTF 3D models.",
 	"Category": "Exporters",
