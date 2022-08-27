@@ -102,6 +102,7 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 {
 	check(CalculateImageBytes(Size.X, Size.Y, 0, Format) == ByteLength);
 
+	// TODO: do these temp textures need to be part of the root set to avoid garbage collection?
 	UTexture2D* Texture = UTexture2D::CreateTransient(Size.X, Size.Y, Format);
 
 	void* MipData = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
