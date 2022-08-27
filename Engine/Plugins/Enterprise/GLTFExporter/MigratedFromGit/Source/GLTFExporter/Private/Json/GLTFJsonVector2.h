@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonVector2
@@ -20,8 +21,8 @@ struct FGLTFJsonVector2
 	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteArrayStart();
-		JsonWriter.WriteValue(X);
-		JsonWriter.WriteValue(Y);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
 		JsonWriter.WriteArrayEnd();
 	}
 
