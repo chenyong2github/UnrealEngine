@@ -378,7 +378,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return false;
 	}
 
-	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(BaseColorProperty));
+	const FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(BaseColorProperty));
 
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, GetPropertyGroup(BaseColorProperty));
 	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);
@@ -388,8 +388,8 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
 	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
-	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, BaseColorTexCoord, TextureSize);
-	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, OpacityTexCoord, TextureSize, true);
+	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, BaseColorTexCoord, TextureSize, false);
+	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, OpacityTexCoord, TextureSize, false);
 	const float BaseColorScale = BaseColorProperty == MP_EmissiveColor ? BaseColorBakeOutput.EmissiveScale : 1;
 
 	// Detect when both baked properties are constants, which means we can avoid exporting a texture
@@ -426,20 +426,21 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return false;
 	}
 
-	TextureSize = BaseColorBakeOutput.Size.ComponentMax(OpacityBakeOutput.Size);
-	BaseColorTexture = FGLTFMaterialUtility::CreateTransientTexture(BaseColorBakeOutput);
-	OpacityTexture = FGLTFMaterialUtility::CreateTransientTexture(OpacityBakeOutput);
+	TArray<FColor> CombinedPixels;
+	CombinePixels(
+		BaseColorBakeOutput.Pixels,
+		OpacityBakeOutput.Pixels,
+		CombinedPixels,
+		[](const FColor& BaseColor, const FColor& Opacity) -> FColor
+		{
+			return FColor(BaseColor.R, BaseColor.G, BaseColor.B, Opacity.R);
+		});
 
-	const TArray<FGLTFTextureCombineSource> CombineSources =
-	{
-		{ OpacityTexture, OpacityMask, SE_BLEND_Opaque },
-		{ BaseColorTexture, BaseColorMask }
-	};
-
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddCombinedTexture(
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
-		CombineSources,
+		CombinedPixels,
 		TextureSize,
+		false,
 		false,
 		GetBakedTextureName(TEXT("BaseColor")),
 		TextureMinFilter,
@@ -504,7 +505,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(MetallicProperty));
+	const FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(MetallicProperty));
 
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, GetPropertyGroup(MetallicProperty));
 	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);
@@ -514,8 +515,8 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
 	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
-	FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, MetallicTexCoord, TextureSize);
-	FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize);
+	FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, MetallicTexCoord, TextureSize, false);
+	FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize, false);
 
 	// Detect when both baked properties are constants, which means we can use factors and avoid exporting a texture
 	if (MetallicBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
@@ -549,21 +550,22 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		return false;
 	}
 
-	TextureSize = RoughnessBakeOutput.Size.ComponentMax(MetallicBakeOutput.Size);
-	MetallicTexture = FGLTFMaterialUtility::CreateTransientTexture(MetallicBakeOutput);
-	RoughnessTexture = FGLTFMaterialUtility::CreateTransientTexture(RoughnessBakeOutput);
+	TArray<FColor> CombinedPixels;
+	CombinePixels(
+		MetallicBakeOutput.Pixels,
+		RoughnessBakeOutput.Pixels,
+		CombinedPixels,
+		[](const FColor& Metallic, const FColor& Roughness) -> FColor
+		{
+			return FColor(0, Roughness.R, Metallic.R);
+		});
 
-	const TArray<FGLTFTextureCombineSource> CombineSources =
-	{
-		{ MetallicTexture, MetallicMask + AlphaMask, SE_BLEND_Opaque },
-		{ RoughnessTexture, RoughnessMask }
-	};
-
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddCombinedTexture(
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
-		CombineSources,
+		CombinedPixels,
 		TextureSize,
 		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
+		false,
 		GetBakedTextureName(TEXT("MetallicRoughness")),
 		TextureMinFilter,
 		TextureMagFilter,
@@ -628,7 +630,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return false;
 	}
 
-	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(IntensityProperty));
+	const FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(IntensityProperty));
 
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material,GetPropertyGroup(IntensityProperty));
 	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);
@@ -638,8 +640,8 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
 	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
-	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, IntensityTexCoord, TextureSize);
-	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize);
+	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, IntensityTexCoord, TextureSize, false);
+	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize, false);
 
 	// Detect when both baked properties are constants, which means we can use factors and avoid exporting a texture
 	if (IntensityBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
@@ -673,21 +675,22 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return false;
 	}
 
-	TextureSize = RoughnessBakeOutput.Size.ComponentMax(IntensityBakeOutput.Size);
-	IntensityTexture = FGLTFMaterialUtility::CreateTransientTexture(IntensityBakeOutput);
-	RoughnessTexture = FGLTFMaterialUtility::CreateTransientTexture(RoughnessBakeOutput);
+	TArray<FColor> CombinedPixels;
+	CombinePixels(
+		IntensityBakeOutput.Pixels,
+		RoughnessBakeOutput.Pixels,
+		CombinedPixels,
+		[](const FColor& Intensity, const FColor& Roughness) -> FColor
+		{
+			return FColor(Intensity.R, Roughness.R, 0);
+		});
 
-	const TArray<FGLTFTextureCombineSource> CombineSources =
-	{
-		{ IntensityTexture, ClearCoatMask + AlphaMask, SE_BLEND_Opaque },
-		{ RoughnessTexture, ClearCoatRoughnessMask }
-	};
-
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddCombinedTexture(
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
-		CombineSources,
+		CombinedPixels,
 		TextureSize,
 		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
+		false,
 		GetBakedTextureName(TEXT("ClearCoatRoughness")),
 		TextureMinFilter,
 		TextureMagFilter,
@@ -1308,13 +1311,13 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	return true;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord)
 {
 	const FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, GetPropertyGroup(Property));
-	return BakeMaterialProperty(Property, OutTexCoord, TextureSize, bCopyAlphaFromRedChannel);
+	return BakeMaterialProperty(Property, OutTexCoord, TextureSize, true);
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, const FIntPoint& TextureSize, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, const FIntPoint& TextureSize, bool bFillAlpha)
 {
 	if (MeshData == nullptr)
 	{
@@ -1355,7 +1358,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 		OutTexCoord,
 		MeshData,
 		SectionIndices,
-		bCopyAlphaFromRedChannel);
+		bFillAlpha);
 
 	return PropertyBakeOutput;
 }
@@ -1430,6 +1433,42 @@ EGLTFMaterialPropertyGroup FGLTFMaterialTask::GetPropertyGroup(const FMaterialPr
 			}
 		default:
 			return EGLTFMaterialPropertyGroup::None;
+	}
+}
+
+template <typename CallbackType>
+void FGLTFMaterialTask::CombinePixels(const TArray<FColor>& FirstPixels, const TArray<FColor>& SecondPixels, TArray<FColor>& OutPixels, CallbackType Callback)
+{
+	const int32 Count = FMath::Max(FirstPixels.Num(), SecondPixels.Num());
+	OutPixels.AddUninitialized(Count);
+
+	if (FirstPixels.Num() == 1)
+	{
+		const FColor& FirstPixel = FirstPixels[0];
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const FColor& SecondPixel = SecondPixels[Index];
+			OutPixels[Index] = Callback(FirstPixel, SecondPixel);
+		}
+	}
+	else if (SecondPixels.Num() == 1)
+	{
+		const FColor& SecondPixel = SecondPixels[0];
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const FColor& FirstPixel = FirstPixels[Index];
+			OutPixels[Index] = Callback(FirstPixel, SecondPixel);
+		}
+	}
+	else
+	{
+		check(FirstPixels.Num() == SecondPixels.Num());
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const FColor& FirstPixel = FirstPixels[Index];
+			const FColor& SecondPixel = SecondPixels[Index];
+			OutPixels[Index] = Callback(FirstPixel, SecondPixel);
+		}
 	}
 }
 
