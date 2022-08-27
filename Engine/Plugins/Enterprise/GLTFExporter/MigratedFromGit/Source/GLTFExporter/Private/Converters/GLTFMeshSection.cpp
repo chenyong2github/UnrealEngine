@@ -3,6 +3,7 @@
 #include "Converters/GLTFMeshSection.h"
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Algo/MaxElement.h"
 
 FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* OldIndexBuffer)
 {
@@ -32,6 +33,8 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshSection* MeshSection, const 
 
 		IndexBuffer[Index] = NewIndex;
 	}
+
+	MaxBoneIndex = 0;
 }
 
 FGLTFMeshSection::FGLTFMeshSection(const FSkelMeshRenderSection* MeshSection, const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer)
@@ -64,4 +67,5 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkelMeshRenderSection* MeshSection, co
 	}
 
 	BoneMap = MeshSection->BoneMap;
+	MaxBoneIndex = BoneMap.Num() > 0 ? *Algo::MaxElement(MeshSection->BoneMap) : 0;
 }
