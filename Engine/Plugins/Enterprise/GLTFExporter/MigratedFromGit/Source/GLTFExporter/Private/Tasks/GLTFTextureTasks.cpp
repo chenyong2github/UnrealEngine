@@ -214,3 +214,34 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTargetCube);
 }
+
+void FGLTFTextureLightMapTask::Complete()
+{
+	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
+	LightMap->GetName(JsonTexture.Name);
+
+	// NOTE: export of lightmaps via source data is used to work around issues with
+	// quality-loss due to incorrect gamma transformation when rendering to a canvas.
+
+	FTextureSource& Source = const_cast<FTextureSource&>(LightMap->Source);
+	if (!Source.IsValid())
+	{
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export lightmap texture %s because of missing source data"), *JsonTexture.Name));
+		return;
+	}
+
+	ERGBFormat RGBFormat;
+	uint32 BitDepth;
+	if (!FGLTFTextureUtility::CanPNGCompressFormat(Source.GetFormat(), RGBFormat, BitDepth))
+	{
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export lightmap texture %s because of unsupported format %s"), *JsonTexture.Name, *FGLTFNameUtility::GetName(Source.GetFormat())));
+		return;
+	}
+
+	const FIntPoint Size = { Source.GetSizeX(), Source.GetSizeY() };
+	const void* RawData = Source.LockMip(0);
+	JsonTexture.Source = Builder.AddImage(RawData, Source.CalcMipSize(0), Size, RGBFormat, BitDepth, JsonTexture.Name);
+	Source.UnlockMip(0);
+
+	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMap);
+}

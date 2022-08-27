@@ -40,3 +40,10 @@ class FGLTFTextureRenderTargetCubeConverter final : public TGLTFTextureConverter
 
 	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override;
 };
+
+class FGLTFTextureLightMapConverter final : public TGLTFTextureConverter<const ULightMapTexture2D*>
+{
+	using TGLTFTextureConverter::TGLTFTextureConverter;
+
+	virtual FGLTFJsonTextureIndex Convert(const ULightMapTexture2D* LightMap) override;
+};

@@ -113,3 +113,29 @@ private:
 	ECubeFace CubeFace;
 	const FGLTFJsonTextureIndex TextureIndex;
 };
+
+class FGLTFTextureLightMapTask : public FGLTFTask
+{
+public:
+
+	FGLTFTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTextureIndex TextureIndex)
+        : FGLTFTask(EGLTFTaskPriority::Texture)
+        , Builder(Builder)
+        , LightMap(LightMap)
+        , TextureIndex(TextureIndex)
+	{
+	}
+
+	virtual FString GetName() override
+	{
+		return LightMap->GetName();
+	}
+
+	virtual void Complete() override;
+
+private:
+
+	FGLTFConvertBuilder& Builder;
+	const ULightMapTexture2D* LightMap;
+	const FGLTFJsonTextureIndex TextureIndex;
+};
