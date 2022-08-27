@@ -12,10 +12,12 @@ class FGLTFMaterialTask : public FGLTFTask
 {
 public:
 
-	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, FGLTFJsonMaterialIndex MaterialIndex)
+	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UStaticMesh* Mesh, int32 LODIndex, FGLTFJsonMaterialIndex MaterialIndex)
         : FGLTFTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, Material(Material)
+		, Mesh(Mesh)
+		, LODIndex(LODIndex)
 		, MaterialIndex(MaterialIndex)
 	{
 	}
@@ -31,6 +33,8 @@ private:
 
 	FGLTFConvertBuilder& Builder;
 	const UMaterialInterface* Material;
+	const UStaticMesh* Mesh;
+	const int32 LODIndex;
 	const FGLTFJsonMaterialIndex MaterialIndex;
 
 	bool TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const;

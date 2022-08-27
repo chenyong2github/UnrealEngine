@@ -2,10 +2,53 @@
 
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFMaterialUtility.h"
+#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMaterialTasks.h"
 
-FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material)
+void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const UStaticMesh*& Mesh, int32& LODIndex)
+{
+	if (Mesh != nullptr)
+	{
+		if (LODIndex < 0)
+		{
+			LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(Mesh));
+		}
+
+		const TArray<EMaterialProperty> Properties =
+		{
+			MP_BaseColor,
+			MP_EmissiveColor,
+			MP_Opacity,
+			MP_OpacityMask,
+			MP_Metallic,
+			MP_Roughness,
+			MP_Normal,
+			// MP_CustomOutput,	// NOTE: causes a crash when used with AnalyzeMaterialProperty
+			MP_AmbientOcclusion,
+			MP_CustomData0,
+			MP_CustomData1
+		};
+
+		bool bRequiresVertexData = false;
+
+		int32 NumTextureCoordinates;
+		bool bPropertyRequiresVertexData;
+
+		for (const EMaterialProperty Property: Properties)
+		{
+			const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bPropertyRequiresVertexData);
+			bRequiresVertexData |= bPropertyRequiresVertexData;
+		}
+
+		if (!bRequiresVertexData)
+		{
+			Mesh = nullptr;
+		}
+	}
+}
+
+FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const UStaticMesh* Mesh, int32 LODIndex)
 {
 	if (Material == FGLTFMaterialUtility::GetDefault())
 	{
@@ -13,6 +56,6 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface*
 	}
 
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
-	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, MaterialIndex);
+	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, Mesh, LODIndex, MaterialIndex);
 	return MaterialIndex;
 }
