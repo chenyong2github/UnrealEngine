@@ -27,6 +27,9 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"RenderCore",
 					"RHI",
+					"LevelSequence",
+					"MovieScene",
+					"MovieSceneTracks",
 					"MaterialBaking",
 					"VariantManagerContent",
 					"GLTFExporterRuntime"
