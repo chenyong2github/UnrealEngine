@@ -52,15 +52,3 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builde
 	// TODO: implement support
 	return FGLTFJsonTextureIndex(INDEX_NONE);
 }
-
-FGLTFJsonTextureIndex FGLTFLightMapTexture2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightMapTexture2D* LightMapTexture2D)
-{
-	// TODO: add RGBE encoding information for TSF_RGBE8 and TSF_BGRE8
-
-	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = Name;
-	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMapTexture2D);
-	JsonTexture.Source = Builder.AddImage(LightMapTexture2D->Source, Name);
-
-	return Builder.AddTexture(JsonTexture);
-}
