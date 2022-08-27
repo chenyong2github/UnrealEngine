@@ -57,7 +57,7 @@ public:
 #endif
 	{
 		// NOTE: because there is no overridable compiler method for ObjectLocalBounds in engine this is our only option currently
-		if (Custom->Code.Contains(TEXT("GetPrimitiveData(Parameters).LocalObjectBounds")))
+		if (Custom->Code.Contains(TEXT("GetPrimitiveData(Parameters.PrimitiveId).LocalObjectBounds")))
 		{
 			bUsesObjectLocalBounds = true;
 		}
