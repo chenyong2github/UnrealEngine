@@ -27,8 +27,9 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	if (Options == nullptr)
 	{
 		Options = NewObject<UGLTFExportOptions>();
-		FGCObjectScopeGuard OptionsGuard(Options);
 	}
+
+	FGCObjectScopeGuard OptionsGuard(Options);
 
 	if (!FillExportOptions(Options))
 	{
