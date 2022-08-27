@@ -17,6 +17,7 @@ struct FMaterialData
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
 		, BlendMode(BLEND_Opaque)
+		, BackgroundColor(FColor::Magenta)
 		, bTangentSpaceNormal(false)
 	{}
 
@@ -26,8 +27,10 @@ struct FMaterialData
 	TMap<EMaterialProperty, FIntPoint> PropertySizes;
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear;
-	/** Blend mode to use when baking */
+	/** Blend mode to use when baking, allowing for example detection of overlapping UVs */
 	EBlendMode BlendMode;
+	/** Background color used to initially fill the output texture and used for border smear */
+	FColor BackgroundColor;
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal;
 };
@@ -39,6 +42,7 @@ struct FMaterialDataEx
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
 		, BlendMode(BLEND_Opaque)
+		, BackgroundColor(FColor::Magenta)
 		, bTangentSpaceNormal(false)
 	{}
 
@@ -48,8 +52,10 @@ struct FMaterialDataEx
 	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear;
-	/** Blend mode to use when baking */
+	/** Blend mode to use when baking, allowing for example detection of overlapping UVs */
 	EBlendMode BlendMode;
+	/** Background color used to initially fill the output texture and used for border smear */
+	FColor BackgroundColor;
 	/** Whether to transform normals from world-space to tangent-space (does nothing if material already uses tangent-space normals) */
 	bool bTangentSpaceNormal;
 };
