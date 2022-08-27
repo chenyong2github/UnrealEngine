@@ -4,6 +4,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFDelayedAnimationTasks.h"
 #include "Animation/AnimSequence.h"
+#include "LevelSequenceActor.h"
 
 FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
 {
@@ -40,9 +41,19 @@ FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, co
 FGLTFJsonAnimation* FGLTFAnimationDataConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-	const UAnimSequence* AnimSequence = Cast<UAnimSequence>(SkeletalMeshComponent->AnimationData.AnimToPlay);
+	if (SkeletalMesh == nullptr)
+	{
+		return nullptr;
+	}
 
-	if (SkeletalMesh == nullptr || AnimSequence == nullptr || SkeletalMeshComponent->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
+	const UAnimSequence* AnimSequence = Cast<UAnimSequence>(SkeletalMeshComponent->AnimationData.AnimToPlay);
+	if (AnimSequence == nullptr)
+	{
+		return nullptr;
+	}
+
+	const EAnimationMode::Type AnimationMode = SkeletalMeshComponent->GetAnimationMode();
+	if (AnimationMode != EAnimationMode::AnimationSingleNode)
 	{
 		return nullptr;
 	}
@@ -71,11 +82,24 @@ FGLTFJsonAnimation* FGLTFLevelSequenceConverter::Convert(const ULevel* Level, co
 FGLTFJsonAnimation* FGLTFLevelSequenceDataConverter::Convert(const ALevelSequenceActor* LevelSequenceActor)
 {
 	const ULevel* Level = LevelSequenceActor->GetLevel();
-	const ULevelSequence* LevelSequence = LevelSequenceActor->LoadSequence();
-
-	if (Level == nullptr || LevelSequence == nullptr)
+	if (Level == nullptr)
 	{
 		return nullptr;
+	}
+
+	const ULevelSequence* LevelSequence = LevelSequenceActor->GetSequence();
+	if (LevelSequence == nullptr)
+	{
+#if WITH_EDITORONLY_DATA
+		// TODO: find a nicer way to load level sequence synchronously without relying on a deprecated engine api
+		LevelSequence = Cast<ULevelSequence>(LevelSequenceActor->LevelSequence_DEPRECATED.TryLoad());
+		if (LevelSequence == nullptr)
+		{
+			return nullptr;
+		}
+#else
+		return nullptr;
+#endif
 	}
 
 	FGLTFJsonAnimation* JsonAnimation = Builder.AddUniqueAnimation(Level, LevelSequence);
