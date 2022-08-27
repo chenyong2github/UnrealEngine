@@ -145,7 +145,11 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 
 	if (!bHasAnyProperty)
 	{
-		// TODO: allow variant nodes without any properties?
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Actor '%s' in variant '%s' has no properties supported by the exporter and will be skipped. Context: %s"),
+			*Binding->GetDisplayText().ToString(),
+			*Variant->GetDisplayText().ToString(),
+			*GetLogContext(Variant)));
 		return false;
 	}
 
