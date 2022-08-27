@@ -57,4 +57,9 @@ class FGLTFProxyMaterialCompiler : public FProxyMaterialCompiler
     {
     	return Compiler->MaterialBakingWorldPosition();
     }
+
+	virtual EMaterialCompilerType GetCompilerType() const override
+	{
+		return EMaterialCompilerType::MaterialProxy;
+	}
 };
