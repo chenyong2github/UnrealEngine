@@ -42,7 +42,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 
 	// TODO: if node is root, then add it to the scene here to avoid any possible orphan nodes. this change requires node converter to support cyclic calls.
 
-	const USceneComponent* ParentComponent = SceneComponent->GetAttachParent();
+	const USceneComponent* ParentComponent = !bIsRootNode ? SceneComponent->GetAttachParent() : nullptr;
 	const FGLTFJsonNodeIndex ParentNodeIndex = Builder.GetOrAddNode(ParentComponent);
 
 	if (ParentComponent != nullptr && !SceneComponent->IsUsingAbsoluteScale())
