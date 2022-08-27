@@ -19,9 +19,9 @@ namespace
 
 } // anonymous namespace
 
-IMPLEMENT_COMPLEX_AUTOMATION_TEST(FGLTFExporterTest, "Unreal2glTF.Export Test", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+IMPLEMENT_COMPLEX_AUTOMATION_TEST(FGLTFExportTests, "Unreal2glTF.ExportTests", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-void FGLTFExporterTest::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const
+void FGLTFExportTests::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const
 {
 	const FString FilePathAbsolute = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), TestDefinitionsFilePath);
 	FString FileContent;
@@ -45,7 +45,7 @@ void FGLTFExporterTest::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FS
 	}
 }
 
-bool FGLTFExporterTest::RunTest(const FString& Parameters)
+bool FGLTFExportTests::RunTest(const FString& Parameters)
 {
 	FString InputAssetPath;
 	FString ExpectedOutputFilePath;
