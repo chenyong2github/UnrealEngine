@@ -59,7 +59,7 @@ FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* S
 
 	const FLightMapInteraction LightMapInteraction = LightMap2D->GetInteraction(GMaxRHIFeatureLevel);
 	const ULightMapTexture2D* Texture = LightMapInteraction.GetTexture(true);
-	FGLTFJsonTexture* JsonTexture = Builder.GetOrAddTexture(Texture);
+	FGLTFJsonTexture* JsonTexture = Builder.AddUniqueTexture(Texture);
 
 	if (JsonTexture == nullptr)
 	{

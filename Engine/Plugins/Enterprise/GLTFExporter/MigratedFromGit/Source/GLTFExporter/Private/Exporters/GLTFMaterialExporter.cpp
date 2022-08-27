@@ -27,7 +27,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 			PreviewMesh = DefaultPreviewMesh;
 		}
 
-		FGLTFJsonMesh* Mesh = Builder.GetOrAddMesh(PreviewMesh, { Material });
+		FGLTFJsonMesh* Mesh = Builder.AddUniqueMesh(PreviewMesh, { Material });
 		if (Mesh == nullptr)
 		{
 			Builder.LogError(
@@ -47,7 +47,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 	}
 	else
 	{
-		Builder.GetOrAddMaterial(Material);
+		Builder.AddUniqueMaterial(Material);
 	}
 
 	return true;

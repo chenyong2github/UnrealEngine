@@ -41,7 +41,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 	}
 
 	const UWorld* World = Worlds[0];
-	FGLTFJsonScene* Scene = Builder.GetOrAddScene(World);
+	FGLTFJsonScene* Scene = Builder.AddUniqueScene(World);
 	if (Scene == nullptr)
 	{
 		Builder.LogError(
@@ -53,7 +53,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 
 	if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
 	{
-		FGLTFJsonEpicLevelVariantSets* EpicLevelVariantSets = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
+		FGLTFJsonEpicLevelVariantSets* EpicLevelVariantSets = Builder.AddUniqueEpicLevelVariantSets(LevelVariantSets);
 		if (EpicLevelVariantSets == nullptr)
 		{
 			Builder.LogError(

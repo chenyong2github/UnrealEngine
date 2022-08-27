@@ -58,8 +58,8 @@ void FGLTFTexture2DTask::Complete()
 		Texture2D->IsNormalMap() ? EGLTFTextureType::Normalmaps :
 		bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
-	JsonTexture->Sampler = Builder.GetOrAddSampler(Texture2D);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.AddUniqueSampler(Texture2D);
 }
 
 FString FGLTFTextureCubeTask::GetName()
@@ -111,8 +111,8 @@ void FGLTFTextureCubeTask::Complete()
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(TextureCube->GetPixelFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
-	JsonTexture->Sampler = Builder.GetOrAddSampler(TextureCube);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.AddUniqueSampler(TextureCube);
 }
 
 FString FGLTFTextureRenderTarget2DTask::GetName()
@@ -150,8 +150,8 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTarget2D->GetFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
-	JsonTexture->Sampler = Builder.GetOrAddSampler(RenderTarget2D);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.AddUniqueSampler(RenderTarget2D);
 }
 
 FString FGLTFTextureRenderTargetCubeTask::GetName()
@@ -202,8 +202,8 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTargetCube->GetFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
-	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
-	JsonTexture->Sampler = Builder.GetOrAddSampler(RenderTargetCube);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.AddUniqueSampler(RenderTargetCube);
 }
 
 #if WITH_EDITOR
@@ -244,8 +244,8 @@ void FGLTFTextureLightMapTask::Complete()
 	TGLTFSharedArray<FColor> Pixels = MakeShared<TArray<FColor>>(static_cast<const FColor*>(RawData), ByteLength / sizeof(FColor));
 	Source.UnlockMip(0);
 
-	JsonTexture->Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
-	JsonTexture->Sampler = Builder.GetOrAddSampler(LightMap);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture->Name);
+	JsonTexture->Sampler = Builder.AddUniqueSampler(LightMap);
 }
 
 #endif

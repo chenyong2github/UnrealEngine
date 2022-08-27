@@ -134,7 +134,7 @@ void FGLTFStaticMeshTask::Complete()
 	}
 
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
-		Builder.GetOrAddMeshData(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
+		Builder.AddUniqueMeshData(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
 #if WITH_EDITOR
 	if (MeshData != nullptr)
@@ -163,9 +163,9 @@ void FGLTFStaticMeshTask::Complete()
 		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);
 
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh->Primitives[MaterialIndex];
-		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
+		JsonPrimitive.Indices = Builder.AddUniqueIndexAccessor(ConvertedSection);
 
-		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, &PositionBuffer);
+		JsonPrimitive.Attributes.Position = Builder.AddUniquePositionAccessor(ConvertedSection, &PositionBuffer);
 		if (JsonPrimitive.Attributes.Position == nullptr)
 		{
 			FString SectionString = TEXT("section");
@@ -183,12 +183,12 @@ void FGLTFStaticMeshTask::Complete()
 
 		if (ColorBuffer != nullptr)
 		{
-			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
+			JsonPrimitive.Attributes.Color0 = Builder.AddUniqueColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
 		// TODO: report warning if both Mesh Quantization (export options) and Use High Precision Tangent Basis (vertex buffer) are disabled
-		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, &VertexBuffer);
-		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, &VertexBuffer);
+		JsonPrimitive.Attributes.Normal = Builder.AddUniqueNormalAccessor(ConvertedSection, &VertexBuffer);
+		JsonPrimitive.Attributes.Tangent = Builder.AddUniqueTangentAccessor(ConvertedSection, &VertexBuffer);
 
 		const uint32 UVCount = VertexBuffer.GetNumTexCoords();
 		// TODO: report warning or option to limit UV channels since most viewers don't support more than 2?
@@ -196,11 +196,11 @@ void FGLTFStaticMeshTask::Complete()
 
 		for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
 		{
-			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, &VertexBuffer, UVIndex);
+			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.AddUniqueUVAccessor(ConvertedSection, &VertexBuffer, UVIndex);
 		}
 
 		const UMaterialInterface* Material = Materials[MaterialIndex];
-		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
+		JsonPrimitive.Material =  Builder.AddUniqueMaterial(Material, MeshData, SectionIndices);
 	}
 }
 
@@ -237,7 +237,7 @@ void FGLTFSkeletalMeshTask::Complete()
 	}
 
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
-		Builder.GetOrAddMeshData(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
+		Builder.AddUniqueMeshData(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
 #if WITH_EDITOR
 	if (MeshData != nullptr)
@@ -266,9 +266,9 @@ void FGLTFSkeletalMeshTask::Complete()
 		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, SectionIndices);
 
 		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh->Primitives[MaterialIndex];
-		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
+		JsonPrimitive.Indices = Builder.AddUniqueIndexAccessor(ConvertedSection);
 
-		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, &PositionBuffer);
+		JsonPrimitive.Attributes.Position = Builder.AddUniquePositionAccessor(ConvertedSection, &PositionBuffer);
 		if (JsonPrimitive.Attributes.Position == nullptr)
 		{
 			FString SectionString = TEXT("section");
@@ -286,12 +286,12 @@ void FGLTFSkeletalMeshTask::Complete()
 
 		if (ColorBuffer != nullptr)
 		{
-			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
+			JsonPrimitive.Attributes.Color0 = Builder.AddUniqueColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
 		// TODO: report warning if both Mesh Quantization (export options) and Use High Precision Tangent Basis (vertex buffer) are disabled
-		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, &VertexBuffer);
-		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, &VertexBuffer);
+		JsonPrimitive.Attributes.Normal = Builder.AddUniqueNormalAccessor(ConvertedSection, &VertexBuffer);
+		JsonPrimitive.Attributes.Tangent = Builder.AddUniqueTangentAccessor(ConvertedSection, &VertexBuffer);
 
 		const uint32 UVCount = VertexBuffer.GetNumTexCoords();
 		// TODO: report warning or option to limit UV channels since most viewers don't support more than 2?
@@ -299,7 +299,7 @@ void FGLTFSkeletalMeshTask::Complete()
 
 		for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
 		{
-			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, &VertexBuffer, UVIndex);
+			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.AddUniqueUVAccessor(ConvertedSection, &VertexBuffer, UVIndex);
 		}
 
 		if (Builder.ExportOptions->bExportVertexSkinWeights)
@@ -311,12 +311,12 @@ void FGLTFSkeletalMeshTask::Complete()
 
 			for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 			{
-				JsonPrimitive.Attributes.Joints[GroupIndex] = Builder.GetOrAddJointAccessor(ConvertedSection, SkinWeightBuffer, GroupIndex * 4);
-				JsonPrimitive.Attributes.Weights[GroupIndex] = Builder.GetOrAddWeightAccessor(ConvertedSection, SkinWeightBuffer, GroupIndex * 4);
+				JsonPrimitive.Attributes.Joints[GroupIndex] = Builder.AddUniqueJointAccessor(ConvertedSection, SkinWeightBuffer, GroupIndex * 4);
+				JsonPrimitive.Attributes.Weights[GroupIndex] = Builder.AddUniqueWeightAccessor(ConvertedSection, SkinWeightBuffer, GroupIndex * 4);
 			}
 		}
 
 		const UMaterialInterface* Material = Materials[MaterialIndex];
-		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
+		JsonPrimitive.Material =  Builder.AddUniqueMaterial(Material, MeshData, SectionIndices);
 	}
 }

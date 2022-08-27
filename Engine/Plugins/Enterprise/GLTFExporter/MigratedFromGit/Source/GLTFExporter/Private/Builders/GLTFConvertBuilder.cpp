@@ -24,7 +24,7 @@ bool FGLTFConvertBuilder::IsRootActor(const AActor* Actor) const
 	return ParentActor == nullptr || !IsSelectedActor(ParentActor);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniquePositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -34,7 +34,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddPositionAccessor(const FGLTFMesh
 	return PositionBufferConverter->GetOrAdd(MeshSection, VertexBuffer);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -44,7 +44,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddColorAccessor(const FGLTFMeshSec
 	return ColorBufferConverter->GetOrAdd(MeshSection, VertexBuffer);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddNormalAccessor(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueNormalAccessor(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -54,7 +54,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddNormalAccessor(const FGLTFMeshSe
 	return NormalBufferConverter->GetOrAdd(MeshSection, VertexBuffer);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddTangentAccessor(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueTangentAccessor(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -64,7 +64,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddTangentAccessor(const FGLTFMeshS
 	return TangentBufferConverter->GetOrAdd(MeshSection, VertexBuffer);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddUVAccessor(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueUVAccessor(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -74,7 +74,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddUVAccessor(const FGLTFMeshSectio
 	return UVBufferConverter->GetOrAdd(MeshSection, VertexBuffer, UVIndex);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddJointAccessor(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueJointAccessor(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -84,7 +84,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddJointAccessor(const FGLTFMeshSec
 	return BoneIndexBufferConverter->GetOrAdd(MeshSection, VertexBuffer, InfluenceOffset);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddWeightAccessor(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueWeightAccessor(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
 {
 	if (VertexBuffer == nullptr)
 	{
@@ -94,7 +94,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddWeightAccessor(const FGLTFMeshSe
 	return BoneWeightBufferConverter->GetOrAdd(MeshSection, VertexBuffer, InfluenceOffset);
 }
 
-FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddIndexAccessor(const FGLTFMeshSection* MeshSection)
+FGLTFJsonAccessor* FGLTFConvertBuilder::AddUniqueIndexAccessor(const FGLTFMeshSection* MeshSection)
 {
 	if (MeshSection == nullptr)
 	{
@@ -104,7 +104,7 @@ FGLTFJsonAccessor* FGLTFConvertBuilder::GetOrAddIndexAccessor(const FGLTFMeshSec
 	return IndexBufferConverter->GetOrAdd(MeshSection);
 }
 
-FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMesh, const FGLTFMaterialArray& Materials, int32 LODIndex)
+FGLTFJsonMesh* FGLTFConvertBuilder::AddUniqueMesh(const UStaticMesh* StaticMesh, const FGLTFMaterialArray& Materials, int32 LODIndex)
 {
 	if (StaticMesh == nullptr)
 	{
@@ -114,7 +114,7 @@ FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMesh, 
 	return StaticMeshConverter->GetOrAdd(StaticMesh, nullptr, Materials, LODIndex);
 }
 
-FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* SkeletalMesh, const FGLTFMaterialArray& Materials, int32 LODIndex)
+FGLTFJsonMesh* FGLTFConvertBuilder::AddUniqueMesh(const USkeletalMesh* SkeletalMesh, const FGLTFMaterialArray& Materials, int32 LODIndex)
 {
 	if (SkeletalMesh == nullptr)
 	{
@@ -124,22 +124,22 @@ FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* SkeletalMe
 	return SkeletalMeshConverter->GetOrAdd(SkeletalMesh, nullptr, Materials, LODIndex);
 }
 
-FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const UMeshComponent* MeshComponent, const FGLTFMaterialArray& Materials, int32 LODIndex)
+FGLTFJsonMesh* FGLTFConvertBuilder::AddUniqueMesh(const UMeshComponent* MeshComponent, const FGLTFMaterialArray& Materials, int32 LODIndex)
 {
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 	{
-		return GetOrAddMesh(StaticMeshComponent, Materials, LODIndex);
+		return AddUniqueMesh(StaticMeshComponent, Materials, LODIndex);
 	}
 
 	if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
 	{
-		return GetOrAddMesh(SkeletalMeshComponent, Materials, LODIndex);
+		return AddUniqueMesh(SkeletalMeshComponent, Materials, LODIndex);
 	}
 
 	return nullptr;
 }
 
-FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent, const FGLTFMaterialArray& Materials, int32 LODIndex)
+FGLTFJsonMesh* FGLTFConvertBuilder::AddUniqueMesh(const UStaticMeshComponent* StaticMeshComponent, const FGLTFMaterialArray& Materials, int32 LODIndex)
 {
 	if (StaticMeshComponent == nullptr)
 	{
@@ -155,7 +155,7 @@ FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const UStaticMeshComponent* Sta
 	return StaticMeshConverter->GetOrAdd(StaticMesh, StaticMeshComponent, Materials, LODIndex);
 }
 
-FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponent* SkeletalMeshComponent, const FGLTFMaterialArray& Materials, int32 LODIndex)
+FGLTFJsonMesh* FGLTFConvertBuilder::AddUniqueMesh(const USkeletalMeshComponent* SkeletalMeshComponent, const FGLTFMaterialArray& Materials, int32 LODIndex)
 {
 	if (SkeletalMeshComponent == nullptr)
 	{
@@ -171,66 +171,66 @@ FGLTFJsonMesh* FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponent* S
 	return SkeletalMeshConverter->GetOrAdd(SkeletalMesh, SkeletalMeshComponent, Materials, LODIndex);
 }
 
-const FGLTFMeshData* FGLTFConvertBuilder::GetOrAddMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
+const FGLTFMeshData* FGLTFConvertBuilder::AddUniqueMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
 {
 	return StaticMeshDataConverter->GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex);
 }
 
-const FGLTFMeshData* FGLTFConvertBuilder::GetOrAddMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex)
+const FGLTFMeshData* FGLTFConvertBuilder::AddUniqueMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex)
 {
 	return SkeletalMeshDataConverter->GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex);
 }
 
-FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex)
 {
 	// TODO: optimize by skipping mesh data if material doesn't need it
-	const FGLTFMeshData* MeshData = GetOrAddMeshData(StaticMesh, nullptr, LODIndex);
+	const FGLTFMeshData* MeshData = AddUniqueMeshData(StaticMesh, nullptr, LODIndex);
 	const FGLTFIndexArray SectionIndices = FGLTFMeshUtility::GetSectionIndices(StaticMesh, MeshData->LODIndex, MaterialIndex);
-	return GetOrAddMaterial(Material, MeshData, SectionIndices);
+	return AddUniqueMaterial(Material, MeshData, SectionIndices);
 }
 
-FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 MaterialIndex)
 {
 	// TODO: optimize by skipping mesh data if material doesn't need it
-	const FGLTFMeshData* MeshData = GetOrAddMeshData(SkeletalMesh, nullptr, LODIndex);
+	const FGLTFMeshData* MeshData = AddUniqueMeshData(SkeletalMesh, nullptr, LODIndex);
 	const FGLTFIndexArray SectionIndices = FGLTFMeshUtility::GetSectionIndices(SkeletalMesh, MeshData->LODIndex, MaterialIndex);
-	return GetOrAddMaterial(Material, MeshData, SectionIndices);
+	return AddUniqueMaterial(Material, MeshData, SectionIndices);
 }
 
-FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 LODIndex, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 LODIndex, int32 MaterialIndex)
 {
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 	{
-		return GetOrAddMaterial(Material, StaticMeshComponent, LODIndex, MaterialIndex);
+		return AddUniqueMaterial(Material, StaticMeshComponent, LODIndex, MaterialIndex);
 	}
 
 	if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
 	{
-		return GetOrAddMaterial(Material, SkeletalMeshComponent, LODIndex, MaterialIndex);
+		return AddUniqueMaterial(Material, SkeletalMeshComponent, LODIndex, MaterialIndex);
 	}
 
 	return nullptr;
 }
 
-FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, int32 MaterialIndex)
 {
 	// TODO: optimize by skipping mesh data if material doesn't need it
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-	const FGLTFMeshData* MeshData = GetOrAddMeshData(StaticMesh, StaticMeshComponent, LODIndex);
+	const FGLTFMeshData* MeshData = AddUniqueMeshData(StaticMesh, StaticMeshComponent, LODIndex);
 	const FGLTFIndexArray SectionIndices = FGLTFMeshUtility::GetSectionIndices(StaticMesh, MeshData->LODIndex, MaterialIndex);
-	return GetOrAddMaterial(Material, MeshData, SectionIndices);
+	return AddUniqueMaterial(Material, MeshData, SectionIndices);
 }
 
-FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, int32 MaterialIndex)
 {
 	// TODO: optimize by skipping mesh data if material doesn't need it
 	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-	const FGLTFMeshData* MeshData = GetOrAddMeshData(SkeletalMesh, SkeletalMeshComponent, LODIndex);
+	const FGLTFMeshData* MeshData = AddUniqueMeshData(SkeletalMesh, SkeletalMeshComponent, LODIndex);
 	const FGLTFIndexArray SectionIndices = FGLTFMeshUtility::GetSectionIndices(SkeletalMesh, MeshData->LODIndex, MaterialIndex);
-	return GetOrAddMaterial(Material, MeshData, SectionIndices);
+	return AddUniqueMaterial(Material, MeshData, SectionIndices);
 }
 
-FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, const FGLTFIndexArray& SectionIndices)
+FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, const FGLTFIndexArray& SectionIndices)
 {
 	if (Material == nullptr)
 	{
@@ -240,7 +240,7 @@ FGLTFJsonMaterial* FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterfac
 	return MaterialConverter->GetOrAdd(Material, MeshData, SectionIndices);
 }
 
-FGLTFJsonSampler* FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Texture)
+FGLTFJsonSampler* FGLTFConvertBuilder::AddUniqueSampler(const UTexture* Texture)
 {
 	if (Texture == nullptr)
 	{
@@ -250,32 +250,32 @@ FGLTFJsonSampler* FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Texture)
 	return SamplerConverter->GetOrAdd(Texture);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTexture* Texture)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture* Texture)
 {
-	return GetOrAddTexture(Texture, Texture->SRGB);
+	return AddUniqueTexture(Texture, Texture->SRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture2D* Texture)
 {
-	return GetOrAddTexture(Texture, Texture->SRGB);
+	return AddUniqueTexture(Texture, Texture->SRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureCube* Texture, ECubeFace CubeFace)
 {
-	return GetOrAddTexture(Texture, CubeFace, Texture->SRGB);
+	return AddUniqueTexture(Texture, CubeFace, Texture->SRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarget2D* Texture)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTarget2D* Texture)
 {
-	return GetOrAddTexture(Texture, Texture->SRGB);
+	return AddUniqueTexture(Texture, Texture->SRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace)
 {
-	return GetOrAddTexture(Texture, CubeFace, Texture->SRGB);
+	return AddUniqueTexture(Texture, CubeFace, Texture->SRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const ULightMapTexture2D* Texture)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const ULightMapTexture2D* Texture)
 {
 	if (Texture == nullptr)
 	{
@@ -285,22 +285,22 @@ FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const ULightMapTexture2D*
 	return TextureLightMapConverter->GetOrAdd(Texture);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTexture* Texture, bool bToSRGB)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture* Texture, bool bToSRGB)
 {
 	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
-		return GetOrAddTexture(Texture2D, bToSRGB);
+		return AddUniqueTexture(Texture2D, bToSRGB);
 	}
 
 	if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
 	{
-		return GetOrAddTexture(RenderTarget2D, bToSRGB);
+		return AddUniqueTexture(RenderTarget2D, bToSRGB);
 	}
 
 	return nullptr;
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture, bool bToSRGB)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTexture2D* Texture, bool bToSRGB)
 {
 	if (Texture == nullptr)
 	{
@@ -310,7 +310,7 @@ FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture
 	return Texture2DConverter->GetOrAdd(Texture, bToSRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace, bool bToSRGB)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureCube* Texture, ECubeFace CubeFace, bool bToSRGB)
 {
 	if (Texture == nullptr)
 	{
@@ -320,7 +320,7 @@ FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Textu
 	return TextureCubeConverter->GetOrAdd(Texture, CubeFace, bToSRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarget2D* Texture, bool bToSRGB)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTarget2D* Texture, bool bToSRGB)
 {
 	if (Texture == nullptr)
 	{
@@ -330,7 +330,7 @@ FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarge
 	return TextureRenderTarget2DConverter->GetOrAdd(Texture, bToSRGB);
 }
 
-FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace, bool bToSRGB)
+FGLTFJsonTexture* FGLTFConvertBuilder::AddUniqueTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace, bool bToSRGB)
 {
 	if (Texture == nullptr)
 	{
@@ -340,12 +340,12 @@ FGLTFJsonTexture* FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarge
 	return TextureRenderTargetCubeConverter->GetOrAdd(Texture, CubeFace, bToSRGB);
 }
 
-FGLTFJsonImage* FGLTFConvertBuilder::GetOrAddImage(TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
+FGLTFJsonImage* FGLTFConvertBuilder::AddUniqueImage(TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
 {
 	return ImageConverter->GetOrAdd(Name, Type, bIgnoreAlpha, Size, Pixels);
 }
 
-FGLTFJsonSkin* FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh)
+FGLTFJsonSkin* FGLTFConvertBuilder::AddUniqueSkin(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh)
 {
 	if (RootNode == nullptr || SkeletalMesh == nullptr)
 	{
@@ -355,7 +355,7 @@ FGLTFJsonSkin* FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNode* RootNode, const 
 	return SkinConverter->GetOrAdd(RootNode, SkeletalMesh);
 }
 
-FGLTFJsonSkin* FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
+FGLTFJsonSkin* FGLTFConvertBuilder::AddUniqueSkin(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	if (RootNode == nullptr || SkeletalMeshComponent == nullptr)
 	{
@@ -369,10 +369,10 @@ FGLTFJsonSkin* FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNode* RootNode, const 
 		return nullptr;
 	}
 
-	return GetOrAddSkin(RootNode, SkeletalMesh);
+	return AddUniqueSkin(RootNode, SkeletalMesh);
 }
 
-FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
+FGLTFJsonAnimation* FGLTFConvertBuilder::AddUniqueAnimation(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
 {
 	if (RootNode == nullptr || SkeletalMesh == nullptr || AnimSequence == nullptr)
 	{
@@ -382,7 +382,7 @@ FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNode* RootNo
 	return AnimationConverter->GetOrAdd(RootNode, SkeletalMesh, AnimSequence);
 }
 
-FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
+FGLTFJsonAnimation* FGLTFConvertBuilder::AddUniqueAnimation(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	if (RootNode == nullptr || SkeletalMeshComponent == nullptr)
 	{
@@ -392,7 +392,7 @@ FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNode* RootNo
 	return AnimationDataConverter->GetOrAdd(RootNode, SkeletalMeshComponent);
 }
 
-FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(const ULevel* Level, const ULevelSequence* LevelSequence)
+FGLTFJsonAnimation* FGLTFConvertBuilder::AddUniqueAnimation(const ULevel* Level, const ULevelSequence* LevelSequence)
 {
 	if (Level == nullptr || LevelSequence == nullptr)
 	{
@@ -402,7 +402,7 @@ FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(const ULevel* Level, 
 	return LevelSequenceConverter->GetOrAdd(Level, LevelSequence);
 }
 
-FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(const ALevelSequenceActor* LevelSequenceActor)
+FGLTFJsonAnimation* FGLTFConvertBuilder::AddUniqueAnimation(const ALevelSequenceActor* LevelSequenceActor)
 {
 	if (LevelSequenceActor == nullptr)
 	{
@@ -412,7 +412,7 @@ FGLTFJsonAnimation* FGLTFConvertBuilder::GetOrAddAnimation(const ALevelSequenceA
 	return LevelSequenceDataConverter->GetOrAdd(LevelSequenceActor);
 }
 
-FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor)
+FGLTFJsonNode* FGLTFConvertBuilder::AddUniqueNode(const AActor* Actor)
 {
 	if (Actor == nullptr)
 	{
@@ -422,7 +422,7 @@ FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor)
 	return ActorConverter->GetOrAdd(Actor);
 }
 
-FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent)
+FGLTFJsonNode* FGLTFConvertBuilder::AddUniqueNode(const USceneComponent* SceneComponent)
 {
 	if (SceneComponent == nullptr)
 	{
@@ -432,7 +432,7 @@ FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneCom
 	return ComponentConverter->GetOrAdd(SceneComponent);
 }
 
-FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName)
+FGLTFJsonNode* FGLTFConvertBuilder::AddUniqueNode(const USceneComponent* SceneComponent, FName SocketName)
 {
 	if (SceneComponent == nullptr)
 	{
@@ -442,7 +442,7 @@ FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneCom
 	return ComponentSocketConverter->GetOrAdd(SceneComponent, SocketName);
 }
 
-FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNode* RootNode, const UStaticMesh* StaticMesh, FName SocketName)
+FGLTFJsonNode* FGLTFConvertBuilder::AddUniqueNode(FGLTFJsonNode* RootNode, const UStaticMesh* StaticMesh, FName SocketName)
 {
 	if (RootNode == nullptr || StaticMesh == nullptr || SocketName == NAME_None)
 	{
@@ -452,7 +452,7 @@ FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNode* RootNode, const 
 	return StaticSocketConverter->GetOrAdd(RootNode, StaticMesh, SocketName);
 }
 
-FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
+FGLTFJsonNode* FGLTFConvertBuilder::AddUniqueNode(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
 {
 	if (RootNode == nullptr || SkeletalMesh == nullptr || SocketName == NAME_None)
 	{
@@ -462,7 +462,7 @@ FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNode* RootNode, const 
 	return SkeletalSocketConverter->GetOrAdd(RootNode, SkeletalMesh, SocketName);
 }
 
-FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex)
+FGLTFJsonNode* FGLTFConvertBuilder::AddUniqueNode(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex)
 {
 	if (RootNode == nullptr || SkeletalMesh == nullptr || BoneIndex == INDEX_NONE)
 	{
@@ -472,7 +472,7 @@ FGLTFJsonNode* FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNode* RootNode, const 
 	return SkeletalBoneConverter->GetOrAdd(RootNode, SkeletalMesh, BoneIndex);
 }
 
-FGLTFJsonScene* FGLTFConvertBuilder::GetOrAddScene(const UWorld* World)
+FGLTFJsonScene* FGLTFConvertBuilder::AddUniqueScene(const UWorld* World)
 {
 	if (World == nullptr)
 	{
@@ -482,7 +482,7 @@ FGLTFJsonScene* FGLTFConvertBuilder::GetOrAddScene(const UWorld* World)
 	return SceneConverter->GetOrAdd(World);
 }
 
-FGLTFJsonCamera* FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent* CameraComponent)
+FGLTFJsonCamera* FGLTFConvertBuilder::AddUniqueCamera(const UCameraComponent* CameraComponent)
 {
 	if (CameraComponent == nullptr)
 	{
@@ -492,7 +492,7 @@ FGLTFJsonCamera* FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent* Cam
 	return CameraConverter->GetOrAdd(CameraComponent);
 }
 
-FGLTFJsonLight* FGLTFConvertBuilder::GetOrAddLight(const ULightComponent* LightComponent)
+FGLTFJsonLight* FGLTFConvertBuilder::AddUniqueLight(const ULightComponent* LightComponent)
 {
 	if (LightComponent == nullptr)
 	{
@@ -502,7 +502,7 @@ FGLTFJsonLight* FGLTFConvertBuilder::GetOrAddLight(const ULightComponent* LightC
 	return LightConverter->GetOrAdd(LightComponent);
 }
 
-FGLTFJsonBackdrop* FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* BackdropActor)
+FGLTFJsonBackdrop* FGLTFConvertBuilder::AddUniqueBackdrop(const AActor* BackdropActor)
 {
 	if (BackdropActor == nullptr)
 	{
@@ -512,7 +512,7 @@ FGLTFJsonBackdrop* FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* BackdropA
 	return BackdropConverter->GetOrAdd(BackdropActor);
 }
 
-FGLTFJsonLightMap* FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent)
+FGLTFJsonLightMap* FGLTFConvertBuilder::AddUniqueLightMap(const UStaticMeshComponent* StaticMeshComponent)
 {
 	if (StaticMeshComponent == nullptr)
 	{
@@ -522,7 +522,7 @@ FGLTFJsonLightMap* FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshCompon
 	return LightMapConverter->GetOrAdd(StaticMeshComponent);
 }
 
-FGLTFJsonHotspot* FGLTFConvertBuilder::GetOrAddHotspot(const AGLTFHotspotActor* HotspotActor)
+FGLTFJsonHotspot* FGLTFConvertBuilder::AddUniqueHotspot(const AGLTFHotspotActor* HotspotActor)
 {
 	if (HotspotActor == nullptr)
 	{
@@ -532,7 +532,7 @@ FGLTFJsonHotspot* FGLTFConvertBuilder::GetOrAddHotspot(const AGLTFHotspotActor* 
 	return HotspotConverter->GetOrAdd(HotspotActor);
 }
 
-FGLTFJsonSkySphere* FGLTFConvertBuilder::GetOrAddSkySphere(const AActor* SkySphereActor)
+FGLTFJsonSkySphere* FGLTFConvertBuilder::AddUniqueSkySphere(const AActor* SkySphereActor)
 {
 	if (SkySphereActor == nullptr)
 	{
@@ -542,7 +542,7 @@ FGLTFJsonSkySphere* FGLTFConvertBuilder::GetOrAddSkySphere(const AActor* SkySphe
 	return SkySphereConverter->GetOrAdd(SkySphereActor);
 }
 
-FGLTFJsonEpicLevelVariantSets* FGLTFConvertBuilder::GetOrAddEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets)
+FGLTFJsonEpicLevelVariantSets* FGLTFConvertBuilder::AddUniqueEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets)
 {
 	if (LevelVariantSets == nullptr)
 	{
@@ -552,7 +552,7 @@ FGLTFJsonEpicLevelVariantSets* FGLTFConvertBuilder::GetOrAddEpicLevelVariantSets
 	return EpicLevelVariantSetsConverter->GetOrAdd(LevelVariantSets);
 }
 
-FGLTFJsonKhrMaterialVariant* FGLTFConvertBuilder::GetOrAddKhrMaterialVariant(const UVariant* Variant)
+FGLTFJsonKhrMaterialVariant* FGLTFConvertBuilder::AddUniqueKhrMaterialVariant(const UVariant* Variant)
 {
 	if (Variant == nullptr)
 	{

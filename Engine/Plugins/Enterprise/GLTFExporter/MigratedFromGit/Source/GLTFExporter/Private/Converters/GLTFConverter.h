@@ -27,17 +27,6 @@ public:
 		return {};
 	}
 
-	OutputType Add(InputTypes... Inputs)
-	{
-		Sanitize(Inputs...);
-		InputTupleType InputTuple(MoveTemp(Inputs)...);
-		const uint32 InputHash = GetTypeHash(InputTuple);
-
-		OutputType NewOutput = InputTuple.ApplyAfter(&TGLTFConverter::Convert, this);
-		CachedOutputs.AddByHash(InputHash, MoveTemp(InputTuple), NewOutput);
-		return NewOutput;
-	}
-
 	OutputType GetOrAdd(InputTypes... Inputs)
 	{
 		Sanitize(Inputs...);

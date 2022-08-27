@@ -276,7 +276,7 @@ FGLTFJsonTexture* FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder,
 	FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
 	JsonTexture->Name = TextureName;
 	JsonTexture->Sampler = JsonSampler;
-	JsonTexture->Source = Builder.GetOrAddImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
+	JsonTexture->Source = Builder.AddUniqueImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
 
 	return JsonTexture;
 }

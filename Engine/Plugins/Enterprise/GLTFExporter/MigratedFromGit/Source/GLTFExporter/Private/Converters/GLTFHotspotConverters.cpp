@@ -25,14 +25,14 @@ FGLTFJsonHotspot* FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Hotspo
 		}
 		else
 		{
-			FGLTFJsonNode* RootNode = Builder.GetOrAddNode(SkeletalMeshActor);
+			FGLTFJsonNode* RootNode = Builder.AddUniqueNode(SkeletalMeshActor);
 
 			const USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
 			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 			{
 				if (const UAnimSequence* AnimSequence = HotspotActor->AnimationSequence)
 				{
-					JsonHotspot->Animation = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
+					JsonHotspot->Animation = Builder.AddUniqueAnimation(RootNode, SkeletalMesh, AnimSequence);
 				}
 				else
 				{
@@ -55,7 +55,7 @@ FGLTFJsonHotspot* FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Hotspo
 		}
 		else
 		{
-			JsonHotspot->Animation = Builder.GetOrAddAnimation(HotspotActor->GetLevel(), LevelSequence);
+			JsonHotspot->Animation = Builder.AddUniqueAnimation(HotspotActor->GetLevel(), LevelSequence);
 		}
 	}
 	else
@@ -63,10 +63,10 @@ FGLTFJsonHotspot* FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Hotspo
 		// TODO: report warning
 	}
 
-	JsonHotspot->Image = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Default));
-	JsonHotspot->HoveredImage = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Hovered));
-	JsonHotspot->ToggledImage = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Toggled));
-	JsonHotspot->ToggledHoveredImage = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::ToggledHovered));
+	JsonHotspot->Image = Builder.AddUniqueTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Default));
+	JsonHotspot->HoveredImage = Builder.AddUniqueTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Hovered));
+	JsonHotspot->ToggledImage = Builder.AddUniqueTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Toggled));
+	JsonHotspot->ToggledHoveredImage = Builder.AddUniqueTexture(HotspotActor->GetImageForState(EGLTFHotspotState::ToggledHovered));
 
 	return JsonHotspot;
 }

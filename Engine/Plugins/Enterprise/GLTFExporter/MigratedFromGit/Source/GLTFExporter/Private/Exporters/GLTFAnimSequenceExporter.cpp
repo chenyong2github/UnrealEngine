@@ -44,7 +44,7 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
-		Node->Mesh = Builder.GetOrAddMesh(SkeletalMesh);
+		Node->Mesh = Builder.AddUniqueMesh(SkeletalMesh);
 		if (Node->Mesh == nullptr)
 		{
 			Builder.LogError(
@@ -56,7 +56,7 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 	}
 
 
-	Node->Skin = Builder.GetOrAddSkin(Node, SkeletalMesh);
+	Node->Skin = Builder.AddUniqueSkin(Node, SkeletalMesh);
 	if (Node->Skin == nullptr)
 	{
 		Builder.LogError(
@@ -66,7 +66,7 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		return false;
 	}
 
-	FGLTFJsonAnimation* Animation = Builder.GetOrAddAnimation(Node, SkeletalMesh, AnimSequence);
+	FGLTFJsonAnimation* Animation = Builder.AddUniqueAnimation(Node, SkeletalMesh, AnimSequence);
 	if (Animation == nullptr)
 	{
 		Builder.LogError(
