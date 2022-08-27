@@ -13,8 +13,8 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 		return nullptr;
 	}
 
-	FGLTFJsonBackdrop JsonBackdrop;
-	BackdropActor->GetName(JsonBackdrop.Name);
+	FGLTFJsonBackdrop* JsonBackdrop = Builder.AddBackdrop();
+	BackdropActor->GetName(JsonBackdrop->Name);
 
 	const USceneComponent* SceneComponent = BackdropActor->GetRootComponent();
 	const FRotator Rotation = SceneComponent->GetComponentRotation();
@@ -24,12 +24,12 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	// The end result is that the map rotation is always 2*PI more than the actual yaw of the scene component.
 
 	// TODO: remove the 2*PI multiplier if HDRI_Attributes is updated to match map rotation with yaw
-	JsonBackdrop.Angle = FRotator::ClampAxis(Rotation.Yaw * 2.0f * PI);
+	JsonBackdrop->Angle = FRotator::ClampAxis(Rotation.Yaw * 2.0f * PI);
 
 	const UStaticMesh* Mesh;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Mesh"), Mesh))
 	{
-		JsonBackdrop.Mesh = Builder.GetOrAddMesh(Mesh, { FGLTFMaterialUtility::GetDefaultMaterial() });
+		JsonBackdrop->Mesh = Builder.GetOrAddMesh(Mesh, { FGLTFMaterialUtility::GetDefaultMaterial() });
 	}
 	else
 	{
@@ -45,7 +45,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 		{
 			const ECubeFace CubeFace = static_cast<ECubeFace>(CubeFaceIndex);
 			const EGLTFJsonCubeFace JsonCubeFace = FGLTFConverterUtility::ConvertCubeFace(CubeFace);
-			JsonBackdrop.Cubemap[static_cast<int32>(JsonCubeFace)] = Builder.GetOrAddTexture(Cubemap, CubeFace);
+			JsonBackdrop->Cubemap[static_cast<int32>(JsonCubeFace)] = Builder.GetOrAddTexture(Cubemap, CubeFace);
 		}
 	}
 	else
@@ -56,7 +56,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	float Intensity;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Intensity"), Intensity))
 	{
-		JsonBackdrop.Intensity = Intensity;
+		JsonBackdrop->Intensity = Intensity;
 	}
 	else
 	{
@@ -66,7 +66,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	float Size;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Size"), Size))
 	{
-		JsonBackdrop.Size = Size;
+		JsonBackdrop->Size = Size;
 	}
 	else
 	{
@@ -76,7 +76,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	FVector ProjectionCenter;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("ProjectionCenter"), ProjectionCenter))
 	{
-		JsonBackdrop.ProjectionCenter = FGLTFConverterUtility::ConvertPosition(ProjectionCenter, Builder.ExportOptions->ExportUniformScale);
+		JsonBackdrop->ProjectionCenter = FGLTFConverterUtility::ConvertPosition(ProjectionCenter, Builder.ExportOptions->ExportUniformScale);
 	}
 	else
 	{
@@ -86,7 +86,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	float LightingDistanceFactor;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("LightingDistanceFactor"), LightingDistanceFactor))
 	{
-		JsonBackdrop.LightingDistanceFactor = LightingDistanceFactor;
+		JsonBackdrop->LightingDistanceFactor = LightingDistanceFactor;
 	}
 	else
 	{
@@ -96,12 +96,12 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	bool UseCameraProjection;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("UseCameraProjection"), UseCameraProjection))
 	{
-		JsonBackdrop.UseCameraProjection = UseCameraProjection;
+		JsonBackdrop->UseCameraProjection = UseCameraProjection;
 	}
 	else
 	{
 		Builder.LogWarning(FString::Printf(TEXT("Failed to export UseCameraProjection for HDRIBackdrop %s"), *BackdropActor->GetName()));
 	}
 
-	return Builder.AddBackdrop(JsonBackdrop);
+	return JsonBackdrop;
 }

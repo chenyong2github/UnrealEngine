@@ -141,9 +141,12 @@ FGLTFJsonKhrMaterialVariant* FGLTFJsonBuilder::AddKhrMaterialVariant()
 	return JsonRoot.KhrMaterialVariants.Add();
 }
 
-FGLTFJsonNode* FGLTFJsonBuilder::AddChildNode(FGLTFJsonNode* ParentNode)
+FGLTFJsonNode* FGLTFJsonBuilder::AddChildNode(FGLTFJsonNode* ParentNode, FGLTFJsonNode* ChildNode)
 {
-	FGLTFJsonNode* ChildNode = AddNode();
+	if (ChildNode == nullptr)
+	{
+		ChildNode = AddNode();
+	}
 
 	if (ParentNode != nullptr)
 	{
@@ -153,132 +156,16 @@ FGLTFJsonNode* FGLTFJsonBuilder::AddChildNode(FGLTFJsonNode* ParentNode)
 	return ChildNode;
 }
 
-FGLTFJsonNode* FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNode* ParentNode)
+FGLTFJsonNode* FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNode* ParentNode, FGLTFJsonNode* ChildNode)
 {
-	FGLTFJsonNode* ChildNode = AddChildNode(ParentNode);
+	if (ChildNode == nullptr)
+	{
+		ChildNode = AddChildNode(ParentNode, ChildNode);
+	}
 
 	if (ParentNode != nullptr)
 	{
 		ParentNode->ComponentNode = ChildNode;
-	}
-
-	return ChildNode;
-}
-
-FGLTFJsonAccessor* FGLTFJsonBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
-{
-	return JsonRoot.Accessors.Add(JsonAccessor);
-}
-
-FGLTFJsonBuffer* FGLTFJsonBuilder::AddBuffer(const FGLTFJsonBuffer& JsonBuffer)
-{
-	return JsonRoot.Buffers.Add(JsonBuffer);
-}
-
-FGLTFJsonBufferView* FGLTFJsonBuilder::AddBufferView(const FGLTFJsonBufferView& JsonBufferView)
-{
-	return JsonRoot.BufferViews.Add(JsonBufferView);
-}
-
-FGLTFJsonCamera* FGLTFJsonBuilder::AddCamera(const FGLTFJsonCamera& JsonCamera)
-{
-	return JsonRoot.Cameras.Add(JsonCamera);
-}
-
-FGLTFJsonImage* FGLTFJsonBuilder::AddImage(const FGLTFJsonImage& JsonImage)
-{
-	return JsonRoot.Images.Add(JsonImage);
-}
-
-FGLTFJsonMaterial* FGLTFJsonBuilder::AddMaterial(const FGLTFJsonMaterial& JsonMaterial)
-{
-	return JsonRoot.Materials.Add(JsonMaterial);
-}
-
-FGLTFJsonMesh* FGLTFJsonBuilder::AddMesh(const FGLTFJsonMesh& JsonMesh)
-{
-	return JsonRoot.Meshes.Add(JsonMesh);
-}
-
-FGLTFJsonNode* FGLTFJsonBuilder::AddNode(const FGLTFJsonNode& JsonNode)
-{
-	return JsonRoot.Nodes.Add(JsonNode);
-}
-
-FGLTFJsonSampler* FGLTFJsonBuilder::AddSampler(const FGLTFJsonSampler& JsonSampler)
-{
-	return JsonRoot.Samplers.Add(JsonSampler);
-}
-
-FGLTFJsonScene* FGLTFJsonBuilder::AddScene(const FGLTFJsonScene& JsonScene)
-{
-	return JsonRoot.Scenes.Add(JsonScene);
-}
-
-FGLTFJsonSkin* FGLTFJsonBuilder::AddSkin(const FGLTFJsonSkin& JsonSkin)
-{
-	return JsonRoot.Skins.Add(JsonSkin);
-}
-
-FGLTFJsonTexture* FGLTFJsonBuilder::AddTexture(const FGLTFJsonTexture& JsonTexture)
-{
-	return JsonRoot.Textures.Add(JsonTexture);
-}
-
-FGLTFJsonBackdrop* FGLTFJsonBuilder::AddBackdrop(const FGLTFJsonBackdrop& JsonBackdrop)
-{
-	return JsonRoot.Backdrops.Add(JsonBackdrop);
-}
-
-FGLTFJsonHotspot* FGLTFJsonBuilder::AddHotspot(const FGLTFJsonHotspot& JsonHotspot)
-{
-	return JsonRoot.Hotspots.Add(JsonHotspot);
-}
-
-FGLTFJsonLight* FGLTFJsonBuilder::AddLight(const FGLTFJsonLight& JsonLight)
-{
-	return JsonRoot.Lights.Add(JsonLight);
-}
-
-FGLTFJsonLightMap* FGLTFJsonBuilder::AddLightMap(const FGLTFJsonLightMap& JsonLightMap)
-{
-	return JsonRoot.LightMaps.Add(JsonLightMap);
-}
-
-FGLTFJsonSkySphere* FGLTFJsonBuilder::AddSkySphere(const FGLTFJsonSkySphere& JsonSkySphere)
-{
-	return JsonRoot.SkySpheres.Add(JsonSkySphere);
-}
-
-FGLTFJsonEpicLevelVariantSets* FGLTFJsonBuilder::AddEpicLevelVariantSets(const FGLTFJsonEpicLevelVariantSets& JsonEpicLevelVariantSets)
-{
-	return JsonRoot.EpicLevelVariantSets.Add(JsonEpicLevelVariantSets);
-}
-
-FGLTFJsonKhrMaterialVariant* FGLTFJsonBuilder::AddKhrMaterialVariant(const FGLTFJsonKhrMaterialVariant& JsonKhrMaterialVariant)
-{
-	return JsonRoot.KhrMaterialVariants.Add(JsonKhrMaterialVariant);
-}
-
-FGLTFJsonNode* FGLTFJsonBuilder::AddChildNode(FGLTFJsonNode* Parent, const FGLTFJsonNode& JsonNode)
-{
-	FGLTFJsonNode* ChildNode = AddNode(JsonNode);
-
-	if (Parent != nullptr)
-	{
-		Parent->Children.Add(ChildNode);
-	}
-
-	return ChildNode;
-}
-
-FGLTFJsonNode* FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNode* Parent, const FGLTFJsonNode& JsonNode)
-{
-	FGLTFJsonNode* ChildNode = AddChildNode(Parent, JsonNode);
-
-	if (Parent != nullptr)
-	{
-		Parent->ComponentNode = ChildNode;
 	}
 
 	return ChildNode;

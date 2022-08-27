@@ -15,9 +15,9 @@ FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkele
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
 #endif
 
-	FGLTFJsonSkin Skin;
-	Skin.Name = Skeleton != nullptr ? Skeleton->GetName() : SkeletalMesh->GetName();
-	Skin.Skeleton = RootNode;
+	FGLTFJsonSkin* JsonSkin = Builder.AddSkin();
+	JsonSkin->Name = Skeleton != nullptr ? Skeleton->GetName() : SkeletalMesh->GetName();
+	JsonSkin->Skeleton = RootNode;
 
 	const int32 BoneCount = RefSkeleton.GetNum();
 	if (BoneCount == 0)
@@ -26,11 +26,11 @@ FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkele
 		return nullptr;
 	}
 
-	Skin.Joints.AddUninitialized(BoneCount);
+	JsonSkin->Joints.AddUninitialized(BoneCount);
 
 	for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
 	{
-		Skin.Joints[BoneIndex] = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
+		JsonSkin->Joints[BoneIndex] = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
 	}
 
 	TArray<FGLTFMatrix4> InverseBindMatrices;
@@ -42,13 +42,12 @@ FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkele
 		InverseBindMatrices[BoneIndex] = FGLTFConverterUtility::ConvertTransform(InverseBindTransform, Builder.ExportOptions->ExportUniformScale);
 	}
 
-	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.BufferView = Builder.AddBufferView(InverseBindMatrices);
-	JsonAccessor.ComponentType = EGLTFJsonComponentType::Float;
-	JsonAccessor.Count = BoneCount;
-	JsonAccessor.Type = EGLTFJsonAccessorType::Mat4;
+	FGLTFJsonAccessor* JsonBindMatricesAccessor = Builder.AddAccessor();
+	JsonBindMatricesAccessor->BufferView = Builder.AddBufferView(InverseBindMatrices);
+	JsonBindMatricesAccessor->ComponentType = EGLTFJsonComponentType::Float;
+	JsonBindMatricesAccessor->Count = BoneCount;
+	JsonBindMatricesAccessor->Type = EGLTFJsonAccessorType::Mat4;
 
-	Skin.InverseBindMatrices = Builder.AddAccessor(JsonAccessor);
-
-	return Builder.AddSkin(Skin);
+	JsonSkin->InverseBindMatrices = JsonBindMatricesAccessor;
+	return JsonSkin;
 }

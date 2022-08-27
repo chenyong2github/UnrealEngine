@@ -9,36 +9,36 @@
 
 FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
 {
-	FGLTFJsonCamera Camera;
-	Camera.Name = FGLTFNameUtility::GetName(CameraComponent);
-	Camera.Type = FGLTFConverterUtility::ConvertCameraType(CameraComponent->ProjectionMode);
+	FGLTFJsonCamera* JsonCamera = Builder.AddCamera();
+	JsonCamera->Name = FGLTFNameUtility::GetName(CameraComponent);
+	JsonCamera->Type = FGLTFConverterUtility::ConvertCameraType(CameraComponent->ProjectionMode);
 
 	FMinimalViewInfo DesiredView;
 	const_cast<UCameraComponent*>(CameraComponent)->GetCameraView(0, DesiredView);
 	const float ExportScale = Builder.ExportOptions->ExportUniformScale;
 
-	switch (Camera.Type)
+	switch (JsonCamera->Type)
 	{
 		case EGLTFJsonCameraType::Orthographic:
 			if (!DesiredView.bConstrainAspectRatio)
 			{
 				Builder.LogWarning(FString::Printf(TEXT("Aspect ratio for orthographic camera component %s (in actor %s) will be constrainted in glTF"), *CameraComponent->GetName(), *CameraComponent->GetOwner()->GetName()));
 			}
-			Camera.Orthographic.XMag = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoWidth, ExportScale);
-			Camera.Orthographic.YMag = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoWidth / DesiredView.AspectRatio, ExportScale); // TODO: is this correct?
-			Camera.Orthographic.ZFar = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoFarClipPlane, ExportScale);
-			Camera.Orthographic.ZNear = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoNearClipPlane, ExportScale);
+			JsonCamera->Orthographic.XMag = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoWidth, ExportScale);
+			JsonCamera->Orthographic.YMag = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoWidth / DesiredView.AspectRatio, ExportScale); // TODO: is this correct?
+			JsonCamera->Orthographic.ZFar = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoFarClipPlane, ExportScale);
+			JsonCamera->Orthographic.ZNear = FGLTFConverterUtility::ConvertLength(DesiredView.OrthoNearClipPlane, ExportScale);
 			break;
 
 		case EGLTFJsonCameraType::Perspective:
 			if (DesiredView.bConstrainAspectRatio)
 			{
-				Camera.Perspective.AspectRatio = DesiredView.AspectRatio;
+				JsonCamera->Perspective.AspectRatio = DesiredView.AspectRatio;
 			}
-			Camera.Perspective.YFov = FGLTFConverterUtility::ConvertFieldOfView(DesiredView.FOV, DesiredView.AspectRatio);
+			JsonCamera->Perspective.YFov = FGLTFConverterUtility::ConvertFieldOfView(DesiredView.FOV, DesiredView.AspectRatio);
 			// NOTE: even thought ZFar is optional, if we don't set it, then most gltf viewers won't handle it well.
-			Camera.Perspective.ZFar = FGLTFConverterUtility::ConvertLength(WORLD_MAX, ExportScale); // TODO: Unreal doesn't have max draw distance per view?
-			Camera.Perspective.ZNear = FGLTFConverterUtility::ConvertLength(GNearClippingPlane, ExportScale);
+			JsonCamera->Perspective.ZFar = FGLTFConverterUtility::ConvertLength(WORLD_MAX, ExportScale); // TODO: Unreal doesn't have max draw distance per view?
+			JsonCamera->Perspective.ZNear = FGLTFConverterUtility::ConvertLength(GNearClippingPlane, ExportScale);
 			break;
 
 		case EGLTFJsonCameraType::None:
@@ -85,9 +85,9 @@ FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraCom
 			CameraControl.DollySensitivity = CameraActor->DollySensitivity;
 			CameraControl.DollyDuration = CameraActor->DollyDuration;
 
-			Camera.CameraControl = CameraControl;
+			JsonCamera->CameraControl = CameraControl;
 		}
 	}
 
-	return Builder.AddCamera(Camera);
+	return JsonCamera;
 }

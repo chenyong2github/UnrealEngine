@@ -25,7 +25,7 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 	}
 
 	const USceneComponent* RootComponent = Actor->GetRootComponent();
-	FGLTFJsonNode* RootNodeIndex = Builder.GetOrAddNode(RootComponent);
+	FGLTFJsonNode* RootNode = Builder.GetOrAddNode(RootComponent);
 
 	// TODO: process all components since any component can be attached to any other component in runtime
 
@@ -34,16 +34,14 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 	{
 		if (Builder.ExportOptions->bExportSkySpheres)
 		{
-			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-			RootNode.SkySphere = Builder.GetOrAddSkySphere(Actor);
+			RootNode->SkySphere = Builder.GetOrAddSkySphere(Actor);
 		}
 	}
 	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(BlueprintPath))
 	{
 		if (Builder.ExportOptions->bExportHDRIBackdrops)
 		{
-			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+			RootNode->Backdrop = Builder.GetOrAddBackdrop(Actor);
 		}
 	}
 	else if (const ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
@@ -57,8 +55,7 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 	{
 		if (Builder.ExportOptions->bExportAnimationHotspots)
 		{
-			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-			RootNode.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
+			RootNode->Hotspot = Builder.GetOrAddHotspot(HotspotActor);
 		}
 	}
 	else
@@ -77,7 +74,7 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 		}
 	}
 
-	return RootNodeIndex;
+	return RootNode;
 }
 
 FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComponent)
@@ -226,13 +223,13 @@ FGLTFJsonNode* FGLTFStaticSocketConverter::Convert(FGLTFJsonNode* RootNode, cons
 		return nullptr;
 	}
 
-	FGLTFJsonNode Node;
-	Node.Name = SocketName.ToString();
+	FGLTFJsonNode* Node = Builder.AddNode();
+	Node->Name = SocketName.ToString();
 
 	// TODO: add warning check for non-uniform scaling
-	Node.Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
-	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
-	Node.Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
+	Node->Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
+	Node->Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
+	Node->Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
 
 	return Builder.AddChildNode(RootNode, Node);
 }
@@ -248,13 +245,13 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 	const USkeletalMeshSocket* Socket = SkeletalMesh->FindSocket(SocketName);
 	if (Socket != nullptr)
 	{
-		FGLTFJsonNode Node;
-		Node.Name = SocketName.ToString();
+		FGLTFJsonNode* Node = Builder.AddNode();
+		Node->Name = SocketName.ToString();
 
 		// TODO: add warning check for non-uniform scaling
-		Node.Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
-		Node.Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
-		Node.Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
+		Node->Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
+		Node->Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
+		Node->Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
 
 		const int32 ParentBone = RefSkeleton.FindBoneIndex(Socket->BoneName);
 		FGLTFJsonNode* ParentNode = ParentBone != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
@@ -290,17 +287,17 @@ FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, cons
 
 	const FMeshBoneInfo& BoneInfo = BoneInfos[BoneIndex];
 
-	FGLTFJsonNode Node;
-	Node.Name = BoneInfo.Name.ToString();
+	FGLTFJsonNode* Node = Builder.AddNode();
+	Node->Name = BoneInfo.Name.ToString();
 
 	const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 	if (BonePoses.IsValidIndex(BoneIndex))
 	{
 		// TODO: add warning check for non-uniform scaling
 		const FTransform& BonePose = BonePoses[BoneIndex];
-		Node.Translation = FGLTFConverterUtility::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
-		Node.Rotation = FGLTFConverterUtility::ConvertRotation(BonePose.GetRotation());
-		Node.Scale = FGLTFConverterUtility::ConvertScale(BonePose.GetScale3D());
+		Node->Translation = FGLTFConverterUtility::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
+		Node->Rotation = FGLTFConverterUtility::ConvertRotation(BonePose.GetRotation());
+		Node->Scale = FGLTFConverterUtility::ConvertScale(BonePose.GetScale3D());
 	}
 	else
 	{

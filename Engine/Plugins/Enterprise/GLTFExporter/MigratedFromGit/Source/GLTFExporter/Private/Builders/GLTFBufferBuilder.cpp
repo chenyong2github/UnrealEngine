@@ -20,7 +20,7 @@ FGLTFBufferBuilder::~FGLTFBufferBuilder()
 
 bool FGLTFBufferBuilder::InitializeBuffer()
 {
-	FGLTFJsonBuffer JsonBuffer;
+	JsonBuffer = FGLTFJsonBuilder::AddBuffer();
 
 	if (bIsGlbFile)
 	{
@@ -29,7 +29,7 @@ bool FGLTFBufferBuilder::InitializeBuffer()
 	else
 	{
 		const FString ExternalBinaryPath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
-		JsonBuffer.URI = FPaths::GetCleanFilename(ExternalBinaryPath);
+		JsonBuffer->URI = FPaths::GetCleanFilename(ExternalBinaryPath);
 
 		BufferArchive.Reset(IFileManager::Get().CreateFileWriter(*ExternalBinaryPath));
 		if (BufferArchive == nullptr)
@@ -39,7 +39,6 @@ bool FGLTFBufferBuilder::InitializeBuffer()
 		}
 	}
 
-	BufferIndex = AddBuffer(JsonBuffer);
 	return true;
 }
 
@@ -67,12 +66,10 @@ FGLTFJsonBufferView* FGLTFBufferBuilder::AddBufferView(const void* RawData, uint
 	}
 
 	BufferArchive->Serialize(const_cast<void*>(RawData), ByteLength);
-
-	FGLTFJsonBuffer& JsonBuffer = GetBuffer(BufferIndex);
-	JsonBuffer.ByteLength = BufferArchive->Tell();
+	JsonBuffer->ByteLength = BufferArchive->Tell();
 
 	FGLTFJsonBufferView* JsonBufferView = FGLTFJsonBuilder::AddBufferView();
-	JsonBufferView->Buffer = BufferIndex;
+	JsonBufferView->Buffer = JsonBuffer;
 	JsonBufferView->ByteOffset = ByteOffset;
 	JsonBufferView->ByteLength = ByteLength;
 	JsonBufferView->Target = BufferTarget;

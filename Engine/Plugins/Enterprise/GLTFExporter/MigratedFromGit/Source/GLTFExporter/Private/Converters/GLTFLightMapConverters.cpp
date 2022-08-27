@@ -71,13 +71,13 @@ FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* S
 	const FVector4& LightMapAdd = LightMapInteraction.GetAddArray()[0];
 	const FVector4& LightMapScale = LightMapInteraction.GetScaleArray()[0];
 
-	FGLTFJsonLightMap JsonLightMap;
-	StaticMeshComponent->GetName(JsonLightMap.Name); // TODO: use better name (similar to light and camera)
-	JsonLightMap.Texture.Index = TextureIndex;
-	JsonLightMap.Texture.TexCoord = CoordinateIndex;
-	JsonLightMap.LightMapScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };
-	JsonLightMap.LightMapAdd = { LightMapAdd.X, LightMapAdd.Y, LightMapAdd.Z, LightMapAdd.W };
-	JsonLightMap.CoordinateScaleBias = { CoordinateScale.X, CoordinateScale.Y, CoordinateBias.X, CoordinateBias.Y };
+	FGLTFJsonLightMap* JsonLightMap = Builder.AddLightMap();
+	StaticMeshComponent->GetName(JsonLightMap->Name); // TODO: use better name (similar to light and camera)
+	JsonLightMap->Texture.Index = TextureIndex;
+	JsonLightMap->Texture.TexCoord = CoordinateIndex;
+	JsonLightMap->LightMapScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };
+	JsonLightMap->LightMapAdd = { LightMapAdd.X, LightMapAdd.Y, LightMapAdd.Z, LightMapAdd.W };
+	JsonLightMap->CoordinateScaleBias = { CoordinateScale.X, CoordinateScale.Y, CoordinateBias.X, CoordinateBias.Y };
 
-	return Builder.AddLightMap(JsonLightMap);
+	return JsonLightMap;
 }

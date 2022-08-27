@@ -15,12 +15,13 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		return nullptr;
 	}
 
-	FGLTFJsonKhrMaterialVariant MaterialVariant;
+
+	FGLTFJsonKhrMaterialVariant* MaterialVariant = Builder.AddKhrMaterialVariant();
 
 	// TODO: add warning if the variant name is not unique, i.e it's already used?
 	// While material variants are technically allowed to use the same name, it may
 	// cause confusion when trying to select the correct variant in a viewer.
-	MaterialVariant.Name = Variant->GetDisplayText().ToString();
+	MaterialVariant->Name = Variant->GetDisplayText().ToString();
 
 	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterial*> TPrimitiveMaterial;
 	TArray<TPrimitiveMaterial> PrimitiveMaterials;
@@ -54,8 +55,6 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		return nullptr;
 	}
 
-	FGLTFJsonKhrMaterialVariant* MaterialVariantIndex = Builder.AddKhrMaterialVariant(MaterialVariant);
-
 	for (const TPrimitiveMaterial& PrimitiveMaterial: PrimitiveMaterials)
 	{
 		FGLTFJsonPrimitive* Primitive = PrimitiveMaterial.Key;
@@ -69,19 +68,19 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 
 		if (ExistingMapping != nullptr)
 		{
-			ExistingMapping->Variants.AddUnique(MaterialVariantIndex);
+			ExistingMapping->Variants.AddUnique(MaterialVariant);
 		}
 		else
 		{
 			FGLTFJsonKhrMaterialVariantMapping Mapping;
 			Mapping.Material = MaterialIndex;
-			Mapping.Variants.Add(MaterialVariantIndex);
+			Mapping.Variants.Add(MaterialVariant);
 
 			Primitive->KhrMaterialVariantMappings.Add(Mapping);
 		}
 	}
 
-	return MaterialVariantIndex;
+	return MaterialVariant;
 }
 
 bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterialIndex, const UPropertyValueMaterial* Property) const

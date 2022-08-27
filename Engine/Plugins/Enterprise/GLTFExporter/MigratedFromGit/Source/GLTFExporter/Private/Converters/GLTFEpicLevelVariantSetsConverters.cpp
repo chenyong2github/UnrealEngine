@@ -13,8 +13,8 @@
 
 FGLTFJsonEpicLevelVariantSets* FGLTFEpicLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
-	FGLTFJsonEpicLevelVariantSets JsonLevelVariantSets;
-	LevelVariantSets->GetName(JsonLevelVariantSets.Name);
+	FGLTFJsonEpicLevelVariantSets* JsonLevelVariantSets = Builder.AddEpicLevelVariantSets();
+	LevelVariantSets->GetName(JsonLevelVariantSets->Name);
 
 	for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
 	{
@@ -32,16 +32,16 @@ FGLTFJsonEpicLevelVariantSets* FGLTFEpicLevelVariantSetsConverter::Convert(const
 
 		if (JsonVariantSet.Variants.Num() > 0)
 		{
-			JsonLevelVariantSets.VariantSets.Add(JsonVariantSet);
+			JsonLevelVariantSets->VariantSets.Add(JsonVariantSet);
 		}
 	}
 
-	if (JsonLevelVariantSets.VariantSets.Num() == 0)
+	if (JsonLevelVariantSets->VariantSets.Num() == 0)
 	{
 		return nullptr;
 	}
 
-	return Builder.AddEpicLevelVariantSets(JsonLevelVariantSets);
+	return JsonLevelVariantSets;
 }
 
 bool FGLTFEpicLevelVariantSetsConverter::TryParseVariant(FGLTFJsonEpicVariant& OutVariant, const UVariant* Variant) const
