@@ -17,6 +17,7 @@ bool UGLTFStaticMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const UO
 
 	if (MeshIndex == INDEX_NONE)
 	{
+		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export static mesh %s"), *StaticMesh->GetName()));
 		return false;
 	}
 
