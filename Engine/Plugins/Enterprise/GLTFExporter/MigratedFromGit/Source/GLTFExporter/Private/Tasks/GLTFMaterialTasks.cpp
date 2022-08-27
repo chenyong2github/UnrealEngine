@@ -321,7 +321,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		bHasOpacitySourceTexture &&
 		BaseColorTexture == OpacityTexture &&
 		BaseColorTexCoord == OpacityTexCoord &&
-		BaseColorTransform.IsExactEqual(OpacityTransform))
+		BaseColorTransform.IsExactlyEqual(OpacityTransform))
 	{
 		OutPBRParams.BaseColorTexture.Index = Builder.GetOrAddTexture(BaseColorTexture);
 		OutPBRParams.BaseColorTexture.TexCoord = BaseColorTexCoord;
@@ -446,7 +446,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		bHasRoughnessSourceTexture &&
 		MetallicTexture == RoughnessTexture &&
 		MetallicTexCoord == RoughnessTexCoord &&
-		MetallicTransform.IsExactEqual(RoughnessTransform))
+		MetallicTransform.IsExactlyEqual(RoughnessTransform))
 	{
 		OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture);
 		OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
@@ -571,7 +571,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		bHasRoughnessSourceTexture &&
 		IntensityTexture == RoughnessTexture &&
 		IntensityTexCoord == RoughnessTexCoord &&
-		IntensityTransform.IsExactEqual(RoughnessTransform))
+		IntensityTransform.IsExactlyEqual(RoughnessTransform))
 	{
 		const FGLTFJsonTextureIndex TextureIndex = Builder.GetOrAddTexture(IntensityTexture);
 		OutExtParams.ClearCoatTexture.Index = TextureIndex;
@@ -1055,7 +1055,7 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 			return false;
 		}
 
-		if (!Builder.ExportOptions->bExportTextureTransforms && !OutTransform.IsDefault())
+		if (!Builder.ExportOptions->bExportTextureTransforms && !OutTransform.IsExactlyDefault())
 		{
 			Builder.AddWarningMessage(FString::Printf(
 				TEXT("Texture coordinates [%d] in %s for material %s are transformed, but texture transform is disabled by export options"),
@@ -1092,7 +1092,7 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 			return false;
 		}
 
-		if (!Builder.ExportOptions->bExportTextureTransforms && !OutTransform.IsDefault())
+		if (!Builder.ExportOptions->bExportTextureTransforms && !OutTransform.IsExactlyDefault())
 		{
 			Builder.AddWarningMessage(FString::Printf(
 				TEXT("Texture coordinates [%d] in %s for material %s are transformed, but texture transform is disabled by export options"),

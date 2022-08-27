@@ -6,5 +6,5 @@ class UCurveLinearColor;
 
 struct FGLTFCurveUtility
 {
-	static bool HasAnyAdjustment(const UCurveLinearColor& ColorCurve);
+	static bool HasAnyAdjustment(const UCurveLinearColor& ColorCurve, float Tolerance = KINDA_SMALL_NUMBER);
 };

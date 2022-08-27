@@ -39,12 +39,12 @@ struct FGLTFJsonAnimationPlayback : IGLTFJsonObject
 			Writer.Write(TEXT("autoPlay"), bAutoPlay);
 		}
 
-		if (PlayRate != 1)
+		if (!FMath::IsNearlyEqual(PlayRate, 1))
 		{
 			Writer.Write(TEXT("playRate"), PlayRate);
 		}
 
-		if (StartTime != 0)
+		if (!FMath::IsNearlyEqual(StartTime, 0))
 		{
 			Writer.Write(TEXT("startTime"), StartTime);
 		}

@@ -3,15 +3,13 @@
 #include "Converters/GLTFCurveUtility.h"
 #include "Curves/CurveLinearColor.h"
 
-bool FGLTFCurveUtility::HasAnyAdjustment(const UCurveLinearColor& ColorCurve)
+bool FGLTFCurveUtility::HasAnyAdjustment(const UCurveLinearColor& ColorCurve, float Tolerance)
 {
-	const float ErrorTolerance = KINDA_SMALL_NUMBER;
-
-	return !FMath::IsNearlyEqual(ColorCurve.AdjustBrightness, 1.0f, ErrorTolerance) ||
-		!FMath::IsNearlyEqual(ColorCurve.AdjustHue, 0.0f, ErrorTolerance) ||
-		!FMath::IsNearlyEqual(ColorCurve.AdjustSaturation, 1.0f, ErrorTolerance) ||
-		!FMath::IsNearlyEqual(ColorCurve.AdjustVibrance, 0.0f, ErrorTolerance) ||
-		!FMath::IsNearlyEqual(ColorCurve.AdjustBrightnessCurve, 1.0f, ErrorTolerance) ||
-		!FMath::IsNearlyEqual(ColorCurve.AdjustMaxAlpha, 1.0f, ErrorTolerance) ||
-		!FMath::IsNearlyEqual(ColorCurve.AdjustMinAlpha, 0.0f, ErrorTolerance);
+	return !FMath::IsNearlyEqual(ColorCurve.AdjustBrightness,      1, Tolerance)
+		|| !FMath::IsNearlyEqual(ColorCurve.AdjustHue,             0, Tolerance)
+		|| !FMath::IsNearlyEqual(ColorCurve.AdjustSaturation,      1, Tolerance)
+		|| !FMath::IsNearlyEqual(ColorCurve.AdjustVibrance,        0, Tolerance)
+		|| !FMath::IsNearlyEqual(ColorCurve.AdjustBrightnessCurve, 1, Tolerance)
+		|| !FMath::IsNearlyEqual(ColorCurve.AdjustMaxAlpha,        1, Tolerance)
+		|| !FMath::IsNearlyEqual(ColorCurve.AdjustMinAlpha,        0, Tolerance);
 }

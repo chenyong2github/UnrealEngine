@@ -13,18 +13,18 @@ struct FGLTFJsonSpotLight : IGLTFJsonObject
 
 	FGLTFJsonSpotLight()
 		: InnerConeAngle(0)
-		, OuterConeAngle(PI / 2.0f)
+		, OuterConeAngle(HALF_PI)
 	{
 	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (InnerConeAngle != 0)
+		if (!FMath::IsNearlyEqual(InnerConeAngle, 0))
 		{
 			Writer.Write(TEXT("innerConeAngle"), InnerConeAngle);
 		}
 
-		if (OuterConeAngle != PI / 2.0f)
+		if (!FMath::IsNearlyEqual(OuterConeAngle, HALF_PI))
 		{
 			Writer.Write(TEXT("outerConeAngle"), OuterConeAngle);
 		}
@@ -66,14 +66,14 @@ struct FGLTFJsonLight : IGLTFJsonObject
 			Writer.Write(TEXT("color"), Color);
 		}
 
-		if (Intensity != 1)
+		if (!FMath::IsNearlyEqual(Intensity, 1))
 		{
 			Writer.Write(TEXT("intensity"), Intensity);
 		}
 
 		if (Type == EGLTFJsonLightType::Point || Type == EGLTFJsonLightType::Spot)
 		{
-			if (Range != 0)
+			if (!FMath::IsNearlyEqual(Range, 0))
 			{
 				Writer.Write(TEXT("range"), Range);
 			}
