@@ -5,6 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFCameraUtility.h"
+#include "Actors/GLTFOrbitCameraActor.h"
 
 FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
 {
@@ -28,6 +29,42 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 		default:
 		    // TODO: report error (unsupported camera type)
 		    return FGLTFJsonCameraIndex(INDEX_NONE);
+	}
+
+	const AActor* Owner = CameraComponent->GetOwner();
+	const AGLTFOrbitCameraActor* OrbitCameraActor = Owner != nullptr ? Cast<AGLTFOrbitCameraActor>(Owner) : nullptr;
+
+	if (OrbitCameraActor != nullptr)
+	{
+		if (Builder.ExportOptions->bExportOrbitalCameras)
+		{
+			if (OrbitCameraActor->Focus != nullptr)
+			{
+				FGLTFJsonOrbitCamera OrbitCamera;
+				OrbitCamera.Focus = Builder.GetOrAddNode(OrbitCameraActor->Focus);
+				OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMax, Builder.ExportOptions->ExportScale);
+				OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
+
+				// TODO: we need to decide what values to use for looking straight ahead, up and down.
+				// Right now the actor and the viewer have different opinions.
+				OrbitCamera.MaxAngle = OrbitCameraActor->PitchAngleMax + 90.0f;
+				OrbitCamera.MinAngle = OrbitCameraActor->PitchAngleMin + 90.0f;
+
+				Camera.OrbitCamera = OrbitCamera;
+			}
+			else
+			{
+				Builder.AddWarningMessage(FString::Printf(
+					TEXT("OrbitalCamera %s has no focus set and will be skipped"),
+					*Owner->GetName()));
+			}
+		}
+		else
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("OrbitalCamera %s disabled by export options"),
+				*Owner->GetName()));
+		}
 	}
 
 	return Builder.AddCamera(Camera);
