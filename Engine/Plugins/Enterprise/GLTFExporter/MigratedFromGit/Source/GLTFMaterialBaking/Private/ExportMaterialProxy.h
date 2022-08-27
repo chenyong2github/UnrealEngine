@@ -126,11 +126,6 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->ReflectionAboutCustomWorldNormal(CustomWorldNormal, bNormalizeCustomWorldNormal);
 	}
 
-	virtual int32 VertexColor() override
-	{
-		return Compiler->VertexColor();
-	}
-
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	virtual int32 PreSkinVertexOffset() override
 	{
@@ -158,24 +153,9 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->VertexInterpolator(InterpolatorIndex);
 	}
 
-	virtual int32 LightVector() override
-	{
-		return Compiler->LightVector();
-	}
-
 	virtual int32 ReflectionVector() override
 	{
 		return Compiler->ReflectionVector();
-	}
-
-	virtual int32 AtmosphericFogColor(int32 WorldPosition) override
-	{
-		return INDEX_NONE;
-	}
-
-	virtual int32 PrecomputedAOMask() override
-	{
-		return Compiler->PrecomputedAOMask();
 	}
 
 #if WITH_EDITOR
