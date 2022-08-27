@@ -178,12 +178,6 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 	return FInputRayHit();
 }
 
-FBoxSphereBounds UGizmoElementTorus::CalcBounds(const FTransform& LocalToWorld) const
-{
-	// @todo - implement box-sphere bounds calculation
-	return FBoxSphereBounds();
-}
-
 void UGizmoElementTorus::SetCenter(const FVector& InCenter)
 {
 	Center = InCenter;

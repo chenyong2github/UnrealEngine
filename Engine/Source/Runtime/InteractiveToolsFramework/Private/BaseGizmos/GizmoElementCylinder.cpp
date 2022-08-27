@@ -65,12 +65,6 @@ FInputRayHit UGizmoElementCylinder::LineTrace(const UGizmoViewContext* ViewConte
 	return FInputRayHit();
 }
 
-FBoxSphereBounds UGizmoElementCylinder::CalcBounds(const FTransform& LocalToWorld) const
-{
-	// @todo - implement box-sphere bounds calculation
-	return FBoxSphereBounds();
-}
-
 void UGizmoElementCylinder::SetBase(const FVector& InBase)
 {
 	Base = InBase;

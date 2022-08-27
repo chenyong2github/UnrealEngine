@@ -111,12 +111,6 @@ FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext
 	return FInputRayHit();
 }
 
-FBoxSphereBounds UGizmoElementCircle::CalcBounds(const FTransform& LocalToWorld) const
-{
-	// @todo - implement box-sphere bounds calculation
-	return FBoxSphereBounds();
-}
-
 void UGizmoElementCircle::SetCenter(FVector InCenter)
 {
 	Center = InCenter;

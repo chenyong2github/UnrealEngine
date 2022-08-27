@@ -88,12 +88,6 @@ FInputRayHit UGizmoElementArrow::LineTrace(const UGizmoViewContext* ViewContext,
 	return Hit;
 }
 
-FBoxSphereBounds UGizmoElementArrow::CalcBounds(const FTransform& LocalToWorld) const
-{
-	// @todo - implement box-sphere bounds calculation
-	return FBoxSphereBounds();
-}
-
 void UGizmoElementArrow::SetBase(const FVector& InBase)
 {
 	if (Base != InBase)

@@ -122,12 +122,6 @@ FInputRayHit UGizmoElementRectangle::LineTrace(const UGizmoViewContext* ViewCont
 	return FInputRayHit();
 }
 
-FBoxSphereBounds UGizmoElementRectangle::CalcBounds(const FTransform& LocalToWorld) const
-{
-	// @todo - implement box-sphere bounds calculation
-	return FBoxSphereBounds();
-}
-
 void UGizmoElementRectangle::SetCenter(FVector InCenter)
 {
 	Center = InCenter;

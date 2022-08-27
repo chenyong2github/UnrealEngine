@@ -66,24 +66,6 @@ FInputRayHit UGizmoElementGroup::LineTrace(const UGizmoViewContext* ViewContext,
 	return Hit;
 }
 
-FBoxSphereBounds UGizmoElementGroup::CalcBounds(const FTransform& LocalToWorld) const
-{
-	/*  @todo - accumulate box sphere bounds for all elements within the group
-
-	if (bEnabled)
-	{
-		for (UGizmoElementBase* Element : Elements)
-		{
-			if (Element)
-			{
-				CachedBoxSphereBounds = CachedBoxSphereBounds + Element->CalcBounds(LocalToWorld);
-			}
-		}
-	}
-	*/
-	return FBoxSphereBounds();
-}
-
 void UGizmoElementGroup::Add(UGizmoElementBase* InElement)
 {
 	if (!Elements.Contains(InElement))

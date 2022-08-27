@@ -33,7 +33,6 @@ public:
 	// If the torus lies at a glancing angle, the ray-torus intersection is performed against cylinders approximating
 	// the shape of the torus.
 	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End UGizmoElementBase Interface.
 
 	// Torus center.

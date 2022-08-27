@@ -119,9 +119,6 @@ public:
 	// Line trace enabled hittable element.
 	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
 
-	// Calcute box sphere bounds for use when hit testing.
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const PURE_VIRTUAL(UGizmoElementBase::CalcBounds, return FBoxSphereBounds(););
-
 	// Return whether the visible bit is enabled in element state.
 	virtual bool GetVisibleState() const;
 
@@ -298,7 +295,7 @@ public:
 
 protected:
 
-	// Render and LineTrace should only occur when bEnabled is true.
+	// Whether element is enabled. Render and LineTrace only occur when bEnabled is true.
 	UPROPERTY()
 	bool bEnabled = true;
 
