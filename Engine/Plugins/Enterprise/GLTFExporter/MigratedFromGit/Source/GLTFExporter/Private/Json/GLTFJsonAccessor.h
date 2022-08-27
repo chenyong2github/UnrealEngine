@@ -23,8 +23,7 @@ struct FGLTFJsonAccessor
 	float Max[16];
 
 	FGLTFJsonAccessor()
-		: BufferView(INDEX_NONE)
-		, ByteOffset(0)
+		: ByteOffset(0)
 		, Count(0)
 		, Type(EGLTFJsonAccessorType::None)
 		, ComponentType(EGLTFJsonComponentType::None)

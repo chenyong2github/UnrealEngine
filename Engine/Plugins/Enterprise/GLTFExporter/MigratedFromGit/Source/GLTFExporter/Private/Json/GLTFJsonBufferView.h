@@ -20,8 +20,7 @@ struct FGLTFJsonBufferView
 	EGLTFJsonBufferTarget Target;
 
 	FGLTFJsonBufferView()
-		: Buffer(INDEX_NONE)
-		, ByteLength(0)
+		: ByteLength(0)
 		, ByteOffset(0)
 		, ByteStride(0)
 		, Target(EGLTFJsonBufferTarget::None)
