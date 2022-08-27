@@ -4,8 +4,6 @@
 #include "UnrealExporter.h"
 #include "Engine.h"
 
-DEFINE_LOG_CATEGORY(LogGLTFExporter);
-
 UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -23,19 +21,12 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 {
 	check(Object);
 
-	// TODO: remove temp logging
-	UE_LOG(LogGLTFExporter, Warning, TEXT("%s::ExportBinary"), *(this->GetClass()->GetName()));
-	UE_LOG(LogGLTFExporter, Warning, TEXT("Object: %s (%s)"), *(Object->GetName()), *(Object->GetClass()->GetName()));
-	UE_LOG(LogGLTFExporter, Warning, TEXT("Type: %s"), Type);
-	UE_LOG(LogGLTFExporter, Warning, TEXT("FileIndex: %d"), FileIndex);
-	UE_LOG(LogGLTFExporter, Warning, TEXT("PortFlags: %d"), PortFlags);
-
 	if (!FillExportOptions())
 	{
 		// User cancelled the export
 		return false;
 	}
-	
+
 	// TODO: implement
 	return false;
 }
