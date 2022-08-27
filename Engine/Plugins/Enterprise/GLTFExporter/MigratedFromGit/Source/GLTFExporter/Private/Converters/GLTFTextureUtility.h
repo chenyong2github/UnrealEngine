@@ -6,9 +6,9 @@
 
 struct FGLTFTextureUtility
 {
-	static bool IsHDR(EPixelFormat Format);
 	static bool IsAlphaless(EPixelFormat PixelFormat);
 
+	static bool IsHDR(const UTexture* Texture);
 	static bool IsCubemap(const UTexture* Texture);
 
 	static float GetCubeFaceRotation(ECubeFace CubeFace);

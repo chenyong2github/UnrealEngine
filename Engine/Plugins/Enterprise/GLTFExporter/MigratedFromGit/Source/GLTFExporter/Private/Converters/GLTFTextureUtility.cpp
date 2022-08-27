@@ -10,30 +10,6 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 
-bool FGLTFTextureUtility::IsHDR(EPixelFormat Format)
-{
-	switch (Format)
-	{
-		case PF_A32B32G32R32F:
-		case PF_FloatRGB:
-		case PF_FloatRGBA:
-		case PF_R32_FLOAT:
-		case PF_G16R16F:
-		case PF_G16R16F_FILTER:
-		case PF_G32R32F:
-		case PF_R16F:
-		case PF_R16F_FILTER:
-		case PF_FloatR11G11B10:
-		case PF_BC6H:
-		case PF_PLATFORM_HDR_0:
-		case PF_PLATFORM_HDR_1:
-		case PF_PLATFORM_HDR_2:
-			return true;
-		default:
-			return false;
-	}
-}
-
 bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
 {
 	switch (PixelFormat)
@@ -48,6 +24,19 @@ bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
 		case PF_FloatRGB:
 		case PF_R5G6B5_UNORM:
 			// TODO: add more pixel formats that don't support alpha, but beware of formats like PF_G8 (that still seem to return alpha in some cases)
+			return true;
+		default:
+			return false;
+	}
+}
+
+bool FGLTFTextureUtility::IsHDR(const UTexture* Texture)
+{
+	switch (Texture->CompressionSettings)
+	{
+		case TC_HDR:
+		case TC_HDR_Compressed:
+		case TC_HalfFloat:
 			return true;
 		default:
 			return false;
@@ -258,7 +247,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderT
 	const FIntPoint Size(RenderTargetCube->SizeX, RenderTargetCube->SizeX);
 	UTexture2D* FaceTexture;
 
-	if (IsHDR(RenderTargetCube->GetFormat()))
+	if (IsHDR(RenderTargetCube))
 	{
 		TArray<FFloat16Color> Pixels;
 		if (!Resource->ReadPixels(Pixels, FReadSurfaceDataFlags(RCM_UNorm, CubeFace)))
