@@ -16,7 +16,10 @@ struct GLTFEXPORTER_API FGLTFJsonScene
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+		if (!Name.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("name"), Name);
+		}
 
 		if (Nodes.Num() > 0)
 		{

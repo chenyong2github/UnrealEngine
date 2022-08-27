@@ -70,9 +70,20 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive
 		JsonWriter.WriteIdentifierPrefix(TEXT("attributes"));
 		Attributes.WriteObject(JsonWriter);
 
-		if (Indices != INDEX_NONE) JsonWriter.WriteValue(TEXT("indices"), Indices);
-		if (Material != INDEX_NONE) JsonWriter.WriteValue(TEXT("material"), Material);
-		if (Mode != EGLTFJsonPrimitiveMode::None) JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::PrimitiveModeToNumber(Mode));
+		if (Indices != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("indices"), Indices);
+		}
+
+		if (Material != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("material"), Material);
+		}
+
+		if (Mode != EGLTFJsonPrimitiveMode::None)
+		{
+			JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::PrimitiveModeToNumber(Mode));
+		}
 
 		JsonWriter.WriteObjectEnd();
 	}
@@ -89,7 +100,10 @@ struct GLTFEXPORTER_API FGLTFJsonMesh
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+		if (!Name.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("name"), Name);
+		}
 
 		JsonWriter.WriteArrayStart(TEXT("primitives"));
 		for (const FGLTFJsonPrimitive& Primitive : Primitives)
