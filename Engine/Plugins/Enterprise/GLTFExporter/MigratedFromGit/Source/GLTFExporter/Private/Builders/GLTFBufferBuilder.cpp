@@ -6,7 +6,7 @@
 
 FGLTFBufferBuilder::FGLTFBufferBuilder()
 {
-	BufferIndex = AddBuffer(FGLTFJsonBuffer());
+	BufferIndex = AddBuffer();
 }
 
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, uint8 DataAlignment, EGLTFJsonBufferTarget BufferTarget)
@@ -35,7 +35,7 @@ FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, 
 
 void FGLTFBufferBuilder::UpdateJsonBufferObject(const FString& BinaryFilePath)
 {
-	FGLTFJsonBuffer& JsonBuffer = JsonRoot.Buffers[BufferIndex];
+	FGLTFJsonBuffer& JsonBuffer = GetBuffer(BufferIndex);
 	JsonBuffer.URI = FPaths::GetCleanFilename(BinaryFilePath);
 	JsonBuffer.ByteLength = BufferData.Num();
 }

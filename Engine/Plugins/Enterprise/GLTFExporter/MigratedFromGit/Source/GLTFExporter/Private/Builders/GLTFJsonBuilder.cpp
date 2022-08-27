@@ -57,6 +57,56 @@ FGLTFJsonTextureIndex FGLTFJsonBuilder::AddTexture(const FGLTFJsonTexture& JsonT
 	return FGLTFJsonTextureIndex(JsonRoot.Textures.Add(JsonTexture));
 }
 
+FGLTFJsonAccessor& FGLTFJsonBuilder::GetAccessor(FGLTFJsonAccessorIndex AccessorIndex)
+{
+	return JsonRoot.Accessors[AccessorIndex];
+}
+
+FGLTFJsonBuffer& FGLTFJsonBuilder::GetBuffer(FGLTFJsonBufferIndex BufferIndex)
+{
+	return JsonRoot.Buffers[BufferIndex];
+}
+
+FGLTFJsonBufferView& FGLTFJsonBuilder::GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex)
+{
+	return JsonRoot.BufferViews[BufferViewIndex];
+}
+
+FGLTFJsonImage& FGLTFJsonBuilder::GetImage(FGLTFJsonImageIndex ImageIndex)
+{
+	return JsonRoot.Images[ImageIndex];
+}
+
+FGLTFJsonMaterial& FGLTFJsonBuilder::GetMaterial(FGLTFJsonMaterialIndex MaterialIndex)
+{
+	return JsonRoot.Materials[MaterialIndex];
+}
+
+FGLTFJsonMesh& FGLTFJsonBuilder::GetMesh(FGLTFJsonMeshIndex MeshIndex)
+{
+	return JsonRoot.Meshes[MeshIndex];
+}
+
+FGLTFJsonNode& FGLTFJsonBuilder::GetNode(FGLTFJsonNodeIndex NodeIndex)
+{
+	return JsonRoot.Nodes[NodeIndex];
+}
+
+FGLTFJsonSampler& FGLTFJsonBuilder::GetSampler(FGLTFJsonSamplerIndex SamplerIndex)
+{
+	return JsonRoot.Samplers[SamplerIndex];
+}
+
+FGLTFJsonScene& FGLTFJsonBuilder::GetScene(FGLTFJsonSceneIndex SceneIndex)
+{
+	return JsonRoot.Scenes[SceneIndex];
+}
+
+FGLTFJsonTexture& FGLTFJsonBuilder::GetTexture(FGLTFJsonTextureIndex TextureIndex)
+{
+	return JsonRoot.Textures[TextureIndex];
+}
+
 bool FGLTFJsonBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 {
 	JsonRoot.Serialize(&Archive, true);

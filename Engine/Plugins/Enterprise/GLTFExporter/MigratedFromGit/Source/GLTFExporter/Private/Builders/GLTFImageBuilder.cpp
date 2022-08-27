@@ -117,7 +117,7 @@ bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 	for (const auto& DataPair : ImageDataLookup)
 	{
 		const TArray64<uint8>& ImageData = DataPair.Value;
-		FGLTFJsonImage& JsonImage = JsonRoot.Images[DataPair.Key];
+		FGLTFJsonImage& JsonImage = GetImage(DataPair.Key);
 
 		const FString ImageUri = JsonImage.Name + FGLTFBuilderUtility::GetFileExtension(JsonImage.MimeType);
 		const FString ImagePath = FPaths::Combine(ImageDir, ImageUri);
