@@ -65,14 +65,7 @@ struct FGLTFJsonVariantNodeProperties
 
 		if (Mesh.IsSet())
 		{
-			if (Mesh.GetValue() != INDEX_NONE)
-			{
-				JsonWriter.WriteValue(TEXT("mesh"), Mesh.GetValue());
-			}
-			else
-			{
-				JsonWriter.WriteValue(TEXT("mesh"), nullptr);
-			}
+			JsonWriter.WriteValue(TEXT("mesh"), Mesh.GetValue());
 		}
 
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials, Extensions);
