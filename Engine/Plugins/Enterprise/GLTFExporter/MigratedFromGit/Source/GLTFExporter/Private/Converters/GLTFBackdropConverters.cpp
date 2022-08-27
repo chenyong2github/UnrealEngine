@@ -31,7 +31,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* BackdropAct
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Mesh"), Mesh))
 	{
 		// TODO: avoid exporting the mesh material (use gltf default material)
-		JsonBackdrop.Mesh = Builder.GetOrAddMesh(Mesh, -1, { FGLTFMaterialUtility::GetDefault() });
+		JsonBackdrop.Mesh = Builder.GetOrAddMesh(Mesh, { FGLTFMaterialUtility::GetDefault() });
 	}
 	else
 	{

@@ -2,24 +2,17 @@
 
 #include "Tasks/GLTFMeshTasks.h"
 #include "Converters/GLTFConverterUtility.h"
-#include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 void FGLTFStaticMeshTask::Complete()
 {
-	const uint32 MeshCount = (StaticMeshComponent != nullptr ? 1 : 0) + (StaticMesh != nullptr ? 1 : 0);
-	check(MeshCount == 1);
-
-	if (StaticMeshComponent != nullptr)
-	{
-		StaticMesh = StaticMeshComponent->GetStaticMesh();
-	}
-
-	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
-
 	FGLTFJsonMesh& JsonMesh = Builder.GetMesh(MeshIndex);
-	JsonMesh.Name = StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : FGLTFNameUtility::GetName(StaticMesh, LODIndex);
+	JsonMesh.Name = StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : StaticMesh->GetName();
+
+	const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
+	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
 
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
@@ -73,26 +66,19 @@ void FGLTFStaticMeshTask::Complete()
 		}
 
 		JsonPrimitive.Material = StaticMeshComponent != nullptr
-			? Builder.GetOrAddMaterial(Material, StaticMeshComponent, LODIndex, OverrideMaterials)
-			: Builder.GetOrAddMaterial(Material, StaticMesh, LODIndex, OverrideMaterials);
+			? Builder.GetOrAddMaterial(Material, StaticMeshComponent, OverrideMaterials)
+			: Builder.GetOrAddMaterial(Material, StaticMesh, OverrideMaterials);
 	}
 }
 
 void FGLTFSkeletalMeshTask::Complete()
 {
-	const uint32 MeshCount = (SkeletalMeshComponent != nullptr ? 1 : 0) + (SkeletalMesh != nullptr ? 1 : 0);
-	check(MeshCount == 1);
+	FGLTFJsonMesh& JsonMesh = Builder.GetMesh(MeshIndex);
+	JsonMesh.Name = SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
 
-	if (SkeletalMeshComponent != nullptr)
-	{
-		SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-	}
-
+	const int32 LODIndex = FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
 	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
-
-	FGLTFJsonMesh& JsonMesh = Builder.GetMesh(MeshIndex);
-	JsonMesh.Name = SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
 
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
@@ -161,7 +147,7 @@ void FGLTFSkeletalMeshTask::Complete()
 		}
 
 		JsonPrimitive.Material = SkeletalMeshComponent != nullptr
-			? Builder.GetOrAddMaterial(Material, SkeletalMeshComponent, LODIndex, OverrideMaterials)
-			: Builder.GetOrAddMaterial(Material, SkeletalMesh, LODIndex, OverrideMaterials);
+			? Builder.GetOrAddMaterial(Material, SkeletalMeshComponent, OverrideMaterials)
+			: Builder.GetOrAddMaterial(Material, SkeletalMesh, OverrideMaterials);
 	}
 }

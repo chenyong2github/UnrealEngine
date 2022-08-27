@@ -2,16 +2,11 @@
 
 #include "Converters/GLTFMeshConverters.h"
 #include "Converters/GLTFMaterialUtility.h"
-#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMeshTasks.h"
-#include "Rendering/SkeletalMeshRenderData.h"
 
-void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, int32& LODIndex, FGLTFMaterialArray& OverrideMaterials)
+void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, FGLTFMaterialArray& OverrideMaterials)
 {
-	const uint32 MeshCount = (StaticMeshComponent != nullptr ? 1 : 0) + (StaticMesh != nullptr ? 1 : 0);
-	check(MeshCount == 1);
-
 	const TArray<UMaterialInterface*> Materials = StaticMeshComponent != nullptr
 		? OverrideMaterials.GetOverrides(StaticMeshComponent->GetMaterials())
 		: OverrideMaterials.GetOverrides(StaticMesh->StaticMaterials);
@@ -24,7 +19,6 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 			!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
 			!FGLTFMaterialUtility::MaterialsNeedVertexData(Materials))
 		{
-			StaticMesh = StaticMeshComponent->GetStaticMesh();
 			StaticMeshComponent = nullptr;
 		}
 	}
@@ -40,29 +34,17 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 	{
 		OverrideMaterials.ClearRedundantOverrides(StaticMesh->StaticMaterials);
 	}
-
-	const UStaticMesh* Mesh = StaticMeshComponent != nullptr ? StaticMeshComponent->GetStaticMesh() : StaticMesh;
-
-	if (LODIndex < 0)
-	{
-		LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(Mesh));
-	}
-
-	LODIndex = FMath::Clamp(LODIndex, 0, Mesh->GetNumLODs() - 1);
 }
 
-FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FGLTFMaterialArray OverrideMaterials)
+FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray OverrideMaterials)
 {
 	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
-	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, StaticMesh, StaticMeshComponent, LODIndex, OverrideMaterials, MeshIndex);
+	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, StaticMesh, StaticMeshComponent, OverrideMaterials, MeshIndex);
 	return MeshIndex;
 }
 
-void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, int32& LODIndex, FGLTFMaterialArray& OverrideMaterials)
+void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& OverrideMaterials)
 {
-	const uint32 MeshCount = (SkeletalMeshComponent != nullptr ? 1 : 0) + (SkeletalMesh != nullptr ? 1 : 0);
-	check(MeshCount == 1);
-
 	const TArray<UMaterialInterface*> Materials = SkeletalMeshComponent != nullptr
 		? OverrideMaterials.GetOverrides(SkeletalMeshComponent->GetMaterials())
 		: OverrideMaterials.GetOverrides(SkeletalMesh->Materials);
@@ -75,7 +57,6 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 			!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
 			!FGLTFMaterialUtility::MaterialsNeedVertexData(Materials))
 		{
-			SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
 			SkeletalMeshComponent = nullptr;
 		}
 	}
@@ -91,21 +72,11 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 	{
 		OverrideMaterials.ClearRedundantOverrides(SkeletalMesh->Materials);
 	}
-
-	const USkeletalMesh* Mesh = SkeletalMeshComponent != nullptr ? SkeletalMeshComponent->SkeletalMesh : SkeletalMesh;
-
-	if (LODIndex < 0)
-	{
-		LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(Mesh));
-	}
-
-	const FSkeletalMeshRenderData* RenderData = Mesh->GetResourceForRendering();
-	LODIndex = FMath::Clamp(LODIndex, 0, RenderData->LODRenderData.Num() - 1);
 }
 
-FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FGLTFMaterialArray OverrideMaterials)
+FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray OverrideMaterials)
 {
 	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
-	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, SkeletalMesh, SkeletalMeshComponent, LODIndex, OverrideMaterials, MeshIndex);
+	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, SkeletalMesh, SkeletalMeshComponent, OverrideMaterials, MeshIndex);
 	return MeshIndex;
 }
