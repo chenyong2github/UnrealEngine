@@ -448,6 +448,7 @@ public:
 
 			case MP_Opacity:
 			case MP_OpacityMask:
+			case MP_SubsurfaceColor:
 			case MP_CustomData0:
 			case MP_CustomData1:
 			{
