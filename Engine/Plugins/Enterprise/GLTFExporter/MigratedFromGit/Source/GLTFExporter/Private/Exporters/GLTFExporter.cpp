@@ -33,7 +33,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	}
 
 	FGLTFContainerBuilder Builder;
-	if (!Add(Builder, Object))
+	if (!AddObject(Builder, Object))
 	{
 		// TODO: Report error
 		return false;
@@ -42,7 +42,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	return Builder.Serialize(Archive, CurrentFilename);
 }
 
-bool UGLTFExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
+bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	return false;
 }

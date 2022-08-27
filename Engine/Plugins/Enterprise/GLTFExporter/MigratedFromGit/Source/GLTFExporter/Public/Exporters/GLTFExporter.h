@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
 #include "Exporters/Exporter.h"
 #include "GLTFExporter.generated.h"
 
@@ -24,7 +22,7 @@ public:
 
 protected:
 
-	virtual bool Add(FGLTFContainerBuilder& Builder, const UObject* Object);
+	virtual bool AddObject(FGLTFContainerBuilder& Builder, const UObject* Object);
 
 private:
 
