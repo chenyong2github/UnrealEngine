@@ -7,8 +7,8 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "Modules/ModuleManager.h"
-#include "IMaterialBakingModule.h"
-#include "MaterialBakingStructures.h"
+#include "GLTFMaterialBaking/Public/IMaterialBakingModule.h"
+#include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
 #include "NormalMapPreview.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
@@ -286,7 +286,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	MatSettings.Add(&MatSet);
 
 	TArray<FBakeOutput> BakeOutputs;
-	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
+	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("GLTFMaterialBaking");
 
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 
