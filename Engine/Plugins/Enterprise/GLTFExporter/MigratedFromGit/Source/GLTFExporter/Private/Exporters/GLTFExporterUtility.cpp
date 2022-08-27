@@ -3,7 +3,6 @@
 #include "Exporters/GLTFExporterUtility.h"
 #include "AssetRegistryModule.h"
 #include "LevelSequence.h"
-#include "UnrealEd.h"
 
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
 {
@@ -50,7 +49,7 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 
 TArray<UWorld*> FGLTFExporterUtility::GetReferencedWorlds(const UObject* Object)
 {
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	const FName OuterPathName = *Object->GetOutermost()->GetPathName();
 
 	TArray<UWorld*> ReferencedWorlds;
@@ -60,13 +59,10 @@ TArray<UWorld*> FGLTFExporterUtility::GetReferencedWorlds(const UObject* Object)
 	for (FAssetIdentifier& AssetDependency : AssetDependencies)
 	{
 		FString PackageName = AssetDependency.PackageName.ToString();
-		if (FEditorFileUtils::IsMapPackageAsset(PackageName))
+		UWorld* World = LoadObject<UWorld>(nullptr, *PackageName, nullptr, LOAD_NoWarn);
+		if (World != nullptr)
 		{
-			UWorld* World = LoadObject<UWorld>(nullptr, *PackageName);
-			if (World != nullptr)
-			{
-				ReferencedWorlds.AddUnique(World);
-			}
+			ReferencedWorlds.AddUnique(World);
 		}
 	}
 
