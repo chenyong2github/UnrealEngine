@@ -30,9 +30,9 @@ struct FGLTFJsonNode
 	FGLTFJsonSkinIndex      Skin;
 	FGLTFJsonMeshIndex      Mesh;
 	FGLTFJsonBackdropIndex  Backdrop;
-	FGLTFJsonLightMapIndex  LightMap;
-	FGLTFJsonLightIndex     Light;
 	FGLTFJsonHotspotIndex   Hotspot;
+	FGLTFJsonLightIndex     Light;
+	FGLTFJsonLightMapIndex  LightMap;
 	FGLTFJsonSkySphereIndex SkySphere;
 
 	FGLTFJsonNodeIndex ComponentNode;
@@ -101,7 +101,7 @@ struct FGLTFJsonNode
 			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
 		}
 
-		if (Backdrop != INDEX_NONE || LightMap != INDEX_NONE || Light != INDEX_NONE || Hotspot != INDEX_NONE || SkySphere != INDEX_NONE)
+		if (Backdrop != INDEX_NONE || Hotspot != INDEX_NONE || Light != INDEX_NONE || LightMap != INDEX_NONE || SkySphere != INDEX_NONE)
 		{
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 
@@ -115,13 +115,13 @@ struct FGLTFJsonNode
 				JsonWriter.WriteObjectEnd();
 			}
 
-			if (LightMap != INDEX_NONE)
+			if (Hotspot != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
 				Extensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("lightmap"), LightMap);
+				JsonWriter.WriteValue(TEXT("hotspot"), Hotspot);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -135,13 +135,13 @@ struct FGLTFJsonNode
 				JsonWriter.WriteObjectEnd();
 			}
 
-			if (Hotspot != INDEX_NONE)
+			if (LightMap != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
 				Extensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("hotspot"), Hotspot);
+				JsonWriter.WriteValue(TEXT("lightmap"), LightMap);
 				JsonWriter.WriteObjectEnd();
 			}
 
