@@ -12,7 +12,7 @@ public:
 
 	GENERATED_BODY()
 
-	UGLTFAnimSequenceExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	explicit UGLTFAnimSequenceExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	bool Add(FGLTFContainerBuilder& Builder, const UObject* Object) override;
 };

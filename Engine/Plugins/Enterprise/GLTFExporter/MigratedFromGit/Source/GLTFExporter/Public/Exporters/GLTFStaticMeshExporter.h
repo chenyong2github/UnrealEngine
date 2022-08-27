@@ -12,7 +12,7 @@ public:
 
 	GENERATED_BODY()
 
-	UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	explicit UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	bool Add(FGLTFContainerBuilder& Builder, const UObject* Object) override;
 };

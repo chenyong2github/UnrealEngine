@@ -12,7 +12,7 @@ public:
 
 	GENERATED_BODY()
 
-	UGLTFSkeletalMeshExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	explicit UGLTFSkeletalMeshExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	bool Add(FGLTFContainerBuilder& Builder, const UObject* Object) override;
 };

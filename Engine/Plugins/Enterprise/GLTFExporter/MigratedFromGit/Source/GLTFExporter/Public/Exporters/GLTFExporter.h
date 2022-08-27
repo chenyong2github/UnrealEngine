@@ -18,7 +18,7 @@ public:
 
 	GENERATED_BODY()
 
-	UGLTFExporter(const FObjectInitializer& ObjectInitializer);
+	explicit UGLTFExporter(const FObjectInitializer& ObjectInitializer);
 
 	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags) override;
 
