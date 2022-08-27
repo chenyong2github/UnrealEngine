@@ -6,7 +6,7 @@
 #include "GLTFMaterialExporter.generated.h"
 
 UCLASS()
-class GLTFEXPORTER_API UGLTFMaterialExporter final : public UGLTFExporter
+class GLTFEXPORTER_API UGLTFMaterialExporter : public UGLTFExporter
 {
 public:
 

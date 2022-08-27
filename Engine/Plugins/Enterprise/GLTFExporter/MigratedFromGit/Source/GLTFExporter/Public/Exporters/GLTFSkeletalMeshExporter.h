@@ -6,7 +6,7 @@
 #include "GLTFSkeletalMeshExporter.generated.h"
 
 UCLASS()
-class GLTFEXPORTER_API UGLTFSkeletalMeshExporter final : public UGLTFExporter
+class GLTFEXPORTER_API UGLTFSkeletalMeshExporter : public UGLTFExporter
 {
 public:
 

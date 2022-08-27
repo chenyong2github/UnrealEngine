@@ -6,7 +6,7 @@
 #include "GLTFLevelSequenceExporter.generated.h"
 
 UCLASS()
-class GLTFEXPORTER_API UGLTFLevelSequenceExporter final : public UGLTFExporter
+class GLTFEXPORTER_API UGLTFLevelSequenceExporter : public UGLTFExporter
 {
 public:
 
