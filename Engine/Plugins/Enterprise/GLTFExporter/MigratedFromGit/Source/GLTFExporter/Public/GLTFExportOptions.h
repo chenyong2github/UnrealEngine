@@ -9,8 +9,8 @@ UENUM(BlueprintType)
 enum class EGLTFExporterNormalizeUVCoordinates : uint8
 {
 	Always,
-    Auto,
-	Never,
+	Auto,
+	Never
 };
 
 UENUM(BlueprintType)
@@ -22,24 +22,7 @@ enum class EGLTFExporterNormalExportMethod : uint8
 };
 
 UENUM(BlueprintType)
-enum class EGLTFExporterTextureFormat : uint8
-{
-	PNG,
-	JPEG
-};
-
-UENUM(BlueprintType)
-enum class EGLTFExporterTextureHDREncoding : uint8
-{
-	None,
-	HDR,
-	RGBM,
-	RGBD,
-	RGBE
-};
-
-UENUM(BlueprintType)
-enum class EGLTFExporterTextureSize : uint8
+enum class EGLTFExporterMaterialBakeSize : uint8
 {
 	POT_1 UMETA(DisplayName = "1 x 1"),
 	POT_2 UMETA(DisplayName = "2 x 2"),
@@ -57,6 +40,24 @@ enum class EGLTFExporterTextureSize : uint8
 	POT_8192 UMETA(DisplayName = "8192 x 8192")
 };
 
+UENUM(BlueprintType)
+enum class EGLTFExporterTextureFormat : uint8
+{
+	None,
+	PNG,
+	JPEG
+};
+
+UENUM(BlueprintType)
+enum class EGLTFExporterTextureHDREncoding : uint8
+{
+	None,
+	RGBM,
+	RGBD,
+	RGBE,
+	HDR
+};
+
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
 class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 {
@@ -66,13 +67,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bBundleWebViewer : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Exporter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bExportPreviewMesh : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bAllExtensionsRequired : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bExportVertexColors : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
@@ -82,12 +83,12 @@ public:
 	uint32 bTangentDataQuantization : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
-    EGLTFExporterNormalizeUVCoordinates bNormalizeUVCoordinates;
+	EGLTFExporterNormalizeUVCoordinates bNormalizeUVCoordinates;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	int32 DefaultLevelOfDetail;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
 	uint32 bMapSkeletalMotionToRoot : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
@@ -96,20 +97,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
 	uint32 bExportClearCoatMaterials : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Material)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
 	uint32 bBakeMaterialInputs : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Material)
-	EGLTFExporterTextureSize BakedMaterialInputSize;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
+	EGLTFExporterMaterialBakeSize DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	EGLTFExporterTextureFormat TextureFormat;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
-	EGLTFExporterTextureHDREncoding TextureHDREncoding;
+	uint32 bExportLightmaps : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
-	uint32 bExportLightmaps : 1;
+	EGLTFExporterTextureHDREncoding TextureHDREncoding;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene, meta =
 		(DisplayName = "Export Uniform Scale",
@@ -123,6 +124,9 @@ public:
 	uint32 bExportCameras : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
+	uint32 bExportOrbitalCameras : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportReflectionCaptures : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
@@ -133,9 +137,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportInteractionHotspots : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-    uint32 bExportOrbitalCameras : 1;
 
 	/* Set all the each property to the CDO value */
 	void ResetToDefault();
