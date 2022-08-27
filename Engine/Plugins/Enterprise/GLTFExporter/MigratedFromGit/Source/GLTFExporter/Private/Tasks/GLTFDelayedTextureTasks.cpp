@@ -223,6 +223,7 @@ FString FGLTFDelayedTextureLightMapTask::GetName()
 
 void FGLTFDelayedTextureLightMapTask::Process()
 {
+	FGLTFTextureUtility::FullyLoad(LightMap);
 	LightMap->GetName(JsonTexture->Name);
 
 	// NOTE: export of lightmaps via source data is used to work around issues with
