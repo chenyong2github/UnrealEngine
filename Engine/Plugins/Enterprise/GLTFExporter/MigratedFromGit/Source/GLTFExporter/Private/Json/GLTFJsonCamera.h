@@ -26,10 +26,10 @@ struct FGLTFJsonOrthographic
 	{
 		JsonWriter.WriteObjectStart();
 
-		JsonWriter.WriteValue(TEXT("xmag"), XMag);
-		JsonWriter.WriteValue(TEXT("ymag"), YMag);
-		JsonWriter.WriteValue(TEXT("zfar"), ZFar);
-		JsonWriter.WriteValue(TEXT("znear"), ZNear);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("xmag"), XMag);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("ymag"), YMag);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("zfar"), ZFar);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("znear"), ZNear);
 
 		JsonWriter.WriteObjectEnd();
 	}
@@ -57,17 +57,17 @@ struct FGLTFJsonPerspective
 
 		if (AspectRatio != 0)
 		{
-			JsonWriter.WriteValue(TEXT("aspectRatio"), AspectRatio);
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("aspectRatio"), AspectRatio);
 		}
 
-		JsonWriter.WriteValue(TEXT("yfov"), YFov);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("yfov"), YFov);
 
 		if (ZFar != 0)
 		{
-			JsonWriter.WriteValue(TEXT("zfar"), ZFar);
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("zfar"), ZFar);
 		}
 
-		JsonWriter.WriteValue(TEXT("znear"), ZNear);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("znear"), ZNear);
 
 		JsonWriter.WriteObjectEnd();
 	}
