@@ -5,6 +5,8 @@
 
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
 {
+	// The following implementation is based of FMaterialInstanceEditor::RefreshPreviewAsset
+
 	const UStaticMesh* PreviewMesh = Cast<UStaticMesh>(Material->PreviewMesh.TryLoad());
 	if (PreviewMesh == nullptr)
 	{
