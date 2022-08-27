@@ -121,7 +121,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	bool bExportLightmaps;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding"))
 	EGLTFTextureHDREncoding TextureHDREncoding;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta =
@@ -141,7 +141,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (EditCondition = "bExportCameras"))
 	bool bExportCameraControls;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (DisplayName = "Export HDRI Backdrops"))
 	bool bExportHDRIBackdrops;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
