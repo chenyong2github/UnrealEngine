@@ -23,17 +23,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"UnrealEd",
-					"MeshDescription",
-					"StaticMeshDescription",
-					"MessageLog",
 					"Json",
-					"Slate",
-					"SlateCore",
-					"Mainframe",
-					"InputCore",
-					"EditorStyle",
-					"Projects",
 					"RenderCore",
 					"RHI",
 					"DesktopPlatform",
@@ -41,11 +31,30 @@ namespace UnrealBuildTool.Rules
 					"MovieScene",
 					"MovieSceneTracks",
 					"VariantManagerContent",
-					"MeshMergeUtilities",
-					"GLTFMaterialBaking",
-					"GLTFMaterialAnalyzer"
 				}
 				);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"UnrealEd",
+						"MessageLog",
+						"Slate",
+						"SlateCore",
+						"Mainframe",
+						"InputCore",
+						"EditorStyle",
+						"Projects",
+						"MeshMergeUtilities",
+						"MeshDescription",
+						"StaticMeshDescription",
+						"GLTFMaterialBaking",
+						"GLTFMaterialAnalyzer"
+					}
+					);
+			}
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]
