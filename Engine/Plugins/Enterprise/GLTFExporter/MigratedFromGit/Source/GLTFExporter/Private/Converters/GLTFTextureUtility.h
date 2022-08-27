@@ -42,4 +42,5 @@ struct FGLTFTextureUtility
 	static bool LoadPlatformData(UTextureCube* TextureCube);
 
 	static void FlipGreenChannel(TArray<FColor>& Pixels);
+	static void TransformColorSpace(TArray<FColor>& Pixels, bool bFromSRGB, bool bToSRGB);
 };

@@ -162,42 +162,22 @@ FGLTFJsonSamplerIndex FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Textu
 
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture)
 {
-	if (Texture == nullptr)
-	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
-	}
-
-	return Texture2DConverter.GetOrAdd(Texture);
+	return GetOrAddTexture(Texture, Texture->SRGB);
 }
 
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace)
 {
-	if (Texture == nullptr)
-	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
-	}
-
-	return TextureCubeConverter.GetOrAdd(Texture, CubeFace);
+	return GetOrAddTexture(Texture, CubeFace, Texture->SRGB);
 }
 
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarget2D* Texture)
 {
-	if (Texture == nullptr)
-	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
-	}
-
-	return TextureRenderTarget2DConverter.GetOrAdd(Texture);
+	return GetOrAddTexture(Texture, Texture->SRGB);
 }
 
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace)
 {
-	if (Texture == nullptr)
-	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
-	}
-
-	return TextureRenderTargetCubeConverter.GetOrAdd(Texture, CubeFace);
+	return GetOrAddTexture(Texture, CubeFace, Texture->SRGB);
 }
 
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const ULightMapTexture2D* Texture)
@@ -208,6 +188,46 @@ FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const ULightMapTextur
 	}
 
 	return TextureLightMapConverter.GetOrAdd(Texture);
+}
+
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture, bool bToSRGB)
+{
+	if (Texture == nullptr)
+	{
+		return FGLTFJsonTextureIndex(INDEX_NONE);
+	}
+
+	return Texture2DConverter.GetOrAdd(Texture, bToSRGB);
+}
+
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace, bool bToSRGB)
+{
+	if (Texture == nullptr)
+	{
+		return FGLTFJsonTextureIndex(INDEX_NONE);
+	}
+
+	return TextureCubeConverter.GetOrAdd(Texture, CubeFace, bToSRGB);
+}
+
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarget2D* Texture, bool bToSRGB)
+{
+	if (Texture == nullptr)
+	{
+		return FGLTFJsonTextureIndex(INDEX_NONE);
+	}
+
+	return TextureRenderTarget2DConverter.GetOrAdd(Texture, bToSRGB);
+}
+
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace, bool bToSRGB)
+{
+	if (Texture == nullptr)
+	{
+		return FGLTFJsonTextureIndex(INDEX_NONE);
+	}
+
+	return TextureRenderTargetCubeConverter.GetOrAdd(Texture, CubeFace, bToSRGB);
 }
 
 FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh)
