@@ -38,7 +38,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	const bool bSuccess = AddObject(Builder, Object);
 	if (bSuccess)
 	{
-		Builder.Write(Archive);
+		Builder.Write(Archive, Warn);
 	}
 	else
 	{

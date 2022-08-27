@@ -18,8 +18,10 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive) const
 	FGLTFContainerUtility::WriteGlb(Archive, JsonData, BufferData);
 }
 
-void FGLTFContainerBuilder::Write(FArchive& Archive) const
+void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 {
+	CompleteAllTasks(Context);
+
 	if (bIsGlbFile)
 	{
 		WriteGlb(Archive);
