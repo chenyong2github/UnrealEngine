@@ -398,16 +398,19 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 		TEXT("ClearCoatBottomNormal"),
 	};
 
-	bool bRequiresVertexData = false;
+	bool bNeedsMeshData = false;
 	FGLTFMaterialAnalysis Analysis;
+
+	// TODO: optimize baking by seperating need for vertex data and primitive data
 
 	for (const FMaterialPropertyEx& Property: Properties)
 	{
 		AnalyzeMaterialProperty(Material, Property, Analysis);
-		bRequiresVertexData |= Analysis.bRequiresVertexData;
+		bNeedsMeshData |= Analysis.bRequiresVertexData;
+		bNeedsMeshData |= Analysis.bRequiresPrimitiveData;
 	}
 
-	return bRequiresVertexData;
+	return bNeedsMeshData;
 }
 
 bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>& Materials)

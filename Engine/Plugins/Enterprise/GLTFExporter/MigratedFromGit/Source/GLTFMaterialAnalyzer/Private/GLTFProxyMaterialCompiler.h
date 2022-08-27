@@ -6,7 +6,60 @@
 
 class FGLTFProxyMaterialCompiler : public FProxyMaterialCompiler
 {
+public:
+
+	bool bUsesActorPosition = false;
+	bool bUsesObjectPosition = false;
+	bool bUsesObjectOrientation = false;
+	bool bUsesObjectRadius = false;
+	bool bUsesObjectBounds = false;
+	bool bUsesObjectLocalBounds = false; // TODO: add overridable compiler method for ObjectLocalBounds in engine
+	bool bUsesPreSkinnedLocalBounds = false;
+	bool bUsesCustomPrimitiveData = false;
+
 	using FProxyMaterialCompiler::FProxyMaterialCompiler;
+
+	virtual int32 ActorWorldPosition() override
+	{
+		bUsesActorPosition = true;
+		return Compiler->ActorWorldPosition();
+	}
+
+	virtual int32 ObjectWorldPosition() override
+	{
+		bUsesObjectPosition = true;
+		return Compiler->ObjectWorldPosition();
+	}
+
+	virtual int32 ObjectOrientation() override
+	{
+		bUsesObjectOrientation = true;
+		return Compiler->ObjectOrientation();
+	}
+
+	virtual int32 ObjectRadius() override
+	{
+		bUsesObjectRadius = true;
+		return Compiler->ObjectRadius();
+	}
+
+	virtual int32 ObjectBounds() override
+	{
+		bUsesObjectBounds = true;
+		return Compiler->ObjectBounds();
+	}
+
+	virtual int32 PreSkinnedLocalBounds(int32 OutputIndex) override
+	{
+		bUsesPreSkinnedLocalBounds = true;
+		return Compiler->PreSkinnedLocalBounds(OutputIndex);
+	}
+	
+	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override
+	{
+		bUsesCustomPrimitiveData = true;
+		return Compiler->CustomPrimitiveData(OutputIndex, Type);
+	}
 
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override
 	{
