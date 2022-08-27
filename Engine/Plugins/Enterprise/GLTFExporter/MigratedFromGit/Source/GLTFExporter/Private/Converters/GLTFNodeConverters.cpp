@@ -80,18 +80,12 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	{
 		Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
 
-		if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
+		// TODO: remove need for NodeIndex by adding support for cyclic calls in converter
+		const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMeshComponent);
+		if (SkinIndex != INDEX_NONE)
 		{
-			const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMesh);
 			Builder.GetNode(NodeIndex).Skin = SkinIndex;
-
-			if (SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::AnimationSingleNode)
-			{
-				if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(SkeletalMeshComponent->AnimationData.AnimToPlay))
-				{
-					Builder.GetOrAddAnimation(NodeIndex, SkeletalMesh, AnimSequence);
-				}
-			}
+			Builder.GetOrAddAnimation(NodeIndex, SkeletalMeshComponent);
 		}
 	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
