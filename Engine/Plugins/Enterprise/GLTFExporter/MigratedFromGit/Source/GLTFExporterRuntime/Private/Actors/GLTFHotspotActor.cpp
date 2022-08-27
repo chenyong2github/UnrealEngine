@@ -510,8 +510,6 @@ const UTexture2D* AGLTFHotspotActor::GetImageForState(EGLTFHotspotState State) c
 		case EGLTFHotspotState::ToggledHovered: return CurrentToggledHoveredImage;
 		default:
 			checkNoEntry();
-			break;
+			return nullptr;
 	}
-
-	return nullptr;
 }

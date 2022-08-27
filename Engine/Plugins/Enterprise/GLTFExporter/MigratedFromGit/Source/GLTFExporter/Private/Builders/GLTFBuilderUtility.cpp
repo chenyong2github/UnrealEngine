@@ -10,7 +10,7 @@ const TCHAR* FGLTFBuilderUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
 		case EGLTFJsonMimeType::JPEG: return TEXT(".jpg");
 		default:
 			checkNoEntry();
-			return TEXT(".unknown");
+			return TEXT("");
 	}
 }
 
