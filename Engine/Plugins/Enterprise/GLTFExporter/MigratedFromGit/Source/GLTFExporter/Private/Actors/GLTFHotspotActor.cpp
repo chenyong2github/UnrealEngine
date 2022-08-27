@@ -453,13 +453,19 @@ void AGLTFHotspotActor::ValidateAnimation()
 {
 	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
 	{
-		if (USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
+		if (const USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
 		{
-			if (SkeletalMesh->GetSkeleton() != AnimationSequence->GetSkeleton())
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+			const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+#else
+			const USkeleton* Skeleton = SkeletalMesh->Skeleton;
+#endif
+
+			if (Skeleton != AnimationSequence->GetSkeleton())
 			{
-				if (SkeletalMesh->GetSkeleton() != nullptr)
+				if (Skeleton != nullptr)
 				{
-					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->GetSkeleton()->GetName());
+					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *Skeleton->GetName());
 				}
 				else
 				{

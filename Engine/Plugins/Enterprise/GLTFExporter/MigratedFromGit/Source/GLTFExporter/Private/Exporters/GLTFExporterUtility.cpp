@@ -2,7 +2,7 @@
 
 #include "Exporters/GLTFExporterUtility.h"
 #include "Materials/MaterialInstance.h"
-#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistryModule.h"
 
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
 {
@@ -45,12 +45,18 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 
 const USkeletalMesh* FGLTFExporterUtility::FindCompatibleMesh(const USkeleton *Skeleton)
 {
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	const FName SkeletonMemberName = USkeletalMesh::GetSkeletonMemberName();
+#else
+	const FName SkeletonMemberName = GET_MEMBER_NAME_CHECKED(USkeletalMesh, Skeleton);
+#endif
+
 	FARFilter Filter;
 	Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
-	Filter.TagsAndValues.Add(USkeletalMesh::GetSkeletonMemberName(), FAssetData(Skeleton).GetExportTextName());
+	Filter.TagsAndValues.Add(SkeletonMemberName, FAssetData(Skeleton).GetExportTextName());
 
 	TArray<FAssetData> FilteredAssets;
-	IAssetRegistry::GetChecked().GetAssets(Filter, FilteredAssets);
+	FAssetRegistryModule::GetRegistry().GetAssets(Filter, FilteredAssets);
 
 	for (const FAssetData& Asset : FilteredAssets)
 	{
@@ -70,7 +76,7 @@ TArray<UWorld*> FGLTFExporterUtility::GetAssociatedWorlds(const UObject* Object)
 	TArray<FAssetIdentifier> Dependencies;
 
 	const FName OuterPathName = *Object->GetOutermost()->GetPathName();
-	IAssetRegistry::GetChecked().GetDependencies(OuterPathName, Dependencies);
+	FAssetRegistryModule::GetRegistry().GetDependencies(OuterPathName, Dependencies);
 
 	for (FAssetIdentifier& Dependency : Dependencies)
 	{

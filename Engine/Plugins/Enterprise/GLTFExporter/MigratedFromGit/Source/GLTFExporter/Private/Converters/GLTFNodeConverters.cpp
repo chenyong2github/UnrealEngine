@@ -244,6 +244,12 @@ FGLTFJsonNodeIndex FGLTFStaticSocketConverter::Convert(FGLTFJsonNodeIndex RootNo
 
 FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
 {
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+#else
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+#endif
+
 	const USkeletalMeshSocket* Socket = SkeletalMesh->FindSocket(SocketName);
 	if (Socket != nullptr)
 	{
@@ -255,12 +261,12 @@ FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex Root
 		Node.Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
 		Node.Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
 
-		const int32 ParentBone = SkeletalMesh->GetRefSkeleton().FindBoneIndex(Socket->BoneName);
+		const int32 ParentBone = RefSkeleton.FindBoneIndex(Socket->BoneName);
 		const FGLTFJsonNodeIndex ParentNode = ParentBone != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
 		return Builder.AddChildNode(ParentNode, Node);
 	}
 
-	const int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(SocketName);
+	const int32 BoneIndex = RefSkeleton.FindBoneIndex(SocketName);
 	if (BoneIndex != INDEX_NONE)
 	{
 		return Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
@@ -272,9 +278,15 @@ FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex Root
 
 FGLTFJsonNodeIndex FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex)
 {
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+#else
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+#endif
+
 	// TODO: add support for MasterPoseComponent?
 
-	const TArray<FMeshBoneInfo>& BoneInfos = SkeletalMesh->GetRefSkeleton().GetRefBoneInfo();
+	const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
 	if (!BoneInfos.IsValidIndex(BoneIndex))
 	{
 		// TODO: report error
@@ -286,7 +298,7 @@ FGLTFJsonNodeIndex FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNodeIndex RootNo
 	FGLTFJsonNode Node;
 	Node.Name = BoneInfo.Name.ToString();
 
-	const TArray<FTransform>& BonePoses = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
+	const TArray<FTransform>& BonePoses = RefSkeleton.GetRefBonePose();
 	if (BonePoses.IsValidIndex(BoneIndex))
 	{
 		// TODO: add warning check for non-uniform scaling

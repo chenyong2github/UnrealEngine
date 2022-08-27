@@ -43,8 +43,10 @@ struct FGLTFMaterialUtility
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
 	static bool IsSRGB(const FMaterialPropertyEx& Property);
 
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	static FGuid GetAttributeID(const FMaterialPropertyEx& Property);
 	static FGuid GetAttributeIDChecked(const FMaterialPropertyEx& Property);
+#endif
 
 	static FVector4 GetPropertyDefaultValue(const FMaterialPropertyEx& Property);
 	static FVector4 GetPropertyMask(const FMaterialPropertyEx& Property);
