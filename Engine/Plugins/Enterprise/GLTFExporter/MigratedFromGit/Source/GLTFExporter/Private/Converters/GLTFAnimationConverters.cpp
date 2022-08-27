@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFAnimationConverters.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFBoneUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Animation/AnimSequence.h"
@@ -184,4 +185,30 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 	}
 
 	return Builder.AddAnimation(JsonAnimation);
+}
+
+FGLTFJsonAnimationIndex FGLTFAnimationDataConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
+{
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const UAnimSequence* AnimSequence = Cast<UAnimSequence>(SkeletalMeshComponent->AnimationData.AnimToPlay);
+
+	if (SkeletalMesh == nullptr || AnimSequence == nullptr || SkeletalMeshComponent->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
+	{
+		return FGLTFJsonAnimationIndex(INDEX_NONE);
+	}
+
+	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
+	if (AnimationIndex != INDEX_NONE)
+	{
+		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
+		JsonAnimation.Name = FGLTFNameUtility::GetName(SkeletalMeshComponent);
+
+		FGLTFJsonPlayData& JsonPlayData = JsonAnimation.PlayData;
+		JsonPlayData.Looping = SkeletalMeshComponent->AnimationData.bSavedLooping;
+		JsonPlayData.Playing = SkeletalMeshComponent->AnimationData.bSavedPlaying;
+		JsonPlayData.PlayRate = SkeletalMeshComponent->AnimationData.SavedPlayRate;
+		JsonPlayData.Position = SkeletalMeshComponent->AnimationData.SavedPosition;
+	}
+
+	return AnimationIndex;
 }
