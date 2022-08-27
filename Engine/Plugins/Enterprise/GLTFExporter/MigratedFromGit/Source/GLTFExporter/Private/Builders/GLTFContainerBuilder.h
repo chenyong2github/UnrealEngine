@@ -10,7 +10,7 @@ protected:
 
 	FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
 
-	void WriteGlb(FArchive& Archive) const;
+	void WriteGlb(FArchive& Archive);
 
 private:
 
