@@ -3,24 +3,20 @@
 #pragma once
 
 #include "Json/GLTFJsonMaterial.h"
-#include "Json/GLTFJsonVector2.h"
 #include "Json/GLTFJsonVector4.h"
-#include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonLightMap
 {
 	FString              Name;
 	FGLTFJsonTextureInfo Texture;
-	FGLTFJsonVector4     ValueScale;
-	FGLTFJsonVector4     ValueOffset;
-	FGLTFJsonVector2     CoordinateScale;
-	FGLTFJsonVector2     CoordinateOffset;
+	FGLTFJsonVector4     LightMapScale;
+	FGLTFJsonVector4     LightMapAdd;
+	FGLTFJsonVector4     CoordinateScaleBias;
 
 	FGLTFJsonLightMap()
-		: ValueScale(FGLTFJsonVector4::One)
-		, ValueOffset(FGLTFJsonVector4::Zero)
-		, CoordinateScale(FGLTFJsonVector2::One)
-		, CoordinateOffset(FGLTFJsonVector2::Zero)
+		: LightMapScale(FGLTFJsonVector4::One)
+		, LightMapAdd(FGLTFJsonVector4::Zero)
+		, CoordinateScaleBias({ 1, 1, 0, 0 })
 	{
 	}
 
@@ -40,17 +36,14 @@ struct FGLTFJsonLightMap
 			Texture.WriteObject(JsonWriter, Extensions);
 		}
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("valueScale"));
-		ValueScale.WriteArray(JsonWriter);
+		JsonWriter.WriteIdentifierPrefix(TEXT("lightmapScale"));
+		LightMapScale.WriteArray(JsonWriter);
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("valueOffset"));
-		ValueOffset.WriteArray(JsonWriter);
+		JsonWriter.WriteIdentifierPrefix(TEXT("lightmapAdd"));
+		LightMapAdd.WriteArray(JsonWriter);
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("coordinateScale"));
-		CoordinateScale.WriteArray(JsonWriter);
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("coordinateOffset"));
-		CoordinateOffset.WriteArray(JsonWriter);
+		JsonWriter.WriteIdentifierPrefix(TEXT("coordinateScaleBias"));
+		CoordinateScaleBias.WriteArray(JsonWriter);
 
 		JsonWriter.WriteObjectEnd();
 	}

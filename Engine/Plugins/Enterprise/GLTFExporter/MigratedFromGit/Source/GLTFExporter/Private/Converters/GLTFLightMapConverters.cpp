@@ -68,10 +68,9 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Add(FGLTFConvertBuilder& Builder,
 	JsonLightMap.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + StaticMeshComponent->GetName() : Name;
 	JsonLightMap.Texture.Index = TextureIndex;
 	JsonLightMap.Texture.TexCoord = CoordinateIndex;
-	JsonLightMap.ValueScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };
-	JsonLightMap.ValueOffset = { LightMapAdd.X, LightMapAdd.Y, LightMapAdd.Z, LightMapAdd.W };
-	JsonLightMap.CoordinateScale = { CoordinateScale.X, CoordinateScale.Y };
-	JsonLightMap.CoordinateOffset = { CoordinateBias.X, CoordinateBias.Y };
+	JsonLightMap.LightMapScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };
+	JsonLightMap.LightMapAdd = { LightMapAdd.X, LightMapAdd.Y, LightMapAdd.Z, LightMapAdd.W };
+	JsonLightMap.CoordinateScaleBias = { CoordinateScale.X, CoordinateScale.Y, CoordinateBias.X, CoordinateBias.Y };
 
 	return Builder.AddLightMap(JsonLightMap);
 }
