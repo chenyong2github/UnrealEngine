@@ -33,10 +33,3 @@ void FGLTFBoneUtility::InitializeToSkeleton(FBoneContainer& BoneContainer, const
 	BoneContainer.SetUseRAWData(true);
 	BoneContainer.InitializeTo(RequiredBoneIndices, FCurveEvaluationOption(true), *const_cast<USkeleton*>(Skeleton));
 }
-
-void FGLTFBoneUtility::RetargetTransform(const UAnimSequence* AnimSequence, FTransform& BoneTransform, int32 SkeletonBoneIndex, int32 BoneIndex, const FBoneContainer& RequiredBones)
-{
-	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
-	const FName& RetargetSource = AnimSequence->RetargetSource;
-	FAnimationRuntime::RetargetBoneTransform(Skeleton, RetargetSource, BoneTransform, SkeletonBoneIndex, FCompactPoseBoneIndex(BoneIndex), RequiredBones, false);
-}
