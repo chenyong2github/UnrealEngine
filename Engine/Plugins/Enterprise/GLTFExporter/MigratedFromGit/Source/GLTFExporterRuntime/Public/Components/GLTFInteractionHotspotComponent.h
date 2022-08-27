@@ -27,6 +27,7 @@ public:
 
 	//~ Begin UActorComponent Interface
 	virtual void BeginPlay() override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
 	virtual void OnRegister() override;
@@ -42,8 +43,6 @@ private:
 	UFUNCTION()
 	void Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed);
 
-	void UpdateCollisionVolume();
-	float GetBillboardBoundingRadius() const;
 	UTexture2D* CalculateActiveImage(bool bCursorOver) const;
 
 protected:
