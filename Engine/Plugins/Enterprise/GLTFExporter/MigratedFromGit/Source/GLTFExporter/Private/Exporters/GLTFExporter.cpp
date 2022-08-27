@@ -40,11 +40,6 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	{
 		Builder.Write(Archive, Warn);
 	}
-	else
-	{
-		// TODO: more descriptive error
-		Builder.AddErrorMessage(TEXT("AddObject failed"));
-	}
 
 	// TODO: should we copy messages to UAssetExportTask::Errors?
 
