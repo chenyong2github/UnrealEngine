@@ -359,7 +359,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		FLinearColor BaseColorFactor(BaseColorBakeOutput.ConstantValue * BaseColorScale);
 		BaseColorFactor.A = OpacityBakeOutput.ConstantValue.A;
 
-		OutPBRParams.BaseColorFactor = FGLTFConverterUtility::ConvertColor(BaseColorFactor);
+		OutPBRParams.BaseColorFactor = FGLTFConverterUtility::ConvertColor(BaseColorFactor, Builder.ExportOptions->bStrictCompliance);
 		return true;
 	}
 
@@ -410,7 +410,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 
 	OutPBRParams.BaseColorTexture.TexCoord = TexCoord;
 	OutPBRParams.BaseColorTexture.Index = TextureIndex;
-	OutPBRParams.BaseColorFactor = { BaseColorScale, BaseColorScale, BaseColorScale };
+	OutPBRParams.BaseColorFactor = FGLTFConverterUtility::ConvertColor({ BaseColorScale, BaseColorScale, BaseColorScale }, Builder.ExportOptions->bStrictCompliance);
 
 	return true;
 }
@@ -609,7 +609,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 	if (IntensityBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
 	{
 		OutExtParams.ClearCoatFactor = IntensityBakeOutput.ConstantValue.R;
-		OutExtParams.ClearCoatRoughnessFactor =  RoughnessBakeOutput.ConstantValue.R;
+		OutExtParams.ClearCoatRoughnessFactor = RoughnessBakeOutput.ConstantValue.R;
 		return true;
 	}
 
@@ -697,7 +697,7 @@ bool FGLTFMaterialTask::TryGetEmissive(FGLTFJsonMaterial& JsonMaterial, const FM
 	if (PropertyBakeOutput.bIsConstant)
 	{
 		const FLinearColor EmissiveColor = PropertyBakeOutput.ConstantValue;
-		JsonMaterial.EmissiveFactor = FGLTFConverterUtility::ConvertColor(EmissiveColor * EmissiveScale);
+		JsonMaterial.EmissiveFactor = FGLTFConverterUtility::ConvertColor(EmissiveColor * EmissiveScale, Builder.ExportOptions->bStrictCompliance);
 	}
 	else
 	{
@@ -748,7 +748,7 @@ bool FGLTFMaterialTask::TryGetConstantColor(FGLTFJsonColor3& OutValue, const FMa
 	FLinearColor Value;
 	if (TryGetConstantColor(Value, Property))
 	{
-		OutValue = FGLTFConverterUtility::ConvertColor(Value);
+		OutValue = FGLTFConverterUtility::ConvertColor(Value, Builder.ExportOptions->bStrictCompliance);
 		return true;
 	}
 
@@ -760,7 +760,7 @@ bool FGLTFMaterialTask::TryGetConstantColor(FGLTFJsonColor4& OutValue, const FMa
 	FLinearColor Value;
 	if (TryGetConstantColor(Value, Property))
 	{
-		OutValue = FGLTFConverterUtility::ConvertColor(Value);
+		OutValue = FGLTFConverterUtility::ConvertColor(Value, Builder.ExportOptions->bStrictCompliance);
 		return true;
 	}
 
@@ -1123,7 +1123,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
-		OutConstant = FGLTFConverterUtility::ConvertColor(PropertyBakeOutput.ConstantValue);
+		OutConstant = FGLTFConverterUtility::ConvertColor(PropertyBakeOutput.ConstantValue, Builder.ExportOptions->bStrictCompliance);
 		return true;
 	}
 
@@ -1162,7 +1162,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
-		OutConstant = FGLTFConverterUtility::ConvertColor(PropertyBakeOutput.ConstantValue);
+		OutConstant = FGLTFConverterUtility::ConvertColor(PropertyBakeOutput.ConstantValue, Builder.ExportOptions->bStrictCompliance);
 		return true;
 	}
 
