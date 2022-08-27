@@ -1,0 +1,44 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Serialization/JsonSerializer.h"
+
+struct FGLTFJsonQuaternion
+{
+	float X, Y, Z, W;
+
+	static const FGLTFJsonQuaternion Identity;
+
+	FGLTFJsonQuaternion(float X, float Y, float Z, float W)
+		: X(X), Y(Y), Z(Z), W(W)
+	{
+	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	{
+		JsonWriter.WriteArrayStart();
+		JsonWriter.WriteValue(X);
+		JsonWriter.WriteValue(Y);
+		JsonWriter.WriteValue(Z);
+		JsonWriter.WriteValue(W);
+		JsonWriter.WriteArrayEnd();
+	}
+
+	bool operator==(const FGLTFJsonQuaternion& Other) const
+	{
+		return X == Other.X
+			&& Y == Other.Y
+			&& Z == Other.Z
+			&& W == Other.W;
+	}
+
+	bool operator!=(const FGLTFJsonQuaternion& Other) const
+	{
+		return X != Other.X
+            || Y != Other.Y
+            || Z != Other.Z
+            || W != Other.W;
+	}
+};
