@@ -246,6 +246,26 @@ FGLTFJsonSamplerIndex FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Textu
 	return SamplerConverter->GetOrAdd(Texture);
 }
 
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture* Texture)
+{
+	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
+	{
+		return GetOrAddTexture(Texture2D);
+	}
+
+	if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
+	{
+		return GetOrAddTexture(RenderTarget2D);
+	}
+
+	if (const ULightMapTexture2D* LightMap = Cast<ULightMapTexture2D>(Texture))
+	{
+		return GetOrAddTexture(LightMap);
+	}
+
+	return FGLTFJsonTextureIndex(INDEX_NONE);
+}
+
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture)
 {
 	return GetOrAddTexture(Texture, Texture->SRGB);

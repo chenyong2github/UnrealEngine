@@ -44,28 +44,28 @@ public:
 	FGLTFJsonNodeIndex AddChildComponentNode(FGLTFJsonNodeIndex ParentNodeIndex, const FGLTFJsonNode& JsonNode = {});
 
 	const FGLTFJsonRoot& GetRoot() const;
-	FGLTFJsonAccessor& GetAccessor(FGLTFJsonAccessorIndex AccessorIndex);
-	FGLTFJsonAnimation& GetAnimation(FGLTFJsonAnimationIndex AnimationIndex);
-	FGLTFJsonBuffer& GetBuffer(FGLTFJsonBufferIndex BufferIndex);
-	FGLTFJsonBufferView& GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex);
-	FGLTFJsonCamera& GetCamera(FGLTFJsonCameraIndex CameraIndex);
-	FGLTFJsonImage& GetImage(FGLTFJsonImageIndex ImageIndex);
-	FGLTFJsonMaterial& GetMaterial(FGLTFJsonMaterialIndex MaterialIndex);
-	FGLTFJsonMesh& GetMesh(FGLTFJsonMeshIndex MeshIndex);
-	FGLTFJsonNode& GetNode(FGLTFJsonNodeIndex NodeIndex);
-	FGLTFJsonSampler& GetSampler(FGLTFJsonSamplerIndex SamplerIndex);
-	FGLTFJsonScene& GetScene(FGLTFJsonSceneIndex SceneIndex);
-	FGLTFJsonSkin& GetSkin(FGLTFJsonSkinIndex SkinIndex);
-	FGLTFJsonTexture& GetTexture(FGLTFJsonTextureIndex TextureIndex);
-	FGLTFJsonBackdrop& GetBackdrop(FGLTFJsonBackdropIndex BackdropIndex);
-	FGLTFJsonHotspot& GetHotspot(FGLTFJsonHotspotIndex HotspotIndex);
-	FGLTFJsonLight& GetLight(FGLTFJsonLightIndex LightIndex);
-	FGLTFJsonLightMap& GetLightMap(FGLTFJsonLightMapIndex LightMapIndex);
-	FGLTFJsonSkySphere& GetSkySphere(FGLTFJsonSkySphereIndex SkySphereIndex);
-	FGLTFJsonEpicLevelVariantSets& GetEpicLevelVariantSets(FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex);
-	FGLTFJsonKhrMaterialVariant& GetKhrMaterialVariant(FGLTFJsonKhrMaterialVariantIndex KhrMaterialVariantIndex);
+	FGLTFJsonAccessor& GetAccessor(FGLTFJsonAccessorIndex AccessorIndex) const;
+	FGLTFJsonAnimation& GetAnimation(FGLTFJsonAnimationIndex AnimationIndex) const;
+	FGLTFJsonBuffer& GetBuffer(FGLTFJsonBufferIndex BufferIndex) const;
+	FGLTFJsonBufferView& GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex) const;
+	FGLTFJsonCamera& GetCamera(FGLTFJsonCameraIndex CameraIndex) const;
+	FGLTFJsonImage& GetImage(FGLTFJsonImageIndex ImageIndex) const;
+	FGLTFJsonMaterial& GetMaterial(FGLTFJsonMaterialIndex MaterialIndex) const;
+	FGLTFJsonMesh& GetMesh(FGLTFJsonMeshIndex MeshIndex) const;
+	FGLTFJsonNode& GetNode(FGLTFJsonNodeIndex NodeIndex) const;
+	FGLTFJsonSampler& GetSampler(FGLTFJsonSamplerIndex SamplerIndex) const;
+	FGLTFJsonScene& GetScene(FGLTFJsonSceneIndex SceneIndex) const;
+	FGLTFJsonSkin& GetSkin(FGLTFJsonSkinIndex SkinIndex) const;
+	FGLTFJsonTexture& GetTexture(FGLTFJsonTextureIndex TextureIndex) const;
+	FGLTFJsonBackdrop& GetBackdrop(FGLTFJsonBackdropIndex BackdropIndex) const;
+	FGLTFJsonHotspot& GetHotspot(FGLTFJsonHotspotIndex HotspotIndex) const;
+	FGLTFJsonLight& GetLight(FGLTFJsonLightIndex LightIndex) const;
+	FGLTFJsonLightMap& GetLightMap(FGLTFJsonLightMapIndex LightMapIndex) const;
+	FGLTFJsonSkySphere& GetSkySphere(FGLTFJsonSkySphereIndex SkySphereIndex) const;
+	FGLTFJsonEpicLevelVariantSets& GetEpicLevelVariantSets(FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex) const;
+	FGLTFJsonKhrMaterialVariant& GetKhrMaterialVariant(FGLTFJsonKhrMaterialVariantIndex KhrMaterialVariantIndex) const;
 
-	FGLTFJsonNodeIndex GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex);
+	FGLTFJsonNodeIndex GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex) const;
 
 private:
 
