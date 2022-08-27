@@ -3,16 +3,15 @@
 #pragma once
 
 #include "GLTFJsonIndex.h"
+#include "GLTFConverter.h"
 #include "Engine.h"
 
-struct FGLTFIndexedBuilder;
-
-struct GLTFEXPORTER_API FGLTFSceneComponentConverter
+class GLTFEXPORTER_API FGLTFSceneComponentConverter final : public TGLTFConverter<FGLTFJsonNodeIndex, TTuple<const USceneComponent*, bool, bool>>
 {
-	static FGLTFJsonNodeIndex Add(FGLTFIndexedBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode = false);
+	FGLTFJsonNodeIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const USceneComponent*, bool, bool> Params) override;
 };
 
-struct GLTFEXPORTER_API FGLTFLevelConverter
+class GLTFEXPORTER_API FGLTFLevelConverter final : public TGLTFConverter<FGLTFJsonSceneIndex, TTuple<const ULevel*, bool>>
 {
-	static FGLTFJsonSceneIndex Add(FGLTFIndexedBuilder& Builder, const FString& Name, const ULevel* Level, bool bSelectedOnly);
+	FGLTFJsonSceneIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const ULevel*, bool> Params) override;
 };

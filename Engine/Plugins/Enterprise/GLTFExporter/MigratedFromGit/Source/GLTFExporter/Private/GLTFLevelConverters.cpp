@@ -4,8 +4,12 @@
 #include "GLTFContainerBuilder.h"
 #include "GLTFConverterUtility.h"
 
-FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFIndexedBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode)
+FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const USceneComponent*, bool, bool> Params)
 {
+	const USceneComponent* SceneComponent = Params.Get<0>();
+	bool bSelectedOnly = Params.Get<1>();
+	bool bRootNode = Params.Get<2>();
+
 	const AActor* Owner = SceneComponent->GetOwner();
 	const bool bIsRootComponent = Owner != nullptr && Owner->GetRootComponent() == SceneComponent;
 	const UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(Owner != nullptr ? Owner->GetClass() : nullptr);
@@ -51,8 +55,11 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFIndexedBuilder& Builde
 	return Builder.AddNode(Node);
 }
 
-FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFIndexedBuilder& Builder, const FString& Name, const ULevel* Level, bool bSelectedOnly)
+FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const ULevel*, bool> Params)
 {
+	const ULevel* Level = Params.Get<0>();
+	bool bSelectedOnly = Params.Get<1>();
+
 	FGLTFJsonScene Scene;
 	Scene.Name = Name;
 
