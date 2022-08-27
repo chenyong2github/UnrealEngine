@@ -16,4 +16,15 @@ struct FGLTFMeshSection
 	TArray<TArray<FBoneIndexType>> BoneMaps;
 	TArray<uint32> BoneMapLookup;
 	FBoneIndexType MaxBoneIndex;
+
+private:
+
+	template <typename IndexType, typename SectionArrayType>
+	void Init(const SectionArrayType& Sections, const FGLTFIndexArray& SectionIndices, const IndexType* SourceData);
+
+	static uint32 GetIndexOffset(const FStaticMeshSection& Section);
+	static uint32 GetIndexOffset(const FSkelMeshRenderSection& Section);
+
+	static const TArray<FBoneIndexType>& GetBoneMap(const FStaticMeshSection& Section);
+	static const TArray<FBoneIndexType>& GetBoneMap(const FSkelMeshRenderSection& Section);
 };
