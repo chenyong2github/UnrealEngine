@@ -110,23 +110,12 @@ UTexture2D* FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint OutputSiz
 		PF_B8G8R8A8);
 }
 
-FGLTFJsonTextureIndex FGLTFMaterialUtility::AddMetallicRoughnessTexture(FGLTFConvertBuilder& Builder, const UTexture2D* MetallicTexture, const UTexture2D* RoughnessTexture, EGLTFJsonTextureFilter Filter, EGLTFJsonTextureWrap Wrap, const FString& TextureName)
+FGLTFJsonTextureIndex FGLTFMaterialUtility::AddCombinedTexture(FGLTFConvertBuilder& Builder, const TArray<FGLTFTextureCombineSource>& CombineSources, const FIntPoint TextureSize, const FString& TextureName, const EGLTFJsonTextureFilter Filter, const EGLTFJsonTextureWrap Wrap)
 {
-	check(MetallicTexture->GetPixelFormat() == RoughnessTexture->GetPixelFormat());
-
-	// TODO: Smarter calculation for output-size?
-	const FIntPoint TextureSize(
-		FMath::Max(MetallicTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
-		FMath::Max(MetallicTexture->GetSizeY(), RoughnessTexture->GetSizeY()));
+	check(CombineSources.Num() > 0);
 
 	TArray<FColor> Pixels;
-	const EPixelFormat PixelFormat = MetallicTexture->GetPixelFormat();
-
-	const TArray<FGLTFTextureCombineSource> CombineSources =
-	{
-		{MetallicTexture, FLinearColor(0, 0, 1, 0)},
-		{RoughnessTexture, FLinearColor(0, 1, 0, 0)}
-	};
+	const EPixelFormat PixelFormat = CombineSources[0].Texture->GetPixelFormat();
 
 	if (!CombineTextures(Pixels, CombineSources, TextureSize, PixelFormat))
 	{

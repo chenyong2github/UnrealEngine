@@ -216,15 +216,31 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	RoughnessTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_Roughness, MaterialInterface);
 	MetallicTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_Metallic, MaterialInterface);
 
+	// NOTE: the baked textures may have a different (smaller) size than requested, so we update the
+	// texture-size to fit both textures without wasting too much space.
+	TextureSize = {
+		FMath::Max(MetallicTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
+		FMath::Max(MetallicTexture->GetSizeY(), RoughnessTexture->GetSizeY())
+	};
+
+	// TODO: handle the case where TextureSize is 1x1. In this case, both properties are constants and we should
+	// extract the value of each property from the texture and use as-is instead of exporting a combined texture.
+
 	const FString TextureName = FString::Printf(TEXT("%s_MetallicRoughness"), *MaterialInterface->GetName());
 
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddMetallicRoughnessTexture(
+	const TArray<FGLTFTextureCombineSource> CombineSources =
+	{
+		{MetallicTexture, FLinearColor(0, 0, 1, 0)},
+		{RoughnessTexture, FLinearColor(0, 1, 0, 0)}
+	};
+
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddCombinedTexture(
 		Builder,
-		MetallicTexture,
-		RoughnessTexture,
+		CombineSources,
+		TextureSize,
+		TextureName,
 		TextureFilter,
-		TextureWrap,
-		TextureName);
+		TextureWrap);
 
 	OutPBRParams.MetallicRoughnessTexture.TexCoord = TexCoord;
 	OutPBRParams.MetallicRoughnessTexture.Index = TextureIndex;
