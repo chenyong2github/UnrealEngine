@@ -22,8 +22,8 @@ struct FGLTFJsonBackdrop
 	bool UseCameraProjection;
 
 	FGLTFJsonBackdrop()
-		: Intensity(1)
-		, Size(1)
+		: Intensity(0)
+		, Size(0)
 		, ProjectionCenter(FGLTFJsonVector3::Zero)
 		, LightingDistanceFactor(0)
 		, UseCameraProjection(false)
