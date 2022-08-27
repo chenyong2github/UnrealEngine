@@ -55,10 +55,7 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 		const FStaticMeshSection& Section = MeshLOD.Sections[SectionIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer);
 
-		const int32 MaterialIndex = Section.MaterialIndex;
-		const UMaterialInterface* Material = OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex] != nullptr ?
-			OverrideMaterials[MaterialIndex] : StaticMesh->GetMaterial(MaterialIndex);
-
+		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, Section.MaterialIndex);
 		if (Material != nullptr)
 		{
 			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
@@ -134,10 +131,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 		const FSkelMeshRenderSection& Section = MeshLOD.RenderSections[SectionIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer);
 
-		const int32 MaterialIndex = Section.MaterialIndex;
-		const UMaterialInterface* Material = OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex] != nullptr ?
-			OverrideMaterials[MaterialIndex] : SkeletalMesh->Materials[MaterialIndex].MaterialInterface;
-
+		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, Section.MaterialIndex);
 		if (Material != nullptr)
 		{
 			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);

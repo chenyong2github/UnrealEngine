@@ -36,26 +36,70 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 	{
 	}
 
-	FGLTFMaterialArray& operator=(std::initializer_list<const UMaterialInterface*> InitList)
+	const UMaterialInterface* GetOverride(const TArray<FStaticMaterial>& Originals, int32 Index) const
 	{
-		static_cast<TArray&>(*this) = InitList;
-		return *this;
+		return GetOverride<FStaticMaterial>(Originals, Index);
 	}
 
-	FGLTFMaterialArray& operator=(const TArray& Other)
+	const UMaterialInterface* GetOverride(const TArray<FSkeletalMaterial>& Originals, int32 Index) const
 	{
-		static_cast<TArray&>(*this) = Other;
-		return *this;
+		return GetOverride<FSkeletalMaterial>(Originals, Index);
 	}
 
-	template <typename ElementType, typename AllocatorType>
-	FGLTFMaterialArray& operator=(const TArray<ElementType, AllocatorType>& Other)
-	{
-		static_cast<TArray&>(*this) = Other;
-		return *this;
-	}
+	using TArray::operator=;
+	using TArray::operator==;
+	using TArray::operator!=;
 
 	bool operator==(const TArray<FStaticMaterial>& Other) const
+	{
+		return Equals(Other);
+	}
+
+	bool operator!=(const TArray<FStaticMaterial>& Other) const
+	{
+		return !Equals(Other);
+	}
+
+	bool operator==(const TArray<FSkeletalMaterial>& Other) const
+	{
+		return Equals(Other);
+	}
+
+	bool operator!=(const TArray<FSkeletalMaterial>& Other) const
+	{
+		return !Equals(Other);
+	}
+
+	friend uint32 GetTypeHash(const TArray& Array)
+	{
+		uint32 Hash = GetTypeHash(Array.Num());
+		for (const UMaterialInterface* Material : Array)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Material));
+		}
+		return Hash;
+	}
+
+private:
+
+	template <typename MeshMaterialType>
+    const UMaterialInterface* GetOverride(const TArray<MeshMaterialType>& Originals, int32 Index) const
+	{
+		if (IsValidIndex(Index) && (*this)[Index] != nullptr)
+		{
+			return (*this)[Index];
+		}
+
+		if (Originals.IsValidIndex(Index))
+		{
+			return Originals[Index].MaterialInterface;
+		}
+
+		return nullptr;
+	}
+
+	template <typename MeshMaterialType>
+	bool Equals(const TArray<MeshMaterialType>& Other) const
 	{
 		if (Other.Num() != Num())
 		{
@@ -71,25 +115,5 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 		}
 
 		return true;
-	}
-
-	bool operator==(const TArray& Other) const
-	{
-		return static_cast<const TArray&>(*this) == Other;
-	}
-
-	bool operator!=(const TArray& Other) const
-	{
-		return static_cast<const TArray&>(*this) != Other;
-	}
-
-	friend uint32 GetTypeHash(const TArray& Array)
-	{
-		uint32 Hash = GetTypeHash(Array.Num());
-		for (const UMaterialInterface* Material : Array)
-		{
-			Hash = HashCombine(Hash, GetTypeHash(Material));
-		}
-		return Hash;
 	}
 };
