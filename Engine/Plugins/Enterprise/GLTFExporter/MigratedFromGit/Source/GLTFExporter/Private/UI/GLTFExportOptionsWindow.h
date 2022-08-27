@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "GLTFExportOptions.h"
+#include "Options/GLTFExportOptions.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
