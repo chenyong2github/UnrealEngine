@@ -76,10 +76,12 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 		// from exporting using the texture's source or its platform-data.
 		// It's not entirely clear why gamma must be set to 2.2 instead of 0.0 (which should use the correct gamma anyway),
 		// and why bInForceLinearGamma must also be true.
-		// Also, some pixel-formats such as PF_BC5 are incorrectly rendered.
-		// We need to investigate this more in-depth later.
 		UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, true);
 		RenderTarget->TargetGamma = 2.2f;
+
+		// TODO: normal-maps are not correctly rendered to the render-target, the resulting pixels have no data in the blue channel.
+		// This may be due to the textures in question using PF_BC5 as pixel-format, or something else entirely.
+		// There may be similar issues with other texture-types that we haven't had the chance to test yet.
 
 		FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
 
