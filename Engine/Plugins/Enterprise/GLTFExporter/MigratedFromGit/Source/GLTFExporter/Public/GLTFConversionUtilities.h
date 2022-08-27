@@ -17,11 +17,6 @@ inline FVector ConvertPosition(const FVector& Position)
 	return ConvertVector(Position);
 }
 
-inline FVector ConvertSize(const FVector& Size)
-{
-	return ConvertVector(Size);
-}
-
 inline FVector ConvertScale(const FVector& Scale)
 {
 	return ConvertVector(Scale);
