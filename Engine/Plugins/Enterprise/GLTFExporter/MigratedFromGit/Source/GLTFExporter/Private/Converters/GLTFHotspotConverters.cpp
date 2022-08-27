@@ -56,10 +56,10 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFInteractionHotsp
 		}
 	}
 
-	JsonHotspot.Image = Builder.GetOrAddTexture(HotspotActor->Image);
-	JsonHotspot.HoveredImage = Builder.GetOrAddTexture(HotspotActor->HoveredImage);
-	JsonHotspot.ToggledImage = Builder.GetOrAddTexture(HotspotActor->ToggledImage);
-	JsonHotspot.ToggledHoveredImage = Builder.GetOrAddTexture(HotspotActor->ToggledHoveredImage);
+	JsonHotspot.Image = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Default));
+	JsonHotspot.HoveredImage = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Hovered));
+	JsonHotspot.ToggledImage = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::Toggled));
+	JsonHotspot.ToggledHoveredImage = Builder.GetOrAddTexture(HotspotActor->GetImageForState(EGLTFHotspotState::ToggledHovered));
 
 	return Builder.AddHotspot(JsonHotspot);
 }
