@@ -124,7 +124,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
 	bool bExportVertexSkinWeights;
 
-	/** If enabled, export Unreal-configured quantization for vertex tangents and normals, reducing size. Requires extension KHR_mesh_quantization, which is not supported by all glTF viewers. */
+	/** If enabled, use Unreal-configured quantization for vertex tangents and normals, reducing size. Requires extension KHR_mesh_quantization, the mesh might not load in some glTF viewers. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
 	bool bUseMeshQuantization;
 
