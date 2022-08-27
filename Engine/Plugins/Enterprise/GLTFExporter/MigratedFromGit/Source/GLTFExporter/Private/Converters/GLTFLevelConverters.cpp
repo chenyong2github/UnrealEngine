@@ -5,6 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFCameraUtility.h"
+#include "Components/GLTFInteractionHotspotComponent.h"
 
 FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent)
 {
@@ -74,6 +75,31 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 		else
 		{
 			Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
+		}
+	}
+	else if (const UGLTFInteractionHotspotComponent* HotspotComponent = Cast<UGLTFInteractionHotspotComponent>(SceneComponent))
+	{
+		if (Builder.ExportOptions->bExportInteractionHotspots)
+		{
+			if (bExportNonUniformScale)
+			{
+				FGLTFJsonNode HotspotNode;
+				HotspotNode.Name = Node.Name + TEXT("_Hotspot");
+				HotspotNode.Scale = ComponentNodeScale;
+
+				// TODO: use better / more unique name for the hotspot?
+				HotspotNode.InteractionHotspot = Builder.GetOrAddInteractionHotspot(HotspotComponent, Owner->GetName());
+				Builder.AddChildComponentNode(NodeIndex, HotspotNode);
+			}
+			else
+			{
+				// TODO: use better / more unique name for the hotspot?
+				Node.InteractionHotspot = Builder.GetOrAddInteractionHotspot(HotspotComponent, Owner->GetName());
+			}
+		}
+		else
+		{
+			Builder.AddWarningMessage(FString::Printf(TEXT("Interaction-hotspot %s disabled by export options"), *Owner->GetName()));
 		}
 	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
