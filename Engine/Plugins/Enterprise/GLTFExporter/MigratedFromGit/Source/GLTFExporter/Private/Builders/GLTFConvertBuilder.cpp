@@ -246,14 +246,14 @@ FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeInde
 	return AnimationDataConverter.GetOrAdd(RootNode, SkeletalMeshComponent);
 }
 
-FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(const ALevelSequenceActor* LevelSequenceActor)
+FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence* LevelSequence)
 {
 	if (LevelSequenceActor == nullptr)
 	{
 		return FGLTFJsonAnimationIndex(INDEX_NONE);
 	}
 
-	return LevelSequenceConverter.GetOrAdd(LevelSequenceActor);
+	return LevelSequenceConverter.GetOrAdd(LevelSequenceActor, LevelSequence);
 }
 
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor)

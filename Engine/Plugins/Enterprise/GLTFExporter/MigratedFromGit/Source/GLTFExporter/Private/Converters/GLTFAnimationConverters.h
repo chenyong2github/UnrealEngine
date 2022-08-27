@@ -7,6 +7,7 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
+class ULevelSequence;
 class ALevelSequenceActor;
 
 template <typename... InputTypes>
@@ -29,9 +30,9 @@ class FGLTFAnimationDataConverter final : public TGLTFAnimationConverter<FGLTFJs
 	virtual FGLTFJsonAnimationIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent) override;
 };
 
-class FGLTFLevelSequenceConverter final : public TGLTFAnimationConverter<const ALevelSequenceActor*>
+class FGLTFLevelSequenceConverter final : public TGLTFAnimationConverter<const ALevelSequenceActor*, const ULevelSequence*>
 {
 	using TGLTFAnimationConverter::TGLTFAnimationConverter;
 
-	virtual FGLTFJsonAnimationIndex Convert(const ALevelSequenceActor* LevelSequenceActor) override;
+	virtual FGLTFJsonAnimationIndex Convert(const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence*) override;
 };
