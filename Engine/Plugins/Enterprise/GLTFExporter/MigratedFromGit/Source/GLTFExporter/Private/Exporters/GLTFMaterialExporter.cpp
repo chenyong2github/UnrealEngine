@@ -16,6 +16,11 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 	const UMaterialInterface* Material = CastChecked<UMaterialInterface>(Object);
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material);
 
+	if (MaterialIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
 	const UStaticMesh* PreviewMesh = FGLTFExporterUtility::GetPreviewMesh(Material);
 	if (PreviewMesh != nullptr)
 	{
@@ -30,6 +35,10 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 		const FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
 
 		Builder.DefaultScene = SceneIndex;
+	}
+	else
+	{
+		// TODO: should we report an error if no preview mesh was found?
 	}
 
 	return true;
