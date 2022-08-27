@@ -13,8 +13,8 @@ UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& Objec
 bool UGLTFStaticMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
 
+	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
 	if (MeshIndex == INDEX_NONE)
 	{
 		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export static mesh %s"), *StaticMesh->GetName()));
