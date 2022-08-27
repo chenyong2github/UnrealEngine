@@ -29,7 +29,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	if (JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Blend || JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Mask)
 	{
 		const FScalarMaterialInput& OpacityInput = JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Blend ? Material->Opacity : Material->OpacityMask;
-		if (!TryGetSimpleBaseColorOpacity(Builder, JsonMaterial, Material->BaseColor, OpacityInput, MaterialInstance))
+		if (!TryGetBaseColorAndOpacity(Builder, JsonMaterial.PBRMetallicRoughness, Material->BaseColor, OpacityInput, MaterialInstance))
 		{
 			// TODO: add fallback to material baking
 		}
@@ -45,7 +45,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		}
 	}
 
-	if (!TryGetSimpleMetallicRoughness(Builder, JsonMaterial.PBRMetallicRoughness, Material->Metallic, Material->Roughness, MaterialInstance))
+	if (!TryGetMetallicAndRoughness(Builder, JsonMaterial.PBRMetallicRoughness, Material->Metallic, Material->Roughness, MaterialInstance))
 	{
 		// TODO: add fallback to material baking
 	}
@@ -55,6 +55,10 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		if (!TryGetSourceTexture(Builder, JsonMaterial.EmissiveTexture, Material->EmissiveColor, MaterialInstance))
 		{
 			// TODO: add fallback to material baking
+		}
+		else
+		{
+			JsonMaterial.EmissiveFactor = FGLTFJsonColor3::White; // make sure texture is not multiplied with black
 		}
 	}
 
@@ -77,31 +81,97 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	return Builder.AddMaterial(JsonMaterial);
 }
 
-bool FGLTFMaterialConverter::TryGetSimpleBaseColorOpacity(FGLTFConvertBuilder& Builder, FGLTFJsonMaterial& OutValue, const FColorMaterialInput& BaseColorInput, const FScalarMaterialInput& OpacityInput, const UMaterialInstance* MaterialInstance) const
+bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Builder, FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FColorMaterialInput& BaseColorInput, const FScalarMaterialInput& OpacityInput, const UMaterialInstance* MaterialInstance) const
 {
-	const bool bIsBaseColorConstant = TryGetConstantColor(OutValue.PBRMetallicRoughness.BaseColorFactor, BaseColorInput, MaterialInstance);
-	const bool bIsOpacityConstant = TryGetConstantScalar(OutValue.PBRMetallicRoughness.BaseColorFactor.A, OpacityInput, MaterialInstance);
+	const bool bIsBaseColorConstant = TryGetConstantColor(OutPBRParams.BaseColorFactor, BaseColorInput, MaterialInstance);
+	const bool bIsOpacityConstant = TryGetConstantScalar(OutPBRParams.BaseColorFactor.A, OpacityInput, MaterialInstance);
 
 	if (bIsBaseColorConstant && bIsOpacityConstant)
 	{
 		return true;
 	}
 
-	// TODO: add support for other combos
+	const UTexture2D* BaseColorTexture;
+	const UTexture2D* OpacityTexture;
+	int32 BaseColorTexCoord;
+	int32 OpacityTexCoord;
+
+	const bool bHasBaseColorSourceTexture = TryGetSourceTexture(BaseColorTexture, BaseColorTexCoord, BaseColorInput, MaterialInstance);
+	const bool bHasOpacitySourceTexture = TryGetSourceTexture(OpacityTexture, OpacityTexCoord, OpacityInput, MaterialInstance);
+
+	if (bHasBaseColorSourceTexture && bHasOpacitySourceTexture)
+	{
+		if (BaseColorTexture == OpacityTexture && BaseColorTexCoord == OpacityTexCoord)
+		{
+			// TODO: make sure textures are correctly masked
+			OutPBRParams.BaseColorTexture.Index = Builder.GetOrAddTexture(BaseColorTexture);
+			OutPBRParams.BaseColorTexture.TexCoord = BaseColorTexCoord;
+			return true;
+		}
+
+		// TODO: add support for combining two textures
+		return false;
+	}
+
+	if (bHasBaseColorSourceTexture && bIsOpacityConstant)
+	{
+		// TODO: add support for combining constant with texture
+		return false;
+	}
+
+	if (bIsBaseColorConstant && bHasOpacitySourceTexture)
+	{
+		// TODO: add support for combining constant with texture
+		return false;
+	}
+
 	return false;
 }
 
-bool FGLTFMaterialConverter::TryGetSimpleMetallicRoughness(FGLTFConvertBuilder& Builder, FGLTFJsonPBRMetallicRoughness& OutValue, const FScalarMaterialInput& MetallicInput, const FScalarMaterialInput& RoughnessInput, const UMaterialInstance* MaterialInstance) const
+bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Builder, FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FScalarMaterialInput& MetallicInput, const FScalarMaterialInput& RoughnessInput, const UMaterialInstance* MaterialInstance) const
 {
-	const bool bIsMetallicConstant = TryGetConstantScalar(OutValue.MetallicFactor, MetallicInput, MaterialInstance);
-	const bool bIsRoughnessConstant = TryGetConstantScalar(OutValue.RoughnessFactor, RoughnessInput, MaterialInstance);
+	const bool bIsMetallicConstant = TryGetConstantScalar(OutPBRParams.MetallicFactor, MetallicInput, MaterialInstance);
+	const bool bIsRoughnessConstant = TryGetConstantScalar(OutPBRParams.RoughnessFactor, RoughnessInput, MaterialInstance);
 
 	if (bIsMetallicConstant && bIsRoughnessConstant)
 	{
 		return true;
 	}
 
-	// TODO: add support for other combos
+	const UTexture2D* MetallicTexture;
+	const UTexture2D* RoughnessTexture;
+	int32 MetallicTexCoord;
+	int32 RoughnessTexCoord;
+
+	const bool bHasMetallicSourceTexture = TryGetSourceTexture(MetallicTexture, MetallicTexCoord, MetallicInput, MaterialInstance);
+	const bool bHasRoughnessSourceTexture = TryGetSourceTexture(RoughnessTexture, RoughnessTexCoord, RoughnessInput, MaterialInstance);
+
+	if (bHasMetallicSourceTexture && bHasRoughnessSourceTexture)
+	{
+		if (MetallicTexture == RoughnessTexture && MetallicTexCoord == RoughnessTexCoord)
+		{
+			// TODO: make sure textures are correctly masked
+			OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture);
+			OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
+			return true;
+		}
+
+		// TODO: add support for combining two textures
+		return false;
+	}
+
+	if (bHasMetallicSourceTexture && bIsRoughnessConstant)
+	{
+		// TODO: add support for combining constant with texture
+		return false;
+	}
+
+	if (bIsMetallicConstant && bHasRoughnessSourceTexture)
+	{
+		// TODO: add support for combining constant with texture
+		return false;
+	}
+
 	return false;
 }
 
@@ -279,24 +349,23 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalar
 	return false;
 }
 
-bool FGLTFMaterialConverter::TryGetSourceTexture(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutValue, const FExpressionInput& MaterialInput, const UMaterialInstance* MaterialInstance) const
+bool FGLTFMaterialConverter::TryGetSourceTexture(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, const FExpressionInput& MaterialInput, const UMaterialInstance* MaterialInstance) const
 {
 	const UTexture2D* Texture;
 	int32 TexCoord;
-	int32 Mask;
 
-	if (TryGetSourceTexture(Texture, TexCoord, Mask, MaterialInput, MaterialInstance))
+	if (TryGetSourceTexture(Texture, TexCoord, MaterialInput, MaterialInstance))
 	{
 		// TODO: add support for output mask
-		OutValue.Index = Builder.GetOrAddTexture(Texture);
-		OutValue.TexCoord = TexCoord;
+		OutTexInfo.Index = Builder.GetOrAddTexture(Texture);
+		OutTexInfo.TexCoord = TexCoord;
 		return true;
 	}
 
 	return false;
 }
 
-bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, int32& OutTexCoord, int32& OutMask, const FExpressionInput& MaterialInput, const UMaterialInstance* MaterialInstance) const
+bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, int32& OutTexCoord, const FExpressionInput& MaterialInput, const UMaterialInstance* MaterialInstance) const
 {
 	const UMaterialExpression* Expression = MaterialInput.Expression;
 	if (Expression == nullptr)
