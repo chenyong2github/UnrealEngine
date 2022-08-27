@@ -12,6 +12,12 @@
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 
+UMaterialInterface* FGLTFMaterialUtility::GetDefault()
+{
+	static UMaterialInterface* DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/Default.Default"));
+	return DefaultMaterial;
+}
+
 const TCHAR* FGLTFMaterialUtility::GetPropertyName(EMaterialProperty Property)
 {
 	// TODO: replace this hardcoded list with some lookup function that should be in the engine.

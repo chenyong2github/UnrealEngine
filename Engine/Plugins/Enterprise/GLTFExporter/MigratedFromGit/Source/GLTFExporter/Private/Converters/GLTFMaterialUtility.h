@@ -34,6 +34,8 @@ struct FGLTFPropertyBakeOutput
 
 struct FGLTFMaterialUtility
 {
+	static UMaterialInterface* GetDefault();
+
 	static const TCHAR* GetPropertyName(EMaterialProperty Property);
 	static FVector4 GetPropertyDefaultValue(EMaterialProperty Property);
 	static FVector4 GetPropertyMask(EMaterialProperty Property);
