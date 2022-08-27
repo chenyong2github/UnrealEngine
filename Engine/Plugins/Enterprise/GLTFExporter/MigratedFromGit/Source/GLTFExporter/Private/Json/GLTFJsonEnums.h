@@ -123,6 +123,7 @@ enum class EGLTFJsonTextureFilter
 
 enum class EGLTFJsonTextureWrap
 {
+	None = -1,
 	Repeat = 10497,
 	MirroredRepeat = 33648,
 	ClampToEdge = 33071
@@ -130,6 +131,7 @@ enum class EGLTFJsonTextureWrap
 
 enum class EGLTFJsonInterpolation
 {
+	None = -1,
 	Linear,
 	Step,
 	CubicSpline,

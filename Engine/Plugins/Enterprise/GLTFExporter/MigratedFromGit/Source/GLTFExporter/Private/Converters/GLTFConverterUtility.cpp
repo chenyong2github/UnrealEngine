@@ -30,7 +30,7 @@ EGLTFJsonInterpolation FGLTFConverterUtility::ConvertInterpolation(const EAnimIn
 	{
 		case EAnimInterpolationType::Linear: return EGLTFJsonInterpolation::Linear;
 		case EAnimInterpolationType::Step:   return EGLTFJsonInterpolation::Step;
-		default:                             return EGLTFJsonInterpolation::Linear; // fallback
+		default:                             return EGLTFJsonInterpolation::None;
 	}
 }
 
@@ -63,7 +63,7 @@ EGLTFJsonTextureWrap FGLTFConverterUtility::ConvertWrap(TextureAddress Address)
 		case TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
 		case TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
 		case TA_Clamp:  return EGLTFJsonTextureWrap::ClampToEdge;
-		default:        return EGLTFJsonTextureWrap::Repeat; // fallback
+		default:        return EGLTFJsonTextureWrap::None; // TODO: add error handling in callers
 	}
 }
 
@@ -109,6 +109,6 @@ EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
 		case CubeFace_NegY:	return EGLTFJsonCubeFace::NegZ;
 		case CubeFace_PosZ:	return EGLTFJsonCubeFace::PosY;
 		case CubeFace_NegZ:	return EGLTFJsonCubeFace::NegY;
-		default:            return EGLTFJsonCubeFace::None;
+		default:            return EGLTFJsonCubeFace::None; // TODO: add error handling in callers
 	}
 }

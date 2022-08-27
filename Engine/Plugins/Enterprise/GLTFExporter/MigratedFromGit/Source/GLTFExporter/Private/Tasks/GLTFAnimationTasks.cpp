@@ -40,7 +40,13 @@ void FGLTFAnimSequenceTask::Complete()
 		FGLTFBoneUtility::InitializeToSkeleton(BoneContainer, Skeleton);
 	}
 
-	const EGLTFJsonInterpolation Interpolation = FGLTFConverterUtility::ConvertInterpolation(AnimSequence->Interpolation);
+	EGLTFJsonInterpolation Interpolation = FGLTFConverterUtility::ConvertInterpolation(AnimSequence->Interpolation);
+	if (Interpolation == EGLTFJsonInterpolation::None)
+	{
+		Interpolation = EGLTFJsonInterpolation::Linear;
+		// TODO: report warning (about unknown interpolation exported as linear)
+	}
+
 	const TArray<FName>& TrackNames = AnimSequence->GetAnimationTrackNames();
 	const int32 TrackCount = TrackNames.Num();
 
