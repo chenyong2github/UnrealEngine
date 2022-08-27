@@ -9,7 +9,8 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	// TODO: maybe we should reuse existing samplers?
 	FGLTFJsonSampler JsonSampler;
 	JsonSampler.Name = Name;
-	JsonSampler.MagFilter = JsonSampler.MinFilter = FGLTFConverterUtility::ConvertFilter(Texture2D->Filter, Texture2D->LODGroup);
+	JsonSampler.MinFilter = FGLTFConverterUtility::ConvertMinFilter(Texture2D->Filter, Texture2D->LODGroup);
+	JsonSampler.MagFilter = FGLTFConverterUtility::ConvertMagFilter(Texture2D->Filter, Texture2D->LODGroup);
 	JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(Texture2D->AddressX);
 	JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(Texture2D->AddressY);
 
