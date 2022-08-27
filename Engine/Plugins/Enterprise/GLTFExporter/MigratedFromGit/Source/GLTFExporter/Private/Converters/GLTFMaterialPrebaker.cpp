@@ -5,6 +5,7 @@
 #include "Converters/GLTFMaterialPrebaker.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFImageUtility.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialUtilities.h"
 #include "ImageUtils.h"
@@ -34,6 +35,8 @@ UMaterialInterface* FGLTFMaterialPrebaker::Prebake(UMaterialInterface* OriginalM
 	{
 		return nullptr;
 	}
+
+	MakeDirectory(RootPath);
 
 	Builder.CompleteAllTasks();
 	const FGLTFJsonMaterial& JsonMaterial = Builder.GetMaterial(MaterialIndex);
@@ -210,7 +213,7 @@ UTexture2D* FGLTFMaterialPrebaker::CreateTexture(const FGLTFImageData* ImageData
 
 UMaterialInstanceConstant* FGLTFMaterialPrebaker::CreateProxyMaterial(UMaterialInterface* OriginalMaterial, EGLTFJsonShadingModel ShadingModel)
 {
-	const FString PackageName = RootPath / TEXT("MI_GLTF_") + OriginalMaterial->GetName();
+	const FString PackageName = RootPath / TEXT("GLTF_") + OriginalMaterial->GetName();
 	UPackage* Package = CreatePackage(*PackageName);
 	Package->FullyLoad();
 	Package->Modify();
@@ -279,6 +282,29 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialPrebaker::CreateCustomImageConverte
 	};
 
 	return MakeUnique<FGLTFCustomImageConverter>(*this);
+}
+
+bool FGLTFMaterialPrebaker::MakeDirectory(const FString& PackagePath)
+{
+	const FString DirPath = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(PackagePath + TEXT("/")));
+	if (DirPath.IsEmpty())
+	{
+		return false;
+	}
+
+	bool bResult = true;
+	if (!IFileManager::Get().DirectoryExists(*DirPath))
+	{
+		bResult = IFileManager::Get().MakeDirectory(*DirPath, true);
+	}
+
+	if (bResult)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		AssetRegistryModule.Get().AddPath(PackagePath);
+	}
+
+	return bResult;
 }
 
 UGLTFExportOptions* FGLTFMaterialPrebaker::CreateExportOptions(const UGLTFPrebakeOptions* PrebakeOptions)
