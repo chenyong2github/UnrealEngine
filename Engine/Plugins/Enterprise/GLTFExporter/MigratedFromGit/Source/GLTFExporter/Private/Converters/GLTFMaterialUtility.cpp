@@ -354,6 +354,13 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterfa
 	}
 }
 
+FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(const UMaterialInterface* Material)
+{
+	FGLTFMaterialAnalysis Analysis;
+	AnalyzeMaterialProperty(Material, MP_ShadingModel, Analysis);
+	return Analysis.ShadingModels;
+}
+
 EMaterialShadingModel FGLTFMaterialUtility::GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels)
 {
 	if (ShadingModels.HasShadingModel(MSM_ClearCoat))

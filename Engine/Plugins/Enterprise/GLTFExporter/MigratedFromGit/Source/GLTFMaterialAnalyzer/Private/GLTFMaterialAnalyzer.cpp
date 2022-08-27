@@ -90,6 +90,7 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 	}
 
 	Analysis->TextureCoordinates = Translator->AllocatedUserTexCoords;
+	Analysis->ShadingModels = Translator->ShadingModelsFromCompilation;
 
 	// TODO: investigate if we need to check more conditions to determine that vertex data is required
 	Analysis->bRequiresVertexData =
