@@ -12,7 +12,7 @@ enum TextureAddress;
 UENUM(BlueprintType)
 enum class EGLTFMaterialBakeMode : uint8
 {
-    None,
+    Disabled,
 	Simple,
 	UseMeshData,
 };

@@ -14,7 +14,7 @@ enum class EGLTFTextureCompression : uint8
 };
 
 UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
-enum class EGLTFTextureGroupFlags : uint8
+enum class EGLTFTextureType : uint8
 {
 	None = 0 UMETA(Hidden),
 
@@ -24,7 +24,7 @@ enum class EGLTFTextureGroupFlags : uint8
 
 	All = HDR | Normalmaps | Lightmaps UMETA(Hidden)
 };
-ENUM_CLASS_FLAGS(EGLTFTextureGroupFlags);
+ENUM_CLASS_FLAGS(EGLTFTextureType);
 
 UENUM(BlueprintType)
 enum class EGLTFTextureHDREncoding : uint8
@@ -33,13 +33,25 @@ enum class EGLTFTextureHDREncoding : uint8
 	RGBM
 };
 
+UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EGLTFSceneMobility : uint8
+{
+	None = 0 UMETA(Hidden),
+
+	Static = 1 << 0,
+	Stationary = 1 << 1,
+	Movable = 1 << 2,
+
+	All = Static | Stationary | Movable UMETA(Hidden)
+};
+ENUM_CLASS_FLAGS(EGLTFSceneMobility);
+
 UENUM(BlueprintType)
-enum class EGLTFExportLightMobility : uint8
+enum class EGLTFMaterialVariantMode : uint8
 {
 	None,
-	MovableOnly,
-	MovableAndStationary,
-	All
+    Simple,
+    UseMeshData,
 };
 
 UCLASS(Config=EditorPerProjectUserSettings, HideCategories=(DebugProperty))
@@ -114,8 +126,8 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
 	int32 TextureCompressionQuality;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureGroupFlags, EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
-	int32 LosslessCompressTextures;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureType, EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
+	int32 NoLossyCompressionFor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	bool bExportTextureTransforms;
@@ -129,8 +141,8 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportHiddenInGame;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
-	EGLTFExportLightMobility ExportLights;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (Bitmask, BitmaskEnum = EGLTFSceneMobility))
+	int32 ExportLights;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportCameras;
@@ -151,7 +163,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	bool bExportVariantSets;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
-	EGLTFMaterialBakeMode ExportMaterialVariants;
+	EGLTFMaterialVariantMode ExportMaterialVariants;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
 	bool bExportMeshVariants;

@@ -31,5 +31,6 @@ public:
 
 private:
 
+	static EGLTFSceneMobility GetSceneMobility(EComponentMobility::Type Mobility);
 	static EGLTFMaterialPropertyGroup GetPropertyGroup(const FMaterialPropertyEx& Property);
 };

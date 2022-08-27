@@ -107,7 +107,7 @@ bool FGLTFVariationConverter::TryParseVariantBinding(FGLTFJsonVariant& OutVarian
 
 		if (Property->IsA<UPropertyValueMaterial>())
 		{
-			if (Builder.ExportOptions->ExportMaterialVariants != EGLTFMaterialBakeMode::None && TryParseMaterialPropertyValue(OutVariant, Property))
+			if (Builder.ExportOptions->ExportMaterialVariants != EGLTFMaterialVariantMode::None && TryParseMaterialPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
@@ -245,7 +245,7 @@ bool FGLTFVariationConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& Ou
 	const FGLTFMeshData* MeshData = nullptr;
 	TArray<int32> SectionIndices;
 
-	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialBakeMode::UseMeshData)
+	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
 	{
 		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
 		{

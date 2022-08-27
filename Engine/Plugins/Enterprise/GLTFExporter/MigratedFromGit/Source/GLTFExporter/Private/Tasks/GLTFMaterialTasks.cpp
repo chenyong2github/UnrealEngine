@@ -329,7 +329,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return true;
 	}
 
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s and %s for material %s needs to bake, but material baking is disabled by export options"),
@@ -449,7 +449,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		return true;
 	}
 
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s and %s for material %s needs to bake, but material baking is disabled by export options"),
@@ -572,7 +572,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return true;
 	}
 
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s and %s for material %s needs to bake, but material baking is disabled by export options"),
@@ -667,7 +667,7 @@ bool FGLTFMaterialTask::TryGetEmissive(FGLTFJsonMaterial& JsonMaterial, const FM
 		return true;
 	}
 
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
@@ -1084,7 +1084,7 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 
 bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor3& OutConstant, const FMaterialPropertyEx& Property, const FString& PropertyName, bool bTransformToLinear)
 {
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
@@ -1117,7 +1117,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor4& OutConstant, const FMaterialPropertyEx& Property, const FString& PropertyName, bool bTransformToLinear)
 {
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
@@ -1150,7 +1150,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 inline bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTexInfo, float& OutConstant, const FMaterialPropertyEx& Property, const FString& PropertyName, bool bTransformToLinear)
 {
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
@@ -1183,7 +1183,7 @@ inline bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 
 bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTexInfo, const FMaterialPropertyEx& Property, const FString& PropertyName, bool bTransformToLinear)
 {
-	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::None)
+	if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::Disabled)
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("%s for material %s needs to bake, but material baking is disabled by export options"),
