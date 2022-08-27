@@ -16,7 +16,11 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	FGLTFJsonMaterial JsonMaterial;
 	JsonMaterial.Name = Name;
 
+	// TODO: add support for different shading models (Default Lit, Unlit, Clear Coat)
+
+	// TODO: add support for additional blend modes (at least Additive and Modulate)
 	JsonMaterial.AlphaMode = FGLTFConverterUtility::ConvertBlendMode(MaterialInterface->GetBlendMode());
+
 	JsonMaterial.AlphaCutoff = MaterialInterface->GetOpacityMaskClipValue();
 	JsonMaterial.DoubleSided = MaterialInterface->IsTwoSided();
 
