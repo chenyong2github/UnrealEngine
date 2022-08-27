@@ -6,6 +6,7 @@
 #include "Json/GLTFJsonAccessor.h"
 #include "Json/GLTFJsonBufferView.h"
 #include "Json/GLTFJsonBuffer.h"
+#include "Json/GLTFJsonMaterial.h"
 #include "Json/GLTFJsonMesh.h"
 #include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonNode.h"
@@ -60,6 +61,7 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonAccessor>   Accessors;
 	TArray<FGLTFJsonBuffer>     Buffers;
 	TArray<FGLTFJsonBufferView> BufferViews;
+	TArray<FGLTFJsonMaterial>   Materials;
 	TArray<FGLTFJsonMesh>       Meshes;
 	TArray<FGLTFJsonNode>       Nodes;
 	TArray<FGLTFJsonScene>      Scenes;
@@ -115,6 +117,16 @@ struct FGLTFJsonRoot
 			for (const FGLTFJsonBufferView& BufferView : BufferViews)
 			{
 				BufferView.WriteObject(JsonWriter);
+			}
+			JsonWriter.WriteArrayEnd();
+		}
+
+		if (Materials.Num() > 0)
+		{
+			JsonWriter.WriteArrayStart(TEXT("materials"));
+			for (const FGLTFJsonMaterial& Material : Materials)
+			{
+				Material.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
