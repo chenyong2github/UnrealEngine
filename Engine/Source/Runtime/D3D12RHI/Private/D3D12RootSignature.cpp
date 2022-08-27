@@ -429,6 +429,9 @@ void FD3D12RootSignature::InitStaticGraphicsRootSignature(bool bBindlessResource
 	CD3DX12_ROOT_PARAMETER1 TableSlots[DescriptorTableCount];
 	CD3DX12_DESCRIPTOR_RANGE1 DescriptorRanges[DescriptorTableCount];
 
+	FMemory::Memzero(TableSlots);
+	FMemory::Memzero(DescriptorRanges);
+
 	for (uint32 i = 0; i < DescriptorTableCount; i++)
 	{
 		DescriptorRanges[i].Init(

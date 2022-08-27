@@ -326,6 +326,7 @@ static INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, 
 	{
 		for (uint32_t i = 0; i < SupportedExtensionsVersionCount; i++)
 		{
+			CA_SUPPRESS(6385);
 			if ((SupportedExtensionsVersions[i].HWFeatureLevel >= AtomicsRequiredVersion.HWFeatureLevel) &&
 				(SupportedExtensionsVersions[i].APIVersion >= AtomicsRequiredVersion.APIVersion) &&
 				(SupportedExtensionsVersions[i].Revision >= AtomicsRequiredVersion.Revision))
