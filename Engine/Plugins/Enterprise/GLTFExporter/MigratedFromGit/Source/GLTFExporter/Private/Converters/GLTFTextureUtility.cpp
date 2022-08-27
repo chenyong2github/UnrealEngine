@@ -234,11 +234,10 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 
 	UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(Size, bIsHDR);
 	FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
-	const FTextureReferenceRHIRef& RHIRef = TextureCube->TextureReference.TextureReferenceRHI;
 
 	FCanvas Canvas(RenderTargetResource, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, TextureCube->Resource, FLinearColor::White);
-	TileItem.BatchedElementParameters = new FGLTFCubemapFacePreview(const_cast<FTextureReferenceRHIRef&>(RHIRef),CubeFace);
+	TileItem.BatchedElementParameters = new FGLTFCubemapFacePreview(CubeFace);
 	TileItem.Draw(&Canvas);
 
 	Canvas.Flush_GameThread();
