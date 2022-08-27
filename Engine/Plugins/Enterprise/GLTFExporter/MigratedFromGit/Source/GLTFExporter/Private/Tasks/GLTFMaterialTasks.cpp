@@ -5,6 +5,7 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "MaterialPropertyEx.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
@@ -1336,35 +1337,32 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialProperty Property, int32& OutTexCoord, FIntPoint PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
 {
-	const FExpressionInput* PropertyInput = FGLTFMaterialUtility::GetInputForProperty(Material, Property);
-	TSet<int32> TexCoords;
-
-	FGLTFMaterialUtility::GetAllTextureCoordinateIndices(*PropertyInput, TexCoords);
-	if (TexCoords.Num() > 0)
+	if (MeshData == nullptr)
 	{
-		// TODO: is there a nicer way to get the first element in a TSet?
-		for (int32 TexCoord : TexCoords)
-		{
-			OutTexCoord = TexCoord;
-			break;
-		}
+		// TODO: replace dummy enum MP_CustomOutput workaround for ClearCoatBottomNormal
+		const FMaterialPropertyEx PropertyEx = Property != MP_CustomOutput ? FMaterialPropertyEx(Property) : FMaterialPropertyEx(TEXT("ClearCoatBottomNormal"));
 
-		if (TexCoords.Num() > 1)
-		{
-			// TODO: report warning (multiple texture coordinates found, will use first)
+		int32 NumTexCoords;
+		TBitArray<> TexCoords;
+		FGLTFMaterialUtility::GetAllTextureCoordinateIndices(Material, PropertyEx, NumTexCoords, TexCoords);
 
-			// TODO: replace this hardcoded hack with something more configurable and proper
-			if (Property == MP_AmbientOcclusion && TexCoords.Contains(1))
+		if (NumTexCoords > 0)
+		{
+			OutTexCoord = TexCoords.Find(true);
+
+			if (TexCoords.Num() > 1)
 			{
-				OutTexCoord = 1; // assume ambient occlusion uses TexCoord1 when multiple
+				// TODO: report warning (multiple texture coordinates found, will use first)
 			}
 		}
-
-		// TODO: should we perhaps always use the lightmap coordinate index for baking to guarantee unique uvs?
+		else
+		{
+			OutTexCoord = 0;
+		}
 	}
 	else
 	{
-		OutTexCoord = 0; // assume TexCoord0 even thought property seems to be texture coordinate independent
+		OutTexCoord = MeshData->TexCoord;
 	}
 
 	const FIntPoint DefaultTextureSize = Builder.GetDefaultMaterialBakeSize();
@@ -1380,11 +1378,6 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		MeshData != nullptr ? &MeshData->Description : nullptr,
 		SectionIndices,
 		bCopyAlphaFromRedChannel);
-
-	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)
-	{
-		// TODO: report warning about property not being constant yet texture coordinate independent
-	}
 
 	return PropertyBakeOutput;
 }

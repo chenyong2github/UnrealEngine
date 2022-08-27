@@ -387,71 +387,18 @@ bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressio
 	return false;
 }
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput& Input, TSet<int32>& OutTexCoords)
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, int32& OutNumTexCoords, TBitArray<>& OutTexCoords)
 {
-	UMaterialExpression* InputExpression = Input.Expression;
-	if (InputExpression == nullptr)
+	FGLTFMaterialAnalysis Analysis;
+	AnalyzeMaterialProperty(InMaterial, InProperty, Analysis);
+
+	OutNumTexCoords = 0;
+	OutTexCoords = Analysis.TextureCoordinates;
+
+	for (int32 Index = 0; Index < OutTexCoords.Num(); Index++)
 	{
-		return;
+		OutNumTexCoords += OutTexCoords[Index] ? 1 : 0;
 	}
-
-	TArray<UMaterialExpression*> Expressions;
-	InputExpression->GetAllInputExpressions(Expressions);
-
-	ExpandAllFunctionExpressions(Expressions);
-
-	for (const UMaterialExpression* Expression : Expressions)
-	{
-		if (const UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression))
-		{
-			if (TextureSample->Coordinates.Expression == nullptr)
-			{
-				OutTexCoords.Add(TextureSample->ConstCoordinate);
-			}
-		}
-		else if (const UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(Expression))
-		{
-			OutTexCoords.Add(TextureCoordinate->CoordinateIndex);
-		}
-	}
-}
-
-void FGLTFMaterialUtility::ExpandAllFunctionExpressions(TArray<UMaterialExpression*>& InOutExpressions)
-{
-	TArray<UMaterialExpression*> UnexpandedExpressions(InOutExpressions);
-
-	for (const UMaterialExpression* UnexpandedExpression : UnexpandedExpressions)
-	{
-		if (const UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(UnexpandedExpression))
-		{
-			if (UMaterialFunctionInterface* Function = FunctionCall->MaterialFunction)
-			{
-				Function->GetAllExpressionsOfType<UMaterialExpression>(InOutExpressions);
-			}
-		}
-		else if (const UMaterialExpressionMaterialAttributeLayers* AttributeLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(UnexpandedExpression))
-		{
-			for (UMaterialFunctionInterface* Layer : AttributeLayers->GetLayers())
-			{
-				if (Layer != nullptr)
-				{
-					Layer->GetAllExpressionsOfType<UMaterialExpression>(InOutExpressions);
-				}
-			}
-
-			for (UMaterialFunctionInterface* Blend : AttributeLayers->GetBlends())
-			{
-				if (Blend != nullptr)
-				{
-					Blend->GetAllExpressionsOfType<UMaterialExpression>(InOutExpressions);
-				}
-			}
-		}
-	}
-
-	InOutExpressions.RemoveAll([](const UMaterialExpression* Expression) {
-		return Expression->IsA<UMaterialExpressionMaterialFunctionCall>() || Expression->IsA<UMaterialExpressionMaterialAttributeLayers>();
-	});
 }
 
 EMaterialShadingModel FGLTFMaterialUtility::GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels)
