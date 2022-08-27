@@ -11,7 +11,7 @@ public:
 
 	FGLTFJsonSceneIndex& DefaultScene;
 
-	FGLTFJsonBuilder();
+	FGLTFJsonBuilder(const UGLTFExportOptions* ExportOptions);
 
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor = {});
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer = {});

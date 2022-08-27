@@ -3,8 +3,9 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "GLTFBuilderUtility.h"
 
-FGLTFConvertBuilder::FGLTFConvertBuilder(bool bSelectedActorsOnly)
-	: bSelectedActorsOnly(bSelectedActorsOnly)
+FGLTFConvertBuilder::FGLTFConvertBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
+	: FGLTFImageBuilder(ExportOptions)
+	, bSelectedActorsOnly(bSelectedActorsOnly)
 {
 }
 

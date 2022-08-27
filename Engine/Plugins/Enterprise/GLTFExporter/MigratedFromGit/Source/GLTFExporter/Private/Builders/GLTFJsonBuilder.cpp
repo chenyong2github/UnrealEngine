@@ -2,8 +2,9 @@
 
 #include "Builders/GLTFJsonBuilder.h"
 
-FGLTFJsonBuilder::FGLTFJsonBuilder()
-	: DefaultScene(JsonRoot.DefaultScene)
+FGLTFJsonBuilder::FGLTFJsonBuilder(const UGLTFExportOptions* ExportOptions)
+	: FGLTFBuilder(ExportOptions)
+	, DefaultScene(JsonRoot.DefaultScene)
 {
 }
 

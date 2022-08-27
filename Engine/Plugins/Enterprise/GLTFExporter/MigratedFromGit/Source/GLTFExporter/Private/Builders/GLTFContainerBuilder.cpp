@@ -2,7 +2,7 @@
 
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFContainerBuilder::FGLTFContainerBuilder(bool bSelectedActorsOnly)
-	: FGLTFConvertBuilder(bSelectedActorsOnly)
+FGLTFContainerBuilder::FGLTFContainerBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
+	: FGLTFConvertBuilder(ExportOptions, bSelectedActorsOnly)
 {
 }

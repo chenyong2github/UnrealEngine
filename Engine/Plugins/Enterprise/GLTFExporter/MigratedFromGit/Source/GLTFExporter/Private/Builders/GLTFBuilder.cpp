@@ -8,7 +8,8 @@
 
 DEFINE_LOG_CATEGORY(LogGLTFExporter);
 
-FGLTFBuilder::FGLTFBuilder()
+FGLTFBuilder::FGLTFBuilder(const UGLTFExportOptions* ExportOptions)
+	: ExportOptions(ExportOptions)
 {
 }
 
