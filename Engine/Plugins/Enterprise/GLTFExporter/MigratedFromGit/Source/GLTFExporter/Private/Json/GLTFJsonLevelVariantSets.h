@@ -41,6 +41,7 @@ struct FGLTFJsonVariantMaterial
 struct FGLTFJsonVariantNodeProperties
 {
 	FGLTFJsonNodeIndex Node;
+	FGLTFJsonMeshIndex Mesh;
 	TOptional<bool>    bIsVisible;
 
 	TArray<FGLTFJsonVariantMaterial> Materials;
@@ -60,6 +61,11 @@ struct FGLTFJsonVariantNodeProperties
 		if (bIsVisible.IsSet())
 		{
 			JsonWriter.WriteValue(TEXT("visible"), bIsVisible.GetValue());
+		}
+
+		if (Mesh != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
 		}
 
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials, Extensions);
