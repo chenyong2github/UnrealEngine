@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Json/GLTFJsonObject.h"
-#include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonCore.h"
 #include "Json/GLTFJsonAsset.h"
 #include "Json/GLTFJsonAccessor.h"
 #include "Json/GLTFJsonAnimation.h"
@@ -25,7 +24,6 @@
 #include "Json/GLTFJsonSkySphere.h"
 #include "Json/GLTFJsonEpicLevelVariantSets.h"
 #include "Json/GLTFJsonKhrMaterialVariant.h"
-#include "Json/GLTFJsonWriter.h"
 
 struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 {

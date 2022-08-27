@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "Json/GLTFJsonObject.h"
-#include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonColor.h"
+#include "Json/GLTFJsonCore.h"
 #include "Json/GLTFJsonTextureTransform.h"
 
 struct GLTFEXPORTER_API FGLTFJsonTextureInfo : IGLTFJsonObject

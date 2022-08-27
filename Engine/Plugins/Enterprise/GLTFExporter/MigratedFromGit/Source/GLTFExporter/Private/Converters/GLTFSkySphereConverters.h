@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Core/GLTFColor.h"
-#include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonCore.h"
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 

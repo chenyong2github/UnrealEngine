@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonCore.h"
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
