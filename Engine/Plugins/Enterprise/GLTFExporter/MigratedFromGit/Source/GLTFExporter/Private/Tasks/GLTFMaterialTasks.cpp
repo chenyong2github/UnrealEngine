@@ -254,6 +254,13 @@ void FGLTFMaterialTask::ConvertShadingModel(EGLTFJsonShadingModel& OutShadingMod
 		}
 	}
 
+	const EBlendMode BlendMode = Material->GetBlendMode();
+	if (ShadingModel == MSM_ClearCoat && BlendMode != BLEND_Opaque && BlendMode != BLEND_Masked)
+	{
+		// NOTE: Unreal seems to disable clear coat when blend mode anything but opaque or masked
+		ShadingModel = MSM_DefaultLit;
+	}
+
 	OutShadingModel = FGLTFConverterUtility::ConvertShadingModel(ShadingModel);
 	if (OutShadingModel == EGLTFJsonShadingModel::None)
 	{
