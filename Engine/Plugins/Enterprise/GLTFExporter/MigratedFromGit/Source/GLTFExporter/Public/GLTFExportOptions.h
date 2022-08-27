@@ -86,10 +86,7 @@ public:
 	bool bExportVertexColors;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
-	bool bQuantizeVertexNormals;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
-	bool bQuantizeVertexTangents;
+	bool bExportMeshQuantization;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh, Meta = (ClampMin = "0"))
 	int32 DefaultLevelOfDetail;
