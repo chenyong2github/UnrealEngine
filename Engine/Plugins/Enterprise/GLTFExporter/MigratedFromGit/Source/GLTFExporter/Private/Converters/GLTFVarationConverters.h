@@ -7,16 +7,15 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
-#include "LevelVariantSetsActor.h"
 #include "Variant.h"
 #include "PropertyValue.h"
 #include "LevelVariantSets.h"
 
-class FGLTFVariationConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonVariationIndex, const ALevelVariantSetsActor*>
+class FGLTFVariationConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonVariationIndex, const ULevelVariantSets*>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonVariationIndex Convert(const ALevelVariantSetsActor* LevelVariantSetsActor) override;
+	virtual FGLTFJsonVariationIndex Convert(const ULevelVariantSets* LevelVariantSets) override;
 
 	bool TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const;
 	bool TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const;

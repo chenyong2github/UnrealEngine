@@ -4,6 +4,7 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
+#include "LevelVariantSetsActor.h"
 
 FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const ULevel* Level)
 {
@@ -27,10 +28,13 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const ULevel* Level)
 		{
 			if (Builder.ExportOptions->bExportVariantSets)
 			{
-				const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSetsActor);
-				if (VariationIndex != INDEX_NONE)
+				if (const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true))
 				{
-					Scene.Variations.Add(VariationIndex);
+					const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSets);
+					if (VariationIndex != INDEX_NONE)
+					{
+						Scene.Variations.Add(VariationIndex);
+					}
 				}
 			}
 		}

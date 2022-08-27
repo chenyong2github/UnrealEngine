@@ -4,7 +4,6 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "LevelVariantSetsActor.h"
 #include "VariantObjectBinding.h"
 #include "PropertyValueMaterial.h"
 #include "LevelVariantSets.h"
@@ -25,14 +24,8 @@ namespace
 	};
 }
 
-FGLTFJsonVariationIndex FGLTFVariationConverter::Convert(const ALevelVariantSetsActor* LevelVariantSetsActor)
+FGLTFJsonVariationIndex FGLTFVariationConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
-	const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
-	if (LevelVariantSets == nullptr)
-	{
-		return FGLTFJsonVariationIndex(INDEX_NONE);
-	}
-
 	FGLTFJsonVariation JsonVariation;
 	LevelVariantSets->GetName(JsonVariation.Name);
 
