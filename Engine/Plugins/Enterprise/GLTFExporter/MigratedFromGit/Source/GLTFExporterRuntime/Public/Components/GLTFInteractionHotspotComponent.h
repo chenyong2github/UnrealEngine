@@ -9,6 +9,7 @@ class ASkeletalMeshActor;
 class UAnimSequence;
 class UTexture2D;
 class USphereComponent;
+class FViewport;
 
 /**
  * A component to set up hotspots which appear as billboards and allow playback of skeletal animations when cursor input is enabled.
@@ -102,4 +103,8 @@ private:
 	void UpdateSpriteSize();
 
 	void SetSpriteOpacity(const float Opacity) const;
+
+	FIntPoint GetCurrentViewportSize();
+
+	void ViewportResized(FViewport*, uint32);
 };
