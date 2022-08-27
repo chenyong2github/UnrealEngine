@@ -40,7 +40,7 @@ private:
 	void SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor4& Color);
 	void SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonTextureInfo& TextureInfo, EGLTFMaterialPropertyGroup PropertyGroup);
 
-	const UTexture2D* FindOrCreateTexture(FGLTFJsonTextureIndex Index, EGLTFMaterialPropertyGroup PropertyGroup);
+	UTexture2D* FindOrCreateTexture(FGLTFJsonTextureIndex Index, EGLTFMaterialPropertyGroup PropertyGroup);
 	UTexture2D* CreateTexture(const FGLTFImageData* ImageData, const FGLTFJsonSampler& JsonSampler, EGLTFMaterialPropertyGroup PropertyGroup);
 
 	UMaterialInstanceConstant* CreateInstancedMaterial(UMaterialInterface* OriginalMaterial, EGLTFJsonShadingModel ShadingModel);
@@ -58,7 +58,7 @@ private:
 
 	FGLTFConvertBuilder Builder;
 
-	TMap<FGLTFJsonTextureIndex, const UTexture2D*> Textures;
+	TMap<FGLTFJsonTextureIndex, UTexture2D*> Textures;
 	TMap<FGLTFJsonImageIndex, FGLTFImageData> Images;
 };
 

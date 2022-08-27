@@ -244,13 +244,13 @@ void FGLTFMaterialTask::GetProxyProperties(FGLTFJsonMaterial& OutMaterial) const
 
 void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, float& OutValue) const
 {
-	Material->GetScalarParameterValue(*PropertyName, OutValue, true);
+	FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName, OutValue);
 }
 
 void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const
 {
 	FLinearColor Value;
-	if (Material->GetVectorParameterValue(*PropertyName, Value, true))
+	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName, Value))
 	{
 		OutValue = FGLTFConverterUtility::ConvertColor3(Value, false);
 	}
@@ -259,7 +259,7 @@ void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonC
 void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const
 {
 	FLinearColor Value;
-	if (Material->GetVectorParameterValue(*PropertyName, Value, true))
+	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName, Value))
 	{
 		OutValue = FGLTFConverterUtility::ConvertColor(Value, false);
 	}
@@ -268,33 +268,35 @@ void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonC
 void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const
 {
 	UTexture* Texture;
-	if (Material->GetTextureParameterValue(*(PropertyName + TEXT(" Texture")), Texture, true) || Texture == nullptr)
+	if (!FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" Texture"), Texture) || Texture == nullptr)
 	{
-		OutValue.Index = Builder.GetOrAddTexture(Texture);
+		return;
 	}
 
+	OutValue.Index = Builder.GetOrAddTexture(Texture);
+
 	float TexCoord;
-	if (Material->GetScalarParameterValue(*(PropertyName + TEXT(" UV Index")), TexCoord, true))
+	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Index"), TexCoord))
 	{
 		OutValue.TexCoord = FMath::RoundToInt(TexCoord);
 	}
 
 	FLinearColor Offset;
-	if (Material->GetVectorParameterValue(*(PropertyName + TEXT(" UV Offset")), Offset, true))
+	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Offset"), Offset))
 	{
 		OutValue.Transform.Offset.X = Offset.R;
 		OutValue.Transform.Offset.Y = Offset.G;
 	}
 
 	FLinearColor Scale;
-	if (Material->GetVectorParameterValue(*(PropertyName + TEXT(" UV Scale")), Scale, true))
+	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Scale"), Scale))
 	{
 		OutValue.Transform.Scale.X = Scale.R;
 		OutValue.Transform.Scale.Y = Scale.G;
 	}
 
 	float Rotation;
-	if (Material->GetScalarParameterValue(*(PropertyName + TEXT(" UV Rotation")), Rotation, true))
+	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Rotation"), Rotation))
 	{
 		OutValue.Transform.Rotation = Rotation;
 	}

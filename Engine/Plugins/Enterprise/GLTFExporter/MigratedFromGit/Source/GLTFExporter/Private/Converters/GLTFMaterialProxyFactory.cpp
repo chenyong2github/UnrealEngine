@@ -123,98 +123,64 @@ void FGLTFMaterialProxyFactory::SetProxyProperties(UMaterialInstanceConstant* Pr
 			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat Normal"), JsonMaterial.ClearCoat.ClearCoatNormalTexture, EGLTFMaterialPropertyGroup::ClearCoatBottomNormal);
 		}
 	}
-
-	ProxyMaterial->PostEditChange();
 }
 
 void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, float Scalar)
 {
-	float DefaultValue;
-	if (!ProxyMaterial->GetScalarParameterDefaultValue(*PropertyName, DefaultValue))
-	{
-		// TODO: report error
-		return;
-	}
-
-	if (DefaultValue != Scalar)
-	{
-		ProxyMaterial->SetScalarParameterValueEditorOnly(*PropertyName, Scalar);
-	}
+	FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName, Scalar);
 }
 
 void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor3& Color)
 {
-	FLinearColor DefaultValue;
-	if (!ProxyMaterial->GetVectorParameterDefaultValue(*PropertyName, DefaultValue))
-	{
-		// TODO: report error
-		return;
-	}
-
-	const FLinearColor Value(Color.R, Color.G, Color.B);
-	if (DefaultValue != Value)
-	{
-		ProxyMaterial->SetVectorParameterValueEditorOnly(*PropertyName, Value);
-	}
+	FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName, FLinearColor(Color.R, Color.G, Color.B));
 }
 
 void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor4& Color)
 {
-	FLinearColor DefaultValue;
-	if (!ProxyMaterial->GetVectorParameterDefaultValue(*PropertyName, DefaultValue))
-	{
-		// TODO: report error
-		return;
-	}
-
-	const FLinearColor Value(Color.R, Color.G, Color.B, Color.A);
-	if (DefaultValue != Value)
-	{
-		ProxyMaterial->SetVectorParameterValueEditorOnly(*PropertyName, Value);
-	}
+	FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName, FLinearColor(Color.R, Color.G, Color.B, Color.A));
 }
 
 void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonTextureInfo& TextureInfo, EGLTFMaterialPropertyGroup PropertyGroup)
 {
-	if (TextureInfo.Index != INDEX_NONE)
+	UTexture* Texture = FindOrCreateTexture(TextureInfo.Index, PropertyGroup);
+	if (Texture == nullptr)
 	{
-		const UTexture* Texture = FindOrCreateTexture(TextureInfo.Index, PropertyGroup);
-		if (Texture == nullptr)
-		{
-			// TODO: report error
-		}
-
-		ProxyMaterial->SetTextureParameterValueEditorOnly(*(PropertyName + TEXT(" Texture")), const_cast<UTexture*>(Texture));
+		return;
 	}
+
+	FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName + TEXT(" Texture"), Texture);
 
 	if (TextureInfo.TexCoord != 0)
 	{
-		ProxyMaterial->SetScalarParameterValueEditorOnly(*(PropertyName + TEXT(" UV Index")), TextureInfo.TexCoord);
+		FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName + TEXT(" UV Index"), TextureInfo.TexCoord);
 	}
 
 	if (TextureInfo.Transform.Offset != FGLTFJsonVector2::Zero)
 	{
-		const FLinearColor Offset(TextureInfo.Transform.Offset.X, TextureInfo.Transform.Offset.Y, 0, 0);
-		ProxyMaterial->SetVectorParameterValueEditorOnly(*(PropertyName + TEXT(" UV Offset")), Offset);
+		FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName + TEXT(" UV Offset"), FLinearColor(TextureInfo.Transform.Offset.X, TextureInfo.Transform.Offset.Y, 0, 0));
 	}
 
 	if (TextureInfo.Transform.Scale != FGLTFJsonVector2::One)
 	{
-		const FLinearColor Scale(TextureInfo.Transform.Scale.X, TextureInfo.Transform.Scale.Y, 0, 0);
-		ProxyMaterial->SetVectorParameterValueEditorOnly(*(PropertyName + TEXT(" UV Scale")), Scale);
+		FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName + TEXT(" UV Scale"), FLinearColor(TextureInfo.Transform.Scale.X, TextureInfo.Transform.Scale.Y, 0, 0));
 	}
 
 	if (TextureInfo.Transform.Rotation != 0)
 	{
-		ProxyMaterial->SetScalarParameterValueEditorOnly(*(PropertyName + TEXT(" UV Rotation")), TextureInfo.Transform.Rotation);
+		FGLTFMaterialUtility::SetNonDefaultParameterValue(ProxyMaterial, PropertyName + TEXT(" UV Rotation"), TextureInfo.Transform.Rotation);
 	}
 }
 
-const UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTextureIndex Index, EGLTFMaterialPropertyGroup PropertyGroup)
+UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTextureIndex Index, EGLTFMaterialPropertyGroup PropertyGroup)
 {
+	if (Index == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
 	// TODO: fix potential conflict when same texture used for different material properties that have different encoding (sRGB vs Linear, Normalmap compression etc)
 
-	const UTexture2D** FoundPtr = Textures.Find(Index);
+	UTexture2D** FoundPtr = Textures.Find(Index);
 	if (FoundPtr != nullptr)
 	{
 		return *FoundPtr;
@@ -224,11 +190,12 @@ const UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTextur
 	const FGLTFImageData* ImageData = Images.Find(JsonTexture.Source);
 	if (ImageData == nullptr)
 	{
+		// TODO: report error
 		return nullptr;
 	}
 
 	const FGLTFJsonSampler& JsonSampler = Builder.GetSampler(JsonTexture.Sampler);
-	const UTexture2D* Texture = CreateTexture(ImageData, JsonSampler, PropertyGroup);
+	UTexture2D* Texture = CreateTexture(ImageData, JsonSampler, PropertyGroup);
 	Textures.Add(Index, Texture);
 	return Texture;
 }

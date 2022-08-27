@@ -8,6 +8,7 @@
 
 struct FGLTFMaterialAnalysis;
 struct FMaterialPropertyEx;
+class UMaterialInstanceConstant;
 
 struct FGLTFTextureCombineSource
 {
@@ -45,7 +46,15 @@ struct FGLTFMaterialUtility
 	static bool IsProxyMaterial(const UMaterial* Material);
 	static bool IsProxyMaterial(const UMaterialInterface* Material);
 
+	static bool GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, float& OutValue);
+	static bool GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, FLinearColor& OutValue);
+	static bool GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, UTexture*& OutValue);
+
 #if WITH_EDITOR
+	static void SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, float Value);
+	static void SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, const FLinearColor& Value);
+	static void SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, UTexture* Value);
+
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
 	static bool IsSRGB(const FMaterialPropertyEx& Property);
 
