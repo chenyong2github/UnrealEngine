@@ -4,23 +4,23 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Camera/CameraTypes.h"
 
-FGLTFJsonOrthographic FGLTFCameraUtility::ConvertOrthographic(const FMinimalViewInfo& View)
+FGLTFJsonOrthographic FGLTFCameraUtility::ConvertOrthographic(const FMinimalViewInfo& View, const float ExportScale)
 {
 	FGLTFJsonOrthographic Orthographic;
 
 	// NOTE: it goes against the glTF standard to not define a XMag, but the gltf viewer can handle it
 	if (View.bConstrainAspectRatio)
 	{
-		Orthographic.XMag = FGLTFConverterUtility::ConvertLength(View.OrthoWidth);
+		Orthographic.XMag = FGLTFConverterUtility::ConvertLength(View.OrthoWidth, ExportScale);
 	}
 
-	Orthographic.YMag = FGLTFConverterUtility::ConvertLength(View.OrthoWidth / View.AspectRatio); // TODO: is this correct?
-	Orthographic.ZFar = FGLTFConverterUtility::ConvertLength(View.OrthoFarClipPlane);
-	Orthographic.ZNear = FGLTFConverterUtility::ConvertLength(View.OrthoNearClipPlane);
+	Orthographic.YMag = FGLTFConverterUtility::ConvertLength(View.OrthoWidth / View.AspectRatio, ExportScale); // TODO: is this correct?
+	Orthographic.ZFar = FGLTFConverterUtility::ConvertLength(View.OrthoFarClipPlane, ExportScale);
+	Orthographic.ZNear = FGLTFConverterUtility::ConvertLength(View.OrthoNearClipPlane, ExportScale);
 	return Orthographic;
 }
 
-FGLTFJsonPerspective FGLTFCameraUtility::ConvertPerspective(const FMinimalViewInfo& View)
+FGLTFJsonPerspective FGLTFCameraUtility::ConvertPerspective(const FMinimalViewInfo& View, const float ExportScale)
 {
 	FGLTFJsonPerspective Perspective;
 
@@ -32,8 +32,8 @@ FGLTFJsonPerspective FGLTFCameraUtility::ConvertPerspective(const FMinimalViewIn
 	Perspective.YFov = ConvertFieldOfView(View);
 
 	// NOTE: even thought ZFar is optional, if we don't set it, then most gltf viewers won't handle it well.
-	Perspective.ZFar = FGLTFConverterUtility::ConvertLength(WORLD_MAX); // TODO: Unreal doesn't have max draw distance per view?
-	Perspective.ZNear = FGLTFConverterUtility::ConvertLength(GNearClippingPlane);
+	Perspective.ZFar = FGLTFConverterUtility::ConvertLength(WORLD_MAX, ExportScale); // TODO: Unreal doesn't have max draw distance per view?
+	Perspective.ZNear = FGLTFConverterUtility::ConvertLength(GNearClippingPlane, ExportScale);
 	return Perspective;
 }
 

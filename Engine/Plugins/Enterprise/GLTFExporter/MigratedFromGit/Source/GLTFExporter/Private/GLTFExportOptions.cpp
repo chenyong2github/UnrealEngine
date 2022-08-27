@@ -217,6 +217,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyName == TEXT("bExportVertexColors") ||
 		PropertyName == TEXT("DefaultLevelOfDetail") ||
 		PropertyName == TEXT("bExportLightmaps") ||
+		PropertyName == TEXT("ExportScale") ||
 		PropertyName == TEXT("bExportLights"))
 	{
 		return true;
