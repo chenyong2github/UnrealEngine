@@ -53,6 +53,10 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	SphereComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Visibility, ECollisionResponse::ECR_Block);
 	SphereComponent->SetGenerateOverlapEvents(false);
 
+	// TODO: ensure that hover and click works even if the hotspot is partially blocked.
+	// The sprite is rendered on top of other objects, and it would be confusing for the user
+	// if it didn't respond to interaction under these circumstances.
+
 	SphereComponent->OnBeginCursorOver.AddDynamic(this, &UGLTFInteractionHotspotComponent::BeginCursorOver);
 	SphereComponent->OnEndCursorOver.AddDynamic(this, &UGLTFInteractionHotspotComponent::EndCursorOver);
 	SphereComponent->OnClicked.AddDynamic(this, &UGLTFInteractionHotspotComponent::Clicked);
