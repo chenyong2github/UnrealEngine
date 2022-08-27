@@ -7,22 +7,42 @@
 #include "GLTFMaterialAnalyzer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
-#include "CanvasTypes.h"
 #include "Modules/ModuleManager.h"
 #include "GLTFMaterialBaking/Public/IMaterialBakingModule.h"
 #include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
-#include "NormalMapPreview.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "MeshDescription.h"
 #endif
+#include "GLTFConverterUtility.h"
 #include "Misc/DefaultValueHelper.h"
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 {
 	static UMaterialInterface* DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFDefault.GLTFDefault"));
 	return DefaultMaterial;
+}
+
+UMaterialInterface* FGLTFMaterialUtility::GetPrebaked(EGLTFJsonShadingModel ShadingModel)
+{
+	// TODO: don't assume enum values are in this order
+	static UMaterialInterface* BaseMaterials[] = {
+		LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFDefault.GLTFDefault")),
+		LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFUnlit.GLTFUnlit")),
+		LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFClearCoat.GLTFClearCoat")),
+	};
+	return BaseMaterials[static_cast<int32>(ShadingModel)];
+}
+
+bool FGLTFMaterialUtility::IsPrebaked(const UMaterial* Material)
+{
+	return Material->GetPathName().StartsWith(TEXT("/GLTFExporter/Materials/GLTF"));
+}
+
+bool FGLTFMaterialUtility::IsPrebaked(const UMaterialInterface* Material)
+{
+	return IsPrebaked(Material->GetMaterial());
 }
 
 #if WITH_EDITOR

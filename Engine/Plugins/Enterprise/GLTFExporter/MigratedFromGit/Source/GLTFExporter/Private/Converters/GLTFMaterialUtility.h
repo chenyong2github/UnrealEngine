@@ -40,6 +40,11 @@ struct FGLTFMaterialUtility
 {
 	static UMaterialInterface* GetDefault();
 
+	static UMaterialInterface* GetPrebaked(EGLTFJsonShadingModel ShadingModel);
+
+	static bool IsPrebaked(const UMaterial* Material);
+	static bool IsPrebaked(const UMaterialInterface* Material);
+
 #if WITH_EDITOR
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);
 	static bool IsSRGB(const FMaterialPropertyEx& Property);
