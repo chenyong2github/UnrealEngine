@@ -48,16 +48,26 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;
 
+	FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
+	ERGBFormat RGBFormat;
+	uint32 BitDepth;
+
 	if (Texture2D->Source.IsPNGCompressed())
 	{
-		// TODO: add support for non-compressed formats?
-		// TODO: add RGBE encoding information for TSF_RGBE8 and TSF_BGRE8
+		const FByteBulkData& BulkData = FGLTFTextureUtility::GetBulkData(Texture2D->Source);
+		ImageIndex = Builder.AddImage(BulkData, EGLTFJsonMimeType::PNG, JsonTexture.Name);
+	}
+	else if (FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->Source.GetFormat(), RGBFormat, BitDepth))
+	{
+		// TODO: add support for RGBE encodings TSF_RGBE8 and TSF_BGRE8
 
 		const FByteBulkData& BulkData = FGLTFTextureUtility::GetBulkData(Texture2D->Source);
-
-		const void* RawData = BulkData.LockReadOnly();
-		ImageIndex = Builder.AddImage(RawData, BulkData.GetBulkDataSize(), EGLTFJsonMimeType::PNG, JsonTexture.Name);
-		BulkData.Unlock();
+		ImageIndex = Builder.AddImage(BulkData, Size, RGBFormat, BitDepth, JsonTexture.Name);
+	}
+	else if (FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->GetPixelFormat(), RGBFormat, BitDepth))
+	{
+		const FByteBulkData& BulkData = Texture2D->PlatformData->Mips[0].BulkData;
+		ImageIndex = Builder.AddImage(BulkData, Size, RGBFormat, BitDepth, JsonTexture.Name);
 	}
 	else
 	{
