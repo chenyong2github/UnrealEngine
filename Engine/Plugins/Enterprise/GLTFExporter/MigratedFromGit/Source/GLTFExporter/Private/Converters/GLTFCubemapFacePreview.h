@@ -10,9 +10,9 @@ class FGLTFCubemapFacePreview : public FBatchedElementParameters
 
 public:
 
-	FGLTFCubemapFacePreview(FRHITexture* TextureCube, int32 CubeFaceIndex)
+	FGLTFCubemapFacePreview(FRHITexture* TextureCube, ECubeFace CubeFace)
 		: TextureCube(TextureCube)
-		, CubeFaceIndex(CubeFaceIndex)
+		, CubeFace(CubeFace)
 	{
 	}
 
@@ -29,5 +29,5 @@ public:
 private:
 
 	FRHITexture* TextureCube;
-	int32 CubeFaceIndex;
+	ECubeFace CubeFace;
 };
