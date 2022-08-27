@@ -9,8 +9,13 @@ struct FGLTFBuilderUtility
 	static FString GetMeshName(const UStaticMesh* StaticMesh, int32 LODIndex)
 	{
 		FString Name;
-		StaticMesh->GetName(Name);
-		if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+
+		if (StaticMesh != nullptr)
+		{
+			StaticMesh->GetName(Name);
+			if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+		}
+
 		return Name;
 	}
 };
