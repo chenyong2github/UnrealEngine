@@ -11,12 +11,13 @@ struct GLTFEXPORTER_API FGLTFNodeBuilder
 	FString Name;
 
 	const USceneComponent* SceneComponent;
+	const AActor* ComponentOwner;
 
 	bool bTopLevel;
 
 	TArray<FGLTFNodeBuilder> AttachedComponents;
 	
-	FGLTFNodeBuilder(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bTopLevel = false);
+	FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bTopLevel = false);
 
 	FGLTFJsonNodeIndex AddNode(FGLTFContainerBuilder& Container) const;
 };

@@ -4,19 +4,23 @@
 #include "GLTFConversionUtilities.h"
 #include "GLTFExporterModule.h"
 
-FGLTFNodeBuilder::FGLTFNodeBuilder(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bTopLevel)
+FGLTFNodeBuilder::FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bTopLevel)
 	: SceneComponent(SceneComponent)
+	, ComponentOwner(ComponentOwner)
 	, bTopLevel(bTopLevel)
 {
-	const AActor* Owner = SceneComponent->GetOwner();
-	Name = Owner->GetName() + TEXT("_") + SceneComponent->GetName();
+	Name = ComponentOwner->GetName() + TEXT("_") + SceneComponent->GetName();
 
 	const TArray<USceneComponent*>& Children = SceneComponent->GetAttachChildren();
 	for (const USceneComponent* ChildComponent : Children)
 	{
-		if (ChildComponent != nullptr && (!bSelectedOnly || ChildComponent->GetOwner()->IsSelected()))
+		if (ChildComponent != nullptr)
 		{
-			AttachedComponents.Add(FGLTFNodeBuilder(ChildComponent, bSelectedOnly));
+			const AActor* ChildOwner = ChildComponent->GetOwner();
+			if (!bSelectedOnly || ChildOwner->IsSelected())
+			{
+				AttachedComponents.Add(FGLTFNodeBuilder(ChildComponent, ChildOwner, bSelectedOnly));
+			}
 		}
 	}
 }
@@ -31,10 +35,20 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	Node.Rotation = ConvertRotation(Transform.GetRotation());
 	Node.Scale = ConvertScale(Transform.GetScale3D());
 
-	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent);
-	if (StaticMeshComponent != nullptr)
+	const UClass* OwnerClass = ComponentOwner->GetClass();
+	const UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(OwnerClass);
+	
+	if (IsSkySphereBlueprint(Blueprint))
+	{
+		// Ignore components
+	}
+	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		Node.Mesh = Container.AddMesh(StaticMeshComponent);
+	}
+	else if (IsHDRIBackdropBlueprint(Blueprint) && ComponentOwner->GetRootComponent() == SceneComponent)
+	{
+		// TODO: add support for backdrop
 	}
 
 	for (const FGLTFNodeBuilder& AttachedComponent : AttachedComponents)
@@ -62,10 +76,10 @@ FGLTFSceneBuilder::FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly)
 			const USceneComponent* RootComponent = Actor->GetRootComponent();
 			if (RootComponent != nullptr)
 			{
-				const USceneComponent* ParentComponent = RootComponent->GetAttachParent();
-				if (ParentComponent == nullptr || (bSelectedOnly && !ParentComponent->GetOwner()->IsSelected()))
+				const AActor* ParentActor = Actor->GetParentActor();
+				if (ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected()))
 				{
-					TopLevelComponents.Add(FGLTFNodeBuilder(RootComponent, bSelectedOnly, true));
+					TopLevelComponents.Add(FGLTFNodeBuilder(RootComponent, Actor, bSelectedOnly, true));
 				}
 			}
 		}
