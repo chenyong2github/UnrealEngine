@@ -38,8 +38,8 @@ struct FGLTFMaterialUtility
 	static FGuid GetAttributeIDChecked(const FGLTFMaterialPropertyEx& Property);
 #endif
 
-	static FVector4 GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property);
-	static FVector4 GetPropertyMask(const FGLTFMaterialPropertyEx& Property);
+	static FVector4f GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property);
+	static FVector4f GetPropertyMask(const FGLTFMaterialPropertyEx& Property);
 
 	static const FExpressionInput* GetInputForProperty(const UMaterialInterface* Material, const FGLTFMaterialPropertyEx& Property);
 

@@ -50,116 +50,24 @@ FGuid FGLTFMaterialUtility::GetAttributeIDChecked(const FGLTFMaterialPropertyEx&
 }
 #endif
 
-FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property)
+FVector4f FGLTFMaterialUtility::GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	return FMaterialAttributeDefinitionMap::GetDefaultValue(GetAttributeIDChecked(Property));
-
-#else
-	switch (Property.Type)
-	{
-		case MP_EmissiveColor:          return FVector4(0,0,0,0);
-		case MP_Opacity:                return FVector4(1,0,0,0);
-		case MP_OpacityMask:            return FVector4(1,0,0,0);
-		case MP_BaseColor:              return FVector4(0,0,0,0);
-		case MP_Metallic:               return FVector4(0,0,0,0);
-		case MP_Specular:               return FVector4(.5,0,0,0);
-		case MP_Roughness:              return FVector4(.5,0,0,0);
-		case MP_Anisotropy:             return FVector4(0,0,0,0);
-		case MP_Normal:                 return FVector4(0,0,1,0);
-		case MP_Tangent:                return FVector4(1,0,0,0);
-		case MP_WorldPositionOffset:    return FVector4(0,0,0,0);
-		case MP_WorldDisplacement:      return FVector4(0,0,0,0);
-		case MP_TessellationMultiplier: return FVector4(1,0,0,0);
-		case MP_SubsurfaceColor:        return FVector4(1,1,1,0);
-		case MP_CustomData0:            return FVector4(1,0,0,0);
-		case MP_CustomData1:            return FVector4(.1,0,0,0);
-		case MP_AmbientOcclusion:       return FVector4(1,0,0,0);
-		case MP_Refraction:             return FVector4(1,0,0,0);
-		case MP_PixelDepthOffset:       return FVector4(0,0,0,0);
-		case MP_ShadingModel:           return FVector4(0,0,0,0);
-		default:                        break;
-	}
-
-	if (Property.Type >= MP_CustomizedUVs0 && Property.Type <= MP_CustomizedUVs7)
-	{
-		return FVector4(0,0,0,0);
-	}
-
-	if (Property == TEXT("ClearCoatBottomNormal"))
-	{
-		return FVector4(0,0,1,0);
-	}
-
-	if (Property == TEXT("TransmittanceColor"))
-	{
-		return FVector4(.5,.5,.5,0);
-	}
-
-	check(false);
-	return FVector4();
-#endif
 }
 
-FVector4 FGLTFMaterialUtility::GetPropertyMask(const FGLTFMaterialPropertyEx& Property)
+FVector4f FGLTFMaterialUtility::GetPropertyMask(const FGLTFMaterialPropertyEx& Property)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	switch (FMaterialAttributeDefinitionMap::GetValueType(GetAttributeIDChecked(Property)))
 	{
 		case MCT_Float:
-		case MCT_Float1: return FVector4(1, 0, 0, 0);
-		case MCT_Float2: return FVector4(1, 1, 0, 0);
-		case MCT_Float3: return FVector4(1, 1, 1, 0);
-		case MCT_Float4: return FVector4(1, 1, 1, 1);
+		case MCT_Float1: return FVector4f(1, 0, 0, 0);
+		case MCT_Float2: return FVector4f(1, 1, 0, 0);
+		case MCT_Float3: return FVector4f(1, 1, 1, 0);
+		case MCT_Float4: return FVector4f(1, 1, 1, 1);
 		default:
 			checkNoEntry();
-			return FVector4();
+			return FVector4f();
 	}
-
-#else
-	switch (Property.Type)
-	{
-		case MP_EmissiveColor:          return FVector4(1,1,1,0);
-		case MP_Opacity:                return FVector4(1,0,0,0);
-		case MP_OpacityMask:            return FVector4(1,0,0,0);
-		case MP_BaseColor:              return FVector4(1,1,1,0);
-		case MP_Metallic:               return FVector4(1,0,0,0);
-		case MP_Specular:               return FVector4(1,0,0,0);
-		case MP_Roughness:              return FVector4(1,0,0,0);
-		case MP_Anisotropy:             return FVector4(1,0,0,0);
-		case MP_Normal:                 return FVector4(1,1,1,0);
-		case MP_Tangent:                return FVector4(1,1,1,0);
-		case MP_WorldPositionOffset:    return FVector4(1,1,1,0);
-		case MP_WorldDisplacement:      return FVector4(1,1,1,0);
-		case MP_TessellationMultiplier: return FVector4(1,0,0,0);
-		case MP_SubsurfaceColor:        return FVector4(1,1,1,0);
-		case MP_CustomData0:            return FVector4(1,0,0,0);
-		case MP_CustomData1:            return FVector4(1,0,0,0);
-		case MP_AmbientOcclusion:       return FVector4(1,0,0,0);
-		case MP_Refraction:             return FVector4(1,1,0,0);
-		case MP_PixelDepthOffset:       return FVector4(1,0,0,0);
-		case MP_ShadingModel:           return FVector4(1,0,0,0);
-		default:                        break;
-	}
-
-	if (Property.Type >= MP_CustomizedUVs0 && Property.Type <= MP_CustomizedUVs7)
-	{
-		return FVector4(1,1,0,0);
-	}
-
-	if (Property == TEXT("ClearCoatBottomNormal"))
-	{
-		return FVector4(1,1,1,0);
-	}
-
-	if (Property == TEXT("TransmittanceColor"))
-	{
-		return FVector4(1,1,1,0);
-	}
-
-	check(false);
-	return FVector4();
-#endif
 }
 
 const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, const FGLTFMaterialPropertyEx& Property)

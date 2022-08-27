@@ -1434,7 +1434,7 @@ bool FGLTFDelayedMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return StoreBakedPropertyTexture(OutTexInfo, PropertyBakeOutput, PropertyName);
 	}
 
-	const FVector4 MaskedConstant = FVector4(PropertyBakeOutput.ConstantValue) * FGLTFMaterialUtility::GetPropertyMask(Property);
+	const FVector4f MaskedConstant = FVector4f(PropertyBakeOutput.ConstantValue) * FGLTFMaterialUtility::GetPropertyMask(Property);
 	if (MaskedConstant == FGLTFMaterialUtility::GetPropertyDefaultValue(Property))
 	{
 		// Constant value is the same as the property's default so we can set gltf to default.
