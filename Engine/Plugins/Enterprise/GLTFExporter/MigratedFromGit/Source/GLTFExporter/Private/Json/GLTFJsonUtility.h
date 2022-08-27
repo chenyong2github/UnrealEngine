@@ -104,6 +104,17 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static const TCHAR* ToString(EGLTFJsonLightType Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonLightType::Directional: return TEXT("directional");
+			case EGLTFJsonLightType::Point:       return TEXT("point");
+			case EGLTFJsonLightType::Spot:        return TEXT("spot");
+			default:                              return TEXT("unknown");
+		}
+	}
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
 	{

@@ -20,6 +20,7 @@ struct FGLTFJsonNode
 	FGLTFJsonMeshIndex      Mesh;
 	FGLTFJsonBackdropIndex  Backdrop;
 	FGLTFJsonLightMapIndex  LightMap;
+	FGLTFJsonLightIndex     Light;
 
 	TArray<FGLTFJsonNodeIndex> Children;
 
@@ -94,6 +95,16 @@ struct FGLTFJsonNode
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
 				JsonWriter.WriteValue(TEXT("lightmap"), LightMap);
+				JsonWriter.WriteObjectEnd();
+			}
+
+			if (Light != INDEX_NONE)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_LightsPunctual;
+				Extensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+				JsonWriter.WriteValue(TEXT("light"), Light);
 				JsonWriter.WriteObjectEnd();
 			}
 

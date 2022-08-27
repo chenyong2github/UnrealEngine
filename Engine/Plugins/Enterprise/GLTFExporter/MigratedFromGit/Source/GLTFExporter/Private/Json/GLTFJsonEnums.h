@@ -146,3 +146,11 @@ enum class EGLTFJsonCameraType
 	Orthographic,
 	Perspective
 };
+
+enum class EGLTFJsonLightType
+{
+	None = -1,
+    Directional,
+	Point,
+	Spot
+};
