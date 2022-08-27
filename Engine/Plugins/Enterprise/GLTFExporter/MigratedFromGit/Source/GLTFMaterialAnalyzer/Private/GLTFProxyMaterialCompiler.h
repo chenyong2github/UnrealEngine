@@ -63,7 +63,7 @@ class FGLTFProxyMaterialCompiler : public FProxyMaterialCompiler
 		return EMaterialCompilerType::MaterialProxy;
 	}
 
-#if !(ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	virtual int32 PreSkinVertexOffset() override
 	{
 		return Compiler->PreSkinVertexOffset();

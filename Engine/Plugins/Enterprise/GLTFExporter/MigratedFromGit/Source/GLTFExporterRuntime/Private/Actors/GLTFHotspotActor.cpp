@@ -20,7 +20,7 @@
 #include "Slate/SceneViewport.h"
 #endif
 
-#if !(ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 using namespace UE;
 #endif
 
