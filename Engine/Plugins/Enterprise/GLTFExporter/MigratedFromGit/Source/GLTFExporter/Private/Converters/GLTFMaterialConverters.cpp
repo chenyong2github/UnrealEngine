@@ -239,7 +239,7 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Properties %s and %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s and %s for material %s need to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(BaseColorProperty),
 			FGLTFMaterialUtility::GetPropertyName(OpacityProperty),
 			*Material->GetName()));
@@ -404,7 +404,7 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Properties %s and %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s and %s for material %s need to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(MetallicProperty),
 			FGLTFMaterialUtility::GetPropertyName(RoughnessProperty),
 			*Material->GetName()));
@@ -568,7 +568,7 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Properties %s and %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s and %s for material %s need to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(IntensityProperty),
 			FGLTFMaterialUtility::GetPropertyName(RoughnessProperty),
 			*Material->GetName()));
@@ -712,7 +712,7 @@ bool FGLTFMaterialConverter::TryGetEmissive(FGLTFConvertBuilder& Builder, FGLTFJ
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s for material %s needs to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(EmissiveProperty),
 			*Material->GetName()));
 		return false;
@@ -1107,7 +1107,7 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s for material %s needs to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(Property),
 			*Material->GetName()));
 		return false;
@@ -1135,7 +1135,7 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s for material %s needs to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(Property),
 			*Material->GetName()));
 		return false;
@@ -1163,7 +1163,7 @@ inline bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuil
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s for material %s needs to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(Property),
 			*Material->GetName()));
 		return false;
@@ -1191,7 +1191,7 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 	if (!Builder.ExportOptions->bBakeMaterialInputs)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Property %s for material %s will use defaults since baking is disabled by export options"),
+			TEXT("%s for material %s needs to baked, but material baking is disabled by export options"),
 			FGLTFMaterialUtility::GetPropertyName(Property),
 			*Material->GetName()));
 		return false;
