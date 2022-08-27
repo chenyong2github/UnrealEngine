@@ -23,6 +23,16 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 
 		for (const AActor* Actor : Level->Actors)
 		{
+			if (Actor == Level->GetDefaultBrush())
+			{
+				continue; // TODO: can we safely assume no other actor is ever attached to the default brush?
+			}
+
+			if (World->HasDefaultPhysicsVolume() && Actor == World->GetDefaultPhysicsVolume())
+			{
+				continue; // TODO: can we safely assume no other actor is ever attached to the default physics volume?
+			}
+
 			// TODO: should a LevelVariantSet be exported even if not selected for export?
 			if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 			{
@@ -42,7 +52,8 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 			const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
 			if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
 			{
-				// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene. This change may require node converters to support cyclic calls.
+				// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene.
+				// This change may require node converters to support cyclic calls.
 				Scene.Nodes.Add(NodeIndex);
 			}
 		}
