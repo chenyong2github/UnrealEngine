@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFLevelConverters.h"
+#include "Converters/GLTFNodeConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Converters/GLTFCameraUtility.h"
 #include "Components/GLTFInteractionHotspotComponent.h"
 
 FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const USceneComponent* SceneComponent)
@@ -186,109 +185,4 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 	}
 
 	return RootNodeIndex;
-}
-
-FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const ULevel* Level)
-{
-	FGLTFJsonScene Scene;
-
-	if (const UWorld* World = Level->GetWorld())
-	{
-		World->GetName(Scene.Name);
-	}
-	else
-	{
-		Level->GetName(Scene.Name);
-	}
-
-	// TODO: export Level->Model ?
-
-	for (const AActor* Actor : Level->Actors)
-	{
-		// TODO: should a LevelVariantSet be exported even if not selected for export?
-		if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
-		{
-			if (Builder.ExportOptions->bExportVariantSets)
-			{
-				const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSetsActor);
-				if (LevelVariantSetsIndex != INDEX_NONE)
-				{
-					Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
-				}
-			}
-			else
-			{
-				Builder.AddWarningMessage(FString::Printf(
-					TEXT("Level Variant Set %s disabled by export options"),
-					*LevelVariantSetsActor->GetName()));
-			}
-		}
-
-		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
-		if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
-		{
-			Scene.Nodes.Add(NodeIndex);
-		}
-	}
-
-	return Builder.AddScene(Scene);
-}
-
-FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Convert(const UCameraComponent* CameraComponent)
-{
-	FGLTFJsonCamera Camera;
-	Camera.Name = FGLTFNameUtility::GetName(CameraComponent);
-	Camera.Type = FGLTFConverterUtility::ConvertCameraType(CameraComponent->ProjectionMode);
-
-	FMinimalViewInfo DesiredView;
-	const_cast<UCameraComponent*>(CameraComponent)->GetCameraView(0, DesiredView);
-
-	switch (Camera.Type)
-	{
-		case EGLTFJsonCameraType::Orthographic:
-			Camera.Orthographic = FGLTFCameraUtility::ConvertOrthographic(DesiredView, Builder.ExportOptions->ExportScale);
-			break;
-
-		case EGLTFJsonCameraType::Perspective:
-			Camera.Perspective = FGLTFCameraUtility::ConvertPerspective(DesiredView, Builder.ExportOptions->ExportScale);
-			break;
-
-		default:
-		    // TODO: report error (unsupported camera type)
-		    return FGLTFJsonCameraIndex(INDEX_NONE);
-	}
-
-	return Builder.AddCamera(Camera);
-}
-
-FGLTFJsonLightIndex FGLTFLightComponentConverter::Convert(const ULightComponent* LightComponent)
-{
-	FGLTFJsonLight Light;
-
-	Light.Name = FGLTFNameUtility::GetName(LightComponent);
-	Light.Type = FGLTFConverterUtility::ConvertLightType(LightComponent->GetLightType());
-
-	if (Light.Type == EGLTFJsonLightType::None)
-	{
-		// TODO: report error (unsupported light component type)
-		return FGLTFJsonLightIndex(INDEX_NONE);
-	}
-
-	Light.Intensity = LightComponent->Intensity;
-
-	const FLinearColor LightColor = LightComponent->bUseTemperature ? FLinearColor::MakeFromColorTemperature(LightComponent->Temperature) : LightComponent->GetLightColor();
-	Light.Color = FGLTFConverterUtility::ConvertColor(LightColor);
-
-	if (const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
-	{
-		Light.Range = FGLTFConverterUtility::ConvertLength(PointLightComponent->AttenuationRadius, Builder.ExportOptions->ExportScale);
-	}
-
-	if (const USpotLightComponent* SpotLightComponent = Cast<USpotLightComponent>(LightComponent))
-	{
-		Light.Spot.InnerConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->InnerConeAngle);
-		Light.Spot.OuterConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->OuterConeAngle);
-	}
-
-	return Builder.AddLight(Light);
 }
