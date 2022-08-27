@@ -12,6 +12,8 @@
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "MaterialEditor/MaterialEditorInstanceConstant.h"
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversion.h"
 #include "Misc/ScopedSlowTask.h"
@@ -234,12 +236,10 @@ namespace FMaterialBakingModuleImpl
 
 void FMaterialBakingModule::StartupModule()
 {
+	bEmissiveHDR = false;
+
 	// Set which properties should enforce gamma correction
-	PerPropertyGamma.Add(MP_Normal);
-	PerPropertyGamma.Add(MP_Opacity);
-	PerPropertyGamma.Add(MP_OpacityMask);
-	PerPropertyGamma.Add(MP_ShadingModel);
-	PerPropertyGamma.Add(TEXT("ClearCoatBottomNormal"));
+	SetLinearBake(false);
 
 	// Set which pixel format should be used for the possible baked out material properties
 	PerPropertyFormat.Add(MP_EmissiveColor, PF_FloatRGBA);
@@ -277,10 +277,9 @@ void FMaterialBakingModule::ShutdownModule()
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutput>& Output)
 {
-	TArray<FMaterialDataEx> MaterialDataExs;
-	TArray<FMaterialDataEx*> MaterialSettingsEx;
-
 	// Translate old material data to extended types
+	TArray<FMaterialDataEx> MaterialDataExs;
+	MaterialDataExs.Reserve(MaterialSettings.Num());
 	for (const FMaterialData* MaterialData : MaterialSettings)
 	{
 		FMaterialDataEx& MaterialDataEx = MaterialDataExs.AddDefaulted_GetRef();
@@ -292,7 +291,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		{
 			MaterialDataEx.PropertySizes.Add(PropertySizePair.Key, PropertySizePair.Value);
 		}
+	}
 
+	// Build an array of pointers to the extended type
+	TArray<FMaterialDataEx*> MaterialSettingsEx;
+	MaterialSettingsEx.Reserve(MaterialDataExs.Num());
+	for (FMaterialDataEx& MaterialDataEx : MaterialDataExs)
+	{
 		MaterialSettingsEx.Add(&MaterialDataEx);
 	}
 
@@ -300,6 +305,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 	BakeMaterials(MaterialSettingsEx, MeshSettings, BakeOutputExs);
 
 	// Translate extended bake output to old types
+	Output.Reserve(BakeOutputExs.Num());
 	for (FBakeOutputEx& BakeOutputEx : BakeOutputExs)
 	{
 		FBakeOutput& BakeOutput = Output.AddDefaulted_GetRef();
@@ -314,8 +320,38 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 		{
 			BakeOutput.PropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
 		}
+
+		for (TPair<FMaterialPropertyEx, TArray<FFloat16Color>>& PropertyDataPair : BakeOutputEx.HDRPropertyData)
+		{
+			BakeOutput.HDRPropertyData.Add(PropertyDataPair.Key.Type, MoveTemp(PropertyDataPair.Value));
+		}
 	}
 }
+
+#if !(ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+static inline void ConvertRawR16G16B16A16FDataToFFloat16Color(uint32 Width, uint32 Height, uint8* In, uint32 SrcPitch, FFloat16Color* Out)
+{
+	const uint32 DstPitch = Width * sizeof(FFloat16Color);
+
+	// If source & dest pitch matches, perform a single memcpy.
+	if (DstPitch == SrcPitch)
+	{
+		FPlatformMemory::Memcpy(Out, In, Width * Height * sizeof(FFloat16Color));
+	}
+	else
+	{
+		check(SrcPitch > DstPitch);
+
+		// Need to copy row wise since the Pitch does not match the Width.
+		for (uint32 Y = 0; Y < Height; Y++)
+		{
+			FFloat16Color* SrcPtr = (FFloat16Color*)(In + Y * SrcPitch);
+			FFloat16Color* DestPtr = Out + Y * Width;
+			FMemory::Memcpy(DestPtr, SrcPtr, DstPitch);
+		}
+	}
+}
+#endif
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutputEx>& Output)
 {
@@ -487,6 +523,10 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			{
 				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
 				CurrentOutput.PropertyData.Add(Property);
+				if (bEmissiveHDR && Property == MP_EmissiveColor)
+				{
+					CurrentOutput.HDRPropertyData.Add(Property);
+				}
 			}
 
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
@@ -501,12 +541,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 				}
 
 				// Lookup gamma and format settings for property, if not found use default values
-				bool InForceLinearGamma = PerPropertyGamma.Contains(Property);
-				EPixelFormat PixelFormat = PerPropertyFormat.Contains(Property) ? PerPropertyFormat[Property] : PF_B8G8R8A8;
+				const EPropertyColorSpace* OverrideColorSpace = PerPropertyColorSpace.Find(Property);
+				const EPropertyColorSpace ColorSpace = OverrideColorSpace ? *OverrideColorSpace : DefaultColorSpace;
+				const EPixelFormat PixelFormat = PerPropertyFormat.Contains(Property) ? PerPropertyFormat[Property] : PF_B8G8R8A8;
 
 				// It is safe to reuse the same render target for each draw pass since they all execute sequentially on the GPU and are copied to staging buffers before
 				// being reused.
-				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(InForceLinearGamma, PixelFormat, CurrentOutput.PropertySizes[Property]);
+				UTextureRenderTarget2D* RenderTarget = CreateRenderTarget((ColorSpace == EPropertyColorSpace::Linear), PixelFormat, CurrentOutput.PropertySizes[Property]);
 				if (RenderTarget != nullptr)
 				{
 					// Perform everything left of the operation directly on the render thread since we need to modify some RenderItem's properties
@@ -551,7 +592,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 							// Prepare a lambda for final processing that will be executed asynchronously
 							NumTasks++;
 							auto FinalProcessing_AnyThread =
-								[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, &StagingBufferPool, &Output, Property, MaterialIndex](FTexture2DRHIRef& StagingBuffer, void * Data, int32 DataWidth, int32 DataHeight)
+								[&NumTasks, bSaveIntermediateTextures, CurrentMaterialSettings, &StagingBufferPool, &Output, Property, MaterialIndex, bEmissiveHDR = bEmissiveHDR](FTexture2DRHIRef& StagingBuffer, void * Data, int32 DataWidth, int32 DataHeight)
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(FinalProcessing)
 
@@ -565,6 +606,13 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 									{
 										// Only one thread will write to CurrentOutput.EmissiveScale since there can be only one emissive channel property per FBakeOutputEx
 										FMaterialBakingModule::ProcessEmissiveOutput((const FFloat16Color*)Data, DataWidth, OutputSize, OutputColor, CurrentOutput.EmissiveScale);
+
+										if (bEmissiveHDR)
+										{
+											TArray<FFloat16Color>& OutputHDRColor = CurrentOutput.HDRPropertyData[Property];
+											OutputHDRColor.SetNum(OutputSize.X * OutputSize.Y);
+											ConvertRawR16G16B16A16FDataToFFloat16Color(OutputSize.X, OutputSize.Y, (uint8*)Data, DataWidth * sizeof(FFloat16Color), OutputHDRColor.GetData());
+										}
 									}
 									else
 									{
@@ -687,6 +735,32 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 	if (!CVarUseMaterialProxyCaching.GetValueOnAnyThread())
 	{
 		CleanupMaterialProxies();
+	}
+}
+
+void FMaterialBakingModule::SetEmissiveHDR(bool bHDR)
+{
+	bEmissiveHDR = bHDR;
+}
+
+void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
+{
+	// PerPropertyGamma ultimately sets whether the render target is linear
+	PerPropertyColorSpace.Reset();
+	if (bCorrectLinear)
+	{
+		DefaultColorSpace = EPropertyColorSpace::Linear;
+		PerPropertyColorSpace.Add(MP_BaseColor, EPropertyColorSpace::sRGB);
+		PerPropertyColorSpace.Add(MP_EmissiveColor, EPropertyColorSpace::sRGB);
+		PerPropertyColorSpace.Add(MP_SubsurfaceColor, EPropertyColorSpace::sRGB);
+	}
+	else
+	{
+		DefaultColorSpace = EPropertyColorSpace::sRGB;
+		PerPropertyColorSpace.Add(MP_Normal, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(MP_Opacity, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(MP_OpacityMask, EPropertyColorSpace::Linear);
+		PerPropertyColorSpace.Add(TEXT("ClearCoatBottomNormal"), EPropertyColorSpace::Linear);
 	}
 }
 
@@ -864,10 +938,19 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 
 	if (CVarUseMaterialProxyCaching.GetValueOnAnyThread())
 	{
-		if (Object && Object->IsA<UMaterialInterface>())
+		UMaterialInterface* MaterialToInvalidate = Cast<UMaterialInterface>(Object);
+		if (!MaterialToInvalidate)
 		{
-			UMaterialInterface* MaterialToInvalidate = Cast<UMaterialInterface>(Object);
+			// Check to see if the object is a material editor instance constant and if so, retrieve its source instance
+			UMaterialEditorInstanceConstant* EditorInstance = Cast<UMaterialEditorInstanceConstant>(Object);
+			if (EditorInstance && EditorInstance->SourceInstance)
+			{
+				MaterialToInvalidate = EditorInstance->SourceInstance;
+			}
+		}
 
+		if (MaterialToInvalidate)
+		{
 			// Search our proxy pool for materials or material instances that refer to MaterialToInvalidate
 			for (auto It = MaterialProxyPool.CreateIterator(); It; ++It)
 			{

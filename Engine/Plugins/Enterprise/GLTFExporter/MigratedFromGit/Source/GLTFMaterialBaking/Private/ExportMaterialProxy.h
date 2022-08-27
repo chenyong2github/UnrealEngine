@@ -131,6 +131,18 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->VertexColor();
 	}
 
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
+	virtual int32 PreSkinVertexOffset() override
+	{
+		return Compiler->PreSkinVertexOffset();
+	}
+
+	virtual int32 PostSkinVertexOffset() override
+	{
+		return Compiler->PostSkinVertexOffset();
+	}
+#endif
+
 	virtual int32 PreSkinnedPosition() override
 	{
 		return Compiler->PreSkinnedPosition();
@@ -221,22 +233,7 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		}
 	}
 
-	virtual EMaterialCompilerType GetCompilerType() const override
-	{
-		return EMaterialCompilerType::MaterialProxy;
-	}
-
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-	virtual int32 PreSkinVertexOffset() override
-	{
-		return Compiler->PreSkinVertexOffset();
-	}
-
-	virtual int32 PostSkinVertexOffset() override
-	{
-		return Compiler->PostSkinVertexOffset();
-	}
-#endif
+	virtual EMaterialCompilerType GetCompilerType() const override { return EMaterialCompilerType::MaterialProxy; }
 };
 
 class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
@@ -252,7 +249,7 @@ public:
 	{
 
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-		SetQualityLevelProperties(GMaxRHIFeatureLevel, EMaterialQualityLevel::High);
+		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 #else
 		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 #endif
@@ -459,7 +456,7 @@ public:
 				// Only return for Opaque and Masked...
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
-					return CompileNormalTransform(
+					return CompileNormalEncoding(
 						&ProxyCompiler,
 						MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate));
 				}
@@ -502,10 +499,8 @@ public:
 	}
 	virtual EMaterialDomain GetMaterialDomain() const override
 	{
-		if (Material)
-		{
-			return Material->MaterialDomain;
-		}
+		// Because the baking module applies the material to a plane (or mesh),
+		// it needs to be a surface material.
 		return MD_Surface;
 	}
 	virtual bool IsTwoSided() const  override
@@ -534,7 +529,10 @@ public:
 	}
 	virtual bool IsDeferredDecal() const override
 	{
-		return Material && Material->MaterialDomain == MD_DeferredDecal;
+		// Decals are tricky. Since they mix with the underlying material
+		// and can't be applied to meshes, they can't really be baked 1:1.
+		// Instead we'll just bake them as surface materials.
+		return false;
 	}
 	virtual bool IsVolumetricPrimitive() const override
 	{
@@ -678,25 +676,23 @@ public:
 	}
 
 private:
-	static FGuid GetCustomAttributeID(const FString& AttributeName)
-	{
-		TArray<FMaterialCustomOutputAttributeDefintion> CustomAttributes;
-		FMaterialAttributeDefinitionMap::GetCustomAttributeList(CustomAttributes);
-
-		for (auto& Attribute : CustomAttributes)
-		{
-			if (Attribute.AttributeName == AttributeName)
-			{
-				return Attribute.AttributeID;
-			}
-		}
-
-		return {};
-	}
-
 	int32 CompileInputForCustomOutput(FMaterialCompiler* Compiler, int32 InputIndex, uint32 ForceCastFlags) const
 	{
-		FGuid AttributeID = GetCustomAttributeID(CustomOutputToCompile);
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+		FGuid AttributeID = FMaterialAttributeDefinitionMap::GetCustomAttributeID(CustomOutputToCompile);
+#else
+		FGuid AttributeID = {};
+
+		TArray<FMaterialCustomOutputAttributeDefintion> CustomAttributes;
+		FMaterialAttributeDefinitionMap::GetCustomAttributeList(CustomAttributes);
+		for (auto& Attribute : CustomAttributes)
+		{
+			if (Attribute.AttributeName == CustomOutputToCompile)
+			{
+				AttributeID = Attribute.AttributeID;
+			}
+		}
+#endif
 		check(AttributeID.IsValid());
 
 		UMaterialExpressionCustomOutput* Expression = GetCustomOutputExpressionToCompile();
@@ -706,15 +702,15 @@ private:
 		if (ExpressionInput)
 		{
 			Result = ExpressionInput->Compile(Compiler);
-
-			if (CustomOutputToCompile ==  TEXT("ClearCoatBottomNormal"))
-			{
-				Result = CompileNormalTransform(Compiler, Result);
-			}
 		}
 		else
 		{
 			Result = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, AttributeID);
+		}
+
+		if (CustomOutputToCompile == TEXT("ClearCoatBottomNormal"))
+		{
+			Result = CompileNormalEncoding(Compiler, Result);
 		}
 
 		if (ForceCastFlags & MFCF_ForceCast)
@@ -727,8 +723,7 @@ private:
 
 	UMaterialExpressionCustomOutput* GetCustomOutputExpressionToCompile() const
 	{
-		UMaterial* BaseMaterial = MaterialInterface->GetMaterial();
-		for (UMaterialExpression* Expression : BaseMaterial->Expressions)
+		for (UMaterialExpression* Expression : Material->Expressions)
 		{
 			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
 			if (CustomOutputExpression && CustomOutputExpression->GetDisplayName() == CustomOutputToCompile)
@@ -738,6 +733,19 @@ private:
 		}
 
 		return nullptr;
+	}
+
+	int32 CompileNormalEncoding(FMaterialCompiler* Compiler, int32 NormalInput) const
+	{
+		// TODO: make this configurable instead of assuming that we always want tangent-space normals
+		if (!Material->bTangentSpaceNormal)
+		{
+			NormalInput = Compiler->TransformVector(MCB_World, MCB_Tangent, NormalInput);
+		}
+
+		return Compiler->Add(
+			Compiler->Mul(NormalInput, Compiler->Constant(0.5f)), // [-1,1] * 0.5
+			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 	}
 
 	static int32 CompileShadingModel(FMaterialCompiler* Compiler, int32 Code)
@@ -758,19 +766,6 @@ private:
 		// NOTE: ugly hack to workaround casting shading model (uint) to float
 		static_cast<FMaterialCompilerHack*>(Compiler)->SetParameterType(Code, MCT_Float1);
 		return Compiler->Div(Code, Compiler->Constant(255)); // [0,255] / 255
-	}
-
-	int32 CompileNormalTransform(FMaterialCompiler* Compiler, int32 ExpressionIndex) const
-	{
-		// TODO: make this configurable instead of assuming that we always want tangent-space normals
-		if (!Material->bTangentSpaceNormal)
-		{
-			ExpressionIndex = Compiler->TransformVector(MCB_World, MCB_Tangent, ExpressionIndex);
-		}
-
-		return Compiler->Add(
-			Compiler->Mul(ExpressionIndex, Compiler->Constant(0.5f)), // [-1,1] * 0.5
-			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
 	}
 
 private:

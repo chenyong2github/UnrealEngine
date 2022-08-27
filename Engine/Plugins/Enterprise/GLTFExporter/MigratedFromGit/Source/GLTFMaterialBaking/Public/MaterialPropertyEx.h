@@ -38,6 +38,41 @@ struct FMaterialPropertyEx
 		return !IsCustomOutput() || !Other.IsCustomOutput() ? Type - Other.Type : CustomOutput.Compare(Other.CustomOutput);
 	}
 
+	FORCEINLINE bool operator ==(const FMaterialPropertyEx& Other) const
+	{
+		return Equals(Other);
+	}
+
+	FORCEINLINE bool operator !=(const FMaterialPropertyEx& Other) const
+	{
+		return !Equals(Other);
+	}
+
+	FORCEINLINE bool operator >=(const FMaterialPropertyEx& Other) const
+	{
+		return Compare(Other) >= 0;
+	}
+
+	FORCEINLINE bool operator >(const FMaterialPropertyEx& Other) const
+	{
+		return Compare(Other) > 0;
+	}
+
+	FORCEINLINE bool operator <=(const FMaterialPropertyEx& Other) const
+	{
+		return Compare(Other) <= 0;
+	}
+
+	FORCEINLINE bool operator <(const FMaterialPropertyEx& Other) const
+	{
+		return Compare(Other) < 0;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FMaterialPropertyEx& Other)
+	{
+		return !Other.IsCustomOutput() ? GetTypeHash(Other.Type) : GetTypeHash(Other.CustomOutput);
+	}
+
 	FString ToString() const
 	{
 		if (!IsCustomOutput())
@@ -50,41 +85,6 @@ struct FMaterialPropertyEx
 		}
 
 		return CustomOutput.ToString();
-	}
-
-	bool operator ==(const FMaterialPropertyEx& Other) const
-	{
-		return Equals(Other);
-	}
-
-	bool operator !=(const FMaterialPropertyEx& Other) const
-	{
-		return !Equals(Other);
-	}
-
-	bool operator >=(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) >= 0;
-	}
-
-	bool operator >(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) > 0;
-	}
-
-	bool operator <=(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) <= 0;
-	}
-
-	bool operator <(const FMaterialPropertyEx& Other) const
-	{
-		return Compare(Other) < 0;
-	}
-
-	friend uint32 GetTypeHash(const FMaterialPropertyEx& Other)
-	{
-		return !Other.IsCustomOutput() ? GetTypeHash(Other.Type) : GetTypeHash(Other.CustomOutput);
 	}
 
 	/** The material property */
