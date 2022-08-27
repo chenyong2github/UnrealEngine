@@ -16,10 +16,12 @@ UBlueprint* FGLTFActorUtility::GetBlueprintFromActor(const AActor* Actor)
 
 bool FGLTFActorUtility::IsSkySphereBlueprint(const UBlueprint* Blueprint)
 {
+	// TODO: what if a blueprint inherits BP_Sky_Sphere?
 	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/Engine/EngineSky/BP_Sky_Sphere.BP_Sky_Sphere"));
 }
 
 bool FGLTFActorUtility::IsHDRIBackdropBlueprint(const UBlueprint* Blueprint)
 {
+	// TODO: what if a blueprint inherits HDRIBackdrop?
 	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/HDRIBackdrop/Blueprints/HDRIBackdrop.HDRIBackdrop"));
 }

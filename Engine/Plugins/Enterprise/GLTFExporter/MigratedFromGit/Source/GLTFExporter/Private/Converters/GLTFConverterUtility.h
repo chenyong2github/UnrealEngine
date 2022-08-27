@@ -10,6 +10,7 @@
 #include "Json/GLTFJsonColor4.h"
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
+#include "Json/GLTFJsonCamera.h"
 
 struct FGLTFConverterUtility
 {
@@ -91,16 +92,9 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
-	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel)
-	{
-		switch (ShadingModel)
-		{
-			case MSM_Unlit:      return EGLTFJsonShadingModel::Unlit;
-			case MSM_DefaultLit: return EGLTFJsonShadingModel::Default;
-			case MSM_ClearCoat:  return EGLTFJsonShadingModel::ClearCoat;
-			default:             return EGLTFJsonShadingModel::None;
-		}
-	}
+	static EGLTFJsonCameraType ConvertCameraType(ECameraProjectionMode::Type ProjectionMode);
+
+	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel);
 
 	static EGLTFJsonAlphaMode ConvertBlendMode(EBlendMode Mode);
 
@@ -113,6 +107,11 @@ struct FGLTFConverterUtility
 	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup);
 
 	static EGLTFJsonCubeFace ConvertCubeFace(ECubeFace CubeFace);
+
+	static FGLTFJsonOrthographic ConvertOrthographic(const FMinimalViewInfo& View);
+	static FGLTFJsonPerspective ConvertPerspective(const FMinimalViewInfo& View);
+
+	static float ConvertFieldOfView(const FMinimalViewInfo& View);
 
 	template <typename EnumType>
 	static FString GetEnumDisplayName(EnumType Value)

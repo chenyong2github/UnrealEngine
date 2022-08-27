@@ -20,3 +20,8 @@ class FGLTFLevelConverter final : public TGLTFConverter<FGLTFJsonSceneIndex, con
 {
 	FGLTFJsonSceneIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULevel* Level) override;
 };
+
+class FGLTFCameraComponentConverter final : public TGLTFConverter<FGLTFJsonCameraIndex, const UCameraComponent*>
+{
+	FGLTFJsonCameraIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UCameraComponent* CameraComponent) override;
+};

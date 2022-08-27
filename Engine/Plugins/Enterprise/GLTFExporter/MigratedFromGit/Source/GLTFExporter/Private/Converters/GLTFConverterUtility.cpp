@@ -3,6 +3,27 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 
+EGLTFJsonCameraType FGLTFConverterUtility::ConvertCameraType(ECameraProjectionMode::Type ProjectionMode)
+{
+	switch (ProjectionMode)
+	{
+		case ECameraProjectionMode::Perspective:  return EGLTFJsonCameraType::Perspective;
+		case ECameraProjectionMode::Orthographic: return EGLTFJsonCameraType::Orthographic;
+		default:                                  return EGLTFJsonCameraType::None;
+	}
+}
+
+EGLTFJsonShadingModel FGLTFConverterUtility::ConvertShadingModel(EMaterialShadingModel ShadingModel)
+{
+	switch (ShadingModel)
+	{
+		case MSM_Unlit:      return EGLTFJsonShadingModel::Unlit;
+		case MSM_DefaultLit: return EGLTFJsonShadingModel::Default;
+		case MSM_ClearCoat:  return EGLTFJsonShadingModel::ClearCoat;
+		default:             return EGLTFJsonShadingModel::None;
+	}
+}
+
 EGLTFJsonAlphaMode FGLTFConverterUtility::ConvertBlendMode(EBlendMode Mode)
 {
 	switch (Mode)
@@ -69,4 +90,33 @@ EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
 		case CubeFace_NegZ:	return EGLTFJsonCubeFace::NegY;
 		default:            return EGLTFJsonCubeFace::None;
 	}
+}
+
+FGLTFJsonOrthographic FGLTFConverterUtility::ConvertOrthographic(const FMinimalViewInfo& View)
+{
+	// TODO: do we need to convert any property from world units?
+
+	FGLTFJsonOrthographic Orthographic;
+	Orthographic.XMag = View.OrthoWidth;
+	Orthographic.YMag = View.OrthoWidth / View.AspectRatio; // TODO: is this correct?
+	Orthographic.ZFar = View.OrthoFarClipPlane;
+	Orthographic.ZNear = View.OrthoNearClipPlane;
+	return Orthographic;
+}
+
+FGLTFJsonPerspective FGLTFConverterUtility::ConvertPerspective(const FMinimalViewInfo& View)
+{
+	FGLTFJsonPerspective Perspective;
+	Perspective.AspectRatio = View.AspectRatio;
+	Perspective.YFov = ConvertFieldOfView(View);
+	Perspective.ZFar = 0; // infinite
+	Perspective.ZNear = GNearClippingPlane; // TODO: need to convert units?
+	return Perspective;
+}
+
+float FGLTFConverterUtility::ConvertFieldOfView(const FMinimalViewInfo& View)
+{
+	const float HorizontalFOV = FMath::DegreesToRadians(View.FOV);
+	const float VerticalFOV = FMath::Atan(FMath::Tan(HorizontalFOV) / View.AspectRatio);
+	return VerticalFOV;
 }

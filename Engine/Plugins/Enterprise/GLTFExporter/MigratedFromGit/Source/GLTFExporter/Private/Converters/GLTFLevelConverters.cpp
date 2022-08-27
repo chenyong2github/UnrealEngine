@@ -31,7 +31,11 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
 	Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
 
-	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
+	if (SceneComponent->bHiddenInGame)
+	{
+		// ignore any visible properties
+	}
+	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
 
@@ -39,6 +43,10 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 		{
 			Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
 		}
+	}
+	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
+	{
+		Node.Camera = Builder.GetOrAddCamera(CameraComponent);
 	}
 
 	return NodeIndex;
@@ -64,6 +72,13 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 	{
 		FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
 		RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+	}
+	else if (const ACameraActor* CameraActor = Cast<ACameraActor>(Actor))
+	{
+		// Ignore any other components inside camera actor (like proxy static mesh component)
+		// TODO: do we want to have to do this? Or can we rely on bHiddenInGame?
+		FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+		RootNode.Camera = Builder.GetOrAddCamera(CameraActor->GetCameraComponent());
 	}
 	else
 	{
@@ -108,4 +123,30 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 	}
 
 	return Builder.AddScene(Scene);
+}
+
+FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UCameraComponent* CameraComponent)
+{
+	FGLTFJsonCamera Camera;
+	Camera.Name = Name;
+	Camera.Type = FGLTFConverterUtility::ConvertCameraType(CameraComponent->ProjectionMode);
+
+	FMinimalViewInfo DesiredView;
+	const_cast<UCameraComponent*>(CameraComponent)->GetCameraView(0, DesiredView);
+
+	switch (Camera.Type)
+	{
+		case EGLTFJsonCameraType::Orthographic:
+			Camera.Orthographic = FGLTFConverterUtility::ConvertOrthographic(DesiredView);
+			break;
+
+		case EGLTFJsonCameraType::Perspective:
+			Camera.Perspective = FGLTFConverterUtility::ConvertPerspective(DesiredView);
+			break;
+
+		default:
+			checkNoEntry();
+	}
+
+	return Builder.AddCamera(Camera);
 }

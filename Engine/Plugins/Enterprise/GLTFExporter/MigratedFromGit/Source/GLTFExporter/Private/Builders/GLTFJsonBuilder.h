@@ -16,6 +16,7 @@ public:
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor = {});
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer = {});
 	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView = {});
+	FGLTFJsonCameraIndex AddCamera(const FGLTFJsonCamera& JsonCamera = {});
 	FGLTFJsonImageIndex AddImage(const FGLTFJsonImage& JsonImage = {});
 	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial = {});
 	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh = {});
@@ -32,6 +33,7 @@ public:
 	FGLTFJsonAccessor& GetAccessor(FGLTFJsonAccessorIndex AccessorIndex);
 	FGLTFJsonBuffer& GetBuffer(FGLTFJsonBufferIndex BufferIndex);
 	FGLTFJsonBufferView& GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex);
+	FGLTFJsonCamera& GetCamera(FGLTFJsonCameraIndex CameraIndex);
 	FGLTFJsonImage& GetImage(FGLTFJsonImageIndex ImageIndex);
 	FGLTFJsonMaterial& GetMaterial(FGLTFJsonMaterialIndex MaterialIndex);
 	FGLTFJsonMesh& GetMesh(FGLTFJsonMeshIndex MeshIndex);
