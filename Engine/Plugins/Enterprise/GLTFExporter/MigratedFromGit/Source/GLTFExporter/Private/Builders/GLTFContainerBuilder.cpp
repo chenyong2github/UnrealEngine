@@ -51,7 +51,7 @@ void FGLTFContainerBuilder::BundleWebViewer()
 		return;
 	}
 
-	if (!FGLTFZipUtility::ExtractToDirectory(ArchiveFile, DirPath))
+	if (!FGLTFZipUtility::ExtractAllFiles(ArchiveFile, DirPath))
 	{
 		AddErrorMessage(FString::Printf(TEXT("Failed to extract web viewer at %s"), *ArchiveFile));
 		return;

@@ -8,9 +8,14 @@ class FGLTFZipUtility
 {
 public:
 
-	static bool ExtractToDirectory(const FString& ArchiveFile, const FString& TargetDirectory);
+	static TArray<FString> GetAllFiles(const FString& ArchiveFile);
+
+	static bool ExtractAllFiles(const FString& ArchiveFile, const FString& TargetDirectory);
+	static bool ExtractOneFile(const FString& ArchiveFile, const FString& FileToExtract, const FString& TargetDirectory);
 
 private:
 
-	static bool ExtractCurrentFile(void* ZipHandle, const FString& TargetDirectory);
+	static FString GetCurrentFilename(void* ZipHandle);
+
+	static bool ExtractCurrentFile(void* ZipHandle, const FString& TargetFile);
 };
