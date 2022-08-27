@@ -45,7 +45,7 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Ho
 			}
 		}
 	}
-	else if (const ALevelSequenceActor* LevelSequenceActor = HotspotActor->LevelSequenceActor)
+	else if (const ULevelSequence* LevelSequence = HotspotActor->LevelSequence)
 	{
 		if (!Builder.ExportOptions->bExportLevelSequences)
 		{
@@ -55,14 +55,7 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Ho
 		}
 		else
 		{
-			if (const ULevelSequence* LevelSequence = HotspotActor->LevelSequence)
-			{
-				JsonHotspot.Animation = Builder.GetOrAddAnimation(LevelSequenceActor, LevelSequence);
-			}
-			else
-			{
-				// TODO: report warning
-			}
+			JsonHotspot.Animation = Builder.GetOrAddAnimation(HotspotActor->GetLevel(), LevelSequence);
 		}
 	}
 	else

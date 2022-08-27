@@ -30,9 +30,16 @@ class FGLTFAnimationDataConverter final : public TGLTFAnimationConverter<FGLTFJs
 	virtual FGLTFJsonAnimationIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent) override;
 };
 
-class FGLTFLevelSequenceConverter final : public TGLTFAnimationConverter<const ALevelSequenceActor*, const ULevelSequence*>
+class FGLTFLevelSequenceConverter final : public TGLTFAnimationConverter<const ULevel*, const ULevelSequence*>
 {
 	using TGLTFAnimationConverter::TGLTFAnimationConverter;
 
-	virtual FGLTFJsonAnimationIndex Convert(const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence*) override;
+	virtual FGLTFJsonAnimationIndex Convert(const ULevel* Level, const ULevelSequence*) override;
+};
+
+class FGLTFLevelSequenceDataConverter final : public TGLTFAnimationConverter<const ALevelSequenceActor*>
+{
+	using TGLTFAnimationConverter::TGLTFAnimationConverter;
+
+	virtual FGLTFJsonAnimationIndex Convert(const ALevelSequenceActor* LevelSequenceActor) override;
 };

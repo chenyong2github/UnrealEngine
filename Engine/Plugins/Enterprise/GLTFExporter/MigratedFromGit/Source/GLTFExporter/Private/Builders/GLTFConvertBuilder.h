@@ -54,7 +54,8 @@ public:
 	FGLTFJsonSkinIndex GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent);
 	FGLTFJsonAnimationIndex GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence);
 	FGLTFJsonAnimationIndex GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent);
-	FGLTFJsonAnimationIndex GetOrAddAnimation(const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence* LevelSequence);
+	FGLTFJsonAnimationIndex GetOrAddAnimation(const ULevel* Level, const ULevelSequence* LevelSequence);
+	FGLTFJsonAnimationIndex GetOrAddAnimation(const ALevelSequenceActor* LevelSequenceActor);
 
 	FGLTFJsonNodeIndex GetOrAddNode(const AActor* Actor);
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent);
@@ -97,6 +98,7 @@ private:
 	FGLTFAnimationConverter AnimationConverter{ *this };
 	FGLTFAnimationDataConverter AnimationDataConverter{ *this };
 	FGLTFLevelSequenceConverter LevelSequenceConverter{ *this };
+	FGLTFLevelSequenceDataConverter LevelSequenceDataConverter{ *this };
 
 	FGLTFActorConverter ActorConverter{ *this };
 	FGLTFComponentConverter ComponentConverter{ *this };
