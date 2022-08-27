@@ -17,9 +17,8 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	FormatExtension.Add(TEXT("gltf"));
 	FormatDescription.Add(TEXT("GL Transmission Format"));
 
-	// TODO: uncomment when support for .glb is implemented
-	// FormatExtension.Add(TEXT("glb"));
-	// FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
+	FormatExtension.Add(TEXT("glb"));
+	FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
 }
 
 bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
