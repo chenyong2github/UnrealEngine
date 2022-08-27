@@ -153,8 +153,4 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-
-	FIntPoint GetDefaultMaterialBakeSize() const;
-
-	bool ShouldExportLight(EComponentMobility::Type LightMobility) const;
 };

@@ -3,9 +3,9 @@
 #pragma once
 
 #include "Json/GLTFJsonRoot.h"
-#include "Builders/GLTFMessageBuilder.h"
+#include "Builders/GLTFTaskBuilder.h"
 
-class FGLTFJsonBuilder : public FGLTFMessageBuilder
+class FGLTFJsonBuilder : public FGLTFTaskBuilder
 {
 protected:
 

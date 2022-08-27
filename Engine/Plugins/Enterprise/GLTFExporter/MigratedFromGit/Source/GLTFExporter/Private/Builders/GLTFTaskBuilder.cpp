@@ -5,7 +5,7 @@
 #include "Misc/ScopedSlowTask.h"
 
 FGLTFTaskBuilder::FGLTFTaskBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: FGLTFBuilder(FilePath, ExportOptions)
+	: FGLTFMessageBuilder(FilePath, ExportOptions)
 	, PriorityIndexLock(INDEX_NONE)
 {
 }

@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Builders/GLTFBuilder.h"
+#include "Builders/GLTFMessageBuilder.h"
 #include "Tasks/GLTFTask.h"
 
-class FGLTFTaskBuilder : public FGLTFBuilder
+class FGLTFTaskBuilder : public FGLTFMessageBuilder
 {
 protected:
 
