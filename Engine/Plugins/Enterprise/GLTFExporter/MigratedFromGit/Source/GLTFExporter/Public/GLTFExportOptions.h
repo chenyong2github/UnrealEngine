@@ -109,6 +109,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportInteractionHotspots : 1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
+    uint32 bExportOrbitalCameras : 1;
+
 	/* Set all the UProperty to the CDO value */
 	void ResetToDefault();
 

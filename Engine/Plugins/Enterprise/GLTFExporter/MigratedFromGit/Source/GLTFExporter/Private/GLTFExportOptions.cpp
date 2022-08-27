@@ -36,6 +36,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
 	bExportInteractionHotspots = true;
+	bExportOrbitalCameras = true;
 }
 
 void UGLTFExportOptions::ResetToDefault()
