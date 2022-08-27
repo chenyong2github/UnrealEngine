@@ -15,8 +15,8 @@ struct FGLTFJsonAttributes
 	TArray<FGLTFJsonAccessorIndex> TexCoords;
 
 	// skeletal mesh attributes
-	FGLTFJsonAccessorIndex Joints0;
-	FGLTFJsonAccessorIndex Weights0;
+	TArray<FGLTFJsonAccessorIndex> Joints;
+	TArray<FGLTFJsonAccessorIndex> Weights;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -34,8 +34,15 @@ struct FGLTFJsonAttributes
 			JsonWriter.WriteValue(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoords[Index]);
 		}
 
-		if (Joints0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("JOINTS_0"), Joints0);
-		if (Weights0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("WEIGHTS_0"), Weights0);
+		for (int32 Index = 0; Index < Joints.Num(); ++Index)
+		{
+			JsonWriter.WriteValue(TEXT("JOINTS_") + FString::FromInt(Index), Joints[Index]);
+		}
+
+		for (int32 Index = 0; Index < Weights.Num(); ++Index)
+		{
+			JsonWriter.WriteValue(TEXT("WEIGHTS_") + FString::FromInt(Index), Weights[Index]);
+		}
 
 		JsonWriter.WriteObjectEnd();
 	}

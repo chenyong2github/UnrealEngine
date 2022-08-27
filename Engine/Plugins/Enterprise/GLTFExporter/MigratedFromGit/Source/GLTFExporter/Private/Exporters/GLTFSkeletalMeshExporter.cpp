@@ -1,18 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFSkeletalMeshExporter.h"
+#include "Builders/GLTFContainerBuilder.h"
 #include "Engine/SkeletalMesh.h"
 
 UGLTFSkeletalMeshExporter::UGLTFSkeletalMeshExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// TODO: uncomment when support is implemented
-	// SupportedClass = USkeletalMesh::StaticClass();
+	SupportedClass = USkeletalMesh::StaticClass();
 }
 
 bool UGLTFSkeletalMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Object);
-	// TODO: implement
+	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
+
+	FGLTFJsonNode Node;
+	Node.Mesh = MeshIndex;
+	const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
+
+	FGLTFJsonScene Scene;
+	Scene.Nodes.Add(NodeIndex);
+	const FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
+
+	Builder.DefaultScene = SceneIndex;
 	return true;
 }
