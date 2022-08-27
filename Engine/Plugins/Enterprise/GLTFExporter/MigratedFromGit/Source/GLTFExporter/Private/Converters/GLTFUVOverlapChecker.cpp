@@ -36,7 +36,6 @@ float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, const 
 	if (Description == nullptr)
 	{
 		// TODO: report warning?
-
 		return -1;
 	}
 

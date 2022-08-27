@@ -266,6 +266,8 @@ void FGLTFLevelSequenceTask::Complete()
 
 				for (UMovieSceneSection* Section : TransformTrack->GetAllSections())
 				{
+					// TODO: add support for Section->GetCompletionMode() (i.e. when finished)
+
 					UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Section);
 					if (TransformSection == nullptr)
 					{
