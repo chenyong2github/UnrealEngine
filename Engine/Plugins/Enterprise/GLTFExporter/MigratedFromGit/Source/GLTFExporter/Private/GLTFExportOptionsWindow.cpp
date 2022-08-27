@@ -168,8 +168,13 @@ void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, con
 		ParentWindow = MainFrame.GetParentWindow();
 	}
 
+	bool bBinaryFile = FPaths::GetExtension(FullPath, false).Compare(TEXT("glb"), ESearchCase::IgnoreCase) == 0;
+	auto Title = bBinaryFile ?
+		NSLOCTEXT("UnrealEd", "GLTFExportOptionsTitleBinary", "glTF (Binary) Export Options") :
+		NSLOCTEXT("UnrealEd", "GLTFExportOptionsTitle", "glTF Export Options");
+
 	TSharedRef<SWindow> Window = SNew(SWindow)
-		.Title(NSLOCTEXT("UnrealEd", "GLTFExportOptionsTitle", "glTF Export Options"))
+		.Title(Title)
 		.SizingRule(ESizingRule::UserSized)
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.ClientSize(FVector2D(500, 445));
