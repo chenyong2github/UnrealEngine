@@ -35,28 +35,10 @@ FString FGLTFBuilderUtility::GetUniqueFilename(const FString& BaseFilename, cons
 		return Filename;
 	}
 
-	FString NewBaseFilename = BaseFilename;
-
-	// Remove potentially existing suffix numbers
-	for (int32 SuffixLen = 1; SuffixLen < NewBaseFilename.Len(); ++SuffixLen)
-	{
-		const TCHAR Char = NewBaseFilename[NewBaseFilename.Len() - SuffixLen];
-		if (!FChar::IsDigit(Char))
-		{
-			if (Char == TEXT('_') && SuffixLen > 0)
-			{
-				NewBaseFilename.LeftChopInline(SuffixLen);
-			}
-			break;
-		}
-	}
-
-	NewBaseFilename += TEXT('_');
-
 	int32 Suffix = 1;
 	do
 	{
-		Filename = NewBaseFilename + FString::FromInt(Suffix) + FileExtension;
+		Filename = BaseFilename + TEXT('_') + FString::FromInt(Suffix) + FileExtension;
 		Suffix++;
 	}
 	while (UniqueFilenames.Contains(Filename));
