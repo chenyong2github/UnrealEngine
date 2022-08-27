@@ -57,6 +57,28 @@ void AGLTFCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 				UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be the camera's own actor"));
 			}
 		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, PitchAngleMin))
+		{
+			PitchAngleMin = FMath::Clamp(PitchAngleMin, -90.0f, 90.0f);
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, PitchAngleMax))
+		{
+			PitchAngleMax = FMath::Clamp(PitchAngleMax, -90.0f, 90.0f);
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, YawAngleMin))
+		{
+			YawAngleMin = FMath::Clamp(
+				YawAngleMin,
+				FMath::Max(-360.0f, YawAngleMax - 360.0f),
+				FMath::Min(360.0f, YawAngleMax));
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, YawAngleMax))
+		{
+			YawAngleMax = FMath::Clamp(
+				YawAngleMax,
+				FMath::Max(-360.0f, YawAngleMin),
+				FMath::Min(360.0f, YawAngleMin + 360.0f));
+		}
 	}
 }
 #endif // WITH_EDITOR
