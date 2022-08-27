@@ -18,22 +18,23 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 	if (MeshData != nullptr)
 	{
 		const FMeshDescription& MeshDescription = MeshData->GetParent()->Description;
-		for (const int32 SectionIndex : SectionIndices)
-		{
-			const bool bHasDegenerateUVs = UVDegenerateChecker.GetOrAdd(&MeshDescription, SectionIndex, MeshData->TexCoord);
-			if (bHasDegenerateUVs)
-			{
-				Builder.AddWarningMessage(FString::Printf(
-					TEXT("Material %s is using mesh data from %s but the lightmap UVs (channel %d) are degenerate (in mesh section %d). Simple baking will be used as fallback"),
-					*Material->GetName(),
-					*MeshData->GetParent()->Name,
-					MeshData->TexCoord,
-					SectionIndex));
 
-				MeshData = nullptr;
-				SectionIndices = {};
-				break;
-			}
+		const float DegenerateUVPercentage = UVDegenerateChecker.GetOrAdd(&MeshDescription, SectionIndices, MeshData->TexCoord);
+		if (FMath::IsNearlyEqual(DegenerateUVPercentage, 1))
+		{
+			FString SectionString = TEXT("mesh section");
+			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");
+			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), FString::FromInt);
+
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Material %s uses mesh data from %s but the lightmap UVs (channel %d) are 100%% degenerate (in %s). Simple baking will be used as fallback"),
+				*Material->GetName(),
+				*MeshData->GetParent()->Name,
+				MeshData->TexCoord,
+				*SectionString));
+
+			MeshData = nullptr;
+			SectionIndices = {};
 		}
 	}
 }

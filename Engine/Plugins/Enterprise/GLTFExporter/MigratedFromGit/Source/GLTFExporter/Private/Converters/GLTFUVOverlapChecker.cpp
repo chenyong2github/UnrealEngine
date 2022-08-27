@@ -81,28 +81,38 @@ float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, const 
 	// so to be safe we set the limit at 15 instead of 10 to prevent incorrectly flagging some pixels as overlapping.
 	const float EmissiveThreshold = 15.0f;
 
-	float ProcessedPixels = 0;
-	float OverlappingPixels = 0;
+	int32 ValidCount = 0;
+	int32 OverlapCount = 0;
 
 	if (BakeOutput.EmissiveScale > EmissiveThreshold)
 	{
-		const FColor Magenta(255, 0, 255, 255);
-		const uint8 ColorThreshold = FMath::RoundToInt((EmissiveThreshold / BakeOutput.EmissiveScale) * 255.0f); // This should never overflow since we know that the quotient will be <= 1.0
+		// This should never overflow since we know that the quotient will be <= 1.0
+		const uint8 ColorThreshold = FMath::RoundToInt((EmissiveThreshold / BakeOutput.EmissiveScale) * 255.0f);
 
 		bool bIsMagenta;
 		bool bIsOverlapping;
 
 		for (const FColor& Pixel: BakedPixels)
 		{
-			bIsMagenta = Pixel == Magenta;
+			bIsMagenta = Pixel == FColor::Magenta;
 			bIsOverlapping = Pixel.G > ColorThreshold;
 
-			ProcessedPixels += !bIsMagenta ? 1 : 0;
-			OverlappingPixels += !bIsMagenta && bIsOverlapping ? 1 : 0;
+			ValidCount += !bIsMagenta ? 1 : 0;
+			OverlapCount += !bIsMagenta && bIsOverlapping ? 1 : 0;
 		}
 	}
 
-	return OverlappingPixels / ProcessedPixels;
+	if (ValidCount == 0)
+	{
+		return -1;
+	}
+
+	if (ValidCount == OverlapCount)
+	{
+		return 1;
+	}
+
+	return static_cast<float>(OverlapCount) / static_cast<float>(ValidCount);
 }
 
 UMaterialInterface* FGLTFUVOverlapChecker::GetMaterial()
