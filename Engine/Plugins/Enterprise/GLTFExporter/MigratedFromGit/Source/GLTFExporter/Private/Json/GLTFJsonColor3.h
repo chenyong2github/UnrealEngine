@@ -36,7 +36,7 @@ struct FGLTFJsonColor3
 	bool operator!=(const FGLTFJsonColor3& Other) const
 	{
 		return R != Other.R
-            || G != Other.G
-            || B != Other.B;
+			|| G != Other.G
+			|| B != Other.B;
 	}
 };

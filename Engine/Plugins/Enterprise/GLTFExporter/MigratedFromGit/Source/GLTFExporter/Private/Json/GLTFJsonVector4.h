@@ -14,12 +14,12 @@ struct FGLTFJsonVector4
 	static const FGLTFJsonVector4 One;
 
 	FGLTFJsonVector4(float X, float Y, float Z, float W)
-        : X(X), Y(Y), Z(Z), W(W)
+		: X(X), Y(Y), Z(Z), W(W)
 	{
 	}
 
 	FGLTFJsonVector4(const FGLTFJsonVector3& Vector3, float W)
-        : X(Vector3.X), Y(Vector3.Y), Z(Vector3.Z), W(W)
+		: X(Vector3.X), Y(Vector3.Y), Z(Vector3.Z), W(W)
 	{
 	}
 
@@ -42,16 +42,16 @@ struct FGLTFJsonVector4
 	bool operator==(const FGLTFJsonVector4& Other) const
 	{
 		return X == Other.X
-            && Y == Other.Y
-            && Z == Other.Z
-            && W == Other.W;
+			&& Y == Other.Y
+			&& Z == Other.Z
+			&& W == Other.W;
 	}
 
 	bool operator!=(const FGLTFJsonVector4& Other) const
 	{
 		return X != Other.X
-            || Y != Other.Y
-            || Z != Other.Z
-            || W != Other.W;
+			|| Y != Other.Y
+			|| Z != Other.Z
+			|| W != Other.W;
 	}
 };
