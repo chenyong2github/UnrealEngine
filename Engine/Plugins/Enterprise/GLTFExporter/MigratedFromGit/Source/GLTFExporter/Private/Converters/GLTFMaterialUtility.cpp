@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
+#include "Converters/GLTFNameUtility.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
@@ -460,4 +461,21 @@ void FGLTFMaterialUtility::ExpandAllFunctionExpressions(TArray<UMaterialExpressi
 	InOutExpressions.RemoveAll([](const UMaterialExpression* Expression) {
 		return Expression->IsA<UMaterialExpressionMaterialFunctionCall>() || Expression->IsA<UMaterialExpressionMaterialAttributeLayers>();
 	});
+}
+
+FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelField& ShadingModels)
+{
+	FString Result;
+
+	for (uint32 Index = 0; Index < MSM_MAX; Index++)
+	{
+		const EMaterialShadingModel ShadingModel = static_cast<EMaterialShadingModel>(Index);
+		if (ShadingModels.HasShadingModel(ShadingModel))
+		{
+			FString Name = FGLTFNameUtility::GetName(ShadingModel);
+			Result += Result.IsEmpty() ? Name : TEXT(", ") + Name;
+		}
+	}
+
+	return Result;
 }
