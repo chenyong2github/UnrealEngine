@@ -42,6 +42,20 @@ bool FGLTFTextureUtility::IsCubemap(const UTexture* Texture)
 	return Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>();
 }
 
+float FGLTFTextureUtility::GetCubeFaceRotation(ECubeFace CubeFace)
+{
+	switch (CubeFace)
+	{
+		case CubeFace_PosX:	return 90;
+		case CubeFace_NegX:	return -90;
+		case CubeFace_PosY:	return 180;
+		case CubeFace_NegY:	return 0;
+		case CubeFace_PosZ:	return 180;
+		case CubeFace_NegZ:	return 0;
+		default:            return 0;
+	}
+}
+
 TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 {
 	// TODO: should this be the running platform?
@@ -109,7 +123,7 @@ UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint&
 	return RenderTarget;
 }
 
-bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource)
+bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FMatrix& InTransform)
 {
 	FRenderTarget* RenderTarget = OutTarget->GameThread_GetRenderTargetResource();
 	if (RenderTarget == nullptr)
@@ -120,7 +134,9 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, InSource->Resource, FLinearColor::White);
 
+	Canvas.PushAbsoluteTransform(InTransform);
 	TileItem.Draw(&Canvas);
+	Canvas.PopTransform();
 
 	Canvas.Flush_GameThread();
 	FlushRenderingCommands();
@@ -128,6 +144,18 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	FlushRenderingCommands();
 
 	return true;
+}
+
+bool FGLTFTextureUtility::RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, float InDegrees)
+{
+	FMatrix Transform = FMatrix::Identity;
+	if (InDegrees != 0)
+	{
+		const FVector Center = FVector(InSource->GetSizeX() / 2.0f, InSource->GetSizeY() / 2.0f, 0);
+		Transform = FTranslationMatrix(-Center) * FRotationMatrix({ 0, InDegrees, 0 }) * FTranslationMatrix(Center);
+	}
+
+	return DrawTexture(OutTarget, InSource, Transform);
 }
 
 UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* TextureCube, ECubeFace CubeFace)

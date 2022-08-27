@@ -16,6 +16,8 @@ struct FGLTFTextureUtility
 
 	static bool IsCubemap(const UTexture* Texture);
 
+	static float GetCubeFaceRotation(ECubeFace CubeFace);
+
 	static TextureFilter GetDefaultFilter(TextureGroup Group);
 
 	static TTuple<TextureAddress, TextureAddress> GetAddressXY(const UTexture* Texture);
@@ -25,6 +27,7 @@ struct FGLTFTextureUtility
 	static UTextureRenderTarget2D* CreateRenderTarget(const FIntPoint& Size, EPixelFormat Format, bool bInForceLinearGamma = false);
 
 	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FMatrix& InTransform = FMatrix::Identity);
+	static bool RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, float InDegrees);
 
 	static UTexture2D* CreateTextureFromCubeFace(const UTextureCube* TextureCube, ECubeFace CubeFace);
 	static UTexture2D* CreateTextureFromCubeFace(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace);
