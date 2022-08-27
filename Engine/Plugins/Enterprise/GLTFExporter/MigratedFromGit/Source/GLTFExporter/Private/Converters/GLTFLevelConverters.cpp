@@ -46,7 +46,11 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
 	{
-		Node.Camera = Builder.GetOrAddCamera(CameraComponent);
+		// TODO: conversion of camera direction should be done in separate converter
+		FGLTFJsonNode CameraNode;
+		CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
+		CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
+		Builder.AddChildNode(NodeIndex, CameraNode);
 	}
 
 	return NodeIndex;
@@ -72,13 +76,6 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 	{
 		FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
 		RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
-	}
-	else if (const ACameraActor* CameraActor = Cast<ACameraActor>(Actor))
-	{
-		// Ignore any other components inside camera actor (like proxy static mesh component)
-		// TODO: do we want to have to do this? Or can we rely on bHiddenInGame?
-		FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-		RootNode.Camera = Builder.GetOrAddCamera(CameraActor->GetCameraComponent());
 	}
 	else
 	{
