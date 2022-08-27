@@ -14,11 +14,11 @@ class FAssetTypeActions_Base;
 
 DEFINE_LOG_CATEGORY(LogGLTFExporter);
 
-UMaterialInterface* IGLTFExporterModule::CreateProxyMaterial(UMaterialInterface* Material, const UGLTFProxyOptions* Options)
+UMaterialInterface* IGLTFExporterModule::CreateProxyMaterial(UMaterialInterface* Material, const UGLTFProxyOptions* Options, const FString& RootPath)
 {
 #if WITH_EDITOR
 	FGLTFMaterialProxyFactory ProxyFactory(Options);
-	ProxyFactory.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
+	ProxyFactory.RootPath = RootPath.IsEmpty() ? FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF") : RootPath;
 	return ProxyFactory.Create(Material);
 #else
 	// TODO: report error

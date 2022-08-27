@@ -39,5 +39,5 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(GLTFEXPORTER_MODULE_NAME);
 	}
 
-	static UMaterialInterface* CreateProxyMaterial(UMaterialInterface* Material, const UGLTFProxyOptions* Options);
+	static UMaterialInterface* CreateProxyMaterial(UMaterialInterface* Material, const UGLTFProxyOptions* Options, const FString& RootPath = TEXT(""));
 };
