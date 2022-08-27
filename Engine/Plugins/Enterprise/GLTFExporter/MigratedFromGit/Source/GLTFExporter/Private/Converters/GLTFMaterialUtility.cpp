@@ -2,8 +2,8 @@
 
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
-#if WITH_EDITOR
 #include "Converters/GLTFNameUtility.h"
+#if WITH_EDITOR
 #include "GLTFMaterialAnalyzer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
@@ -355,6 +355,17 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterfa
 	}
 }
 
+void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
+{
+	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
+	{
+		OutAnalysis = FGLTFMaterialAnalysis();
+		return;
+	}
+
+	UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutAnalysis);
+}
+
 FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(const UMaterialInterface* Material)
 {
 	FGLTFMaterialAnalysis Analysis;
@@ -368,6 +379,7 @@ FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(
 
 	return Analysis.ShadingModels;
 }
+#endif
 
 EMaterialShadingModel FGLTFMaterialUtility::GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels)
 {
@@ -407,19 +419,6 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 
 	return Result;
 }
-
-void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
-{
-	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
-	{
-		OutAnalysis = FGLTFMaterialAnalysis();
-		return;
-	}
-
-	UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutAnalysis);
-}
-
-#endif
 
 bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 {

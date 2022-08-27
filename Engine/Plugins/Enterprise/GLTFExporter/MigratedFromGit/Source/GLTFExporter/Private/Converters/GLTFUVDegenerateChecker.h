@@ -2,10 +2,10 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFIndexArray.h"
+
+struct FMeshDescription;
 
 class FGLTFUVDegenerateChecker final : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>
 {
@@ -16,5 +16,3 @@ class FGLTFUVDegenerateChecker final : public TGLTFConverter<float, const FMeshD
 	static bool IsDegenerateTriangle(const TStaticArray<FVector2D, 3>& Points);
 	static bool IsDegenerateTriangle(const TStaticArray<FVector, 3>& Points);
 };
-
-#endif

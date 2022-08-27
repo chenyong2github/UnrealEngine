@@ -2,10 +2,10 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFIndexArray.h"
+
+struct FMeshDescription;
 
 class FGLTFUVOverlapChecker final : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>
 {
@@ -15,5 +15,3 @@ class FGLTFUVOverlapChecker final : public TGLTFConverter<float, const FMeshDesc
 
 	static UMaterialInterface* GetMaterial();
 };
-
-#endif

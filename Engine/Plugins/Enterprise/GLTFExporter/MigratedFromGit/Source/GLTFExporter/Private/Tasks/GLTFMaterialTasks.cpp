@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITOR
-
 #include "Tasks/GLTFMaterialTasks.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "MaterialPropertyEx.h"
+#if WITH_EDITOR
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -17,6 +15,7 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#endif
 
 namespace
 {
@@ -72,6 +71,7 @@ void FGLTFMaterialTask::Complete()
 		return;
 	}
 
+#if WITH_EDITOR
 	if (JsonMaterial.ShadingModel != EGLTFJsonShadingModel::None)
 	{
 		const FMaterialPropertyEx BaseColorProperty = JsonMaterial.ShadingModel == EGLTFJsonShadingModel::Unlit ? MP_EmissiveColor : MP_BaseColor;
@@ -190,6 +190,24 @@ void FGLTFMaterialTask::Complete()
 				*SectionString));
 		}
 	}
+#endif
+}
+
+FString FGLTFMaterialTask::GetMaterialName() const
+{
+	FString MaterialName = Material->GetName();
+
+	if (MeshData != nullptr)
+	{
+		MaterialName += TEXT("_") + MeshData->Name;
+	}
+
+	return MaterialName;
+}
+
+FString FGLTFMaterialTask::GetBakedTextureName(const FString& PropertyName) const
+{
+	return GetMaterialName() + TEXT("_") + PropertyName;
 }
 
 void FGLTFMaterialTask::ApplyPrebakedProperties(FGLTFJsonMaterial& OutMaterial) const
@@ -301,6 +319,7 @@ EMaterialShadingModel FGLTFMaterialTask::GetShadingModel() const
 
 	if (PossibilitiesCount > 1)
 	{
+#if WITH_EDITOR
 		if (!FApp::CanEverRender())
 		{
 			const EMaterialShadingModel ShadingModel = FGLTFMaterialUtility::GetRichestShadingModel(Possibilities);
@@ -341,6 +360,14 @@ EMaterialShadingModel FGLTFMaterialTask::GetShadingModel() const
 		}
 
 		// we should never end up here
+#else
+		const EMaterialShadingModel ShadingModel = FGLTFMaterialUtility::GetRichestShadingModel(Possibilities);
+		Builder.LogWarning(FString::Printf(
+			TEXT("Can't evaluate shading model expression in material %s without editor, will export as %s"),
+			*Material->GetName(),
+			*FGLTFNameUtility::GetName(ShadingModel)));
+		return ShadingModel;
+#endif
 	}
 
 	return Possibilities.GetFirstShadingModel();
@@ -427,6 +454,8 @@ void FGLTFMaterialTask::ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTF
 		}
 	}
 }
+
+#if WITH_EDITOR
 
 bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FMaterialPropertyEx& BaseColorProperty, const FMaterialPropertyEx& OpacityProperty)
 {
@@ -1487,23 +1516,6 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 
 	OutTexInfo.Index = TextureIndex;
 	return true;
-}
-
-FString FGLTFMaterialTask::GetMaterialName() const
-{
-	FString MaterialName = Material->GetName();
-
-	if (MeshData != nullptr)
-	{
-		MaterialName += TEXT("_") + MeshData->Name;
-	}
-
-	return MaterialName;
-}
-
-FString FGLTFMaterialTask::GetBakedTextureName(const FString& PropertyName) const
-{
-	return GetMaterialName() + TEXT("_") + PropertyName;
 }
 
 EGLTFMaterialPropertyGroup FGLTFMaterialTask::GetPropertyGroup(const FMaterialPropertyEx& Property)
