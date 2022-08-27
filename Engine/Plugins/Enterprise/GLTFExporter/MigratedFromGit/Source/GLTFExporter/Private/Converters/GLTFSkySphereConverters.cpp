@@ -9,8 +9,7 @@
 
 FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphereActor)
 {
-	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(SkySphereActor);
-	if (!FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
+	if (!FGLTFActorUtility::IsSkySphereBlueprint(FGLTFActorUtility::GetBlueprintPath(SkySphereActor)))
 	{
 		return FGLTFJsonSkySphereIndex(INDEX_NONE);
 	}

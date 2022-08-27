@@ -9,19 +9,25 @@ bool FGLTFActorUtility::IsRootActor(const AActor* Actor, bool bSelectedOnly)
 	return ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected());
 }
 
-UBlueprint* FGLTFActorUtility::GetBlueprintFromActor(const AActor* Actor)
+FString FGLTFActorUtility::GetBlueprintPath(const AActor* Actor)
 {
-	return UBlueprint::GetBlueprintFromClass(Actor->GetClass());
+	UClass* Class = Actor->GetClass();
+	if (Class != nullptr && Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+	{
+		return Class->GetPathName();
+	}
+
+	return TEXT("");
 }
 
-bool FGLTFActorUtility::IsSkySphereBlueprint(const UBlueprint* Blueprint)
+bool FGLTFActorUtility::IsSkySphereBlueprint(const FString& Path)
 {
 	// TODO: what if a blueprint inherits BP_Sky_Sphere?
-	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/Engine/EngineSky/BP_Sky_Sphere.BP_Sky_Sphere"));
+	return Path.Equals(TEXT("/Engine/EngineSky/BP_Sky_Sphere.BP_Sky_Sphere_C"));
 }
 
-bool FGLTFActorUtility::IsHDRIBackdropBlueprint(const UBlueprint* Blueprint)
+bool FGLTFActorUtility::IsHDRIBackdropBlueprint(const FString& Path)
 {
 	// TODO: what if a blueprint inherits HDRIBackdrop?
-	return Blueprint != nullptr && Blueprint->GetPathName().Equals(TEXT("/HDRIBackdrop/Blueprints/HDRIBackdrop.HDRIBackdrop"));
+	return Path.Equals(TEXT("/HDRIBackdrop/Blueprints/HDRIBackdrop.HDRIBackdrop_C"));
 }
