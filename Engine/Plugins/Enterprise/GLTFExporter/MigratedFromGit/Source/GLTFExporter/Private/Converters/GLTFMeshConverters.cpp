@@ -21,21 +21,14 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 		FGLTFMaterialUtility::ResolveOverrides(Materials, FGLTFMeshUtility::GetMaterials(StaticMesh));
 	}
 
-	if (LODIndex < 0)
-	{
-		LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
-	}
-	else
-	{
-		LODIndex = FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(StaticMesh));
-	}
+	LODIndex = Builder.SanitizeLOD(StaticMesh, StaticMeshComponent, LODIndex);
 
 	if (StaticMeshComponent != nullptr)
 	{
 		const bool bUsesMeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData &&
 			FGLTFMaterialUtility::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
 
-		const bool bIsReferencedByVariant = Builder.VariantReferenceChecker.IsReferenced(StaticMeshComponent); 
+		const bool bIsReferencedByVariant = Builder.VariantReferenceChecker.IsReferenced(StaticMeshComponent);
 
 		// Only use the component if it's needed for baking or variants, since we would
 		// otherwise export a copy of this mesh for each mesh-component.
@@ -77,21 +70,14 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 		FGLTFMaterialUtility::ResolveOverrides(Materials, FGLTFMeshUtility::GetMaterials(SkeletalMesh));
 	}
 
-	if (LODIndex < 0)
-	{
-		LODIndex = FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
-	}
-	else
-	{
-		LODIndex = FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(SkeletalMesh));
-	}
+	LODIndex = Builder.SanitizeLOD(SkeletalMesh, SkeletalMeshComponent, LODIndex);
 
 	if (SkeletalMeshComponent != nullptr)
 	{
 		const bool bUsesMeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData &&
 			FGLTFMaterialUtility::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
 
-		const bool bIsReferencedByVariant = Builder.VariantReferenceChecker.IsReferenced(SkeletalMeshComponent); 
+		const bool bIsReferencedByVariant = Builder.VariantReferenceChecker.IsReferenced(SkeletalMeshComponent);
 
 		// Only use the component if it's needed for baking or variants, since we would
 		// otherwise export a copy of this mesh for each mesh-component.

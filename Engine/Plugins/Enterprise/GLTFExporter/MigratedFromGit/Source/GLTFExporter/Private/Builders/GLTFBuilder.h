@@ -29,6 +29,9 @@ public:
 
 	bool ShouldExportLight(EComponentMobility::Type LightMobility) const;
 
+	int32 SanitizeLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex) const;
+	int32 SanitizeLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex) const;
+
 private:
 
 	FGCObjectScopeGuard ExportOptionsGuard;
