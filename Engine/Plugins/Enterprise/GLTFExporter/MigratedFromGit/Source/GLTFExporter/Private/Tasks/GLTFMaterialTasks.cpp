@@ -169,12 +169,17 @@ void FGLTFMaterialTask::Complete()
 
 		if (UVOverlap > UVOverlapThreshold)
 		{
+			FString SectionString = TEXT("mesh section");
+			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");
+			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), [](int32 Index) { return FString::FromInt(Index); });
+
 			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Material %s is baked using mesh data from %s but the lightmap UV (channel %d) are overlapping by %.2f%% and may produce incorrect results"),
+				TEXT("Material %s is baked using mesh data from %s but the lightmap UV (channel %d) are overlapping by %.2f%% (in %s) and may produce incorrect results"),
 				*Material->GetName(),
 				*ParentMeshData->Name,
 				MeshData->TexCoord,
-				UVOverlap * 100));
+				UVOverlap * 100,
+				*SectionString));
 		}
 	}
 }
