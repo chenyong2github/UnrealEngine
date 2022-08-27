@@ -17,7 +17,7 @@ FIntPoint FGLTFBuilder::GetBakeSizeForMaterialProperty(const UMaterialInterface*
 	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
 	EGLTFMaterialBakeSizePOT DefaultValue = ExportOptions->DefaultMaterialBakeSize;
 
-	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->OverrideBakeSettings.Find(PropertyGroup))
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->DefaultInputBakeSettings.Find(PropertyGroup))
 	{
 		if (BakeSettings->bOverrideSize)
 		{
@@ -35,7 +35,7 @@ TextureFilter FGLTFBuilder::GetBakeFilterForMaterialProperty(const UMaterialInte
 	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
 	TextureFilter DefaultValue = ExportOptions->DefaultMaterialBakeFilter;
 
-	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->OverrideBakeSettings.Find(PropertyGroup))
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->DefaultInputBakeSettings.Find(PropertyGroup))
 	{
 		if (BakeSettings->bOverrideFilter)
 		{
@@ -51,7 +51,7 @@ TextureAddress FGLTFBuilder::GetBakeTilingForMaterialProperty(const UMaterialInt
 	const EGLTFMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
 	TextureAddress DefaultValue = ExportOptions->DefaultMaterialBakeTiling;
 
-	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->OverrideBakeSettings.Find(PropertyGroup))
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = ExportOptions->DefaultInputBakeSettings.Find(PropertyGroup))
 	{
 		if (BakeSettings->bOverrideTiling)
 		{

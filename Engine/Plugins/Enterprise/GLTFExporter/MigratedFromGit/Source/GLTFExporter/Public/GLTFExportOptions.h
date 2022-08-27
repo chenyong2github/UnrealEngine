@@ -94,7 +94,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	TEnumAsByte<TextureAddress> DefaultMaterialBakeTiling;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
-	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> OverrideBakeSettings;
+	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> DefaultInputBakeSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh, Meta = (ClampMin = "0"))
 	int32 DefaultLevelOfDetail;
