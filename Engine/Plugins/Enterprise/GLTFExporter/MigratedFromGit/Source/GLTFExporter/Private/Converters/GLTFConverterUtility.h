@@ -183,7 +183,8 @@ struct FGLTFConverterUtility
 
 	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel);
 
-	static EGLTFJsonAlphaMode ConvertBlendMode(EBlendMode Mode);
+	static EGLTFJsonAlphaMode ConvertAlphaMode(EBlendMode Mode);
+	static EGLTFJsonBlendMode ConvertBlendMode(EBlendMode Mode);
 
 	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Address);
 

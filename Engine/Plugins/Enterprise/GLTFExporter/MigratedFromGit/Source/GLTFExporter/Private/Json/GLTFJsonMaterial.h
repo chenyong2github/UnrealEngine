@@ -233,6 +233,8 @@ struct FGLTFJsonMaterial
 
 	bool DoubleSided;
 
+	EGLTFJsonBlendMode BlendMode;
+
 	FGLTFJsonClearCoatExtension ClearCoat;
 
 	FGLTFJsonMaterial()
@@ -241,6 +243,7 @@ struct FGLTFJsonMaterial
 		, AlphaMode(EGLTFJsonAlphaMode::Opaque)
 		, AlphaCutoff(0.5f)
 		, DoubleSided(false)
+		, BlendMode(EGLTFJsonBlendMode::None)
 	{
 	}
 
@@ -299,30 +302,37 @@ struct FGLTFJsonMaterial
 			JsonWriter.WriteValue(TEXT("doubleSided"), DoubleSided);
 		}
 
-		if (ShadingModel == EGLTFJsonShadingModel::Unlit || ShadingModel == EGLTFJsonShadingModel::ClearCoat)
+		if (BlendMode != EGLTFJsonBlendMode::None || ShadingModel == EGLTFJsonShadingModel::Unlit || ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
-			const EGLTFJsonExtension Extension = ShadingModel == EGLTFJsonShadingModel::Unlit ?
-				EGLTFJsonExtension::KHR_MaterialsUnlit : EGLTFJsonExtension::KHR_MaterialsClearCoat;
-
-			Extensions.Used.Add(Extension);
-
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
-			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
 
-			switch (ShadingModel)
+			if (BlendMode != EGLTFJsonBlendMode::None)
 			{
-				case EGLTFJsonShadingModel::Unlit:
-					JsonWriter.WriteObjectStart(); // Write empty object
-					JsonWriter.WriteObjectEnd();
-					break;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_BlendModes;
+				Extensions.Used.Add(Extension);
 
-				case EGLTFJsonShadingModel::ClearCoat:
-					ClearCoat.WriteObject(JsonWriter, Extensions);
-					break;
+				JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
+				JsonWriter.WriteObjectStart();
+				JsonWriter.WriteValue(TEXT("blendMode"), FGLTFJsonUtility::ToString(BlendMode));
+				JsonWriter.WriteObjectEnd();
+			}
 
-				default:
-					checkNoEntry();
-					break;
+			if (ShadingModel == EGLTFJsonShadingModel::Unlit)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_MaterialsUnlit;
+				Extensions.Used.Add(Extension);
+
+				JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
+				JsonWriter.WriteObjectStart(); // Write empty object
+				JsonWriter.WriteObjectEnd();
+			}
+			else if (ShadingModel == EGLTFJsonShadingModel::ClearCoat)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_MaterialsClearCoat;
+				Extensions.Used.Add(Extension);
+
+				JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
+				ClearCoat.WriteObject(JsonWriter, Extensions);
 			}
 
 			JsonWriter.WriteObjectEnd();

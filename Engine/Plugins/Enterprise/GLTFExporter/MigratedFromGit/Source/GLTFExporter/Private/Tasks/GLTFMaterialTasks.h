@@ -39,8 +39,8 @@ private:
 	const TArray<int32> SectionIndices;
 	const FGLTFJsonMaterialIndex MaterialIndex;
 
-	bool TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const;
-	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel) const;
+	bool TryGetAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const;
+	bool TryGetShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;
 
 	bool TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FMaterialPropertyEx& BaseColorProperty, const FMaterialPropertyEx& OpacityProperty) const;
 	bool TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FMaterialPropertyEx& MetallicProperty, const FMaterialPropertyEx& RoughnessProperty) const;

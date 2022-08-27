@@ -7,19 +7,19 @@
 enum class EGLTFJsonExtension
 {
 	KHR_LightsPunctual,
-	KHR_MaterialsUnlit,
 	KHR_MaterialsClearCoat,
+	KHR_MaterialsUnlit,
 	KHR_MeshQuantization,
 	KHR_TextureTransform,
+	EPIC_AnimationHotspots,
+	EPIC_AnimationPlayback,
+	EPIC_BlendModes,
 	EPIC_CameraControls,
 	EPIC_HDRIBackdrops,
-	EPIC_AnimationHotspots,
-	EPIC_LightmapTextures,
-	EPIC_ReflectionCaptures,
 	EPIC_LevelVariantSets,
-	EPIC_TextureHDREncoding,
-	EPIC_AnimationPlayback,
-	EPIC_SkySpheres
+	EPIC_LightmapTextures,
+	EPIC_SkySpheres,
+	EPIC_TextureHDREncoding
 };
 
 enum class EGLTFJsonShadingModel
@@ -99,6 +99,14 @@ enum class EGLTFJsonAlphaMode
 	Opaque,
 	Mask,
 	Blend
+};
+
+enum class EGLTFJsonBlendMode
+{
+	None = -1,
+	Additive,
+	Modulate,
+	AlphaComposite
 };
 
 enum class EGLTFJsonMimeType
