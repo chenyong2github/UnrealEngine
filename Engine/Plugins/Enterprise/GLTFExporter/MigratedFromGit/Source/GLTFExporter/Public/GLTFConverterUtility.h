@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GLTFColor.h"
 #include "Engine/EngineTypes.h"
 
 struct GLTFEXPORTER_API FGLTFConverterUtility
@@ -34,9 +35,10 @@ struct GLTFEXPORTER_API FGLTFConverterUtility
 		return FVector4(ConvertVector(Tangent), 1.0f);
 	}
 
-	static inline FColor ConvertColor(const FColor& Color)
+	static inline FGLTFColor ConvertColor(const FColor& Color)
 	{
-		// UE4 uses ABGR while glTF uses RGBA.
+		// UE4 uses ABGR or ARGB depending on endianness.
+		// glTF always uses RGBA independent of endianness.
 		return { Color.R, Color.G, Color.B, Color.A };
 	}
 
