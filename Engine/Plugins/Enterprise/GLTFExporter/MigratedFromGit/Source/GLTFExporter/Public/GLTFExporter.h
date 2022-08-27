@@ -6,19 +6,18 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Exporters/Exporter.h"
-#include "LevelExporterGLTF.generated.h"
+#include "GLTFExporter.generated.h"
 
-class FExportObjectInnerContext;
-class UActorComponent;
+DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
 
 UCLASS()
-class ULevelExporterGLTF : public UExporter
+class UGLTFExporter : public UExporter
 {
 public:
 	GENERATED_BODY()
 
 public:
-	ULevelExporterGLTF(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	UGLTFExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	//~ Begin UExporter Interface
 	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex = 0, uint32 PortFlags = 0) override;
