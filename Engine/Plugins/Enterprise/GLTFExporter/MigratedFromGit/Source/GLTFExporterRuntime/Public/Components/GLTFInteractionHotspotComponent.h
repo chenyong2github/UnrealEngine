@@ -88,6 +88,8 @@ private:
 
 	bool bToggled;
 
+	bool bIsInteractable;
+
 	float RealtimeSecondsWhenLastInSight;
 
 	float RealtimeSecondsWhenLastHidden;

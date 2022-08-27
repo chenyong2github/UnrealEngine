@@ -36,6 +36,7 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	ActiveImage(nullptr),
 	ActiveImageSize(0.0f, 0.0f),
 	bToggled(bToggled),
+	bIsInteractable(true),
 	RealtimeSecondsWhenLastInSight(0.0f),
 	RealtimeSecondsWhenLastHidden(0.0f)
 {
@@ -201,9 +202,7 @@ void UGLTFInteractionHotspotComponent::TickComponent(float DeltaTime, ELevelTick
 		}
 
 		SetSpriteOpacity(Opacity);
-
-		const ECollisionEnabled::Type CollisionEnabled = Opacity >= 0.5f ? ECollisionEnabled::QueryAndPhysics :  ECollisionEnabled::NoCollision;
-		SphereComponent->SetCollisionEnabled(CollisionEnabled);
+		bIsInteractable = Opacity >= 0.5f;
 	}
 }
 
@@ -214,7 +213,10 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 
 void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
 {
-	SetActiveImage(CalculateActiveImage(true));
+	if (bIsInteractable)
+	{
+		SetActiveImage(CalculateActiveImage(true));
+	}
 }
 
 void UGLTFInteractionHotspotComponent::EndCursorOver(UPrimitiveComponent* TouchedComponent)
@@ -224,6 +226,11 @@ void UGLTFInteractionHotspotComponent::EndCursorOver(UPrimitiveComponent* Touche
 
 void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
+	if (!bIsInteractable)
+	{
+		return;
+	}
+
 	const bool bReverseAnimation = bToggled;
 
 	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
