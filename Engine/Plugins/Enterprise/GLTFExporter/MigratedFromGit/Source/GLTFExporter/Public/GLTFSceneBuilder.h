@@ -13,11 +13,11 @@ struct GLTFEXPORTER_API FGLTFNodeBuilder
 	const USceneComponent* SceneComponent;
 	const AActor* ComponentOwner;
 
-	bool bTopLevel;
+	bool bRootNode;
 
 	TArray<FGLTFNodeBuilder> AttachedComponents;
-	
-	FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bTopLevel = false);
+
+	FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bRootNode = false);
 
 	FGLTFJsonNodeIndex AddNode(FGLTFContainerBuilder& Container) const;
 };
@@ -26,7 +26,7 @@ struct GLTFEXPORTER_API FGLTFSceneBuilder
 {
 	FString Name;
 
-	TArray<FGLTFNodeBuilder> TopLevelComponents;
+	TArray<FGLTFNodeBuilder> RootNodes;
 
 	FGLTFSceneBuilder(const UWorld* World, bool bSelectedOnly);
 
