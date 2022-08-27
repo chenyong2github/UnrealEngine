@@ -1302,17 +1302,21 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 {
 	if (MeshData == nullptr)
 	{
-		int32 NumTexCoords;
-		TBitArray<> TexCoords;
-		FGLTFMaterialUtility::GetAllTextureCoordinateIndices(Material, Property, NumTexCoords, TexCoords);
+		TArray<int32> TexCoords;
+		FGLTFMaterialUtility::GetAllTextureCoordinateIndices(Material, Property, TexCoords);
 
-		if (NumTexCoords > 0)
+		if (TexCoords.Num() > 0)
 		{
-			OutTexCoord = TexCoords.Find(true);
+			OutTexCoord = TexCoords[0];
 
 			if (TexCoords.Num() > 1)
 			{
-				// TODO: report warning (multiple texture coordinates found, will use first)
+				Builder.AddWarningMessage(FString::Printf(
+					TEXT("%s for material %s uses multiple texture coordinates (%s), baked texture will be sampled using only the first (%d)"),
+					*Property.ToString(),
+					*Material->GetName(),
+					*FString::JoinBy(TexCoords, TEXT(", "), FString::FromInt),
+					OutTexCoord));
 			}
 		}
 		else
