@@ -40,10 +40,10 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	RenderTarget2D->TargetGamma = 0;
 
 	FRenderTarget* RenderTarget = RenderTarget2D->GameThread_GetRenderTargetResource();
-	FCanvas* Canvas = new FCanvas(RenderTarget, nullptr, 0, 0, 0, GMaxRHIFeatureLevel);
+	FCanvas Canvas(RenderTarget, nullptr, 0, 0, 0, GMaxRHIFeatureLevel);
 
-	Canvas->SetRenderTarget_GameThread(RenderTarget);
-	Canvas->Clear(FLinearColor(0, 0, 0, 0));
+	Canvas.SetRenderTarget_GameThread(RenderTarget);
+	Canvas.Clear(FLinearColor(0, 0, 0, 0));
 
 	const FVector2D TileSize(OutputSize.X, OutputSize.Y);
 	const FVector2D TilePosition(0, 0);
@@ -55,12 +55,12 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 		FCanvasTileItem TileItem(TilePosition, Source.Texture->Resource, TileSize, Source.TintColor);
 
 		TileItem.BlendMode = Source.BlendMode;
-		TileItem.Draw(Canvas);
+		TileItem.Draw(&Canvas);
 	}
 
-	Canvas->Flush_GameThread();
+	Canvas.Flush_GameThread();
 	FlushRenderingCommands();
-	Canvas->SetRenderTarget_GameThread(nullptr);
+	Canvas.SetRenderTarget_GameThread(nullptr);
 	FlushRenderingCommands();
 
 	const bool bReadSuccessful = RenderTarget->ReadPixels(OutPixels);
@@ -69,7 +69,6 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	RenderTarget2D->ReleaseResource();
 	RenderTarget2D->RemoveFromRoot();
 	RenderTarget2D = nullptr;
-	delete Canvas;
 
 	return bReadSuccessful;
 }
