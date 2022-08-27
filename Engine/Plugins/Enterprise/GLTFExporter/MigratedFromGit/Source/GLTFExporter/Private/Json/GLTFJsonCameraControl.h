@@ -5,20 +5,20 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonVector4.h"
 
-struct FGLTFJsonPlayerCamera
+struct FGLTFJsonCameraControl
 {
-	EGLTFJsonPlayerCameraMode Mode;
-	FGLTFJsonNodeIndex        Focus;
-	float                     MaxDistance;
-	float                     MinDistance;
-	float                     MaxPitch;
-	float                     MinPitch;
-	float                     MaxYaw;
-	float                     MinYaw;
-	float                     RotationSensitivity;
-	float                     RotationInertia;
-	float                     DollySensitivity;
-	float                     DollyDuration;
+	EGLTFJsonCameraControlMode Mode;
+	FGLTFJsonNodeIndex         Focus;
+	float                      MaxDistance;
+	float                      MinDistance;
+	float                      MaxPitch;
+	float                      MinPitch;
+	float                      MaxYaw;
+	float                      MinYaw;
+	float                      RotationSensitivity;
+	float                      RotationInertia;
+	float                      DollySensitivity;
+	float                      DollyDuration;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const

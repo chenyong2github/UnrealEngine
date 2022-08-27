@@ -54,15 +54,15 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 
 	if (CameraActor != nullptr)
 	{
-		if (Builder.ExportOptions->bExportPlayerCameras)
+		if (Builder.ExportOptions->bExportCameraControls)
 		{
-			FGLTFJsonPlayerCamera PlayerCamera;
-			PlayerCamera.Mode = FGLTFConverterUtility::ConvertPlayerCameraMode(CameraActor->Mode);
-			PlayerCamera.Focus = Builder.GetOrAddNode(CameraActor->Focus);
-			PlayerCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, ExportScale);
-			PlayerCamera.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
-			PlayerCamera.MaxPitch = CameraActor->PitchAngleMax;
-			PlayerCamera.MinPitch = CameraActor->PitchAngleMin;
+			FGLTFJsonCameraControl CameraControl;
+			CameraControl.Mode = FGLTFConverterUtility::ConvertCameraControlMode(CameraActor->Mode);
+			CameraControl.Focus = Builder.GetOrAddNode(CameraActor->Focus);
+			CameraControl.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, ExportScale);
+			CameraControl.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
+			CameraControl.MaxPitch = CameraActor->PitchAngleMax;
+			CameraControl.MinPitch = CameraActor->PitchAngleMin;
 
 			// Transform yaw limits to match right-handed system and glTF specification for cameras, i.e
 			// positive rotation is CCW, and camera looks down Z- (instead of X+).
@@ -73,15 +73,15 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 			// the needed offset since we need to keep both limits a fixed distance apart from each other.
 			const float PositiveRangeOffset = FRotator::ClampAxis(MaxYaw) - MaxYaw;
 
-			PlayerCamera.MaxYaw = MaxYaw + PositiveRangeOffset;
-			PlayerCamera.MinYaw = MinYaw + PositiveRangeOffset;
+			CameraControl.MaxYaw = MaxYaw + PositiveRangeOffset;
+			CameraControl.MinYaw = MinYaw + PositiveRangeOffset;
 
-			PlayerCamera.RotationSensitivity = CameraActor->RotationSensitivity;
-			PlayerCamera.RotationInertia = CameraActor->RotationInertia;
-			PlayerCamera.DollySensitivity = CameraActor->DollySensitivity;
-			PlayerCamera.DollyDuration = CameraActor->DollyDuration;
+			CameraControl.RotationSensitivity = CameraActor->RotationSensitivity;
+			CameraControl.RotationInertia = CameraActor->RotationInertia;
+			CameraControl.DollySensitivity = CameraActor->DollySensitivity;
+			CameraControl.DollyDuration = CameraActor->DollyDuration;
 
-			Camera.PlayerCamera = PlayerCamera;
+			Camera.CameraControl = CameraControl;
 		}
 	}
 

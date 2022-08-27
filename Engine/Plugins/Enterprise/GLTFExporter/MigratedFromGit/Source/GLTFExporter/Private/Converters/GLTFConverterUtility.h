@@ -12,7 +12,7 @@
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
 
-enum class EGLTFCameraMode : unsigned char;
+enum class EGLTFCameraControlMode : unsigned char;
 
 struct FGLTFConverterUtility
 {
@@ -195,7 +195,7 @@ struct FGLTFConverterUtility
 
 	static EGLTFJsonCubeFace ConvertCubeFace(ECubeFace CubeFace);
 
-	static EGLTFJsonPlayerCameraMode ConvertPlayerCameraMode(EGLTFCameraMode CameraMode);
+	static EGLTFJsonCameraControlMode ConvertCameraControlMode(EGLTFCameraControlMode CameraMode);
 
 	template <typename ComponentType>
 	static EGLTFJsonComponentType GetComponentType()

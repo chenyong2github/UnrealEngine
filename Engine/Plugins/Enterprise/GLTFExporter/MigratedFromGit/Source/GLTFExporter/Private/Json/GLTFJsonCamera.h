@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonPlayerCamera.h"
+#include "Json/GLTFJsonCameraControl.h"
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -78,8 +78,8 @@ struct FGLTFJsonCamera
 {
 	FString Name;
 
-	EGLTFJsonCameraType             Type;
-	TOptional<FGLTFJsonPlayerCamera> PlayerCamera;
+	EGLTFJsonCameraType               Type;
+	TOptional<FGLTFJsonCameraControl> CameraControl;
 
 	union {
 		FGLTFJsonOrthographic Orthographic;
@@ -121,15 +121,15 @@ struct FGLTFJsonCamera
 				break;
 		}
 
-		if (PlayerCamera.IsSet())
+		if (CameraControl.IsSet())
 		{
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_PlayerCameras;
+			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_CameraControls;
 			Extensions.Used.Add(Extension);
 
 			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-			PlayerCamera.GetValue().WriteObject(JsonWriter, Extensions);
+			CameraControl.GetValue().WriteObject(JsonWriter, Extensions);
 
 			JsonWriter.WriteObjectEnd();
 		}
