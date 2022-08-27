@@ -1,35 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshSection.h"
+#include "Converters/GLTFBufferAdapter.h"
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Algo/MaxElement.h"
 
 FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const FGLTFIndexArray& SectionIndices)
 {
-	const FRawStaticIndexBuffer& SourceBuffer = MeshLOD->IndexBuffer;
-	if (SourceBuffer.Is32Bit())
+	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(&MeshLOD->IndexBuffer);
+	const uint8* SourceData = SourceBuffer->GetData();
+
+	if (MeshLOD->IndexBuffer.Is32Bit())
 	{
-		Init(MeshLOD->Sections, SectionIndices, SourceBuffer.AccessStream32());
+		Init(MeshLOD->Sections, SectionIndices, reinterpret_cast<const uint32*>(SourceData));
 	}
 	else
 	{
-		Init(MeshLOD->Sections, SectionIndices, SourceBuffer.AccessStream16());
+		Init(MeshLOD->Sections, SectionIndices, reinterpret_cast<const uint16*>(SourceData));
 	}
 }
 
 FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const FGLTFIndexArray& SectionIndices)
 {
-	const FMultiSizeIndexContainer& SourceBuffer = MeshLOD->MultiSizeIndexContainer;
-	const void* SourceData = const_cast<FRawStaticIndexBuffer16or32Interface*>(SourceBuffer.GetIndexBuffer())->GetPointerTo(0);
+	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(MeshLOD->MultiSizeIndexContainer.GetIndexBuffer());
+	const uint8* SourceData = SourceBuffer->GetData();
 
-	if (SourceBuffer.GetDataTypeSize() != sizeof(uint16))
+	if (MeshLOD->MultiSizeIndexContainer.GetDataTypeSize() != sizeof(uint16))
 	{
-		Init(MeshLOD->RenderSections, SectionIndices, static_cast<const uint32*>(SourceData));
+		Init(MeshLOD->RenderSections, SectionIndices, reinterpret_cast<const uint32*>(SourceData));
 	}
 	else
 	{
-		Init(MeshLOD->RenderSections, SectionIndices, static_cast<const uint16*>(SourceData));
+		Init(MeshLOD->RenderSections, SectionIndices, reinterpret_cast<const uint16*>(SourceData));
 	}
 }
 

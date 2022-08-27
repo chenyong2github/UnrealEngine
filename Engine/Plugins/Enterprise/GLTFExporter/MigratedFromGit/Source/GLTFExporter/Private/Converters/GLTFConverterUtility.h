@@ -72,6 +72,11 @@ struct FGLTFConverterUtility
 		return { UV.X, UV.Y };
 	}
 
+	static FGLTFVector2 ConvertUV(const FVector2DHalf& UV)
+	{
+		return ConvertUV(FVector2D(UV));
+	}
+
 	static FGLTFColor4 ConvertColor(const FLinearColor& Color, bool bForceLDR)
 	{
 		if (bForceLDR)
