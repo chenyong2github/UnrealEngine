@@ -2,9 +2,9 @@
 
 #include "Converters/GLTFSceneConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "LevelVariantSetsActor.h"
+#include "LevelVariantSets.h"
 #include "VariantSet.h"
 
 FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
