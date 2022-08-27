@@ -26,6 +26,12 @@ void FGLTFStaticMeshTask::Complete()
 		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bMaterialBakeUsingMeshData ?
 			MeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
+	if (MeshData != nullptr && MeshData->Description.IsEmpty())
+	{
+		// TODO: add warning in case the mesh actually has data, which means we failed to extract a mesh description.
+		MeshData = nullptr;
+	}
+
 	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
@@ -88,9 +94,10 @@ void FGLTFSkeletalMeshTask::Complete()
 		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bMaterialBakeUsingMeshData ?
 			MeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
-	if (SkeletalMeshComponent == nullptr)
+	if (MeshData != nullptr && MeshData->Description.IsEmpty())
 	{
-		MeshData = nullptr; // TODO: remove and add support for skeletal meshes in FGLTFMeshData
+		// TODO: add warning in case the mesh actually has data, which means we failed to extract a mesh description.
+		MeshData = nullptr;
 	}
 
 	const uint16 MaterialCount = SkeletalMesh->Materials.Num();
