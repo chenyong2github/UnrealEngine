@@ -99,7 +99,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = General)
 	bool bIncludeGeneratorVersion;
 
-	/** If enabled, materials that have a proxy defined in their user data, will be exported using that proxy instead. Used mainly by pre-baked materials. */
+	/** If enabled, materials that have a proxy defined in their user data, will be exported using that proxy instead. This setting won't affect proxy materials exported or referenced directly. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	bool bExportProxyMaterials;
 

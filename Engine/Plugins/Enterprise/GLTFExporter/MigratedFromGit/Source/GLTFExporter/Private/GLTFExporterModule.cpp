@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExporterModule.h"
-#include "Converters/GLTFMaterialPrebaker.h"
-#include "Actions/GLTFPrebakeAssetActions.h"
+#include "Converters/GLTFMaterialProxyFactory.h"
+#include "Actions/GLTFProxyAssetActions.h"
 #include "Interfaces/IPluginManager.h"
 #if WITH_EDITOR
 #include "Materials/MaterialInstanceConstant.h"
@@ -14,13 +14,14 @@ class FAssetTypeActions_Base;
 
 DEFINE_LOG_CATEGORY(LogGLTFExporter);
 
-UMaterialInterface* IGLTFExporterModule::PrebakeMaterial(UMaterialInterface* Material, const UGLTFPrebakeOptions* Options)
+UMaterialInterface* IGLTFExporterModule::CreateProxyMaterial(UMaterialInterface* Material, const UGLTFProxyOptions* Options)
 {
 #if WITH_EDITOR
-	FGLTFMaterialPrebaker Prebaker(Options);
-	Prebaker.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
-	return Prebaker.Prebake(Material);
+	FGLTFMaterialProxyFactory ProxyFactory(Options);
+	ProxyFactory.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
+	return ProxyFactory.Create(Material);
 #else
+	// TODO: report error
 	return nullptr;
 #endif
 }
@@ -45,10 +46,10 @@ public:
 			IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 
 			// TODO: add support for when GetAssetTypeActionsForClass returns null pointer
-			AssetTypeActionsArray.Add(MakeShared<FGLTFPrebakeAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterial::StaticClass()).Pin().ToSharedRef()));
-			AssetTypeActionsArray.Add(MakeShared<FGLTFPrebakeAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInstanceConstant::StaticClass()).Pin().ToSharedRef()));
-			AssetTypeActionsArray.Add(MakeShared<FGLTFPrebakeAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInstanceDynamic::StaticClass()).Pin().ToSharedRef()));
-			AssetTypeActionsArray.Add(MakeShared<FGLTFPrebakeAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInterface::StaticClass()).Pin().ToSharedRef()));
+			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterial::StaticClass()).Pin().ToSharedRef()));
+			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInstanceConstant::StaticClass()).Pin().ToSharedRef()));
+			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInstanceDynamic::StaticClass()).Pin().ToSharedRef()));
+			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInterface::StaticClass()).Pin().ToSharedRef()));
 
 			for (TSharedRef<IAssetTypeActions>& AssetTypeActions : AssetTypeActionsArray)
 			{

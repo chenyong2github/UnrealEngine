@@ -18,27 +18,27 @@
 #include "GLTFConverterUtility.h"
 #include "Misc/DefaultValueHelper.h"
 
-UMaterialInterface* FGLTFMaterialUtility::GetDefault()
+UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
 {
-	static UMaterialInterface* DefaultMaterial = GetPrebaked(EGLTFJsonShadingModel::Default);
+	static UMaterialInterface* DefaultMaterial = GetProxyBaseMaterial(EGLTFJsonShadingModel::Default);
 	return DefaultMaterial;
 }
 
-UMaterialInterface* FGLTFMaterialUtility::GetPrebaked(EGLTFJsonShadingModel ShadingModel)
+UMaterialInterface* FGLTFMaterialUtility::GetProxyBaseMaterial(EGLTFJsonShadingModel ShadingModel)
 {
 	const FString Name = FGLTFJsonUtility::GetValue(ShadingModel);
 	const FString Path = TEXT("/GLTFExporter/Materials/GLTF") + Name + TEXT(".GLTF") + Name;
 	return LoadObject<UMaterialInterface>(nullptr, *Path);
 }
 
-bool FGLTFMaterialUtility::IsPrebaked(const UMaterial* Material)
+bool FGLTFMaterialUtility::IsProxyMaterial(const UMaterial* Material)
 {
 	return Material->GetPathName().StartsWith(TEXT("/GLTFExporter/Materials/GLTF"));
 }
 
-bool FGLTFMaterialUtility::IsPrebaked(const UMaterialInterface* Material)
+bool FGLTFMaterialUtility::IsProxyMaterial(const UMaterialInterface* Material)
 {
-	return IsPrebaked(Material->GetMaterial());
+	return IsProxyMaterial(Material->GetMaterial());
 }
 
 #if WITH_EDITOR

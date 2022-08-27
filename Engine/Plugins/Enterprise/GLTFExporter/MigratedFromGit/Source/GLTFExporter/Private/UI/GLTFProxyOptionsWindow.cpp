@@ -2,7 +2,7 @@
 
 #if WITH_EDITOR
 
-#include "UI/GLTFPrebakeOptionsWindow.h"
+#include "UI/GLTFProxyOptionsWindow.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
@@ -10,14 +10,14 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 
-#define LOCTEXT_NAMESPACE "SGLTFPrebakeOptionsWindow"
+#define LOCTEXT_NAMESPACE "SGLTFProxyOptionsWindow"
 
-SGLTFPrebakeOptionsWindow::SGLTFPrebakeOptionsWindow() : bUserCancelled(true)
+SGLTFProxyOptionsWindow::SGLTFProxyOptionsWindow() : bUserCancelled(true)
 {
 
 }
 
-void SGLTFPrebakeOptionsWindow::Construct(const FArguments& InArgs)
+void SGLTFProxyOptionsWindow::Construct(const FArguments& InArgs)
 {
 	WidgetWindow = InArgs._WidgetWindow;
 
@@ -56,7 +56,7 @@ void SGLTFPrebakeOptionsWindow::Construct(const FArguments& InArgs)
 				SAssignNew(ConfirmButton, SButton)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("MaterialBakeOptionWindow_Import", "Confirm"))
-				.OnClicked(this, &SGLTFPrebakeOptionsWindow::OnConfirm)
+				.OnClicked(this, &SGLTFProxyOptionsWindow::OnConfirm)
 			]
 			+ SUniformGridPanel::Slot(1, 0)
 			[
@@ -64,13 +64,13 @@ void SGLTFPrebakeOptionsWindow::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Center)
 				.Text(LOCTEXT("MaterialBakeOptionWindow_Cancel", "Cancel"))
 				.ToolTipText(LOCTEXT("MaterialBakeOptionWindow_Cancel_ToolTip", "Cancels baking out Material"))
-				.OnClicked(this, &SGLTFPrebakeOptionsWindow::OnCancel)
+				.OnClicked(this, &SGLTFProxyOptionsWindow::OnCancel)
 			]
 		]
 	];
 }
 
-FReply SGLTFPrebakeOptionsWindow::OnConfirm()
+FReply SGLTFProxyOptionsWindow::OnConfirm()
 {
 	bUserCancelled = false;
 	if (WidgetWindow.IsValid())
@@ -80,7 +80,7 @@ FReply SGLTFPrebakeOptionsWindow::OnConfirm()
 	return FReply::Handled();
 }
 
-FReply SGLTFPrebakeOptionsWindow::OnCancel()
+FReply SGLTFProxyOptionsWindow::OnCancel()
 {
 	if (WidgetWindow.IsValid())
 	{
@@ -89,7 +89,7 @@ FReply SGLTFPrebakeOptionsWindow::OnCancel()
 	return FReply::Handled();
 }
 
-FReply SGLTFPrebakeOptionsWindow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+FReply SGLTFProxyOptionsWindow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
@@ -99,23 +99,23 @@ FReply SGLTFPrebakeOptionsWindow::OnKeyDown(const FGeometry& MyGeometry, const F
 	return FReply::Unhandled();
 }
 
-bool SGLTFPrebakeOptionsWindow::WasUserCancelled()
+bool SGLTFProxyOptionsWindow::WasUserCancelled()
 {
 	return bUserCancelled;
 }
 
-bool SGLTFPrebakeOptionsWindow::ShowDialog(UGLTFPrebakeOptions* PrebakeOptions)
+bool SGLTFProxyOptionsWindow::ShowDialog(UGLTFProxyOptions* ProxyOptions)
 {
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(LOCTEXT("WindowTitle", "Material Baking Options"))
 		.SizingRule(ESizingRule::Autosized);
 
-	TArray<TWeakObjectPtr<UObject>> OptionObjects = { PrebakeOptions };
-	TSharedPtr<SGLTFPrebakeOptionsWindow> Options;
+	TArray<TWeakObjectPtr<UObject>> OptionObjects = { ProxyOptions };
+	TSharedPtr<SGLTFProxyOptionsWindow> Options;
 
 	Window->SetContent
 	(
-		SAssignNew(Options, SGLTFPrebakeOptionsWindow)
+		SAssignNew(Options, SGLTFProxyOptionsWindow)
 		.WidgetWindow(Window)
 		.SettingsObjects(OptionObjects)
 	);
@@ -132,6 +132,6 @@ bool SGLTFPrebakeOptionsWindow::ShowDialog(UGLTFPrebakeOptions* PrebakeOptions)
 	return false;
 }
 
-#undef LOCTEXT_NAMESPACE //"SGLTFPrebakeOptionsWindow"
+#undef LOCTEXT_NAMESPACE //"SGLTFProxyOptionsWindow"
 
 #endif

@@ -6,11 +6,11 @@
 
 #include "AssetTypeActions_Base.h"
 
-class FGLTFPrebakeAssetActions : public IAssetTypeActions
+class FGLTFProxyAssetActions : public IAssetTypeActions
 {
 public:
 
-	FGLTFPrebakeAssetActions(const TSharedRef<IAssetTypeActions>& OriginalActions);
+	FGLTFProxyAssetActions(const TSharedRef<IAssetTypeActions>& OriginalActions);
 
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const override;
 	virtual void GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section) override;
@@ -47,9 +47,9 @@ public:
 
 private:
 
-	void GetPrebakeActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section);
+	void GetProxyActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section);
 
-	void OnPrebake(TArray<FWeakObjectPtr> Objects) const;
+	void OnCreateProxy(TArray<FWeakObjectPtr> Objects) const;
 
 	TSharedRef<IAssetTypeActions> OriginalActions;
 };

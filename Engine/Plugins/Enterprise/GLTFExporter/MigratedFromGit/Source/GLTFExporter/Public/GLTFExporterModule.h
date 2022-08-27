@@ -10,7 +10,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
 
-class UGLTFPrebakeOptions;
+class UGLTFProxyOptions;
 
 /**
  * The public interface of the GLTFExporter module
@@ -39,5 +39,5 @@ public:
 		return FModuleManager::Get().IsModuleLoaded(GLTFEXPORTER_MODULE_NAME);
 	}
 
-	static UMaterialInterface* PrebakeMaterial(UMaterialInterface* Material, const UGLTFPrebakeOptions* Options);
+	static UMaterialInterface* CreateProxyMaterial(UMaterialInterface* Material, const UGLTFProxyOptions* Options);
 };

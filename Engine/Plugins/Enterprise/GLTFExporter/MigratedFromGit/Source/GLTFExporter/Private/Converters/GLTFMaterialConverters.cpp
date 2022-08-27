@@ -43,7 +43,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 
 FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices)
 {
-	if (Material != FGLTFMaterialUtility::GetDefault())
+	if (Material != FGLTFMaterialUtility::GetDefaultMaterial())
 	{
 		const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
 		Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, MaterialIndex);
