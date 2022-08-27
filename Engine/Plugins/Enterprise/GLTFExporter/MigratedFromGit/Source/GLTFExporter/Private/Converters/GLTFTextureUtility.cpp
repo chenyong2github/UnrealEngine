@@ -355,14 +355,14 @@ bool FGLTFTextureUtility::LoadPlatformData(UTexture2D* Texture)
 	}
 
 #if WITH_EDITOR
-	if (Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+	if (!Texture->PlatformData->Mips[0].BulkData.IsBulkDataLoaded())
 	{
 		// TODO: is this correct handling?
 		Texture->ForceRebuildPlatformData();
 	}
 #endif
 
-	return Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() != 0;
+	return Texture->PlatformData->Mips[0].BulkData.IsBulkDataLoaded();
 }
 
 bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
@@ -373,14 +373,14 @@ bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
 	}
 
 #if WITH_EDITOR
-	if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+	if (!TextureCube->PlatformData->Mips[0].BulkData.IsBulkDataLoaded())
 	{
 		// TODO: is this correct handling?
 		TextureCube->ForceRebuildPlatformData();
 	}
 #endif
 
-	return TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() != 0;
+	return TextureCube->PlatformData->Mips[0].BulkData.IsBulkDataLoaded();
 }
 
 void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)
