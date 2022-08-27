@@ -36,6 +36,13 @@ public:
 	* Used to check for duplicate inputs.
 	*/
 	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) override;
+
+#if WITH_EDITOR
+
+	/** Register(s) all the widgets of this protocol entity. */
+	virtual void RegisterWidgets() override;
+
+#endif // WITH_EDITOR
 };
 
 /**
@@ -64,7 +71,12 @@ public:
 	 * @param InAddress	OSC address structure
 	 */
 	void ProcessAutoBinding(const FOSCAddress& InAddress);
-#endif
+
+protected:
+
+	/** Populates protocol specific columns. */
+	virtual void RegisterColumns() override;
+#endif // WITH_EDITOR
 
 private:
 	/** Map of the OSC bindings */

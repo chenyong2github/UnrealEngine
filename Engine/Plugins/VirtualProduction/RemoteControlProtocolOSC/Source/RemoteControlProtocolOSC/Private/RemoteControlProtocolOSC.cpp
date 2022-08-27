@@ -7,6 +7,7 @@
 #if WITH_EDITOR
 #include "IRCProtocolBindingList.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #endif
 
 #include "OSCManager.h"
@@ -15,6 +16,15 @@
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolOSC"
 
 const FName FRemoteControlProtocolOSC::ProtocolName = TEXT("OSC");
+
+#if WITH_EDITOR
+
+namespace FRemoteControlOSCProtocolColumns
+{
+	static FName Address = TEXT("Address");
+}
+
+#endif // WITH_EDITOR
 
 bool FRemoteControlOSCProtocolEntity::IsSame(const FRemoteControlProtocolEntity* InOther)
 {
@@ -25,6 +35,26 @@ bool FRemoteControlOSCProtocolEntity::IsSame(const FRemoteControlProtocolEntity*
 
 	return false;
 }
+
+#if WITH_EDITOR
+
+void FRemoteControlOSCProtocolEntity::RegisterWidgets()
+{
+	FRemoteControlProtocolEntity::RegisterWidgets();
+
+	{ // Address
+		if (!Widgets.Contains(FRemoteControlOSCProtocolColumns::Address))
+		{
+			TSharedPtr<SWidget> AddressWidget = SNew(SEditableTextBox)
+				.Text_Lambda([this]() { return FText::FromName(PathName); })
+				.OnTextCommitted_Lambda([this](const FText& NewValue, ETextCommit::Type InCommitType) { PathName = *NewValue.ToString(); });
+
+			Widgets.Add(FRemoteControlOSCProtocolColumns::Address, AddressWidget);
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 void FRemoteControlProtocolOSC::Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
 {
@@ -136,7 +166,17 @@ void FRemoteControlProtocolOSC::ProcessAutoBinding(const FOSCAddress& InAddress)
 		}
 	}
 }
-#endif
+
+void FRemoteControlProtocolOSC::RegisterColumns()
+{
+	FRemoteControlProtocol::RegisterColumns();
+
+	REGISTER_COLUMN(FRemoteControlOSCProtocolColumns::Address
+		, LOCTEXT("RCPresetAddressColumnHeader", "Address")
+		, ProtocolColumnConstants::ColumnSizeMedium);
+}
+
+#endif // WITH_EDITOR
 
 void FRemoteControlProtocolOSC::UnbindAll()
 {

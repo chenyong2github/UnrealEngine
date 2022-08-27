@@ -15,12 +15,22 @@
 #if WITH_EDITOR
 #include "IRCProtocolBindingList.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolDMX"
 
 const FName FRemoteControlProtocolDMX::ProtocolName = TEXT("DMX");
 
+#if WITH_EDITOR
+
+namespace FRemoteControlDMXProtocolColumns
+{
+	static FName Channel = TEXT("Channel");
+	static FName Universe = TEXT("Universe");
+}
+
+#endif // WITH_EDITOR
 
 uint8 FRemoteControlDMXProtocolEntity::GetRangePropertySize() const
 {
@@ -74,6 +84,39 @@ const FString& FRemoteControlDMXProtocolEntity::GetRangePropertyMaxValue() const
 			}
 	}
 }
+
+#if WITH_EDITOR
+
+void FRemoteControlDMXProtocolEntity::RegisterWidgets()
+{
+	FRemoteControlProtocolEntity::RegisterWidgets();
+
+	{ // Universe
+		if (!Widgets.Contains(FRemoteControlDMXProtocolColumns::Universe))
+		{
+			TSharedPtr<SWidget> UniverseWidget = SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.Value_Lambda([this]() { return ExtraSetting.Universe; })
+				.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type InCommitType) { ExtraSetting.Universe = NewValue; });
+
+			Widgets.Add(FRemoteControlDMXProtocolColumns::Universe, UniverseWidget);
+		}
+	}
+	
+	{ // Channel
+		if (!Widgets.Contains(FRemoteControlDMXProtocolColumns::Channel))
+		{
+			TSharedPtr<SWidget> ChannelWidget = SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.Value_Lambda([this]() { return ExtraSetting.StartingChannel; })
+				.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type InCommitType) { ExtraSetting.StartingChannel = NewValue; });
+
+			Widgets.Add(FRemoteControlDMXProtocolColumns::Channel, ChannelWidget);
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 void FRemoteControlDMXProtocolEntity::Initialize()
 {
@@ -323,6 +366,20 @@ void FRemoteControlProtocolDMX::ProcessAutoBinding(const FRemoteControlProtocolE
 		}
 	}
 }
+
+void FRemoteControlProtocolDMX::RegisterColumns()
+{
+	FRemoteControlProtocol::RegisterColumns();
+
+	REGISTER_COLUMN(FRemoteControlDMXProtocolColumns::Channel
+		, LOCTEXT("RCPresetChannelColumnHeader", "Channel")
+		, ProtocolColumnConstants::ColumnSizeMicro);
+
+	REGISTER_COLUMN(FRemoteControlDMXProtocolColumns::Universe
+		, LOCTEXT("RCPresetUniverseColumnHeader", "Universe")
+		, ProtocolColumnConstants::ColumnSizeMicro);
+}
+
 #endif
 
 void FRemoteControlProtocolDMX::UnbindAll()

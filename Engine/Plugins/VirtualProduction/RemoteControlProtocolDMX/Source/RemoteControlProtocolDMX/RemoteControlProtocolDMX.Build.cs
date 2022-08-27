@@ -26,7 +26,10 @@ public class RemoteControlProtocolDMX : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"RemoteControlProtocolWidgets"
+					"InputCore",
+					"RemoteControlProtocolWidgets",
+					"Slate",
+					"SlateCore",
 				}
 			);
 		}

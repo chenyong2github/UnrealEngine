@@ -68,6 +68,13 @@ public:
 	virtual FName GetRangePropertyName() const override { return NAME_UInt32Property; }
 	virtual uint8 GetRangePropertySize() const override;
 	virtual const FString& GetRangePropertyMaxValue() const override;
+
+#if WITH_EDITOR
+
+	/** Register(s) all the widgets of this protocol entity. */
+	virtual void RegisterWidgets() override;
+
+#endif // WITH_EDITOR
 	//~ End FRemoteControlProtocolEntity interface
 
 	/** Initialize struct and delegates */
@@ -158,7 +165,13 @@ private:
 	 * @param InProtocolEntityPtr	Protocol entity pointer
 	 */
 	void ProcessAutoBinding(const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr);
-#endif
+
+protected:
+
+	/** Populates protocol specific columns. */
+	virtual void RegisterColumns() override;
+
+#endif // WITH_EDITOR
 
 private:
 	/** Binding for the DMX protocol */

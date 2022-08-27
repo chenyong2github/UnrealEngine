@@ -25,7 +25,10 @@ public class RemoteControlProtocolMIDI : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"RemoteControlProtocolWidgets"
+					"InputCore",
+					"RemoteControlProtocolWidgets",
+					"Slate",
+					"SlateCore",
 				}
 			);
 		}

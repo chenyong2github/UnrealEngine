@@ -153,6 +153,13 @@ public:
 	* Used to check for duplicate inputs.
 	*/
 	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) override;
+
+#if WITH_EDITOR
+
+	/** Register(s) all the widgets of this protocol entity. */
+	virtual void RegisterWidgets() override;
+
+#endif // WITH_EDITOR
 };
 
 /**
@@ -191,7 +198,12 @@ private:
 	 * @param	MessageData1		The first part of the MIDI data
 	 */
 	void ProcessAutoBinding(EMIDIEventType MIDIEventType, int32 Channel, int32 MessageData1);
-#endif
+
+protected:
+
+	/** Populates protocol specific columns. */
+	virtual void RegisterColumns() override;
+#endif // WITH_EDITOR
 
 private:
 

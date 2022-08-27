@@ -10,11 +10,22 @@
 #if WITH_EDITOR
 #include "IRCProtocolBindingList.h"
 #include "IRemoteControlProtocolWidgetsModule.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FRemoteControlProtocolMIDI"
 
 const FName FRemoteControlProtocolMIDI::ProtocolName = TEXT("MIDI");
+
+#if WITH_EDITOR
+
+namespace FRemoteControlMIDIProtocolColumns
+{
+	static FName Channel = TEXT("Channel");
+	static FName Identifier = TEXT("Identifier");
+}
+
+#endif // WITH_EDITOR
 
 int32 FRemoteControlMIDIDevice::ResolveDeviceId(const TArray<FFoundMIDIDevice>& InFoundDevices)
 {
@@ -132,6 +143,38 @@ bool FRemoteControlMIDIProtocolEntity::IsSame(const FRemoteControlProtocolEntity
 	return false;
 }
 
+#if WITH_EDITOR
+
+void FRemoteControlMIDIProtocolEntity::RegisterWidgets()
+{
+	FRemoteControlProtocolEntity::RegisterWidgets();
+
+	{ // Identifier
+		if (!Widgets.Contains(FRemoteControlMIDIProtocolColumns::Identifier))
+		{
+			TSharedPtr<SWidget> IdentifierWidget = SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.Value_Lambda([this]() { return MessageData1; })
+				.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type InCommitType) { MessageData1 = NewValue; });
+
+			Widgets.Add(FRemoteControlMIDIProtocolColumns::Identifier, IdentifierWidget);
+		}
+	}
+
+	{ // Channel
+		if (!Widgets.Contains(FRemoteControlMIDIProtocolColumns::Channel))
+		{
+			TSharedPtr<SWidget> ChannelWidget = SNew(SNumericEntryBox<int32>)
+				.AllowSpin(true)
+				.Value_Lambda([this]() { return Channel; })
+				.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type InCommitType) { Channel = NewValue; });
+
+			Widgets.Add(FRemoteControlMIDIProtocolColumns::Channel, ChannelWidget);
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 void FRemoteControlProtocolMIDI::Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
 {
@@ -360,7 +403,21 @@ void FRemoteControlProtocolMIDI::ProcessAutoBinding(EMIDIEventType MIDIEventType
 		}
 	}
 }
-#endif
+
+void FRemoteControlProtocolMIDI::RegisterColumns()
+{
+	FRemoteControlProtocol::RegisterColumns();
+
+	REGISTER_COLUMN(FRemoteControlMIDIProtocolColumns::Channel
+		, LOCTEXT("RCPresetChannelColumnHeader", "Channel")
+		, ProtocolColumnConstants::ColumnSizeMicro);
+	
+	REGISTER_COLUMN(FRemoteControlMIDIProtocolColumns::Identifier
+		, LOCTEXT("RCPresetIdentifierColumnHeader", "ID")
+		, ProtocolColumnConstants::ColumnSizeMicro);
+}
+
+#endif // WITH_EDITOR
 
 void FRemoteControlProtocolMIDI::UnbindAll()
 {
