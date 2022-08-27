@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 using System.IO;
-public class MaterialBaking : ModuleRules
+public class GLTFMaterialBaking : ModuleRules
 {
-	public MaterialBaking(ReadOnlyTargetRules Target) : base(Target)
+	public GLTFMaterialBaking(ReadOnlyTargetRules Target) : base(Target)
 	{
         PrivateDependencyModuleNames.AddRange(
 			new string [] {
@@ -25,5 +25,8 @@ public class MaterialBaking : ModuleRules
 				"StaticMeshDescription"
             }
 		);
+
+		// NOTE: avoid renaming all instaces of MATERIALBAKING_API by redirecting it to GLTFMATERIALBAKING_API
+		PublicDefinitions.Add("MATERIALBAKING_API=GLTFMATERIALBAKING_API");
     }
 }
