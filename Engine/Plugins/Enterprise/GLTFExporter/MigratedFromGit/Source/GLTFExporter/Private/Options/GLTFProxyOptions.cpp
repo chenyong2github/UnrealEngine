@@ -10,6 +10,7 @@ UGLTFProxyOptions::UGLTFProxyOptions(const FObjectInitializer& ObjectInitializer
 
 void UGLTFProxyOptions::ResetToDefault()
 {
+	bBakeMaterialInputs = true;
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
 	DefaultMaterialBakeFilter = TF_Trilinear;
 	DefaultMaterialBakeTiling = TA_Wrap;
