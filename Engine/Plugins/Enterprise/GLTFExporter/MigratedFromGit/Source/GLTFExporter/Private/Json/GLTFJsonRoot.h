@@ -181,15 +181,15 @@ struct FGLTFJsonRoot
 		JsonWriter->Close();
 	}
 
-	void ToJson(FArchive* const Archive, bool bPrettyPrint, bool bAllExtensionsRequired) const
+	void ToJson(FArchive* const Archive, bool bCondensedPrint, bool bAllExtensionsRequired) const
 	{
-		if (bPrettyPrint)
+		if (bCondensedPrint)
 		{
-			ToJson<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive, bAllExtensionsRequired);
+			ToJson<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive, bAllExtensionsRequired);
 		}
 		else
 		{
-			ToJson<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive, bAllExtensionsRequired);
+			ToJson<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive, bAllExtensionsRequired);
 		}
 	}
 };
