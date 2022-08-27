@@ -14,8 +14,8 @@ bool UGLTFLevelExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject
 {
 	const UWorld* World = CastChecked<UWorld>(Object);
 
-	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World);
-	if (SceneIndex == INDEX_NONE)
+	FGLTFJsonScene* SceneIndex = Builder.GetOrAddScene(World);
+	if (SceneIndex == nullptr)
 	{
 		Builder.LogError(FString::Printf(TEXT("Failed to export level %s"), *World->GetName()));
 		return false;

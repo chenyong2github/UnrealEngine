@@ -14,13 +14,13 @@ class UVariantObjectBinding;
 class UPropertyValue;
 class UPropertyValueMaterial;
 
-typedef TGLTFConverter<FGLTFJsonEpicLevelVariantSetsIndex, const ULevelVariantSets*> IGLTFEpicLevelVariantSetsConverter;
+typedef TGLTFConverter<FGLTFJsonEpicLevelVariantSets*, const ULevelVariantSets*> IGLTFEpicLevelVariantSetsConverter;
 
 class FGLTFEpicLevelVariantSetsConverter final : public FGLTFBuilderContext, public IGLTFEpicLevelVariantSetsConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonEpicLevelVariantSetsIndex Convert(const ULevelVariantSets* LevelVariantSets) override;
+	virtual FGLTFJsonEpicLevelVariantSets* Convert(const ULevelVariantSets* LevelVariantSets) override;
 
 	bool TryParseVariant(FGLTFJsonEpicVariant& OutVariant, const UVariant* Variant) const;
 	bool TryParseVariantBinding(FGLTFJsonEpicVariant& OutVariant, const UVariantObjectBinding* Binding) const;

@@ -7,7 +7,8 @@
 struct GLTFEXPORTER_API FGLTFJsonCameraControl : IGLTFJsonObject
 {
 	EGLTFJsonCameraControlMode Mode;
-	FGLTFJsonNodeIndex Target;
+	FGLTFJsonNode* Target;
+
 	float MaxDistance;
 	float MinDistance;
 	float MaxPitch;
@@ -21,6 +22,7 @@ struct GLTFEXPORTER_API FGLTFJsonCameraControl : IGLTFJsonObject
 
 	FGLTFJsonCameraControl()
 		: Mode(EGLTFJsonCameraControlMode::FreeLook)
+		, Target(nullptr)
 		, MaxDistance(0)
 		, MinDistance(0)
 		, MaxPitch(90)

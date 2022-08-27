@@ -6,11 +6,11 @@
 #include "Converters/GLTFActorUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
+FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 {
 	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(FGLTFActorUtility::GetBlueprintPath(BackdropActor)))
 	{
-		return FGLTFJsonBackdropIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	FGLTFJsonBackdrop JsonBackdrop;

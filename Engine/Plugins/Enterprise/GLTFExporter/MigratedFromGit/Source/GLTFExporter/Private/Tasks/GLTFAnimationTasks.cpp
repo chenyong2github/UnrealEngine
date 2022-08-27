@@ -27,7 +27,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 	// TODO: add animation data accessor converters to reuse track information
 
-	FGLTFJsonAccessorIndex InputAccessorIndex;
+	FGLTFJsonAccessor* InputAccessorIndex;
 	{
 		FGLTFJsonAccessor JsonInputAccessor;
 		JsonInputAccessor.BufferView = Builder.AddBufferView(Timestamps);
@@ -55,7 +55,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 	for (FBoneIndexType BoneIndex : BoneIndices)
 	{
-		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
+		FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
 
 		// TODO: detect if a bone has the same transforms across multiple frames (at least if its the same across all frames) and optimize
 
@@ -81,7 +81,7 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonSampler.Interpolation = Interpolation;
 
 			FGLTFJsonAnimationChannel JsonChannel;
-			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
+			JsonChannel.Sampler = JsonAnimation->Samplers.Add(JsonSampler);
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Translation;
 			JsonChannel.Target.Node = NodeIndex;
 			JsonAnimation->Channels.Add(JsonChannel);
@@ -109,7 +109,7 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonSampler.Interpolation = Interpolation;
 
 			FGLTFJsonAnimationChannel JsonChannel;
-			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
+			JsonChannel.Sampler = JsonAnimation->Samplers.Add(JsonSampler);
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Rotation;
 			JsonChannel.Target.Node = NodeIndex;
 			JsonAnimation->Channels.Add(JsonChannel);
@@ -137,7 +137,7 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonSampler.Interpolation = Interpolation;
 
 			FGLTFJsonAnimationChannel JsonChannel;
-			JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
+			JsonChannel.Sampler = JsonAnimation->Samplers.Add(JsonSampler);
 			JsonChannel.Target.Path = EGLTFJsonTargetPath::Scale;
 			JsonChannel.Target.Node = NodeIndex;
 			JsonAnimation->Channels.Add(JsonChannel);
@@ -187,13 +187,13 @@ void FGLTFLevelSequenceTask::Complete()
 	JsonInputAccessor.MinMaxLength = 1;
 	JsonInputAccessor.Min[0] = 0;
 	JsonInputAccessor.Max[0] = Timestamps[FrameCount - 1];
-	FGLTFJsonAccessorIndex InputAccessorIndex = Builder.AddAccessor(JsonInputAccessor);
+	FGLTFJsonAccessor* InputAccessorIndex = Builder.AddAccessor(JsonInputAccessor);
 
 	for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
 	{
 		for (TWeakObjectPtr<UObject> Object : Player->FindBoundObjects(Binding.GetObjectGuid(), MovieSceneSequenceID::Root))
 		{
-			FGLTFJsonNodeIndex NodeIndex;
+			FGLTFJsonNode* NodeIndex;
 
 			if (AActor* Actor = Cast<AActor>(Object.Get()))
 			{
@@ -209,7 +209,7 @@ void FGLTFLevelSequenceTask::Complete()
 				continue;
 			}
 
-			if (NodeIndex == INDEX_NONE)
+			if (NodeIndex == nullptr)
 			{
 				// TODO: report warning
 				continue;
@@ -276,7 +276,7 @@ void FGLTFLevelSequenceTask::Complete()
 						JsonSampler.Interpolation = EGLTFJsonInterpolation::Linear;
 
 						FGLTFJsonAnimationChannel JsonChannel;
-						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
+						JsonChannel.Sampler = JsonAnimation->Samplers.Add(JsonSampler);
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Translation;
 						JsonChannel.Target.Node = NodeIndex;
 						JsonAnimation->Channels.Add(JsonChannel);
@@ -314,7 +314,7 @@ void FGLTFLevelSequenceTask::Complete()
 						JsonSampler.Interpolation = EGLTFJsonInterpolation::Linear;
 
 						FGLTFJsonAnimationChannel JsonChannel;
-						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
+						JsonChannel.Sampler = JsonAnimation->Samplers.Add(JsonSampler);
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Rotation;
 						JsonChannel.Target.Node = NodeIndex;
 						JsonAnimation->Channels.Add(JsonChannel);
@@ -349,7 +349,7 @@ void FGLTFLevelSequenceTask::Complete()
 						JsonSampler.Interpolation = EGLTFJsonInterpolation::Linear;
 
 						FGLTFJsonAnimationChannel JsonChannel;
-						JsonChannel.Sampler = FGLTFJsonAnimationSamplerIndex(JsonAnimation->Samplers.Add(JsonSampler));
+						JsonChannel.Sampler = JsonAnimation->Samplers.Add(JsonSampler);
 						JsonChannel.Target.Path = EGLTFJsonTargetPath::Scale;
 						JsonChannel.Target.Node = NodeIndex;
 						JsonAnimation->Channels.Add(JsonChannel);

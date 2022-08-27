@@ -32,8 +32,8 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 			*OriginalMaterial->GetName()));
 	}
 
-	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(OriginalMaterial);
-	if (MaterialIndex == INDEX_NONE)
+	FGLTFJsonMaterial* MaterialIndex = Builder.GetOrAddMaterial(OriginalMaterial);
+	if (MaterialIndex == nullptr)
 	{
 		// TODO: report error
 		return nullptr;
@@ -166,9 +166,9 @@ void FGLTFMaterialProxyFactory::SetProxyParameter(UMaterialInstanceConstant* Pro
 	ParameterInfo.UVRotation.Set(ProxyMaterial, TextureInfo.Transform.Rotation, true);
 }
 
-UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTextureIndex Index, const FGLTFProxyMaterialTextureParameterInfo& ParameterInfo)
+UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTexture* Index, const FGLTFProxyMaterialTextureParameterInfo& ParameterInfo)
 {
-	if (Index == INDEX_NONE)
+	if (Index == nullptr)
 	{
 		return nullptr;
 	}
@@ -255,9 +255,9 @@ TUniquePtr<IGLTFTexture2DConverter> FGLTFMaterialProxyFactory::CreateTextureConv
 			bToSRGB = false; // ignore
 		}
 
-		virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D, bool bToSRGB) override
+		virtual FGLTFJsonTexture* Convert(const UTexture2D* Texture2D, bool bToSRGB) override
 		{
-			const FGLTFJsonTextureIndex TextureIndex = Factory.Builder.AddTexture({});
+			FGLTFJsonTexture* TextureIndex = Factory.Builder.AddTexture();
 			Factory.Textures.Add(TextureIndex, const_cast<UTexture2D*>(Texture2D));
 			return TextureIndex;
 		}
@@ -282,12 +282,12 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateImageConverter(
 
 	protected:
 
-		virtual FGLTFJsonImageIndex Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels) override
+		virtual FGLTFJsonImage* Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels) override
 		{
 			const FString Filename = FGLTFImageUtility::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
 			UniqueFilenames.Add(Filename);
 
-			const FGLTFJsonImageIndex ImageIndex = Factory.Builder.AddImage({});
+			FGLTFJsonImage* ImageIndex = Factory.Builder.AddImage();
 			Factory.Images.Add(ImageIndex, { Filename, Type, bIgnoreAlpha, Size, Pixels });
 			return ImageIndex;
 		}

@@ -6,12 +6,12 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-typedef TGLTFConverter<FGLTFJsonBackdropIndex, const AActor*> IGLTFBackdropConverter;
+typedef TGLTFConverter<FGLTFJsonBackdrop*, const AActor*> IGLTFBackdropConverter;
 
 
 class FGLTFBackdropConverter final : public FGLTFBuilderContext, public IGLTFBackdropConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonBackdropIndex Convert(const AActor* BackdropActor) override;
+	virtual FGLTFJsonBackdrop* Convert(const AActor* BackdropActor) override;
 };

@@ -5,7 +5,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Misc/FileHelper.h"
 
-FGLTFJsonImageIndex FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels)
+FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGLTFTextureType Type, bool bIgnoreAlpha, FIntPoint Size, TGLTFSharedArray<FColor> Pixels)
 {
 	TArray64<uint8> CompressedData;
 
@@ -13,7 +13,7 @@ FGLTFJsonImageIndex FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name,
 	switch (MimeType)
 	{
 		case EGLTFJsonMimeType::None:
-			return FGLTFJsonImageIndex(INDEX_NONE);
+			return nullptr;
 
 		case EGLTFJsonMimeType::PNG:
 			FGLTFImageUtility::CompressToPNG(Pixels->GetData(), Size, CompressedData);

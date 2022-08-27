@@ -7,18 +7,18 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/MapBuildDataRegistry.h"
 
-FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponent* StaticMeshComponent)
+FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* StaticMeshComponent)
 {
 	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 
 	if (StaticMesh == nullptr)
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
@@ -32,14 +32,14 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponen
 
 	if (CoordinateIndex < 0 || CoordinateIndex >= LODResources.GetNumTexCoords())
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	constexpr int32 LightMapLODIndex = 0; // TODO: why is this zero?
 
 	if (!StaticMeshComponent->LODData.IsValidIndex(LightMapLODIndex))
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LightMapLODIndex];
@@ -47,23 +47,23 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponen
 
 	if (MeshMapBuildData == nullptr || MeshMapBuildData->LightMap == nullptr)
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	const FLightMap2D* LightMap2D = MeshMapBuildData->LightMap->GetLightMap2D();
 
 	if (LightMap2D == nullptr)
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	const FLightMapInteraction LightMapInteraction = LightMap2D->GetInteraction(GMaxRHIFeatureLevel);
 	const ULightMapTexture2D* Texture = LightMapInteraction.GetTexture(true);
-	const FGLTFJsonTextureIndex TextureIndex = Builder.GetOrAddTexture(Texture);
+	FGLTFJsonTexture* TextureIndex = Builder.GetOrAddTexture(Texture);
 
-	if (TextureIndex == INDEX_NONE)
+	if (TextureIndex == nullptr)
 	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	const FVector2D& CoordinateBias = LightMap2D->GetCoordinateBias();

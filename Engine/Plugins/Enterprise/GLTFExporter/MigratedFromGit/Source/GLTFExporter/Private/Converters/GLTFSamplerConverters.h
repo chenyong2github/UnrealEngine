@@ -6,11 +6,11 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-typedef TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*> IGLTFSamplerConverter;
+typedef TGLTFConverter<FGLTFJsonSampler*, const UTexture*> IGLTFSamplerConverter;
 
 class FGLTFSamplerConverter final : public FGLTFBuilderContext, public IGLTFSamplerConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonSamplerIndex Convert(const UTexture* Texture) override;
+	virtual FGLTFJsonSampler* Convert(const UTexture* Texture) override;
 };

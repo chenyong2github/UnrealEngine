@@ -7,11 +7,11 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Actors/GLTFHotspotActor.h"
 
-typedef TGLTFConverter<FGLTFJsonHotspotIndex, const AGLTFHotspotActor*> IGLTFHotspotConverter;
+typedef TGLTFConverter<FGLTFJsonHotspot*, const AGLTFHotspotActor*> IGLTFHotspotConverter;
 
 class FGLTFHotspotConverter final : public FGLTFBuilderContext, public IGLTFHotspotConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonHotspotIndex Convert(const AGLTFHotspotActor* HotspotActor) override;
+	virtual FGLTFJsonHotspot* Convert(const AGLTFHotspotActor* HotspotActor) override;
 };

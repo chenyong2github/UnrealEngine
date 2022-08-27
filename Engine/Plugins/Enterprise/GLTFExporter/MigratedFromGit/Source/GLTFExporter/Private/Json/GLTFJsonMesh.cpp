@@ -1,30 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonMesh.h"
+#include "Json/GLTFJsonAccessor.h"
+#include "Json/GLTFJsonMaterial.h"
 
 void FGLTFJsonAttributes::WriteObject(IGLTFJsonWriter& Writer) const
 {
-	if (Position != INDEX_NONE) Writer.Write(TEXT("POSITION"), Position);
-	if (Color0 != INDEX_NONE) Writer.Write(TEXT("COLOR_0"), Color0);
-	if (Normal != INDEX_NONE) Writer.Write(TEXT("NORMAL"), Normal);
-	if (Tangent != INDEX_NONE) Writer.Write(TEXT("TANGENT"), Tangent);
+	if (Position != nullptr) Writer.Write(TEXT("POSITION"), Position);
+	if (Color0 != nullptr) Writer.Write(TEXT("COLOR_0"), Color0);
+	if (Normal != nullptr) Writer.Write(TEXT("NORMAL"), Normal);
+	if (Tangent != nullptr) Writer.Write(TEXT("TANGENT"), Tangent);
 
 	for (int32 Index = 0; Index < TexCoords.Num(); ++Index)
 	{
-		const FGLTFJsonAccessorIndex TexCoord = TexCoords[Index];
-		if (TexCoord != INDEX_NONE) Writer.Write(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoord);
+		const FGLTFJsonAccessor* TexCoord = TexCoords[Index];
+		if (TexCoord != nullptr) Writer.Write(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoord);
 	}
 
 	for (int32 Index = 0; Index < Joints.Num(); ++Index)
 	{
-		const FGLTFJsonAccessorIndex Joint = Joints[Index];
-		if (Joint != INDEX_NONE) Writer.Write(TEXT("JOINTS_") + FString::FromInt(Index), Joint);
+		const FGLTFJsonAccessor* Joint = Joints[Index];
+		if (Joint != nullptr) Writer.Write(TEXT("JOINTS_") + FString::FromInt(Index), Joint);
 	}
 
 	for (int32 Index = 0; Index < Weights.Num(); ++Index)
 	{
-		const FGLTFJsonAccessorIndex Weight = Weights[Index];
-		if (Weight != INDEX_NONE) Writer.Write(TEXT("WEIGHTS_") + FString::FromInt(Index), Weight);
+		const FGLTFJsonAccessor* Weight = Weights[Index];
+		if (Weight != nullptr) Writer.Write(TEXT("WEIGHTS_") + FString::FromInt(Index), Weight);
 	}
 }
 
@@ -32,12 +34,12 @@ void FGLTFJsonPrimitive::WriteObject(IGLTFJsonWriter& Writer) const
 {
 	Writer.Write(TEXT("attributes"), Attributes);
 
-	if (Indices != INDEX_NONE)
+	if (Indices != nullptr)
 	{
 		Writer.Write(TEXT("indices"), Indices);
 	}
 
-	if (Material != INDEX_NONE)
+	if (Material != nullptr)
 	{
 		Writer.Write(TEXT("material"), Material);
 	}

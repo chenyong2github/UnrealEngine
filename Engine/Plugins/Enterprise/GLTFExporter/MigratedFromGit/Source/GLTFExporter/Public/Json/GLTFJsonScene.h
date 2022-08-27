@@ -8,8 +8,8 @@ struct GLTFEXPORTER_API FGLTFJsonScene : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	TArray<FGLTFJsonNodeIndex> Nodes;
-	TArray<FGLTFJsonEpicLevelVariantSetsIndex>  EpicLevelVariantSets;
+	TArray<FGLTFJsonNode*> Nodes;
+	TArray<FGLTFJsonEpicLevelVariantSets*>  EpicLevelVariantSets;
 
 	FGLTFJsonScene(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)

@@ -10,11 +10,11 @@
 #include "Curves/CurveLinearColor.h"
 #include "Materials/MaterialInstance.h"
 
-FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphereActor)
+FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActor)
 {
 	if (!FGLTFActorUtility::IsSkySphereBlueprint(FGLTFActorUtility::GetBlueprintPath(SkySphereActor)))
 	{
-		return FGLTFJsonSkySphereIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	FGLTFJsonSkySphere JsonSkySphere;
@@ -180,7 +180,7 @@ void FGLTFSkySphereConverter::ConvertScalarParameter(const AActor* Actor, const 
 	}
 }
 
-void FGLTFSkySphereConverter::ConvertTextureParameter(const AActor* Actor, const UMaterialInstance* Material, const ESkySphereTextureParameter Parameter, FGLTFJsonTextureIndex& OutValue) const
+void FGLTFSkySphereConverter::ConvertTextureParameter(const AActor* Actor, const UMaterialInstance* Material, const ESkySphereTextureParameter Parameter, FGLTFJsonTexture*& OutValue) const
 {
 	check(Actor != nullptr && Material != nullptr);
 

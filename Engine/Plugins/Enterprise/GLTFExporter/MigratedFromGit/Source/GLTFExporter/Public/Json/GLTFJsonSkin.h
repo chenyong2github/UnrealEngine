@@ -8,13 +8,15 @@ struct GLTFEXPORTER_API FGLTFJsonSkin : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonAccessorIndex InverseBindMatrices;
-	FGLTFJsonNodeIndex Skeleton;
+	FGLTFJsonAccessor* InverseBindMatrices;
+	FGLTFJsonNode* Skeleton;
 
-	TArray<FGLTFJsonNodeIndex> Joints;
+	TArray<FGLTFJsonNode*> Joints;
 
 	FGLTFJsonSkin(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, InverseBindMatrices(nullptr)
+		, Skeleton(nullptr)
 	{
 	}
 

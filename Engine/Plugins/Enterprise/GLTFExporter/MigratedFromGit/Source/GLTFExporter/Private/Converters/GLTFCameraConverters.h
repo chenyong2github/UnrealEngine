@@ -8,11 +8,11 @@
 
 class UCameraComponent;
 
-typedef TGLTFConverter<FGLTFJsonCameraIndex, const UCameraComponent*> IGLTFCameraConverter;
+typedef TGLTFConverter<FGLTFJsonCamera*, const UCameraComponent*> IGLTFCameraConverter;
 
 class FGLTFCameraConverter final : public FGLTFBuilderContext, public IGLTFCameraConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonCameraIndex Convert(const UCameraComponent* CameraComponent) override;
+	virtual FGLTFJsonCamera* Convert(const UCameraComponent* CameraComponent) override;
 };

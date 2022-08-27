@@ -11,7 +11,7 @@
 #include "PropertyValueMaterial.h"
 #include "Components/MeshComponent.h"
 
-FGLTFJsonEpicLevelVariantSetsIndex FGLTFEpicLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
+FGLTFJsonEpicLevelVariantSets* FGLTFEpicLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
 	FGLTFJsonEpicLevelVariantSets JsonLevelVariantSets;
 	LevelVariantSets->GetName(JsonLevelVariantSets.Name);
@@ -38,7 +38,7 @@ FGLTFJsonEpicLevelVariantSetsIndex FGLTFEpicLevelVariantSetsConverter::Convert(c
 
 	if (JsonLevelVariantSets.VariantSets.Num() == 0)
 	{
-		return FGLTFJsonEpicLevelVariantSetsIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	return Builder.AddEpicLevelVariantSets(JsonLevelVariantSets);
@@ -157,8 +157,8 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
-	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
+	FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* ComponentNodeIndex = Builder.GetComponentNode(NodeIndex);
 
 	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
@@ -220,8 +220,8 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	VariantMaterial.Material = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
 	VariantMaterial.Index = MaterialIndex;
 
-	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
+	FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* ComponentNodeIndex = Builder.GetComponentNode(NodeIndex);
 	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
 	NodeProperties.Node = ComponentNodeIndex;
@@ -271,9 +271,9 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMeshPropertyValue(FGLTFJsonEpic
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	const FGLTFMaterialArray OverrideMaterials(Target->OverrideMaterials);
-	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(Mesh, OverrideMaterials);
-	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
+	FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(Target);
+	FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(Mesh, OverrideMaterials);
+	FGLTFJsonNode* ComponentNodeIndex = Builder.GetComponentNode(NodeIndex);
 	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
 	NodeProperties.Node = ComponentNodeIndex;

@@ -10,13 +10,13 @@
 class UVariant;
 class UPropertyValueMaterial;
 
-typedef TGLTFConverter<FGLTFJsonKhrMaterialVariantIndex, const UVariant*> IGLTFKhrMaterialVariantConverter;
+typedef TGLTFConverter<FGLTFJsonKhrMaterialVariant*, const UVariant*> IGLTFKhrMaterialVariantConverter;
 
 class FGLTFKhrMaterialVariantConverter final : public FGLTFBuilderContext, public IGLTFKhrMaterialVariantConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonKhrMaterialVariantIndex Convert(const UVariant* Variant) override;
+	virtual FGLTFJsonKhrMaterialVariant* Convert(const UVariant* Variant) override;
 
-	bool TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterialIndex& OutMaterialIndex, const UPropertyValueMaterial* Property) const;
+	bool TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterialIndex, const UPropertyValueMaterial* Property) const;
 };

@@ -9,7 +9,7 @@
 
 struct FGLTFJsonSkySphereColorCurve;
 
-typedef TGLTFConverter<FGLTFJsonSkySphereIndex, const AActor*> IGLTFSkySphereConverter;
+typedef TGLTFConverter<FGLTFJsonSkySphere*, const AActor*> IGLTFSkySphereConverter;
 
 class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public IGLTFSkySphereConverter
 {
@@ -22,7 +22,7 @@ class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public IGLTFSk
 
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonSkySphereIndex Convert(const AActor* SkySphereActor) override;
+	virtual FGLTFJsonSkySphere* Convert(const AActor* SkySphereActor) override;
 
 	template <class ValueType>
 	void ConvertProperty(const AActor* Actor, const TCHAR* PropertyName, ValueType& OutValue) const;
@@ -31,5 +31,5 @@ class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public IGLTFSk
 	void ConvertColorCurveProperty(const AActor* Actor, const TCHAR* PropertyName, FGLTFJsonSkySphereColorCurve& OutValue) const;
 	void ConvertScalarParameter(const AActor* Actor, const UMaterialInstance* Material, const TCHAR* ParameterName, float& OutValue) const;
 
-	void ConvertTextureParameter(const AActor* Actor, const UMaterialInstance* Material, const ESkySphereTextureParameter Parameter, FGLTFJsonTextureIndex& OutValue) const;
+	void ConvertTextureParameter(const AActor* Actor, const UMaterialInstance* Material, const ESkySphereTextureParameter Parameter, FGLTFJsonTexture*& OutValue) const;
 };

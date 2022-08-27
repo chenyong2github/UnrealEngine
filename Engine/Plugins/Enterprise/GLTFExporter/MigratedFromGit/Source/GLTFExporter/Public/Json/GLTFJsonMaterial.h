@@ -7,13 +7,14 @@
 
 struct GLTFEXPORTER_API FGLTFJsonTextureInfo : IGLTFJsonObject
 {
-	FGLTFJsonTextureIndex Index;
+	FGLTFJsonTexture* Index;
 	int32 TexCoord;
 
 	FGLTFJsonTextureTransform Transform;
 
 	FGLTFJsonTextureInfo()
-		: TexCoord(0)
+		: Index(nullptr)
+		, TexCoord(0)
 	{
 	}
 

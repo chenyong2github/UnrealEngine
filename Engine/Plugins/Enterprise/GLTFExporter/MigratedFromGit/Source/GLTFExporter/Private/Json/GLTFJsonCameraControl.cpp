@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonCameraControl.h"
+#include "Json/GLTFJsonNode.h"
 
 void FGLTFJsonCameraControl::WriteObject(IGLTFJsonWriter& Writer) const
 {
 	Writer.Write(TEXT("mode"), Mode);
 
-	if (Target != INDEX_NONE && Mode == EGLTFJsonCameraControlMode::Orbital)
+	if (Target != nullptr && Mode == EGLTFJsonCameraControlMode::Orbital)
 	{
 		Writer.Write(TEXT("target"), Target);
 	}

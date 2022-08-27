@@ -6,8 +6,13 @@
 
 struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariantMapping : IGLTFJsonObject
 {
-	FGLTFJsonMaterialIndex                   Material;
-	TArray<FGLTFJsonKhrMaterialVariantIndex> Variants;
+	FGLTFJsonMaterial* Material;
+	TArray<FGLTFJsonKhrMaterialVariant*> Variants;
+
+	FGLTFJsonKhrMaterialVariantMapping()
+		: Material(nullptr)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

@@ -14,8 +14,8 @@ bool UGLTFStaticMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const UO
 {
 	const UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Object);
 
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
-	if (MeshIndex == INDEX_NONE)
+	FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(StaticMesh);
+	if (MeshIndex == nullptr)
 	{
 		Builder.LogError(FString::Printf(TEXT("Failed to export static mesh %s"), *StaticMesh->GetName()));
 		return false;
@@ -23,11 +23,11 @@ bool UGLTFStaticMeshExporter::AddObject(FGLTFContainerBuilder& Builder, const UO
 
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;
-	const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
+	FGLTFJsonNode* NodeIndex = Builder.AddNode(Node);
 
 	FGLTFJsonScene Scene;
 	Scene.Nodes.Add(NodeIndex);
-	const FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
+	FGLTFJsonScene* SceneIndex = Builder.AddScene(Scene);
 
 	Builder.DefaultScene = SceneIndex;
 	return true;

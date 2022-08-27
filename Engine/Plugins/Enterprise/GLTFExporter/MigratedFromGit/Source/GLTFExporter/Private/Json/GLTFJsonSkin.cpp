@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonSkin.h"
+#include "Json/GLTFJsonAccessor.h"
+#include "Json/GLTFJsonNode.h"
 
 void FGLTFJsonSkin::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -9,12 +11,12 @@ void FGLTFJsonSkin::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("name"), Name);
 	}
 
-	if (InverseBindMatrices != INDEX_NONE)
+	if (InverseBindMatrices != nullptr)
 	{
 		Writer.Write(TEXT("inverseBindMatrices"), InverseBindMatrices);
 	}
 
-	if (Skeleton != INDEX_NONE)
+	if (Skeleton != nullptr)
 	{
 		Writer.Write(TEXT("skeleton"), Skeleton);
 	}

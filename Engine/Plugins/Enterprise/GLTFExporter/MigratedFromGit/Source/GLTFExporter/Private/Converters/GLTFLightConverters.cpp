@@ -8,7 +8,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
 
-FGLTFJsonLightIndex FGLTFLightConverter::Convert(const ULightComponent* LightComponent)
+FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightComponent)
 {
 	FGLTFJsonLight Light;
 
@@ -18,7 +18,7 @@ FGLTFJsonLightIndex FGLTFLightConverter::Convert(const ULightComponent* LightCom
 	if (Light.Type == EGLTFJsonLightType::None)
 	{
 		// TODO: report error (unsupported light component type)
-		return FGLTFJsonLightIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	Light.Intensity = LightComponent->Intensity;

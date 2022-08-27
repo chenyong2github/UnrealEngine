@@ -12,24 +12,33 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 	FGLTFJsonQuaternion Rotation;
 	FGLTFJsonVector3    Scale;
 
-	FGLTFJsonCameraIndex    Camera;
-	FGLTFJsonSkinIndex      Skin;
-	FGLTFJsonMeshIndex      Mesh;
-	FGLTFJsonBackdropIndex  Backdrop;
-	FGLTFJsonHotspotIndex   Hotspot;
-	FGLTFJsonLightIndex     Light;
-	FGLTFJsonLightMapIndex  LightMap;
-	FGLTFJsonSkySphereIndex SkySphere;
+	FGLTFJsonCamera*    Camera;
+	FGLTFJsonSkin*      Skin;
+	FGLTFJsonMesh*      Mesh;
+	FGLTFJsonBackdrop*  Backdrop;
+	FGLTFJsonHotspot*   Hotspot;
+	FGLTFJsonLight*     Light;
+	FGLTFJsonLightMap*  LightMap;
+	FGLTFJsonSkySphere* SkySphere;
 
-	FGLTFJsonNodeIndex ComponentNode;
+	FGLTFJsonNode* ComponentNode;
 
-	TArray<FGLTFJsonNodeIndex> Children;
+	TArray<FGLTFJsonNode*> Children;
 
 	FGLTFJsonNode(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
 		, Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
 		, Scale(FGLTFJsonVector3::One)
+		, Camera(nullptr)
+		, Skin(nullptr)
+		, Mesh(nullptr)
+		, Backdrop(nullptr)
+		, Hotspot(nullptr)
+		, Light(nullptr)
+		, LightMap(nullptr)
+		, SkySphere(nullptr)
+		, ComponentNode(nullptr)
 	{
 	}
 

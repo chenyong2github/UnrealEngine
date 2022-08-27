@@ -11,11 +11,12 @@ struct GLTFEXPORTER_API FGLTFJsonImage : IGLTFJsonIndexedObject
 
 	EGLTFJsonMimeType MimeType;
 
-	FGLTFJsonBufferViewIndex BufferView;
+	FGLTFJsonBufferView* BufferView;
 
 	FGLTFJsonImage(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
 		, MimeType(EGLTFJsonMimeType::None)
+		, BufferView(nullptr)
 	{
 	}
 

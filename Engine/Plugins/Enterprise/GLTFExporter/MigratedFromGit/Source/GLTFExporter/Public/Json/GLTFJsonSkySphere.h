@@ -26,11 +26,11 @@ struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonMeshIndex    SkySphereMesh;
-	FGLTFJsonTextureIndex SkyTexture;
-	FGLTFJsonTextureIndex CloudsTexture;
-	FGLTFJsonTextureIndex StarsTexture;
-	FGLTFJsonNodeIndex    DirectionalLight;
+	FGLTFJsonMesh*    SkySphereMesh;
+	FGLTFJsonTexture* SkyTexture;
+	FGLTFJsonTexture* CloudsTexture;
+	FGLTFJsonTexture* StarsTexture;
+	FGLTFJsonNode*    DirectionalLight;
 
 	float SunHeight;
 	float SunBrightness;
@@ -58,6 +58,11 @@ struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonIndexedObject
 
 	FGLTFJsonSkySphere(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, SkySphereMesh(nullptr)
+		, SkyTexture(nullptr)
+		, CloudsTexture(nullptr)
+		, StarsTexture(nullptr)
+		, DirectionalLight(nullptr)
 		, SunHeight(0)
 		, SunBrightness(0)
 		, StarsBrightness(0)

@@ -8,12 +8,12 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonBufferViewIndex BufferView;
-	int64                    ByteOffset;
-	int32                    Count;
-	EGLTFJsonAccessorType    Type;
-	EGLTFJsonComponentType   ComponentType;
-	bool                     bNormalized;
+	FGLTFJsonBufferView*   BufferView;
+	int64                  ByteOffset;
+	int32                  Count;
+	EGLTFJsonAccessorType  Type;
+	EGLTFJsonComponentType ComponentType;
+	bool                   bNormalized;
 
 	int32 MinMaxLength;
 	float Min[16];
@@ -21,6 +21,7 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonIndexedObject
 
 	FGLTFJsonAccessor(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, BufferView(nullptr)
 		, ByteOffset(0)
 		, Count(0)
 		, Type(EGLTFJsonAccessorType::None)
