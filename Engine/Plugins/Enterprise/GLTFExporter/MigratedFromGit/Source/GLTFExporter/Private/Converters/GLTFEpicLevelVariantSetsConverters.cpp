@@ -137,7 +137,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 		return false;
 	}
 
-	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	if (!Builder.IsSelectedActor(Owner))
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Property doesn't belong to an actor selected for export, the property will be skipped. Context: %s"),
@@ -187,7 +187,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 		return false;
 	}
 
-	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	if (!Builder.IsSelectedActor(Owner))
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Variant property %s doesn't belong to an actor selected for export, the property will be skipped"),
@@ -250,7 +250,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMeshPropertyValue(FGLTFJsonEpic
 		return false;
 	}
 
-	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	if (!Builder.IsSelectedActor(Owner))
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Variant property %s doesn't belong to an actor selected for export, the property will be skipped"),

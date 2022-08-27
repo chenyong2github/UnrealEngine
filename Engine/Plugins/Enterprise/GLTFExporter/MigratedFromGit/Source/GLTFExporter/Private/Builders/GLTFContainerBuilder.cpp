@@ -3,6 +3,11 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Builders/GLTFMemoryArchive.h"
 
+FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
+	: FGLTFConvertBuilder(FilePath, ExportOptions, SelectedActors)
+{
+}
+
 void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 {
 	CompleteAllTasks(Context);
@@ -27,11 +32,6 @@ void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 
 		LogWarning(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
 	}
-}
-
-FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
-	: FGLTFConvertBuilder(FilePath, ExportOptions, bSelectedActorsOnly)
-{
 }
 
 void FGLTFContainerBuilder::WriteGlb(FArchive& Archive)

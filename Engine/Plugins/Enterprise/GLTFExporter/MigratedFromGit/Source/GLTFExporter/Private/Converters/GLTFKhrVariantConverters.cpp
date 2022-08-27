@@ -104,7 +104,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 		return false;
 	}
 
-	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	if (!Builder.IsSelectedActor(Owner))
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Variant property %s doesn't belong to an actor selected for export, the property will be skipped"),

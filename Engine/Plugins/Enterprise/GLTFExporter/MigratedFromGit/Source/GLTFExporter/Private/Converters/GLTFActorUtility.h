@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "Engine/EngineTypes.h"
+#include "CoreMinimal.h"
 
 struct FGLTFActorUtility
 {
-	static bool IsRootActor(const AActor* Actor, bool bSelectedOnly);
-
 	static bool IsGenericActor(const AActor* Actor);
 
 	static FString GetBlueprintPath(const AActor* Actor);

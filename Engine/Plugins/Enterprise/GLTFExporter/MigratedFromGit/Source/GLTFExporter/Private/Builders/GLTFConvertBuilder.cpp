@@ -7,10 +7,21 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"
 
-FGLTFConvertBuilder::FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
+FGLTFConvertBuilder::FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
 	: FGLTFImageBuilder(FilePath, ExportOptions)
-	, bSelectedActorsOnly(bSelectedActorsOnly)
+	, SelectedActors(SelectedActors)
 {
+}
+
+bool FGLTFConvertBuilder::IsSelectedActor(const AActor* Actor) const
+{
+	return SelectedActors.Num() == 0 || SelectedActors.Contains(Actor);
+}
+
+bool FGLTFConvertBuilder::IsRootActor(const AActor* Actor) const
+{
+	const AActor* ParentActor = Actor->GetAttachParentActor();
+	return ParentActor == nullptr || !IsSelectedActor(ParentActor);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer)
