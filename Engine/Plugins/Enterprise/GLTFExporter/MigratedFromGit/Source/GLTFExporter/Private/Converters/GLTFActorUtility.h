@@ -8,6 +8,8 @@ struct FGLTFActorUtility
 {
 	static bool IsRootActor(const AActor* Actor, bool bSelectedOnly);
 
+	static bool IsGenericActor(const AActor* Actor);
+
 	static FString GetBlueprintPath(const AActor* Actor);
 
 	static bool IsSkySphereBlueprint(const FString& Path);
