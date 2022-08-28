@@ -4,12 +4,7 @@
 
 #include "Builders/GLTFBuilder.h"
 
-enum class EGLTFMessageSeverity
-{
-	Info,
-	Warning,
-	Error
-};
+class IMessageLogListing;
 
 class FGLTFMessageBuilder : public FGLTFBuilder
 {
@@ -19,45 +14,36 @@ protected:
 
 public:
 
-	typedef TTuple<EGLTFMessageSeverity, FString> FLogMessage;
-
-	void ClearMessages();
-
-	void AddMessage(EGLTFMessageSeverity Severity, const FString& Message);
-
 	void AddInfoMessage(const FString& Message);
 
 	void AddWarningMessage(const FString& Message);
 
 	void AddErrorMessage(const FString& Message);
 
-	const TArray<FLogMessage>& GetMessages() const;
+	const TArray<FString>& GetInfoMessages() const;
 
-	TArray<FLogMessage> GetMessages(EGLTFMessageSeverity Severity) const;
+	const TArray<FString>& GetWarningMessages() const;
 
-	TArray<FLogMessage> GetInfoMessages() const;
+	const TArray<FString>& GetErrorMessages() const;
 
-	TArray<FLogMessage> GetWarningMessages() const;
+	void OpenLog() const;
 
-	TArray<FLogMessage> GetErrorMessages() const;
-
-	int32 GetMessageCount() const;
-
-	int32 GetInfoMessageCount() const;
-
-	int32 GetWarningMessageCount() const;
-
-	int32 GetErrorMessageCount() const;
-
-	void ShowMessages() const;
-
-	void WriteMessagesToConsole() const;
+	void ClearLog();
 
 private:
 
-	static void WriteMessageToConsole(const FLogMessage& LogMessage);
+	enum class ELogLevel
+	{
+		Info,
+		Warning,
+		Error,
+	};
 
-	static TSharedRef<FTokenizedMessage> CreateTokenizedMessage(const FLogMessage& LogMessage);
+	void PrintToLog(ELogLevel Level, const FString& Message) const;
 
-	TArray<FLogMessage> Messages;
+	TArray<FString> Infos;
+	TArray<FString> Warnings;
+	TArray<FString> Errors;
+
+	TSharedPtr<IMessageLogListing> LogListing;
 };

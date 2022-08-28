@@ -4,139 +4,104 @@
 #include "GLTFExporterModule.h"
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
+#include "Misc/FeedbackContext.h"
 
 FGLTFMessageBuilder::FGLTFMessageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFBuilder(FilePath, ExportOptions)
 {
-}
-
-void FGLTFMessageBuilder::ClearMessages()
-{
-	Messages.Empty();
-}
-
-void FGLTFMessageBuilder::AddMessage(EGLTFMessageSeverity Severity, const FString& Message)
-{
-	Messages.Emplace(Severity, Message);
+	if (!FApp::IsUnattended())
+	{
+		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+		LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
+		LogListing->SetLabel(FText::FromString(GLTFEXPORTER_FRIENDLY_NAME));
+	}
 }
 
 void FGLTFMessageBuilder::AddInfoMessage(const FString& Message)
 {
-	AddMessage(EGLTFMessageSeverity::Info, Message);
+	Infos.Add(Message);
+	PrintToLog(ELogLevel::Info, Message);
 }
 
 void FGLTFMessageBuilder::AddWarningMessage(const FString& Message)
 {
-	AddMessage(EGLTFMessageSeverity::Warning, Message);
+	Warnings.Add(Message);
+	PrintToLog(ELogLevel::Warning, Message);
 }
 
 void FGLTFMessageBuilder::AddErrorMessage(const FString& Message)
 {
-	AddMessage(EGLTFMessageSeverity::Error, Message);
+	Errors.Add(Message);
+	PrintToLog(ELogLevel::Error, Message);
 }
 
-const TArray<FGLTFMessageBuilder::FLogMessage>& FGLTFMessageBuilder::GetMessages() const
+const TArray<FString>& FGLTFMessageBuilder::GetInfoMessages() const
 {
-	return Messages;
+	return Infos;
 }
 
-TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetMessages(EGLTFMessageSeverity Severity) const
+const TArray<FString>& FGLTFMessageBuilder::GetWarningMessages() const
 {
-	return Messages.FilterByPredicate(
-		[Severity](const FLogMessage& LogMessage)
-		{
-			return LogMessage.Key == Severity;
-		});
+	return Warnings;
 }
 
-TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetInfoMessages() const
+const TArray<FString>& FGLTFMessageBuilder::GetErrorMessages() const
 {
-	return GetMessages(EGLTFMessageSeverity::Info);
+	return Errors;
 }
 
-TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetWarningMessages() const
+void FGLTFMessageBuilder::OpenLog() const
 {
-	return GetMessages(EGLTFMessageSeverity::Warning);
-}
-
-TArray<FGLTFMessageBuilder::FLogMessage> FGLTFMessageBuilder::GetErrorMessages() const
-{
-	return GetMessages(EGLTFMessageSeverity::Error);
-}
-
-int32 FGLTFMessageBuilder::GetMessageCount() const
-{
-	return Messages.Num();
-}
-
-int32 FGLTFMessageBuilder::GetInfoMessageCount() const
-{
-	return GetInfoMessages().Num();
-}
-
-int32 FGLTFMessageBuilder::GetWarningMessageCount() const
-{
-	return GetWarningMessages().Num();
-}
-
-int32 FGLTFMessageBuilder::GetErrorMessageCount() const
-{
-	return GetErrorMessages().Num();
-}
-
-void FGLTFMessageBuilder::ShowMessages() const
-{
-	if (Messages.Num() > 0)
+	if (LogListing != nullptr)
 	{
-		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-		const TSharedRef<IMessageLogListing> LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
+		LogListing->Open();
+	}
+}
 
-		LogListing->SetLabel(FText::FromString(GLTFEXPORTER_FRIENDLY_NAME));
+void FGLTFMessageBuilder::ClearLog()
+{
+	Infos.Empty();
+	Warnings.Empty();
+	Errors.Empty();
+
+	if (LogListing != nullptr)
+	{
 		LogListing->ClearMessages();
+	}
+}
 
-		for (const FLogMessage& Message : Messages)
+void FGLTFMessageBuilder::PrintToLog(ELogLevel Level, const FString& Message) const
+{
+#if !NO_LOGGING
+	ELogVerbosity::Type Verbosity;
+
+	switch (Level)
+	{
+		case ELogLevel::Info:    Verbosity = ELogVerbosity::Display; break;
+		case ELogLevel::Warning: Verbosity = ELogVerbosity::Warning; break;
+		case ELogLevel::Error:   Verbosity = ELogVerbosity::Error; break;
+		default:
+			checkNoEntry();
+			return;
+	}
+
+	GWarn->Log(LogGLTFExporter.GetCategoryName(), Verbosity, Message);
+#endif
+
+	if (LogListing != nullptr)
+	{
+		EMessageSeverity::Type Severity;
+
+		switch (Level)
 		{
-			LogListing->AddMessage(CreateTokenizedMessage(Message));
+			case ELogLevel::Info:    Severity = EMessageSeverity::Info; break;
+			case ELogLevel::Warning: Severity = EMessageSeverity::Warning; break;
+			case ELogLevel::Error:   Severity = EMessageSeverity::Error; break;
+			default:
+				checkNoEntry();
+				return;
 		}
 
-		MessageLogModule.OpenMessageLog(GLTFEXPORTER_MODULE_NAME);
+		LogListing->AddMessage(FTokenizedMessage::Create(Severity, FText::FromString(Message)), false);
 	}
-}
-
-void FGLTFMessageBuilder::WriteMessagesToConsole() const
-{
-	for (const FLogMessage& Message : Messages)
-	{
-		WriteMessageToConsole(Message);
-	}
-}
-
-void FGLTFMessageBuilder::WriteMessageToConsole(const FLogMessage& LogMessage)
-{
-	switch (LogMessage.Key)
-	{
-		case EGLTFMessageSeverity::Info:    UE_LOG(LogGLTFExporter, Display, TEXT("%s"), *LogMessage.Value); break;
-		case EGLTFMessageSeverity::Warning: UE_LOG(LogGLTFExporter, Warning, TEXT("%s"), *LogMessage.Value); break;
-		case EGLTFMessageSeverity::Error:   UE_LOG(LogGLTFExporter, Error, TEXT("%s"), *LogMessage.Value); break;
-		default:
-			checkNoEntry();
-			break;
-	}
-}
-
-TSharedRef<FTokenizedMessage> FGLTFMessageBuilder::CreateTokenizedMessage(const FLogMessage& LogMessage)
-{
-	EMessageSeverity::Type MessageSeverity = EMessageSeverity::Type::CriticalError;
-
-	switch (LogMessage.Key)
-	{
-		case EGLTFMessageSeverity::Info:    MessageSeverity = EMessageSeverity::Type::Info; break;
-		case EGLTFMessageSeverity::Warning: MessageSeverity = EMessageSeverity::Type::Warning; break;
-		case EGLTFMessageSeverity::Error:   MessageSeverity = EMessageSeverity::Type::Error; break;
-		default:
-			checkNoEntry();
-			break;
-	}
-
-	return FTokenizedMessage::Create(MessageSeverity, FText::FromString(LogMessage.Value));
 }

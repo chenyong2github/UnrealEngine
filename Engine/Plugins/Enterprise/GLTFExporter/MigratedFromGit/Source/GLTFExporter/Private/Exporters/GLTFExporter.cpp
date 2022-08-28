@@ -30,10 +30,12 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		return false;
 	}
 
+	FGCObjectScopeGuard OptionsGuard(Options);
+
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
-	FGCObjectScopeGuard OptionsGuard(Options);
 	FGLTFContainerBuilder Builder(CurrentFilename, Options, bSelectedOnly);
+	Builder.ClearLog();
 
 	const bool bSuccess = AddObject(Builder, Object);
 	if (bSuccess)
@@ -43,13 +45,9 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	// TODO: should we copy messages to UAssetExportTask::Errors?
 
-	if (FApp::IsUnattended())
+	if (!FApp::IsUnattended())
 	{
-		Builder.WriteMessagesToConsole();
-	}
-	else
-	{
-		Builder.ShowMessages();
+		Builder.OpenLog();
 	}
 
 	return bSuccess;
