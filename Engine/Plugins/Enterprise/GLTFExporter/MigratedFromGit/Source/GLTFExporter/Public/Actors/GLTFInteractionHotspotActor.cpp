@@ -4,7 +4,13 @@
 #include "Components/GLTFInteractionHotspotComponent.h"
 
 AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer),
+	SkeletalMeshActor(nullptr),
+	AnimationSequence(nullptr),
+	DefaultSprite(nullptr),
+	HighlightSprite(nullptr),
+	ClickSprite(nullptr),
+	Radius(50.0f)
 {
 	// A scene component with a transform in the root
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
@@ -12,21 +18,38 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 
 	InteractionHotspotComponent = CreateDefaultSubobject<UGLTFInteractionHotspotComponent>(TEXT("InteractionHotspotComponent"));
 	InteractionHotspotComponent->SetupAttachment(SceneComponent);
-
-	OnBeginCursorOver.AddDynamic(this, &AGLTFInteractionHotspotActor::BeginCursorOver);
+	ForwardPropertiesToComponent();
 }
 
-void AGLTFInteractionHotspotActor::BeginPlay()
+void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::BeginPlay();
+	ForwardPropertiesToComponent();
 }
 
-void AGLTFInteractionHotspotActor::Tick(float DeltaTime)
+void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 {
-	Super::Tick(DeltaTime);
-}
-
-void AGLTFInteractionHotspotActor::BeginCursorOver(AActor* TouchedActor)
-{
-	UE_LOG(LogTemp, Warning, TEXT("AGLTFInteractionHotspotActor::BeginCursorOver()"));
+	if (InteractionHotspotComponent->SkeletalMeshActor != SkeletalMeshActor)
+	{
+		InteractionHotspotComponent->SkeletalMeshActor = SkeletalMeshActor;
+	}
+	else if (InteractionHotspotComponent->AnimationSequence != AnimationSequence)
+	{
+		InteractionHotspotComponent->AnimationSequence = AnimationSequence;
+	}
+	else if (InteractionHotspotComponent->DefaultSprite != DefaultSprite)
+	{
+		InteractionHotspotComponent->DefaultSprite = DefaultSprite;
+	}
+	else if (InteractionHotspotComponent->HighlightSprite != HighlightSprite)
+	{
+		InteractionHotspotComponent->HighlightSprite = HighlightSprite;
+	}
+	else if (InteractionHotspotComponent->ClickSprite != ClickSprite)
+	{
+		InteractionHotspotComponent->ClickSprite = ClickSprite;
+	}
+	else if (InteractionHotspotComponent->Radius != Radius)
+	{
+		InteractionHotspotComponent->Radius = Radius;
+	}
 }
