@@ -80,10 +80,10 @@ public:
 	uint32 bExportAnimationSequences : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
-	uint32 bExportLevelSequences : 1;
+	uint32 bRetargetBoneTransforms : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
-	uint32 bRetargetBoneTransforms : 1;
+	uint32 bExportLevelSequences : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	uint32 bExportSourceTextures : 1;
