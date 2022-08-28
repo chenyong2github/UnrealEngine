@@ -241,7 +241,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, UStaticMesh* Mesh, int32 LODIndex, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, FMeshDescription* MeshDescription, bool bCopyAlphaFromRedChannel)
 {
 	EMaterialProperty HackProperty = MP_MAX;
 	TTuple<int32, UMaterialExpression*> HackPrevState;
@@ -275,36 +275,18 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	FMeshData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 	MeshSet.TextureCoordinateIndex = TexCoord;
+	MeshSet.RawMeshDescription = MeshDescription;
 
-	bool bUsesVertexData = false;
-
-	if (Mesh != nullptr)
+	if (MeshDescription != nullptr)
 	{
-		int32 NumTextureCoordinates;
-		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bUsesVertexData);
-
-		if (bUsesVertexData)
+		// NOTE: we use polygon group ID's instead of material indices since that's what
+		// FMeshMaterialRenderItem::PopulateWithMeshData compares MeshSet.MaterialIndices against.
+		for (const auto& PolygonGroupID: MeshDescription->PolygonGroups().GetElementIDs())
 		{
-			if (FMeshDescription* MeshDescription = Mesh->GetMeshDescription(LODIndex))
-			{
-				MeshSet.RawMeshDescription = MeshDescription;
-				MeshSet.LightMapIndex = Mesh->LightMapCoordinateIndex;
+			// TODO: should we only add polygon groups that are actually using the material
+			// we're trying to bake? Or would that prevent us from baking materials using unrelated meshes?
 
-				// NOTE: we use polygon group ID's instead of material indices since that's what
-				// FMeshMaterialRenderItem::PopulateWithMeshData compares MeshSet.MaterialIndices against.
-				for (const auto& PolygonGroupID: MeshDescription->PolygonGroups().GetElementIDs())
-				{
-					// TODO: should we only add polygon groups that are actually using the material
-					// we're trying to bake? Or would that prevent us from baking materials using unrelated meshes?
-
-					MeshSet.MaterialIndices.Add(PolygonGroupID.GetValue());
-				}
-			}
-			else
-			{
-				// TODO: add warning?
-				bUsesVertexData = false;
-			}
+			MeshSet.MaterialIndices.Add(PolygonGroupID.GetValue());
 		}
 	}
 
@@ -354,7 +336,6 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	}
 
 	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
-	PropertyBakeOutput.bUsesVertexData = bUsesVertexData;
 
 	if (BakedPixels.Num() == 1)
 	{
