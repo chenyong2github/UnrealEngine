@@ -17,16 +17,18 @@ void FGLTFTexture2DTask::Complete()
 	// and why bInForceLinearGamma must also be true.
 	const bool bForceLinearGamma = true;
 	const float TargetGamma = 2.2f;
+
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D);
 	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
 
-	const EPixelFormat RenderTargetFormat = FGLTFTextureUtility::IsHDRFormat(Texture2D->GetPixelFormat()) ? PF_FloatRGBA : PF_B8G8R8A8;
+	const EPixelFormat RenderTargetFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, bForceLinearGamma);
 	RenderTarget->TargetGamma = TargetGamma;
 
 	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
 	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
 
-	if (!Texture2D->IsNormalMap() && FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
+	if (!Texture2D->IsNormalMap() && bIsHDR)
 	{
 		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
 	}
@@ -62,14 +64,16 @@ void FGLTFTextureCubeTask::Complete()
 		return;
 	}
 
-	const FIntPoint Size = { FaceTexture->GetSizeX(), FaceTexture->GetSizeY() };
-	const EPixelFormat RenderTargetFormat = FGLTFTextureUtility::IsHDRFormat(FaceTexture->GetPixelFormat()) ? PF_FloatRGBA : PF_B8G8R8A8;
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(TextureCube);
+	const FIntPoint Size = { TextureCube->GetSizeX(), TextureCube->GetSizeY() };
+
+	const EPixelFormat RenderTargetFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, true);
 
 	const float FaceRotation = FGLTFTextureUtility::GetCubeFaceRotation(CubeFace);
 	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
 
-	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
+	if (bIsHDR)
 	{
 		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
 	}
@@ -90,7 +94,10 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	RenderTarget2D->GetName(JsonTexture.Name);
 
-	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget2D->GetFormat()))
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D);
+	const FIntPoint Size = { RenderTarget2D->SizeX, RenderTarget2D->SizeY };
+
+	if (bIsHDR)
 	{
 		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
 	}
@@ -102,7 +109,7 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), { RenderTarget2D->SizeX, RenderTarget2D->SizeY }, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTarget2D);
 }
 
@@ -120,14 +127,16 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 		return;
 	}
 
-	const FIntPoint Size = { FaceTexture->GetSizeX(), FaceTexture->GetSizeY() };
-	const EPixelFormat RenderTargetFormat = FGLTFTextureUtility::IsHDRFormat(FaceTexture->GetPixelFormat()) ? PF_FloatRGBA : PF_B8G8R8A8;
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTargetCube);
+	const FIntPoint Size = { RenderTargetCube->SizeX, RenderTargetCube->SizeX };
+
+	const EPixelFormat RenderTargetFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, true);
 
 	const float FaceRotation = FGLTFTextureUtility::GetCubeFaceRotation(CubeFace);
 	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
 
-	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
+	if (bIsHDR)
 	{
 		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
 	}

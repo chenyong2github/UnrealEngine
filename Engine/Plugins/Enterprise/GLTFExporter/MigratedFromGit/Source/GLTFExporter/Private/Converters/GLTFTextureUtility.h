@@ -9,7 +9,7 @@ enum class ERGBFormat : int8;
 
 struct FGLTFTextureUtility
 {
-	static bool IsHDRFormat(EPixelFormat Format);
+	static bool IsHDR(const UTexture* Texture);
 
 	static bool CanPNGCompressFormat(ETextureSourceFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth);
 	static bool CanPNGCompressFormat(EPixelFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth);
