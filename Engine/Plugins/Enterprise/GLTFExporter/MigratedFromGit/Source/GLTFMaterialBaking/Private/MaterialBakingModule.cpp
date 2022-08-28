@@ -7,8 +7,8 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "UObject/UObjectGlobals.h"
 #include "MaterialBakingStructures.h"
-#include "Framework/Application/SlateApplication.h"
 #include "MaterialBakingHelpers.h"
+#include "AddCustomAttributeHack.h"
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "Materials/MaterialInstance.h"
@@ -259,9 +259,13 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyFormat.Add(MP_Refraction, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_ShadingModel, PF_B8G8R8A8);
 	PerPropertyFormat.Add(TEXT("ClearCoatBottomNormal"), PF_B8G8R8A8);
+	PerPropertyFormat.Add(TEXT("TransmittanceColor"), PF_B8G8R8A8);
 
 	// Register callback for modified objects
 	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FMaterialBakingModule::OnObjectModified);
+
+	// NOTE: Because the attribute definition of TransmittanceColor is not registered by the engine, we have to do it here
+	AddCustomAttributeHack(FGuid(0xF2D8C70E, 0x42ECA0D1, 0x4652D0AD, 0xB785A065), "TransmittanceColor", "GetThinTranslucentMaterialOutput", MCT_Float3, FVector4(0.5, 0.5, 0.5, 0));
 }
 
 void FMaterialBakingModule::ShutdownModule()
@@ -755,6 +759,7 @@ void FMaterialBakingModule::SetLinearBake(bool bCorrectLinear)
 		PerPropertyColorSpace.Add(MP_BaseColor, EPropertyColorSpace::sRGB);
 		PerPropertyColorSpace.Add(MP_EmissiveColor, EPropertyColorSpace::sRGB);
 		PerPropertyColorSpace.Add(MP_SubsurfaceColor, EPropertyColorSpace::sRGB);
+		PerPropertyColorSpace.Add(TEXT("TransmittanceColor"), EPropertyColorSpace::sRGB);
 	}
 	else
 	{
