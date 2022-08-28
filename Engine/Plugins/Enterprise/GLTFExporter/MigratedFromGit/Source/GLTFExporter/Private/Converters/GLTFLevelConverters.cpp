@@ -48,6 +48,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	{
 		// TODO: conversion of camera direction should be done in separate converter
 		FGLTFJsonNode CameraNode;
+		CameraNode.Name = Node.Name + TEXT("_CameraNode");
 		CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
 		CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
 		Builder.AddChildNode(NodeIndex, CameraNode);
@@ -56,6 +57,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	{
 		// TODO: conversion of light direction should be done in separate converter
 		FGLTFJsonNode LightNode;
+		LightNode.Name = Node.Name + TEXT("_LightNode");
 		LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
 		LightNode.Light = Builder.GetOrAddLight(LightComponent);
 		Builder.AddChildNode(NodeIndex, LightNode);
