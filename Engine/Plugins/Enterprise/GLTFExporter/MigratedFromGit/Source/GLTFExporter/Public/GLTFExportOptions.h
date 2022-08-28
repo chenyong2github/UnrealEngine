@@ -25,6 +25,13 @@ enum class EGLTFExporterMaterialBakeSize : uint8
 };
 
 UENUM(BlueprintType)
+enum class EGLTFExporterTextureCompression : uint8
+{
+	PNG UMETA(DisplayName = "PNG"),
+    JPEG UMETA(DisplayName = "JPEG (if no alpha)")
+};
+
+UENUM(BlueprintType)
 enum class EGLTFExporterTextureHDREncoding : uint8
 {
 	None,
@@ -88,6 +95,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
 	bool bExportPlaybackSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
+	EGLTFExporterTextureCompression TextureCompression;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	bool bExportTextureTransforms;
