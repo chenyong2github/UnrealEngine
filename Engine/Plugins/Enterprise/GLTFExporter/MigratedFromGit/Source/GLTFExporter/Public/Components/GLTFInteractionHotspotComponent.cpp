@@ -193,8 +193,6 @@ FTransform UGLTFInteractionHotspotComponent::GetWorldTransform() const
 {
 	const AActor* Owner = GetOwner();
 
-	check(Owner != nullptr);
-
 	return (Owner != nullptr) ? (Owner->GetTransform() * GetComponentTransform()) : GetComponentTransform();
 }
 
