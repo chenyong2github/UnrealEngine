@@ -243,94 +243,51 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Convert(const FSkin
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonBufferViewIndex FGLTFIndexBufferConverter::Convert(const FRawStaticIndexBuffer* IndexBuffer)
-{
-	if (IndexBuffer->GetNumIndices() == 0)
-	{
-		return FGLTFJsonBufferViewIndex(INDEX_NONE);
-	}
-
-	if (IndexBuffer->Is32Bit())
-	{
-		TArray<uint32> Indices;
-		IndexBuffer->GetCopy(Indices);
-		return Builder.AddBufferView(Indices, sizeof(uint32), EGLTFJsonBufferTarget::ElementArrayBuffer);
-	}
-	else
-	{
-		const uint16* IndexData = IndexBuffer->AccessStream16();
-		const int32 IndexDataSize = IndexBuffer->GetIndexDataSize();
-		return Builder.AddBufferView(IndexData, IndexDataSize, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
-	}
-}
-
 FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Convert(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer)
 {
-	const uint32 TriangleCount = MeshSection->NumTriangles;
-	if (TriangleCount == 0)
+	const uint32 IndexCount = MeshSection->NumTriangles * 3;
+	if (IndexCount == 0)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	const uint32 FirstIndex = MeshSection->FirstIndex;
 	const bool bIs32Bit = IndexBuffer->Is32Bit();
+	const uint8 IndexTypeSize = bIs32Bit ? sizeof(uint32) : sizeof(uint16);
+	const uint32 FirstIndex = MeshSection->FirstIndex;
+
+	const void* IndexDataRootPtr = bIs32Bit ? static_cast<const void*>(IndexBuffer->AccessStream32()) : static_cast<const void*>(IndexBuffer->AccessStream16());
+	const void* IndexDataPtr = static_cast<const uint8*>(IndexDataRootPtr) + FirstIndex * IndexTypeSize;
+	const int32 IndexDataSize = IndexCount * IndexTypeSize;
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.BufferView = Builder.GetOrAddIndexBufferView(IndexBuffer);
-	JsonAccessor.ByteOffset = FirstIndex * (bIs32Bit ? sizeof(uint32) : sizeof(uint16));
+	JsonAccessor.BufferView = Builder.AddBufferView(IndexDataPtr, IndexDataSize, IndexTypeSize, EGLTFJsonBufferTarget::ElementArrayBuffer);
 	JsonAccessor.ComponentType = bIs32Bit ? EGLTFJsonComponentType::U32 : EGLTFJsonComponentType::U16;
-	JsonAccessor.Count = TriangleCount * 3;
+	JsonAccessor.Count = IndexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Scalar;
 
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonBufferViewIndex FGLTFIndexContainerConverter::Convert(const FMultiSizeIndexContainer* IndexContainer)
-{
-	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = IndexContainer->GetIndexBuffer();
-
-	const int32 IndexCount = IndexBuffer->Num();
-	if (IndexCount <= 0)
-	{
-		return FGLTFJsonBufferViewIndex(INDEX_NONE);
-	}
-
-	if (IndexContainer->GetDataTypeSize() == sizeof(uint16))
-	{
-		TArray<uint16> Indices;
-		Indices.AddUninitialized(IndexCount);
-
-		for (int32 Index = 0; Index < IndexCount; ++Index)
-		{
-			Indices[Index] = static_cast<uint16>(IndexBuffer->Get(Index));
-		}
-
-		return Builder.AddBufferView(Indices, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
-	}
-	else
-	{
-		TArray<uint32> Indices;
-		IndexContainer->GetIndexBuffer(Indices);
-		return Builder.AddBufferView(Indices, sizeof(uint32), EGLTFJsonBufferTarget::ElementArrayBuffer);
-	}
-}
-
 FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer)
 {
-	const uint32 TriangleCount = MeshSection->NumTriangles;
-	if (TriangleCount == 0)
+	const uint32 IndexCount = MeshSection->NumTriangles * 3;
+	if (IndexCount == 0)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
+	const uint8 IndexTypeSize = IndexContainer->GetDataTypeSize();
+	const bool bIs32Bit = IndexTypeSize == sizeof(uint32);
 	const uint32 FirstIndex = MeshSection->BaseIndex;
-	const bool bIs32Bit = IndexContainer->GetDataTypeSize() == sizeof(uint32);
+
+	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = IndexContainer->GetIndexBuffer();
+	const void* IndexDataPtr = const_cast<FRawStaticIndexBuffer16or32Interface*>(IndexBuffer)->GetPointerTo(FirstIndex);
+	const int32 IndexDataSize = IndexCount * IndexTypeSize;
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.BufferView = Builder.GetOrAddIndexBufferView(IndexContainer);
-	JsonAccessor.ByteOffset = FirstIndex * (bIs32Bit ? sizeof(uint32) : sizeof(uint16));
+	JsonAccessor.BufferView = Builder.AddBufferView(IndexDataPtr, IndexDataSize, IndexTypeSize, EGLTFJsonBufferTarget::ElementArrayBuffer);
 	JsonAccessor.ComponentType = bIs32Bit ? EGLTFJsonComponentType::U32 : EGLTFJsonComponentType::U16;
-	JsonAccessor.Count = TriangleCount * 3;
+	JsonAccessor.Count = IndexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Scalar;
 
 	return Builder.AddAccessor(JsonAccessor);
