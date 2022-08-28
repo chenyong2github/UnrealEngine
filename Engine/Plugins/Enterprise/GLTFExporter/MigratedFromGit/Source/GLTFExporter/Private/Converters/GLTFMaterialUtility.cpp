@@ -274,7 +274,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 
-	FBakeOutput BakeOutput = BakeOutputs[0];
+	FBakeOutput& BakeOutput = BakeOutputs[0];
 
 	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(Property));
 	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(Property);
