@@ -27,7 +27,8 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"RenderCore",
 					"RHI",
-					"MaterialBaking"
+					"MaterialBaking",
+					"VariantManagerContent"
 				}
 				);
 		}
