@@ -6,6 +6,10 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
+// TODO: generalize parameter bToSRGB to SamplerType (including normalmap unpacking)
+
+// TODO: remove lightmap-specific converter (since it won't work in runtime)
+
 typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*, bool> IGLTFTexture2DConverter;
 typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTextureCube*, ECubeFace, bool> IGLTFTextureCubeConverter;
 typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTarget2D*, bool> IGLTFTextureRenderTarget2DConverter;

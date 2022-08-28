@@ -277,7 +277,8 @@ void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonT
 		return;
 	}
 
-	OutValue.Index = Builder.GetOrAddTexture(Texture);
+	const bool bSRGB = PropertyGroup == EGLTFMaterialPropertyGroup::BaseColorOpacity || PropertyGroup == EGLTFMaterialPropertyGroup::EmissiveColor;
+	OutValue.Index = Builder.GetOrAddTexture(Texture, bSRGB);
 
 	float TexCoord;
 	if (FGLTFMaterialUtility::GetNonDefaultParameterValue(Material, PropertyName + TEXT(" UV Index"), TexCoord))
@@ -1216,6 +1217,7 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 			}
 		}
 
+		// TODO: add support for UTextureRenderTarget2D?
 		OutTexture = Cast<UTexture2D>(ParameterValue);
 
 		if (OutTexture == nullptr)
@@ -1255,6 +1257,8 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 		// TODO: handle non-default TextureSampler->SamplerType and TextureSampler->SamplerSource
 
 		// TODO: add support for texture object input expression
+
+		// TODO: add support for UTextureRenderTarget2D?
 		OutTexture = Cast<UTexture2D>(TextureSampler->Texture);
 
 		if (OutTexture == nullptr)

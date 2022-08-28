@@ -48,7 +48,8 @@ private:
 
 	UPackage* FindOrCreatePackage(const FString& BaseName);
 
-	TUniquePtr<IGLTFImageConverter> CreateCustomImageConverter();
+	TUniquePtr<IGLTFTexture2DConverter> CreateTextureConverter();
+	TUniquePtr<IGLTFImageConverter> CreateImageConverter();
 
 	static bool MakeDirectory(const FString& String);
 
