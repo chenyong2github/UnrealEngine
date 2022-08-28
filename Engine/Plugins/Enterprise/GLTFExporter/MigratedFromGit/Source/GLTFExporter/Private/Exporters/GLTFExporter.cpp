@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporter.h"
-#include "UObject/GCObjectScopeGuard.h"
-#include "AssetExportTask.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "GLTFExportOptions.h"
+#include "UObject/GCObjectScopeGuard.h"
+#include "AssetExportTask.h"
 
 UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
