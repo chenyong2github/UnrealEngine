@@ -231,7 +231,7 @@ bool FGLTFProxyMaterialUtilities::GetTwoSided(const UMaterialInstance* Material,
 bool FGLTFProxyMaterialUtilities::GetBlendMode(const UMaterialInstance* Material, EBlendMode& OutValue, bool NonDefaultOnly)
 {
 	const EBlendMode DefaultValue = Material->Parent->GetBlendMode();
-	const EBlendMode Value = Material->BasePropertyOverrides.bOverride_BlendMode ? Material->BasePropertyOverrides.BlendMode : DefaultValue;
+	const EBlendMode Value = Material->BasePropertyOverrides.bOverride_BlendMode ? Material->BasePropertyOverrides.BlendMode.GetValue() : DefaultValue;
 
 	if (NonDefaultOnly && Value == DefaultValue)
 	{
