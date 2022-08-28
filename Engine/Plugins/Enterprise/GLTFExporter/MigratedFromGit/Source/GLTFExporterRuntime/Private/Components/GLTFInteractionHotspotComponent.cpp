@@ -4,6 +4,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "Animation/AnimSequence.h"
 #include "Components/SphereComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Animation/AnimSingleNodeInstance.h"
 
@@ -21,6 +22,10 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	ActiveImageSize(0.0f, 0.0f),
 	bToggled(bToggled)
 {
+	bHiddenInGame = false;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = true;
+
 	struct FConstructorStatics
 	{
 		ConstructorHelpers::FObjectFinder<UMaterial> Material;
@@ -31,13 +36,13 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	bHiddenInGame = false;
 	DefaultMaterial = UMaterialInstanceDynamic::Create(ConstructorStatics.Material.Object, GetTransientPackage());
 
 	CreateDefaultSpriteElement();
 
 	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("Collider"), true);
 	SphereComponent->InitSphereRadius(100.0f);
+	SphereComponent->SetVisibility(false);
 	SphereComponent->SetupAttachment(this);
 
 	// Setup the most minimalistic collision profile for mouse input events
@@ -97,6 +102,47 @@ void UGLTFInteractionHotspotComponent::BeginPlay()
 	Super::BeginPlay();
 
 	SetActiveImage(Image);
+}
+
+void UGLTFInteractionHotspotComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
+
+	// Update scale of the sphere-component to match the screen-size of the active image
+	if (APlayerController* PlayerController = World->GetFirstPlayerController())	// TODO: is is safe to assume that we want the first controller for projections?
+	{
+		const FVector ColliderLocation = SphereComponent->GetComponentLocation();
+		FVector ColliderScreenLocation;
+
+		if (PlayerController->ProjectWorldLocationToScreenWithDistance(ColliderLocation, ColliderScreenLocation))
+		{
+			const FVector2D CornerScreenLocation = FVector2D(ColliderScreenLocation) + ActiveImageSize * 0.5f;
+			FVector RayLocation;
+			FVector RayDirection;
+
+			if (PlayerController->DeprojectScreenPositionToWorld(CornerScreenLocation.X, CornerScreenLocation.Y, RayLocation, RayDirection))
+			{
+				const FVector ExtentLocation = RayLocation + RayDirection * ColliderScreenLocation.Z;
+				const float NewSphereRadius = (ExtentLocation - ColliderLocation).Size() / SphereComponent->GetShapeScale();
+				const float OldSphereRadius = SphereComponent->GetUnscaledSphereRadius();
+
+				if (FMath::Abs(NewSphereRadius - OldSphereRadius) > 0.1f)	// TODO: better epsilon?
+				{
+					SphereComponent->SetSphereRadius(NewSphereRadius);
+				}
+			}
+		}
+	}
+
+	// Fade out / hide the component when it's hidden behind other objects
+	if (World != nullptr)
+	{
+		// TODO: implement
+	}
 }
 
 void UGLTFInteractionHotspotComponent::OnRegister()
@@ -163,19 +209,6 @@ void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedCompo
 	bToggled = !bToggled;
 
 	SetActiveImage(CalculateActiveImage(true));
-}
-
-void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
-{
-	// TODO: update collider-size dynamically to always match screen-size
-}
-
-float UGLTFInteractionHotspotComponent::GetBillboardBoundingRadius() const
-{
-	const FTransform WorldTransform = GetComponentTransform();
-	const FBoxSphereBounds WorldBounds = CalcBounds(WorldTransform);
-
-	return WorldBounds.SphereRadius;
 }
 
 UTexture2D* UGLTFInteractionHotspotComponent::CalculateActiveImage(bool bCursorOver) const
@@ -254,7 +287,6 @@ void UGLTFInteractionHotspotComponent::UpdateSpriteSize()
 			Element.BaseSizeY = BaseSizeY;
 
 			MarkRenderStateDirty();
-			UpdateCollisionVolume();
 		}
 	}
 }
