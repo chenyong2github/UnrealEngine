@@ -17,4 +17,9 @@ private:
 	void WriteGlb(FArchive& Archive) const;
 
 	void BundleWebViewer();
+
+	void UpdateWebViewerIndex();
+
+	static bool ReadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& JsonObject);
+	static bool WriteJsonFile(const FString& FilePath, const TSharedRef<FJsonObject>& JsonObject);
 };
