@@ -3,14 +3,14 @@
 #include "GLTFBufferBuilder.h"
 #include "Misc/Base64.h"
 
-inline FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonRoot& JsonRoot, const FString& Name)
+FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonRoot& JsonRoot, const FString& Name)
 	: JsonRoot(JsonRoot)
 	, BufferIndex(JsonRoot.Buffers.AddDefaulted(1))
 {
 	JsonRoot.Buffers[BufferIndex].Name = Name;
 }
 
-inline FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AppendBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AppendBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
 {
 	FGLTFJsonBufferView BufferView;
 	BufferView.Name = Name;
