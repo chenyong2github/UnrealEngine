@@ -56,6 +56,7 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	{
 		// NOTE: export of light- and normal-maps via source is done to overcome issues with accessing
 		// pixel-data (for light-maps) and compressed pixel-data (for normal-maps).
+
 		// TODO: by exporting via source, we lose the ability to export texture-adjustments. We may want to support this later.
 
 		if (FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->Source.GetFormat(), RGBFormat, BitDepth))
