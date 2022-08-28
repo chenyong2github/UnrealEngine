@@ -10,7 +10,7 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOpt
 
 void FGLTFJsonBuilder::WriteJson(FArchive& Archive) const
 {
-	JsonRoot.ToJson(&Archive, true);
+	JsonRoot.ToJson(&Archive, true, ExportOptions->bAllExtensionsRequired);
 }
 
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)

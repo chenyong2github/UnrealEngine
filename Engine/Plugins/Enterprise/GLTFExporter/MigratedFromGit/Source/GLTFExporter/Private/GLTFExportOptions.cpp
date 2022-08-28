@@ -194,8 +194,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 
 	// TODO: remove options that have been implemented in exporters/converters.
 	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureHDREncoding) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHiddenInGame) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bAllExtensionsRequired))
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHiddenInGame))
 	{
 		return false;
 	}
