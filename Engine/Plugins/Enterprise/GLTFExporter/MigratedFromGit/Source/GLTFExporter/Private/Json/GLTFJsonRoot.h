@@ -101,7 +101,7 @@ struct FGLTFJsonRoot
 
 			if (LightMaps.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightMapTextures;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
 
 				AllExtensions.Used.Add(Extension);
 

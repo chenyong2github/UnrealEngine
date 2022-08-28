@@ -80,7 +80,7 @@ struct FGLTFJsonNode
 
 			if (LightMap != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightMapTextures;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
 
 				Extensions.Used.Add(Extension);
 
