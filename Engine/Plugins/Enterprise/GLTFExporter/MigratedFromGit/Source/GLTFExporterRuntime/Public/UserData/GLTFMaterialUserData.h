@@ -12,8 +12,11 @@ enum TextureAddress;
 UENUM(BlueprintType)
 enum class EGLTFMaterialBakeMode : uint8
 {
-    Disabled,
+	/** Never bake material inputs. */
+	Disabled,
+	/** Only use a simple quad if a material input needs to be baked out. */
 	Simple,
+	/** Allow usage of the mesh data if a material input needs to be baked out with vertex data. */
 	UseMeshData,
 };
 
@@ -55,25 +58,31 @@ struct FGLTFOverrideMaterialBakeSettings
 {
 	GENERATED_BODY()
 
+	FGLTFOverrideMaterialBakeSettings();
+
+	/** If enabled, override size of the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (InlineEditConditionToggle))
 	bool bOverrideSize;
 
+	/** Overriding size of the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideSize"))
 	EGLTFMaterialBakeSizePOT Size;
 
+	/** If enabled, override filtering mode used when sampling the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (InlineEditConditionToggle))
 	bool bOverrideFilter;
 
+	/** Overriding filtering mode used when sampling the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideFilter", ValidEnumValues="TF_Nearest, TF_Bilinear, TF_Trilinear"))
 	TEnumAsByte<TextureFilter> Filter;
 
+	/** If enabled, override addressing mode used when sampling the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (InlineEditConditionToggle))
 	bool bOverrideTiling;
 
+	/** Overriding addressing mode used when sampling the baked out texture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideTiling"))
 	TEnumAsByte<TextureAddress> Tiling;
-
-	FGLTFOverrideMaterialBakeSettings();
 };
 
 /** glTF-specific user data that can be added to material assets to override export options */
@@ -86,9 +95,11 @@ public:
 
 	// TODO: add support for overriding more export options
 
+	/** Default bake settings for this material in general. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings", meta = (ShowOnlyInnerProperties))
 	FGLTFOverrideMaterialBakeSettings Default;
 
+	/** Input-specific bake settings that override the defaults above. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings")
 	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> Inputs;
 
