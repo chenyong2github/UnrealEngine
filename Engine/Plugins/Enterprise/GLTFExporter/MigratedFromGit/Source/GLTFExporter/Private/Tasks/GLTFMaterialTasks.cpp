@@ -54,11 +54,6 @@ void FGLTFMaterialTask::Complete()
 		{
 			// TODO: report warning (non-surface materials not supported, will be treated as surface)
 		}
-
-		if (!ParentMaterial->bTangentSpaceNormal)
-		{
-			// TODO: report warning (world-space normals not supported, will be treated as tangent-space)
-		}
 	}
 
 	FGLTFJsonMaterial& JsonMaterial = Builder.GetMaterial(MaterialIndex);
