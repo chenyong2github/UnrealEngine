@@ -19,7 +19,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 	{
 		const FMeshDescription& MeshDescription = MeshData->GetParent()->Description;
 
-		const float DegenerateUVPercentage = UVDegenerateChecker.GetOrAdd(&MeshDescription, SectionIndices, MeshData->TexCoord);
+		const float DegenerateUVPercentage = UVDegenerateChecker.GetOrAdd(&MeshDescription, SectionIndices, MeshData->BakeUsingTexCoord);
 		if (FMath::IsNearlyEqual(DegenerateUVPercentage, 1))
 		{
 			FString SectionString = TEXT("mesh section");
@@ -30,7 +30,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 				TEXT("Material %s uses mesh data from %s but the lightmap UVs (channel %d) are nearly 100%% degenerate (in %s). Simple baking will be used as fallback"),
 				*Material->GetName(),
 				*MeshData->GetParent()->Name,
-				MeshData->TexCoord,
+				MeshData->BakeUsingTexCoord,
 				*SectionString));
 
 			MeshData = nullptr;

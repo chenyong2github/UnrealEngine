@@ -4,11 +4,12 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFMeshUtility.h"
 #include "StaticMeshAttributes.h"
+#include "Engine/MapBuildDataRegistry.h"
 #include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
-	: Parent(nullptr)
+	: LightMap(nullptr), LightMapResourceCluster(nullptr), LightMapTexCoord(0), Parent(nullptr)
 {
 	FStaticMeshAttributes(Description).Register();
 
@@ -17,6 +18,17 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 		Name = FGLTFNameUtility::GetName(StaticMeshComponent);
 		PrimitiveData = { StaticMeshComponent };
 		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
+
+		if (StaticMeshComponent->LODData.IsValidIndex(LODIndex))
+		{
+			const FStaticMeshComponentLODInfo& LODData = StaticMeshComponent->LODData[LODIndex];
+			const FMeshMapBuildData* BuildData = StaticMeshComponent->GetMeshMapBuildData(LODData);
+			if (BuildData != nullptr)
+			{
+				LightMap = BuildData->LightMap;
+				LightMapResourceCluster = BuildData->ResourceCluster;
+			}
+		}
 	}
 	else
 	{
@@ -25,14 +37,15 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 		FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, Description);
 	}
 
-	const int32 NumTexCoords = StaticMesh->GetLODForExport(LODIndex).VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-	TexCoord = FMath::Min(StaticMesh->GetLightMapCoordinateIndex(), NumTexCoords - 1);
+	LightMapTexCoord = StaticMesh->GetLightMapCoordinateIndex();
+ 	const int32 NumTexCoords = StaticMesh->GetLODForExport(LODIndex).VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	BakeUsingTexCoord = FMath::Min(LightMapTexCoord, NumTexCoords - 1);
 
 	// TODO: add warning if texture coordinate has overlap
 }
 
 FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex)
-	: Parent(nullptr)
+	: LightMap(nullptr), LightMapResourceCluster(nullptr), LightMapTexCoord(0), Parent(nullptr)
 {
 	FStaticMeshAttributes(Description).Register();
 
@@ -74,7 +87,7 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 
 	// TODO: don't assume last UV channel is non-overlapping
 	const int32 NumTexCoords = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
-	TexCoord = NumTexCoords - 1;
+	BakeUsingTexCoord = NumTexCoords - 1;
 
 	// TODO: add warning if texture coordinate has overlap
 }

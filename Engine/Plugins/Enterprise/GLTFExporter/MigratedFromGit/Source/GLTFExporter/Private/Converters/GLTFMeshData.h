@@ -16,7 +16,12 @@ struct FGLTFMeshData
 	FString Name;
 	FPrimitiveData PrimitiveData;
 	FMeshDescription Description;
-	int32 TexCoord;
+
+	FLightMapRef LightMap;
+	const FLightmapResourceCluster* LightMapResourceCluster;
+	int32 LightMapTexCoord;
+
+	int32 BakeUsingTexCoord;
 
 	// TODO: find a better name for referencing the mesh-only data (no component)
 	const FGLTFMeshData* Parent;

@@ -165,7 +165,7 @@ void FGLTFMaterialTask::Complete()
 		const FGLTFMeshData* ParentMeshData = MeshData->GetParent();
 
 		const float UVOverlapThreshold = 1.0f / 100.0f;
-		const float UVOverlap = UVOverlapChecker.GetOrAdd(&ParentMeshData->Description, SectionIndices, MeshData->TexCoord);
+		const float UVOverlap = UVOverlapChecker.GetOrAdd(&ParentMeshData->Description, SectionIndices, MeshData->BakeUsingTexCoord);
 
 		if (UVOverlap > UVOverlapThreshold)
 		{
@@ -177,7 +177,7 @@ void FGLTFMaterialTask::Complete()
 				TEXT("Material %s is baked using mesh data from %s but the lightmap UV (channel %d) are overlapping by %.2f%% (in %s) and may produce incorrect results"),
 				*Material->GetName(),
 				*ParentMeshData->Name,
-				MeshData->TexCoord,
+				MeshData->BakeUsingTexCoord,
 				UVOverlap * 100,
 				*SectionString));
 		}
@@ -1326,7 +1326,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 	}
 	else
 	{
-		OutTexCoord = MeshData->TexCoord;
+		OutTexCoord = MeshData->BakeUsingTexCoord;
 		MeshDataBakedProperties.Add(Property);
 	}
 
