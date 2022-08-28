@@ -74,4 +74,6 @@ private:
 
 	FString GetMaterialName() const;
 	FString GetBakedTextureName(const FString& PropertyName) const;
+
+	static EGLTFMaterialPropertyGroup GetPropertyGroup(const FMaterialPropertyEx& Property);
 };
