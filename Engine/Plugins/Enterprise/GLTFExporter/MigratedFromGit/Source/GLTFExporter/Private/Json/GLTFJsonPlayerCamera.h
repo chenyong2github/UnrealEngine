@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonVector4.h"
 
-struct FGLTFJsonOrbitCamera
+struct FGLTFJsonPlayerCamera
 {
 	FGLTFJsonNodeIndex Focus;
 	float              MaxDistance;

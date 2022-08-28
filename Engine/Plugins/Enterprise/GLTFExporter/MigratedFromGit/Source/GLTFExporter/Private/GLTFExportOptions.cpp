@@ -35,7 +35,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportHiddenInGame = false;
 	ExportLights = EGLTFExporterLightMobility::MovableAndStationary;
 	bExportCameras = true;
-	bExportOrbitalCameras = true;
+	bExportPlayerCameras = true;
 	bExportHDRIBackdrops = true;
 	bExportSkySpheres = true;
 	bExportVariantSets = true;

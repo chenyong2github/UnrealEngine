@@ -113,7 +113,7 @@ public:
 	bool bExportCameras;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (EditCondition = "bExportCameras"))
-	bool bExportOrbitalCameras;
+	bool bExportPlayerCameras;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportHDRIBackdrops;

@@ -11,7 +11,7 @@ enum class EGLTFJsonExtension
 	KHR_MaterialsClearCoat,
 	KHR_MeshQuantization,
 	KHR_TextureTransform,
-	EPIC_OrbitalCameras,
+	EPIC_PlayerCameras,
 	EPIC_HDRIBackdrops,
 	EPIC_AnimationHotspots,
 	EPIC_LightmapTextures,
