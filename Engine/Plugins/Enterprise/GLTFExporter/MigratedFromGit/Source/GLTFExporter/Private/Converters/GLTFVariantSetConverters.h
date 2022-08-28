@@ -19,4 +19,6 @@ class FGLTFLevelVariantSetsConverter final : public TGLTFConverter<FGLTFJsonLeve
 
 	template<typename T>
 	bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue) const;
+
+	FString GetLogContext(const UVariant* Variant) const;
 };
