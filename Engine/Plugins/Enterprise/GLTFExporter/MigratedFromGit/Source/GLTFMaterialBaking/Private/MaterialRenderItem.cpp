@@ -141,7 +141,7 @@ void FGLTFMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderCont
 
 			// Overwrite object orientation, since original calculation is derived from LocalToWorld matrix,
 			// which currently needs to be identity matrix to avoid transforming the "2D" vertices used for baking
-			PrimitiveParams.ObjectOrientation = PrimitiveData->ObjectOrientation;
+			PrimitiveParams.ObjectOrientation = FVector3f(PrimitiveData->ObjectOrientation);
 
 			const_cast<TUniformBuffer<FPrimitiveUniformShaderParameters>*>(MeshElement.Elements[0].PrimitiveUniformBufferResource)->SetContents(PrimitiveParams);
 		}

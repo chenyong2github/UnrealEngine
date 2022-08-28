@@ -157,7 +157,7 @@ FGLTFMatrix4 FGLTFCoreUtilities::ConvertTransform(const FTransform3f& Transform,
 	const FVector3f Scale = Transform.GetScale3D();
 
 	const FQuat4f ConvertedRotation(-Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W);
-	const FVector3f ConvertedTranslation = FVector(Translation.X, Translation.Z, Translation.Y) * ConversionScale;
+	const FVector3f ConvertedTranslation = FVector3f(Translation.X, Translation.Z, Translation.Y) * ConversionScale;
 	const FVector3f ConvertedScale(Scale.X, Scale.Z, Scale.Y);
 
 	const FTransform3f ConvertedTransform(ConvertedRotation, ConvertedTranslation, ConvertedScale);
