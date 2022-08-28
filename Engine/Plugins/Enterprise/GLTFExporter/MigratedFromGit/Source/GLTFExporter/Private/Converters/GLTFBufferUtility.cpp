@@ -81,6 +81,12 @@ void FGLTFBufferUtility::ReadRHIBuffer(FRHIVertexBuffer* SourceBuffer, TArray<ui
 		return;
 	}
 
+	const uint32 Usage = SourceBuffer->GetUsage();
+	if ((Usage & BUF_Static) == 0)
+	{
+		return; // Some RHI implementations only support reading static buffers
+	}
+
 	OutData.AddUninitialized(NumBytes);
 	void *DstData = OutData.GetData();
 
@@ -109,6 +115,12 @@ void FGLTFBufferUtility::ReadRHIBuffer(FRHIIndexBuffer* SourceBuffer, TArray<uin
 	if (NumBytes == 0)
 	{
 		return;
+	}
+
+	const uint32 Usage = SourceBuffer->GetUsage();
+	if ((Usage & BUF_Static) == 0)
+	{
+		return; // Some RHI implementations only support reading static buffers
 	}
 
 	OutData.AddUninitialized(NumBytes);
