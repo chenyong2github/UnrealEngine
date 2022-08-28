@@ -23,7 +23,7 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 
 	FGLTFContainerBuilder Builder;
 
-	FGLTFJsonMeshIndex MeshIndex = Builder.ConvertMesh(StaticMesh);
+	FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
 
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;

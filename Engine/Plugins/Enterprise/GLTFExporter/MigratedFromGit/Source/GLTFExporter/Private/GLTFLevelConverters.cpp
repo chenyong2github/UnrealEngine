@@ -26,7 +26,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Bu
 	}
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
-		Node.Mesh = Builder.ConvertMesh(StaticMeshComponent);
+		Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
 	}
 	else if (FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint) && bIsRootComponent)
 	{
@@ -41,7 +41,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Bu
 			const AActor* ChildOwner = ChildComponent->GetOwner();
 			if (!bSelectedOnly || ChildOwner->IsSelected())
 			{
-				FGLTFJsonNodeIndex NodeIndex = Builder.ConvertNode(ChildComponent, bSelectedOnly, false);
+				FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(ChildComponent, bSelectedOnly, false);
 				if (NodeIndex != INDEX_NONE)
 				{
 					Node.Children.Add(NodeIndex);
@@ -71,7 +71,7 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(FGLTFIndexedBuilder& Builder, c
 				const AActor* ParentActor = Actor->GetParentActor();
 				if (ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected()))
 				{
-					FGLTFJsonNodeIndex NodeIndex = Builder.ConvertNode(RootComponent, bSelectedOnly, true);
+					FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(RootComponent, bSelectedOnly, true);
 					if (NodeIndex != INDEX_NONE)
 					{
 						Scene.Nodes.Add(NodeIndex);
