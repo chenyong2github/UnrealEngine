@@ -24,39 +24,45 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 
 			// TODO: add support for exporting Level->Model?
 
-			for (const AActor* Actor : Level->Actors)
+			if (Builder.ExportOptions->VariantSetsMode != EGLTFVariantSetsMode::None)
 			{
-				// TODO: should a LevelVariantSet be exported even if not selected for export?
-				if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
+				for (const AActor* Actor : Level->Actors)
 				{
-					const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
-
-					if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
+					// TODO: should a LevelVariantSet be exported even if not selected for export?
+					if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 					{
-						if (LevelVariantSets != nullptr)
+						const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
+
+						if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
 						{
-							const FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
-							if (EpicLevelVariantSetsIndex != INDEX_NONE)
+							if (LevelVariantSets != nullptr)
 							{
-								Scene.EpicLevelVariantSets.Add(EpicLevelVariantSetsIndex);
+								const FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
+								if (EpicLevelVariantSetsIndex != INDEX_NONE)
+								{
+									Scene.EpicLevelVariantSets.Add(EpicLevelVariantSetsIndex);
+								}
 							}
 						}
-					}
-					else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
-					{
-						if (LevelVariantSets != nullptr)
+						else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
 						{
-							for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
+							if (LevelVariantSets != nullptr)
 							{
-								for (const UVariant* Variant: VariantSet->GetVariants())
+								for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
 								{
-									Builder.GetOrAddKhrMaterialVariant(Variant);
+									for (const UVariant* Variant: VariantSet->GetVariants())
+									{
+										Builder.GetOrAddKhrMaterialVariant(Variant);
+									}
 								}
 							}
 						}
 					}
 				}
+			}
 
+			for (const AActor* Actor : Level->Actors)
+			{
 				const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
 				if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
 				{
