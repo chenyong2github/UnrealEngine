@@ -102,7 +102,7 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 
 	const FTransform FocusTransform = FTransform(GetFocusPosition());
 	const FTransform DollyTransform = FTransform(-FVector::ForwardVector * Distance);
-	const FTransform RotationTransform = FTransform(FQuat::MakeFromEuler(FVector(0.0f, Pitch, Yaw)));
+	const FTransform RotationTransform = FTransform(FQuat::MakeFromEuler(FVector(0.0f, -Pitch, Yaw)));
 	const FTransform ResultTransform = DollyTransform * RotationTransform * FocusTransform;
 
 	SetActorTransform(ResultTransform);
@@ -122,7 +122,7 @@ void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
 
 void AGLTFOrbitCameraActor::OnMouseY(float AxisValue)
 {
-	TargetPitch = ClampPitch(TargetPitch + AxisValue * OrbitSensitivity * OrbitSensitivityScale);
+	TargetPitch = ClampPitch(TargetPitch - AxisValue * OrbitSensitivity * OrbitSensitivityScale);
 }
 
 void AGLTFOrbitCameraActor::OnMouseWheelAxis(float AxisValue)
