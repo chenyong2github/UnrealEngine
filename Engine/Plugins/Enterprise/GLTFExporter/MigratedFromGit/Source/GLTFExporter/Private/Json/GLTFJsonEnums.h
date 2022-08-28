@@ -30,19 +30,19 @@ enum class EGLTFJsonShadingModel
 enum class EGLTFJsonHDREncoding
 {
 	None = -1,
-    RGBE,
-    RGBM
+	RGBE,
+	RGBM
 };
 
 enum class EGLTFJsonCubeFace
 {
 	None = -1,
 	PosX,
-    NegX,
-    PosY,
-    NegY,
-    PosZ,
-    NegZ
+	NegX,
+	PosY,
+	NegY,
+	PosZ,
+	NegZ
 };
 
 enum class EGLTFJsonAccessorType
@@ -150,7 +150,7 @@ enum class EGLTFJsonCameraType
 enum class EGLTFJsonLightType
 {
 	None = -1,
-    Directional,
+	Directional,
 	Point,
 	Spot
 };

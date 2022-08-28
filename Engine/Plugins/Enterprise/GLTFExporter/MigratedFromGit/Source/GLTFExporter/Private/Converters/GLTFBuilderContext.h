@@ -9,7 +9,7 @@ class FGLTFBuilderContext
 public:
 
 	FGLTFBuilderContext(FGLTFConvertBuilder& Builder)
-        : Builder(Builder)
+		: Builder(Builder)
 	{
 	}
 

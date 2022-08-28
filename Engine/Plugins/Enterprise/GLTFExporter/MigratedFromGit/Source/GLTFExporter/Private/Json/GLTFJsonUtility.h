@@ -130,7 +130,7 @@ struct FGLTFJsonUtility
 	}
 
 	template <class WriterType, class ContainerType>
-    static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
+	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
 	{
 		if (Container.Num() > 0 || bWriteIfEmpty)
 		{
@@ -144,7 +144,7 @@ struct FGLTFJsonUtility
 	}
 
 	template <class WriterType, class ContainerType>
-    static void WriteStringArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, bool bWriteIfEmpty = false)
+	static void WriteStringArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, bool bWriteIfEmpty = false)
 	{
 		if (Container.Num() > 0 || bWriteIfEmpty)
 		{
@@ -158,7 +158,7 @@ struct FGLTFJsonUtility
 	}
 
 	template <class WriterType, class ElementType, SIZE_T Size>
-    static void WriteFixedArray(WriterType& JsonWriter, const FString& Identifier, const ElementType (&Array)[Size])
+	static void WriteFixedArray(WriterType& JsonWriter, const FString& Identifier, const ElementType (&Array)[Size])
 	{
 		JsonWriter.WriteArrayStart(Identifier);
 		for (const ElementType& Element : Array)

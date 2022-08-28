@@ -158,13 +158,13 @@ struct FGLTFJsonClearCoatExtension
 	FGLTFJsonNormalTextureInfo ClearCoatNormalTexture;
 
 	FGLTFJsonClearCoatExtension()
-        : ClearCoatFactor(0)
-        , ClearCoatRoughnessFactor(0)
+		: ClearCoatFactor(0)
+		, ClearCoatRoughnessFactor(0)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 

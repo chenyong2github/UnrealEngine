@@ -19,13 +19,13 @@ struct FGLTFBoneMap : TArray<FBoneIndexType>
 	}
 
 	FGLTFBoneMap(const FGLTFBoneMap& Other)
-        : TArray(Other)
+		: TArray(Other)
 	{
 	}
 
 	template <typename ElementType, typename AllocatorType>
-    explicit FGLTFBoneMap(const TArray<ElementType, AllocatorType>& Other)
-        : TArray(Other)
+	explicit FGLTFBoneMap(const TArray<ElementType, AllocatorType>& Other)
+		: TArray(Other)
 	{
 	}
 
@@ -47,7 +47,7 @@ struct FGLTFBoneMap : TArray<FBoneIndexType>
 	}
 
 	template <typename ElementType, typename AllocatorType>
-    FGLTFBoneMap& operator=(const TArray<ElementType, AllocatorType>& Other)
+	FGLTFBoneMap& operator=(const TArray<ElementType, AllocatorType>& Other)
 	{
 		static_cast<TArray&>(*this) = Other;
 		return *this;

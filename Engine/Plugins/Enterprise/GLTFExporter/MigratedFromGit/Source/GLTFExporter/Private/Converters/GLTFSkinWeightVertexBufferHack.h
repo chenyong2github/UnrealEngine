@@ -8,7 +8,7 @@ class FGLTFSkinWeightDataVertexBufferHack : public FVertexBuffer
 {
 public:
 
-    FORCEINLINE uint32 GetBoneIndexByteSize() const
+	FORCEINLINE uint32 GetBoneIndexByteSize() const
     { return (Use16BitBoneIndex() ? sizeof(FBoneIndex16) : sizeof(FBoneIndex8)); }
 
     FORCEINLINE bool Use16BitBoneIndex() const

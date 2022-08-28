@@ -42,8 +42,8 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 		else
 		{
 			Builder.AddErrorMessage(FString::Printf(
-                TEXT("Failed to export material %s because of missing preview-mesh"),
-                *Material->GetName()));
+				TEXT("Failed to export material %s because of missing preview-mesh"),
+				*Material->GetName()));
 
 			return false;
 		}

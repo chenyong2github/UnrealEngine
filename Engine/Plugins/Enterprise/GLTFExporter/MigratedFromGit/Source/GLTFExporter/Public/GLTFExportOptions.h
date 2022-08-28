@@ -61,9 +61,9 @@ UENUM(BlueprintType)
 enum class EGLTFExporterLightMobility : uint8
 {
 	None,
-    MovableOnly,
+	MovableOnly,
 	MovableAndStationary,
-    All
+	All
 };
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = (DebugProperty))
@@ -145,13 +145,13 @@ public:
 	uint32 bExportNonUniformScale : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-    uint32 bBundleWebViewer : 1;
+	uint32 bBundleWebViewer : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-    uint32 bExportPreviewMesh : 1;
+	uint32 bExportPreviewMesh : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-    uint32 bAllExtensionsRequired : 1;
+	uint32 bAllExtensionsRequired : 1;
 
 	/* Set all the each property to the CDO value */
 	void ResetToDefault();
