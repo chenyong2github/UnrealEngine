@@ -111,6 +111,11 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMe
 		LODIndex = ExportOptions->DefaultLevelOfDetail;
 	}
 
+	if (!ExportOptions->bExportVertexColors)
+	{
+		OverrideVertexColors = nullptr;
+	}
+
 	return StaticMeshConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? FGLTFBuilderUtility::GetLODName(StaticMesh, LODIndex) : DesiredName, StaticMesh, LODIndex, OverrideVertexColors, OverrideMaterials);
 }
 
@@ -159,6 +164,11 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* Skelet
 	if (LODIndex < 0)
 	{
 		LODIndex = ExportOptions->DefaultLevelOfDetail;
+	}
+
+	if (!ExportOptions->bExportVertexColors)
+	{
+		OverrideVertexColors = nullptr;
 	}
 
 	return SkeletalMeshConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? FGLTFBuilderUtility::GetLODName(SkeletalMesh, LODIndex) : DesiredName, SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials);
