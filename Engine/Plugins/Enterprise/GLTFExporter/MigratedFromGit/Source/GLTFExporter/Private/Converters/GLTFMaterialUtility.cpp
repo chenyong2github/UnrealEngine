@@ -76,21 +76,20 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 {
 	TArray<FMeshData*> MeshSettings;
 
-	FMeshData* MeshSet = new FMeshData();
-
-	MeshSet->TextureCoordinateBox = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
+	FMeshData MeshSet;
+	MeshSet.TextureCoordinateBox = FBox2D(FVector2D(0, 0), FVector2D(1, 1));
 
 	// TODO: Do we need to fill in any more info in MeshSet?
 
-	MeshSettings.Add(MeshSet);
+	MeshSettings.Add(&MeshSet);
 
 	TArray<FMaterialData*> MatSettings;
 
-	FMaterialData* MatSet = new FMaterialData();
-	MatSet->Material = const_cast<UMaterialInterface*>(Material);
-	MatSet->PropertySizes.Add(MaterialProperty, OutputSize);
+	FMaterialData MatSet;
+	MatSet.Material = const_cast<UMaterialInterface*>(Material);
+	MatSet.PropertySizes.Add(MaterialProperty, OutputSize);
 
-	MatSettings.Add(MatSet);
+	MatSettings.Add(&MatSet);
 
 	TArray<FBakeOutput> BakeOutputs;
 	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("MaterialBaking");
