@@ -48,9 +48,6 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
-	uint32 bOverwriteExisting : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bBundleWebViewer : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Exporter)

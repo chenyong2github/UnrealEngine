@@ -16,7 +16,6 @@
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bOverwriteExisting = true;
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
 	bExtensionsRequired = true;
