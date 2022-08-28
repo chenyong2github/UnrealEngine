@@ -53,6 +53,17 @@ enum class EGLTFSceneMobility : uint8
 ENUM_CLASS_FLAGS(EGLTFSceneMobility);
 
 UENUM(BlueprintType)
+enum class EGLTFVariantSetsMode : uint8
+{
+	/** Never export variants sets. */
+	None,
+	/** Uses the official extension KHR_materials_variants. Supports material variants only. */
+	Khronos,
+	/** Uses the extension EPIC_level_variant_sets, which is supported by Unreal's glTF viewer. */
+	Epic
+};
+
+UENUM(BlueprintType)
 enum class EGLTFMaterialVariantMode : uint8
 {
 	/** Never export material variants. */
@@ -200,20 +211,20 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportSkySpheres;
 
-	/** If enabled, export LevelVariantSetsActors. Uses extension EPIC_level_variant_sets, which is supported by Unreal's glTF viewer. */
+	/** Mode determining if and how to export LevelVariantSetsActors. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
-	bool bExportVariantSets;
+	EGLTFVariantSetsMode VariantSetsMode;
 
 	/** Mode determining if and how to export material variants that change the materials property on a static or skeletal mesh component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "VariantSetsMode != EGLTFVariantSetsMode::None"))
 	EGLTFMaterialVariantMode ExportMaterialVariants;
 
 	/** If enabled, export variants that change the mesh property on a static or skeletal mesh component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "VariantSetsMode == EGLTFVariantSetsMode::Epic"))
 	bool bExportMeshVariants;
 
 	/** If enabled, export variants that change the visible property on a scene component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "VariantSetsMode == EGLTFVariantSetsMode::Epic"))
 	bool bExportVisibilityVariants;
 
 	UFUNCTION(BlueprintCallable, Category = General)
