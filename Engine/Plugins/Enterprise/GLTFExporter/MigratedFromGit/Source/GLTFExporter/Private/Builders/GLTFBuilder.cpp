@@ -18,6 +18,17 @@ const UMaterialInterface* FGLTFBuilder::ResolveProxy(const UMaterialInterface* M
 	return ExportOptions->bExportProxyMaterials ? UGLTFMaterialExportOptions::ResolveProxy(Material) : Material;
 }
 
+void FGLTFBuilder::ResolveProxies(TArray<const UMaterialInterface*>& Materials) const
+{
+	if (ExportOptions->bExportProxyMaterials)
+	{
+		for (const UMaterialInterface*& Material : Materials)
+		{
+			Material = UGLTFMaterialExportOptions::ResolveProxy(Material);
+		}
+	}
+}
+
 FIntPoint FGLTFBuilder::GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup) const
 {
 	EGLTFMaterialBakeSizePOT DefaultValue = ExportOptions->DefaultMaterialBakeSize;

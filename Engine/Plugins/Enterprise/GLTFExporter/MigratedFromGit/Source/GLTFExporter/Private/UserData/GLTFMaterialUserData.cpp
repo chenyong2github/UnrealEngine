@@ -16,6 +16,11 @@ FGLTFOverrideMaterialBakeSettings::FGLTFOverrideMaterialBakeSettings()
 
 const UMaterialInterface* UGLTFMaterialExportOptions::ResolveProxy(const UMaterialInterface* Material)
 {
+	if (Material == nullptr)
+	{
+		return nullptr;
+	}
+
 	TSet<const UMaterialInterface*> PreviousProxies;
 
 	for (;;)
@@ -76,7 +81,7 @@ TextureAddress UGLTFMaterialExportOptions::GetBakeTilingForPropertyGroup(const U
 template <typename Predicate>
 const FGLTFOverrideMaterialBakeSettings* UGLTFMaterialExportOptions::GetBakeSettingsByPredicate(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, Predicate Pred)
 {
-	do
+	while (Material != nullptr)
 	{
 		if (const UGLTFMaterialExportOptions* UserData = const_cast<UMaterialInterface*>(Material)->GetAssetUserData<UGLTFMaterialExportOptions>())
 		{
@@ -96,7 +101,7 @@ const FGLTFOverrideMaterialBakeSettings* UGLTFMaterialExportOptions::GetBakeSett
 
 		const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material);
 		Material = MaterialInstance != nullptr ? MaterialInstance->Parent : nullptr;
-	} while (Material != nullptr);
+	}
 
 	return nullptr;
 }

@@ -421,7 +421,7 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 {
 #if WITH_EDITOR
-	if (Material != nullptr)
+	if (Material != nullptr && !IsProxyMaterial(Material))
 	{
 		// TODO: only analyze properties that will be needed for this specific material
 		const TArray<FMaterialPropertyEx> Properties =
@@ -442,7 +442,7 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 		bool bNeedsMeshData = false;
 		FGLTFMaterialAnalysis Analysis;
 
-		// TODO: optimize baking by seperating need for vertex data and primitive data
+		// TODO: optimize baking by separating need for vertex data and primitive data
 
 		for (const FMaterialPropertyEx& Property: Properties)
 		{

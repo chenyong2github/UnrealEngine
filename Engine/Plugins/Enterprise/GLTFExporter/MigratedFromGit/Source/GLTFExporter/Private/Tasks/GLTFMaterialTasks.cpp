@@ -49,8 +49,6 @@ namespace
 
 void FGLTFMaterialTask::Complete()
 {
-	Material = Builder.ResolveProxy(Material);
-
 	const UMaterial* BaseMaterial = Material->GetMaterial();
 	if (BaseMaterial->MaterialDomain != MD_Surface)
 	{
