@@ -42,6 +42,10 @@ Textures                  |   ✔️   |
 └ HDR                     |   ✔️   |
 └ Cubemap                 |   ✔️   |
 └ Lightmap                |   ✔️   |
+Level Variant Sets        |   👷   |
+└ Visible                 |   ✔️   |
+└ Material                |   ✔️   |
+└ Mesh                    |        |
 Exporter                  |   👷   |
 └ Options                 |   👷   |
 └ Logging                 |   👷   |
