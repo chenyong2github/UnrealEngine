@@ -246,7 +246,7 @@ void FGLTFTextureLightMapTask::Complete()
 	const EGLTFTextureType Type = EGLTFTextureType::Lightmaps;
 
 	const void* RawData = Source.LockMip(0);
-	TGLTFSharedArray<FColor> Pixels(static_cast<const FColor*>(RawData), ByteLength / sizeof(FColor));
+	TGLTFSharedArray<FColor> Pixels = MakeShared<TArray<FColor>>(static_cast<const FColor*>(RawData), ByteLength / sizeof(FColor));
 	Source.UnlockMip(0);
 
 	JsonTexture.Source = Builder.GetOrAddImage(Pixels, Size, bIgnoreAlpha, Type, JsonTexture.Name);
