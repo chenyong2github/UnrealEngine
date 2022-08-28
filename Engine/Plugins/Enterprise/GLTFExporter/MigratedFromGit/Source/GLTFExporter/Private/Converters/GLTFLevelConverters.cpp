@@ -66,7 +66,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
-		if (ShouldExportLight(Builder.ExportOptions->bExportLights, LightComponent->Mobility))
+		if (Builder.ExportOptions->ShouldExportLight(LightComponent->Mobility))
 		{
 			// TODO: conversion of light direction should be done in separate converter
 			FGLTFJsonNode LightNode;
@@ -86,21 +86,6 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	// TODO: add support for SkyLight?
 
 	return NodeIndex;
-}
-
-bool FGLTFSceneComponentConverter::ShouldExportLight(EGLTFExporterLightMobility Options, EComponentMobility::Type Mobility)
-{
-	switch (Options)
-	{
-		case EGLTFExporterLightMobility::All:
-			return true;
-		case EGLTFExporterLightMobility::MovableAndStationary:
-			return Mobility == EComponentMobility::Movable || Mobility == EComponentMobility::Stationary;
-		case EGLTFExporterLightMobility::MovableOnly:
-			return Mobility == EComponentMobility::Movable;
-		default:
-			return false;
-	}
 }
 
 FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor)
