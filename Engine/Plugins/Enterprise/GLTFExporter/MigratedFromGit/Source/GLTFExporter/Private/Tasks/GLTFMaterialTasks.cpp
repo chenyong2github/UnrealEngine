@@ -171,7 +171,7 @@ void FGLTFMaterialTask::Complete()
 		{
 			FString SectionString = TEXT("mesh section");
 			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");
-			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), [](int32 Index) { return FString::FromInt(Index); });
+			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), FString::FromInt);
 
 			Builder.AddWarningMessage(FString::Printf(
 				TEXT("Material %s is baked using mesh data from %s but the lightmap UV (channel %d) are overlapping by %.2f%% (in %s) and may produce incorrect results"),
@@ -1273,7 +1273,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 	else
 	{
 		OutTexCoord = MeshData->TexCoord;
-		MeshDataBakedProperties.AddUnique(Property);
+		MeshDataBakedProperties.Add(Property);
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
