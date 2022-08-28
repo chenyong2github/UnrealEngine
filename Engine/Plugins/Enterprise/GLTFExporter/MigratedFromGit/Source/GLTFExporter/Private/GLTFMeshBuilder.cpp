@@ -33,7 +33,7 @@ FGLTFJsonAccessorIndex FGLTFSectionBuilder::AddAccessorForIndices(FGLTFContainer
 	Accessor.Count = Indices.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Scalar;
 
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFMeshBuilder::FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex)
@@ -138,8 +138,8 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForPositions(FGLTFContainerB
 	Accessor.Min[1] = Min.Y;
 	Accessor.Min[2] = Min.Z;
 	Accessor.MinMaxLength = 3;
-
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForNormals(FGLTFContainerBuilder& Container) const
@@ -158,8 +158,8 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForNormals(FGLTFContainerBui
 	Accessor.ComponentType = EGLTFJsonComponentType::F32;
 	Accessor.Count = Normals.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec3;
-
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForColors(FGLTFContainerBuilder& Container) const
@@ -179,8 +179,8 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForColors(FGLTFContainerBuil
 	Accessor.Count = Colors.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec4;
 	Accessor.bNormalized = true;
-
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForTangents(FGLTFContainerBuilder& Container) const
@@ -199,8 +199,8 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForTangents(FGLTFContainerBu
 	Accessor.ComponentType = EGLTFJsonComponentType::F32;
 	Accessor.Count = Tangents.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec4;
-
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForUV0s(FGLTFContainerBuilder& Container) const
@@ -219,8 +219,8 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForUV0s(FGLTFContainerBuilde
 	Accessor.ComponentType = EGLTFJsonComponentType::F32;
 	Accessor.Count = UV0s.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec2;
-
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForUV1s(FGLTFContainerBuilder& Container) const
@@ -239,8 +239,8 @@ FGLTFJsonAccessorIndex FGLTFMeshBuilder::AddAccessorForUV1s(FGLTFContainerBuilde
 	Accessor.ComponentType = EGLTFJsonComponentType::F32;
 	Accessor.Count = UV1s.Num();
 	Accessor.Type = EGLTFJsonAccessorType::Vec2;
-
-	return Container.JsonRoot.Accessors.Add(Accessor);
+	
+	return Container.AddAccessor(Accessor);
 }
 
 FGLTFJsonMeshIndex FGLTFMeshBuilder::AddMesh(FGLTFContainerBuilder& Container) const
@@ -264,6 +264,6 @@ FGLTFJsonMeshIndex FGLTFMeshBuilder::AddMesh(FGLTFContainerBuilder& Container) c
 		Primitive.Indices = Section.AddAccessorForIndices(Container);
 		Mesh.Primitives.Add(Primitive);
 	}
-
-	return Container.JsonRoot.Meshes.Add(Mesh);
+	
+	return Container.AddMesh(Mesh);
 }
