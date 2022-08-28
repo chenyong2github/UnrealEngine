@@ -69,7 +69,7 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const
 	}
 
 	FGLTFContainerBuilder Builder(Filename, Options, false);
-	bool bSuccess = Exporter->AddObject(Builder, Object);
+	const bool bSuccess = Exporter->AddObject(Builder, Object);
 
 	OutMessages.Suggestions = Builder.GetLoggedSuggestions();
 	OutMessages.Warnings = Builder.GetLoggedWarnings();
@@ -77,14 +77,15 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const
 
 	if (bSuccess)
 	{
-		FBufferArchive Buffer;
-		Builder.Write(Buffer, nullptr);
-
-		if (!FFileHelper::SaveArrayToFile(Buffer, *Filename))
+		FArchive* Archive = IFileManager::Get().CreateFileWriter(*Filename);
+		if (Archive == nullptr)
 		{
 			OutMessages.Errors.Add(FString::Printf(TEXT("Couldn't save file: %s"), *Filename));
-			bSuccess = false;
+			return false;
 		}
+
+		Builder.Write(*Archive, nullptr);
+		Archive->Close();
 	}
 
 	return bSuccess;
