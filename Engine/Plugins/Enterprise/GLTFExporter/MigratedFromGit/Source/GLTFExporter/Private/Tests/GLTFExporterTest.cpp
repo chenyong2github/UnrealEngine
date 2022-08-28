@@ -34,7 +34,8 @@ void FGLTFExporterTest::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FS
 	{
 		const int32 TargetJsonElementCount = TargetJsonRoot.Num();
 
-		for (int32 TargetJsonArrayElementIndex = 0; TargetJsonArrayElementIndex < TargetJsonElementCount; ++TargetJsonArrayElementIndex) {
+		for (int32 TargetJsonArrayElementIndex = 0; TargetJsonArrayElementIndex < TargetJsonElementCount; ++TargetJsonArrayElementIndex)
+		{
 			const TSharedPtr<FJsonObject>& TargetJsonElement = TargetJsonRoot[TargetJsonArrayElementIndex]->AsObject();
 			const FString InputField = TargetJsonElement->GetStringField("input");
 			const FString ExpectedOutputField = TargetJsonElement->GetStringField("expectedoutput");
@@ -54,7 +55,8 @@ bool FGLTFExporterTest::RunTest(const FString& Parameters)
 
 	UObject* ObjectToExport = LoadObject<UObject>(nullptr, *InputAssetPath, nullptr, LOAD_None, nullptr);
 
-	if (ObjectToExport == nullptr) {
+	if (ObjectToExport == nullptr)
+	{
 		AddError(FString::Printf(TEXT("Failed to find input asset %s"), *InputAssetPath));
 
 		return false;
@@ -62,7 +64,8 @@ bool FGLTFExporterTest::RunTest(const FString& Parameters)
 
 	FBufferArchive BufferArchive = {};
 
-	if (!UExporter::ExportToArchive(ObjectToExport, nullptr, BufferArchive, TEXT("gltf"), 0)) {
+	if (!UExporter::ExportToArchive(ObjectToExport, nullptr, BufferArchive, TEXT("gltf"), 0))
+	{
 		AddError(FString::Printf(TEXT("Export failed for input asset %s"), *InputAssetPath));
 
 		return false;
@@ -71,7 +74,8 @@ bool FGLTFExporterTest::RunTest(const FString& Parameters)
 	const FString ExpectedOutputFilePathAbsolute = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir(), ExpectedOutputFilePath);
 	FString ExpectedOutputFileContent = "";
 
-	if (!FFileHelper::LoadFileToString(ExpectedOutputFileContent, *ExpectedOutputFilePathAbsolute)) {
+	if (!FFileHelper::LoadFileToString(ExpectedOutputFileContent, *ExpectedOutputFilePathAbsolute))
+	{
 		AddError(FString::Printf(TEXT("Failed to find expected output file %s"), *ExpectedOutputFilePathAbsolute));
 
 		return false;
@@ -79,7 +83,8 @@ bool FGLTFExporterTest::RunTest(const FString& Parameters)
 
 	const FString ExportedText = FString(BufferArchive.Num(), UTF8_TO_TCHAR(BufferArchive.GetData()));
 
-	if (!ExportedText.Equals(ExpectedOutputFileContent)) {
+	if (!ExportedText.Equals(ExpectedOutputFileContent))
+	{
 		AddError(FString::Printf(TEXT("Exported GLTF for the asset %s did not match the expected output"), *InputAssetPath));
 
 		return false;
