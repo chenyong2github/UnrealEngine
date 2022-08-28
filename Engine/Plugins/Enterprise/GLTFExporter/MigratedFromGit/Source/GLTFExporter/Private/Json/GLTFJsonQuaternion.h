@@ -38,8 +38,8 @@ struct FGLTFJsonQuaternion
 	bool operator!=(const FGLTFJsonQuaternion& Other) const
 	{
 		return X != Other.X
-            || Y != Other.Y
-            || Z != Other.Z
-            || W != Other.W;
+			|| Y != Other.Y
+			|| Z != Other.Z
+			|| W != Other.W;
 	}
 };

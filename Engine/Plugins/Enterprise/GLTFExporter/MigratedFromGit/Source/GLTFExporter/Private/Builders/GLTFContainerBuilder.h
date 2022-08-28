@@ -9,7 +9,7 @@ class FGLTFContainerBuilder : public FGLTFConvertBuilder
 public:
 
 	FGLTFContainerBuilder(bool bSelectedActorsOnly)
-        : FGLTFConvertBuilder(bSelectedActorsOnly)
+		: FGLTFConvertBuilder(bSelectedActorsOnly)
 	{
 	}
 };

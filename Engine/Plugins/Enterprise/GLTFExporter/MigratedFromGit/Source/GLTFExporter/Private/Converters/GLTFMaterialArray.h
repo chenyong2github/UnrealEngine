@@ -21,13 +21,13 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 	}
 
 	FGLTFMaterialArray(const FGLTFMaterialArray& Other)
-        : TArray(Other)
+		: TArray(Other)
 	{
 	}
 
 	template <typename ElementType, typename AllocatorType>
-    explicit FGLTFMaterialArray(const TArray<ElementType, AllocatorType>& Other)
-        : TArray(Other)
+	explicit FGLTFMaterialArray(const TArray<ElementType, AllocatorType>& Other)
+		: TArray(Other)
 	{
 	}
 
@@ -49,7 +49,7 @@ struct FGLTFMaterialArray : TArray<const UMaterialInterface*>
 	}
 
 	template <typename ElementType, typename AllocatorType>
-    FGLTFMaterialArray& operator=(const TArray<ElementType, AllocatorType>& Other)
+	FGLTFMaterialArray& operator=(const TArray<ElementType, AllocatorType>& Other)
 	{
 		static_cast<TArray&>(*this) = Other;
 		return *this;

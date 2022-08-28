@@ -35,6 +35,6 @@ struct FGLTFJsonVector2
 	bool operator!=(const FGLTFJsonVector2& Other) const
 	{
 		return X != Other.X
-            || Y != Other.Y;
+			|| Y != Other.Y;
 	}
 };
