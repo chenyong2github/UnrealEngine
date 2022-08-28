@@ -27,7 +27,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportLightmaps = true;
 	ExportScale = 0.01;
-	bExportAnyActor = true;
+	bExportGenericActor = true;
 	bExportLight = true;
 	bExportCamera = true;
 	bExportReflectionCapture = true;
