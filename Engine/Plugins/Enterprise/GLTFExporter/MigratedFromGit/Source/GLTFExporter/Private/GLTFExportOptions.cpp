@@ -182,9 +182,9 @@ void UGLTFExportOptions::SaveOptions()
 	GConfig->Flush(0);
 }
 
-void UGLTFExportOptions::FillOptions(bool bShowOptionDialog, const FString& FullPath, bool BatchMode, bool& OutOperationCanceled, bool& bOutExportAll)
+void UGLTFExportOptions::FillOptions(bool bShowOptionDialog, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll)
 {
-	OutOperationCanceled = false;
+	bOutOperationCanceled = false;
 
 	LoadOptions();
 
@@ -196,6 +196,6 @@ void UGLTFExportOptions::FillOptions(bool bShowOptionDialog, const FString& Full
 
 	bOutExportAll = false;
 
-	SGLTFExportOptionsWindow::ShowDialog(this, FullPath, BatchMode, OutOperationCanceled, bOutExportAll);
+	SGLTFExportOptionsWindow::ShowDialog(this, FullPath, bBatchMode, bOutOperationCanceled, bOutExportAll);
 	SaveOptions();
 }
