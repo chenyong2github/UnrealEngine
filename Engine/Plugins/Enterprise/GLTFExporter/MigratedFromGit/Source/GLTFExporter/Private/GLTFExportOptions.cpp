@@ -50,7 +50,7 @@ void UGLTFExportOptions::LoadOptions()
 {
 	const int32 PortFlags = 0;
 
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -59,8 +59,13 @@ void UGLTFExportOptions::LoadOptions()
 		FString Section = GetClass()->GetName();
 		FString Key = Property->GetName();
 
-		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
-		if (Array != nullptr)
+		const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
+		UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
+
+		const FString& PropFileName = GEditorPerProjectIni;
+
+		FArrayProperty* Array = CastField<FArrayProperty>(Property);
+		if (Array)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, false, true, *GEditorPerProjectIni);
 			if (Sec != nullptr)
@@ -82,7 +87,7 @@ void UGLTFExportOptions::LoadOptions()
 				else
 				{
 					int32 Index = 0;
-					const FConfigValue* ElementValue;
+					const FConfigValue* ElementValue = nullptr;
 					do
 					{
 						// Add array index number to end of key
@@ -137,7 +142,7 @@ void UGLTFExportOptions::SaveOptions()
 {
 	const int32 PortFlags = 0;
 
-	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
+	for (FProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
 		if (!Property->HasAnyPropertyFlags(CPF_Config))
 		{
@@ -146,8 +151,11 @@ void UGLTFExportOptions::SaveOptions()
 		FString Section = GetClass()->GetName();
 		FString Key = Property->GetName();
 
-		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
-		if (Array != nullptr)
+		const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
+		UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
+
+		FArrayProperty* Array = CastField<FArrayProperty>(Property);
+		if (Array)
 		{
 			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, true, false, *GEditorPerProjectIni);
 			check(Sec);
