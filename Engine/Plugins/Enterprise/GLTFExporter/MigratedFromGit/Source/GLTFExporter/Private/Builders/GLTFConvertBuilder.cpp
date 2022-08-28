@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFConvertBuilder.h"
-#include "Builders/GLTFBuilderUtility.h"
 
 FGLTFConvertBuilder::FGLTFConvertBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
 	: FGLTFImageBuilder(ExportOptions)
@@ -16,7 +15,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddPositionAccessor(const FPosi
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return PositionVertexBufferConverter.GetOrAdd(VertexBuffer);
+	return PositionBufferConverter.GetOrAdd(VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer)
@@ -26,7 +25,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddColorAccessor(const FColorVe
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return ColorVertexBufferConverter.GetOrAdd(VertexBuffer);
+	return ColorBufferConverter.GetOrAdd(VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer)
@@ -36,7 +35,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddNormalAccessor(const FStatic
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return NormalVertexBufferConverter.GetOrAdd(VertexBuffer);
+	return NormalBufferConverter.GetOrAdd(VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer)
@@ -46,7 +45,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddTangentAccessor(const FStati
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return TangentVertexBufferConverter.GetOrAdd(VertexBuffer);
+	return TangentBufferConverter.GetOrAdd(VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddUVAccessor(const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
@@ -56,7 +55,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddUVAccessor(const FStaticMesh
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return UVVertexBufferConverter.GetOrAdd(VertexBuffer, UVIndex);
+	return UVBufferConverter.GetOrAdd(VertexBuffer, UVIndex);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddJointAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap)
@@ -66,7 +65,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddJointAccessor(const FSkinWei
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return BoneIndexVertexBufferConverter.GetOrAdd(VertexBuffer, JointsGroupIndex, BoneMap);
+	return BoneIndexBufferConverter.GetOrAdd(VertexBuffer, JointsGroupIndex, BoneMap);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddWeightAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex)
@@ -76,7 +75,7 @@ FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddWeightAccessor(const FSkinWe
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return BoneWeightVertexBufferConverter.GetOrAdd(VertexBuffer, WeightsGroupIndex);
+	return BoneWeightBufferConverter.GetOrAdd(VertexBuffer, WeightsGroupIndex);
 }
 
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer)
@@ -191,7 +190,7 @@ FGLTFJsonSamplerIndex FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Textu
 		return FGLTFJsonSamplerIndex(INDEX_NONE);
 	}
 
-	return TextureSamplerConverter.GetOrAdd(Texture);
+	return SamplerConverter.GetOrAdd(Texture);
 }
 
 FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture)
@@ -241,7 +240,7 @@ FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* Scen
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	return SceneComponentConverter.GetOrAdd(SceneComponent);
+	return ComponentConverter.GetOrAdd(SceneComponent);
 }
 
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor)
@@ -261,7 +260,7 @@ FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const ULevel* Level)
 		return FGLTFJsonSceneIndex(INDEX_NONE);
 	}
 
-	return LevelConverter.GetOrAdd(Level);
+	return SceneConverter.GetOrAdd(Level);
 }
 
 FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World)
@@ -281,7 +280,7 @@ FGLTFJsonCameraIndex FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent*
 		return FGLTFJsonCameraIndex(INDEX_NONE);
 	}
 
-	return CameraComponentConverter.GetOrAdd(CameraComponent);
+	return CameraConverter.GetOrAdd(CameraComponent);
 }
 
 FGLTFJsonLightIndex FGLTFConvertBuilder::GetOrAddLight(const ULightComponent* LightComponent)
@@ -291,17 +290,17 @@ FGLTFJsonLightIndex FGLTFConvertBuilder::GetOrAddLight(const ULightComponent* Li
 		return FGLTFJsonLightIndex(INDEX_NONE);
 	}
 
-	return LightComponentConverter.GetOrAdd(LightComponent);
+	return LightConverter.GetOrAdd(LightComponent);
 }
 
-FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Actor)
+FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* BackdropActor)
 {
-	if (Actor == nullptr)
+	if (BackdropActor == nullptr)
 	{
 		return FGLTFJsonBackdropIndex(INDEX_NONE);
 	}
 
-	return BackdropConverter.GetOrAdd(Actor);
+	return BackdropConverter.GetOrAdd(BackdropActor);
 }
 
 FGLTFJsonVariationIndex FGLTFConvertBuilder::GetOrAddVariation(const ALevelVariantSetsActor* LevelVariantSetsActor)
@@ -331,5 +330,5 @@ FGLTFJsonHotspotIndex FGLTFConvertBuilder::GetOrAddHotspot(const UGLTFInteractio
 		return FGLTFJsonHotspotIndex(INDEX_NONE);
 	}
 
-	return HotspotComponentConverter.GetOrAdd(HotspotComponent);
+	return HotspotConverter.GetOrAdd(HotspotComponent);
 }

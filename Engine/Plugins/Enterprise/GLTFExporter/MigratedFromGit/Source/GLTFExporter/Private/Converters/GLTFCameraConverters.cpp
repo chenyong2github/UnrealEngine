@@ -6,7 +6,7 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFCameraUtility.h"
 
-FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Convert(const UCameraComponent* CameraComponent)
+FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
 {
 	FGLTFJsonCamera Camera;
 	Camera.Name = FGLTFNameUtility::GetName(CameraComponent);

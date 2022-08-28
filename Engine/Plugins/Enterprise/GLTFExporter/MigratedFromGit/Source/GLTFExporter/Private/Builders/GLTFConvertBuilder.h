@@ -32,12 +32,11 @@ public:
 	FGLTFJsonAccessorIndex GetOrAddUVAccessor(const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex);
 	FGLTFJsonAccessorIndex GetOrAddJointAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap);
 	FGLTFJsonAccessorIndex GetOrAddWeightAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex);
-
 	FGLTFJsonAccessorIndex GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer);
+	FGLTFJsonAccessorIndex GetOrAddIndexAccessor(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer);
+
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex = -1, const FColorVertexBuffer* OverrideVertexColors = nullptr, const FGLTFMaterialArray& OverrideMaterials = {});
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent);
-
-	FGLTFJsonAccessorIndex GetOrAddIndexAccessor(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer);
 	FGLTFJsonMeshIndex GetOrAddMesh(const USkeletalMesh* SkeletalMesh, int32 LODIndex = -1, const FColorVertexBuffer* OverrideVertexColors = nullptr, const FSkinWeightVertexBuffer* OverrideSkinWeights = nullptr, const FGLTFMaterialArray& OverrideMaterials = {});
 	FGLTFJsonMeshIndex GetOrAddMesh(const USkeletalMeshComponent* SkeletalMeshComponent);
 
@@ -55,44 +54,41 @@ public:
 
 	FGLTFJsonCameraIndex GetOrAddCamera(const UCameraComponent* CameraComponent);
 	FGLTFJsonLightIndex GetOrAddLight(const ULightComponent* LightComponent);
-
-	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* Actor);
+	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* BackdropActor);
 	FGLTFJsonVariationIndex GetOrAddVariation(const ALevelVariantSetsActor* LevelVariantSetsActor);
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent);
 	FGLTFJsonHotspotIndex GetOrAddHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent);
 
 private:
 
-	FGLTFPositionVertexBufferConverter PositionVertexBufferConverter = *this;
-	FGLTFColorVertexBufferConverter ColorVertexBufferConverter = *this;
-	FGLTFNormalVertexBufferConverter NormalVertexBufferConverter = *this;
-	FGLTFTangentVertexBufferConverter TangentVertexBufferConverter = *this;
-	FGLTFUVVertexBufferConverter UVVertexBufferConverter = *this;
-	FGLTFBoneIndexVertexBufferConverter BoneIndexVertexBufferConverter = *this;
-	FGLTFBoneWeightVertexBufferConverter BoneWeightVertexBufferConverter = *this;
+	FGLTFPositionBufferConverter PositionBufferConverter{ *this };
+	FGLTFColorBufferConverter ColorBufferConverter{ *this };
+	FGLTFNormalBufferConverter NormalBufferConverter{ *this };
+	FGLTFTangentBufferConverter TangentBufferConverter{ *this };
+	FGLTFUVBufferConverter UVBufferConverter{ *this };
+	FGLTFBoneIndexBufferConverter BoneIndexBufferConverter{ *this };
+	FGLTFBoneWeightBufferConverter BoneWeightBufferConverter{ *this };
+	FGLTFStaticMeshSectionConverter StaticMeshSectionConverter{ *this };
+	FGLTFSkeletalMeshSectionConverter SkeletalMeshSectionConverter{ *this };
 
-	FGLTFStaticMeshSectionConverter StaticMeshSectionConverter = *this;
-	FGLTFStaticMeshConverter StaticMeshConverter = *this;
+	FGLTFStaticMeshConverter StaticMeshConverter{ *this };
+	FGLTFSkeletalMeshConverter SkeletalMeshConverter{ *this };
 
-	FGLTFSkeletalMeshSectionConverter SkeletalMeshSectionConverter = *this;
-	FGLTFSkeletalMeshConverter SkeletalMeshConverter = *this;
+	FGLTFMaterialConverter MaterialConverter{ *this };
+	FGLTFSamplerConverter SamplerConverter{ *this };
+	FGLTFTexture2DConverter Texture2DConverter{ *this };
+	FGLTFTextureCubeConverter TextureCubeConverter{ *this };
+	FGLTFTextureRenderTarget2DConverter TextureRenderTarget2DConverter{ *this };
+	FGLTFTextureRenderTargetCubeConverter TextureRenderTargetCubeConverter{ *this };
 
-	FGLTFMaterialConverter MaterialConverter = *this;
-	FGLTFTextureSamplerConverter TextureSamplerConverter = *this;
-	FGLTFTexture2DConverter Texture2DConverter = *this;
-	FGLTFTextureCubeConverter TextureCubeConverter = *this;
-	FGLTFTextureRenderTarget2DConverter TextureRenderTarget2DConverter = *this;
-	FGLTFTextureRenderTargetCubeConverter TextureRenderTargetCubeConverter = *this;
+	FGLTFComponentConverter ComponentConverter{ *this };
+	FGLTFActorConverter ActorConverter{ *this };
+	FGLTFSceneConverter SceneConverter{ *this };
 
-	FGLTFSceneComponentConverter SceneComponentConverter = *this;
-	FGLTFActorConverter ActorConverter = *this;
-	FGLTFLevelConverter LevelConverter = *this;
-
-	FGLTFCameraComponentConverter CameraComponentConverter = *this;
-	FGLTFLightComponentConverter LightComponentConverter = *this;
-
-	FGLTFBackdropConverter BackdropConverter = *this;
-	FGLTFVariationConverter VariationConverter = *this;
-	FGLTFLightMapConverter LightMapConverter = *this;
-	FGLTFHotspotComponentConverter HotspotComponentConverter = *this;
+	FGLTFCameraConverter CameraConverter{ *this };
+	FGLTFLightConverter LightConverter{ *this };
+	FGLTFBackdropConverter BackdropConverter{ *this };
+	FGLTFVariationConverter VariationConverter{ *this };
+	FGLTFLightMapConverter LightMapConverter{ *this };
+	FGLTFHotspotConverter HotspotConverter{ *this };
 };

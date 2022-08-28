@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
 
-FGLTFJsonLightIndex FGLTFLightComponentConverter::Convert(const ULightComponent* LightComponent)
+FGLTFJsonLightIndex FGLTFLightConverter::Convert(const ULightComponent* LightComponent)
 {
 	FGLTFJsonLight Light;
 

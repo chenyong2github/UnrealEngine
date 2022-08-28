@@ -13,16 +13,16 @@ class FGLTFNodeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGL
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFSceneComponentConverter : public FGLTFNodeConverter<const USceneComponent*>
+class FGLTFComponentConverter final : public FGLTFNodeConverter<const USceneComponent*>
 {
 	using FGLTFNodeConverter::FGLTFNodeConverter;
 
-	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent) override final;
+	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent) override;
 };
 
-class FGLTFActorConverter : public FGLTFNodeConverter<const AActor*>
+class FGLTFActorConverter final : public FGLTFNodeConverter<const AActor*>
 {
 	using FGLTFNodeConverter::FGLTFNodeConverter;
 
-	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override final;
+	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override;
 };
