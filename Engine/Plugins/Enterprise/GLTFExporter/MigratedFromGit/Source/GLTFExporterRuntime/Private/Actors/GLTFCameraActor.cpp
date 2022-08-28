@@ -153,6 +153,15 @@ void AGLTFCameraActor::PostActorCreated()
 void AGLTFCameraActor::OnMouseX(float AxisValue)
 {
 	TargetYaw = ClampYaw(TargetYaw + AxisValue * RotationSensitivity * RotationSensitivityScale);
+
+	if (!UsesYawLimits())
+	{
+		// Prevent TargetYaw from reaching excessive values by keeping it in the range (-360, 360)
+		const float ClampedTargetYaw = FMath::Fmod(TargetYaw, 360.f);
+
+		Yaw += ClampedTargetYaw - TargetYaw;
+		TargetYaw = ClampedTargetYaw;
+	}
 }
 
 void AGLTFCameraActor::OnMouseY(float AxisValue)
