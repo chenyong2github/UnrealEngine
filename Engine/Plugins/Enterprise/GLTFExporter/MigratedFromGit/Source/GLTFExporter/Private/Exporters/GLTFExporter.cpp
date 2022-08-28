@@ -5,7 +5,6 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "GLTFExportOptions.h"
 
-
 UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
