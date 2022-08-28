@@ -144,6 +144,13 @@ struct FGLTFConverterUtility
 		return ConvertMatrix(Matrix);
 	}
 
+	static float ConvertFieldOfView(float FOVInDegress, float AspectRatio)
+	{
+		const float HorizontalFOV = FMath::DegreesToRadians(FOVInDegress);
+		const float VerticalFOV = 2 * FMath::Atan(FMath::Tan(HorizontalFOV / 2) / AspectRatio);
+		return VerticalFOV;
+	}
+
 	static FGLTFJsonQuaternion ConvertCameraDirection()
 	{
 		// Unreal uses +X axis as camera direction in Unreal coordinates.

@@ -27,11 +27,7 @@ struct FGLTFJsonOrthographic
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (XMag != 0)
-		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("xmag"), XMag);
-		}
-
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("xmag"), XMag);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("ymag"), YMag);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("zfar"), ZFar);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("znear"), ZNear);
