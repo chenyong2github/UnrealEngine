@@ -8,8 +8,7 @@
 
 FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 {
-	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(BackdropActor);
-	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
+	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(FGLTFActorUtility::GetBlueprintPath(BackdropActor)))
 	{
 		return FGLTFJsonBackdropIndex(INDEX_NONE);
 	}

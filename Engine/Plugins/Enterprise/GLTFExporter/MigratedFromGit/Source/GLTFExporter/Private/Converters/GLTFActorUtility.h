@@ -8,11 +8,11 @@ struct FGLTFActorUtility
 {
 	static bool IsRootActor(const AActor* Actor, bool bSelectedOnly);
 
-	static UBlueprint* GetBlueprintFromActor(const AActor* Actor);
+	static FString GetBlueprintPath(const AActor* Actor);
 
-	static bool IsSkySphereBlueprint(const UBlueprint* Blueprint);
+	static bool IsSkySphereBlueprint(const FString& Path);
 
-	static bool IsHDRIBackdropBlueprint(const UBlueprint* Blueprint);
+	static bool IsHDRIBackdropBlueprint(const FString& Path);
 
 	template <class ValueType>
 	static bool TryGetPropertyValue(const UObject* Object, const TCHAR* PropertyName, ValueType& Value)

@@ -18,8 +18,10 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 	const USceneComponent* RootComponent = Actor->GetRootComponent();
 	const FGLTFJsonNodeIndex RootNodeIndex = Builder.GetOrAddNode(RootComponent);
 
-	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
-	if (FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
+	// TODO: process all components since any component can be attached to any other component in runtime
+
+	const FString BlueprintPath = FGLTFActorUtility::GetBlueprintPath(Actor);
+	if (FGLTFActorUtility::IsSkySphereBlueprint(BlueprintPath))
 	{
 		if (Builder.ExportOptions->bExportSkySpheres)
 		{
@@ -27,7 +29,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 			RootNode.SkySphere = Builder.GetOrAddSkySphere(Actor);
 		}
 	}
-	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
+	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(BlueprintPath))
 	{
 		if (Builder.ExportOptions->bExportHDRIBackdrops)
 		{
