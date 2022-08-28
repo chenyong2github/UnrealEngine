@@ -19,11 +19,6 @@
 			"Name": "GLTFExporter",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "GLTFExporterRuntime",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
