@@ -36,6 +36,7 @@ struct FGLTFMaterialUtility
 {
 	static const TCHAR* GetPropertyName(EMaterialProperty Property);
 	static FVector4 GetPropertyDefaultValue(EMaterialProperty Property);
+	static FVector4 GetPropertyMask(EMaterialProperty Property);
 
 	static const FExpressionInput* GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property);
 
