@@ -35,7 +35,8 @@ void FGLTFTexture2DTask::Complete()
 		FGLTFTextureUtility::FlipGreenChannel(Pixels);
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
+	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(Texture2D->GetPixelFormat());
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
 }
 
@@ -73,7 +74,8 @@ void FGLTFTextureCubeTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
+	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(TextureCube->GetPixelFormat());
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(TextureCube);
 }
 
@@ -97,7 +99,8 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
+	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTarget2D->GetFormat());
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTarget2D);
 }
 
@@ -134,7 +137,8 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
+	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTargetCube->GetFormat());
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTargetCube);
 }
 
@@ -164,7 +168,7 @@ void FGLTFTextureLightMapTask::Complete()
 	const int64 ByteLength = Source.CalcMipSize(0);
 
 	const void* RawData = Source.LockMip(0);
-	JsonTexture.Source = Builder.AddImage(static_cast<const FColor*>(RawData), ByteLength, Size, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(static_cast<const FColor*>(RawData), ByteLength, Size, false, JsonTexture.Name);
 	Source.UnlockMip(0);
 
 	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMap);

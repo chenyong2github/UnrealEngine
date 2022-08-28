@@ -27,6 +27,26 @@ bool FGLTFTextureUtility::IsHDR(EPixelFormat Format)
 	}
 }
 
+bool FGLTFTextureUtility::IsAlphaless(EPixelFormat PixelFormat)
+{
+	switch (PixelFormat)
+	{
+		case PF_ATC_RGB:
+		case PF_BC4:
+		case PF_BC5:
+		case PF_DXT1:
+		case PF_ETC1:
+		case PF_ETC2_RGB:
+		case PF_FloatR11G11B10:
+		case PF_FloatRGB:
+		case PF_R5G6B5_UNORM:
+			// TODO: add more pixel formats that don't support alpha, but beware of formats like PF_G8 (that still seem to return alpha in some cases)
+			return true;
+		default:
+			return false;
+	}
+}
+
 bool FGLTFTextureUtility::IsCubemap(const UTexture* Texture)
 {
 	return Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>();
@@ -338,14 +358,6 @@ bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
 	}
 
 	return true;
-}
-
-void FGLTFTextureUtility::FlipGreenChannel(TArray<FLinearColor>& Pixels)
-{
-	for (FLinearColor& Pixel: Pixels)
-	{
-		Pixel.G = 1.0f - FMath::Clamp(Pixel.G, 0.0f, 1.0f);
-	}
 }
 
 void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)
