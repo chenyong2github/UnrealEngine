@@ -211,6 +211,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 	const FString PropertyName = InProperty->GetName();
 
 	if (PropertyName == TEXT("bExportUnlitMaterials") ||
+		PropertyName == TEXT("bExportClearCoatMaterials") ||
 		PropertyName == TEXT("DefaultMaterialBakeSize"))
 	{
 		return true;
