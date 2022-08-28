@@ -1489,7 +1489,8 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 		OutTexCoord,
 		MeshData,
 		SectionIndices,
-		bFillAlpha);
+		bFillAlpha,
+		Builder.ExportOptions->bAdjustNormalmaps);
 }
 
 bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexInfo, FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const

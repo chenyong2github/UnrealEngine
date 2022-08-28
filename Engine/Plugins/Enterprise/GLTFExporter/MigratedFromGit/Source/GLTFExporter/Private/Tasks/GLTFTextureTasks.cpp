@@ -46,8 +46,9 @@ void FGLTFTexture2DTask::Complete()
 		return;
 	}
 
-	if (Texture2D->IsNormalMap())
+	if (Builder.ExportOptions->bAdjustNormalmaps && Texture2D->IsNormalMap())
 	{
+		// TODO: add support for adjusting normals in GLTFNormalMapPreview instead
 		FGLTFTextureUtility::FlipGreenChannel(*Pixels);
 	}
 
