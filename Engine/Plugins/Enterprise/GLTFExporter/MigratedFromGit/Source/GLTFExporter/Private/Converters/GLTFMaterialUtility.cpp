@@ -100,73 +100,7 @@ const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByNa
 	return nullptr;
 }
 
-UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const FGLTFPropertyBakeOutput& PropertyBakeOutput, bool bUseSRGB)
-{
-	return FGLTFTextureUtility::CreateTransientTexture(
-		PropertyBakeOutput.Pixels.GetData(),
-		PropertyBakeOutput.Pixels.Num() * PropertyBakeOutput.Pixels.GetTypeSize(),
-		PropertyBakeOutput.Size,
-		PropertyBakeOutput.PixelFormat,
-		bUseSRGB);
-}
-
-bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArray<FGLTFTextureCombineSource>& Sources, const FIntPoint& OutputSize, const EPixelFormat OutputPixelFormat)
-{
-	// NOTE: both bForceLinearGamma and TargetGamma=2.2 seem necessary for exported images to match their source data.
-	// It's not entirely clear why gamma must be 2.2 (instead of 0.0) and why bInForceLinearGamma must also be true.
-	const bool bForceLinearGamma = true;
-	const float TargetGamma = 2.2f;
-
-	UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
-
-	RenderTarget2D->AddToRoot();
-	RenderTarget2D->ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f };
-	RenderTarget2D->InitCustomFormat(OutputSize.X, OutputSize.Y, OutputPixelFormat, bForceLinearGamma);
-	RenderTarget2D->TargetGamma = TargetGamma;
-
-	FRenderTarget* RenderTarget = RenderTarget2D->GameThread_GetRenderTargetResource();
-	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
-
-	Canvas.SetRenderTarget_GameThread(RenderTarget);
-	Canvas.Clear({ 0.0f, 0.0f, 0.0f, 0.0f });
-
-	const FVector2D TileSize(OutputSize.X, OutputSize.Y);
-	const FVector2D TilePosition(0.0f, 0.0f);
-
-	for (const FGLTFTextureCombineSource& Source: Sources)
-	{
-		check(Source.Texture);
-
-		TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
-
-		if (Source.Texture->IsNormalMap())
-		{
-			BatchedElementParameters = new FNormalMapBatchedElementParameters();
-		}
-
-		FCanvasTileItem TileItem(TilePosition, Source.Texture->Resource, TileSize, Source.TintColor);
-
-		TileItem.BatchedElementParameters = BatchedElementParameters;
-		TileItem.BlendMode = Source.BlendMode;
-		TileItem.Draw(&Canvas);
-	}
-
-	Canvas.Flush_GameThread();
-	FlushRenderingCommands();
-	Canvas.SetRenderTarget_GameThread(nullptr);
-	FlushRenderingCommands();
-
-	const bool bReadSuccessful = RenderTarget->ReadPixels(OutPixels);
-
-	// Clean up.
-	RenderTarget2D->ReleaseResource();
-	RenderTarget2D->RemoveFromRoot();
-	RenderTarget2D = nullptr;
-
-	return bReadSuccessful;
-}
-
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, const FMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, const FMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha)
 {
 	FMeshData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
@@ -205,14 +139,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(Property);
 	const float EmissiveScale = BakeOutput.EmissiveScale;
 
-	if (bCopyAlphaFromRedChannel)
-	{
-		for (FColor& Pixel: BakedPixels)
-		{
-			Pixel.A = Pixel.R;
-		}
-	}
-	else
+	if (bFillAlpha)
 	{
 		// NOTE: alpha is 0 by default after baking a property, but we prefer 255 (1.0).
 		// It makes it easier to view the exported textures.
@@ -243,21 +170,6 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	}
 
 	return PropertyBakeOutput;
-}
-
-FGLTFJsonTextureIndex FGLTFMaterialUtility::AddCombinedTexture(FGLTFConvertBuilder& Builder, const TArray<FGLTFTextureCombineSource>& CombineSources, const FIntPoint& TextureSize, bool bIgnoreAlpha, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT)
-{
-	check(CombineSources.Num() > 0);
-
-	TArray<FColor> Pixels;
-	const EPixelFormat PixelFormat = CombineSources[0].Texture->GetPixelFormat(); // TODO: should we really assume pixel format like this?
-
-	if (!CombineTextures(Pixels, CombineSources, TextureSize, PixelFormat))
-	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
-	}
-
-	return AddTexture(Builder, Pixels, TextureSize, bIgnoreAlpha, false, TextureName, MinFilter, MagFilter, WrapS, WrapT);
 }
 
 FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder, const TArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT)
