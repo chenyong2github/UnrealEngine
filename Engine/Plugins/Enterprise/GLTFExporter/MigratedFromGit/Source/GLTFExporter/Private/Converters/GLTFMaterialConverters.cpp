@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMaterialConverters.h"
-#include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFMaterialUtility.h"
+#include "Builders/GLTFContainerBuilder.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
@@ -45,9 +46,9 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		}
 	}
 
-	if (!TryGetMetallicAndRoughness(Builder, JsonMaterial.PBRMetallicRoughness, Material->Metallic, Material->Roughness, MaterialInstance))
+	if (!TryGetMetallicAndRoughness(Builder, JsonMaterial.PBRMetallicRoughness, Material->Metallic, Material->Roughness, MaterialInterface))
 	{
-		// TODO: add fallback to material baking
+		// TODO: handle failure?
 	}
 
 	if (!TryGetConstantColor(JsonMaterial.EmissiveFactor, Material->EmissiveColor, MaterialInstance))
@@ -128,8 +129,10 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	return false;
 }
 
-bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Builder, FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FScalarMaterialInput& MetallicInput, const FScalarMaterialInput& RoughnessInput, const UMaterialInstance* MaterialInstance) const
+bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Builder, FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FScalarMaterialInput& MetallicInput, const FScalarMaterialInput& RoughnessInput, const UMaterialInterface* MaterialInterface) const
 {
+	const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface);
+
 	const bool bIsMetallicConstant = TryGetConstantScalar(OutPBRParams.MetallicFactor, MetallicInput, MaterialInstance);
 	const bool bIsRoughnessConstant = TryGetConstantScalar(OutPBRParams.RoughnessFactor, RoughnessInput, MaterialInstance);
 
@@ -137,6 +140,12 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	{
 		return true;
 	}
+
+	// NOTE: since we always bake the properties (for now) when atleast property is non-const, we need
+	// to reset the constant factors to their defaults. Otherwise the baked value of a constant property
+	// would be scaled with the factor, i.e a double scaling.
+	OutPBRParams.MetallicFactor = 1;
+	OutPBRParams.RoughnessFactor = 1;
 
 	const UTexture2D* MetallicTexture;
 	const UTexture2D* RoughnessTexture;
@@ -146,33 +155,61 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	const bool bHasMetallicSourceTexture = TryGetSourceTexture(MetallicTexture, MetallicTexCoord, MetallicInput, MaterialInstance);
 	const bool bHasRoughnessSourceTexture = TryGetSourceTexture(RoughnessTexture, RoughnessTexCoord, RoughnessInput, MaterialInstance);
 
+	int32 TexCoord = 0;
+	FIntPoint TextureSize(512, 512);	// TODO: make default baking-resolution configurable
+	EGLTFJsonTextureWrap TextureWrap = EGLTFJsonTextureWrap::ClampToEdge;
+	EGLTFJsonTextureFilter TextureFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	const EPixelFormat PixelFormat = PF_B8G8R8A8;
+
 	if (bHasMetallicSourceTexture && bHasRoughnessSourceTexture)
 	{
-		if (MetallicTexture == RoughnessTexture && MetallicTexCoord == RoughnessTexCoord)
+		const bool bAreTexturesCompatible = MetallicTexCoord == RoughnessTexCoord &&
+			MetallicTexture->AddressX == RoughnessTexture->AddressX &&
+			MetallicTexture->AddressY == RoughnessTexture->AddressY;
+
+		if (!bAreTexturesCompatible)
 		{
-			// TODO: make sure textures are correctly masked
-			OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture);
-			OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
-			return true;
+			// TODO: handle differences in wrapping or uv-coords
+			return false;
 		}
 
-		// TODO: add support for combining two textures
-		return false;
-	}
+		TexCoord = MetallicTexCoord;
+		TextureSize = FIntPoint(
+			FMath::Max(MetallicTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
+			FMath::Max(MetallicTexture->GetSizeY(), RoughnessTexture->GetSizeY()));
 
-	if (bHasMetallicSourceTexture && bIsRoughnessConstant)
+		TextureWrap = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
+		TextureFilter = FGLTFConverterUtility::ConvertFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
+	}
+	else if (bHasMetallicSourceTexture)
 	{
-		// TODO: add support for combining constant with texture
-		return false;
+		TexCoord = MetallicTexCoord;
+		TextureSize = FIntPoint(MetallicTexture->GetSizeX(), MetallicTexture->GetSizeY());
+		TextureWrap = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
+		TextureFilter = FGLTFConverterUtility::ConvertFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
 	}
-
-	if (bIsMetallicConstant && bHasRoughnessSourceTexture)
+	else if (bHasRoughnessSourceTexture)
 	{
-		// TODO: add support for combining constant with texture
-		return false;
+		TexCoord = RoughnessTexCoord;
+		TextureSize = FIntPoint(RoughnessTexture->GetSizeX(), RoughnessTexture->GetSizeY());
+		TextureWrap = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressX);
+		TextureFilter = FGLTFConverterUtility::ConvertFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
 	}
 
-	return false;
+	RoughnessTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_Roughness, MaterialInterface);
+	MetallicTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_Metallic, MaterialInterface);
+
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddMetallicRoughnessTexture(
+		Builder,
+		MetallicTexture,
+		RoughnessTexture,
+		TextureFilter,
+		TextureWrap);
+
+	OutPBRParams.MetallicRoughnessTexture.TexCoord = TexCoord;
+	OutPBRParams.MetallicRoughnessTexture.Index = TextureIndex;
+
+	return true;
 }
 
 bool FGLTFMaterialConverter::TryGetConstantColor(FGLTFJsonColor3& OutValue, const FColorMaterialInput& MaterialInput, const UMaterialInstance* MaterialInstance) const
