@@ -32,7 +32,6 @@ UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const TArray<FColor>& P
 bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArray<FGLTFTextureCombineSource>& Sources, const FIntPoint& OutputSize, const EPixelFormat OutputPixelFormat)
 {
 	UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
-	check(RenderTarget2D);
 
 	RenderTarget2D->AddToRoot();
 	RenderTarget2D->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
