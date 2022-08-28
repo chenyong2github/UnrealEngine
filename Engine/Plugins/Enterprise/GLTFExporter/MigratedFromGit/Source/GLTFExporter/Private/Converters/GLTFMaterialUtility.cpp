@@ -125,7 +125,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty MaterialProperty, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
 {
 	TArray<FMeshData*> MeshSettings;
 
@@ -140,7 +140,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	FMaterialData MatSet;
 	MatSet.Material = const_cast<UMaterialInterface*>(Material);
-	MatSet.PropertySizes.Add(MaterialProperty, OutputSize);
+	MatSet.PropertySizes.Add(Property, OutputSize);
 
 	MatSettings.Add(&MatSet);
 
@@ -151,8 +151,8 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	FBakeOutput BakeOutput = BakeOutputs[0];
 
-	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(MaterialProperty));
-	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(MaterialProperty);
+	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(Property));
+	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(Property);
 	const float EmissiveScale = BakeOutput.EmissiveScale;
 
 	if (bCopyAlphaFromRedChannel)
@@ -172,7 +172,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		}
 	}
 
-	FGLTFPropertyBakeOutput PropertyBakeOutput(MaterialProperty, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
+	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
 
 	if (BakedPixels.Num() == 1)
 	{
