@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
 					"LevelSequence",
 					"MovieScene",
 					"MovieSceneTracks",
-					"MaterialBaking",
+					"GLTFMaterialBaking",
 					"VariantManagerContent",
 					"GLTFExporterRuntime",
 					"MeshMergeUtilities",
