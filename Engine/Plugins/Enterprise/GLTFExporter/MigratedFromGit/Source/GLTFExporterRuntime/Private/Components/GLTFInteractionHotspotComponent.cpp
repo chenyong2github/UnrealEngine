@@ -19,6 +19,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFInteractionHotspot, Log, All);
 
 namespace
 {
+	const FName NAME_InteractionHotspotTag = TEXT("InteractionHotspot");
 	const FName NAME_LevelEditorModule = TEXT("LevelEditor");
 }
 
@@ -58,6 +59,7 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	SphereComponent->InitSphereRadius(100.0f);
 	SphereComponent->SetVisibility(false);
 	SphereComponent->SetupAttachment(this);
+	SphereComponent->ComponentTags.Add(NAME_InteractionHotspotTag);
 
 	// Setup the most minimalistic collision profile for mouse input events
 	SphereComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -167,10 +169,9 @@ void UGLTFInteractionHotspotComponent::TickComponent(float DeltaTime, ELevelTick
 
 		if (PlayerController->GetHitResultAtScreenPosition(FVector2D(ColliderScreenLocation), ECC_Visibility, false, HitResult))
 		{
-			const UPrimitiveComponent* HitComponent = HitResult.GetComponent();
-			if (HitComponent != nullptr && HitComponent != SphereComponent)
+			if (const UPrimitiveComponent* HitComponent = HitResult.GetComponent())
 			{
-				bIsHotspotOccluded = HitComponent->GetAttachParent() == nullptr || !HitComponent->GetAttachParent()->IsA<UGLTFInteractionHotspotComponent>();
+				bIsHotspotOccluded = !HitComponent->ComponentTags.Contains(NAME_InteractionHotspotTag);
 			}
 		}
 
