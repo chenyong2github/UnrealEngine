@@ -48,12 +48,21 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
 	{
-		// TODO: conversion of camera direction should be done in separate converter
-		FGLTFJsonNode CameraNode;
-		CameraNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ACameraActor
-		CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
-		CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent, CameraNode.Name);
-		Builder.AddChildNode(NodeIndex, CameraNode);
+		if (Builder.ExportOptions->bExportCameras)
+		{
+			// TODO: conversion of camera direction should be done in separate converter
+			FGLTFJsonNode CameraNode;
+			CameraNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ACameraActor
+			CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
+			CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent, CameraNode.Name);
+			Builder.AddChildNode(NodeIndex, CameraNode);
+		}
+		else
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Camera %s disabled by export options"),
+				*Owner->GetName()));	// TODO: choose a more unique name if owner is not ACameraActor
+		}
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
