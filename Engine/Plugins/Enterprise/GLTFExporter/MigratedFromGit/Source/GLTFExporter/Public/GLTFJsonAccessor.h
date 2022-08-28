@@ -38,13 +38,20 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+		if (!Name.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("name"), Name);
+		}
 
 		JsonWriter.WriteValue(TEXT("bufferView"), BufferView);
 		JsonWriter.WriteValue(TEXT("count"), Count);
 		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::AccessorTypeToString(Type));
 		JsonWriter.WriteValue(TEXT("componentType"), FGLTFJsonUtility::ComponentTypeToNumber(ComponentType));
-		if (bNormalized) JsonWriter.WriteValue(TEXT("normalized"), bNormalized);
+
+		if (bNormalized) 
+		{
+			JsonWriter.WriteValue(TEXT("normalized"), bNormalized);
+		}
 
 		if (MinMaxLength > 0)
 		{

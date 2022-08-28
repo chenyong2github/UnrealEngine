@@ -34,15 +34,28 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+		if (!Name.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("name"), Name);
+		}
 
 		JsonWriter.WriteValue(TEXT("buffer"), Buffer);
 		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
 
-		if (ByteOffset != 0) JsonWriter.WriteValue(TEXT("byteOffset"), ByteOffset);
-		if (ByteStride != 0) JsonWriter.WriteValue(TEXT("byteStride"), ByteStride);
+		if (ByteOffset != 0)
+		{
+			JsonWriter.WriteValue(TEXT("byteOffset"), ByteOffset);
+		}
 
-		if (Target != EGLTFJsonBufferTarget::None) JsonWriter.WriteValue(TEXT("target"), FGLTFJsonUtility::BufferTargetToNumber(Target));
+		if (ByteStride != 0)
+		{
+			JsonWriter.WriteValue(TEXT("byteStride"), ByteStride);
+		}
+
+		if (Target != EGLTFJsonBufferTarget::None)
+		{
+			JsonWriter.WriteValue(TEXT("target"), FGLTFJsonUtility::BufferTargetToNumber(Target));
+		}
 
 		JsonWriter.WriteObjectEnd();
 	}

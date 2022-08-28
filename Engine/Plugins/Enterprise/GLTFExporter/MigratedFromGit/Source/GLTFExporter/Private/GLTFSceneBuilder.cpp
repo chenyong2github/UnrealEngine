@@ -54,7 +54,10 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	for (const FGLTFNodeBuilder& AttachedComponent : AttachedComponents)
 	{
 		FGLTFJsonNodeIndex ChildIndex = AttachedComponent.AddNode(Container);
-		if (ChildIndex != INDEX_NONE) Node.Children.Add(ChildIndex);
+		if (ChildIndex != INDEX_NONE)
+		{
+			Node.Children.Add(ChildIndex);
+		}
 	}
 
 	return Container.AddNode(Node);
@@ -94,7 +97,10 @@ FGLTFJsonSceneIndex FGLTFSceneBuilder::AddScene(FGLTFContainerBuilder& Container
 	for (const FGLTFNodeBuilder& TopLevelComponent : RootNodes)
 	{
 		FGLTFJsonNodeIndex NodeIndex = TopLevelComponent.AddNode(Container);
-		if (NodeIndex != INDEX_NONE) Scene.Nodes.Add(NodeIndex);
+		if (NodeIndex != INDEX_NONE)
+		{
+			Scene.Nodes.Add(NodeIndex);
+		}
 	}
 
 	return Container.AddScene(Scene);

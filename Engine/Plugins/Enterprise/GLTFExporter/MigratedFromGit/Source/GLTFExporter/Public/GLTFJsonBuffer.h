@@ -22,9 +22,16 @@ struct GLTFEXPORTER_API FGLTFJsonBuffer
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+		if (!Name.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("name"), Name);
+		}
 
-		if (!URI.IsEmpty()) JsonWriter.WriteValue(TEXT("uri"), URI);
+		if (!URI.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("uri"), URI);
+		}
+
 		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
 
 		JsonWriter.WriteObjectEnd();

@@ -33,8 +33,16 @@ struct GLTFEXPORTER_API FGLTFJsonAsset
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteValue(TEXT("version"), Version);
-		if (!Generator.IsEmpty()) JsonWriter.WriteValue(TEXT("generator"), Generator);
-		if (!Copyright.IsEmpty()) JsonWriter.WriteValue(TEXT("copyright"), Copyright);
+
+		if (!Generator.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("generator"), Generator);
+		}
+
+		if (!Copyright.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("copyright"), Copyright);
+		}
 
 		JsonWriter.WriteObjectEnd();
 	}
@@ -65,7 +73,10 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
 		Asset.WriteObject(JsonWriter);
 
-		if (DefaultScene != INDEX_NONE) JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
+		if (DefaultScene != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
+		}
 
 		if (Accessors.Num() > 0)
 		{

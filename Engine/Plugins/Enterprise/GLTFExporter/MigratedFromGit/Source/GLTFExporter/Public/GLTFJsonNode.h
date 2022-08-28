@@ -34,7 +34,10 @@ struct GLTFEXPORTER_API FGLTFJsonNode
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+		if (!Name.IsEmpty())
+		{
+			JsonWriter.WriteValue(TEXT("name"), Name);
+		}
 
 		if (Translation != FVector::ZeroVector)
 		{
@@ -64,9 +67,20 @@ struct GLTFEXPORTER_API FGLTFJsonNode
 			JsonWriter.WriteArrayEnd();
 		}
 
-		if (Camera != INDEX_NONE) JsonWriter.WriteValue(TEXT("camera"), Camera);
-		if (Skin != INDEX_NONE) JsonWriter.WriteValue(TEXT("skin"), Skin);
-		if (Mesh != INDEX_NONE) JsonWriter.WriteValue(TEXT("mesh"), Mesh);
+		if (Camera != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("camera"), Camera);
+		}
+
+		if (Skin != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("skin"), Skin);
+		}
+
+		if (Mesh != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
+		}
 
 		if (Children.Num() > 0)
 		{
