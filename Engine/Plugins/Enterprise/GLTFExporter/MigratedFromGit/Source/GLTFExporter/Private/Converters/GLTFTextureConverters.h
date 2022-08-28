@@ -7,13 +7,6 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
-class FGLTFTextureSamplerConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*>
-{
-	using FGLTFBuilderContext::FGLTFBuilderContext;
-
-	FGLTFJsonSamplerIndex Convert(const UTexture* Texture) override final;
-};
-
 class FGLTFTexture2DConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;

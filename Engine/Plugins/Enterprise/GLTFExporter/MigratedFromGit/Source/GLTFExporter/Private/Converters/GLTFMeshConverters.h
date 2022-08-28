@@ -8,20 +8,11 @@
 #include "Converters/GLTFMaterialArray.h"
 #include "Engine.h"
 
-class FMultiSizeIndexContainer;
-
-class FGLTFIndexContainerConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonBufferViewIndex, const FMultiSizeIndexContainer*>
+class FGLTFStaticMeshConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMeshIndex, const UStaticMesh*, int32, const FColorVertexBuffer*, FGLTFMaterialArray>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonBufferViewIndex Convert(const FMultiSizeIndexContainer* IndexContainer) override final;
-};
-
-class FGLTFSkeletalMeshSectionConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAccessorIndex, const FSkelMeshRenderSection*, const FMultiSizeIndexContainer*>
-{
-	using FGLTFBuilderContext::FGLTFBuilderContext;
-
-	FGLTFJsonAccessorIndex Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer) override final;
+	FGLTFJsonMeshIndex Convert(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials) override final;
 };
 
 class FGLTFSkeletalMeshConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMeshIndex, const USkeletalMesh*, int32, const FColorVertexBuffer*, const FSkinWeightVertexBuffer*, FGLTFMaterialArray>

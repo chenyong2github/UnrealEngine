@@ -1,61 +1,72 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFSkeletalMeshConverters.h"
+#include "Converters/GLTFMeshConverters.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-FGLTFJsonBufferViewIndex FGLTFIndexContainerConverter::Convert(const FMultiSizeIndexContainer* IndexContainer)
+FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials)
 {
-	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = IndexContainer->GetIndexBuffer();
-
-	const int32 IndexCount = IndexBuffer->Num();
-	if (IndexCount <= 0)
+	if (LODIndex < 0 || StaticMesh->GetNumLODs() <= LODIndex)
 	{
-		return FGLTFJsonBufferViewIndex(INDEX_NONE);
+		return FGLTFJsonMeshIndex(INDEX_NONE);
 	}
 
-	if (IndexContainer->GetDataTypeSize() == sizeof(uint16))
-	{
-		TArray<uint16> Indices;
-		Indices.AddUninitialized(IndexCount);
+	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
 
-		for (int32 Index = 0; Index < IndexCount; ++Index)
+	FGLTFJsonMesh JsonMesh;
+	JsonMesh.Name = FGLTFNameUtility::GetName(StaticMesh, LODIndex);
+
+	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
+	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.VertexBuffers.ColorVertexBuffer;
+
+	FGLTFJsonAttributes JsonAttributes;
+	JsonAttributes.Position = Builder.GetOrAddPositionAccessor(PositionBuffer);
+
+	if (Builder.ExportOptions->bExportVertexColors)
+	{
+		JsonAttributes.Color0 = Builder.GetOrAddColorAccessor(ColorBuffer);
+	}
+
+	JsonAttributes.Normal = Builder.GetOrAddNormalAccessor(VertexBuffer);
+	JsonAttributes.Tangent = Builder.GetOrAddTangentAccessor(VertexBuffer);
+
+	const uint32 UVCount = VertexBuffer->GetNumTexCoords();
+	JsonAttributes.TexCoords.AddUninitialized(UVCount);
+
+	for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
+	{
+		JsonAttributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(VertexBuffer, UVIndex);
+	}
+
+	const FRawStaticIndexBuffer* IndexBuffer = &MeshLOD.IndexBuffer;
+	Builder.GetOrAddIndexBufferView(IndexBuffer);
+
+	const int32 SectionCount = MeshLOD.Sections.Num();
+	JsonMesh.Primitives.AddDefaulted(SectionCount);
+
+	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+	{
+		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
+		JsonPrimitive.Attributes = JsonAttributes;
+
+		const FStaticMeshSection& Section = MeshLOD.Sections[SectionIndex];
+		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer);
+
+		const int32 MaterialIndex = Section.MaterialIndex;
+		const UMaterialInterface* Material = OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex] != nullptr ?
+			OverrideMaterials[MaterialIndex] : StaticMesh->GetMaterial(MaterialIndex);
+
+		if (Material != nullptr)
 		{
-			Indices[Index] = static_cast<uint16>(IndexBuffer->Get(Index));
+			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
 		}
-
-		return Builder.AddBufferView(Indices, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
-	}
-	else
-	{
-		TArray<uint32> Indices;
-		IndexContainer->GetIndexBuffer(Indices);
-		return Builder.AddBufferView(Indices, sizeof(uint32), EGLTFJsonBufferTarget::ElementArrayBuffer);
-	}
-}
-
-FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer)
-{
-	const uint32 TriangleCount = MeshSection->NumTriangles;
-	if (TriangleCount == 0)
-	{
-		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	const uint32 FirstIndex = MeshSection->BaseIndex;
-	const bool bIs32Bit = IndexContainer->GetDataTypeSize() == sizeof(uint32);
-
-	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.BufferView = Builder.GetOrAddIndexBufferView(IndexContainer);
-	JsonAccessor.ByteOffset = FirstIndex * (bIs32Bit ? sizeof(uint32) : sizeof(uint16));
-	JsonAccessor.ComponentType = bIs32Bit ? EGLTFJsonComponentType::U32 : EGLTFJsonComponentType::U16;
-	JsonAccessor.Count = TriangleCount * 3;
-	JsonAccessor.Type = EGLTFJsonAccessorType::Scalar;
-
-	return Builder.AddAccessor(JsonAccessor);
+	return Builder.AddMesh(JsonMesh);
 }
 
 FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials)

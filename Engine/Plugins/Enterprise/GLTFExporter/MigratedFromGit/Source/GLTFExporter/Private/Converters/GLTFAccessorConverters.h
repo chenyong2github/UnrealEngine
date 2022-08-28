@@ -8,6 +8,8 @@
 #include "Converters/GLTFBoneMap.h"
 #include "Engine.h"
 
+class FMultiSizeIndexContainer;
+
 class FGLTFPositionVertexBufferConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAccessorIndex, const FPositionVertexBuffer*>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
@@ -58,4 +60,34 @@ class FGLTFBoneWeightVertexBufferConverter : public FGLTFBuilderContext, public 
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	FGLTFJsonAccessorIndex Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex) override final;
+};
+
+// TODO: merge into FGLTFStaticMeshSectionConverter
+class FGLTFIndexBufferConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonBufferViewIndex, const FRawStaticIndexBuffer*>
+{
+	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+	FGLTFJsonBufferViewIndex Convert(const FRawStaticIndexBuffer* IndexBuffer) override final;
+};
+
+class FGLTFStaticMeshSectionConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAccessorIndex, const FStaticMeshSection*, const FRawStaticIndexBuffer*>
+{
+	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+	FGLTFJsonAccessorIndex Convert(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer) override final;
+};
+
+// TODO: merge into FGLTFSkeletalMeshSectionConverter
+class FGLTFIndexContainerConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonBufferViewIndex, const FMultiSizeIndexContainer*>
+{
+	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+	FGLTFJsonBufferViewIndex Convert(const FMultiSizeIndexContainer* IndexContainer) override final;
+};
+
+class FGLTFSkeletalMeshSectionConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAccessorIndex, const FSkelMeshRenderSection*, const FMultiSizeIndexContainer*>
+{
+	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+	FGLTFJsonAccessorIndex Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer) override final;
 };
