@@ -8,7 +8,8 @@ FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* Ex
 	: bIsGlbFile(FGLTFFileUtility::IsGlbFile(FilePath))
 	, FilePath(FilePath)
 	, DirPath(FPaths::GetPath(FilePath))
-	, ExportOptions(ExportOptions)
+	, ExportOptions(ValidateExportOptions(ExportOptions))
+	, ExportOptionsGuard(ExportOptions)
 {
 }
 
@@ -80,6 +81,23 @@ bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) con
 	const EGLTFSceneMobility AllowedMobility = static_cast<EGLTFSceneMobility>(ExportOptions->ExportLights);
 	const EGLTFSceneMobility QueriedMobility = GetSceneMobility(LightMobility);
 	return EnumHasAllFlags(AllowedMobility, QueriedMobility);
+}
+
+const UGLTFExportOptions* FGLTFBuilder::ValidateExportOptions(const UGLTFExportOptions* ExportOptions)
+{
+	if (!FApp::CanEverRender())
+	{
+		if (ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::Disabled || ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
+		{
+			// TODO: warn the following options requires rendering support and will be overriden
+			UGLTFExportOptions* OverridenOptions = DuplicateObject(ExportOptions, nullptr);
+			OverridenOptions->BakeMaterialInputs = EGLTFMaterialBakeMode::Disabled;
+			OverridenOptions->TextureImageFormat = EGLTFTextureImageFormat::None;
+			return OverridenOptions;
+		}
+	}
+
+	return ExportOptions;
 }
 
 EGLTFSceneMobility FGLTFBuilder::GetSceneMobility(EComponentMobility::Type Mobility)

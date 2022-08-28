@@ -5,6 +5,7 @@
 #include "GLTFExportOptions.h"
 #include "Json/GLTFJsonEnums.h"
 #include "MaterialPropertyEx.h"
+#include "UObject/GCObjectScopeGuard.h"
 
 class FGLTFBuilder
 {
@@ -19,7 +20,7 @@ public:
 	const FString DirPath;
 
 	// TODO: make ExportOptions private and expose each option via getters to ease overriding settings in future
-	const UGLTFExportOptions* const ExportOptions;
+	const UGLTFExportOptions* ExportOptions;
 
 	FIntPoint GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const;
 	TextureFilter GetBakeFilterForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const;
@@ -31,6 +32,9 @@ public:
 
 private:
 
+	FGCObjectScopeGuard ExportOptionsGuard;
+	
+	static const UGLTFExportOptions* ValidateExportOptions(const UGLTFExportOptions* ExportOptions);
 	static EGLTFSceneMobility GetSceneMobility(EComponentMobility::Type Mobility);
 	static EGLTFMaterialPropertyGroup GetPropertyGroup(const FMaterialPropertyEx& Property);
 };
