@@ -54,6 +54,11 @@ const TArray<FString>& FGLTFLogBuilder::GetLoggedErrors() const
 	return Errors;
 }
 
+bool FGLTFLogBuilder::HasLoggedMessages() const
+{
+	return Suggestions.Num() + Warnings.Num() + Errors.Num() > 0;
+}
+
 void FGLTFLogBuilder::OpenLog() const
 {
 #if WITH_EDITOR
