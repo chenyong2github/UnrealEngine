@@ -26,9 +26,13 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 			Camera.Perspective = FGLTFCameraUtility::ConvertPerspective(DesiredView, Builder.ExportOptions->ExportScale);
 			break;
 
-		default:
+		case EGLTFJsonCameraType::None:
 			// TODO: report error (unsupported camera type)
 			return FGLTFJsonCameraIndex(INDEX_NONE);
+
+		default:
+			checkNoEntry();
+			break;
 	}
 
 	const AActor* Owner = CameraComponent->GetOwner();
