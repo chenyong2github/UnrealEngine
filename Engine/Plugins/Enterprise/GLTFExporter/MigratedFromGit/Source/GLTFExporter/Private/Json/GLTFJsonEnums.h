@@ -164,6 +164,6 @@ enum class EGLTFJsonLightType
 enum class EGLTFJsonPlayerCameraMode
 {
 	None = -1,
-	FirstPerson,
-	ThirdPerson
+	FreeLook,
+	Orbital
 };

@@ -13,7 +13,7 @@ namespace
 
 AGLTFCameraActor::AGLTFCameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Mode(EGLTFCameraMode::FirstPerson)
+	, Mode(EGLTFCameraMode::FreeLook)
 	, Focus(nullptr)
 	, PitchAngleMin(-90.0f)
 	, PitchAngleMax(90.0f)
@@ -87,7 +87,7 @@ void AGLTFCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (Mode == EGLTFCameraMode::FirstPerson)
+	if (Mode == EGLTFCameraMode::FreeLook)
 	{
 		const FRotator Rotation = GetActorRotation();
 
@@ -96,7 +96,7 @@ void AGLTFCameraActor::BeginPlay()
 		TargetPitch = Pitch;
 		TargetYaw = Yaw;
 	}
-	else if (Mode == EGLTFCameraMode::ThirdPerson)
+	else if (Mode == EGLTFCameraMode::Orbital)
 	{
 		const FVector FocusPosition = GetFocusPosition();
 
@@ -131,7 +131,7 @@ void AGLTFCameraActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (Mode == EGLTFCameraMode::FirstPerson)
+	if (Mode == EGLTFCameraMode::FreeLook)
 	{
 		const float Alpha = (RotationInertia == 0.0f) ? 1.0f : FMath::Min(DeltaSeconds / RotationInertia, 1.0f);
 		Yaw = FMath::Lerp(Yaw, TargetYaw, Alpha);
@@ -139,7 +139,7 @@ void AGLTFCameraActor::Tick(float DeltaSeconds)
 
 		SetActorRotation(FQuat::MakeFromEuler(FVector(0.0f, Pitch, Yaw)));
 	}
-	else if (Mode == EGLTFCameraMode::ThirdPerson)
+	else if (Mode == EGLTFCameraMode::Orbital)
 	{
 		if (DollyTime != 0.0f)
 		{
@@ -193,7 +193,7 @@ void AGLTFCameraActor::OnMouseY(float AxisValue)
 
 void AGLTFCameraActor::OnMouseWheelAxis(float AxisValue)
 {
-	if (Mode == EGLTFCameraMode::ThirdPerson)
+	if (Mode == EGLTFCameraMode::Orbital)
 	{
 		if (!FMath::IsNearlyZero(AxisValue))
 		{
