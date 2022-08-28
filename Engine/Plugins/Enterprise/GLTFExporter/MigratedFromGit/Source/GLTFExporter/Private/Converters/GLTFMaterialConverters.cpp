@@ -309,7 +309,7 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	}
 	else
 	{
-		// TODO: report texture coordinate conflict
+		// TODO: report error (texture coordinate conflict)
 		return false;
 	}
 
@@ -461,7 +461,7 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	}
 	else
 	{
-		// TODO: report texture coordinate conflict
+		// TODO: report error (texture coordinate conflict)
 		return false;
 	}
 
@@ -615,7 +615,7 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 	}
 	else
 	{
-		// TODO: report texture coordinate conflict
+		// TODO: report error (texture coordinate conflict)
 		return false;
 	}
 
@@ -1001,18 +1001,18 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 		{
 			if (ParameterValue == nullptr)
 			{
-				// TODO: report material as broken
+				// TODO: report error (no texture parameter assigned)
 			}
 			else
 			{
-				// TODO: report incorrect texture type
+				// TODO: report error (incorrect texture type)
 			}
 			return false;
 		}
 
 		if (!FGLTFMaterialUtility::TryGetTextureCoordinateIndex(TextureParameter, OutTexCoord))
 		{
-			// TODO: report failed to identify texture coordinate index
+			// TODO: report error (failed to identify texture coordinate index)
 			return false;
 		}
 
@@ -1028,18 +1028,18 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 		{
 			if (TextureSampler->Texture == nullptr)
 			{
-				// TODO: report material as broken
+				// TODO: report error (no texture sample assigned)
 			}
 			else
 			{
-				// TODO: report incorrect texture type
+				// TODO: report error (incorrect texture type)
 			}
 			return false;
 		}
 
 		if (!FGLTFMaterialUtility::TryGetTextureCoordinateIndex(TextureSampler, OutTexCoord))
 		{
-			// TODO: report failed to identify texture coordinate index
+			// TODO: report error (failed to identify texture coordinate index)
 			return false;
 		}
 
@@ -1169,7 +1169,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(FGLTFConver
 
 		if (TexCoords.Num() > 1)
 		{
-			// TODO: report multiple texture coordinates found, will use first
+			// TODO: report warning (multiple texture coordinates found, will use first)
 
 			// TODO: replace this hardcoded hack with something more configurable and proper
 			if (Property == MP_AmbientOcclusion && TexCoords.Contains(1))

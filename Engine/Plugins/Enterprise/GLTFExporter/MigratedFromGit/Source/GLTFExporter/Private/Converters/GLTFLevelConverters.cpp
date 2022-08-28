@@ -11,7 +11,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	const AActor* Owner = SceneComponent->GetOwner();
 	if (Owner == nullptr)
 	{
-		// TODO: report invalid scene component
+		// TODO: report error (invalid scene component)
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
@@ -72,6 +72,8 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 			Builder.AddChildNode(NodeIndex, LightNode);
 		}
 	}
+
+	// TODO: add support for SkyLight?
 
 	return NodeIndex;
 }
@@ -163,7 +165,7 @@ FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Add(FGLTFConvertBuilder& Bui
 			break;
 
 		default:
-		    // TODO: report unsupported camera type
+		    // TODO: report error (unsupported camera type)
 		    return FGLTFJsonCameraIndex(INDEX_NONE);
 	}
 
@@ -178,7 +180,7 @@ FGLTFJsonLightIndex FGLTFLightComponentConverter::Add(FGLTFConvertBuilder& Build
 
 	if (Light.Type == EGLTFJsonLightType::None)
 	{
-		// TODO: report unsupported light component type
+		// TODO: report error (unsupported light component type)
 		return FGLTFJsonLightIndex(INDEX_NONE);
 	}
 
