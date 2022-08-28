@@ -52,15 +52,15 @@ namespace
 
 		if (bZeroNormals)
 		{
-			Builder.LogWarning(FString::Printf(
-				TEXT("Mesh %s has some nearly zero-length normals which can create some issues. Consider checking 'Recompute Normals' in the asset settings"),
+			Builder.LogSuggestion(FString::Printf(
+				TEXT("Mesh %s has some nearly zero-length normals which may not be supported in some glTF applications. Consider checking 'Recompute Normals' in the asset settings"),
 				MeshName));
 		}
 
 		if (bZeroTangents)
 		{
-			Builder.LogWarning(FString::Printf(
-				TEXT("Mesh %s has some nearly zero-length tangents which can create some issues. Consider checking 'Recompute Tangents' in the asset settings"),
+			Builder.LogSuggestion(FString::Printf(
+				TEXT("Mesh %s has some nearly zero-length tangents which may not be supported in some glTF applications. Consider checking 'Recompute Tangents' in the asset settings"),
 				MeshName));
 		}
 	}

@@ -43,10 +43,9 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 #if !WITH_EDITOR
 	if (!StaticMesh->bAllowCPUAccess)
 	{
-		Builder.LogError(FString::Printf(
-			TEXT("Can't export mesh %s in runtime because Allow CPU Access is not enabled in asset settings"),
+		Builder.LogSuggestion(FString::Printf(
+			TEXT("Export of mesh %s can in runtime be speed-up by checking 'Allow CPU Access' in asset settings"),
 			*StaticMesh->GetName()));
-		return FGLTFJsonMeshIndex(INDEX_NONE);
 	}
 #endif
 
@@ -92,11 +91,10 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 #if !WITH_EDITOR
 	if (!SkeletalMesh->GetLODInfo(LODIndex)->bAllowCPUAccess)
 	{
-		Builder.LogError(FString::Printf(
-			TEXT("Can't export mesh %s in runtime because Allow CPU Access is not enabled for LOD %d in asset settings"),
+		Builder.LogSuggestion(FString::Printf(
+			TEXT("Export of mesh %s (LOD %d) can in runtime be speed-up by checking 'Allow CPU Access' in asset settings"),
 			*SkeletalMesh->GetName(),
 			LODIndex));
-		return FGLTFJsonMeshIndex(INDEX_NONE);
 	}
 #endif
 
