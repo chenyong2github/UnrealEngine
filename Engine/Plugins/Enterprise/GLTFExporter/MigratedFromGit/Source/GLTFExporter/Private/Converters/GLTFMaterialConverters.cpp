@@ -166,8 +166,8 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 
 	const EMaterialProperty OpacityProperty = MaterialInterface->GetBlendMode() == BLEND_Masked ? MP_OpacityMask : MP_Opacity;
 
-	BaseColorTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_BaseColor, MaterialInterface);
-	OpacityTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, OpacityProperty, MaterialInterface, true);
+	BaseColorTexture = FGLTFMaterialUtility::BakeMaterialPropertyToTexture(TextureSize, MP_BaseColor, MaterialInterface);
+	OpacityTexture = FGLTFMaterialUtility::BakeMaterialPropertyToTexture(TextureSize, OpacityProperty, MaterialInterface, true);
 
 	// NOTE: the baked textures may have a different (smaller) size than requested, so we update the
 	// texture-size to fit both textures without wasting too much space.
@@ -285,8 +285,8 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 		TextureFilter = FGLTFConverterUtility::ConvertFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
 	}
 
-	RoughnessTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_Roughness, MaterialInterface);
-	MetallicTexture = FGLTFMaterialUtility::BakeMaterialProperty(TextureSize, MP_Metallic, MaterialInterface);
+	RoughnessTexture = FGLTFMaterialUtility::BakeMaterialPropertyToTexture(TextureSize, MP_Roughness, MaterialInterface);
+	MetallicTexture = FGLTFMaterialUtility::BakeMaterialPropertyToTexture(TextureSize, MP_Metallic, MaterialInterface);
 
 	// NOTE: the baked textures may have a different (smaller) size than requested, so we update the
 	// texture-size to fit both textures without wasting too much space.
