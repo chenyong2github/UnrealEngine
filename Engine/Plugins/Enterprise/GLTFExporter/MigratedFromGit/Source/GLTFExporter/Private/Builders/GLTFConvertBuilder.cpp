@@ -427,6 +427,16 @@ FGLTFJsonEpicLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddEpicLevelVariant
 	return EpicLevelVariantSetsConverter.GetOrAdd(LevelVariantSets);
 }
 
+FGLTFJsonKhrMaterialVariantIndex FGLTFConvertBuilder::GetOrAddKhrMaterialVariant(const UVariant* Variant)
+{
+	if (Variant == nullptr)
+	{
+		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
+	}
+
+	return KhrMaterialVariantConverter.GetOrAdd(Variant);
+}
+
 FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent)
 {
 	if (StaticMeshComponent == nullptr)

@@ -5,6 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "LevelVariantSetsActor.h"
+#include "VariantSet.h"
 
 FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 {
@@ -28,9 +29,11 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 				// TODO: should a LevelVariantSet be exported even if not selected for export?
 				if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 				{
+					const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
+
 					if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Epic)
 					{
-						if (const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true))
+						if (LevelVariantSets != nullptr)
 						{
 							const FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
 							if (EpicLevelVariantSetsIndex != INDEX_NONE)
@@ -41,7 +44,16 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 					}
 					else if (Builder.ExportOptions->VariantSetsMode == EGLTFVariantSetsMode::Khronos)
 					{
-						// TODO: implement
+						if (LevelVariantSets != nullptr)
+						{
+							for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
+							{
+								for (const UVariant* Variant: VariantSet->GetVariants())
+								{
+									Builder.GetOrAddKhrMaterialVariant(Variant);
+								}
+							}
+						}
 					}
 				}
 
