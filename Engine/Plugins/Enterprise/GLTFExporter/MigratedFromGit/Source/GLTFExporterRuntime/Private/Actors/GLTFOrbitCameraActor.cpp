@@ -40,9 +40,6 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 	DollyStartDistance(0.0f)
 {
 	PrimaryActorTick.bCanEverTick = true;
-	// TODO: Figure out how to auto-enable both rendering and input for the camera
-	//AutoReceiveInput = static_cast<EAutoReceiveInput::Type>(GetAutoActivatePlayerIndex() + 1);
-	AutoReceiveInput = EAutoReceiveInput::Player0;
 }
 
 void AGLTFOrbitCameraActor::BeginPlay()
@@ -50,7 +47,11 @@ void AGLTFOrbitCameraActor::BeginPlay()
 	Super::BeginPlay();
 	
 	Distance = ClampDistance(Distance);
+	Pitch = ClampPitch(Pitch);
+	Yaw = ClampYaw(Yaw);
 	TargetDistance = Distance;
+	TargetPitch = Pitch;
+	TargetYaw = Yaw;
 
 	if (InputComponent)
 	{
@@ -84,6 +85,13 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 	SetActorTransform(ResultTransform);
 }
 
+void AGLTFOrbitCameraActor::PreInitializeComponents()
+{
+	AutoReceiveInput = static_cast<EAutoReceiveInput::Type>(GetAutoActivatePlayerIndex() + 1);
+
+	Super::PreInitializeComponents();
+}
+
 void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
 {
 	if (AxisValue == 0.0f)
@@ -106,8 +114,6 @@ void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
 	{
 		TargetYaw = Yaw + Remainder;
 	}
-
-	//TargetYaw = ClampYaw(TargetYaw + AxisValue * OrbitSensitivity);
 
 #if DEBUGGLTFORBITCAMERA
 	UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("AGLTFOrbitCameraActor::OnMouseX(), %f"), AxisValue);

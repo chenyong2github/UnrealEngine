@@ -23,6 +23,7 @@ protected:
 	virtual void BeginPlay() override;
 public:
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void PreInitializeComponents() override;
 	//~ End AActor Interface
 
 private:
