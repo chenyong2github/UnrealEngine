@@ -12,7 +12,6 @@
 #include "Channels/MovieSceneChannelProxy.h"
 
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-#include "Animation/AnimationPoseData.h"
 using namespace UE;
 #endif
 
@@ -20,61 +19,12 @@ void FGLTFAnimSequenceTask::Complete()
 {
 	// TODO: bone transforms should be absolute (not relative) according to gltf spec
 
-	const int32 FrameCount = AnimSequence->GetRawNumberOfFrames();
-	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
-
 	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
 	JsonAnimation.Name = AnimSequence->GetName() + TEXT("_") + FString::FromInt(AnimationIndex); // Ensure unique name due to limitation in certain gltf viewers
 
 	TArray<float> Timestamps;
-	Timestamps.AddUninitialized(FrameCount);
-	{
-		const float SequenceLength = AnimSequence->SequenceLength;
-		const float FrameLength = FrameCount > 1 ? SequenceLength / (FrameCount - 1) : 0;
-
-		for (int32 Frame = 0; Frame < FrameCount; ++Frame)
-		{
-			Timestamps[Frame] = FMath::Clamp(Frame * FrameLength, 0.0f, SequenceLength);
-		}
-	}
-
-	FBoneContainer BoneContainer;
-	FGLTFBoneUtility::InitializeToSkeleton(BoneContainer, Skeleton);
-
-	TArray<TArray<FTransform>> FrameTransforms;
-	FrameTransforms.AddDefaulted(FrameCount);
-	{
-		FMemMark Mark(FMemStack::Get());
-
-		FCompactPose Pose;
-		Pose.SetBoneContainer(&BoneContainer);
-
-		FBlendedCurve Curve;
-		Curve.InitFrom(BoneContainer);
-
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-		FStackCustomAttributes Attributes;
-		FAnimationPoseData PoseData(Pose, Curve, Attributes);
-#endif
-
-		for (int32 Frame = 0; Frame < FrameCount; ++Frame)
-		{
-			const FAnimExtractContext ExtractionContext(Timestamps[Frame]); // TODO: set bExtractRootMotion?
-
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-			AnimSequence->GetBonePose(PoseData, ExtractionContext);
-#else
-			AnimSequence->GetBonePose(Pose, Curve, ExtractionContext);
-#endif
-			Pose.CopyBonesTo(FrameTransforms[Frame]);
-		}
-
-		Pose.Empty();
-		Curve.Empty();
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-		Attributes.Empty();
-#endif
-	}
+	FGLTFBoneUtility::GetFrameTimestamps(AnimSequence, Timestamps);
+	const int32 FrameCount = Timestamps.Num();
 
 	// TODO: add animation data accessor converters to reuse track information
 
@@ -98,7 +48,12 @@ void FGLTFAnimSequenceTask::Complete()
 		// TODO: report warning (about unknown interpolation exported as linear)
 	}
 
-	const TArray<FBoneIndexType>& BoneIndices = BoneContainer.GetBoneIndicesArray();
+	TArray<FBoneIndexType> BoneIndices;
+	FGLTFBoneUtility::GetBoneIndices(AnimSequence->GetSkeleton(), BoneIndices);
+
+	TArray<TArray<FTransform>> FrameTransforms;
+	FGLTFBoneUtility::GetBoneTransformsByFrame(AnimSequence, Timestamps, BoneIndices, FrameTransforms);
+
 	for (FBoneIndexType BoneIndex : BoneIndices)
 	{
 		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
