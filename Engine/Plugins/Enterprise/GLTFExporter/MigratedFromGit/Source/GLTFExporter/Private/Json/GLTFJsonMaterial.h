@@ -35,12 +35,12 @@ struct FGLTFJsonPBRMetallicRoughness
 
 		if (MetallicFactor != 1)
 		{
-			JsonWriter.WriteValue(TEXT("metallicFactor"), MetallicFactor);
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("metallicFactor"), MetallicFactor);
 		}
 
 		if (RoughnessFactor != 1)
 		{
-			JsonWriter.WriteValue(TEXT("roughnessFactor"), RoughnessFactor);
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("roughnessFactor"), RoughnessFactor);
 		}
 
 		JsonWriter.WriteObjectEnd();
@@ -89,12 +89,12 @@ struct FGLTFJsonMaterial
 
 		if (AlphaMode != EGLTFJsonAlphaMode::Opaque)
 		{
-			JsonWriter.WriteValue(TEXT("alphaMode"), FGLTFJsonUtility::AlphaModeToString(AlphaMode));
+			JsonWriter.WriteValue(TEXT("alphaMode"), FGLTFJsonUtility::ToString(AlphaMode));
 		}
 
 		if (AlphaMode == EGLTFJsonAlphaMode::Mask && AlphaCutoff != 0.5f)
 		{
-			JsonWriter.WriteValue(TEXT("alphaCutoff"), AlphaCutoff);
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("alphaCutoff"), AlphaCutoff);
 		}
 
 		if (DoubleSided)
