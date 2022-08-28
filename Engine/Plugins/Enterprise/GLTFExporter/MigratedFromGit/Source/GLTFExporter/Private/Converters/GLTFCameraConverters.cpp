@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFCameraUtility.h"
-#include "Actors/GLTFOrbitCameraActor.h"
+#include "Actors/GLTFCameraActor.h"
 
 FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
 {
@@ -32,22 +32,22 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 	}
 
 	const AActor* Owner = CameraComponent->GetOwner();
-	const AGLTFOrbitCameraActor* OrbitCameraActor = Owner != nullptr ? Cast<AGLTFOrbitCameraActor>(Owner) : nullptr;
+	const AGLTFCameraActor* CameraActor = Owner != nullptr ? Cast<AGLTFCameraActor>(Owner) : nullptr;
 
-	if (OrbitCameraActor != nullptr)
+	if (CameraActor != nullptr)
 	{
 		if (Builder.ExportOptions->bExportOrbitalCameras)
 		{
 			FGLTFJsonOrbitCamera OrbitCamera;
-			OrbitCamera.Focus = Builder.GetOrAddNode(OrbitCameraActor->Focus);
-			OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMax, Builder.ExportOptions->ExportScale);
-			OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
-			OrbitCamera.MaxAngle = OrbitCameraActor->PitchAngleMax;
-			OrbitCamera.MinAngle = OrbitCameraActor->PitchAngleMin;
-			OrbitCamera.DistanceSensitivity = OrbitCameraActor->DistanceSensitivity;
-			OrbitCamera.OrbitSensitivity = OrbitCameraActor->OrbitSensitivity;
-			OrbitCamera.OrbitInertia = OrbitCameraActor->OrbitInertia;
-			OrbitCamera.DollyDuration = OrbitCameraActor->DollyDuration;
+			OrbitCamera.Focus = Builder.GetOrAddNode(CameraActor->Focus);
+			OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, Builder.ExportOptions->ExportScale);
+			OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
+			OrbitCamera.MaxAngle = CameraActor->PitchAngleMax;
+			OrbitCamera.MinAngle = CameraActor->PitchAngleMin;
+			OrbitCamera.DistanceSensitivity = CameraActor->DistanceSensitivity;
+			OrbitCamera.OrbitSensitivity = CameraActor->OrbitSensitivity;
+			OrbitCamera.OrbitInertia = CameraActor->OrbitInertia;
+			OrbitCamera.DollyDuration = CameraActor->DollyDuration;
 
 			Camera.OrbitCamera = OrbitCamera;
 		}

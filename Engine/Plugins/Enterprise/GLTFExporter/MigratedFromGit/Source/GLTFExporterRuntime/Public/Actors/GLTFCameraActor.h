@@ -3,19 +3,19 @@
 #pragma once
 
 #include "Camera/CameraActor.h"
-#include "GLTFOrbitCameraActor.generated.h"
+#include "GLTFCameraActor.generated.h"
 
 /**
  * GLTF-compatible camera that will carry over settings and simulate the behavior in the resulting viewer.
  * Focuses one actor in the scene and orbits it through mouse control.
  */
-UCLASS(BlueprintType, Blueprintable, DisplayName = "GLTF Orbit Camera Actor")
-class GLTFEXPORTERRUNTIME_API AGLTFOrbitCameraActor : public ACameraActor
+UCLASS(BlueprintType, Blueprintable, DisplayName = "GLTF Camera")
+class GLTFEXPORTERRUNTIME_API AGLTFCameraActor : public ACameraActor
 {
 	GENERATED_BODY()
 	//~ Begin UObject Interface
 public:
-	AGLTFOrbitCameraActor(const FObjectInitializer& ObjectInitializer);
+	AGLTFCameraActor(const FObjectInitializer& ObjectInitializer);
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR

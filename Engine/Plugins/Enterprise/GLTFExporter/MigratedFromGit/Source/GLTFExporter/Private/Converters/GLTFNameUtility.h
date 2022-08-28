@@ -6,7 +6,7 @@
 
 class ULightComponent;
 class UCameraComponent;
-class AGLTFInteractionHotspotActor;
+class AGLTFHotspotActor;
 
 struct FGLTFNameUtility
 {
