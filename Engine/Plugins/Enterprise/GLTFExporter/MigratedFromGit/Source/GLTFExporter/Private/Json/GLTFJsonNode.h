@@ -25,9 +25,6 @@ struct FGLTFJsonNode
 		: Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
 		, Scale(FGLTFJsonVector3::One)
-		, Camera(INDEX_NONE)
-		, Skin(INDEX_NONE)
-		, Mesh(INDEX_NONE)
 	{
 	}
 

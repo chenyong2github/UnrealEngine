@@ -18,18 +18,6 @@ struct FGLTFJsonAttributes
 	FGLTFJsonAccessorIndex Joints0;
 	FGLTFJsonAccessorIndex Weights0;
 
-	FGLTFJsonAttributes()
-		: Position(INDEX_NONE)
-		, Normal(INDEX_NONE)
-		, Tangent(INDEX_NONE)
-		, TexCoord0(INDEX_NONE)
-		, TexCoord1(INDEX_NONE)
-		, Color0(INDEX_NONE)
-		, Joints0(INDEX_NONE)
-		, Weights0(INDEX_NONE)
-	{
-	}
-
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
@@ -56,9 +44,7 @@ struct FGLTFJsonPrimitive
 	FGLTFJsonAttributes    Attributes;
 
 	FGLTFJsonPrimitive()
-		: Indices(INDEX_NONE)
-		, Material(INDEX_NONE)
-		, Mode(EGLTFJsonPrimitiveMode::None)
+		: Mode(EGLTFJsonPrimitiveMode::None)
 	{
 	}
 

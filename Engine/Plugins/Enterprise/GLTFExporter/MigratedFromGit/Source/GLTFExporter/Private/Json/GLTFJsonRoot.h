@@ -64,11 +64,6 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonNode>       Nodes;
 	TArray<FGLTFJsonScene>      Scenes;
 
-	FGLTFJsonRoot()
-		: DefaultScene(INDEX_NONE)
-	{
-	}
-
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
