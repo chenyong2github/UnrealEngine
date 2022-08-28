@@ -2,16 +2,15 @@
 
 #pragma once
 
-#include "Builders/GLTFMessageBuilder.h"
 #include "CoreMinimal.h"
 
 class FGLTFZipUtility
 {
 public:
 
-	static bool ExtractToDirectory(const FString& SourceFilePath, const FString& DestinationDirectoryPath, FGLTFMessageBuilder& Builder);
+	static bool ExtractToDirectory(const FString& ArchiveFile, const FString& TargetDirectory);
 
 private:
 
-	static bool ExtractCurrentFile(void* ZipFile, const FString& DestinationDirectoryPath, FGLTFMessageBuilder& Builder);
+	static bool ExtractCurrentFile(void* ZipHandle, const FString& TargetDirectory);
 };

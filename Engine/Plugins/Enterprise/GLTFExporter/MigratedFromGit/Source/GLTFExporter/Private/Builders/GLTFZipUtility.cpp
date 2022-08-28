@@ -7,53 +7,49 @@ THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/zlib/zlib-1.2.5/Src/contrib/minizip/unzip.h"
 THIRD_PARTY_INCLUDES_END
 
-bool FGLTFZipUtility::ExtractToDirectory(const FString& SourceFilePath, const FString& DestinationDirectoryPath, FGLTFMessageBuilder& Builder)
+bool FGLTFZipUtility::ExtractToDirectory(const FString& ArchiveFile, const FString& TargetDirectory)
 {
-	const unzFile ZipFile = unzOpen64(TCHAR_TO_ANSI(*SourceFilePath));
-	if (ZipFile == nullptr)
+	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
+	if (ZipHandle == nullptr)
 	{
-		Builder.AddErrorMessage(TEXT("Can't open zip archive"));
 		return false;
 	}
 
-	if (const int ErrorCode = unzGoToFirstFile(ZipFile))
+	if (unzGoToFirstFile(ZipHandle) != UNZ_OK)
 	{
-		Builder.AddErrorMessage(FString::Printf(TEXT("Can't locate first file in zip archive (error %d)"), ErrorCode));
-		unzClose(ZipFile);
+		unzClose(ZipHandle);
 		return false;
 	}
 
 	do
 	{
-		if (!ExtractCurrentFile(ZipFile, DestinationDirectoryPath, Builder))
+		if (!ExtractCurrentFile(ZipHandle, TargetDirectory))
 		{
-			unzClose(ZipFile);
+			unzClose(ZipHandle);
 			return false;
 		}
-	} while (unzGoToNextFile(ZipFile) == UNZ_OK);
+	} while (unzGoToNextFile(ZipHandle) == UNZ_OK);
 
-	unzClose(ZipFile);
+	unzClose(ZipHandle);
 	return true;
 }
 
-bool FGLTFZipUtility::ExtractCurrentFile(void* ZipFile, const FString& DestinationDirectoryPath, FGLTFMessageBuilder& Builder)
+bool FGLTFZipUtility::ExtractCurrentFile(void* ZipHandle, const FString& TargetDirectory)
 {
 	unz_file_info64 FileInfo;
-	if (const int ErrorCode = unzGetCurrentFileInfo64(ZipFile, &FileInfo, nullptr, 0, nullptr, 0, nullptr, 0))
+	if (unzGetCurrentFileInfo64(ZipHandle, &FileInfo, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
 	{
-		Builder.AddErrorMessage(FString::Printf(TEXT("Can't get file info in zip archive (error %d)"), ErrorCode));
 		return false;
 	}
 
 	TArray<char> Filename;
 	Filename.Init('\0', FileInfo.size_filename + 1);
-	if (const int ErrorCode = unzGetCurrentFileInfo64(ZipFile, nullptr, Filename.GetData(), Filename.Num() - 1, nullptr, 0, nullptr, 0))
+	if (unzGetCurrentFileInfo64(ZipHandle, nullptr, Filename.GetData(), Filename.Num() - 1, nullptr, 0, nullptr, 0) != UNZ_OK)
 	{
-		Builder.AddErrorMessage(FString::Printf(TEXT("Can't get file name in zip archive (error %d)"), ErrorCode));
 		return false;
 	}
 
-	const FString DestinationFilePath = DestinationDirectoryPath / Filename.GetData();
+	const FString DestinationFilePath = TargetDirectory / Filename.GetData();
 	if (DestinationFilePath.EndsWith(TEXT("/")) || DestinationFilePath.EndsWith(TEXT("\\")))
 	{
 		IFileManager::Get().MakeDirectory(*DestinationFilePath, true);
@@ -63,32 +59,28 @@ bool FGLTFZipUtility::ExtractCurrentFile(void* ZipFile, const FString& Destinati
 		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*DestinationFilePath);
 		if (FileWriter == nullptr)
 		{
-			Builder.AddErrorMessage(FString::Printf(TEXT("Can't write to file %s from zip archive"), *DestinationFilePath));
 			return false;
 		}
 
-		if (const int ErrorCode = unzOpenCurrentFile(ZipFile))
+		if (unzOpenCurrentFile(ZipHandle) != UNZ_OK)
 		{
-			Builder.AddErrorMessage(FString::Printf(TEXT("Can't open file %s in zip archive (error %d)"), ANSI_TO_TCHAR(Filename.GetData()), ErrorCode));
 			return false;
 		}
 
 		uint8 ReadBuffer[8192];
-		while (const int ReadSize = unzReadCurrentFile(ZipFile, ReadBuffer, sizeof(ReadBuffer)))
+		while (const int ReadSize = unzReadCurrentFile(ZipHandle, ReadBuffer, sizeof(ReadBuffer)))
 		{
 			if (ReadSize < 0)
 			{
-				Builder.AddErrorMessage(FString::Printf(TEXT("Can't read file %s in zip archive (error %d)"), ANSI_TO_TCHAR(Filename.GetData()), ReadSize));
-				unzCloseCurrentFile(ZipFile);
+				unzCloseCurrentFile(ZipHandle);
 				return false;
 			}
 
 			FileWriter->Serialize(ReadBuffer, ReadSize);
 		}
 
-		if (const int ErrorCode = unzCloseCurrentFile(ZipFile))
+		if (unzCloseCurrentFile(ZipHandle) != UNZ_OK)
 		{
-			Builder.AddErrorMessage(FString::Printf(TEXT("Can't close file %s in zip archive (error %d)"), ANSI_TO_TCHAR(Filename.GetData()), ErrorCode));
 			return false;
 		}
 
