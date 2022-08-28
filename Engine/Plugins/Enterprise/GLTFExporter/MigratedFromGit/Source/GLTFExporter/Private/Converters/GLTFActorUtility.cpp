@@ -2,11 +2,24 @@
 
 #include "Converters/GLTFActorUtility.h"
 #include "Engine/Blueprint.h"
+#include "Actors/GLTFHotspotActor.h"
+#include "LevelSequenceActor.h"
 
 bool FGLTFActorUtility::IsRootActor(const AActor* Actor, bool bSelectedOnly)
 {
 	const AActor* ParentActor = Actor->GetAttachParentActor();
 	return ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected());
+}
+
+bool FGLTFActorUtility::IsGenericActor(const AActor* Actor)
+{
+	const FString BlueprintPath = GetBlueprintPath(Actor);
+	if (IsSkySphereBlueprint(BlueprintPath)) return false;
+	if (IsHDRIBackdropBlueprint(BlueprintPath)) return false;
+	if (Actor->IsA<ALevelSequenceActor>()) return false;
+	if (Actor->IsA<AGLTFHotspotActor>()) return false;
+	if (Actor->IsA<APawn>()) return false;
+	return true;
 }
 
 FString FGLTFActorUtility::GetBlueprintPath(const AActor* Actor)

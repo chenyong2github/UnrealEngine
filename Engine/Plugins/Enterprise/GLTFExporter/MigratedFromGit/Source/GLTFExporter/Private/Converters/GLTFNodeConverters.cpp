@@ -117,7 +117,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	// TODO: don't export invisible components unless visibility is variable due to variant sets
 
 	// TODO: should hidden in game be configurable like this?
-	if (!SceneComponent->bHiddenInGame || Builder.ExportOptions->bExportHiddenInGame)
+	if ((!SceneComponent->bHiddenInGame || Builder.ExportOptions->bExportHiddenInGame) && FGLTFActorUtility::IsGenericActor(Owner))
 	{
 		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 		{
