@@ -82,9 +82,6 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonEpicVar
 			continue;
 		}
 
-		const FName PropertyName = Property->GetPropertyName();
-		const FFieldClass* PropertyClass = Property->GetPropertyClass();
-
 		if (const UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(Property))
 		{
 			if (Builder.ExportOptions->ExportMaterialVariants != EGLTFMaterialVariantMode::None && TryParseMaterialPropertyValue(OutVariant, MaterialProperty))
@@ -92,21 +89,21 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonEpicVar
 				bHasParsedAnyProperty = true;
 			}
 		}
-		else if (PropertyName == TEXT("StaticMesh")) // TODO: should we not also check PropertyClass?
+		else if (FGLTFVariantUtility::IsStaticMeshProperty(Property))
 		{
 			if (Builder.ExportOptions->bExportMeshVariants && TryParseMeshPropertyValue<UStaticMesh>(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
-		else if (PropertyName == TEXT("SkeletalMesh")) // TODO: should we not also check PropertyClass?
+		else if (FGLTFVariantUtility::IsSkeletalMeshProperty(Property))
 		{
 			if (Builder.ExportOptions->bExportMeshVariants && TryParseMeshPropertyValue<USkeletalMesh>(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
-		else if (PropertyName == TEXT("bVisible") && PropertyClass->IsChildOf(FBoolProperty::StaticClass()))
+		else if (FGLTFVariantUtility::IsVisibleProperty(Property))
 		{
 			if (Builder.ExportOptions->bExportVisibilityVariants && TryParseVisibilityPropertyValue(OutVariant, Property))
 			{
@@ -158,7 +155,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 		return false;
 	}
 
-	Builder.RegisterObjectVariant(Owner, Property);
+	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
@@ -217,7 +214,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	const UMaterialInterface* Material = const_cast<UPropertyValueMaterial*>(Property)->GetMaterial();
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 
-	Builder.RegisterObjectVariant(Owner, Property);
+	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	FGLTFJsonEpicVariantMaterial VariantMaterial;
 	VariantMaterial.Material = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
@@ -271,7 +268,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMeshPropertyValue(FGLTFJsonEpic
 		return false;
 	}
 
-	Builder.RegisterObjectVariant(Owner, Property);
+	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	const FGLTFMaterialArray OverrideMaterials(Target->OverrideMaterials);
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
