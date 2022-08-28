@@ -6,7 +6,7 @@
 #include "MeshDescription.h"
 #include "Modules/ModuleManager.h"
 #include "IGLTFMaterialBakingModule.h"
-#include "MaterialBakingStructures.h"
+#include "GLTFMaterialBakingStructures.h"
 #endif
 
 void FGLTFUVOverlapChecker::Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord)

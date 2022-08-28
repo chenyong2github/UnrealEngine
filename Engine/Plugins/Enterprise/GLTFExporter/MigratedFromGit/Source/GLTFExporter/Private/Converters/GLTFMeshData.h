@@ -6,7 +6,7 @@
 #include "MeshDescription.h"
 
 #if WITH_EDITOR
-#include "MaterialBakingStructures.h"
+#include "GLTFMaterialBakingStructures.h"
 #endif
 
 struct FGLTFMeshData

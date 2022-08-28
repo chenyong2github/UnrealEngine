@@ -7,8 +7,8 @@
 #include "Misc/DefaultValueHelper.h"
 #if WITH_EDITOR
 #include "GLTFMaterialAnalyzer.h"
-#include "GLTFMaterialBaking/Public/IGLTFMaterialBakingModule.h"
-#include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
+#include "IGLTFMaterialBakingModule.h"
+#include "GLTFMaterialBakingStructures.h"
 #include "Modules/ModuleManager.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
