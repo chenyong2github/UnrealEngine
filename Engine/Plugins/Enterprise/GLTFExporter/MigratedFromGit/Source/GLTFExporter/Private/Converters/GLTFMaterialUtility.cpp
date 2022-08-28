@@ -10,6 +10,50 @@
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
 
+FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Property)
+{
+	// TODO: replace with GMaterialPropertyAttributesMap lookup (when public API available)
+
+	switch (Property)
+	{
+		case MP_EmissiveColor:          return FVector4(0,0,0,0);
+		case MP_Opacity:                return FVector4(1,0,0,0);
+		case MP_OpacityMask:            return FVector4(1,0,0,0);
+		case MP_BaseColor:              return FVector4(0,0,0,0);
+		case MP_Metallic:               return FVector4(0,0,0,0);
+		case MP_Specular:               return FVector4(.5,0,0,0);
+		case MP_Roughness:              return FVector4(.5,0,0,0);
+		case MP_Anisotropy:             return FVector4(0,0,0,0);
+		case MP_Normal:                 return FVector4(0,0,1,0);
+		case MP_Tangent:                return FVector4(1,0,0,0);
+		case MP_WorldPositionOffset:    return FVector4(0,0,0,0);
+		case MP_WorldDisplacement:      return FVector4(0,0,0,0);
+		case MP_TessellationMultiplier: return FVector4(1,0,0,0);
+		case MP_SubsurfaceColor:        return FVector4(1,1,1,0);
+		case MP_CustomData0:            return FVector4(1,0,0,0);
+		case MP_CustomData1:            return FVector4(.1,0,0,0);
+		case MP_AmbientOcclusion:       return FVector4(1,0,0,0);
+		case MP_Refraction:             return FVector4(1,0,0,0);
+		case MP_PixelDepthOffset:       return FVector4(0,0,0,0);
+		case MP_ShadingModel:           return FVector4(0,0,0,0);
+		default:                        break;
+	}
+
+	if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
+	{
+		return FVector4(0,0,0,0);
+	}
+
+	check(false);
+	return FVector4();
+}
+
+const FExpressionInput* FGLTFMaterialUtility::GetInputFromProperty(const UMaterialInterface* Material, EMaterialProperty Property)
+{
+	UMaterial* UnderlyingMaterial = const_cast<UMaterial*>(Material->GetMaterial());
+	return UnderlyingMaterial->GetExpressionInputForProperty(Property);
+}
+
 UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const FGLTFPropertyBakeOutput& PropertyBakeOutput, bool bUseSRGB)
 {
 	return CreateTransientTexture(
