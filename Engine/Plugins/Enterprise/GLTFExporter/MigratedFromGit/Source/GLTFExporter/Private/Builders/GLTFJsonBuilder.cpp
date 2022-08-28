@@ -23,6 +23,11 @@ FGLTFJsonBufferViewIndex FGLTFJsonBuilder::AddBufferView(const FGLTFJsonBufferVi
 	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(JsonBufferView));
 }
 
+FGLTFJsonCameraIndex FGLTFJsonBuilder::AddCamera(const FGLTFJsonCamera& JsonCamera)
+{
+	return FGLTFJsonCameraIndex(JsonRoot.Cameras.Add(JsonCamera));
+}
+
 FGLTFJsonImageIndex FGLTFJsonBuilder::AddImage(const FGLTFJsonImage& JsonImage)
 {
 	return FGLTFJsonImageIndex(JsonRoot.Images.Add(JsonImage));
@@ -98,6 +103,11 @@ FGLTFJsonBuffer& FGLTFJsonBuilder::GetBuffer(FGLTFJsonBufferIndex BufferIndex)
 FGLTFJsonBufferView& FGLTFJsonBuilder::GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex)
 {
 	return JsonRoot.BufferViews[BufferViewIndex];
+}
+
+FGLTFJsonCamera& FGLTFJsonBuilder::GetCamera(FGLTFJsonCameraIndex CameraIndex)
+{
+	return JsonRoot.Cameras[CameraIndex];
 }
 
 FGLTFJsonImage& FGLTFJsonBuilder::GetImage(FGLTFJsonImageIndex ImageIndex)

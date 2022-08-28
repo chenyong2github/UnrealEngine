@@ -204,6 +204,16 @@ FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World, cons
 	return GetOrAddScene(World->PersistentLevel, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
 }
 
+FGLTFJsonCameraIndex FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent* CameraComponent, const FString& DesiredName)
+{
+	if (CameraComponent == nullptr)
+	{
+		return FGLTFJsonCameraIndex(INDEX_NONE);
+	}
+
+	return CameraComponentConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? CameraComponent->GetName() : DesiredName, CameraComponent);
+}
+
 FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Actor, const FString& DesiredName)
 {
 	if (Actor == nullptr)

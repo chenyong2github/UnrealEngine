@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonOrthographic
+struct FGLTFJsonOrthographic
 {
 	float XMag; // horizontal magnification of the view
 	float YMag; // vertical magnification of the view
@@ -35,7 +35,7 @@ struct GLTFEXPORTER_API FGLTFJsonOrthographic
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonPerspective
+struct FGLTFJsonPerspective
 {
 	float AspectRatio; // aspect ratio of the field of view
 	float YFov; // vertical field of view in radians
@@ -73,7 +73,7 @@ struct GLTFEXPORTER_API FGLTFJsonPerspective
 	}
 };
 
-struct GLTFEXPORTER_API FGLTFJsonCamera
+struct FGLTFJsonCamera
 {
 	FString Name;
 
