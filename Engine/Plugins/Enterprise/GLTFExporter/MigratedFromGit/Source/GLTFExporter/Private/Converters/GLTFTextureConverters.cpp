@@ -43,12 +43,12 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Convert(const UText
 {
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
+		const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
+		Builder.SetupTask<FGLTFTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, bToSRGB, TextureIndex);
+		return TextureIndex;
 	}
 
-	const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
-	Builder.SetupTask<FGLTFTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, bToSRGB, TextureIndex);
-	return TextureIndex;
+	return FGLTFJsonTextureIndex(INDEX_NONE);
 }
 
 FGLTFJsonTextureIndex FGLTFTextureLightMapConverter::Convert(const ULightMapTexture2D* LightMap)
