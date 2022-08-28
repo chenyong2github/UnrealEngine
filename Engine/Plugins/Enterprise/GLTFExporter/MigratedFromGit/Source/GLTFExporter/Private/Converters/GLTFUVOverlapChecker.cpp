@@ -7,7 +7,7 @@
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
 
-void FGLTFUVOverlapChecker::Sanitize(const FMeshDescription*& Description, const TArray<int32>& SectionIndices, int32& TexCoord)
+void FGLTFUVOverlapChecker::Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord)
 {
 	if (Description != nullptr)
 	{
@@ -31,7 +31,7 @@ void FGLTFUVOverlapChecker::Sanitize(const FMeshDescription*& Description, const
 	}
 }
 
-float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, const TArray<int32> SectionIndices, int32 TexCoord)
+float FGLTFUVOverlapChecker::Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{

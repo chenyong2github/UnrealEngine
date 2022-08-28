@@ -1302,7 +1302,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 {
 	if (MeshData == nullptr)
 	{
-		TArray<int32> TexCoords;
+		FGLTFIndexArray TexCoords;
 		FGLTFMaterialUtility::GetAllTextureCoordinateIndices(Material, Property, TexCoords);
 
 		if (TexCoords.Num() > 0)

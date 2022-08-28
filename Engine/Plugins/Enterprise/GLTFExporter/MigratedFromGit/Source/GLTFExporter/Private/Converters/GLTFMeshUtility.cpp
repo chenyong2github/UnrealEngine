@@ -4,11 +4,11 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "PlatformInfo.h"
 
-TArray<int32> FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
+FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
 {
 	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD.Sections;
 
-	TArray<int32> SectionIndices;
+	FGLTFIndexArray SectionIndices;
 	SectionIndices.Reserve(Sections.Num());
 
 	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
@@ -22,11 +22,11 @@ TArray<int32> FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources&
 	return SectionIndices;
 }
 
-TArray<int32> FGLTFMeshUtility::GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex)
+FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex)
 {
 	const TArray<FSkelMeshRenderSection>& Sections = MeshLOD.RenderSections;
 
-	TArray<int32> SectionIndices;
+	FGLTFIndexArray SectionIndices;
 	SectionIndices.Reserve(Sections.Num());
 
 	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)

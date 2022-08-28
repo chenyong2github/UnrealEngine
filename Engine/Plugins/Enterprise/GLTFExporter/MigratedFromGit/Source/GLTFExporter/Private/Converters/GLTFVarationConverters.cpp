@@ -236,7 +236,7 @@ bool FGLTFVariationConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& Ou
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 
 	const FGLTFMeshData* MeshData = nullptr;
-	TArray<int32> SectionIndices;
+	FGLTFIndexArray SectionIndices;
 
 	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
 	{
