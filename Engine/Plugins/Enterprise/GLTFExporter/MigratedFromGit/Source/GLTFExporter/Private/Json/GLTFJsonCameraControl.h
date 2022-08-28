@@ -8,7 +8,7 @@
 struct FGLTFJsonCameraControl
 {
 	EGLTFJsonCameraControlMode Mode;
-	FGLTFJsonNodeIndex         Focus;
+	FGLTFJsonNodeIndex         Target;
 	float                      MaxDistance;
 	float                      MinDistance;
 	float                      MaxPitch;
@@ -26,7 +26,7 @@ struct FGLTFJsonCameraControl
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToString(Mode));
-		JsonWriter.WriteValue(TEXT("focus"), Focus);
+		JsonWriter.WriteValue(TEXT("target"), Target);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxDistance"), MaxDistance);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("minDistance"), MinDistance);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxPitch"), MaxPitch);
