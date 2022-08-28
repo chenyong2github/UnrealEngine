@@ -22,23 +22,17 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, int32& L
 		OverrideMaterials.Empty();
 	}
 
-	if (StaticMesh->GetNumLODs() > LODIndex)
+	LODIndex = FMath::Clamp(LODIndex, 0, StaticMesh->GetNumLODs() - 1);
+	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
+
+	if (OverrideVertexColors == &MeshLOD.VertexBuffers.ColorVertexBuffer)
 	{
-		const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
-		if (OverrideVertexColors == &MeshLOD.VertexBuffers.ColorVertexBuffer)
-		{
-			OverrideVertexColors = nullptr;
-		}
+		OverrideVertexColors = nullptr;
 	}
 }
 
 FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials)
 {
-	if (StaticMesh->GetNumLODs() <= LODIndex)
-	{
-		return FGLTFJsonMeshIndex(INDEX_NONE);
-	}
-
 	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
 	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, StaticMesh, LODIndex, OverrideVertexColors, OverrideMaterials, MeshIndex);
 	return MeshIndex;
@@ -67,31 +61,22 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, in
 	}
 
 	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-	if (RenderData->LODRenderData.Num() > LODIndex)
+	LODIndex = FMath::Clamp(LODIndex, 0, RenderData->LODRenderData.Num() - 1);
+	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
+
+	if (OverrideVertexColors == &MeshLOD.StaticVertexBuffers.ColorVertexBuffer)
 	{
-		const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
+		OverrideVertexColors = nullptr;
+	}
 
-		if (OverrideVertexColors == &MeshLOD.StaticVertexBuffers.ColorVertexBuffer)
-		{
-			OverrideVertexColors = nullptr;
-		}
-
-		if (OverrideSkinWeights == MeshLOD.GetSkinWeightVertexBuffer())
-		{
-			OverrideSkinWeights = nullptr;
-		}
+	if (OverrideSkinWeights == MeshLOD.GetSkinWeightVertexBuffer())
+	{
+		OverrideSkinWeights = nullptr;
 	}
 }
 
 FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials)
 {
-	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-
-	if (RenderData->LODRenderData.Num() <= LODIndex)
-	{
-		return FGLTFJsonMeshIndex(INDEX_NONE);
-	}
-
 	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh();
 	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials, MeshIndex);
 	return MeshIndex;
