@@ -27,18 +27,13 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFInteractionHotsp
 		if (const ASkeletalMeshActor* SkeletalMeshActor = HotspotActor->SkeletalMeshActor)
 		{
 			const FGLTFJsonNodeIndex RootNode = Builder.GetOrAddNode(SkeletalMeshActor);
-			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
+
+			const USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
+			if (const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh)
 			{
 				if (const UAnimSequence* AnimSequence = HotspotActor->AnimationSequence)
 				{
-					if (SkeletalMesh->Skeleton == AnimSequence->GetSkeleton())
-					{
-						JsonHotspot.Animation = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
-					}
-					else
-					{
-						// TODO: report warning
-					}
+					JsonHotspot.Animation = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
 				}
 				else
 				{

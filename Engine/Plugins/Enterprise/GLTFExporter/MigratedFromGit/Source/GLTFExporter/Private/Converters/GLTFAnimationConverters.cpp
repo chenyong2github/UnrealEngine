@@ -23,6 +23,12 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 		return FGLTFJsonAnimationIndex(INDEX_NONE);
 	}
 
+	if (Skeleton != SkeletalMesh->Skeleton)
+	{
+		// TODO: report error
+		return FGLTFJsonAnimationIndex(INDEX_NONE);
+	}
+
 	FGLTFJsonAnimation JsonAnimation;
 	AnimSequence->GetName(JsonAnimation.Name);
 
