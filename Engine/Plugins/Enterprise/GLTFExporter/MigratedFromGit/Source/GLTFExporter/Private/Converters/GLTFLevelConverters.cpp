@@ -38,16 +38,12 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	const TArray<USceneComponent*>& Children = SceneComponent->GetAttachChildren();
 	for (const USceneComponent* ChildComponent : Children)
 	{
-		if (ChildComponent != nullptr)
+		if (ChildComponent != nullptr && (!bSelectedOnly || FGLTFConverterUtility::IsSelected(ChildComponent)))
 		{
-			const AActor* ChildOwner = ChildComponent->GetOwner();
-			if (!bSelectedOnly || ChildOwner->IsSelected())
+			FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(ChildComponent, bSelectedOnly, false);
+			if (NodeIndex != INDEX_NONE)
 			{
-				FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(ChildComponent, bSelectedOnly, false);
-				if (NodeIndex != INDEX_NONE)
-				{
-					Node.Children.Add(NodeIndex);
-				}
+				Node.Children.Add(NodeIndex);
 			}
 		}
 	}
@@ -73,8 +69,8 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 			const USceneComponent* RootComponent = Actor->GetRootComponent();
 			if (RootComponent != nullptr)
 			{
-				const AActor* ParentActor = Actor->GetParentActor();
-				if (ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected()))
+				const USceneComponent* ParentComponent = RootComponent->GetAttachParent();
+				if (ParentComponent == nullptr || (bSelectedOnly && !FGLTFConverterUtility::IsSelected(ParentComponent)))
 				{
 					FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(RootComponent, bSelectedOnly, true);
 					if (NodeIndex != INDEX_NONE)
