@@ -8,7 +8,7 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOpt
 {
 }
 
-void FGLTFJsonBuilder::WriteJson(FArchive& Archive) const
+void FGLTFJsonBuilder::WriteJson(FArchive& Archive)
 {
 	JsonRoot.ToJson(&Archive, bIsGlbFile, ExportOptions->bAllExtensionsRequired);
 }

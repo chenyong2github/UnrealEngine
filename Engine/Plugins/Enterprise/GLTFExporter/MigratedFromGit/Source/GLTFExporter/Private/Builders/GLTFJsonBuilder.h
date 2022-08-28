@@ -11,7 +11,7 @@ protected:
 
 	FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
-	void WriteJson(FArchive& Archive) const;
+	void WriteJson(FArchive& Archive);
 
 	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
 

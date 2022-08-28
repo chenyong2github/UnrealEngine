@@ -7,7 +7,7 @@ FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLT
 {
 }
 
-void FGLTFContainerBuilder::WriteGlb(FArchive& Archive) const
+void FGLTFContainerBuilder::WriteGlb(FArchive& Archive)
 {
 	FBufferArchive JsonData;
 	WriteJson(JsonData);
