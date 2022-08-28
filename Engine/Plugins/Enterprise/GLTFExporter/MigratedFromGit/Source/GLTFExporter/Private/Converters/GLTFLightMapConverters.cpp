@@ -37,15 +37,6 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponen
 		return FGLTFJsonLightMapIndex(INDEX_NONE);
 	}
 
-	// TODO: this check should ideally be placed earlier (or outside this function), but we need to check
-	// if a light-map is in use before displaying warnings about skipped light-maps.
-	// Perhaps we should extract the code needed for checking for the presence of light-maps into
-	// a utility-function to allow the check to be performed elsewhere?
-	if (!Builder.ExportOptions->bExportLightmaps)
-	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Lightmap for %s disabled by export options"), *StaticMeshComponent->GetOwner()->GetName()));
-	}
-
 	const FLightMap2D* LightMap2D = MeshMapBuildData->LightMap->GetLightMap2D();
 	check(LightMap2D);
 

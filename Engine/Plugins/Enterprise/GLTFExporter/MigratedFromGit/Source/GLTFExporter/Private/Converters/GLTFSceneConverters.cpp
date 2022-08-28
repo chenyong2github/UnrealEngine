@@ -33,12 +33,6 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const ULevel* Level)
 					Scene.Variations.Add(VariationIndex);
 				}
 			}
-			else
-			{
-				Builder.AddWarningMessage(FString::Printf(
-					TEXT("Level Variant Set %s disabled by export options"),
-					*LevelVariantSetsActor->GetName()));
-			}
 		}
 
 		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
