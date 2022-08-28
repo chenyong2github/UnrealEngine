@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Json/GLTFJsonEnums.h"
-#include "Engine.h"
 
 struct FGLTFTextureUtility
 {

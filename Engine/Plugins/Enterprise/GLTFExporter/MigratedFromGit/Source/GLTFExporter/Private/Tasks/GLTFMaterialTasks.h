@@ -9,7 +9,6 @@
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "Converters/GLTFMeshData.h"
 #include "MaterialPropertyEx.h"
-#include "Engine.h"
 
 struct FGLTFPropertyBakeOutput;
 

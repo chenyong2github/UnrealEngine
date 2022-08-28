@@ -8,7 +8,6 @@
 #include "Converters/GLTFMeshSectionConverters.h"
 #include "Converters/GLTFMeshDataConverters.h"
 #include "Converters/GLTFMaterialArray.h"
-#include "Engine.h"
 
 template <typename... InputTypes>
 class TGLTFMeshConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMeshIndex, InputTypes...>

@@ -4,7 +4,6 @@
 
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFMeshData.h"
-#include "Engine.h"
 
 template <typename MeshType, typename MeshComponentType>
 class TGLTFMeshDataConverter final : public TGLTFConverter<const FGLTFMeshData*, const MeshType*, const MeshComponentType*, int32>

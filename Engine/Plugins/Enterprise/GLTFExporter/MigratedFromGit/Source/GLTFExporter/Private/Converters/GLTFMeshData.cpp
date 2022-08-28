@@ -2,7 +2,6 @@
 
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFNameUtility.h"
-#include "Converters/GLTFMeshUtility.h"
 
 #if WITH_EDITOR
 #include "StaticMeshAttributes.h"

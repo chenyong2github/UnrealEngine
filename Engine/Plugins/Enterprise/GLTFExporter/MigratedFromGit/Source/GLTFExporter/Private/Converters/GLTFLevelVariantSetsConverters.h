@@ -6,10 +6,12 @@
 #include "Json/GLTFJsonLevelVariantSets.h"
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
-#include "Engine.h"
-#include "Variant.h"
-#include "PropertyValue.h"
-#include "LevelVariantSets.h"
+
+class ULevelVariantSets;
+class UVariantSet;
+class UVariant;
+class UVariantObjectBinding;
+class UPropertyValue;
 
 class FGLTFLevelVariantSetsConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonLevelVariantSetsIndex, const ULevelVariantSets*>
 {

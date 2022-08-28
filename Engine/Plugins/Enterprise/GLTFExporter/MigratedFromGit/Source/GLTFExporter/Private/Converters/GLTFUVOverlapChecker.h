@@ -6,7 +6,6 @@
 
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFIndexArray.h"
-#include "Engine.h"
 
 class FGLTFUVOverlapChecker final : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>
 {
