@@ -4,7 +4,7 @@
 #include "IImageWrapperModule.h"
 #include "IImageWrapper.h"
 
-bool FGLTFBuilderUtility::CompressImage(const TArray64<uint8>& InRawData, int32 InWidth, int32 InHeight, ERGBFormat InRawFormat, int32 InBitDepth, TArray64<uint8>& OutCompressedData, EImageFormat OutCompressionFormat, int32 OutCompressionQuality)
+bool FGLTFBuilderUtility::CompressImage(const void* RawData, int64 ByteLength, int32 InWidth, int32 InHeight, ERGBFormat InRawFormat, int32 InBitDepth, TArray64<uint8>& OutCompressedData, EImageFormat OutCompressionFormat, int32 OutCompressionQuality)
 {
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 
@@ -15,7 +15,7 @@ bool FGLTFBuilderUtility::CompressImage(const TArray64<uint8>& InRawData, int32 
 		return false;
 	}
 
-	const bool bFormatSupported = ImageWrapper->SetRaw(InRawData.GetData(), InRawData.Num(), InWidth, InHeight, InRawFormat, InBitDepth);
+	const bool bFormatSupported = ImageWrapper->SetRaw(RawData, ByteLength, InWidth, InHeight, InRawFormat, InBitDepth);
 	if (!bFormatSupported)
 	{
 		// TODO: report error
