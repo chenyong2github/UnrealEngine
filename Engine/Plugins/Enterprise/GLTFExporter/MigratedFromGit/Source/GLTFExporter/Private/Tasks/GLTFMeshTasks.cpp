@@ -115,6 +115,7 @@ void FGLTFStaticMeshTask::Complete()
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
 		Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
+#if WITH_EDITOR
 	if (MeshData != nullptr)
 	{
 		if (MeshData->Description.IsEmpty())
@@ -128,6 +129,7 @@ void FGLTFStaticMeshTask::Complete()
 			MeshData = nullptr;
 		}
 	}
+#endif
 
 	ValidateVertexBuffer(Builder, VertexBuffer, *StaticMesh->GetName());
 
@@ -207,6 +209,7 @@ void FGLTFSkeletalMeshTask::Complete()
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
 		Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
+#if WITH_EDITOR
 	if (MeshData != nullptr)
 	{
 		if (MeshData->Description.IsEmpty())
@@ -220,6 +223,7 @@ void FGLTFSkeletalMeshTask::Complete()
 			MeshData = nullptr;
 		}
 	}
+#endif
 
 	ValidateVertexBuffer(Builder, VertexBuffer, *SkeletalMesh->GetName());
 

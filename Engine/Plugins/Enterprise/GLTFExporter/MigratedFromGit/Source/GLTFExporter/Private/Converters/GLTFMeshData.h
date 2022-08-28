@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "MeshDescription.h"
+
+#if WITH_EDITOR
 #include "MaterialBakingStructures.h"
+#endif
 
 struct FGLTFMeshData
 {
@@ -13,7 +16,12 @@ struct FGLTFMeshData
 
 	const FGLTFMeshData* GetParent() const;
 
+	// TODO: find a better name for referencing the mesh-only data (no component)
+	const FGLTFMeshData* Parent;
+
 	FString Name;
+
+#if WITH_EDITOR
 	FPrimitiveData PrimitiveData;
 	FMeshDescription Description;
 
@@ -22,7 +30,5 @@ struct FGLTFMeshData
 	int32 LightMapTexCoord;
 
 	int32 BakeUsingTexCoord;
-
-	// TODO: find a better name for referencing the mesh-only data (no component)
-	const FGLTFMeshData* Parent;
+#endif
 };

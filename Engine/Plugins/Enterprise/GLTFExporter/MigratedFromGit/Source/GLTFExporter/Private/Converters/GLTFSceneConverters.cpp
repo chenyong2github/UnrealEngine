@@ -63,7 +63,7 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 	}
 	else
 	{
-		Builder.AddWarningMessage(
+		Builder.LogWarning(
 			FString::Printf(TEXT("World %s has no levels. Please make sure the world has been fully initialized"),
 			*World->GetName()));
 	}

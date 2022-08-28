@@ -15,6 +15,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 		SectionIndices = {};
 	}
 
+#if WITH_EDITOR
 	if (MeshData != nullptr)
 	{
 		const FMeshDescription& MeshDescription = MeshData->GetParent()->Description;
@@ -37,16 +38,19 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 			SectionIndices = {};
 		}
 	}
+#endif
 }
 
 FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices)
 {
-	if (Material == FGLTFMaterialUtility::GetDefault())
+#if WITH_EDITOR
+	if (Material != FGLTFMaterialUtility::GetDefault())
 	{
-		return FGLTFJsonMaterialIndex(INDEX_NONE); // use default gltf definition
+		const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
+		Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, MaterialIndex);
+		return MaterialIndex;
 	}
+#endif
 
-	const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
-	Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, MaterialIndex);
-	return MaterialIndex;
+	return FGLTFJsonMaterialIndex(INDEX_NONE); // use default gltf definition
 }

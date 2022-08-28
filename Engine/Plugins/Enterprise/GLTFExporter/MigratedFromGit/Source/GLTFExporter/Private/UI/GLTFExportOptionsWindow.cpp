@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EDITOR
+
 #include "UI/GLTFExportOptionsWindow.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBorder.h"
@@ -254,3 +256,5 @@ void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, con
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif

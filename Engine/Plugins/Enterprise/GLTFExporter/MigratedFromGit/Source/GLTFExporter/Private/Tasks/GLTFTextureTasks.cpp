@@ -152,6 +152,8 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTargetCube);
 }
 
+#if WITH_EDITOR
+
 void FGLTFTextureLightMapTask::Complete()
 {
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
@@ -186,3 +188,5 @@ void FGLTFTextureLightMapTask::Complete()
 
 	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMap);
 }
+
+#endif

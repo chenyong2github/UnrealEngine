@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
+#if WITH_EDITOR
 #include "Converters/GLTFNameUtility.h"
 #include "GLTFMaterialAnalyzer.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -15,6 +16,7 @@
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "MeshDescription.h"
+#endif
 #include "Misc/DefaultValueHelper.h"
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefault()
@@ -22,6 +24,8 @@ UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 	static UMaterialInterface* DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/Default.Default"));
 	return DefaultMaterial;
 }
+
+#if WITH_EDITOR
 
 bool FGLTFMaterialUtility::IsNormalMap(const FMaterialPropertyEx& Property)
 {
@@ -378,57 +382,6 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 	return Result;
 }
 
-bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
-{
-	if (Material == nullptr)
-	{
-		return false;
-	}
-
-	// TODO: only analyze properties that will be needed for this specific material
-	const TArray<FMaterialPropertyEx> Properties =
-	{
-		MP_BaseColor,
-		MP_EmissiveColor,
-		MP_Opacity,
-		MP_OpacityMask,
-		MP_Metallic,
-		MP_Roughness,
-		MP_Normal,
-		MP_AmbientOcclusion,
-		MP_CustomData0,
-		MP_CustomData1,
-		TEXT("ClearCoatBottomNormal"),
-	};
-
-	bool bNeedsMeshData = false;
-	FGLTFMaterialAnalysis Analysis;
-
-	// TODO: optimize baking by seperating need for vertex data and primitive data
-
-	for (const FMaterialPropertyEx& Property: Properties)
-	{
-		AnalyzeMaterialProperty(Material, Property, Analysis);
-		bNeedsMeshData |= Analysis.bRequiresVertexData;
-		bNeedsMeshData |= Analysis.bRequiresPrimitiveData;
-	}
-
-	return bNeedsMeshData;
-}
-
-bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>& Materials)
-{
-	for (const UMaterialInterface* Material: Materials)
-	{
-		if (NeedsMeshData(Material))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
 {
 	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
@@ -438,6 +391,63 @@ void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InM
 	}
 
 	UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutAnalysis);
+}
+
+#endif
+
+bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
+{
+#if WITH_EDITOR
+	if (Material != nullptr)
+	{
+		// TODO: only analyze properties that will be needed for this specific material
+		const TArray<FMaterialPropertyEx> Properties =
+		{
+			MP_BaseColor,
+			MP_EmissiveColor,
+			MP_Opacity,
+			MP_OpacityMask,
+			MP_Metallic,
+			MP_Roughness,
+			MP_Normal,
+			MP_AmbientOcclusion,
+			MP_CustomData0,
+			MP_CustomData1,
+			TEXT("ClearCoatBottomNormal"),
+		};
+
+		bool bNeedsMeshData = false;
+		FGLTFMaterialAnalysis Analysis;
+
+		// TODO: optimize baking by seperating need for vertex data and primitive data
+
+		for (const FMaterialPropertyEx& Property: Properties)
+		{
+			AnalyzeMaterialProperty(Material, Property, Analysis);
+			bNeedsMeshData |= Analysis.bRequiresVertexData;
+			bNeedsMeshData |= Analysis.bRequiresPrimitiveData;
+		}
+
+		return bNeedsMeshData;
+	}
+#endif
+
+	return false;
+}
+
+bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>& Materials)
+{
+#if WITH_EDITOR
+	for (const UMaterialInterface* Material: Materials)
+	{
+		if (NeedsMeshData(Material))
+		{
+			return true;
+		}
+	}
+#endif
+
+	return false;
 }
 
 const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const UMaterialInterface* Material)

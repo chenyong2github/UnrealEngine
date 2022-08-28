@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EDITOR
+
 #include "Tasks/GLTFMaterialTasks.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
@@ -1453,3 +1455,5 @@ EGLTFMaterialPropertyGroup FGLTFMaterialTask::GetPropertyGroup(const FMaterialPr
 			return EGLTFMaterialPropertyGroup::None;
 	}
 }
+
+#endif

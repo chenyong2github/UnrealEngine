@@ -2,19 +2,23 @@
 
 #include "Builders/GLTFLogBuilder.h"
 #include "GLTFExporterModule.h"
+#include "Misc/FeedbackContext.h"
+#if WITH_EDITOR
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
-#include "Misc/FeedbackContext.h"
+#endif
 
 FGLTFLogBuilder::FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFBuilder(FilePath, ExportOptions)
 {
+#if WITH_EDITOR
 	if (!FApp::IsUnattended())
 	{
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 		LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
 		LogListing->SetLabel(FText::FromString(GLTFEXPORTER_FRIENDLY_NAME));
 	}
+#endif
 }
 
 void FGLTFLogBuilder::LogSuggestion(const FString& Message)
@@ -52,10 +56,12 @@ const TArray<FString>& FGLTFLogBuilder::GetLoggedErrors() const
 
 void FGLTFLogBuilder::OpenLog() const
 {
+#if WITH_EDITOR
 	if (LogListing != nullptr)
 	{
 		LogListing->Open();
 	}
+#endif
 }
 
 void FGLTFLogBuilder::ClearLog()
@@ -64,10 +70,12 @@ void FGLTFLogBuilder::ClearLog()
 	Warnings.Empty();
 	Errors.Empty();
 
+#if WITH_EDITOR
 	if (LogListing != nullptr)
 	{
 		LogListing->ClearMessages();
 	}
+#endif
 }
 
 void FGLTFLogBuilder::PrintToLog(ELogLevel Level, const FString& Message) const
@@ -88,6 +96,7 @@ void FGLTFLogBuilder::PrintToLog(ELogLevel Level, const FString& Message) const
 	GWarn->Log(LogGLTFExporter.GetCategoryName(), Verbosity, Message);
 #endif
 
+#if WITH_EDITOR
 	if (LogListing != nullptr)
 	{
 		EMessageSeverity::Type Severity;
@@ -104,4 +113,5 @@ void FGLTFLogBuilder::PrintToLog(ELogLevel Level, const FString& Message) const
 
 		LogListing->AddMessage(FTokenizedMessage::Create(Severity, FText::FromString(Message)), false);
 	}
+#endif
 }

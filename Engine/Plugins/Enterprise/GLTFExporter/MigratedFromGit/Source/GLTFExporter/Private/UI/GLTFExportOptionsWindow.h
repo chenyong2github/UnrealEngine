@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "GLTFExportOptions.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
@@ -56,3 +58,5 @@ private:
 	bool bShouldExport;
 	bool bShouldExportAll;
 };
+
+#endif

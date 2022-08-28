@@ -114,6 +114,8 @@ private:
 	const FGLTFJsonTextureIndex TextureIndex;
 };
 
+#if WITH_EDITOR
+
 class FGLTFTextureLightMapTask : public FGLTFTask
 {
 public:
@@ -139,3 +141,5 @@ private:
 	const ULightMapTexture2D* LightMap;
 	const FGLTFJsonTextureIndex TextureIndex;
 };
+
+#endif

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EDITOR
+
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
@@ -120,3 +122,5 @@ UMaterialInterface* FGLTFUVOverlapChecker::GetMaterial()
 	check(Material);
 	return Material;
 }
+
+#endif
