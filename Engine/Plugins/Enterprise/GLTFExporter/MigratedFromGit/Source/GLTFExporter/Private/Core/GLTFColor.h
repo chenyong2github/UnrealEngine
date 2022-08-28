@@ -22,6 +22,16 @@ struct TGLTFColor3
 
 		ComponentType Components[3] GCC_PACK(1);
 	};
+
+	TGLTFColor3(
+		ComponentType R,
+		ComponentType G,
+		ComponentType B
+	)
+		: R(R)
+		, G(G)
+		, B(B)
+	{}
 };
 
 template <typename ComponentType>
@@ -39,6 +49,18 @@ struct TGLTFColor4
 
 		ComponentType Components[4] GCC_PACK(1);
 	};
+
+	TGLTFColor4(
+		ComponentType R,
+		ComponentType G,
+		ComponentType B,
+		ComponentType A
+	)
+		: R(R)
+		, G(G)
+		, B(B)
+		, A(A)
+	{}
 };
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
