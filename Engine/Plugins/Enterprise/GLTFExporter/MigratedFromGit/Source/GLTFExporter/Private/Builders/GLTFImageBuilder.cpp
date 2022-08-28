@@ -12,13 +12,18 @@ FGLTFImageBuilder::FGLTFImageBuilder()
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
-	FGLTFJsonImage Image;
-	Image.Name = Name;
-	Image.MimeType = MimeType;
-	const FGLTFJsonImageIndex ImageIndex = FGLTFJsonBuilder::AddImage(Image);
+	FGLTFJsonImageIndex ImageIndex = FindImage(CompressedData, CompressedByteLength, MimeType);
+	if (ImageIndex == INDEX_NONE)
+	{
+		FGLTFJsonImage Image;
+		Image.Name = Name;
+		Image.MimeType = MimeType;
+		ImageIndex = FGLTFJsonBuilder::AddImage(Image);
 
-	TArray64<uint8>& ImageData = ImageDataLookup.Add(ImageIndex);
-	ImageData.Append(static_cast<const uint8*>(CompressedData), CompressedByteLength);
+		TArray64<uint8>& ImageData = ImageDataLookup.Add(ImageIndex);
+		ImageData.Append(static_cast<const uint8*>(CompressedData), CompressedByteLength);
+	}
+
 	return ImageIndex;
 }
 
@@ -79,4 +84,26 @@ bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 	}
 
 	return FGLTFBufferBuilder::Serialize(Archive, FilePath);
+}
+
+FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType) const
+{
+	for (const auto& DataPair : ImageDataLookup)
+	{
+		const FGLTFJsonImage& JsonImage = const_cast<FGLTFImageBuilder*>(this)->GetImage(DataPair.Key);
+		if (JsonImage.MimeType == MimeType)
+		{
+			const TArray64<uint8>& ImageData = DataPair.Value;
+			if (ImageData.Num() == CompressedByteLength)
+			{
+				if (FMemory::Memcmp(ImageData.GetData(), CompressedData, CompressedByteLength) == 0)
+				{
+					const FGLTFJsonImageIndex ImageIndex = DataPair.Key;
+					return ImageIndex;
+				}
+			}
+		}
+	}
+
+	return FGLTFJsonImageIndex(INDEX_NONE);
 }
