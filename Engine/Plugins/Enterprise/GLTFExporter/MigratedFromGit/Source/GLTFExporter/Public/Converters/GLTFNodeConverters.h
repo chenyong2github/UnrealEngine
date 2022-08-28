@@ -25,6 +25,8 @@ class GLTFEXPORTER_API FGLTFComponentConverter final : public FGLTFBuilderContex
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonNode* Convert(const USceneComponent* SceneComponent) override;
+
+	void ConvertComponentSpecialization(const USceneComponent* SceneComponent, const AActor* Owner, FGLTFJsonNode* Node);
 };
 
 class GLTFEXPORTER_API FGLTFComponentSocketConverter final : public FGLTFBuilderContext, public IGLTFComponentSocketConverter

@@ -3,7 +3,7 @@
 #include "Converters/GLTFNodeConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFCoreUtilities.h"
-#include "Converters/GLTFActorUtility.h"
+#include "Converters/GLTFBlueprintUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Actors/GLTFHotspotActor.h"
 #include "LevelSequenceActor.h"
@@ -29,15 +29,15 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 
 	// TODO: process all components since any component can be attached to any other component in runtime
 
-	const FString BlueprintPath = FGLTFActorUtility::GetBlueprintPath(Actor);
-	if (FGLTFActorUtility::IsSkySphereBlueprint(BlueprintPath))
+	const FString BlueprintPath = FGLTFBlueprintUtility::GetClassPath(Actor);
+	if (FGLTFBlueprintUtility::IsSkySphere(BlueprintPath))
 	{
 		if (Builder.ExportOptions->bExportSkySpheres)
 		{
 			RootNode->SkySphere = Builder.AddUniqueSkySphere(Actor);
 		}
 	}
-	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(BlueprintPath))
+	else if (FGLTFBlueprintUtility::IsHDRIBackdrop(BlueprintPath))
 	{
 		if (Builder.ExportOptions->bExportHDRIBackdrops)
 		{
@@ -131,63 +131,79 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 		ParentNode->Children.Add(Node);
 	}
 
+	ConvertComponentSpecialization(SceneComponent, Owner, Node);
+	return Node;
+}
+
+void FGLTFComponentConverter::ConvertComponentSpecialization(const USceneComponent* SceneComponent, const AActor* Owner, FGLTFJsonNode* Node)
+{
 	// TODO: don't export invisible components unless visibility is variable due to variant sets
 
-	// TODO: should hidden in game be configurable like this?
-	if ((Builder.ExportOptions->bExportHiddenInGame || (!SceneComponent->bHiddenInGame && !Owner->IsHidden())) && FGLTFActorUtility::IsGenericActor(Owner))
+	if (!Builder.ExportOptions->bExportHiddenInGame && (SceneComponent->bHiddenInGame || Owner->IsHidden()))
 	{
-		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
-		{
-			Node->Mesh = Builder.AddUniqueMesh(StaticMeshComponent);
+		return;
+	}
 
-			if (Builder.ExportOptions->bExportLightmaps)
-			{
-				Node->LightMap = Builder.AddUniqueLightMap(StaticMeshComponent);
-			}
+	const FString BlueprintPath = FGLTFBlueprintUtility::GetClassPath(Owner);
+	if (FGLTFBlueprintUtility::IsSkySphere(BlueprintPath) || FGLTFBlueprintUtility::IsHDRIBackdrop(BlueprintPath))
+	{
+		return;
+	}
+
+	if (Owner->IsA<ALevelSequenceActor>() || Owner->IsA<APawn>() || Owner->IsA<AGLTFHotspotActor>())
+	{
+		return;
+	}
+
+	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
+	{
+		Node->Mesh = Builder.AddUniqueMesh(StaticMeshComponent);
+
+		if (Builder.ExportOptions->bExportLightmaps)
+		{
+			Node->LightMap = Builder.AddUniqueLightMap(StaticMeshComponent);
 		}
-		else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
-		{
-			Node->Mesh = Builder.AddUniqueMesh(SkeletalMeshComponent);
+	}
+	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
+	{
+		Node->Mesh = Builder.AddUniqueMesh(SkeletalMeshComponent);
 
-			if (Builder.ExportOptions->bExportVertexSkinWeights)
+		if (Builder.ExportOptions->bExportVertexSkinWeights)
+		{
+			Node->Skin = Builder.AddUniqueSkin(Node, SkeletalMeshComponent);
+			if (Node->Skin != nullptr)
 			{
-				Node->Skin = Builder.AddUniqueSkin(Node, SkeletalMeshComponent);
-				if (Node->Skin != nullptr)
+				if (Builder.ExportOptions->bExportAnimationSequences)
 				{
-					if (Builder.ExportOptions->bExportAnimationSequences)
-					{
-						Builder.AddUniqueAnimation(Node, SkeletalMeshComponent);
-					}
+					Builder.AddUniqueAnimation(Node, SkeletalMeshComponent);
 				}
 			}
 		}
-		else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
+	}
+	else if (const UCameraComponent* CameraComponent = Cast<UCameraComponent>(SceneComponent))
+	{
+		if (Builder.ExportOptions->bExportCameras)
 		{
-			if (Builder.ExportOptions->bExportCameras)
-			{
-				// TODO: conversion of camera direction should be done in separate converter
-				FGLTFJsonNode* CameraNode = Builder.AddNode();
-				CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
-				CameraNode->Rotation = FGLTFCoreUtilities::GetLocalCameraRotation();
-				CameraNode->Camera = Builder.AddUniqueCamera(CameraComponent);
-				Node->Children.Add(CameraNode);
-			}
-		}
-		else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
-		{
-			if (Builder.ShouldExportLight(LightComponent->Mobility))
-			{
-				// TODO: conversion of light direction should be done in separate converter
-				FGLTFJsonNode* LightNode = Builder.AddNode();
-				LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
-				LightNode->Rotation = FGLTFCoreUtilities::GetLocalLightRotation();
-				LightNode->Light = Builder.AddUniqueLight(LightComponent);
-				Node->Children.Add(LightNode);
-			}
+			// TODO: conversion of camera direction should be done in separate converter
+			FGLTFJsonNode* CameraNode = Builder.AddNode();
+			CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
+			CameraNode->Rotation = FGLTFCoreUtilities::GetLocalCameraRotation();
+			CameraNode->Camera = Builder.AddUniqueCamera(CameraComponent);
+			Node->Children.Add(CameraNode);
 		}
 	}
-
-	return Node;
+	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
+	{
+		if (Builder.ShouldExportLight(LightComponent->Mobility))
+		{
+			// TODO: conversion of light direction should be done in separate converter
+			FGLTFJsonNode* LightNode = Builder.AddNode();
+			LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
+			LightNode->Rotation = FGLTFCoreUtilities::GetLocalLightRotation();
+			LightNode->Light = Builder.AddUniqueLight(LightComponent);
+			Node->Children.Add(LightNode);
+		}
+	}
 }
 
 FGLTFJsonNode* FGLTFComponentSocketConverter::Convert(const USceneComponent* SceneComponent, FName SocketName)

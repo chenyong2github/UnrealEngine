@@ -3,12 +3,12 @@
 #include "Converters/GLTFBackdropConverters.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFMaterialUtility.h"
-#include "Converters/GLTFActorUtility.h"
+#include "Converters/GLTFBlueprintUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 
 FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 {
-	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(FGLTFActorUtility::GetBlueprintPath(BackdropActor)))
+	if (!FGLTFBlueprintUtility::IsHDRIBackdrop(FGLTFBlueprintUtility::GetClassPath(BackdropActor)))
 	{
 		return nullptr;
 	}
@@ -27,7 +27,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	JsonBackdrop->Angle = FRotator::ClampAxis(Rotation.Yaw * 2.0f * PI);
 
 	const UStaticMesh* Mesh;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Mesh"), Mesh))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("Mesh"), Mesh))
 	{
 		JsonBackdrop->Mesh = Builder.AddUniqueMesh(Mesh, { FGLTFMaterialUtility::GetDefaultMaterial() });
 	}
@@ -37,7 +37,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	}
 
 	const UTextureCube* Cubemap;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Cubemap"), Cubemap))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("Cubemap"), Cubemap))
 	{
 		// TODO: add a proper custom gltf extension with its own converters for cubemaps
 
@@ -54,7 +54,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	}
 
 	float Intensity;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Intensity"), Intensity))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("Intensity"), Intensity))
 	{
 		JsonBackdrop->Intensity = Intensity;
 	}
@@ -64,7 +64,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	}
 
 	float Size;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("Size"), Size))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("Size"), Size))
 	{
 		JsonBackdrop->Size = Size;
 	}
@@ -74,7 +74,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	}
 
 	FVector ProjectionCenter;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("ProjectionCenter"), ProjectionCenter))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("ProjectionCenter"), ProjectionCenter))
 	{
 		JsonBackdrop->ProjectionCenter = FGLTFCoreUtilities::ConvertPosition(ProjectionCenter, Builder.ExportOptions->ExportUniformScale);
 	}
@@ -84,7 +84,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	}
 
 	float LightingDistanceFactor;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("LightingDistanceFactor"), LightingDistanceFactor))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("LightingDistanceFactor"), LightingDistanceFactor))
 	{
 		JsonBackdrop->LightingDistanceFactor = LightingDistanceFactor;
 	}
@@ -94,7 +94,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	}
 
 	bool UseCameraProjection;
-	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("UseCameraProjection"), UseCameraProjection))
+	if (FGLTFBlueprintUtility::TryGetPropertyValue(BackdropActor, TEXT("UseCameraProjection"), UseCameraProjection))
 	{
 		JsonBackdrop->UseCameraProjection = UseCameraProjection;
 	}
