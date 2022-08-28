@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonQuaternion
@@ -19,10 +20,10 @@ struct FGLTFJsonQuaternion
 	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteArrayStart();
-		JsonWriter.WriteValue(X);
-		JsonWriter.WriteValue(Y);
-		JsonWriter.WriteValue(Z);
-		JsonWriter.WriteValue(W);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Z);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, W);
 		JsonWriter.WriteArrayEnd();
 	}
 

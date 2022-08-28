@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Json/GLTFJsonVector2.h"
+#include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonVector3
@@ -16,13 +18,18 @@ struct FGLTFJsonVector3
 	{
 	}
 
+	FGLTFJsonVector3(const FGLTFJsonVector2& Vector3, float Z)
+        : X(Vector3.X), Y(Vector3.Y), Z(Z)
+	{
+	}
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteArrayStart();
-		JsonWriter.WriteValue(X);
-		JsonWriter.WriteValue(Y);
-		JsonWriter.WriteValue(Z);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Z);
 		JsonWriter.WriteArrayEnd();
 	}
 

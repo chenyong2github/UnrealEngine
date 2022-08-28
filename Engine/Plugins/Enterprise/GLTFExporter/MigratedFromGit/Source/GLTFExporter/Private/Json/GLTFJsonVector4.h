@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonVector3.h"
+#include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonVector4
@@ -26,10 +27,10 @@ struct FGLTFJsonVector4
 	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteArrayStart();
-		JsonWriter.WriteValue(X);
-		JsonWriter.WriteValue(Y);
-		JsonWriter.WriteValue(Z);
-		JsonWriter.WriteValue(W);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, Z);
+		FGLTFJsonUtility::WriteExactValue(JsonWriter, W);
 		JsonWriter.WriteArrayEnd();
 	}
 

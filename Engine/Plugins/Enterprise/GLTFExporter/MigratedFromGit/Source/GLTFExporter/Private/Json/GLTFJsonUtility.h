@@ -49,4 +49,11 @@ struct FGLTFJsonUtility
 			default:                            return TEXT("UNKNOWN");
 		}
 	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+    static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
+	{
+		FString ExactStringRepresentation = FString::Printf(TEXT("%.9g"), Value);
+		JsonWriter.WriteRawJSONValue(ExactStringRepresentation);
+	}
 };

@@ -65,14 +65,14 @@ struct FGLTFJsonAccessor
 			JsonWriter.WriteArrayStart(TEXT("min"));
 			for (int32 ComponentIndex = 0; ComponentIndex < MinMaxLength; ++ComponentIndex)
 			{
-				JsonWriter.WriteValue(Min[ComponentIndex]);
+				FGLTFJsonUtility::WriteExactValue(JsonWriter, Min[ComponentIndex]);
 			}
 			JsonWriter.WriteArrayEnd();
 
 			JsonWriter.WriteArrayStart(TEXT("max"));
 			for (int32 ComponentIndex = 0; ComponentIndex < MinMaxLength; ++ComponentIndex)
 			{
-				JsonWriter.WriteValue(Max[ComponentIndex]);
+				FGLTFJsonUtility::WriteExactValue(JsonWriter, Max[ComponentIndex]);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
