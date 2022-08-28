@@ -38,27 +38,18 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 	{
 		if (Builder.ExportOptions->bExportOrbitalCameras)
 		{
-			if (OrbitCameraActor->Focus != nullptr)
-			{
-				FGLTFJsonOrbitCamera OrbitCamera;
-				OrbitCamera.Focus = Builder.GetOrAddNode(OrbitCameraActor->Focus);
-				OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMax, Builder.ExportOptions->ExportScale);
-				OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
-				OrbitCamera.MaxAngle = OrbitCameraActor->PitchAngleMax;
-				OrbitCamera.MinAngle = OrbitCameraActor->PitchAngleMin;
-				OrbitCamera.DistanceSensitivity = OrbitCameraActor->DistanceSensitivity;
-				OrbitCamera.OrbitSensitivity = OrbitCameraActor->OrbitSensitivity;
-				OrbitCamera.OrbitInertia = OrbitCameraActor->OrbitInertia;
-				OrbitCamera.DollyDuration = OrbitCameraActor->DollyDuration;
+			FGLTFJsonOrbitCamera OrbitCamera;
+			OrbitCamera.Focus = Builder.GetOrAddNode(OrbitCameraActor->Focus);
+			OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMax, Builder.ExportOptions->ExportScale);
+			OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
+			OrbitCamera.MaxAngle = OrbitCameraActor->PitchAngleMax;
+			OrbitCamera.MinAngle = OrbitCameraActor->PitchAngleMin;
+			OrbitCamera.DistanceSensitivity = OrbitCameraActor->DistanceSensitivity;
+			OrbitCamera.OrbitSensitivity = OrbitCameraActor->OrbitSensitivity;
+			OrbitCamera.OrbitInertia = OrbitCameraActor->OrbitInertia;
+			OrbitCamera.DollyDuration = OrbitCameraActor->DollyDuration;
 
-				Camera.OrbitCamera = OrbitCamera;
-			}
-			else
-			{
-				Builder.AddWarningMessage(FString::Printf(
-					TEXT("OrbitalCamera %s has no focus set and will be skipped"),
-					*Owner->GetName()));
-			}
+			Camera.OrbitCamera = OrbitCamera;
 		}
 	}
 

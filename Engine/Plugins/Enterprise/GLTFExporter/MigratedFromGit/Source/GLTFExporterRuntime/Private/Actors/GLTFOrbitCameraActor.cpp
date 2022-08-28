@@ -41,17 +41,34 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 	PrimaryActorTick.bCanEverTick = true;
 }
 
+#if WITH_EDITOR
+void AGLTFOrbitCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+
+	if (PropertyThatChanged)
+	{
+		const FName PropertyName = PropertyThatChanged->GetFName();
+
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(ThisClass, Focus))
+		{
+			if (Focus == this)
+			{
+				Focus = nullptr;
+				UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be the camera's own actor"));
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
+
 void AGLTFOrbitCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	bool bHasValidFocusActor;
-	const FVector FocusPosition = GetFocusPosition(&bHasValidFocusActor);
-
-	if (!bHasValidFocusActor)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be null, and must not be the camera's own actor"));
-	}
+	const FVector FocusPosition = GetFocusPosition();
 
 	// Ensure that the camera is initially aimed at the focus-position
 	SetActorRotation(GetLookAtRotation(FocusPosition));
@@ -174,15 +191,9 @@ FRotator AGLTFOrbitCameraActor::GetLookAtRotation(const FVector TargetPosition) 
 	return FRotationMatrix::MakeFromXZ(TargetPosition - EyePosition, FVector::UpVector).Rotator();
 }
 
-FVector AGLTFOrbitCameraActor::GetFocusPosition(bool* bOutHasValidFocusActor) const
+FVector AGLTFOrbitCameraActor::GetFocusPosition() const
 {
-	const bool bHasValidFocusActor = this->Focus != nullptr && this->Focus != this;
-	if (bOutHasValidFocusActor != nullptr)
-	{
-		*bOutHasValidFocusActor = bHasValidFocusActor;
-	}
-
-	return bHasValidFocusActor ? this->Focus->GetActorLocation() : FVector::ZeroVector;
+	return this->Focus != nullptr ? this->Focus->GetActorLocation() : FVector::ZeroVector;
 }
 
 bool AGLTFOrbitCameraActor::SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player)
