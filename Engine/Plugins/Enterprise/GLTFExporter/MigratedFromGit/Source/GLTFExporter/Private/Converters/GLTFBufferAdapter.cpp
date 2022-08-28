@@ -24,12 +24,7 @@ class FGLTFBufferAdapterGPU final : public IGLTFBufferAdapter
 {
 public:
 
-	FGLTFBufferAdapterGPU(FRHIIndexBuffer* RHIBuffer)
-	{
-		FGLTFBufferUtility::ReadRHIBuffer(RHIBuffer, DataBuffer);
-	}
-
-	FGLTFBufferAdapterGPU(FRHIVertexBuffer* RHIBuffer)
+	FGLTFBufferAdapterGPU(FRHIBuffer* RHIBuffer)
 	{
 		FGLTFBufferUtility::ReadRHIBuffer(RHIBuffer, DataBuffer);
 	}
