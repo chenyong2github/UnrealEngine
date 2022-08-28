@@ -22,7 +22,7 @@ struct GLTFEXPORTER_API FGLTFJsonSkySphereColorCurve : IGLTFJsonArray
 	virtual void WriteArray(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -56,8 +56,9 @@ struct GLTFEXPORTER_API FGLTFJsonSkySphere : IGLTFJsonObject
 
 	FGLTFJsonVector3 Scale;
 
-	FGLTFJsonSkySphere()
-		: SunHeight(0)
+	FGLTFJsonSkySphere(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, SunHeight(0)
 		, SunBrightness(0)
 		, StarsBrightness(0)
 		, CloudSpeed(0)

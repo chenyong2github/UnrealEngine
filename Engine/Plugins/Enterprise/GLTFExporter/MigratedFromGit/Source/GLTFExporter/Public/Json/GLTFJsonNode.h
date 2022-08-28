@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -25,8 +25,9 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonObject
 
 	TArray<FGLTFJsonNodeIndex> Children;
 
-	FGLTFJsonNode()
-		: Translation(FGLTFJsonVector3::Zero)
+	FGLTFJsonNode(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
 		, Scale(FGLTFJsonVector3::One)
 	{

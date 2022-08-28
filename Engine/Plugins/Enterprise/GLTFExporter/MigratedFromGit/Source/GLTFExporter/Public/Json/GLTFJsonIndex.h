@@ -12,7 +12,7 @@ struct GLTFEXPORTER_API FGLTFJsonIndex
 	{
 	}
 
-	explicit FGLTFJsonIndex(int32 Value)
+	FGLTFJsonIndex(int32 Value)
 		: Value(Value)
 	{
 	}

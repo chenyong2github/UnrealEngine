@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonSkin : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonSkin : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -12,6 +12,11 @@ struct GLTFEXPORTER_API FGLTFJsonSkin : IGLTFJsonObject
 	FGLTFJsonNodeIndex Skeleton;
 
 	TArray<FGLTFJsonNodeIndex> Joints;
+
+	FGLTFJsonSkin(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

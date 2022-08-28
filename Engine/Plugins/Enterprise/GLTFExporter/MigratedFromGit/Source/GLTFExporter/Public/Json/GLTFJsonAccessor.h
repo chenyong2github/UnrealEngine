@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonIndexedObject
 {
 	FString Name;
 
@@ -19,8 +19,9 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonObject
 	float Min[16];
 	float Max[16];
 
-	FGLTFJsonAccessor()
-		: ByteOffset(0)
+	FGLTFJsonAccessor(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, ByteOffset(0)
 		, Count(0)
 		, Type(EGLTFJsonAccessorType::None)
 		, ComponentType(EGLTFJsonComponentType::None)

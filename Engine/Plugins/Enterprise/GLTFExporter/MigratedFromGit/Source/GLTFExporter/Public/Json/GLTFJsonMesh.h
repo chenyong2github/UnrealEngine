@@ -36,11 +36,16 @@ struct GLTFEXPORTER_API FGLTFJsonPrimitive : IGLTFJsonObject
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonMesh : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonMesh : IGLTFJsonIndexedObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonPrimitive> Primitives;
+
+	FGLTFJsonMesh(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonCore.h"
 #include "Json/GLTFJsonMaterial.h"
 
-struct GLTFEXPORTER_API FGLTFJsonLightMap : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonLightMap : IGLTFJsonIndexedObject
 {
 	FString              Name;
 	FGLTFJsonTextureInfo Texture;
@@ -13,8 +13,9 @@ struct GLTFEXPORTER_API FGLTFJsonLightMap : IGLTFJsonObject
 	FGLTFJsonVector4     LightMapAdd;
 	FGLTFJsonVector4     CoordinateScaleBias;
 
-	FGLTFJsonLightMap()
-		: LightMapScale(FGLTFJsonVector4::One)
+	FGLTFJsonLightMap(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, LightMapScale(FGLTFJsonVector4::One)
 		, LightMapAdd(FGLTFJsonVector4::Zero)
 		, CoordinateScaleBias({ 1, 1, 0, 0 })
 	{

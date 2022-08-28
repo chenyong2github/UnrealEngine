@@ -33,33 +33,33 @@ struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 
 	FGLTFJsonSceneIndex DefaultScene;
 
-	TArray<TUniquePtr<FGLTFJsonAccessor>>   Accessors;
-	TArray<TUniquePtr<FGLTFJsonAnimation>>  Animations;
-	TArray<TUniquePtr<FGLTFJsonBuffer>>     Buffers;
-	TArray<TUniquePtr<FGLTFJsonBufferView>> BufferViews;
-	TArray<TUniquePtr<FGLTFJsonCamera>>     Cameras;
-	TArray<TUniquePtr<FGLTFJsonMaterial>>   Materials;
-	TArray<TUniquePtr<FGLTFJsonMesh>>       Meshes;
-	TArray<TUniquePtr<FGLTFJsonNode>>       Nodes;
-	TArray<TUniquePtr<FGLTFJsonImage>>      Images;
-	TArray<TUniquePtr<FGLTFJsonSampler>>    Samplers;
-	TArray<TUniquePtr<FGLTFJsonScene>>      Scenes;
-	TArray<TUniquePtr<FGLTFJsonSkin>>       Skins;
-	TArray<TUniquePtr<FGLTFJsonTexture>>    Textures;
-	TArray<TUniquePtr<FGLTFJsonBackdrop>>   Backdrops;
-	TArray<TUniquePtr<FGLTFJsonHotspot>>    Hotspots;
-	TArray<TUniquePtr<FGLTFJsonLight>>      Lights;
-	TArray<TUniquePtr<FGLTFJsonLightMap>>   LightMaps;
-	TArray<TUniquePtr<FGLTFJsonSkySphere>>  SkySpheres;
-	TArray<TUniquePtr<FGLTFJsonEpicLevelVariantSets>>  EpicLevelVariantSets;
-	TArray<TUniquePtr<FGLTFJsonKhrMaterialVariant>>    KhrMaterialVariants;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonAccessor>   Accessors;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonAnimation>  Animations;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonBuffer>     Buffers;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonBufferView> BufferViews;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonCamera>     Cameras;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonMaterial>   Materials;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonMesh>       Meshes;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonNode>       Nodes;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonImage>      Images;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonSampler>    Samplers;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonScene>      Scenes;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonSkin>       Skins;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonTexture>    Textures;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonBackdrop>   Backdrops;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonHotspot>    Hotspots;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonLight>      Lights;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonLightMap>   LightMaps;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonSkySphere>  SkySpheres;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonEpicLevelVariantSets> EpicLevelVariantSets;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonKhrMaterialVariant>   KhrMaterialVariants;
 
 	FGLTFJsonRoot() = default;
 	FGLTFJsonRoot(FGLTFJsonRoot&&) = default;
-	FGLTFJsonRoot &operator=(FGLTFJsonRoot&&) = default;
+	FGLTFJsonRoot& operator=(FGLTFJsonRoot&&) = default;
 
 	FGLTFJsonRoot(const FGLTFJsonRoot&) = delete;
-	FGLTFJsonRoot &operator=(const FGLTFJsonRoot&) = delete;
+	FGLTFJsonRoot& operator=(const FGLTFJsonRoot&) = delete;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 

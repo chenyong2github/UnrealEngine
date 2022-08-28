@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonCore.h"
 
-struct GLTFEXPORTER_API FGLTFJsonImage : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonImage : IGLTFJsonIndexedObject
 {
 	FString Name;
 	FString Uri;
@@ -13,8 +13,9 @@ struct GLTFEXPORTER_API FGLTFJsonImage : IGLTFJsonObject
 
 	FGLTFJsonBufferViewIndex BufferView;
 
-	FGLTFJsonImage()
-		: MimeType(EGLTFJsonMimeType::None)
+	FGLTFJsonImage(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, MimeType(EGLTFJsonMimeType::None)
 	{
 	}
 
