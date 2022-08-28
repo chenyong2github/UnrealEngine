@@ -2,8 +2,6 @@
 
 #include "GLTFExporter.h"
 #include "UnrealExporter.h"
-#include "GLTFExportOptions.h"
-#include "UObject/StrongObjectPtr.h"
 #include "Engine.h"
 
 DEFINE_LOG_CATEGORY(LogGLTFExporter);
@@ -18,6 +16,7 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	FormatExtension.Add(TEXT("glb"));
 	FormatDescription.Add(TEXT("GL Transmission Format"));
 	FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
+	ExportOptions = NewObject<UGLTFExportOptions>(this, TEXT("GLTF Export Options"));
 }
 
 bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
@@ -29,22 +28,28 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	UE_LOG(LogGLTFExporter, Warning, TEXT("FileIndex: %d"), FileIndex);
 	UE_LOG(LogGLTFExporter, Warning, TEXT("PortFlags: %d"), PortFlags);
 
-	// Populate export options
-	TStrongObjectPtr<UGLTFExportOptions> Options(NewObject<UGLTFExportOptions>(GetTransientPackage(), TEXT("GLTF Export Options")));
+	if (!FillExportOptions())
 	{
-		bool ExportAll = GetBatchMode() && !GetShowExportOption();
-		bool ExportCancel = false;
-		Options->FillOptions(GetBatchMode(), GetShowExportOption(), UExporter::CurrentFilename, ExportCancel, ExportAll);
-		if (ExportCancel)
-		{
-			SetCancelBatch(GetBatchMode());
-
-			// User cancelled the FBX export
-			return false;
-		}
-		SetShowExportOption(!ExportAll);
+		// User cancelled the export
+		return false;
 	}
-
+	
 	// TODO: implement
 	return false;
+}
+
+bool UGLTFExporter::FillExportOptions()
+{
+	bool ExportAll = GetBatchMode() && !GetShowExportOption();
+	bool ExportCancel = false;
+
+	ExportOptions->FillOptions(GetBatchMode(), GetShowExportOption(), UExporter::CurrentFilename, ExportCancel, ExportAll);
+	if (ExportCancel)
+	{
+		SetCancelBatch(GetBatchMode());
+		return false;
+	}
+
+	SetShowExportOption(!ExportAll);
+	return true;
 }
