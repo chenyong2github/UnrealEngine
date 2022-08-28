@@ -7,28 +7,53 @@
 #include "Converters/GLTFNameUtility.h"
 #include "Actors/GLTFInteractionHotspotActor.h"
 
-FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent* SceneComponent, FName SocketName)
+FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 {
-	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(SceneComponent);
-
-	if (SocketName != NAME_None)
+	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
 	{
-		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
-		{
-			// TODO: add support for SocketOverrideLookup?
-			const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
-			return Builder.GetOrAddNode(NodeIndex, SkeletalMesh, SocketName);
-		}
-
-		// TODO: add support for non-skeletalmesh sockets
-
-		Builder.AddWarningMessage(
-			FString::Printf(TEXT("Can't export socket %s (in component %s) because it doesn't belong to a skeletal mesh"),
-			*SocketName.ToString(),
-			*SceneComponent->GetName()));
+		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	return NodeIndex;
+	const USceneComponent* RootComponent = Actor->GetRootComponent();
+	const FGLTFJsonNodeIndex RootNodeIndex = Builder.GetOrAddNode(RootComponent);
+
+	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
+	if (FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
+	{
+		// Ignore mesh and light components that are part of BP_SkySphere
+		// TODO: add support for BP_SkySphere later?
+	}
+	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
+	{
+		if (Builder.ExportOptions->bExportHDRIBackdrops)
+		{
+			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+		}
+	}
+	else if (const AGLTFInteractionHotspotActor* HotspotActor = Cast<AGLTFInteractionHotspotActor>(Actor))
+	{
+		if (Builder.ExportOptions->bExportInteractionHotspots)
+		{
+			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+			RootNode.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
+		}
+	}
+	else
+	{
+		// TODO: to reduce number of nodes, only export components that are of interest
+
+		for (const UActorComponent* Component : Actor->GetComponents())
+		{
+			const USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
+			if (SceneComponent != nullptr)
+			{
+				Builder.GetOrAddNode(SceneComponent);
+			}
+		}
+	}
+
+	return RootNodeIndex;
 }
 
 FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* SceneComponent)
@@ -138,53 +163,28 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	return NodeIndex;
 }
 
-FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
+FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent* SceneComponent, FName SocketName)
 {
-	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
-	{
-		return FGLTFJsonNodeIndex(INDEX_NONE);
-	}
+	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(SceneComponent);
 
-	const USceneComponent* RootComponent = Actor->GetRootComponent();
-	const FGLTFJsonNodeIndex RootNodeIndex = Builder.GetOrAddNode(RootComponent);
-
-	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
-	if (FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
+	if (SocketName != NAME_None)
 	{
-		// Ignore mesh and light components that are part of BP_SkySphere
-		// TODO: add support for BP_SkySphere later?
-	}
-	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
-	{
-		if (Builder.ExportOptions->bExportHDRIBackdrops)
+		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
 		{
-			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+			// TODO: add support for SocketOverrideLookup?
+			const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
+			return Builder.GetOrAddNode(NodeIndex, SkeletalMesh, SocketName);
 		}
-	}
-	else if (const AGLTFInteractionHotspotActor* HotspotActor = Cast<AGLTFInteractionHotspotActor>(Actor))
-	{
-		if (Builder.ExportOptions->bExportInteractionHotspots)
-		{
-			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-			RootNode.Hotspot = Builder.GetOrAddHotspot(HotspotActor);
-		}
-	}
-	else
-	{
-		// TODO: to reduce number of nodes, only export components that are of interest
 
-		for (const UActorComponent* Component : Actor->GetComponents())
-		{
-			const USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
-			if (SceneComponent != nullptr)
-			{
-				Builder.GetOrAddNode(SceneComponent);
-			}
-		}
+		// TODO: add support for non-skeletalmesh sockets
+
+		Builder.AddWarningMessage(
+            FString::Printf(TEXT("Can't export socket %s (in component %s) because it doesn't belong to a skeletal mesh"),
+            *SocketName.ToString(),
+            *SceneComponent->GetName()));
 	}
 
-	return RootNodeIndex;
+	return NodeIndex;
 }
 
 FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)

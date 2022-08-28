@@ -13,11 +13,11 @@ class TGLTFNodeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGL
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFComponentSocketConverter final : public TGLTFNodeConverter<const USceneComponent*, FName>
+class FGLTFActorConverter final : public TGLTFNodeConverter<const AActor*>
 {
 	using TGLTFNodeConverter::TGLTFNodeConverter;
 
-	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent, FName SocketName) override;
+	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override;
 };
 
 class FGLTFComponentConverter final : public TGLTFNodeConverter<const USceneComponent*>
@@ -27,11 +27,11 @@ class FGLTFComponentConverter final : public TGLTFNodeConverter<const USceneComp
 	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent) override;
 };
 
-class FGLTFActorConverter final : public TGLTFNodeConverter<const AActor*>
+class FGLTFComponentSocketConverter final : public TGLTFNodeConverter<const USceneComponent*, FName>
 {
 	using TGLTFNodeConverter::TGLTFNodeConverter;
 
-	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override;
+	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent, FName SocketName) override;
 };
 
 class FGLTFSkeletalSocketConverter final : public TGLTFNodeConverter<FGLTFJsonNodeIndex, const USkeletalMesh*, FName>
