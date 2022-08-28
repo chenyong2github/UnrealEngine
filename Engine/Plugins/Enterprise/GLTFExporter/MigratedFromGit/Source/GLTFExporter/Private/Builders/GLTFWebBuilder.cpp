@@ -87,12 +87,6 @@ void FGLTFWebBuilder::BundleWebViewer(const FString& ResourcesDir)
 
 void FGLTFWebBuilder::BundleLaunchHelper(const FString& ResourcesDir)
 {
-	const FString ExecutableName = GetLaunchHelperExecutable();
-	if (ExecutableName.IsEmpty())
-	{
-		return;
-	}
-
 	const FString ArchiveFile = ResourcesDir / TEXT("GLTFLaunchHelper.zip");
 
 	if (!FPaths::FileExists(ArchiveFile))
@@ -100,6 +94,8 @@ void FGLTFWebBuilder::BundleLaunchHelper(const FString& ResourcesDir)
 		AddWarningMessage(FString::Printf(TEXT("No launch helper archive found at %s"), *ArchiveFile));
 		return;
 	}
+
+	const FString ExecutableName = TEXT("GLTFLaunchHelper.exe");
 
 	if (!FGLTFZipUtility::ExtractOneFile(ArchiveFile, ExecutableName, DirPath))
 	{
@@ -113,15 +109,4 @@ void FGLTFWebBuilder::BundleLaunchHelper(const FString& ResourcesDir)
 	{
 		AddWarningMessage(FString::Printf(TEXT("Failed to make launch helper file executable at %s"), *ExecutableFile));
 	}
-}
-
-const TCHAR* FGLTFWebBuilder::GetLaunchHelperExecutable()
-{
-#if PLATFORM_WINDOWS
-	return TEXT("GLTFLaunchHelper.exe");
-#elif PLATFORM_MAC
-	return TEXT(""); // TODO: add GLTFLaunchHelper for macos
-#else
-	return TEXT(""); // TODO: add GLTFLaunchHelper for linux
-#endif
 }
