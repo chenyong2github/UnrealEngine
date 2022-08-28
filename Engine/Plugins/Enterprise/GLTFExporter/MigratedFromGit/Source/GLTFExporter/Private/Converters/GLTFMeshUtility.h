@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine.h"
+#include "GLTFMaterialArray.h"
 
 struct FGLTFMeshUtility
 {

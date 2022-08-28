@@ -21,8 +21,7 @@ FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphere
 	const UStaticMeshComponent* StaticMeshComponent = nullptr;
 	FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("SkySphereMesh"), StaticMeshComponent);
 
-	const UStaticMesh* StaticMesh = StaticMeshComponent != nullptr ? StaticMeshComponent->GetStaticMesh() : nullptr;
-	if (StaticMesh != nullptr)
+	if (StaticMeshComponent != nullptr)
 	{
 		const USceneComponent* ParentComponent = StaticMeshComponent->GetAttachParent();
 		const FName SocketName = StaticMeshComponent->GetAttachSocketName();
@@ -32,7 +31,7 @@ FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphere
 		const FTransform RelativeTransform = Transform.GetRelativeTransform(ParentTransform);
 
 		JsonSkySphere.Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
-		JsonSkySphere.SkySphereMesh = Builder.GetOrAddMesh(StaticMesh, -1, nullptr, { FGLTFMaterialUtility::GetDefault() });
+		JsonSkySphere.SkySphereMesh = Builder.GetOrAddMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefault() });
 	}
 	else
 	{

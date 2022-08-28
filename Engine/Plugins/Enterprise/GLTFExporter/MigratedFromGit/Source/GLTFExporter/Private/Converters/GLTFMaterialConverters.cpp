@@ -6,28 +6,49 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMaterialTasks.h"
 
-void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const UStaticMesh*& Mesh, int32& LODIndex)
+void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const UObject*& MeshOrComponent, int32& LODIndex, FGLTFMaterialArray& OverrideMaterials)
 {
-	// TODO: add support for UStaticMeshComponent, USkeletalMesh and USkeletalMeshComponent too
+	const UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshOrComponent);
+	const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshOrComponent);
 
-	if (Mesh != nullptr &&
+	if (MeshOrComponent != nullptr && StaticMesh == nullptr && SkeletalMesh == nullptr)
+	{
+		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshOrComponent))
+		{
+			StaticMesh = StaticMeshComponent->GetStaticMesh();
+		}
+		else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshOrComponent))
+		{
+			SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+		}
+	}
+
+	if ((StaticMesh != nullptr || SkeletalMesh != nullptr) &&
 		Builder.ExportOptions->bBakeMaterialInputs &&
 		Builder.ExportOptions->bBakeMaterialInputsUsingMeshData &&
-		MaterialNeedsVertexData(const_cast<UMaterialInterface*>(Material)))
+		FGLTFMaterialUtility::MaterialNeedsVertexData(Material))
 	{
 		if (LODIndex < 0)
 		{
-			LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(Mesh));
+			if (StaticMesh != nullptr)
+			{
+				LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(StaticMesh));
+			}
+			else if (SkeletalMesh != nullptr)
+			{
+				LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(SkeletalMesh));
+			}
 		}
 	}
 	else
 	{
-		Mesh = nullptr;
+		MeshOrComponent = nullptr;
 		LODIndex = -1;
+		OverrideMaterials = {};
 	}
 }
 
-FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const UStaticMesh* Mesh, int32 LODIndex)
+FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const UObject* MeshOrComponent, int32 LODIndex, const FGLTFMaterialArray OverrideMaterials)
 {
 	if (Material == FGLTFMaterialUtility::GetDefault())
 	{
@@ -35,39 +56,6 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface*
 	}
 
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
-	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, Mesh, LODIndex, MaterialIndex);
+	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, MeshOrComponent, LODIndex, OverrideMaterials, MaterialIndex);
 	return MaterialIndex;
-}
-
-bool FGLTFMaterialConverter::MaterialNeedsVertexData(UMaterialInterface* Material)
-{
-	// TODO: only analyze properties that will be needed for this specific material
-
-	const TArray<EMaterialProperty> Properties =
-	{
-		MP_BaseColor,
-		MP_EmissiveColor,
-		MP_Opacity,
-		MP_OpacityMask,
-		MP_Metallic,
-		MP_Roughness,
-		MP_Normal,
-		// MP_CustomOutput,	// NOTE: causes a crash when used with AnalyzeMaterialProperty
-		MP_AmbientOcclusion,
-		MP_CustomData0,
-		MP_CustomData1
-	};
-
-	bool bRequiresVertexData = false;
-
-	int32 NumTextureCoordinates;
-	bool bPropertyRequiresVertexData;
-
-	for (const EMaterialProperty Property: Properties)
-	{
-		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bPropertyRequiresVertexData);
-		bRequiresVertexData |= bPropertyRequiresVertexData;
-	}
-
-	return bRequiresVertexData;
 }
