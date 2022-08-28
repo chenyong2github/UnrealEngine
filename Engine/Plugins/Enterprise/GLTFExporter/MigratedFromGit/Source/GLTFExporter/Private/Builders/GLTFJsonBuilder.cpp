@@ -8,6 +8,15 @@ FGLTFJsonBuilder::FGLTFJsonBuilder()
 {
 }
 
+void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)
+{
+	JsonRoot.Extensions.Used.Add(Extension);
+	if (bIsRequired)
+	{
+		JsonRoot.Extensions.Required.Add(Extension);
+	}
+}
+
 FGLTFJsonAccessorIndex FGLTFJsonBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
 	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor));
