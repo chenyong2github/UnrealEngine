@@ -15,7 +15,7 @@ public:
 
 	const UGLTFExportOptions* ExportOptions; // TODO: make ExportOptions private and expose each option via getters to ease overriding settings in future
 
-	FGLTFBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
+	FGLTFBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr);
 
 	const UMaterialInterface* ResolveProxy(const UMaterialInterface* Material) const;
 	void ResolveProxies(TArray<const UMaterialInterface*>& Materials) const;

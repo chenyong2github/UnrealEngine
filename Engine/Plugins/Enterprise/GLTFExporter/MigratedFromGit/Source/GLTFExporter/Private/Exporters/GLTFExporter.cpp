@@ -52,7 +52,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	if (bSuccess)
 	{
 		Builder.ProcessSlowTasks(Warn);
-		Builder.WriteToArchive(Archive);
+		Builder.WriteInternalArchive(Archive);
 		bSuccess = Builder.WriteExternalFiles(DirPath);
 	}
 
@@ -93,7 +93,7 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& FilePath, const
 
 	if (bSuccess)
 	{
-		Builder.ProcessSlowTasks(nullptr);
+		Builder.ProcessSlowTasks();
 		bSuccess = Builder.WriteAllFiles(DirPath);
 	}
 

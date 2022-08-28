@@ -8,15 +8,18 @@ class GLTFEXPORTER_API FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
 public:
 
-	FGLTFContainerBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors);
+	FGLTFContainerBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr, const TSet<AActor*>& SelectedActors = {});
 
-	void WriteToArchive(FArchive& Archive);
+	void WriteInternalArchive(FArchive& Archive);
 
-	bool WriteAllFiles(const FString& DirPath, bool bOverwrite = true);
+	bool WriteAllFiles(const FString& DirPath, uint32 WriteFlags = 0);
+	bool WriteAllFiles(const FString& DirPath, TArray<FString>& OutFilePaths, uint32 WriteFlags = 0);
+
+	void GetAllFiles(TArray<FString>& OutFilePaths, const FString& DirPath = TEXT("")) const;
 
 protected:
 
-	void WriteGlb(FArchive& Archive);
+	void WriteGlbArchive(FArchive& Archive);
 
 private:
 

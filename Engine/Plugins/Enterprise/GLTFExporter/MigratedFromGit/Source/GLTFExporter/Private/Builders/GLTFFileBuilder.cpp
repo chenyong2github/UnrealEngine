@@ -11,23 +11,32 @@ FGLTFFileBuilder::FGLTFFileBuilder(const FString& FileName, const UGLTFExportOpt
 FString FGLTFFileBuilder::AddExternalFile(const FString& URI, const TSharedPtr<FGLTFMemoryArchive>& Archive)
 {
 	const FString UnqiueURI = GetUniqueURI(URI);
-	ExternalFiles.Add(UnqiueURI, Archive);
+	ExternalArchives.Add(UnqiueURI, Archive);
 	return UnqiueURI;
 }
 
-const TMap<FString, TSharedPtr<FGLTFMemoryArchive>>& FGLTFFileBuilder::GetExternalFiles() const
+void FGLTFFileBuilder::GetExternalFiles(TArray<FString>& OutFilePaths, const FString& DirPath) const
 {
-	return ExternalFiles;
+	for (const TPair<FString, TSharedPtr<FGLTFMemoryArchive>>& ExternalFile : ExternalArchives)
+	{
+		const FString FilePath = FPaths::Combine(DirPath, *ExternalFile.Key);
+		OutFilePaths.Add(FilePath);
+	}
 }
 
-bool FGLTFFileBuilder::WriteExternalFiles(const FString& DirPath, bool bOverwrite)
+const TMap<FString, TSharedPtr<FGLTFMemoryArchive>>& FGLTFFileBuilder::GetExternalArchives() const
 {
-	for (const TPair<FString, TSharedPtr<FGLTFMemoryArchive>>& ExternalFile : ExternalFiles)
+	return ExternalArchives;
+}
+
+bool FGLTFFileBuilder::WriteExternalFiles(const FString& DirPath, uint32 WriteFlags)
+{
+	for (const TPair<FString, TSharedPtr<FGLTFMemoryArchive>>& ExternalFile : ExternalArchives)
 	{
 		const FString FilePath = FPaths::Combine(DirPath, *ExternalFile.Key);
 		const TArray64<uint8>& FileData = *ExternalFile.Value;
 
-		if (!SaveToFile(FilePath, FileData, bOverwrite))
+		if (!SaveToFile(FilePath, FileData, WriteFlags))
 		{
 			return false;
 		}
@@ -38,7 +47,7 @@ bool FGLTFFileBuilder::WriteExternalFiles(const FString& DirPath, bool bOverwrit
 
 FString FGLTFFileBuilder::GetUniqueURI(const FString& URI) const
 {
-	if (!ExternalFiles.Contains(URI))
+	if (!ExternalArchives.Contains(URI))
 	{
 		return URI;
 	}
@@ -53,15 +62,13 @@ FString FGLTFFileBuilder::GetUniqueURI(const FString& URI) const
 		UnqiueURI = BaseFilename + TEXT('_') + FString::FromInt(Suffix) + FileExtension;
 		Suffix++;
 	}
-	while (ExternalFiles.Contains(UnqiueURI));
+	while (ExternalArchives.Contains(UnqiueURI));
 
 	return UnqiueURI;
 }
 
-bool FGLTFFileBuilder::SaveToFile(const FString& FilePath, const TArray64<uint8>& FileData, bool bOverwrite)
+bool FGLTFFileBuilder::SaveToFile(const FString& FilePath, const TArray64<uint8>& FileData, uint32 WriteFlags)
 {
-	const uint32 WriteFlags = bOverwrite ? FILEWRITE_None : FILEWRITE_NoReplaceExisting;
-
 	if (!FFileHelper::SaveArrayToFile(FileData, *FilePath, &IFileManager::Get(), WriteFlags))
 	{
 		LogError(FString::Printf(TEXT("Failed to save file: %s"), *FilePath));

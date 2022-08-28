@@ -9,21 +9,23 @@ class GLTFEXPORTER_API FGLTFFileBuilder : public FGLTFTaskBuilder
 {
 public:
 
-	FGLTFFileBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
+	FGLTFFileBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions = nullptr);
 
 	FString AddExternalFile(const FString& URI, const TSharedPtr<FGLTFMemoryArchive>& Archive = MakeShared<FGLTFMemoryArchive>());
 
-	const TMap<FString, TSharedPtr<FGLTFMemoryArchive>>& GetExternalFiles() const;
+	void GetExternalFiles(TArray<FString>& OutFilePaths, const FString& DirPath = TEXT("")) const;
 
-	bool WriteExternalFiles(const FString& DirPath, bool bOverwrite = true);
+	const TMap<FString, TSharedPtr<FGLTFMemoryArchive>>& GetExternalArchives() const;
+
+	bool WriteExternalFiles(const FString& DirPath, uint32 WriteFlags = 0);
 
 private:
 
-	TMap<FString, TSharedPtr<FGLTFMemoryArchive>> ExternalFiles;
+	TMap<FString, TSharedPtr<FGLTFMemoryArchive>> ExternalArchives;
 
 	FString GetUniqueURI(const FString& URI) const;
 
 protected:
 
-	bool SaveToFile(const FString& FilePath, const TArray64<uint8>& FileData, bool bOverwrite);
+	bool SaveToFile(const FString& FilePath, const TArray64<uint8>& FileData, uint32 WriteFlags);
 };
