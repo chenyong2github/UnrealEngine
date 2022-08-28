@@ -14,6 +14,7 @@
 #include "Json/GLTFJsonNode.h"
 #include "Json/GLTFJsonSampler.h"
 #include "Json/GLTFJsonScene.h"
+#include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonTexture.h"
 #include "Json/GLTFJsonBackdrop.h"
 #include "Json/GLTFJsonVariation.h"
@@ -70,6 +71,7 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonImage>      Images;
 	TArray<FGLTFJsonSampler>    Samplers;
 	TArray<FGLTFJsonScene>      Scenes;
+	TArray<FGLTFJsonSkin>       Skins;
 	TArray<FGLTFJsonTexture>    Textures;
 	TArray<FGLTFJsonBackdrop>   Backdrops;
 	TArray<FGLTFJsonLightMap>   LightMaps;
@@ -102,6 +104,7 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("skins"), Skins, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
 
 		if (Backdrops.Num() > 0 || Variations.Num() > 0 || LightMaps.Num() > 0 || Lights.Num() > 0 || Hotspots.Num() > 0 /* TODO: add more extension support */)

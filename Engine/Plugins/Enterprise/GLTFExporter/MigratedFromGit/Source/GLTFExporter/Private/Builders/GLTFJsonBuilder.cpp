@@ -58,6 +58,11 @@ FGLTFJsonSceneIndex FGLTFJsonBuilder::AddScene(const FGLTFJsonScene& JsonScene)
 	return FGLTFJsonSceneIndex(JsonRoot.Scenes.Add(JsonScene));
 }
 
+FGLTFJsonSkinIndex FGLTFJsonBuilder::AddSkin(const FGLTFJsonSkin& JsonSkin)
+{
+	return FGLTFJsonSkinIndex(JsonRoot.Skins.Add(JsonSkin));
+}
+
 FGLTFJsonTextureIndex FGLTFJsonBuilder::AddTexture(const FGLTFJsonTexture& JsonTexture)
 {
 	return FGLTFJsonTextureIndex(JsonRoot.Textures.Add(JsonTexture));
@@ -160,6 +165,11 @@ FGLTFJsonSampler& FGLTFJsonBuilder::GetSampler(FGLTFJsonSamplerIndex SamplerInde
 FGLTFJsonScene& FGLTFJsonBuilder::GetScene(FGLTFJsonSceneIndex SceneIndex)
 {
 	return JsonRoot.Scenes[SceneIndex];
+}
+
+FGLTFJsonSkin& FGLTFJsonBuilder::GetSkin(FGLTFJsonSkinIndex SkinIndex)
+{
+	return JsonRoot.Skins[SkinIndex];
 }
 
 FGLTFJsonTexture& FGLTFJsonBuilder::GetTexture(FGLTFJsonTextureIndex TextureIndex)

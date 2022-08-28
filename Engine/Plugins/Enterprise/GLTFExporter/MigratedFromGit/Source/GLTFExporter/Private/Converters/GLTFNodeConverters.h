@@ -26,3 +26,17 @@ class FGLTFActorConverter final : public TGLTFNodeConverter<const AActor*>
 
 	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override;
 };
+
+class FGLTFSkeletalSocketConverter final : public TGLTFNodeConverter<FGLTFJsonNodeIndex, const USkeletalMesh*, FName>
+{
+	using TGLTFNodeConverter::TGLTFNodeConverter;
+
+	virtual FGLTFJsonNodeIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName) override;
+};
+
+class FGLTFSkeletalBoneConverter final : public TGLTFNodeConverter<FGLTFJsonNodeIndex, const USkeletalMesh*, int32>
+{
+	using TGLTFNodeConverter::TGLTFNodeConverter;
+
+	virtual FGLTFJsonNodeIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex) override;
+};

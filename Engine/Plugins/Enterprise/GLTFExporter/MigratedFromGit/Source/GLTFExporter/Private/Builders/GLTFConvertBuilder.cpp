@@ -199,6 +199,36 @@ FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderT
 	return TextureRenderTargetCubeConverter.GetOrAdd(Texture, CubeFace);
 }
 
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
+{
+	if (RootNode == INDEX_NONE || SkeletalMesh == nullptr || SocketName == NAME_None)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	return SkeletalSocketConverter.GetOrAdd(RootNode, SkeletalMesh, SocketName);
+}
+
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex)
+{
+	if (RootNode == INDEX_NONE || SkeletalMesh == nullptr || BoneIndex == INDEX_NONE)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	return SkeletalBoneConverter.GetOrAdd(RootNode, SkeletalMesh, BoneIndex);
+}
+
+FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh)
+{
+	if (RootNode == INDEX_NONE || SkeletalMesh == nullptr)
+	{
+		return FGLTFJsonSkinIndex(INDEX_NONE);
+	}
+
+	return SkinConverter.GetOrAdd(RootNode, SkeletalMesh);
+}
+
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent)
 {
 	if (SceneComponent == nullptr)
