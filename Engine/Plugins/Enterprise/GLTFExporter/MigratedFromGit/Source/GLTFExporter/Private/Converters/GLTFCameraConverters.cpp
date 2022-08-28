@@ -14,7 +14,7 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 
 	FMinimalViewInfo DesiredView;
 	const_cast<UCameraComponent*>(CameraComponent)->GetCameraView(0, DesiredView);
-	const float ExportScale = Builder.ExportOptions->ExportScale;
+	const float ExportScale = Builder.ExportOptions->ExportUniformScale;
 
 	switch (Camera.Type)
 	{
