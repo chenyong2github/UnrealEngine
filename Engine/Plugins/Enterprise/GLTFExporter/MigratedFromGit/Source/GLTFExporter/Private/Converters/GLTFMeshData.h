@@ -23,7 +23,7 @@ struct FGLTFMeshData
 	int32 LODIndex;
 
 #if WITH_EDITOR
-	FPrimitiveData PrimitiveData;
+	FGLTFPrimitiveData PrimitiveData;
 	FMeshDescription Description;
 
 	FLightMapRef LightMap;

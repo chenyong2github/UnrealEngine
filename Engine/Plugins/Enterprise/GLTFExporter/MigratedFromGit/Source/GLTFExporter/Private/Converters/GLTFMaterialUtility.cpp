@@ -7,7 +7,7 @@
 #include "Misc/DefaultValueHelper.h"
 #if WITH_EDITOR
 #include "GLTFMaterialAnalyzer.h"
-#include "GLTFMaterialBaking/Public/IMaterialBakingModule.h"
+#include "GLTFMaterialBaking/Public/IGLTFMaterialBakingModule.h"
 #include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
 #include "Modules/ModuleManager.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -24,25 +24,25 @@ UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
 
 #if WITH_EDITOR
 
-bool FGLTFMaterialUtility::IsNormalMap(const FMaterialPropertyEx& Property)
+bool FGLTFMaterialUtility::IsNormalMap(const FGLTFMaterialPropertyEx& Property)
 {
 	return Property == MP_Normal || Property == TEXT("ClearCoatBottomNormal");
 }
 
-bool FGLTFMaterialUtility::IsSRGB(const FMaterialPropertyEx& Property)
+bool FGLTFMaterialUtility::IsSRGB(const FGLTFMaterialPropertyEx& Property)
 {
 	return Property == MP_BaseColor || Property == MP_EmissiveColor || Property == MP_SubsurfaceColor || Property == TEXT("TransmittanceColor");
 }
 
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
-FGuid FGLTFMaterialUtility::GetAttributeID(const FMaterialPropertyEx& Property)
+FGuid FGLTFMaterialUtility::GetAttributeID(const FGLTFMaterialPropertyEx& Property)
 {
 	return Property.IsCustomOutput()
 		? FMaterialAttributeDefinitionMap::GetCustomAttributeID(Property.CustomOutput.ToString())
 		: FMaterialAttributeDefinitionMap::GetID(Property.Type);
 }
 
-FGuid FGLTFMaterialUtility::GetAttributeIDChecked(const FMaterialPropertyEx& Property)
+FGuid FGLTFMaterialUtility::GetAttributeIDChecked(const FGLTFMaterialPropertyEx& Property)
 {
 	const FGuid AttributeID = GetAttributeID(Property);
 	check(AttributeID != FMaterialAttributeDefinitionMap::GetDefaultID());
@@ -50,7 +50,7 @@ FGuid FGLTFMaterialUtility::GetAttributeIDChecked(const FMaterialPropertyEx& Pro
 }
 #endif
 
-FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(const FMaterialPropertyEx& Property)
+FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(const FGLTFMaterialPropertyEx& Property)
 {
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	return FMaterialAttributeDefinitionMap::GetDefaultValue(GetAttributeIDChecked(Property));
@@ -101,7 +101,7 @@ FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(const FMaterialPropertyEx
 #endif
 }
 
-FVector4 FGLTFMaterialUtility::GetPropertyMask(const FMaterialPropertyEx& Property)
+FVector4 FGLTFMaterialUtility::GetPropertyMask(const FGLTFMaterialPropertyEx& Property)
 {
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	switch (FMaterialAttributeDefinitionMap::GetValueType(GetAttributeIDChecked(Property)))
@@ -162,7 +162,7 @@ FVector4 FGLTFMaterialUtility::GetPropertyMask(const FMaterialPropertyEx& Proper
 #endif
 }
 
-const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property)
+const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, const FGLTFMaterialPropertyEx& Property)
 {
 	if (Property.IsCustomOutput())
 	{
@@ -190,9 +190,9 @@ const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByNa
 	return nullptr;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, const FMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha, bool bAdjustNormalmaps)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, const FGLTFMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FGLTFMeshData* MeshData, const FGLTFIndexArray& MeshSectionIndices, bool bFillAlpha, bool bAdjustNormalmaps)
 {
-	FMeshData MeshSet;
+	FGLTFMeshRenderData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 	MeshSet.TextureCoordinateIndex = TexCoord;
 	MeshSet.MaterialIndices = MeshSectionIndices; // NOTE: MaterialIndices is actually section indices
@@ -205,25 +205,25 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		MeshSet.PrimitiveData = &MeshData->PrimitiveData;
 	}
 
-	FMaterialDataEx MatSet;
+	FGLTFMaterialDataEx MatSet;
 	MatSet.Material = const_cast<UMaterialInterface*>(Material);
 	MatSet.PropertySizes.Add(Property, OutputSize);
 	MatSet.bTangentSpaceNormal = true;
 
-	TArray<FMeshData*> MeshSettings;
-	TArray<FMaterialDataEx*> MatSettings;
+	TArray<FGLTFMeshRenderData*> MeshSettings;
+	TArray<FGLTFMaterialDataEx*> MatSettings;
 	MeshSettings.Add(&MeshSet);
 	MatSettings.Add(&MatSet);
 
-	TArray<FBakeOutputEx> BakeOutputs;
-	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("GLTFMaterialBaking");
+	TArray<FGLTFBakeOutputEx> BakeOutputs;
+	IGLTFMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IGLTFMaterialBakingModule>("GLTFMaterialBaking");
 
 	Module.SetLinearBake(true);
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
 	const bool bIsLinearBake = Module.IsLinearBake(Property);
 	Module.SetLinearBake(false);
 
-	FBakeOutputEx& BakeOutput = BakeOutputs[0];
+	FGLTFBakeOutputEx& BakeOutput = BakeOutputs[0];
 
 	TGLTFSharedArray<FColor> BakedPixels = MakeShared<TArray<FColor>>(MoveTemp(BakeOutput.PropertyData.FindChecked(Property)));
 	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(Property);
@@ -317,7 +317,7 @@ bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressio
 	return false;
 }
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFIndexArray& OutTexCoords)
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FGLTFMaterialPropertyEx& InProperty, FGLTFIndexArray& OutTexCoords)
 {
 	FGLTFMaterialAnalysis Analysis;
 	AnalyzeMaterialProperty(InMaterial, InProperty, Analysis);
@@ -332,7 +332,7 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterfa
 	}
 }
 
-void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
+void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FGLTFMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
 {
 	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
 	{
@@ -404,7 +404,7 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 	if (Material != nullptr && !FGLTFProxyMaterialUtilities::IsProxyMaterial(Material))
 	{
 		// TODO: only analyze properties that will be needed for this specific material
-		const TArray<FMaterialPropertyEx> Properties =
+		const TArray<FGLTFMaterialPropertyEx> Properties =
 		{
 			MP_BaseColor,
 			MP_EmissiveColor,
@@ -424,7 +424,7 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 
 		// TODO: optimize baking by separating need for vertex data and primitive data
 
-		for (const FMaterialPropertyEx& Property: Properties)
+		for (const FGLTFMaterialPropertyEx& Property: Properties)
 		{
 			AnalyzeMaterialProperty(Material, Property, Analysis);
 			bNeedsMeshData |= Analysis.bRequiresVertexData;

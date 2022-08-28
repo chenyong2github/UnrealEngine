@@ -5,15 +5,15 @@
 #include "Math/IntPoint.h"
 #include "SceneTypes.h"
 #include "LightMap.h"
-#include "MaterialPropertyEx.h"
+#include "GLTFMaterialPropertyEx.h"
 
 class UMaterialInterface;
 struct FMeshDescription;
 
 /** Structure containing information about the material which is being baked out */
-struct FMaterialData
+struct FGLTFMaterialData
 {
-	FMaterialData()
+	FGLTFMaterialData()
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
 		, BlendMode(BLEND_Opaque)
@@ -36,9 +36,9 @@ struct FMaterialData
 };
 
 /** Structure containing extended information about the material and properties which is being baked out */
-struct FMaterialDataEx
+struct FGLTFMaterialDataEx
 {
-	FMaterialDataEx()
+	FGLTFMaterialDataEx()
 		: Material(nullptr)
 		, bPerformBorderSmear(true)
 		, BlendMode(BLEND_Opaque)
@@ -49,7 +49,7 @@ struct FMaterialDataEx
 	/** Material to bake out */
 	UMaterialInterface* Material;
 	/** Extended properties and the texture size at which they should be baked out */
-	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
+	TMap<FGLTFMaterialPropertyEx, FIntPoint> PropertySizes;
 	/** Whether to smear borders after baking */
 	bool bPerformBorderSmear;
 	/** Blend mode to use when baking, allowing for example detection of overlapping UVs */
@@ -61,9 +61,9 @@ struct FMaterialDataEx
 };
 
 /** Structure containing primitive information (regarding a mesh or mesh component) that is accessible through material expressions */
-struct FPrimitiveData
+struct FGLTFPrimitiveData
 {
-	FPrimitiveData(const FBoxSphereBounds& LocalBounds = FBoxSphereBounds(ForceInitToZero))
+	FGLTFPrimitiveData(const FBoxSphereBounds& LocalBounds = FBoxSphereBounds(ForceInitToZero))
 		: ActorPosition(ForceInitToZero)
 		, ObjectOrientation(FVector::UpVector)
 		, ObjectBounds(LocalBounds)
@@ -72,15 +72,15 @@ struct FPrimitiveData
 		, CustomPrimitiveData(nullptr)
 	{}
 
-	FPrimitiveData(const UStaticMesh* StaticMesh)
-		: FPrimitiveData(StaticMesh->GetBounds())
+	FGLTFPrimitiveData(const UStaticMesh* StaticMesh)
+		: FGLTFPrimitiveData(StaticMesh->GetBounds())
 	{}
 
-	FPrimitiveData(const USkeletalMesh* SkeletalMesh)
-		: FPrimitiveData(SkeletalMesh->GetBounds())
+	FGLTFPrimitiveData(const USkeletalMesh* SkeletalMesh)
+		: FGLTFPrimitiveData(SkeletalMesh->GetBounds())
 	{}
 
-	FPrimitiveData(const UMeshComponent* MeshComponent)
+	FGLTFPrimitiveData(const UMeshComponent* MeshComponent)
 		: ActorPosition(MeshComponent->GetComponentLocation())
 		, ObjectOrientation(MeshComponent->GetRenderMatrix().GetUnitAxis(EAxis::Z))
 		, ObjectBounds(MeshComponent->CalcBounds(MeshComponent->GetComponentTransform()))
@@ -111,9 +111,9 @@ struct FPrimitiveData
 	const FCustomPrimitiveData* CustomPrimitiveData;
 };
 
-struct FMeshData
+struct FGLTFMeshRenderData
 {
-	FMeshData()
+	FGLTFMeshRenderData()
 		: RawMeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr), PrimitiveData(nullptr)
 	{}
 
@@ -151,13 +151,13 @@ struct FMeshData
 	const FLightmapResourceCluster* LightmapResourceCluster;
 
 	/** Pointer to primitive data that is accessible through material expressions, if nullptr default values are used */
-	const FPrimitiveData* PrimitiveData;
+	const FGLTFPrimitiveData* PrimitiveData;
 };
 
 /** Structure containing data being processed while baking out materials*/
-struct FBakeOutput
+struct FGLTFBakeOutput
 {
-	FBakeOutput()
+	FGLTFBakeOutput()
 		: EmissiveScale(1.0f)
 	{}
 
@@ -175,20 +175,20 @@ struct FBakeOutput
 };
 
 /** Structure containing extended data being processed while baking out materials*/
-struct FBakeOutputEx
+struct FGLTFBakeOutputEx
 {
-	FBakeOutputEx()
+	FGLTFBakeOutputEx()
 		: EmissiveScale(1.0f)
 	{}
 
 	/** Contains the resulting texture data for baking out a extened material's property */
-	TMap<FMaterialPropertyEx, TArray<FColor>> PropertyData;
+	TMap<FGLTFMaterialPropertyEx, TArray<FColor>> PropertyData;
 
 	/** Contains the resulting texture size for baking out a extened material's property */
-	TMap<FMaterialPropertyEx, FIntPoint> PropertySizes;
+	TMap<FGLTFMaterialPropertyEx, FIntPoint> PropertySizes;
 
 	/** Contains the resulting HDR texture data for baking out a material's property, may be empty */
-	TMap<FMaterialPropertyEx, TArray<FFloat16Color>> HDRPropertyData;
+	TMap<FGLTFMaterialPropertyEx, TArray<FFloat16Color>> HDRPropertyData;
 
 	/** Scale used to allow having wide ranges of emissive values in the source materials, the final proxy material will use this value to scale the emissive texture's pixel values */
 	float EmissiveScale;

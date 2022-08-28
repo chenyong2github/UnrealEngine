@@ -6,7 +6,7 @@
 
 struct FColor;
 
-class GLTFMATERIALBAKING_API FMaterialBakingHelpers
+class GLTFMATERIALBAKING_API FGLTFMaterialBakingHelpers
 {
 public:
 	/** 

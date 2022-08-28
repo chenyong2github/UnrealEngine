@@ -21,9 +21,9 @@
 
 #include "Materials/HLSLMaterialTranslator.h"
 
-struct FExportMaterialCompiler : public FProxyMaterialCompiler
+struct FGLTFExportMaterialCompiler : public FProxyMaterialCompiler
 {
-	FExportMaterialCompiler(FMaterialCompiler* InCompiler) :
+	FGLTFExportMaterialCompiler(FMaterialCompiler* InCompiler) :
 		FProxyMaterialCompiler(InCompiler)
 	{}
 
@@ -207,10 +207,10 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 	virtual EMaterialCompilerType GetCompilerType() const override { return EMaterialCompilerType::MaterialProxy; }
 };
 
-class FExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
+class FGLTFExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 {
 public:
-	FExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, EBlendMode ProxyBlendMode = BLEND_Opaque, bool bTangentSpaceNormal = false)
+	FGLTFExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, EBlendMode ProxyBlendMode = BLEND_Opaque, bool bTangentSpaceNormal = false)
 		: FMaterial()
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
@@ -398,7 +398,7 @@ public:
 		if (Property == MP_EmissiveColor)
 		{
 			const EBlendMode BlendMode = MaterialInterface->GetBlendMode();
-			FExportMaterialCompiler ProxyCompiler(Compiler);
+			FGLTFExportMaterialCompiler ProxyCompiler(Compiler);
 			const uint32 ForceCast_Exact_Replicate = MFCF_ForceCast | MFCF_ExactMatch | MFCF_ReplicateValue;
 
 			switch (PropertyToCompile)
@@ -559,7 +559,7 @@ public:
 		return MaterialInterface;
 	}
 
-	friend FArchive& operator<< (FArchive& Ar, FExportMaterialProxy& V)
+	friend FArchive& operator<< (FArchive& Ar, FGLTFExportMaterialProxy& V)
 	{
 		return Ar << V.MaterialInterface;
 	}
