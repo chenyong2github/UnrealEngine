@@ -15,4 +15,9 @@ public:
 	explicit UGLTFMaterialExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	virtual bool AddObject(FGLTFContainerBuilder& Builder, const UObject* Object) override;
+
+private:
+
+	UPROPERTY(Transient, DuplicateTransient)
+	UStaticMesh* DefaultPreviewMesh;
 };

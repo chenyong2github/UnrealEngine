@@ -13,6 +13,7 @@ FGLTFMaterialProxyFactory::FGLTFMaterialProxyFactory(const UGLTFProxyOptions* Op
 	: Builder(TEXT(""), CreateExportOptions(Options))
 {
 	Builder.ImageConverter = CreateCustomImageConverter();
+	// TODO: override texture converters so that we don't create new assets if a texture asset already exists
 }
 
 UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* OriginalMaterial)

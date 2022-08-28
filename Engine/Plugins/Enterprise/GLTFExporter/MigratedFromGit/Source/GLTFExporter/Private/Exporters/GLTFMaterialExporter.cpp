@@ -4,60 +4,52 @@
 #include "Exporters/GLTFExporterUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 
 UGLTFMaterialExporter::UGLTFMaterialExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SupportedClass = UMaterialInterface::StaticClass();
+
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> DefaultPreviewMeshFinder(TEXT("/Engine/EditorMeshes/EditorSphere.EditorSphere"));
+	DefaultPreviewMesh = DefaultPreviewMeshFinder.Object;
 }
 
 bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UMaterialInterface* Material = CastChecked<UMaterialInterface>(Object);
-	const UStaticMesh* PreviewMesh = Builder.ExportOptions->bExportPreviewMesh ? FGLTFExporterUtility::GetPreviewMesh(Material) : nullptr;
 
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
-		if (PreviewMesh != nullptr)
+		const UStaticMesh* PreviewMesh = FGLTFExporterUtility::GetPreviewMesh(Material);
+		if (PreviewMesh == nullptr)
 		{
-			const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, { Material });
-			if (MeshIndex == INDEX_NONE)
-			{
-				Builder.LogError(
-					FString::Printf(TEXT("Failed to export preview mesh %s for material %s"),
-					*Material->GetName(),
-					*PreviewMesh->GetName()));
-				return false;
-			}
-
-			FGLTFJsonNode Node;
-			Node.Mesh = MeshIndex;
-			const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
-
-			FGLTFJsonScene Scene;
-			Scene.Nodes.Add(NodeIndex);
-			const FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
-
-			Builder.DefaultScene = SceneIndex;
+			PreviewMesh = DefaultPreviewMesh;
 		}
-		else
+
+		const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, { Material });
+		if (MeshIndex == INDEX_NONE)
 		{
 			Builder.LogError(
-				FString::Printf(TEXT("Failed to export material %s because of missing preview mesh"),
-				*Material->GetName()));
+				FString::Printf(TEXT("Failed to export preview mesh %s for material %s"),
+				*Material->GetName(),
+				*PreviewMesh->GetName()));
 			return false;
 		}
+
+		FGLTFJsonNode Node;
+		Node.Mesh = MeshIndex;
+		const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
+
+		FGLTFJsonScene Scene;
+		Scene.Nodes.Add(NodeIndex);
+		const FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
+
+		Builder.DefaultScene = SceneIndex;
 	}
 	else
 	{
-		const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material);
-		if (MaterialIndex == INDEX_NONE)
-		{
-			Builder.LogError(
-				FString::Printf(TEXT("Failed to export material %s"),
-				*Material->GetName()));
-			return false;
-		}
+		Builder.GetOrAddMaterial(Material);
 	}
 
 	return true;

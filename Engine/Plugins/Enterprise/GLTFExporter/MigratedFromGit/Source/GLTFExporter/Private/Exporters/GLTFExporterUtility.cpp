@@ -36,8 +36,7 @@ const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface
 	} while (Material != nullptr);
 #endif
 
-	static const UStaticMesh* DefaultPreviewMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/EditorMeshes/EditorSphere.EditorSphere"));
-	return DefaultPreviewMesh;
+	return nullptr;
 }
 
 const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* AnimSequence)
