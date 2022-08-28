@@ -92,7 +92,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 	if (Actor == nullptr)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Actor '%s' for variant '%s' was not found and will be skipped. Context: %s"),
+			TEXT("Actor '%s' in variant '%s' was not found and will be skipped. Context: %s"),
 			*Binding->GetDisplayText().ToString(),
 			*Variant->GetDisplayText().ToString(),
 			*GetLogContext(Variant)));
@@ -102,7 +102,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Actor '%s' for variant '%s' is not selected and will be skipped. Context: %s"),
+			TEXT("Actor '%s' in variant '%s' is not selected and will be skipped. Context: %s"),
 			*Binding->GetDisplayText().ToString(),
 			*Variant->GetDisplayText().ToString(),
 			*GetLogContext(Variant)));
@@ -157,7 +157,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 	if (Node == INDEX_NONE)
 	{
 		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Actor '%s' for variant '%s' could not be exported and will be skipped. Context: %s"),
+			TEXT("Actor '%s' in variant '%s' could not be exported and will be skipped. Context: %s"),
 			*Binding->GetDisplayText().ToString(),
 			*Variant->GetDisplayText().ToString(),
 			*GetLogContext(Variant)));
