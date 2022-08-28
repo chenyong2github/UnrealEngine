@@ -6,7 +6,8 @@
 UGLTFSkeletalMeshExporter::UGLTFSkeletalMeshExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = USkeletalMesh::StaticClass();
+	// TODO: uncomment when support is implemented
+	// SupportedClass = USkeletalMesh::StaticClass();
 }
 
 bool UGLTFSkeletalMeshExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)

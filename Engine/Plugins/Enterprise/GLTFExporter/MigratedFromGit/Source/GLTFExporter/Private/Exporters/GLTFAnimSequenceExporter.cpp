@@ -6,7 +6,8 @@
 UGLTFAnimSequenceExporter::UGLTFAnimSequenceExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UAnimSequence::StaticClass();
+	// TODO: uncomment when support is implemented
+	// SupportedClass = UAnimSequence::StaticClass();
 }
 
 bool UGLTFAnimSequenceExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
