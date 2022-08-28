@@ -17,10 +17,10 @@ FGLTFMessageBuilder::FGLTFMessageBuilder(const FString& FilePath, const UGLTFExp
 	}
 }
 
-void FGLTFMessageBuilder::AddInfoMessage(const FString& Message)
+void FGLTFMessageBuilder::AddSuggestionMessage(const FString& Message)
 {
-	Infos.Add(Message);
-	PrintToLog(ELogLevel::Info, Message);
+	Suggestions.Add(Message);
+	PrintToLog(ELogLevel::Suggestion, Message);
 }
 
 void FGLTFMessageBuilder::AddWarningMessage(const FString& Message)
@@ -35,9 +35,9 @@ void FGLTFMessageBuilder::AddErrorMessage(const FString& Message)
 	PrintToLog(ELogLevel::Error, Message);
 }
 
-const TArray<FString>& FGLTFMessageBuilder::GetInfoMessages() const
+const TArray<FString>& FGLTFMessageBuilder::GetSuggestionMessages() const
 {
-	return Infos;
+	return Suggestions;
 }
 
 const TArray<FString>& FGLTFMessageBuilder::GetWarningMessages() const
@@ -60,7 +60,7 @@ void FGLTFMessageBuilder::OpenLog() const
 
 void FGLTFMessageBuilder::ClearLog()
 {
-	Infos.Empty();
+	Suggestions.Empty();
 	Warnings.Empty();
 	Errors.Empty();
 
@@ -77,9 +77,9 @@ void FGLTFMessageBuilder::PrintToLog(ELogLevel Level, const FString& Message) co
 
 	switch (Level)
 	{
-		case ELogLevel::Info:    Verbosity = ELogVerbosity::Display; break;
-		case ELogLevel::Warning: Verbosity = ELogVerbosity::Warning; break;
-		case ELogLevel::Error:   Verbosity = ELogVerbosity::Error; break;
+		case ELogLevel::Suggestion: Verbosity = ELogVerbosity::Display; break;
+		case ELogLevel::Warning:    Verbosity = ELogVerbosity::Warning; break;
+		case ELogLevel::Error:      Verbosity = ELogVerbosity::Error; break;
 		default:
 			checkNoEntry();
 			return;
@@ -94,9 +94,9 @@ void FGLTFMessageBuilder::PrintToLog(ELogLevel Level, const FString& Message) co
 
 		switch (Level)
 		{
-			case ELogLevel::Info:    Severity = EMessageSeverity::Info; break;
-			case ELogLevel::Warning: Severity = EMessageSeverity::Warning; break;
-			case ELogLevel::Error:   Severity = EMessageSeverity::Error; break;
+			case ELogLevel::Suggestion: Severity = EMessageSeverity::Info; break;
+			case ELogLevel::Warning:    Severity = EMessageSeverity::Warning; break;
+			case ELogLevel::Error:      Severity = EMessageSeverity::Error; break;
 			default:
 				checkNoEntry();
 				return;

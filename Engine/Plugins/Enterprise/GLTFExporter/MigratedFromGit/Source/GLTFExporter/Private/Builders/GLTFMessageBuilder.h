@@ -14,13 +14,13 @@ protected:
 
 public:
 
-	void AddInfoMessage(const FString& Message);
+	void AddSuggestionMessage(const FString& Message);
 
 	void AddWarningMessage(const FString& Message);
 
 	void AddErrorMessage(const FString& Message);
 
-	const TArray<FString>& GetInfoMessages() const;
+	const TArray<FString>& GetSuggestionMessages() const;
 
 	const TArray<FString>& GetWarningMessages() const;
 
@@ -34,14 +34,14 @@ private:
 
 	enum class ELogLevel
 	{
-		Info,
+		Suggestion,
 		Warning,
 		Error,
 	};
 
 	void PrintToLog(ELogLevel Level, const FString& Message) const;
 
-	TArray<FString> Infos;
+	TArray<FString> Suggestions;
 	TArray<FString> Warnings;
 	TArray<FString> Errors;
 
