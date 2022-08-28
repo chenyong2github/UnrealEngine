@@ -15,6 +15,11 @@
 	"IsBetaVersion": true,
 	"Modules": [
 		{
+			"Name": "GLTFMaterialBaking",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "GLTFExporter",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
