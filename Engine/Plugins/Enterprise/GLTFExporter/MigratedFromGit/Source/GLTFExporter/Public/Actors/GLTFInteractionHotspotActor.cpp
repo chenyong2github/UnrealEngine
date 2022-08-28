@@ -26,28 +26,7 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 
 void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 {
-	const bool IsUnequalAnimations = ([&]()
-	{
-		if (InteractionHotspotComponent->Animations.Num() != Animations.Num())
-		{
-			return true;
-		}
-
-		for (int32 AnimationIndex = 0; AnimationIndex < Animations.Num(); ++AnimationIndex)
-		{
-			const FGLTFAnimation& ActorAnimation = Animations[AnimationIndex];
-			const FGLTFAnimation& ComponentAnimation = InteractionHotspotComponent->Animations[AnimationIndex];
-
-			if (ActorAnimation.SkeletalMeshActor != ComponentAnimation.SkeletalMeshActor || ActorAnimation.AnimationSequence != ComponentAnimation.AnimationSequence)
-			{
-				return true;
-			}
-		}
-
-		return false;
-	})();
-
-	if (IsUnequalAnimations)
+	if (InteractionHotspotComponent->Animations != Animations)
 	{
 		InteractionHotspotComponent->Animations = Animations;
 	}
