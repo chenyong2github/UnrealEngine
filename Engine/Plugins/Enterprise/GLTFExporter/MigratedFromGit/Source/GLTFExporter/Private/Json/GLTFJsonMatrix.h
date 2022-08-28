@@ -11,7 +11,7 @@ struct TGLTFJsonMatrix final : BaseType, IGLTFJsonArray
 	static const TGLTFJsonMatrix Identity;
 
 	TGLTFJsonMatrix(const BaseType& Other)
-		: TGLTFMatrix(Other)
+		: BaseType(Other)
 	{
 	}
 
