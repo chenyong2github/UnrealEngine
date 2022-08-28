@@ -343,7 +343,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFConver
 
 	const UStaticMesh* StaticMesh;
 
-	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), StaticMesh) || StaticMesh == nullptr)
+	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), StaticMesh))
 	{
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
