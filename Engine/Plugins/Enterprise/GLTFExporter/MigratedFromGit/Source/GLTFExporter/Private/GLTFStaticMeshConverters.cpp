@@ -239,7 +239,7 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFIndexedBuilder& Builder, c
 		JsonPrimitive.Attributes = JsonAttributes;
 
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Sections[SectionIndex], IndexBuffer,
-			Name.IsEmpty() ? Name : JsonMesh.Name + (SectionCount != 0 ? TEXT("_Indices_Section") + FString::FromInt(SectionIndex) : TEXT("_Indices")));
+			Name.IsEmpty() ? Name : JsonMesh.Name + (SectionCount != 1 ? TEXT("_Indices_Section") + FString::FromInt(SectionIndex) : TEXT("_Indices")));
 	}
 
 	return Builder.AddMesh(JsonMesh);
