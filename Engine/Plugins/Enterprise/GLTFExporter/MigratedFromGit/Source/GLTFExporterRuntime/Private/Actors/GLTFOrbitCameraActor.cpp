@@ -15,16 +15,14 @@ namespace
 
 #define DEBUGGLTFORBITCAMERA 0
 
-#if DEBUGGLTFORBITCAMERA
 DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFOrbitCamera, Log, All);
-#endif
 
 AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor"),
 	Focus(nullptr),
-	DistanceMin(0.0f),
-	DistanceMax(0.0f),
+	DistanceMin(100.0f),
+	DistanceMax(1000.0f),
 	PitchAngleMin(-90.0f),
 	PitchAngleMax(90.0f),
 	OrbitInertia(0.07f),
@@ -41,6 +39,28 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
+
+#if WITH_EDITOR
+void AGLTFOrbitCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+
+	if (PropertyThatChanged)
+	{
+		const FString PropertyName = PropertyThatChanged->GetName();
+
+		if (PropertyName == TEXT("Focus"))
+		{
+			if (Focus == this)
+			{
+				UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("The camera cannot focus itself."));
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 void AGLTFOrbitCameraActor::BeginPlay()
 {

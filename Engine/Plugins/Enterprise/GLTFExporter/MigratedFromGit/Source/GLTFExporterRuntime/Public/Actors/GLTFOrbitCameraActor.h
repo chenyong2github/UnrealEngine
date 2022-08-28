@@ -16,6 +16,9 @@ class GLTFEXPORTERRUNTIME_API AGLTFOrbitCameraActor : public ACameraActor
 	//~ Begin UObject Interface
 public:
 	AGLTFOrbitCameraActor(const FObjectInitializer& ObjectInitializer);
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
