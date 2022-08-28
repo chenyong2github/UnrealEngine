@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporterUtility.h"
+#include "AssetRegistryModule.h"
+#include "LevelSequence.h"
 #include "UnrealEd.h"
 
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
@@ -44,4 +46,29 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 	}
 
 	return PreviewMesh;
+}
+
+TArray<ULevel*> FGLTFExporterUtility::GetReferencedLevels(const UObject* Object)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	const FName OuterPathName = *Object->GetOutermost()->GetPathName();
+
+	TArray<ULevel*> ReferencedLevels;
+	TArray<FAssetIdentifier> AssetDependencies;
+	AssetRegistryModule.Get().GetDependencies(OuterPathName, AssetDependencies);
+
+	for (FAssetIdentifier& AssetDependency : AssetDependencies)
+	{
+		FString PackageName = AssetDependency.PackageName.ToString();
+		if (FEditorFileUtils::IsMapPackageAsset(PackageName))
+		{
+			UWorld* World = LoadObject<UWorld>(nullptr, *PackageName);
+			if (World != nullptr)
+			{
+				ReferencedLevels.AddUnique(World->PersistentLevel);
+			}
+		}
+	}
+
+	return ReferencedLevels;
 }
