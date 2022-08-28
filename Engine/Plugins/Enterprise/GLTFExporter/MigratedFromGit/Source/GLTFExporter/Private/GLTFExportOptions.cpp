@@ -50,12 +50,6 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	const FName PropertyFName = InProperty->GetFName();
 
-	// TODO: remove options that have been implemented in exporters/converters.
-	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHiddenInGame))
-	{
-		return false;
-	}
-
 	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultMaterialBakeSize))
 	{
 		return bBakeMaterialInputs;
