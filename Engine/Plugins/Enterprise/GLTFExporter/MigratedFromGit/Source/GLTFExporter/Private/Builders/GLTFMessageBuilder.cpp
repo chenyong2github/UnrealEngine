@@ -7,7 +7,7 @@
 #include "IMessageLogListing.h"
 
 FGLTFMessageBuilder::FGLTFMessageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: FGLTFBuilder(FilePath, ExportOptions)
+	: FGLTFTaskBuilder(FilePath, ExportOptions)
 {
 }
 

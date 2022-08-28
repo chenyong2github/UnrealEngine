@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Builders/GLTFBuilder.h"
+#include "Builders/GLTFTaskBuilder.h"
 
 enum class EGLTFMessageSeverity
 {
@@ -11,7 +11,7 @@ enum class EGLTFMessageSeverity
 	Error
 };
 
-class FGLTFMessageBuilder : public FGLTFBuilder
+class FGLTFMessageBuilder : public FGLTFTaskBuilder
 {
 protected:
 
