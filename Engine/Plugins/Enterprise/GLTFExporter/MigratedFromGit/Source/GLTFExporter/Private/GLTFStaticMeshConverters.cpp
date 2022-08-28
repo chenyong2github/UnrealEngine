@@ -11,7 +11,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(FGLTFIndexedB
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
-	
+
 	TArray<FVector> Positions;
 	Positions.AddUninitialized(VertexCount);
 
@@ -35,7 +35,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(FGLTFIndexedB
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec3;
-	
+
 	JsonAccessor.MinMaxLength = 3;
 	JsonAccessor.Max[0] = BoundingBox.Max.X;
 	JsonAccessor.Max[1] = BoundingBox.Max.Y;
@@ -43,7 +43,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(FGLTFIndexedB
 	JsonAccessor.Min[0] = BoundingBox.Min.X;
 	JsonAccessor.Min[1] = BoundingBox.Min.Y;
 	JsonAccessor.Min[2] = BoundingBox.Min.Z;
-	
+
 	return Builder.AddAccessor(JsonAccessor);
 }
 
@@ -84,7 +84,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshNormalVertexBufferConverter::Convert(FGLTF
 
 	TArray<FVector> Normals;
 	Normals.AddUninitialized(VertexCount);
-	
+
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		Normals[VertexIndex] = FGLTFConverterUtility::ConvertVector(VertexBuffer->VertexTangentZ(VertexIndex));
@@ -96,7 +96,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshNormalVertexBufferConverter::Convert(FGLTF
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec3;
-	
+
 	return Builder.AddAccessor(JsonAccessor);
 }
 
@@ -110,7 +110,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshTangentVertexBufferConverter::Convert(FGLT
 
 	TArray<FVector4> Tangents;
 	Tangents.AddUninitialized(VertexCount);
-	
+
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
 		Tangents[VertexIndex] = FGLTFConverterUtility::ConvertVector(VertexBuffer->VertexTangentX(VertexIndex));
@@ -122,7 +122,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshTangentVertexBufferConverter::Convert(FGLT
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
-	
+
 	return Builder.AddAccessor(JsonAccessor);
 }
 
@@ -133,7 +133,7 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshUV0VertexBufferConverter::Convert(FGLTFInd
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
-	
+
 	TArray<FVector2D> UV0s;
 	UV0s.AddUninitialized(VertexCount);
 
@@ -191,7 +191,7 @@ FGLTFJsonBufferViewIndex FGLTFStaticMeshIndexBufferConverter::Convert(FGLTFIndex
 }
 
 FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer)
-{	
+{
 	const uint32 TriangleCount = MeshSection->NumTriangles;
 	if (TriangleCount == 0)
 	{

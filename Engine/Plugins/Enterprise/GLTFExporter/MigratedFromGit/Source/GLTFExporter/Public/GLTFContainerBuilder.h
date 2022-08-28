@@ -5,5 +5,5 @@
 #include "GLTFIndexedBuilder.h"
 
 struct GLTFEXPORTER_API FGLTFContainerBuilder : public FGLTFIndexedBuilder
-{	
+{
 };

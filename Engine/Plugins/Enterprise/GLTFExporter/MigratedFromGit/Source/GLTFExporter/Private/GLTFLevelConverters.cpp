@@ -19,7 +19,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Bu
 	Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation());
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
 	Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
-	
+
 	if (FGLTFConverterUtility::IsSkySphereBlueprint(Blueprint))
 	{
 		// Ignore components
@@ -57,7 +57,7 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(FGLTFIndexedBuilder& Builder, c
 {
 	FGLTFJsonScene Scene;
 	Scene.Name = Name;
-	
+
 	// TODO: export Level->Model ?
 
 	const TArray<AActor*>& Actors = Level->Actors;
