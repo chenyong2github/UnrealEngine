@@ -6,12 +6,11 @@
 
 enum class EGLTFTaskPriority : uint8
 {
-	Actor, // TODO: add and implement tasks for actors
-    Mesh,
-    Animation,
-    Material,
-    Texture,
-    MAX
+	Animation,
+	Mesh,
+	Material,
+	Texture,
+	MAX
 };
 
 class FGLTFTask
