@@ -30,7 +30,6 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 	if (!TryGetConstantColor(JsonMaterial.PBRMetallicRoughness.BaseColorFactor, Material->BaseColor, MaterialInstance))
 	{
 		// TODO: temporary fallback until texture and baking support
-		JsonMaterial.PBRMetallicRoughness.BaseColorFactor = FGLTFConverterUtility::ConvertColor(FLinearColor(Material->BaseColor.Constant));
 	}
 
 	if (JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Blend || JsonMaterial.AlphaMode == EGLTFJsonAlphaMode::Mask)
@@ -39,26 +38,22 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		if (!TryGetConstantScalar(JsonMaterial.PBRMetallicRoughness.BaseColorFactor.A, OpacityInput, MaterialInstance))
 		{
 			// TODO: temporary fallback until texture and baking support
-			JsonMaterial.PBRMetallicRoughness.BaseColorFactor.A = OpacityInput.Constant;
 		}
 	}
 
 	if (!TryGetConstantScalar(JsonMaterial.PBRMetallicRoughness.MetallicFactor, Material->Metallic, MaterialInstance))
 	{
 		// TODO: temporary fallback until texture and baking support
-		JsonMaterial.PBRMetallicRoughness.MetallicFactor = Material->Metallic.Constant;
 	}
 
 	if (!TryGetConstantScalar(JsonMaterial.PBRMetallicRoughness.RoughnessFactor, Material->Roughness, MaterialInstance))
 	{
 		// TODO: temporary fallback until texture and baking support
-		JsonMaterial.PBRMetallicRoughness.RoughnessFactor = Material->Roughness.Constant;
 	}
 
 	if (!TryGetConstantColor(JsonMaterial.EmissiveFactor, Material->EmissiveColor, MaterialInstance))
 	{
 		// TODO: temporary fallback until texture and baking support
-		JsonMaterial.EmissiveFactor = FGLTFConverterUtility::ConvertColor(FLinearColor(Material->EmissiveColor.Constant));
 	}
 
 	return Builder.AddMaterial(JsonMaterial);
@@ -93,7 +88,8 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, const F
 	const UMaterialExpression* Expression = MaterialInput.Expression;
 	if (Expression == nullptr)
 	{
-		OutValue = MaterialInput.Constant;
+		// TODO: is this assumption correct?
+		OutValue = FLinearColor(MaterialInput.Constant);
 		return true;
 	}
 
@@ -163,7 +159,9 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalar
 	const UMaterialExpression* Expression = MaterialInput.Expression;
 	if (Expression == nullptr)
 	{
-		return false;
+		// TODO: is this assumption correct?
+		OutValue = MaterialInput.Constant;
+		return true;
 	}
 
 	if (const UMaterialExpressionVectorParameter* VectorParameter = Cast<UMaterialExpressionVectorParameter>(Expression))
