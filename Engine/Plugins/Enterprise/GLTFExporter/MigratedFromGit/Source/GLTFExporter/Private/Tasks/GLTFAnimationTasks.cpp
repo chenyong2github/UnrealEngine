@@ -43,6 +43,8 @@ void FGLTFAnimSequenceTask::Complete()
 	TArray<TArray<FTransform>> FrameTransforms;
 	FrameTransforms.AddDefaulted(FrameCount);
 	{
+		FMemMark Mark(FMemStack::Get());
+
 		FCompactPose Pose;
 		Pose.SetBoneContainer(&BoneContainer);
 
@@ -58,6 +60,10 @@ void FGLTFAnimSequenceTask::Complete()
 			AnimSequence->GetBonePose(PoseData, ExtractionContext);
 			Pose.CopyBonesTo(FrameTransforms[Frame]);
 		}
+
+		Pose.Empty();
+		Curve.Empty();
+		Attributes.Empty();
 	}
 
 	// TODO: add animation data accessor converters to reuse track information
