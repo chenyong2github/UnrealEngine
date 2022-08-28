@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFTextureUtility.h"
 #include "IImageWrapper.h"
+#include "NormalMapPreview.h"
 
 bool FGLTFTextureUtility::IsHDRFormat(EPixelFormat Format)
 {
@@ -151,8 +152,16 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	const_cast<UTexture2D*>(InSource)->SetForceMipLevelsToBeResident(30.0f, true);
 	const_cast<UTexture2D*>(InSource)->WaitForStreaming();
 
+	TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
+
+	if (InSource->IsNormalMap())
+	{
+		BatchedElementParameters = new FNormalMapBatchedElementParameters();
+	}
+
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, InSource->Resource, FLinearColor::White);
+	TileItem.BatchedElementParameters = BatchedElementParameters;
 
 	Canvas.PushAbsoluteTransform(InTransform);
 	TileItem.Draw(&Canvas);
