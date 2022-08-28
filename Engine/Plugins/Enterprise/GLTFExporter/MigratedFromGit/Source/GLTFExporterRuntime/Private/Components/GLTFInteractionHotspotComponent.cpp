@@ -17,6 +17,11 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFInteractionHotspot, Log, All);
 
+namespace
+{
+	const FName NAME_LevelEditorModule = TEXT("LevelEditor");
+}
+
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	Image(nullptr),
@@ -369,11 +374,9 @@ FIntPoint UGLTFInteractionHotspotComponent::GetCurrentViewportSize()
 #if WITH_EDITOR
 		else
 		{
-			static const FName LevelEditorName = "LevelEditor";
-
-			if (FModuleManager::Get().IsModuleLoaded(LevelEditorName))
+			if (FModuleManager::Get().IsModuleLoaded(NAME_LevelEditorModule))
 			{
-				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorName);
+				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditorModule);
 
 				if (const TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport())
 				{
