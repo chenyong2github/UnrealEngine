@@ -2,6 +2,32 @@
 
 #include "Builders/GLTFContainerBuilder.h"
 
+void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
+{
+	CompleteAllTasks(Context);
+
+	if (bIsGlbFile)
+	{
+		WriteGlb(Archive);
+	}
+	else
+	{
+		WriteJson(Archive);
+	}
+
+	const TSet<EGLTFJsonExtension> CustomExtensions = GetCustomExtensionsUsed();
+	if (CustomExtensions.Num() > 0)
+	{
+		const FString ExtensionsString = FString::JoinBy(CustomExtensions, TEXT(", "),
+            [](EGLTFJsonExtension Extension)
+        {
+            return FGLTFJsonUtility::ToString(Extension);
+        });
+
+		AddWarningMessage(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
+	}
+}
+
 FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
 	: FGLTFConvertBuilder(FilePath, ExportOptions, bSelectedActorsOnly)
 {
