@@ -33,7 +33,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonExtension::EPIC_SkySpheres:         return TEXT("EPIC_sky_spheres");
 			default:
 				checkNoEntry();
-				return TEXT("unknown");
+				return TEXT("");
 		}
 	}
 
@@ -46,7 +46,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonAlphaMode::Mask:   return TEXT("MASK");
 			default:
 				checkNoEntry();
-				return TEXT("UNKNOWN");
+				return TEXT("");
 		}
 	}
 
@@ -58,7 +58,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonMimeType::JPEG: return TEXT("image/jpeg");
 			default:
 				checkNoEntry();
-				return TEXT("unknown");
+				return TEXT("");
 		}
 	}
 
@@ -75,7 +75,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonAccessorType::Mat4:   return TEXT("MAT4");
 			default:
 				checkNoEntry();
-				return TEXT("UNKNOWN");
+				return TEXT("");
 		}
 	}
 
@@ -87,7 +87,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonHDREncoding::RGBM: return TEXT("RGBM");
 			default:
 				checkNoEntry();
-				return TEXT("UNKNOWN");
+				return TEXT("");
 		}
 	}
 
@@ -103,7 +103,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonCubeFace::NegZ: return TEXT("NegZ");
 			default:
 				checkNoEntry();
-				return TEXT("Unknown");
+				return TEXT("");
 		}
 	}
 
@@ -115,7 +115,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonCameraType::Orthographic: return TEXT("orthographic");
 			default:
 				checkNoEntry();
-				return TEXT("unknown");
+				return TEXT("");
 		}
 	}
 
@@ -128,7 +128,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonLightType::Spot:        return TEXT("spot");
 			default:
 				checkNoEntry();
-				return TEXT("unknown");
+				return TEXT("");
 		}
 	}
 
@@ -141,7 +141,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonInterpolation::CubicSpline: return TEXT("CUBICSPLINE");
 			default:
 				checkNoEntry();
-				return TEXT("UNKNOWN");
+				return TEXT("");
 		}
 	}
 
@@ -155,7 +155,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonTargetPath::Weights:     return TEXT("weights");
 			default:
 				checkNoEntry();
-				return TEXT("unknown");
+				return TEXT("");
 		}
 	}
 
