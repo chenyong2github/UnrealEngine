@@ -1148,7 +1148,6 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 		EGLTFJsonTextureWrap::ClampToEdge,
         EGLTFJsonTextureWrap::ClampToEdge);
 
-	OutTexInfo.TexCoord = 0;
 	OutTexInfo.Index = TextureIndex;
 	return true;
 }
@@ -1175,7 +1174,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(FGLTFConver
 	}
 	else
 	{
-		OutTexCoord = 0; // property is texture coordinate independent
+		OutTexCoord = 0; // assume TexCoord0 even thought property seems to be texture coordinate independent
 	}
 
 	const FIntPoint DefaultTextureSize = Builder.ExportOptions->GetDefaultMaterialBakeSize();
@@ -1202,9 +1201,6 @@ bool FGLTFMaterialConverter::StoreBakedPropertyTexture(FGLTFConvertBuilder& Buil
 {
 	const FString TextureName = Material->GetName() + TEXT("_") + PropertyName;
 
-	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
-	const uint32 TexCoord = 0;
-
 	// TODO: should this be the default wrap-mode?
 	const EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
 	const EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
@@ -1223,8 +1219,6 @@ bool FGLTFMaterialConverter::StoreBakedPropertyTexture(FGLTFConvertBuilder& Buil
 		TextureWrapS,
 		TextureWrapT);
 
-	OutTexInfo.TexCoord = TexCoord;
 	OutTexInfo.Index = TextureIndex;
-
 	return true;
 }

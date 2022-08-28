@@ -386,7 +386,7 @@ bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressio
 	return false;
 }
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32> TexCoordIndices)
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32>& OutTexCoords)
 {
 	UMaterialExpression* Expression = ExpressionInput.Expression;
 	if (Expression == nullptr)
@@ -403,12 +403,12 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput
 		{
 			if (TextureSampler->Coordinates.Expression == nullptr)
 			{
-				TexCoordIndices.Add(TextureSampler->ConstCoordinate);
+				OutTexCoords.Add(TextureSampler->ConstCoordinate);
 			}
 		}
 		else if (const UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(InputExpression))
 		{
-			TexCoordIndices.Add(TextureCoordinate->CoordinateIndex);
+			OutTexCoords.Add(TextureCoordinate->CoordinateIndex);
 		}
 	}
 }
