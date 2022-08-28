@@ -23,11 +23,11 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetReferencedWorlds(LevelSequence);
+	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetAssociatedWorlds(LevelSequence);
 	if (Worlds.Num() == 0)
 	{
 		Builder.LogError(
-			FString::Printf(TEXT("Failed to export level sequence %s because no level referenced"),
+			FString::Printf(TEXT("Failed to export level sequence %s because no associated level"),
 			*LevelSequence->GetName()));
 		return false;
 	}
@@ -35,7 +35,7 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 	if (Worlds.Num() > 1)
 	{
 		Builder.LogError(
-			FString::Printf(TEXT("Failed to export level sequence %s because more than one level referenced"),
+			FString::Printf(TEXT("Failed to export level sequence %s because more than one associated level"),
 			*LevelSequence->GetName()));
 		return false;
 	}

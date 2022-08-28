@@ -23,11 +23,11 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetReferencedWorlds(LevelVariantSets);
+	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetAssociatedWorlds(LevelVariantSets);
 	if (Worlds.Num() == 0)
 	{
 		Builder.LogError(
-			FString::Printf(TEXT("Failed to export level variant sets %s because no level referenced"),
+			FString::Printf(TEXT("Failed to export level variant sets %s because no associated level"),
 			*LevelVariantSets->GetName()));
 		return false;
 	}
@@ -35,7 +35,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 	if (Worlds.Num() > 1)
 	{
 		Builder.LogError(
-			FString::Printf(TEXT("Failed to export level variant sets %s because more than one level referenced"),
+			FString::Printf(TEXT("Failed to export level variant sets %s because more than one associated level"),
 			*LevelVariantSets->GetName()));
 		return false;
 	}

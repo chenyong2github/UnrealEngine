@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporterUtility.h"
-#include "AssetRegistryModule.h"
-#include "LevelSequence.h"
+#include "Materials/MaterialInstance.h"
+#include "AssetRegistry/IAssetRegistry.h"
 
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
 {
@@ -47,24 +47,23 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 	return PreviewMesh;
 }
 
-TArray<UWorld*> FGLTFExporterUtility::GetReferencedWorlds(const UObject* Object)
+TArray<UWorld*> FGLTFExporterUtility::GetAssociatedWorlds(const UObject* Object)
 {
-	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<UWorld*> Worlds;
+	TArray<FAssetIdentifier> Dependencies;
+
 	const FName OuterPathName = *Object->GetOutermost()->GetPathName();
+	IAssetRegistry::GetChecked().GetDependencies(OuterPathName, Dependencies);
 
-	TArray<UWorld*> ReferencedWorlds;
-	TArray<FAssetIdentifier> AssetDependencies;
-	AssetRegistryModule.Get().GetDependencies(OuterPathName, AssetDependencies);
-
-	for (FAssetIdentifier& AssetDependency : AssetDependencies)
+	for (FAssetIdentifier& Dependency : Dependencies)
 	{
-		FString PackageName = AssetDependency.PackageName.ToString();
+		FString PackageName = Dependency.PackageName.ToString();
 		UWorld* World = LoadObject<UWorld>(nullptr, *PackageName, nullptr, LOAD_NoWarn);
 		if (World != nullptr)
 		{
-			ReferencedWorlds.AddUnique(World);
+			Worlds.AddUnique(World);
 		}
 	}
 
-	return ReferencedWorlds;
+	return Worlds;
 }
