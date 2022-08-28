@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Engine/Texture.h"
 #include "Engine/AssetUserData.h"
 #include "GLTFMaterialUserData.generated.h"
 
 class UMaterialInterface;
-enum TextureFilter;
-enum TextureAddress;
 
 UENUM(BlueprintType)
 enum class EGLTFMaterialBakeMode : uint8
