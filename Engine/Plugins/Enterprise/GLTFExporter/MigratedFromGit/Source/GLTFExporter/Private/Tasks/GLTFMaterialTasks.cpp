@@ -1357,7 +1357,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
 	FMeshDescription MeshDescription;
-	TArray<int32> MaterialIndices;
+	TArray<int32> MeshMaterialIndices;
 
 	bool bUseMeshData = bHasValidMeshOrComponent;
 
@@ -1398,15 +1398,15 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 
 			if (SectionMaterial == Material)
 			{
-				MaterialIndices.Add(Section.MaterialIndex);
+				MeshMaterialIndices.Add(Section.MaterialIndex);
 			}
 		}
 
-		if (MaterialIndices.Num() == 0)
+		if (MeshMaterialIndices.Num() == 0)
 		{
 			// Fall back to using the first material index,
 			// just like when baking from within the editor
-			MaterialIndices.Add(0);
+			MeshMaterialIndices.Add(0);
 		}
 	}
 
@@ -1418,7 +1418,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		Material,
 		OutTexCoord,
 		bUseMeshData ? &MeshDescription : nullptr,
-		bUseMeshData ? &MaterialIndices : nullptr,
+		MeshMaterialIndices,
 		bCopyAlphaFromRedChannel);
 
 	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)

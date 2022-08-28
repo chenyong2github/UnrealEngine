@@ -241,7 +241,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, FMeshDescription* MeshDescription, TArray<int32>* MeshMaterialIndices, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, const FMeshDescription* MeshDescription, const TArray<int32>& MeshMaterialIndices, bool bCopyAlphaFromRedChannel)
 {
 	EMaterialProperty HackProperty = MP_MAX;
 	TTuple<int32, UMaterialExpression*> HackPrevState;
@@ -270,26 +270,19 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		Property = HackProperty;
 	}
 
-	TArray<FMeshData*> MeshSettings;
-
 	FMeshData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 	MeshSet.TextureCoordinateIndex = TexCoord;
-	MeshSet.RawMeshDescription = MeshDescription;
-
-	if (MeshMaterialIndices != nullptr)
-	{
-		MeshSet.MaterialIndices = *MeshMaterialIndices;
-	}
-
-	MeshSettings.Add(&MeshSet);
-
-	TArray<FMaterialData*> MatSettings;
+	MeshSet.RawMeshDescription = const_cast<FMeshDescription*>(MeshDescription);
+	MeshSet.MaterialIndices = MeshMaterialIndices;
 
 	FMaterialData MatSet;
 	MatSet.Material = const_cast<UMaterialInterface*>(Material);
 	MatSet.PropertySizes.Add(Property, OutputSize);
 
+	TArray<FMeshData*> MeshSettings;
+	TArray<FMaterialData*> MatSettings;
+	MeshSettings.Add(&MeshSet);
 	MatSettings.Add(&MatSet);
 
 	TArray<FBakeOutput> BakeOutputs;
