@@ -13,20 +13,31 @@ public:
 
 	FGLTFJsonBuilder();
 
-	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
-	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
-	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView);
-	FGLTFJsonImageIndex AddImage(const FGLTFJsonImage& JsonImage);
-	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial);
-	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh);
-	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode);
-	FGLTFJsonSamplerIndex AddSampler(const FGLTFJsonSampler& JsonSampler);
-	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
-	FGLTFJsonTextureIndex AddTexture(const FGLTFJsonTexture& JsonTexture);
+	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor = {});
+	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer = {});
+	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView = {});
+	FGLTFJsonImageIndex AddImage(const FGLTFJsonImage& JsonImage = {});
+	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial = {});
+	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh = {});
+	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode = {});
+	FGLTFJsonSamplerIndex AddSampler(const FGLTFJsonSampler& JsonSampler = {});
+	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene = {});
+	FGLTFJsonTextureIndex AddTexture(const FGLTFJsonTexture& JsonTexture = {});
+
+	FGLTFJsonAccessor& GetAccessor(FGLTFJsonAccessorIndex AccessorIndex);
+	FGLTFJsonBuffer& GetBuffer(FGLTFJsonBufferIndex BufferIndex);
+	FGLTFJsonBufferView& GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex);
+	FGLTFJsonImage& GetImage(FGLTFJsonImageIndex ImageIndex);
+	FGLTFJsonMaterial& GetMaterial(FGLTFJsonMaterialIndex MaterialIndex);
+	FGLTFJsonMesh& GetMesh(FGLTFJsonMeshIndex MeshIndex);
+	FGLTFJsonNode& GetNode(FGLTFJsonNodeIndex NodeIndex);
+	FGLTFJsonSampler& GetSampler(FGLTFJsonSamplerIndex SamplerIndex);
+	FGLTFJsonScene& GetScene(FGLTFJsonSceneIndex SceneIndex);
+	FGLTFJsonTexture& GetTexture(FGLTFJsonTextureIndex TextureIndex);
 
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath);
 
-protected:
+private:
 
 	FGLTFJsonRoot JsonRoot;
 };
