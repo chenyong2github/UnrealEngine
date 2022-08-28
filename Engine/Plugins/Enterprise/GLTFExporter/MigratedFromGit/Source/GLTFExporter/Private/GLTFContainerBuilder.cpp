@@ -51,16 +51,17 @@ void FGLTFContainerBuilder::Serialize(FArchive& Archive)
 	JsonRoot.Serialize(&Archive, true);
 }
 
-FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
+FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors)
 {
-	return FGLTFMeshBuilder(StaticMesh, LODIndex).AddMesh(*this);
+	return FGLTFMeshBuilder(StaticMesh, LODIndex, OverrideVertexColors).AddMesh(*this);
 }
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMeshComponent* StaticMeshComponent)
 {
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	const int32 LODIndex = StaticMeshComponent->ForcedLodModel > 0 ? StaticMeshComponent->ForcedLodModel - 1 : /* auto-select */ 0;
-	return AddMesh(StaticMesh, LODIndex);
+	const FColorVertexBuffer* OverrideVertexColors = LODIndex < StaticMeshComponent->LODData.Num() ? StaticMeshComponent->LODData[LODIndex].OverrideVertexColors : nullptr;
+	return AddMesh(StaticMesh, LODIndex, OverrideVertexColors);
 }
 
 FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const UWorld* World, bool bSelectedOnly)
