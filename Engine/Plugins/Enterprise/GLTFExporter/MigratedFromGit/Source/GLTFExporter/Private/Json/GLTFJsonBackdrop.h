@@ -15,6 +15,7 @@ struct FGLTFJsonBackdrop
 
 	float Intensity;
 	float Size;
+	float Angle;
 
 	FGLTFJsonVector3 ProjectionCenter;
 
@@ -24,6 +25,7 @@ struct FGLTFJsonBackdrop
 	FGLTFJsonBackdrop()
 		: Intensity(0)
 		, Size(0)
+		, Angle(0)
 		, ProjectionCenter(FGLTFJsonVector3::Zero)
 		, LightingDistanceFactor(0)
 		, UseCameraProjection(false)
@@ -49,6 +51,11 @@ struct FGLTFJsonBackdrop
 
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("intensity"), Intensity);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("size"), Size);
+
+		if (!FMath::IsNearlyZero(Angle))
+		{
+			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("angle"), Angle);
+		}
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("projectionCenter"));
 		ProjectionCenter.WriteArray(JsonWriter);
