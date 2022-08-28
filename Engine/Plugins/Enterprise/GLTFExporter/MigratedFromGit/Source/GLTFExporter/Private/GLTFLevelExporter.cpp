@@ -9,8 +9,16 @@ UGLTFLevelExporter::UGLTFLevelExporter(const FObjectInitializer& ObjectInitializ
 	SupportedClass = UWorld::StaticClass();
 }
 
-bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
 	UWorld* World = CastChecked<UWorld>(Object);
-	return Super::ExportBinary(World, Type, Ar, Warn, FileIndex, PortFlags);
+
+	if (!FillExportOptions())
+	{
+		// User cancelled the export
+		return false;
+	}
+
+	// TODO: implement
+	return true;
 }

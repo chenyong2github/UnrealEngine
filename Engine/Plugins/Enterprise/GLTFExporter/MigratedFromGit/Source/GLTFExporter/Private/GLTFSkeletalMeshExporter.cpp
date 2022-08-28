@@ -9,8 +9,16 @@ UGLTFSkeletalMeshExporter::UGLTFSkeletalMeshExporter(const FObjectInitializer& O
 	SupportedClass = USkeletalMesh::StaticClass();
 }
 
-bool UGLTFSkeletalMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFSkeletalMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
 	USkeletalMesh* SkeletalMesh = CastChecked<USkeletalMesh>(Object);
-	return Super::ExportBinary(SkeletalMesh, Type, Ar, Warn, FileIndex, PortFlags);
+
+	if (!FillExportOptions())
+	{
+		// User cancelled the export
+		return false;
+	}
+
+	// TODO: implement
+	return true;
 }
