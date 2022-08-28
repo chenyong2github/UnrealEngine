@@ -397,18 +397,48 @@ void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const FExpressionInput
 	TArray<UMaterialExpression*> InputExpressions;
 	Expression->GetAllInputExpressions(InputExpressions);
 
-	for (const UMaterialExpression* InputExpression : InputExpressions)
+	GetAllTextureCoordinateIndices(InputExpressions, OutTexCoords);
+}
+
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const TArray<UMaterialExpression*>& Expressions, TSet<int32>& OutTexCoords)
+{
+	for (const UMaterialExpression* Expression : Expressions)
 	{
-		if (const UMaterialExpressionTextureSample* TextureSampler = Cast<UMaterialExpressionTextureSample>(InputExpression))
+		if (const UMaterialExpressionTextureSample* TextureSample = Cast<UMaterialExpressionTextureSample>(Expression))
 		{
-			if (TextureSampler->Coordinates.Expression == nullptr)
+			if (TextureSample->Coordinates.Expression == nullptr)
 			{
-				OutTexCoords.Add(TextureSampler->ConstCoordinate);
+				OutTexCoords.Add(TextureSample->ConstCoordinate);
 			}
 		}
-		else if (const UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(InputExpression))
+		else if (const UMaterialExpressionTextureCoordinate* TextureCoordinate = Cast<UMaterialExpressionTextureCoordinate>(Expression))
 		{
 			OutTexCoords.Add(TextureCoordinate->CoordinateIndex);
+		}
+		else if (const UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
+		{
+			GetAllTextureCoordinateIndices(FunctionCall->Function->FunctionExpressions, OutTexCoords);
+        }
+		else if (const UMaterialExpressionMaterialAttributeLayers* AttributeLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
+		{
+			const TArray<UMaterialFunctionInterface*>& Layers = AttributeLayers->GetLayers();
+			const TArray<UMaterialFunctionInterface*>& Blends = AttributeLayers->GetBlends();
+
+			for (UMaterialFunctionInterface* Layer : AttributeLayers->GetLayers())
+			{
+				if (Layer != nullptr && Layer->GetFunctionExpressions() != nullptr)
+				{
+					GetAllTextureCoordinateIndices(*Layer->GetFunctionExpressions(), OutTexCoords);
+				}
+			}
+
+			for (UMaterialFunctionInterface* Blend : AttributeLayers->GetBlends())
+			{
+				if (Blend != nullptr && Blend->GetFunctionExpressions() != nullptr)
+				{
+					GetAllTextureCoordinateIndices(*Blend->GetFunctionExpressions(), OutTexCoords);
+				}
+			}
 		}
 	}
 }

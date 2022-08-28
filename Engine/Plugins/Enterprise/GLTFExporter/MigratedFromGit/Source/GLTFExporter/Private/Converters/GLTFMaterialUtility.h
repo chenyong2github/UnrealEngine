@@ -61,4 +61,5 @@ struct FGLTFMaterialUtility
 
 	static bool TryGetTextureCoordinateIndex(const UMaterialExpressionTextureSample* TextureSampler, int32& TexCoord);
 	static void GetAllTextureCoordinateIndices(const FExpressionInput& ExpressionInput, TSet<int32>& OutTexCoords);
+	static void GetAllTextureCoordinateIndices(const TArray<UMaterialExpression*>& Expressions, TSet<int32>& OutTexCoords);
 };
