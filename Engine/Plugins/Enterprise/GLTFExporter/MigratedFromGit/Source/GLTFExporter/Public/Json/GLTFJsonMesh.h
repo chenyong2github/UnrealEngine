@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "Json/GLTFJsonObject.h"
-#include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonCore.h"
 #include "Json/GLTFJsonKhrMaterialVariant.h"
 
 struct GLTFEXPORTER_API FGLTFJsonAttributes : IGLTFJsonObject

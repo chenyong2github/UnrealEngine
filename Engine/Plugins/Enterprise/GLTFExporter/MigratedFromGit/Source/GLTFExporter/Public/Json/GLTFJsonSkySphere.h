@@ -2,10 +2,7 @@
 
 #pragma once
 
-#include "Json/GLTFJsonObject.h"
-#include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonColor.h"
-#include "Json/GLTFJsonVector.h"
+#include "Json/GLTFJsonCore.h"
 
 struct GLTFEXPORTER_API FGLTFJsonSkySphereColorCurve : IGLTFJsonArray
 {

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 enum class EGLTFJsonExtension
 {
 	KHR_LightsPunctual,

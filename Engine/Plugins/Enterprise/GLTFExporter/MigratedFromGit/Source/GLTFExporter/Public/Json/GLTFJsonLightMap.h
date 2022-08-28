@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "Json/GLTFJsonObject.h"
+#include "Json/GLTFJsonCore.h"
 #include "Json/GLTFJsonMaterial.h"
-#include "Json/GLTFJsonVector.h"
 
 struct GLTFEXPORTER_API FGLTFJsonLightMap : IGLTFJsonObject
 {

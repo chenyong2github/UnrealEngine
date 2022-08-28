@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "Json/GLTFJsonObject.h"
-#include "Json/GLTFJsonEnums.h"
+#include "Json/GLTFJsonCore.h"
 #include "Json/GLTFJsonCameraControl.h"
 
 struct GLTFEXPORTER_API FGLTFJsonOrthographic : IGLTFJsonObject
