@@ -19,21 +19,21 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
 	bExtensionsRequired = true;
-	bExportVertexColor = true;
-	bExportUnlitMaterial = true;
-	bExportClearCoatMaterial = true;
+	bExportVertexColors = true;
+	bExportUnlitMaterials = true;
+	bExportClearCoatMaterials = true;
 	bBakeMaterialInputs = true;
 	BakedMaterialInputSize = EGLTFExporterTextureSize::POT_512;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBD;
 	bExportLightmaps = true;
 	ExportScale = 0.01;
-	bExportLight = true;
-	bExportCamera = true;
-	bExportReflectionCapture = true;
-	bExportHDRIBackdrop = true;
+	bExportLights = true;
+	bExportCameras = true;
+	bExportReflectionCaptures = true;
+	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
-	bExportAnimationTrigger = true;
+	bExportInteractionHotspots = true;
 }
 
 void UGLTFExportOptions::ResetToDefault()
