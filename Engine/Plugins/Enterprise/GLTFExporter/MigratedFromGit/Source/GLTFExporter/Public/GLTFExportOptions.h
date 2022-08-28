@@ -92,7 +92,10 @@ public:
 	EGLTFExporterNormalExportMethod NormalExportMethod;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
-	uint32 bUseMeshQuantization : 1;
+	uint32 bQuantizeVertexNormals : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
+	uint32 bQuantizeVertexTangents : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	EGLTFExporterNormalizeUVCoordinates NormalizeUVCoordinates;

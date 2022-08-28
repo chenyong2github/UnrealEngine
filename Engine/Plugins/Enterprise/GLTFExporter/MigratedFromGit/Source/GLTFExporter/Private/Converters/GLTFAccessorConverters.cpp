@@ -134,7 +134,7 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 	FGLTFJsonBufferViewIndex BufferViewIndex;
 	EGLTFJsonComponentType ComponentType;
 
-	const bool bMeshQuantization = Builder.ExportOptions->bUseMeshQuantization;
+	const bool bMeshQuantization = Builder.ExportOptions->bQuantizeVertexNormals;
 	const bool bHighPrecision = VertexBuffer->GetUseHighPrecisionTangentBasis();
 
 	if (bMeshQuantization)
@@ -209,7 +209,7 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 	FGLTFJsonBufferViewIndex BufferViewIndex;
 	EGLTFJsonComponentType ComponentType;
 
-	const bool bMeshQuantization = Builder.ExportOptions->bUseMeshQuantization;
+	const bool bMeshQuantization = Builder.ExportOptions->bQuantizeVertexTangents;
 	const bool bHighPrecision = VertexBuffer->GetUseHighPrecisionTangentBasis();
 
 	if (bMeshQuantization)
