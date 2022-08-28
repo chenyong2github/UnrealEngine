@@ -196,29 +196,29 @@ bool FGLTFMaterialTask::TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const
 bool FGLTFMaterialTask::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingModel) const
 {
 	const FMaterialShadingModelField ShadingModels = Material->GetShadingModels();
-	const int32 ShadingModelCount = ShadingModels.CountShadingModels();
+	EMaterialShadingModel ShadingModel;
 
-	if (ShadingModelCount <= 0)
+	if (Material->IsShadingModelFromMaterialExpression())
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("No shading model found for material %s"), *Material->GetName()));
-		return false;
-	}
-
-	EMaterialShadingModel ShadingModel = ShadingModels.GetFirstShadingModel();
-	if (ShadingModelCount > 1)
-	{
-		int32 TexCoord;
-		const FGLTFPropertyBakeOutput BakeOutput = BakeMaterialProperty(MP_ShadingModel, TexCoord, { 1, 1 });
-		ShadingModel = static_cast<EMaterialShadingModel>(BakeOutput.Pixels[0].R);
-
-		if (!ShadingModels.HasShadingModel(ShadingModel))
+		const FMaterialShadingModelField Evaluation = EvaluateShadingModelExpression();
+		if (Evaluation.CountShadingModels() == 1)
 		{
-			ShadingModel = ShadingModels.GetFirstShadingModel();
-			Builder.AddWarningMessage(
-				FString::Printf(TEXT("Failed to properly evaluate shading model expression in material %s, will export as %s"),
-				*Material->GetName(),
-				*FGLTFNameUtility::GetName(ShadingModel)));
+			ShadingModel = Evaluation.GetFirstShadingModel();
 		}
+		else
+		{
+			ShadingModel = FGLTFMaterialUtility::GetRichestShadingModel(Evaluation.CountShadingModels() > 0 ? Evaluation : ShadingModels);
+
+			Builder.AddWarningMessage(
+                FString::Printf(TEXT("Evaluation of shading model expression in material %s is inconclusive (%s), will export as %s"),
+                *Material->GetName(),
+                *FGLTFMaterialUtility::ShadingModelsToString(Evaluation),
+                *FGLTFNameUtility::GetName(ShadingModel)));
+		}
+	}
+	else
+	{
+		ShadingModel = ShadingModels.GetFirstShadingModel();
 	}
 
 	const EGLTFJsonShadingModel ConvertedShadingModel = FGLTFConverterUtility::ConvertShadingModel(ShadingModel);
@@ -245,6 +245,23 @@ bool FGLTFMaterialTask::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingMode
 
 	OutShadingModel = ConvertedShadingModel;
 	return true;
+}
+
+FMaterialShadingModelField FGLTFMaterialTask::EvaluateShadingModelExpression() const
+{
+	int32 TexCoord;
+	const FGLTFPropertyBakeOutput BakeOutput = BakeMaterialProperty(MP_ShadingModel, TexCoord); // TODO: should we use default bake size?
+
+	const FMaterialShadingModelField PossibleValues = Material->GetShadingModels();
+	FMaterialShadingModelField Evaluation;
+
+	for (const FColor& Pixel : BakeOutput.Pixels)
+	{
+		const EMaterialShadingModel ShadingModel = static_cast<EMaterialShadingModel>(Pixel.R);
+		if (PossibleValues.HasShadingModel(ShadingModel)) Evaluation.AddShadingModel(ShadingModel);
+	}
+
+	return Evaluation;
 }
 
 bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness& OutPBRParams, EMaterialProperty BaseColorProperty, EMaterialProperty OpacityProperty) const
