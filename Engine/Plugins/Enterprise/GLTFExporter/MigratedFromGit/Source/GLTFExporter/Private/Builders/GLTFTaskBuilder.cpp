@@ -65,11 +65,11 @@ FText FGLTFTaskBuilder::GetPriorityMessageFormat(EGLTFTaskPriority Priority)
 {
 	switch (Priority)
 	{
-		case EGLTFTaskPriority::Actor:     return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Actors... {0}");
-		case EGLTFTaskPriority::Mesh:      return NSLOCTEXT("GLTFExporter", "MeshTaskMessage", "Meshes... {0}");
-		case EGLTFTaskPriority::Animation: return NSLOCTEXT("GLTFExporter", "AnimationTaskMessage", "Animations... {0}");
-		case EGLTFTaskPriority::Material:  return NSLOCTEXT("GLTFExporter", "MaterialTaskMessage", "Materials... {0}");
-		case EGLTFTaskPriority::Texture:   return NSLOCTEXT("GLTFExporter", "TextureTaskMessage", "Textures... {0}");
+		case EGLTFTaskPriority::Actor:     return NSLOCTEXT("GLTFExporter", "ActorTaskMessage", "Converting actors: {0}");
+		case EGLTFTaskPriority::Mesh:      return NSLOCTEXT("GLTFExporter", "MeshTaskMessage", "Converting meshes: {0}");
+		case EGLTFTaskPriority::Animation: return NSLOCTEXT("GLTFExporter", "AnimationTaskMessage", "Converting animations: {0}");
+		case EGLTFTaskPriority::Material:  return NSLOCTEXT("GLTFExporter", "MaterialTaskMessage", "Converting materials: {0}");
+		case EGLTFTaskPriority::Texture:   return NSLOCTEXT("GLTFExporter", "TextureTaskMessage", "Converting textures: {0}");
 		default:                           checkNoEntry();
 	}
 
