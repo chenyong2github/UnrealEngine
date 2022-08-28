@@ -5,23 +5,38 @@
 #include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
 #include "Materials/HLSLMaterialTranslator.h"
 
-void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
+void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialStatistics& OutMaterialStatistics)
 {
-	Property = &InProperty;
+	Property = InProperty;
+	CustomOutput = InCustomOutput;
 	Material = const_cast<UMaterialInterface*>(InMaterial);
 	MaterialStatistics = &OutMaterialStatistics;
 
-	int32 NumTextureCoordinates;
-	bool RequiresVertexData;
-
 	// NOTE: When analyzing custom outputs, the property *must* be set to MP_MAX or the compiler will refuse to compile the output
-	const EMaterialProperty TempProperty = InProperty.Type == MP_CustomOutput ? MP_MAX : InProperty.Type;
+	const EMaterialProperty SafeProperty = InProperty == MP_CustomOutput ? MP_MAX : InProperty;
 
-	UMaterialInterface::AnalyzeMaterialProperty(TempProperty, NumTextureCoordinates, RequiresVertexData);
+	int32 DummyNumTextureCoordinates; // Dummy value from built-in analysis not used since it's insufficient
+	bool DummyRequiresVertexData; // Dummy value from built-in analysis not used since it's insufficient
+	Super::AnalyzeMaterialProperty(SafeProperty, DummyNumTextureCoordinates, DummyRequiresVertexData);
 
-	Property = nullptr;
+	Property = MP_MAX;
+	CustomOutput = {};
 	Material = nullptr;
 	MaterialStatistics = nullptr;
+}
+
+UMaterialExpressionCustomOutput* UGLTFMaterialAnalyzer::GetCustomOutputExpression() const
+{
+	for (UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
+	{
+		UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
+		if (CustomOutputExpression != nullptr && CustomOutputExpression->GetDisplayName() == CustomOutput)
+		{
+			return CustomOutputExpression;
+		}
+	}
+
+	return nullptr;
 }
 
 FMaterialResource* UGLTFMaterialAnalyzer::GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel)
@@ -38,22 +53,12 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 		friend UGLTFMaterialAnalyzer;
 	};
 
-	int32 Result = INDEX_NONE;
+	int32 Result;
 
-	if (Property->Type == MP_CustomOutput)
+	if (Property == MP_CustomOutput)
 	{
-		const FString CustomOutput = Property->CustomOutput.ToString();
-
-		for (UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
-		{
-			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
-			if (CustomOutputExpression && CustomOutputExpression->GetDisplayName() == CustomOutput)
-			{
-				// TODO: can we rely on OutputIndex always being 0?
-				Result = CustomOutputExpression->Compile(Compiler, 0);
-				break;
-			}
-		}
+		UMaterialExpressionCustomOutput* CustomOutputExpression = GetCustomOutputExpression();
+		Result = CustomOutputExpression != nullptr ? CustomOutputExpression->Compile(Compiler, 0) : INDEX_NONE;
 	}
 	else
 	{
