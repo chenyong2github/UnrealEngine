@@ -10,32 +10,32 @@ FGLTFContainerBuilder::FGLTFContainerBuilder()
 
 FGLTFJsonAccessorIndex FGLTFContainerBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
-	return JsonRoot.Accessors.Add(JsonAccessor);
+	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor));
 }
 
 FGLTFJsonBufferIndex FGLTFContainerBuilder::AddBuffer(const FGLTFJsonBuffer& JsonBuffer)
 {
-	return JsonRoot.Buffers.Add(JsonBuffer);
+	return FGLTFJsonBufferIndex(JsonRoot.Buffers.Add(JsonBuffer));
 }
 
 FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddBufferView(const FGLTFJsonBufferView& JsonBufferView)
 {
-	return JsonRoot.BufferViews.Add(JsonBufferView);
+	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(JsonBufferView));
 }
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const FGLTFJsonMesh& JsonMesh)
 {
-	return JsonRoot.Meshes.Add(JsonMesh);
+	return FGLTFJsonMeshIndex(JsonRoot.Meshes.Add(JsonMesh));
 }
 
 FGLTFJsonNodeIndex FGLTFContainerBuilder::AddNode(const FGLTFJsonNode& JsonNode)
 {
-	return JsonRoot.Nodes.Add(JsonNode);
+	return FGLTFJsonNodeIndex(JsonRoot.Nodes.Add(JsonNode));
 }
 
 FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const FGLTFJsonScene& JsonScene)
 {
-	return JsonRoot.Scenes.Add(JsonScene);
+	return FGLTFJsonSceneIndex(JsonRoot.Scenes.Add(JsonScene));
 }
 
 FGLTFJsonBufferViewIndex FGLTFContainerBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
