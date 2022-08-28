@@ -12,7 +12,7 @@ public:
 
 	GENERATED_BODY()
 
-	UGLTFLevelExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	explicit UGLTFLevelExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	bool Add(FGLTFContainerBuilder& Builder, const UObject* Object) override;
 };
