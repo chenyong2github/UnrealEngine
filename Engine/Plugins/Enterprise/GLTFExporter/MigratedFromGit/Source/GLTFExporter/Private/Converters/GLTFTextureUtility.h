@@ -33,8 +33,8 @@ struct FGLTFTextureUtility
 
 	static bool ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding Encoding);
 
-	static void EncodeRGBM(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels, float MaxRange = 8);
-	static void EncodeRGBE(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels);
+	static void EncodeRGBM(const TArray<FFloat16Color>& InPixels, TArray<FColor>& OutPixels, float MaxRange = 8);
+	static void EncodeRGBE(const TArray<FFloat16Color>& InPixels, TArray<FColor>& OutPixels);
 
 	// TODO: maybe use template specialization to avoid the need for duplicated functions
 	static bool LoadPlatformData(UTexture2D* Texture);
