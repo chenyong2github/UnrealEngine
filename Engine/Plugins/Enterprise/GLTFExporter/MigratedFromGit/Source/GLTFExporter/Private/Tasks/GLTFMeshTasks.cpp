@@ -55,7 +55,7 @@ void FGLTFStaticMeshTask::Complete()
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
+		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material, StaticMesh, LODIndex);
 	}
 }
 
@@ -123,6 +123,7 @@ void FGLTFSkeletalMeshTask::Complete()
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
+		// TODO: should we somehow pass a skeletal mesh for baking?
+		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material, nullptr);
 	}
 }
