@@ -201,14 +201,14 @@ struct FGLTFJsonUtility
 	{
 		switch (AccessorType)
 		{
-		case EGLTFJsonAccessorType::Scalar: return 1;
-		case EGLTFJsonAccessorType::Vec2:   return 2;
-		case EGLTFJsonAccessorType::Vec3:   return 3;
-		case EGLTFJsonAccessorType::Vec4:   return 4;
-		case EGLTFJsonAccessorType::Mat2:   return 4;
-		case EGLTFJsonAccessorType::Mat3:   return 9;
-		case EGLTFJsonAccessorType::Mat4:   return 16;
-		default:                            return 0;
+			case EGLTFJsonAccessorType::Scalar: return 1;
+			case EGLTFJsonAccessorType::Vec2:   return 2;
+			case EGLTFJsonAccessorType::Vec3:   return 3;
+			case EGLTFJsonAccessorType::Vec4:   return 4;
+			case EGLTFJsonAccessorType::Mat2:   return 4;
+			case EGLTFJsonAccessorType::Mat3:   return 9;
+			case EGLTFJsonAccessorType::Mat4:   return 16;
+			default:                            return 0;
 		}
 	}
 
@@ -216,18 +216,18 @@ struct FGLTFJsonUtility
 	{
 		switch (ComponentType)
 		{
-		case EGLTFJsonComponentType::S8:
-		case EGLTFJsonComponentType::U8:
-			return 1;
-		case EGLTFJsonComponentType::S16:
-		case EGLTFJsonComponentType::U16:
-			return 2;
-		case EGLTFJsonComponentType::S32:
-		case EGLTFJsonComponentType::U32:
-		case EGLTFJsonComponentType::F32:
-			return 4;
-		default:
-			return 0;
+			case EGLTFJsonComponentType::S8:
+			case EGLTFJsonComponentType::U8:
+				return 1;
+			case EGLTFJsonComponentType::S16:
+			case EGLTFJsonComponentType::U16:
+				return 2;
+			case EGLTFJsonComponentType::S32:
+			case EGLTFJsonComponentType::U32:
+			case EGLTFJsonComponentType::F32:
+				return 4;
+			default:
+				return 0;
 		}
 	}
 
@@ -236,16 +236,16 @@ struct FGLTFJsonUtility
 		const EGLTFJsonComponentType ComponentType = static_cast<EGLTFJsonComponentType>(NumericComponentType);
 		switch (ComponentType)
 		{
-		case EGLTFJsonComponentType::S8:
-		case EGLTFJsonComponentType::U8:
-		case EGLTFJsonComponentType::S16:
-		case EGLTFJsonComponentType::U16:
-		case EGLTFJsonComponentType::S32:
-		case EGLTFJsonComponentType::U32:
-		case EGLTFJsonComponentType::F32:
-			return ComponentType;
-		default:
-			return EGLTFJsonComponentType::None;
+			case EGLTFJsonComponentType::S8:
+			case EGLTFJsonComponentType::U8:
+			case EGLTFJsonComponentType::S16:
+			case EGLTFJsonComponentType::U16:
+			case EGLTFJsonComponentType::S32:
+			case EGLTFJsonComponentType::U32:
+			case EGLTFJsonComponentType::F32:
+				return ComponentType;
+			default:
+				return EGLTFJsonComponentType::None;
 		}
 	}
 
@@ -288,11 +288,11 @@ struct FGLTFJsonUtility
 		const EGLTFJsonBufferTarget BufferTarget = static_cast<EGLTFJsonBufferTarget>(NumericBufferTarget);
 		switch (BufferTarget)
 		{
-		case EGLTFJsonBufferTarget::ArrayBuffer:
-		case EGLTFJsonBufferTarget::ElementArrayBuffer:
-			return BufferTarget;
-		default:
-			return EGLTFJsonBufferTarget::None;
+			case EGLTFJsonBufferTarget::ArrayBuffer:
+			case EGLTFJsonBufferTarget::ElementArrayBuffer:
+				return BufferTarget;
+			default:
+				return EGLTFJsonBufferTarget::None;
 		}
 	}
 
