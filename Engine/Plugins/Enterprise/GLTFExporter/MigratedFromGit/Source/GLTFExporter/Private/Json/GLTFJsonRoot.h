@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonAsset.h"
 #include "Json/GLTFJsonExtensions.h"
 #include "Json/GLTFJsonAccessor.h"
 #include "Json/GLTFJsonAnimation.h"
@@ -24,36 +25,6 @@
 #include "Json/GLTFJsonSkySphere.h"
 #include "Json/GLTFJsonLevelVariantSets.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
-
-
-struct FGLTFJsonAsset
-{
-	FString Version;
-	FString Generator;
-	FString Copyright;
-
-	FGLTFJsonAsset();
-
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
-	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("version"), Version);
-
-		if (!Generator.IsEmpty())
-		{
-			JsonWriter.WriteValue(TEXT("generator"), Generator);
-		}
-
-		if (!Copyright.IsEmpty())
-		{
-			JsonWriter.WriteValue(TEXT("copyright"), Copyright);
-		}
-
-		JsonWriter.WriteObjectEnd();
-	}
-};
 
 struct FGLTFJsonRoot
 {
