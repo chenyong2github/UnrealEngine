@@ -63,8 +63,6 @@ private:
 
 	bool SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player);
 
-	bool UsesYawLimits() const;
-
 public:
 
 	/* Camera mode */
@@ -124,4 +122,8 @@ private:
 	float TargetYaw;
 	float DollyTime;
 	float DollyStartDistance;
+
+public:
+
+	bool UsesYawLimits() const;
 };
