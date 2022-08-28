@@ -132,7 +132,9 @@ UBodySetup* UGLTFInteractionHotspotComponent::GetBodySetup()
 
 void UGLTFInteractionHotspotComponent::SetSprite(class UTexture2D* NewSprite)
 {
-	Super::SetSprite(NewSprite);
+	// TODO: implement equivalent functionality using UMaterialBillboardComponent
+
+	// Super::SetSprite(NewSprite);
 
 	UpdateCollisionVolume();
 }

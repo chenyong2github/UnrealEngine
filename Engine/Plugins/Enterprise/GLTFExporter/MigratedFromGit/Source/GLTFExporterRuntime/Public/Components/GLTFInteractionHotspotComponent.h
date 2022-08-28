@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Components/BillboardComponent.h"
+#include "Components/MaterialBillboardComponent.h"
 #include "GLTFInteractionHotspotComponent.generated.h"
 
 class ASkeletalMeshActor;
@@ -14,7 +14,7 @@ class UTexture2D;
  * A component to set up hotspots which appear as billboards and allow playback of skeletal animations when cursor input is enabled.
  */
 UCLASS(BlueprintType, Blueprintable, Meta = (BlueprintSpawnableComponent), HideCategories = (Sprite, Physics, Collision, Navigation), DisplayName = "GLTF Interaction Hotspot Component")
-class GLTFEXPORTERRUNTIME_API UGLTFInteractionHotspotComponent : public UBillboardComponent
+class GLTFEXPORTERRUNTIME_API UGLTFInteractionHotspotComponent : public UMaterialBillboardComponent
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -37,9 +37,7 @@ public:
 	virtual UBodySetup* GetBodySetup() override;
 	//~ End UPrimitiveComponent Interface
 
-	//~ Begin UBillboardComponent Interface
-	virtual void SetSprite(class UTexture2D* NewSprite) override;
-	//~ End UBillboardComponent Interface
+	virtual void SetSprite(class UTexture2D* NewSprite);
 
 private:
 	UFUNCTION()
