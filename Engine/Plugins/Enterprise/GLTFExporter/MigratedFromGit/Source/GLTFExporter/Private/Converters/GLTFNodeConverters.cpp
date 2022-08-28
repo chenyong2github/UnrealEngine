@@ -91,7 +91,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	if (ParentComponent != nullptr && !SceneComponent->IsUsingAbsoluteScale())
 	{
 		const FVector ParentScale = ParentComponent->GetComponentScale();
-		if (ParentScale.X != ParentScale.Y || ParentScale.Y != ParentScale.Z)
+		if (!ParentScale.IsUniform())
 		{
 			Builder.AddWarningMessage(
 				FString::Printf(TEXT("Non-uniform parent scale (%s) for component %s (in actor %s) may be represented differently in glTF"),
