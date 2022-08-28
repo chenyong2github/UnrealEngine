@@ -3,6 +3,11 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
+const UMaterialInterface* FGLTFMeshUtility::GetDefaultMaterial()
+{
+	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
 const TArray<FStaticMaterial>& FGLTFMeshUtility::GetMaterials(const UStaticMesh* StaticMesh)
 {
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
@@ -19,6 +24,78 @@ const TArray<FSkeletalMaterial>& FGLTFMeshUtility::GetMaterials(const USkeletalM
 #else
 	return SkeletalMesh->Materials;
 #endif
+}
+
+const UMaterialInterface* FGLTFMeshUtility::GetMaterial(const UMaterialInterface* Material)
+{
+	return Material;
+}
+
+const UMaterialInterface* FGLTFMeshUtility::GetMaterial(const FStaticMaterial& Material)
+{
+	return Material.MaterialInterface;
+}
+
+const UMaterialInterface* FGLTFMeshUtility::GetMaterial(const FSkeletalMaterial& Material)
+{
+	return Material.MaterialInterface;
+}
+
+void FGLTFMeshUtility::ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const UStaticMeshComponent* StaticMeshComponent, const UStaticMesh* StaticMesh)
+{
+	if (StaticMeshComponent != nullptr)
+	{
+		ResolveMaterials(Materials, StaticMeshComponent->GetMaterials());
+	}
+
+	if (StaticMesh != nullptr)
+	{
+		ResolveMaterials(Materials, GetMaterials(StaticMesh));
+	}
+
+	ResolveMaterials(Materials, GetDefaultMaterial());
+}
+
+void FGLTFMeshUtility::ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const USkeletalMeshComponent* SkeletalMeshComponent, const USkeletalMesh* SkeletalMesh)
+{
+	if (SkeletalMeshComponent != nullptr)
+	{
+		ResolveMaterials(Materials, SkeletalMeshComponent->GetMaterials());
+	}
+
+	if (SkeletalMesh != nullptr)
+	{
+		ResolveMaterials(Materials, GetMaterials(SkeletalMesh));
+	}
+
+	ResolveMaterials(Materials, GetDefaultMaterial());
+}
+
+template <typename MaterialType>
+void FGLTFMeshUtility::ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const TArray<MaterialType>& Defaults)
+{
+	const int32 Count = Defaults.Num();
+	Materials.SetNumZeroed(Count);
+
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const UMaterialInterface*& Material = Materials[Index];
+		if (Material == nullptr)
+		{
+			Material = GetMaterial(Defaults[Index]);
+		}
+	}
+}
+
+void FGLTFMeshUtility::ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const UMaterialInterface* Default)
+{
+	for (const UMaterialInterface*& Material : Materials)
+	{
+		if (Material == nullptr)
+		{
+			Material = Default;
+		}
+	}
 }
 
 FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex)

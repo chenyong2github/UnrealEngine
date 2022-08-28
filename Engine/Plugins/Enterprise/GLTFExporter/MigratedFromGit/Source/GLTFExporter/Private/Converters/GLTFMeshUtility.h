@@ -8,8 +8,21 @@ class FSkeletalMeshLODRenderData;
 
 struct FGLTFMeshUtility
 {
+	static const UMaterialInterface* GetDefaultMaterial();
+
 	static const TArray<FStaticMaterial>& GetMaterials(const UStaticMesh* StaticMesh);
 	static const TArray<FSkeletalMaterial>& GetMaterials(const USkeletalMesh* SkeletalMesh);
+
+	static const UMaterialInterface* GetMaterial(const UMaterialInterface* Material);
+	static const UMaterialInterface* GetMaterial(const FStaticMaterial& Material);
+	static const UMaterialInterface* GetMaterial(const FSkeletalMaterial& Material);
+
+	static void ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const UStaticMeshComponent* StaticMeshComponent, const UStaticMesh* StaticMesh);
+	static void ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const USkeletalMeshComponent* SkeletalMeshComponent, const USkeletalMesh* SkeletalMesh);
+
+	template <typename MaterialType>
+	static void ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const TArray<MaterialType>& Defaults);
+	static void ResolveMaterials(TArray<const UMaterialInterface*>& Materials, const UMaterialInterface* Default);
 
 	static FGLTFIndexArray GetSectionIndices(const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex);
 	static FGLTFIndexArray GetSectionIndices(const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 MaterialIndex);
