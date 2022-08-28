@@ -70,15 +70,15 @@ public:
 	UTexture2D* Image;
 
 	/** The optional billboard image that will be shown when a cursor enters the hotspot. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="Image != nullptr"))
 	UTexture2D* HoveredImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="Image != nullptr"))
 	UTexture2D* ToggledImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click and a cursor enters it. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="Image != nullptr"))
 	UTexture2D* ToggledHoveredImage;
 
 private:
