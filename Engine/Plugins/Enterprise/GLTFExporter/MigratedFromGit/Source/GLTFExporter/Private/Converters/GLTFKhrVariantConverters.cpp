@@ -7,9 +7,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "VariantObjectBinding.h"
 #include "PropertyValueMaterial.h"
-#include "LevelVariantSets.h"
 #include "PropertyValue.h"
-#include "VariantSet.h"
 #include "Variant.h"
 
 FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const UVariant* Variant)
@@ -95,7 +93,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Material property is invalid, the property will be skipped. Context: %s"),
-			*GetLogContext(Property)));
+			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
@@ -104,7 +102,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
-			*GetLogContext(Property)));
+			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
@@ -112,7 +110,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	if (Owner == nullptr)
 	{
 		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
-			*GetLogContext(Property)));
+			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
@@ -120,7 +118,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
-			*GetLogContext(Property)));
+			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
@@ -129,7 +127,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property has no mesh-component, the property will be skipped. Context: %s"),
-			*GetLogContext(Property)));
+			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
@@ -140,7 +138,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	{
 		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to parse element index to apply the material to, the property will be skipped. Context: %s"),
-			*GetLogContext(MaterialProperty)));
+			*FGLTFVariantUtility::GetLogContext(MaterialProperty)));
 		return false;
 	}
 
@@ -155,7 +153,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 
 		Builder.LogWarning(FString::Printf(
 			TEXT("No material assigned, the property will be skipped. Context: %s"),
-			*GetLogContext(MaterialProperty)));
+			*FGLTFVariantUtility::GetLogContext(MaterialProperty)));
 		return false;
 	}
 
@@ -209,33 +207,4 @@ FGLTFJsonMaterialIndex FGLTFKhrMaterialVariantConverter::GetResolvedMaterialForC
 	}
 
 	return Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
-}
-
-FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UPropertyValue* Property) const
-{
-	const UVariantObjectBinding* Parent = Property->GetParent();
-	return GetLogContext(Parent) + TEXT("/") + Property->GetFullDisplayString();
-}
-
-FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UVariantObjectBinding* Binding) const
-{
-	const UVariant* Parent = const_cast<UVariantObjectBinding*>(Binding)->GetParent();
-	return GetLogContext(Parent) + TEXT("/") + Binding->GetDisplayText().ToString();
-}
-
-FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UVariant* Variant) const
-{
-	const UVariantSet* Parent = const_cast<UVariant*>(Variant)->GetParent();
-	return GetLogContext(Parent) + TEXT("/") + Variant->GetDisplayText().ToString();
-}
-
-FString FGLTFKhrMaterialVariantConverter::GetLogContext(const UVariantSet* VariantSet) const
-{
-	const ULevelVariantSets* Parent = const_cast<UVariantSet*>(VariantSet)->GetParent();
-	return GetLogContext(Parent) + TEXT("/") + VariantSet->GetDisplayText().ToString();
-}
-
-FString FGLTFKhrMaterialVariantConverter::GetLogContext(const ULevelVariantSets* LevelVariantSets) const
-{
-	return LevelVariantSets->GetName();
 }
