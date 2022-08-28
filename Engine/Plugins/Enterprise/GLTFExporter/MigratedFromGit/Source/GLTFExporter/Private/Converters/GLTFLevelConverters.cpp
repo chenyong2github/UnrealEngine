@@ -46,12 +46,6 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
-		// TODO: using a separate child-node for the mesh breaks variants and possibly other
-		// extensions that count on the mesh being attached to the original node.
-		// We need to either find a way to solve the scale-issues without introducing these
-		// extra nodes, or add some form of mapping that allows the extensions to find the
-		// exact node that the mesh is attached to.
-
 		if (bExportNonUniformScale)
 		{
 			FGLTFJsonNode MeshNode;
@@ -69,12 +63,6 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 	{
-		// TODO: using a separate child-node for the mesh breaks variants and possibly other
-		// extensions that count on the mesh being attached to the original node.
-		// We need to either find a way to solve the scale-issues without introducing these
-		// extra nodes, or add some form of mapping that allows the extensions to find the
-		// exact node that the mesh is attached to.
-
 		if (bExportNonUniformScale)
 		{
 			FGLTFJsonNode MeshNode;
