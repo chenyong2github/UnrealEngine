@@ -6,7 +6,8 @@ public class GLTFExporter : ModuleRules
 {
 	public GLTFExporter(ReadOnlyTargetRules Target) : base(Target)
 	{
-		bTreatAsEngineModule = true;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		bTreatAsEngineModule = true; // Only necessary when plugin installed in project
 
 		if (IsPlugin)
 		{
