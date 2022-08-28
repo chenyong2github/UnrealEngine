@@ -74,15 +74,29 @@ struct FGLTFJsonUtility
 		JsonWriter.WriteRawJSONValue(Identifier, ExactStringRepresentation);
 	}
 
-	template <class WriterType, class ElementType, class AllocatorType>
-	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const TArray<ElementType, AllocatorType>& ObjectArray, bool bWriteIfEmpty = false)
+	template <class WriterType, class ContainerType>
+	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, bool bWriteIfEmpty = false)
 	{
-		if (ObjectArray.Num() > 0 || bWriteIfEmpty)
+		if (Container.Num() > 0 || bWriteIfEmpty)
 		{
 			JsonWriter.WriteArrayStart(Identifier);
-			for (const ElementType& Object : ObjectArray)
+			for (const auto& Element : Container)
 			{
-				Object.WriteObject(JsonWriter);
+				Element.WriteObject(JsonWriter);
+			}
+			JsonWriter.WriteArrayEnd();
+		}
+	}
+
+	template <class WriterType, class ContainerType>
+    static void WriteStringArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, bool bWriteIfEmpty = false)
+	{
+		if (Container.Num() > 0 || bWriteIfEmpty)
+		{
+			JsonWriter.WriteArrayStart(Identifier);
+			for (const auto& Element : Container)
+			{
+				JsonWriter.WriteValue(ToString(Element));
 			}
 			JsonWriter.WriteArrayEnd();
 		}
