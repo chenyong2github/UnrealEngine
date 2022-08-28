@@ -9,9 +9,9 @@ Implementation status
 
 Feature                   | Status |
 ------------------------- | :----: |
-Web-based Viewer          |   👷   |
-└ UX/UI                   |   👷   |
-└ Offline                 |   👷   |
+Web-based Viewer          |   ✔️   |
+└ UX/UI                   |   ✔️   |
+└ Launcher                |   ✔️   |
 Models                    |   ✔️   |
 └ Static Mesh             |   ✔️   |
 └ Skeletal Mesh           |   ✔️   |
@@ -33,7 +33,7 @@ Levels                    |   👷   |
 └ Skeletal Mesh           |   ✔️   |
 └ Light                   |   ✔️   |
 └ Camera                  |   ✔️   |
-└ Orbital Camera          |   ✔️   |
+└ Camera Control          |   ✔️   |
 └ Reflection Capture      |   👷   |
 └ HDRI Backdrop           |   ✔️   |
 └ Animation Hotspot       |   ✔️   |
