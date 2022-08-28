@@ -86,6 +86,13 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariant(FGLTFConvertBuilder& Bu
 
 bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder& Builder, FGLTFJsonVariantNode& OutVariantNode, const UVariantObjectBinding* Binding) const
 {
+	const AActor* Actor = Cast<AActor>(Binding->GetObject());
+	if (Actor == nullptr)
+	{
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to find actor for variant binding %s"), *Binding->GetObjectPath()));
+		return false;
+	}
+
 	FGLTFJsonVariantNode JsonVariantNode;
 	bool bHasAnyProperty = false;
 
@@ -127,12 +134,11 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 		return false;
 	}
 
-	const AActor* Actor = Cast<AActor>(Binding->GetObject());
 	const FGLTFJsonNodeIndex Node = Builder.GetOrAddNode(Actor);
-
 	if (Node == INDEX_NONE)
 	{
-		// TODO: report warning about invalid actor / node?
+		// NOTE: this could occur if the user is exporting selected actors only, if the actor isn't part of the selection
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export node for actor used by variant binding %s"), *Binding->GetObjectPath()));
 		return false;
 	}
 
