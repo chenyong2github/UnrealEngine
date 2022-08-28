@@ -21,5 +21,5 @@ public:
 private:
 
 	UPROPERTY(Transient, DuplicateTransient)
-	UStaticMesh* DefaultPreviewMesh;
+	TObjectPtr<UStaticMesh> DefaultPreviewMesh;
 };
