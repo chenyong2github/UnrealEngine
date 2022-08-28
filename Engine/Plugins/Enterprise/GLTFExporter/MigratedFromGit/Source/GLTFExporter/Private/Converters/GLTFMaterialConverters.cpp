@@ -144,7 +144,8 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	FIntPoint TextureSize(512, 512);
 
 	EGLTFJsonTextureWrap TextureWrap = EGLTFJsonTextureWrap::ClampToEdge;
-	EGLTFJsonTextureFilter TextureFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
 	if (bHasBaseColorSourceTexture && bHasOpacitySourceTexture)
 	{
@@ -164,21 +165,24 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 			FMath::Max(BaseColorTexture->GetSizeY(), OpacityTexture->GetSizeY()));
 
 		TextureWrap = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressX);
-		TextureFilter = FGLTFConverterUtility::ConvertFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
+		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
+		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
 	}
 	else if (bHasBaseColorSourceTexture)
 	{
 		TexCoord = BaseColorTexCoord;
 		TextureSize = FIntPoint(BaseColorTexture->GetSizeX(), BaseColorTexture->GetSizeY());
 		TextureWrap = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressX);
-		TextureFilter = FGLTFConverterUtility::ConvertFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
+		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
+		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
 	}
 	else if (bHasOpacitySourceTexture)
 	{
 		TexCoord = OpacityTexCoord;
 		TextureSize = FIntPoint(OpacityTexture->GetSizeX(), OpacityTexture->GetSizeY());
 		TextureWrap = FGLTFConverterUtility::ConvertWrap(OpacityTexture->AddressX);
-		TextureFilter = FGLTFConverterUtility::ConvertFilter(OpacityTexture->Filter, OpacityTexture->LODGroup);
+		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(OpacityTexture->Filter, OpacityTexture->LODGroup);
+		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(OpacityTexture->Filter, OpacityTexture->LODGroup);
 	}
 
 	const EMaterialProperty OpacityProperty = MaterialInterface->GetBlendMode() == BLEND_Masked ? MP_OpacityMask : MP_Opacity;
@@ -209,7 +213,8 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 		CombineSources,
 		TextureSize,
 		TextureName,
-		TextureFilter,
+		TextureMinFilter,
+		TextureMagFilter,
 		TextureWrap);
 
 	OutPBRParams.BaseColorTexture.TexCoord = TexCoord;
@@ -265,7 +270,8 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	FIntPoint TextureSize(512, 512);
 
 	EGLTFJsonTextureWrap TextureWrap = EGLTFJsonTextureWrap::ClampToEdge;
-	EGLTFJsonTextureFilter TextureFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
 	if (bHasMetallicSourceTexture && bHasRoughnessSourceTexture)
 	{
@@ -285,21 +291,24 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 			FMath::Max(MetallicTexture->GetSizeY(), RoughnessTexture->GetSizeY()));
 
 		TextureWrap = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
-		TextureFilter = FGLTFConverterUtility::ConvertFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
+		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
+		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
 	}
 	else if (bHasMetallicSourceTexture)
 	{
 		TexCoord = MetallicTexCoord;
 		TextureSize = FIntPoint(MetallicTexture->GetSizeX(), MetallicTexture->GetSizeY());
 		TextureWrap = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
-		TextureFilter = FGLTFConverterUtility::ConvertFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
+		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
+		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
 	}
 	else if (bHasRoughnessSourceTexture)
 	{
 		TexCoord = RoughnessTexCoord;
 		TextureSize = FIntPoint(RoughnessTexture->GetSizeX(), RoughnessTexture->GetSizeY());
 		TextureWrap = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressX);
-		TextureFilter = FGLTFConverterUtility::ConvertFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
+		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
+		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
 	}
 
 	RoughnessTexture = FGLTFMaterialUtility::BakeMaterialPropertyToTexture(TextureSize, MP_Roughness, MaterialInterface);
@@ -328,7 +337,8 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 		CombineSources,
 		TextureSize,
 		TextureName,
-		TextureFilter,
+		TextureMinFilter,
+		TextureMagFilter,
 		TextureWrap);
 
 	OutPBRParams.MetallicRoughnessTexture.TexCoord = TexCoord;
@@ -562,7 +572,8 @@ bool FGLTFMaterialConverter::TryGetBakedTexture(FGLTFConvertBuilder& Builder, FG
 
 	// TODO: support for other wrapping / filters?
 	const EGLTFJsonTextureWrap TextureWrap = EGLTFJsonTextureWrap::ClampToEdge;
-	const EGLTFJsonTextureFilter TextureFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	const EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	const EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
 	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
@@ -570,7 +581,8 @@ bool FGLTFMaterialConverter::TryGetBakedTexture(FGLTFConvertBuilder& Builder, FG
 		PropertyBakeOutput.Size,
 		TextureName,
 		PropertyBakeOutput.PixelFormat,
-		TextureFilter,
+		TextureMinFilter,
+		TextureMagFilter,
 		TextureWrap);
 
 	OutTexInfo.TexCoord = TexCoord;

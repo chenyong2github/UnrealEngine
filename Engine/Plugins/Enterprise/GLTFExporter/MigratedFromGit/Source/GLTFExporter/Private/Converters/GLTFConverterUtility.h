@@ -102,18 +102,6 @@ struct FGLTFConverterUtility
 		}
 	}
 
-	static EGLTFJsonTextureFilter ConvertFilter(TextureFilter Filter, TextureGroup LODGroup)
-	{
-		switch (Filter)
-		{
-			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
-			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
-			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
-			case TextureFilter::TF_Default:   return ConvertFilter(GetDefaultFilter(LODGroup));
-			default:                          return EGLTFJsonTextureFilter::None;
-		}
-	}
-
 	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Address)
 	{
 		switch (Address)
@@ -125,20 +113,39 @@ struct FGLTFConverterUtility
 		}
 	}
 
-	static EGLTFJsonTextureFilter ConvertFilter(ETextureSamplerFilter Filter)
+	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter)
 	{
 		switch (Filter)
 		{
-			case ETextureSamplerFilter::Point:             return EGLTFJsonTextureFilter::Nearest;
-			case ETextureSamplerFilter::Bilinear:          return EGLTFJsonTextureFilter::LinearMipmapNearest;
-			case ETextureSamplerFilter::Trilinear:         return EGLTFJsonTextureFilter::LinearMipmapLinear;
-			case ETextureSamplerFilter::AnisotropicPoint:  return EGLTFJsonTextureFilter::Nearest; // TODO: is this correct?
-			case ETextureSamplerFilter::AnisotropicLinear: return EGLTFJsonTextureFilter::LinearMipmapLinear; // TODO: is this correct?
-			default:                                       return EGLTFJsonTextureFilter::None;
+			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::NearestMipmapNearest;
+			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
+			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
+			default:                          return EGLTFJsonTextureFilter::None;
 		}
 	}
 
-	static ETextureSamplerFilter GetDefaultFilter(TextureGroup Group);
+	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter)
+	{
+		switch (Filter)
+		{
+			case TextureFilter::TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
+			case TextureFilter::TF_Bilinear:  return EGLTFJsonTextureFilter::Linear;
+			case TextureFilter::TF_Trilinear: return EGLTFJsonTextureFilter::Linear;
+			default:                          return EGLTFJsonTextureFilter::None;
+		}
+	}
+
+	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter, TextureGroup LODGroup)
+	{
+		return ConvertMinFilter(Filter == TextureFilter::TF_Default ? GetDefaultFilter(LODGroup) : Filter);
+	}
+
+	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup)
+	{
+		return ConvertMagFilter(Filter == TextureFilter::TF_Default ? GetDefaultFilter(LODGroup) : Filter);
+	}
+
+	static TextureFilter GetDefaultFilter(TextureGroup Group);
 
 	static bool IsSkySphereBlueprint(const UBlueprint* Blueprint);
 

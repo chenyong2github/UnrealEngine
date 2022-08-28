@@ -4,12 +4,22 @@
 #include "Engine/TextureLODSettings.h"
 #include "Engine/Blueprint.h"
 
-ETextureSamplerFilter FGLTFConverterUtility::GetDefaultFilter(TextureGroup LODGroup)
+TextureFilter FGLTFConverterUtility::GetDefaultFilter(TextureGroup LODGroup)
 {
-	const ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform(); // TODO: should this be the running platform?
+	// TODO: should this be the running platform?
+	const ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	const UTextureLODSettings& TextureLODSettings = RunningPlatform->GetTextureLODSettings();
 	const FTextureLODGroup& TextureLODGroup = TextureLODSettings.GetTextureLODGroup(LODGroup);
-	return TextureLODGroup.Filter;
+
+	switch (TextureLODGroup.Filter)
+	{
+		case ETextureSamplerFilter::Point:             return TextureFilter::TF_Nearest;
+		case ETextureSamplerFilter::Bilinear:          return TextureFilter::TF_Bilinear;
+		case ETextureSamplerFilter::Trilinear:         return TextureFilter::TF_Trilinear;
+		case ETextureSamplerFilter::AnisotropicPoint:  return TextureFilter::TF_Nearest;
+		case ETextureSamplerFilter::AnisotropicLinear: return TextureFilter::TF_Trilinear;
+		default:                                       return TextureFilter::TF_Default; // fallback
+	}
 }
 
 bool FGLTFConverterUtility::IsSkySphereBlueprint(const UBlueprint* Blueprint)
