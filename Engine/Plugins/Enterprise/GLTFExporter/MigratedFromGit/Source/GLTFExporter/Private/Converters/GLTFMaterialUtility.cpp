@@ -352,6 +352,7 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Buil
 	JsonSampler.WrapS = WrapS;
 	JsonSampler.WrapT = WrapT;
 
+	// TODO: reuse same texture index when image is the same
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = TextureName;
 	JsonTexture.Sampler = Builder.AddSampler(JsonSampler);
