@@ -65,4 +65,6 @@ struct FGLTFMaterialUtility
 	static void GetAllTextureCoordinateIndices(const FExpressionInput& Input, TSet<int32>& OutTexCoords);
 
 	static void ExpandAllFunctionExpressions(TArray<UMaterialExpression*>& InOutExpressions);
+
+	static FString ShadingModelsToString(const FMaterialShadingModelField& ShadingModels);
 };

@@ -184,7 +184,7 @@ bool FGLTFMaterialTask::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingMode
 
 	if (ShadingModelCount > 1)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Support is limited to the first of multiple shading models found (%d) in material %s"), ShadingModelCount, *Material->GetName()));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Support is limited to the first of multiple shading models found (%s) in material %s"), *FGLTFMaterialUtility::ShadingModelsToString(ShadingModels), *Material->GetName()));
 	}
 
 	const EMaterialShadingModel ShadingModel = ShadingModels.GetFirstShadingModel();
