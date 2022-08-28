@@ -8,11 +8,10 @@ namespace
 	// Positive angles are indexed from 0 and negative angles from -1.
 	int32 AngleCycleIndex(float Angle)
 	{
+		// TODO: is this similar to viewer camera?
 		return (static_cast<int32>(Angle) / 360) + ((Angle < 0.0f) ? -1 : 0);
 	}
 } // Anonymous namespace
-
-DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFOrbitCamera, Log, All);
 
 AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -37,38 +36,17 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-#if WITH_EDITOR
-void AGLTFOrbitCameraActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-
-	if (PropertyThatChanged != nullptr)
-	{
-		const FString PropertyName = PropertyThatChanged->GetName();
-
-		if (PropertyName == TEXT("Focus"))
-		{
-			if (Focus == this)
-			{
-				UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("The camera cannot focus itself."));
-			}
-		}
-	}
-}
-#endif // WITH_EDITOR
-
 void AGLTFOrbitCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// TODO: Focus the scene AABB center if all else fails
-	if (this->Focus == nullptr || this->Focus == this)
+	if (this->Focus == nullptr)
 	{
-		UE_LOG(LogEditorGLTFOrbitCamera, Warning, TEXT("The camera focus must not be null or the camera itself."));
+		// TODO: if focus is null use the scene center (similar to viewer camera)
+		UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be null"));
 	}
-	
+
+	// TODO: calculate distance and direction based on camera offset to focus (similar to viewer camera)
 	Distance = ClampDistance(Distance);
 	Pitch = ClampPitch(Pitch);
 	Yaw = ClampYaw(Yaw);
