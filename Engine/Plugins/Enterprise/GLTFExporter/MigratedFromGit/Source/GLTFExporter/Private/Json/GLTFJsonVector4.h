@@ -34,6 +34,11 @@ struct FGLTFJsonVector4
 		JsonWriter.WriteArrayEnd();
 	}
 
+	operator FGLTFJsonVector3() const
+	{
+		return { X, Y, Z };
+	}
+
 	bool operator==(const FGLTFJsonVector4& Other) const
 	{
 		return X == Other.X
