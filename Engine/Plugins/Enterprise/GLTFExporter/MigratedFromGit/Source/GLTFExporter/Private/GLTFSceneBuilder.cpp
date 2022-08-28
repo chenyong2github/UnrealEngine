@@ -4,7 +4,7 @@
 #include "GLTFConversionUtilities.h"
 #include "GLTFExporterModule.h"
 
-FGLTFNodeBuilder::FGLTFNodeBuilder( const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bRootNode)
+FGLTFNodeBuilder::FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bRootNode)
 	: SceneComponent(SceneComponent)
 	, ComponentOwner(ComponentOwner)
 	, bRootNode(bRootNode)
