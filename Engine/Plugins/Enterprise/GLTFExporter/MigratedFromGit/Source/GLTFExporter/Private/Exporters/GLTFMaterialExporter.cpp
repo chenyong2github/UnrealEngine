@@ -14,9 +14,9 @@ UGLTFMaterialExporter::UGLTFMaterialExporter(const FObjectInitializer& ObjectIni
 bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UMaterialInterface* Material = CastChecked<UMaterialInterface>(Object);
+	const UStaticMesh* PreviewMesh = Builder.ExportOptions->bExportPreviewMesh ? FGLTFExporterUtility::GetPreviewMesh(Material) : nullptr;
 
-	// TODO: should we get the preview-mesh first, and pass it to GetOrAddMaterial for baking?
-	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material, nullptr);
+	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material, PreviewMesh);
 	if (MaterialIndex == INDEX_NONE)
 	{
 		Builder.AddErrorMessage(
@@ -27,7 +27,6 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
-		const UStaticMesh* PreviewMesh = FGLTFExporterUtility::GetPreviewMesh(Material);
 		if (PreviewMesh != nullptr)
 		{
 			const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, -1, nullptr, { Material });
