@@ -3,16 +3,16 @@
 #pragma once
 
 #include "GLTFJsonRoot.h"
-#include "CoreMinimal.h"
+#include "Engine.h"
 
-struct GLTFEXPORTER_API FGLTFBufferBuilder
+struct GLTFEXPORTER_API FGLTFContainer
 {
-	FGLTFJsonRoot& JsonRoot;
-	const FGLTFJsonBufferIndex BufferIndex;
+	FGLTFJsonRoot JsonRoot;
 
-	TArray<uint8> Data;
+	const FGLTFJsonBufferIndex MergedBufferIndex;
+	TArray<uint8> MergedBufferData;
 
-	FGLTFBufferBuilder(FGLTFJsonRoot& JsonRoot, const FString& Name = TEXT(""));
+	FGLTFContainer();
 
 	template <class ElementType>
 	FGLTFJsonBufferViewIndex AppendBufferView(const TArray<ElementType>& Array, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer)
@@ -22,5 +22,8 @@ struct GLTFEXPORTER_API FGLTFBufferBuilder
 
 	FGLTFJsonBufferViewIndex AppendBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
-	void Close();
+	FGLTFJsonMeshIndex AppendMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
+
+	void UpdateMergedBuffer();
+	void Serialize(FArchive& Archive);
 };
