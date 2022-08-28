@@ -126,16 +126,21 @@ struct FGLTFJsonRoot : IGLTFJsonObject
 			Writer.EndExtensions();
 		}
 
-		if (Writer.Extensions.Used.Num() > 0) Writer.Write(TEXT("extensionsUsed"), Writer.Extensions.Used);
-		if (Writer.Extensions.Required.Num() > 0) Writer.Write(TEXT("extensionsRequired"), Writer.Extensions.Required);
+		if (Extensions.Used.Num() > 0)
+		{
+			Writer.Write(TEXT("extensionsUsed"), Extensions.Used);
+		}
+
+		if (Extensions.Required.Num() > 0)
+		{
+			Writer.Write(TEXT("extensionsRequired"), Extensions.Required);
+		}
 	}
 
-	void ToJson(FArchive* const Archive, bool bPrettyJson)
+	void WriteJson(FArchive& Archive, bool bPrettyJson)
 	{
-		TSharedRef<IGLTFJsonWriter> Writer = IGLTFJsonWriter::Create(Archive, bPrettyJson);
-		Writer->Extensions = Extensions;
+		TSharedRef<IGLTFJsonWriter> Writer = IGLTFJsonWriter::Create(Archive, bPrettyJson, Extensions);
 		Writer->Write(this);
 		Writer->Close();
-		Extensions = Writer->Extensions; // TODO: fix ugly hack
 	}
 };

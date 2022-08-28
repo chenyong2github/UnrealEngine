@@ -9,8 +9,9 @@ class TGLTFJsonWriterImpl final : public IGLTFJsonWriter
 {
 public:
 
-	TGLTFJsonWriterImpl(FArchive* const Archive)
-		: JsonWriter(TJsonWriterFactory<CharType, PrintPolicy>::Create(Archive))
+	TGLTFJsonWriterImpl(FArchive& Archive, FGLTFJsonExtensions& Extensions)
+		: IGLTFJsonWriter(Extensions)
+		, JsonWriter(TJsonWriterFactory<CharType, PrintPolicy>::Create(&Archive))
 	{
 	}
 
@@ -147,10 +148,10 @@ private:
 	TSharedRef<TJsonWriter<CharType, PrintPolicy>> JsonWriter;
 };
 
-TSharedRef<IGLTFJsonWriter> IGLTFJsonWriter::Create(FArchive* const Archive, bool bPrettyJson)
+TSharedRef<IGLTFJsonWriter> IGLTFJsonWriter::Create(FArchive& Archive, bool bPrettyJson, FGLTFJsonExtensions& Extensions)
 {
 	return MakeShareable(bPrettyJson
-		? static_cast<IGLTFJsonWriter*>(new TGLTFJsonWriterImpl<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive))
-		: static_cast<IGLTFJsonWriter*>(new TGLTFJsonWriterImpl<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive))
+		? static_cast<IGLTFJsonWriter*>(new TGLTFJsonWriterImpl<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive, Extensions))
+		: static_cast<IGLTFJsonWriter*>(new TGLTFJsonWriterImpl<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive, Extensions))
 	);
 }

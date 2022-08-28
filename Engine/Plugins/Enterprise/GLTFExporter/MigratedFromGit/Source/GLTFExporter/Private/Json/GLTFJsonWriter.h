@@ -10,9 +10,14 @@ class IGLTFJsonWriter
 {
 public:
 
-	FGLTFJsonExtensions Extensions;
+	FGLTFJsonExtensions& Extensions;
 
-	static TSharedRef<IGLTFJsonWriter> Create(FArchive* const Archive, bool bPrettyJson);
+	IGLTFJsonWriter(FGLTFJsonExtensions& Extensions)
+		: Extensions(Extensions)
+	{
+	}
+
+	static TSharedRef<IGLTFJsonWriter> Create(FArchive& Archive, bool bPrettyJson, FGLTFJsonExtensions& Extensions);
 
 	virtual ~IGLTFJsonWriter() = default;
 

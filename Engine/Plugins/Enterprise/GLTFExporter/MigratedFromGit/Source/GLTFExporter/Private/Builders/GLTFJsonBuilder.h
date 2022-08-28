@@ -70,5 +70,7 @@ private:
 
 	FString GetGeneratorString() const;
 
+	static bool IsCustomExtension(EGLTFJsonExtension Extension);
+
 	FGLTFJsonRoot JsonRoot;
 };
