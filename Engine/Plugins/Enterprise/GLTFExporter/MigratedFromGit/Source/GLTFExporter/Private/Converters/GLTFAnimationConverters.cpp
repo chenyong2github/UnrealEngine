@@ -42,7 +42,7 @@ FGLTFJsonAnimationIndex FGLTFAnimationDataConverter::Convert(FGLTFJsonNodeIndex 
 	}
 
 	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
-	if (AnimationIndex != INDEX_NONE)
+	if (AnimationIndex != INDEX_NONE && Builder.ExportOptions->bExportPlaybackSettings)
 	{
 		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
 		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation.Playback;
@@ -74,7 +74,7 @@ FGLTFJsonAnimationIndex FGLTFLevelSequenceDataConverter::Convert(const ALevelSeq
 	}
 
 	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(Level, LevelSequence);
-	if (AnimationIndex != INDEX_NONE)
+	if (AnimationIndex != INDEX_NONE && Builder.ExportOptions->bExportPlaybackSettings)
 	{
 		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
 		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation.Playback;
