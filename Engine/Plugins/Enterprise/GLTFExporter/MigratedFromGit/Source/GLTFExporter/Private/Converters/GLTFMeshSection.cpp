@@ -21,7 +21,7 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 
 	IndexMap.Reserve(TotalIndexCount);
 	IndexBuffer.AddUninitialized(TotalIndexCount);
-	BoneMapLookup.AddUninitialized(TotalIndexCount);
+	BoneMapLookup.Reserve(TotalIndexCount);
 
 	TMap<uint32, uint32> IndexLookup;
 
@@ -44,10 +44,10 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 				NewIndex = IndexMap.Num();
 				IndexLookup.Add(OldIndex, NewIndex);
 				IndexMap.Add(OldIndex);
+				BoneMapLookup.Add(0);
 			}
 
 			IndexBuffer[Index] = NewIndex;
-			BoneMapLookup[Index] = 0;
 		}
 	}
 
@@ -71,7 +71,7 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 
 	IndexMap.Reserve(TotalIndexCount);
 	IndexBuffer.AddUninitialized(TotalIndexCount);
-	BoneMapLookup.AddUninitialized(TotalIndexCount);
+	BoneMapLookup.Reserve(TotalIndexCount);
 
 	TMap<uint32, uint32> IndexLookup;
 
@@ -97,10 +97,10 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 				NewIndex = IndexMap.Num();
 				IndexLookup.Add(OldIndex, NewIndex);
 				IndexMap.Add(OldIndex);
+				BoneMapLookup.Add(BoneMapIndex);
 			}
 
 			IndexBuffer[Index] = NewIndex;
-			BoneMapLookup[Index] = BoneMapIndex;
 		}
 
 		BoneMaps.Add(MeshSection->BoneMap);
