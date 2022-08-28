@@ -38,6 +38,7 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const ULevel* Level)
 		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
 		if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
 		{
+			// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene. This change may require node converters to support cyclic calls.
 			Scene.Nodes.Add(NodeIndex);
 		}
 	}
