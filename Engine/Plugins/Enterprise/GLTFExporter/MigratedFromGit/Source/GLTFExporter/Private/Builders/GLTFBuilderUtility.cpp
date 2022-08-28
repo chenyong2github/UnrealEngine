@@ -1,30 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilderUtility.h"
-#include "IImageWrapperModule.h"
-#include "IImageWrapper.h"
 
-bool FGLTFBuilderUtility::CompressImage(const void* RawData, int64 ByteLength, int32 InWidth, int32 InHeight, ERGBFormat InRawFormat, int32 InBitDepth, TArray64<uint8>& OutCompressedData, EImageFormat OutCompressionFormat, int32 OutCompressionQuality)
+FString FGLTFBuilderUtility::GetMeshName(const UStaticMesh* StaticMesh, int32 LODIndex)
 {
-	IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
+	FString Name;
 
-	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(OutCompressionFormat);
-	if (!ImageWrapper.IsValid())
+	if (StaticMesh != nullptr)
 	{
-		// TODO: report error
-		return false;
+		StaticMesh->GetName(Name);
+		if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
 	}
 
-	const bool bFormatSupported = ImageWrapper->SetRaw(RawData, ByteLength, InWidth, InHeight, InRawFormat, InBitDepth);
-	if (!bFormatSupported)
-	{
-		// TODO: report error
-		return false;
-	}
+	return Name;
+}
 
-	const TArray64<uint8>& CompressedData = ImageWrapper->GetCompressed(OutCompressionQuality);
-	OutCompressedData.Append(CompressedData);
-	return true;
+const TCHAR* FGLTFBuilderUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
+{
+	switch (MimeType)
+	{
+		case EGLTFJsonMimeType::PNG:  return TEXT(".png");
+		case EGLTFJsonMimeType::JPEG: return TEXT(".jpg");
+		default:                      return TEXT(".unknown");
+	}
 }
 
 FString FGLTFBuilderUtility::GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames)
