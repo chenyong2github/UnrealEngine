@@ -11,19 +11,6 @@
 #include "VariantSet.h"
 #include "Variant.h"
 
-namespace
-{
-	// TODO: replace hack with safe solution by adding proper API access to UPropertyValue
-	class UPropertyValueHack : public UPropertyValue
-	{
-	public:
-		const TArray<FCapturedPropSegment>& GetCapturedPropSegments() const
-		{
-			return CapturedPropSegments;
-		}
-	};
-}
-
 FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
 	FGLTFJsonLevelVariantSets JsonLevelVariantSets;
@@ -216,7 +203,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 		return false;
 	}
 
-	const TArray<FCapturedPropSegment>& CapturedPropSegments = reinterpret_cast<UPropertyValueHack*>(MaterialProperty)->GetCapturedPropSegments();
+	const TArray<FCapturedPropSegment>& CapturedPropSegments = MaterialProperty->GetCapturedPropSegments();
 	const int32 NumPropSegments = CapturedPropSegments.Num();
 
 	if (NumPropSegments < 1)
