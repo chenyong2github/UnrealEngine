@@ -63,7 +63,7 @@ enum class EGLTFMaterialVariantMode : uint8
 	UseMeshData,
 };
 
-UCLASS(Config=EditorPerProjectUserSettings, HideCategories=(DebugProperty))
+UCLASS(BlueprintType, Config=EditorPerProjectUserSettings, HideCategories=(DebugProperty))
 class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
