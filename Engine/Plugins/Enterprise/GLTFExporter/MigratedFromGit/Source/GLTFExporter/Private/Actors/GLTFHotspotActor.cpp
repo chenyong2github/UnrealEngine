@@ -465,11 +465,11 @@ void AGLTFHotspotActor::ValidateAnimation()
 			{
 				if (Skeleton != nullptr)
 				{
-					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *Skeleton->GetName());
+					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor"), *AnimationSequence->GetName(), *Skeleton->GetName());
 				}
 				else
 				{
-					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible because mesh %s has no skeleton, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->GetName());
+					UE_LOG(LogGLTFHotspot, Warning, TEXT("Animation %s is incompatible because mesh %s has no skeleton, removing animation from actor"), *AnimationSequence->GetName(), *SkeletalMesh->GetName());
 				}
 
 				AnimationSequence = nullptr;
