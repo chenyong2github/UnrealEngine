@@ -4,7 +4,6 @@
 
 #include "Builders/GLTFBuilder.h"
 #include "Builders/GLTFTask.h"
-#include "GLTFExportOptions.h"
 
 class FGLTFTaskBuilder : public FGLTFBuilder
 {
@@ -15,18 +14,19 @@ protected:
 public:
 
 	template <typename TaskType, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
-	void SetupTask(TUniquePtr<TaskType> Task)
+	bool SetupTask(TUniquePtr<TaskType> Task)
 	{
-		SetupTask(TUniquePtr<FGLTFTask>(Task.Release()));
+		return SetupTask(TUniquePtr<FGLTFTask>(Task.Release()));
 	}
 
-	void SetupTask(TUniquePtr<FGLTFTask> Task);
+	bool SetupTask(TUniquePtr<FGLTFTask> Task);
 
 	void CompleteAllTasks(FFeedbackContext* Context = GWarn);
 
 private:
 
-	static FText GetCategoryFormatMessage(EGLTFTaskCategory Category);
+	static FText GetPriorityMessageFormat(EGLTFTaskPriority Priority);
 
-	TMap<EGLTFTaskCategory, TArray<TUniquePtr<FGLTFTask>>> CategorizedTasks;
+	int32 PriorityIndexLock;
+	TMap<EGLTFTaskPriority, TArray<TUniquePtr<FGLTFTask>>> TasksByPriority;
 };

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-enum class EGLTFTaskCategory
+enum class EGLTFTaskPriority : uint8
 {
 	Actor,
     Mesh,
@@ -18,32 +18,16 @@ class FGLTFTask
 {
 public:
 
-	const EGLTFTaskCategory Category;
+	const EGLTFTaskPriority Priority;
 
-	const FString Name;
-
-	FGLTFTask(EGLTFTaskCategory Category, const FString& Name)
-		: Category(Category)
-		, Name(Name)
+	FGLTFTask(EGLTFTaskPriority Priority)
+        : Priority(Priority)
 	{
 	}
 
 	virtual ~FGLTFTask() = default;
 
-	virtual void Run() = 0;
-};
+	virtual FString GetName() = 0;
 
-class FGLTFSleepTask : public FGLTFTask
-{
-public:
-
-	FGLTFSleepTask(EGLTFTaskCategory Category, const FString& Name)
-        : FGLTFTask(Category, Name)
-	{
-	}
-
-	virtual void Run() override
-	{
-		FPlatformProcess::Sleep(0.5);
-	}
+	virtual void Complete() = 0;
 };
