@@ -44,8 +44,8 @@ UENUM(BlueprintType)
 enum class EGLTFExporterTextureFormat : uint8
 {
 	None,
-	PNG,
-	JPEG
+	PNG
+	// TODO: add more formats
 };
 
 UENUM(BlueprintType)
@@ -95,7 +95,7 @@ public:
 	uint32 bTangentDataQuantization : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
-	EGLTFExporterNormalizeUVCoordinates bNormalizeUVCoordinates;
+	EGLTFExporterNormalizeUVCoordinates NormalizeUVCoordinates;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	int32 DefaultLevelOfDetail;
@@ -118,7 +118,7 @@ public:
 	uint32 bExportHiddenInGame : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	EGLTFExporterLightMobility bExportLights;
+	EGLTFExporterLightMobility ExportLights;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportCameras : 1;
