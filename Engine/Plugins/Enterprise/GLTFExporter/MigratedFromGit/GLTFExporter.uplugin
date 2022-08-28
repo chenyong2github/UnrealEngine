@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 105,
-	"VersionName": "1.0.5",
+	"Version": 106,
+	"VersionName": "1.0.6",
 	"FriendlyName": "glTF Exporter",
 	"Description": "An exporter for Khronos glTF 2.0.",
 	"Category": "Exporters",
