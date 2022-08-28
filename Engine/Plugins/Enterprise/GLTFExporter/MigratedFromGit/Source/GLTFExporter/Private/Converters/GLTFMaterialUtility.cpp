@@ -253,7 +253,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 			case MP_CustomData0: HackProperty = MP_Metallic; break;
 			case MP_CustomData1: HackProperty = MP_Roughness; break;
 			case MP_CustomOutput: HackProperty = MP_Normal; break;
-			default: checkNoEntry();
+			default: checkNoEntry(); break;
 		}
 
 		UMaterial* ParentMaterial = const_cast<UMaterial*>(Material->GetMaterial());
