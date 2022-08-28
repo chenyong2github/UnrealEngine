@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBufferBuilder.h"
-#include "Serialization/BufferArchive.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 FGLTFBufferBuilder::FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFJsonBuilder(FilePath, ExportOptions)
+{
+}
+
+FGLTFBufferBuilder::~FGLTFBufferBuilder()
+{
+	if (BufferArchive != nullptr)
+	{
+		BufferArchive->Close();
+	}
+}
+
+bool FGLTFBufferBuilder::InitializeBuffer()
 {
 	FGLTFJsonBuffer JsonBuffer;
 
@@ -23,29 +34,22 @@ FGLTFBufferBuilder::FGLTFBufferBuilder(const FString& FilePath, const UGLTFExpor
 		if (BufferArchive == nullptr)
 		{
 			AddErrorMessage(FString::Printf(TEXT("Failed to write external binary buffer to file: %s"), *ExternalBinaryPath));
+			return false;
 		}
 	}
 
 	BufferIndex = AddBuffer(JsonBuffer);
+	return true;
 }
 
-FGLTFBufferBuilder::~FGLTFBufferBuilder()
+const FBufferArchive* FGLTFBufferBuilder::GetBufferData() const
 {
-	if (BufferArchive != nullptr)
-	{
-		BufferArchive->Close();
-	}
-}
-
-const TArray<uint8>& FGLTFBufferBuilder::GetBufferData() const
-{
-	check(bIsGlbFile);
-	return *static_cast<FBufferArchive*>(BufferArchive.Get());
+	return bIsGlbFile ? static_cast<FBufferArchive*>(BufferArchive.Get()) : nullptr;
 }
 
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
 {
-	if (BufferArchive == nullptr)
+	if (BufferArchive == nullptr && !InitializeBuffer())
 	{
 		// TODO: report error
 		return FGLTFJsonBufferViewIndex(INDEX_NONE);

@@ -18,7 +18,7 @@ protected:
 
 private:
 
-	static void WriteGlb(FArchive& Archive, const TArray<uint8>& JsonData, const TArray<uint8>& BinaryData);
+	static void WriteGlb(FArchive& Archive, const FBufferArchive* JsonData, const FBufferArchive* BinaryData);
 
 	static void WriteHeader(FArchive& Archive, uint32 FileSize);
 	static void WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray<uint8>& ChunkData, uint8 ChunkTrailingByte);

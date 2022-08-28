@@ -38,23 +38,30 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive)
 	FBufferArchive JsonData;
 	WriteJson(JsonData);
 
-	const TArray<uint8>& BufferData = GetBufferData();
-
-	WriteGlb(Archive, JsonData, BufferData);
+	const FBufferArchive* BufferData = GetBufferData();
+	WriteGlb(Archive, &JsonData, BufferData);
 }
 
-void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const TArray<uint8>& JsonData, const TArray<uint8>& BinaryData)
+void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const FBufferArchive* JsonData, const FBufferArchive* BinaryData)
 {
 	const uint32 JsonChunkType = 0x4E4F534A; // "JSON" in ASCII
 	const uint32 BinaryChunkType = 0x004E4942; // "BIN" in ASCII
-	const uint32 FileSize =
+	uint32 FileSize =
 		3 * sizeof(uint32) +
-		2 * sizeof(uint32) + GetPaddedChunkSize(JsonData.Num()) +
-		2 * sizeof(uint32) + GetPaddedChunkSize(BinaryData.Num());
+		2 * sizeof(uint32) + GetPaddedChunkSize(JsonData->Num());
+
+	if (BinaryData != nullptr)
+	{
+		FileSize += 2 * sizeof(uint32) + GetPaddedChunkSize(BinaryData->Num());
+	}
 
 	WriteHeader(Archive, FileSize);
-	WriteChunk(Archive, JsonChunkType, JsonData, 0x20);
-	WriteChunk(Archive, BinaryChunkType, BinaryData, 0x0);
+	WriteChunk(Archive, JsonChunkType, *JsonData, 0x20);
+
+	if (BinaryData != nullptr)
+	{
+		WriteChunk(Archive, BinaryChunkType, *BinaryData, 0x0);
+	}
 }
 
 void FGLTFContainerBuilder::WriteHeader(FArchive& Archive, uint32 FileSize)

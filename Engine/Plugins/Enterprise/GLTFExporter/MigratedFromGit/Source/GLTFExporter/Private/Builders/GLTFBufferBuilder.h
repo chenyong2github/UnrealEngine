@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Builders/GLTFJsonBuilder.h"
+#include "Serialization/BufferArchive.h"
 
 class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
@@ -11,7 +12,7 @@ protected:
 	FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 	~FGLTFBufferBuilder();
 
-	const TArray<uint8>& GetBufferData() const;
+	const FBufferArchive* GetBufferData() const;
 
 public:
 
@@ -24,6 +25,8 @@ public:
 	}
 
 private:
+
+	bool InitializeBuffer();
 
 	FGLTFJsonBufferIndex BufferIndex;
 	TUniquePtr<FArchive> BufferArchive;
