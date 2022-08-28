@@ -37,6 +37,8 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 #if WITH_EDITOR
 void UGLTFInteractionHotspotComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	const FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
 	if (PropertyThatChanged)
