@@ -2,19 +2,23 @@
 
 #pragma once
 
-#include "GLTFJsonRoot.h"
-#include "Engine.h"
+#include "GLTFJsonBuilder.h"
 
-struct FGLTFContainerBuilder;
-
-struct GLTFEXPORTER_API FGLTFBufferBuilder
+struct GLTFEXPORTER_API FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 	FGLTFJsonBufferIndex BufferIndex;
 	TArray<uint8> BufferData;
 
-	FGLTFBufferBuilder(FGLTFJsonBufferIndex BufferIndex);
+	FGLTFBufferBuilder();
 
-	FGLTFJsonBufferViewIndex AddBufferView(FGLTFContainerBuilder& Container, const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget);
+	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
-	void UpdateBuffer(FGLTFJsonBuffer& JsonBuffer);
+	template <class ElementType>
+    FGLTFJsonBufferViewIndex AddBufferView(const TArray<ElementType>& Array, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer)
+	{
+		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
+	}
+
+	void UpdateBuffer();
+	virtual void Serialize(FArchive& Archive) override;
 };

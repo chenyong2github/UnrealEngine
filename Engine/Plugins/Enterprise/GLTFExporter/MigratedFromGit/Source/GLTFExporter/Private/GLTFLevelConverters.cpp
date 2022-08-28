@@ -6,7 +6,7 @@
 #include "GLTFContainerBuilder.h"
 #include "GLTFConversionUtilities.h"
 
-FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFContainerBuilder& Container, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode)
+FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode)
 {
 	const AActor* Owner = SceneComponent->GetOwner();
 	const bool bIsRootComponent = Owner != nullptr && Owner->GetRootComponent() == SceneComponent;
@@ -26,7 +26,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFContainerBuilder& 
 	}
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
-		Node.Mesh = Container.ConvertMesh(StaticMeshComponent);
+		Node.Mesh = Builder.ConvertMesh(StaticMeshComponent);
 	}
 	else if (IsHDRIBackdropBlueprint(Blueprint) && bIsRootComponent)
 	{
@@ -41,16 +41,16 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(FGLTFContainerBuilder& 
 			const AActor* ChildOwner = ChildComponent->GetOwner();
 			if (!bSelectedOnly || ChildOwner->IsSelected())
 			{
-				FGLTFJsonNodeIndex NodeIndex = Container.ConvertNode(ChildComponent, bSelectedOnly, false);
+				FGLTFJsonNodeIndex NodeIndex = Builder.ConvertNode(ChildComponent, bSelectedOnly, false);
 				if (NodeIndex != INDEX_NONE) Node.Children.Add(NodeIndex);
 			}
 		}
 	}
 
-	return Container.AddNode(Node);
+	return Builder.AddNode(Node);
 }
 
-FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(FGLTFContainerBuilder& Container, const FString& Name, const ULevel* Level, bool bSelectedOnly)
+FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(FGLTFIndexedBuilder& Builder, const FString& Name, const ULevel* Level, bool bSelectedOnly)
 {
 	FGLTFJsonScene Scene;
 	Scene.Name = Name;
@@ -68,12 +68,12 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(FGLTFContainerBuilder& Containe
 				const AActor* ParentActor = Actor->GetParentActor();
 				if (ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected()))
 				{
-					FGLTFJsonNodeIndex NodeIndex = Container.ConvertNode(RootComponent, bSelectedOnly, true);
+					FGLTFJsonNodeIndex NodeIndex = Builder.ConvertNode(RootComponent, bSelectedOnly, true);
 					if (NodeIndex != INDEX_NONE) Scene.Nodes.Add(NodeIndex);
 				}
 			}
 		}
 	}
 
-	return Container.AddScene(Scene);
+	return Builder.AddScene(Scene);
 }

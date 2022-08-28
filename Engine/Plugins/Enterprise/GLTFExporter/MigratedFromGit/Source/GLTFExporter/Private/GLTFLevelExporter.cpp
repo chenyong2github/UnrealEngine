@@ -20,10 +20,10 @@ bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchi
 		return false;
 	}
 
-	FGLTFContainerBuilder Container;
-	const FGLTFJsonSceneIndex SceneIndex = Container.ConvertScene(World, bSelectedOnly);
-	Container.JsonRoot.DefaultScene = SceneIndex;
+	FGLTFContainerBuilder Builder;
+	const FGLTFJsonSceneIndex SceneIndex = Builder.ConvertScene(World, bSelectedOnly);
+	Builder.JsonRoot.DefaultScene = SceneIndex;
 
-	Container.Serialize(Archive);
+	Builder.Serialize(Archive);
 	return true;
 }
