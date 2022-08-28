@@ -23,58 +23,16 @@ UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 	return DefaultMaterial;
 }
 
-bool FGLTFMaterialUtility::IsNormalMap(EMaterialProperty Property)
+bool FGLTFMaterialUtility::IsNormalMap(const FMaterialPropertyEx& Property)
 {
-	return Property == MP_Normal || Property == MP_CustomOutput /* ClearCoatBottomNormal */;
+	return Property == MP_Normal || Property == TEXT("ClearCoatBottomNormal");
 }
 
-const TCHAR* FGLTFMaterialUtility::GetPropertyName(EMaterialProperty Property)
-{
-	// TODO: replace this hardcoded list with some lookup function that should be in the engine.
-
-	switch (Property)
-	{
-		case MP_EmissiveColor:          return TEXT("EmissiveColor");
-		case MP_Opacity:                return TEXT("Opacity");
-		case MP_OpacityMask:            return TEXT("OpacityMask");
-		case MP_BaseColor:              return TEXT("BaseColor");
-		case MP_Metallic:               return TEXT("Metallic");
-		case MP_Specular:               return TEXT("Specular");
-		case MP_Roughness:              return TEXT("Roughness");
-		case MP_Anisotropy:             return TEXT("Anisotropy");
-		case MP_Normal:                 return TEXT("Normal");
-		case MP_Tangent:                return TEXT("Tangent");
-		case MP_WorldPositionOffset:    return TEXT("WorldPositionOffset");
-		case MP_WorldDisplacement:      return TEXT("WorldDisplacement");
-		case MP_TessellationMultiplier: return TEXT("TessellationMultiplier");
-		case MP_SubsurfaceColor:        return TEXT("SubsurfaceColor");
-		case MP_CustomData0:            return TEXT("ClearCoat");
-		case MP_CustomData1:            return TEXT("ClearCoatRoughness");
-		case MP_AmbientOcclusion:       return TEXT("AmbientOcclusion");
-		case MP_Refraction:             return TEXT("Refraction");
-		case MP_CustomizedUVs0:         return TEXT("CustomizedUV0");
-		case MP_CustomizedUVs1:         return TEXT("CustomizedUV1");
-		case MP_CustomizedUVs2:         return TEXT("CustomizedUV2");
-		case MP_CustomizedUVs3:         return TEXT("CustomizedUV3");
-		case MP_CustomizedUVs4:         return TEXT("CustomizedUV4");
-		case MP_CustomizedUVs5:         return TEXT("CustomizedUV5");
-		case MP_CustomizedUVs6:         return TEXT("CustomizedUV6");
-		case MP_CustomizedUVs7:         return TEXT("CustomizedUV7");
-		case MP_PixelDepthOffset:       return TEXT("PixelDepthOffset");
-		case MP_ShadingModel:           return TEXT("ShadingModel");
-		case MP_MaterialAttributes:     return TEXT("MaterialAttributes");
-		case MP_CustomOutput:           return TEXT("ClearCoatBottomNormal");
-		default:
-			checkNoEntry();
-			return TEXT("");
-	}
-}
-
-FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Property)
+FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(const FMaterialPropertyEx& Property)
 {
 	// TODO: replace with GMaterialPropertyAttributesMap lookup (when public API available)
 
-	switch (Property)
+	switch (Property.Type)
 	{
 		case MP_EmissiveColor:          return FVector4(0,0,0,0);
 		case MP_Opacity:                return FVector4(1,0,0,0);
@@ -104,8 +62,7 @@ FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Propert
 		return FVector4(0,0,0,0);
 	}
 
-	// TODO: replace workaround for ClearCoatBottomNormal
-	if (Property == MP_CustomOutput)
+	if (Property == TEXT("ClearCoatBottomNormal"))
 	{
 		return FVector4(0,0,1,0);
 	}
@@ -114,11 +71,11 @@ FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Propert
 	return FVector4();
 }
 
-FVector4 FGLTFMaterialUtility::GetPropertyMask(EMaterialProperty Property)
+FVector4 FGLTFMaterialUtility::GetPropertyMask(const FMaterialPropertyEx& Property)
 {
 	// TODO: replace with GMaterialPropertyAttributesMap lookup (when public API available)
 
-	switch (Property)
+	switch (Property.Type)
 	{
 		case MP_EmissiveColor:          return FVector4(1,1,1,0);
 		case MP_Opacity:                return FVector4(1,0,0,0);
@@ -148,8 +105,7 @@ FVector4 FGLTFMaterialUtility::GetPropertyMask(EMaterialProperty Property)
 		return FVector4(1,1,0,0);
 	}
 
-	// TODO: replace workaround for ClearCoatBottomNormal
-	if (Property == MP_CustomOutput)
+	if (Property == TEXT("ClearCoatBottomNormal"))
 	{
 		return FVector4(1,1,1,0);
 	}
@@ -158,17 +114,16 @@ FVector4 FGLTFMaterialUtility::GetPropertyMask(EMaterialProperty Property)
 	return FVector4();
 }
 
-const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, EMaterialProperty Property)
+const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property)
 {
-	// TODO: replace workaround for ClearCoatBottomNormal
-	if (Property == MP_CustomOutput)
+	if (Property.IsCustomOutput())
 	{
-		const UMaterialExpressionCustomOutput* CustomOutput = GetCustomOutputByName(Material, TEXT("ClearCoatBottomNormal"));
+		const UMaterialExpressionCustomOutput* CustomOutput = GetCustomOutputByName(Material, Property.CustomOutput.ToString());
 		return CustomOutput != nullptr ? &CastChecked<UMaterialExpressionClearCoatNormalCustomOutput>(CustomOutput)->Input : nullptr;
 	}
 
 	UMaterial* UnderlyingMaterial = const_cast<UMaterial*>(Material->GetMaterial());
-	return UnderlyingMaterial->GetExpressionInputForProperty(Property);
+	return UnderlyingMaterial->GetExpressionInputForProperty(Property.Type);
 }
 
 const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByName(const UMaterialInterface* Material, const FString& Name)
@@ -178,7 +133,7 @@ const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByNa
 	for (const UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
 	{
 		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
-		if (CustomOutput != nullptr && CustomOutput->GetFunctionName() == Name)
+		if (CustomOutput != nullptr && CustomOutput->GetDisplayName() == Name)
 		{
 			return CustomOutput;
 		}
@@ -248,10 +203,8 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, const FMeshDescription* MeshDescription, const TArray<int32>& MeshSectionIndices, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, const FMaterialPropertyEx& Property, const UMaterialInterface* Material, int32 TexCoord, const FMeshDescription* MeshDescription, const TArray<int32>& MeshSectionIndices, bool bCopyAlphaFromRedChannel)
 {
-	const FMaterialPropertyEx PropertyEx(Property, Property == MP_CustomOutput ? FName(TEXT("ClearCoatBottomNormal")) : NAME_None);
-
 	FMeshData MeshSet;
 	MeshSet.TextureCoordinateBox = { { 0.0f, 0.0f }, { 1.0f, 1.0f } };
 	MeshSet.TextureCoordinateIndex = TexCoord;
@@ -260,7 +213,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	FMaterialDataEx MatSet;
 	MatSet.Material = const_cast<UMaterialInterface*>(Material);
-	MatSet.PropertySizes.Add(PropertyEx, OutputSize);
+	MatSet.PropertySizes.Add(Property, OutputSize);
 
 	TArray<FMeshData*> MeshSettings;
 	TArray<FMaterialDataEx*> MatSettings;
@@ -274,8 +227,8 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	FBakeOutputEx& BakeOutput = BakeOutputs[0];
 
-	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(PropertyEx));
-	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(PropertyEx);
+	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(Property));
+	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(Property);
 	const float EmissiveScale = BakeOutput.EmissiveScale;
 
 	if (bCopyAlphaFromRedChannel)
