@@ -35,7 +35,7 @@ void FGLTFProxyAssetActions::GetProxyActions(const TArray<UObject*>& InObjects, 
 		"MenuEntry_CreateProxy",
 		LOCTEXT("MenuEntry_CreateProxy", "Create glTF Proxy Material"),
 		LOCTEXT("MenuEntry_CreateProxyTooltip", "Creates a proxy version of this material for glTF export."),
-		FSlateIcon(FGLTFEditorStyle::Get().GetStyleSetName(), "Icon16x16"),
+		FSlateIcon(FGLTFEditorStyle::Get().GetStyleSetName(), "Icon16"),
 		FUIAction(FExecuteAction::CreateSP(this, &FGLTFProxyAssetActions::OnCreateProxy, Objects))
 		);
 }
