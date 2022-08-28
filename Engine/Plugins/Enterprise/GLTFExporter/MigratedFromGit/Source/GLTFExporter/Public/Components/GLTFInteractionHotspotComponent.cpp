@@ -10,7 +10,7 @@
 
 namespace
 {
-	static const float DefaultCollisionVolumeRadius = 50.0f;
+	const float UnitSphereRadius = 50.0f;
 } // Anonymous namespace
 
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
@@ -62,7 +62,7 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 {
 	ShapeBodySetup = NewObject<UBodySetup>(this);
 	ShapeBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
-	ShapeBodySetup->AggGeom.SphereElems.Add(DefaultCollisionVolumeRadius);
+	ShapeBodySetup->AggGeom.SphereElems.Add(UnitSphereRadius);
 	
 	BodyInstance.InitBody(ShapeBodySetup, GetWorldTransform(), this, GetWorld()->GetPhysicsScene());
 
@@ -149,9 +149,9 @@ void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
 
 		check(ShapeBodySetup->AggGeom.SphereElems.Num() == 1);
 
-		if (!FMath::IsNearlyEqual(ShapeBodySetup->AggGeom.SphereElems[0].Radius, BillboardBoundingRadius) && DefaultCollisionVolumeRadius != 0.0f)
+		if (!FMath::IsNearlyEqual(ShapeBodySetup->AggGeom.SphereElems[0].Radius, BillboardBoundingRadius) && UnitSphereRadius != 0.0f)
 		{
-			BodyInstance.UpdateBodyScale(FVector(BillboardBoundingRadius / DefaultCollisionVolumeRadius), true);
+			BodyInstance.UpdateBodyScale(FVector(BillboardBoundingRadius / UnitSphereRadius), true);
 		}
 	}
 }
