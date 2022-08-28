@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Builders/GLTFBufferBuilder.h"
+#include "Builders/GLTFBinaryHashKey.h"
 
 enum class ERGBFormat : int8;
 
@@ -23,10 +24,8 @@ private:
 
 	FString SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name);
 
-	FGLTFJsonImageIndex FindImage(const void* CompressedData, int64 CompressedByteLength) const;
-
-	TMap<FGLTFJsonImageIndex, TArray64<uint8>> ImageDataLookup;
-
 	const FString ImageDirPath;
+
 	TSet<FString> UniqueImageUris;
+	TMap<FGLTFBinaryHashKey, FGLTFJsonImageIndex> UniqueImageIndices;
 };

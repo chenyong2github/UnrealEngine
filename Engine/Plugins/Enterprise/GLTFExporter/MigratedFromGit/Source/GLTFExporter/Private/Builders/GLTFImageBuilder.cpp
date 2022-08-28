@@ -14,15 +14,16 @@ FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportO
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
-	FGLTFJsonImageIndex ImageIndex = FindImage(CompressedData, CompressedByteLength);
+	// TODO: should this function be renamed to GetOrAddImage?
+
+	const FGLTFBinaryHashKey HashKey(CompressedData, CompressedByteLength);
+	FGLTFJsonImageIndex& ImageIndex = UniqueImageIndices.FindOrAdd(HashKey);
+
 	if (ImageIndex == INDEX_NONE)
 	{
 		FGLTFJsonImage Image;
 		Image.Uri = SaveImageToFile(CompressedData, CompressedByteLength, MimeType, Name);
 		ImageIndex = FGLTFJsonBuilder::AddImage(Image);
-
-		TArray64<uint8>& ImageData = ImageDataLookup.Add(ImageIndex);
-		ImageData.Append(static_cast<const uint8*>(CompressedData), CompressedByteLength);
 	}
 
 	return ImageIndex;
@@ -73,24 +74,4 @@ FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 Com
 
 	UniqueImageUris.Add(ImageUri);
 	return ImageUri;
-}
-
-
-FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength) const
-{
-	// TODO: instead of looping through all images, use a hash table to minimize search space
-	for (const auto& DataPair : ImageDataLookup)
-	{
-		const TArray64<uint8>& ImageData = DataPair.Value;
-		if (ImageData.Num() == CompressedByteLength)
-		{
-			if (FMemory::Memcmp(ImageData.GetData(), CompressedData, CompressedByteLength) == 0)
-			{
-				const FGLTFJsonImageIndex ImageIndex = DataPair.Key;
-				return ImageIndex;
-			}
-		}
-	}
-
-	return FGLTFJsonImageIndex(INDEX_NONE);
 }
