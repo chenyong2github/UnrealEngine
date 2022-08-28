@@ -13,6 +13,11 @@ FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* Ex
 {
 }
 
+const UMaterialInterface* FGLTFBuilder::ResolveProxy(const UMaterialInterface* Material) const
+{
+	return ExportOptions->bExportProxyMaterials ? UGLTFMaterialExportOptions::ResolveProxy(Material) : Material;
+}
+
 FIntPoint FGLTFBuilder::GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup) const
 {
 	EGLTFMaterialBakeSizePOT DefaultValue = ExportOptions->DefaultMaterialBakeSize;
@@ -24,6 +29,7 @@ FIntPoint FGLTFBuilder::GetBakeSizeForMaterialProperty(const UMaterialInterface*
 		}
 	}
 
+	// TODO: add option to ignore override
 	const EGLTFMaterialBakeSizePOT Size = UGLTFMaterialExportOptions::GetBakeSizeForPropertyGroup(Material, PropertyGroup, DefaultValue);
 	const int32 PixelSize = 1 << static_cast<uint8>(Size);
 	return { PixelSize, PixelSize };
@@ -40,6 +46,7 @@ TextureFilter FGLTFBuilder::GetBakeFilterForMaterialProperty(const UMaterialInte
 		}
 	}
 
+	// TODO: add option to ignore override
 	return UGLTFMaterialExportOptions::GetBakeFilterForPropertyGroup(Material, PropertyGroup, DefaultValue);
 }
 
@@ -54,6 +61,7 @@ TextureAddress FGLTFBuilder::GetBakeTilingForMaterialProperty(const UMaterialInt
 		}
 	}
 
+	// TODO: add option to ignore override
 	return UGLTFMaterialExportOptions::GetBakeTilingForPropertyGroup(Material, PropertyGroup, DefaultValue);
 }
 
