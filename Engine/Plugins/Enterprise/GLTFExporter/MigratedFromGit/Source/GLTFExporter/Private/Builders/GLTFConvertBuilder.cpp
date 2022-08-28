@@ -133,6 +133,16 @@ FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* Scen
 	return SceneComponentConverter.GetOrAdd(*this, DesiredName, SceneComponent);
 }
 
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor, const FString& DesiredName)
+{
+	if (Actor == nullptr)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	return ActorConverter.GetOrAdd(*this, DesiredName, Actor);
+}
+
 FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const ULevel* Level, const FString& DesiredName)
 {
 	if (Level == nullptr)

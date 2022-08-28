@@ -32,6 +32,7 @@ public:
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTexture2D* Texture, const FString& DesiredName = TEXT(""));
 
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent, const FString& DesiredName = TEXT(""));
+	FGLTFJsonNodeIndex GetOrAddNode(const AActor* Actor, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const UWorld* World, const FString& DesiredName = TEXT(""));
 
@@ -51,5 +52,6 @@ private:
 	FGLTFTexture2DConverter Texture2DConverter;
 
 	FGLTFSceneComponentConverter SceneComponentConverter;
+	FGLTFActorConverter ActorConverter;
 	FGLTFLevelConverter LevelConverter;
 };

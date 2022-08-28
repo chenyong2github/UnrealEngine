@@ -57,6 +57,18 @@ FGLTFJsonTextureIndex FGLTFJsonBuilder::AddTexture(const FGLTFJsonTexture& JsonT
 	return FGLTFJsonTextureIndex(JsonRoot.Textures.Add(JsonTexture));
 }
 
+FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex, const FGLTFJsonNode& JsonNode)
+{
+	const FGLTFJsonNodeIndex ChildIndex = AddNode(JsonNode);
+
+	if (ParentIndex != INDEX_NONE)
+	{
+		GetNode(ParentIndex).Children.Add(ChildIndex);
+	}
+
+	return ChildIndex;
+}
+
 FGLTFJsonAccessor& FGLTFJsonBuilder::GetAccessor(FGLTFJsonAccessorIndex AccessorIndex)
 {
 	return JsonRoot.Accessors[AccessorIndex];
