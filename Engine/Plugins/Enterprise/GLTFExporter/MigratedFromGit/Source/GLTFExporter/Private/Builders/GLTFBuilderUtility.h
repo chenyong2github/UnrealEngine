@@ -34,4 +34,6 @@ struct FGLTFBuilderUtility
 			default:                      return TEXT(".unknown");
 		}
 	}
+
+	static FString GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames);
 };
