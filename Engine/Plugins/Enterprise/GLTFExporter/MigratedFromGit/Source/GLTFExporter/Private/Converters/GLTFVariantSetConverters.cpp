@@ -133,6 +133,15 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 				JsonVariantNode.bIsVisible = bIsVisible;
 				bHasAnyProperty = true;
 			}
+			else
+			{
+				Builder.AddWarningMessage(FString::Printf(
+					TEXT("Property '%s' for actor '%s' in variant '%s' has no recorded data and will be skipped. Context: %s"),
+					*Property->GetFullDisplayString(),
+					*Binding->GetDisplayText().ToString(),
+					*Variant->GetDisplayText().ToString(),
+					*GetLogContext(Variant)));
+			}
 		}
 		else
 		{
