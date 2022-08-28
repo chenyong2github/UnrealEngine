@@ -119,13 +119,11 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 				Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
 			}
 		}
-		else
+
+		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
+		if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
 		{
-			const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
-			if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
-			{
-				Scene.Nodes.Add(NodeIndex);
-			}
+			Scene.Nodes.Add(NodeIndex);
 		}
 	}
 
