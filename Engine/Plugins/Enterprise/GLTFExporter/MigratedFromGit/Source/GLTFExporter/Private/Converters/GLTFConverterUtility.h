@@ -11,7 +11,6 @@
 #include "Json/GLTFJsonMatrix4.h"
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
-#include "Json/GLTFJsonCamera.h"
 
 struct FGLTFConverterUtility
 {
@@ -176,14 +175,5 @@ struct FGLTFConverterUtility
 		if (TIsSame<ComponentType, uint32>::Value) return EGLTFJsonComponentType::U32;
 		if (TIsSame<ComponentType, float >::Value) return EGLTFJsonComponentType::F32;
 		return EGLTFJsonComponentType::None;
-	}
-
-	template <typename EnumType>
-	static FString GetEnumDisplayName(EnumType Value)
-	{
-		static_assert(TIsEnum<EnumType>::Value, "Should only call this with enum types");
-		const UEnum* Enum = StaticEnum<EnumType>();
-		check(Enum != nullptr);
-		return Enum->GetDisplayNameTextByValue(Value).ToString();
 	}
 };

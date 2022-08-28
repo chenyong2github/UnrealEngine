@@ -9,97 +9,97 @@ FGLTFConvertBuilder::FGLTFConvertBuilder(const UGLTFExportOptions* ExportOptions
 {
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return PositionVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer);
+	return PositionVertexBufferConverter.GetOrAdd(VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return ColorVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer);
+	return ColorVertexBufferConverter.GetOrAdd(VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return NormalVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer);
+	return NormalVertexBufferConverter.GetOrAdd(VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return TangentVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer);
+	return TangentVertexBufferConverter.GetOrAdd(VertexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddUVAccessor(const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddUVAccessor(const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return UVVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer, UVIndex);
+	return UVVertexBufferConverter.GetOrAdd(VertexBuffer, UVIndex);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddJointAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddJointAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return BoneIndexVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer, JointsGroupIndex, BoneMap);
+	return BoneIndexVertexBufferConverter.GetOrAdd(VertexBuffer, JointsGroupIndex, BoneMap);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddWeightAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddWeightAccessor(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex)
 {
 	if (VertexBuffer == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return BoneWeightVertexBufferConverter.GetOrAdd(DesiredName, VertexBuffer, WeightsGroupIndex);
+	return BoneWeightVertexBufferConverter.GetOrAdd(VertexBuffer, WeightsGroupIndex);
 }
 
-FGLTFJsonBufferViewIndex FGLTFConvertBuilder::GetOrAddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
+FGLTFJsonBufferViewIndex FGLTFConvertBuilder::GetOrAddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer)
 {
 	if (IndexBuffer == nullptr)
 	{
 		return FGLTFJsonBufferViewIndex(INDEX_NONE);
 	}
 
-	return IndexBufferConverter.GetOrAdd(DesiredName, IndexBuffer);
+	return IndexBufferConverter.GetOrAdd(IndexBuffer);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer)
 {
 	if (MeshSection == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return StaticMeshSectionConverter.GetOrAdd(DesiredName, MeshSection, IndexBuffer);
+	return StaticMeshSectionConverter.GetOrAdd(MeshSection, IndexBuffer);
 }
 
-FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FGLTFMaterialArray& OverrideMaterials, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FGLTFMaterialArray& OverrideMaterials)
 {
 	if (StaticMesh == nullptr)
 	{
@@ -117,14 +117,13 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMe
 	}
 
 	return StaticMeshConverter.GetOrAdd(
-		DesiredName.IsEmpty() ? FGLTFBuilderUtility::GetLODName(StaticMesh, LODIndex) : DesiredName,
 		StaticMesh,
 		LODIndex,
 		OverrideVertexColors,
 		OverrideMaterials == StaticMesh->StaticMaterials ? FGLTFMaterialArray(): OverrideMaterials);
 }
 
-FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent)
 {
 	if (StaticMeshComponent == nullptr)
 	{
@@ -136,30 +135,30 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMeshComponent*
 	const FColorVertexBuffer* OverrideVertexColors = StaticMeshComponent->LODData.IsValidIndex(LODIndex) ? StaticMeshComponent->LODData[LODIndex].OverrideVertexColors : nullptr;
 	const FGLTFMaterialArray OverrideMaterials = FGLTFMaterialArray(StaticMeshComponent->OverrideMaterials);
 
-	return GetOrAddMesh(StaticMesh, LODIndex, OverrideVertexColors, OverrideMaterials, DesiredName);
+	return GetOrAddMesh(StaticMesh, LODIndex, OverrideVertexColors, OverrideMaterials);
 }
 
-FGLTFJsonBufferViewIndex FGLTFConvertBuilder::GetOrAddIndexBufferView(const FMultiSizeIndexContainer* IndexContainer, const FString& DesiredName)
+FGLTFJsonBufferViewIndex FGLTFConvertBuilder::GetOrAddIndexBufferView(const FMultiSizeIndexContainer* IndexContainer)
 {
 	if (IndexContainer == nullptr)
 	{
 		return FGLTFJsonBufferViewIndex(INDEX_NONE);
 	}
 
-	return IndexContainerConverter.GetOrAdd(DesiredName, IndexContainer);
+	return IndexContainerConverter.GetOrAdd(IndexContainer);
 }
 
-FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddIndexAccessor(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer, const FString& DesiredName)
+FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddIndexAccessor(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer)
 {
 	if (MeshSection == nullptr)
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	return SkeletalMeshSectionConverter.GetOrAdd(DesiredName, MeshSection, IndexContainer);
+	return SkeletalMeshSectionConverter.GetOrAdd(MeshSection, IndexContainer);
 }
 
-FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, const FGLTFMaterialArray& OverrideMaterials, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, const FGLTFMaterialArray& OverrideMaterials)
 {
 	if (SkeletalMesh == nullptr)
 	{
@@ -176,10 +175,10 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMesh* Skelet
 		OverrideVertexColors = nullptr;
 	}
 
-	return SkeletalMeshConverter.GetOrAdd(DesiredName.IsEmpty() ? FGLTFBuilderUtility::GetLODName(SkeletalMesh, LODIndex) : DesiredName, SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials);
+	return SkeletalMeshConverter.GetOrAdd(SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials);
 }
 
-FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponent* SkeletalMeshComponent, const FString& DesiredName)
+FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponent* SkeletalMeshComponent)
 {
 	if (SkeletalMeshComponent == nullptr)
 	{
@@ -192,165 +191,165 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const USkeletalMeshComponen
 	const FSkinWeightVertexBuffer* OverrideSkinWeights = SkeletalMeshComponent->LODInfo.IsValidIndex(LODIndex) ? SkeletalMeshComponent->LODInfo[LODIndex].OverrideSkinWeights : nullptr;
 	const FGLTFMaterialArray OverrideMaterials = FGLTFMaterialArray(SkeletalMeshComponent->OverrideMaterials);
 
-	return GetOrAddMesh(SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials, DesiredName);
+	return GetOrAddMesh(SkeletalMesh, LODIndex, OverrideVertexColors, OverrideSkinWeights, OverrideMaterials);
 }
 
-FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material, const FString& DesiredName)
+FGLTFJsonMaterialIndex FGLTFConvertBuilder::GetOrAddMaterial(const UMaterialInterface* Material)
 {
 	if (Material == nullptr)
 	{
 		return FGLTFJsonMaterialIndex(INDEX_NONE);
 	}
 
-	return MaterialConverter.GetOrAdd(DesiredName.IsEmpty() ? Material->GetName() : DesiredName, Material);
+	return MaterialConverter.GetOrAdd(Material);
 }
 
-FGLTFJsonSamplerIndex FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Texture, const FString& DesiredName)
+FGLTFJsonSamplerIndex FGLTFConvertBuilder::GetOrAddSampler(const UTexture* Texture)
 {
 	if (Texture == nullptr)
 	{
 		return FGLTFJsonSamplerIndex(INDEX_NONE);
 	}
 
-	return TextureSamplerConverter.GetOrAdd(DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture);
+	return TextureSamplerConverter.GetOrAdd(Texture);
 }
 
-FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture, const FString& DesiredName)
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Texture)
 {
 	if (Texture == nullptr)
 	{
 		return FGLTFJsonTextureIndex(INDEX_NONE);
 	}
 
-	return Texture2DConverter.GetOrAdd(DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture);
+	return Texture2DConverter.GetOrAdd(Texture);
 }
 
-FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace, const FString& DesiredName)
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace)
 {
 	if (Texture == nullptr)
 	{
 		return FGLTFJsonTextureIndex(INDEX_NONE);
 	}
 
-	return TextureCubeConverter.GetOrAdd(DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture, CubeFace);
+	return TextureCubeConverter.GetOrAdd(Texture, CubeFace);
 }
 
-FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarget2D* Texture, const FString& DesiredName)
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTarget2D* Texture)
 {
 	if (Texture == nullptr)
 	{
 		return FGLTFJsonTextureIndex(INDEX_NONE);
 	}
 
-	return TextureRenderTarget2DConverter.GetOrAdd(DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture);
+	return TextureRenderTarget2DConverter.GetOrAdd(Texture);
 }
 
-FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace, const FString& DesiredName)
+FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace)
 {
 	if (Texture == nullptr)
 	{
 		return FGLTFJsonTextureIndex(INDEX_NONE);
 	}
 
-	return TextureRenderTargetCubeConverter.GetOrAdd(DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture, CubeFace);
+	return TextureRenderTargetCubeConverter.GetOrAdd(Texture, CubeFace);
 }
 
-FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, const FString& DesiredName)
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent)
 {
 	if (SceneComponent == nullptr)
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	return SceneComponentConverter.GetOrAdd(DesiredName, SceneComponent);
+	return SceneComponentConverter.GetOrAdd(SceneComponent);
 }
 
-FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor, const FString& DesiredName)
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const AActor* Actor)
 {
 	if (Actor == nullptr)
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	return ActorConverter.GetOrAdd(DesiredName, Actor);
+	return ActorConverter.GetOrAdd(Actor);
 }
 
-FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const ULevel* Level, const FString& DesiredName)
+FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const ULevel* Level)
 {
 	if (Level == nullptr)
 	{
 		return FGLTFJsonSceneIndex(INDEX_NONE);
 	}
 
-	return LevelConverter.GetOrAdd(DesiredName, Level);
+	return LevelConverter.GetOrAdd(Level);
 }
 
-FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World, const FString& DesiredName)
+FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World)
 {
 	if (World == nullptr)
 	{
 		return FGLTFJsonSceneIndex(INDEX_NONE);
 	}
 
-	return GetOrAddScene(World->PersistentLevel, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
+	return GetOrAddScene(World->PersistentLevel);
 }
 
-FGLTFJsonCameraIndex FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent* CameraComponent, const FString& DesiredName)
+FGLTFJsonCameraIndex FGLTFConvertBuilder::GetOrAddCamera(const UCameraComponent* CameraComponent)
 {
 	if (CameraComponent == nullptr)
 	{
 		return FGLTFJsonCameraIndex(INDEX_NONE);
 	}
 
-	return CameraComponentConverter.GetOrAdd(DesiredName.IsEmpty() ? CameraComponent->GetName() : DesiredName, CameraComponent);
+	return CameraComponentConverter.GetOrAdd(CameraComponent);
 }
 
-FGLTFJsonLightIndex FGLTFConvertBuilder::GetOrAddLight(const ULightComponent* LightComponent, const FString& DesiredName)
+FGLTFJsonLightIndex FGLTFConvertBuilder::GetOrAddLight(const ULightComponent* LightComponent)
 {
 	if (LightComponent == nullptr)
 	{
 		return FGLTFJsonLightIndex(INDEX_NONE);
 	}
 
-	return LightComponentConverter.GetOrAdd(DesiredName.IsEmpty() ? LightComponent->GetName() : DesiredName, LightComponent);
+	return LightComponentConverter.GetOrAdd(LightComponent);
 }
 
-FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Actor, const FString& DesiredName)
+FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Actor)
 {
 	if (Actor == nullptr)
 	{
 		return FGLTFJsonBackdropIndex(INDEX_NONE);
 	}
 
-	return BackdropConverter.GetOrAdd(DesiredName, Actor);
+	return BackdropConverter.GetOrAdd(Actor);
 }
 
-FGLTFJsonLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor, const FString& DesiredName)
+FGLTFJsonLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor)
 {
 	if (LevelVariantSetsActor == nullptr)
 	{
 		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
 	}
 
-	return LevelVariantSetsConverter.GetOrAdd(DesiredName, LevelVariantSetsActor);
+	return LevelVariantSetsConverter.GetOrAdd(LevelVariantSetsActor);
 }
 
-FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
+FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent)
 {
 	if (StaticMeshComponent == nullptr)
 	{
 		return FGLTFJsonLightMapIndex(INDEX_NONE);
 	}
 
-	return LightMapConverter.GetOrAdd(DesiredName, StaticMeshComponent);
+	return LightMapConverter.GetOrAdd(StaticMeshComponent);
 }
 
-FGLTFJsonHotspotIndex FGLTFConvertBuilder::GetOrAddHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent, const FString& DesiredName)
+FGLTFJsonHotspotIndex FGLTFConvertBuilder::GetOrAddHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent)
 {
 	if (HotspotComponent == nullptr)
 	{
 		return FGLTFJsonHotspotIndex(INDEX_NONE);
 	}
 
-	return HotspotComponentConverter.GetOrAdd(DesiredName.IsEmpty() ? HotspotComponent->GetName() : DesiredName, HotspotComponent);
+	return HotspotComponentConverter.GetOrAdd(HotspotComponent);
 }

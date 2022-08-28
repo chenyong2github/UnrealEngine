@@ -4,10 +4,11 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
+#include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFCameraUtility.h"
 #include "Components/GLTFInteractionHotspotComponent.h"
 
-FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, const USceneComponent* SceneComponent)
+FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const USceneComponent* SceneComponent)
 {
 	const AActor* Owner = SceneComponent->GetOwner();
 	if (Owner == nullptr)
@@ -34,7 +35,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.AddChildNode(ParentNodeIndex);
 	FGLTFJsonNode& Node = Builder.GetNode(NodeIndex);
-	Node.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + SceneComponent->GetName() : Name;
+	Node.Name = FGLTFNameUtility::GetName(SceneComponent);
 	Node.Translation = FGLTFConverterUtility::ConvertPosition(Translation, Builder.ExportOptions->ExportScale);
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
 	Node.Scale = FGLTFConverterUtility::ConvertScale(Scale);
@@ -50,7 +51,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 		if (bExportNonUniformScale)
 		{
 			FGLTFJsonNode MeshNode;
-			MeshNode.Name = Node.Name + TEXT("_Mesh");
+			MeshNode.Name = FGLTFNameUtility::GetName(StaticMeshComponent);
 			MeshNode.Scale = ComponentNodeScale;
 			MeshNode.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
 			MeshNode.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
@@ -67,7 +68,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 		if (bExportNonUniformScale)
 		{
 			FGLTFJsonNode MeshNode;
-			MeshNode.Name = Node.Name + TEXT("_Mesh");
+			MeshNode.Name = FGLTFNameUtility::GetName(SkeletalMeshComponent);
 			MeshNode.Scale = ComponentNodeScale;
 			MeshNode.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
 			Builder.AddChildComponentNode(NodeIndex, MeshNode);
@@ -84,17 +85,15 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 			if (bExportNonUniformScale)
 			{
 				FGLTFJsonNode HotspotNode;
-				HotspotNode.Name = Node.Name + TEXT("_Hotspot");
+				HotspotNode.Name = FGLTFNameUtility::GetName(HotspotComponent);
 				HotspotNode.Scale = ComponentNodeScale;
 
-				// TODO: use better / more unique name for the hotspot?
-				HotspotNode.Hotspot = Builder.GetOrAddHotspot(HotspotComponent, Owner->GetName());
+				HotspotNode.Hotspot = Builder.GetOrAddHotspot(HotspotComponent);
 				Builder.AddChildComponentNode(NodeIndex, HotspotNode);
 			}
 			else
 			{
-				// TODO: use better / more unique name for the hotspot?
-				Node.Hotspot = Builder.GetOrAddHotspot(HotspotComponent, Owner->GetName());
+				Node.Hotspot = Builder.GetOrAddHotspot(HotspotComponent);
 			}
 		}
 		else
@@ -108,10 +107,10 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 		{
 			// TODO: conversion of camera direction should be done in separate converter
 			FGLTFJsonNode CameraNode;
-			CameraNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ACameraActor
+			CameraNode.Name = FGLTFNameUtility::GetName(CameraComponent);
 			CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
 			CameraNode.Scale = ComponentNodeScale;
-			CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent, CameraNode.Name);
+			CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
 			Builder.AddChildComponentNode(NodeIndex, CameraNode);
 		}
 		else
@@ -125,10 +124,10 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 		{
 			// TODO: conversion of light direction should be done in separate converter
 			FGLTFJsonNode LightNode;
-			LightNode.Name = Owner->GetName(); // TODO: choose a more unique name if owner is not ALight
+			LightNode.Name = FGLTFNameUtility::GetName(LightComponent);
 			LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
 			LightNode.Scale = ComponentNodeScale;
-			LightNode.Light = Builder.GetOrAddLight(LightComponent, LightNode.Name);
+			LightNode.Light = Builder.GetOrAddLight(LightComponent);
 			Builder.AddChildComponentNode(NodeIndex, LightNode);
 		}
 		else
@@ -142,7 +141,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, co
 	return NodeIndex;
 }
 
-FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const FString& Name, const AActor* Actor)
+FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 {
 	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
 	{
@@ -189,10 +188,18 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const FString& Name, const AActo
 	return RootNodeIndex;
 }
 
-FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const FString& Name, const ULevel* Level)
+FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const ULevel* Level)
 {
 	FGLTFJsonScene Scene;
-	Scene.Name = Name;
+
+	if (const UWorld* World = Level->GetWorld())
+	{
+		World->GetName(Scene.Name);
+	}
+	else
+	{
+		Level->GetName(Scene.Name);
+	}
 
 	// TODO: export Level->Model ?
 
@@ -227,10 +234,10 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const FString& Name, const ULev
 	return Builder.AddScene(Scene);
 }
 
-FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Convert(const FString& Name, const UCameraComponent* CameraComponent)
+FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Convert(const UCameraComponent* CameraComponent)
 {
 	FGLTFJsonCamera Camera;
-	Camera.Name = Name;
+	Camera.Name = FGLTFNameUtility::GetName(CameraComponent);
 	Camera.Type = FGLTFConverterUtility::ConvertCameraType(CameraComponent->ProjectionMode);
 
 	FMinimalViewInfo DesiredView;
@@ -254,10 +261,11 @@ FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Convert(const FString& Name,
 	return Builder.AddCamera(Camera);
 }
 
-FGLTFJsonLightIndex FGLTFLightComponentConverter::Convert(const FString& Name, const ULightComponent* LightComponent)
+FGLTFJsonLightIndex FGLTFLightComponentConverter::Convert(const ULightComponent* LightComponent)
 {
 	FGLTFJsonLight Light;
-	Light.Name = Name;
+
+	Light.Name = FGLTFNameUtility::GetName(LightComponent);
 	Light.Type = FGLTFConverterUtility::ConvertLightType(LightComponent->GetLightType());
 
 	if (Light.Type == EGLTFJsonLightType::None)

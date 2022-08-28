@@ -2,11 +2,12 @@
 
 #include "Converters/GLTFSkeletalMeshConverters.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFNameUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-FGLTFJsonBufferViewIndex FGLTFIndexContainerConverter::Convert(const FString& Name, const FMultiSizeIndexContainer* IndexContainer)
+FGLTFJsonBufferViewIndex FGLTFIndexContainerConverter::Convert(const FMultiSizeIndexContainer* IndexContainer)
 {
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = IndexContainer->GetIndexBuffer();
 
@@ -26,17 +27,17 @@ FGLTFJsonBufferViewIndex FGLTFIndexContainerConverter::Convert(const FString& Na
 			Indices[Index] = static_cast<uint16>(IndexBuffer->Get(Index));
 		}
 
-		return Builder.AddBufferView(Indices, Name, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
+		return Builder.AddBufferView(Indices, sizeof(uint16), EGLTFJsonBufferTarget::ElementArrayBuffer);
 	}
 	else
 	{
 		TArray<uint32> Indices;
 		IndexContainer->GetIndexBuffer(Indices);
-		return Builder.AddBufferView(Indices, Name, sizeof(uint32), EGLTFJsonBufferTarget::ElementArrayBuffer);
+		return Builder.AddBufferView(Indices, sizeof(uint32), EGLTFJsonBufferTarget::ElementArrayBuffer);
 	}
 }
 
-FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FString& Name, const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer)
+FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer)
 {
 	const uint32 TriangleCount = MeshSection->NumTriangles;
 	if (TriangleCount == 0)
@@ -48,7 +49,6 @@ FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FString&
 	const bool bIs32Bit = IndexContainer->GetDataTypeSize() == sizeof(uint32);
 
 	FGLTFJsonAccessor JsonAccessor;
-	JsonAccessor.Name = Name;
 	JsonAccessor.BufferView = Builder.GetOrAddIndexBufferView(IndexContainer);
 	JsonAccessor.ByteOffset = FirstIndex * (bIs32Bit ? sizeof(uint32) : sizeof(uint16));
 	JsonAccessor.ComponentType = bIs32Bit ? EGLTFJsonComponentType::U32 : EGLTFJsonComponentType::U16;
@@ -58,7 +58,7 @@ FGLTFJsonAccessorIndex FGLTFSkeletalMeshSectionConverter::Convert(const FString&
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const FString& Name, const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials)
+FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials)
 {
 	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 
@@ -70,7 +70,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const FString& Name, cons
 	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
 
 	FGLTFJsonMesh JsonMesh;
-	JsonMesh.Name = Name;
+	JsonMesh.Name = FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
 
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
@@ -78,22 +78,22 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const FString& Name, cons
 	const FSkinWeightVertexBuffer* SkinWeightBuffer = OverrideSkinWeights != nullptr ? OverrideSkinWeights : MeshLOD.GetSkinWeightVertexBuffer();
 
 	FGLTFJsonAttributes JsonAttributes;
-	JsonAttributes.Position = Builder.GetOrAddPositionAccessor(PositionBuffer, Name + TEXT("_Positions"));
+	JsonAttributes.Position = Builder.GetOrAddPositionAccessor(PositionBuffer);
 
 	if (Builder.ExportOptions->bExportVertexColors)
 	{
-		JsonAttributes.Color0 = Builder.GetOrAddColorAccessor(ColorBuffer, Name + TEXT("_Colors"));
+		JsonAttributes.Color0 = Builder.GetOrAddColorAccessor(ColorBuffer);
 	}
 
-	JsonAttributes.Normal = Builder.GetOrAddNormalAccessor(VertexBuffer, Name + TEXT("_Normals"));
-	JsonAttributes.Tangent = Builder.GetOrAddTangentAccessor(VertexBuffer, Name + TEXT("_Tangents"));
+	JsonAttributes.Normal = Builder.GetOrAddNormalAccessor(VertexBuffer);
+	JsonAttributes.Tangent = Builder.GetOrAddTangentAccessor(VertexBuffer);
 
 	const uint32 UVCount = VertexBuffer->GetNumTexCoords();
 	JsonAttributes.TexCoords.AddUninitialized(UVCount);
 
 	for (uint32 UVIndex = 0; UVIndex < UVCount; ++UVIndex)
 	{
-		JsonAttributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(VertexBuffer, UVIndex, Name + TEXT("_UV") + FString::FromInt(UVIndex) + TEXT("s"));
+		JsonAttributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(VertexBuffer, UVIndex);
 	}
 
 	/* TODO: enable export of vertex skin data when crash bug fixed
@@ -112,7 +112,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const FString& Name, cons
 	*/
 
 	const FMultiSizeIndexContainer* IndexContainer = &MeshLOD.MultiSizeIndexContainer;
-	Builder.GetOrAddIndexBufferView(IndexContainer, Name + TEXT("_Indices"));
+	Builder.GetOrAddIndexBufferView(IndexContainer);
 
 	const int32 SectionCount = MeshLOD.RenderSections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
@@ -123,8 +123,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const FString& Name, cons
 		JsonPrimitive.Attributes = JsonAttributes;
 
 		const FSkelMeshRenderSection& Section = MeshLOD.RenderSections[SectionIndex];
-		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexContainer,
-			Name + (SectionCount == 1 ? TEXT("_Indices") : TEXT("_Indices_Section") + FString::FromInt(SectionIndex)));
+		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexContainer);
 
 		const int32 MaterialIndex = Section.MaterialIndex;
 		const UMaterialInterface* Material = OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex] != nullptr ?

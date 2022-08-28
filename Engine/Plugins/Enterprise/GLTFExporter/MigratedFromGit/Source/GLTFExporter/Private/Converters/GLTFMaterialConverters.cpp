@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFNameUtility.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Materials/MaterialExpressionConstant.h"
@@ -43,7 +44,7 @@ namespace
 	const TArray<FLinearColor> ClearCoatRoughnessInputMasks = { ClearCoatRoughnessMask };
 } // anonymous namespace
 
-FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const FString& Name, const UMaterialInterface* Material)
+FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material)
 {
 	{
 		const UMaterial* ParentMaterial = Material->GetMaterial();
@@ -60,7 +61,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const FString& Name, cons
 	}
 
 	FGLTFJsonMaterial JsonMaterial;
-	JsonMaterial.Name = Name;
+	Material->GetName(JsonMaterial.Name);
 
 	// TODO: add support for additional blend modes (like Additive and Modulate)?
 	JsonMaterial.AlphaMode = FGLTFConverterUtility::ConvertBlendMode(Material->GetBlendMode());
@@ -70,7 +71,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const FString& Name, cons
 	if (!TryGetShadingModel(JsonMaterial.ShadingModel, Material))
 	{
 		JsonMaterial.ShadingModel = EGLTFJsonShadingModel::Default;
-		Builder.AddWarningMessage(FString::Printf(TEXT("Material %s will be exported as shading model %s"), *Material->GetName(), *FGLTFConverterUtility::GetEnumDisplayName(MSM_DefaultLit)));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Material %s will be exported as shading model %s"), *Material->GetName(), *FGLTFNameUtility::GetName(MSM_DefaultLit)));
 	}
 
 	if (JsonMaterial.ShadingModel != EGLTFJsonShadingModel::None)
@@ -193,21 +194,21 @@ bool FGLTFMaterialConverter::TryGetShadingModel(EGLTFJsonShadingModel& OutShadin
 
 	if (ConvertedShadingModel == EGLTFJsonShadingModel::None)
 	{
-		const FString ShadingModelName = FGLTFConverterUtility::GetEnumDisplayName(ShadingModel);
+		const FString ShadingModelName = FGLTFNameUtility::GetName(ShadingModel);
 		Builder.AddWarningMessage(FString::Printf(TEXT("Unsupported shading model (%s) in material %s"), *ShadingModelName, *Material->GetName()));
 		return false;
 	}
 
 	if (ConvertedShadingModel == EGLTFJsonShadingModel::Unlit && !Builder.ExportOptions->bExportUnlitMaterials)
 	{
-		const FString ShadingModelName = FGLTFConverterUtility::GetEnumDisplayName(ShadingModel);
+		const FString ShadingModelName = FGLTFNameUtility::GetName(ShadingModel);
 		Builder.AddWarningMessage(FString::Printf(TEXT("Shading model (%s) in material %s disabled by export options"), *ShadingModelName, *Material->GetName()));
 		return false;
 	}
 
 	if (ConvertedShadingModel == EGLTFJsonShadingModel::ClearCoat && !Builder.ExportOptions->bExportClearCoatMaterials)
 	{
-		const FString ShadingModelName = FGLTFConverterUtility::GetEnumDisplayName(ShadingModel);
+		const FString ShadingModelName = FGLTFNameUtility::GetName(ShadingModel);
 		Builder.AddWarningMessage(FString::Printf(TEXT("Shading model (%s) in material %s disabled by export options"), *ShadingModelName, *Material->GetName()));
 		return false;
 	}

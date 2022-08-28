@@ -23,7 +23,7 @@ namespace
 	};
 } // anonymous namespace
 
-FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const FString& Name, const ALevelVariantSetsActor* LevelVariantSetsActor)
+FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ALevelVariantSetsActor* LevelVariantSetsActor)
 {
 	const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
 	if (LevelVariantSets == nullptr)
@@ -32,7 +32,7 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const FSt
 	}
 
 	FGLTFJsonLevelVariantSets JsonLevelVariantSets;
-	JsonLevelVariantSets.Name = Name.IsEmpty() ? LevelVariantSets->GetName() : Name;
+	LevelVariantSets->GetName(JsonLevelVariantSets.Name);
 
 	for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
 	{

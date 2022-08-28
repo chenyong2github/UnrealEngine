@@ -5,12 +5,12 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 
-FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Convert(const FString& Name, const UTexture* Texture)
+FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Convert(const UTexture* Texture)
 {
 	// TODO: maybe we should reuse existing samplers?
 
 	FGLTFJsonSampler JsonSampler;
-	JsonSampler.Name = Name;
+	Texture->GetName(JsonSampler.Name);
 
 	if (Texture->IsA<ULightMapTexture2D>())
 	{
@@ -41,12 +41,12 @@ FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Convert(const FString& Name,
 	return Builder.AddSampler(JsonSampler);
 }
 
-FGLTFJsonTextureIndex FGLTFTexture2DConverter::Convert(const FString& Name, const UTexture2D* Texture2D)
+FGLTFJsonTextureIndex FGLTFTexture2DConverter::Convert(const UTexture2D* Texture2D)
 {
 	FGLTFJsonImageIndex ImageIndex;
 
 	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = Name;
+	Texture2D->GetName(JsonTexture.Name);
 
 	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
 	const bool bPreferSourceExport = Builder.ExportOptions->bExportSourceTextures;
@@ -122,10 +122,10 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Convert(const FString& Name, cons
 	return Builder.AddTexture(JsonTexture);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Convert(const FString& Name, const UTextureCube* TextureCube, ECubeFace CubeFace)
+FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Convert(const UTextureCube* TextureCube, ECubeFace CubeFace)
 {
 	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = Name;
+	JsonTexture.Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtility::ToString(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation and has suitable pixel format
 
@@ -156,10 +156,10 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Convert(const FString& Name, co
 	return Builder.AddTexture(JsonTexture);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Convert(const FString& Name, const UTextureRenderTarget2D* RenderTarget2D)
+FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Convert(const UTextureRenderTarget2D* RenderTarget2D)
 {
 	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = Name;
+	RenderTarget2D->GetName(JsonTexture.Name);
 
 	TArray<FColor> Pixels;
 	if (!FGLTFTextureUtility::ReadEncodedPixels(RenderTarget2D, Pixels, JsonTexture.Encoding)) // TODO: use only encoding as specified by export options
@@ -174,10 +174,10 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Convert(const FString
 	return Builder.AddTexture(JsonTexture);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Convert(const FString& Name, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace)
+FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace)
 {
 	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = Name;
+	JsonTexture.Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtility::ToString(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation
 

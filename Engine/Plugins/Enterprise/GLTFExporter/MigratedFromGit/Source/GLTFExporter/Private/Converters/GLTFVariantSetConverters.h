@@ -15,7 +15,7 @@ class FGLTFLevelVariantSetsConverter final : public TGLTFConverter<FGLTFJsonLeve
 {
 	using TGLTFConverter::TGLTFConverter;
 
-	FGLTFJsonLevelVariantSetsIndex Convert(const FString& Name, const ALevelVariantSetsActor* LevelVariantSetsActor) override;
+	FGLTFJsonLevelVariantSetsIndex Convert(const ALevelVariantSetsActor* LevelVariantSetsActor) override;
 
 	bool TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const;
 	bool TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const;
