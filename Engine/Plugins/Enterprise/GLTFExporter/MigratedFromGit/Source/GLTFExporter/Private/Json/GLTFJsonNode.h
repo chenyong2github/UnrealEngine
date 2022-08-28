@@ -136,11 +136,11 @@ struct FGLTFJsonNode
 
 			if (Hotspot != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_InteractionHotspots;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
 				Extensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("interaction"), Hotspot);
+				JsonWriter.WriteValue(TEXT("hotspot"), Hotspot);
 				JsonWriter.WriteObjectEnd();
 			}
 

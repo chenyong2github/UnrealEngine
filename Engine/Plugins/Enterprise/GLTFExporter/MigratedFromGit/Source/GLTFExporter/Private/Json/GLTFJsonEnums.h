@@ -12,12 +12,12 @@ enum class EGLTFJsonExtension
 	KHR_MeshQuantization,
 	EPIC_OrbitalCameras,
 	EPIC_HDRIBackdrops,
-	EPIC_InteractionHotspots,
+	EPIC_AnimationHotspots,
 	EPIC_LightmapTextures,
 	EPIC_ReflectionCaptures,
 	EPIC_LevelVariantSets,
 	EPIC_TextureHDREncoding,
-    EPIC_AnimationPlayData
+    EPIC_AnimationPlayback
 };
 
 enum class EGLTFJsonShadingModel

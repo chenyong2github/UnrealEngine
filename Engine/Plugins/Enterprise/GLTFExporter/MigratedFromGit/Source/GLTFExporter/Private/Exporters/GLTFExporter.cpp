@@ -55,6 +55,11 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	else
 	{
 		Builder.ShowMessages();
+
+		if (bSuccess && Options->bShowFilesWhenDone)
+		{
+			FPlatformProcess::ExploreFolder(*Builder.DirPath);
+		}
 	}
 
 	return bSuccess;

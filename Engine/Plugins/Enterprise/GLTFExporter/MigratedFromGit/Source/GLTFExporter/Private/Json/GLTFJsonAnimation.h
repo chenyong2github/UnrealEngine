@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonPlayData.h"
+#include "Json/GLTFJsonAnimationPlayback.h"
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -85,7 +85,7 @@ struct FGLTFJsonAnimation
 	TArray<FGLTFJsonAnimationChannel> Channels;
 	TArray<FGLTFJsonAnimationSampler> Samplers;
 
-	FGLTFJsonPlayData PlayData;
+	FGLTFJsonAnimationPlayback Playback;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -100,14 +100,14 @@ struct FGLTFJsonAnimation
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("channels"), Channels, Extensions, true);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers, Extensions, true);
 
-		if (PlayData != FGLTFJsonPlayData())
+		if (Playback != FGLTFJsonAnimationPlayback())
 		{
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationPlayData;
+			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationPlayback;
 			Extensions.Used.Add(Extension);
 
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-			PlayData.WriteObject(JsonWriter, Extensions);
+			Playback.WriteObject(JsonWriter, Extensions);
 			JsonWriter.WriteObjectEnd();
 		}
 
