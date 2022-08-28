@@ -56,10 +56,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	bool bBakeMaterialInputs;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bBakeMaterialInputs"))
 	bool bBakeMaterialInputsUsingMeshData;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bBakeMaterialInputs"))
 	EGLTFExporterMaterialBakeSize DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
@@ -71,7 +71,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
 	bool bQuantizeVertexTangents;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh, Meta = (ClampMin = "0"))
 	int32 DefaultLevelOfDetail;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
@@ -80,10 +80,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
 	bool bExportVertexSkinWeights;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation, Meta = (EditCondition = "bExportVertexSkinWeights"))
 	bool bExportAnimationSequences;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation, Meta = (EditCondition = "bExportVertexSkinWeights && bExportAnimationSequences"))
 	bool bRetargetBoneTransforms;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
@@ -98,7 +98,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	EGLTFExporterTextureHDREncoding TextureHDREncoding;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, meta =
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta =
 		(DisplayName = "Export Uniform Scale",
 		 ToolTip = "Scale factor used for exporting assets, by default: 0.01, for conversion from centimeters(Unreal default) to meters(glTF)."))
 	float ExportScale;
@@ -112,7 +112,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportCameras;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene, Meta = (EditCondition = "bExportCameras"))
 	bool bExportOrbitalCameras;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
@@ -139,16 +139,5 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
 	bool bShowFilesWhenDone;
 
-	/* Set all the each property to the CDO value */
 	void ResetToDefault();
-
-	/* Save the each property to a local ini to retrieve the value the next time we call function LoadOptions() */
-	void SaveOptions();
-
-	/* Load the each property from a local ini which the value was store by the function SaveOptions() */
-	void LoadOptions();
-
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 };
