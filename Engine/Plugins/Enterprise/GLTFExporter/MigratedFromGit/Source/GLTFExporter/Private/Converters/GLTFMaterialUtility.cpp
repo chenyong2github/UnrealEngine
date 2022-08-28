@@ -155,3 +155,15 @@ FIntVector4 FGLTFMaterialUtility::ConvertMaskToVector(const FExpressionInput& Ex
 	// Or is it enough to assume that MaskR, MaskG, MaskB and MaskA will only be 1 when Mask is 1?
 	return FIntVector4(ExpressionInput.MaskR, ExpressionInput.MaskG, ExpressionInput.MaskB, ExpressionInput.MaskA);
 }
+
+FLinearColor FGLTFMaterialUtility::ConvertMaskToColor(const FExpressionInput& ExpressionInput)
+{
+	const FIntVector4 Mask = ConvertMaskToVector(ExpressionInput);
+
+	return FLinearColor(Mask.X, Mask.Y, Mask.Z, Mask.W);
+}
+
+uint32 FGLTFMaterialUtility::GetMaskComponentCount(const FExpressionInput& ExpressionInput)
+{
+	return ExpressionInput.MaskR + ExpressionInput.MaskG + ExpressionInput.MaskB + ExpressionInput.MaskA;
+}
