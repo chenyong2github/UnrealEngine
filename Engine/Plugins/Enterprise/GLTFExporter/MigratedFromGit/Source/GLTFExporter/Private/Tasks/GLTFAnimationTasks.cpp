@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFBoneUtility.h"
 
-void FGLTFAnimationTask::Complete()
+void FGLTFAnimSequenceTask::Complete()
 {
 	const int32 FrameCount = AnimSequence->GetRawNumberOfFrames();
 	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
@@ -170,4 +170,8 @@ void FGLTFAnimationTask::Complete()
 			JsonAnimation.Channels.Add(JsonChannel);
 		}
 	}
+}
+
+void FGLTFLevelSequenceTask::Complete()
+{
 }

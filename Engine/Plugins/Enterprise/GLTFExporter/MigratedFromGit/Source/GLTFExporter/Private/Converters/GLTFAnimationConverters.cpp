@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFAnimationConverters.h"
-#include "Converters/GLTFConverterUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFAnimationTasks.h"
 #include "Animation/AnimSequence.h"
@@ -28,7 +27,7 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 	}
 
 	const FGLTFJsonAnimationIndex AnimationIndex = Builder.AddAnimation();
-	Builder.SetupTask<FGLTFAnimationTask>(Builder, RootNode, SkeletalMesh, AnimSequence, AnimationIndex);
+	Builder.SetupTask<FGLTFAnimSequenceTask>(Builder, RootNode, SkeletalMesh, AnimSequence, AnimationIndex);
 	return AnimationIndex;
 }
 
@@ -54,5 +53,12 @@ FGLTFJsonAnimationIndex FGLTFAnimationDataConverter::Convert(FGLTFJsonNodeIndex 
 		JsonPlayData.Position = SkeletalMeshComponent->AnimationData.SavedPosition;
 	}
 
+	return AnimationIndex;
+}
+
+FGLTFJsonAnimationIndex FGLTFLevelSequenceConverter::Convert(const ALevelSequenceActor* LevelSequenceActor)
+{
+	const FGLTFJsonAnimationIndex AnimationIndex = Builder.AddAnimation();
+	Builder.SetupTask<FGLTFLevelSequenceTask>(Builder, LevelSequenceActor, AnimationIndex);
 	return AnimationIndex;
 }
