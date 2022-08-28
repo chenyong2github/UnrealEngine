@@ -35,6 +35,16 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static const TCHAR* ToString(EGLTFJsonMimeType Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonMimeType::PNG:  return TEXT("image/png");
+			case EGLTFJsonMimeType::JPEG: return TEXT("image/jpeg");
+			default:                      return TEXT("unknown");
+		}
+	}
+
 	static const TCHAR* ToString(EGLTFJsonAccessorType Value)
 	{
 		switch (Value)

@@ -6,10 +6,13 @@
 #include "Json/GLTFJsonAccessor.h"
 #include "Json/GLTFJsonBuffer.h"
 #include "Json/GLTFJsonBufferView.h"
+#include "Json/GLTFJsonImage.h"
 #include "Json/GLTFJsonMaterial.h"
 #include "Json/GLTFJsonMesh.h"
 #include "Json/GLTFJsonNode.h"
+#include "Json/GLTFJsonSampler.h"
 #include "Json/GLTFJsonScene.h"
+#include "Json/GLTFJsonTexture.h"
 
 #include "Containers/Set.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -64,7 +67,10 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonMaterial>   Materials;
 	TArray<FGLTFJsonMesh>       Meshes;
 	TArray<FGLTFJsonNode>       Nodes;
+	TArray<FGLTFJsonImage>      Images;
+	TArray<FGLTFJsonSampler>    Samplers;
 	TArray<FGLTFJsonScene>      Scenes;
+	TArray<FGLTFJsonTexture>    Textures;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
@@ -104,10 +110,13 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("accessors"), Accessors);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("buffers"), Buffers);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("bufferViews"), BufferViews);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("images"), Images);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("meshes"), Meshes);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes);
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures);
 
 		JsonWriter.WriteObjectEnd();
 	}

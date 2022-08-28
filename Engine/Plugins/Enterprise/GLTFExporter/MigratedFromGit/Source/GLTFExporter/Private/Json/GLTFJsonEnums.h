@@ -45,7 +45,6 @@ enum class EGLTFJsonBufferTarget
 
 enum class EGLTFJsonPrimitiveMode
 {
-	None = -1,
 	// unsupported
 	Points = 0,
 	Lines = 1,
@@ -60,13 +59,19 @@ enum class EGLTFJsonPrimitiveMode
 
 enum class EGLTFJsonAlphaMode
 {
-	None = -1,
 	Opaque,
 	Mask,
 	Blend
 };
 
-enum class EGLTFJsonSamplerFilter
+enum class EGLTFJsonMimeType
+{
+	None = -1,
+    PNG,
+    JPEG
+};
+
+enum class EGLTFJsonTextureFilter
 {
 	None = -1,
 	// valid for Min & Mag
@@ -79,9 +84,8 @@ enum class EGLTFJsonSamplerFilter
 	LinearMipmapLinear = 9987
 };
 
-enum class EGLTFJsonSamplerWrap
+enum class EGLTFJsonTextureWrap
 {
-	None = -1,
 	Repeat = 10497,
 	MirroredRepeat = 33648,
 	ClampToEdge = 33071
@@ -89,7 +93,6 @@ enum class EGLTFJsonSamplerWrap
 
 enum class EGLTFJsonAnimationInterpolation
 {
-	None = -1,
 	Linear,
 	Step,
 	CubicSpline,
