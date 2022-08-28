@@ -30,3 +30,18 @@ const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface
 
 	return PreviewMesh;
 }
+
+const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* AnimSequence)
+{
+	const USkeletalMesh* PreviewMesh = AnimSequence->GetPreviewMesh();
+	if (PreviewMesh == nullptr)
+	{
+		const USkeleton* Skeleton = AnimSequence->GetSkeleton();
+		if (Skeleton != nullptr)
+		{
+			PreviewMesh = Skeleton->GetPreviewMesh();
+		}
+	}
+
+	return PreviewMesh;
+}

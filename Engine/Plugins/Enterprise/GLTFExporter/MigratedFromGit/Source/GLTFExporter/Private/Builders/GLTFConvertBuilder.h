@@ -11,6 +11,7 @@
 #include "Converters/GLTFTextureConverters.h"
 #include "Converters/GLTFNodeConverters.h"
 #include "Converters/GLTFSkinConverters.h"
+#include "Converters/GLTFAnimationConverters.h"
 #include "Converters/GLTFSceneConverters.h"
 #include "Converters/GLTFCameraConverters.h"
 #include "Converters/GLTFLightConverters.h"
@@ -54,6 +55,7 @@ public:
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex);
 	FGLTFJsonSkinIndex GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh);
+	FGLTFJsonAnimationIndex GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence);
 
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent);
@@ -92,6 +94,7 @@ private:
 	FGLTFSkeletalSocketConverter SkeletalSocketConverter{ *this };
 	FGLTFSkeletalBoneConverter SkeletalBoneConverter{ *this };
 	FGLTFSkinConverter SkinConverter{ *this };
+	FGLTFAnimationConverter AnimationConverter{ *this };
 
 	FGLTFComponentSocketConverter ComponentSocketConverter{ *this };
 	FGLTFComponentConverter ComponentConverter{ *this };

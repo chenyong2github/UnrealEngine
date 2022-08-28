@@ -229,6 +229,16 @@ FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode
 	return SkinConverter.GetOrAdd(RootNode, SkeletalMesh);
 }
 
+FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
+{
+	if (RootNode == INDEX_NONE || SkeletalMesh == nullptr || AnimSequence == nullptr)
+	{
+		return FGLTFJsonAnimationIndex(INDEX_NONE);
+	}
+
+	return AnimationConverter.GetOrAdd(RootNode, SkeletalMesh, AnimSequence);
+}
+
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName)
 {
 	if (SceneComponent == nullptr || SocketName == NAME_None)

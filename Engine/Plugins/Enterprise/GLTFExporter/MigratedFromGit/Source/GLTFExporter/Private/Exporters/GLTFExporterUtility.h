@@ -8,4 +8,5 @@ class UMaterialInterface;
 struct FGLTFExporterUtility
 {
 	static const UStaticMesh* GetPreviewMesh(const UMaterialInterface* Material);
+	static const USkeletalMesh* GetPreviewMesh(const UAnimSequence* AnimSequence);
 };
