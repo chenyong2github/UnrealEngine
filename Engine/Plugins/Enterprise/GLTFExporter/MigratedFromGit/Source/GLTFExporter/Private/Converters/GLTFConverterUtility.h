@@ -161,8 +161,9 @@ struct FGLTFConverterUtility
 	template <typename EnumType>
 	static FString GetEnumDisplayName(EnumType Value)
 	{
-		const UEnum* Enum = StaticEnum<EMaterialShadingModel>();
-		check(Enum);
+		static_assert(TIsEnum<EnumType>::Value, "Should only call this with enum types");
+		const UEnum* Enum = StaticEnum<EnumType>();
+		check(Enum != nullptr);
 		return Enum->GetDisplayNameTextByValue(Value).ToString();
 	}
 };
