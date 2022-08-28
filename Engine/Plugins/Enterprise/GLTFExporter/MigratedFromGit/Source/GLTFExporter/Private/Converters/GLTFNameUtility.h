@@ -15,8 +15,9 @@ struct FGLTFNameUtility
 	{
 		const UEnum* Enum = StaticEnum<EnumType>();
 		check(Enum != nullptr);
-		const FString DisplayName = Enum->GetDisplayNameTextByValue(Value).ToString();
-		return DisplayName.IsEmpty() ? FString::FromInt(static_cast<int32>(Value)) : DisplayName;
+		const int32 NumericValue = static_cast<int32>(Value);
+		const FString DisplayName = Enum->GetDisplayNameTextByValue(NumericValue).ToString();
+		return DisplayName.IsEmpty() ? FString::FromInt(NumericValue) : DisplayName;
 	}
 
 	static FString GetName(const USceneComponent* Component);
