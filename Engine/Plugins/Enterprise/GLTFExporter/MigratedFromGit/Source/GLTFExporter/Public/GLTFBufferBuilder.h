@@ -19,6 +19,6 @@ struct GLTFEXPORTER_API FGLTFBufferBuilder : public FGLTFJsonBuilder
 		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
 	}
 
-	void UpdateBuffer();
-	virtual void Serialize(FArchive& Archive) override;
+	void UpdateJsonBufferObject(const FString& BinaryFilePath);
+	virtual bool Serialize(FArchive& Archive, const FString& FilePath) override;
 };

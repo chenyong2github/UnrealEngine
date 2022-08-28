@@ -35,6 +35,5 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 
 	Builder.JsonRoot.DefaultScene = SceneIndex;
 
-	Builder.Serialize(Archive);
-	return true;
+	return Builder.Serialize(Archive, CurrentFilename);
 }

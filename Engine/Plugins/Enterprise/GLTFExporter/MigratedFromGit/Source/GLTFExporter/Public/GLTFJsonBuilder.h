@@ -18,5 +18,5 @@ struct GLTFEXPORTER_API FGLTFJsonBuilder
 	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode);
 	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
 
-	virtual void Serialize(FArchive& Archive);
+	virtual bool Serialize(FArchive& Archive, const FString& FilePath);
 };

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFBufferBuilder.h"
-#include "Misc/Base64.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 FGLTFBufferBuilder::FGLTFBufferBuilder()
 {
@@ -22,22 +23,23 @@ FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, 
 	return FGLTFJsonBuilder::AddBufferView(JsonBufferView);
 }
 
-void FGLTFBufferBuilder::UpdateBuffer()
+void FGLTFBufferBuilder::UpdateJsonBufferObject(const FString& BinaryFilePath)
 {
 	FGLTFJsonBuffer& JsonBuffer = JsonRoot.Buffers[BufferIndex];
-	const int32 ByteLength = BufferData.Num();
-
-	if (JsonBuffer.ByteLength != ByteLength)
-	{
-		JsonBuffer.ByteLength = ByteLength;
-
-		const FString DataBase64 = FBase64::Encode(BufferData.GetData(), ByteLength);
-		JsonBuffer.URI = TEXT("data:application/octet-stream;base64,") + DataBase64;
-	}
+	JsonBuffer.URI = FPaths::GetCleanFilename(BinaryFilePath);
+	JsonBuffer.ByteLength = BufferData.Num();
 }
 
-void FGLTFBufferBuilder::Serialize(FArchive& Archive)
+bool FGLTFBufferBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 {
-	UpdateBuffer();
-	FGLTFJsonBuilder::Serialize(Archive);
+	const FString BinaryFilePath = FPaths::ChangeExtension(FilePath, TEXT(".bin"));
+
+	if(!FFileHelper::SaveArrayToFile(BufferData, *BinaryFilePath))
+	{
+		// TODO: report error
+		return false;
+	}
+
+	UpdateJsonBufferObject(BinaryFilePath);
+	return FGLTFJsonBuilder::Serialize(Archive, FilePath);
 }
