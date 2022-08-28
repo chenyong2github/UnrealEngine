@@ -6,7 +6,7 @@
 #include "Actions/GLTFEditorStyle.h"
 #include "Options/GLTFProxyOptions.h"
 #include "UI/GLTFProxyOptionsWindow.h"
-#include "GLTFExporterModule.h"
+#include "Converters/GLTFMaterialProxyFactory.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "GLTFProxyAssetActions"
@@ -49,13 +49,18 @@ void FGLTFProxyAssetActions::OnCreateProxy(TArray<FWeakObjectPtr> Objects) const
 		return;
 	}
 
+	FGLTFMaterialProxyFactory ProxyFactory(Options);
+
 	for (const FWeakObjectPtr& Object : Objects)
 	{
 		if (UMaterialInterface* Material = Cast<UMaterialInterface>(Object.Get()))
 		{
-			IGLTFExporterModule::CreateProxyMaterial(Material, Options);
+			ProxyFactory.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
+			ProxyFactory.Create(Material);
 		}
 	}
+
+	ProxyFactory.OpenLog();
 }
 
 #undef LOCTEXT_NAMESPACE
