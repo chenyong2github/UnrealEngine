@@ -5,7 +5,7 @@ The glTF Exporter lets UE4 content creators showcase any scene or model on the w
 
 ## Compatibility
 
-Currently, the plugin works with both Unreal Engine **4.25** and **4.26**. It has primarily been tested on Windows but is designed to be platform-independent.
+Currently, the plugin works with Unreal Engine **4.25**, **4.26**, and **4.27**. It has primarily been tested on Windows but is designed to be platform-independent.
 
 
 ## Usage
