@@ -11,19 +11,9 @@ void FGLTFTexture2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
-	// TODO: both bForceLinearGamma and TargetGamma=2.2f seem to be necessary for the exported images to match the results
-	// from exporting using the texture's source or its platform-data.
-	// It's not entirely clear why gamma must be set to 2.2 instead of 0.0 (which should use the correct gamma anyway),
-	// and why bInForceLinearGamma must also be true.
-	const bool bForceLinearGamma = true;
-	const float TargetGamma = 2.2f;
-
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D);
 	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
-
-	const EPixelFormat RenderTargetFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
-	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, bForceLinearGamma);
-	RenderTarget->TargetGamma = TargetGamma;
+	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
 	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
@@ -66,9 +56,7 @@ void FGLTFTextureCubeTask::Complete()
 
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(TextureCube);
 	const FIntPoint Size = { TextureCube->GetSizeX(), TextureCube->GetSizeY() };
-
-	const EPixelFormat RenderTargetFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
-	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, true);
+	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	const float FaceRotation = FGLTFTextureUtility::GetCubeFaceRotation(CubeFace);
 	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
@@ -129,9 +117,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTargetCube);
 	const FIntPoint Size = { RenderTargetCube->SizeX, RenderTargetCube->SizeX };
-
-	const EPixelFormat RenderTargetFormat = bIsHDR ? PF_FloatRGBA : PF_B8G8R8A8;
-	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, true);
+	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	const float FaceRotation = FGLTFTextureUtility::GetCubeFaceRotation(CubeFace);
 	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
