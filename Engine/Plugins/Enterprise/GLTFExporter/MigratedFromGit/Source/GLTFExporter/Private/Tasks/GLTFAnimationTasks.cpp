@@ -180,12 +180,12 @@ void FGLTFAnimSequenceTask::Complete()
 
 void FGLTFLevelSequenceTask::Complete()
 {
-	ULevelSequence* LevelSequence = LevelSequenceActor->LoadSequence();
-	UMovieScene* MovieScene = LevelSequence->GetMovieScene();
+	ULevelSequence* Sequence = const_cast<ULevelSequence*>(LevelSequence);
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
 	ULevelSequencePlayer* LevelSequencePlayer = LevelSequenceActor->SequencePlayer;
-	LevelSequencePlayer->Initialize(LevelSequence, LevelSequenceActor->GetLevel(), LevelSequenceActor->PlaybackSettings, LevelSequenceActor->CameraSettings);
-	LevelSequencePlayer->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *LevelSequencePlayer);
+	LevelSequencePlayer->Initialize(Sequence, LevelSequenceActor->GetLevel(), LevelSequenceActor->PlaybackSettings, LevelSequenceActor->CameraSettings);
+	LevelSequencePlayer->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *LevelSequencePlayer);
 
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
@@ -195,7 +195,7 @@ void FGLTFLevelSequenceTask::Complete()
 	int32 FrameCount = FFrameRate::TransformTime(FFrameTime(FFrameNumber(MovieScene::DiscreteSize(PlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1;
 
 	FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
-	LevelSequence->GetName(JsonAnimation.Name);
+	Sequence->GetName(JsonAnimation.Name);
 
 	TArray<float> Timestamps;
 	TArray<FFrameTime> FrameTimes;

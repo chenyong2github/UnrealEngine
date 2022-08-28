@@ -5,8 +5,7 @@
 #include "Tasks/GLTFTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "LevelSequenceActor.h"
-
-class ALevelSequenceActor;
+#include "LevelSequence.h"
 
 class FGLTFAnimSequenceTask : public FGLTFTask
 {
@@ -42,10 +41,11 @@ class FGLTFLevelSequenceTask : public FGLTFTask
 {
 public:
 
-	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ALevelSequenceActor* LevelSequenceActor, FGLTFJsonAnimationIndex AnimationIndex)
+	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence* LevelSequence, FGLTFJsonAnimationIndex AnimationIndex)
 		: FGLTFTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, LevelSequenceActor(LevelSequenceActor)
+		, LevelSequence(LevelSequence)
 		, AnimationIndex(AnimationIndex)
 	{
 	}
@@ -61,5 +61,6 @@ private:
 
 	FGLTFConvertBuilder& Builder;
 	const ALevelSequenceActor* LevelSequenceActor;
+	const ULevelSequence* LevelSequence;
 	const FGLTFJsonAnimationIndex AnimationIndex;
 };
