@@ -6,5 +6,9 @@
 
 struct FGLTFBoneUtility
 {
-	static FTransform GetBindTransform(const FReferenceSkeleton& RefSkeleton, const int32 BoneIndex);
+	static FTransform GetBindTransform(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
+
+	static void InitializeToSkeleton(FBoneContainer& BoneContainer, const USkeleton* Skeleton);
+
+	static void RetargetTransform(const UAnimSequence* AnimSequence, FTransform& BoneTransform, int32 SkeletonBoneIndex, int32 BoneIndex, const FBoneContainer& RequiredBones);
 };
