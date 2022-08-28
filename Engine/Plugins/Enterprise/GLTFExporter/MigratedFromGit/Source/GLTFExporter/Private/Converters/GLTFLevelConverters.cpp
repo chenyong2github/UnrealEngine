@@ -121,8 +121,17 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 	}
 	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
 	{
-		FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
-		RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+		if (Builder.ExportOptions->bExportHDRIBackdrops)
+		{
+			FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+			RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
+		}
+		else
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("HDRIBackdrop %s disabled by export options"),
+				*Actor->GetName()));
+		}
 	}
 	else
 	{
