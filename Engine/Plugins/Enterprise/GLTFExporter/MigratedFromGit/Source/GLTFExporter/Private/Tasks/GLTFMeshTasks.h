@@ -12,7 +12,7 @@ class FGLTFStaticMeshTask : public FGLTFTask
 {
 public:
 
-	FGLTFStaticMeshTask(FGLTFConvertBuilder& Builder, FGLTFStaticMeshSectionConverter& MeshSectionConverter, const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMeshIndex MeshIndex)
+	FGLTFStaticMeshTask(FGLTFConvertBuilder& Builder, FGLTFStaticMeshSectionConverter& MeshSectionConverter, const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMesh* JsonMesh)
 		: FGLTFTask(EGLTFTaskPriority::Mesh)
 		, Builder(Builder)
 		, MeshSectionConverter(MeshSectionConverter)
@@ -20,7 +20,7 @@ public:
 		, StaticMeshComponent(StaticMeshComponent)
 		, Materials(Materials)
 		, LODIndex(LODIndex)
-		, MeshIndex(MeshIndex)
+		, JsonMesh(JsonMesh)
 	{
 	}
 
@@ -39,14 +39,14 @@ private:
 	const UStaticMeshComponent* StaticMeshComponent;
 	const FGLTFMaterialArray Materials;
 	const int32 LODIndex;
-	const FGLTFJsonMeshIndex MeshIndex;
+	FGLTFJsonMesh* JsonMesh;
 };
 
 class FGLTFSkeletalMeshTask : public FGLTFTask
 {
 public:
 
-	FGLTFSkeletalMeshTask(FGLTFConvertBuilder& Builder, FGLTFSkeletalMeshSectionConverter& MeshSectionConverter, const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMeshIndex MeshIndex)
+	FGLTFSkeletalMeshTask(FGLTFConvertBuilder& Builder, FGLTFSkeletalMeshSectionConverter& MeshSectionConverter, const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex, FGLTFJsonMesh* JsonMesh)
 		: FGLTFTask(EGLTFTaskPriority::Mesh)
 		, Builder(Builder)
 		, MeshSectionConverter(MeshSectionConverter)
@@ -54,7 +54,7 @@ public:
 		, SkeletalMeshComponent(SkeletalMeshComponent)
 		, Materials(Materials)
 		, LODIndex(LODIndex)
-		, MeshIndex(MeshIndex)
+		, JsonMesh(JsonMesh)
 	{
 	}
 
@@ -73,5 +73,5 @@ private:
 	const USkeletalMeshComponent* SkeletalMeshComponent;
 	const FGLTFMaterialArray Materials;
 	const int32 LODIndex;
-	const FGLTFJsonMeshIndex MeshIndex;
+	FGLTFJsonMesh* JsonMesh;
 };

@@ -123,12 +123,11 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	const FTransform ParentTransform = ParentComponent != nullptr ? ParentComponent->GetSocketTransform(SocketName) : FTransform::Identity;
 	const FTransform RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
 
-	const FGLTFJsonNodeIndex NodeIndex = Builder.AddChildNode(ParentNodeIndex);
-	FGLTFJsonNode& Node = Builder.GetNode(NodeIndex);
-	Node.Name = FGLTFNameUtility::GetName(SceneComponent);
-	Node.Translation = FGLTFConverterUtility::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
-	Node.Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
-	Node.Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
+	FGLTFJsonNode* Node = Builder.AddChildNode(ParentNodeIndex);
+	Node->Name = FGLTFNameUtility::GetName(SceneComponent);
+	Node->Translation = FGLTFConverterUtility::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
+	Node->Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
+	Node->Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
 
 	// TODO: don't export invisible components unless visibility is variable due to variant sets
 
@@ -137,28 +136,28 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	{
 		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 		{
-			Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
+			Node->Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
 
 			if (Builder.ExportOptions->bExportLightmaps)
 			{
-				Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+				Node->LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
 			}
 		}
 		else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 		{
-			Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
+			Node->Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
 
 			if (Builder.ExportOptions->bExportVertexSkinWeights)
 			{
 				// TODO: remove need for NodeIndex by adding support for cyclic calls in converter
-				const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMeshComponent);
+				const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(Node->Index, SkeletalMeshComponent);
 				if (SkinIndex != INDEX_NONE)
 				{
-					Builder.GetNode(NodeIndex).Skin = SkinIndex;
+					Node->Skin = SkinIndex;
 
 					if (Builder.ExportOptions->bExportAnimationSequences)
 					{
-						Builder.GetOrAddAnimation(NodeIndex, SkeletalMeshComponent);
+						Builder.GetOrAddAnimation(Node->Index, SkeletalMeshComponent);
 					}
 				}
 			}
@@ -168,11 +167,10 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			if (Builder.ExportOptions->bExportCameras)
 			{
 				// TODO: conversion of camera direction should be done in separate converter
-				FGLTFJsonNode CameraNode;
-				CameraNode.Name = FGLTFNameUtility::GetName(CameraComponent);
-				CameraNode.Rotation = FGLTFConverterUtility::ConvertCameraDirection();
-				CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
-				Builder.AddChildComponentNode(NodeIndex, CameraNode);
+				FGLTFJsonNode* CameraNode = Builder.AddChildComponentNode(Node->Index);
+				CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
+				CameraNode->Rotation = FGLTFConverterUtility::ConvertCameraDirection();
+				CameraNode->Camera = Builder.GetOrAddCamera(CameraComponent);
 			}
 		}
 		else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
@@ -180,16 +178,15 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 			if (Builder.ShouldExportLight(LightComponent->Mobility))
 			{
 				// TODO: conversion of light direction should be done in separate converter
-				FGLTFJsonNode LightNode;
-				LightNode.Name = FGLTFNameUtility::GetName(LightComponent);
-				LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
-				LightNode.Light = Builder.GetOrAddLight(LightComponent);
-				Builder.AddChildComponentNode(NodeIndex, LightNode);
+				FGLTFJsonNode* LightNode = Builder.AddChildComponentNode(Node->Index);
+				LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
+				LightNode->Rotation = FGLTFConverterUtility::ConvertLightDirection();
+				LightNode->Light = Builder.GetOrAddLight(LightComponent);
 			}
 		}
 	}
 
-	return NodeIndex;
+	return Node->Index;
 }
 
 FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent* SceneComponent, FName SocketName)

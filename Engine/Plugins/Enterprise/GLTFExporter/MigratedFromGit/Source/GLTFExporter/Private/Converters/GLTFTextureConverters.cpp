@@ -20,9 +20,9 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Convert(const UTexture2D* Texture
 {
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
-		const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTexture2DTask>(Builder, Texture2D, bToSRGB, TextureIndex);
-		return TextureIndex;
+		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
+		Builder.SetupTask<FGLTFTexture2DTask>(Builder, Texture2D, bToSRGB, JsonTexture);
+		return JsonTexture->Index;;
 	}
 
 	return FGLTFJsonTextureIndex(INDEX_NONE);
@@ -40,9 +40,9 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Convert(const UTextureCube* Tex
 {
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
-		const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureCubeTask>(Builder, TextureCube, CubeFace, bToSRGB, TextureIndex);
-		return TextureIndex;
+		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
+		Builder.SetupTask<FGLTFTextureCubeTask>(Builder, TextureCube, CubeFace, bToSRGB, JsonTexture);
+		return JsonTexture->Index;;
 	}
 
 	return FGLTFJsonTextureIndex(INDEX_NONE);
@@ -60,9 +60,9 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Convert(const UTextur
 {
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
-		const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureRenderTarget2DTask>(Builder, RenderTarget2D, bToSRGB, TextureIndex);
-		return TextureIndex;
+		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
+		Builder.SetupTask<FGLTFTextureRenderTarget2DTask>(Builder, RenderTarget2D, bToSRGB, JsonTexture);
+		return JsonTexture->Index;;
 	}
 
 	return FGLTFJsonTextureIndex(INDEX_NONE);
@@ -80,9 +80,9 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Convert(const UText
 {
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
-		const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, bToSRGB, TextureIndex);
-		return TextureIndex;
+		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
+		Builder.SetupTask<FGLTFTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, bToSRGB, JsonTexture);
+		return JsonTexture->Index;;
 	}
 
 	return FGLTFJsonTextureIndex(INDEX_NONE);
@@ -93,9 +93,9 @@ FGLTFJsonTextureIndex FGLTFTextureLightMapConverter::Convert(const ULightMapText
 #if WITH_EDITOR
 	if (Builder.ExportOptions->TextureImageFormat != EGLTFTextureImageFormat::None)
 	{
-		const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
-		Builder.SetupTask<FGLTFTextureLightMapTask>(Builder, LightMap, TextureIndex);
-		return TextureIndex;
+		FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
+		Builder.SetupTask<FGLTFTextureLightMapTask>(Builder, LightMap, JsonTexture);
+		return JsonTexture->Index;;
 	}
 #endif
 

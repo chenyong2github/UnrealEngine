@@ -44,13 +44,12 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 	}
 #endif
 
-	FGLTFJsonMesh JsonMesh;
 	const int32 MaterialCount = FGLTFMeshUtility::GetMaterials(StaticMesh).Num();
-	JsonMesh.Primitives.AddDefaulted(MaterialCount);
+	FGLTFJsonMesh* JsonMesh = Builder.AddMesh();
+	JsonMesh->Primitives.AddDefaulted(MaterialCount);
 
-	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh(JsonMesh);
-	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, StaticMesh, StaticMeshComponent, Materials, LODIndex, MeshIndex);
-	return MeshIndex;
+	Builder.SetupTask<FGLTFStaticMeshTask>(Builder, MeshSectionConverter, StaticMesh, StaticMeshComponent, Materials, LODIndex, JsonMesh);
+	return JsonMesh->Index;
 }
 
 void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex)
@@ -88,11 +87,10 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 	}
 #endif
 
-	FGLTFJsonMesh JsonMesh;
 	const int32 MaterialCount = FGLTFMeshUtility::GetMaterials(SkeletalMesh).Num();
-	JsonMesh.Primitives.AddDefaulted(MaterialCount);
+	FGLTFJsonMesh* JsonMesh = Builder.AddMesh();
+	JsonMesh->Primitives.AddDefaulted(MaterialCount);
 
-	const FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh(JsonMesh);
-	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, SkeletalMesh, SkeletalMeshComponent, Materials, LODIndex, MeshIndex);
-	return MeshIndex;
+	Builder.SetupTask<FGLTFSkeletalMeshTask>(Builder, MeshSectionConverter, SkeletalMesh, SkeletalMeshComponent, Materials, LODIndex, JsonMesh);
+	return JsonMesh->Index;
 }

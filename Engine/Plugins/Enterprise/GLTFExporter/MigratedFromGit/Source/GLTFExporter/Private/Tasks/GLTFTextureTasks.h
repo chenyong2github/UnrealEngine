@@ -9,12 +9,12 @@ class FGLTFTexture2DTask : public FGLTFTask
 {
 public:
 
-	FGLTFTexture2DTask(FGLTFConvertBuilder& Builder, const UTexture2D* Texture2D, bool bToSRGB, FGLTFJsonTextureIndex TextureIndex)
+	FGLTFTexture2DTask(FGLTFConvertBuilder& Builder, const UTexture2D* Texture2D, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
 		: FGLTFTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, Texture2D(Texture2D)
 		, bToSRGB(bToSRGB)
-		, TextureIndex(TextureIndex)
+		, JsonTexture(JsonTexture)
 	{
 	}
 
@@ -27,20 +27,20 @@ private:
 	FGLTFConvertBuilder& Builder;
 	const UTexture2D* Texture2D;
 	bool bToSRGB;
-	const FGLTFJsonTextureIndex TextureIndex;
+	FGLTFJsonTexture* JsonTexture;
 };
 
 class FGLTFTextureCubeTask : public FGLTFTask
 {
 public:
 
-	FGLTFTextureCubeTask(FGLTFConvertBuilder& Builder, const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTextureIndex TextureIndex)
+	FGLTFTextureCubeTask(FGLTFConvertBuilder& Builder, const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
 		: FGLTFTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, TextureCube(TextureCube)
 		, CubeFace(CubeFace)
 		, bToSRGB(bToSRGB)
-		, TextureIndex(TextureIndex)
+		, JsonTexture(JsonTexture)
 	{
 	}
 
@@ -54,19 +54,19 @@ private:
 	const UTextureCube* TextureCube;
 	ECubeFace CubeFace;
 	bool bToSRGB;
-	const FGLTFJsonTextureIndex TextureIndex;
+	FGLTFJsonTexture* JsonTexture;
 };
 
 class FGLTFTextureRenderTarget2DTask : public FGLTFTask
 {
 public:
 
-	FGLTFTextureRenderTarget2DTask(FGLTFConvertBuilder& Builder, const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB, FGLTFJsonTextureIndex TextureIndex)
+	FGLTFTextureRenderTarget2DTask(FGLTFConvertBuilder& Builder, const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
 		: FGLTFTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, RenderTarget2D(RenderTarget2D)
 		, bToSRGB(bToSRGB)
-		, TextureIndex(TextureIndex)
+		, JsonTexture(JsonTexture)
 	{
 	}
 
@@ -79,20 +79,20 @@ private:
 	FGLTFConvertBuilder& Builder;
 	const UTextureRenderTarget2D* RenderTarget2D;
 	bool bToSRGB;
-	const FGLTFJsonTextureIndex TextureIndex;
+	FGLTFJsonTexture* JsonTexture;
 };
 
 class FGLTFTextureRenderTargetCubeTask : public FGLTFTask
 {
 public:
 
-	FGLTFTextureRenderTargetCubeTask(FGLTFConvertBuilder& Builder, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTextureIndex TextureIndex)
+	FGLTFTextureRenderTargetCubeTask(FGLTFConvertBuilder& Builder, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB, FGLTFJsonTexture* JsonTexture)
 		: FGLTFTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, RenderTargetCube(RenderTargetCube)
 		, CubeFace(CubeFace)
 		, bToSRGB(bToSRGB)
-		, TextureIndex(TextureIndex)
+		, JsonTexture(JsonTexture)
 	{
 	}
 
@@ -106,7 +106,7 @@ private:
 	const UTextureRenderTargetCube* RenderTargetCube;
 	ECubeFace CubeFace;
 	bool bToSRGB;
-	const FGLTFJsonTextureIndex TextureIndex;
+	FGLTFJsonTexture* JsonTexture;
 };
 
 #if WITH_EDITOR
@@ -115,11 +115,11 @@ class FGLTFTextureLightMapTask : public FGLTFTask
 {
 public:
 
-	FGLTFTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTextureIndex TextureIndex)
+	FGLTFTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTexture* JsonTexture)
 		: FGLTFTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, LightMap(LightMap)
-		, TextureIndex(TextureIndex)
+		, JsonTexture(JsonTexture)
 	{
 	}
 
@@ -131,7 +131,7 @@ private:
 
 	FGLTFConvertBuilder& Builder;
 	const ULightMapTexture2D* LightMap;
-	const FGLTFJsonTextureIndex TextureIndex;
+	FGLTFJsonTexture* JsonTexture;
 };
 
 #endif
