@@ -1062,6 +1062,8 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 
 	if (const UMaterialExpressionTextureSampleParameter2D* TextureParameter = ExactCast<UMaterialExpressionTextureSampleParameter2D>(Expression))
 	{
+		// TODO: handle non-default TextureParameter->SamplerType and TextureParameter->SamplerSource
+
 		UTexture* ParameterValue = TextureParameter->Texture;
 
 		const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material);
@@ -1110,6 +1112,8 @@ bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32
 
 	if (const UMaterialExpressionTextureSample* TextureSampler = ExactCast<UMaterialExpressionTextureSample>(Expression))
 	{
+		// TODO: handle non-default TextureSampler->SamplerType and TextureSampler->SamplerSource
+
 		// TODO: add support for texture object input expression
 		OutTexture = Cast<UTexture2D>(TextureSampler->Texture);
 
