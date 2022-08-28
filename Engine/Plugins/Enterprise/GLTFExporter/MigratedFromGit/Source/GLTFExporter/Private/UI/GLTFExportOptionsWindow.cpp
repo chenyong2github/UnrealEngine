@@ -16,17 +16,22 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 
-#define LOCTEXT_NAMESPACE "GLTFExportOptions"
+#define LOCTEXT_NAMESPACE "GLTFExportOptionsWindow"
+
+SGLTFExportOptionsWindow::SGLTFExportOptionsWindow()
+	: ExportOptions(nullptr)
+	, bShouldExport(false)
+	, bShouldExportAll(false)
+{
+}
 
 void SGLTFExportOptionsWindow::Construct(const FArguments& InArgs)
 {
 	ExportOptions = InArgs._ExportOptions;
 	WidgetWindow = InArgs._WidgetWindow;
 
-	check(ExportOptions);
-
-	const FText CancelText = InArgs._BatchMode ? LOCTEXT("GLTFExportOptionsWindow_CancelBatch", "Cancel All") : LOCTEXT("GLTFExportOptionsWindow_Cancel", "Cancel");
-	const FText CancelTooltipText = InArgs._BatchMode ? LOCTEXT("GLTFExportOptionsWindow_Cancel_ToolTip_Batch", "Cancel the batch export.") : LOCTEXT("GLTFExportOptionsWindow_Cancel_ToolTip", "Cancel the current glTF export.");
+	const FText CancelText = InArgs._BatchMode ? LOCTEXT("CancelBatch", "Cancel All") : LOCTEXT("Cancel", "Cancel");
+	const FText CancelTooltipText = InArgs._BatchMode ? LOCTEXT("CancelBatch_ToolTip", "Cancel the batch export.") : LOCTEXT("Cancel_ToolTip", "Cancel the current glTF export.");
 
 	TSharedPtr<SBox> HeaderToolBox;
 	TSharedPtr<SHorizontalBox> HeaderButtons;
@@ -86,16 +91,16 @@ void SGLTFExportOptionsWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("GLTFExportOptionsWindow_ExportAll", "Export All"))
-					.ToolTipText(LOCTEXT("GLTExportOptionsWindow_ExportAll_ToolTip", "Export all files with these same settings"))
+					.Text(LOCTEXT("ExportAll", "Export All"))
+					.ToolTipText(LOCTEXT("ExportAll_ToolTip", "Export all files with these same settings"))
 					.Visibility(InArgs._BatchMode ? EVisibility::All : EVisibility::Hidden)
 					.OnClicked(this, &SGLTFExportOptionsWindow::OnExportAll)
 				]
 				+ SUniformGridPanel::Slot(1, 0)
 				[
-					SAssignNew(ImportButton, SButton)
+					SAssignNew(ExportButton, SButton)
 					.HAlign(HAlign_Center)
-					.Text(LOCTEXT("GLTExportOptionsWindow_Export", "Export"))
+					.Text(LOCTEXT("Export", "Export"))
 					.OnClicked(this, &SGLTFExportOptionsWindow::OnExport)
 				]
 				+ SUniformGridPanel::Slot(2, 0)
@@ -135,8 +140,8 @@ void SGLTFExportOptionsWindow::Construct(const FArguments& InArgs)
 					.Padding(FMargin(2.0f, 0.0f))
 					[
 						SNew(SButton)
-						.Text(LOCTEXT("ExportOptionsWindow_ResetOptions", "Reset to Default"))
-						.OnClicked(this, &SGLTFExportOptionsWindow::OnResetToDefaultClick)
+						.Text(LOCTEXT("Reset", "Reset to Default"))
+						.OnClicked(this, &SGLTFExportOptionsWindow::OnReset)
 					]
 				]
 			]
@@ -146,7 +151,7 @@ void SGLTFExportOptionsWindow::Construct(const FArguments& InArgs)
 	DetailsView->SetObject(ExportOptions);
 }
 
-FReply SGLTFExportOptionsWindow::OnResetToDefaultClick() const
+FReply SGLTFExportOptionsWindow::OnReset() const
 {
 	ExportOptions->ResetToDefault();
 	//Refresh the view to make sure the custom UI are updating correctly
@@ -201,37 +206,21 @@ bool SGLTFExportOptionsWindow::ShouldExportAll() const
 	return bShouldExportAll;
 }
 
-SGLTFExportOptionsWindow::SGLTFExportOptionsWindow()
-	: ExportOptions(nullptr)
-	, bShouldExport(false)
-	, bShouldExportAll(false)
-{}
-
 void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll)
 {
-	check(ExportOptions != nullptr);
-
 	bOutOperationCanceled = false;
 	bOutExportAll = false;
 
-	TSharedPtr<SWindow> ParentWindow;
-
-	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
-	{
-		IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
-		ParentWindow = MainFrame.GetParentWindow();
-	}
-
 	const bool bBinaryFile = FPaths::GetExtension(FullPath, false).Compare(TEXT("glb"), ESearchCase::IgnoreCase) == 0;
 	const FText Title = bBinaryFile ?
-		NSLOCTEXT("UnrealEd", "GLTFExportOptionsTitleBinary", "glTF (Binary) Export Options") :
-		NSLOCTEXT("UnrealEd", "GLTFExportOptionsTitle", "glTF Export Options");
+		LOCTEXT("TitleBinary", "glTF (Binary) Export Options") :
+		LOCTEXT("Title", "glTF Export Options");
 
-	TSharedRef<SWindow> Window = SNew(SWindow)
+	const TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(Title)
 		.SizingRule(ESizingRule::UserSized)
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
-		.ClientSize(FVector2D(500, 445));
+		.ClientSize(FVector2D(500, 500));
 
 	TSharedPtr<SGLTFExportOptionsWindow> OptionsWindow;
 	Window->SetContent
@@ -242,6 +231,9 @@ void SGLTFExportOptionsWindow::ShowDialog(UGLTFExportOptions* ExportOptions, con
 		.FullPath(FText::FromString(FullPath))
 		.BatchMode(bBatchMode)
 	);
+
+	IMainFrameModule* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>("MainFrame");
+	const TSharedPtr<SWindow> ParentWindow = MainFrame != nullptr ? MainFrame->GetParentWindow() : nullptr;
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
 

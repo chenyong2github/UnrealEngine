@@ -18,36 +18,31 @@ public:
 
 	SLATE_BEGIN_ARGS(SGLTFProxyOptionsWindow)
 	{}
-		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
-		SLATE_ARGUMENT(TArray<TWeakObjectPtr<UObject>>, SettingsObjects)
+		SLATE_ARGUMENT( UGLTFProxyOptions*, ProxyOptions )
+		SLATE_ARGUMENT( TSharedPtr<SWindow>, WidgetWindow )
 	SLATE_END_ARGS()
 
 	SGLTFProxyOptionsWindow();
+
 	void Construct(const FArguments& InArgs);
 
-	/** Begin SCompoundWidget overrides */
-	virtual bool SupportsKeyboardFocus() const override { return true; }
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	/** End SCompoundWidget overrides */
-
-	/** Callbacks used for Confirm and Cancel buttons */
 	FReply OnConfirm();
 	FReply OnCancel();
 
-	/** Returns whether or not the user cancelled the operation */
-	bool WasUserCancelled();
+	/* Begin SCompoundWidget overrides */
+	virtual bool SupportsKeyboardFocus() const override { return true; }
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	/* End SCompoundWidget overrides */
 
 	static bool ShowDialog(UGLTFProxyOptions* ProxyOptions);
 
 private:
-	/** Owning window this widget is part of */
-	TWeakPtr< SWindow > WidgetWindow;
-	/** Whether or not the cancel button was clicked by the user */
-	bool bUserCancelled;
-	/** Detailsview used to display SettingsObjects, and allowing user to change options */
+
+	UGLTFProxyOptions* ProxyOptions;
 	TSharedPtr<class IDetailsView> DetailsView;
-	/** Shared ptr to Confirm button */
+	TWeakPtr<SWindow> WidgetWindow;
 	TSharedPtr<SButton> ConfirmButton;
+	bool bUserCancelled;
 };
 
 #endif
