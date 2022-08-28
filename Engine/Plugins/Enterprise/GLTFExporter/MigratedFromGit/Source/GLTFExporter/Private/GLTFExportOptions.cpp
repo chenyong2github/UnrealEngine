@@ -17,7 +17,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportClearCoatMaterials = true;
 	bBakeMaterialInputs = true;
 	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
-	bExportVertexColors = true;
+	bExportVertexColors = false;
 	bQuantizeVertexNormals = true;
 	bQuantizeVertexTangents = true;
 	DefaultLevelOfDetail = 0;
