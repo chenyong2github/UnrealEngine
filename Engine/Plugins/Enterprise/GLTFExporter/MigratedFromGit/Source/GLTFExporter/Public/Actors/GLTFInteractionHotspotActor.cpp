@@ -6,7 +6,7 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	: Super(ObjectInitializer),
 	DefaultSprite(nullptr),
 	HighlightSprite(nullptr),
-	ClickSprite(nullptr)
+	ToggledSprite(nullptr)
 {
 	// A scene component with a transform in the root
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
@@ -17,14 +17,16 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	ForwardPropertiesToComponent();
 }
 
+#if WITH_EDITOR
 void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	ForwardPropertiesToComponent();
 }
+#endif // WITH_EDITOR
 
 void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 {
-	const bool UnequalAnimations = ([&]()
+	const bool IsUnequalAnimations = ([&]()
 	{
 		if (InteractionHotspotComponent->Animations.Num() != Animations.Num())
 		{
@@ -45,7 +47,7 @@ void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 		return false;
 	})();
 
-	if (UnequalAnimations)
+	if (IsUnequalAnimations)
 	{
 		InteractionHotspotComponent->Animations = Animations;
 	}
@@ -53,6 +55,7 @@ void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 	if (InteractionHotspotComponent->DefaultSprite != DefaultSprite)
 	{
 		InteractionHotspotComponent->DefaultSprite = DefaultSprite;
+		InteractionHotspotComponent->SetSprite(DefaultSprite);
 	}
 	
 	if (InteractionHotspotComponent->HighlightSprite != HighlightSprite)
@@ -60,8 +63,8 @@ void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 		InteractionHotspotComponent->HighlightSprite = HighlightSprite;
 	}
 	
-	if (InteractionHotspotComponent->ClickSprite != ClickSprite)
+	if (InteractionHotspotComponent->ToggledSprite != ToggledSprite)
 	{
-		InteractionHotspotComponent->ClickSprite = ClickSprite;
+		InteractionHotspotComponent->ToggledSprite = ToggledSprite;
 	}
 }

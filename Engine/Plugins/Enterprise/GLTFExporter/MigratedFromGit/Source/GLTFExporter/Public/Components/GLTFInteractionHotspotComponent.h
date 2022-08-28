@@ -48,8 +48,6 @@ public:
 	virtual void SetSprite(class UTexture2D* NewSprite) override;
 	//~ End UBillboardComponent Interface.
 
-	void SetRadius(float NewRadius);
-
 private:
 	UFUNCTION()
 	void BeginCursorOver(UPrimitiveComponent* TouchedComponent);
@@ -65,19 +63,25 @@ private:
 	FTransform GetWorldTransform() const;
 
 public:
+	/** List of skeletal meshes and animations to be played when the hotspot is interacted with */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	TArray<FGLTFAnimation> Animations;
 
+	/** The billboard image that will be shown when the hotspot is in an inactive state */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* DefaultSprite;
 
+	/** The optional billboard image that will be shown when a cursor enters the hotspot */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* HighlightSprite;
 
+	/** The optional billboard image that will be shown when the hotspot is toggled by a click */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
-	UTexture2D* ClickSprite;
+	UTexture2D* ToggledSprite;
 
 private:
 	UPROPERTY(transient, duplicatetransient)
 	UBodySetup* ShapeBodySetup;
+
+	bool bToggled;
 };
