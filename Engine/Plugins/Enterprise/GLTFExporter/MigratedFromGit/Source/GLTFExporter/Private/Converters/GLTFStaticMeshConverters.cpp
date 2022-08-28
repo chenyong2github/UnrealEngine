@@ -195,6 +195,11 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, c
 	const int32 LODIndex = Params.Get<1>();
 	const FColorVertexBuffer* OverrideVertexColors = Params.Get<2>();
 
+	if (LODIndex < 0 || StaticMesh->GetNumLODs() <= LODIndex)
+	{
+		return FGLTFJsonMeshIndex(INDEX_NONE);
+	}
+
 	const int32 PrimaryUVIndex = 0; // TODO: make this configurable?
 	const int32 LightmapUVIndex = StaticMesh->LightMapCoordinateIndex != PrimaryUVIndex ? StaticMesh->LightMapCoordinateIndex : INDEX_NONE;
 	const FStaticMeshLODResources& LODResources = StaticMesh->GetLODForExport(LODIndex);
