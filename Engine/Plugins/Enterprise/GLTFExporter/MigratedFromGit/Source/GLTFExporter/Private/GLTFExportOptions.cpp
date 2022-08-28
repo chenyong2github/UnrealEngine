@@ -19,13 +19,11 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
 	bExtensionsRequired = true;
-	bEmbedVertexData = true;
 	bExportVertexColor = true;
 	bExportUnlitMaterial = true;
 	bExportClearCoatMaterial = true;
 	bBakeMaterialInputs = true;
 	BakedMaterialInputSize = EGLTFExporterTextureSize::POT_512;
-	bEmbedTextures = true;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportLightmaps = true;
 	ExportScale = 0.01;

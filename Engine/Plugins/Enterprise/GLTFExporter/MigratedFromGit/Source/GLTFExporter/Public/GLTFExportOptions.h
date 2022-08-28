@@ -50,9 +50,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bExtensionsRequired : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
-	uint32 bEmbedVertexData : 1;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	uint32 bExportVertexColor : 1;
 
@@ -67,9 +64,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Material)
 	EGLTFExporterTextureSize BakedMaterialInputSize;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
-	uint32 bEmbedTextures : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	EGLTFExporterTextureFormat TextureFormat;
