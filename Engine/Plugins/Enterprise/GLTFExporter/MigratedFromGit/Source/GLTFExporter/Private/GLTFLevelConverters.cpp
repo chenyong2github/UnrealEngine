@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//#include "GLTFLevelConverter.h"
-
 #include "GLTFLevelConverters.h"
 #include "GLTFContainerBuilder.h"
 #include "GLTFConverterUtility.h"
