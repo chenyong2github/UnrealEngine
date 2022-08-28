@@ -180,6 +180,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		PropertyBakeOutput.bIsConstant = true;
 
 		// TODO: is the current conversion from sRGB => linear correct?
+		// It seems to give correct results for some properties, but not all.
 		PropertyBakeOutput.ConstantValue = Pixel;
 	}
 
