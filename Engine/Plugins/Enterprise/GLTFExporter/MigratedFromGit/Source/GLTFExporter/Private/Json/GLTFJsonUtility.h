@@ -7,7 +7,7 @@
 struct FGLTFJsonUtility
 {
 	template <typename EnumType>
-	static int32 ToNumber(EnumType Value)
+	static int32 ToInteger(EnumType Value)
 	{
 		return static_cast<int32>(Value);
 	}
