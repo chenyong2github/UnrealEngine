@@ -21,8 +21,8 @@ EGLTFJsonHDREncoding FGLTFBuilder::GetTextureHDREncoding() const
 {
 	switch (ExportOptions->TextureHDREncoding)
 	{
-		case EGLTFExporterTextureHDREncoding::None: return EGLTFJsonHDREncoding::None;
-		case EGLTFExporterTextureHDREncoding::RGBM: return EGLTFJsonHDREncoding::RGBM;
+		case EGLTFTextureHDREncoding::None: return EGLTFJsonHDREncoding::None;
+		case EGLTFTextureHDREncoding::RGBM: return EGLTFJsonHDREncoding::RGBM;
 		// TODO: add more encodings (like RGBE) when viewer supports them
 		default:
 			checkNoEntry();
@@ -34,11 +34,11 @@ bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) con
 {
 	switch (ExportOptions->ExportLights)
 	{
-		case EGLTFExporterLightMobility::All:
+		case EGLTFExportLightMobility::All:
 			return true;
-		case EGLTFExporterLightMobility::MovableAndStationary:
+		case EGLTFExportLightMobility::MovableAndStationary:
 			return LightMobility == EComponentMobility::Movable || LightMobility == EComponentMobility::Stationary;
-		case EGLTFExporterLightMobility::MovableOnly:
+		case EGLTFExportLightMobility::MovableOnly:
 			return LightMobility == EComponentMobility::Movable;
 		default:
 			return false;

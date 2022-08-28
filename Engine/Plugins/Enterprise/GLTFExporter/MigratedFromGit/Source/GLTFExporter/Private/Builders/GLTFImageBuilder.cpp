@@ -10,19 +10,19 @@ FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportO
 {
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFExporterTextureFlags Flags, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags, const FString& Name)
 {
 	check(Pixels.Num() == Size.X * Size.Y);
 	return AddImage(Pixels.GetData(), Size, bIgnoreAlpha, Flags, Name);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, int64 ByteLength, FIntPoint Size, bool bIgnoreAlpha, EGLTFExporterTextureFlags Flags, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, int64 ByteLength, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags, const FString& Name)
 {
 	check(ByteLength == Size.X * Size.Y * sizeof(FColor));
 	return AddImage(Pixels, Size, bIgnoreAlpha, Flags, Name);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFExporterTextureFlags Flags, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags, const FString& Name)
 {
 	TArray64<uint8> CompressedData;
 
@@ -73,16 +73,16 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 	return ImageIndex;
 }
 
-EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFExporterTextureFlags Flags) const
+EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags) const
 {
 	switch (ExportOptions->TextureCompression)
 	{
-		case EGLTFExporterTextureCompression::PNG:
+		case EGLTFTextureCompression::PNG:
 			return EGLTFJsonMimeType::PNG;
 
-		case EGLTFExporterTextureCompression::JPEG:
+		case EGLTFTextureCompression::JPEG:
 			return
-				!EnumHasAllFlags(static_cast<EGLTFExporterTextureFlags>(ExportOptions->LosslessCompressTextures), Flags) &&
+				!EnumHasAllFlags(static_cast<EGLTFTextureGroupFlags>(ExportOptions->LosslessCompressTextures), Flags) &&
 				(bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size)) ?
 				EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
 
