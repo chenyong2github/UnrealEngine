@@ -18,7 +18,7 @@ UMaterialInterface* IGLTFExporterModule::PrebakeMaterial(UMaterialInterface* Mat
 {
 #if WITH_EDITOR
 	FGLTFMaterialPrebaker Prebaker(Options);
-	Prebaker.RootPath = FPaths::GetPath(Material->GetPathName());
+	Prebaker.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
 	return Prebaker.Prebake(Material);
 #else
 	return nullptr;

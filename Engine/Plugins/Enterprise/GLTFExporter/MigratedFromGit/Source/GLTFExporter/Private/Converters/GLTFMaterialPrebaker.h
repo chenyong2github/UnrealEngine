@@ -45,6 +45,8 @@ private:
 
 	TUniquePtr<IGLTFImageConverter> CreateCustomImageConverter();
 
+	static bool MakeDirectory(const FString& String);
+
 	static UGLTFExportOptions* CreateExportOptions(const UGLTFPrebakeOptions* PrebakeOptions);
 
 	static TextureAddress ConvertWrap(EGLTFJsonTextureWrap Wrap);
