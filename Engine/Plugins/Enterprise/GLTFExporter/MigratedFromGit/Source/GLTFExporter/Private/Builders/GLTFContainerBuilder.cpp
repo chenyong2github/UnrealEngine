@@ -19,10 +19,10 @@ void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 	if (CustomExtensions.Num() > 0)
 	{
 		const FString ExtensionsString = FString::JoinBy(CustomExtensions, TEXT(", "),
-            [](EGLTFJsonExtension Extension)
-        {
-            return FGLTFJsonUtility::ToString(Extension);
-        });
+			[](EGLTFJsonExtension Extension)
+		{
+			return FGLTFJsonUtility::ToString(Extension);
+		});
 
 		AddWarningMessage(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
 	}
@@ -48,9 +48,9 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive, const TArray<uint8>& Jso
 	const uint32 JsonChunkType = 0x4E4F534A; // "JSON" in ASCII
 	const uint32 BinaryChunkType = 0x004E4942; // "BIN" in ASCII
 	const uint32 FileSize =
-        3 * sizeof(uint32) +
-        2 * sizeof(uint32) + GetPaddedChunkSize(JsonData.Num()) +
-        2 * sizeof(uint32) + GetPaddedChunkSize(BinaryData.Num());
+		3 * sizeof(uint32) +
+		2 * sizeof(uint32) + GetPaddedChunkSize(JsonData.Num()) +
+		2 * sizeof(uint32) + GetPaddedChunkSize(BinaryData.Num());
 
 	WriteHeader(Archive, FileSize);
 	WriteChunk(Archive, JsonChunkType, JsonData, 0x20);

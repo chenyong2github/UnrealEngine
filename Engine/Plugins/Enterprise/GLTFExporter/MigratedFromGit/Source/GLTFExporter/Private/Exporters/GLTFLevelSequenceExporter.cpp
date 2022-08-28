@@ -35,8 +35,8 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 	if (Worlds.Num() > 1)
 	{
 		Builder.AddErrorMessage(
-            FString::Printf(TEXT("Failed to export level sequence %s because more than one level referenced"),
-            *LevelSequence->GetName()));
+			FString::Printf(TEXT("Failed to export level sequence %s because more than one level referenced"),
+			*LevelSequence->GetName()));
 		return false;
 	}
 

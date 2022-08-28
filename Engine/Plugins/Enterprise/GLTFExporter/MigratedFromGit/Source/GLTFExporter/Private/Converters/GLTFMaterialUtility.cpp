@@ -377,7 +377,7 @@ FMaterialShadingModelField FGLTFMaterialUtility::EvaluateShadingModelExpression(
 	if (FDefaultValueHelper::ParseInt(Analysis.ParameterCode, Value))
 	{
 		return static_cast<EMaterialShadingModel>(Value);
-    }
+	}
 
 	return Analysis.ShadingModels;
 }
