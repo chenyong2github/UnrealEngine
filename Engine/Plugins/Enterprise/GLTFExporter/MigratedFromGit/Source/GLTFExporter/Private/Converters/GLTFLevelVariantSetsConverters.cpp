@@ -125,7 +125,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVa
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -134,14 +134,14 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVa
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
 	}
 
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -151,7 +151,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVa
 
 	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), bIsVisible))
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -172,7 +172,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 	UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(const_cast<UPropertyValue*>(Property));
 	if (MaterialProperty == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Material property is invalid, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -181,7 +181,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -190,14 +190,14 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
 	}
 
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -208,7 +208,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 
 	if (NumPropSegments < 1)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to parse element index to apply the material to, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -275,7 +275,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVa
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -284,14 +284,14 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVa
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
 	}
 
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -300,7 +300,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVa
 	const UMeshComponent* MeshComponent = Cast<UMeshComponent>(Target);
 	if (MeshComponent == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property has no mesh-component, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -310,7 +310,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVa
 
 	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), StaticMesh))
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -332,7 +332,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJson
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -341,14 +341,14 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJson
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
 	}
 
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -357,7 +357,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJson
 	const UMeshComponent* MeshComponent = Cast<UMeshComponent>(Target);
 	if (MeshComponent == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Target object for property has no mesh-component, the property will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;
@@ -367,7 +367,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJson
 
 	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), SkeletalMesh) || SkeletalMesh == nullptr)
 	{
-		Builder.AddWarningMessage(FString::Printf(
+		Builder.LogWarning(FString::Printf(
 			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
 			*GetLogContext(Property)));
 		return false;

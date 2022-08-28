@@ -13,13 +13,13 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Ho
 	{
 		if (!Builder.ExportOptions->bExportVertexSkinWeights)
 		{
-			Builder.AddWarningMessage(
+			Builder.LogWarning(
 				FString::Printf(TEXT("Can't export animation in hotspot %s because vertex skin weights are disabled by export options"),
 				*JsonHotspot.Name));
 		}
 		else if (!Builder.ExportOptions->bExportAnimationSequences)
 		{
-			Builder.AddWarningMessage(
+			Builder.LogWarning(
 				FString::Printf(TEXT("Can't export animation in hotspot %s because animation sequences are disabled by export options"),
 				*JsonHotspot.Name));
 		}
@@ -49,7 +49,7 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Ho
 	{
 		if (!Builder.ExportOptions->bExportLevelSequences)
 		{
-			Builder.AddWarningMessage(
+			Builder.LogWarning(
 				FString::Printf(TEXT("Can't export animation in hotspot %s because level sequences are disabled by export options"),
 				*JsonHotspot.Name));
 		}

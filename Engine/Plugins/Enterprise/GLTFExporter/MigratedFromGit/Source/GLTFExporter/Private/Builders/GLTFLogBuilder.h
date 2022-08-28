@@ -6,25 +6,25 @@
 
 class IMessageLogListing;
 
-class FGLTFMessageBuilder : public FGLTFBuilder
+class FGLTFLogBuilder : public FGLTFBuilder
 {
 protected:
 
-	FGLTFMessageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
+	FGLTFLogBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
 public:
 
-	void AddSuggestionMessage(const FString& Message);
+	void LogSuggestion(const FString& Message);
 
-	void AddWarningMessage(const FString& Message);
+	void LogWarning(const FString& Message);
 
-	void AddErrorMessage(const FString& Message);
+	void LogError(const FString& Message);
 
-	const TArray<FString>& GetSuggestionMessages() const;
+	const TArray<FString>& GetLoggedSuggestions() const;
 
-	const TArray<FString>& GetWarningMessages() const;
+	const TArray<FString>& GetLoggedWarnings() const;
 
-	const TArray<FString>& GetErrorMessages() const;
+	const TArray<FString>& GetLoggedErrors() const;
 
 	void OpenLog() const;
 
