@@ -613,7 +613,7 @@ private:
 
 	UMaterialExpressionCustomOutput* GetCustomOutputExpression(const FString& FunctionName) const
 	{
-		for (UMaterialExpression* Expression : Material->Expressions)
+		for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetExpressions())
 		{
 			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
 			if (CustomOutputExpression && CustomOutputExpression->GetFunctionName() == FunctionName)

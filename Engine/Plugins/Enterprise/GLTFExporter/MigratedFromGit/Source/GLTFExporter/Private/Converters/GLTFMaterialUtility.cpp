@@ -86,7 +86,7 @@ const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByNa
 {
 	// TODO: should we also search inside material functions and attribute layers?
 
-	for (const UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
+	for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetMaterial()->GetExpressions())
 	{
 		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
 		if (CustomOutput != nullptr && CustomOutput->GetDisplayName() == Name)

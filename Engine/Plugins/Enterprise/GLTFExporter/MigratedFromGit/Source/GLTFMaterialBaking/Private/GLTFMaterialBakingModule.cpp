@@ -192,7 +192,19 @@ namespace FMaterialBakingModuleImpl
 				TextureCreateFlags |= TexCreate_SRGB;
 			}
 
-			return RHICreateTexture2D(Width, Height, Format, 1, 1, TextureCreateFlags, CreateInfo);
+			return RHICreateTexture(
+				FRHITextureCreateDesc::Create2D(CreateInfo.DebugName)
+				.SetExtent(Width, Height)
+				.SetFormat((EPixelFormat)Format)
+				.SetNumMips(1)
+				.SetNumSamples(1)
+				.SetFlags(TextureCreateFlags)
+				.SetInitialState(ERHIAccess::Unknown)
+				.SetExtData(CreateInfo.ExtData)
+				.SetBulkData(CreateInfo.BulkData)
+				.SetGPUMask(CreateInfo.GPUMask)
+				.SetClearValue(CreateInfo.ClearValueBinding)
+			);
 		}
 
 		void ReleaseStagingBufferForUnmap_AnyThread(FTexture2DRHIRef& Texture2DRHIRef)
@@ -610,7 +622,9 @@ void FGLTFMaterialBakingModule::BakeMaterials(const TArray<FGLTFMaterialDataEx*>
 							FGPUFenceRHIRef GPUFence = RHICreateGPUFence(TEXT("MaterialBackingFence"));
 
 							FResolveRect Rect(0, 0, RenderTargetResource->GetSizeX(), RenderTargetResource->GetSizeY());
+							PRAGMA_DISABLE_DEPRECATION_WARNINGS
 							RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), StagingBufferRef, FResolveParams(Rect));
+							PRAGMA_ENABLE_DEPRECATION_WARNINGS
 							RHICmdList.WriteGPUFence(GPUFence);
 
 							// Prepare a lambda for final processing that will be executed asynchronously

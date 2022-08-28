@@ -71,7 +71,7 @@ void FGLTFSimpleTexture2DPreview::BindShaders(
 
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::ForceApply);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::CheckApply);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
 	PixelShader->SetParameters(RHICmdList, Texture);

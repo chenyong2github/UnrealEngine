@@ -4,11 +4,6 @@
 #include "GLTFProxyMaterialCompiler.h"
 #include "Materials/HLSLMaterialTranslator.h"
 
-UGLTFMaterialAnalyzer::UGLTFMaterialAnalyzer()
-{
-	ResetToDefaults();
-}
-
 void UGLTFMaterialAnalyzer::ResetToDefaults()
 {
 	Property = MP_MAX;
@@ -53,7 +48,7 @@ void UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(const UMaterialInterface* 
 
 UMaterialExpressionCustomOutput* UGLTFMaterialAnalyzer::GetCustomOutputExpression() const
 {
-	for (UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
+	for (const TObjectPtr<UMaterialExpression>& Expression : Material->GetMaterial()->GetExpressions())
 	{
 		UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
 		if (CustomOutputExpression != nullptr && CustomOutputExpression->GetDisplayName() == CustomOutput)

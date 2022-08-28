@@ -42,8 +42,8 @@ void FGLTFTextureUtilities::CombineTextures(const UTexture* TextureA, const FMat
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 
 	// TODO: use different white texture depending on if target is SRGB or not
-	const FTexture* TextureResourceA = TextureA != nullptr ? TextureA->Resource : GetWhiteTexture();
-	const FTexture* TextureResourceB = TextureB != nullptr ? TextureB->Resource : GetWhiteTexture();
+	const FTexture* TextureResourceA = TextureA != nullptr ? TextureA->GetResource() : GetWhiteTexture();
+	const FTexture* TextureResourceB = TextureB != nullptr ? TextureB->GetResource() : GetWhiteTexture();
 
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, FIntPoint(OutRenderTarget->SizeX, OutRenderTarget->SizeY), FLinearColor::White);
 	const TRefCountPtr<FBatchedElementParameters> BatchedElementParameters = new FGLTFCombinedTexturePreview(TextureResourceA, TextureResourceB, ColorTransformA, ColorTransformB, BackgroundColor);
@@ -72,5 +72,5 @@ FTexture* FGLTFTextureUtilities::GetWhiteTexture()
 {
 	// TODO: explicitly ensure this asset is always cooked
 	static UTexture* Texture = LoadObject<UTexture>(nullptr, TEXT("/GLTFExporter/Textures/Proxy/T_GLTF_DefaultWhite"));
-	return Texture != nullptr ? Texture->Resource : nullptr;
+	return Texture != nullptr ? Texture->GetResource() : nullptr;
 }

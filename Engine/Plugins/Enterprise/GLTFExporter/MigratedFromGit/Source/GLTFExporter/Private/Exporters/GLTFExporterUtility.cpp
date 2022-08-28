@@ -2,7 +2,7 @@
 
 #include "Exporters/GLTFExporterUtility.h"
 #include "Materials/MaterialInstance.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Selection.h"
 
 void FGLTFExporterUtility::GetSelectedActors(TSet<AActor*>& OutSelectedActors)

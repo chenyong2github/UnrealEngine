@@ -148,9 +148,9 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	// TODO: do these temp textures need to be part of the root set to avoid garbage collection?
 	UTexture2D* Texture = UTexture2D::CreateTransient(Size.X, Size.Y, Format);
 
-	void* MipData = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+	void* MipData = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 	FMemory::Memcpy(MipData, RawData, ByteLength);
-	Texture->PlatformData->Mips[0].BulkData.Unlock();
+	Texture->GetPlatformData()->Mips[0].BulkData.Unlock();
 
 	Texture->SRGB = bSRGB ? 1 : 0;
 	Texture->CompressionSettings = TC_VectorDisplacementmap; // best quality
@@ -201,8 +201,8 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 		BatchedElementParameters = new FGLTFSimpleTexture2DPreview();
 	}
 
-	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
-	FCanvasTileItem TileItem(InPosition, InSource->Resource, InSize, FLinearColor::White);
+	FCanvas Canvas(RenderTarget, nullptr, FGameTime::CreateDilated(0.0f, 0.0f, 0.0f, 0.0f), GMaxRHIFeatureLevel);
+	FCanvasTileItem TileItem(InPosition, InSource->GetResource(), InSize, FLinearColor::White);
 	TileItem.BatchedElementParameters = BatchedElementParameters;
 
 	Canvas.PushAbsoluteTransform(InTransform);
@@ -245,8 +245,8 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 	UTextureRenderTarget2D* RenderTarget = CreateRenderTarget(Size, bIsHDR);
 	FTextureRenderTargetResource* RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
 
-	FCanvas Canvas(RenderTargetResource, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
-	FCanvasTileItem TileItem(FVector2D::ZeroVector, TextureCube->Resource, FLinearColor::White);
+	FCanvas Canvas(RenderTargetResource, nullptr, FGameTime::CreateDilated(0.0f, 0.0f, 0.0f, 0.0f), GMaxRHIFeatureLevel);
+	FCanvasTileItem TileItem(FVector2D::ZeroVector, TextureCube->GetResource(), FLinearColor::White);
 	TileItem.BatchedElementParameters = new FGLTFCubemapFacePreview(CubeFace);
 	TileItem.Draw(&Canvas);
 
@@ -256,7 +256,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 	FlushRenderingCommands();
 
 	UTexture2D* FaceTexture;
-	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(RenderTarget->Resource);
+	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(RenderTarget->GetResource());
 	check(Resource != nullptr);
 
 	if (bIsHDR)
@@ -286,7 +286,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 
 UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace)
 {
-	FTextureRenderTargetCubeResource* Resource = static_cast<FTextureRenderTargetCubeResource*>(RenderTargetCube->Resource);
+	FTextureRenderTargetCubeResource* Resource = static_cast<FTextureRenderTargetCubeResource*>(const_cast<UTextureRenderTargetCube*>(RenderTargetCube)->GetResource());
 	if (Resource == nullptr)
 	{
 		return nullptr;
@@ -322,7 +322,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderT
 
 bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding Encoding)
 {
-	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(InRenderTarget->Resource);
+	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(const_cast<UTextureRenderTarget2D*>(InRenderTarget)->GetResource());
 	if (Resource == nullptr)
 	{
 		return false;
@@ -397,38 +397,38 @@ void FGLTFTextureUtility::EncodeRGBE(const TArray<FFloat16Color>& InPixels, TArr
 
 bool FGLTFTextureUtility::LoadPlatformData(UTexture2D* Texture)
 {
-	if (Texture->PlatformData == nullptr || Texture->PlatformData->Mips.Num() == 0)
+	if (Texture->GetPlatformData() == nullptr || Texture->GetPlatformData()->Mips.Num() == 0)
 	{
 		return false;
 	}
 
 #if WITH_EDITOR
-	if (!Texture->PlatformData->Mips[0].BulkData.IsBulkDataLoaded())
+	if (!Texture->GetPlatformData()->Mips[0].BulkData.IsBulkDataLoaded())
 	{
 		// TODO: is this correct handling?
 		Texture->ForceRebuildPlatformData();
 	}
 #endif
 
-	return Texture->PlatformData->Mips[0].BulkData.IsBulkDataLoaded();
+	return Texture->GetPlatformData()->Mips[0].BulkData.IsBulkDataLoaded();
 }
 
 bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
 {
-	if (TextureCube->PlatformData == nullptr || TextureCube->PlatformData->Mips.Num() == 0)
+	if (TextureCube->GetPlatformData() == nullptr || TextureCube->GetPlatformData()->Mips.Num() == 0)
 	{
 		return false;
 	}
 
 #if WITH_EDITOR
-	if (!TextureCube->PlatformData->Mips[0].BulkData.IsBulkDataLoaded())
+	if (!TextureCube->GetPlatformData()->Mips[0].BulkData.IsBulkDataLoaded())
 	{
 		// TODO: is this correct handling?
 		TextureCube->ForceRebuildPlatformData();
 	}
 #endif
 
-	return TextureCube->PlatformData->Mips[0].BulkData.IsBulkDataLoaded();
+	return TextureCube->GetPlatformData()->Mips[0].BulkData.IsBulkDataLoaded();
 }
 
 void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)

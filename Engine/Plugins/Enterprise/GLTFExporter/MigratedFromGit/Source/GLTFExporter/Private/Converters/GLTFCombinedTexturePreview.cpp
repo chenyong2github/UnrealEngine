@@ -85,7 +85,7 @@ void FGLTFCombinedTexturePreview::BindShaders(
 
 	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::ForceApply);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0, EApplyRendertargetOption::CheckApply);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
 	PixelShader->SetParameters(RHICmdList, TextureA, TextureB, ColorTransformA, ColorTransformB, BackgroundColor);

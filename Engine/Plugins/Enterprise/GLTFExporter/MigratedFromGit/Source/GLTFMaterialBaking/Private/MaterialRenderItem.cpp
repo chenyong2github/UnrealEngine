@@ -136,7 +136,7 @@ void FGLTFMeshMaterialRenderItem::QueueMaterial(FCanvasRenderContext& RenderCont
 					.PreSkinnedLocalBounds(PrimitiveData->PreSkinnedLocalBounds)
 					.CustomPrimitiveData(PrimitiveData->CustomPrimitiveData)
 					.ReceivesDecals(false)
-					.DrawsVelocity(false)
+					//.DrawsVelocity(false)
 				.Build();
 
 			// Overwrite object orientation, since original calculation is derived from LocalToWorld matrix,
