@@ -31,3 +31,10 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Convert(const UText
 	Builder.SetupTask<FGLTFTextureRenderTargetCubeTask>(Builder, RenderTargetCube, CubeFace, TextureIndex);
 	return TextureIndex;
 }
+
+FGLTFJsonTextureIndex FGLTFTextureLightMapConverter::Convert(const ULightMapTexture2D* LightMap)
+{
+	const FGLTFJsonTextureIndex TextureIndex = Builder.AddTexture();
+	Builder.SetupTask<FGLTFTextureLightMapTask>(Builder, LightMap, TextureIndex);
+	return TextureIndex;
+}
