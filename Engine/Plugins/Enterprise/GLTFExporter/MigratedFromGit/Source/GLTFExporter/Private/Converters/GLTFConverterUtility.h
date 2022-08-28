@@ -75,8 +75,18 @@ struct FGLTFConverterUtility
 		return { UV.X, UV.Y };
 	}
 
-	static FGLTFJsonColor4 ConvertColor(const FLinearColor& Color)
+	static FGLTFJsonColor4 ConvertColor(const FLinearColor& Color, bool bForceLDR)
 	{
+		if (bForceLDR)
+		{
+			return {
+				FMath::Clamp(Color.R, 0.0f, 1.0f),
+                FMath::Clamp(Color.G, 0.0f, 1.0f),
+                FMath::Clamp(Color.B, 0.0f, 1.0f),
+                FMath::Clamp(Color.A, 0.0f, 1.0f)
+            };
+		}
+
 		// Just make sure its non-negative (which can happen when using MakeFromColorTemperature).
 		return {
 			FMath::Max(Color.R, 0.0f),
@@ -112,7 +122,8 @@ struct FGLTFConverterUtility
 			return FGLTFJsonQuaternion::Identity;
 		}
 
-		return { -Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W };
+		const FQuat Normalized = Rotation.GetNormalized();
+		return { -Normalized.X, -Normalized.Z, -Normalized.Y, Normalized.W };
 	}
 
 	static FGLTFJsonMatrix4 ConvertMatrix(const FMatrix& Matrix)

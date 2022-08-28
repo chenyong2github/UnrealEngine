@@ -14,6 +14,7 @@ void UGLTFExportOptions::ResetToDefault()
 {
 	ExportUniformScale = 0.01;
 	bExportPreviewMesh = true;
+	bStrictCompliance = true;
 	bBundleWebViewer = true;
 	bShowFilesWhenDone = true;
 	bExportUnlitMaterials = true;

@@ -21,7 +21,7 @@ FGLTFJsonLightIndex FGLTFLightConverter::Convert(const ULightComponent* LightCom
 	Light.Intensity = LightComponent->Intensity;
 
 	const FLinearColor TemperatureColor = LightComponent->bUseTemperature ? FLinearColor::MakeFromColorTemperature(LightComponent->Temperature) : FLinearColor::White;
-	Light.Color = FGLTFConverterUtility::ConvertColor(TemperatureColor * LightComponent->GetLightColor());
+	Light.Color = FGLTFConverterUtility::ConvertColor(TemperatureColor * LightComponent->GetLightColor(), Builder.ExportOptions->bStrictCompliance);
 
 	if (const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
 	{
@@ -32,6 +32,12 @@ FGLTFJsonLightIndex FGLTFLightConverter::Convert(const ULightComponent* LightCom
 	{
 		Light.Spot.InnerConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->InnerConeAngle);
 		Light.Spot.OuterConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->OuterConeAngle);
+
+		if (Builder.ExportOptions->bStrictCompliance)
+		{
+			Light.Spot.InnerConeAngle = FMath::Clamp(Light.Spot.InnerConeAngle, 0.0f, nextafterf(Light.Spot.OuterConeAngle, 0.0f));
+			Light.Spot.OuterConeAngle = FMath::Clamp(Light.Spot.OuterConeAngle, nextafterf(Light.Spot.InnerConeAngle, HALF_PI), HALF_PI);
+		}
 	}
 
 	return Builder.AddLight(Light);

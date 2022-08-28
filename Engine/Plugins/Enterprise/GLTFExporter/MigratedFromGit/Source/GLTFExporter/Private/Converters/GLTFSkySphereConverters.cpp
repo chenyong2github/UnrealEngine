@@ -109,7 +109,7 @@ void FGLTFSkySphereConverter::ConvertColorProperty(const AActor* Actor, const TC
 	FLinearColor LinearColor;
 	if (FGLTFActorUtility::TryGetPropertyValue(Actor, PropertyName, LinearColor))
 	{
-		OutValue = FGLTFConverterUtility::ConvertColor(LinearColor);
+		OutValue = FGLTFConverterUtility::ConvertColor(LinearColor, Builder.ExportOptions->bStrictCompliance);
 	}
 	else
 	{
