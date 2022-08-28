@@ -13,6 +13,8 @@
 
 void FGLTFAnimSequenceTask::Complete()
 {
+	// TODO: bone transforms should be absolute (not relative) according to gltf spec
+
 	const int32 FrameCount = AnimSequence->GetRawNumberOfFrames();
 	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
 
