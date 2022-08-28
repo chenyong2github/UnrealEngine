@@ -320,7 +320,9 @@ bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarge
 
 	if (Encoding == EGLTFJsonHDREncoding::None)
 	{
-		return Resource->ReadPixels(OutPixels);
+		FReadSurfaceDataFlags ReadSurfaceDataFlags(RCM_UNorm, CubeFace_MAX);
+		ReadSurfaceDataFlags.SetLinearToGamma(false);
+		return Resource->ReadPixels(OutPixels, ReadSurfaceDataFlags);
 	}
 
 	TArray<FFloat16Color> HDRPixels;
