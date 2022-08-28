@@ -11,7 +11,7 @@
 namespace
 {
 	const float UnitSphereRadius = 50.0f;
-} // Anonymous namespace
+}
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFInteractionHotspot, Log, All);
 
@@ -95,7 +95,7 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 
 	ShapeBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
 	ShapeBodySetup->AggGeom.SphereElems.Add(FKSphereElem(UnitSphereRadius));
-	
+
 	Super::OnRegister();
 }
 
