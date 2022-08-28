@@ -52,6 +52,7 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	ERGBFormat RGBFormat;
 	uint32 BitDepth;
 
+	// TODO: make sure there are no other special cases (like ex normal-maps and light-maps) that need specialized handling.
 	if (Texture2D->IsA<ULightMapTexture2D>() || Texture2D->IsNormalMap())
 	{
 		// NOTE: export of light- and normal-maps via source is done to overcome issues with accessing
