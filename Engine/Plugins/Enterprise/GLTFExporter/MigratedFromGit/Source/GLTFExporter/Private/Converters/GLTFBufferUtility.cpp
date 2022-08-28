@@ -3,8 +3,11 @@
 #include "Converters/GLTFBufferUtility.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-bool FGLTFBufferUtility::GetAllowCPUAccess(const FRawStaticIndexBuffer* IndexBuffer)
+bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer)
 {
+#if WITH_EDITOR
+	return true;
+#else
 	struct FRawStaticIndexBufferHack : FIndexBuffer
 	{
 		TResourceArray<uint8, INDEXBUFFER_ALIGNMENT> IndexStorage;
@@ -15,10 +18,23 @@ bool FGLTFBufferUtility::GetAllowCPUAccess(const FRawStaticIndexBuffer* IndexBuf
 
 	static_assert(sizeof(FRawStaticIndexBufferHack) == sizeof(FRawStaticIndexBuffer), "FRawStaticIndexBufferHack memory layout doesn't match FRawStaticIndexBuffer");
 	return reinterpret_cast<const FRawStaticIndexBufferHack*>(IndexBuffer)->IndexStorage.GetAllowCPUAccess();
+#endif
 }
 
-bool FGLTFBufferUtility::GetAllowCPUAccess(const FPositionVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
 {
+#if WITH_EDITOR
+	return true;
+#else
+	return IndexBuffer->GetNeedsCPUAccess();
+#endif
+}
+
+bool FGLTFBufferUtility::HasCPUAccess(const FPositionVertexBuffer* VertexBuffer)
+{
+#if WITH_EDITOR
+	return true;
+#else
 	struct FPositionVertexBufferHack : FVertexBuffer
 	{
 		FShaderResourceViewRHIRef PositionComponentSRV;
@@ -32,10 +48,14 @@ bool FGLTFBufferUtility::GetAllowCPUAccess(const FPositionVertexBuffer* VertexBu
 	static_assert(sizeof(FPositionVertexBufferHack) == sizeof(FPositionVertexBuffer), "FPositionVertexBufferHack memory layout doesn't match FPositionVertexBuffer");
 	const FStaticMeshVertexDataInterface* VertexData = reinterpret_cast<const FPositionVertexBufferHack*>(VertexBuffer)->VertexData;
 	return VertexData != nullptr && VertexData->GetAllowCPUAccess();
+#endif
 }
 
-bool FGLTFBufferUtility::GetAllowCPUAccess(const FColorVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtility::HasCPUAccess(const FColorVertexBuffer* VertexBuffer)
 {
+#if WITH_EDITOR
+	return true;
+#else
 	struct FColorVertexBufferHack : FVertexBuffer
 	{
 		FStaticMeshVertexDataInterface* VertexData;
@@ -49,13 +69,41 @@ bool FGLTFBufferUtility::GetAllowCPUAccess(const FColorVertexBuffer* VertexBuffe
 	static_assert(sizeof(FColorVertexBufferHack) == sizeof(FColorVertexBuffer), "FColorVertexBufferHack memory layout doesn't match FColorVertexBuffer");
 	const FStaticMeshVertexDataInterface* VertexData = reinterpret_cast<const FColorVertexBufferHack*>(VertexBuffer)->VertexData;
 	return VertexData != nullptr && VertexData->GetAllowCPUAccess();
+#endif
 }
 
-const void* FGLTFBufferUtility::GetBufferData(const FSkinWeightDataVertexBuffer* VertexBuffer)
+bool FGLTFBufferUtility::HasCPUAccess(const FStaticMeshVertexBuffer* VertexBuffer)
+{
+#if WITH_EDITOR
+	return true;
+#else
+	return const_cast<FStaticMeshVertexBuffer*>(VertexBuffer)->GetAllowCPUAccess();
+#endif
+}
+
+bool FGLTFBufferUtility::HasCPUAccess(const FSkinWeightVertexBuffer* VertexBuffer)
+{
+#if WITH_EDITOR
+	return true;
+#else
+	return VertexBuffer->GetNeedsCPUAccess();
+#endif
+}
+
+const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer* IndexBuffer)
+{
+	return IndexBuffer->Is32Bit() ? static_cast<const void*>(IndexBuffer->AccessStream32()) : static_cast<const void*>(IndexBuffer->AccessStream16());
+}
+
+const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
+{
+	return IndexBuffer->GetResourceDataSize() > 0 ? const_cast<FRawStaticIndexBuffer16or32Interface*>(IndexBuffer)->GetPointerTo(0) : nullptr;
+}
+
+const void* FGLTFBufferUtility::GetCPUBuffer(const FSkinWeightDataVertexBuffer* VertexBuffer)
 {
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	return VertexBuffer->GetWeightData();
-
 #else
 	struct FSkinWeightDataVertexBufferHack : FVertexBuffer
 	{
@@ -75,7 +123,7 @@ const void* FGLTFBufferUtility::GetBufferData(const FSkinWeightDataVertexBuffer*
 #endif
 }
 
-const void* FGLTFBufferUtility::GetBufferData(const FSkinWeightLookupVertexBuffer* VertexBuffer)
+const void* FGLTFBufferUtility::GetCPUBuffer(const FSkinWeightLookupVertexBuffer* VertexBuffer)
 {
 	struct FSkinWeightLookupVertexBufferHack : FVertexBuffer
 	{
