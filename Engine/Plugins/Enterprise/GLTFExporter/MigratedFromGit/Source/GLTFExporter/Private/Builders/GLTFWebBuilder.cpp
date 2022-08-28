@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFWebBuilder.h"
-#include "Builders/GLTFBuilderUtility.h"
+#include "Builders/GLTFFileUtility.h"
 #include "Builders/GLTFZipUtility.h"
 
 FGLTFWebBuilder::FGLTFWebBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly)
@@ -24,7 +24,7 @@ void FGLTFWebBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 
 	if (ExportOptions->bBundleWebViewer)
 	{
-		const FString ResourcesDir = FGLTFBuilderUtility::GetPluginDir() / TEXT("Resources");
+		const FString ResourcesDir = FGLTFFileUtility::GetPluginDir() / TEXT("Resources");
 		BundleWebViewer(ResourcesDir);
 		BundleLaunchHelper(ResourcesDir);
 	}
@@ -49,7 +49,7 @@ void FGLTFWebBuilder::BundleWebViewer(const FString& ResourcesDir)
 	const FString IndexFile = DirPath / TEXT("index.json");
 	TSharedPtr<FJsonObject> JsonObject;
 
-	if (!FGLTFBuilderUtility::ReadJsonFile(IndexFile, JsonObject))
+	if (!FGLTFFileUtility::ReadJsonFile(IndexFile, JsonObject))
 	{
 		AddWarningMessage(FString::Printf(TEXT("Failed to read web viewer index at %s"), *IndexFile));
 		return;
@@ -57,7 +57,7 @@ void FGLTFWebBuilder::BundleWebViewer(const FString& ResourcesDir)
 
 	JsonObject->SetArrayField(TEXT("assets"), { MakeShared<FJsonValueString>(FPaths::GetCleanFilename(FilePath)) });
 
-	if (!FGLTFBuilderUtility::WriteJsonFile(IndexFile, JsonObject.ToSharedRef()))
+	if (!FGLTFFileUtility::WriteJsonFile(IndexFile, JsonObject.ToSharedRef()))
 	{
 		AddWarningMessage(FString::Printf(TEXT("Failed to write web viewer index at %s"), *IndexFile));
 	}
@@ -87,7 +87,7 @@ void FGLTFWebBuilder::BundleLaunchHelper(const FString& ResourcesDir)
 
 	const FString ExecutableFile = DirPath / ExecutableName;
 
-	if (!FGLTFBuilderUtility::SetExecutable(*ExecutableFile, true))
+	if (!FGLTFFileUtility::SetExecutable(*ExecutableFile, true))
 	{
 		AddWarningMessage(FString::Printf(TEXT("Failed to make launch helper file executable at %s"), *ExecutableFile));
 	}

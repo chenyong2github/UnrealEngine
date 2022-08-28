@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Json/GLTFJsonEnums.h"
 
-struct FGLTFBuilderUtility
+struct FGLTFFileUtility
 {
 	static FString GetPluginDir();
 

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilder.h"
-#include "Builders/GLTFBuilderUtility.h"
+#include "Builders/GLTFFileUtility.h"
 
 FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: bIsGlbFile(FGLTFBuilderUtility::IsGlbFile(FilePath))
+	: bIsGlbFile(FGLTFFileUtility::IsGlbFile(FilePath))
 	, FilePath(FilePath)
 	, DirPath(FPaths::GetPath(FilePath))
 	, ExportOptions(ExportOptions)

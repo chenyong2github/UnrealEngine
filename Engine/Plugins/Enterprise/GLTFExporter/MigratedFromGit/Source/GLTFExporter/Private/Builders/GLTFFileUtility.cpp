@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Builders/GLTFBuilderUtility.h"
+#include "Builders/GLTFFileUtility.h"
 #include "GLTFExporterModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "Serialization/JsonReader.h"
@@ -12,12 +12,12 @@
 // #include <sys/stat.h>
 #endif
 
-FString FGLTFBuilderUtility::GetPluginDir()
+FString FGLTFFileUtility::GetPluginDir()
 {
 	return IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME)->GetBaseDir();
 }
 
-const TCHAR* FGLTFBuilderUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
+const TCHAR* FGLTFFileUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
 {
 	switch (MimeType)
 	{
@@ -29,7 +29,7 @@ const TCHAR* FGLTFBuilderUtility::GetFileExtension(EGLTFJsonMimeType MimeType)
 	}
 }
 
-FString FGLTFBuilderUtility::GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames)
+FString FGLTFFileUtility::GetUniqueFilename(const FString& BaseFilename, const FString& FileExtension, const TSet<FString>& UniqueFilenames)
 {
 	FString Filename = BaseFilename + FileExtension;
 	if (!UniqueFilenames.Contains(Filename))
@@ -48,12 +48,12 @@ FString FGLTFBuilderUtility::GetUniqueFilename(const FString& BaseFilename, cons
 	return Filename;
 }
 
-bool FGLTFBuilderUtility::IsGlbFile(const FString& Filename)
+bool FGLTFFileUtility::IsGlbFile(const FString& Filename)
 {
 	return FPaths::GetExtension(Filename).Equals(TEXT("glb"), ESearchCase::IgnoreCase);
 }
 
-bool FGLTFBuilderUtility::ReadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& JsonObject)
+bool FGLTFFileUtility::ReadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& JsonObject)
 {
 	FString JsonContent;
 	if (!FFileHelper::LoadFileToString(JsonContent, *FilePath))
@@ -65,7 +65,7 @@ bool FGLTFBuilderUtility::ReadJsonFile(const FString& FilePath, TSharedPtr<FJson
 	return FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid();
 }
 
-bool FGLTFBuilderUtility::WriteJsonFile(const FString& FilePath, const TSharedRef<FJsonObject>& JsonObject)
+bool FGLTFFileUtility::WriteJsonFile(const FString& FilePath, const TSharedRef<FJsonObject>& JsonObject)
 {
 	FString JsonContent;
 	const TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonContent);
@@ -78,7 +78,7 @@ bool FGLTFBuilderUtility::WriteJsonFile(const FString& FilePath, const TSharedRe
 	return FFileHelper::SaveStringToFile(JsonContent, *FilePath, FFileHelper::EEncodingOptions::ForceUTF8);
 }
 
-bool FGLTFBuilderUtility::SetExecutable(const TCHAR* Filename, bool bIsExecutable)
+bool FGLTFFileUtility::SetExecutable(const TCHAR* Filename, bool bIsExecutable)
 {
 /* TODO: uncomment when GLTFLaunchHelper added for linux and macos
 #if PLATFORM_LINUX || PLATFORM_MAC
