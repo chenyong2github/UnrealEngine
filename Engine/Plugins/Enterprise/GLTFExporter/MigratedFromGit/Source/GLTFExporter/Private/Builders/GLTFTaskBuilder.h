@@ -14,7 +14,7 @@ protected:
 public:
 
 	template <typename TaskType, typename... TaskArgTypes, typename = typename TEnableIf<TIsDerivedFrom<TaskType, FGLTFTask>::Value>::Type>
-    bool SetupTask(TaskArgTypes&&... Args)
+	bool SetupTask(TaskArgTypes&&... Args)
 	{
 		return SetupTask(MakeUnique<TaskType>(Forward<TaskArgTypes>(Args)...));
 	}

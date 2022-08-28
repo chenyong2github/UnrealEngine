@@ -50,8 +50,8 @@ FGLTFJsonHotspotIndex FGLTFHotspotConverter::Convert(const AGLTFHotspotActor* Ho
 		if (!Builder.ExportOptions->bExportLevelSequences)
 		{
 			Builder.AddWarningMessage(
-                FString::Printf(TEXT("Can't export animation in hotspot %s because level sequences are disabled by export options"),
-                *JsonHotspot.Name));
+				FString::Printf(TEXT("Can't export animation in hotspot %s because level sequences are disabled by export options"),
+				*JsonHotspot.Name));
 		}
 		else
 		{

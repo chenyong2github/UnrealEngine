@@ -200,7 +200,7 @@ struct FGLTFJsonUtility
 	}
 
 	template <class WriterType, class ContainerType>
-    static void WriteObjectPtrArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
+	static void WriteObjectPtrArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
 	{
 		if (Container.Num() > 0 || bWriteIfEmpty)
 		{

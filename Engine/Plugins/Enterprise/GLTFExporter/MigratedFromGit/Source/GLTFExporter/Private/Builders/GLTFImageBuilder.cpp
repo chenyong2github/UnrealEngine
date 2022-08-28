@@ -7,7 +7,7 @@
 #include "Misc/FileHelper.h"
 
 FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-    : FGLTFBufferBuilder(FilePath, ExportOptions)
+	: FGLTFBufferBuilder(FilePath, ExportOptions)
 {
 }
 

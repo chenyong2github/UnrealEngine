@@ -12,7 +12,7 @@ class FGLTFAnimSequenceTask : public FGLTFTask
 public:
 
 	FGLTFAnimSequenceTask(FGLTFConvertBuilder& Builder, FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimationIndex AnimationIndex)
-        : FGLTFTask(EGLTFTaskPriority::Animation)
+		: FGLTFTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, RootNode(RootNode)
 		, SkeletalMesh(SkeletalMesh)

@@ -13,9 +13,9 @@ struct FGLTFJsonTextureTransform
 	float Rotation;
 
 	FGLTFJsonTextureTransform()
-        : Offset(FGLTFJsonVector2::Zero)
-        , Scale(FGLTFJsonVector2::One)
-        , Rotation(0)
+		: Offset(FGLTFJsonVector2::Zero)
+		, Scale(FGLTFJsonVector2::One)
+		, Rotation(0)
 	{
 	}
 
@@ -48,8 +48,8 @@ struct FGLTFJsonTextureTransform
 	bool operator==(const FGLTFJsonTextureTransform& Other) const
 	{
 		return Offset == Other.Offset
-            && Scale == Other.Scale
-            && Rotation == Other.Rotation;
+			&& Scale == Other.Scale
+			&& Rotation == Other.Rotation;
 	}
 
 	bool operator!=(const FGLTFJsonTextureTransform& Other) const

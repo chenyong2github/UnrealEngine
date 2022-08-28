@@ -11,7 +11,7 @@ class FGLTFTexture2DTask : public FGLTFTask
 public:
 
 	FGLTFTexture2DTask(FGLTFConvertBuilder& Builder, const UTexture2D* Texture2D, FGLTFJsonTextureIndex TextureIndex)
-        : FGLTFTask(EGLTFTaskPriority::Texture)
+		: FGLTFTask(EGLTFTaskPriority::Texture)
 		, Builder(Builder)
 		, Texture2D(Texture2D)
 		, TextureIndex(TextureIndex)
@@ -119,10 +119,10 @@ class FGLTFTextureLightMapTask : public FGLTFTask
 public:
 
 	FGLTFTextureLightMapTask(FGLTFConvertBuilder& Builder, const ULightMapTexture2D* LightMap, FGLTFJsonTextureIndex TextureIndex)
-        : FGLTFTask(EGLTFTaskPriority::Texture)
-        , Builder(Builder)
-        , LightMap(LightMap)
-        , TextureIndex(TextureIndex)
+		: FGLTFTask(EGLTFTaskPriority::Texture)
+		, Builder(Builder)
+		, LightMap(LightMap)
+		, TextureIndex(TextureIndex)
 	{
 	}
 

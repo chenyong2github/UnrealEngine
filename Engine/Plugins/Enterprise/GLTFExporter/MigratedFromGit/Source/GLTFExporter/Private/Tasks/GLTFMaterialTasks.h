@@ -14,7 +14,7 @@ class FGLTFMaterialTask : public FGLTFTask
 public:
 
 	FGLTFMaterialTask(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const FGLTFMeshData* MeshData, TArray<int32> SectionIndices, FGLTFJsonMaterialIndex MaterialIndex)
-        : FGLTFTask(EGLTFTaskPriority::Material)
+		: FGLTFTask(EGLTFTaskPriority::Material)
 		, Builder(Builder)
 		, Material(Material)
 		, MeshData(MeshData)

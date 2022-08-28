@@ -102,7 +102,7 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 
 		if (const FBoneIndexType* MaxSectionBoneIndex = Algo::MaxElement(MeshSection.BoneMap))
 		{
-		    MaxBoneIndex = FMath::Max(*MaxSectionBoneIndex, MaxBoneIndex);
+			MaxBoneIndex = FMath::Max(*MaxSectionBoneIndex, MaxBoneIndex);
 		}
 	}
 }
