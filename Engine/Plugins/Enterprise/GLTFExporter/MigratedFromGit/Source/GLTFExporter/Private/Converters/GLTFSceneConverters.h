@@ -11,5 +11,5 @@ class FGLTFLevelConverter : public FGLTFBuilderContext, public TGLTFConverter<FG
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonSceneIndex Convert(const ULevel* Level) override final;
+	virtual FGLTFJsonSceneIndex Convert(const ULevel* Level) override final;
 };

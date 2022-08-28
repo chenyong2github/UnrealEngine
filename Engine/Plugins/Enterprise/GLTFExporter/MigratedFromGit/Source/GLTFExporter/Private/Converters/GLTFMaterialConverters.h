@@ -14,7 +14,7 @@ class FGLTFMaterialConverter : public FGLTFBuilderContext, public TGLTFConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override final;
+	virtual FGLTFJsonMaterialIndex Convert(const UMaterialInterface* Material) override final;
 
 	bool TryGetShadingModel(EGLTFJsonShadingModel& ShadingModel, const UMaterialInterface* Material) const;
 

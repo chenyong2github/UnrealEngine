@@ -11,5 +11,5 @@ class FGLTFCameraComponentConverter : public FGLTFBuilderContext, public TGLTFCo
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonCameraIndex Convert(const UCameraComponent* CameraComponent) override final;
+	virtual FGLTFJsonCameraIndex Convert(const UCameraComponent* CameraComponent) override final;
 };

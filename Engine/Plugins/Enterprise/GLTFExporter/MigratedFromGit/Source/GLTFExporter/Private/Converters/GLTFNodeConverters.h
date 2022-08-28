@@ -7,16 +7,22 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
-class FGLTFSceneComponentConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonNodeIndex, const USceneComponent*>
+template <typename... InputTypes>
+class FGLTFNodeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonNodeIndex, InputTypes...>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
-
-	FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent) override final;
 };
 
-class FGLTFActorConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonNodeIndex, const AActor*>
+class FGLTFSceneComponentConverter : public FGLTFNodeConverter<const USceneComponent*>
 {
-	using FGLTFBuilderContext::FGLTFBuilderContext;
+	using FGLTFNodeConverter::FGLTFNodeConverter;
 
-	FGLTFJsonNodeIndex Convert(const AActor* Actor) override final;
+	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent) override final;
+};
+
+class FGLTFActorConverter : public FGLTFNodeConverter<const AActor*>
+{
+	using FGLTFNodeConverter::FGLTFNodeConverter;
+
+	virtual FGLTFJsonNodeIndex Convert(const AActor* Actor) override final;
 };

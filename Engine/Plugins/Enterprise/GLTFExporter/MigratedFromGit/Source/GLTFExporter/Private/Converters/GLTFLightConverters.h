@@ -11,5 +11,5 @@ class FGLTFLightComponentConverter : public FGLTFBuilderContext, public TGLTFCon
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonLightIndex Convert(const ULightComponent* LightComponent) override final;
+	virtual FGLTFJsonLightIndex Convert(const ULightComponent* LightComponent) override final;
 };

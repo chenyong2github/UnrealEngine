@@ -11,5 +11,5 @@ class FGLTFBackdropConverter : public FGLTFBuilderContext, public TGLTFConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonBackdropIndex Convert(const AActor* Actor) override final;
+	virtual FGLTFJsonBackdropIndex Convert(const AActor* Actor) override final;
 };
