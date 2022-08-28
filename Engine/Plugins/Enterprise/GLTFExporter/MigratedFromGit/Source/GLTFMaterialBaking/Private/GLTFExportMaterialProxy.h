@@ -538,7 +538,7 @@ public:
 	}
 	virtual bool IsMasked() const override { return ProxyBlendMode == BLEND_Masked; }
 	virtual enum EBlendMode GetBlendMode() const override { return ProxyBlendMode; }
-	virtual FMaterialShadingModelField GetShadingModels() const override { return MSM_DefaultLit; }
+	virtual FMaterialShadingModelField GetShadingModels() const override { return ProxyBlendMode == BLEND_Opaque ? MSM_DefaultLit : MSM_Unlit; }
 	virtual bool IsShadingModelFromMaterialExpression() const override { return false; }
 	virtual float GetOpacityMaskClipValue() const override { return 0.5f; }
 	virtual bool GetCastDynamicShadowAsMasked() const override { return false; }

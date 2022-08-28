@@ -2,8 +2,6 @@
 
 #include "Json/GLTFJsonWriter.h"
 #include "Serialization/JsonSerializer.h"
-#include "Policies/PrettyJsonPrintPolicy.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
 
 template <class CharType, class PrintPolicy>
 class TGLTFJsonWriterImpl final : public IGLTFJsonWriter
