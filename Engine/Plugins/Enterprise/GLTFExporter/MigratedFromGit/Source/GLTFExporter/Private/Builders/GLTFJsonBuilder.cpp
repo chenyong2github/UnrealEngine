@@ -163,6 +163,11 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNodeIndex Pa
 	return ChildIndex;
 }
 
+const FGLTFJsonRoot& FGLTFJsonBuilder::GetRoot() const
+{
+	return JsonRoot;
+}
+
 FGLTFJsonAccessor& FGLTFJsonBuilder::GetAccessor(FGLTFJsonAccessorIndex AccessorIndex)
 {
 	return *JsonRoot.Accessors[AccessorIndex];
