@@ -5,6 +5,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonColor3.h"
 #include "Json/GLTFJsonColor4.h"
+#include "Json/GLTFJsonTextureTransform.h"
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -12,6 +13,8 @@ struct FGLTFJsonTextureInfo
 {
 	FGLTFJsonTextureIndex Index;
 	int32 TexCoord;
+
+	FGLTFJsonTextureTransform Transform;
 
 	FGLTFJsonTextureInfo()
 		: TexCoord(0)
@@ -28,6 +31,17 @@ struct FGLTFJsonTextureInfo
 		if (TexCoord != 0)
 		{
 			JsonWriter.WriteValue(TEXT("texCoord"), TexCoord);
+		}
+
+		if (Transform != FGLTFJsonTextureTransform())
+		{
+			const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_TextureTransform;
+			Extensions.Used.Add(Extension);
+
+			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
+			Transform.WriteObject(JsonWriter, Extensions);
+			JsonWriter.WriteObjectEnd();
 		}
 
 		JsonWriter.WriteObjectEnd();
