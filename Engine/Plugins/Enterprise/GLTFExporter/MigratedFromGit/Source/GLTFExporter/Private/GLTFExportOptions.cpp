@@ -39,7 +39,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
 	bExportInteractionHotspots = true;
-	bBundleWebViewer = false;
+	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
 	bAllExtensionsRequired = false;
 }
@@ -203,7 +203,6 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureHDREncoding) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHiddenInGame) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportReflectionCaptures) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bBundleWebViewer) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bAllExtensionsRequired))
 	{
 		return false;
