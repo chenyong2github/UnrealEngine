@@ -21,7 +21,7 @@
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 {
-	static UMaterialInterface* DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/Default.Default"));
+	static UMaterialInterface* DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFDefault.GLTFDefault"));
 	return DefaultMaterial;
 }
 
