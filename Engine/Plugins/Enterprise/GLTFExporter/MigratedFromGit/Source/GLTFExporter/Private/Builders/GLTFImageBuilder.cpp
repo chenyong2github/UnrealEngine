@@ -8,37 +8,8 @@
 
 FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
     : FGLTFBufferBuilder(FilePath, ExportOptions)
+	, ImageDirPath(FPaths::GetPath(FilePath))
 {
-}
-
-bool FGLTFImageBuilder::Serialize()
-{
-	const FString ImageDir = FPaths::GetPath(FilePath);
-	TSet<FString> UniqueImageUris;
-
-	for (const auto& DataPair : ImageDataLookup)
-	{
-		const TArray64<uint8>& ImageData = DataPair.Value;
-		FGLTFJsonImage& JsonImage = GetImage(DataPair.Key);
-
-		const TCHAR* Extension = FGLTFBuilderUtility::GetFileExtension(JsonImage.MimeType);
-		const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(JsonImage.Name, Extension, UniqueImageUris);
-
-		const FString ImagePath = FPaths::Combine(ImageDir, ImageUri);
-		if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
-		{
-			// TODO: report error
-			continue;
-		}
-
-		UniqueImageUris.Add(ImageUri);
-
-		JsonImage.Uri = ImageUri;
-		JsonImage.Name.Empty(); // URI already contains name
-		JsonImage.MimeType = EGLTFJsonMimeType::None; // Not required if external file
-	}
-
-	return true;
 }
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
@@ -47,8 +18,7 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 	if (ImageIndex == INDEX_NONE)
 	{
 		FGLTFJsonImage Image;
-		Image.Name = Name;
-		Image.MimeType = MimeType;
+		Image.Uri = SaveImageToFile(CompressedData, CompressedByteLength, MimeType, Name);
 		ImageIndex = FGLTFJsonBuilder::AddImage(Image);
 
 		TArray64<uint8>& ImageData = ImageDataLookup.Add(ImageIndex);
@@ -86,6 +56,25 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint 
 	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
 	return AddImage(Pixels, ByteLength, Size, ERGBFormat::BGRA, 8, Name);
 }
+
+FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
+{
+	const TCHAR* Extension = FGLTFBuilderUtility::GetFileExtension(MimeType);
+	const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(Name, Extension, UniqueImageUris);
+
+	const TArrayView<const uint8> ImageData(static_cast<const uint8*>(CompressedData), CompressedByteLength);
+	const FString ImagePath = FPaths::Combine(ImageDirPath, ImageUri);
+
+	if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
+	{
+		// TODO: report error
+		return TEXT("");
+	}
+
+	UniqueImageUris.Add(ImageUri);
+	return ImageUri;
+}
+
 
 FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength) const
 {
