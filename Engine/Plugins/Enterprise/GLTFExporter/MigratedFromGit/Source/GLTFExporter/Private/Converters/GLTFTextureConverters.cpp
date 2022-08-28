@@ -71,8 +71,25 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: implement support
-		return FGLTFJsonTextureIndex(INDEX_NONE);
+		UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, PF_B8G8R8A8, true);
+
+		FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
+
+		FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(RenderTarget->Resource);
+		if (Resource == nullptr)
+		{
+			// TODO: report error
+			return FGLTFJsonTextureIndex(INDEX_NONE);
+		}
+
+		TArray<FColor> Pixels;
+		if (!Resource->ReadPixels(Pixels))
+		{
+			// TODO: report error
+			return FGLTFJsonTextureIndex(INDEX_NONE);
+		}
+
+		ImageIndex = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
 	}
 
 	JsonTexture.Source = ImageIndex;
