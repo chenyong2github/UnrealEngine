@@ -22,4 +22,8 @@ struct FGLTFTextureUtility
 	static const FByteBulkData& GetBulkData(const FTextureSource& TextureSource);
 
 	static UTexture2D* CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bUseSRGB = false);
+
+	static UTextureRenderTarget2D* CreateRenderTarget(const FIntPoint& Size, EPixelFormat Format, bool bInForceLinearGamma = false);
+
+	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource);
 };

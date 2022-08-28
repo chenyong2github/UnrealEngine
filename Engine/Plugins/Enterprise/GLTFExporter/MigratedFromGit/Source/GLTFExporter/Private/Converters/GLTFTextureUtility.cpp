@@ -113,3 +113,31 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	Texture->UpdateResource();
 	return Texture;
 }
+
+UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint& Size, EPixelFormat Format, bool bInForceLinearGamma)
+{
+	UTextureRenderTarget2D* RenderTarget = NewObject<UTextureRenderTarget2D>();
+	RenderTarget->InitCustomFormat(Size.X, Size.Y, Format, bInForceLinearGamma);
+	return RenderTarget;
+}
+
+bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource)
+{
+	FRenderTarget* RenderTarget = OutTarget->GameThread_GetRenderTargetResource();
+	if (RenderTarget == nullptr)
+	{
+		return false;
+	}
+
+	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
+	FCanvasTileItem TileItem(FVector2D::ZeroVector, InSource->Resource, FLinearColor::White);
+
+	TileItem.Draw(&Canvas);
+
+	Canvas.Flush_GameThread();
+	FlushRenderingCommands();
+	Canvas.SetRenderTarget_GameThread(nullptr);
+	FlushRenderingCommands();
+
+	return true;
+}
