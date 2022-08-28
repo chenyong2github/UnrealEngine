@@ -10,12 +10,15 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
 
+class UGLTFPrebakeOptions;
+
 /**
  * The public interface of the GLTFExporter module
  */
 class IGLTFExporterModule : public IModuleInterface
 {
 public:
+
 	/**
 	 * Singleton-like access to IGLTFExporter
 	 *
@@ -35,4 +38,6 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded(GLTFEXPORTER_MODULE_NAME);
 	}
+
+	static UMaterialInterface* PrebakeMaterial(UMaterialInterface* Material, const UGLTFPrebakeOptions* Options);
 };
