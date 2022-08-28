@@ -9,7 +9,7 @@ FGLTFBuilder::FGLTFBuilder()
 {
 }
 
-FGLTFJsonBufferViewIndex FGLTFBuilder::AppendBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
 {
 	FGLTFJsonBufferView BufferView;
 	BufferView.Name = Name;
@@ -41,7 +41,7 @@ void FGLTFBuilder::Serialize(FArchive& Archive)
 	JsonRoot.Serialize(&Archive, true);
 }
 
-FGLTFJsonMeshIndex FGLTFBuilder::AppendMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
+FGLTFJsonMeshIndex FGLTFBuilder::AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
 {
-	return FGLTFMeshBuilder(StaticMesh, LODIndex).AppendMesh(*this);
+	return FGLTFMeshBuilder(StaticMesh, LODIndex).AddMesh(*this);
 }

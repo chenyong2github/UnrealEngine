@@ -14,7 +14,7 @@ struct GLTFEXPORTER_API FGLTFSectionBuilder
 
 	FGLTFSectionBuilder(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray);
 
-	FGLTFJsonAccessorIndex AppendAccessorForIndices(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForIndices(FGLTFBuilder& Builder) const;
 };
 
 struct GLTFEXPORTER_API FGLTFMeshBuilder
@@ -34,12 +34,12 @@ struct GLTFEXPORTER_API FGLTFMeshBuilder
 
 	FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex);
 
-	FGLTFJsonAccessorIndex AppendAccessorForPositions(FGLTFBuilder& Builder) const;
-	FGLTFJsonAccessorIndex AppendAccessorForColors(FGLTFBuilder& Builder) const;
-	FGLTFJsonAccessorIndex AppendAccessorForNormals(FGLTFBuilder& Builder) const;
-	FGLTFJsonAccessorIndex AppendAccessorForTangents(FGLTFBuilder& Builder) const;
-	FGLTFJsonAccessorIndex AppendAccessorForUV0s(FGLTFBuilder& Builder) const;
-	FGLTFJsonAccessorIndex AppendAccessorForUV1s(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForPositions(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForColors(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForNormals(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForTangents(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForUV0s(FGLTFBuilder& Builder) const;
+	FGLTFJsonAccessorIndex AddAccessorForUV1s(FGLTFBuilder& Builder) const;
 
-	FGLTFJsonMeshIndex AppendMesh(FGLTFBuilder& Builder) const;
+	FGLTFJsonMeshIndex AddMesh(FGLTFBuilder& Builder) const;
 };
