@@ -3,6 +3,7 @@
 #pragma once
 
 #include "GLTFExportOptions.h"
+#include "Json/GLTFJsonEnums.h"
 
 class FGLTFBuilder
 {
@@ -21,6 +22,8 @@ public:
 	const UGLTFExportOptions* const ExportOptions;
 
 	FIntPoint GetDefaultMaterialBakeSize() const;
+
+	EGLTFJsonHDREncoding GetTextureHDREncoding() const;
 
 	bool ShouldExportLight(EComponentMobility::Type LightMobility) const;
 };

@@ -83,8 +83,8 @@ struct FGLTFJsonUtility
 	{
 		switch (Value)
 		{
-			case EGLTFJsonHDREncoding::RGBE: return TEXT("RGBE");
 			case EGLTFJsonHDREncoding::RGBM: return TEXT("RGBM");
+			case EGLTFJsonHDREncoding::RGBE: return TEXT("RGBE");
 			default:
 				checkNoEntry();
 				return TEXT("");

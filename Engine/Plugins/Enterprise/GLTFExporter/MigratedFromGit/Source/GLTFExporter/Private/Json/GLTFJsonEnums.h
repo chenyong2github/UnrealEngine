@@ -33,8 +33,8 @@ enum class EGLTFJsonShadingModel
 enum class EGLTFJsonHDREncoding
 {
 	None = -1,
-	RGBE,
-	RGBM
+	RGBM,
+	RGBE
 };
 
 enum class EGLTFJsonCubeFace

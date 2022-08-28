@@ -224,7 +224,7 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureRenderT
 	return FaceTexture;
 }
 
-bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels)
+bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding Encoding)
 {
 	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(InRenderTarget->Resource);
 	if (Resource == nullptr)
@@ -232,15 +232,9 @@ bool FGLTFTextureUtility::ReadPixels(const UTextureRenderTarget2D* InRenderTarge
 		return false;
 	}
 
-	return Resource->ReadPixels(OutPixels);
-}
-
-bool FGLTFTextureUtility::ReadEncodedPixels(const UTextureRenderTarget2D* InRenderTarget, TArray<FColor>& OutPixels, EGLTFJsonHDREncoding Encoding)
-{
-	FTextureRenderTarget2DResource* Resource = static_cast<FTextureRenderTarget2DResource*>(InRenderTarget->Resource);
-	if (Resource == nullptr)
+	if (Encoding == EGLTFJsonHDREncoding::None)
 	{
-		return false;
+		return Resource->ReadPixels(OutPixels);
 	}
 
 	TArray<FLinearColor> HDRPixels;
@@ -254,9 +248,9 @@ bool FGLTFTextureUtility::ReadEncodedPixels(const UTextureRenderTarget2D* InRend
 		case EGLTFJsonHDREncoding::RGBM:
 			EncodeRGBM(HDRPixels, OutPixels);
 			break;
-
-		// TODO: add encoding for RGBE
-
+		case EGLTFJsonHDREncoding::RGBE:
+			EncodeRGBE(HDRPixels, OutPixels);
+			break;
 		default:
 			checkNoEntry();
 			break;
@@ -265,37 +259,41 @@ bool FGLTFTextureUtility::ReadEncodedPixels(const UTextureRenderTarget2D* InRend
 	return true;
 }
 
-FColor FGLTFTextureUtility::EncodeRGBM(const FLinearColor& Color, float MaxRange)
-{
-	// Based on PlayCanvas modified RGBM encoding.
-
-	FLinearColor RGBM;
-
-	RGBM.R = FMath::Sqrt(Color.R);
-	RGBM.G = FMath::Sqrt(Color.G);
-	RGBM.B = FMath::Sqrt(Color.B);
-
-	RGBM.R /= MaxRange;
-	RGBM.G /= MaxRange;
-	RGBM.B /= MaxRange;
-
-	RGBM.A = FMath::Max(FMath::Max(RGBM.R, RGBM.G), FMath::Max(RGBM.B, 1.0f / 255.0f));
-	RGBM.A = FMath::CeilToFloat(RGBM.A * 255.0f) / 255.0f;
-
-	RGBM.R /= RGBM.A;
-	RGBM.G /= RGBM.A;
-	RGBM.B /= RGBM.A;
-
-	return RGBM.ToFColor(false);
-}
-
 void FGLTFTextureUtility::EncodeRGBM(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels, float MaxRange)
 {
 	OutPixels.AddUninitialized(InPixels.Num());
 
 	for (int32 Index = 0; Index < InPixels.Num(); ++Index)
 	{
-		OutPixels[Index] = EncodeRGBM(InPixels[Index], MaxRange);
+		const FLinearColor& Color = InPixels[Index];
+		FLinearColor RGBM;
+
+		RGBM.R = FMath::Sqrt(Color.R);
+		RGBM.G = FMath::Sqrt(Color.G);
+		RGBM.B = FMath::Sqrt(Color.B);
+
+		RGBM.R /= MaxRange;
+		RGBM.G /= MaxRange;
+		RGBM.B /= MaxRange;
+
+		RGBM.A = FMath::Max(FMath::Max(RGBM.R, RGBM.G), FMath::Max(RGBM.B, 1.0f / 255.0f));
+		RGBM.A = FMath::CeilToFloat(RGBM.A * 255.0f) / 255.0f;
+
+		RGBM.R /= RGBM.A;
+		RGBM.G /= RGBM.A;
+		RGBM.B /= RGBM.A;
+
+		OutPixels[Index] = RGBM.ToFColor(false);
+	}
+}
+
+void FGLTFTextureUtility::EncodeRGBE(const TArray<FLinearColor>& InPixels, TArray<FColor>& OutPixels)
+{
+	OutPixels.AddUninitialized(InPixels.Num());
+
+	for (int32 Index = 0; Index < InPixels.Num(); ++Index)
+	{
+		OutPixels[Index] = InPixels[Index].ToRGBE();
 	}
 }
 
