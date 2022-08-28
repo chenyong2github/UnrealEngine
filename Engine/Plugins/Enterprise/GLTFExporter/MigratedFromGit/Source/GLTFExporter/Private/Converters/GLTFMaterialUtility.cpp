@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
+#include "Materials/MaterialExpressionCustomOutput.h"
 
 FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Property)
 {
@@ -51,6 +52,20 @@ const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMateria
 {
 	UMaterial* UnderlyingMaterial = const_cast<UMaterial*>(Material->GetMaterial());
 	return UnderlyingMaterial->GetExpressionInputForProperty(Property);
+}
+
+const UMaterialExpressionCustomOutput* FGLTFMaterialUtility::GetCustomOutputByName(const UMaterialInterface* Material, const FString& Name)
+{
+	for (const UMaterialExpression* Expression : Material->GetMaterial()->Expressions)
+	{
+		const UMaterialExpressionCustomOutput* CustomOutput = Cast<UMaterialExpressionCustomOutput>(Expression);
+		if (CustomOutput != nullptr && CustomOutput->GetFunctionName() == Name)
+		{
+			return CustomOutput;
+		}
+	}
+
+	return nullptr;
 }
 
 UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const FGLTFPropertyBakeOutput& PropertyBakeOutput, bool bUseSRGB)
@@ -108,6 +123,11 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 
 FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel)
 {
+	if (Property == MP_CustomData0 || Property == MP_CustomData1)
+	{
+		// TODO: add special support
+	}
+
 	TArray<FMeshData*> MeshSettings;
 
 	FMeshData MeshSet;
