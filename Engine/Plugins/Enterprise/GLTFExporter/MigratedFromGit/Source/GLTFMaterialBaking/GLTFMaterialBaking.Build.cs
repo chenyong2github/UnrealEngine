@@ -6,6 +6,8 @@ public class GLTFMaterialBaking : ModuleRules
 {
 	public GLTFMaterialBaking(ReadOnlyTargetRules Target) : base(Target)
 	{
+		bTreatAsEngineModule = true;
+
 		PublicDependencyModuleNames .AddRange(
 			new string[]
 			{
