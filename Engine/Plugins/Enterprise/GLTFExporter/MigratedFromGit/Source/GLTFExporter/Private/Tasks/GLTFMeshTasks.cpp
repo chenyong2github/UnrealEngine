@@ -6,47 +6,6 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-namespace
-{
-	EGLTFJsonBufferViewErrorFlags GetBufferViewErrorFlags(FGLTFConvertBuilder& Builder, FGLTFJsonAccessorIndex AccessorIndex)
-	{
-		if (AccessorIndex != INDEX_NONE)
-		{
-			const FGLTFJsonBufferViewIndex BufferViewIndex = Builder.GetAccessor(AccessorIndex).BufferView;
-			if (BufferViewIndex != INDEX_NONE)
-			{
-				return Builder.GetBufferView(BufferViewIndex).ErrorFlags;
-			}
-		}
-
-		return EGLTFJsonBufferViewErrorFlags::None;
-	}
-
-	void AddWarningsForBufferViewErrors(FGLTFConvertBuilder& Builder, EGLTFJsonBufferViewErrorFlags ErrorFlags, const TCHAR* MeshName, const TCHAR* TypeName)
-	{
-		const FString TypeNamePlural = FString(TypeName) + TEXT("s");
-		const FString TypeNamePluralLC = FString(TypeNamePlural).ToLower();
-
-		if (EnumHasAllFlags(ErrorFlags, EGLTFJsonBufferViewErrorFlags::ContainsZeroLengthVectors))
-		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Mesh %s contains zero-length %s. Consider checking 'Recompute %s' in the build-settings for the mesh"),
-				MeshName,
-				*TypeNamePluralLC,
-				*TypeNamePlural));
-		}
-
-		if (EnumHasAllFlags(ErrorFlags, EGLTFJsonBufferViewErrorFlags::ContainsNonUnitLengthVectors))
-		{
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Mesh %s contains non unit-length %s. Consider checking 'Recompute %s' in the build-settings for the mesh, or enable normalization in export options"),
-				MeshName,
-				*TypeNamePluralLC,
-				*TypeNamePlural));
-		}
-	}
-}
-
 void FGLTFStaticMeshTask::Complete()
 {
 	FGLTFJsonMesh& JsonMesh = Builder.GetMesh(MeshIndex);
@@ -83,9 +42,6 @@ void FGLTFStaticMeshTask::Complete()
 	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
-	EGLTFJsonBufferViewErrorFlags NormalBufferErrorFlags(EGLTFJsonBufferViewErrorFlags::None);
-	EGLTFJsonBufferViewErrorFlags TangentBufferErrorFlags(EGLTFJsonBufferViewErrorFlags::None);
-
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
 		const TArray<int32> SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
@@ -110,9 +66,6 @@ void FGLTFStaticMeshTask::Complete()
 		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, VertexBuffer);
 		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, VertexBuffer);
 
-		NormalBufferErrorFlags |= GetBufferViewErrorFlags(Builder, JsonPrimitive.Attributes.Normal);
-		TangentBufferErrorFlags |= GetBufferViewErrorFlags(Builder, JsonPrimitive.Attributes.Tangent);
-
 		const uint32 UVCount = VertexBuffer->GetNumTexCoords();
 		JsonPrimitive.Attributes.TexCoords.AddUninitialized(UVCount);
 
@@ -124,9 +77,6 @@ void FGLTFStaticMeshTask::Complete()
 		const UMaterialInterface* Material = Materials[MaterialIndex];
 		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
 	}
-
-	AddWarningsForBufferViewErrors(Builder, NormalBufferErrorFlags, *JsonMesh.Name, TEXT("Normal"));
-	AddWarningsForBufferViewErrors(Builder, TangentBufferErrorFlags, *JsonMesh.Name, TEXT("Tangent"));
 }
 
 void FGLTFSkeletalMeshTask::Complete()
@@ -169,9 +119,6 @@ void FGLTFSkeletalMeshTask::Complete()
 	const uint16 MaterialCount = SkeletalMesh->Materials.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
-	EGLTFJsonBufferViewErrorFlags NormalBufferErrorFlags(EGLTFJsonBufferViewErrorFlags::None);
-	EGLTFJsonBufferViewErrorFlags TangentBufferErrorFlags(EGLTFJsonBufferViewErrorFlags::None);
-
 	for (uint16 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
 		const TArray<int32> SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
@@ -195,9 +142,6 @@ void FGLTFSkeletalMeshTask::Complete()
 
 		JsonPrimitive.Attributes.Normal = Builder.GetOrAddNormalAccessor(ConvertedSection, VertexBuffer);
 		JsonPrimitive.Attributes.Tangent = Builder.GetOrAddTangentAccessor(ConvertedSection, VertexBuffer);
-
-		NormalBufferErrorFlags |= GetBufferViewErrorFlags(Builder, JsonPrimitive.Attributes.Normal);
-		TangentBufferErrorFlags |= GetBufferViewErrorFlags(Builder, JsonPrimitive.Attributes.Tangent);
 
 		const uint32 UVCount = VertexBuffer->GetNumTexCoords();
 		JsonPrimitive.Attributes.TexCoords.AddUninitialized(UVCount);
@@ -223,7 +167,4 @@ void FGLTFSkeletalMeshTask::Complete()
 		const UMaterialInterface* Material = Materials[MaterialIndex];
 		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, SectionIndices);
 	}
-
-	AddWarningsForBufferViewErrors(Builder, NormalBufferErrorFlags, *JsonMesh.Name, TEXT("Normal"));
-	AddWarningsForBufferViewErrors(Builder, TangentBufferErrorFlags, *JsonMesh.Name, TEXT("Tangent"));
 }
