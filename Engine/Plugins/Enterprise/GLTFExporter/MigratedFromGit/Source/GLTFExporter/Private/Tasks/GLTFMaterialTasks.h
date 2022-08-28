@@ -46,11 +46,11 @@ private:
 	FString GetMaterialName() const;
 	FString GetBakedTextureName(const FString& PropertyName) const;
 
-	void ApplyPrebakedProperties(FGLTFJsonMaterial& OutMaterial) const;
-	void ApplyPrebakedProperty(const FString& PropertyName, float& OutValue) const;
-	void ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const;
-	void ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const;
-	void ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const;
+	void GetProxyProperties(FGLTFJsonMaterial& OutMaterial) const;
+	void GetProxyProperty(const FString& PropertyName, float& OutValue) const;
+	void GetProxyProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const;
+	void GetProxyProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const;
+	void GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const;
 
 	EMaterialShadingModel GetShadingModel() const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;

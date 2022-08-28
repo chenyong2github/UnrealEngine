@@ -65,9 +65,9 @@ void FGLTFMaterialTask::Complete()
 	ConvertShadingModel(JsonMaterial.ShadingModel);
 	ConvertAlphaMode(JsonMaterial.AlphaMode, JsonMaterial.BlendMode);
 
-	if (FGLTFMaterialUtility::IsPrebaked(BaseMaterial))
+	if (FGLTFMaterialUtility::IsProxyMaterial(BaseMaterial))
 	{
-		ApplyPrebakedProperties(JsonMaterial);
+		GetProxyProperties(JsonMaterial);
 		return;
 	}
 
@@ -210,46 +210,46 @@ FString FGLTFMaterialTask::GetBakedTextureName(const FString& PropertyName) cons
 	return GetMaterialName() + TEXT("_") + PropertyName;
 }
 
-void FGLTFMaterialTask::ApplyPrebakedProperties(FGLTFJsonMaterial& OutMaterial) const
+void FGLTFMaterialTask::GetProxyProperties(FGLTFJsonMaterial& OutMaterial) const
 {
-	ApplyPrebakedProperty(TEXT("Base Color Factor"), OutMaterial.PBRMetallicRoughness.BaseColorFactor);
-	ApplyPrebakedProperty(TEXT("Base Color"), OutMaterial.PBRMetallicRoughness.BaseColorTexture);
+	GetProxyProperty(TEXT("Base Color Factor"), OutMaterial.PBRMetallicRoughness.BaseColorFactor);
+	GetProxyProperty(TEXT("Base Color"), OutMaterial.PBRMetallicRoughness.BaseColorTexture);
 
 	if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::Default || OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 	{
-		ApplyPrebakedProperty(TEXT("Emissive Factor"), OutMaterial.EmissiveFactor);
-		ApplyPrebakedProperty(TEXT("Emissive"), OutMaterial.EmissiveTexture);
+		GetProxyProperty(TEXT("Emissive Factor"), OutMaterial.EmissiveFactor);
+		GetProxyProperty(TEXT("Emissive"), OutMaterial.EmissiveTexture);
 
-		ApplyPrebakedProperty(TEXT("Metallic Factor"), OutMaterial.PBRMetallicRoughness.MetallicFactor);
-		ApplyPrebakedProperty(TEXT("Roughness Factor"), OutMaterial.PBRMetallicRoughness.RoughnessFactor);
-		ApplyPrebakedProperty(TEXT("Metallic Roughness"), OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
+		GetProxyProperty(TEXT("Metallic Factor"), OutMaterial.PBRMetallicRoughness.MetallicFactor);
+		GetProxyProperty(TEXT("Roughness Factor"), OutMaterial.PBRMetallicRoughness.RoughnessFactor);
+		GetProxyProperty(TEXT("Metallic Roughness"), OutMaterial.PBRMetallicRoughness.MetallicRoughnessTexture);
 
-		ApplyPrebakedProperty(TEXT("Normal Scale"), OutMaterial.NormalTexture.Scale);
-		ApplyPrebakedProperty(TEXT("Normal"), OutMaterial.NormalTexture);
+		GetProxyProperty(TEXT("Normal Scale"), OutMaterial.NormalTexture.Scale);
+		GetProxyProperty(TEXT("Normal"), OutMaterial.NormalTexture);
 
-		ApplyPrebakedProperty(TEXT("Occlusion Strength"), OutMaterial.OcclusionTexture.Strength);
-		ApplyPrebakedProperty(TEXT("Occlusion"), OutMaterial.OcclusionTexture);
+		GetProxyProperty(TEXT("Occlusion Strength"), OutMaterial.OcclusionTexture.Strength);
+		GetProxyProperty(TEXT("Occlusion"), OutMaterial.OcclusionTexture);
 
 		if (OutMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
-			ApplyPrebakedProperty(TEXT("Clear Coat Factor"), OutMaterial.ClearCoat.ClearCoatFactor);
-			ApplyPrebakedProperty(TEXT("Clear Coat"), OutMaterial.ClearCoat.ClearCoatTexture);
+			GetProxyProperty(TEXT("Clear Coat Factor"), OutMaterial.ClearCoat.ClearCoatFactor);
+			GetProxyProperty(TEXT("Clear Coat"), OutMaterial.ClearCoat.ClearCoatTexture);
 
-			ApplyPrebakedProperty(TEXT("Clear Coat Roughness Factor"), OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
-			ApplyPrebakedProperty(TEXT("Clear Coat Roughness"), OutMaterial.ClearCoat.ClearCoatRoughnessTexture);
+			GetProxyProperty(TEXT("Clear Coat Roughness Factor"), OutMaterial.ClearCoat.ClearCoatRoughnessFactor);
+			GetProxyProperty(TEXT("Clear Coat Roughness"), OutMaterial.ClearCoat.ClearCoatRoughnessTexture);
 
-			ApplyPrebakedProperty(TEXT("Clear Coat Normal Scale"), OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
-			ApplyPrebakedProperty(TEXT("Clear Coat Normal"), OutMaterial.ClearCoat.ClearCoatNormalTexture);
+			GetProxyProperty(TEXT("Clear Coat Normal Scale"), OutMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
+			GetProxyProperty(TEXT("Clear Coat Normal"), OutMaterial.ClearCoat.ClearCoatNormalTexture);
 		}
 	}
 }
 
-void FGLTFMaterialTask::ApplyPrebakedProperty(const FString& PropertyName, float& OutValue) const
+void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, float& OutValue) const
 {
 	Material->GetScalarParameterValue(*PropertyName, OutValue, true);
 }
 
-void FGLTFMaterialTask::ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const
+void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const
 {
 	FLinearColor Value;
 	if (Material->GetVectorParameterValue(*PropertyName, Value, true))
@@ -258,7 +258,7 @@ void FGLTFMaterialTask::ApplyPrebakedProperty(const FString& PropertyName, FGLTF
 	}
 }
 
-void FGLTFMaterialTask::ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const
+void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const
 {
 	FLinearColor Value;
 	if (Material->GetVectorParameterValue(*PropertyName, Value, true))
@@ -267,7 +267,7 @@ void FGLTFMaterialTask::ApplyPrebakedProperty(const FString& PropertyName, FGLTF
 	}
 }
 
-void FGLTFMaterialTask::ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const
+void FGLTFMaterialTask::GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const
 {
 	UTexture* Texture;
 	if (Material->GetTextureParameterValue(*(PropertyName + TEXT(" Texture")), Texture, true) || Texture == nullptr)

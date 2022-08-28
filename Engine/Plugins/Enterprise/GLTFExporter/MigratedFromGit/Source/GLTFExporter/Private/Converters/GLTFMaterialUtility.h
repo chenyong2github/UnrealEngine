@@ -38,12 +38,12 @@ struct FGLTFPropertyBakeOutput
 
 struct FGLTFMaterialUtility
 {
-	static UMaterialInterface* GetDefault();
+	static UMaterialInterface* GetDefaultMaterial();
 
-	static UMaterialInterface* GetPrebaked(EGLTFJsonShadingModel ShadingModel);
+	static UMaterialInterface* GetProxyBaseMaterial(EGLTFJsonShadingModel ShadingModel);
 
-	static bool IsPrebaked(const UMaterial* Material);
-	static bool IsPrebaked(const UMaterialInterface* Material);
+	static bool IsProxyMaterial(const UMaterial* Material);
+	static bool IsProxyMaterial(const UMaterialInterface* Material);
 
 #if WITH_EDITOR
 	static bool IsNormalMap(const FMaterialPropertyEx& Property);

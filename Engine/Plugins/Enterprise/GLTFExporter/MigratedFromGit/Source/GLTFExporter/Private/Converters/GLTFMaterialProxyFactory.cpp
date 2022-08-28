@@ -2,7 +2,7 @@
 
 #if WITH_EDITOR
 
-#include "Converters/GLTFMaterialPrebaker.h"
+#include "Converters/GLTFMaterialProxyFactory.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFImageUtility.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -10,15 +10,15 @@
 #include "MaterialUtilities.h"
 #include "ImageUtils.h"
 
-FGLTFMaterialPrebaker::FGLTFMaterialPrebaker(const UGLTFPrebakeOptions* Options)
+FGLTFMaterialProxyFactory::FGLTFMaterialProxyFactory(const UGLTFProxyOptions* Options)
 	: Builder(TEXT(""), CreateExportOptions(Options))
 {
 	Builder.ImageConverter = CreateCustomImageConverter();
 }
 
-UMaterialInterface* FGLTFMaterialPrebaker::Prebake(UMaterialInterface* OriginalMaterial)
+UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* OriginalMaterial)
 {
-	if (FGLTFMaterialUtility::IsPrebaked(OriginalMaterial))
+	if (FGLTFMaterialUtility::IsProxyMaterial(OriginalMaterial))
 	{
 		return OriginalMaterial;
 	}
@@ -42,52 +42,52 @@ UMaterialInterface* FGLTFMaterialPrebaker::Prebake(UMaterialInterface* OriginalM
 	Builder.CompleteAllTasks();
 	const FGLTFJsonMaterial& JsonMaterial = Builder.GetMaterial(MaterialIndex);
 
-	UMaterialInstanceConstant* ProxyMaterial = CreateProxyMaterial(OriginalMaterial, JsonMaterial.ShadingModel);
+	UMaterialInstanceConstant* ProxyMaterial = CreateInstancedMaterial(OriginalMaterial, JsonMaterial.ShadingModel);
 	if (ProxyMaterial != nullptr)
 	{
-		ApplyPrebakedProperties(ProxyMaterial, JsonMaterial);
+		SetProxyProperties(ProxyMaterial, JsonMaterial);
 	}
 
 	return ProxyMaterial;
 }
 
-void FGLTFMaterialPrebaker::ApplyPrebakedProperties(UMaterialInstanceConstant* ProxyMaterial, const FGLTFJsonMaterial& JsonMaterial)
+void FGLTFMaterialProxyFactory::SetProxyProperties(UMaterialInstanceConstant* ProxyMaterial, const FGLTFJsonMaterial& JsonMaterial)
 {
-	ApplyPrebakedProperty(ProxyMaterial, TEXT("Base Color Factor"), JsonMaterial.PBRMetallicRoughness.BaseColorFactor);
-	ApplyPrebakedProperty(ProxyMaterial, TEXT("Base Color"), JsonMaterial.PBRMetallicRoughness.BaseColorTexture, EGLTFMaterialPropertyGroup::BaseColorOpacity);
+	SetProxyProperty(ProxyMaterial, TEXT("Base Color Factor"), JsonMaterial.PBRMetallicRoughness.BaseColorFactor);
+	SetProxyProperty(ProxyMaterial, TEXT("Base Color"), JsonMaterial.PBRMetallicRoughness.BaseColorTexture, EGLTFMaterialPropertyGroup::BaseColorOpacity);
 
 	if (JsonMaterial.ShadingModel == EGLTFJsonShadingModel::Default || JsonMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 	{
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Emissive Factor"), JsonMaterial.EmissiveFactor);
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Emissive"), JsonMaterial.EmissiveTexture, EGLTFMaterialPropertyGroup::EmissiveColor);
+		SetProxyProperty(ProxyMaterial, TEXT("Emissive Factor"), JsonMaterial.EmissiveFactor);
+		SetProxyProperty(ProxyMaterial, TEXT("Emissive"), JsonMaterial.EmissiveTexture, EGLTFMaterialPropertyGroup::EmissiveColor);
 
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Metallic Factor"), JsonMaterial.PBRMetallicRoughness.MetallicFactor);
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Roughness Factor"), JsonMaterial.PBRMetallicRoughness.RoughnessFactor);
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Metallic Roughness"), JsonMaterial.PBRMetallicRoughness.MetallicRoughnessTexture, EGLTFMaterialPropertyGroup::MetallicRoughness);
+		SetProxyProperty(ProxyMaterial, TEXT("Metallic Factor"), JsonMaterial.PBRMetallicRoughness.MetallicFactor);
+		SetProxyProperty(ProxyMaterial, TEXT("Roughness Factor"), JsonMaterial.PBRMetallicRoughness.RoughnessFactor);
+		SetProxyProperty(ProxyMaterial, TEXT("Metallic Roughness"), JsonMaterial.PBRMetallicRoughness.MetallicRoughnessTexture, EGLTFMaterialPropertyGroup::MetallicRoughness);
 
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Normal Scale"), JsonMaterial.NormalTexture.Scale);
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Normal"), JsonMaterial.NormalTexture, EGLTFMaterialPropertyGroup::Normal);
+		SetProxyProperty(ProxyMaterial, TEXT("Normal Scale"), JsonMaterial.NormalTexture.Scale);
+		SetProxyProperty(ProxyMaterial, TEXT("Normal"), JsonMaterial.NormalTexture, EGLTFMaterialPropertyGroup::Normal);
 
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Occlusion Strength"), JsonMaterial.OcclusionTexture.Strength);
-		ApplyPrebakedProperty(ProxyMaterial, TEXT("Occlusion"), JsonMaterial.OcclusionTexture, EGLTFMaterialPropertyGroup::AmbientOcclusion);
+		SetProxyProperty(ProxyMaterial, TEXT("Occlusion Strength"), JsonMaterial.OcclusionTexture.Strength);
+		SetProxyProperty(ProxyMaterial, TEXT("Occlusion"), JsonMaterial.OcclusionTexture, EGLTFMaterialPropertyGroup::AmbientOcclusion);
 
 		if (JsonMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 		{
-			ApplyPrebakedProperty(ProxyMaterial, TEXT("Clear Coat Factor"), JsonMaterial.ClearCoat.ClearCoatFactor);
-			ApplyPrebakedProperty(ProxyMaterial, TEXT("Clear Coat"), JsonMaterial.ClearCoat.ClearCoatTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness); // TODO: add property group for clear coat intensity only
+			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat Factor"), JsonMaterial.ClearCoat.ClearCoatFactor);
+			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat"), JsonMaterial.ClearCoat.ClearCoatTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness); // TODO: add property group for clear coat intensity only
 
-			ApplyPrebakedProperty(ProxyMaterial, TEXT("Clear Coat Roughness Factor"), JsonMaterial.ClearCoat.ClearCoatRoughnessFactor);
-			ApplyPrebakedProperty(ProxyMaterial, TEXT("Clear Coat Roughness"), JsonMaterial.ClearCoat.ClearCoatRoughnessTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness);
+			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat Roughness Factor"), JsonMaterial.ClearCoat.ClearCoatRoughnessFactor);
+			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat Roughness"), JsonMaterial.ClearCoat.ClearCoatRoughnessTexture, EGLTFMaterialPropertyGroup::ClearCoatRoughness);
 
-			ApplyPrebakedProperty(ProxyMaterial, TEXT("Clear Coat Normal Scale"), JsonMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
-			ApplyPrebakedProperty(ProxyMaterial, TEXT("Clear Coat Normal"), JsonMaterial.ClearCoat.ClearCoatNormalTexture, EGLTFMaterialPropertyGroup::ClearCoatBottomNormal);
+			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat Normal Scale"), JsonMaterial.ClearCoat.ClearCoatNormalTexture.Scale);
+			SetProxyProperty(ProxyMaterial, TEXT("Clear Coat Normal"), JsonMaterial.ClearCoat.ClearCoatNormalTexture, EGLTFMaterialPropertyGroup::ClearCoatBottomNormal);
 		}
 	}
 
 	ProxyMaterial->PostEditChange();
 }
 
-void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, float Scalar)
+void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, float Scalar)
 {
 	float DefaultValue;
 	if (!ProxyMaterial->GetScalarParameterDefaultValue(*PropertyName, DefaultValue))
@@ -102,7 +102,7 @@ void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* Pro
 	}
 }
 
-void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor3& Color)
+void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor3& Color)
 {
 	FLinearColor DefaultValue;
 	if (!ProxyMaterial->GetVectorParameterDefaultValue(*PropertyName, DefaultValue))
@@ -118,7 +118,7 @@ void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* Pro
 	}
 }
 
-void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor4& Color)
+void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonColor4& Color)
 {
 	FLinearColor DefaultValue;
 	if (!ProxyMaterial->GetVectorParameterDefaultValue(*PropertyName, DefaultValue))
@@ -134,7 +134,7 @@ void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* Pro
 	}
 }
 
-void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonTextureInfo& TextureInfo, EGLTFMaterialPropertyGroup PropertyGroup)
+void FGLTFMaterialProxyFactory::SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, const FGLTFJsonTextureInfo& TextureInfo, EGLTFMaterialPropertyGroup PropertyGroup)
 {
 	if (TextureInfo.Index != INDEX_NONE)
 	{
@@ -170,7 +170,7 @@ void FGLTFMaterialPrebaker::ApplyPrebakedProperty(UMaterialInstanceConstant* Pro
 	}
 }
 
-const UTexture2D* FGLTFMaterialPrebaker::FindOrCreateTexture(FGLTFJsonTextureIndex Index, EGLTFMaterialPropertyGroup PropertyGroup)
+const UTexture2D* FGLTFMaterialProxyFactory::FindOrCreateTexture(FGLTFJsonTextureIndex Index, EGLTFMaterialPropertyGroup PropertyGroup)
 {
 	// TODO: fix potential conflict when same texture used for different material properties that have different encoding (sRGB vs Linear, Normalmap compression etc)
 
@@ -193,7 +193,7 @@ const UTexture2D* FGLTFMaterialPrebaker::FindOrCreateTexture(FGLTFJsonTextureInd
 	return Texture;
 }
 
-UTexture2D* FGLTFMaterialPrebaker::CreateTexture(const FGLTFImageData* ImageData, const FGLTFJsonSampler& JsonSampler, EGLTFMaterialPropertyGroup PropertyGroup)
+UTexture2D* FGLTFMaterialProxyFactory::CreateTexture(const FGLTFImageData* ImageData, const FGLTFJsonSampler& JsonSampler, EGLTFMaterialPropertyGroup PropertyGroup)
 {
 	const bool bSRGB = PropertyGroup == EGLTFMaterialPropertyGroup::BaseColorOpacity || PropertyGroup == EGLTFMaterialPropertyGroup::EmissiveColor;
 	const bool bNormalMap = PropertyGroup == EGLTFMaterialPropertyGroup::Normal || PropertyGroup == EGLTFMaterialPropertyGroup::ClearCoatBottomNormal;
@@ -220,18 +220,18 @@ UTexture2D* FGLTFMaterialPrebaker::CreateTexture(const FGLTFImageData* ImageData
 	return Texture;
 }
 
-UMaterialInstanceConstant* FGLTFMaterialPrebaker::CreateProxyMaterial(UMaterialInterface* OriginalMaterial, EGLTFJsonShadingModel ShadingModel)
+UMaterialInstanceConstant* FGLTFMaterialProxyFactory::CreateInstancedMaterial(UMaterialInterface* OriginalMaterial, EGLTFJsonShadingModel ShadingModel)
 {
 	const FString PackageName = RootPath / TEXT("M_GLTF_") + OriginalMaterial->GetName();
 	UPackage* Package = CreatePackage(*PackageName);
 	Package->FullyLoad();
 	Package->Modify();
 
-	UMaterialInterface* BaseMaterial = FGLTFMaterialUtility::GetPrebaked(ShadingModel);
+	UMaterialInterface* BaseMaterial = FGLTFMaterialUtility::GetProxyBaseMaterial(ShadingModel);
 	if (BaseMaterial == nullptr)
 	{
 		Builder.LogError(FString::Printf(
-			TEXT("Material %s uses a shading model (%s) that doesn't have a prebaked base material"),
+			TEXT("Can't create proxy for material %s, because shading model %s has no base material"),
 			*OriginalMaterial->GetName(),
 			FGLTFJsonUtility::GetValue(ShadingModel)));
 		return nullptr;
@@ -273,17 +273,17 @@ UMaterialInstanceConstant* FGLTFMaterialPrebaker::CreateProxyMaterial(UMaterialI
 	return ProxyMaterial;
 }
 
-TUniquePtr<IGLTFImageConverter> FGLTFMaterialPrebaker::CreateCustomImageConverter()
+TUniquePtr<IGLTFImageConverter> FGLTFMaterialProxyFactory::CreateCustomImageConverter()
 {
 	class FGLTFCustomImageConverter final: public IGLTFImageConverter
 	{
 	public:
 
-		FGLTFMaterialPrebaker& Prebaker;
+		FGLTFMaterialProxyFactory& Proxyr;
 		TSet<FString> UniqueFilenames;
 
-		FGLTFCustomImageConverter(FGLTFMaterialPrebaker& Prebaker)
-			: Prebaker(Prebaker)
+		FGLTFCustomImageConverter(FGLTFMaterialProxyFactory& Proxyr)
+			: Proxyr(Proxyr)
 		{
 		}
 
@@ -294,8 +294,8 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialPrebaker::CreateCustomImageConverte
 			const FString Filename = FGLTFImageUtility::GetUniqueFilename(Name, TEXT(""), UniqueFilenames);
 			UniqueFilenames.Add(Filename);
 
-			const FGLTFJsonImageIndex ImageIndex = Prebaker.Builder.AddImage();
-			Prebaker.Images.Add(ImageIndex, { Filename, Type, bIgnoreAlpha, Size, Pixels });
+			const FGLTFJsonImageIndex ImageIndex = Proxyr.Builder.AddImage();
+			Proxyr.Images.Add(ImageIndex, { Filename, Type, bIgnoreAlpha, Size, Pixels });
 			return ImageIndex;
 		}
 	};
@@ -303,7 +303,7 @@ TUniquePtr<IGLTFImageConverter> FGLTFMaterialPrebaker::CreateCustomImageConverte
 	return MakeUnique<FGLTFCustomImageConverter>(*this);
 }
 
-bool FGLTFMaterialPrebaker::MakeDirectory(const FString& PackagePath)
+bool FGLTFMaterialProxyFactory::MakeDirectory(const FString& PackagePath)
 {
 	const FString DirPath = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(PackagePath + TEXT("/")));
 	if (DirPath.IsEmpty())
@@ -319,28 +319,28 @@ bool FGLTFMaterialPrebaker::MakeDirectory(const FString& PackagePath)
 
 	if (bResult)
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		AssetRegistryModule.Get().AddPath(PackagePath);
 	}
 
 	return bResult;
 }
 
-UGLTFExportOptions* FGLTFMaterialPrebaker::CreateExportOptions(const UGLTFPrebakeOptions* PrebakeOptions)
+UGLTFExportOptions* FGLTFMaterialProxyFactory::CreateExportOptions(const UGLTFProxyOptions* ProxyOptions)
 {
 	UGLTFExportOptions* ExportOptions = NewObject<UGLTFExportOptions>();
 	ExportOptions->ResetToDefault();
 	ExportOptions->bExportProxyMaterials = false;
 	ExportOptions->BakeMaterialInputs = EGLTFMaterialBakeMode::Simple;
-	ExportOptions->DefaultMaterialBakeSize = PrebakeOptions->DefaultMaterialBakeSize;
-	ExportOptions->DefaultMaterialBakeFilter = PrebakeOptions->DefaultMaterialBakeFilter;
-	ExportOptions->DefaultMaterialBakeTiling = PrebakeOptions->DefaultMaterialBakeTiling;
-	ExportOptions->DefaultInputBakeSettings = PrebakeOptions->DefaultInputBakeSettings;
+	ExportOptions->DefaultMaterialBakeSize = ProxyOptions->DefaultMaterialBakeSize;
+	ExportOptions->DefaultMaterialBakeFilter = ProxyOptions->DefaultMaterialBakeFilter;
+	ExportOptions->DefaultMaterialBakeTiling = ProxyOptions->DefaultMaterialBakeTiling;
+	ExportOptions->DefaultInputBakeSettings = ProxyOptions->DefaultInputBakeSettings;
 	ExportOptions->bAdjustNormalmaps = false;
 	return ExportOptions;
 }
 
-TextureAddress FGLTFMaterialPrebaker::ConvertWrap(EGLTFJsonTextureWrap Wrap)
+TextureAddress FGLTFMaterialProxyFactory::ConvertWrap(EGLTFJsonTextureWrap Wrap)
 {
 	switch (Wrap)
 	{
@@ -353,7 +353,7 @@ TextureAddress FGLTFMaterialPrebaker::ConvertWrap(EGLTFJsonTextureWrap Wrap)
 	}
 }
 
-TextureFilter FGLTFMaterialPrebaker::ConvertFilter(EGLTFJsonTextureFilter Filter)
+TextureFilter FGLTFMaterialProxyFactory::ConvertFilter(EGLTFJsonTextureFilter Filter)
 {
 	switch (Filter)
 	{

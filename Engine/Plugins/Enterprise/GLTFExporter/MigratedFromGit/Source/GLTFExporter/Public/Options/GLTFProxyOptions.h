@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Options/GLTFExportOptions.h"
-#include "GLTFPrebakeOptions.generated.h"
+#include "GLTFProxyOptions.generated.h"
 
 UCLASS(BlueprintType, Config=EditorPerProjectUserSettings, HideCategories=(DebugProperty))
-class GLTFEXPORTER_API UGLTFPrebakeOptions : public UObject
+class GLTFEXPORTER_API UGLTFProxyOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

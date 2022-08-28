@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Options/GLTFPrebakeOptions.h"
+#include "Options/GLTFProxyOptions.h"
 
-UGLTFPrebakeOptions::UGLTFPrebakeOptions(const FObjectInitializer& ObjectInitializer)
+UGLTFProxyOptions::UGLTFProxyOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	ResetToDefault();
 }
 
-void UGLTFPrebakeOptions::ResetToDefault()
+void UGLTFProxyOptions::ResetToDefault()
 {
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
 	DefaultMaterialBakeFilter = TF_Trilinear;

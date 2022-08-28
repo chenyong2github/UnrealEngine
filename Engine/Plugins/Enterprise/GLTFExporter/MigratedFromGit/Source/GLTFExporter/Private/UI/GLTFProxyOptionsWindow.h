@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "Options/GLTFPrebakeOptions.h"
+#include "Options/GLTFProxyOptions.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
@@ -12,17 +12,17 @@
 class SButton;
 
 /** Options window used to populate provided settings objects */
-class SGLTFPrebakeOptionsWindow : public SCompoundWidget
+class SGLTFProxyOptionsWindow : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SGLTFPrebakeOptionsWindow)
+	SLATE_BEGIN_ARGS(SGLTFProxyOptionsWindow)
 	{}
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, WidgetWindow)
 		SLATE_ARGUMENT(TArray<TWeakObjectPtr<UObject>>, SettingsObjects)
 	SLATE_END_ARGS()
 
-	SGLTFPrebakeOptionsWindow();
+	SGLTFProxyOptionsWindow();
 	void Construct(const FArguments& InArgs);
 
 	/** Begin SCompoundWidget overrides */
@@ -37,7 +37,7 @@ public:
 	/** Returns whether or not the user cancelled the operation */
 	bool WasUserCancelled();
 
-	static bool ShowDialog(UGLTFPrebakeOptions* PrebakeOptions);
+	static bool ShowDialog(UGLTFProxyOptions* ProxyOptions);
 
 private:
 	/** Owning window this widget is part of */
