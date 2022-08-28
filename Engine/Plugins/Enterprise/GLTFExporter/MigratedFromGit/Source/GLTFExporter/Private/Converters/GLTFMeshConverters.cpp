@@ -85,10 +85,12 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 		}
 
 		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, Section->MaterialIndex);
-		if (Material != nullptr)
+		if (Material == nullptr)
 		{
-			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+
+		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
 	}
 
 	return Builder.AddMesh(JsonMesh);
@@ -195,10 +197,12 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 		*/
 
 		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, Section->MaterialIndex);
-		if (Material != nullptr)
+		if (Material == nullptr)
 		{
-			JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+
+		JsonPrimitive.Material = Builder.GetOrAddMaterial(Material);
 	}
 
 	return Builder.AddMesh(JsonMesh);
