@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFVertexBufferConverters.h"
+#include "Converters/GLTFSkinWeightVertexBufferHack.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 
@@ -187,7 +188,9 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuil
 	{
 		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
 		{
-			BoneIndices[VertexIndex].Index[InfluenceIndex] = static_cast<IndexType>(VertexBuffer->GetBoneIndex(VertexIndex, InfluenceOffset + InfluenceIndex));
+			// TODO: remove hack
+			const uint32 BoneIndex = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneIndex(VertexIndex, InfluenceOffset + InfluenceIndex);
+			BoneIndices[VertexIndex].Index[InfluenceIndex] = static_cast<IndexType>(BoneIndex);
 		}
 
 		for (int32 InfluenceIndex = InfluenceCount; InfluenceIndex < 4; ++InfluenceIndex)
@@ -229,7 +232,9 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Add(FGLTFConvertBui
 	{
 		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
 		{
-			BoneWeights[VertexIndex].Weights[InfluenceIndex] = VertexBuffer->GetBoneWeight(VertexIndex, InfluenceOffset + InfluenceIndex);
+			// TODO: remove hack
+			const uint8 BoneWeight = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneWeight(VertexIndex, InfluenceOffset + InfluenceIndex);
+			BoneWeights[VertexIndex].Weights[InfluenceIndex] = BoneWeight;
 		}
 
 		for (int32 InfluenceIndex = InfluenceCount; InfluenceIndex < 4; ++InfluenceIndex)
