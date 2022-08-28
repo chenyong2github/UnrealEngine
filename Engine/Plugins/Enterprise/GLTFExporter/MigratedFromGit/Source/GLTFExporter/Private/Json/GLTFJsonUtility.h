@@ -159,6 +159,18 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static const TCHAR* ToString(EGLTFJsonPlayerCameraMode Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonPlayerCameraMode::FirstPerson: return TEXT("firstPerson");
+			case EGLTFJsonPlayerCameraMode::ThirdPerson: return TEXT("thirdPerson");
+			default:
+				checkNoEntry();
+				return TEXT("");
+		}
+	}
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
 	{
