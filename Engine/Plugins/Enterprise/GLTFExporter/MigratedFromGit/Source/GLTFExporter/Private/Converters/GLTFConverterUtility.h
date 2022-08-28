@@ -129,15 +129,6 @@ struct FGLTFConverterUtility
 		// also, as handedness is changed rotation is inversed - hence negation
 		// therefore glTFRotation = (-qX, -qZ, -qY, qw)
 
-		// Not checking if quaternion is normalized
-		// e.g. some sources use non-unit Quats for rotation tangents
-
-		// Return the identity quaternion when possible (depending on tolerance)
-		if (Rotation.Equals(FQuat::Identity)) // TODO: doesn't this potentially remove intentional deviance from identity?
-		{
-			return { 0, 0, 0, 1 }; // TODO: make static const
-		}
-
 		const FQuat Normalized = Rotation.GetNormalized();
 		return { -Normalized.X, -Normalized.Z, -Normalized.Y, Normalized.W };
 	}

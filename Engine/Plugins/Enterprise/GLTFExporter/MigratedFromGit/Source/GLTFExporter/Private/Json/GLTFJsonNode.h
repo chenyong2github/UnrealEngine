@@ -50,24 +50,24 @@ struct FGLTFJsonNode : IGLTFJsonObject
 
 		if (bUseMatrix)
 		{
-			if (Matrix != FGLTFJsonMatrix4::Identity)
+			if (!Matrix.IsNearlyEqual(FGLTFJsonMatrix4::Identity))
 			{
 				Writer.Write(TEXT("matrix"), Matrix);
 			}
 		}
 		else
 		{
-			if (Translation != FGLTFJsonVector3::Zero)
+			if (!Translation.IsNearlyEqual(FGLTFJsonVector3::Zero))
 			{
 				Writer.Write(TEXT("translation"), Translation);
 			}
 
-			if (Rotation != FGLTFJsonQuaternion::Identity)
+			if (!Rotation.IsNearlyEqual(FGLTFJsonQuaternion::Identity))
 			{
 				Writer.Write(TEXT("rotation"), Rotation);
 			}
 
-			if (Scale != FGLTFJsonVector3::One)
+			if (!Scale.IsNearlyEqual(FGLTFJsonVector3::One))
 			{
 				Writer.Write(TEXT("scale"), Scale);
 			}

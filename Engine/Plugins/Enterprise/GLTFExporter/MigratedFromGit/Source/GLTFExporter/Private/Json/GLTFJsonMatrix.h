@@ -29,22 +29,17 @@ struct TGLTFJsonMatrix final : BaseType, IGLTFJsonArray
 		}
 	}
 
-	bool operator==(const BaseType& Other) const
+	bool IsNearlyEqual(const BaseType& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		for (uint32 i = 0; i < GetNum(BaseType::Elements); ++i)
+		for (int32 i = 0; i < GetNum(BaseType::Elements); ++i)
 		{
-			if (BaseType::Elements[i] != Other.Elements[i])
+			if (!FMath::IsNearlyEqual(BaseType::Elements[i], Other.Elements[i], Tolerance))
 			{
 				return false;
 			}
 		}
 
 		return true;
-	}
-
-	bool operator!=(const BaseType& Other) const
-	{
-		return !(*this == Other);
 	}
 };
 
