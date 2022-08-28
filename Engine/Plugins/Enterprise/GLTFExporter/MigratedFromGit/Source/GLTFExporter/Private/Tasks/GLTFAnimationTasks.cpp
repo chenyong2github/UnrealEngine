@@ -7,12 +7,12 @@
 #include "LevelSequence.h"
 #include "LevelSequencePlayer.h"
 #include "MovieSceneTimeHelpers.h"
-#include "Animation/AnimationPoseData.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
+#include "Animation/AnimationPoseData.h"
 using namespace UE;
 #endif
 
@@ -52,19 +52,28 @@ void FGLTFAnimSequenceTask::Complete()
 		FBlendedCurve Curve;
 		Curve.InitFrom(BoneContainer);
 
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 		FStackCustomAttributes Attributes;
 		FAnimationPoseData PoseData(Pose, Curve, Attributes);
+#endif
 
 		for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 		{
 			const FAnimExtractContext ExtractionContext(Timestamps[Frame]); // TODO: set bExtractRootMotion?
+
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 			AnimSequence->GetBonePose(PoseData, ExtractionContext);
+#else
+			AnimSequence->GetBonePose(Pose, Curve, ExtractionContext);
+#endif
 			Pose.CopyBonesTo(FrameTransforms[Frame]);
 		}
 
 		Pose.Empty();
 		Curve.Empty();
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 		Attributes.Empty();
+#endif
 	}
 
 	// TODO: add animation data accessor converters to reuse track information

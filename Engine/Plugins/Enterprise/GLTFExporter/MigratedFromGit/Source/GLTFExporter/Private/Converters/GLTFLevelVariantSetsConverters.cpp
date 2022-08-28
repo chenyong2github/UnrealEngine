@@ -208,7 +208,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 		return false;
 	}
 
-	const TArray<FCapturedPropSegment>& CapturedPropSegments = MaterialProperty->GetCapturedPropSegments();
+	const TArray<FCapturedPropSegment>& CapturedPropSegments = FGLTFVariantUtility::GetCapturedPropSegments(MaterialProperty);
 	const int32 NumPropSegments = CapturedPropSegments.Num();
 
 	if (NumPropSegments < 1)

@@ -11,6 +11,8 @@ class UPropertyValue;
 
 struct FGLTFVariantUtility
 {
+	static const TArray<FCapturedPropSegment>& GetCapturedPropSegments(const UPropertyValue* Property);
+
 	template<typename T>
 	static bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue)
 	{

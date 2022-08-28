@@ -51,6 +51,30 @@ bool FGLTFBufferUtility::GetAllowCPUAccess(const FColorVertexBuffer* VertexBuffe
 	return VertexData != nullptr && VertexData->GetAllowCPUAccess();
 }
 
+const void* FGLTFBufferUtility::GetBufferData(const FSkinWeightDataVertexBuffer* VertexBuffer)
+{
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
+	return VertexBuffer->GetWeightData();
+
+#else
+	struct FSkinWeightDataVertexBufferHack : FVertexBuffer
+	{
+		FShaderResourceViewRHIRef SRVValue;
+		bool bNeedsCPUAccess;
+		bool bVariableBonesPerVertex;
+		uint32 MaxBoneInfluences;
+		bool bUse16BitBoneIndex;
+		FStaticMeshVertexDataInterface* WeightData;
+		uint8* Data;
+		uint32 NumVertices;
+		uint32 NumBones;
+	};
+
+	static_assert(sizeof(FSkinWeightDataVertexBufferHack) == sizeof(FSkinWeightDataVertexBuffer), "FSkinWeightDataVertexBufferHack memory layout doesn't match FSkinWeightDataVertexBuffer");
+	return reinterpret_cast<const FSkinWeightDataVertexBufferHack*>(VertexBuffer)->Data;
+#endif
+}
+
 const void* FGLTFBufferUtility::GetBufferData(const FSkinWeightLookupVertexBuffer* VertexBuffer)
 {
 	struct FSkinWeightLookupVertexBufferHack : FVertexBuffer

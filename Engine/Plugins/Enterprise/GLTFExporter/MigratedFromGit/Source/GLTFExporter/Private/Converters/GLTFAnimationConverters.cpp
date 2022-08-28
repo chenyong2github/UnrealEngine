@@ -13,14 +13,20 @@ FGLTFJsonAnimationIndex FGLTFAnimationConverter::Convert(FGLTFJsonNodeIndex Root
 		return FGLTFJsonAnimationIndex(INDEX_NONE);
 	}
 
-	const USkeleton* Skeleton = AnimSequence->GetSkeleton();
-	if (Skeleton == nullptr)
+	const USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
+	if (AnimSkeleton == nullptr)
 	{
 		// TODO: report error
 		return FGLTFJsonAnimationIndex(INDEX_NONE);
 	}
 
-	if (Skeleton != SkeletalMesh->GetSkeleton())
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	const USkeleton* MeshSkeleton = SkeletalMesh->GetSkeleton();
+#else
+	const USkeleton* MeshSkeleton = SkeletalMesh->Skeleton;
+#endif
+
+	if (AnimSkeleton != MeshSkeleton)
 	{
 		// TODO: report error
 		return FGLTFJsonAnimationIndex(INDEX_NONE);

@@ -7,11 +7,19 @@
 
 FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh)
 {
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
+	const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+#else
+	const USkeleton* Skeleton = SkeletalMesh->Skeleton;
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
+#endif
+
 	FGLTFJsonSkin Skin;
-	Skin.Name = SkeletalMesh->GetSkeleton() != nullptr ? SkeletalMesh->GetSkeleton()->GetName() : SkeletalMesh->GetName();
+	Skin.Name = Skeleton != nullptr ? Skeleton->GetName() : SkeletalMesh->GetName();
 	Skin.Skeleton = RootNode;
 
-	const int32 BoneCount = SkeletalMesh->GetRefSkeleton().GetNum();
+	const int32 BoneCount = RefSkeleton.GetNum();
 	if (BoneCount == 0)
 	{
 		// TODO: report warning
@@ -30,7 +38,7 @@ FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, cons
 
 	for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
 	{
-		const FTransform InverseBindTransform = FGLTFBoneUtility::GetBindTransform(SkeletalMesh->GetRefSkeleton(), BoneIndex).Inverse();
+		const FTransform InverseBindTransform = FGLTFBoneUtility::GetBindTransform(RefSkeleton, BoneIndex).Inverse();
 		InverseBindMatrices[BoneIndex] = FGLTFConverterUtility::ConvertTransform(InverseBindTransform, Builder.ExportOptions->ExportUniformScale);
 	}
 
