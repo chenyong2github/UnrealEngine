@@ -8,8 +8,6 @@
 #include "Converters/GLTFBoneMap.h"
 #include "Engine.h"
 
-class FMultiSizeIndexContainer;
-
 template <typename... InputTypes>
 class TGLTFAccessorConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAccessorIndex, InputTypes...>
 {
@@ -75,9 +73,9 @@ class FGLTFStaticMeshSectionConverter final : public TGLTFAccessorConverter<cons
 	virtual FGLTFJsonAccessorIndex Convert(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer) override;
 };
 
-class FGLTFSkeletalMeshSectionConverter final : public TGLTFAccessorConverter<const FSkelMeshRenderSection*, const FMultiSizeIndexContainer*>
+class FGLTFSkeletalMeshSectionConverter final : public TGLTFAccessorConverter<const FSkelMeshRenderSection*, const FRawStaticIndexBuffer16or32Interface*>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FSkelMeshRenderSection* MeshSection, const FMultiSizeIndexContainer* IndexContainer) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FSkelMeshRenderSection* MeshSection, const FRawStaticIndexBuffer16or32Interface* IndexBuffer) override;
 };

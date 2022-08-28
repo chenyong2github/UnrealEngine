@@ -121,7 +121,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 	}
 	*/
 
-	const FMultiSizeIndexContainer* IndexContainer = &MeshLOD.MultiSizeIndexContainer;
+	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = MeshLOD.MultiSizeIndexContainer.GetIndexBuffer();
 
 	const int32 SectionCount = MeshLOD.RenderSections.Num();
 	JsonMesh.Primitives.AddDefaulted(SectionCount);
@@ -132,7 +132,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 		JsonPrimitive.Attributes = JsonAttributes;
 
 		const FSkelMeshRenderSection& Section = MeshLOD.RenderSections[SectionIndex];
-		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexContainer);
+		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&Section, IndexBuffer);
 
 		const int32 MaterialIndex = Section.MaterialIndex;
 		const UMaterialInterface* Material = OverrideMaterials.IsValidIndex(MaterialIndex) && OverrideMaterials[MaterialIndex] != nullptr ?
