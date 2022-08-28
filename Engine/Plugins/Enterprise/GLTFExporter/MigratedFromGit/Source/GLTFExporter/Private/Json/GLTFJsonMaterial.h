@@ -28,7 +28,7 @@ struct FGLTFJsonTextureInfo : IGLTFJsonObject
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (!Transform.IsNearlyDefault())
+		if (!Transform.IsNearlyDefault(Writer.DefaultTolerance))
 		{
 			Writer.StartExtensions();
 			Writer.Write(EGLTFJsonExtension::KHR_TextureTransform, Transform);
@@ -55,7 +55,7 @@ struct FGLTFJsonNormalTextureInfo : FGLTFJsonTextureInfo
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (!FMath::IsNearlyEqual(Scale, 1))
+		if (!FMath::IsNearlyEqual(Scale, 1, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("scale"), Scale);
 		}
@@ -80,7 +80,7 @@ struct FGLTFJsonOcclusionTextureInfo : FGLTFJsonTextureInfo
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (!FMath::IsNearlyEqual(Strength, 1))
+		if (!FMath::IsNearlyEqual(Strength, 1, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("strength"), Strength);
 		}
@@ -105,7 +105,7 @@ struct FGLTFJsonPBRMetallicRoughness : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (!BaseColorFactor.IsNearlyEqual(FGLTFJsonColor4::White))
+		if (!BaseColorFactor.IsNearlyEqual(FGLTFJsonColor4::White, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("baseColorFactor"), BaseColorFactor);
 		}
@@ -115,12 +115,12 @@ struct FGLTFJsonPBRMetallicRoughness : IGLTFJsonObject
 			Writer.Write(TEXT("baseColorTexture"), BaseColorTexture);
 		}
 
-		if (!FMath::IsNearlyEqual(MetallicFactor, 1))
+		if (!FMath::IsNearlyEqual(MetallicFactor, 1, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("metallicFactor"), MetallicFactor);
 		}
 
-		if (!FMath::IsNearlyEqual(RoughnessFactor, 1))
+		if (!FMath::IsNearlyEqual(RoughnessFactor, 1, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("roughnessFactor"), RoughnessFactor);
 		}
@@ -150,7 +150,7 @@ struct FGLTFJsonClearCoatExtension : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (!FMath::IsNearlyEqual(ClearCoatFactor, 0))
+		if (!FMath::IsNearlyEqual(ClearCoatFactor, 0, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("clearcoatFactor"), ClearCoatFactor);
 		}
@@ -160,7 +160,7 @@ struct FGLTFJsonClearCoatExtension : IGLTFJsonObject
 			Writer.Write(TEXT("clearcoatTexture"), ClearCoatTexture);
 		}
 
-		if (!FMath::IsNearlyEqual(ClearCoatRoughnessFactor, 0))
+		if (!FMath::IsNearlyEqual(ClearCoatRoughnessFactor, 0, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("clearcoatRoughnessFactor"), ClearCoatRoughnessFactor);
 		}
@@ -237,7 +237,7 @@ struct FGLTFJsonMaterial : IGLTFJsonObject
 			Writer.Write(TEXT("emissiveTexture"), EmissiveTexture);
 		}
 
-		if (!EmissiveFactor.IsNearlyEqual(FGLTFJsonColor3::Black))
+		if (!EmissiveFactor.IsNearlyEqual(FGLTFJsonColor3::Black, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("emissiveFactor"), EmissiveFactor);
 		}
@@ -246,7 +246,7 @@ struct FGLTFJsonMaterial : IGLTFJsonObject
 		{
 			Writer.Write(TEXT("alphaMode"), AlphaMode);
 
-			if (AlphaMode == EGLTFJsonAlphaMode::Mask && !FMath::IsNearlyEqual(AlphaCutoff, 0.5f))
+			if (AlphaMode == EGLTFJsonAlphaMode::Mask && !FMath::IsNearlyEqual(AlphaCutoff, 0.5f, Writer.DefaultTolerance))
 			{
 				Writer.Write(TEXT("alphaCutoff"), AlphaCutoff);
 			}

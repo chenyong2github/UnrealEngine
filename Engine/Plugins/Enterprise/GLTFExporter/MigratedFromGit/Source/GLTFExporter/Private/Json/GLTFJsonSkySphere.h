@@ -127,7 +127,7 @@ struct FGLTFJsonSkySphere : IGLTFJsonObject
 		Writer.Write(TEXT("horizonColor"), HorizonColor);
 		Writer.Write(TEXT("cloudColor"), CloudColor);
 
-		if (!OverallColor.IsNearlyEqual(FGLTFJsonColor4::White))
+		if (!OverallColor.IsNearlyEqual(FGLTFJsonColor4::White, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("overallColor"), OverallColor);
 		}
@@ -147,7 +147,7 @@ struct FGLTFJsonSkySphere : IGLTFJsonObject
 			Writer.Write(TEXT("cloudColorCurve"), CloudColorCurve);
 		}
 
-		if (!Scale.IsNearlyEqual(FGLTFJsonVector3::One))
+		if (!Scale.IsNearlyEqual(FGLTFJsonVector3::One, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("scale"), Scale);
 		}

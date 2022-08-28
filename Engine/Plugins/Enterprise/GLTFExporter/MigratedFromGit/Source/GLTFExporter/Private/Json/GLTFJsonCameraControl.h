@@ -48,22 +48,22 @@ struct FGLTFJsonCameraControl : IGLTFJsonObject
 		Writer.Write(TEXT("maxDistance"), MaxDistance);
 		Writer.Write(TEXT("minDistance"), MinDistance);
 
-		if (!FMath::IsNearlyEqual(MaxPitch, 90))
+		if (!FMath::IsNearlyEqual(MaxPitch, 90, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("maxPitch"), MaxPitch);
 		}
 
-		if (!FMath::IsNearlyEqual(MinPitch, -90))
+		if (!FMath::IsNearlyEqual(MinPitch, -90, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("minPitch"), MinPitch);
 		}
 
-		if (!FMath::IsNearlyEqual(MaxYaw, 360))
+		if (!FMath::IsNearlyEqual(MaxYaw, 360, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("maxYaw"), MaxYaw);
 		}
 
-		if (!FMath::IsNearlyEqual(MinYaw, 0))
+		if (!FMath::IsNearlyEqual(MinYaw, 0, Writer.DefaultTolerance))
 		{
 			Writer.Write(TEXT("minYaw"), MinYaw);
 		}
