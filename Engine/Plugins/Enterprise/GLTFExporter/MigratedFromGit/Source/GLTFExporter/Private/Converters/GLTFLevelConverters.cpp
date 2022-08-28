@@ -57,8 +57,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
-		// TODO: make it configurable whether static lights should be exported or not
-		if (LightComponent->Mobility != EComponentMobility::Static)
+		if (ShouldExportLight(Builder.ExportOptions->bExportLights, LightComponent->Mobility))
 		{
 			// TODO: conversion of light direction should be done in separate converter
 			FGLTFJsonNode LightNode;
@@ -67,11 +66,32 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 			LightNode.Light = Builder.GetOrAddLight(LightComponent, LightNode.Name);
 			Builder.AddChildNode(NodeIndex, LightNode);
 		}
+		else
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Light %s disabled by export options"),
+				*Owner->GetName()));	// TODO: choose a more unique name if owner is not ALight
+		}
 	}
 
 	// TODO: add support for SkyLight?
 
 	return NodeIndex;
+}
+
+bool FGLTFSceneComponentConverter::ShouldExportLight(EGLTFExporterLightMobility Options, EComponentMobility::Type Mobility)
+{
+	switch (Options)
+	{
+		case EGLTFExporterLightMobility::All:
+			return true;
+		case EGLTFExporterLightMobility::MovableAndStationary:
+			return Mobility == EComponentMobility::Movable || Mobility == EComponentMobility::Stationary;
+		case EGLTFExporterLightMobility::MovableOnly:
+			return Mobility == EComponentMobility::Movable;
+		default:
+			return false;
+	}
 }
 
 FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor)
