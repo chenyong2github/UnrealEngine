@@ -46,6 +46,8 @@ private:
 
 	FRotator GetLookAtRotation(const FVector TargetPosition) const;
 
+	FVector GetFocusPosition(bool* bOutHasValidFocusActor = nullptr) const;
+
 public:
 	/* Actor which the camera will focus on and subsequently orbit. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
@@ -84,7 +86,6 @@ public:
 	float DistanceSensitivity;
 
 private:
-	FVector FocusPosition;
 	float Distance;
 	float Pitch;
 	float Yaw;

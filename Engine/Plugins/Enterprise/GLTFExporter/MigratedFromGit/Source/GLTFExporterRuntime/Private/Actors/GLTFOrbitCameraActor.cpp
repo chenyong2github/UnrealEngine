@@ -29,7 +29,6 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 	, OrbitInertia(0.1f)
 	, OrbitSensitivity(0.3f)
 	, DistanceSensitivity(0.5f)
-	, FocusPosition(0.0f, 0.0f, 0.0f)
 	, Distance(0.0f)
 	, Pitch(0.0f)
 	, Yaw(0.0f)
@@ -46,17 +45,12 @@ void AGLTFOrbitCameraActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (this->Focus != nullptr && this->Focus != this)
-	{
-		const FBox BoundingBox = this->Focus->GetComponentsBoundingBox(true, true);
-		FocusPosition = BoundingBox.IsValid ? BoundingBox.GetCenter() : this->Focus->GetActorLocation();
-	}
-	else
+	bool bHasValidFocusActor;
+	const FVector FocusPosition = GetFocusPosition(&bHasValidFocusActor);
+
+	if (!bHasValidFocusActor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("The camera focus must not be null, and must not be the camera's own actor"));
-
-		// TODO: use the scene center (similar to viewer camera) instead of using the zero-vector.
-		// It may however prove difficult, since we would need to exclude sky-spheres, backdrops etc when calculating the center.
 	}
 
 	// Ensure that the camera is initially aimed at the focus-position
@@ -106,7 +100,7 @@ void AGLTFOrbitCameraActor::Tick(float DeltaSeconds)
 		TargetYaw = ClampYaw(TargetYaw);
 	}
 
-	const FTransform FocusTransform = FTransform(FocusPosition);
+	const FTransform FocusTransform = FTransform(GetFocusPosition());
 	const FTransform DollyTransform = FTransform(-FVector::ForwardVector * Distance);
 	const FTransform RotationTransform = FTransform(FQuat::MakeFromEuler(FVector(0.0f, Pitch, Yaw)));
 	const FTransform ResultTransform = DollyTransform * RotationTransform * FocusTransform;
@@ -173,4 +167,15 @@ FRotator AGLTFOrbitCameraActor::GetLookAtRotation(const FVector TargetPosition) 
 	const FVector EyePosition = GetActorLocation();
 
 	return FRotationMatrix::MakeFromXZ(TargetPosition - EyePosition, FVector::UpVector).Rotator();
+}
+
+FVector AGLTFOrbitCameraActor::GetFocusPosition(bool* bOutHasValidFocusActor) const
+{
+	const bool bHasValidFocusActor = this->Focus != nullptr && this->Focus != this;
+	if (bOutHasValidFocusActor != nullptr)
+	{
+		*bOutHasValidFocusActor = bHasValidFocusActor;
+	}
+
+	return bHasValidFocusActor ? this->Focus->GetActorLocation() : FVector::ZeroVector;
 }
