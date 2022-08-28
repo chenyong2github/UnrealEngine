@@ -6,7 +6,7 @@
 #include "GLTFStaticMeshExporter.generated.h"
 
 UCLASS()
-class GLTFEXPORTER_API UGLTFStaticMeshExporter : public UGLTFExporter
+class GLTFEXPORTER_API UGLTFStaticMeshExporter final : public UGLTFExporter
 {
 public:
 
@@ -14,7 +14,5 @@ public:
 
 	UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
-	//~ Begin UExporter Interface
-	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex = 0, uint32 PortFlags = 0) override;
-	//~ End UExporter Interface
+	bool Add(FGLTFContainerBuilder& Builder, const UObject* Object) override;
 };

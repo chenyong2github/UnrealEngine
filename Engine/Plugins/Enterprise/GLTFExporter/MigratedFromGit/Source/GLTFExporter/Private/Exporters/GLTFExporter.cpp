@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporter.h"
-#include "UnrealExporter.h"
-#include "Engine.h"
+#include "UObject/GCObjectScopeGuard.h"
+#include "Builders/GLTFContainerBuilder.h"
+#include "GLTFExportOptions.h"
+
 
 UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -17,11 +19,35 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	// TODO: uncomment when support for .glb is implemented
 	// FormatExtension.Add(TEXT("glb"));
 	// FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
-
-	ExportOptions = NewObject<UGLTFExportOptions>(this, TEXT("GLTF Export Options"));
 }
 
-bool UGLTFExporter::FillExportOptions()
+bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+{
+	UGLTFExportOptions* Options = NewObject<UGLTFExportOptions>();
+	FGCObjectScopeGuard OptionsGuard(Options);
+
+	if (!FillExportOptions(Options))
+	{
+		// User cancelled the export
+		return false;
+	}
+
+	FGLTFContainerBuilder Builder;
+	if (!Add(Builder, Object))
+	{
+		// TODO: Report error
+		return false;
+	}
+
+	return Builder.Serialize(Archive, CurrentFilename);
+}
+
+bool UGLTFExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
+{
+	return false;
+}
+
+bool UGLTFExporter::FillExportOptions(UGLTFExportOptions* ExportOptions)
 {
 	bool bExportAll = GetBatchMode() && !GetShowExportOption();
 	bool bExportCancel = false;
