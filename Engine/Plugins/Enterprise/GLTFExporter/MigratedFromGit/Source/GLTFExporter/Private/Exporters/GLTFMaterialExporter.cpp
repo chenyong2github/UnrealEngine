@@ -11,7 +11,7 @@ UGLTFMaterialExporter::UGLTFMaterialExporter(const FObjectInitializer& ObjectIni
 	SupportedClass = UMaterialInterface::StaticClass();
 }
 
-bool UGLTFMaterialExporter::Add(FGLTFContainerBuilder& Builder, const UObject* Object)
+bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
 {
 	const UMaterialInterface* Material = CastChecked<UMaterialInterface>(Object);
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material);

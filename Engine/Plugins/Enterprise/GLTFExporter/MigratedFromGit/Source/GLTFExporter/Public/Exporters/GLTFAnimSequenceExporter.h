@@ -14,5 +14,5 @@ public:
 
 	explicit UGLTFAnimSequenceExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
-	bool Add(FGLTFContainerBuilder& Builder, const UObject* Object) override;
+	bool AddObject(FGLTFContainerBuilder& Builder, const UObject* Object) override;
 };
