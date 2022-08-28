@@ -56,6 +56,7 @@ UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObject
 	DefaultMaterial = UMaterialInstanceDynamic::Create(ConstructorStatics.Material.Object, GetTransientPackage());
 
 	CreateDefaultSpriteElement();
+	SetActiveImage(Image);	// Ensures correct initial screen-size, even if Image == nullptr
 
 	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("Collider"), true);
 	SphereComponent->InitSphereRadius(100.0f);
@@ -211,33 +212,6 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 	Super::OnRegister();
 }
 
-void UGLTFInteractionHotspotComponent::SetActiveImage(UTexture2D* NewImage)
-{
-	if (NewImage != ActiveImage)
-	{
-		UTexture* RenderedImage = NewImage;
-		if (RenderedImage == nullptr)
-		{
-			GetSpriteMaterial()->GetTextureParameterDefaultValue(NAME_SpriteParameter, RenderedImage);
-		}
-
-		GetSpriteMaterial()->SetTextureParameterValue(NAME_SpriteParameter, RenderedImage);
-		ActiveImage = NewImage;
-	}
-
-	const FVector2D NewImageSize(
-		NewImage != nullptr ? NewImage->GetSurfaceWidth() : 32.0f,
-		NewImage != nullptr ? NewImage->GetSurfaceHeight() : 32.0f);
-
-	if (NewImageSize != ActiveImageSize)
-	{
-		ActiveImageSize = NewImageSize;
-	}
-
-	// NOTE: we do this even if size is unchanged since the last update may have failed
-	UpdateSpriteSize();
-}
-
 void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
 {
 	SetActiveImage(CalculateActiveImage(true));
@@ -276,6 +250,21 @@ void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedCompo
 	bToggled = !bToggled;
 
 	SetActiveImage(CalculateActiveImage(true));
+}
+
+void UGLTFInteractionHotspotComponent::SetActiveImage(UTexture2D* NewImage)
+{
+	UTexture* DefaultTexture;
+	GetSpriteMaterial()->GetTextureParameterDefaultValue(NAME_SpriteParameter, DefaultTexture);
+
+	UTexture* SpriteTexture = NewImage != nullptr ? NewImage : DefaultTexture;
+	GetSpriteMaterial()->SetTextureParameterValue(NAME_SpriteParameter, SpriteTexture);
+
+	ActiveImage = NewImage;
+	ActiveImageSize = { SpriteTexture->GetSurfaceWidth(), SpriteTexture->GetSurfaceHeight() };
+
+	// NOTE: we do this even if size is unchanged since the last update may have failed
+	UpdateSpriteSize();
 }
 
 UTexture2D* UGLTFInteractionHotspotComponent::CalculateActiveImage(bool bCursorOver) const

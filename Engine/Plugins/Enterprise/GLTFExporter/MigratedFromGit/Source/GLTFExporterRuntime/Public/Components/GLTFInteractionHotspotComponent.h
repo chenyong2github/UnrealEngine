@@ -44,11 +44,9 @@ private:
 	UFUNCTION()
 	void Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed);
 
+	void SetActiveImage(UTexture2D* NewImage);
+
 	UTexture2D* CalculateActiveImage(bool bCursorOver) const;
-
-protected:
-
-	virtual void SetActiveImage(UTexture2D* NewImage);
 
 public:
 	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
