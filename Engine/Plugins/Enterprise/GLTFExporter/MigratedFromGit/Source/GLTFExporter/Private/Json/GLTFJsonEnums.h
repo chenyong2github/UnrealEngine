@@ -124,14 +124,14 @@ enum class EGLTFJsonTextureWrap
 	ClampToEdge = 33071
 };
 
-enum class EGLTFJsonAnimationInterpolation
+enum class EGLTFJsonInterpolation
 {
 	Linear,
 	Step,
 	CubicSpline,
 };
 
-enum class EGLTFJsonAnimationPath
+enum class EGLTFJsonTargetPath
 {
 	None = -1,
 	Translation,

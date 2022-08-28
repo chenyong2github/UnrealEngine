@@ -115,6 +115,29 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static const TCHAR* ToString(EGLTFJsonInterpolation Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonInterpolation::Linear:      return TEXT("LINEAR");
+			case EGLTFJsonInterpolation::Step:        return TEXT("STEP");
+			case EGLTFJsonInterpolation::CubicSpline: return TEXT("CUBICSPLINE");
+			default:                                  return TEXT("UNKNOWN");
+		}
+	}
+
+	static const TCHAR* ToString(EGLTFJsonTargetPath Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonTargetPath::Translation: return TEXT("translation");
+			case EGLTFJsonTargetPath::Rotation:    return TEXT("rotation");
+			case EGLTFJsonTargetPath::Scale:       return TEXT("scale");
+			case EGLTFJsonTargetPath::Weights:     return TEXT("weights");
+			default:                               return TEXT("unknown");
+		}
+	}
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
 	{

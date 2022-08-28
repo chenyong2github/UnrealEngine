@@ -24,6 +24,16 @@ EGLTFJsonLightType FGLTFConverterUtility::ConvertLightType(ELightComponentType C
 	}
 }
 
+EGLTFJsonInterpolation FGLTFConverterUtility::ConvertInterpolation(const EAnimInterpolationType Type)
+{
+	switch (Type)
+	{
+		case EAnimInterpolationType::Linear: return EGLTFJsonInterpolation::Linear;
+		case EAnimInterpolationType::Step:   return EGLTFJsonInterpolation::Step;
+		default:                             return EGLTFJsonInterpolation::Linear; // fallback
+	}
+}
+
 EGLTFJsonShadingModel FGLTFConverterUtility::ConvertShadingModel(EMaterialShadingModel ShadingModel)
 {
 	switch (ShadingModel)

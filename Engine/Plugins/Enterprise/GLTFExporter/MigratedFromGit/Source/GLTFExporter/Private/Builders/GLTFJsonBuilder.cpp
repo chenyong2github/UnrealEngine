@@ -13,6 +13,11 @@ FGLTFJsonAccessorIndex FGLTFJsonBuilder::AddAccessor(const FGLTFJsonAccessor& Js
 	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor));
 }
 
+FGLTFJsonAnimationIndex FGLTFJsonBuilder::AddAnimation(const FGLTFJsonAnimation& JsonAnimation)
+{
+	return FGLTFJsonAnimationIndex(JsonRoot.Animations.Add(JsonAnimation));
+}
+
 FGLTFJsonBufferIndex FGLTFJsonBuilder::AddBuffer(const FGLTFJsonBuffer& JsonBuffer)
 {
 	return FGLTFJsonBufferIndex(JsonRoot.Buffers.Add(JsonBuffer));
@@ -120,6 +125,11 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNodeIndex Pa
 FGLTFJsonAccessor& FGLTFJsonBuilder::GetAccessor(FGLTFJsonAccessorIndex AccessorIndex)
 {
 	return JsonRoot.Accessors[AccessorIndex];
+}
+
+FGLTFJsonAnimation& FGLTFJsonBuilder::GetAnimation(FGLTFJsonAnimationIndex AnimationIndex)
+{
+	return JsonRoot.Animations[AnimationIndex];
 }
 
 FGLTFJsonBuffer& FGLTFJsonBuilder::GetBuffer(FGLTFJsonBufferIndex BufferIndex)
