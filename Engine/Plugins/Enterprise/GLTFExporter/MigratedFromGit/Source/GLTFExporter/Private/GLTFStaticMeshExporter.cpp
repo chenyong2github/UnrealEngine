@@ -2,6 +2,8 @@
 
 #include "GLTFStaticMeshExporter.h"
 #include "GLTFJsonRoot.h"
+#include "GLTFBufferBuilder.h"
+#include "GLTFMeshConverter.h"
 #include "Engine/StaticMesh.h"
 
 UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer)
@@ -21,23 +23,10 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 	}
 
 	FGLTFJsonRoot Root;
+	FGLTFBufferBuilder BufferBuilder(Root);
+	FGLTFMeshConverter MeshConverter(Root, BufferBuilder);
 
-	FGLTFJsonBuffer Buffer;
-	FGLTFJsonIndex BufferIndex = Root.Buffers.Add(Buffer);
-
-	FGLTFJsonBufferView BufferView;
-	BufferView.Buffer = BufferIndex;
-	FGLTFJsonIndex BufferViewIndex = Root.BufferViews.Add(BufferView);
-
-	FGLTFJsonAccessor Accessor;
-	Accessor.BufferView = BufferViewIndex;
-	FGLTFJsonIndex AccessorIndex = Root.Accessors.Add(Accessor);
-
-	FGLTFJsonMesh Mesh;
-	FGLTFJsonPrimitive Primitive;
-	Primitive.Attributes.Position = AccessorIndex;
-	Mesh.Primitives.Add(Primitive);
-	FGLTFJsonIndex MeshIndex = Root.Meshes.Add(Mesh);
+	FGLTFJsonIndex MeshIndex = MeshConverter.AppendMesh(StaticMesh, 0);
 
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;
@@ -49,6 +38,7 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 
 	Root.DefaultScene = SceneIndex;
 
+	BufferBuilder.Close();
 	Root.Serialize(&Archive, true);
 	return true;
 }
