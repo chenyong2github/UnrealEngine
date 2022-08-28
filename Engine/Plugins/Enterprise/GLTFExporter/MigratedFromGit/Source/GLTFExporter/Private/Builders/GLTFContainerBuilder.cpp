@@ -43,7 +43,7 @@ void FGLTFContainerBuilder::WriteGlb(FArchive& Archive) const
 void FGLTFContainerBuilder::BundleWebViewer()
 {
 	const FString PluginDir = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME)->GetBaseDir();
-	const FString ArchiveFile = PluginDir / TEXT("Resources") / TEXT("WebViewer.zip");
+	const FString ArchiveFile = PluginDir / TEXT("Resources") / TEXT("GLTFWebViewer.zip");
 
 	if (!FPaths::FileExists(ArchiveFile))
 	{
