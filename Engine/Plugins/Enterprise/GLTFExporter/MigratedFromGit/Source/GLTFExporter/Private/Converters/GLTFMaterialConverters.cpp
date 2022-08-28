@@ -58,6 +58,12 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 		// TODO: handle failure?
 	}
 
+	// NOTE: export of EmissiveColor has been temporarily disabled because of visual differences that
+	// are not solvable in the scope of MR !19.
+	// The issues revolve mainly around very bright emission in the exported materials compared to
+	// how the same materials look inside of UE.
+	// TODO: solve the issues in a separate MR.
+	/*
 	if (!TryGetConstantColor(JsonMaterial.EmissiveFactor, Material->EmissiveColor, MaterialInstance))
 	{
 		const bool bTextureFound = TryGetSourceTexture(Builder, JsonMaterial.EmissiveTexture, Material->EmissiveColor, MaterialInstance, { RgbaMask, RgbMask }) ||
@@ -72,6 +78,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 			// TODO: handle failure?
 		}
 	}
+	*/
 
 	if (Material->Normal.Expression != nullptr)
 	{
