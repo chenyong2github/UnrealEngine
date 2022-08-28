@@ -9,15 +9,12 @@
 #include "Converters/GLTFMeshDataConverters.h"
 #include "Converters/GLTFMaterialArray.h"
 
-template <typename... InputTypes>
-class TGLTFMeshConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMeshIndex, InputTypes...>
+typedef TGLTFConverter<FGLTFJsonMeshIndex, const UStaticMesh*, const UStaticMeshComponent*, FGLTFMaterialArray, int32> IGLTFStaticMeshConverter;
+typedef TGLTFConverter<FGLTFJsonMeshIndex, const USkeletalMesh*, const USkeletalMeshComponent*, FGLTFMaterialArray, int32> IGLTFSkeletalMeshConverter;
+
+class FGLTFStaticMeshConverter final : public FGLTFBuilderContext, public IGLTFStaticMeshConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
-};
-
-class FGLTFStaticMeshConverter final : public TGLTFMeshConverter<const UStaticMesh*, const UStaticMeshComponent*, FGLTFMaterialArray, int32>
-{
-	using TGLTFMeshConverter::TGLTFMeshConverter;
 
 	virtual void Sanitize(const UStaticMesh*& StaticMesh, const UStaticMeshComponent*& StaticMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex) override;
 
@@ -26,9 +23,9 @@ class FGLTFStaticMeshConverter final : public TGLTFMeshConverter<const UStaticMe
 	FGLTFStaticMeshSectionConverter MeshSectionConverter;
 };
 
-class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkeletalMesh*, const USkeletalMeshComponent*, FGLTFMaterialArray, int32>
+class FGLTFSkeletalMeshConverter final : public FGLTFBuilderContext, public IGLTFSkeletalMeshConverter
 {
-	using TGLTFMeshConverter::TGLTFMeshConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual void Sanitize(const USkeletalMesh*& SkeletalMesh, const USkeletalMeshComponent*& SkeletalMeshComponent, FGLTFMaterialArray& Materials, int32& LODIndex) override;
 

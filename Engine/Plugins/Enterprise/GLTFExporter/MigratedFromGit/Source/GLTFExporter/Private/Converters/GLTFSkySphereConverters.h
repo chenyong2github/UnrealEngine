@@ -9,7 +9,9 @@
 
 struct FGLTFJsonSkySphereColorCurve;
 
-class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSkySphereIndex, const AActor*>
+typedef TGLTFConverter<FGLTFJsonSkySphereIndex, const AActor*> IGLTFSkySphereConverter;
+
+class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public IGLTFSkySphereConverter
 {
 	enum class ESkySphereTextureParameter
 	{

@@ -6,7 +6,9 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-class FGLTFSceneConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSceneIndex, const UWorld*>
+typedef TGLTFConverter<FGLTFJsonSceneIndex, const UWorld*> IGLTFSceneConverter;
+
+class FGLTFSceneConverter final : public FGLTFBuilderContext, public IGLTFSceneConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

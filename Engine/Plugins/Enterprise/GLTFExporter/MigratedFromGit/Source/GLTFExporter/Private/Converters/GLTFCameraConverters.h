@@ -8,7 +8,9 @@
 
 class UCameraComponent;
 
-class FGLTFCameraConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonCameraIndex, const UCameraComponent*>
+typedef TGLTFConverter<FGLTFJsonCameraIndex, const UCameraComponent*> IGLTFCameraConverter;
+
+class FGLTFCameraConverter final : public FGLTFBuilderContext, public IGLTFCameraConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

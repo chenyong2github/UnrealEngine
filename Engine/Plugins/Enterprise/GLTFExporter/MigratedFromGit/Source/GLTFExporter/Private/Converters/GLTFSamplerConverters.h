@@ -6,7 +6,9 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-class FGLTFSamplerConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*>
+typedef TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*> IGLTFSamplerConverter;
+
+class FGLTFSamplerConverter final : public FGLTFBuilderContext, public IGLTFSamplerConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

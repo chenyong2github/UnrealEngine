@@ -10,7 +10,9 @@
 class UVariant;
 class UPropertyValueMaterial;
 
-class FGLTFKhrMaterialVariantConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonKhrMaterialVariantIndex, const UVariant*>
+typedef TGLTFConverter<FGLTFJsonKhrMaterialVariantIndex, const UVariant*> IGLTFKhrMaterialVariantConverter;
+
+class FGLTFKhrMaterialVariantConverter final : public FGLTFBuilderContext, public IGLTFKhrMaterialVariantConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

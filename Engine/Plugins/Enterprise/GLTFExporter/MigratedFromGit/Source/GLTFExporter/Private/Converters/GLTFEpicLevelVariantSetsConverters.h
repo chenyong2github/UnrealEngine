@@ -14,7 +14,9 @@ class UVariantObjectBinding;
 class UPropertyValue;
 class UPropertyValueMaterial;
 
-class FGLTFEpicLevelVariantSetsConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonEpicLevelVariantSetsIndex, const ULevelVariantSets*>
+typedef TGLTFConverter<FGLTFJsonEpicLevelVariantSetsIndex, const ULevelVariantSets*> IGLTFEpicLevelVariantSetsConverter;
+
+class FGLTFEpicLevelVariantSetsConverter final : public FGLTFBuilderContext, public IGLTFEpicLevelVariantSetsConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

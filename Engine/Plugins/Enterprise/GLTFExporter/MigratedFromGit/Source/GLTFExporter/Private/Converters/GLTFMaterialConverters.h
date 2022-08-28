@@ -10,7 +10,9 @@
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "Converters/GLTFUVDegenerateChecker.h"
 
-class FGLTFMaterialConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*, const FGLTFMeshData*, FGLTFIndexArray>
+typedef TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*, const FGLTFMeshData*, FGLTFIndexArray> IGLTFMaterialConverter;
+
+class FGLTFMaterialConverter final : public FGLTFBuilderContext, public IGLTFMaterialConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
