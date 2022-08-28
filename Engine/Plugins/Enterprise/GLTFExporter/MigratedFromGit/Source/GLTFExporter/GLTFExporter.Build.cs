@@ -46,6 +46,7 @@ public class GLTFExporter : ModuleRules
 					"InputCore",
 					"EditorStyle",
 					"PropertyEditor",
+					"ToolMenus",
 					"MeshMergeUtilities",
 					"MeshDescription",
 					"StaticMeshDescription",
