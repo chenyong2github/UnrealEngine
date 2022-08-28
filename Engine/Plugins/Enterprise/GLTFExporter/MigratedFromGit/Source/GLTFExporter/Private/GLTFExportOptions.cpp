@@ -16,30 +16,30 @@
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bBundleWebViewer = true;
-	bExportPreviewMesh = true;
-	bAllExtensionsRequired = true;
+	bBundleWebViewer = false;
+	bExportPreviewMesh = false;
+	bAllExtensionsRequired = false;
 	bExportVertexColors = true;
 	NormalExportMethod = EGLTFExporterNormalExportMethod::NormalsAndTangents;
 	bTangentDataQuantization = false;
-	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Auto;
+	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
 	bMapSkeletalMotionToRoot = false;
-	bExportUnlitMaterials = true;
-	bExportClearCoatMaterials = true;
-	bBakeMaterialInputs = true;
+	bExportUnlitMaterials = false;
+	bExportClearCoatMaterials = false;
+	bBakeMaterialInputs = false;
 	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
-	TextureFormat = EGLTFExporterTextureFormat::PNG;
-	bExportLightmaps = true;
-	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBD;
+	TextureFormat = EGLTFExporterTextureFormat::None;
+	bExportLightmaps = false;
+	TextureHDREncoding = EGLTFExporterTextureHDREncoding::None;
 	ExportScale = 0.01;
-	bExportLights = true;
-	bExportCameras = true;
-	bExportOrbitalCameras = true;
-	bExportReflectionCaptures = true;
-	bExportHDRIBackdrops = true;
-	bExportVariantSets = true;
-	bExportInteractionHotspots = true;
+	bExportLights = false;
+	bExportCameras = false;
+	bExportOrbitalCameras = false;
+	bExportReflectionCaptures = false;
+	bExportHDRIBackdrops = false;
+	bExportVariantSets = false;
+	bExportInteractionHotspots = false;
 }
 
 void UGLTFExportOptions::ResetToDefault()
