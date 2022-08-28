@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelExporterGLTF.h"
-#include "GLTFExporterModule.h"
+#include "GLTFExporter.h"
 #include "UnrealExporter.h"
-#include "AssetExportTask.h"
-#include "Engine/World.h"
 #include "Engine.h"
 
-ULevelExporterGLTF::ULevelExporterGLTF(const FObjectInitializer& ObjectInitializer)
+DEFINE_LOG_CATEGORY(LogGLTFExporter);
+
+UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UWorld::StaticClass();
+	SupportedClass = nullptr;
 	bText = false;
 	PreferredFormatIndex = 0;
 	FormatExtension.Add(TEXT("gltf"));
@@ -19,9 +18,9 @@ ULevelExporterGLTF::ULevelExporterGLTF(const FObjectInitializer& ObjectInitializ
 	FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
 }
 
-bool ULevelExporterGLTF::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
+bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UE_LOG(LogGLTFExporter, Warning, TEXT("ULevelExporterGLTF::ExportBinary"));
+	UE_LOG(LogGLTFExporter, Warning, TEXT("%s::ExportBinary"), *(this->GetClass()->GetName()));
 	UE_LOG(LogGLTFExporter, Warning, TEXT("Object: %s (%s)"), *(Object->GetName()), *(Object->GetClass()->GetName()));
 	UE_LOG(LogGLTFExporter, Warning, TEXT("Type: %s"), Type);
 	UE_LOG(LogGLTFExporter, Warning, TEXT("FileIndex: %d"), FileIndex);
