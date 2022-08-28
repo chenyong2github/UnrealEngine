@@ -176,7 +176,7 @@ FGLTFJsonLightIndex FGLTFLightComponentConverter::Add(FGLTFConvertBuilder& Build
 
 	if (const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
 	{
-		Light.Range = FGLTFConverterUtility::ConvertLightRange(PointLightComponent->AttenuationRadius);
+		Light.Range = FGLTFConverterUtility::ConvertLength(PointLightComponent->AttenuationRadius);
 	}
 
 	if (const USpotLightComponent* SpotLightComponent = Cast<USpotLightComponent>(LightComponent))
