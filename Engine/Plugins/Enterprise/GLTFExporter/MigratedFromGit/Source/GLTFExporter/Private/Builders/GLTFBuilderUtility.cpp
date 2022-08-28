@@ -2,14 +2,18 @@
 
 #include "Builders/GLTFBuilderUtility.h"
 
-FString FGLTFBuilderUtility::GetMeshName(const UStaticMesh* StaticMesh, int32 LODIndex)
+FString FGLTFBuilderUtility::GetLODName(const UObject* Object, int32 LODIndex)
 {
 	FString Name;
 
-	if (StaticMesh != nullptr)
+	if (Object != nullptr)
 	{
-		StaticMesh->GetName(Name);
-		if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+		Object->GetName(Name);
+
+		if (LODIndex != 0)
+		{
+			Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+		}
 	}
 
 	return Name;
