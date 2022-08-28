@@ -64,10 +64,10 @@ void FGLTFMaterialTask::Complete()
 	FGLTFJsonMaterial& JsonMaterial = Builder.GetMaterial(MaterialIndex);
 	JsonMaterial.Name = GetMaterialName();
 
-	if (!TryGetAlphaMode(JsonMaterial.AlphaMode))
+	if (!TryGetAlphaMode(JsonMaterial.AlphaMode, JsonMaterial.BlendMode))
 	{
-		JsonMaterial.AlphaMode = EGLTFJsonAlphaMode::Opaque;
-		Builder.AddWarningMessage(FString::Printf(TEXT("Material %s will be exported as blend mode %s"), *Material->GetName(), *FGLTFNameUtility::GetName(BLEND_Opaque)));
+		JsonMaterial.AlphaMode = EGLTFJsonAlphaMode::Blend;
+		Builder.AddWarningMessage(FString::Printf(TEXT("Material %s will be exported as blend mode %s"), *Material->GetName(), *FGLTFNameUtility::GetName(BLEND_Translucent)));
 	}
 
 	JsonMaterial.AlphaCutoff = Material->GetOpacityMaskClipValue();
@@ -175,21 +175,24 @@ void FGLTFMaterialTask::Complete()
 	}
 }
 
-bool FGLTFMaterialTask::TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const
+bool FGLTFMaterialTask::TryGetAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const
 {
 	const EBlendMode BlendMode = Material->GetBlendMode();
 
 	// TODO: add support for additional blend modes (like Additive and Modulate)?
 
-	const EGLTFJsonAlphaMode ConvertedAlphaMode = FGLTFConverterUtility::ConvertBlendMode(BlendMode);
-	if (ConvertedAlphaMode == EGLTFJsonAlphaMode::None)
+	const EGLTFJsonAlphaMode AlphaMode = FGLTFConverterUtility::ConvertAlphaMode(BlendMode);
+	if (AlphaMode == EGLTFJsonAlphaMode::None)
 	{
-		const FString BlendModeName = FGLTFNameUtility::GetName(BlendMode);
-		Builder.AddWarningMessage(FString::Printf(TEXT("Unsupported blend mode (%s) in material %s"), *BlendModeName, *Material->GetName()));
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Unsupported blend mode (%s) in material %s"),
+			*FGLTFNameUtility::GetName(BlendMode),
+			*Material->GetName()));
 		return false;
 	}
 
-	AlphaMode = ConvertedAlphaMode;
+	OutAlphaMode = AlphaMode;
+	OutBlendMode = AlphaMode == EGLTFJsonAlphaMode::Blend ? FGLTFConverterUtility::ConvertBlendMode(BlendMode) : EGLTFJsonBlendMode::None;
 	return true;
 }
 

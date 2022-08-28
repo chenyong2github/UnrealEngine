@@ -46,14 +46,28 @@ EGLTFJsonShadingModel FGLTFConverterUtility::ConvertShadingModel(EMaterialShadin
 	}
 }
 
-EGLTFJsonAlphaMode FGLTFConverterUtility::ConvertBlendMode(EBlendMode Mode)
+EGLTFJsonAlphaMode FGLTFConverterUtility::ConvertAlphaMode(EBlendMode Mode)
 {
 	switch (Mode)
 	{
-		case BLEND_Opaque:      return EGLTFJsonAlphaMode::Opaque;
-		case BLEND_Translucent: return EGLTFJsonAlphaMode::Blend;
-		case BLEND_Masked:      return EGLTFJsonAlphaMode::Mask;
-		default:                return EGLTFJsonAlphaMode::None;
+		case BLEND_Opaque:         return EGLTFJsonAlphaMode::Opaque;
+		case BLEND_Masked:         return EGLTFJsonAlphaMode::Mask;
+		case BLEND_Translucent:    return EGLTFJsonAlphaMode::Blend;
+		case BLEND_Additive:       return EGLTFJsonAlphaMode::Blend;
+		case BLEND_Modulate:       return EGLTFJsonAlphaMode::Blend;
+		case BLEND_AlphaComposite: return EGLTFJsonAlphaMode::Blend;
+		default:                   return EGLTFJsonAlphaMode::None;
+	}
+}
+
+EGLTFJsonBlendMode FGLTFConverterUtility::ConvertBlendMode(EBlendMode Mode)
+{
+	switch (Mode)
+	{
+		case BLEND_Additive:       return EGLTFJsonBlendMode::Additive;
+		case BLEND_Modulate:       return EGLTFJsonBlendMode::Modulate;
+		case BLEND_AlphaComposite: return EGLTFJsonBlendMode::AlphaComposite;
+		default:                   return EGLTFJsonBlendMode::None;
 	}
 }
 

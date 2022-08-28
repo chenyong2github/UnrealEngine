@@ -18,19 +18,19 @@ struct FGLTFJsonUtility
 		switch (Value)
 		{
 			case EGLTFJsonExtension::KHR_LightsPunctual:      return TEXT("KHR_lights_punctual");
-			case EGLTFJsonExtension::KHR_MaterialsUnlit:      return TEXT("KHR_materials_unlit");
 			case EGLTFJsonExtension::KHR_MaterialsClearCoat:  return TEXT("KHR_materials_clearcoat");
+			case EGLTFJsonExtension::KHR_MaterialsUnlit:      return TEXT("KHR_materials_unlit");
 			case EGLTFJsonExtension::KHR_MeshQuantization:    return TEXT("KHR_mesh_quantization");
 			case EGLTFJsonExtension::KHR_TextureTransform:    return TEXT("KHR_texture_transform");
+			case EGLTFJsonExtension::EPIC_AnimationHotspots:  return TEXT("EPIC_animation_hotspots");
+			case EGLTFJsonExtension::EPIC_AnimationPlayback:  return TEXT("EPIC_animation_playback");
+			case EGLTFJsonExtension::EPIC_BlendModes:         return TEXT("EPIC_blend_modes");
 			case EGLTFJsonExtension::EPIC_CameraControls:     return TEXT("EPIC_camera_controls");
 			case EGLTFJsonExtension::EPIC_HDRIBackdrops:      return TEXT("EPIC_hdri_backdrops");
-			case EGLTFJsonExtension::EPIC_AnimationHotspots:  return TEXT("EPIC_animation_hotspots");
-			case EGLTFJsonExtension::EPIC_LightmapTextures:   return TEXT("EPIC_lightmap_textures");
-			case EGLTFJsonExtension::EPIC_ReflectionCaptures: return TEXT("EPIC_reflection_captures");
 			case EGLTFJsonExtension::EPIC_LevelVariantSets:   return TEXT("EPIC_level_variant_sets");
-			case EGLTFJsonExtension::EPIC_TextureHDREncoding: return TEXT("EPIC_texture_hdr_encoding");
-			case EGLTFJsonExtension::EPIC_AnimationPlayback:  return TEXT("EPIC_animation_playback");
+			case EGLTFJsonExtension::EPIC_LightmapTextures:   return TEXT("EPIC_lightmap_textures");
 			case EGLTFJsonExtension::EPIC_SkySpheres:         return TEXT("EPIC_sky_spheres");
+			case EGLTFJsonExtension::EPIC_TextureHDREncoding: return TEXT("EPIC_texture_hdr_encoding");
 			default:
 				checkNoEntry();
 				return TEXT("");
@@ -44,6 +44,19 @@ struct FGLTFJsonUtility
 			case EGLTFJsonAlphaMode::Opaque: return TEXT("OPAQUE");
 			case EGLTFJsonAlphaMode::Blend:  return TEXT("BLEND");
 			case EGLTFJsonAlphaMode::Mask:   return TEXT("MASK");
+			default:
+				checkNoEntry();
+				return TEXT("");
+		}
+	}
+
+	static const TCHAR* ToString(EGLTFJsonBlendMode Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonBlendMode::Additive:       return TEXT("ADDITIVE");
+			case EGLTFJsonBlendMode::Modulate:       return TEXT("MODULATE");
+			case EGLTFJsonBlendMode::AlphaComposite: return TEXT("ALPHACOMPOSITE");
 			default:
 				checkNoEntry();
 				return TEXT("");
