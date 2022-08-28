@@ -102,3 +102,16 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builde
 	// TODO: implement support
 	return FGLTFJsonTextureIndex(INDEX_NONE);
 }
+
+FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureRenderTarget2D* RenderTarget2D)
+{
+	// TODO: implement support
+	return FGLTFJsonTextureIndex(INDEX_NONE);
+}
+
+FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureRenderTargetCube* RenderTargetCube)
+{
+	// TODO: implement support
+	return FGLTFJsonTextureIndex(INDEX_NONE);
+}
+
