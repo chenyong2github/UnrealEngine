@@ -21,6 +21,8 @@ namespace
 {
 	const FName NAME_InteractionHotspotTag = TEXT("InteractionHotspot");
 	const FName NAME_LevelEditorModule = TEXT("LevelEditor");
+	const FName NAME_SpriteParameter = TEXT("Sprite");
+	const FName NAME_OpacityParameter = TEXT("Opacity");
 }
 
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
@@ -216,10 +218,10 @@ void UGLTFInteractionHotspotComponent::SetActiveImage(UTexture2D* NewImage)
 		UTexture* RenderedImage = NewImage;
 		if (RenderedImage == nullptr)
 		{
-			GetSpriteMaterial()->GetTextureParameterDefaultValue(TEXT("Sprite"), RenderedImage);
+			GetSpriteMaterial()->GetTextureParameterDefaultValue(NAME_SpriteParameter, RenderedImage);
 		}
 
-		GetSpriteMaterial()->SetTextureParameterValue(TEXT("Sprite"), RenderedImage);
+		GetSpriteMaterial()->SetTextureParameterValue(NAME_SpriteParameter, RenderedImage);
 		ActiveImage = NewImage;
 	}
 
@@ -360,7 +362,7 @@ void UGLTFInteractionHotspotComponent::UpdateSpriteSize()
 
 void UGLTFInteractionHotspotComponent::SetSpriteOpacity(const float Opacity) const
 {
-	GetSpriteMaterial()->SetScalarParameterValue("Opacity", Opacity);
+	GetSpriteMaterial()->SetScalarParameterValue(NAME_OpacityParameter, Opacity);
 }
 
 FIntPoint UGLTFInteractionHotspotComponent::GetCurrentViewportSize()
