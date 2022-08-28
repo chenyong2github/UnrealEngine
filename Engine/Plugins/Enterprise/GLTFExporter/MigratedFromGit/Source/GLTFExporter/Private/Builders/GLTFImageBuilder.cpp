@@ -6,8 +6,7 @@
 #include "IImageWrapper.h"
 #include "Misc/FileHelper.h"
 
-FGLTFImageBuilder::FGLTFImageBuilder(const UGLTFExportOptions* ExportOptions)
-	: FGLTFBufferBuilder(ExportOptions)
+FGLTFImageBuilder::FGLTFImageBuilder()
 {
 }
 

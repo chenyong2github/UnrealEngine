@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GLTFExportOptions.h"
 #include "Builders/GLTFImageBuilder.h"
 #include "Converters/GLTFAccessorConverters.h"
 #include "Converters/GLTFMeshConverters.h"
@@ -19,11 +20,14 @@
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
-public:
-
-	const bool bSelectedActorsOnly;
+protected:
 
 	FGLTFConvertBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
+
+public:
+
+	const UGLTFExportOptions* const ExportOptions;
+	const bool bSelectedActorsOnly;
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer);
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer);

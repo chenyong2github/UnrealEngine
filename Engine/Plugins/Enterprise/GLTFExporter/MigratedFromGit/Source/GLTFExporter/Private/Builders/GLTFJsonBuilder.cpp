@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFJsonBuilder.h"
+#include "Builders/GLTFBuilderUtility.h"
 
-FGLTFJsonBuilder::FGLTFJsonBuilder(const UGLTFExportOptions* ExportOptions)
-	: FGLTFBuilder(ExportOptions)
-	, DefaultScene(JsonRoot.DefaultScene)
+FGLTFJsonBuilder::FGLTFJsonBuilder()
+	: DefaultScene(JsonRoot.DefaultScene)
 {
 }
 

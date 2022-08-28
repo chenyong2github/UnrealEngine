@@ -3,15 +3,17 @@
 #pragma once
 
 #include "Json/GLTFJsonRoot.h"
-#include "Builders/GLTFBuilder.h"
+#include "Builders/GLTFMessageBuilder.h"
 
-class FGLTFJsonBuilder : public FGLTFBuilder
+class FGLTFJsonBuilder : public FGLTFMessageBuilder
 {
+protected:
+
+	FGLTFJsonBuilder();
+
 public:
 
 	FGLTFJsonSceneIndex& DefaultScene;
-
-	FGLTFJsonBuilder(const UGLTFExportOptions* ExportOptions);
 
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor = {});
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer = {});

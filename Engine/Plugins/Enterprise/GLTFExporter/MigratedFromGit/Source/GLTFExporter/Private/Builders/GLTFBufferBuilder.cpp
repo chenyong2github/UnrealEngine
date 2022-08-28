@@ -4,8 +4,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-FGLTFBufferBuilder::FGLTFBufferBuilder(const UGLTFExportOptions* ExportOptions)
-	: FGLTFJsonBuilder(ExportOptions)
+FGLTFBufferBuilder::FGLTFBufferBuilder()
 {
 	BufferIndex = AddBuffer();
 }

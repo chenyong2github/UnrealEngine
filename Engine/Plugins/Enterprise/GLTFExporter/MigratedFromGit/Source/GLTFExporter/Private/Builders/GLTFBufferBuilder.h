@@ -6,9 +6,11 @@
 
 class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
-public:
+protected:
 
-	FGLTFBufferBuilder(const UGLTFExportOptions* ExportOptions);
+	FGLTFBufferBuilder();
+
+public:
 
 	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, uint8 DataAlignment = 4, EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
@@ -18,10 +20,11 @@ public:
 		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), DataAlignment, BufferTarget);
 	}
 
-	void UpdateJsonBufferObject(const FString& BinaryFilePath);
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath) override;
 
 private:
+
+	void UpdateJsonBufferObject(const FString& BinaryFilePath);
 
 	FGLTFJsonBufferIndex BufferIndex;
 	TArray64<uint8> BufferData;

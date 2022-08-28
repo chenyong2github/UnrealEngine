@@ -57,11 +57,11 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	if (FApp::IsUnattended())
 	{
-		Builder.WriteLogMessagesToConsole();
+		Builder.WriteMessagesToConsole();
 	}
 	else
 	{
-		Builder.ShowLogMessages();
+		Builder.ShowMessages();
 	}
 
 	return bSuccess;
