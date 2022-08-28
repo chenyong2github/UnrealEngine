@@ -4,7 +4,7 @@
 
 #include "GLTFJsonEnums.h"
 #include "GLTFJsonIndex.h"
-#include "GLTFJsonUtilities.h"
+#include "GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
 struct GLTFEXPORTER_API FGLTFJsonBufferView
@@ -42,7 +42,7 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView
 		if (ByteOffset != 0) JsonWriter.WriteValue(TEXT("byteOffset"), ByteOffset);
 		if (ByteStride != 0) JsonWriter.WriteValue(TEXT("byteStride"), ByteStride);
 
-		if (Target != EGLTFJsonBufferTarget::None) JsonWriter.WriteValue(TEXT("target"), BufferTargetToNumber(Target));
+		if (Target != EGLTFJsonBufferTarget::None) JsonWriter.WriteValue(TEXT("target"), FGLTFJsonUtility::BufferTargetToNumber(Target));
 
 		JsonWriter.WriteObjectEnd();
 	}
