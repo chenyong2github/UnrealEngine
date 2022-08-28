@@ -27,7 +27,7 @@ void FGLTFContainerBuilder::WriteInternalArchive(FArchive& Archive)
 		const FString ExtensionsString = FString::JoinBy(CustomExtensions, TEXT(", "),
 			[](EGLTFJsonExtension Extension)
 		{
-			return FGLTFJsonUtility::GetValue(Extension);
+			return FGLTFJsonUtilities::GetValue(Extension);
 		});
 
 		LogWarning(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));

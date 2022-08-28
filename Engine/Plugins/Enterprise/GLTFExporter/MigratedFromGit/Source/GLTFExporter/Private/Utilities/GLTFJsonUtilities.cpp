@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Json/GLTFJsonUtility.h"
+#include "Utilities/GLTFJsonUtilities.h"
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonExtension Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonExtension Enum)
 {
 	switch (Enum)
 	{
@@ -27,7 +27,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonExtension Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonAlphaMode Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonAlphaMode Enum)
 {
 	switch (Enum)
 	{
@@ -40,7 +40,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonAlphaMode Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonBlendMode Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonBlendMode Enum)
 {
 	switch (Enum)
 	{
@@ -53,7 +53,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonBlendMode Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonMimeType Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonMimeType Enum)
 {
 	switch (Enum)
 	{
@@ -65,7 +65,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonMimeType Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonAccessorType Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonAccessorType Enum)
 {
 	switch (Enum)
 	{
@@ -82,7 +82,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonAccessorType Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonHDREncoding Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonHDREncoding Enum)
 {
 	switch (Enum)
 	{
@@ -94,7 +94,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonHDREncoding Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonCubeFace Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonCubeFace Enum)
 {
 	switch (Enum)
 	{
@@ -110,7 +110,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonCubeFace Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonCameraType Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonCameraType Enum)
 {
 	switch (Enum)
 	{
@@ -122,7 +122,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonCameraType Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonLightType Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonLightType Enum)
 {
 	switch (Enum)
 	{
@@ -135,7 +135,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonLightType Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonInterpolation Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonInterpolation Enum)
 {
 	switch (Enum)
 	{
@@ -148,7 +148,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonInterpolation Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonTargetPath Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonTargetPath Enum)
 {
 	switch (Enum)
 	{
@@ -162,7 +162,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonTargetPath Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonCameraControlMode Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonCameraControlMode Enum)
 {
 	switch (Enum)
 	{
@@ -174,7 +174,7 @@ const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonCameraControlMode Enum)
 	}
 }
 
-const TCHAR* FGLTFJsonUtility::GetValue(EGLTFJsonShadingModel Enum)
+const TCHAR* FGLTFJsonUtilities::GetValue(EGLTFJsonShadingModel Enum)
 {
 	switch (Enum)
 	{

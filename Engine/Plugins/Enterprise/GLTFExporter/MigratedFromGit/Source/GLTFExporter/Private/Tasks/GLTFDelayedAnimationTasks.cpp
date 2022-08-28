@@ -2,7 +2,7 @@
 
 #include "Tasks/GLTFDelayedAnimationTasks.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFBoneUtility.h"
 #include "LevelSequence.h"
 #include "LevelSequencePlayer.h"
@@ -36,7 +36,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 	JsonInputAccessor->Min[0] = 0;
 	JsonInputAccessor->Max[0] = Timestamps[FrameCount - 1];
 
-	EGLTFJsonInterpolation Interpolation = FGLTFConverterUtility::ConvertInterpolation(AnimSequence->Interpolation);
+	EGLTFJsonInterpolation Interpolation = FGLTFCoreUtilities::ConvertInterpolation(AnimSequence->Interpolation);
 	if (Interpolation == EGLTFJsonInterpolation::None)
 	{
 		Interpolation = EGLTFJsonInterpolation::Linear;
@@ -62,7 +62,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
 				const FVector KeyPosition = FrameTransforms[Frame][BoneIndex].GetTranslation();
-				Translations[Frame] = FGLTFConverterUtility::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);
+				Translations[Frame] = FGLTFCoreUtilities::ConvertPosition(KeyPosition, Builder.ExportOptions->ExportUniformScale);
 			}
 
 			FGLTFJsonAccessor* JsonOutputAccessor = Builder.AddAccessor();
@@ -90,7 +90,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
 				const FQuat KeyRotation = FrameTransforms[Frame][BoneIndex].GetRotation();
-				Rotations[Frame] = FGLTFConverterUtility::ConvertRotation(KeyRotation);
+				Rotations[Frame] = FGLTFCoreUtilities::ConvertRotation(KeyRotation);
 			}
 
 			FGLTFJsonAccessor* JsonOutputAccessor = Builder.AddAccessor();
@@ -118,7 +118,7 @@ void FGLTFDelayedAnimSequenceTask::Process()
 			for (int32 Frame = 0; Frame < FrameCount; ++Frame)
 			{
 				const FVector KeyScale = FrameTransforms[Frame][BoneIndex].GetScale3D();
-				Scales[Frame] = FGLTFConverterUtility::ConvertScale(KeyScale);
+				Scales[Frame] = FGLTFCoreUtilities::ConvertScale(KeyScale);
 			}
 
 			FGLTFJsonAccessor* JsonOutputAccessor = Builder.AddAccessor();
@@ -256,7 +256,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							Channels[1]->Evaluate(FrameTime, Translation.Y);
 							Channels[2]->Evaluate(FrameTime, Translation.Z);
 
-							Translations[Frame] = FGLTFConverterUtility::ConvertPosition(Translation, Builder.ExportOptions->ExportUniformScale);
+							Translations[Frame] = FGLTFCoreUtilities::ConvertPosition(Translation, Builder.ExportOptions->ExportUniformScale);
 						}
 
 						FGLTFJsonAccessor* JsonOutputAccessor = Builder.AddAccessor();
@@ -291,7 +291,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							Channels[4]->Evaluate(FrameTime, Rotator.Pitch);
 							Channels[5]->Evaluate(FrameTime, Rotator.Yaw);
 
-							Rotations[Frame] = FGLTFConverterUtility::ConvertRotation(Rotator.Quaternion());
+							Rotations[Frame] = FGLTFCoreUtilities::ConvertRotation(Rotator.Quaternion());
 						}
 
 						JsonInputAccessor->Count = Rotations.Num();
@@ -329,7 +329,7 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							Channels[7]->Evaluate(FrameTime, Scale.Y);
 							Channels[8]->Evaluate(FrameTime, Scale.Z);
 
-							Scales[Frame] = FGLTFConverterUtility::ConvertScale(Scale);
+							Scales[Frame] = FGLTFCoreUtilities::ConvertScale(Scale);
 						}
 
 						FGLTFJsonAccessor* JsonOutputAccessor = Builder.AddAccessor();

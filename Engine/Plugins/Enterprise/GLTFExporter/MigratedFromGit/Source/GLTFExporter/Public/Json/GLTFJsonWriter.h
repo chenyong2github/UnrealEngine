@@ -4,8 +4,8 @@
 
 #include "Json/GLTFJsonValue.h"
 #include "Json/GLTFJsonIndexedObject.h"
-#include "Json/GLTFJsonUtility.h"
 #include "Json/GLTFJsonExtensions.h"
+#include "Utilities/GLTFJsonUtilities.h"
 
 class GLTFEXPORTER_API IGLTFJsonWriter
 {
@@ -65,7 +65,7 @@ public:
 	template <typename EnumType, typename = typename TEnableIf<TIsEnum<EnumType>::Value>::Type>
 	void Write(EnumType Enum)
 	{
-		Write(FGLTFJsonUtility::GetValue(Enum));
+		Write(FGLTFJsonUtilities::GetValue(Enum));
 	}
 
 	template <class ElementType, typename = typename TEnableIf<TNot<TIsSame<ElementType, TCHAR>>::Value>::Type>
@@ -241,7 +241,7 @@ public:
 			Extensions.Required.Add(Extension);
 		}
 
-		Write(FGLTFJsonUtility::GetValue(Extension), Value);
+		Write(FGLTFJsonUtilities::GetValue(Extension), Value);
 	}
 
 	void StartExtension(const EGLTFJsonExtension& Extension, bool bIsRequired = false)
@@ -253,7 +253,7 @@ public:
 			Extensions.Required.Add(Extension);
 		}
 
-		StartObject(FGLTFJsonUtility::GetValue(Extension));
+		StartObject(FGLTFJsonUtilities::GetValue(Extension));
 	}
 
 	void EndExtension()

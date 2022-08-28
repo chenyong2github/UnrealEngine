@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFBackdropConverters.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
@@ -44,7 +44,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 		for (int32 CubeFaceIndex = 0; CubeFaceIndex < CubeFace_MAX; ++CubeFaceIndex)
 		{
 			const ECubeFace CubeFace = static_cast<ECubeFace>(CubeFaceIndex);
-			const EGLTFJsonCubeFace JsonCubeFace = FGLTFConverterUtility::ConvertCubeFace(CubeFace);
+			const EGLTFJsonCubeFace JsonCubeFace = FGLTFCoreUtilities::ConvertCubeFace(CubeFace);
 			JsonBackdrop->Cubemap[static_cast<int32>(JsonCubeFace)] = Builder.AddUniqueTexture(Cubemap, CubeFace);
 		}
 	}
@@ -76,7 +76,7 @@ FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 	FVector ProjectionCenter;
 	if (FGLTFActorUtility::TryGetPropertyValue(BackdropActor, TEXT("ProjectionCenter"), ProjectionCenter))
 	{
-		JsonBackdrop->ProjectionCenter = FGLTFConverterUtility::ConvertPosition(ProjectionCenter, Builder.ExportOptions->ExportUniformScale);
+		JsonBackdrop->ProjectionCenter = FGLTFCoreUtilities::ConvertPosition(ProjectionCenter, Builder.ExportOptions->ExportUniformScale);
 	}
 	else
 	{

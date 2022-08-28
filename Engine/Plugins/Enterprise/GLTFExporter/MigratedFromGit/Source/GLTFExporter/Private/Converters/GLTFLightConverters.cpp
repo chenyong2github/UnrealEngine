@@ -2,7 +2,7 @@
 
 #include "Converters/GLTFLightConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Components/LightComponent.h"
 #include "Components/PointLightComponent.h"
@@ -13,7 +13,7 @@ FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightCompone
 	FGLTFJsonLight* Light = Builder.AddLight();
 
 	Light->Name = FGLTFNameUtility::GetName(LightComponent);
-	Light->Type = FGLTFConverterUtility::ConvertLightType(LightComponent->GetLightType());
+	Light->Type = FGLTFCoreUtilities::ConvertLightType(LightComponent->GetLightType());
 
 	if (Light->Type == EGLTFJsonLightType::None)
 	{
@@ -24,17 +24,17 @@ FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightCompone
 	Light->Intensity = LightComponent->Intensity;
 
 	const FLinearColor TemperatureColor = LightComponent->bUseTemperature ? FLinearColor::MakeFromColorTemperature(LightComponent->Temperature) : FLinearColor::White;
-	Light->Color = FGLTFConverterUtility::ConvertColor3(TemperatureColor * LightComponent->GetLightColor(), Builder.ExportOptions->bStrictCompliance);
+	Light->Color = FGLTFCoreUtilities::ConvertColor3(TemperatureColor * LightComponent->GetLightColor(), Builder.ExportOptions->bStrictCompliance);
 
 	if (const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
 	{
-		Light->Range = FGLTFConverterUtility::ConvertLength(PointLightComponent->AttenuationRadius, Builder.ExportOptions->ExportUniformScale);
+		Light->Range = FGLTFCoreUtilities::ConvertLength(PointLightComponent->AttenuationRadius, Builder.ExportOptions->ExportUniformScale);
 	}
 
 	if (const USpotLightComponent* SpotLightComponent = Cast<USpotLightComponent>(LightComponent))
 	{
-		Light->Spot.InnerConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->InnerConeAngle);
-		Light->Spot.OuterConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->OuterConeAngle);
+		Light->Spot.InnerConeAngle = FGLTFCoreUtilities::ConvertLightAngle(SpotLightComponent->InnerConeAngle);
+		Light->Spot.OuterConeAngle = FGLTFCoreUtilities::ConvertLightAngle(SpotLightComponent->OuterConeAngle);
 
 		if (Builder.ExportOptions->bStrictCompliance)
 		{

@@ -2,7 +2,7 @@
 
 #include "Converters/GLTFNodeConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "Converters/GLTFConverterUtility.h"
+#include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFActorUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Actors/GLTFHotspotActor.h"
@@ -122,9 +122,9 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 
 	FGLTFJsonNode* Node = Builder.AddNode();
 	Node->Name = FGLTFNameUtility::GetName(SceneComponent);
-	Node->Translation = FGLTFConverterUtility::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
-	Node->Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
-	Node->Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
+	Node->Translation = FGLTFCoreUtilities::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
+	Node->Rotation = FGLTFCoreUtilities::ConvertRotation(RelativeTransform.GetRotation());
+	Node->Scale = FGLTFCoreUtilities::ConvertScale(RelativeTransform.GetScale3D());
 
 	if (ParentNode != nullptr)
 	{
@@ -168,7 +168,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 				// TODO: conversion of camera direction should be done in separate converter
 				FGLTFJsonNode* CameraNode = Builder.AddNode();
 				CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
-				CameraNode->Rotation = FGLTFConverterUtility::ConvertCameraDirection();
+				CameraNode->Rotation = FGLTFCoreUtilities::GetLocalCameraRotation();
 				CameraNode->Camera = Builder.AddUniqueCamera(CameraComponent);
 				Node->Children.Add(CameraNode);
 			}
@@ -180,7 +180,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 				// TODO: conversion of light direction should be done in separate converter
 				FGLTFJsonNode* LightNode = Builder.AddNode();
 				LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
-				LightNode->Rotation = FGLTFConverterUtility::ConvertLightDirection();
+				LightNode->Rotation = FGLTFCoreUtilities::GetLocalLightRotation();
 				LightNode->Light = Builder.AddUniqueLight(LightComponent);
 				Node->Children.Add(LightNode);
 			}
@@ -233,9 +233,9 @@ FGLTFJsonNode* FGLTFStaticSocketConverter::Convert(FGLTFJsonNode* RootNode, cons
 	Node->Name = SocketName.ToString();
 
 	// TODO: add warning check for non-uniform scaling
-	Node->Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
-	Node->Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
-	Node->Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
+	Node->Translation = FGLTFCoreUtilities::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
+	Node->Rotation = FGLTFCoreUtilities::ConvertRotation(Socket->RelativeRotation.Quaternion());
+	Node->Scale = FGLTFCoreUtilities::ConvertScale(Socket->RelativeScale);
 
 	RootNode->Children.Add(Node);
 	return Node;
@@ -256,9 +256,9 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 		Node->Name = SocketName.ToString();
 
 		// TODO: add warning check for non-uniform scaling
-		Node->Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
-		Node->Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
-		Node->Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
+		Node->Translation = FGLTFCoreUtilities::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
+		Node->Rotation = FGLTFCoreUtilities::ConvertRotation(Socket->RelativeRotation.Quaternion());
+		Node->Scale = FGLTFCoreUtilities::ConvertScale(Socket->RelativeScale);
 
 		const int32 ParentBone = RefSkeleton.FindBoneIndex(Socket->BoneName);
 		FGLTFJsonNode* ParentNode = ParentBone != INDEX_NONE ? Builder.AddUniqueNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
@@ -304,9 +304,9 @@ FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, cons
 	{
 		// TODO: add warning check for non-uniform scaling
 		const FTransform& BonePose = BonePoses[BoneIndex];
-		Node->Translation = FGLTFConverterUtility::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
-		Node->Rotation = FGLTFConverterUtility::ConvertRotation(BonePose.GetRotation());
-		Node->Scale = FGLTFConverterUtility::ConvertScale(BonePose.GetScale3D());
+		Node->Translation = FGLTFCoreUtilities::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
+		Node->Rotation = FGLTFCoreUtilities::ConvertRotation(BonePose.GetRotation());
+		Node->Scale = FGLTFCoreUtilities::ConvertScale(BonePose.GetScale3D());
 	}
 	else
 	{
