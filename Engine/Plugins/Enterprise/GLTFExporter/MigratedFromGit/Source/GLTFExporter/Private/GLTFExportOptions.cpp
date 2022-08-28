@@ -29,6 +29,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bRetargetBoneTransforms = true;
 	bExportPlaybackSettings = true;
 	TextureCompression = EGLTFExporterTextureCompression::PNG;
+	TextureCompressionQuality = 0;
 	bExportTextureTransforms = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
