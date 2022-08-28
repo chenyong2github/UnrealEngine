@@ -4,10 +4,9 @@
 
 #include "Builders/GLTFJsonBuilder.h"
 
-struct FGLTFBufferBuilder : public FGLTFJsonBuilder
+class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
-	FGLTFJsonBufferIndex BufferIndex;
-	TArray<uint8> BufferData;
+public:
 
 	FGLTFBufferBuilder();
 
@@ -21,4 +20,9 @@ struct FGLTFBufferBuilder : public FGLTFJsonBuilder
 
 	void UpdateJsonBufferObject(const FString& BinaryFilePath);
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath) override;
+
+private:
+
+	FGLTFJsonBufferIndex BufferIndex;
+	TArray<uint8> BufferData;
 };

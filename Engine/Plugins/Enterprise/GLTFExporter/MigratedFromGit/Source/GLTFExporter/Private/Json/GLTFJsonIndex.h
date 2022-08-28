@@ -7,8 +7,6 @@
 template <typename DerivedType>
 struct FGLTFJsonIndex
 {
-	int32 Value;
-
 	FGLTFJsonIndex()
 		: Value(INDEX_NONE)
 	{
@@ -48,6 +46,10 @@ struct FGLTFJsonIndex
 	{
 		return GetTypeHash(Other.Value);
 	}
+
+private:
+
+	int32 Value;
 };
 
 struct FGLTFJsonAccessorIndex : FGLTFJsonIndex<FGLTFJsonAccessorIndex> { using FGLTFJsonIndex::FGLTFJsonIndex; };

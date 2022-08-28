@@ -6,20 +6,9 @@
 #include "Converters/GLTFStaticMeshConverters.h"
 #include "Converters/GLTFLevelConverters.h"
 
-struct FGLTFConvertBuilder : public FGLTFBufferBuilder
+class FGLTFConvertBuilder : public FGLTFBufferBuilder
 {
-	FGLTFPositionVertexBufferConverter PositionVertexBufferConverter;
-	FGLTFColorVertexBufferConverter ColorVertexBufferConverter;
-	FGLTFStaticMeshNormalVertexBufferConverter StaticMeshNormalVertexBufferConverter;
-	FGLTFStaticMeshTangentVertexBufferConverter StaticMeshTangentVertexBufferConverter;
-	FGLTFStaticMeshUV0VertexBufferConverter StaticMeshUV0VertexBufferConverter;
-	FGLTFStaticMeshUV1VertexBufferConverter StaticMeshUV1VertexBufferConverter;
-	FGLTFStaticMeshIndexBufferConverter StaticMeshIndexBufferConverter;
-	FGLTFStaticMeshSectionConverter StaticMeshSectionConverter;
-	FGLTFStaticMeshConverter StaticMeshConverter;
-
-	FGLTFSceneComponentConverter SceneComponentConverter;
-	FGLTFLevelConverter LevelConverter;
+public:
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));
 	FGLTFJsonAccessorIndex GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));
@@ -38,4 +27,19 @@ struct FGLTFConvertBuilder : public FGLTFBufferBuilder
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode = false, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level, bool bSelectedOnly, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName = TEXT(""));
+
+private:
+
+	FGLTFPositionVertexBufferConverter PositionVertexBufferConverter;
+	FGLTFColorVertexBufferConverter ColorVertexBufferConverter;
+	FGLTFStaticMeshNormalVertexBufferConverter StaticMeshNormalVertexBufferConverter;
+	FGLTFStaticMeshTangentVertexBufferConverter StaticMeshTangentVertexBufferConverter;
+	FGLTFStaticMeshUV0VertexBufferConverter StaticMeshUV0VertexBufferConverter;
+	FGLTFStaticMeshUV1VertexBufferConverter StaticMeshUV1VertexBufferConverter;
+	FGLTFStaticMeshIndexBufferConverter StaticMeshIndexBufferConverter;
+	FGLTFStaticMeshSectionConverter StaticMeshSectionConverter;
+	FGLTFStaticMeshConverter StaticMeshConverter;
+
+	FGLTFSceneComponentConverter SceneComponentConverter;
+	FGLTFLevelConverter LevelConverter;
 };

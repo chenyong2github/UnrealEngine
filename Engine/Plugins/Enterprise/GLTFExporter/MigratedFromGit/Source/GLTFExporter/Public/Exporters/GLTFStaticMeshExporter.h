@@ -9,9 +9,9 @@ UCLASS()
 class GLTFEXPORTER_API UGLTFStaticMeshExporter : public UGLTFExporter
 {
 public:
+
 	GENERATED_BODY()
 
-public:
 	UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	//~ Begin UExporter Interface

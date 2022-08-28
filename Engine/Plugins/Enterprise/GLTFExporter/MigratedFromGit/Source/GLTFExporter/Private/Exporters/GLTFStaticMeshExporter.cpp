@@ -32,7 +32,7 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 	Scene.Nodes.Add(NodeIndex);
 	FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
 
-	Builder.JsonRoot.DefaultScene = SceneIndex;
+	Builder.DefaultScene = SceneIndex;
 
 	return Builder.Serialize(Archive, CurrentFilename);
 }

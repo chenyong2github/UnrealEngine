@@ -13,9 +13,9 @@ UCLASS()
 class GLTFEXPORTER_API UGLTFExporter : public UExporter
 {
 public:
+
 	GENERATED_BODY()
 
-public:
 	UGLTFExporter(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 protected:
