@@ -4,47 +4,47 @@
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
-	return PositionVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
+	return PositionVertexBuffers.GetOrAdd(*this, DesiredName, VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
-	return ColorVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
+	return ColorVertexBuffers.GetOrAdd(*this, DesiredName, VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
-	return StaticMeshNormalVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
+	return StaticMeshNormalVertexBuffers.GetOrAdd(*this, DesiredName, VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddTangentAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
-	return StaticMeshTangentVertexBuffers.Convert(*this, DesiredName, VertexBuffer);
+	return StaticMeshTangentVertexBuffers.GetOrAdd(*this, DesiredName, VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddUV0Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
-	return StaticMeshUV0VertexBuffers.Convert(*this, DesiredName, VertexBuffer);
+	return StaticMeshUV0VertexBuffers.GetOrAdd(*this, DesiredName, VertexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddUV1Accessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
-	return StaticMeshUV1VertexBuffers.Convert(*this, DesiredName, VertexBuffer);
+	return StaticMeshUV1VertexBuffers.GetOrAdd(*this, DesiredName, VertexBuffer);
 }
 
 FGLTFJsonBufferViewIndex FGLTFIndexedBuilder::GetOrAddIndexBufferView(const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
 {
-	return StaticMeshIndexBuffers.Convert(*this, DesiredName, IndexBuffer);
+	return StaticMeshIndexBuffers.GetOrAdd(*this, DesiredName, IndexBuffer);
 }
 
 FGLTFJsonAccessorIndex FGLTFIndexedBuilder::GetOrAddIndexAccessor(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer, const FString& DesiredName)
 {
-	return StaticMeshSections.Convert(*this, DesiredName, MeshSection, IndexBuffer);
+	return StaticMeshSections.GetOrAdd(*this, DesiredName, MeshSection, IndexBuffer);
 }
 
 FGLTFJsonMeshIndex FGLTFIndexedBuilder::GetOrAddMesh(const FStaticMeshLODResources* StaticMeshLOD, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
 {
-	return StaticMeshes.Convert(*this, DesiredName, StaticMeshLOD, OverrideVertexColors);
+	return StaticMeshes.GetOrAdd(*this, DesiredName, StaticMeshLOD, OverrideVertexColors);
 }
 
 FGLTFJsonMeshIndex FGLTFIndexedBuilder::GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FString& DesiredName)
@@ -71,12 +71,12 @@ FGLTFJsonMeshIndex FGLTFIndexedBuilder::GetOrAddMesh(const UStaticMeshComponent*
 
 FGLTFJsonNodeIndex FGLTFIndexedBuilder::GetOrAddNode(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode, const FString& DesiredName)
 {
-	return SceneComponents.Convert(*this, DesiredName, SceneComponent, bSelectedOnly, bRootNode);
+	return SceneComponents.GetOrAdd(*this, DesiredName, SceneComponent, bSelectedOnly, bRootNode);
 }
 
 FGLTFJsonSceneIndex FGLTFIndexedBuilder::GetOrAddScene(const ULevel* Level, bool bSelectedOnly, const FString& DesiredName)
 {
-	return Levels.Convert(*this, DesiredName, Level, bSelectedOnly);
+	return Levels.GetOrAdd(*this, DesiredName, Level, bSelectedOnly);
 }
 
 FGLTFJsonSceneIndex FGLTFIndexedBuilder::GetOrAddScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName)
