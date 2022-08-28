@@ -184,7 +184,7 @@ void FGLTFLevelSequenceTask::Complete()
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
 	ULevelSequencePlayer* LevelSequencePlayer = LevelSequenceActor->SequencePlayer;
-	LevelSequencePlayer->Initialize(Sequence, LevelSequenceActor->GetLevel(), LevelSequenceActor->PlaybackSettings, LevelSequenceActor->CameraSettings);
+	LevelSequencePlayer->Initialize(Sequence, LevelSequenceActor->GetLevel(), FMovieSceneSequencePlaybackSettings(), FLevelSequenceCameraSettings());
 	LevelSequencePlayer->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *LevelSequencePlayer);
 
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
