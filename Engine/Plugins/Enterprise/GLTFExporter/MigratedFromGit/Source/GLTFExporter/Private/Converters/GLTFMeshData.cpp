@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFMeshData.h"
 #include "Converters/GLTFNameUtility.h"
+#include "Converters/GLTFMeshUtility.h"
 #include "StaticMeshAttributes.h"
 #include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
 
@@ -32,7 +33,7 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 	}
 	else
 	{
-		// TODO: add support for skeletal meshes by implementing custom utilities for retrieving mesh & sections
+		FGLTFMeshUtility::RetrieveMesh(const_cast<USkeletalMesh*>(SkeletalMesh), LODIndex, Description);
 		SkeletalMesh->GetName(Name);
 	}
 }
