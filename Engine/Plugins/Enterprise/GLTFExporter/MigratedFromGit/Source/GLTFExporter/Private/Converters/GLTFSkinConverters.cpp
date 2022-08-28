@@ -11,13 +11,8 @@
 
 FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
-#else
-	const USkeleton* Skeleton = SkeletalMesh->Skeleton;
-	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
-#endif
 
 	FGLTFJsonSkin* JsonSkin = Builder.AddSkin();
 	JsonSkin->Name = Skeleton != nullptr ? Skeleton->GetName() : SkeletalMesh->GetName();

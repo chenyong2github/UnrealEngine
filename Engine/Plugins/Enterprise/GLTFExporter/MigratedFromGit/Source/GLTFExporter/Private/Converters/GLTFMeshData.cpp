@@ -60,13 +60,7 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 	}
 
 #if WITH_EDITOR
-
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	LightMapTexCoord = StaticMesh->GetLightMapCoordinateIndex();
-#else
-	LightMapTexCoord = StaticMesh->LightMapCoordinateIndex;
-#endif
-
  	const int32 NumTexCoords = StaticMesh->GetLODForExport(LODIndex).VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 	BakeUsingTexCoord = FMath::Min(LightMapTexCoord, NumTexCoords - 1);
 	// TODO: add warning if texture coordinate for baking has overlap
