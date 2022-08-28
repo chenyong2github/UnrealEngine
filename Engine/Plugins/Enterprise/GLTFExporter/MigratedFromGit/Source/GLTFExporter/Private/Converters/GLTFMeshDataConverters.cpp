@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMeshDataConverters.h"
-#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 
 template class TGLTFMeshDataConverter<UStaticMesh, UStaticMeshComponent>;
@@ -10,14 +9,7 @@ template class TGLTFMeshDataConverter<USkeletalMesh, USkeletalMeshComponent>;
 template <typename MeshType, typename MeshComponentType>
 void TGLTFMeshDataConverter<MeshType, MeshComponentType>::Sanitize(const MeshType*& Mesh, const MeshComponentType*& MeshComponent, int32& LODIndex)
 {
-	if (LODIndex < 0)
-	{
-		LODIndex = FGLTFMeshUtility::GetLOD(Mesh, MeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
-	}
-	else
-	{
-		LODIndex = FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(Mesh));
-	}
+	LODIndex = Builder.SanitizeLOD(Mesh, MeshComponent, LODIndex);
 }
 
 template <typename MeshType, typename MeshComponentType>

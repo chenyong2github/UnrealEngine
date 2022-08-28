@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilder.h"
-#include "UserData/GLTFMaterialUserData.h"
 #include "Builders/GLTFFileUtility.h"
+#include "Converters/GLTFMeshUtility.h"
+#include "UserData/GLTFMaterialUserData.h"
 
 FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: bIsGlbFile(FGLTFFileUtility::IsGlbFile(FilePath))
@@ -75,6 +76,20 @@ bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) con
 	const EGLTFSceneMobility AllowedMobility = static_cast<EGLTFSceneMobility>(ExportOptions->ExportLights);
 	const EGLTFSceneMobility QueriedMobility = GetSceneMobility(LightMobility);
 	return EnumHasAllFlags(AllowedMobility, QueriedMobility);
+}
+
+int32 FGLTFBuilder::SanitizeLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex) const
+{
+	return LODIndex > 0
+		? FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(StaticMesh))
+		: FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, ExportOptions->DefaultLevelOfDetail);
+}
+
+int32 FGLTFBuilder::SanitizeLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex) const
+{
+	return LODIndex > 0
+		? FMath::Min(LODIndex, FGLTFMeshUtility::GetMaximumLOD(SkeletalMesh))
+		: FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, ExportOptions->DefaultLevelOfDetail);
 }
 
 const UGLTFExportOptions* FGLTFBuilder::SanitizeExportOptions(const UGLTFExportOptions* Options)
