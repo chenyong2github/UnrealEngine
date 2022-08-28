@@ -10,6 +10,18 @@ class UAnimSequence;
 class UBodySetup;
 class UTexture2D;
 
+USTRUCT(BlueprintType)
+struct FGLTFAnimation
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	ASkeletalMeshActor* SkeletalMeshActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimSequence* AnimationSequence;
+};
+
 /**
  * A component to set up hotspots which appear as billboards and allow playback of skeletal animations when cursor input is enabled.
  */
@@ -53,23 +65,17 @@ private:
 	FTransform GetWorldTransform() const;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|GLTF Interaction Hotspot")
-	ASkeletalMeshActor* SkeletalMeshActor;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	TArray<FGLTFAnimation> Animations;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|GLTF Interaction Hotspot")
-	UAnimSequence* AnimationSequence;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* DefaultSprite;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* HighlightSprite;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* ClickSprite;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components|GLTF Interaction Hotspot")
-	float Radius;
 
 private:
 	UPROPERTY(transient, duplicatetransient)

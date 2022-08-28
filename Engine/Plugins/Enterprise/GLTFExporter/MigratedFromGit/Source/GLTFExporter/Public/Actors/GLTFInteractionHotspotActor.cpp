@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Actors/GLTFInteractionHotspotActor.h"
-#include "Components/GLTFInteractionHotspotComponent.h"
 
 AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
-	SkeletalMeshActor(nullptr),
-	AnimationSequence(nullptr),
 	DefaultSprite(nullptr),
 	HighlightSprite(nullptr),
-	ClickSprite(nullptr),
-	Radius(50.0f)
+	ClickSprite(nullptr)
 {
 	// A scene component with a transform in the root
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
@@ -28,28 +24,44 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 
 void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 {
-	if (InteractionHotspotComponent->SkeletalMeshActor != SkeletalMeshActor)
+	const bool UnequalAnimations = ([&]()
 	{
-		InteractionHotspotComponent->SkeletalMeshActor = SkeletalMeshActor;
-	}
-	else if (InteractionHotspotComponent->AnimationSequence != AnimationSequence)
+		if (InteractionHotspotComponent->Animations.Num() != Animations.Num())
+		{
+			return true;
+		}
+
+		for (int32 AnimationIndex = 0; AnimationIndex < Animations.Num(); ++AnimationIndex)
+		{
+			const FGLTFAnimation& ActorAnimation = Animations[AnimationIndex];
+			const FGLTFAnimation& ComponentAnimation = InteractionHotspotComponent->Animations[AnimationIndex];
+
+			if (ActorAnimation.SkeletalMeshActor != ComponentAnimation.SkeletalMeshActor || ActorAnimation.AnimationSequence != ComponentAnimation.AnimationSequence)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	})();
+
+	if (UnequalAnimations)
 	{
-		InteractionHotspotComponent->AnimationSequence = AnimationSequence;
+		InteractionHotspotComponent->Animations = Animations;
 	}
-	else if (InteractionHotspotComponent->DefaultSprite != DefaultSprite)
+	
+	if (InteractionHotspotComponent->DefaultSprite != DefaultSprite)
 	{
 		InteractionHotspotComponent->DefaultSprite = DefaultSprite;
 	}
-	else if (InteractionHotspotComponent->HighlightSprite != HighlightSprite)
+	
+	if (InteractionHotspotComponent->HighlightSprite != HighlightSprite)
 	{
 		InteractionHotspotComponent->HighlightSprite = HighlightSprite;
 	}
-	else if (InteractionHotspotComponent->ClickSprite != ClickSprite)
+	
+	if (InteractionHotspotComponent->ClickSprite != ClickSprite)
 	{
 		InteractionHotspotComponent->ClickSprite = ClickSprite;
-	}
-	else if (InteractionHotspotComponent->Radius != Radius)
-	{
-		InteractionHotspotComponent->Radius = Radius;
 	}
 }
