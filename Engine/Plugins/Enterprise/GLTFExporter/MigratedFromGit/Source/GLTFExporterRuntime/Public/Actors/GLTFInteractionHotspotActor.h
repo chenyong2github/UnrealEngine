@@ -86,10 +86,20 @@ private:
 	UPROPERTY(transient, duplicatetransient)
 	UMaterialInterface* DefaultMaterial;
 
-#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient, duplicatetransient)
+	UTexture2D* DefaultImage;
+
+	UPROPERTY(transient, duplicatetransient)
+	UTexture2D* DefaultHoveredImage;
+
+	UPROPERTY(transient, duplicatetransient)
+	UTexture2D* DefaultToggledImage;
+
+	UPROPERTY(transient, duplicatetransient)
+	UTexture2D* DefaultToggledHoveredImage;
+
 	UPROPERTY(transient, duplicatetransient)
 	UMaterialInterface* DefaultIconMaterial;
-#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(transient, duplicatetransient)
 	UTexture* ActiveImage;
