@@ -45,11 +45,13 @@ void FGLTFStaticMeshTask::Complete()
 		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, PositionBuffer);
 		if (JsonPrimitive.Attributes.Position == INDEX_NONE)
 		{
-			// TODO: report warning
+			// TODO: report warning?
 		}
 
 		if (Builder.ExportOptions->bExportVertexColors)
 		{
+			// TODO: report warning (about vertex colors may be represented differently in glTF)
+
 			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
@@ -112,11 +114,13 @@ void FGLTFSkeletalMeshTask::Complete()
 		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, PositionBuffer);
 		if (JsonPrimitive.Attributes.Position == INDEX_NONE)
 		{
-			// TODO: report warning
+			// TODO: report warning?
 		}
 
 		if (Builder.ExportOptions->bExportVertexColors)
 		{
+			// TODO: report warning (about vertex colors may be represented differently in glTF)
+
 			JsonPrimitive.Attributes.Color0 = Builder.GetOrAddColorAccessor(ConvertedSection, ColorBuffer);
 		}
 
