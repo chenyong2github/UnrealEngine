@@ -9,4 +9,7 @@
 class FGLTFMaterialConverter final : public TGLTFConverter<FGLTFJsonMaterialIndex, const UMaterialInterface*>
 {
 	FGLTFJsonMaterialIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UMaterialInterface* Material) override;
+
+	FLinearColor GetConstantColor(const FColorMaterialInput& MaterialInput) const;
+	float GetConstantScalar(const FScalarMaterialInput& MaterialInput) const;
 };

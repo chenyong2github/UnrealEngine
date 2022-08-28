@@ -7,6 +7,7 @@
 #include "Json/GLTFJsonVector2.h"
 #include "Json/GLTFJsonVector3.h"
 #include "Json/GLTFJsonVector4.h"
+#include "Json/GLTFJsonColor4.h"
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
 
@@ -44,6 +45,12 @@ struct FGLTFConverterUtility
 	{
 		// No conversion actually needed, this is primarily for type-safety.
 		return { UV.X, UV.Y };
+	}
+
+	static FGLTFJsonColor4 ConvertColor(const FLinearColor& Color)
+	{
+		// No conversion actually needed, this is primarily for type-safety.
+		return { Color.R, Color.G, Color.B, Color.A };
 	}
 
 	static FGLTFPackedColor ConvertColor(const FColor& Color)
@@ -84,7 +91,7 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
-	static EGLTFJsonAlphaMode ConvertAlphaMode(const EBlendMode Mode)
+	static EGLTFJsonAlphaMode ConvertBlendMode(const EBlendMode Mode)
 	{
 		switch (Mode)
 		{
