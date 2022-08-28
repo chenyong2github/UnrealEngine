@@ -4,39 +4,40 @@
 
 #include "Json/GLTFJsonIndex.h"
 #include "Converters/GLTFConverter.h"
+#include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
-class FGLTFTextureSamplerConverter final : public TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*>
+class FGLTFTextureSamplerConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSamplerIndex, const UTexture*>
 {
-	using TGLTFConverter::TGLTFConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonSamplerIndex Convert(const UTexture* Texture) override;
+	FGLTFJsonSamplerIndex Convert(const UTexture* Texture) override final;
 };
 
-class FGLTFTexture2DConverter final : public TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*>
+class FGLTFTexture2DConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*>
 {
-	using TGLTFConverter::TGLTFConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override;
+	FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override final;
 };
 
-class FGLTFTextureCubeConverter final : public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureCube*, ECubeFace>
+class FGLTFTextureCubeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureCube*, ECubeFace>
 {
-	using TGLTFConverter::TGLTFConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override;
+	FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override final;
 };
 
-class FGLTFTextureRenderTarget2DConverter final : public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTarget2D*>
+class FGLTFTextureRenderTarget2DConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTarget2D*>
 {
-	using TGLTFConverter::TGLTFConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override;
+	FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override final;
 };
 
-class FGLTFTextureRenderTargetCubeConverter final : public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTargetCube*, ECubeFace>
+class FGLTFTextureRenderTargetCubeConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTargetCube*, ECubeFace>
 {
-	using TGLTFConverter::TGLTFConverter;
+	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override;
+	FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override final;
 };
