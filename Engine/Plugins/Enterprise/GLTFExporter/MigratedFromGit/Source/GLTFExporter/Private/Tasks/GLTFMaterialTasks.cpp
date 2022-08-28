@@ -207,22 +207,15 @@ bool FGLTFMaterialTask::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingMode
 	EMaterialShadingModel ShadingModel = ShadingModels.GetFirstShadingModel();
 	if (ShadingModelCount > 1)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Support is limited to only one of the multiple shading models found (%s) in material %s"), *FGLTFMaterialUtility::ShadingModelsToString(ShadingModels), *Material->GetName()));
+		int32 TexCoord;
+		const FGLTFPropertyBakeOutput BakeOutput = BakeMaterialProperty(MP_ShadingModel, TexCoord, { 1, 1 });
+		ShadingModel = static_cast<EMaterialShadingModel>(BakeOutput.Pixels[0].R);
 
-		if (ShadingModels.HasShadingModel(MSM_ClearCoat))
-		{
-			ShadingModel = MSM_ClearCoat;
-		}
-		else if (ShadingModels.HasShadingModel(MSM_DefaultLit))
-		{
-			ShadingModel = MSM_DefaultLit;
-		}
-		else if (ShadingModels.HasShadingModel(MSM_Unlit))
-		{
-			ShadingModel = MSM_Unlit;
-		}
-
-		Builder.AddWarningMessage(FString::Printf(TEXT("Material %s will be exported as shading model %s"), *Material->GetName(), *FGLTFNameUtility::GetName(ShadingModel)));
+		Builder.AddWarningMessage(
+			FString::Printf(TEXT("Multiple shading models (%s) in material %s will be reduced to one (%s)"),
+			*FGLTFMaterialUtility::ShadingModelsToString(ShadingModels),
+			*Material->GetName(),
+			*FGLTFNameUtility::GetName(ShadingModel)));
 	}
 
 	const EGLTFJsonShadingModel ConvertedShadingModel = FGLTFConverterUtility::ConvertShadingModel(ShadingModel);
