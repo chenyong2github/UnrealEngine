@@ -12,37 +12,40 @@ Feature                   | Status |
 Web-based Viewer          |   👷   |
 Models                    |   👷   |
 └ Static Mesh             |   ✔️   |
-└ Skeletal Mesh           |        |
-└ Animation Sequence      |        |
+└ Skeletal Mesh           |   ✔️   |
+└ Animation Sequence      |   👷   |
 └ Mesh Quantization       |   👷   |
-Materials                 |   👷   |
+Materials                 |   ✔️   |
 └ Default Lit             |   ✔️   |
-└ Unlit                   |   👷   |
-└ Clear Coat              |        |
-└ Blend Modes             |   👷   |
+└ Unlit                   |   ✔️   |
+└ Clear Coat              |   ✔️   |
+└ Blend Modes             |   ✔️   |
 └ Constant Input          |   ✔️   |
 └ Parameter Input         |   ✔️   |
-└ Texture Input           |   👷   |
+└ Texture Input           |   ✔️   |
 └ Material Instance       |   ✔️   |
-└ Material Baking         |        |
+└ Material Baking         |   ✔️   |
 Levels                    |   👷   |
 └ Actor/Blueprint         |   ✔️   |
 └ Static Mesh             |   ✔️   |
-└ Skeletal Mesh           |        |
-└ Light                   |        |
-└ Camera                  |        |
+└ Skeletal Mesh           |   ✔️   |
+└ Light                   |   ✔️   |
+└ Camera                  |   ✔️   |
 └ Orbital Camera          |        |
 └ Reflection Capture      |        |
-└ HDRI Backdrop           |   👷   |
+└ HDRI Backdrop           |   ✔️   |
 └ Interaction Hotspot     |   👷   |
-└ Level Variant Sets      |        |
-└ Baked Lightmaps         |        |
-Textures                  |        |
-└ 2D                      |        |
-└ HDR                     |        |
-└ Cubemap                 |        |
-└ Lightmap                |        |
-Exporter Options          |   👷   |
+└ Level Variant Sets      |   ✔️   |
+└ Baked Lightmaps         |   ✔️   |
+Textures                  |   ✔️   |
+└ 2D                      |   ✔️   |
+└ HDR                     |   ✔️   |
+└ Cubemap                 |   ✔️   |
+└ Lightmap                |   ✔️   |
+Exporter                  |   👷   |
+└ Options                 |   👷   |
+└ Logging                 |   👷   |
+└ Progress Bar            |   👷   |
 
 
 Installation
