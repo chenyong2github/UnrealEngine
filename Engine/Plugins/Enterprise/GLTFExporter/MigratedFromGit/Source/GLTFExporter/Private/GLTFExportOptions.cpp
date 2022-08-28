@@ -214,6 +214,16 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		return bBakeMaterialInputs;
 	}
 
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportAnimationSequences))
+	{
+		return bExportVertexSkinWeights;
+	}
+
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bRetargetBoneTransforms))
+	{
+		return bExportVertexSkinWeights && bExportAnimationSequences;
+	}
+
 	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportOrbitalCameras))
 	{
 		return bExportCameras;
