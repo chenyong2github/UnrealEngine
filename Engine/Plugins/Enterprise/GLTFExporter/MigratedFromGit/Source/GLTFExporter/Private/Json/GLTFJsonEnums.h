@@ -139,3 +139,10 @@ enum class EGLTFJsonAnimationPath
 	Scale,
 	Weights
 };
+
+enum class EGLTFJsonCameraType
+{
+	None = -1,
+	Orthographic,
+	Perspective
+};

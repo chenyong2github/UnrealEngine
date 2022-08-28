@@ -13,6 +13,8 @@ struct FGLTFJsonUtility
 		return static_cast<int32>(Value);
 	}
 
+	// TODO: replace all default cases (i.e. "unknown") with checkNoEntry() in each ToString
+
 	static const TCHAR* ToString(EGLTFJsonExtension Value)
 	{
 		switch (Value)
@@ -89,6 +91,16 @@ struct FGLTFJsonUtility
 			case EGLTFJsonCubeFace::PosZ: return TEXT("PosZ");
 			case EGLTFJsonCubeFace::NegZ: return TEXT("NegZ");
 			default:                      return TEXT("Unknown");
+		}
+	}
+
+	static const TCHAR* ToString(EGLTFJsonCameraType Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonCameraType::Perspective:  return TEXT("perspective");
+			case EGLTFJsonCameraType::Orthographic: return TEXT("orthographic");
+			default:                                return TEXT("unknown");
 		}
 	}
 
