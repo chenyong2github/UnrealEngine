@@ -14,8 +14,13 @@ struct FGLTFExportMessages
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FString> Suggestions;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FString> Warnings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<FString> Errors;
 };
 
