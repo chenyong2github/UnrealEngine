@@ -8,6 +8,13 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Animation/AnimSingleNodeInstance.h"
 
+#if WITH_EDITOR
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+#include "SLevelViewport.h"
+#include "Slate/SceneViewport.h"
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFInteractionHotspot, Log, All);
 
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
@@ -317,27 +324,82 @@ UMaterialInstanceDynamic* UGLTFInteractionHotspotComponent::GetSpriteMaterial() 
 
 void UGLTFInteractionHotspotComponent::UpdateSpriteSize()
 {
-	if (UGameViewportClient* GameViewportClient = GetWorld()->GetGameViewport())
+	const FIntPoint ViewportSize = GetCurrentViewportSize();
+
+	float BaseSizeX = 0.1f;
+	float BaseSizeY = 0.1f;
+
+	if (ViewportSize.X > 0 && ViewportSize.Y > 0)
 	{
-		FVector2D ViewportSize;
-		GameViewportClient->GetViewportSize(ViewportSize);
+		BaseSizeX = ActiveImageSize.X / static_cast<float>(ViewportSize.X);
+		BaseSizeY = ActiveImageSize.Y / static_cast<float>(ViewportSize.Y);
+	}
 
-		const float BaseSizeX = ActiveImageSize.X / ViewportSize.X;
-		const float BaseSizeY = ActiveImageSize.Y / ViewportSize.Y;
+	FMaterialSpriteElement& Element = GetSpriteElement();
 
-		FMaterialSpriteElement& Element = GetSpriteElement();
+	if (BaseSizeX != Element.BaseSizeX || BaseSizeY != Element.BaseSizeY)	// TODO: use epsilon for comparison?
+	{
+		Element.BaseSizeX = BaseSizeX;
+		Element.BaseSizeY = BaseSizeY;
 
-		if (BaseSizeX != Element.BaseSizeX || BaseSizeY != Element.BaseSizeY)	// TODO: use epsilon for comparison?
-		{
-			Element.BaseSizeX = BaseSizeX;
-			Element.BaseSizeY = BaseSizeY;
-
-			MarkRenderStateDirty();
-		}
+		MarkRenderStateDirty();
 	}
 }
 
 void UGLTFInteractionHotspotComponent::SetSpriteOpacity(const float Opacity) const
 {
 	GetSpriteMaterial()->SetScalarParameterValue("Opacity", Opacity);
+}
+
+FIntPoint UGLTFInteractionHotspotComponent::GetCurrentViewportSize()
+{
+	// TODO: verify that correct size is calculated in the various play-modes and in the editor
+
+	const FViewport* Viewport = nullptr;
+
+	if (UWorld* World = GetWorld())
+	{
+		if (World->IsGameWorld())
+		{
+			if (UGameViewportClient* GameViewportClient = World->GetGameViewport())
+			{
+				Viewport = GameViewportClient->Viewport;
+			}
+		}
+#if WITH_EDITOR
+		else
+		{
+			static const FName LevelEditorName = "LevelEditor";
+
+			if (FModuleManager::Get().IsModuleLoaded(LevelEditorName))
+			{
+				FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorName);
+
+				if (const TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport())
+				{
+					Viewport = ActiveLevelViewport->GetActiveViewport();
+				}
+			}
+		}
+#endif
+	}
+
+	if (Viewport != nullptr)
+	{
+		if (!Viewport->ViewportResizedEvent.IsBoundToObject(this))
+		{
+			Viewport->ViewportResizedEvent.AddUObject(this, &UGLTFInteractionHotspotComponent::ViewportResized);
+		}
+
+		return Viewport->GetSizeXY();
+	}
+	else
+	{
+		return FIntPoint(0, 0);
+	}
+}
+
+void UGLTFInteractionHotspotComponent::ViewportResized(FViewport*, uint32)
+{
+	UpdateSpriteSize();
 }
