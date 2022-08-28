@@ -15,7 +15,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
 	bExportExtraBlendModes = true;
-	BakeMaterialInputs = EGLTFMaterialBakeMode::Simple;
+	BakeMaterialInputs = EGLTFMaterialBakeMode::UseMeshData;
 	DefaultMaterialBakeSize = EGLTFMaterialBakeSizePOT::POT_1024;
 	DefaultMaterialBakeFilter = TF_Trilinear;
 	DefaultMaterialBakeTiling = TA_Wrap;
@@ -41,7 +41,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportHDRIBackdrops = true;
 	bExportSkySpheres = true;
 	bExportVariantSets = true;
-	ExportMaterialVariants = EGLTFMaterialBakeMode::Simple;
+	ExportMaterialVariants = EGLTFMaterialBakeMode::UseMeshData;
 	bExportMeshVariants = true;
 	bExportVisibilityVariants = true;
 	bBundleWebViewer = true;
