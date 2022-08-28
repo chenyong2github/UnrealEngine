@@ -27,21 +27,19 @@ void FGLTFExporterTest::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FS
 	FString TargetFileContent = "";
 	FFileHelper::LoadFileToString(TargetFileContent, *TargetFilePathAbsolute);
 
-	TArray<TSharedPtr<FJsonValue>> TargetJsonRoot = {};
+	TSharedPtr<FJsonObject> TargetJsonRoot;
 	const TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(TargetFileContent);
 
 	if (FJsonSerializer::Deserialize(JsonReader, TargetJsonRoot))
 	{
-		const int32 TargetJsonElementCount = TargetJsonRoot.Num();
-
-		for (int32 TargetJsonArrayElementIndex = 0; TargetJsonArrayElementIndex < TargetJsonElementCount; ++TargetJsonArrayElementIndex)
+		for (const TPair<FString, TSharedPtr<FJsonValue>>& TestJsonValue : TargetJsonRoot->Values)
 		{
-			const TSharedPtr<FJsonObject>& TargetJsonElement = TargetJsonRoot[TargetJsonArrayElementIndex]->AsObject();
+			const TSharedPtr<FJsonObject>& TargetJsonElement = TestJsonValue.Value->AsObject();
 			const FString InputField = TargetJsonElement->GetStringField("input");
 			const FString ExpectedOutputField = TargetJsonElement->GetStringField("expectedoutput");
 			const FString ParameterElements[] = { InputField, ExpectedOutputField };
 
-			OutBeautifiedNames.Add(FString(TEXT("Test target with index ")) + FString::FromInt(TargetJsonArrayElementIndex));
+			OutBeautifiedNames.Add(TestJsonValue.Key);
 			OutTestCommands.Add(FString::Join(ParameterElements, ParameterDelimiter));
 		}
 	}
