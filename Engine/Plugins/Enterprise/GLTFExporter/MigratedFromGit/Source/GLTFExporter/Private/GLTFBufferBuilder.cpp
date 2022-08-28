@@ -4,34 +4,33 @@
 #include "GLTFMeshBuilder.h"
 #include "Misc/Base64.h"
 
-FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonRoot& JsonRoot)
-	: JsonRoot(JsonRoot)
+FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonBufferIndex BufferIndex)
+	: BufferIndex(BufferIndex)
 {
-	MergedBufferIndex = JsonRoot.Buffers.AddDefaulted(1);
 }
 
-FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(FGLTFContainerBuilder& Container, const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
 {
 	FGLTFJsonBufferView BufferView;
 	BufferView.Name = Name;
-	BufferView.Buffer = MergedBufferIndex;
-	BufferView.ByteOffset = MergedBufferData.Num();
+	BufferView.Buffer = BufferIndex;
+	BufferView.ByteOffset = BufferData.Num();
 	BufferView.ByteLength = ByteLength;
 	BufferView.Target = BufferTarget;
 
-	MergedBufferData.Append(static_cast<const uint8*>(RawData), ByteLength);
+	BufferData.Append(static_cast<const uint8*>(RawData), ByteLength);
 
-	return JsonRoot.BufferViews.Add(BufferView);
+	return Container.AddBufferView(BufferView);
 }
 
-void FGLTFBufferBuilder::UpdateMergedBuffer()
+void FGLTFBufferBuilder::UpdateBuffer(FGLTFJsonBuffer& JsonBuffer)
 {
-	FGLTFJsonBuffer& Buffer = JsonRoot.Buffers[MergedBufferIndex];
-	if (Buffer.ByteLength != MergedBufferData.Num())
+	const int32 ByteLength = BufferData.Num();
+	if (JsonBuffer.ByteLength != ByteLength)
 	{
-		const FString DataBase64 = FBase64::Encode(MergedBufferData.GetData(), MergedBufferData.Num());
-
-		Buffer.URI = TEXT("data:application/octet-stream;base64,") + DataBase64;
-		Buffer.ByteLength = MergedBufferData.Num();
+		JsonBuffer.ByteLength = ByteLength;
+		
+		const FString DataBase64 = FBase64::Encode(BufferData.GetData(), ByteLength);
+		JsonBuffer.URI = TEXT("data:application/octet-stream;base64,") + DataBase64;
 	}
 }
