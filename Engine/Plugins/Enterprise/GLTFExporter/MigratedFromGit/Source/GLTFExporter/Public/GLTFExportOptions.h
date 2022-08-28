@@ -85,7 +85,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene, meta =
 		(DisplayName = "Import Uniform Scale",
-		ToolTip = "Scale factor used for exporting assets, by default: 0.01, for conversion from centimeters(Unreal default) to meters(glTF)."))
+		 ToolTip = "Scale factor used for exporting assets, by default: 0.01, for conversion from centimeters(Unreal default) to meters(glTF)."))
 	float ExportScale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)

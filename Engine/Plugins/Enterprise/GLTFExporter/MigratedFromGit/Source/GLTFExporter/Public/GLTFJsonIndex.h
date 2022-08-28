@@ -7,47 +7,47 @@
 template <typename DerivedType>
 struct FGLTFJsonIndex
 {
-    int32 Value;
+	int32 Value;
 
-    FGLTFJsonIndex()
-        : Value(INDEX_NONE)
-    {
-    }
+	FGLTFJsonIndex()
+		: Value(INDEX_NONE)
+	{
+	}
 
-    explicit FGLTFJsonIndex(int32 Value)
-        : Value(Value)
-    {
-    }
+	explicit FGLTFJsonIndex(int32 Value)
+		: Value(Value)
+	{
+	}
 
-    FORCEINLINE operator int32() const
-    {
-        return Value;
-    }
+	FORCEINLINE operator int32() const
+	{
+		return Value;
+	}
 
-    FORCEINLINE bool operator==(int32 OtherValue) const
-    {
-        return Value == OtherValue;
-    }
+	FORCEINLINE bool operator==(int32 OtherValue) const
+	{
+		return Value == OtherValue;
+	}
 
-    FORCEINLINE bool operator!=(int32 OtherValue) const
-    {
-        return Value != OtherValue;
-    }
+	FORCEINLINE bool operator!=(int32 OtherValue) const
+	{
+		return Value != OtherValue;
+	}
 
-    FORCEINLINE bool operator==(const DerivedType& Other) const
-    {
-        return Value == Other.Value;
-    }
+	FORCEINLINE bool operator==(const DerivedType& Other) const
+	{
+		return Value == Other.Value;
+	}
 
-    FORCEINLINE bool operator!=(const DerivedType& Other) const
-    {
-        return Value != Other.Value;
-    }
+	FORCEINLINE bool operator!=(const DerivedType& Other) const
+	{
+		return Value != Other.Value;
+	}
 
-    FORCEINLINE friend uint32 GetTypeHash(const DerivedType& Other)
-    {
-        return GetTypeHash(Other.Value);
-    }
+	FORCEINLINE friend uint32 GetTypeHash(const DerivedType& Other)
+	{
+		return GetTypeHash(Other.Value);
+	}
 };
 
 struct FGLTFJsonAccessorIndex : FGLTFJsonIndex<FGLTFJsonAccessorIndex> { using FGLTFJsonIndex::FGLTFJsonIndex; };

@@ -54,8 +54,8 @@ private:
 private:
 	UGLTFExportOptions* ExportOptions;
 	TSharedPtr<class IDetailsView> DetailsView;
-	TWeakPtr< SWindow > WidgetWindow;
-	TSharedPtr< SButton > ImportButton;
+	TWeakPtr<SWindow> WidgetWindow;
+	TSharedPtr<SButton> ImportButton;
 	bool bShouldExport;
 	bool bShouldExportAll;
 };
