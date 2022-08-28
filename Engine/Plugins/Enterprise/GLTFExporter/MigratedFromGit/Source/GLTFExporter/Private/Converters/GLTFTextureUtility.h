@@ -6,10 +6,11 @@
 
 struct FGLTFTextureUtility
 {
+	static bool IsCubemap(const UTexture* Texture);
+
 	static TextureFilter GetDefaultFilter(TextureGroup Group);
 
-	static TextureAddress GetAddressX(const UTexture* Texture);
-	static TextureAddress GetAddressY(const UTexture* Texture);
+	static TTuple<TextureAddress, TextureAddress> GetAddressXY(const UTexture* Texture);
 
 	static UTexture2D* CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bUseSRGB = false);
 };

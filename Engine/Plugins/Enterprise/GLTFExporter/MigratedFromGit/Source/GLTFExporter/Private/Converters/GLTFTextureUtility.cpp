@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFTextureUtility.h"
-#include "Engine/Texture2DArray.h"
+
+bool FGLTFTextureUtility::IsCubemap(const UTexture* Texture)
+{
+	return Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>();
+}
 
 TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 {
@@ -21,48 +25,28 @@ TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 	}
 }
 
-TextureAddress FGLTFTextureUtility::GetAddressX(const UTexture* Texture)
+TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const UTexture* Texture)
 {
+	TextureAddress AddressX;
+	TextureAddress AddressY;
+
 	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
-		return Texture2D->AddressX;
+		AddressX = Texture2D->AddressX;
+		AddressY = Texture2D->AddressX;
 	}
-
-	if (const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
+	else if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
 	{
-		return Texture2DArray->AddressX;
+		AddressX = RenderTarget2D->AddressX;
+		AddressY = RenderTarget2D->AddressX;
 	}
-
-	if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
+	else
 	{
-		return RenderTarget2D->AddressX;
+		AddressX = TA_MAX;
+		AddressY = TA_MAX;
 	}
 
-	// TODO: add support for UMediaTexture?
-
-	return TextureAddress::TA_MAX;
-}
-
-TextureAddress FGLTFTextureUtility::GetAddressY(const UTexture* Texture)
-{
-	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
-	{
-		return Texture2D->AddressY;
-	}
-
-	if (const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
-	{
-		return Texture2DArray->AddressY;
-	}
-
-	if (const UTextureRenderTarget2D* RenderTarget2D = Cast<UTextureRenderTarget2D>(Texture))
-	{
-		return RenderTarget2D->AddressY;
-	}
-
-	// TODO: add support for UMediaTexture?
-
-	return TextureAddress::TA_MAX;
+	return MakeTuple(AddressX, AddressY);
 }
 
 UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bUseSRGB)
