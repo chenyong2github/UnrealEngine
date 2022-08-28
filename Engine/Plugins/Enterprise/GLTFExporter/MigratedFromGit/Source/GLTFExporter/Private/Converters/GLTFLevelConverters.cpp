@@ -13,6 +13,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	FGLTFJsonNode Node;
 	Node.Name = Name.IsEmpty() ? Owner->GetName() + TEXT("_") + SceneComponent->GetName() : Name;
 
+	// TODO: add support for non-uniform scaling (Unreal doesn't treat combined transforms as simple matrix multiplication)
 	const FTransform Transform = bRootNode ? SceneComponent->GetComponentTransform() : SceneComponent->GetRelativeTransform();
 	Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation());
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
