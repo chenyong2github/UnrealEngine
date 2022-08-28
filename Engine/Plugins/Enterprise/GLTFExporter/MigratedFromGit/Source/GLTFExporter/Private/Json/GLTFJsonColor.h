@@ -21,7 +21,7 @@ struct TGLTFJsonColor : BaseType, IGLTFJsonArray
 
 	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
 	{
-		for (int32 i = 0; i < GetNum(BaseType::Components); ++i)
+		for (SIZE_T i = 0; i < GetNum(BaseType::Components); ++i)
 		{
 			Writer.Write(BaseType::Components[i]);
 		}
@@ -29,7 +29,7 @@ struct TGLTFJsonColor : BaseType, IGLTFJsonArray
 
 	bool IsNearlyEqual(const BaseType& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		for (int32 i = 0; i < GetNum(BaseType::Components); ++i)
+		for (SIZE_T i = 0; i < GetNum(BaseType::Components); ++i)
 		{
 			if (!FMath::IsNearlyEqual(BaseType::Components[i], Other.Components[i], Tolerance))
 			{
