@@ -126,5 +126,5 @@ public:
 	*
 	* The function is saving the dialog state in a user ini file and reload it from there. It is not changing the CDO.
 	*/
-	void FillOptions(bool BatchMode, bool bShowOptionDialog, const FString& FullPath, bool& OutOperationCanceled, bool& bOutExportAll);
+	void FillOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& bOutOperationCanceled, bool& bOutExportAll);
 };

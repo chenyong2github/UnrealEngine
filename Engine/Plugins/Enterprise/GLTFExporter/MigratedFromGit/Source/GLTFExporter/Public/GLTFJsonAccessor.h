@@ -15,7 +15,7 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 	int32                    Count;
 	EGLTFJsonAccessorType    Type;
 	EGLTFJsonComponentType   ComponentType;
-	bool                     Normalized;
+	bool                     bNormalized;
 
 	int32 MinMaxLength;
 	float Min[16];
@@ -26,7 +26,7 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor
 		, Count(0)
 		, Type(EGLTFJsonAccessorType::None)
 		, ComponentType(EGLTFJsonComponentType::None)
-		, Normalized(false)
+		, bNormalized(false)
 		, MinMaxLength(0)
 		, Min{0}
 		, Max{0}
