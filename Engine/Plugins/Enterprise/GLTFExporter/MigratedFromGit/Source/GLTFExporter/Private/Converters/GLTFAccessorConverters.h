@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
-#include "Converters/GLTFBoneMap.h"
+#include "Converters/GLTFMeshSection.h"
 #include "Engine.h"
 
 template <typename... InputTypes>
@@ -14,68 +14,64 @@ class TGLTFAccessorConverter : public FGLTFBuilderContext, public TGLTFConverter
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFPositionBufferConverter final : public TGLTFAccessorConverter<const FPositionVertexBuffer*>
+class FGLTFPositionBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FPositionVertexBuffer*>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FPositionVertexBuffer* VertexBuffer) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer) override;
 };
 
-class FGLTFColorBufferConverter final : public TGLTFAccessorConverter<const FColorVertexBuffer*>
+class FGLTFColorBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FColorVertexBuffer*>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FColorVertexBuffer* VertexBuffer) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer) override;
 };
 
-class FGLTFNormalBufferConverter final : public TGLTFAccessorConverter<const FStaticMeshVertexBuffer*>
+class FGLTFNormalBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FStaticMeshVertexBuffer*>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FStaticMeshVertexBuffer* VertexBuffer) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer) override;
 };
 
-class FGLTFTangentBufferConverter final : public TGLTFAccessorConverter<const FStaticMeshVertexBuffer*>
+class FGLTFTangentBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FStaticMeshVertexBuffer*>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FStaticMeshVertexBuffer* VertexBuffer) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer) override;
 };
 
-class FGLTFUVBufferConverter final : public TGLTFAccessorConverter<const FStaticMeshVertexBuffer*, int32>
+class FGLTFUVBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FStaticMeshVertexBuffer*, uint32>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FStaticMeshVertexBuffer* VertexBuffer, uint32 UVIndex) override;
 };
 
-class FGLTFBoneIndexBufferConverter final : public TGLTFAccessorConverter<const FSkinWeightVertexBuffer*, int32, FGLTFBoneMap>
+class FGLTFBoneIndexBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FSkinWeightVertexBuffer*, uint32>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset, FGLTFBoneMap BoneMap) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset) override;
 
 	template <typename IndexType>
-	FGLTFJsonAccessorIndex Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap);
+	FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset) const;
 };
 
-class FGLTFBoneWeightBufferConverter final : public TGLTFAccessorConverter<const FSkinWeightVertexBuffer*, int32>
+class FGLTFBoneWeightBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*, const FSkinWeightVertexBuffer*, uint32>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FSkinWeightVertexBuffer* VertexBuffer, int32 WeightsGroupIndex) override;
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection, const FSkinWeightVertexBuffer* VertexBuffer, uint32 InfluenceOffset) override;
 };
 
-class FGLTFStaticMeshSectionConverter final : public TGLTFAccessorConverter<const FStaticMeshSection*, const FRawStaticIndexBuffer*>
+class FGLTFIndexBufferConverter final : public TGLTFAccessorConverter<const FGLTFMeshSection*>
 {
 	using TGLTFAccessorConverter::TGLTFAccessorConverter;
 
-	virtual FGLTFJsonAccessorIndex Convert(const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer) override;
-};
+	virtual FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection) override;
 
-class FGLTFSkeletalMeshSectionConverter final : public TGLTFAccessorConverter<const FSkelMeshRenderSection*, const FRawStaticIndexBuffer16or32Interface*>
-{
-	using TGLTFAccessorConverter::TGLTFAccessorConverter;
-
-	virtual FGLTFJsonAccessorIndex Convert(const FSkelMeshRenderSection* MeshSection, const FRawStaticIndexBuffer16or32Interface* IndexBuffer) override;
+	template <typename IndexType>
+    FGLTFJsonAccessorIndex Convert(const FGLTFMeshSection* MeshSection) const;
 };
