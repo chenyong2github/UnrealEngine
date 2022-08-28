@@ -344,3 +344,13 @@ FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshCo
 
 	return LightMapConverter.GetOrAdd(*this, DesiredName, StaticMeshComponent);
 }
+
+FGLTFJsonInteractionHotspotIndex FGLTFConvertBuilder::GetOrAddInteractionHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent, const FString& DesiredName)
+{
+	if (HotspotComponent == nullptr)
+	{
+		return FGLTFJsonInteractionHotspotIndex(INDEX_NONE);
+	}
+
+	return InteractionHotspotComponentConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? HotspotComponent->GetName() : DesiredName, HotspotComponent);
+}
