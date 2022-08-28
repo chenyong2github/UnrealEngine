@@ -51,6 +51,9 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
+	const USceneComponent* RootComponent = Actor->GetRootComponent();
+	const FGLTFJsonNodeIndex RootNodeIndex = Builder.GetOrAddNode(RootComponent);
+
 	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
 	if (FGLTFActorUtility::IsSkySphereBlueprint(Blueprint))
 	{
@@ -59,7 +62,8 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 	}
 	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))
 	{
-		// TODO: add support for backdrop
+		FGLTFJsonNode& RootNode = Builder.GetNode(RootNodeIndex);
+		RootNode.Backdrop = Builder.GetOrAddBackdrop(Actor);
 	}
 	else
 	{
@@ -73,8 +77,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 		}
 	}
 
-	const USceneComponent* RootComponent = Actor->GetRootComponent();
-	return Builder.GetOrAddNode(RootComponent);
+	return RootNodeIndex;
 }
 
 FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULevel* Level)
