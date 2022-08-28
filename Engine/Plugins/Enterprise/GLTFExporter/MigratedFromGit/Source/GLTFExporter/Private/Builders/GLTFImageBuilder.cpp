@@ -12,7 +12,7 @@ FGLTFImageBuilder::FGLTFImageBuilder()
 
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
-	FGLTFJsonImageIndex ImageIndex = FindImage(CompressedData, CompressedByteLength, MimeType);
+	FGLTFJsonImageIndex ImageIndex = FindImage(CompressedData, CompressedByteLength);
 	if (ImageIndex == INDEX_NONE)
 	{
 		FGLTFJsonImage Image;
@@ -86,25 +86,18 @@ bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 	return FGLTFBufferBuilder::Serialize(Archive, FilePath);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType) const
+FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength) const
 {
-	// TODO: maybe use size and / or other properties when looking for an identical image, just in case
-	// images with different properties happen to have the exact same compressed data.
-	// It would however limit the call-sites from where this function can be used, since we need to know these properties.
-
+	// TODO: instead of looping through all images, use a hash table to minimize search space
 	for (const auto& DataPair : ImageDataLookup)
 	{
-		const FGLTFJsonImage& JsonImage = const_cast<FGLTFImageBuilder*>(this)->GetImage(DataPair.Key);
-		if (JsonImage.MimeType == MimeType)
+		const TArray64<uint8>& ImageData = DataPair.Value;
+		if (ImageData.Num() == CompressedByteLength)
 		{
-			const TArray64<uint8>& ImageData = DataPair.Value;
-			if (ImageData.Num() == CompressedByteLength)
+			if (FMemory::Memcmp(ImageData.GetData(), CompressedData, CompressedByteLength) == 0)
 			{
-				if (FMemory::Memcmp(ImageData.GetData(), CompressedData, CompressedByteLength) == 0)
-				{
-					const FGLTFJsonImageIndex ImageIndex = DataPair.Key;
-					return ImageIndex;
-				}
+				const FGLTFJsonImageIndex ImageIndex = DataPair.Key;
+				return ImageIndex;
 			}
 		}
 	}
