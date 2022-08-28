@@ -87,7 +87,7 @@ void AGLTFCameraActor::BeginPlay()
 
 		// Calculate values based on the current location and orientation
 		Distance = ClampDistance((FocusPosition - Position).Size());
-		Pitch = ClampPitch(-Rotation.Pitch);
+		Pitch = ClampPitch(Rotation.Pitch);
 		Yaw = ClampYaw(Rotation.Yaw);
 		TargetDistance = Distance;
 		TargetPitch = Pitch;
@@ -139,7 +139,7 @@ void AGLTFCameraActor::Tick(float DeltaSeconds)
 
 		const FTransform FocusTransform = FTransform(GetFocusPosition());
 		const FTransform DollyTransform = FTransform(-FVector::ForwardVector * Distance);
-		const FTransform RotationTransform = FTransform(FQuat::MakeFromEuler(FVector(0.0f, -Pitch, Yaw)));
+		const FTransform RotationTransform = FTransform(FQuat::MakeFromEuler(FVector(0.0f, Pitch, Yaw)));
 		const FTransform ResultTransform = DollyTransform * RotationTransform * FocusTransform;
 
 		SetActorTransform(ResultTransform);
@@ -165,7 +165,7 @@ void AGLTFCameraActor::OnMouseX(float AxisValue)
 
 void AGLTFCameraActor::OnMouseY(float AxisValue)
 {
-	TargetPitch = ClampPitch(TargetPitch - AxisValue * RotationSensitivity * RotationSensitivityScale);
+	TargetPitch = ClampPitch(TargetPitch + AxisValue * RotationSensitivity * RotationSensitivityScale);
 }
 
 void AGLTFCameraActor::OnMouseWheelAxis(float AxisValue)
