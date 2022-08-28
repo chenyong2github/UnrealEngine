@@ -206,3 +206,8 @@ void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, co
 	SGLTFExportOptionsWindow::ShowDialog(this, FullPath, bBatchMode, bOutOperationCanceled, bOutExportAll);
 	// TODO: call SaveOptions();
 }
+
+bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
+{
+	return false; // TODO: change to true for each option implemented and support by the object to be exported.
+}
