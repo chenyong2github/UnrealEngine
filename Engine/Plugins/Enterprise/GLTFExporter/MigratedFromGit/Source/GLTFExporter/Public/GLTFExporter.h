@@ -9,8 +9,6 @@
 #include "GLTFExportOptions.h"
 #include "GLTFExporter.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
-
 UCLASS()
 class GLTFEXPORTER_API UGLTFExporter : public UExporter
 {
