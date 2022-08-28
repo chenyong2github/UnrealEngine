@@ -209,11 +209,17 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 	Super::OnRegister();
 }
 
-void UGLTFInteractionHotspotComponent::SetActiveImage(class UTexture2D* NewImage)
+void UGLTFInteractionHotspotComponent::SetActiveImage(UTexture2D* NewImage)
 {
 	if (NewImage != ActiveImage)
 	{
-		GetSpriteMaterial()->SetTextureParameterValue("Sprite", NewImage);
+		UTexture* RenderedImage = NewImage;
+		if (RenderedImage == nullptr)
+		{
+			GetSpriteMaterial()->GetTextureParameterDefaultValue(TEXT("Sprite"), RenderedImage);
+		}
+
+		GetSpriteMaterial()->SetTextureParameterValue(TEXT("Sprite"), RenderedImage);
 		ActiveImage = NewImage;
 	}
 

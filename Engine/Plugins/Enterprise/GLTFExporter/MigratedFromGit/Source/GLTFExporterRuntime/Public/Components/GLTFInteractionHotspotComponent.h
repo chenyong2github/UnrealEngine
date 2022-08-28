@@ -48,7 +48,7 @@ private:
 
 protected:
 
-	virtual void SetActiveImage(class UTexture2D* NewImage);
+	virtual void SetActiveImage(UTexture2D* NewImage);
 
 public:
 	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
