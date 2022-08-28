@@ -64,6 +64,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Exporter)
 	uint32 bBundleWebViewer : 1;
 
