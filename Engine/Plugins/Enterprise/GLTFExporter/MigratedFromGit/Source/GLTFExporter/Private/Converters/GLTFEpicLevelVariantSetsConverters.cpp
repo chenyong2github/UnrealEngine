@@ -157,12 +157,12 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
-	FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(Target);
-	FGLTFJsonNode* ComponentNodeIndex = Builder.GetComponentNode(NodeIndex);
+	FGLTFJsonNode* Node = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* ComponentNode = Builder.GetComponentNode(Node);
 
-	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNode);
 
-	NodeProperties.Node = ComponentNodeIndex;
+	NodeProperties.Node = ComponentNode;
 	NodeProperties.bIsVisible = bIsVisible;
 	return true;
 }
@@ -220,11 +220,11 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	VariantMaterial.Material = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
 	VariantMaterial.Index = MaterialIndex;
 
-	FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(Target);
-	FGLTFJsonNode* ComponentNodeIndex = Builder.GetComponentNode(NodeIndex);
-	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonNode* Node = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* ComponentNode = Builder.GetComponentNode(Node);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNode);
 
-	NodeProperties.Node = ComponentNodeIndex;
+	NodeProperties.Node = ComponentNode;
 	NodeProperties.Materials.Add(VariantMaterial);
 	return true;
 }
@@ -271,12 +271,12 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMeshPropertyValue(FGLTFJsonEpic
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	const FGLTFMaterialArray OverrideMaterials(Target->OverrideMaterials);
-	FGLTFJsonNode* NodeIndex = Builder.GetOrAddNode(Target);
-	FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(Mesh, OverrideMaterials);
-	FGLTFJsonNode* ComponentNodeIndex = Builder.GetComponentNode(NodeIndex);
-	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
+	FGLTFJsonNode* JsonNode = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* JsonComponentNode = Builder.GetComponentNode(JsonNode);
+	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(JsonComponentNode);
+	FGLTFJsonMesh* JsonMesh = Builder.GetOrAddMesh(Mesh, OverrideMaterials);
 
-	NodeProperties.Node = ComponentNodeIndex;
-	NodeProperties.Mesh = MeshIndex;
+	NodeProperties.Node = JsonComponentNode;
+	NodeProperties.Mesh = JsonMesh;
 	return true;
 }

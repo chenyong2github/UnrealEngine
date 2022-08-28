@@ -59,9 +59,9 @@ FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* S
 
 	const FLightMapInteraction LightMapInteraction = LightMap2D->GetInteraction(GMaxRHIFeatureLevel);
 	const ULightMapTexture2D* Texture = LightMapInteraction.GetTexture(true);
-	FGLTFJsonTexture* TextureIndex = Builder.GetOrAddTexture(Texture);
+	FGLTFJsonTexture* JsonTexture = Builder.GetOrAddTexture(Texture);
 
-	if (TextureIndex == nullptr)
+	if (JsonTexture == nullptr)
 	{
 		return nullptr;
 	}
@@ -73,7 +73,7 @@ FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* S
 
 	FGLTFJsonLightMap* JsonLightMap = Builder.AddLightMap();
 	StaticMeshComponent->GetName(JsonLightMap->Name); // TODO: use better name (similar to light and camera)
-	JsonLightMap->Texture.Index = TextureIndex;
+	JsonLightMap->Texture.Index = JsonTexture;
 	JsonLightMap->Texture.TexCoord = CoordinateIndex;
 	JsonLightMap->LightMapScale = { LightMapScale.X, LightMapScale.Y, LightMapScale.Z, LightMapScale.W };
 	JsonLightMap->LightMapAdd = { LightMapAdd.X, LightMapAdd.Y, LightMapAdd.Z, LightMapAdd.W };

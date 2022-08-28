@@ -44,8 +44,8 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
-		FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
-		if (MeshIndex == nullptr)
+		Node->Mesh = Builder.GetOrAddMesh(SkeletalMesh);
+		if (Node->Mesh == nullptr)
 		{
 			Builder.LogError(
 				FString::Printf(TEXT("Failed to export skeletal mesh %s for animation sequence %s"),
@@ -53,13 +53,11 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 				*AnimSequence->GetName()));
 			return false;
 		}
-
-		Node->Mesh = MeshIndex;
 	}
 
 
-	FGLTFJsonSkin* SkinIndex = Builder.GetOrAddSkin(Node, SkeletalMesh);
-	if (SkinIndex == nullptr)
+	Node->Skin = Builder.GetOrAddSkin(Node, SkeletalMesh);
+	if (Node->Skin == nullptr)
 	{
 		Builder.LogError(
 			FString::Printf(TEXT("Failed to export bones in skeletal mesh %s for animation sequence %s"),
@@ -68,10 +66,8 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		return false;
 	}
 
-	Node->Skin = SkinIndex;
-
-	FGLTFJsonAnimation* AnimationIndex =  Builder.GetOrAddAnimation(Node, SkeletalMesh, AnimSequence);
-	if (AnimationIndex == nullptr)
+	FGLTFJsonAnimation* Animation = Builder.GetOrAddAnimation(Node, SkeletalMesh, AnimSequence);
+	if (Animation == nullptr)
 	{
 		Builder.LogError(
 			FString::Printf(TEXT("Failed to export animation sequence %s"),

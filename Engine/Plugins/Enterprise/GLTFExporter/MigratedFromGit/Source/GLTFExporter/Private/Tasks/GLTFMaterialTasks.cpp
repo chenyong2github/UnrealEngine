@@ -590,7 +590,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 			return FColor(BaseColor.R, BaseColor.G, BaseColor.B, Opacity.R);
 		});
 
-	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* Texture = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		CombinedPixels,
 		TextureSize,
@@ -603,7 +603,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		TextureWrapT);
 
 	OutPBRParams.BaseColorTexture.TexCoord = TexCoord;
-	OutPBRParams.BaseColorTexture.Index = TextureIndex;
+	OutPBRParams.BaseColorTexture.Index = Texture;
 	OutPBRParams.BaseColorFactor = FGLTFConverterUtility::ConvertColor({ BaseColorScale, BaseColorScale, BaseColorScale }, Builder.ExportOptions->bStrictCompliance);
 
 	return true;
@@ -714,7 +714,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 			return FColor(0, Roughness.R, Metallic.R);
 		});
 
-	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* Texture = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		CombinedPixels,
 		TextureSize,
@@ -727,7 +727,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		TextureWrapT);
 
 	OutPBRParams.MetallicRoughnessTexture.TexCoord = TexCoord;
-	OutPBRParams.MetallicRoughnessTexture.Index = TextureIndex;
+	OutPBRParams.MetallicRoughnessTexture.Index = Texture;
 
 	return true;
 }
@@ -765,10 +765,10 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		IntensityTexCoord == RoughnessTexCoord &&
 		IntensityTransform.IsExactlyEqual(RoughnessTransform))
 	{
-		FGLTFJsonTexture* TextureIndex = Builder.GetOrAddTexture(IntensityTexture, false);
-		OutExtParams.ClearCoatTexture.Index = TextureIndex;
+		FGLTFJsonTexture* Texture = Builder.GetOrAddTexture(IntensityTexture, false);
+		OutExtParams.ClearCoatTexture.Index = Texture;
 		OutExtParams.ClearCoatTexture.TexCoord = IntensityTexCoord;
-		OutExtParams.ClearCoatRoughnessTexture.Index = TextureIndex;
+		OutExtParams.ClearCoatRoughnessTexture.Index = Texture;
 		OutExtParams.ClearCoatRoughnessTexture.TexCoord = IntensityTexCoord;
 		OutExtParams.ClearCoatRoughnessTexture.Transform = IntensityTransform;
 		return true;
@@ -839,7 +839,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 			return FColor(Intensity.R, Roughness.R, 0);
 		});
 
-	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* Texture = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		CombinedPixels,
 		TextureSize,
@@ -851,9 +851,9 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		TextureWrapS,
 		TextureWrapT);
 
-	OutExtParams.ClearCoatTexture.Index = TextureIndex;
+	OutExtParams.ClearCoatTexture.Index = Texture;
 	OutExtParams.ClearCoatTexture.TexCoord = TexCoord;
-	OutExtParams.ClearCoatRoughnessTexture.Index = TextureIndex;
+	OutExtParams.ClearCoatRoughnessTexture.Index = Texture;
 	OutExtParams.ClearCoatRoughnessTexture.TexCoord = TexCoord;
 
 	return true;
@@ -1456,7 +1456,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	// even though the same material when set to opaque will properly bake AmbientOcclusion to a texture.
 	// For now, create a 1x1 texture with the constant value.
 
-	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* Texture = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
@@ -1468,7 +1468,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		EGLTFJsonTextureWrap::ClampToEdge,
 		EGLTFJsonTextureWrap::ClampToEdge);
 
-	OutTexInfo.Index = TextureIndex;
+	OutTexInfo.Index = Texture;
 	return true;
 }
 
@@ -1533,7 +1533,7 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
 	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
-	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* Texture = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
@@ -1545,7 +1545,7 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 		TextureWrapS,
 		TextureWrapT);
 
-	OutTexInfo.Index = TextureIndex;
+	OutTexInfo.Index = Texture;
 	return true;
 }
 
