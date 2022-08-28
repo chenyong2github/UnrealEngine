@@ -32,6 +32,11 @@ bool FGLTFMaterialUtility::IsNormalMap(const FMaterialPropertyEx& Property)
 	return Property == MP_Normal || Property == TEXT("ClearCoatBottomNormal");
 }
 
+bool FGLTFMaterialUtility::IsSRGB(const FMaterialPropertyEx& Property)
+{
+	return Property == MP_BaseColor || Property == MP_EmissiveColor || Property == MP_SubsurfaceColor || Property == TEXT("TransmittanceColor");
+}
+
 FGuid FGLTFMaterialUtility::GetAttributeID(const FMaterialPropertyEx& Property)
 {
 	return Property.IsCustomOutput()
@@ -189,7 +194,10 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	TArray<FBakeOutputEx> BakeOutputs;
 	IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>("GLTFMaterialBaking");
 
+	//Module.SetLinearBake(true);
 	Module.BakeMaterials(MatSettings, MeshSettings, BakeOutputs);
+	const bool bIsLinearBake = Module.IsLinearBake(Property);
+	//Module.SetLinearBake(false);
 
 	FBakeOutputEx& BakeOutput = BakeOutputs[0];
 
@@ -220,14 +228,18 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		FGLTFTextureUtility::FlipGreenChannel(BakedPixels);
 	}
 
-	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
+	bool bFromSRGB = !bIsLinearBake;
+	bool bToSRGB = IsSRGB(Property);
+	FGLTFTextureUtility::TransformColorSpace(BakedPixels, bFromSRGB, bToSRGB);
+
+	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale, !bIsLinearBake);
 
 	if (BakedPixels.Num() == 1)
 	{
 		const FColor& Pixel = BakedPixels[0];
 
 		PropertyBakeOutput.bIsConstant = true;
-		PropertyBakeOutput.ConstantValue = Module.IsLinearBake(Property) ? Pixel.ReinterpretAsLinear() : FLinearColor(Pixel);;
+		PropertyBakeOutput.ConstantValue = bToSRGB ? FLinearColor(Pixel) : Pixel.ReinterpretAsLinear();
 	}
 
 	return PropertyBakeOutput;
@@ -265,14 +277,6 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Buil
 	JsonTexture.Source = Builder.AddImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
 
 	return Builder.AddTexture(JsonTexture);
-}
-
-void FGLTFMaterialUtility::TransformToLinear(TArray<FColor>& InOutPixels)
-{
-	for (FColor& Pixel: InOutPixels)
-	{
-		Pixel = FLinearColor(Pixel).ToFColor(false);
-	}
 }
 
 FLinearColor FGLTFMaterialUtility::GetMask(const FExpressionInput& ExpressionInput)
