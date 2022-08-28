@@ -37,13 +37,13 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponen
 	}
 
 	const FLightMap2D* LightMap2D = MeshMapBuildData->LightMap->GetLightMap2D();
-	check(LightMap2D);
+	if (LightMap2D == nullptr)
+	{
+		return FGLTFJsonLightMapIndex(INDEX_NONE);
+	}
 
-	// TODO: is it correct to use SM5?
-	const FLightMapInteraction LightMapInteraction = LightMap2D->GetInteraction(ERHIFeatureLevel::Type::SM5);
-
-	const bool bUseHighQualityLightMap = true;
-	const ULightMapTexture2D* Texture = LightMapInteraction.GetTexture(bUseHighQualityLightMap);
+	const FLightMapInteraction LightMapInteraction = LightMap2D->GetInteraction(GMaxRHIFeatureLevel);
+	const ULightMapTexture2D* Texture = LightMapInteraction.GetTexture(true);
 	const FGLTFJsonTextureIndex TextureIndex = Builder.GetOrAddTexture(Texture);
 
 	if (TextureIndex == INDEX_NONE)
