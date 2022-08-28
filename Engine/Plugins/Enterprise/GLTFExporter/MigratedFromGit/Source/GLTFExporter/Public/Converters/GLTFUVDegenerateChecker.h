@@ -13,6 +13,6 @@ class GLTFEXPORTER_API FGLTFUVDegenerateChecker final : public TGLTFConverter<fl
 
 	virtual float Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord) override;
 
-	static bool IsDegenerateTriangle(const TStaticArray<FVector2D, 3>& Points);
-	static bool IsDegenerateTriangle(const TStaticArray<FVector, 3>& Points);
+	static bool IsDegenerateTriangle(const TStaticArray<FVector2f, 3>& Points);
+	static bool IsDegenerateTriangle(const TStaticArray<FVector3f, 3>& Points);
 };

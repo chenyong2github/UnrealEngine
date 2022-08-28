@@ -116,9 +116,9 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 		}
 	}
 
-	const FTransform Transform = SceneComponent->GetComponentTransform();
-	const FTransform ParentTransform = ParentComponent != nullptr ? ParentComponent->GetSocketTransform(SocketName) : FTransform::Identity;
-	const FTransform RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
+	const FTransform3f Transform = FTransform3f(SceneComponent->GetComponentTransform());
+	const FTransform3f ParentTransform = ParentComponent != nullptr ? FTransform3f(ParentComponent->GetSocketTransform(SocketName)) : FTransform3f::Identity;
+	const FTransform3f RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
 
 	FGLTFJsonNode* Node = Builder.AddNode();
 	Node->Name = FGLTFNameUtility::GetName(SceneComponent);
@@ -233,9 +233,9 @@ FGLTFJsonNode* FGLTFStaticSocketConverter::Convert(FGLTFJsonNode* RootNode, cons
 	Node->Name = SocketName.ToString();
 
 	// TODO: add warning check for non-uniform scaling
-	Node->Translation = FGLTFCoreUtilities::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
-	Node->Rotation = FGLTFCoreUtilities::ConvertRotation(Socket->RelativeRotation.Quaternion());
-	Node->Scale = FGLTFCoreUtilities::ConvertScale(Socket->RelativeScale);
+	Node->Translation = FGLTFCoreUtilities::ConvertPosition(FVector3f(Socket->RelativeLocation), Builder.ExportOptions->ExportUniformScale);
+	Node->Rotation = FGLTFCoreUtilities::ConvertRotation(FRotator3f(Socket->RelativeRotation).Quaternion());
+	Node->Scale = FGLTFCoreUtilities::ConvertScale(FVector3f(Socket->RelativeScale));
 
 	RootNode->Children.Add(Node);
 	return Node;
@@ -256,9 +256,9 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 		Node->Name = SocketName.ToString();
 
 		// TODO: add warning check for non-uniform scaling
-		Node->Translation = FGLTFCoreUtilities::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportUniformScale);
-		Node->Rotation = FGLTFCoreUtilities::ConvertRotation(Socket->RelativeRotation.Quaternion());
-		Node->Scale = FGLTFCoreUtilities::ConvertScale(Socket->RelativeScale);
+		Node->Translation = FGLTFCoreUtilities::ConvertPosition(FVector3f(Socket->RelativeLocation), Builder.ExportOptions->ExportUniformScale);
+		Node->Rotation = FGLTFCoreUtilities::ConvertRotation(FRotator3f(Socket->RelativeRotation).Quaternion());
+		Node->Scale = FGLTFCoreUtilities::ConvertScale(FVector3f(Socket->RelativeScale));
 
 		const int32 ParentBone = RefSkeleton.FindBoneIndex(Socket->BoneName);
 		FGLTFJsonNode* ParentNode = ParentBone != INDEX_NONE ? Builder.AddUniqueNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
@@ -303,7 +303,7 @@ FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, cons
 	if (BonePoses.IsValidIndex(BoneIndex))
 	{
 		// TODO: add warning check for non-uniform scaling
-		const FTransform& BonePose = BonePoses[BoneIndex];
+		const FTransform3f BonePose = FTransform3f(BonePoses[BoneIndex]);
 		Node->Translation = FGLTFCoreUtilities::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
 		Node->Rotation = FGLTFCoreUtilities::ConvertRotation(BonePose.GetRotation());
 		Node->Scale = FGLTFCoreUtilities::ConvertScale(BonePose.GetScale3D());

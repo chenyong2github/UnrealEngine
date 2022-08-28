@@ -66,10 +66,10 @@ FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* S
 		return nullptr;
 	}
 
-	const FVector2D& CoordinateBias = LightMap2D->GetCoordinateBias();
-	const FVector2D& CoordinateScale = LightMap2D->GetCoordinateScale();
-	const FVector4& LightMapAdd = LightMapInteraction.GetAddArray()[0];
-	const FVector4& LightMapScale = LightMapInteraction.GetScaleArray()[0];
+	const FVector2f CoordinateBias = FVector2f(LightMap2D->GetCoordinateBias());
+	const FVector2f CoordinateScale = FVector2f(LightMap2D->GetCoordinateScale());
+	const FVector4f& LightMapAdd = LightMapInteraction.GetAddArray()[0];
+	const FVector4f& LightMapScale = LightMapInteraction.GetScaleArray()[0];
 
 	FGLTFJsonLightMap* JsonLightMap = Builder.AddLightMap();
 	StaticMeshComponent->GetName(JsonLightMap->Name); // TODO: use better name (similar to light and camera)

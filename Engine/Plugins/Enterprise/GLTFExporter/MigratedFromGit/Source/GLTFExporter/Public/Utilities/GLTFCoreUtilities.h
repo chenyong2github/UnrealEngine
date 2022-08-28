@@ -15,33 +15,33 @@ struct GLTFEXPORTER_API FGLTFCoreUtilities
 {
 	static float ConvertLength(const float Length, const float ConversionScale = 0.01);
 
-	static FGLTFVector3 ConvertVector(const FVector& Vector);
+	static FGLTFVector3 ConvertVector(const FVector3f& Vector);
 
-	static FGLTFVector3 ConvertPosition(const FVector& Position, const float ConversionScale = 0.01);
+	static FGLTFVector3 ConvertPosition(const FVector3f& Position, const float ConversionScale = 0.01);
 
-	static FGLTFVector3 ConvertScale(const FVector& Scale);
+	static FGLTFVector3 ConvertScale(const FVector3f& Scale);
 
-	static FGLTFVector3 ConvertNormal(const FVector& Normal);
+	static FGLTFVector3 ConvertNormal(const FVector3f& Normal);
 	static FGLTFInt16Vector4 ConvertNormal(const FPackedRGBA16N& Normal);
 	static FGLTFInt8Vector4 ConvertNormal(const FPackedNormal& Normal);
 
-	static FGLTFVector4 ConvertTangent(const FVector& Tangent);
+	static FGLTFVector4 ConvertTangent(const FVector3f& Tangent);
 	static FGLTFInt16Vector4 ConvertTangent(const FPackedRGBA16N& Tangent);
 	static FGLTFInt8Vector4 ConvertTangent(const FPackedNormal& Tangent);
 
-	static FGLTFVector2 ConvertUV(const FVector2D& UV);
+	static FGLTFVector2 ConvertUV(const FVector2f& UV);
 	static FGLTFVector2 ConvertUV(const FVector2DHalf& UV);
 
 	static FGLTFColor4 ConvertColor(const FLinearColor& Color, bool bForceLDR);
 	static FGLTFColor3 ConvertColor3(const FLinearColor& Color, bool bForceLDR);
 	static FGLTFUInt8Color4 ConvertColor(const FColor& Color);
 
-	static FGLTFQuaternion ConvertRotation(const FRotator& Rotation);
-	static FGLTFQuaternion ConvertRotation(const FQuat& Rotation);
+	static FGLTFQuaternion ConvertRotation(const FRotator3f& Rotation);
+	static FGLTFQuaternion ConvertRotation(const FQuat4f& Rotation);
 
-	static FGLTFMatrix4 ConvertMatrix(const FMatrix& Matrix);
+	static FGLTFMatrix4 ConvertMatrix(const FMatrix44f& Matrix);
 
-	static FGLTFMatrix4 ConvertTransform(const FTransform& Transform, const float ConversionScale = 0.01);
+	static FGLTFMatrix4 ConvertTransform(const FTransform3f& Transform, const float ConversionScale = 0.01);
 
 	static float ConvertFieldOfView(float FOVInDegrees, float AspectRatio);
 
