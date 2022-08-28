@@ -27,7 +27,7 @@ IMPLEMENT_MODULE(FMaterialBakingModule, GLTFMaterialBaking);
 
 /** Cvars for advanced features */
 static TAutoConsoleVariable<int32> CVarUseMaterialProxyCaching(
-	TEXT("MaterialBaking.UseMaterialProxyCaching"),
+	TEXT("GLTFMaterialBaking.UseMaterialProxyCaching"),
 	1,
 	TEXT("Determines whether or not Material Proxies should be cached to speed up material baking.\n")
 	TEXT("0: Turned Off\n")
@@ -35,7 +35,7 @@ static TAutoConsoleVariable<int32> CVarUseMaterialProxyCaching(
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarSaveIntermediateTextures(
-	TEXT("MaterialBaking.SaveIntermediateTextures"),
+	TEXT("GLTFMaterialBaking.SaveIntermediateTextures"),
 	0,
 	TEXT("Determines whether or not to save out intermediate BMP images for each flattened material property.\n")
 	TEXT("0: Turned Off\n")
