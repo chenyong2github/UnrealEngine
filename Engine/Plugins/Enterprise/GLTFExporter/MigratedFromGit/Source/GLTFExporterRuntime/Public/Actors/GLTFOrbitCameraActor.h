@@ -37,8 +37,11 @@ private:
 	void OnMouseWheelAxis(float AxisValue);
 
 	float ClampDistance(float Value) const;
+
 	float ClampPitch(float Value) const;
+
 	float ClampYaw(float Value) const;
+
 	void RemoveInertia();
 
 public:
