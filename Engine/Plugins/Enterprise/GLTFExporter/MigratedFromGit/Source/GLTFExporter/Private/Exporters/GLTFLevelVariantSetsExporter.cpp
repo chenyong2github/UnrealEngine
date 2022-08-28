@@ -51,8 +51,8 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSets);
-	if (VariationIndex == INDEX_NONE)
+	const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSets);
+	if (LevelVariantSetsIndex == INDEX_NONE)
 	{
 		Builder.AddErrorMessage(
 			FString::Printf(TEXT("Failed to export level variant sets %s"),
@@ -60,7 +60,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	Builder.GetScene(SceneIndex).Variations.AddUnique(VariationIndex);
+	Builder.GetScene(SceneIndex).LevelVariantSets.AddUnique(LevelVariantSetsIndex);
 
 	Builder.DefaultScene = SceneIndex;
 	return true;

@@ -377,14 +377,14 @@ FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Backd
 	return BackdropConverter.GetOrAdd(BackdropActor);
 }
 
-FGLTFJsonVariationIndex FGLTFConvertBuilder::GetOrAddVariation(const ULevelVariantSets* LevelVariantSets)
+FGLTFJsonLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddLevelVariantSets(const ULevelVariantSets* LevelVariantSets)
 {
 	if (LevelVariantSets == nullptr)
 	{
-		return FGLTFJsonVariationIndex(INDEX_NONE);
+		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
 	}
 
-	return VariationConverter.GetOrAdd(LevelVariantSets);
+	return LevelVariantSetsConverter.GetOrAdd(LevelVariantSets);
 }
 
 FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent)

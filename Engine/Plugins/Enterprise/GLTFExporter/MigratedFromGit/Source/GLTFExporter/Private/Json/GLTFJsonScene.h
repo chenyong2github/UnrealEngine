@@ -10,7 +10,7 @@ struct FGLTFJsonScene
 	FString Name;
 
 	TArray<FGLTFJsonNodeIndex> Nodes;
-	TArray<FGLTFJsonVariationIndex>  Variations;
+	TArray<FGLTFJsonLevelVariantSetsIndex>  LevelVariantSets;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -27,7 +27,7 @@ struct FGLTFJsonScene
 			JsonWriter.WriteValue(TEXT("nodes"), Nodes);
 		}
 
-		if (Variations.Num() > 0)
+		if (LevelVariantSets.Num() > 0)
 		{
 			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
 			Extensions.Used.Add(Extension);
@@ -35,7 +35,7 @@ struct FGLTFJsonScene
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 			JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
 
-			JsonWriter.WriteValue(TEXT("levelVariantSets"), Variations);
+			JsonWriter.WriteValue(TEXT("levelVariantSets"), LevelVariantSets);
 
 			JsonWriter.WriteObjectEnd();
 			JsonWriter.WriteObjectEnd();

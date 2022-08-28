@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonVariation.h"
+#include "Json/GLTFJsonLevelVariantSets.h"
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
@@ -11,11 +11,11 @@
 #include "PropertyValue.h"
 #include "LevelVariantSets.h"
 
-class FGLTFVariationConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonVariationIndex, const ULevelVariantSets*>
+class FGLTFLevelVariantSetsConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonLevelVariantSetsIndex, const ULevelVariantSets*>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonVariationIndex Convert(const ULevelVariantSets* LevelVariantSets) override;
+	virtual FGLTFJsonLevelVariantSetsIndex Convert(const ULevelVariantSets* LevelVariantSets) override;
 
 	bool TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const;
 	bool TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const;
