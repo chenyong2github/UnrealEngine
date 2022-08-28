@@ -20,19 +20,15 @@
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefault()
 {
-	static UMaterialInterface* DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFDefault.GLTFDefault"));
+	static UMaterialInterface* DefaultMaterial = GetPrebaked(EGLTFJsonShadingModel::Default);
 	return DefaultMaterial;
 }
 
 UMaterialInterface* FGLTFMaterialUtility::GetPrebaked(EGLTFJsonShadingModel ShadingModel)
 {
-	// TODO: don't assume enum values are in this order
-	static UMaterialInterface* BaseMaterials[] = {
-		LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFDefault.GLTFDefault")),
-		LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFUnlit.GLTFUnlit")),
-		LoadObject<UMaterialInterface>(nullptr, TEXT("/GLTFExporter/Materials/GLTFClearCoat.GLTFClearCoat")),
-	};
-	return BaseMaterials[static_cast<int32>(ShadingModel)];
+	const FString Name = FGLTFJsonUtility::GetValue(ShadingModel);
+	const FString Path = TEXT("/GLTFExporter/Materials/GLTF") + Name + TEXT(".GLTF") + Name;
+	return LoadObject<UMaterialInterface>(nullptr, *Path);
 }
 
 bool FGLTFMaterialUtility::IsPrebaked(const UMaterial* Material)
