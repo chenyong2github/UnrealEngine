@@ -8,17 +8,17 @@
 struct FGLTFJsonCameraControl
 {
 	EGLTFJsonCameraControlMode Mode;
-	FGLTFJsonNodeIndex         Target;
-	float                      MaxDistance;
-	float                      MinDistance;
-	float                      MaxPitch;
-	float                      MinPitch;
-	float                      MaxYaw;
-	float                      MinYaw;
-	float                      RotationSensitivity;
-	float                      RotationInertia;
-	float                      DollySensitivity;
-	float                      DollyDuration;
+	FGLTFJsonNodeIndex Target;
+	float MaxDistance;
+	float MinDistance;
+	float MaxPitch;
+	float MinPitch;
+	float MaxYaw;
+	float MinYaw;
+	float RotationSensitivity;
+	float RotationInertia;
+	float DollySensitivity;
+	float DollyDuration;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -26,7 +26,12 @@ struct FGLTFJsonCameraControl
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToString(Mode));
-		JsonWriter.WriteValue(TEXT("target"), Target);
+
+		if (Target != INDEX_NONE && Mode == EGLTFJsonCameraControlMode::Orbital)
+		{
+			JsonWriter.WriteValue(TEXT("target"), Target);
+		}
+
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxDistance"), MaxDistance);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("minDistance"), MinDistance);
 		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("maxPitch"), MaxPitch);
