@@ -24,92 +24,92 @@ void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequir
 
 FGLTFJsonAccessorIndex FGLTFJsonBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
-	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor));
+	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(MakeUnique<FGLTFJsonAccessor>(JsonAccessor)));
 }
 
 FGLTFJsonAnimationIndex FGLTFJsonBuilder::AddAnimation(const FGLTFJsonAnimation& JsonAnimation)
 {
-	return FGLTFJsonAnimationIndex(JsonRoot.Animations.Add(JsonAnimation));
+	return FGLTFJsonAnimationIndex(JsonRoot.Animations.Add(MakeUnique<FGLTFJsonAnimation>(JsonAnimation)));
 }
 
 FGLTFJsonBufferIndex FGLTFJsonBuilder::AddBuffer(const FGLTFJsonBuffer& JsonBuffer)
 {
-	return FGLTFJsonBufferIndex(JsonRoot.Buffers.Add(JsonBuffer));
+	return FGLTFJsonBufferIndex(JsonRoot.Buffers.Add(MakeUnique<FGLTFJsonBuffer>(JsonBuffer)));
 }
 
 FGLTFJsonBufferViewIndex FGLTFJsonBuilder::AddBufferView(const FGLTFJsonBufferView& JsonBufferView)
 {
-	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(JsonBufferView));
+	return FGLTFJsonBufferViewIndex(JsonRoot.BufferViews.Add(MakeUnique<FGLTFJsonBufferView>(JsonBufferView)));
 }
 
 FGLTFJsonCameraIndex FGLTFJsonBuilder::AddCamera(const FGLTFJsonCamera& JsonCamera)
 {
-	return FGLTFJsonCameraIndex(JsonRoot.Cameras.Add(JsonCamera));
+	return FGLTFJsonCameraIndex(JsonRoot.Cameras.Add(MakeUnique<FGLTFJsonCamera>(JsonCamera)));
 }
 
 FGLTFJsonImageIndex FGLTFJsonBuilder::AddImage(const FGLTFJsonImage& JsonImage)
 {
-	return FGLTFJsonImageIndex(JsonRoot.Images.Add(JsonImage));
+	return FGLTFJsonImageIndex(JsonRoot.Images.Add(MakeUnique<FGLTFJsonImage>(JsonImage)));
 }
 
 FGLTFJsonMaterialIndex FGLTFJsonBuilder::AddMaterial(const FGLTFJsonMaterial& JsonMaterial)
 {
-	return FGLTFJsonMaterialIndex(JsonRoot.Materials.Add(JsonMaterial));
+	return FGLTFJsonMaterialIndex(JsonRoot.Materials.Add(MakeUnique<FGLTFJsonMaterial>(JsonMaterial)));
 }
 
 FGLTFJsonMeshIndex FGLTFJsonBuilder::AddMesh(const FGLTFJsonMesh& JsonMesh)
 {
-	return FGLTFJsonMeshIndex(JsonRoot.Meshes.Add(JsonMesh));
+	return FGLTFJsonMeshIndex(JsonRoot.Meshes.Add(MakeUnique<FGLTFJsonMesh>(JsonMesh)));
 }
 
 FGLTFJsonNodeIndex FGLTFJsonBuilder::AddNode(const FGLTFJsonNode& JsonNode)
 {
-	return FGLTFJsonNodeIndex(JsonRoot.Nodes.Add(JsonNode));
+	return FGLTFJsonNodeIndex(JsonRoot.Nodes.Add(MakeUnique<FGLTFJsonNode>(JsonNode)));
 }
 
 FGLTFJsonSamplerIndex FGLTFJsonBuilder::AddSampler(const FGLTFJsonSampler& JsonSampler)
 {
-	return FGLTFJsonSamplerIndex(JsonRoot.Samplers.Add(JsonSampler));
+	return FGLTFJsonSamplerIndex(JsonRoot.Samplers.Add(MakeUnique<FGLTFJsonSampler>(JsonSampler)));
 }
 
 FGLTFJsonSceneIndex FGLTFJsonBuilder::AddScene(const FGLTFJsonScene& JsonScene)
 {
-	return FGLTFJsonSceneIndex(JsonRoot.Scenes.Add(JsonScene));
+	return FGLTFJsonSceneIndex(JsonRoot.Scenes.Add(MakeUnique<FGLTFJsonScene>(JsonScene)));
 }
 
 FGLTFJsonSkinIndex FGLTFJsonBuilder::AddSkin(const FGLTFJsonSkin& JsonSkin)
 {
-	return FGLTFJsonSkinIndex(JsonRoot.Skins.Add(JsonSkin));
+	return FGLTFJsonSkinIndex(JsonRoot.Skins.Add(MakeUnique<FGLTFJsonSkin>(JsonSkin)));
 }
 
 FGLTFJsonTextureIndex FGLTFJsonBuilder::AddTexture(const FGLTFJsonTexture& JsonTexture)
 {
-	return FGLTFJsonTextureIndex(JsonRoot.Textures.Add(JsonTexture));
+	return FGLTFJsonTextureIndex(JsonRoot.Textures.Add(MakeUnique<FGLTFJsonTexture>(JsonTexture)));
 }
 
 FGLTFJsonBackdropIndex FGLTFJsonBuilder::AddBackdrop(const FGLTFJsonBackdrop& JsonBackdrop)
 {
-	return FGLTFJsonBackdropIndex(JsonRoot.Backdrops.Add(JsonBackdrop));
+	return FGLTFJsonBackdropIndex(JsonRoot.Backdrops.Add(MakeUnique<FGLTFJsonBackdrop>(JsonBackdrop)));
 }
 
 FGLTFJsonVariationIndex FGLTFJsonBuilder::AddVariation(const FGLTFJsonVariation& JsonVariation)
 {
-	return FGLTFJsonVariationIndex(JsonRoot.Variations.Add(JsonVariation));
+	return FGLTFJsonVariationIndex(JsonRoot.Variations.Add(MakeUnique<FGLTFJsonVariation>(JsonVariation)));
 }
 
 FGLTFJsonLightMapIndex FGLTFJsonBuilder::AddLightMap(const FGLTFJsonLightMap& JsonLightMap)
 {
-	return FGLTFJsonLightMapIndex(JsonRoot.LightMaps.Add(JsonLightMap));
+	return FGLTFJsonLightMapIndex(JsonRoot.LightMaps.Add(MakeUnique<FGLTFJsonLightMap>(JsonLightMap)));
 }
 
 FGLTFJsonLightIndex FGLTFJsonBuilder::AddLight(const FGLTFJsonLight& JsonLight)
 {
-	return FGLTFJsonLightIndex(JsonRoot.Lights.Add(JsonLight));
+	return FGLTFJsonLightIndex(JsonRoot.Lights.Add(MakeUnique<FGLTFJsonLight>(JsonLight)));
 }
 
 FGLTFJsonHotspotIndex FGLTFJsonBuilder::AddHotspot(const FGLTFJsonHotspot& JsonHotspot)
 {
-	return FGLTFJsonHotspotIndex(JsonRoot.Hotspots.Add(JsonHotspot));
+	return FGLTFJsonHotspotIndex(JsonRoot.Hotspots.Add(MakeUnique<FGLTFJsonHotspot>(JsonHotspot)));
 }
 
 FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex, const FGLTFJsonNode& JsonNode)
@@ -138,92 +138,92 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildComponentNode(FGLTFJsonNodeIndex Pa
 
 FGLTFJsonAccessor& FGLTFJsonBuilder::GetAccessor(FGLTFJsonAccessorIndex AccessorIndex)
 {
-	return JsonRoot.Accessors[AccessorIndex];
+	return *JsonRoot.Accessors[AccessorIndex];
 }
 
 FGLTFJsonAnimation& FGLTFJsonBuilder::GetAnimation(FGLTFJsonAnimationIndex AnimationIndex)
 {
-	return JsonRoot.Animations[AnimationIndex];
+	return *JsonRoot.Animations[AnimationIndex];
 }
 
 FGLTFJsonBuffer& FGLTFJsonBuilder::GetBuffer(FGLTFJsonBufferIndex BufferIndex)
 {
-	return JsonRoot.Buffers[BufferIndex];
+	return *JsonRoot.Buffers[BufferIndex];
 }
 
 FGLTFJsonBufferView& FGLTFJsonBuilder::GetBufferView(FGLTFJsonBufferViewIndex BufferViewIndex)
 {
-	return JsonRoot.BufferViews[BufferViewIndex];
+	return *JsonRoot.BufferViews[BufferViewIndex];
 }
 
 FGLTFJsonCamera& FGLTFJsonBuilder::GetCamera(FGLTFJsonCameraIndex CameraIndex)
 {
-	return JsonRoot.Cameras[CameraIndex];
+	return *JsonRoot.Cameras[CameraIndex];
 }
 
 FGLTFJsonImage& FGLTFJsonBuilder::GetImage(FGLTFJsonImageIndex ImageIndex)
 {
-	return JsonRoot.Images[ImageIndex];
+	return *JsonRoot.Images[ImageIndex];
 }
 
 FGLTFJsonMaterial& FGLTFJsonBuilder::GetMaterial(FGLTFJsonMaterialIndex MaterialIndex)
 {
-	return JsonRoot.Materials[MaterialIndex];
+	return *JsonRoot.Materials[MaterialIndex];
 }
 
 FGLTFJsonMesh& FGLTFJsonBuilder::GetMesh(FGLTFJsonMeshIndex MeshIndex)
 {
-	return JsonRoot.Meshes[MeshIndex];
+	return *JsonRoot.Meshes[MeshIndex];
 }
 
 FGLTFJsonNode& FGLTFJsonBuilder::GetNode(FGLTFJsonNodeIndex NodeIndex)
 {
-	return JsonRoot.Nodes[NodeIndex];
+	return *JsonRoot.Nodes[NodeIndex];
 }
 
 FGLTFJsonSampler& FGLTFJsonBuilder::GetSampler(FGLTFJsonSamplerIndex SamplerIndex)
 {
-	return JsonRoot.Samplers[SamplerIndex];
+	return *JsonRoot.Samplers[SamplerIndex];
 }
 
 FGLTFJsonScene& FGLTFJsonBuilder::GetScene(FGLTFJsonSceneIndex SceneIndex)
 {
-	return JsonRoot.Scenes[SceneIndex];
+	return *JsonRoot.Scenes[SceneIndex];
 }
 
 FGLTFJsonSkin& FGLTFJsonBuilder::GetSkin(FGLTFJsonSkinIndex SkinIndex)
 {
-	return JsonRoot.Skins[SkinIndex];
+	return *JsonRoot.Skins[SkinIndex];
 }
 
 FGLTFJsonTexture& FGLTFJsonBuilder::GetTexture(FGLTFJsonTextureIndex TextureIndex)
 {
-	return JsonRoot.Textures[TextureIndex];
+	return *JsonRoot.Textures[TextureIndex];
 }
 
 FGLTFJsonBackdrop& FGLTFJsonBuilder::GetBackdrop(FGLTFJsonBackdropIndex BackdropIndex)
 {
-	return JsonRoot.Backdrops[BackdropIndex];
+	return *JsonRoot.Backdrops[BackdropIndex];
 }
 
 FGLTFJsonVariation& FGLTFJsonBuilder::GetVariation(FGLTFJsonVariationIndex VariationIndex)
 {
-	return JsonRoot.Variations[VariationIndex];
+	return *JsonRoot.Variations[VariationIndex];
 }
 
 FGLTFJsonLightMap& FGLTFJsonBuilder::GetLightMap(FGLTFJsonLightMapIndex LightMapIndex)
 {
-	return JsonRoot.LightMaps[LightMapIndex];
+	return *JsonRoot.LightMaps[LightMapIndex];
 }
 
 FGLTFJsonLight& FGLTFJsonBuilder::GetLight(FGLTFJsonLightIndex LightIndex)
 {
-	return JsonRoot.Lights[LightIndex];
+	return *JsonRoot.Lights[LightIndex];
 }
 
 FGLTFJsonHotspot& FGLTFJsonBuilder::GetHotspot(FGLTFJsonHotspotIndex HotspotIndex)
 {
-	return JsonRoot.Hotspots[HotspotIndex];
+	return *JsonRoot.Hotspots[HotspotIndex];
 }
 
 FGLTFJsonNodeIndex FGLTFJsonBuilder::GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex)

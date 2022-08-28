@@ -62,24 +62,24 @@ struct FGLTFJsonRoot
 
 	FGLTFJsonSceneIndex DefaultScene;
 
-	TArray<FGLTFJsonAccessor>   Accessors;
-	TArray<FGLTFJsonAnimation>  Animations;
-	TArray<FGLTFJsonBuffer>     Buffers;
-	TArray<FGLTFJsonBufferView> BufferViews;
-	TArray<FGLTFJsonCamera>     Cameras;
-	TArray<FGLTFJsonMaterial>   Materials;
-	TArray<FGLTFJsonMesh>       Meshes;
-	TArray<FGLTFJsonNode>       Nodes;
-	TArray<FGLTFJsonImage>      Images;
-	TArray<FGLTFJsonSampler>    Samplers;
-	TArray<FGLTFJsonScene>      Scenes;
-	TArray<FGLTFJsonSkin>       Skins;
-	TArray<FGLTFJsonTexture>    Textures;
-	TArray<FGLTFJsonBackdrop>   Backdrops;
-	TArray<FGLTFJsonLightMap>   LightMaps;
-	TArray<FGLTFJsonLight>      Lights;
-	TArray<FGLTFJsonVariation>        Variations;
-	TArray<FGLTFJsonHotspot>    Hotspots;
+	TArray<TUniquePtr<FGLTFJsonAccessor>>   Accessors;
+	TArray<TUniquePtr<FGLTFJsonAnimation>>  Animations;
+	TArray<TUniquePtr<FGLTFJsonBuffer>>     Buffers;
+	TArray<TUniquePtr<FGLTFJsonBufferView>> BufferViews;
+	TArray<TUniquePtr<FGLTFJsonCamera>>     Cameras;
+	TArray<TUniquePtr<FGLTFJsonMaterial>>   Materials;
+	TArray<TUniquePtr<FGLTFJsonMesh>>       Meshes;
+	TArray<TUniquePtr<FGLTFJsonNode>>       Nodes;
+	TArray<TUniquePtr<FGLTFJsonImage>>      Images;
+	TArray<TUniquePtr<FGLTFJsonSampler>>    Samplers;
+	TArray<TUniquePtr<FGLTFJsonScene>>      Scenes;
+	TArray<TUniquePtr<FGLTFJsonSkin>>       Skins;
+	TArray<TUniquePtr<FGLTFJsonTexture>>    Textures;
+	TArray<TUniquePtr<FGLTFJsonBackdrop>>   Backdrops;
+	TArray<TUniquePtr<FGLTFJsonLightMap>>   LightMaps;
+	TArray<TUniquePtr<FGLTFJsonLight>>      Lights;
+	TArray<TUniquePtr<FGLTFJsonVariation>>  Variations;
+	TArray<TUniquePtr<FGLTFJsonHotspot>>    Hotspots;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
@@ -96,19 +96,19 @@ struct FGLTFJsonRoot
 			JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("accessors"), Accessors, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("animations"), Animations, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("buffers"), Buffers, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("bufferViews"), BufferViews, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("cameras"), Cameras, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("images"), Images, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("meshes"), Meshes, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("skins"), Skins, AllExtensions);
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("accessors"), Accessors, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("animations"), Animations, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("buffers"), Buffers, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("bufferViews"), BufferViews, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("cameras"), Cameras, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("images"), Images, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("materials"), Materials, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("meshes"), Meshes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("nodes"), Nodes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("samplers"), Samplers, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("skins"), Skins, AllExtensions);
+		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
 
 		if (Backdrops.Num() > 0 || Variations.Num() > 0 || LightMaps.Num() > 0 || Lights.Num() > 0 || Hotspots.Num() > 0 /* TODO: add more extension support */)
 		{
@@ -120,7 +120,7 @@ struct FGLTFJsonRoot
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("backdrops"), Backdrops, AllExtensions);
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("backdrops"), Backdrops, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -130,7 +130,7 @@ struct FGLTFJsonRoot
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("levelVariantSets"), Variations, AllExtensions);
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("levelVariantSets"), Variations, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -140,7 +140,7 @@ struct FGLTFJsonRoot
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -150,7 +150,7 @@ struct FGLTFJsonRoot
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("lights"), Lights, AllExtensions);
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("lights"), Lights, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -160,7 +160,7 @@ struct FGLTFJsonRoot
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("interactions"), Hotspots, AllExtensions);
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("interactions"), Hotspots, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
