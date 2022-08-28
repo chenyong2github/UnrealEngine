@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonVector.h"
 
-struct FGLTFJsonCameraControl : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonCameraControl : IGLTFJsonObject
 {
 	EGLTFJsonCameraControlMode Mode;
 	FGLTFJsonNodeIndex Target;
@@ -36,41 +36,5 @@ struct FGLTFJsonCameraControl : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("mode"), Mode);
-
-		if (Target != INDEX_NONE && Mode == EGLTFJsonCameraControlMode::Orbital)
-		{
-			Writer.Write(TEXT("target"), Target);
-		}
-
-		Writer.Write(TEXT("maxDistance"), MaxDistance);
-		Writer.Write(TEXT("minDistance"), MinDistance);
-
-		if (!FMath::IsNearlyEqual(MaxPitch, 90, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("maxPitch"), MaxPitch);
-		}
-
-		if (!FMath::IsNearlyEqual(MinPitch, -90, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("minPitch"), MinPitch);
-		}
-
-		if (!FMath::IsNearlyEqual(MaxYaw, 360, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("maxYaw"), MaxYaw);
-		}
-
-		if (!FMath::IsNearlyEqual(MinYaw, 0, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("minYaw"), MinYaw);
-		}
-
-		Writer.Write(TEXT("rotationSensitivity"), RotationSensitivity);
-		Writer.Write(TEXT("rotationInertia"), RotationInertia);
-		Writer.Write(TEXT("dollySensitivity"), DollySensitivity);
-		Writer.Write(TEXT("dollyDuration"), DollyDuration);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

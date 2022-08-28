@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonCameraControl.h"
 
-struct FGLTFJsonOrthographic : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonOrthographic : IGLTFJsonObject
 {
 	float XMag; // horizontal magnification of the view
 	float YMag; // vertical magnification of the view
@@ -21,16 +21,10 @@ struct FGLTFJsonOrthographic : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("xmag"), XMag);
-		Writer.Write(TEXT("ymag"), YMag);
-		Writer.Write(TEXT("zfar"), ZFar);
-		Writer.Write(TEXT("znear"), ZNear);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonPerspective : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonPerspective : IGLTFJsonObject
 {
 	float AspectRatio; // aspect ratio of the field of view
 	float YFov; // vertical field of view in radians
@@ -45,25 +39,10 @@ struct FGLTFJsonPerspective : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!FMath::IsNearlyEqual(AspectRatio, 0, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("aspectRatio"), AspectRatio);
-		}
-
-		Writer.Write(TEXT("yfov"), YFov);
-
-		if (!FMath::IsNearlyEqual(ZFar, 0, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("zfar"), ZFar);
-		}
-
-		Writer.Write(TEXT("znear"), ZNear);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonCamera : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonCamera : IGLTFJsonObject
 {
 	FString Name;
 
@@ -78,34 +57,5 @@ struct FGLTFJsonCamera : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		Writer.Write(TEXT("type"), Type);
-
-		switch (Type)
-		{
-			case EGLTFJsonCameraType::Orthographic:
-				Writer.Write(TEXT("orthographic"), Orthographic);
-				break;
-
-			case EGLTFJsonCameraType::Perspective:
-				Writer.Write(TEXT("perspective"), Perspective);
-				break;
-
-			default:
-				break;
-		}
-
-		if (CameraControl.IsSet())
-		{
-			Writer.StartExtensions();
-			Writer.Write(EGLTFJsonExtension::EPIC_CameraControls, CameraControl.GetValue());
-			Writer.EndExtensions();
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

@@ -7,7 +7,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonKhrMaterialVariant.h"
 
-struct FGLTFJsonAttributes : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAttributes : IGLTFJsonObject
 {
 	FGLTFJsonAccessorIndex Position;
 	FGLTFJsonAccessorIndex Color0;
@@ -18,34 +18,10 @@ struct FGLTFJsonAttributes : IGLTFJsonObject
 	TArray<FGLTFJsonAccessorIndex> Joints;
 	TArray<FGLTFJsonAccessorIndex> Weights;
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (Position != INDEX_NONE) Writer.Write(TEXT("POSITION"), Position);
-		if (Color0 != INDEX_NONE) Writer.Write(TEXT("COLOR_0"), Color0);
-		if (Normal != INDEX_NONE) Writer.Write(TEXT("NORMAL"), Normal);
-		if (Tangent != INDEX_NONE) Writer.Write(TEXT("TANGENT"), Tangent);
-
-		for (int32 Index = 0; Index < TexCoords.Num(); ++Index)
-		{
-			const FGLTFJsonAccessorIndex TexCoord = TexCoords[Index];
-			if (TexCoord != INDEX_NONE) Writer.Write(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoord);
-		}
-
-		for (int32 Index = 0; Index < Joints.Num(); ++Index)
-		{
-			const FGLTFJsonAccessorIndex Joint = Joints[Index];
-			if (Joint != INDEX_NONE) Writer.Write(TEXT("JOINTS_") + FString::FromInt(Index), Joint);
-		}
-
-		for (int32 Index = 0; Index < Weights.Num(); ++Index)
-		{
-			const FGLTFJsonAccessorIndex Weight = Weights[Index];
-			if (Weight != INDEX_NONE) Writer.Write(TEXT("WEIGHTS_") + FString::FromInt(Index), Weight);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonPrimitive : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonPrimitive : IGLTFJsonObject
 {
 	FGLTFJsonAccessorIndex Indices;
 	FGLTFJsonMaterialIndex Material;
@@ -59,51 +35,14 @@ struct FGLTFJsonPrimitive : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		Writer.Write(TEXT("attributes"), Attributes);
-
-		if (Indices != INDEX_NONE)
-		{
-			Writer.Write(TEXT("indices"), Indices);
-		}
-
-		if (Material != INDEX_NONE)
-		{
-			Writer.Write(TEXT("material"), Material);
-		}
-
-		if (Mode != EGLTFJsonPrimitiveMode::Triangles)
-		{
-			Writer.Write(TEXT("mode"), Mode);
-		}
-
-		if (KhrMaterialVariantMappings.Num() > 0)
-		{
-			Writer.StartExtensions();
-
-			Writer.StartExtension(EGLTFJsonExtension::KHR_MaterialsVariants);
-			Writer.Write(TEXT("mappings"), KhrMaterialVariantMappings);
-			Writer.EndExtension();
-
-			Writer.EndExtensions();
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct FGLTFJsonMesh : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonMesh : IGLTFJsonObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonPrimitive> Primitives;
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		Writer.Write(TEXT("primitives"), Primitives);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

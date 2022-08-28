@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonArray.h"
 
 template <typename BaseType>
-struct TGLTFJsonVector : BaseType, IGLTFJsonArray
+struct GLTFEXPORTER_API TGLTFJsonVector : BaseType, IGLTFJsonArray
 {
 	static const TGLTFJsonVector Zero;
 	static const TGLTFJsonVector One;
@@ -62,7 +62,7 @@ struct TGLTFJsonVector : BaseType, IGLTFJsonArray
 	}
 };
 
-struct FGLTFJsonVector2 : TGLTFJsonVector<FGLTFVector2>
+struct GLTFEXPORTER_API FGLTFJsonVector2 : TGLTFJsonVector<FGLTFVector2>
 {
 	static const FGLTFJsonVector2 Zero;
 	static const FGLTFJsonVector2 One;
@@ -71,7 +71,7 @@ struct FGLTFJsonVector2 : TGLTFJsonVector<FGLTFVector2>
 	using TGLTFJsonVector::operator=;
 };
 
-struct FGLTFJsonVector3 : TGLTFJsonVector<FGLTFVector3>
+struct GLTFEXPORTER_API FGLTFJsonVector3 : TGLTFJsonVector<FGLTFVector3>
 {
 	static const FGLTFJsonVector3 Zero;
 	static const FGLTFJsonVector3 One;
@@ -80,7 +80,7 @@ struct FGLTFJsonVector3 : TGLTFJsonVector<FGLTFVector3>
 	using TGLTFJsonVector::operator=;
 };
 
-struct FGLTFJsonVector4 : TGLTFJsonVector<FGLTFVector4>
+struct GLTFEXPORTER_API FGLTFJsonVector4 : TGLTFJsonVector<FGLTFVector4>
 {
 	static const FGLTFJsonVector4 Zero;
 	static const FGLTFJsonVector4 One;

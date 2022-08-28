@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonVector.h"
 
-struct FGLTFJsonTextureTransform : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonTextureTransform : IGLTFJsonObject
 {
 	FGLTFJsonVector2 Offset;
 	FGLTFJsonVector2 Scale;
@@ -18,45 +18,11 @@ struct FGLTFJsonTextureTransform : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Offset.IsNearlyEqual(FGLTFJsonVector2::Zero, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("offset"), Offset);
-		}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 
-		if (!Scale.IsNearlyEqual(FGLTFJsonVector2::One, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("scale"), Scale);
-		}
+	bool IsNearlyEqual(const FGLTFJsonTextureTransform& Other, float Tolerance = KINDA_SMALL_NUMBER) const;
+	bool IsExactlyEqual(const FGLTFJsonTextureTransform& Other) const;
 
-		if (!FMath::IsNearlyEqual(Rotation, 0, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("rotation"), Rotation);
-		}
-	}
-
-	bool IsNearlyEqual(const FGLTFJsonTextureTransform& Other, float Tolerance = KINDA_SMALL_NUMBER) const
-	{
-		return Offset.IsNearlyEqual(Other.Offset, Tolerance)
-			&& Scale.IsNearlyEqual(Other.Scale, Tolerance)
-			&& FMath::IsNearlyEqual(Rotation, Other.Rotation, Tolerance);
-	}
-
-	bool IsExactlyEqual(const FGLTFJsonTextureTransform& Other) const
-	{
-		return Offset.X == Other.Offset.X && Offset.Y == Other.Offset.Y
-			&& Scale.X == Other.Scale.X && Scale.Y == Other.Scale.Y
-			&& Rotation == Other.Rotation;
-	}
-
-	bool IsNearlyDefault(float Tolerance = KINDA_SMALL_NUMBER) const
-	{
-		return IsNearlyEqual({}, Tolerance);
-	}
-
-	bool IsExactlyDefault() const
-	{
-		return IsExactlyEqual({});
-	}
+	bool IsNearlyDefault(float Tolerance = KINDA_SMALL_NUMBER) const;
+	bool IsExactlyDefault() const;
 };

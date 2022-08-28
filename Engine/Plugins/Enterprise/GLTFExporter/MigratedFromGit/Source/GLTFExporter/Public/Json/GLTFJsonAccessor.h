@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
 
-struct FGLTFJsonAccessor : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonObject
 {
 	FString Name;
 
@@ -33,33 +33,5 @@ struct FGLTFJsonAccessor : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		Writer.Write(TEXT("bufferView"), BufferView);
-
-		if (ByteOffset != 0)
-		{
-			Writer.Write(TEXT("byteOffset"), ByteOffset);
-		}
-
-		Writer.Write(TEXT("count"), Count);
-		Writer.Write(TEXT("type"), Type);
-		Writer.Write(TEXT("componentType"), ComponentType);
-
-		if (bNormalized)
-		{
-			Writer.Write(TEXT("normalized"), bNormalized);
-		}
-
-		if (MinMaxLength > 0)
-		{
-			Writer.Write(TEXT("min"), Min, MinMaxLength);
-			Writer.Write(TEXT("max"), Max, MinMaxLength);
-		}
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

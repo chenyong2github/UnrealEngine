@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 
-struct FGLTFJsonBuffer : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBuffer : IGLTFJsonObject
 {
 	FString Name;
 
@@ -16,18 +16,5 @@ struct FGLTFJsonBuffer : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		if (!URI.IsEmpty())
-		{
-			Writer.Write(TEXT("uri"), URI);
-		}
-
-		Writer.Write(TEXT("byteLength"), ByteLength);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

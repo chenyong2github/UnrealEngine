@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonVector.h"
 
-struct FGLTFJsonBackdrop : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonObject
 {
 	FString Name;
 
@@ -32,31 +32,5 @@ struct FGLTFJsonBackdrop : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		if (Mesh != INDEX_NONE)
-		{
-			Writer.Write(TEXT("mesh"), Mesh);
-		}
-
-		Writer.Write(TEXT("cubemap"), Cubemap);
-
-		Writer.Write(TEXT("intensity"), Intensity);
-		Writer.Write(TEXT("size"), Size);
-
-		if (!FMath::IsNearlyZero(Angle))
-		{
-			Writer.Write(TEXT("angle"), Angle);
-		}
-
-		Writer.Write(TEXT("projectionCenter"), ProjectionCenter);
-
-		Writer.Write(TEXT("lightingDistanceFactor"), LightingDistanceFactor);
-		Writer.Write(TEXT("useCameraProjection"), UseCameraProjection);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

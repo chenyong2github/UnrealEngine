@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonUtility.h"
 #include "Json/GLTFJsonExtensions.h"
 
-class IGLTFJsonWriter
+class GLTFEXPORTER_API IGLTFJsonWriter
 {
 public:
 

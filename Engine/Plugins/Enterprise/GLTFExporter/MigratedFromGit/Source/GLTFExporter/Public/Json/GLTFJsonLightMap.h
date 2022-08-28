@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonMaterial.h"
 #include "Json/GLTFJsonVector.h"
 
-struct FGLTFJsonLightMap : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonLightMap : IGLTFJsonObject
 {
 	FString              Name;
 	FGLTFJsonTextureInfo Texture;
@@ -21,20 +21,5 @@ struct FGLTFJsonLightMap : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
-
-		if (Texture.Index != INDEX_NONE)
-		{
-			Writer.Write(TEXT("texture"), Texture);
-		}
-
-		Writer.Write(TEXT("lightmapScale"), LightMapScale);
-		Writer.Write(TEXT("lightmapAdd"), LightMapAdd);
-		Writer.Write(TEXT("coordinateScaleBias"), CoordinateScaleBias);
-	}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

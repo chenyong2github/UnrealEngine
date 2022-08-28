@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 
-struct FGLTFJsonAnimationPlayback : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimationPlayback : IGLTFJsonObject
 {
 	FString Name;
 
@@ -22,44 +22,8 @@ struct FGLTFJsonAnimationPlayback : IGLTFJsonObject
 	{
 	}
 
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
-	{
-		if (!Name.IsEmpty())
-		{
-			Writer.Write(TEXT("name"), Name);
-		}
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 
-		if (bLoop != true)
-		{
-			Writer.Write(TEXT("loop"), bLoop);
-		}
-
-		if (bAutoPlay != true)
-		{
-			Writer.Write(TEXT("autoPlay"), bAutoPlay);
-		}
-
-		if (!FMath::IsNearlyEqual(PlayRate, 1, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("playRate"), PlayRate);
-		}
-
-		if (!FMath::IsNearlyEqual(StartTime, 0, Writer.DefaultTolerance))
-		{
-			Writer.Write(TEXT("startTime"), StartTime);
-		}
-	}
-
-	bool operator==(const FGLTFJsonAnimationPlayback& Other) const
-	{
-		return bLoop == Other.bLoop
-			&& bAutoPlay == Other.bAutoPlay
-			&& PlayRate == Other.PlayRate
-			&& StartTime == Other.StartTime;
-	}
-
-	bool operator!=(const FGLTFJsonAnimationPlayback& Other) const
-	{
-		return !(*this == Other);
-	}
+	bool operator==(const FGLTFJsonAnimationPlayback& Other) const;
+	bool operator!=(const FGLTFJsonAnimationPlayback& Other) const;
 };
