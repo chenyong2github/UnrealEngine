@@ -13,6 +13,8 @@ protected:
 
 	void WriteJson(FArchive& Archive) const;
 
+	TSet<EGLTFJsonExtension> GetCustomExtensionsUsed() const;
+
 public:
 
 	FGLTFJsonSceneIndex& DefaultScene;

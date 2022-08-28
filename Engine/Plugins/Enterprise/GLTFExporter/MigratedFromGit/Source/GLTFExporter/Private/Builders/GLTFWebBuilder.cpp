@@ -28,6 +28,20 @@ void FGLTFWebBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 		BundleWebViewer(ResourcesDir);
 		BundleLaunchHelper(ResourcesDir);
 	}
+	else
+	{
+		const TSet<EGLTFJsonExtension> CustomExtensions = GetCustomExtensionsUsed();
+		if (CustomExtensions.Num() > 0)
+		{
+			const FString ExtensionsString = FString::JoinBy(CustomExtensions, TEXT(", "),
+				[](EGLTFJsonExtension Extension)
+			{
+				return FGLTFJsonUtility::ToString(Extension);
+			});
+
+			AddWarningMessage(FString::Printf(TEXT("Please note that export uses the following extensions that may not be supported in all glTF viewers: %s"), *ExtensionsString));
+		}
+	}
 }
 
 void FGLTFWebBuilder::BundleWebViewer(const FString& ResourcesDir)

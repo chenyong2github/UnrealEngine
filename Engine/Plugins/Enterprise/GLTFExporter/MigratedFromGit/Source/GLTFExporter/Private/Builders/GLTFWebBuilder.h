@@ -18,4 +18,6 @@ private:
 	void BundleLaunchHelper(const FString& ResourcesDir);
 
 	static const TCHAR* GetLaunchHelperExecutable();
+
+	static bool IsCustomExtension(EGLTFJsonExtension Value);
 };
