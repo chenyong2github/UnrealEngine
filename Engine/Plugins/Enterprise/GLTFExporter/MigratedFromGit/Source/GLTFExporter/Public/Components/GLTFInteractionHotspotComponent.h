@@ -10,29 +10,6 @@ class UAnimSequence;
 class UBodySetup;
 class UTexture2D;
 
-USTRUCT(BlueprintType)
-struct FGLTFAnimation
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	ASkeletalMeshActor* SkeletalMeshActor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UAnimSequence* AnimationSequence;
-
-	bool operator == (const FGLTFAnimation& OtherAnimation) const
-	{
-		return SkeletalMeshActor == OtherAnimation.SkeletalMeshActor &&
-			AnimationSequence == OtherAnimation.AnimationSequence;
-	}
-
-	bool operator != (const FGLTFAnimation& OtherAnimation) const
-	{
-		return !(*this == OtherAnimation);
-	}
-};
-
 /**
  * A component to set up hotspots which appear as billboards and allow playback of skeletal animations when cursor input is enabled.
  */
@@ -79,11 +56,15 @@ private:
 	UTexture2D* GetActiveImage(bool bCursorOver) const;
 
 public:
-	/** List of skeletal meshes and animations to be played when the hotspot is interacted with. */
+	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
-	TArray<FGLTFAnimation> Animations;
+	ASkeletalMeshActor* SkeletalMeshActor;
 
-	/** The billboard image that will be shown when the hotspot is in an idle state or one without a specified image. */
+	/* The animation that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UAnimSequence* AnimationSequence;
+
+	/* The billboard image that will be shown when the hotspot is in an inactive state or one without a specified image. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* Image;
 

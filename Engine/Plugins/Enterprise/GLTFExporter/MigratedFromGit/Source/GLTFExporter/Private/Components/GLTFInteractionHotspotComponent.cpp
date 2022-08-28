@@ -13,6 +13,8 @@ namespace
 	const float UnitSphereRadius = 50.0f;
 } // Anonymous namespace
 
+DEFINE_LOG_CATEGORY_STATIC(LogEditorGLTFInteractionHotspot, Log, All);
+
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	Image(nullptr),
@@ -49,6 +51,20 @@ void UGLTFInteractionHotspotComponent::PostEditChangeProperty(FPropertyChangedEv
 		if (PropertyName == TEXT("Image"))
 		{
 			SetSprite(Image);
+		}
+		else if (PropertyName == TEXT("SkeletalMeshActor"))
+		{
+			if (AnimationSequence != nullptr && AnimationSequence->GetSkeleton() != SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh->Skeleton)
+			{
+				UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("The skeleton of this actor is not compatible with the previously assigned animation sequence"));
+			}
+		}
+		else if (PropertyName == TEXT("AnimationSequence"))
+		{
+			if (SkeletalMeshActor != nullptr && SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh->Skeleton != AnimationSequence->GetSkeleton())
+			{
+				UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("This animation sequence is not compatible with the skeleton of the previously assigned actor"));
+			}
 		}
 	}
 }
@@ -135,30 +151,23 @@ void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedCompo
 {
 	const bool bReverseAnimation = bToggled;
 
-	for (TArray<FGLTFAnimation>::TConstIterator Animation = Animations.CreateConstIterator(); Animation; ++Animation)
+	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
 	{
-		if (Animation->SkeletalMeshActor != nullptr && Animation->AnimationSequence != nullptr)
-		{
-			USkeletalMeshComponent* SkeletalMeshComponent = Animation->SkeletalMeshActor->GetSkeletalMeshComponent();
-			SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
-			const float AbsolutePlayRate = FMath::Abs(SkeletalMeshComponent->GetPlayRate());
+		USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
+		SkeletalMeshComponent->SetAnimationMode(EAnimationMode::Type::AnimationSingleNode);
+		const float AbsolutePlayRate = FMath::Abs(SkeletalMeshComponent->GetPlayRate());
+		const UAnimSingleNodeInstance* SingleNodeInstance = SkeletalMeshComponent->GetSingleNodeInstance();
 
-			if (SkeletalMeshComponent->IsPlaying())
-			{
-				UAnimSingleNodeInstance* SingleNodeInstance = SkeletalMeshComponent->GetSingleNodeInstance();
-				
-				if (SingleNodeInstance != nullptr && SingleNodeInstance->GetAnimationAsset() == Animation->AnimationSequence)
-				{
-					// If the same animation is already playing, just reverse the play rate for a smooth transition
-					SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * -1.0f);
-					
-					continue;
-				}
-			}
-			
-			SkeletalMeshComponent->SetAnimation(Animation->AnimationSequence);
+		if (SkeletalMeshComponent->IsPlaying() && SingleNodeInstance != nullptr && SingleNodeInstance->GetAnimationAsset() == AnimationSequence)
+		{
+			// If the same animation is already playing, just reverse the play rate for a smooth transition
+			SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * -1.0f);
+		}
+		else
+		{
+			SkeletalMeshComponent->SetAnimation(AnimationSequence);
 			SkeletalMeshComponent->SetPlayRate(AbsolutePlayRate * (bReverseAnimation ? -1.0f : 1.0f));
-			SkeletalMeshComponent->SetPosition(bReverseAnimation ? Animation->AnimationSequence->GetPlayLength() : 0.0f);
+			SkeletalMeshComponent->SetPosition(bReverseAnimation ? AnimationSequence->GetPlayLength() : 0.0f);
 			SkeletalMeshComponent->Play(false);
 		}
 	}
