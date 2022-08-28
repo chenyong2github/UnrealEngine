@@ -31,6 +31,8 @@ private:
 		TGLTFSharedArray<FColor> Pixels;
 	};
 
+	void SetUserData(UMaterialInstanceConstant* ProxyMaterial, UMaterialInterface* OriginalMaterial);
+	void SetBaseProperties(UMaterialInstanceConstant* ProxyMaterial, UMaterialInterface* OriginalMaterial);
 	void SetProxyProperties(UMaterialInstanceConstant* ProxyMaterial, const FGLTFJsonMaterial& JsonMaterial);
 
 	void SetProxyProperty(UMaterialInstanceConstant* ProxyMaterial, const FString& PropertyName, float Scalar);
@@ -42,6 +44,8 @@ private:
 	UTexture2D* CreateTexture(const FGLTFImageData* ImageData, const FGLTFJsonSampler& JsonSampler, EGLTFMaterialPropertyGroup PropertyGroup);
 
 	UMaterialInstanceConstant* CreateInstancedMaterial(UMaterialInterface* OriginalMaterial, EGLTFJsonShadingModel ShadingModel);
+
+	UPackage* FindOrCreatePackage(const FString& BaseName);
 
 	TUniquePtr<IGLTFImageConverter> CreateCustomImageConverter();
 
