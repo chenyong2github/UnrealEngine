@@ -172,7 +172,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding", EditCondition = "TextureImageFormat != EGLTFTextureImageFormat::None"))
 	EGLTFTextureHDREncoding TextureHDREncoding;
 
-	/** If enabled, export components that are flagged as hidden in-game. */
+	/** If enabled, export actors and components that are flagged as hidden in-game. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportHiddenInGame;
 
