@@ -249,19 +249,6 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFConvertB
 		return false;
 	}
 
-	// NOTE: UPropertyValueMaterial::GetMaterial does *not* ensure that the recorded data has been loaded,
-	// so we need to call UProperty::GetRecordedData first to make that happen.
-	MaterialProperty->GetRecordedData();
-
-	const UMaterialInterface* Material = MaterialProperty->GetMaterial();
-	if (Material == nullptr)
-	{
-		Builder.AddWarningMessage(FString::Printf(
-			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
-			*GetLogContext(Property)));
-		return false;
-	}
-
 	const TArray<FCapturedPropSegment>& CapturedPropSegments = reinterpret_cast<UPropertyValueHack*>(MaterialProperty)->GetCapturedPropSegments();
 	const int32 NumPropSegments = CapturedPropSegments.Num();
 
@@ -273,6 +260,12 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFConvertB
 		return false;
 	}
 
+	// NOTE: UPropertyValueMaterial::GetMaterial does *not* ensure that the recorded data has been loaded,
+	// so we need to call UProperty::GetRecordedData first to make that happen.
+	MaterialProperty->GetRecordedData();
+
+	// TODO: find way to determine whether the material is null because "None" was selected, or because it failed to resolve
+	const UMaterialInterface* Material = MaterialProperty->GetMaterial();
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.GetOrAddMaterial(Material);
 	const int32 ElementIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 

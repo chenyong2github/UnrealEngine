@@ -24,10 +24,7 @@ struct FGLTFJsonVariantMaterial
 	{
 		JsonWriter.WriteObjectStart();
 
-		if (Material != INDEX_NONE)
-		{
-			JsonWriter.WriteValue(TEXT("material"), Material);
-		}
+		JsonWriter.WriteValue(TEXT("material"), Material);
 
 		if (Index != INDEX_NONE)
 		{
