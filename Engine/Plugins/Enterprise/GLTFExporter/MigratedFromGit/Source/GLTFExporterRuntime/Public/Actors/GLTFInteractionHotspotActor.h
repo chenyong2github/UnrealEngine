@@ -15,6 +15,14 @@ class USphereComponent;
 class UMaterialInstanceDynamic;
 class FViewport;
 
+enum class EGLTFHotspotState : uint8
+{
+	Default,
+	Hovered,
+	Toggled,
+	ToggledHovered
+};
+
 /**
  * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of skeletal animations when cursor input is enabled.
  */
@@ -45,9 +53,7 @@ private:
 	UFUNCTION()
 	void Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed);
 
-	void SetActiveImage(UTexture2D* NewImage);
-
-	UTexture2D* CalculateActiveImage(bool bCursorOver) const;
+	void UpdateActiveImageFromState(EGLTFHotspotState State);
 
 public:
 
@@ -102,7 +108,7 @@ private:
 	UMaterialInterface* DefaultIconMaterial;
 
 	UPROPERTY(transient, duplicatetransient)
-	UTexture* ActiveImage;
+	const UTexture* ActiveImage;
 
 	FVector2D ActiveImageSize;
 
@@ -125,4 +131,8 @@ private:
 	FIntPoint GetCurrentViewportSize();
 
 	void ViewportResized(FViewport*, uint32);
+
+public:
+
+	const UTexture2D* GetImageForState(EGLTFHotspotState State) const;
 };

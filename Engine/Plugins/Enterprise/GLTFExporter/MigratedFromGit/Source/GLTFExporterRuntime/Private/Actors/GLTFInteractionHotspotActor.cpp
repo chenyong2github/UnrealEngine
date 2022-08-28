@@ -122,7 +122,7 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 
 		if (PropertyName == TEXT("Image"))
 		{
-			SetActiveImage(Image);
+			UpdateActiveImageFromState(EGLTFHotspotState::Default);
 		}
 		else if (PropertyName == TEXT("SkeletalMeshActor"))
 		{
@@ -147,7 +147,7 @@ void AGLTFInteractionHotspotActor::PostRegisterAllComponents()
 	Super::PostRegisterAllComponents();
 
 	SetupSpriteElement();
-	SetActiveImage(Image);
+	UpdateActiveImageFromState(EGLTFHotspotState::Default);
 }
 
 void AGLTFInteractionHotspotActor::Tick(float DeltaTime)
@@ -232,13 +232,13 @@ void AGLTFInteractionHotspotActor::BeginCursorOver(UPrimitiveComponent* TouchedC
 {
 	if (bIsInteractable)
 	{
-		SetActiveImage(CalculateActiveImage(true));
+		UpdateActiveImageFromState(bToggled ? EGLTFHotspotState::ToggledHovered :  EGLTFHotspotState::Hovered);
 	}
 }
 
 void AGLTFInteractionHotspotActor::EndCursorOver(UPrimitiveComponent* TouchedComponent)
 {
-	SetActiveImage(CalculateActiveImage(false));
+	UpdateActiveImageFromState(bToggled ? EGLTFHotspotState::Toggled :  EGLTFHotspotState::Default);
 }
 
 void AGLTFInteractionHotspotActor::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
@@ -273,11 +273,13 @@ void AGLTFInteractionHotspotActor::Clicked(UPrimitiveComponent* TouchedComponent
 
 	bToggled = !bToggled;
 
-	SetActiveImage(CalculateActiveImage(true));
+	UpdateActiveImageFromState(bToggled ? EGLTFHotspotState::ToggledHovered :  EGLTFHotspotState::Hovered);
 }
 
-void AGLTFInteractionHotspotActor::SetActiveImage(UTexture2D* NewImage)
+void AGLTFInteractionHotspotActor::UpdateActiveImageFromState(EGLTFHotspotState State)
 {
+	UTexture2D* NewImage = const_cast<UTexture2D*>(GetImageForState(State));
+
 	UTexture* DefaultTexture;
 	GetSpriteMaterial()->GetTextureParameterDefaultValue(NAME_SpriteParameter, DefaultTexture);
 
@@ -289,43 +291,6 @@ void AGLTFInteractionHotspotActor::SetActiveImage(UTexture2D* NewImage)
 
 	// NOTE: we do this even if size is unchanged since the last update may have failed
 	UpdateSpriteSize();
-}
-
-UTexture2D* AGLTFInteractionHotspotActor::CalculateActiveImage(bool bCursorOver) const
-{
-	// A list of candidates ordered by descending priority
-	TArray<UTexture2D*> ImageCandidates;
-
-	if (bToggled)
-	{
-		if (bCursorOver)
-		{
-			ImageCandidates.Add(ToggledHoveredImage);
-		}
-
-		ImageCandidates.Add(ToggledImage);
-	}
-	else
-	{
-		if (bCursorOver)
-		{
-			ImageCandidates.Add(HoveredImage);
-		}
-
-		ImageCandidates.Add(Image);
-	}
-
-	ImageCandidates.Add(Image);
-
-	for (UTexture2D* ImageCandidate : ImageCandidates)
-	{
-		if (ImageCandidate != nullptr)
-		{
-			return ImageCandidate;
-		}
-	}
-
-	return nullptr;
 }
 
 void AGLTFInteractionHotspotActor::SetupSpriteElement() const
@@ -435,4 +400,47 @@ FIntPoint AGLTFInteractionHotspotActor::GetCurrentViewportSize()
 void AGLTFInteractionHotspotActor::ViewportResized(FViewport*, uint32)
 {
 	UpdateSpriteSize();
+}
+
+const UTexture2D* AGLTFInteractionHotspotActor::GetImageForState(EGLTFHotspotState State) const
+{
+	const UTexture2D* CurrentImage = DefaultImage;
+	const UTexture2D* CurrentHoveredImage = DefaultHoveredImage;
+	const UTexture2D* CurrentToggledImage = DefaultToggledImage;
+	const UTexture2D* CurrentToggledHoveredImage = DefaultToggledHoveredImage;
+
+	if (Image != nullptr)
+	{
+		CurrentImage = Image;
+		CurrentHoveredImage = HoveredImage != nullptr ? HoveredImage : CurrentImage;
+		CurrentToggledImage = ToggledImage != nullptr ? ToggledImage : CurrentImage;
+
+		if (ToggledHoveredImage != nullptr)
+		{
+			CurrentToggledHoveredImage = ToggledHoveredImage;
+		}
+		else if (ToggledImage != nullptr)
+		{
+			CurrentToggledHoveredImage = ToggledImage;
+		}
+		else if (HoveredImage != nullptr)
+		{
+			CurrentToggledHoveredImage = HoveredImage;
+		}
+		else
+		{
+			CurrentToggledHoveredImage = Image;
+		}
+	}
+
+	switch (State)
+	{
+		case EGLTFHotspotState::Default:        return CurrentImage;
+		case EGLTFHotspotState::Hovered:        return CurrentHoveredImage;
+		case EGLTFHotspotState::Toggled:        return CurrentToggledImage;
+		case EGLTFHotspotState::ToggledHovered: return CurrentToggledHoveredImage;
+		default:                                checkNoEntry();
+	}
+
+	return nullptr;
 }
