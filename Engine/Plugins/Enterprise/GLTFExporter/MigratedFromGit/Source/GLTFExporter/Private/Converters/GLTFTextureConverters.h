@@ -8,35 +8,35 @@
 #include "Engine.h"
 
 template <typename... InputTypes>
-class FGLTFTextureConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, InputTypes...>
+class TGLTFTextureConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonTextureIndex, InputTypes...>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFTexture2DConverter final : public FGLTFTextureConverter<const UTexture2D*>
+class FGLTFTexture2DConverter final : public TGLTFTextureConverter<const UTexture2D*>
 {
-	using FGLTFTextureConverter::FGLTFTextureConverter;
+	using TGLTFTextureConverter::TGLTFTextureConverter;
 
 	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override;
 };
 
-class FGLTFTextureCubeConverter final : public FGLTFTextureConverter<const UTextureCube*, ECubeFace>
+class FGLTFTextureCubeConverter final : public TGLTFTextureConverter<const UTextureCube*, ECubeFace>
 {
-	using FGLTFTextureConverter::FGLTFTextureConverter;
+	using TGLTFTextureConverter::TGLTFTextureConverter;
 
 	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override;
 };
 
-class FGLTFTextureRenderTarget2DConverter final : public FGLTFTextureConverter<const UTextureRenderTarget2D*>
+class FGLTFTextureRenderTarget2DConverter final : public TGLTFTextureConverter<const UTextureRenderTarget2D*>
 {
-	using FGLTFTextureConverter::FGLTFTextureConverter;
+	using TGLTFTextureConverter::TGLTFTextureConverter;
 
 	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override;
 };
 
-class FGLTFTextureRenderTargetCubeConverter final : public FGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace>
+class FGLTFTextureRenderTargetCubeConverter final : public TGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace>
 {
-	using FGLTFTextureConverter::FGLTFTextureConverter;
+	using TGLTFTextureConverter::TGLTFTextureConverter;
 
 	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override;
 };
