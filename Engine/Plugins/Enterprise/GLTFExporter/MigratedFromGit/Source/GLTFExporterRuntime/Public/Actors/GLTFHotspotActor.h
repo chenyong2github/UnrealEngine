@@ -7,6 +7,8 @@
 
 class ASkeletalMeshActor;
 class UAnimSequence;
+class ALevelSequenceActor;
+class ULevelSequence;
 class UTexture2D;
 class UTexture;
 class UMaterialInterface;
@@ -24,7 +26,7 @@ enum class EGLTFHotspotState : uint8
 };
 
 /**
- * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of skeletal animations when cursor input is enabled.
+ * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of animations when cursor input is enabled.
  */
 UCLASS(BlueprintType, Blueprintable, HideCategories = (Sprite, Physics, Collision, Navigation), DisplayName = "GLTF Hotspot")
 class GLTFEXPORTERRUNTIME_API AGLTFHotspotActor : public AActor
@@ -58,27 +60,35 @@ private:
 public:
 
 	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation")
 	ASkeletalMeshActor* SkeletalMeshActor;
 
 	/* The animation that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="SkeletalMeshActor != nullptr"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor != nullptr"))
 	UAnimSequence* AnimationSequence;
 
+	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor == nullptr"))
+	ALevelSequenceActor* LevelSequenceActor;
+
+	/* The animation that will be played on the level sequence actor. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor == nullptr && LevelSequenceActor != nullptr"))
+	ULevelSequence* LevelSequence;
+
 	/* The billboard image that will be shown when the hotspot is in an inactive state or one without a specified image. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance")
 	UTexture2D* Image;
 
 	/** The optional billboard image that will be shown when a cursor enters the hotspot. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="Image != nullptr"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance", meta=(EditCondition="Image != nullptr"))
 	UTexture2D* HoveredImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="Image != nullptr"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance", meta=(EditCondition="Image != nullptr"))
 	UTexture2D* ToggledImage;
 
 	/** The optional billboard image that will be shown when the hotspot is toggled by a click and a cursor enters it. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot", meta=(EditCondition="Image != nullptr"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Appearance", meta=(EditCondition="Image != nullptr"))
 	UTexture2D* ToggledHoveredImage;
 
 private:
@@ -131,6 +141,8 @@ private:
 	FIntPoint GetCurrentViewportSize();
 
 	void ViewportResized(FViewport*, uint32);
+
+	void ToggleAnimation();
 
 	void ValidateAnimation();
 
