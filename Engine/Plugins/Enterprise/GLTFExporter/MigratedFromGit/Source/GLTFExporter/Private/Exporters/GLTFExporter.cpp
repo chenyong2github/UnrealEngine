@@ -32,13 +32,35 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	}
 
 	FGLTFContainerBuilder Builder(bSelectedOnly);
-	if (!AddObject(Builder, Object))
+
+	bool bSuccess = true;
+
+	if (AddObject(Builder, Object))
 	{
-		// TODO: Report error
-		return false;
+		if (!Builder.Serialize(Archive, CurrentFilename))
+		{
+			// TODO: more descriptive error
+			Builder.AddErrorMessage(TEXT("Serialize failed"));
+			bSuccess = false;
+		}
+	}
+	else
+	{
+		// TODO: more descriptive error
+		Builder.AddErrorMessage(TEXT("AddObject failed"));
+		bSuccess = false;
 	}
 
-	return Builder.Serialize(Archive, CurrentFilename);
+	if (FApp::IsUnattended())
+	{
+		Builder.WriteLogMessagesToConsole();
+	}
+	else
+	{
+		Builder.ShowLogMessages();
+	}
+
+	return bSuccess;
 }
 
 bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)
