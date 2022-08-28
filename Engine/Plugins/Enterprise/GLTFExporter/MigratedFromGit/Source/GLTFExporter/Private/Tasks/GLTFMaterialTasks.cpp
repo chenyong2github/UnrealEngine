@@ -310,7 +310,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	FIntPoint TextureSize = Builder.GetDefaultMaterialBakeSize();
+	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, BaseColorProperty);
 
 	// TODO: should this be the default wrap-mode?
 	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
@@ -478,7 +478,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	FIntPoint TextureSize = Builder.GetDefaultMaterialBakeSize();
+	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, MetallicProperty);
 
 	// TODO: should this be the default wrap-mode?
 	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
@@ -645,7 +645,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	FIntPoint TextureSize = Builder.GetDefaultMaterialBakeSize();
+	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, IntensityProperty);
 
 	// TODO: should this be the default wrap-mode?
 	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
@@ -1359,7 +1359,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 		OutTexCoord = MeshData->TexCoord;
 	}
 
-	const FIntPoint DefaultTextureSize = Builder.GetDefaultMaterialBakeSize();
+	const FIntPoint DefaultTextureSize = Builder.GetBakeSizeForMaterialProperty(Material, Property);
 	const FIntPoint TextureSize = PreferredTextureSize != FIntPoint::ZeroValue ? PreferredTextureSize : DefaultTextureSize;
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilder.h"
+#include "UserData/GLTFMaterialUserData.h"
 #include "Builders/GLTFFileUtility.h"
 
 FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
@@ -11,9 +12,19 @@ FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* Ex
 {
 }
 
-FIntPoint FGLTFBuilder::GetDefaultMaterialBakeSize() const
+FIntPoint FGLTFBuilder::GetBakeSizeForMaterialProperty(const UMaterialInterface* Material, const FMaterialPropertyEx& Property) const
 {
-	const int32 Size = 1 << static_cast<int>(ExportOptions->DefaultMaterialBakeSize);
+	int32 Size = 1 << (static_cast<uint8>(ExportOptions->DefaultMaterialBakeSize) - static_cast<uint8>(EGLTFMaterialBakeSizePOT::POT_1));
+
+	if (const UGLTFMaterialUserData* UserData = UGLTFMaterialUserData::GetUserData(Material))
+	{
+		EGLTFOverrideMaterialBakeSizePOT OverridePOT = UserData->GetBakeSizeForProperty(Property.Type);
+		if (OverridePOT != EGLTFOverrideMaterialBakeSizePOT::NoOverride)
+		{
+			Size = 1 << (static_cast<uint8>(OverridePOT) - static_cast<uint8>(EGLTFOverrideMaterialBakeSizePOT::POT_1));
+		}
+	}
+
 	return { Size, Size };
 }
 
