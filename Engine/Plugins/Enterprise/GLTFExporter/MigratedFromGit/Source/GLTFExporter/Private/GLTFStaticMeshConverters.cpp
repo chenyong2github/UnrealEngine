@@ -21,6 +21,7 @@ FGLTFJsonAccessorIndex FGLTFPositionVertexBufferConverter::Convert(FGLTFIndexedB
 	}
 
 	FBox BoundingBox;
+	BoundingBox.Init();
 
 	// More accurate bounding box if based on raw vertex values
 	for (const FVector& Position : Positions)
