@@ -46,12 +46,12 @@ float FGLTFTextureUtility::GetCubeFaceRotation(ECubeFace CubeFace)
 {
 	switch (CubeFace)
 	{
-		case CubeFace_PosX:	return 90;
-		case CubeFace_NegX:	return -90;
-		case CubeFace_PosY:	return 180;
-		case CubeFace_NegY:	return 0;
-		case CubeFace_PosZ:	return 180;
-		case CubeFace_NegZ:	return 0;
+		case CubeFace_PosX: return 90;
+		case CubeFace_NegX: return -90;
+		case CubeFace_PosY: return 180;
+		case CubeFace_NegY: return 0;
+		case CubeFace_PosZ: return 180;
+		case CubeFace_NegZ: return 0;
 		default:            return 0;
 	}
 }
