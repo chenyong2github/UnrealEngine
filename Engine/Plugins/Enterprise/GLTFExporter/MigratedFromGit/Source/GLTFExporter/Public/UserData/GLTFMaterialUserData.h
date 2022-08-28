@@ -72,7 +72,7 @@ struct FGLTFOverrideMaterialBakeSettings
 	bool bOverrideFilter;
 
 	/** Overrides the default filtering mode used when sampling the baked out texture. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideFilter", ValidEnumValues="TF_Nearest, TF_Bilinear, TF_Trilinear"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "", meta = (EditCondition = "bOverrideFilter", ValidEnumValues = "TF_Nearest, TF_Bilinear, TF_Trilinear"))
 	TEnumAsByte<TextureFilter> Filter;
 
 	/** If enabled, default addressing mode will be overridden by the corresponding property. */
