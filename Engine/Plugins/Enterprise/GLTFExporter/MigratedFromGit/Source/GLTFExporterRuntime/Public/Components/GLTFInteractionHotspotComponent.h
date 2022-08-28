@@ -14,7 +14,7 @@ class UTexture2D;
  * A component to set up hotspots which appear as billboards and allow playback of skeletal animations when cursor input is enabled.
  */
 UCLASS(BlueprintType, Blueprintable, meta = (BlueprintSpawnableComponent), hidecategories = (Sprite), DisplayName = "GLTF Interaction Hotspot Component")
-class GLTFEXPORTER_API UGLTFInteractionHotspotComponent : public UBillboardComponent
+class GLTFEXPORTERRUNTIME_API UGLTFInteractionHotspotComponent : public UBillboardComponent
 {
 	GENERATED_UCLASS_BODY()
 public:

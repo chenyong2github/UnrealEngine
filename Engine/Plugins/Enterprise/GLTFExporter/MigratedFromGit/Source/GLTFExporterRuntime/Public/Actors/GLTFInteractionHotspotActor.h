@@ -10,7 +10,7 @@
  * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of skeletal animations when cursor input is enabled.
  */
 UCLASS(DisplayName = "GLTF Interaction Hotspot Actor", HideCategories = (Sprite))
-class GLTFEXPORTER_API AGLTFInteractionHotspotActor : public AActor
+class GLTFEXPORTERRUNTIME_API AGLTFInteractionHotspotActor : public AActor
 {
 	GENERATED_BODY()
 	//~ Begin UObject Interface
