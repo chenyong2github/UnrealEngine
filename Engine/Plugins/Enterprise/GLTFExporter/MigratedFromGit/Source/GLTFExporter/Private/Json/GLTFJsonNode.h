@@ -3,15 +3,17 @@
 #pragma once
 
 #include "Json/GLTFJsonIndex.h"
+#include "Json/GLTFJsonVector3.h"
+#include "Json/GLTFJsonQuaternion.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonNode
 {
 	FString Name;
 
-	FVector Translation;
-	FQuat   Rotation;
-	FVector Scale;
+	FGLTFJsonVector3    Translation;
+	FGLTFJsonQuaternion Rotation;
+	FGLTFJsonVector3    Scale;
 
 	FGLTFJsonCameraIndex Camera;
 	FGLTFJsonSkinIndex   Skin;
@@ -20,9 +22,9 @@ struct FGLTFJsonNode
 	TArray<FGLTFJsonNodeIndex> Children;
 
 	FGLTFJsonNode()
-		: Translation(FVector::ZeroVector)
-		, Rotation(FQuat::Identity)
-		, Scale(FVector::OneVector)
+		: Translation(FGLTFJsonVector3::Zero)
+		, Rotation(FGLTFJsonQuaternion::Identity)
+		, Scale(FGLTFJsonVector3::One)
 		, Camera(INDEX_NONE)
 		, Skin(INDEX_NONE)
 		, Mesh(INDEX_NONE)
@@ -39,32 +41,22 @@ struct FGLTFJsonNode
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		if (Translation != FVector::ZeroVector)
+		if (Translation != FGLTFJsonVector3::Zero)
 		{
-			JsonWriter.WriteArrayStart(TEXT("translation"));
-			JsonWriter.WriteValue(Translation.X);
-			JsonWriter.WriteValue(Translation.Y);
-			JsonWriter.WriteValue(Translation.Z);
-			JsonWriter.WriteArrayEnd();
+			JsonWriter.WriteIdentifierPrefix(TEXT("translation"));
+			Translation.WriteArray(JsonWriter);
 		}
 
-		if (Rotation != FQuat::Identity)
+		if (Rotation != FGLTFJsonQuaternion::Identity)
 		{
-			JsonWriter.WriteArrayStart(TEXT("rotation"));
-			JsonWriter.WriteValue(Rotation.X);
-			JsonWriter.WriteValue(Rotation.Y);
-			JsonWriter.WriteValue(Rotation.Z);
-			JsonWriter.WriteValue(Rotation.W);
-			JsonWriter.WriteArrayEnd();
+			JsonWriter.WriteIdentifierPrefix(TEXT("rotation"));
+			Rotation.WriteArray(JsonWriter);
 		}
 
-		if (Scale != FVector::OneVector)
+		if (Scale != FGLTFJsonVector3::One)
 		{
-			JsonWriter.WriteArrayStart(TEXT("scale"));
-			JsonWriter.WriteValue(Scale.X);
-			JsonWriter.WriteValue(Scale.Y);
-			JsonWriter.WriteValue(Scale.Z);
-			JsonWriter.WriteArrayEnd();
+			JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
+			Scale.WriteArray(JsonWriter);
 		}
 
 		if (Camera != INDEX_NONE)
