@@ -42,8 +42,6 @@ public:
 
 	const FGLTFJsonRoot& GetRoot() const;
 
-	FGLTFJsonNode* GetComponentNode(FGLTFJsonNode* Node);
-
 private:
 
 	FString GetGeneratorString() const;

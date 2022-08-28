@@ -146,16 +146,6 @@ const FGLTFJsonRoot& FGLTFJsonBuilder::GetRoot() const
 	return JsonRoot;
 }
 
-FGLTFJsonNode* FGLTFJsonBuilder::GetComponentNode(FGLTFJsonNode* Node)
-{
-	if (Node == nullptr)
-	{
-		return nullptr;
-	}
-
-	return Node->ComponentNode != nullptr ? Node->ComponentNode : Node;
-}
-
 FString FGLTFJsonBuilder::GetGeneratorString() const
 {
 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);

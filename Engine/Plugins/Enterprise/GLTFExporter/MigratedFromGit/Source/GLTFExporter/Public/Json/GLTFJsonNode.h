@@ -21,8 +21,6 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 	FGLTFJsonLightMap*  LightMap;
 	FGLTFJsonSkySphere* SkySphere;
 
-	FGLTFJsonNode* ComponentNode;
-
 	TArray<FGLTFJsonNode*> Children;
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
@@ -44,7 +42,6 @@ protected:
 		, Light(nullptr)
 		, LightMap(nullptr)
 		, SkySphere(nullptr)
-		, ComponentNode(nullptr)
 	{
 	}
 };

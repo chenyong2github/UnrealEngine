@@ -171,7 +171,6 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 				CameraNode->Rotation = FGLTFConverterUtility::ConvertCameraDirection();
 				CameraNode->Camera = Builder.GetOrAddCamera(CameraComponent);
 				Node->Children.Add(CameraNode);
-				Node->ComponentNode = CameraNode;
 			}
 		}
 		else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
@@ -184,7 +183,6 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 				LightNode->Rotation = FGLTFConverterUtility::ConvertLightDirection();
 				LightNode->Light = Builder.GetOrAddLight(LightComponent);
 				Node->Children.Add(LightNode);
-				Node->ComponentNode = LightNode;
 			}
 		}
 	}
