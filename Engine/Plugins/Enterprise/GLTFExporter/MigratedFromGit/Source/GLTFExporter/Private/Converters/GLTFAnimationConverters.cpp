@@ -8,7 +8,7 @@
 
 FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
 {
-	if (AnimSequence->GetRawNumberOfFrames() < 0)
+	if (AnimSequence->GetNumberOfSampledKeys() < 0)
 	{
 		// TODO: report warning
 		return nullptr;

@@ -23,7 +23,7 @@ FTransform FGLTFBoneUtility::GetBindTransform(const FReferenceSkeleton& RefSkele
 
 void FGLTFBoneUtility::GetFrameTimestamps(const UAnimSequence* AnimSequence, TArray<float>& OutFrameTimestamps)
 {
-	const int32 FrameCount = AnimSequence->GetRawNumberOfFrames();
+	const int32 FrameCount = AnimSequence->GetNumberOfSampledKeys();
 	OutFrameTimestamps.AddUninitialized(FrameCount);
 
 	const float SequenceLength = AnimSequence->SequenceLength;
