@@ -4,6 +4,11 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "Converters/GLTFBufferAdapter.h"
 #include "Builders/GLTFConvertBuilder.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "StaticMeshResources.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 namespace

@@ -4,12 +4,16 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "VariantObjectBinding.h"
-#include "PropertyValueMaterial.h"
 #include "LevelVariantSets.h"
-#include "PropertyValue.h"
 #include "VariantSet.h"
 #include "Variant.h"
+#include "VariantObjectBinding.h"
+#include "PropertyValue.h"
+#include "PropertyValueMaterial.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 
 FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
