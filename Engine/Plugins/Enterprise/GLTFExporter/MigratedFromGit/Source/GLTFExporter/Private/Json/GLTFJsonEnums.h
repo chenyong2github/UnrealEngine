@@ -16,7 +16,8 @@ enum class EGLTFJsonExtension
 	EPIC_LightmapTextures,
 	EPIC_ReflectionCaptures,
 	EPIC_LevelVariantSets,
-	EPIC_TextureHDREncoding
+	EPIC_TextureHDREncoding,
+    EPIC_AnimationPlayData
 };
 
 enum class EGLTFJsonShadingModel
