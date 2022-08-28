@@ -10,11 +10,11 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 {
 	if (StaticMeshComponent != nullptr)
 	{
-		Materials.FillIn(StaticMeshComponent->GetMaterials());
+		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMeshComponent->GetMaterials());
 	}
 	else
 	{
-		Materials.FillIn(StaticMesh->StaticMaterials);
+		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMesh->StaticMaterials);
 	}
 
 	if (LODIndex < 0)
@@ -50,11 +50,11 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 {
 	if (SkeletalMeshComponent != nullptr)
 	{
-		Materials.FillIn(SkeletalMeshComponent->GetMaterials());
+		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMeshComponent->GetMaterials());
 	}
 	else
 	{
-		Materials.FillIn(SkeletalMesh->Materials);
+		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMesh->Materials);
 	}
 
 	if (LODIndex < 0)

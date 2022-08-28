@@ -552,3 +552,53 @@ bool FGLTFMaterialUtility::MaterialsNeedVertexData(const TArray<const UMaterialI
 
 	return false;
 }
+
+const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const UMaterialInterface* Material)
+{
+	return Material;
+}
+
+const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const FStaticMaterial& Material)
+{
+	return Material.MaterialInterface;
+}
+
+const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const FSkeletalMaterial& Material)
+{
+	return Material.MaterialInterface;
+}
+
+void FGLTFMaterialUtility::ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<UMaterialInterface*>& Defaults)
+{
+	ResolveOverrides<UMaterialInterface*>(Overrides, Defaults);
+}
+
+void FGLTFMaterialUtility::ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<FStaticMaterial>& Defaults)
+{
+	ResolveOverrides<FStaticMaterial>(Overrides, Defaults);
+}
+
+void FGLTFMaterialUtility::ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<FSkeletalMaterial>& Defaults)
+{
+	ResolveOverrides<FSkeletalMaterial>(Overrides, Defaults);
+}
+
+template <typename MaterialType>
+void FGLTFMaterialUtility::ResolveOverrides(TArray<const UMaterialInterface*>& Overrides, const TArray<MaterialType>& Defaults)
+{
+	const int32 Count = Defaults.Num();
+	Overrides.SetNumZeroed(Count);
+
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const UMaterialInterface*& Element = Overrides[Index];
+		if (Element == nullptr)
+		{
+			Element = GetInterface(Defaults[Index]);
+			if (Element == nullptr)
+			{
+				Element = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+		}
+	}
+}
