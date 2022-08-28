@@ -12,7 +12,7 @@
 #include "Converters/GLTFBackdropConverters.h"
 #include "Converters/GLTFVariantSetConverters.h"
 #include "Converters/GLTFLightMapConverters.h"
-#include "Converters/GLTFInteractionHotspotConverters.h"
+#include "Converters/GLTFHotspotConverters.h"
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
@@ -58,7 +58,7 @@ public:
 	FGLTFJsonBackdropIndex GetOrAddBackdrop(const AActor* Actor, const FString& DesiredName = TEXT(""));
 	FGLTFJsonLevelVariantSetsIndex GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor, const FString& DesiredName = TEXT(""));
 	FGLTFJsonLightMapIndex GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName = TEXT(""));
-	FGLTFJsonInteractionHotspotIndex GetOrAddInteractionHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent, const FString& DesiredName = TEXT(""));
+	FGLTFJsonHotspotIndex GetOrAddHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent, const FString& DesiredName = TEXT(""));
 
 private:
 
@@ -95,5 +95,5 @@ private:
 	FGLTFBackdropConverter BackdropConverter;
 	FGLTFLevelVariantSetsConverter LevelVariantSetsConverter;
 	FGLTFLightMapConverter LightMapConverter;
-	FGLTFInteractionHotspotComponentConverter InteractionHotspotComponentConverter;
+	FGLTFHotspotComponentConverter HotspotComponentConverter;
 };

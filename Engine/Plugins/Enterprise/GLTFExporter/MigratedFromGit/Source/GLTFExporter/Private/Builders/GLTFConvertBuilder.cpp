@@ -115,7 +115,7 @@ FGLTFJsonMeshIndex FGLTFConvertBuilder::GetOrAddMesh(const UStaticMesh* StaticMe
 	{
 		OverrideVertexColors = nullptr;
 	}
-	
+
 	return StaticMeshConverter.GetOrAdd(
 		*this, DesiredName.IsEmpty() ? FGLTFBuilderUtility::GetLODName(StaticMesh, LODIndex) : DesiredName,
 		StaticMesh,
@@ -345,12 +345,12 @@ FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshCo
 	return LightMapConverter.GetOrAdd(*this, DesiredName, StaticMeshComponent);
 }
 
-FGLTFJsonInteractionHotspotIndex FGLTFConvertBuilder::GetOrAddInteractionHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent, const FString& DesiredName)
+FGLTFJsonHotspotIndex FGLTFConvertBuilder::GetOrAddHotspot(const UGLTFInteractionHotspotComponent* HotspotComponent, const FString& DesiredName)
 {
 	if (HotspotComponent == nullptr)
 	{
-		return FGLTFJsonInteractionHotspotIndex(INDEX_NONE);
+		return FGLTFJsonHotspotIndex(INDEX_NONE);
 	}
 
-	return InteractionHotspotComponentConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? HotspotComponent->GetName() : DesiredName, HotspotComponent);
+	return HotspotComponentConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? HotspotComponent->GetName() : DesiredName, HotspotComponent);
 }
