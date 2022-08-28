@@ -1,17 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBuilder.h"
+#include "GLTFExporterModule.h"
+#include "Interfaces/IPluginManager.h"
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 
 DEFINE_LOG_CATEGORY(LogGLTFExporter);
-
-namespace
-{
-	// TODO: turn into config variable?
-	const TCHAR* LogListingName = TEXT("GLTFExporter");
-	const TCHAR* LogListingLabel = TEXT("GLTF Exporter");
-} // anonymous namespace
 
 FGLTFBuilder::FGLTFBuilder()
 {
@@ -100,9 +95,12 @@ void FGLTFBuilder::ShowLogMessages() const
 	if (LogMessages.Num() > 0)
 	{
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-		const TSharedRef<IMessageLogListing> LogListing = MessageLogModule.GetLogListing(LogListingName);
+		const TSharedRef<IMessageLogListing> LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
 
-		LogListing->SetLabel(FText::FromString(LogListingLabel));
+		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);
+		const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
+
+		LogListing->SetLabel(FText::FromString(PluginDescriptor.FriendlyName));
 		LogListing->ClearMessages();
 
 		for (const FLogMessage& Message : LogMessages)
@@ -110,7 +108,7 @@ void FGLTFBuilder::ShowLogMessages() const
 			LogListing->AddMessage(CreateTokenizedMessage(Message));
 		}
 
-		MessageLogModule.OpenMessageLog(LogListingName);
+		MessageLogModule.OpenMessageLog(GLTFEXPORTER_MODULE_NAME);
 	}
 }
 
