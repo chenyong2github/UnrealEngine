@@ -13,17 +13,17 @@ struct FGLTFJsonColor4
 	static const FGLTFJsonColor4 White;
 
 	FGLTFJsonColor4(float R, float G, float B, float A = 1.0f)
-        : R(R), G(G), B(B), A(A)
+		: R(R), G(G), B(B), A(A)
 	{
 	}
 
 	FGLTFJsonColor4(const FGLTFJsonColor3& Color3, float A = 1.0f)
-        : R(Color3.R), G(Color3.G), B(Color3.B), A(A)
+		: R(Color3.R), G(Color3.G), B(Color3.B), A(A)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteArrayStart();
 		JsonWriter.WriteValue(R);
@@ -41,16 +41,16 @@ struct FGLTFJsonColor4
 	bool operator==(const FGLTFJsonColor4& Other) const
 	{
 		return R == Other.R
-            && G == Other.G
-            && B == Other.B
-            && A == Other.A;
+			&& G == Other.G
+			&& B == Other.B
+			&& A == Other.A;
 	}
 
 	bool operator!=(const FGLTFJsonColor4& Other) const
 	{
 		return R != Other.R
-            || G != Other.G
-            || B != Other.B
-            || A != Other.A;
+			|| G != Other.G
+			|| B != Other.B
+			|| A != Other.A;
 	}
 };
