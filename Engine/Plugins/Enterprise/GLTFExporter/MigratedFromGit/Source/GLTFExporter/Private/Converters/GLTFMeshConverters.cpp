@@ -7,6 +7,24 @@
 #include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
+void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, int32& LODIndex, const FColorVertexBuffer*& OverrideVertexColors, FGLTFMaterialArray& OverrideMaterials)
+{
+	if (LODIndex < 0)
+	{
+		LODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
+	}
+
+	if (!Builder.ExportOptions->bExportVertexColors)
+	{
+		OverrideVertexColors = nullptr;
+	}
+
+	if (OverrideMaterials == StaticMesh->StaticMaterials)
+	{
+		OverrideMaterials.Empty();
+	}
+}
+
 FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials)
 {
 	if (LODIndex < 0 || StaticMesh->GetNumLODs() <= LODIndex)
@@ -65,6 +83,24 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 	}
 
 	return Builder.AddMesh(JsonMesh);
+}
+
+void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, int32& LODIndex, const FColorVertexBuffer*& OverrideVertexColors, const FSkinWeightVertexBuffer*& OverrideSkinWeights, FGLTFMaterialArray& OverrideMaterials)
+{
+	if (LODIndex < 0)
+	{
+		LODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
+	}
+
+	if (!Builder.ExportOptions->bExportVertexColors)
+	{
+		OverrideVertexColors = nullptr;
+	}
+
+	if (OverrideMaterials == SkeletalMesh->Materials)
+	{
+		OverrideMaterials.Empty();
+	}
 }
 
 FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials)
