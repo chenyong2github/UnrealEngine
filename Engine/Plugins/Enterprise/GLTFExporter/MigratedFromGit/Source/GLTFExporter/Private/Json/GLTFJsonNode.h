@@ -4,7 +4,6 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonMatrix.h"
 #include "Json/GLTFJsonVector.h"
 #include "Json/GLTFJsonQuaternion.h"
 
@@ -12,9 +11,6 @@ struct FGLTFJsonNode : IGLTFJsonObject
 {
 	FString Name;
 
-	bool bUseMatrix;
-
-	FGLTFJsonMatrix4    Matrix;
 	FGLTFJsonVector3    Translation;
 	FGLTFJsonQuaternion Rotation;
 	FGLTFJsonVector3    Scale;
@@ -33,9 +29,7 @@ struct FGLTFJsonNode : IGLTFJsonObject
 	TArray<FGLTFJsonNodeIndex> Children;
 
 	FGLTFJsonNode()
-		: bUseMatrix(false)
-		, Matrix(FGLTFJsonMatrix4::Identity)
-		, Translation(FGLTFJsonVector3::Zero)
+		: Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
 		, Scale(FGLTFJsonVector3::One)
 	{
@@ -48,29 +42,19 @@ struct FGLTFJsonNode : IGLTFJsonObject
 			Writer.Write(TEXT("name"), Name);
 		}
 
-		if (bUseMatrix)
+		if (!Translation.IsNearlyEqual(FGLTFJsonVector3::Zero, Writer.DefaultTolerance))
 		{
-			if (!Matrix.IsNearlyEqual(FGLTFJsonMatrix4::Identity, Writer.DefaultTolerance))
-			{
-				Writer.Write(TEXT("matrix"), Matrix);
-			}
+			Writer.Write(TEXT("translation"), Translation);
 		}
-		else
+
+		if (!Rotation.IsNearlyEqual(FGLTFJsonQuaternion::Identity, Writer.DefaultTolerance))
 		{
-			if (!Translation.IsNearlyEqual(FGLTFJsonVector3::Zero, Writer.DefaultTolerance))
-			{
-				Writer.Write(TEXT("translation"), Translation);
-			}
+			Writer.Write(TEXT("rotation"), Rotation);
+		}
 
-			if (!Rotation.IsNearlyEqual(FGLTFJsonQuaternion::Identity, Writer.DefaultTolerance))
-			{
-				Writer.Write(TEXT("rotation"), Rotation);
-			}
-
-			if (!Scale.IsNearlyEqual(FGLTFJsonVector3::One, Writer.DefaultTolerance))
-			{
-				Writer.Write(TEXT("scale"), Scale);
-			}
+		if (!Scale.IsNearlyEqual(FGLTFJsonVector3::One, Writer.DefaultTolerance))
+		{
+			Writer.Write(TEXT("scale"), Scale);
 		}
 
 		if (Camera != INDEX_NONE)
