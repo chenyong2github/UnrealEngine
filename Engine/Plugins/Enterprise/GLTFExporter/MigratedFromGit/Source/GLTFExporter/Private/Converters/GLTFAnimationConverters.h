@@ -7,11 +7,22 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Engine.h"
 
-class UAnimSequence;
-
-class FGLTFAnimationConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAnimationIndex, FGLTFJsonNodeIndex, const USkeletalMesh*, const UAnimSequence*>
+template <typename... InputTypes>
+class TGLTFAnimationConverter : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonAnimationIndex, InputTypes...>
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+};
+
+class FGLTFAnimationConverter final : public TGLTFAnimationConverter<FGLTFJsonNodeIndex, const USkeletalMesh*, const UAnimSequence*>
+{
+	using TGLTFAnimationConverter::TGLTFAnimationConverter;
 
 	virtual FGLTFJsonAnimationIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence) override;
+};
+
+class FGLTFAnimationDataConverter final : public TGLTFAnimationConverter<FGLTFJsonNodeIndex, const USkeletalMeshComponent*>
+{
+	using TGLTFAnimationConverter::TGLTFAnimationConverter;
+
+	virtual FGLTFJsonAnimationIndex Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent) override;
 };

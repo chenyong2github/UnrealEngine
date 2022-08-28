@@ -258,20 +258,12 @@ FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeInde
 
 FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
 {
-	if (RootNode == INDEX_NONE || SkeletalMeshComponent == nullptr || SkeletalMeshComponent->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
+	if (RootNode == INDEX_NONE || SkeletalMeshComponent == nullptr)
 	{
 		return FGLTFJsonAnimationIndex(INDEX_NONE);
 	}
 
-	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-	const UAnimSequence* AnimSequence = Cast<UAnimSequence>(SkeletalMeshComponent->AnimationData.AnimToPlay);
-
-	if (SkeletalMesh == nullptr || AnimSequence == nullptr)
-	{
-		return FGLTFJsonAnimationIndex(INDEX_NONE);
-	}
-
-	return GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
+	return AnimationDataConverter.GetOrAdd(RootNode, SkeletalMeshComponent);
 }
 
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName)
