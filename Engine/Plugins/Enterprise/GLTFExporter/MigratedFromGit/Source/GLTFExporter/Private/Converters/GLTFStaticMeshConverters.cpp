@@ -132,11 +132,8 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshTangentVertexBufferConverter::Add(FGLTFCon
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFStaticMeshUVVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const FStaticMeshVertexBuffer*, int32> Params)
+FGLTFJsonAccessorIndex FGLTFStaticMeshUVVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FStaticMeshVertexBuffer* VertexBuffer, int32 UVIndex)
 {
-	const FStaticMeshVertexBuffer* VertexBuffer = Params.Get<0>();
-	const int32 UVIndex = Params.Get<1>();
-
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	if (VertexCount == 0 || UVIndex < 0 || VertexBuffer->GetNumTexCoords() <= static_cast<uint32>(UVIndex))
 	{
@@ -182,11 +179,8 @@ FGLTFJsonBufferViewIndex FGLTFStaticMeshIndexBufferConverter::Add(FGLTFConvertBu
 	}
 }
 
-FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const FStaticMeshSection*, const FRawStaticIndexBuffer*> Params)
+FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FStaticMeshSection* MeshSection, const FRawStaticIndexBuffer* IndexBuffer)
 {
-	const FStaticMeshSection* MeshSection = Params.Get<0>();
-	const FRawStaticIndexBuffer* IndexBuffer = Params.Get<1>();
-
 	const uint32 TriangleCount = MeshSection->NumTriangles;
 	if (TriangleCount == 0)
 	{
@@ -207,12 +201,8 @@ FGLTFJsonAccessorIndex FGLTFStaticMeshSectionConverter::Add(FGLTFConvertBuilder&
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, TTuple<const UStaticMesh*, int32, const FColorVertexBuffer*> Params)
+FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors)
 {
-	const UStaticMesh* StaticMesh = Params.Get<0>();
-	const int32 LODIndex = Params.Get<1>();
-	const FColorVertexBuffer* OverrideVertexColors = Params.Get<2>();
-
 	if (LODIndex < 0 || StaticMesh->GetNumLODs() <= LODIndex)
 	{
 		return FGLTFJsonMeshIndex(INDEX_NONE);
@@ -249,7 +239,7 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Add(FGLTFConvertBuilder& Builder, c
 		JsonPrimitive.Attributes = JsonAttributes;
 
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(&LODResources.Sections[SectionIndex], IndexBuffer,
-            Name + (SectionCount != 1 ? TEXT("_Indices_Section") + FString::FromInt(SectionIndex) : TEXT("_Indices")));
+			Name + (SectionCount != 1 ? TEXT("_Indices_Section") + FString::FromInt(SectionIndex) : TEXT("_Indices")));
 	}
 
 	return Builder.AddMesh(JsonMesh);
