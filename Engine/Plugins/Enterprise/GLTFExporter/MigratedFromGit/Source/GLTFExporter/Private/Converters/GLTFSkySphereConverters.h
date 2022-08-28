@@ -12,18 +12,23 @@ struct FGLTFJsonSkySphereColorCurve;
 
 class FGLTFSkySphereConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonSkySphereIndex, const AActor*>
 {
+	enum class ESkySphereTextureParameter
+	{
+		SkyTexture,
+		CloudsTexture,
+		StarsTexture
+	};
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
 	virtual FGLTFJsonSkySphereIndex Convert(const AActor* SkySphereActor) override;
 
-	const UTexture2D* GetSkyTexture(const UMaterialInstance* SkyMaterial) const;
-	const UTexture2D* GetCloudsTexture(const UMaterialInstance* SkyMaterial) const;
-	const UTexture2D* GetStarsTexture(const UMaterialInstance* SkyMaterial) const;
-
 	template <class ValueType>
-	void ConvertProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, ValueType& OutValue) const;
+	void ConvertProperty(const AActor& Actor, const TCHAR* PropertyName, ValueType& OutValue) const;
 
-	void ConvertColorProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, FGLTFJsonColor4& OutValue) const;
-	void ConvertColorCurveProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, FGLTFJsonSkySphereColorCurve& OutValue) const;
-	void ConvertScalarParameter(const AActor& Actor, const UMaterialInstance* Material, const TCHAR* ParameterName, const TCHAR* ExportedPropertyName, float& OutValue) const;
+	void ConvertColorProperty(const AActor& Actor, const TCHAR* PropertyName, FGLTFJsonColor4& OutValue) const;
+	void ConvertColorCurveProperty(const AActor& Actor, const TCHAR* PropertyName, FGLTFJsonSkySphereColorCurve& OutValue) const;
+	void ConvertScalarParameter(const AActor& Actor, const UMaterialInstance& Material, const TCHAR* ParameterName, float& OutValue) const;
+
+	void ConvertTextureParameter(const AActor& Actor, const UMaterialInstance& Material, const ESkySphereTextureParameter Parameter, FGLTFJsonTextureIndex& OutValue) const;
 };
