@@ -11,7 +11,7 @@ void FGLTFTexture2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D);
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D->GetPixelFormat());
 	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
@@ -54,7 +54,7 @@ void FGLTFTextureCubeTask::Complete()
 		return;
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(TextureCube);
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(TextureCube->GetPixelFormat());
 	const FIntPoint Size = { TextureCube->GetSizeX(), TextureCube->GetSizeY() };
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
@@ -82,7 +82,7 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	RenderTarget2D->GetName(JsonTexture.Name);
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D);
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D->GetFormat());
 	const FIntPoint Size = { RenderTarget2D->SizeX, RenderTarget2D->SizeY };
 
 	if (bIsHDR)
@@ -115,7 +115,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 		return;
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTargetCube);
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTargetCube->GetFormat());
 	const FIntPoint Size = { RenderTargetCube->SizeX, RenderTargetCube->SizeX };
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
