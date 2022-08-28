@@ -30,7 +30,7 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
-	TArray<FGLTFRawVector3> Positions;
+	TArray<FGLTFVector3> Positions;
 	Positions.AddUninitialized(VertexCount);
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
@@ -39,34 +39,33 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 		Positions[VertexIndex] = FGLTFConverterUtility::ConvertPosition(VertexBuffer->VertexPosition(MappedVertexIndex), Builder.ExportOptions->ExportUniformScale);
 	}
 
-	// More accurate bounding box if based on raw vertex values
-	FGLTFRawVector3 MinPosition = VertexCount > 0 ? Positions[0] : FGLTFRawVector3(0, 0, 0); // TODO: make static const
-	FGLTFRawVector3 MaxPosition = VertexCount > 0 ? Positions[0] : FGLTFRawVector3(0, 0, 0); // TODO: make static const
-
-	for (uint32 VertexIndex = 1; VertexIndex < VertexCount; ++VertexIndex)
-	{
-		const FGLTFRawVector3& Position = Positions[VertexIndex];
-		MinPosition.X = FMath::Min(MinPosition.X, Position.X);
-		MinPosition.Y = FMath::Min(MinPosition.Y, Position.Y);
-		MinPosition.Z = FMath::Min(MinPosition.Z, Position.Z);
-		MaxPosition.X = FMath::Max(MaxPosition.X, Position.X);
-		MaxPosition.Y = FMath::Max(MaxPosition.Y, Position.Y);
-		MaxPosition.Z = FMath::Max(MaxPosition.Z, Position.Z);
-	}
-
 	FGLTFJsonAccessor JsonAccessor;
 	JsonAccessor.BufferView = Builder.AddBufferView(Positions, EGLTFJsonBufferTarget::ArrayBuffer);
 	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec3;
 
-	JsonAccessor.MinMaxLength = 3;
-	JsonAccessor.Min[0] = MinPosition.X;
-	JsonAccessor.Min[1] = MinPosition.Y;
-	JsonAccessor.Min[2] = MinPosition.Z;
-	JsonAccessor.Max[0] = MaxPosition.X;
-	JsonAccessor.Max[1] = MaxPosition.Y;
-	JsonAccessor.Max[2] = MaxPosition.Z;
+	if (VertexCount > 0)
+	{
+		// Calculate accurate bounding box based on raw vertex values
+		JsonAccessor.MinMaxLength = 3;
+
+		for (int32 ComponentIndex = 0; ComponentIndex < JsonAccessor.MinMaxLength; ComponentIndex++)
+		{
+			JsonAccessor.Min[ComponentIndex] = Positions[0].Components[ComponentIndex];
+			JsonAccessor.Max[ComponentIndex] = Positions[0].Components[ComponentIndex];
+		}
+
+		for (uint32 VertexIndex = 1; VertexIndex < VertexCount; ++VertexIndex)
+		{
+			const FGLTFVector3& Position = Positions[VertexIndex];
+			for (int32 ComponentIndex = 0; ComponentIndex < JsonAccessor.MinMaxLength; ComponentIndex++)
+			{
+				JsonAccessor.Min[ComponentIndex] = FMath::Min(JsonAccessor.Min[ComponentIndex], Position.Components[ComponentIndex]);
+				JsonAccessor.Max[ComponentIndex] = FMath::Max(JsonAccessor.Max[ComponentIndex], Position.Components[ComponentIndex]);
+			}
+		}
+	}
 
 	return Builder.AddAccessor(JsonAccessor);
 }
@@ -81,7 +80,7 @@ FGLTFJsonAccessorIndex FGLTFColorBufferConverter::Convert(const FGLTFMeshSection
 	const TArray<uint32>& IndexMap = MeshSection->IndexMap;
 	const uint32 VertexCount = IndexMap.Num();
 
-	TArray<FGLTFPackedColor> Colors;
+	TArray<FGLTFUInt8Color4> Colors;
 	Colors.AddUninitialized(VertexCount);
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
@@ -120,22 +119,22 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 		if (bHighPrecision)
 		{
 			ComponentType = EGLTFJsonComponentType::S16;
-			BufferViewIndex = ConvertBufferView<FGLTFPackedVector16, FPackedRGBA16N>(MeshSection, VertexBuffer);
-			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFPackedVector16);
+			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, VertexBuffer);
+			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFInt16Vector4);
 		}
 		else
 		{
 			ComponentType = EGLTFJsonComponentType::S8;
-			BufferViewIndex = ConvertBufferView<FGLTFPackedVector8, FPackedNormal>(MeshSection, VertexBuffer);
-			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFPackedVector8);
+			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, VertexBuffer);
+			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFInt8Vector4);
 		}
 	}
 	else
 	{
 		ComponentType = EGLTFJsonComponentType::F32;
 		BufferViewIndex = bHighPrecision
-			? ConvertBufferView<FGLTFRawVector3, FPackedRGBA16N>(MeshSection, VertexBuffer)
-			: ConvertBufferView<FGLTFRawVector3, FPackedNormal>(MeshSection, VertexBuffer);
+			? ConvertBufferView<FGLTFVector3, FPackedRGBA16N>(MeshSection, VertexBuffer)
+			: ConvertBufferView<FGLTFVector3, FPackedNormal>(MeshSection, VertexBuffer);
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -172,7 +171,7 @@ FGLTFJsonBufferViewIndex FGLTFNormalBufferConverter::ConvertBufferView(const FGL
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const FVector SafeNormal = VertexTangents[MappedVertexIndex].TangentZ.ToFVector().GetSafeNormal();
 
-		typedef typename TConditional<TIsSame<DestinationType, FGLTFRawVector3>::Value, FVector, SourceType>::Type IntermediateType;
+		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector3>::Value, FVector, SourceType>::Type IntermediateType;
 		Normals[VertexIndex] = FGLTFConverterUtility::ConvertNormal(IntermediateType(SafeNormal));
 	}
 
@@ -199,20 +198,20 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 		if (bHighPrecision)
 		{
 			ComponentType = EGLTFJsonComponentType::S16;
-			BufferViewIndex = ConvertBufferView<FGLTFPackedVector16, FPackedRGBA16N>(MeshSection, VertexBuffer);
+			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, VertexBuffer);
 		}
 		else
 		{
 			ComponentType = EGLTFJsonComponentType::S8;
-			BufferViewIndex = ConvertBufferView<FGLTFPackedVector8, FPackedNormal>(MeshSection, VertexBuffer);
+			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, VertexBuffer);
 		}
 	}
 	else
 	{
 		ComponentType = EGLTFJsonComponentType::F32;
 		BufferViewIndex = bHighPrecision
-			? ConvertBufferView<FGLTFRawVector4, FPackedRGBA16N>(MeshSection, VertexBuffer)
-			: ConvertBufferView<FGLTFRawVector4, FPackedNormal>(MeshSection, VertexBuffer);
+			? ConvertBufferView<FGLTFVector4, FPackedRGBA16N>(MeshSection, VertexBuffer)
+			: ConvertBufferView<FGLTFVector4, FPackedNormal>(MeshSection, VertexBuffer);
 	}
 
 	FGLTFJsonAccessor JsonAccessor;
@@ -249,7 +248,7 @@ FGLTFJsonBufferViewIndex FGLTFTangentBufferConverter::ConvertBufferView(const FG
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		const FVector SafeTangent = VertexTangents[MappedVertexIndex].TangentX.ToFVector().GetSafeNormal();
 
-		typedef typename TConditional<TIsSame<DestinationType, FGLTFRawVector4>::Value, FVector, SourceType>::Type IntermediateType;
+		typedef typename TConditional<TIsSame<DestinationType, FGLTFVector4>::Value, FVector, SourceType>::Type IntermediateType;
 		Tangents[VertexIndex] = FGLTFConverterUtility::ConvertTangent(IntermediateType(SafeTangent));
 	}
 
@@ -275,7 +274,7 @@ FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* M
 
 	// TODO: report warning or add support for half float precision UVs, i.e. !VertexBuffer->GetUseFullPrecisionUVs()?
 
-	TArray<FGLTFRawVector2> UVs;
+	TArray<FGLTFVector2> UVs;
 	UVs.AddUninitialized(VertexCount);
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)

@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonColor4.h"
+#include "Json/GLTFJsonColor.h"
 
 struct FGLTFJsonSkySphereColorCurve : IGLTFJsonArray
 {

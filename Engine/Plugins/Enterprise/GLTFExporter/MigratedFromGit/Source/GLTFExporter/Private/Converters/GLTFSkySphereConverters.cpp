@@ -102,7 +102,7 @@ void FGLTFSkySphereConverter::ConvertProperty(const AActor* Actor, const TCHAR* 
 	}
 }
 
-void FGLTFSkySphereConverter::ConvertColorProperty(const AActor* Actor, const TCHAR* PropertyName, FGLTFJsonColor4& OutValue) const
+void FGLTFSkySphereConverter::ConvertColorProperty(const AActor* Actor, const TCHAR* PropertyName, FGLTFColor4& OutValue) const
 {
 	check(Actor != nullptr);
 

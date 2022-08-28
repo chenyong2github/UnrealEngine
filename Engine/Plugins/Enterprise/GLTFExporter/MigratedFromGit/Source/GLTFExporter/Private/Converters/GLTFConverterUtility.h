@@ -2,15 +2,11 @@
 
 #pragma once
 
-#include "Converters/GLTFRawTypes.h"
-#include "Converters/GLTFPackedTypes.h"
+#include "Core/GLTFVector.h"
+#include "Core/GLTFColor.h"
+#include "Core/GLTFMatrix.h"
+#include "Core/GLTFQuaternion.h"
 #include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonVector2.h"
-#include "Json/GLTFJsonVector3.h"
-#include "Json/GLTFJsonVector4.h"
-#include "Json/GLTFJsonColor4.h"
-#include "Json/GLTFJsonMatrix4.h"
-#include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
 
 enum class EGLTFCameraControlMode : unsigned char;
@@ -22,61 +18,61 @@ struct FGLTFConverterUtility
 		return Length * ConversionScale;
 	}
 
-	static FGLTFRawVector3 ConvertVector(const FVector& Vector)
+	static FGLTFVector3 ConvertVector(const FVector& Vector)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
 		// glTF uses a right-handed coordinate system, with Y up.
 		return { Vector.X, Vector.Z, Vector.Y };
 	}
 
-	static FGLTFRawVector3 ConvertPosition(const FVector& Position, const float ConversionScale)
+	static FGLTFVector3 ConvertPosition(const FVector& Position, const float ConversionScale)
 	{
 		return ConvertVector(Position * ConversionScale);
 	}
 
-	static FGLTFRawVector3 ConvertScale(const FVector& Scale)
+	static FGLTFVector3 ConvertScale(const FVector& Scale)
 	{
 		return ConvertVector(Scale);
 	}
 
-	static FGLTFRawVector3 ConvertNormal(const FVector& Normal)
+	static FGLTFVector3 ConvertNormal(const FVector& Normal)
 	{
 		return ConvertVector(Normal);
 	}
 
-	static FGLTFPackedVector16 ConvertNormal(const FPackedRGBA16N& Normal)
+	static FGLTFInt16Vector4 ConvertNormal(const FPackedRGBA16N& Normal)
 	{
 		return { Normal.X, Normal.Z, Normal.Y, 0 };
 	}
 
-	static FGLTFPackedVector8 ConvertNormal(const FPackedNormal& Normal)
+	static FGLTFInt8Vector4 ConvertNormal(const FPackedNormal& Normal)
 	{
 		return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y };
 	}
 
-	static FGLTFRawVector4 ConvertTangent(const FVector& Tangent)
+	static FGLTFVector4 ConvertTangent(const FVector& Tangent)
 	{
 		// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
-		return { ConvertVector(Tangent), 1.0f };
+		return { Tangent.X, Tangent.Z, Tangent.Y, 1.0f };
 	}
 
-	static FGLTFPackedVector16 ConvertTangent(const FPackedRGBA16N& Tangent)
+	static FGLTFInt16Vector4 ConvertTangent(const FPackedRGBA16N& Tangent)
 	{
 		return { Tangent.X, Tangent.Z, Tangent.Y, MAX_int16 /* = 1.0 */ };
 	}
 
-	static FGLTFPackedVector8 ConvertTangent(const FPackedNormal& Tangent)
+	static FGLTFInt8Vector4 ConvertTangent(const FPackedNormal& Tangent)
 	{
 		return { Tangent.Vector.X, Tangent.Vector.Z, Tangent.Vector.Y, MAX_int8 /* = 1.0 */ };
 	}
 
-	static FGLTFRawVector2 ConvertUV(const FVector2D& UV)
+	static FGLTFVector2 ConvertUV(const FVector2D& UV)
 	{
 		// No conversion actually needed, this is primarily for type-safety.
 		return { UV.X, UV.Y };
 	}
 
-	static FGLTFJsonColor4 ConvertColor(const FLinearColor& Color, bool bForceLDR)
+	static FGLTFColor4 ConvertColor(const FLinearColor& Color, bool bForceLDR)
 	{
 		if (bForceLDR)
 		{
@@ -97,14 +93,33 @@ struct FGLTFConverterUtility
 		};
 	}
 
-	static FGLTFPackedColor ConvertColor(const FColor& Color)
+	static FGLTFColor3 ConvertColor3(const FLinearColor& Color, bool bForceLDR)
+	{
+		if (bForceLDR)
+		{
+			return {
+				FMath::Clamp(Color.R, 0.0f, 1.0f),
+				FMath::Clamp(Color.G, 0.0f, 1.0f),
+				FMath::Clamp(Color.B, 0.0f, 1.0f)
+			};
+		}
+
+		// Just make sure its non-negative (which can happen when using MakeFromColorTemperature).
+		return {
+			FMath::Max(Color.R, 0.0f),
+			FMath::Max(Color.G, 0.0f),
+			FMath::Max(Color.B, 0.0f)
+		};
+	}
+
+	static FGLTFUInt8Color4 ConvertColor(const FColor& Color)
 	{
 		// UE4 uses ABGR or ARGB depending on endianness.
 		// glTF always uses RGBA independent of endianness.
 		return { Color.R, Color.G, Color.B, Color.A };
 	}
 
-	static FGLTFRawQuaternion ConvertRotation(const FQuat& Rotation)
+	static FGLTFQuaternion ConvertRotation(const FQuat& Rotation)
 	{
 		// UE4 uses a left-handed coordinate system, with Z up.
 		// glTF uses a right-handed coordinate system, with Y up.
@@ -120,19 +135,19 @@ struct FGLTFConverterUtility
 		// Return the identity quaternion when possible (depending on tolerance)
 		if (Rotation.Equals(FQuat::Identity)) // TODO: doesn't this potentially remove intentional deviance from identity?
 		{
-			return FGLTFRawQuaternion(0, 0, 0, 1); // TODO: make static const
+			return { 0, 0, 0, 1 }; // TODO: make static const
 		}
 
 		const FQuat Normalized = Rotation.GetNormalized();
 		return { -Normalized.X, -Normalized.Z, -Normalized.Y, Normalized.W };
 	}
 
-	static FGLTFRawMatrix4 ConvertMatrix(const FMatrix& Matrix)
+	static FGLTFMatrix4 ConvertMatrix(const FMatrix& Matrix)
 	{
 		// Unreal stores matrix elements in row major order.
 		// glTF stores matrix elements in column major order.
 
-		FGLTFRawMatrix4 Result;
+		FGLTFMatrix4 Result;
 		for (int32 Row = 0; Row < 4; ++Row)
 		{
 			for (int32 Col = 0; Col < 4; ++Col)
@@ -143,7 +158,7 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
-	static FGLTFRawMatrix4 ConvertTransform(const FTransform& Transform, const float ConversionScale)
+	static FGLTFMatrix4 ConvertTransform(const FTransform& Transform, const float ConversionScale)
 	{
 		const FQuat Rotation = Transform.GetRotation();
 		const FVector Translation = Transform.GetTranslation();
@@ -165,7 +180,7 @@ struct FGLTFConverterUtility
 		return VerticalFOV;
 	}
 
-	static FGLTFJsonQuaternion ConvertCameraDirection()
+	static FGLTFQuaternion ConvertCameraDirection()
 	{
 		// Unreal uses +X axis as camera direction in Unreal coordinates.
 		// glTF uses +Y as camera direction in Unreal coordinates.
@@ -173,7 +188,7 @@ struct FGLTFConverterUtility
 		return ConvertRotation(FRotator(0, 90, 0).Quaternion());
 	}
 
-	static FGLTFJsonQuaternion ConvertLightDirection()
+	static FGLTFQuaternion ConvertLightDirection()
 	{
 		// Unreal uses +X axis as light direction in Unreal coordinates.
 		// glTF uses +Y as light direction in Unreal coordinates.
