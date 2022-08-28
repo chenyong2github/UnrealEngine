@@ -33,7 +33,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportReflectionCaptures = false;
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
-	bExportInteractionHotspots = false;
+	bExportInteractionHotspots = true;
 	bExportNonUniformScale = false;
 	bBundleWebViewer = false;
 	bExportPreviewMesh = true;
