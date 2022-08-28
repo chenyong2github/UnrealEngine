@@ -9,6 +9,5 @@ FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLT
 
 bool FGLTFContainerBuilder::Serialize(FArchive& Archive)
 {
-	return FGLTFBufferBuilder::Serialize(Archive)
-		&& FGLTFJsonBuilder::Serialize(Archive);
+	return FGLTFJsonBuilder::Serialize(Archive);
 }
