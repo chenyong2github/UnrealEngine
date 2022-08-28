@@ -53,7 +53,7 @@ struct FGLTFJsonBufferView
 
 		if (Target != EGLTFJsonBufferTarget::None)
 		{
-			JsonWriter.WriteValue(TEXT("target"), FGLTFJsonUtility::BufferTargetToNumber(Target));
+			JsonWriter.WriteValue(TEXT("target"), FGLTFJsonUtility::ToNumber(Target));
 		}
 
 		JsonWriter.WriteObjectEnd();

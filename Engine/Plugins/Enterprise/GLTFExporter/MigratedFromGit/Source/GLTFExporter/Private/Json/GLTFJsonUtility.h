@@ -6,21 +6,27 @@
 
 struct FGLTFJsonUtility
 {
-	static const TCHAR* ExtensionToString(EGLTFJsonExtension Extension)
+	template <typename EnumType>
+	static int32 ToNumber(EnumType Value)
 	{
-		switch (Extension)
+		return static_cast<int32>(Value);
+	}
+
+	static const TCHAR* ToString(EGLTFJsonExtension Value)
+	{
+		switch (Value)
 		{
 			case EGLTFJsonExtension::KHR_LightsPunctual:     return TEXT("KHR_lights_punctual");
 			case EGLTFJsonExtension::KHR_MaterialsUnlit:     return TEXT("KHR_materials_unlit");
 			case EGLTFJsonExtension::KHR_MaterialsClearCoat: return TEXT("KHR_materials_clearcoat");
 			case EGLTFJsonExtension::KHR_MeshQuantization:   return TEXT("KHR_mesh_quantization");
-			default:                                     return TEXT("unknown");
+			default:                                         return TEXT("unknown");
 		}
 	}
 
-	static const TCHAR* AlphaModeToString(EGLTFJsonAlphaMode Mode)
+	static const TCHAR* ToString(EGLTFJsonAlphaMode Value)
 	{
-		switch (Mode)
+		switch (Value)
 		{
 			case EGLTFJsonAlphaMode::Opaque: return TEXT("OPAQUE");
 			case EGLTFJsonAlphaMode::Blend:  return TEXT("BLEND");
@@ -29,24 +35,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static int32 PrimitiveModeToNumber(EGLTFJsonPrimitiveMode Mode)
+	static const TCHAR* ToString(EGLTFJsonAccessorType Value)
 	{
-		return static_cast<int32>(Mode);
-	}
-
-	static int32 FilterToNumber(EGLTFJsonSamplerFilter Filter)
-	{
-		return static_cast<int32>(Filter);
-	}
-
-	static int32 WrapModeToNumber(EGLTFJsonSamplerWrap Wrap)
-	{
-		return static_cast<int32>(Wrap);
-	}
-
-	static const TCHAR* AccessorTypeToString(EGLTFJsonAccessorType Type)
-	{
-		switch (Type)
+		switch (Value)
 		{
 			case EGLTFJsonAccessorType::Scalar: return TEXT("SCALAR");
 			case EGLTFJsonAccessorType::Vec2:   return TEXT("VEC2");
@@ -57,15 +48,5 @@ struct FGLTFJsonUtility
 			case EGLTFJsonAccessorType::Mat4:   return TEXT("MAT4");
 			default:                            return TEXT("UNKNOWN");
 		}
-	}
-
-	static int32 ComponentTypeToNumber(EGLTFJsonComponentType Type)
-	{
-		return static_cast<int32>(Type);
-	}
-
-	static int32 BufferTargetToNumber(EGLTFJsonBufferTarget Target)
-	{
-		return static_cast<int32>(Target);
 	}
 };

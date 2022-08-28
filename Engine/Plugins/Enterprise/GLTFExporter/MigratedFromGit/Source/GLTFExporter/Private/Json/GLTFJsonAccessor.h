@@ -52,8 +52,8 @@ struct FGLTFJsonAccessor
 		}
 
 		JsonWriter.WriteValue(TEXT("count"), Count);
-		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::AccessorTypeToString(Type));
-		JsonWriter.WriteValue(TEXT("componentType"), FGLTFJsonUtility::ComponentTypeToNumber(ComponentType));
+		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::ToString(Type));
+		JsonWriter.WriteValue(TEXT("componentType"), FGLTFJsonUtility::ToNumber(ComponentType));
 
 		if (bNormalized)
 		{
