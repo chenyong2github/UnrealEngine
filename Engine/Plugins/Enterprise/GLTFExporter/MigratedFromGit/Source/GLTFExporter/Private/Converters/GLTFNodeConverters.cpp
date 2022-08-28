@@ -120,11 +120,16 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 	const FTransform ParentTransform = ParentComponent != nullptr ? ParentComponent->GetSocketTransform(SocketName) : FTransform::Identity;
 	const FTransform RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
 
-	FGLTFJsonNode* Node = Builder.AddChildNode(ParentNode);
+	FGLTFJsonNode* Node = Builder.AddNode();
 	Node->Name = FGLTFNameUtility::GetName(SceneComponent);
 	Node->Translation = FGLTFConverterUtility::ConvertPosition(RelativeTransform.GetTranslation(), Builder.ExportOptions->ExportUniformScale);
 	Node->Rotation = FGLTFConverterUtility::ConvertRotation(RelativeTransform.GetRotation());
 	Node->Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
+
+	if (ParentNode != nullptr)
+	{
+		ParentNode->Children.Add(Node);
+	}
 
 	// TODO: don't export invisible components unless visibility is variable due to variant sets
 
@@ -161,10 +166,12 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 			if (Builder.ExportOptions->bExportCameras)
 			{
 				// TODO: conversion of camera direction should be done in separate converter
-				FGLTFJsonNode* CameraNode = Builder.AddChildComponentNode(Node);
+				FGLTFJsonNode* CameraNode = Builder.AddNode();
 				CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
 				CameraNode->Rotation = FGLTFConverterUtility::ConvertCameraDirection();
 				CameraNode->Camera = Builder.GetOrAddCamera(CameraComponent);
+				Node->Children.Add(CameraNode);
+				Node->ComponentNode = CameraNode;
 			}
 		}
 		else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
@@ -172,10 +179,12 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 			if (Builder.ShouldExportLight(LightComponent->Mobility))
 			{
 				// TODO: conversion of light direction should be done in separate converter
-				FGLTFJsonNode* LightNode = Builder.AddChildComponentNode(Node);
+				FGLTFJsonNode* LightNode = Builder.AddNode();
 				LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
 				LightNode->Rotation = FGLTFConverterUtility::ConvertLightDirection();
 				LightNode->Light = Builder.GetOrAddLight(LightComponent);
+				Node->Children.Add(LightNode);
+				Node->ComponentNode = LightNode;
 			}
 		}
 	}
@@ -230,7 +239,8 @@ FGLTFJsonNode* FGLTFStaticSocketConverter::Convert(FGLTFJsonNode* RootNode, cons
 	Node->Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
 	Node->Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
 
-	return Builder.AddChildNode(RootNode, Node);
+	RootNode->Children.Add(Node);
+	return Node;
 }
 
 FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
@@ -254,7 +264,9 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 
 		const int32 ParentBone = RefSkeleton.FindBoneIndex(Socket->BoneName);
 		FGLTFJsonNode* ParentNode = ParentBone != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
-		return Builder.AddChildNode(ParentNode, Node);
+
+		ParentNode->Children.Add(Node);
+		return Node;
 	}
 
 	const int32 BoneIndex = RefSkeleton.FindBoneIndex(SocketName);
@@ -304,5 +316,6 @@ FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, cons
 	}
 
 	FGLTFJsonNode* ParentNode = BoneInfo.ParentIndex != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneInfo.ParentIndex) : RootNode;
-	return Builder.AddChildNode(ParentNode, Node);
+	ParentNode->Children.Add(Node);
+	return Node;
 }

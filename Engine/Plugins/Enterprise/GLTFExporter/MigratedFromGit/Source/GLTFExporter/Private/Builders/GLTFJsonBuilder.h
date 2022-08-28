@@ -40,9 +40,6 @@ public:
 	FGLTFJsonEpicLevelVariantSets* AddEpicLevelVariantSets();
 	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant();
 
-	FGLTFJsonNode* AddChildNode(FGLTFJsonNode* ParentNode, FGLTFJsonNode* ChildNode = nullptr);
-	FGLTFJsonNode* AddChildComponentNode(FGLTFJsonNode* ParentNodeParentNode, FGLTFJsonNode* ChildNode = nullptr);
-
 	const FGLTFJsonRoot& GetRoot() const;
 
 	FGLTFJsonNode* GetComponentNode(FGLTFJsonNode* Node);
