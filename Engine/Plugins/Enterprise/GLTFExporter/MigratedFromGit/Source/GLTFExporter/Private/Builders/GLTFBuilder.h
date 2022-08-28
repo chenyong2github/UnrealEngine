@@ -8,10 +8,6 @@
 
 class FGLTFBuilder
 {
-protected:
-
-	FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
-
 public:
 
 	const bool bIsGlbFile;
@@ -20,6 +16,8 @@ public:
 
 	// TODO: make ExportOptions private and expose each option via getters to ease overriding settings in future
 	const UGLTFExportOptions* ExportOptions;
+
+	FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
 	const UMaterialInterface* ResolveProxy(const UMaterialInterface* Material) const;
 
