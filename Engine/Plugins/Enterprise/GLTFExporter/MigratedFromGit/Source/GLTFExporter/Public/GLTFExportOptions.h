@@ -6,6 +6,14 @@
 #include "GLTFExportOptions.generated.h"
 
 UENUM(BlueprintType)
+enum class EGLTFMaterialBakeMode : uint8
+{
+	Disabled,
+    Simple,
+    UseMeshData,
+};
+
+UENUM(BlueprintType)
 enum class EGLTFMaterialBakeSizePOT : uint8
 {
 	POT_1 UMETA(DisplayName = "1 x 1"),
@@ -74,12 +82,9 @@ public:
 	bool bExportClearCoatMaterials;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
-	bool bBakeMaterialInputs;
+	EGLTFMaterialBakeMode BakeMaterialInputs;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bBakeMaterialInputs"))
-	bool bMaterialBakeUsingMeshData;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bBakeMaterialInputs"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "BakeMaterialInputs != EGLTFMaterialBakeMode::Disabled"))
 	EGLTFMaterialBakeSizePOT DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
@@ -150,7 +155,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportVariantSets;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bExportVariantSets && bBakeMaterialInputs && bMaterialBakeUsingMeshData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bExportVariantSets && BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData"))
 	bool bVariantMaterialBakeUsingMeshData;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)

@@ -9,8 +9,7 @@
 void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const FGLTFMeshData*& MeshData, TArray<int32>& SectionIndices)
 {
 	if (MeshData == nullptr ||
-		!Builder.ExportOptions->bBakeMaterialInputs ||
-		!Builder.ExportOptions->bMaterialBakeUsingMeshData ||
+		Builder.ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::UseMeshData ||
 		!FGLTFMaterialUtility::NeedsMeshData(Material))
 	{
 		MeshData = nullptr;
