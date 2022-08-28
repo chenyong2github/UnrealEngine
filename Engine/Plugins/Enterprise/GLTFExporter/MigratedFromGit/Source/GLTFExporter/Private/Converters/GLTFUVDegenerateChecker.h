@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverter.h"
 #include "Engine.h"
 
-class FGLTFDegenerateUVSectionsChecker final : public TGLTFConverter<bool, const FMeshDescription*, int32, int32>
+class FGLTFUVDegenerateChecker final : public TGLTFConverter<bool, const FMeshDescription*, int32, int32>
 {
 	virtual void Sanitize(const FMeshDescription*& Description, int32& SectionIndex, int32& TexCoord) override;
 

@@ -20,14 +20,15 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 		const FMeshDescription& MeshDescription = MeshData->GetParent()->Description;
 		for (const int32 SectionIndex : SectionIndices)
 		{
-			const bool bHasDegenerateUVs = DegenerateUVSectionsChecker.GetOrAdd(&MeshDescription, SectionIndex, MeshData->TexCoord);
+			const bool bHasDegenerateUVs = UVDegenerateChecker.GetOrAdd(&MeshDescription, SectionIndex, MeshData->TexCoord);
 			if (bHasDegenerateUVs)
 			{
 				Builder.AddWarningMessage(FString::Printf(
-					TEXT("Material %s is using mesh data from %s but the lightmap UVs (channel %d) are degenerate. Simple baking will be used as fallback"),
+					TEXT("Material %s is using mesh data from %s but the lightmap UVs (channel %d) are degenerate (in mesh section %d). Simple baking will be used as fallback"),
 					*Material->GetName(),
 					*MeshData->GetParent()->Name,
-					MeshData->TexCoord));
+					MeshData->TexCoord,
+					SectionIndex));
 
 				MeshData = nullptr;
 				SectionIndices = {};
