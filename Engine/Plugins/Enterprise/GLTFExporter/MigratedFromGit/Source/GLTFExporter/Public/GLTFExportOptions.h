@@ -28,8 +28,7 @@ UENUM(BlueprintType)
 enum class EGLTFExporterTextureHDREncoding : uint8
 {
 	None,
-	RGBM,
-	RGBE
+	RGBM
 };
 
 UENUM(BlueprintType)
