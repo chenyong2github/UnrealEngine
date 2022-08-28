@@ -2,7 +2,7 @@
 
 #include "GLTFStaticMeshExporter.h"
 #include "GLTFJsonRoot.h"
-#include "GLTFBuilder.h"
+#include "GLTFContainerBuilder.h"
 #include "Engine/StaticMesh.h"
 
 UGLTFStaticMeshExporter::UGLTFStaticMeshExporter(const FObjectInitializer& ObjectInitializer)
@@ -21,20 +21,20 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 		return false;
 	}
 
-	FGLTFBuilder Builder;
+	FGLTFContainerBuilder Container;
 
-	FGLTFJsonMeshIndex MeshIndex = Builder.AddMesh(StaticMesh, 0);
+	FGLTFJsonMeshIndex MeshIndex = Container.AddMesh(StaticMesh, 0);
 
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;
-	FGLTFJsonNodeIndex NodeIndex = Builder.JsonRoot.Nodes.Add(Node);
+	FGLTFJsonNodeIndex NodeIndex = Container.JsonRoot.Nodes.Add(Node);
 
 	FGLTFJsonScene Scene;
 	Scene.Nodes.Add(NodeIndex);
-	FGLTFJsonSceneIndex SceneIndex = Builder.JsonRoot.Scenes.Add(Scene);
+	FGLTFJsonSceneIndex SceneIndex = Container.JsonRoot.Scenes.Add(Scene);
 
-	Builder.JsonRoot.DefaultScene = SceneIndex;
+	Container.JsonRoot.DefaultScene = SceneIndex;
 
-	Builder.Serialize(Archive);
+	Container.Serialize(Archive);
 	return true;
 }

@@ -6,12 +6,12 @@
 #include "GLTFBufferBuilder.h"
 #include "Engine.h"
 
-struct GLTFEXPORTER_API FGLTFBuilder
+struct GLTFEXPORTER_API FGLTFContainerBuilder
 {
 	FGLTFJsonRoot JsonRoot;
 	FGLTFBufferBuilder BufferBuilder;
 
-	FGLTFBuilder();
+	FGLTFContainerBuilder();
 
 	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
