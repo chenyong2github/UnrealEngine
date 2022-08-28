@@ -23,7 +23,6 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bTangentDataQuantization = false;
 	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
-	bMapSkeletalMotionToRoot = false;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
@@ -214,7 +213,9 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		return true;
 	}
 
-	return false; // TODO: change to true for each option implemented and relevant to the object selected for export.
+	// TODO: return true for each option implemented and supported.
+
+	return false;
 }
 
 FIntPoint UGLTFExportOptions::GetDefaultMaterialBakeSize() const
