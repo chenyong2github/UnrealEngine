@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "GLTFExportOptions.generated.h"
 
 UENUM(BlueprintType)

@@ -39,17 +39,17 @@ inline FColor ConvertColor(const FColor& Color)
 	return { Color.R, Color.G, Color.B, Color.A };
 }
 
-inline FQuat ConvertRotation(const FQuat& Quat)
+inline FQuat ConvertRotation(const FQuat& Rotation)
 {
 	// UE4 uses a left-handed coordinate system, with Z up.
 	// glTF uses a right-handed coordinate system, with Y up.
-	// Quat = (qX, qY, qZ, qW) = (sin(angle/2) * aX, sin(angle/2) * aY, sin(angle/2) * aZ, cons(angle/2))
+	// Rotation = (qX, qY, qZ, qW) = (sin(angle/2) * aX, sin(angle/2) * aY, sin(angle/2) * aZ, cons(angle/2))
 	// where (aX, aY, aZ) - rotation axis, angle - rotation angle
 	// Y swapped with Z between these coordinate systems
 	// also, as handedness is changed rotation is inversed - hence negation
-	// therefore glTFQuat = (-qX, -qZ, -qY, qw)
+	// therefore glTFRotation = (-qX, -qZ, -qY, qw)
 
-	FQuat Result(-Quat.X, -Quat.Z, -Quat.Y, Quat.W);
+	const FQuat Result(-Rotation.X, -Rotation.Z, -Rotation.Y, Rotation.W);
 	// Not checking if quaternion is normalized
 	// e.g. some sources use non-unit Quats for rotation tangents
 	return Result;
@@ -71,14 +71,13 @@ inline FMatrix ConvertMatrix(const FMatrix& Matrix)
 	return Result;
 }
 
-inline EGLTFJsonAlphaMode ConvertAlphaMode(EBlendMode Mode)
+inline EGLTFJsonAlphaMode ConvertAlphaMode(const EBlendMode Mode)
 {
 	switch (Mode)
 	{
 		case EBlendMode::BLEND_Opaque:      return EGLTFJsonAlphaMode::Opaque;
 		case EBlendMode::BLEND_Translucent: return EGLTFJsonAlphaMode::Blend;
 		case EBlendMode::BLEND_Masked:      return EGLTFJsonAlphaMode::Mask;
+		default:                            return EGLTFJsonAlphaMode::Opaque; // fallback
 	}
-
-	return EGLTFJsonAlphaMode::Opaque; // fallback
 }

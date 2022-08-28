@@ -1,7 +1,8 @@
-// Copyriyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExportOptions.h"
 #include "GLTFExportOptionsWindow.h"
+#include "Misc/App.h"
 
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
@@ -44,7 +45,7 @@ void UGLTFExportOptions::ResetToDefault()
 
 void UGLTFExportOptions::LoadOptions()
 {
-	int32 PortFlags = 0;
+	const int32 PortFlags = 0;
 
 	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
@@ -55,15 +56,10 @@ void UGLTFExportOptions::LoadOptions()
 		FString Section = GetClass()->GetName();
 		FString Key = Property->GetName();
 
-		const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
-		UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
-
-		const FString& PropFileName = GEditorPerProjectIni;
-
 		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
 		if (Array)
 		{
-			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, 0, 1, *GEditorPerProjectIni);
+			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, false, true, *GEditorPerProjectIni);
 			if (Sec != nullptr)
 			{
 				TArray<FConfigValue> List;
@@ -83,7 +79,7 @@ void UGLTFExportOptions::LoadOptions()
 				else
 				{
 					int32 Index = 0;
-					const FConfigValue* ElementValue = nullptr;
+					const FConfigValue* ElementValue;
 					do
 					{
 						// Add array index number to end of key
@@ -120,11 +116,11 @@ void UGLTFExportOptions::LoadOptions()
 				}
 
 				FString Value;
-				bool bFoundValue = GConfig->GetString(*Section, *Key, Value, *GEditorPerProjectIni);
+				const bool bFoundValue = GConfig->GetString(*Section, *Key, Value, *GEditorPerProjectIni);
 
 				if (bFoundValue)
 				{
-					if (Property->ImportText(*Value, Property->ContainerPtrToValuePtr<uint8>(this, i), PortFlags, this) == NULL)
+					if (Property->ImportText(*Value, Property->ContainerPtrToValuePtr<uint8>(this, i), PortFlags, this) == nullptr)
 					{
 						// this should be an error as the properties from the .ini / .int file are not correctly being read in and probably are affecting things in subtle ways
 					}
@@ -136,7 +132,7 @@ void UGLTFExportOptions::LoadOptions()
 
 void UGLTFExportOptions::SaveOptions()
 {
-	int32 PortFlags = 0;
+	const int32 PortFlags = 0;
 
 	for (UProperty* Property = GetClass()->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
@@ -147,13 +143,10 @@ void UGLTFExportOptions::SaveOptions()
 		FString Section = GetClass()->GetName();
 		FString Key = Property->GetName();
 
-		const bool bIsPropertyInherited = Property->GetOwnerClass() != GetClass();
-		UObject* SuperClassDefaultObject = GetClass()->GetSuperClass()->GetDefaultObject();
-
 		UArrayProperty* Array = dynamic_cast<UArrayProperty*>(Property);
 		if (Array)
 		{
-			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, 1, 0, *GEditorPerProjectIni);
+			FConfigSection* Sec = GConfig->GetSectionPrivate(*Section, true, false, *GEditorPerProjectIni);
 			check(Sec);
 			Sec->Remove(*Key);
 
@@ -182,7 +175,7 @@ void UGLTFExportOptions::SaveOptions()
 			}
 		}
 	}
-	GConfig->Flush(0);
+	GConfig->Flush(false);
 }
 
 void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& bOutOperationCanceled, bool& bOutExportAll)

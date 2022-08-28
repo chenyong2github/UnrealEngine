@@ -29,7 +29,7 @@ void FGLTFBufferBuilder::UpdateMergedBuffer()
 	FGLTFJsonBuffer& Buffer = JsonRoot.Buffers[MergedBufferIndex];
 	if (Buffer.ByteLength != MergedBufferData.Num())
 	{
-		FString DataBase64 = FBase64::Encode(MergedBufferData.GetData(), MergedBufferData.Num());
+		const FString DataBase64 = FBase64::Encode(MergedBufferData.GetData(), MergedBufferData.Num());
 
 		Buffer.URI = TEXT("data:application/octet-stream;base64,") + DataBase64;
 		Buffer.ByteLength = MergedBufferData.Num();
