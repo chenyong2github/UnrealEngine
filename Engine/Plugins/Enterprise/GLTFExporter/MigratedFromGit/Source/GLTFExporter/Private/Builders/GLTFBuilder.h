@@ -12,6 +12,8 @@ protected:
 
 public:
 
+	const bool bIsGlbFile;
+
 	const FString FilePath;
 
 	const UGLTFExportOptions* const ExportOptions;
