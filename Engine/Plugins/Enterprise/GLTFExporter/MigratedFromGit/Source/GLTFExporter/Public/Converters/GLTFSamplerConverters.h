@@ -8,9 +8,13 @@
 
 typedef TGLTFConverter<FGLTFJsonSampler*, const UTexture*> IGLTFSamplerConverter;
 
-class GLTFEXPORTER_API FGLTFSamplerConverter final : public FGLTFBuilderContext, public IGLTFSamplerConverter
+class GLTFEXPORTER_API FGLTFSamplerConverter : public FGLTFBuilderContext, public IGLTFSamplerConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonSampler* Convert(const UTexture* Texture) override;
 };

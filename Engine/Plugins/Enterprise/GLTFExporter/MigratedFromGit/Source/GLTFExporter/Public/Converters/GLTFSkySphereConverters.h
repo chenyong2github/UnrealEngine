@@ -11,18 +11,24 @@ struct FGLTFJsonSkySphereColorCurve;
 
 typedef TGLTFConverter<FGLTFJsonSkySphere*, const AActor*> IGLTFSkySphereConverter;
 
-class GLTFEXPORTER_API FGLTFSkySphereConverter final : public FGLTFBuilderContext, public IGLTFSkySphereConverter
+class GLTFEXPORTER_API FGLTFSkySphereConverter : public FGLTFBuilderContext, public IGLTFSkySphereConverter
 {
+public:
+
+	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
+
+	virtual FGLTFJsonSkySphere* Convert(const AActor* SkySphereActor) override;
+
+private:
+
 	enum class ESkySphereTextureParameter
 	{
 		SkyTexture,
 		CloudsTexture,
 		StarsTexture
 	};
-
-	using FGLTFBuilderContext::FGLTFBuilderContext;
-
-	virtual FGLTFJsonSkySphere* Convert(const AActor* SkySphereActor) override;
 
 	template <class ValueType>
 	void ConvertProperty(const AActor* Actor, const TCHAR* PropertyName, ValueType& OutValue) const;

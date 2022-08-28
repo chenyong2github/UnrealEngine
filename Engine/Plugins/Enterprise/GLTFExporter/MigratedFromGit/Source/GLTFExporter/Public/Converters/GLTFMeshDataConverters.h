@@ -22,14 +22,16 @@ public:
 	TGLTFMeshDataConverter(const TGLTFMeshDataConverter&) = delete;
 	TGLTFMeshDataConverter& operator=(const TGLTFMeshDataConverter&) = delete;
 
-private:
-
-	// TODO: standardize converters that are responsible for deleting their output
-	TArray<TUniquePtr<FGLTFMeshData>> Outputs;
+protected:
 
 	virtual void Sanitize(const MeshType*& Mesh, const MeshComponentType*& MeshComponent, int32& LODIndex) override;
 
 	virtual const FGLTFMeshData* Convert(const MeshType* Mesh, const MeshComponentType* MeshComponent, int32 LODIndex) override;
+
+private:
+
+	// TODO: standardize converters that are responsible for deleting their output
+	TArray<TUniquePtr<FGLTFMeshData>> Outputs;
 };
 
 typedef TGLTFMeshDataConverter<UStaticMesh, UStaticMeshComponent> FGLTFStaticMeshDataConverter;

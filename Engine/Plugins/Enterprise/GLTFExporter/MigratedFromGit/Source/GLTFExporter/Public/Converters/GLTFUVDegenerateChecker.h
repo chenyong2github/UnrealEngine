@@ -7,11 +7,15 @@
 
 struct FMeshDescription;
 
-class GLTFEXPORTER_API FGLTFUVDegenerateChecker final : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>
+class GLTFEXPORTER_API FGLTFUVDegenerateChecker : public TGLTFConverter<float, const FMeshDescription*, FGLTFIndexArray, int32>
 {
+protected:
+
 	virtual void Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord) override;
 
 	virtual float Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord) override;
+
+private:
 
 	static bool IsDegenerateTriangle(const TStaticArray<FVector2f, 3>& Points);
 	static bool IsDegenerateTriangle(const TStaticArray<FVector3f, 3>& Points);

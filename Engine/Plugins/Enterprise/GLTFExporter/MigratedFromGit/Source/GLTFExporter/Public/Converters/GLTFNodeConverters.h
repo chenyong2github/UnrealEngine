@@ -13,46 +13,70 @@ typedef TGLTFConverter<FGLTFJsonNode*, FGLTFJsonNode*, const UStaticMesh*, FName
 typedef TGLTFConverter<FGLTFJsonNode*, FGLTFJsonNode*, const USkeletalMesh*, FName> IGLTFSkeletalSocketConverter;
 typedef TGLTFConverter<FGLTFJsonNode*, FGLTFJsonNode*, const USkeletalMesh*, int32> IGLTFSkeletalBoneConverter;
 
-class GLTFEXPORTER_API FGLTFActorConverter final : public FGLTFBuilderContext, public IGLTFActorConverter
+class GLTFEXPORTER_API FGLTFActorConverter : public FGLTFBuilderContext, public IGLTFActorConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonNode* Convert(const AActor* Actor) override;
 };
 
-class GLTFEXPORTER_API FGLTFComponentConverter final : public FGLTFBuilderContext, public IGLTFComponentConverter
+class GLTFEXPORTER_API FGLTFComponentConverter : public FGLTFBuilderContext, public IGLTFComponentConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonNode* Convert(const USceneComponent* SceneComponent) override;
 
 	void ConvertComponentSpecialization(const USceneComponent* SceneComponent, const AActor* Owner, FGLTFJsonNode* Node);
 };
 
-class GLTFEXPORTER_API FGLTFComponentSocketConverter final : public FGLTFBuilderContext, public IGLTFComponentSocketConverter
+class GLTFEXPORTER_API FGLTFComponentSocketConverter : public FGLTFBuilderContext, public IGLTFComponentSocketConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonNode* Convert(const USceneComponent* SceneComponent, FName SocketName) override;
 };
 
-class GLTFEXPORTER_API FGLTFStaticSocketConverter final : public FGLTFBuilderContext, public IGLTFStaticSocketConverter
+class GLTFEXPORTER_API FGLTFStaticSocketConverter : public FGLTFBuilderContext, public IGLTFStaticSocketConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonNode* Convert(FGLTFJsonNode* RootNode, const UStaticMesh* StaticMesh, FName SocketName) override;
 };
 
-class GLTFEXPORTER_API FGLTFSkeletalSocketConverter final : public FGLTFBuilderContext, public IGLTFSkeletalSocketConverter
+class GLTFEXPORTER_API FGLTFSkeletalSocketConverter : public FGLTFBuilderContext, public IGLTFSkeletalSocketConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonNode* Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName) override;
 };
 
-class GLTFEXPORTER_API FGLTFSkeletalBoneConverter final : public FGLTFBuilderContext, public IGLTFSkeletalBoneConverter
+class GLTFEXPORTER_API FGLTFSkeletalBoneConverter : public FGLTFBuilderContext, public IGLTFSkeletalBoneConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonNode* Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex) override;
 };

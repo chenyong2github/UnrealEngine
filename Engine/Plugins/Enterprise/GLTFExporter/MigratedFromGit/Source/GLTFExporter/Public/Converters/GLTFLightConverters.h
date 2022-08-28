@@ -8,9 +8,13 @@
 
 typedef TGLTFConverter<FGLTFJsonLight*, const ULightComponent*> IGLTFLightConverter;
 
-class GLTFEXPORTER_API FGLTFLightConverter final : public FGLTFBuilderContext, public IGLTFLightConverter
+class GLTFEXPORTER_API FGLTFLightConverter : public FGLTFBuilderContext, public IGLTFLightConverter
 {
+public:
+
 	using FGLTFBuilderContext::FGLTFBuilderContext;
+
+protected:
 
 	virtual FGLTFJsonLight* Convert(const ULightComponent* LightComponent) override;
 };
