@@ -26,7 +26,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportVertexColors = false;
 	bExportVertexSkinWeights = true;
 	bExportMeshQuantization = true;
-	bNormalizeNonZeroVectors = true;
 	bExportLevelSequences = true;
 	bExportAnimationSequences = true;
 	bRetargetBoneTransforms = true;
