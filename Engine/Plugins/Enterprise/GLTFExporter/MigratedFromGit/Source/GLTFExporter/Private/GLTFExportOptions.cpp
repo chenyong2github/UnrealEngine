@@ -29,7 +29,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bUseMeshQuantization = false;
 	bExportLevelSequences = true;
 	bExportAnimationSequences = true;
-	bRetargetBoneTransforms = true;
 	bExportPlaybackSettings = false;
 	TextureImageFormat = EGLTFTextureImageFormat::PNG;
 	TextureImageQuality = 0;
