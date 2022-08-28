@@ -427,11 +427,11 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return false;
 	}
 
-	TArray<FColor> CombinedPixels;
+	TGLTFSharedArray<FColor> CombinedPixels;
 	CombinePixels(
-		BaseColorBakeOutput.Pixels,
-		OpacityBakeOutput.Pixels,
-		CombinedPixels,
+		*BaseColorBakeOutput.Pixels,
+		*OpacityBakeOutput.Pixels,
+		*CombinedPixels,
 		[](const FColor& BaseColor, const FColor& Opacity) -> FColor
 		{
 			return FColor(BaseColor.R, BaseColor.G, BaseColor.B, Opacity.R);
@@ -551,11 +551,11 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		return false;
 	}
 
-	TArray<FColor> CombinedPixels;
+	TGLTFSharedArray<FColor> CombinedPixels;
 	CombinePixels(
-		MetallicBakeOutput.Pixels,
-		RoughnessBakeOutput.Pixels,
-		CombinedPixels,
+		*MetallicBakeOutput.Pixels,
+		*RoughnessBakeOutput.Pixels,
+		*CombinedPixels,
 		[](const FColor& Metallic, const FColor& Roughness) -> FColor
 		{
 			return FColor(0, Roughness.R, Metallic.R);
@@ -676,11 +676,11 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return false;
 	}
 
-	TArray<FColor> CombinedPixels;
+	TGLTFSharedArray<FColor> CombinedPixels;
 	CombinePixels(
-		IntensityBakeOutput.Pixels,
-		RoughnessBakeOutput.Pixels,
-		CombinedPixels,
+		*IntensityBakeOutput.Pixels,
+		*RoughnessBakeOutput.Pixels,
+		*CombinedPixels,
 		[](const FColor& Intensity, const FColor& Roughness) -> FColor
 		{
 			return FColor(Intensity.R, Roughness.R, 0);
@@ -731,7 +731,7 @@ bool FGLTFMaterialTask::TryGetEmissive(FGLTFJsonMaterial& JsonMaterial, const FM
 		return false;
 	}
 
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, JsonMaterial.EmissiveTexture.TexCoord);
+	FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, JsonMaterial.EmissiveTexture.TexCoord);
 	const float EmissiveScale = PropertyBakeOutput.EmissiveScale;
 
 	if (PropertyBakeOutput.bIsConstant)
@@ -1356,7 +1356,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = FGLTFMaterialUtility::BakeMaterialProperty(
+	return FGLTFMaterialUtility::BakeMaterialProperty(
 		TextureSize,
 		Property,
 		Material,
@@ -1364,11 +1364,9 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 		MeshData,
 		SectionIndices,
 		bFillAlpha);
-
-	return PropertyBakeOutput;
 }
 
-bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexInfo, const FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const
+bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexInfo, FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const
 {
 	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, GetPropertyGroup(PropertyBakeOutput.Property));
 	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);

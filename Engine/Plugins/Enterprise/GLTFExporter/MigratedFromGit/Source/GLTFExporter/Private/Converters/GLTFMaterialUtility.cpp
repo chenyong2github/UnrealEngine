@@ -228,7 +228,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	FBakeOutputEx& BakeOutput = BakeOutputs[0];
 
-	TArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(Property));
+	TGLTFSharedArray<FColor> BakedPixels = MoveTemp(BakeOutput.PropertyData.FindChecked(Property));
 	const FIntPoint BakedSize = BakeOutput.PropertySizes.FindChecked(Property);
 	const float EmissiveScale = BakeOutput.EmissiveScale;
 
@@ -236,7 +236,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	{
 		// NOTE: alpha is 0 by default after baking a property, but we prefer 255 (1.0).
 		// It makes it easier to view the exported textures.
-		for (FColor& Pixel: BakedPixels)
+		for (FColor& Pixel: *BakedPixels)
 		{
 			Pixel.A = 255;
 		}
@@ -245,18 +245,18 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	if (IsNormalMap(Property))
 	{
 		// Convert normalmaps to use +Y (OpenGL / WebGL standard)
-		FGLTFTextureUtility::FlipGreenChannel(BakedPixels);
+		FGLTFTextureUtility::FlipGreenChannel(*BakedPixels);
 	}
 
 	bool bFromSRGB = !bIsLinearBake;
 	bool bToSRGB = IsSRGB(Property);
-	FGLTFTextureUtility::TransformColorSpace(BakedPixels, bFromSRGB, bToSRGB);
+	FGLTFTextureUtility::TransformColorSpace(*BakedPixels, bFromSRGB, bToSRGB);
 
 	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale, !bIsLinearBake);
 
-	if (BakedPixels.Num() == 1)
+	if (BakedPixels->Num() == 1)
 	{
-		const FColor& Pixel = BakedPixels[0];
+		const FColor& Pixel = (*BakedPixels)[0];
 
 		PropertyBakeOutput.bIsConstant = true;
 		PropertyBakeOutput.ConstantValue = bToSRGB ? FLinearColor(Pixel) : Pixel.ReinterpretAsLinear();
@@ -265,7 +265,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	return PropertyBakeOutput;
 }
 
-FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder, const TArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT)
+FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder, TGLTFSharedArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT)
 {
 	// TODO: maybe we should reuse existing samplers?
 	FGLTFJsonSampler JsonSampler;
@@ -279,7 +279,7 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Buil
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = TextureName;
 	JsonTexture.Sampler = Builder.AddSampler(JsonSampler);
-	JsonTexture.Source = Builder.AddImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
+	JsonTexture.Source = Builder.GetOrAddImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
 
 	return Builder.AddTexture(JsonTexture);
 }

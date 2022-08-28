@@ -4,16 +4,20 @@
 
 #include "CoreMinimal.h"
 
-typedef TArray<int32> FGLTFIndexArray;
-
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
-inline uint32 GetTypeHash(const FGLTFIndexArray& IndexArray)
+class FGLTFIndexArray : public TArray<int32>
 {
-	uint32 Hash = GetTypeHash(IndexArray.Num());
-	for (int32 Index : IndexArray)
+public:
+
+	using TArray::TArray;
+	using TArray::operator=;
+
+	friend uint32 GetTypeHash(const FGLTFIndexArray& IndexArray)
 	{
-		Hash = HashCombine(Hash, GetTypeHash(Index));
+		uint32 Hash = GetTypeHash(IndexArray.Num());
+		for (const int32 Index : IndexArray)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Index));
+		}
+		return Hash;
 	}
-	return Hash;
-}
-#endif
+};

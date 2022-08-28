@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "Builders/GLTFImageBuilder.h"
+#include "Builders/GLTFBufferBuilder.h"
 #include "Converters/GLTFAccessorConverters.h"
 #include "Converters/GLTFMeshConverters.h"
 #include "Converters/GLTFMeshDataConverters.h"
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFSamplerConverters.h"
 #include "Converters/GLTFTextureConverters.h"
+#include "Converters/GLTFImageConverters.h"
 #include "Converters/GLTFNodeConverters.h"
 #include "Converters/GLTFSkinConverters.h"
 #include "Converters/GLTFAnimationConverters.h"
@@ -22,7 +23,7 @@
 #include "Converters/GLTFKhrVariantConverters.h"
 #include "Converters/GLTFSkySphereConverters.h"
 
-class FGLTFConvertBuilder : public FGLTFImageBuilder
+class FGLTFConvertBuilder : public FGLTFBufferBuilder
 {
 protected:
 
@@ -70,6 +71,7 @@ public:
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTextureCube* Texture, ECubeFace CubeFace, bool bToSRGB);
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTextureRenderTarget2D* Texture, bool bToSRGB);
 	FGLTFJsonTextureIndex GetOrAddTexture(const UTextureRenderTargetCube* Texture, ECubeFace CubeFace, bool bToSRGB);
+	FGLTFJsonImageIndex GetOrAddImage(TGLTFSharedArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name);
 
 	FGLTFJsonSkinIndex GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh);
 	FGLTFJsonSkinIndex GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent);
@@ -123,6 +125,7 @@ private:
 	FGLTFTextureRenderTarget2DConverter TextureRenderTarget2DConverter{ *this };
 	FGLTFTextureRenderTargetCubeConverter TextureRenderTargetCubeConverter{ *this };
 	FGLTFTextureLightMapConverter TextureLightMapConverter{ *this };
+	FGLTFImageConverter ImageConverter{ *this };
 
 	FGLTFSkinConverter SkinConverter{ *this };
 	FGLTFAnimationConverter AnimationConverter{ *this };
