@@ -52,6 +52,8 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	ERGBFormat RGBFormat;
 	uint32 BitDepth;
 
+	// TODO: implement support for bExportSourceTextures
+
 	// TODO: make sure there are no other special cases (like ex normal-maps and light-maps) that need specialized handling.
 	if (Texture2D->IsA<ULightMapTexture2D>() || Texture2D->IsNormalMap())
 	{
