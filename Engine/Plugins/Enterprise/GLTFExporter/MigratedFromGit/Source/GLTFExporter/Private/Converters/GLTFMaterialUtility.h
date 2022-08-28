@@ -5,6 +5,8 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/Texture2D.h"
 
+struct FGLTFMaterialStatistics;
+
 struct FGLTFTextureCombineSource
 {
 	constexpr FORCEINLINE FGLTFTextureCombineSource(const UTexture2D* Texture, FLinearColor TintColor = { 1.0f, 1.0f, 1.0f, 1.0f }, ESimpleElementBlendMode BlendMode = SE_BLEND_Additive)
@@ -74,7 +76,7 @@ struct FGLTFMaterialUtility
 	static bool NeedsMeshData(const UMaterialInterface* Material);
 	static bool NeedsMeshData(const TArray<const UMaterialInterface*>& Materials);
 
-	static void AnalyzeMaterialProperty(const UMaterialInterface* Material, EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData);
+	static void AnalyzeMaterialProperty(const UMaterialInterface* Material, EMaterialProperty InProperty, FGLTFMaterialStatistics& OutMaterialStatistics);
 
 	static const UMaterialInterface* GetInterface(const UMaterialInterface* Material);
 	static const UMaterialInterface* GetInterface(const FStaticMaterial& Material);
