@@ -3,6 +3,7 @@
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
+#include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Misc/DefaultValueHelper.h"
 #if WITH_EDITOR
 #include "GLTFMaterialAnalyzer.h"
@@ -15,147 +16,13 @@
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #endif
 
-#define PROXY_MATERIAL_NAME_PREFIX TEXT("M_GLTF_")
-#define PROXY_MATERIAL_ROOT_PATH   TEXT("/GLTFExporter/Materials/Proxy/")
-
 UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
 {
-	static UMaterialInterface* DefaultMaterial = GetProxyBaseMaterial(EGLTFJsonShadingModel::Default);
+	static UMaterial* DefaultMaterial = FGLTFProxyMaterialUtilities::GetBaseMaterial(EGLTFJsonShadingModel::Default);
 	return DefaultMaterial;
 }
 
-UMaterialInterface* FGLTFMaterialUtility::GetProxyBaseMaterial(EGLTFJsonShadingModel ShadingModel)
-{
-	const FString Name = FGLTFJsonUtility::GetValue(ShadingModel);
-	const FString Path = PROXY_MATERIAL_ROOT_PATH PROXY_MATERIAL_NAME_PREFIX + Name + TEXT(".") PROXY_MATERIAL_NAME_PREFIX + Name;
-	return LoadObject<UMaterialInterface>(nullptr, *Path);
-}
-
-bool FGLTFMaterialUtility::IsProxyMaterial(const UMaterial* Material)
-{
-	return Material->GetPathName().StartsWith(PROXY_MATERIAL_ROOT_PATH PROXY_MATERIAL_NAME_PREFIX);
-}
-
-bool FGLTFMaterialUtility::IsProxyMaterial(const UMaterialInterface* Material)
-{
-	return IsProxyMaterial(Material->GetMaterial());
-}
-
-bool FGLTFMaterialUtility::GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, float& OutValue)
-{
-	const FHashedMaterialParameterInfo ParameterInfo = *PropertyName;
-
-	float DefaultValue;
-	if (!Material->GetScalarParameterDefaultValue(ParameterInfo, DefaultValue))
-	{
-		// TODO: report error
-		return false;
-	}
-
-	float Value;
-	if (!Material->GetScalarParameterValue(ParameterInfo, Value, true) || Value == DefaultValue)
-	{
-		return false;
-	}
-
-	OutValue = Value;
-	return true;
-}
-
-bool FGLTFMaterialUtility::GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, FLinearColor& OutValue)
-{
-	const FHashedMaterialParameterInfo ParameterInfo = *PropertyName;
-
-	FLinearColor DefaultValue;
-	if (!Material->GetVectorParameterDefaultValue(ParameterInfo, DefaultValue))
-	{
-		// TODO: report error
-		return false;
-	}
-
-	FLinearColor Value;
-	if (!Material->GetVectorParameterValue(ParameterInfo, Value, true) || Value == DefaultValue)
-	{
-		return false;
-	}
-
-	OutValue = Value;
-	return true;
-}
-
-bool FGLTFMaterialUtility::GetNonDefaultParameterValue(const UMaterialInterface* Material, const FString& PropertyName, UTexture*& OutValue)
-{
-	const FHashedMaterialParameterInfo ParameterInfo = *PropertyName;
-
-	UTexture* DefaultValue;
-	if (!Material->GetTextureParameterDefaultValue(ParameterInfo, DefaultValue))
-	{
-		// TODO: report error
-		return false;
-	}
-
-	UTexture* Value;
-	if (!Material->GetTextureParameterValue(ParameterInfo, Value, true) || Value == DefaultValue)
-	{
-		return false;
-	}
-
-	OutValue = Value;
-	return true;
-}
-
 #if WITH_EDITOR
-
-void FGLTFMaterialUtility::SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, float Value)
-{
-	const FHashedMaterialParameterInfo ParameterInfo = *PropertyName;
-
-	float DefaultValue;
-	if (!Material->GetScalarParameterDefaultValue(ParameterInfo, DefaultValue))
-	{
-		// TODO: report error
-		return;
-	}
-
-	if (DefaultValue != Value)
-	{
-		Material->SetScalarParameterValueEditorOnly(FMaterialParameterInfo(ParameterInfo), Value);
-	}
-}
-
-void FGLTFMaterialUtility::SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, const FLinearColor& Value)
-{
-	const FHashedMaterialParameterInfo ParameterInfo = *PropertyName;
-
-	FLinearColor DefaultValue;
-	if (!Material->GetVectorParameterDefaultValue(ParameterInfo, DefaultValue))
-	{
-		// TODO: report error
-		return;
-	}
-
-	if (DefaultValue != Value)
-	{
-		Material->SetVectorParameterValueEditorOnly(FMaterialParameterInfo(ParameterInfo), Value);
-	}
-}
-
-void FGLTFMaterialUtility::SetNonDefaultParameterValue(UMaterialInstanceConstant* Material, const FString& PropertyName, UTexture* Value)
-{
-	const FHashedMaterialParameterInfo ParameterInfo = *PropertyName;
-
-	UTexture* DefaultValue;
-	if (!Material->GetTextureParameterDefaultValue(ParameterInfo, DefaultValue))
-	{
-		// TODO: report error
-		return;
-	}
-
-	if (DefaultValue != Value)
-	{
-		Material->SetTextureParameterValueEditorOnly(FMaterialParameterInfo(ParameterInfo), Value);
-	}
-}
 
 bool FGLTFMaterialUtility::IsNormalMap(const FMaterialPropertyEx& Property)
 {
@@ -534,7 +401,7 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 {
 #if WITH_EDITOR
-	if (Material != nullptr && !IsProxyMaterial(Material))
+	if (Material != nullptr && !FGLTFProxyMaterialUtilities::IsProxyMaterial(Material))
 	{
 		// TODO: only analyze properties that will be needed for this specific material
 		const TArray<FMaterialPropertyEx> Properties =

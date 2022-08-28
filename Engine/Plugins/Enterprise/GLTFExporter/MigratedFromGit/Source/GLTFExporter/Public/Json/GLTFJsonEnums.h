@@ -28,7 +28,9 @@ enum class EGLTFJsonShadingModel
 	None = -1,
 	Default,
 	Unlit,
-	ClearCoat
+	ClearCoat,
+
+	NumShadingModels
 };
 
 enum class EGLTFJsonHDREncoding

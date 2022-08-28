@@ -6,6 +6,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "Converters/GLTFMeshData.h"
+#include "Materials/GLTFProxyMaterialParameterInfo.h"
 #if WITH_EDITOR
 #include "MaterialPropertyEx.h"
 #endif
@@ -46,11 +47,11 @@ private:
 	FString GetMaterialName() const;
 	FString GetBakedTextureName(const FString& PropertyName) const;
 
-	void GetProxyProperties(FGLTFJsonMaterial& OutMaterial) const;
-	void GetProxyProperty(const FString& PropertyName, float& OutValue) const;
-	void GetProxyProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const;
-	void GetProxyProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const;
-	void GetProxyProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue, EGLTFMaterialPropertyGroup PropertyGroup) const;
+	void GetProxyParameters(FGLTFJsonMaterial& OutMaterial) const;
+	void GetProxyParameter(const TGLTFProxyMaterialParameterInfo<float>& ParameterInfo, float& OutValue) const;
+	void GetProxyParameter(const TGLTFProxyMaterialParameterInfo<FLinearColor>& ParameterInfo, FGLTFJsonColor3& OutValue) const;
+	void GetProxyParameter(const TGLTFProxyMaterialParameterInfo<FLinearColor>& ParameterInfo, FGLTFJsonColor4& OutValue) const;
+	void GetProxyParameter(const FGLTFProxyMaterialTextureParameterInfo& ParameterInfo, FGLTFJsonTextureInfo& OutValue) const;
 
 	EMaterialShadingModel GetShadingModel() const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;
