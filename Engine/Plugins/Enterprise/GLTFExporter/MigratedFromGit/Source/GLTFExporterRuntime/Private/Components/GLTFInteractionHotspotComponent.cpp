@@ -144,7 +144,7 @@ void UGLTFInteractionHotspotComponent::TickComponent(float DeltaTime, ELevelTick
 		}
 	}
 
-	// Fade out / hide the component when it's hidden behind other objects
+	// Update opacity and interactivity of the hotspot based on if it its occluded by other objects or not
 	{
 		FHitResult HitResult;
 		bool bIsHotspotOccluded = false;
@@ -181,6 +181,9 @@ void UGLTFInteractionHotspotComponent::TickComponent(float DeltaTime, ELevelTick
 		}
 
 		SetSpriteOpacity(Opacity);
+
+		const ECollisionEnabled::Type CollisionEnabled = Opacity >= 0.5f ? ECollisionEnabled::QueryAndPhysics :  ECollisionEnabled::NoCollision;
+		SphereComponent->SetCollisionEnabled(CollisionEnabled);
 	}
 }
 
