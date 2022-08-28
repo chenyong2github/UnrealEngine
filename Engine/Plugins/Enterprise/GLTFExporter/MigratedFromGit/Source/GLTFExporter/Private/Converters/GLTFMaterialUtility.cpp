@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFMaterialUtility.h"
+#include "Converters/GLTFTextureUtility.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
@@ -54,30 +55,12 @@ const FExpressionInput* FGLTFMaterialUtility::GetInputForProperty(const UMateria
 
 UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const FGLTFPropertyBakeOutput& PropertyBakeOutput, bool bUseSRGB)
 {
-	return CreateTransientTexture(
-		PropertyBakeOutput.Pixels,
+	return FGLTFTextureUtility::CreateTransientTexture(
+		PropertyBakeOutput.Pixels.GetData(),
+		PropertyBakeOutput.Pixels.Num() * PropertyBakeOutput.Pixels.GetTypeSize(),
 		PropertyBakeOutput.Size,
 		PropertyBakeOutput.PixelFormat,
 		bUseSRGB);
-}
-
-UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const TArray<FColor>& Pixels, const FIntPoint& TextureSize, EPixelFormat TextureFormat, bool bUseSRGB)
-{
-	check(TextureSize.X * TextureSize.Y == Pixels.Num());
-
-	UTexture2D* Texture = UTexture2D::CreateTransient(TextureSize.X, TextureSize.Y, TextureFormat);
-	void* MipData = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-
-	FMemory::Memcpy(MipData, Pixels.GetData(), Pixels.Num() * Pixels.GetTypeSize());
-	Texture->PlatformData->Mips[0].BulkData.Unlock();
-
-	Texture->SRGB = bUseSRGB ? 1 : 0;
-	Texture->CompressionNone = true;
-	Texture->MipGenSettings = TMGS_NoMipmaps;
-	Texture->CompressionSettings = TC_Default;
-
-	Texture->UpdateResource();
-	return Texture;
 }
 
 bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArray<FGLTFTextureCombineSource>& Sources, const FIntPoint& OutputSize, const EPixelFormat OutputPixelFormat)

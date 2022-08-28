@@ -46,3 +46,21 @@ TextureAddress FGLTFTextureUtility::GetAddressY(const UTexture* Texture)
 
 	return TextureAddress::TA_MAX;
 }
+
+UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bUseSRGB)
+{
+	check(CalculateImageBytes(Size.X, Size.Y, 0, Format) == ByteLength);
+
+	UTexture2D* Texture = UTexture2D::CreateTransient(Size.X, Size.Y, Format);
+	void* MipData = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+
+	FMemory::Memcpy(MipData, RawData, ByteLength);
+	Texture->PlatformData->Mips[0].BulkData.Unlock();
+
+	Texture->SRGB = bUseSRGB ? 1 : 0;
+	Texture->CompressionNone = true;
+	Texture->MipGenSettings = TMGS_NoMipmaps;
+
+	Texture->UpdateResource();
+	return Texture;
+}
