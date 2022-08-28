@@ -946,21 +946,26 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 	{
 		return StoreBakedPropertyTexture(Builder, OutTexInfo, PropertyBakeOutput, PropertyName, Material);
 	}
-	else
+
+	if (PropertyBakeOutput.ConstantValue == FLinearColor(FGLTFMaterialUtility::GetPropertyDefaultValue(Property)))
 	{
-		// NOTE: since this function is meant to bake to a texture, we assume that the property
-		// that was passed into the function is using a non-constant expression.
-		// We therefore treat a constant result when baking as a failure.
-
-		// NOTE: in some cases a constant baking result is returned for a property that is non-constant.
-		// This happens (for example) when baking AmbientOcclusion for a translucent material,
-		// even though the same material when set to opaque will properly bake AmbientOcclusion to a texture.
-		// It also happens when baking Normal in some (not yet identified) circumstances.
-		// For now, these incorrect bakes are discarded.
-
-		// TODO: investigate why non-constant properties are sometimes baked to a constant expression (see note above)
-		return false;
+		// Constant value is the same as the property's default so we can set gltf to default.
+		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		return true;
 	}
+
+	// NOTE: since this function is meant to bake to a texture, we assume that the property
+	// that was passed into the function is using a non-constant expression.
+	// We therefore treat a constant result with non-default value as a failure.
+
+	// NOTE: in some cases a constant baking result is returned for a property that is non-constant.
+	// This happens (for example) when baking AmbientOcclusion for a translucent material,
+	// even though the same material when set to opaque will properly bake AmbientOcclusion to a texture.
+	// It also happens when baking Normal in some (not yet identified) circumstances.
+	// For now, these incorrect bakes are discarded.
+
+	// TODO: investigate why non-constant properties are sometimes baked to a constant expression (see note above)
+	return false;
 }
 
 FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialProperty Property, const UMaterialInterface* Material, const FIntPoint* PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
