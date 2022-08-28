@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "GameFramework/Actor.h"
 #include "GLTFInteractionHotspotActor.generated.h"
 
 class ASkeletalMeshActor;
+class UAnimSequence;
+class UTexture2D;
+class UTexture;
+class UMaterialInterface;
 class UMaterialBillboardComponent;
 class USphereComponent;
+class UMaterialInstanceDynamic;
+class FViewport;
 
 /**
  * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of skeletal animations when cursor input is enabled.
