@@ -16,7 +16,6 @@
 
 #include "Containers/Set.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
-#include "Runtime/Launch/Resources/Version.h"
 
 
 struct FGLTFJsonAsset
@@ -25,11 +24,7 @@ struct FGLTFJsonAsset
 	FString Generator;
 	FString Copyright;
 
-	FGLTFJsonAsset()
-		: Version(TEXT("2.0"))
-		, Generator(TEXT(EPIC_PRODUCT_NAME) TEXT(" ") ENGINE_VERSION_STRING)
-	{
-	}
+	FGLTFJsonAsset();
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
