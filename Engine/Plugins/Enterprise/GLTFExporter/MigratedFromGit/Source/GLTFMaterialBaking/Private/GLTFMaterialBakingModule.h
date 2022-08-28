@@ -57,6 +57,10 @@ protected:
 
 	/** Callback for modified objects which should be removed from MaterialProxyPool in that case */
 	void OnObjectModified(UObject* Object);
+
+	/** Callback used to clear material proxy cache on garbage collection */
+	void OnPreGarbageCollect();
+
 private:
 	enum EPropertyColorSpace
 	{

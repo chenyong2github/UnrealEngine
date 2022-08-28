@@ -15,7 +15,7 @@ namespace FMaterialBakingHelpersImpl
 		int32 CombinedColorA = 0;
 
 		const int32 BaseIndex = (Y * InImageWidth) + X;
-	
+
 		int32 SampleIndex = BaseIndex - (InImageWidth + 1);
 		for (int32 YI = 0; YI < 3; ++YI)
 		{
@@ -62,11 +62,56 @@ namespace FMaterialBakingHelpersImpl
 		return false;
 	}
 
-	void PerformUVBorderSmear(TArray<FColor>& InOutPixels, int32& ImageWidth, int32& ImageHeight, int32 MaxIterations, bool bCanShrink, uint32 BackgroundMask)
+	static void PerformShrinking(TArray<FColor>& InOutPixels, int32& ImageWidth, int32& ImageHeight, uint32 BackgroundMask)
+	{
+		FColor* Current = InOutPixels.GetData();
+
+		// We can hopefully skip the entire smearing process if there is a single
+		// non-background color in the entire array since smearing that completely
+		// would lead to a monochome output.
+		uint32 SingleColor = BackgroundMask;
+		bool   bHasSingleColor = true;
+		for (int32 Index = 0, Num = InOutPixels.Num(); Index < Num; ++Index)
+		{
+			const uint32 Color = Current[Index].DWColor();
+			if (Color != BackgroundMask)
+			{
+				if (SingleColor == BackgroundMask)
+				{
+					// This is the first time we stumble on a color other than background color, keep it.
+					SingleColor = Color;
+				}
+				// Compare with the known non-background color
+				else if (SingleColor != Color)
+				{
+					bHasSingleColor = false;
+					break;
+				}
+			}
+		}
+
+		// Shrink to a single texel
+		if (bHasSingleColor)
+		{
+			InOutPixels.SetNum(1);
+			ImageWidth = ImageHeight = 1;
+			Current = InOutPixels.GetData();
+
+			InOutPixels[0] = FColor(SingleColor);
+		}
+	}
+
+	static void PerformUVBorderSmear(TArray<FColor>& InOutPixels, int32& ImageWidth, int32& ImageHeight, int32 MaxIterations, uint32 BackgroundMask)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingHelpers::PerformUVBorderSmear)
 
 		check(InOutPixels.Num() == ImageWidth*ImageHeight);
+
+		// No smearing needed for a single pixel
+		if (ImageWidth * ImageHeight == 1)
+		{
+			return;
+		}
 
 		const int32 PaddedImageWidth = ImageWidth + 2;
 		const int32 PaddedImageHeight = ImageHeight + 2;
@@ -77,57 +122,9 @@ namespace FMaterialBakingHelpersImpl
 		TArray<uint32>* NextRowsLeft = &RowsSwap2;
 
 		//
-		// Create a copy of the image with a 1 pixel magenta border around the edge.
+		// Create a copy of the image with a 1 pixel background color border around the edge.
 		// This avoids needing to bounds check in inner loops.
 		//
-
-		FColor* Current = InOutPixels.GetData();
-
-		// We can hopefully skip the entire smearing process if there is a single
-		// non-background color in the entire array since smearing that completely
-		// would lead to a monochome output.
-		if (MaxIterations == -1)
-		{
-			uint32 SingleColor = BackgroundMask;
-			bool   bHasSingleColor = true;
-			for (int32 Index = 0, Num = InOutPixels.Num(); Index < Num; ++Index)
-			{
-				const uint32 Color = Current[Index].DWColor();
-				if (Color != BackgroundMask)
-				{
-					if (SingleColor == BackgroundMask)
-					{
-						// This is the first time we stumble on a color other than background color, keep it.
-						SingleColor = Color;
-					}
-					// Compare with the known non-background color
-					else if (SingleColor != Color)
-					{
-						bHasSingleColor = false;
-						break;
-					}
-				}
-			}
-
-			if (bHasSingleColor)
-			{
-				// Shrink to single texel when allowed
-				if (bCanShrink)
-				{
-					InOutPixels.SetNum(1);
-					ImageWidth = ImageHeight = 1;
-					Current = InOutPixels.GetData();
-				}
-
-				FColor Color(SingleColor);
-				for (int32 Index = 0, Num = InOutPixels.Num(); Index < Num; ++Index)
-				{
-					Current[Index] = Color;
-				}
-
-				return;
-			}
-		}
 
 		TArray<FColor> ScratchBuffer;
 		ScratchBuffer.SetNumUninitialized(PaddedImageWidth*PaddedImageHeight);
@@ -140,7 +137,9 @@ namespace FMaterialBakingHelpersImpl
 			Scratch[(PaddedImageHeight - 1)*PaddedImageWidth + X] = FColor(BackgroundMask);
 		}
 
-		// Set leftg and right border pixels to background color and copy image data into rows
+		FColor* Current = InOutPixels.GetData();
+
+		// Set left and right border pixels to background color and copy image data into rows
 		for (int32 Y = 1; Y <= ImageHeight; ++Y)
 		{
 			const int32 YOffset = Y * PaddedImageWidth;
@@ -277,7 +276,7 @@ namespace FMaterialBakingHelpersImpl
 						PreviousY = Y - 1;
 						NextRowsLeft->Add(Y - 1);
 					}
-					if (!RowCompleted[Y] && RowRemainingPixels[RowIndex] && PreviousY < Y)
+					if (PreviousY < Y && !RowCompleted[Y] && RowRemainingPixels[RowIndex])
 					{
 						PreviousY = Y;
 						NextRowsLeft->Add(Y);
@@ -291,7 +290,7 @@ namespace FMaterialBakingHelpersImpl
 			}
 
 			// Swap rows left buffers
-			{			
+			{
 				TArray<uint32>* Temp = NextRowsLeft;
 				NextRowsLeft = CurrentRowsLeft;
 				CurrentRowsLeft = Temp;
@@ -301,13 +300,17 @@ namespace FMaterialBakingHelpersImpl
 		}
 
 		// If we finished before replacing all pixels, replace the remaining pixels with black.
-		if (CurrentRowsLeft->Num() > 0)
+		for (int32 Index = 0; Index < CurrentRowsLeft->Num(); Index++)
 		{
-			for (int32 i = 0; i < InOutPixels.Num(); ++i)
+			const int32 Y = (*CurrentRowsLeft)[Index];
+
+			int32 PixelIndex = (Y - 1) * ImageWidth;
+			for (int32 X = 1; X <= ImageWidth; X++)
 			{
-				if (InOutPixels[i].DWColor() == BackgroundMask)
+				FColor& Color = Current[PixelIndex++];
+				if (Color.DWColor() == BackgroundMask)
 				{
-					InOutPixels[i] = FColor::Black;
+					Color = FColor::Black;
 				}
 			}
 		}
@@ -317,11 +320,14 @@ namespace FMaterialBakingHelpersImpl
 void FGLTFMaterialBakingHelpers::PerformUVBorderSmear(TArray<FColor>& InOutPixels, int32 ImageWidth, int32 ImageHeight, int32 MaxIterations, FColor BackgroundColor)
 {
 	const uint32 BackgroundMask = BackgroundColor.DWColor();
-	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, ImageWidth, ImageHeight, MaxIterations, false, BackgroundMask);
+	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, ImageWidth, ImageHeight, MaxIterations, BackgroundMask);
 }
 
 void FGLTFMaterialBakingHelpers::PerformUVBorderSmearAndShrink(TArray<FColor>& InOutPixels, int32& InOutImageWidth, int32& InOutImageHeight, FColor BackgroundColor)
 {
 	const uint32 BackgroundMask = BackgroundColor.DWColor();
-	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, InOutImageWidth, InOutImageHeight, -1, true, BackgroundMask);
+	FMaterialBakingHelpersImpl::PerformShrinking(InOutPixels, InOutImageWidth, InOutImageHeight, BackgroundMask);
+
+	const int32 DefaultMaxIteration = -1; // Perform smearing over the whole image
+	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, InOutImageWidth, InOutImageHeight, DefaultMaxIteration, BackgroundMask);
 }

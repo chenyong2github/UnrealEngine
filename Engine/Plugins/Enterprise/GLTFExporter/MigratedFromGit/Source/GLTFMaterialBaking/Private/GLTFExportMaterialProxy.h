@@ -4,6 +4,7 @@
 
 #include "MaterialShared.h"
 #include "MaterialCompiler.h"
+#include "TextureCompiler.h"
 #include "Materials/MaterialParameterCollection.h"
 
 #include "Engine/TextureLODSettings.h"
@@ -34,6 +35,11 @@ struct FGLTFExportMaterialCompiler : public FProxyMaterialCompiler
 	}
 
 	virtual FMaterialShadingModelField GetMaterialShadingModels() const override
+	{
+		return MSM_MAX;
+	}
+
+	virtual FMaterialShadingModelField GetCompiledShadingModels() const override
 	{
 		return MSM_MAX;
 	}
@@ -90,9 +96,7 @@ struct FGLTFExportMaterialCompiler : public FProxyMaterialCompiler
 
 	virtual int32 CameraVector() override
 	{
-		// NOTE: by using VertexNormal instead of a fixed (world-space) vector, we allow
-		// more correct baking of materials that use the dot-product between the vertex normal
-		// and the camera vector for effects such as fresnel.
+		// By returning vertex normal instead of a constant vector (like up), we ensure materials (with fresnel for example) are more correctly baked using custom mesh data.
 		return Compiler->VertexNormal();
 	}
 
@@ -101,22 +105,22 @@ struct FGLTFExportMaterialCompiler : public FProxyMaterialCompiler
 		if (CustomWorldNormal == INDEX_NONE)
 		{
 			return INDEX_NONE;
-		}
+	}
 
 		int32 N = CustomWorldNormal;
 		int32 C = CameraVector();
 
 		if (bNormalizeCustomWorldNormal)
-		{
+	{
 			// N = N / sqrt(dot(N, N))
 			N = Compiler->Div(N, Compiler->SquareRoot(Compiler->Dot(N, N)));
-		}
+	}
 
 		// return 2 * dot(N, C) * N - C
 		return Compiler->Sub(Compiler->Mul(Compiler->Constant(2.0f), Compiler->Mul(Compiler->Dot(N, C), N)), C);
 	}
 
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
+#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION >= 26)
 	virtual int32 PreSkinVertexOffset() override
 	{
 		return Compiler->PreSkinVertexOffset();
@@ -212,6 +216,7 @@ class FGLTFExportMaterialProxy : public FMaterial, public FMaterialRenderProxy
 public:
 	FGLTFExportMaterialProxy(UMaterialInterface* InMaterialInterface, EMaterialProperty InPropertyToCompile, const FString& InCustomOutputToCompile = TEXT(""), bool bInSynchronousCompilation = true, EBlendMode ProxyBlendMode = BLEND_Opaque, bool bTangentSpaceNormal = false)
 		: FMaterial()
+		, FMaterialRenderProxy(GetPathNameSafe(InMaterialInterface->GetMaterial()))
 		, MaterialInterface(InMaterialInterface)
 		, PropertyToCompile(InPropertyToCompile)
 		, CustomOutputToCompile(InCustomOutputToCompile)
@@ -317,7 +322,7 @@ public:
 		return bCorrectVertexFactory && bPCPlatform && bCorrectFrequency;
 	}
 
-	virtual TArrayView<UObject* const> GetReferencedTextures() const override
+	virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -362,24 +367,9 @@ public:
 	}
 #endif
 
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override
 	{
-		return MaterialInterface->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return MaterialInterface->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return MaterialInterface->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+		return MaterialInterface->GetRenderProxy()->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 
 	// Material properties.
@@ -423,9 +413,9 @@ public:
 
 			case MP_Opacity:
 			case MP_OpacityMask:
-			case MP_SubsurfaceColor:
 			case MP_CustomData0:
 			case MP_CustomData1:
+			case MP_SubsurfaceColor:
 			{
 				return MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate);
 			}
@@ -435,7 +425,7 @@ public:
 				if (BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)
 				{
 					return CompileNormalEncoding(
-						&ProxyCompiler,
+						Compiler,
 						CompileNormalTransform(&ProxyCompiler, MaterialInterface->CompileProperty(&ProxyCompiler, PropertyToCompile, ForceCast_Exact_Replicate)));
 				}
 				break;
@@ -472,6 +462,11 @@ public:
 		else if (Property == MP_ShadingModel)
 		{
 			return MaterialInterface->CompileProperty(Compiler, MP_ShadingModel);
+
+		}
+		else if (Property == MP_FrontMaterial)
+		{
+			return MaterialInterface->CompileProperty(Compiler, MP_FrontMaterial);
 
 		}
 		else
@@ -564,94 +559,9 @@ public:
 		return Ar << V.MaterialInterface;
 	}
 
-	/**
-	* Iterate through all textures used by the material and return the maximum texture resolution used
-	* (ideally this could be made dependent of the material property)
-	*
-	* @param MaterialInterface The material to scan for texture size
-	*
-	* @return Size (width and height)
-	*/
-	FIntPoint FindMaxTextureSize(UMaterialInterface* InMaterialInterface, FIntPoint MinimumSize = FIntPoint(1, 1)) const
-	{
-		// static lod settings so that we only initialize them once
-		const UTextureLODSettings* GameTextureLODSettings = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings();
-
-		TArray<UTexture*> MaterialTextures;
-		InMaterialInterface->GetUsedTextures(MaterialTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, false);
-
-		// find the largest texture in the list (applying it's LOD bias)
-		FIntPoint MaxSize = MinimumSize;
-		for (int32 TexIndex = 0; TexIndex < MaterialTextures.Num(); TexIndex++)
-		{
-			const UTexture* Texture = MaterialTextures[TexIndex];
-
-			if (Texture == NULL)
-			{
-				continue;
-			}
-
-			// get the max size of the texture
-			const FIntPoint LocalSize = [&]()
-			{
-				if (Texture->IsA(UTexture2D::StaticClass()))
-				{
-					UTexture2D* Tex2D = (UTexture2D*)Texture;
-					return FIntPoint(Tex2D->GetSizeX(), Tex2D->GetSizeY());
-				}
-				else if (Texture->IsA(UTextureCube::StaticClass()))
-				{
-					UTextureCube* TexCube = (UTextureCube*)Texture;
-					return FIntPoint(TexCube->GetSizeX(), TexCube->GetSizeY());
-				}
-				else if (Texture->IsA(UTexture2DArray::StaticClass())) 
-				{
-					UTexture2DArray* TexArray = (UTexture2DArray*)Texture;
-					return FIntPoint(TexArray->GetSizeX(), TexArray->GetSizeY());
-				}
-				return FIntPoint(0, 0);
-			}();
-			
-			// bias the texture size based on LOD group
-			const int32 LocalBias = GameTextureLODSettings->CalculateLODBias(Texture);
-			MaxSize.X = FMath::Max(LocalSize.X >> LocalBias, MaxSize.X);
-			MaxSize.Y = FMath::Max(LocalSize.Y >> LocalBias, MaxSize.Y);
-		}
-
-		return MaxSize;
-	}
-
-	static bool WillFillData(EBlendMode InBlendMode, EMaterialProperty InMaterialProperty)
-	{
-		if (InMaterialProperty == MP_EmissiveColor)
-		{
-			return true;
-		}
-
-		switch (InBlendMode)
-		{
-		case BLEND_Opaque:
-		{
-			switch (InMaterialProperty)
-			{
-			case MP_BaseColor:				return true;
-			case MP_Specular:				return true;
-			case MP_Normal:					return true;
-			case MP_Tangent:				return true;
-			case MP_Metallic:				return true;
-			case MP_Roughness:				return true;
-			case MP_Anisotropy:				return true;
-			case MP_AmbientOcclusion:		return true;
-			}
-		}
-		break;
-		}
-		return false;
-	}
-
 	virtual bool IsUsedWithStaticLighting() const override
 	{
-		return true; 
+		return true;
 	}
 
 	virtual void GatherExpressionsForCustomInterpolators(TArray<UMaterialExpression*>& OutExpressions) const override
@@ -751,7 +661,7 @@ private:
 				const char* Buffer = static_cast<const char*>(static_cast<const void*>(*Code));
 				const uint64 Hash = CityHash64(Buffer, Code.Len() * sizeof(TCHAR));
 				const int32 CodeIndex = CurrentScopeChunks->Num();
-				new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *Code, TEXT(""), MCT_Float1, true);
+				new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *Code, *Code, TEXT(""), MCT_Float1, EDerivativeStatus::NotAware, true);
 				return CodeIndex;
 			}
 		};
@@ -767,7 +677,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;
-	TArray<UObject*> ReferencedTextures;
+	TArray<TObjectPtr<UObject>> ReferencedTextures;
 	/** The property to compile for rendering the sample */
 	EMaterialProperty PropertyToCompile;
 	/** The name of the specific custom output to compile for rendering the sample. Only used if PropertyToCompile is MP_CustomOutput */
