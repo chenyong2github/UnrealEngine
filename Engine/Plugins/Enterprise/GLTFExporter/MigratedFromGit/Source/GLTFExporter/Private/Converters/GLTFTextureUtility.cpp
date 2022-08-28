@@ -131,6 +131,10 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 		return false;
 	}
 
+	// Fully stream in the texture before drawing it.
+	const_cast<UTexture2D*>(InSource)->SetForceMipLevelsToBeResident(30.0f, true);
+	const_cast<UTexture2D*>(InSource)->WaitForStreaming();
+
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
 	FCanvasTileItem TileItem(FVector2D::ZeroVector, InSource->Resource, FLinearColor::White);
 
