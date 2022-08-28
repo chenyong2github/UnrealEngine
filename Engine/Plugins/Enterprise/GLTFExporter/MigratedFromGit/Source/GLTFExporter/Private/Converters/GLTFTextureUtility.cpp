@@ -391,3 +391,26 @@ void FGLTFTextureUtility::FlipGreenChannel(TArray<FColor>& Pixels)
 		Pixel.G = 255 - Pixel.G;
 	}
 }
+
+void FGLTFTextureUtility::TransformColorSpace(TArray<FColor>& Pixels, bool bFromSRGB, bool bToSRGB)
+{
+	if (bFromSRGB == bToSRGB)
+	{
+		return;
+	}
+
+	if (bToSRGB)
+	{
+		for (FColor& Pixel: Pixels)
+		{
+			Pixel = Pixel.ReinterpretAsLinear().ToFColor(true);
+		}
+	}
+	else
+	{
+		for (FColor& Pixel: Pixels)
+		{
+			Pixel = FLinearColor(Pixel).ToFColor(false);
+		}
+	}
+}

@@ -11,6 +11,12 @@ void FGLTFTexture2DTask::Complete()
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
+	const bool bFromSRGB = Texture2D->SRGB;
+	if (bFromSRGB != bToSRGB)
+	{
+		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+	}
+
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D->GetPixelFormat());
 	const FIntPoint Size = FGLTFTextureUtility::GetInGameSize(Texture2D);
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
@@ -35,6 +41,8 @@ void FGLTFTexture2DTask::Complete()
 		FGLTFTextureUtility::FlipGreenChannel(Pixels);
 	}
 
+	FGLTFTextureUtility::TransformColorSpace(Pixels, bFromSRGB, bToSRGB);
+
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(Texture2D->GetPixelFormat());
 	const EGLTFTextureType Type =
 		Texture2D->IsNormalMap() ? EGLTFTextureType::Normalmaps :
@@ -48,6 +56,12 @@ void FGLTFTextureCubeTask::Complete()
 {
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	JsonTexture.Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
+
+	const bool bFromSRGB = TextureCube->SRGB;
+	if (bFromSRGB != bToSRGB)
+	{
+		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+	}
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation and has suitable pixel format
 
@@ -78,6 +92,8 @@ void FGLTFTextureCubeTask::Complete()
 		return;
 	}
 
+	FGLTFTextureUtility::TransformColorSpace(Pixels, bFromSRGB, bToSRGB);
+
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(TextureCube->GetPixelFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
@@ -89,6 +105,12 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 {
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	RenderTarget2D->GetName(JsonTexture.Name);
+
+	const bool bFromSRGB = RenderTarget2D->SRGB;
+	if (bFromSRGB != bToSRGB)
+	{
+		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+	}
 
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D->GetFormat());
 	const FIntPoint Size = { RenderTarget2D->SizeX, RenderTarget2D->SizeY };
@@ -105,6 +127,8 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 		return;
 	}
 
+	FGLTFTextureUtility::TransformColorSpace(Pixels, bFromSRGB, bToSRGB);
+
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTarget2D->GetFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;
 
@@ -116,6 +140,12 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 {
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	JsonTexture.Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtility::GetValue(FGLTFConverterUtility::ConvertCubeFace(CubeFace));
+
+	const bool bFromSRGB = RenderTargetCube->SRGB;
+	if (bFromSRGB != bToSRGB)
+	{
+		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
+	}
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation
 
@@ -144,6 +174,8 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 		Builder.LogWarning(FString::Printf(TEXT("Failed to read pixels (cube face %d) for cubemap render target %s"), CubeFace, *RenderTargetCube->GetName()));
 		return;
 	}
+
+	FGLTFTextureUtility::TransformColorSpace(Pixels, bFromSRGB, bToSRGB);
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTargetCube->GetFormat());
 	const EGLTFTextureType Type = bIsHDR ? EGLTFTextureType::HDR : EGLTFTextureType::None;

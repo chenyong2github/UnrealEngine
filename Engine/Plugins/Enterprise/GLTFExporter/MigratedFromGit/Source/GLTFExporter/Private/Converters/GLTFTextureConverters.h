@@ -13,32 +13,32 @@ class TGLTFTextureConverter : public FGLTFBuilderContext, public TGLTFConverter<
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-class FGLTFTexture2DConverter final : public TGLTFTextureConverter<const UTexture2D*>
+class FGLTFTexture2DConverter final : public TGLTFTextureConverter<const UTexture2D*, bool>
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D) override;
+	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D, bool bToSRGB) override;
 };
 
-class FGLTFTextureCubeConverter final : public TGLTFTextureConverter<const UTextureCube*, ECubeFace>
+class FGLTFTextureCubeConverter final : public TGLTFTextureConverter<const UTextureCube*, ECubeFace, bool>
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace) override;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
 
-class FGLTFTextureRenderTarget2DConverter final : public TGLTFTextureConverter<const UTextureRenderTarget2D*>
+class FGLTFTextureRenderTarget2DConverter final : public TGLTFTextureConverter<const UTextureRenderTarget2D*, bool>
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D) override;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB) override;
 };
 
-class FGLTFTextureRenderTargetCubeConverter final : public TGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace>
+class FGLTFTextureRenderTargetCubeConverter final : public TGLTFTextureConverter<const UTextureRenderTargetCube*, ECubeFace, bool>
 {
 	using TGLTFTextureConverter::TGLTFTextureConverter;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace) override;
+	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
 
 class FGLTFTextureLightMapConverter final : public TGLTFTextureConverter<const ULightMapTexture2D*>
