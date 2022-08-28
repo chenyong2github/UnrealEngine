@@ -7,7 +7,7 @@
 
 class ASkeletalMeshActor;
 class UAnimSequence;
-class ALevelSequenceActor;
+class ULevelSequencePlayer;
 class ULevelSequence;
 class UTexture2D;
 class UTexture;
@@ -43,6 +43,7 @@ public:
 	//~ Begin AActor Interface
 	virtual void PostRegisterAllComponents() override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	//~ End AActor Interface
 
 private:
@@ -63,16 +64,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation")
 	ASkeletalMeshActor* SkeletalMeshActor;
 
-	/* The animation that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset. */
+	/* The animation sequence that will be played on the skeletal mesh actor. Must be compatible with its skeletal mesh asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor != nullptr"))
 	UAnimSequence* AnimationSequence;
 
-	/* The skeletal mesh actor that will be animated when the hotspot is clicked. */
+	/* The level sequence that will be played in the level. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor == nullptr"))
-	ALevelSequenceActor* LevelSequenceActor;
-
-	/* The animation that will be played on the level sequence actor. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hotspot Animation", meta=(EditCondition="SkeletalMeshActor == nullptr && LevelSequenceActor != nullptr"))
 	ULevelSequence* LevelSequence;
 
 	/* The billboard image that will be shown when the hotspot is in an inactive state or one without a specified image. */
@@ -119,6 +116,9 @@ private:
 
 	UPROPERTY(Transient, DuplicateTransient)
 	const UTexture* ActiveImage;
+
+	UPROPERTY(Instanced, Transient)
+	ULevelSequencePlayer* LevelSequencePlayer;
 
 	FVector2D ActiveImageSize;
 

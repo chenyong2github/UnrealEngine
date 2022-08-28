@@ -36,7 +36,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 	{
 		if (Builder.ExportOptions->bExportLevelSequences)
 		{
-			Builder.GetOrAddAnimation(LevelSequenceActor, nullptr);
+			Builder.GetOrAddAnimation(LevelSequenceActor);
 		}
 	}
 	else if (const AGLTFHotspotActor* HotspotActor = Cast<AGLTFHotspotActor>(Actor))

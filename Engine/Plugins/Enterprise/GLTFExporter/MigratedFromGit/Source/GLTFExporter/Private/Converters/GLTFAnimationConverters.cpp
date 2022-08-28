@@ -56,26 +56,34 @@ FGLTFJsonAnimationIndex FGLTFAnimationDataConverter::Convert(FGLTFJsonNodeIndex 
 	return AnimationIndex;
 }
 
-FGLTFJsonAnimationIndex FGLTFLevelSequenceConverter::Convert(const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence* LevelSequence)
+FGLTFJsonAnimationIndex FGLTFLevelSequenceConverter::Convert(const ULevel* Level, const ULevelSequence* LevelSequence)
 {
-	FGLTFJsonAnimation JsonAnimation;
+	const FGLTFJsonAnimationIndex AnimationIndex = Builder.AddAnimation();
+	Builder.SetupTask<FGLTFLevelSequenceTask>(Builder, Level, LevelSequence, AnimationIndex);
+	return AnimationIndex;
+}
 
-	if (LevelSequence == nullptr)
+FGLTFJsonAnimationIndex FGLTFLevelSequenceDataConverter::Convert(const ALevelSequenceActor* LevelSequenceActor)
+{
+	const ULevel* Level = LevelSequenceActor->GetLevel();
+	const ULevelSequence* LevelSequence = LevelSequenceActor->LoadSequence();
+
+	if (Level == nullptr || LevelSequence == nullptr)
 	{
-		LevelSequence = LevelSequenceActor->LoadSequence();
-		if (LevelSequence == nullptr)
-		{
-			return FGLTFJsonAnimationIndex(INDEX_NONE);
-		}
+		return FGLTFJsonAnimationIndex(INDEX_NONE);
+	}
 
+	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(Level, LevelSequence);
+	if (AnimationIndex != INDEX_NONE)
+	{
+		FGLTFJsonAnimation& JsonAnimation = Builder.GetAnimation(AnimationIndex);
 		FGLTFJsonPlayData& JsonPlayData = JsonAnimation.PlayData;
+
 		JsonPlayData.Looping = LevelSequenceActor->PlaybackSettings.LoopCount.Value != 0;
 		JsonPlayData.Playing = LevelSequenceActor->PlaybackSettings.bAutoPlay;
 		JsonPlayData.PlayRate = LevelSequenceActor->PlaybackSettings.PlayRate;
 		JsonPlayData.Position = LevelSequenceActor->PlaybackSettings.StartTime;
 	}
 
-	const FGLTFJsonAnimationIndex AnimationIndex = Builder.AddAnimation(JsonAnimation);
-	Builder.SetupTask<FGLTFLevelSequenceTask>(Builder, LevelSequenceActor, LevelSequence, AnimationIndex);
 	return AnimationIndex;
 }

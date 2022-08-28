@@ -183,9 +183,12 @@ void FGLTFLevelSequenceTask::Complete()
 	ULevelSequence* Sequence = const_cast<ULevelSequence*>(LevelSequence);
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
-	ULevelSequencePlayer* LevelSequencePlayer = LevelSequenceActor->SequencePlayer;
-	LevelSequencePlayer->Initialize(Sequence, LevelSequenceActor->GetLevel(), FMovieSceneSequencePlaybackSettings(), FLevelSequenceCameraSettings());
-	LevelSequencePlayer->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *LevelSequencePlayer);
+	ALevelSequenceActor* LevelSequenceActor;
+	UWorld* World = Level->GetWorld();
+	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, FMovieSceneSequencePlaybackSettings(), LevelSequenceActor);
+
+	Player->Initialize(Sequence, LevelSequenceActor->GetLevel(), FMovieSceneSequencePlaybackSettings(), FLevelSequenceCameraSettings());
+	Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
 
 	FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
@@ -220,7 +223,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 	for (const FMovieSceneBinding& Binding : MovieScene->GetBindings())
 	{
-		for (TWeakObjectPtr<UObject> Object : LevelSequencePlayer->FindBoundObjects(Binding.GetObjectGuid(), MovieSceneSequenceID::Root))
+		for (TWeakObjectPtr<UObject> Object : Player->FindBoundObjects(Binding.GetObjectGuid(), MovieSceneSequenceID::Root))
 		{
 			FGLTFJsonNodeIndex NodeIndex;
 
@@ -385,4 +388,6 @@ void FGLTFLevelSequenceTask::Complete()
 			}
 		}
 	}
+
+	World->DestroyActor(LevelSequenceActor);
 }

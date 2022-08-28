@@ -41,10 +41,10 @@ class FGLTFLevelSequenceTask : public FGLTFTask
 {
 public:
 
-	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ALevelSequenceActor* LevelSequenceActor, const ULevelSequence* LevelSequence, FGLTFJsonAnimationIndex AnimationIndex)
+	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ULevel* Level, const ULevelSequence* LevelSequence, FGLTFJsonAnimationIndex AnimationIndex)
 		: FGLTFTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
-		, LevelSequenceActor(LevelSequenceActor)
+		, Level(Level)
 		, LevelSequence(LevelSequence)
 		, AnimationIndex(AnimationIndex)
 	{
@@ -52,7 +52,7 @@ public:
 
 	virtual FString GetName() override
 	{
-		return LevelSequenceActor->GetName();
+		return LevelSequence->GetName();
 	}
 
 	virtual void Complete() override;
@@ -60,7 +60,7 @@ public:
 private:
 
 	FGLTFConvertBuilder& Builder;
-	const ALevelSequenceActor* LevelSequenceActor;
+	const ULevel* Level;
 	const ULevelSequence* LevelSequence;
 	const FGLTFJsonAnimationIndex AnimationIndex;
 };

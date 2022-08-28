@@ -109,6 +109,8 @@ AGLTFHotspotActor::AGLTFHotspotActor(const FObjectInitializer& ObjectInitializer
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+
+	LevelSequencePlayer = ObjectInitializer.CreateDefaultSubobject<ULevelSequencePlayer>(this, "LevelSequencePlayer");
 }
 
 
@@ -137,14 +139,6 @@ void AGLTFHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 		}
 		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, AnimationSequence))
 		{
-			ValidateAnimation();
-		}
-		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, LevelSequenceActor))
-		{
-			if (LevelSequenceActor != nullptr && LevelSequence == nullptr)
-			{
-				LevelSequence = LevelSequenceActor->LoadSequence();
-			}
 			ValidateAnimation();
 		}
 	}
@@ -234,6 +228,22 @@ void AGLTFHotspotActor::Tick(float DeltaTime)
 
 		SetSpriteOpacity(Opacity);
 		bIsInteractable = Opacity >= 0.5f;
+	}
+
+	if (LevelSequencePlayer != nullptr)
+	{
+		LevelSequencePlayer->Update(DeltaTime);
+	}
+}
+
+void AGLTFHotspotActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (LevelSequencePlayer != nullptr)
+	{
+		// Stop may modify a lot of actor state so it needs to be called
+		// during EndPlay (when Actors + World are still valid) instead
+		// of waiting for the UObject to be destroyed by GC.
+		LevelSequencePlayer->Stop();
 	}
 }
 
@@ -412,11 +422,9 @@ void AGLTFHotspotActor::ToggleAnimation()
 			SkeletalMeshComponent->Play(false);
 		}
 	}
-	else if (LevelSequenceActor != nullptr && LevelSequence != nullptr)
+	else if (LevelSequence != nullptr)
 	{
-		ULevelSequencePlayer* LevelSequencePlayer = LevelSequenceActor->GetSequencePlayer();
-
-		if (LevelSequencePlayer != nullptr && LevelSequencePlayer->IsPlaying() && LevelSequenceActor->GetSequence() == LevelSequence)
+		if (LevelSequencePlayer->IsPlaying())
 		{
 			// If the same animation is already playing, just reverse the play rate for a smooth transition
 			LevelSequencePlayer->SetPlayRate(TargetPlayRate);
@@ -426,13 +434,14 @@ void AGLTFHotspotActor::ToggleAnimation()
 			// TODO: improve this calculation
 			const float SequenceLength = LevelSequence->GetMovieScene()->GetTickResolution().AsSeconds(MovieScene::DiscreteSize(LevelSequence->GetMovieScene()->GetPlaybackRange()));
 
-			LevelSequenceActor->PlaybackSettings.PlayRate = TargetPlayRate;
-			LevelSequenceActor->PlaybackSettings.StartTime = bReverseAnimation ? SequenceLength : 0.0f;
-			LevelSequenceActor->PlaybackSettings.bAutoPlay = true;
-			LevelSequenceActor->PlaybackSettings.bPauseAtEnd = true;
-			LevelSequenceActor->PlaybackSettings.LoopCount.Value = 0;
-			LevelSequenceActor->SetSequence(LevelSequence);
-			LevelSequenceActor->GetSequencePlayer()->Play();
+			FMovieSceneSequencePlaybackSettings PlaybackSettings;
+			PlaybackSettings.PlayRate = TargetPlayRate;
+			PlaybackSettings.StartTime = bReverseAnimation ? SequenceLength : 0.0f;
+			PlaybackSettings.bAutoPlay = true;
+			PlaybackSettings.bPauseAtEnd = true;
+			PlaybackSettings.LoopCount.Value = 0;
+			LevelSequencePlayer->Initialize(LevelSequence, GetLevel(), PlaybackSettings, FLevelSequenceCameraSettings());
+			LevelSequencePlayer->Play();
 		}
 	}
 
