@@ -35,7 +35,7 @@ void FGLTFTexture2DTask::Complete()
 		FGLTFTextureUtility::FlipGreenChannel(Pixels);
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
 }
 
@@ -73,7 +73,7 @@ void FGLTFTextureCubeTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(TextureCube);
 }
 
@@ -97,7 +97,7 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTarget2D);
 }
 
@@ -134,7 +134,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 		return;
 	}
 
-	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTargetCube);
 }
 
@@ -162,6 +162,7 @@ void FGLTFTextureLightMapTask::Complete()
 	}
 
 	const FIntPoint Size = { Source.GetSizeX(), Source.GetSizeY() };
+
 	const void* RawData = Source.LockMip(0);
 	JsonTexture.Source = Builder.AddImage(RawData, Source.CalcMipSize(0), Size, RGBFormat, BitDepth, JsonTexture.Name);
 	Source.UnlockMip(0);
