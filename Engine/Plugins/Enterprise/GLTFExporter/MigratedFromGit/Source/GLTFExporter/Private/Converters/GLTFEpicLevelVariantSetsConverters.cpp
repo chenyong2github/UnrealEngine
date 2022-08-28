@@ -2,19 +2,14 @@
 
 #include "Converters/GLTFEpicLevelVariantSetsConverters.h"
 #include "Converters/GLTFVariantUtility.h"
-#include "Converters/GLTFMeshUtility.h"
-#include "Builders/GLTFContainerBuilder.h"
-#include "Rendering/SkeletalMeshRenderData.h"
+#include "Builders/GLTFConvertBuilder.h"
 #include "LevelVariantSets.h"
 #include "VariantSet.h"
 #include "Variant.h"
 #include "VariantObjectBinding.h"
 #include "PropertyValue.h"
 #include "PropertyValueMaterial.h"
-#include "Engine/StaticMesh.h"
-#include "Engine/SkeletalMesh.h"
-#include "Components/StaticMeshComponent.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/MeshComponent.h"
 
 FGLTFJsonEpicLevelVariantSetsIndex FGLTFEpicLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
@@ -80,7 +75,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonEpicVar
 {
 	bool bHasParsedAnyProperty = false;
 
-	for (UPropertyValue* Property: Binding->GetCapturedProperties())
+	for (const UPropertyValue* Property: Binding->GetCapturedProperties())
 	{
 		if (!const_cast<UPropertyValue*>(Property)->Resolve() || !Property->HasRecordedData())
 		{
@@ -90,23 +85,23 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonEpicVar
 		const FName PropertyName = Property->GetPropertyName();
 		const FFieldClass* PropertyClass = Property->GetPropertyClass();
 
-		if (Property->IsA<UPropertyValueMaterial>())
+		if (const UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(Property))
 		{
-			if (Builder.ExportOptions->ExportMaterialVariants != EGLTFMaterialVariantMode::None && TryParseMaterialPropertyValue(OutVariant, Property))
+			if (Builder.ExportOptions->ExportMaterialVariants != EGLTFMaterialVariantMode::None && TryParseMaterialPropertyValue(OutVariant, MaterialProperty))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
 		else if (PropertyName == TEXT("StaticMesh")) // TODO: should we not also check PropertyClass?
 		{
-			if (Builder.ExportOptions->bExportMeshVariants && TryParseStaticMeshPropertyValue(OutVariant, Property))
+			if (Builder.ExportOptions->bExportMeshVariants && TryParseMeshPropertyValue<UStaticMesh>(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
 		else if (PropertyName == TEXT("SkeletalMesh")) // TODO: should we not also check PropertyClass?
 		{
-			if (Builder.ExportOptions->bExportMeshVariants && TryParseSkeletalMeshPropertyValue(OutVariant, Property))
+			if (Builder.ExportOptions->bExportMeshVariants && TryParseMeshPropertyValue<USkeletalMesh>(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
@@ -131,7 +126,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 	if (Target == nullptr)
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
+			TEXT("Property must belong to a scene component, the property will be skipped. Context: %s"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -139,7 +134,8 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(
+			TEXT("Property must belong to an actor, the property will be skipped. Context: %s"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -147,7 +143,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
+			TEXT("Property doesn't belong to an actor selected for export, the property will be skipped. Context: %s"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -174,22 +170,13 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 	return true;
 }
 
-bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValueMaterial* Property) const
 {
-	UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(const_cast<UPropertyValue*>(Property));
-	if (MaterialProperty == nullptr)
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("Material property is invalid, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
 	const UMeshComponent* Target = static_cast<UMeshComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
+			TEXT("Variant property %s must belong to a mesh component, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -197,7 +184,8 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(
+			TEXT("Variant property %s must belong to an actor, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -205,28 +193,28 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
+			TEXT("Variant property %s doesn't belong to an actor selected for export, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
-	const TArray<FCapturedPropSegment>& CapturedPropSegments = FGLTFVariantUtility::GetCapturedPropSegments(MaterialProperty);
+	const TArray<FCapturedPropSegment>& CapturedPropSegments = FGLTFVariantUtility::GetCapturedPropSegments(Property);
 	const int32 NumPropSegments = CapturedPropSegments.Num();
 
 	if (NumPropSegments < 1)
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Failed to parse element index to apply the material to, the property will be skipped. Context: %s"),
+			TEXT("Failed to parse material index for variant property %s, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
 	// NOTE: UPropertyValueMaterial::GetMaterial does *not* ensure that the recorded data has been loaded,
 	// so we need to call UProperty::GetRecordedData first to make that happen.
-	MaterialProperty->GetRecordedData();
+	const_cast<UPropertyValueMaterial*>(Property)->GetRecordedData();
 
 	// TODO: find way to determine whether the material is null because "None" was selected, or because it failed to resolve
-	const UMaterialInterface* Material = MaterialProperty->GetMaterial();
+	const UMaterialInterface* Material = const_cast<UPropertyValueMaterial*>(Property)->GetMaterial();
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 
 	Builder.RegisterObjectVariant(Owner, Property);
@@ -244,13 +232,14 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	return true;
 }
 
-bool FGLTFEpicLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
+template <typename MeshType>
+bool FGLTFEpicLevelVariantSetsConverter::TryParseMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
 {
-	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
+	const UMeshComponent* Target = static_cast<UMeshComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
+			TEXT("Variant property %s must belong to a mesh component, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -258,7 +247,8 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJs
 	const AActor* Owner = Target->GetOwner();
 	if (Owner == nullptr)
 	{
-		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
+		Builder.LogWarning(FString::Printf(
+			TEXT("Variant property %s must belong to an actor, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
@@ -266,94 +256,26 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJs
 	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
+			TEXT("Variant property %s doesn't belong to an actor selected for export, the property will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
-	const UMeshComponent* MeshComponent = Cast<UMeshComponent>(Target);
-	if (MeshComponent == nullptr)
+	const MeshType* Mesh;
+
+	if (!FGLTFVariantUtility::TryGetPropertyValue(const_cast<UPropertyValue*>(Property), Mesh))
 	{
 		Builder.LogWarning(FString::Printf(
-			TEXT("Target object for property has no mesh-component, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
-	const UStaticMesh* StaticMesh;
-
-	if (!FGLTFVariantUtility::TryGetPropertyValue(const_cast<UPropertyValue*>(Property), StaticMesh))
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
+			TEXT("Failed to parse recorded data for variant property %s, it will be skipped"),
 			*FGLTFVariantUtility::GetLogContext(Property)));
 		return false;
 	}
 
 	Builder.RegisterObjectVariant(Owner, Property);
 
-	const FGLTFMaterialArray OverrideMaterials(MeshComponent->OverrideMaterials);
+	const FGLTFMaterialArray OverrideMaterials(Target->OverrideMaterials);
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh, OverrideMaterials);
-	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
-
-	NodeProperties.Node = ComponentNodeIndex;
-	NodeProperties.Mesh = MeshIndex;
-	return true;
-}
-
-bool FGLTFEpicLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const
-{
-	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
-	if (Target == nullptr)
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
-	const AActor* Owner = Target->GetOwner();
-	if (Owner == nullptr)
-	{
-		Builder.LogWarning(FString::Printf(TEXT("Invalid scene component, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
-	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("Target actor for property is not selected for export, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
-	const UMeshComponent* MeshComponent = Cast<UMeshComponent>(Target);
-	if (MeshComponent == nullptr)
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("Target object for property has no mesh-component, the property will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
-	const USkeletalMesh* SkeletalMesh;
-
-	if (!FGLTFVariantUtility::TryGetPropertyValue(const_cast<UPropertyValue*>(Property), SkeletalMesh) || SkeletalMesh == nullptr)
-	{
-		Builder.LogWarning(FString::Printf(
-			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
-			*FGLTFVariantUtility::GetLogContext(Property)));
-		return false;
-	}
-
-	Builder.RegisterObjectVariant(Owner, Property);
-
-	const FGLTFMaterialArray OverrideMaterials(MeshComponent->OverrideMaterials);
-	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh, OverrideMaterials);
+	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(Mesh, OverrideMaterials);
 	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
 	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 

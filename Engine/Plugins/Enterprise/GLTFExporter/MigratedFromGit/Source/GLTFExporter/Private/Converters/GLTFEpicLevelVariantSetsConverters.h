@@ -12,6 +12,7 @@ class UVariantSet;
 class UVariant;
 class UVariantObjectBinding;
 class UPropertyValue;
+class UPropertyValueMaterial;
 
 class FGLTFEpicLevelVariantSetsConverter final : public FGLTFBuilderContext, public TGLTFConverter<FGLTFJsonEpicLevelVariantSetsIndex, const ULevelVariantSets*>
 {
@@ -22,7 +23,8 @@ class FGLTFEpicLevelVariantSetsConverter final : public FGLTFBuilderContext, pub
 	bool TryParseVariant(FGLTFJsonEpicVariant& OutVariant, const UVariant* Variant) const;
 	bool TryParseVariantBinding(FGLTFJsonEpicVariant& OutVariant, const UVariantObjectBinding* Binding) const;
 	bool TryParseVisibilityPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const;
-	bool TryParseMaterialPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const;
-	bool TryParseStaticMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const;
-	bool TryParseSkeletalMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const;
+	bool TryParseMaterialPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValueMaterial* Property) const;
+
+	template <typename MeshType>
+	bool TryParseMeshPropertyValue(FGLTFJsonEpicVariant& OutVariant, const UPropertyValue* Property) const;
 };
