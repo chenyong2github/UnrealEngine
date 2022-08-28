@@ -3,7 +3,7 @@
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
-#include "Tasks/GLTFMaterialTasks.h"
+#include "Tasks/GLTFDelayedMaterialTasks.h"
 
 void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const FGLTFMeshData*& MeshData, FGLTFIndexArray& SectionIndices)
 {
@@ -48,7 +48,7 @@ FGLTFJsonMaterial* FGLTFMaterialConverter::Convert(const UMaterialInterface* Mat
 	if (Material != FGLTFMaterialUtility::GetDefaultMaterial())
 	{
 		FGLTFJsonMaterial* JsonMaterial = Builder.AddMaterial();
-		Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, JsonMaterial);
+		Builder.ScheduleSlowTask<FGLTFDelayedMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, JsonMaterial);
 		return JsonMaterial;
 	}
 

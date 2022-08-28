@@ -10,7 +10,7 @@ FGLTFTaskBuilder::FGLTFTaskBuilder(const FString& FileName, const UGLTFExportOpt
 {
 }
 
-void FGLTFTaskBuilder::CompleteAllTasks(FFeedbackContext* Context)
+void FGLTFTaskBuilder::ProcessSlowTasks(FFeedbackContext* Context)
 {
 	const int32 PriorityCount = static_cast<int32>(EGLTFTaskPriority::MAX);
 	for (int32 PriorityIndex = 0; PriorityIndex < PriorityCount; PriorityIndex++)
@@ -18,7 +18,7 @@ void FGLTFTaskBuilder::CompleteAllTasks(FFeedbackContext* Context)
 		PriorityIndexLock = PriorityIndex;
 		const EGLTFTaskPriority Priority = static_cast<EGLTFTaskPriority>(PriorityIndex);
 
-		TArray<TUniquePtr<FGLTFTask>>* Tasks = TasksByPriority.Find(Priority);
+		TArray<TUniquePtr<FGLTFDelayedTask>>* Tasks = TasksByPriority.Find(Priority);
 		if (Tasks == nullptr)
 		{
 			continue;
@@ -30,20 +30,20 @@ void FGLTFTaskBuilder::CompleteAllTasks(FFeedbackContext* Context)
 			FScopedSlowTask Progress(Tasks->Num(), FText::Format(MessageFormat, FText()), true, *Context);
 			Progress.MakeDialog();
 
-			for (TUniquePtr<FGLTFTask>& Task : *Tasks)
+			for (TUniquePtr<FGLTFDelayedTask>& Task : *Tasks)
 			{
 				const FText Name = FText::FromString(Task->GetName());
 				const FText Message = FText::Format(MessageFormat, Name);
 				Progress.EnterProgressFrame(1, Message);
 
-				Task->Complete();
+				Task->Process();
 			}
 		}
 		else
 		{
-			for (TUniquePtr<FGLTFTask>& Task : *Tasks)
+			for (TUniquePtr<FGLTFDelayedTask>& Task : *Tasks)
 			{
-				Task->Complete();
+				Task->Process();
 			}
 		}
 	}
@@ -52,7 +52,7 @@ void FGLTFTaskBuilder::CompleteAllTasks(FFeedbackContext* Context)
 	PriorityIndexLock = INDEX_NONE;
 }
 
-bool FGLTFTaskBuilder::SetupTask(TUniquePtr<FGLTFTask> Task)
+bool FGLTFTaskBuilder::ScheduleSlowTask(TUniquePtr<FGLTFDelayedTask> Task)
 {
 	const EGLTFTaskPriority Priority = Task->Priority;
 	if (static_cast<int32>(Priority) >= static_cast<int32>(EGLTFTaskPriority::MAX))

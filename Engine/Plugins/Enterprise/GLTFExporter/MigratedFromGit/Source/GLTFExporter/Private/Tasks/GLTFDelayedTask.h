@@ -13,20 +13,20 @@ enum class EGLTFTaskPriority : uint8
 	MAX
 };
 
-class FGLTFTask
+class FGLTFDelayedTask
 {
 public:
 
 	const EGLTFTaskPriority Priority;
 
-	FGLTFTask(EGLTFTaskPriority Priority)
+	FGLTFDelayedTask(EGLTFTaskPriority Priority)
 		: Priority(Priority)
 	{
 	}
 
-	virtual ~FGLTFTask() = default;
+	virtual ~FGLTFDelayedTask() = default;
 
 	virtual FString GetName() = 0;
 
-	virtual void Complete() = 0;
+	virtual void Process() = 0;
 };

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Tasks/GLTFMeshTasks.h"
+#include "Tasks/GLTFDelayedMeshTasks.h"
 #include "Converters/GLTFMeshUtility.h"
 #include "Converters/GLTFBufferAdapter.h"
 #include "Builders/GLTFConvertBuilder.h"
@@ -107,7 +107,7 @@ namespace
 	}
 }
 
-void FGLTFStaticMeshTask::Complete()
+void FGLTFDelayedStaticMeshTask::Process()
 {
 	JsonMesh->Name = StaticMeshComponent != nullptr ? FGLTFNameUtility::GetName(StaticMeshComponent) : StaticMesh->GetName();
 
@@ -204,7 +204,7 @@ void FGLTFStaticMeshTask::Complete()
 	}
 }
 
-void FGLTFSkeletalMeshTask::Complete()
+void FGLTFDelayedSkeletalMeshTask::Process()
 {
 	JsonMesh->Name = SkeletalMeshComponent != nullptr ? FGLTFNameUtility::GetName(SkeletalMeshComponent) : SkeletalMesh->GetName();
 

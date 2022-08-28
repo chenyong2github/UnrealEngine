@@ -2,7 +2,7 @@
 
 #include "Converters/GLTFAnimationConverters.h"
 #include "Builders/GLTFConvertBuilder.h"
-#include "Tasks/GLTFAnimationTasks.h"
+#include "Tasks/GLTFDelayedAnimationTasks.h"
 #include "Animation/AnimSequence.h"
 
 FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
@@ -33,7 +33,7 @@ FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, co
 	}
 
 	FGLTFJsonAnimation* JsonAnimation = Builder.AddAnimation();
-	Builder.SetupTask<FGLTFAnimSequenceTask>(Builder, RootNode, SkeletalMesh, AnimSequence, JsonAnimation);
+	Builder.ScheduleSlowTask<FGLTFDelayedAnimSequenceTask>(Builder, RootNode, SkeletalMesh, AnimSequence, JsonAnimation);
 	return JsonAnimation;
 }
 
@@ -64,7 +64,7 @@ FGLTFJsonAnimation* FGLTFAnimationDataConverter::Convert(FGLTFJsonNode* RootNode
 FGLTFJsonAnimation* FGLTFLevelSequenceConverter::Convert(const ULevel* Level, const ULevelSequence* LevelSequence)
 {
 	FGLTFJsonAnimation* JsonAnimation = Builder.AddAnimation();
-	Builder.SetupTask<FGLTFLevelSequenceTask>(Builder, Level, LevelSequence, JsonAnimation);
+	Builder.ScheduleSlowTask<FGLTFDelayedLevelSequenceTask>(Builder, Level, LevelSequence, JsonAnimation);
 	return JsonAnimation;
 }
 

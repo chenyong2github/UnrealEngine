@@ -2,17 +2,17 @@
 
 #pragma once
 
-#include "Tasks/GLTFTask.h"
+#include "Tasks/GLTFDelayedTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequence.h"
 
-class FGLTFAnimSequenceTask : public FGLTFTask
+class FGLTFDelayedAnimSequenceTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFAnimSequenceTask(FGLTFConvertBuilder& Builder,  FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimation* JsonAnimation)
-		: FGLTFTask(EGLTFTaskPriority::Animation)
+	FGLTFDelayedAnimSequenceTask(FGLTFConvertBuilder& Builder,  FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimation* JsonAnimation)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, RootNode(RootNode)
 		, SkeletalMesh(SkeletalMesh)
@@ -26,7 +26,7 @@ public:
 		return AnimSequence->GetName();
 	}
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
@@ -37,12 +37,12 @@ private:
 	FGLTFJsonAnimation* JsonAnimation;
 };
 
-class FGLTFLevelSequenceTask : public FGLTFTask
+class FGLTFDelayedLevelSequenceTask : public FGLTFDelayedTask
 {
 public:
 
-	FGLTFLevelSequenceTask(FGLTFConvertBuilder& Builder, const ULevel* Level, const ULevelSequence* LevelSequence, FGLTFJsonAnimation* JsonAnimation)
-		: FGLTFTask(EGLTFTaskPriority::Animation)
+	FGLTFDelayedLevelSequenceTask(FGLTFConvertBuilder& Builder, const ULevel* Level, const ULevelSequence* LevelSequence, FGLTFJsonAnimation* JsonAnimation)
+		: FGLTFDelayedTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, Level(Level)
 		, LevelSequence(LevelSequence)
@@ -55,7 +55,7 @@ public:
 		return LevelSequence->GetName();
 	}
 
-	virtual void Complete() override;
+	virtual void Process() override;
 
 private:
 
