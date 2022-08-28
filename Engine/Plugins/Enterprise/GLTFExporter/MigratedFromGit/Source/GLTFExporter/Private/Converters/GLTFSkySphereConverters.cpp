@@ -4,6 +4,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFActorUtility.h"
+#include "Converters/GLTFCurveUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 
 FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphereActor)
@@ -103,7 +104,9 @@ FGLTFJsonSkySphereIndex FGLTFSkySphereConverter::Convert(const AActor* SkySphere
 	ConvertColorProperty(*SkySphereActor, TEXT("Cloud color"), TEXT("CloudColor"), JsonSkySphere.CloudColor);
 	ConvertColorProperty(*SkySphereActor, TEXT("Overall Color"), TEXT("OverallColor"), JsonSkySphere.OverallColor);
 
-	// TODO: export color curves
+	ConvertColorCurveProperty(*SkySphereActor, TEXT("Zenith color curve"), TEXT("ZenithColorCurve"), JsonSkySphere.ZenithColorCurve);
+	ConvertColorCurveProperty(*SkySphereActor, TEXT("Horizon color curve"), TEXT("HorizonColorCurve"), JsonSkySphere.HorizonColorCurve);
+	ConvertColorCurveProperty(*SkySphereActor, TEXT("Cloud color curve"), TEXT("CloudColorCurve"), JsonSkySphere.CloudColorCurve);
 
 	return Builder.AddSkySphere(JsonSkySphere);
 }
@@ -153,6 +156,48 @@ void FGLTFSkySphereConverter::ConvertColorProperty(const AActor& Actor, const TC
 	if (FGLTFActorUtility::TryGetPropertyValue(&Actor, PropertyName, LinearColor))
 	{
 		OutValue = FGLTFConverterUtility::ConvertColor(LinearColor);
+	}
+	else
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Failed to export %s for Sky Sphere %s"),
+			ExportedPropertyName,
+			*Actor.GetName()));
+	}
+}
+
+void FGLTFSkySphereConverter::ConvertColorCurveProperty(const AActor& Actor, const TCHAR* PropertyName, const TCHAR* ExportedPropertyName, FGLTFJsonSkySphereColorCurve& OutValue) const
+{
+	const UCurveLinearColor* ColorCurve = nullptr;
+	FGLTFActorUtility::TryGetPropertyValue(&Actor, PropertyName, ColorCurve);
+
+	if (ColorCurve != nullptr)
+	{
+		if (FGLTFCurveUtility::HasAnyAdjustment(*ColorCurve))
+		{
+			Builder.AddWarningMessage(FString::Printf(
+				TEXT("Adjustments for %s in Sky Sphere %s are not supported and will be ignored"),
+				ExportedPropertyName,
+				*Actor.GetName()));
+		}
+
+		OutValue.ComponentCurves.AddDefaulted(3);
+
+		for (uint32 ComponentIndex = 0; ComponentIndex < 3; ++ComponentIndex)
+		{
+			const FRichCurve& FloatCurve = ColorCurve->FloatCurves[ComponentIndex];
+			const uint32 KeyCount = FloatCurve.Keys.Num();
+
+			TArray<FGLTFJsonSkySphereColorCurve::FKey>& ComponentKeys = OutValue.ComponentCurves[ComponentIndex].Keys;
+			ComponentKeys.AddUninitialized(KeyCount);
+
+			uint32 KeyIndex = 0;
+
+			for (const FRichCurveKey& Key: FloatCurve.Keys)
+			{
+				ComponentKeys[KeyIndex++] = { Key.Time, Key.Value };
+			}
+		}
 	}
 	else
 	{

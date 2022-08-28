@@ -7,6 +7,45 @@
 #include "Json/GLTFJsonExtensions.h"
 #include "Serialization/JsonSerializer.h"
 
+struct FGLTFJsonSkySphereColorCurve
+{
+	struct FKey
+	{
+		float Time;
+		float Value;
+	};
+
+	struct FComponentCurve
+	{
+		TArray<FKey> Keys;
+	};
+
+	TArray<FComponentCurve> ComponentCurves;
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	{
+		JsonWriter.WriteArrayStart();
+
+		for (int32 ComponentIndex = 0; ComponentIndex < ComponentCurves.Num(); ++ComponentIndex)
+		{
+			const FComponentCurve& ComponentCurve = ComponentCurves[ComponentIndex];
+
+			JsonWriter.WriteArrayStart();
+
+			for (const FKey& Key: ComponentCurve.Keys)
+			{
+				FGLTFJsonUtility::WriteExactValue(JsonWriter, Key.Time);
+				FGLTFJsonUtility::WriteExactValue(JsonWriter, Key.Value);
+			}
+
+			JsonWriter.WriteArrayEnd();
+		}
+
+		JsonWriter.WriteArrayEnd();
+	}
+};
+
 struct FGLTFJsonSkySphere
 {
 	FString Name;
@@ -35,9 +74,11 @@ struct FGLTFJsonSkySphere
 	FGLTFJsonColor4 CloudColor;
 	FGLTFJsonColor4 OverallColor;
 
-	FGLTFJsonVector3 Scale;
+	FGLTFJsonSkySphereColorCurve ZenithColorCurve;
+	FGLTFJsonSkySphereColorCurve HorizonColorCurve;
+	FGLTFJsonSkySphereColorCurve CloudColorCurve;
 
-	// TODO: add properties for color curves
+	FGLTFJsonVector3 Scale;
 
 	FGLTFJsonSkySphere()
 		: SunHeight(0)
@@ -106,13 +147,29 @@ struct FGLTFJsonSkySphere
 			OverallColor.WriteArray(JsonWriter);
 		}
 
+		if (ZenithColorCurve.ComponentCurves.Num() >= 3)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("zenithColorCurve"));
+			ZenithColorCurve.WriteArray(JsonWriter);
+		}
+
+		if (HorizonColorCurve.ComponentCurves.Num() >= 3)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("horizonColorCurve"));
+			HorizonColorCurve.WriteArray(JsonWriter);
+		}
+
+		if (CloudColorCurve.ComponentCurves.Num() >= 3)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("cloudColorCurve"));
+			CloudColorCurve.WriteArray(JsonWriter);
+		}
+
 		if (Scale != FGLTFJsonVector3::One)
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
 			Scale.WriteArray(JsonWriter);
 		}
-
-		// TODO: export color curves
 
 		JsonWriter.WriteObjectEnd();
 	}
