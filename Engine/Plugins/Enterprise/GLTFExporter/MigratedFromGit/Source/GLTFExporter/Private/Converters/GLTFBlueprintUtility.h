@@ -13,7 +13,7 @@ struct FGLTFBlueprintUtility
 	static bool IsHDRIBackdrop(const FString& Path);
 
 	template <class ValueType>
-	static bool TryGetPropertyValue(const UObject* Object, const TCHAR* PropertyName, ValueType& Value)
+	static bool TryGetPropertyValue(const UObject* Object, const TCHAR* PropertyName, ValueType& OutValue)
 	{
 		FProperty* Property = Object->GetClass()->FindPropertyByName(PropertyName);
 		if (Property == nullptr)
@@ -27,7 +27,21 @@ struct FGLTFBlueprintUtility
 			return false;
 		}
 
-		Value = *ValuePtr;
+		OutValue = *ValuePtr;
+		return true;
+	}
+
+	static bool TryGetPropertyValue(const UObject* Object, const TCHAR* PropertyName, float& OutValue)
+	{
+		// NOTE: blueprints always uses double instead of float in UE5
+
+		double Value;
+		if (!TryGetPropertyValue(Object, PropertyName, Value))
+		{
+			return false;
+		}
+
+		OutValue = static_cast<float>(Value);
 		return true;
 	}
 };
