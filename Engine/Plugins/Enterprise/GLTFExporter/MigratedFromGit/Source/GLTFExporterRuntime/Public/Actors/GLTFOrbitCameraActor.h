@@ -44,6 +44,8 @@ private:
 
 	void RemoveInertia();
 
+	FRotator GetLookAtRotation(const FVector TargetPosition) const;
+
 public:
 	/* Actor which the camera will focus on and subsequently orbit. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
