@@ -113,15 +113,15 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	// NOTE: since we always bake the properties (for now) when atleast property is non-const, we need
 	// to reset the constant factors to their defaults. Otherwise the baked value of a constant property
 	// would be scaled with the factor, i.e a double scaling.
-	OutPBRParams.BaseColorFactor = { 1, 1, 1, 1 };
+	OutPBRParams.BaseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	const UTexture2D* BaseColorTexture;
 	const UTexture2D* OpacityTexture;
 	int32 BaseColorTexCoord;
 	int32 OpacityTexCoord;
 
-	const FLinearColor BaseColorMask(1, 1, 1, 0);
-	const FLinearColor OpacityMask(0, 0, 0, 1);
+	const FLinearColor BaseColorMask(1.0f, 1.0f, 1.0f, 0.0f);
+	const FLinearColor OpacityMask(0.0f, 0.0f, 0.0f, 1.0f);
 
 	const bool bHasBaseColorSourceTexture = TryGetSourceTexture(BaseColorTexture, BaseColorTexCoord, BaseColorInput, MaterialInstance, { BaseColorMask });
 	const bool bHasOpacitySourceTexture = TryGetSourceTexture(OpacityTexture, OpacityTexCoord, OpacityInput, MaterialInstance, { OpacityMask });
@@ -249,16 +249,16 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	// NOTE: since we always bake the properties (for now) when atleast property is non-const, we need
 	// to reset the constant factors to their defaults. Otherwise the baked value of a constant property
 	// would be scaled with the factor, i.e a double scaling.
-	OutPBRParams.MetallicFactor = 1;
-	OutPBRParams.RoughnessFactor = 1;
+	OutPBRParams.MetallicFactor = 1.0f;
+	OutPBRParams.RoughnessFactor = 1.0f;
 
 	const UTexture2D* MetallicTexture;
 	const UTexture2D* RoughnessTexture;
 	int32 MetallicTexCoord;
 	int32 RoughnessTexCoord;
 
-	const FLinearColor MetallicMask(0, 0, 1, 0);
-	const FLinearColor RoughnessMask(0, 1, 0, 0);
+	const FLinearColor MetallicMask(0.0f, 0.0f, 1.0f, 0.0f);
+	const FLinearColor RoughnessMask(0.0f, 1.0f, 0.0f, 0.0f);
 
 	const bool bHasMetallicSourceTexture = TryGetSourceTexture(MetallicTexture, MetallicTexCoord, MetallicInput, MaterialInstance, { MetallicMask });
 	const bool bHasRoughnessSourceTexture = TryGetSourceTexture(RoughnessTexture, RoughnessTexCoord, RoughnessInput, MaterialInstance, { RoughnessMask });
