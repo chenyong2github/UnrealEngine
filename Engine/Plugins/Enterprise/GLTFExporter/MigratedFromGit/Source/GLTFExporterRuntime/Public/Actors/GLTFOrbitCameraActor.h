@@ -66,19 +66,19 @@ public:
 	float PitchAngleMax;
 
 	/* Duration (in seconds) that it takes the camera to complete a change in distance. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
 	float DollyDuration;
 
 	/* Deceleration that occurs after orbital movement. The higher the value, the longer it takes to settle. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
 	float OrbitInertia;
 
 	/* Size of the orbital movement relative to user input. The higher the value, the faster it moves. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
 	float OrbitSensitivity;
-	
+
 	/* Size of the dolly movement relative to user input. The higher the value, the faster it moves. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
 	float DistanceSensitivity;
 
 private:
