@@ -31,7 +31,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		return false;
 	}
 
-	FGLTFContainerBuilder Builder;
+	FGLTFContainerBuilder Builder(bSelectedOnly);
 	if (!AddObject(Builder, Object))
 	{
 		// TODO: Report error

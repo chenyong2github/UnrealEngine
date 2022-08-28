@@ -13,6 +13,13 @@ class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
 public:
 
+    const bool bSelectedActorsOnly;
+
+	FGLTFConvertBuilder(bool bSelectedActorsOnly)
+		: bSelectedActorsOnly(bSelectedActorsOnly)
+	{
+	}
+
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FColorVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));
 	FGLTFJsonAccessorIndex GetOrAddNormalAccessor(const FStaticMeshVertexBuffer* VertexBuffer, const FString& DesiredName = TEXT(""));
