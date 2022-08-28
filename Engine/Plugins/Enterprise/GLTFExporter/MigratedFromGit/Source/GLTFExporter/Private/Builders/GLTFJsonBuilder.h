@@ -16,10 +16,13 @@ public:
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
 	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView);
+	FGLTFJsonImageIndex AddImage(const FGLTFJsonImage& JsonImage);
 	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial);
 	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh);
 	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode);
+	FGLTFJsonSamplerIndex AddSampler(const FGLTFJsonSampler& JsonSampler);
 	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
+	FGLTFJsonTextureIndex AddTexture(const FGLTFJsonTexture& JsonTexture);
 
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath);
 
