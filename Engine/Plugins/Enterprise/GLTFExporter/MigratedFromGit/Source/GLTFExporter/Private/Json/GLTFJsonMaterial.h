@@ -151,6 +151,8 @@ struct FGLTFJsonMaterial
 {
 	FString Name;
 
+	EGLTFJsonShadingModel ShadingModel;
+
 	FGLTFJsonPBRMetallicRoughness PBRMetallicRoughness;
 
 	FGLTFJsonNormalTextureInfo NormalTexture;
@@ -165,7 +167,8 @@ struct FGLTFJsonMaterial
 	bool DoubleSided;
 
 	FGLTFJsonMaterial()
-		: EmissiveFactor(FGLTFJsonColor3::Black)
+		: ShadingModel(EGLTFJsonShadingModel::Default)
+		, EmissiveFactor(FGLTFJsonColor3::Black)
 		, AlphaMode(EGLTFJsonAlphaMode::Opaque)
 		, AlphaCutoff(0.5f)
 		, DoubleSided(false)
@@ -182,8 +185,11 @@ struct FGLTFJsonMaterial
 			JsonWriter.WriteValue(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("pbrMetallicRoughness"));
-		PBRMetallicRoughness.WriteObject(JsonWriter, Extensions);
+		if (ShadingModel != EGLTFJsonShadingModel::None)
+		{
+			JsonWriter.WriteIdentifierPrefix(TEXT("pbrMetallicRoughness"));
+			PBRMetallicRoughness.WriteObject(JsonWriter, Extensions);
+		}
 
 		if (NormalTexture.Index != INDEX_NONE)
 		{
@@ -222,6 +228,34 @@ struct FGLTFJsonMaterial
 		if (DoubleSided)
 		{
 			JsonWriter.WriteValue(TEXT("doubleSided"), DoubleSided);
+		}
+
+		if (ShadingModel == EGLTFJsonShadingModel::Unlit || ShadingModel == EGLTFJsonShadingModel::ClearCoat)
+		{
+			const EGLTFJsonExtension Extension = ShadingModel == EGLTFJsonShadingModel::Unlit ?
+				EGLTFJsonExtension::KHR_MaterialsUnlit : EGLTFJsonExtension::KHR_MaterialsClearCoat;
+
+			Extensions.Used.Add(Extension);
+
+			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
+
+			switch (ShadingModel)
+			{
+				case EGLTFJsonShadingModel::Unlit:
+					JsonWriter.WriteObjectStart(); // Write empty object
+					JsonWriter.WriteObjectEnd();
+					break;
+
+				case EGLTFJsonShadingModel::ClearCoat:
+					// TODO: add support
+					break;
+
+				default:
+					checkNoEntry();
+			}
+
+			JsonWriter.WriteObjectEnd();
 		}
 
 		JsonWriter.WriteObjectEnd();
