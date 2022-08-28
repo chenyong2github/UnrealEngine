@@ -102,30 +102,3 @@ EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
 		default:            return EGLTFJsonCubeFace::None;
 	}
 }
-
-FGLTFJsonOrthographic FGLTFConverterUtility::ConvertOrthographic(const FMinimalViewInfo& View)
-{
-	FGLTFJsonOrthographic Orthographic;
-	Orthographic.XMag = ConvertLength(View.OrthoWidth);
-	Orthographic.YMag = ConvertLength(View.OrthoWidth / View.AspectRatio); // TODO: is this correct?
-	Orthographic.ZFar = ConvertLength(View.OrthoFarClipPlane);
-	Orthographic.ZNear = ConvertLength(View.OrthoNearClipPlane);
-	return Orthographic;
-}
-
-FGLTFJsonPerspective FGLTFConverterUtility::ConvertPerspective(const FMinimalViewInfo& View)
-{
-	FGLTFJsonPerspective Perspective;
-	Perspective.AspectRatio = View.AspectRatio;
-	Perspective.YFov = ConvertFieldOfView(View);
-	Perspective.ZFar = ConvertLength(WORLD_MAX); // TODO: make sure the assumption that Unreal cameras have no draw distance is correct.
-	Perspective.ZNear = ConvertLength(GNearClippingPlane);
-	return Perspective;
-}
-
-float FGLTFConverterUtility::ConvertFieldOfView(const FMinimalViewInfo& View)
-{
-	const float HorizontalFOV = FMath::DegreesToRadians(View.FOV);
-	const float VerticalFOV = 2 * FMath::Atan(FMath::Tan(HorizontalFOV / 2) / View.AspectRatio);
-	return VerticalFOV;
-}

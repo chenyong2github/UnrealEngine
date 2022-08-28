@@ -4,7 +4,7 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
-#include "Engine/MapBuildDataRegistry.h"
+#include "Converters/GLTFCameraUtility.h"
 
 FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent)
 {
@@ -150,11 +150,11 @@ FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Add(FGLTFConvertBuilder& Bui
 	switch (Camera.Type)
 	{
 		case EGLTFJsonCameraType::Orthographic:
-			Camera.Orthographic = FGLTFConverterUtility::ConvertOrthographic(DesiredView);
+			Camera.Orthographic = FGLTFCameraUtility::ConvertOrthographic(DesiredView);
 			break;
 
 		case EGLTFJsonCameraType::Perspective:
-			Camera.Perspective = FGLTFConverterUtility::ConvertPerspective(DesiredView);
+			Camera.Perspective = FGLTFCameraUtility::ConvertPerspective(DesiredView);
 			break;
 
 		default:
