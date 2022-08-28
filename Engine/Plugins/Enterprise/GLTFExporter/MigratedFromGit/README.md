@@ -10,11 +10,13 @@ Implementation status
 Feature                   | Status |
 ------------------------- | :----: |
 Web-based Viewer          |   👷   |
-Models                    |   👷   |
+└ UX/UI                   |   👷   |
+└ Offline                 |   👷   |
+Models                    |   ✔️   |
 └ Static Mesh             |   ✔️   |
 └ Skeletal Mesh           |   ✔️   |
-└ Animation Sequence      |   👷   |
-└ Mesh Quantization       |   👷   |
+└ Animation Sequence      |   ✔️   |
+└ Mesh Quantization       |   ✔️   |
 Materials                 |   ✔️   |
 └ Default Lit             |   ✔️   |
 └ Unlit                   |   ✔️   |
@@ -31,25 +33,28 @@ Levels                    |   👷   |
 └ Skeletal Mesh           |   ✔️   |
 └ Light                   |   ✔️   |
 └ Camera                  |   ✔️   |
-└ Orbital Camera          |        |
-└ Reflection Capture      |        |
+└ Orbital Camera          |   ✔️   |
+└ Reflection Capture      |   👷   |
 └ HDRI Backdrop           |   ✔️   |
-└ Interaction Hotspot     |   👷   |
+└ Animation Hotspot       |   ✔️   |
 └ Level Variant Sets      |   ✔️   |
 └ Baked Lightmaps         |   ✔️   |
+└ Level Sequence          |   ✔️   |
 Textures                  |   ✔️   |
 └ 2D                      |   ✔️   |
 └ HDR                     |   ✔️   |
 └ Cubemap                 |   ✔️   |
 └ Lightmap                |   ✔️   |
-Level Variant Sets        |   👷   |
+Level Variant Sets        |   ✔️   |
 └ Visible                 |   ✔️   |
 └ Material                |   ✔️   |
-└ Mesh                    |        |
+└ Mesh                    |   ✔️   |
+Level Sequence            |   ✔️   |
+└ Transform               |   ✔️   |
 Exporter                  |   👷   |
 └ Options                 |   👷   |
 └ Logging                 |   👷   |
-└ Progress Bar            |   👷   |
+└ Progress Bars           |   ✔️   |
 
 
 Installation
