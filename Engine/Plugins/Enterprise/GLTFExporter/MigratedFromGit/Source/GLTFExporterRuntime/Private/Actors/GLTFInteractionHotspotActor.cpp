@@ -118,20 +118,20 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 
 	if (PropertyThatChanged)
 	{
-		const FString PropertyName = PropertyThatChanged->GetName();
+		const FName PropertyFName = PropertyThatChanged->GetFName();
 
-		if (PropertyName == TEXT("Image"))
+		if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, Image))
 		{
 			UpdateActiveImageFromState(EGLTFHotspotState::Default);
 		}
-		else if (PropertyName == TEXT("SkeletalMeshActor"))
+		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, SkeletalMeshActor))
 		{
 			if (AnimationSequence != nullptr && AnimationSequence->GetSkeleton() != SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh->Skeleton)
 			{
 				UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("The skeleton of this actor is not compatible with the previously assigned animation sequence"));
 			}
 		}
-		else if (PropertyName == TEXT("AnimationSequence"))
+		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, AnimationSequence))
 		{
 			if (SkeletalMeshActor != nullptr && SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh->Skeleton != AnimationSequence->GetSkeleton())
 			{
