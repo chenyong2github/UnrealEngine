@@ -158,12 +158,93 @@ FGLTFJsonAccessorIndex FGLTFUVVertexBufferConverter::Add(FGLTFConvertBuilder& Bu
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer)
+FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
 {
-	return FGLTFJsonAccessorIndex(INDEX_NONE);
+	return VertexBuffer->Use16BitBoneIndex() ? Add<uint16>(Builder, Name, VertexBuffer, InfluenceOffset) : Add<uint8>(Builder, Name, VertexBuffer, InfluenceOffset);
 }
 
-FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer)
+template <typename IndexType>
+FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
 {
-	return FGLTFJsonAccessorIndex(INDEX_NONE);
+	const uint32 VertexCount = VertexBuffer->GetNumVertices();
+	const int32 MaxInfluenceCount = VertexBuffer->GetMaxBoneInfluences();
+	if (VertexCount == 0 || InfluenceOffset < 0 || MaxInfluenceCount <= InfluenceOffset)
+	{
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
+	const int32 InfluenceCount = FMath::Min(MaxInfluenceCount - InfluenceOffset, 4);
+
+	struct VertexBoneIndices
+	{
+		IndexType Index[4];
+	};
+
+	TArray<VertexBoneIndices> BoneIndices;
+	BoneIndices.AddUninitialized(VertexCount);
+
+	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+	{
+		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+		{
+			BoneIndices[VertexIndex].Index[InfluenceIndex] = static_cast<IndexType>(VertexBuffer->GetBoneIndex(VertexIndex, InfluenceOffset + InfluenceIndex));
+		}
+
+		for (int32 InfluenceIndex = InfluenceCount; InfluenceIndex < 4; ++InfluenceIndex)
+		{
+			BoneIndices[VertexIndex].Index[InfluenceIndex] = 0;
+		}
+	}
+
+	FGLTFJsonAccessor JsonAccessor;
+	JsonAccessor.Name = Name;
+	JsonAccessor.BufferView = Builder.AddBufferView(BoneIndices, Name);
+	JsonAccessor.ComponentType = FGLTFConverterUtility::GetComponentType<IndexType>();
+	JsonAccessor.Count = VertexCount;
+	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
+
+	return Builder.AddAccessor(JsonAccessor);
+}
+
+FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
+{
+	const uint32 VertexCount = VertexBuffer->GetNumVertices();
+	const int32 MaxInfluenceCount = VertexBuffer->GetMaxBoneInfluences();
+	if (VertexCount == 0 || InfluenceOffset < 0 || MaxInfluenceCount <= InfluenceOffset)
+	{
+		return FGLTFJsonAccessorIndex(INDEX_NONE);
+	}
+
+	const int32 InfluenceCount = FMath::Min(MaxInfluenceCount - InfluenceOffset, 4);
+
+	struct VertexBoneWeights
+	{
+		uint8 Weights[4];
+	};
+
+	TArray<VertexBoneWeights> BoneWeights;
+	BoneWeights.AddUninitialized(VertexCount);
+
+	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+	{
+		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+		{
+			BoneWeights[VertexIndex].Weights[InfluenceIndex] = VertexBuffer->GetBoneWeight(VertexIndex, InfluenceOffset + InfluenceIndex);
+		}
+
+		for (int32 InfluenceIndex = InfluenceCount; InfluenceIndex < 4; ++InfluenceIndex)
+		{
+			BoneWeights[VertexIndex].Weights[InfluenceIndex] = 0;
+		}
+	}
+
+	FGLTFJsonAccessor JsonAccessor;
+	JsonAccessor.Name = Name;
+	JsonAccessor.BufferView = Builder.AddBufferView(BoneWeights, Name);
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::U8;
+	JsonAccessor.Count = VertexCount;
+	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
+	JsonAccessor.bNormalized = true;
+
+	return Builder.AddAccessor(JsonAccessor);
 }
