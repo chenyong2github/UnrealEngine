@@ -12,6 +12,10 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 
 void UGLTFExportOptions::ResetToDefault()
 {
+	ExportUniformScale = 0.01;
+	bExportPreviewMesh = true;
+	bBundleWebViewer = true;
+	bShowFilesWhenDone = true;
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
 	bExportExtraBlendModes = true;
@@ -32,7 +36,6 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportTextureTransforms = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFTextureHDREncoding::RGBM;
-	ExportUniformScale = 0.01;
 	bExportHiddenInGame = false;
 	ExportLights = EGLTFExportLightMobility::MovableAndStationary;
 	bExportCameras = true;
@@ -44,8 +47,4 @@ void UGLTFExportOptions::ResetToDefault()
 	ExportMaterialVariants = EGLTFMaterialBakeMode::UseMeshData;
 	bExportMeshVariants = true;
 	bExportVisibilityVariants = true;
-	bBundleWebViewer = true;
-	bExportPreviewMesh = true;
-	bAllExtensionsRequired = false;
-	bShowFilesWhenDone = true;
 }
