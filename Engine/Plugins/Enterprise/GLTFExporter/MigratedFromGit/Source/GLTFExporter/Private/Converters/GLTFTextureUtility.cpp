@@ -84,6 +84,18 @@ TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const U
 	return MakeTuple(AddressX, AddressY);
 }
 
+struct FTextureSourceHack
+{
+	FByteBulkData BulkData;
+};
+
+const FByteBulkData& FGLTFTextureUtility::GetBulkData(const FTextureSource& TextureSource)
+{
+	// TODO: replace hack with safe solution by adding proper API access
+	auto Hack = reinterpret_cast<const FTextureSourceHack*>(&TextureSource);
+	return Hack->BulkData;
+}
+
 UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bUseSRGB)
 {
 	check(CalculateImageBytes(Size.X, Size.Y, 0, Format) == ByteLength);
