@@ -58,7 +58,7 @@ public:
 	float PitchAngleMin;
 
 	/* Maximum angle (in degrees) that the camera can pitch relative to the focused actor. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
 	float PitchAngleMax;
 
 	/* Deceleration that occurs after orbital movement. The higher the value, the longer it takes to settle. */
