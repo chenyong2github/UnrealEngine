@@ -42,6 +42,8 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportVariantSets = true;
 	bExportAnimationHotspots = true;
 	ExportMaterialVariants = EGLTFMaterialBakeMode::Simple;
+	bExportMeshVariants = true;
+	bExportVisibilityVariants = true;
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;
 	bAllExtensionsRequired = false;
