@@ -4,14 +4,17 @@
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 
-void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, int32& SectionIndex, int32& TexCoord)
+void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, TArray<int32>& SectionIndices, int32& TexCoord)
 {
 	if (Description != nullptr)
 	{
 		const int32 SectionCount = Description->PolygonGroups().Num();
-		if (SectionIndex < 0 || SectionIndex >= SectionCount)
+		for (const int32 SectionIndex : SectionIndices)
 		{
-			Description = nullptr;
+			if (SectionIndex < 0 || SectionIndex >= SectionCount)
+			{
+				Description = nullptr;
+			}
 		}
 	}
 
@@ -25,42 +28,79 @@ void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, in
 	}
 }
 
-bool FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, int32 SectionIndex, int32 TexCoord)
+float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, TArray<int32> SectionIndices, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{
 		// TODO: report warning?
 
-		return false;
+		return -1;
 	}
 
-	// TODO: since we are not really checking for degenerate UVs, but simply if all UVs have the same value or not, we should call this class something else
-
-	const FPolygonGroupID PolygonGroupID = FPolygonGroupID(SectionIndex);
-	const TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs =
+	const TVertexAttributesConstRef<FVector> Positions =
+		Description->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+	const TVertexInstanceAttributesConstRef<FVector2D> UVs =
 		Description->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
-	uint32 Index = 0;
-	FVector2D ReferenceUV;
+	int32 TriangleCount = 0;
+	int32 DegenerateCount = 0;
 
-	for (const FPolygonID PolygonID : Description->GetPolygonGroupPolygons(PolygonGroupID))
+	for (const int32 SectionIndex : SectionIndices)
 	{
-		for (const FVertexInstanceID VertexInstanceID : Description->GetPolygonVertexInstances(PolygonID))
+		for (const FPolygonID PolygonID : Description->GetPolygonGroupPolygons(FPolygonGroupID(SectionIndex)))
 		{
-			const FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, TexCoord);
-
-			if (Index == 0)
+			for (const FTriangleID TriangleID : Description->GetPolygonTriangleIDs(PolygonID))
 			{
-				ReferenceUV = UV;
-			}
-			else if (!UV.Equals(ReferenceUV))
-			{
-				return false;
-			}
+				const TStaticArray<FVertexID, 3> TriangleVertexIDs = Description->GetTriangleVertices(TriangleID);
+				TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = Description->GetTriangleVertexInstances(TriangleID);
 
-			++Index;
+				TStaticArray<FVector, 3> TrianglePositions;
+				TStaticArray<FVector2D, 3> TriangleUVs;
+
+				for (int32 Index = 0; Index < 3; Index++)
+				{
+					TrianglePositions[Index] = Positions.Get(TriangleVertexIDs[Index]);
+					TriangleUVs[Index] = UVs.Get(TriangleVertexInstanceIDs[Index], TexCoord);
+				}
+
+				if (!IsDegenerateTriangle(TrianglePositions))
+				{
+					TriangleCount++;
+
+					if (IsDegenerateTriangle(TriangleUVs))
+					{
+						DegenerateCount++;
+					}
+				}
+			}
 		}
 	}
 
-	return true;
+	if (TriangleCount == 0)
+	{
+		return -1;
+	}
+
+	if (TriangleCount == DegenerateCount)
+	{
+		return 1;
+	}
+
+	return static_cast<float>(DegenerateCount) / static_cast<float>(TriangleCount);
+}
+
+bool FGLTFUVDegenerateChecker::IsDegenerateTriangle(const TStaticArray<FVector2D, 3>& Points)
+{
+	const FVector2D AB = Points[1] - Points[0];
+	const FVector2D AC = Points[2] - Points[0];
+	const float DoubleArea = FMath::Abs(AB ^ AC);
+	return DoubleArea < 2 * SMALL_NUMBER;
+}
+
+bool FGLTFUVDegenerateChecker::IsDegenerateTriangle(const TStaticArray<FVector, 3>& Points)
+{
+	const FVector AB = Points[1] - Points[0];
+	const FVector AC = Points[2] - Points[0];
+	const float DoubleAreaSquared = (AB ^ AC).SizeSquared();
+	return DoubleAreaSquared < 2 * SMALL_NUMBER * SMALL_NUMBER;
 }
