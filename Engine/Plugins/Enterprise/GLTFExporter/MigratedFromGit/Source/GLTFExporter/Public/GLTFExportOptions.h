@@ -109,10 +109,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	EGLTFTextureCompression TextureCompression;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
 	int32 TextureCompressionQuality;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureGroupFlags, EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureGroupFlags, EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
 	int32 LosslessCompressTextures;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
