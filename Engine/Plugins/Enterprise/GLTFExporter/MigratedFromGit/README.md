@@ -14,11 +14,12 @@ Models                    |   👷   |
 └ Static Mesh             |   ✔️   |
 └ Skeletal Mesh           |        |
 └ Animation Sequence      |        |
+└ Mesh Quantization       |   👷   |
 Materials                 |   👷   |
 └ Default Lit             |   ✔️   |
 └ Unlit                   |   👷   |
 └ Clear Coat              |        |
-└ Blend Modes             |   ✔️   |
+└ Blend Modes             |   👷   |
 └ Constant Input          |   ✔️   |
 └ Parameter Input         |   ✔️   |
 └ Texture Input           |   👷   |
@@ -38,6 +39,7 @@ Levels                    |   👷   |
 └ Baked Lightmaps         |        |
 Textures                  |        |
 └ 2D                      |        |
+└ HDR                     |        |
 └ Cubemap                 |        |
 └ Lightmap                |        |
 Exporter Options          |   👷   |
