@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GLTFConversionMesh.h"
+#include "GLTFMeshBuilder.h"
 #include "GLTFConversionUtilities.h"
 
-FGLTFConversionSection::FGLTFConversionSection(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray)
+FGLTFSectionBuilder::FGLTFSectionBuilder(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray)
 	: Name(SectionName)
 {
 	const uint32 IndexCount = MeshSection.NumTriangles * 3;
@@ -16,7 +16,7 @@ FGLTFConversionSection::FGLTFConversionSection(const FString& SectionName, const
 	}
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionSection::AppendAccessorForIndices(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFSectionBuilder::AppendAccessorForIndices(FGLTFBuilder& Builder) const
 {
 	if (Indices.Num() == 0)
 	{
@@ -36,7 +36,7 @@ FGLTFJsonAccessorIndex FGLTFConversionSection::AppendAccessorForIndices(FGLTFBui
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFConversionMesh::FGLTFConversionMesh(const UStaticMesh* StaticMesh, int32 LODIndex)
+FGLTFMeshBuilder::FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	StaticMesh->GetName(Name);
 
@@ -112,7 +112,7 @@ FGLTFConversionMesh::FGLTFConversionMesh(const UStaticMesh* StaticMesh, int32 LO
 	BoundingBox = StaticMesh->GetBoundingBox();
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForPositions(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFMeshBuilder::AppendAccessorForPositions(FGLTFBuilder& Builder) const
 {
 	if (Positions.Num() == 0)
 	{
@@ -142,7 +142,7 @@ FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForPositions(FGLTFBuil
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForNormals(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFMeshBuilder::AppendAccessorForNormals(FGLTFBuilder& Builder) const
 {
 	if (Normals.Num() == 0)
 	{
@@ -162,7 +162,7 @@ FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForNormals(FGLTFBuilde
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForColors(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFMeshBuilder::AppendAccessorForColors(FGLTFBuilder& Builder) const
 {
 	if (Colors.Num() == 0)
 	{
@@ -182,7 +182,7 @@ FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForColors(FGLTFBuilder
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForTangents(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFMeshBuilder::AppendAccessorForTangents(FGLTFBuilder& Builder) const
 {
 	if (Tangents.Num() == 0)
 	{
@@ -202,7 +202,7 @@ FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForTangents(FGLTFBuild
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForUV0s(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFMeshBuilder::AppendAccessorForUV0s(FGLTFBuilder& Builder) const
 {
 	if (UV0s.Num() == 0)
 	{
@@ -222,7 +222,7 @@ FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForUV0s(FGLTFBuilder& 
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForUV1s(FGLTFBuilder& Builder) const
+FGLTFJsonAccessorIndex FGLTFMeshBuilder::AppendAccessorForUV1s(FGLTFBuilder& Builder) const
 {
 	if (UV1s.Num() == 0)
 	{
@@ -242,7 +242,7 @@ FGLTFJsonAccessorIndex FGLTFConversionMesh::AppendAccessorForUV1s(FGLTFBuilder& 
 	return Builder.JsonRoot.Accessors.Add(Accessor);
 }
 
-FGLTFJsonMeshIndex FGLTFConversionMesh::AppendMesh(FGLTFBuilder& Builder) const
+FGLTFJsonMeshIndex FGLTFMeshBuilder::AppendMesh(FGLTFBuilder& Builder) const
 {
 	FGLTFJsonMesh Mesh;
 	Mesh.Name = Name;
@@ -255,7 +255,7 @@ FGLTFJsonMeshIndex FGLTFConversionMesh::AppendMesh(FGLTFBuilder& Builder) const
 	Attributes.TexCoord0 = AppendAccessorForUV0s(Builder);
 	Attributes.TexCoord1 = AppendAccessorForUV1s(Builder);
 
-	for (const FGLTFConversionSection& Section : Sections)
+	for (const FGLTFSectionBuilder& Section : Sections)
 	{
 		FGLTFJsonPrimitive Primitive;
 		Primitive.Attributes = Attributes;
