@@ -15,9 +15,10 @@ namespace
 
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
-	DefaultSprite(nullptr),
-	HighlightSprite(nullptr),
-	ToggledSprite(nullptr),
+	Image(nullptr),
+	HoveredImage(nullptr),
+	ToggledImage(nullptr),
+	ToggledHoveredImage(nullptr),
 	ShapeBodySetup(nullptr),
 	bToggled(bToggled)
 {
@@ -45,9 +46,9 @@ void UGLTFInteractionHotspotComponent::PostEditChangeProperty(FPropertyChangedEv
 	{
 		const FString PropertyName = PropertyThatChanged->GetName();
 
-		if (PropertyName == TEXT("DefaultSprite"))
+		if (PropertyName == TEXT("Image"))
 		{
-			SetSprite(DefaultSprite);
+			SetSprite(Image);
 		}
 	}
 }
@@ -57,7 +58,7 @@ void UGLTFInteractionHotspotComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SetSprite(DefaultSprite);
+	SetSprite(Image);
 }
 
 void UGLTFInteractionHotspotComponent::OnRegister()
@@ -122,31 +123,16 @@ void UGLTFInteractionHotspotComponent::SetSprite(class UTexture2D* NewSprite)
 
 void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
 {
-	if ((ToggledSprite == nullptr || !bToggled) && HighlightSprite != nullptr)
-	{
-		SetSprite(HighlightSprite);
-	}
+	SetSprite(GetActiveImage(true));
 }
 
 void UGLTFInteractionHotspotComponent::EndCursorOver(UPrimitiveComponent* TouchedComponent)
 {
-	if (ToggledSprite == nullptr || !bToggled)
-	{
-		SetSprite(DefaultSprite);
-	}
+	SetSprite(GetActiveImage(false));
 }
 
 void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedComponent, FKey ButtonPressed)
 {
-	if (!bToggled && ToggledSprite != nullptr)
-	{
-		SetSprite(ToggledSprite);
-	}
-	else
-	{
-		SetSprite(DefaultSprite);
-	}
-
 	const bool bReverseAnimation = bToggled;
 
 	for (TArray<FGLTFAnimation>::TConstIterator Animation = Animations.CreateConstIterator(); Animation; ++Animation)
@@ -178,6 +164,8 @@ void UGLTFInteractionHotspotComponent::Clicked(UPrimitiveComponent* TouchedCompo
 	}
 
 	bToggled = !bToggled;
+
+	SetSprite(GetActiveImage(true));
 }
 
 void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
@@ -203,4 +191,41 @@ float UGLTFInteractionHotspotComponent::GetBillboardBoundingRadius() const
 	const FBoxSphereBounds WorldBounds = CalcBounds(WorldTransform);
 
 	return WorldBounds.SphereRadius;
+}
+
+UTexture2D* UGLTFInteractionHotspotComponent::GetActiveImage(bool bCursorOver) const
+{
+	// A list of candidates ordered by descending priority
+	TArray<UTexture2D*> ImageCandidates;
+
+	if (bToggled)
+	{
+		if (bCursorOver)
+		{
+			ImageCandidates.Add(ToggledHoveredImage);
+		}
+
+		ImageCandidates.Add(ToggledImage);
+	}
+	else
+	{
+		if (bCursorOver)
+		{
+			ImageCandidates.Add(HoveredImage);
+		}
+
+		ImageCandidates.Add(Image);
+	}
+
+	ImageCandidates.Add(Image);
+
+	for (UTexture2D* ImageCandidate : ImageCandidates)
+	{
+		if (ImageCandidate != nullptr)
+		{
+			return ImageCandidate;
+		}
+	}
+
+	return nullptr;
 }
