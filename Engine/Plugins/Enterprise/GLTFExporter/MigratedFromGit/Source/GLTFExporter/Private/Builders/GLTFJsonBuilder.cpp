@@ -83,6 +83,11 @@ FGLTFJsonLightIndex FGLTFJsonBuilder::AddLight(const FGLTFJsonLight& JsonLight)
 	return FGLTFJsonLightIndex(JsonRoot.Lights.Add(JsonLight));
 }
 
+FGLTFJsonInteractionHotspotIndex FGLTFJsonBuilder::AddInteractionHotspot(const FGLTFJsonInteractionHotspot& JsonInteractionHotspot)
+{
+	return FGLTFJsonInteractionHotspotIndex(JsonRoot.InteractionHotspots.Add(JsonInteractionHotspot));
+}
+
 FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex, const FGLTFJsonNode& JsonNode)
 {
 	const FGLTFJsonNodeIndex ChildIndex = AddNode(JsonNode);
@@ -180,6 +185,11 @@ FGLTFJsonLightMap& FGLTFJsonBuilder::GetLightMap(FGLTFJsonLightMapIndex LightMap
 FGLTFJsonLight& FGLTFJsonBuilder::GetLight(FGLTFJsonLightIndex LightIndex)
 {
 	return JsonRoot.Lights[LightIndex];
+}
+
+FGLTFJsonInteractionHotspot& FGLTFJsonBuilder::GetInteractionHotspot(FGLTFJsonInteractionHotspotIndex InteractionHotspotIndex)
+{
+	return JsonRoot.InteractionHotspots[InteractionHotspotIndex];
 }
 
 FGLTFJsonNodeIndex FGLTFJsonBuilder::GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex)
