@@ -41,10 +41,35 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 		if (Skeleton != nullptr)
 		{
 			PreviewMesh = Skeleton->GetPreviewMesh();
+			if (PreviewMesh == nullptr)
+			{
+				PreviewMesh = FindCompatibleMesh(Skeleton);
+			}
 		}
 	}
 
 	return PreviewMesh;
+}
+
+const USkeletalMesh* FGLTFExporterUtility::FindCompatibleMesh(const USkeleton *Skeleton)
+{
+	FARFilter Filter;
+	Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+	Filter.TagsAndValues.Add(USkeletalMesh::GetSkeletonMemberName(), FAssetData(Skeleton).GetExportTextName());
+
+	TArray<FAssetData> FilteredAssets;
+	IAssetRegistry::GetChecked().GetAssets(Filter, FilteredAssets);
+
+	for (const FAssetData& Asset : FilteredAssets)
+	{
+		const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Asset.GetAsset());
+		if (SkeletalMesh != nullptr)
+		{
+			return SkeletalMesh;
+		}
+	}
+
+	return nullptr;
 }
 
 TArray<UWorld*> FGLTFExporterUtility::GetAssociatedWorlds(const UObject* Object)
