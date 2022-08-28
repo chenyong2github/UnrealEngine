@@ -12,7 +12,7 @@ UGLTFLevelExporter::UGLTFLevelExporter(const FObjectInitializer& ObjectInitializ
 
 bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UWorld* World = CastChecked<UWorld>(Object);
+	const UWorld* World = CastChecked<UWorld>(Object);
 
 	if (!FillExportOptions())
 	{

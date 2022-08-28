@@ -11,7 +11,7 @@ UGLTFAnimSequenceExporter::UGLTFAnimSequenceExporter(const FObjectInitializer& O
 
 bool UGLTFAnimSequenceExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UAnimSequence* AnimSequence = CastChecked<UAnimSequence>(Object);
+	const UAnimSequence* AnimSequence = CastChecked<UAnimSequence>(Object);
 
 	if (!FillExportOptions())
 	{
