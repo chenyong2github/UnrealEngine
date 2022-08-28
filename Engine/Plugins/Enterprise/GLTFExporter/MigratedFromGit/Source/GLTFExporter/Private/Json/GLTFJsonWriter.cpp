@@ -62,16 +62,13 @@ public:
 
 	virtual void Write(float Number) override
 	{
-		// NOTE: Specifying 9 significant digits, this ensures no precision is lost
-		FString ExactString = FString::Printf(TEXT("%.9g"), Number);
-
 		if (CurrentIdentifier.IsEmpty())
 		{
-			JsonWriter->WriteRawJSONValue(ExactString);
+			JsonWriter->WriteValue(Number);
 		}
 		else
 		{
-			JsonWriter->WriteRawJSONValue(CurrentIdentifier, ExactString);
+			JsonWriter->WriteValue(CurrentIdentifier, Number);
 			CurrentIdentifier.Empty();
 		}
 	}
@@ -171,6 +168,16 @@ struct TGLTFJsonPrintPolicyUTF8
 		{
 			WriteChar(Stream, *CharPtr);
 		}
+	}
+
+	static void WriteFloat(FArchive* Stream, float Number)
+	{
+		WriteString(Stream, FString::Printf(TEXT("%.9g"), Number));
+	}
+
+	static void WriteDouble(FArchive* Stream, double Number)
+	{
+		WriteString(Stream, FString::Printf(TEXT("%.17g"), Number));
 	}
 };
 
