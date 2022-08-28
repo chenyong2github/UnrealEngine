@@ -1,20 +1,24 @@
 {
 	"FileVersion": 3,
-	"Version": 0.1,
+	"Version": 0,
 	"VersionName": "0.1",
 	"FriendlyName": "glTF Exporter",
 	"Description": "An exporter for Khronos glTF 3D models.",
 	"Category": "Exporters",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "http://epicgames.com",
-	"EnabledByDefault": false,
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "4.25.0",
 	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Modules":
 	[
 		{
 			"Name": "GLTFExporter",
-			"Type": "Editor"
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }
