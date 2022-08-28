@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonScene.h"
+#include "Json/GLTFJsonNode.h"
+#include "Json/GLTFJsonEpicLevelVariantSets.h"
 
 void FGLTFJsonScene::WriteObject(IGLTFJsonWriter& Writer) const
 {

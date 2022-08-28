@@ -7,6 +7,11 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Converters/GLTFMeshSection.h"
 
+class FPositionVertexBuffer;
+class FColorVertexBuffer;
+class FStaticMeshVertexBuffer;
+class FSkinWeightVertexBuffer;
+
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FPositionVertexBuffer*> IGLTFPositionBufferConverter;
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FColorVertexBuffer*> IGLTFColorBufferConverter;
 typedef TGLTFConverter<FGLTFJsonAccessor*, const FGLTFMeshSection*, const FStaticMeshVertexBuffer*> IGLTFNormalBufferConverter;

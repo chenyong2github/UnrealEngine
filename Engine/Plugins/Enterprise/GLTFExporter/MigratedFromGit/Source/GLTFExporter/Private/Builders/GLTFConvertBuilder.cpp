@@ -2,6 +2,7 @@
 
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFMeshUtility.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -162,7 +163,7 @@ FGLTFJsonMesh* FGLTFConvertBuilder::AddUniqueMesh(const USkeletalMeshComponent* 
 		return nullptr;
 	}
 
-	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 	if (SkeletalMesh == nullptr)
 	{
 		return nullptr;
@@ -224,7 +225,7 @@ FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterfa
 FGLTFJsonMaterial* FGLTFConvertBuilder::AddUniqueMaterial(const UMaterialInterface* Material, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, int32 MaterialIndex)
 {
 	// TODO: optimize by skipping mesh data if material doesn't need it
-	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 	const FGLTFMeshData* MeshData = AddUniqueMeshData(SkeletalMesh, SkeletalMeshComponent, LODIndex);
 	const FGLTFIndexArray SectionIndices = FGLTFMeshUtility::GetSectionIndices(SkeletalMesh, MeshData->LODIndex, MaterialIndex);
 	return AddUniqueMaterial(Material, MeshData, SectionIndices);
@@ -362,7 +363,7 @@ FGLTFJsonSkin* FGLTFConvertBuilder::AddUniqueSkin(FGLTFJsonNode* RootNode, const
 		return nullptr;
 	}
 
-	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 
 	if (SkeletalMesh == nullptr)
 	{

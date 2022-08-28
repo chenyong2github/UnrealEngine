@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BoneIndices.h"
 
 struct FMovieSceneDoubleChannel;
+struct FReferenceSkeleton;
+class UAnimSequence;
 class UMovieScene3DTransformSection;
+class USkeleton;
 
 struct FGLTFBoneUtility
 {

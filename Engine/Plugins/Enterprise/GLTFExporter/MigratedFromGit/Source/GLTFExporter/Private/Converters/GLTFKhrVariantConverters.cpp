@@ -3,6 +3,7 @@
 #include "Converters/GLTFKhrVariantConverters.h"
 #include "Converters/GLTFVariantUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "Components/MeshComponent.h"
 #include "VariantObjectBinding.h"
 #include "PropertyValueMaterial.h"
 #include "PropertyValue.h"

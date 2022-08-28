@@ -3,11 +3,16 @@
 #pragma once
 
 #include "Math/IntPoint.h"
+#include "Components/MeshComponent.h"
+#include "Components/SkinnedMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "SceneTypes.h"
 #include "LightMap.h"
 #include "GLTFMaterialPropertyEx.h"
 
 class UMaterialInterface;
+struct FCustomPrimitiveData;
 struct FMeshDescription;
 
 /** Structure containing information about the material which is being baked out */

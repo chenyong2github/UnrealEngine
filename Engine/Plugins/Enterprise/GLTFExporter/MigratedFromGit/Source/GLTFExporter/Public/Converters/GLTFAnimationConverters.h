@@ -6,8 +6,12 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-class ULevelSequence;
 class ALevelSequenceActor;
+class UAnimSequence;
+class ULevel;
+class ULevelSequence;
+class USkeletalMesh;
+class USkeletalMeshComponent;
 
 typedef TGLTFConverter<FGLTFJsonAnimation*, FGLTFJsonNode*, const USkeletalMesh*, const UAnimSequence*> IGLTFAnimationConverter;
 typedef TGLTFConverter<FGLTFJsonAnimation*, FGLTFJsonNode*, const USkeletalMeshComponent*> IGLTFAnimationDataConverter;

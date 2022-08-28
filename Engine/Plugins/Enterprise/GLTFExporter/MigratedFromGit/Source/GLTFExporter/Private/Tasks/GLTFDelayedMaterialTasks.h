@@ -7,6 +7,7 @@
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "Converters/GLTFMeshData.h"
 #include "Materials/GLTFProxyMaterialParameterInfo.h"
+#include "Materials/Material.h"
 #if WITH_EDITOR
 #include "GLTFMaterialPropertyEx.h"
 #endif

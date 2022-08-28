@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
+class AActor;
+class USkeletalMesh;
 class UStaticMesh;
 class UMaterialInterface;
 class UAnimSequence;

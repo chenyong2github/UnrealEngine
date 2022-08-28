@@ -5,6 +5,8 @@
 #include "Exporters/GLTFExporter.h"
 #include "GLTFMaterialExporter.generated.h"
 
+class UStaticMesh;
+
 UCLASS()
 class GLTFEXPORTER_API UGLTFMaterialExporter : public UGLTFExporter
 {

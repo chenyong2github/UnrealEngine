@@ -3,8 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
-
-struct FColor;
+#include "Math/Color.h"
 
 class GLTFMATERIALBAKING_API FGLTFMaterialBakingHelpers
 {

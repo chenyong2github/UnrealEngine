@@ -7,6 +7,11 @@
 #include "Converters/GLTFMeshSectionConverters.h"
 #include "Converters/GLTFMaterialArray.h"
 #include "Converters/GLTFNameUtility.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+
+class SkeletalMeshComponent;
+class StaticMeshComponent;
 
 class FGLTFDelayedStaticMeshTask : public FGLTFDelayedTask
 {

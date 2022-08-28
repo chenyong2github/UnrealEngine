@@ -7,6 +7,8 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
+class AActor;
+class UMaterialInstance;
 struct FGLTFJsonSkySphereColorCurve;
 
 typedef TGLTFConverter<FGLTFJsonSkySphere*, const AActor*> IGLTFSkySphereConverter;

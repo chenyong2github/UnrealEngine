@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
+#include "Modules/ModuleManager.h"
 #include "RenderingThread.h"
 #include "RHISurfaceDataConversion.h"
 #include "Misc/ScopedSlowTask.h"

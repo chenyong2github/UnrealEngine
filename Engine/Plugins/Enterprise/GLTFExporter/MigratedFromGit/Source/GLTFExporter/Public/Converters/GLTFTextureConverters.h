@@ -5,6 +5,12 @@
 #include "Json/GLTFJsonCore.h"
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
+#include "Engine/LightMapTexture2D.h"
+#include "Engine/Texture2D.h"
+#include "Engine/TextureCube.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/TextureRenderTargetCube.h"
+#include "RHIDefinitions.h"
 
 // TODO: generalize parameter bToSRGB to SamplerType (including normalmap unpacking)
 

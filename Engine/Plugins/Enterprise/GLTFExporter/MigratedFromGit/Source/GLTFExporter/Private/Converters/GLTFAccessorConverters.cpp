@@ -5,6 +5,14 @@
 #include "Converters/GLTFBufferAdapter.h"
 #include "Builders/GLTFConvertBuilder.h"
 
+#include "Rendering/ColorVertexBuffer.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "RawIndexBuffer.h"
+#include "RHI.h"
+#include "RHIResources.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
+#include "Rendering/StaticMeshVertexBuffer.h"
+
 // TODO: Unreal-style implementation of std::conditional to avoid mixing in STL. Should be added to the engine.
 template <bool Condition, class TypeIfTrue, class TypeIfFalse>
 class TConditional

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonKhrMaterialVariant.h"
+#include "Json/GLTFJsonMaterial.h"
 
 void FGLTFJsonKhrMaterialVariantMapping::WriteObject(IGLTFJsonWriter& Writer) const
 {

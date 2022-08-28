@@ -4,6 +4,11 @@
 
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 
+class UMaterialInstanceConstant;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class UTexture;
+
 template <typename ParameterType>
 class TGLTFProxyMaterialParameterInfo
 {

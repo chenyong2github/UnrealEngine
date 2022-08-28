@@ -3,7 +3,7 @@
 #include "Converters/GLTFAnimationConverters.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFDelayedAnimationTasks.h"
-#include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "LevelSequenceActor.h"
 
 FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
@@ -40,7 +40,7 @@ FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, co
 
 FGLTFJsonAnimation* FGLTFAnimationDataConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
 {
-	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMesh();
 	if (SkeletalMesh == nullptr)
 	{
 		return nullptr;

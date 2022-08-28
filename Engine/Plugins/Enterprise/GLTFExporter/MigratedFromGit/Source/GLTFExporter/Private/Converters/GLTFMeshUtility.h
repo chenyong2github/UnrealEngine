@@ -4,7 +4,15 @@
 
 #include "Converters/GLTFIndexArray.h"
 
+class UMaterialInterface;
+class UStaticMesh;
+class UStaticMeshComponent;
+class USkeletalMesh;
+class USkeletalMeshComponent;
 class FSkeletalMeshLODRenderData;
+struct FStaticMaterial;
+struct FSkeletalMaterial;
+struct FStaticMeshLODResources;
 
 struct FGLTFMeshUtility
 {

@@ -7,7 +7,6 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Materials/GLTFProxyMaterialInfo.h"
-#if WITH_EDITOR
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -17,7 +16,6 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
-#endif
 
 namespace
 {

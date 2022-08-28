@@ -9,7 +9,7 @@ public class GLTFExporter : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		bTreatAsEngineModule = true; // Only necessary when plugin installed in project
 
-		PublicDependencyModuleNames .AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",

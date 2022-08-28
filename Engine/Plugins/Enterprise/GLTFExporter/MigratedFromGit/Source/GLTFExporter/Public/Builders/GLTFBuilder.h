@@ -6,6 +6,12 @@
 #include "Json/GLTFJsonEnums.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+class UMaterialInterface;
+class UStaticMesh;
+class UStaticMeshComponent;
+class USkeletalMesh;
+class USkeletalMeshComponent;
+
 class GLTFEXPORTER_API FGLTFBuilder
 {
 public:

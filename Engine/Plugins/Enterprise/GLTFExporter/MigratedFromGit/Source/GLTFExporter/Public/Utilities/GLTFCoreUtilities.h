@@ -2,12 +2,18 @@
 
 #pragma once
 
+#include "Animation/AnimTypes.h"
+#include "Camera/CameraTypes.h"
 #include "Core/GLTFVector.h"
 #include "Core/GLTFColor.h"
 #include "Core/GLTFMatrix.h"
 #include "Core/GLTFQuaternion.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/Texture.h"
+#include "PackedNormal.h"
+#include "RHIDefinitions.h"
+#include "SceneTypes.h"
 
 enum class EGLTFCameraControlMode : unsigned char;
 

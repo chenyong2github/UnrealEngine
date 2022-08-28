@@ -3,7 +3,13 @@
 #include "Exporters/GLTFExporterUtility.h"
 #include "Materials/MaterialInstance.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/Selection.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 void FGLTFExporterUtility::GetSelectedActors(TSet<AActor*>& OutSelectedActors)
 {
@@ -66,7 +72,7 @@ const USkeletalMesh* FGLTFExporterUtility::FindCompatibleMesh(const USkeleton *S
 #endif
 
 	FARFilter Filter;
-	Filter.ClassNames.Add(USkeletalMesh::StaticClass()->GetFName());
+	Filter.ClassPaths.Add(USkeletalMesh::StaticClass()->GetClassPathName());
 	Filter.TagsAndValues.Add(SkeletonMemberName, FAssetData(Skeleton).GetExportTextName());
 
 	TArray<FAssetData> FilteredAssets;

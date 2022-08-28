@@ -4,6 +4,13 @@
 
 #include "CoreMinimal.h"
 
+class FRawStaticIndexBuffer;
+class FRawStaticIndexBuffer16or32Interface;
+class FPositionVertexBuffer;
+class FColorVertexBuffer;
+class FStaticMeshVertexBuffer;
+class FSkinWeightVertexBuffer;
+
 class IGLTFBufferAdapter
 {
 public:

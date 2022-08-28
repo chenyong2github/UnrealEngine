@@ -9,12 +9,12 @@
 #include "GLTFMaterialAnalyzer.h"
 #include "IGLTFMaterialBakingModule.h"
 #include "GLTFMaterialBakingStructures.h"
+#endif
 #include "Modules/ModuleManager.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
-#endif
 
 UMaterialInterface* FGLTFMaterialUtility::GetDefaultMaterial()
 {

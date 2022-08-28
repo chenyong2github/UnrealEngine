@@ -10,21 +10,7 @@
 
 const TArray<FCapturedPropSegment>& FGLTFVariantUtility::GetCapturedPropSegments(const UPropertyValue* Property)
 {
-#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	return Property->GetCapturedPropSegments();
-
-#else
-	class UPropertyValueHack : public UPropertyValue
-	{
-	public:
-		const TArray<FCapturedPropSegment>& GetCapturedPropSegments() const
-		{
-			return CapturedPropSegments;
-		}
-	};
-
-	return static_cast<const UPropertyValueHack*>(Property)->GetCapturedPropSegments();
-#endif
 }
 
 bool FGLTFVariantUtility::IsStaticMeshProperty(const UPropertyValue* Property)

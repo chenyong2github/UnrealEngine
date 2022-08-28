@@ -4,6 +4,8 @@
 #include "Engine/StaticMeshActor.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/LightComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/Light.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"

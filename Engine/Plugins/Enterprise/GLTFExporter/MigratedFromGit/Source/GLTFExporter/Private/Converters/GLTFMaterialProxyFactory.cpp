@@ -9,6 +9,7 @@
 #include "Materials/GLTFProxyMaterialInfo.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "HAL/FileManager.h"
 #include "ImageUtils.h"
 
 FGLTFMaterialProxyFactory::FGLTFMaterialProxyFactory(const UGLTFProxyOptions* Options)

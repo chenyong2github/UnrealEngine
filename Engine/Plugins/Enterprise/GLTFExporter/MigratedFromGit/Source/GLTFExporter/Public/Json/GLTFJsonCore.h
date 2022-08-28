@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonValue.h"
 #include "Json/GLTFJsonArray.h"

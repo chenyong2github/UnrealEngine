@@ -3,6 +3,13 @@
 #pragma once
 
 #include "Json/GLTFJsonEnums.h"
+#include "Engine/Texture.h"
+#include "PixelFormat.h"
+#include "RHIDefinitions.h"
+
+class UTextureCube;
+class UTextureRenderTarget2D;
+class UTextureRenderTargetCube;
 
 struct FGLTFTextureUtility
 {
