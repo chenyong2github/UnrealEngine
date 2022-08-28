@@ -27,10 +27,10 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const ULevel* Level)
 		{
 			if (Builder.ExportOptions->bExportVariantSets)
 			{
-				const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSetsActor);
-				if (LevelVariantSetsIndex != INDEX_NONE)
+				const FGLTFJsonVariationIndex VariationIndex = Builder.GetOrAddVariation(LevelVariantSetsActor);
+				if (VariationIndex != INDEX_NONE)
 				{
-					Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
+					Scene.Variations.Add(VariationIndex);
 				}
 			}
 			else

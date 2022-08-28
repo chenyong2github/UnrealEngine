@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Converters/GLTFVariantSetConverters.h"
+#include "Converters/GLTFVarationConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "LevelVariantSetsActor.h"
 #include "VariantObjectBinding.h"
@@ -23,16 +23,16 @@ namespace
 	};
 } // anonymous namespace
 
-FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ALevelVariantSetsActor* LevelVariantSetsActor)
+FGLTFJsonVariationIndex FGLTFVariationConverter::Convert(const ALevelVariantSetsActor* LevelVariantSetsActor)
 {
 	const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
 	if (LevelVariantSets == nullptr)
 	{
-		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
+		return FGLTFJsonVariationIndex(INDEX_NONE);
 	}
 
-	FGLTFJsonLevelVariantSets JsonLevelVariantSets;
-	LevelVariantSets->GetName(JsonLevelVariantSets.Name);
+	FGLTFJsonVariation JsonVariation;
+	LevelVariantSets->GetName(JsonVariation.Name);
 
 	for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
 	{
@@ -50,7 +50,7 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ALe
 
 		if (JsonVariantSet.Variants.Num() > 0)
 		{
-			JsonLevelVariantSets.VariantSets.Add(JsonVariantSet);
+			JsonVariation.VariantSets.Add(JsonVariantSet);
 		}
 		else
 		{
@@ -60,15 +60,15 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const ALe
 		}
 	}
 
-	if (JsonLevelVariantSets.VariantSets.Num() == 0)
+	if (JsonVariation.VariantSets.Num() == 0)
 	{
-		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
+		return FGLTFJsonVariationIndex(INDEX_NONE);
 	}
 
-	return Builder.AddLevelVariantSets(JsonLevelVariantSets);
+	return Builder.AddVariation(JsonVariation);
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const
+bool FGLTFVariationConverter::TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const
 {
 	FGLTFJsonVariant JsonVariant;
 
@@ -98,7 +98,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFJsonVariant& OutVarian
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const
+bool FGLTFVariationConverter::TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const
 {
 	bool bHasParsedAnyProperty = false;
 
@@ -168,7 +168,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonVariant& Ou
 	return bHasParsedAnyProperty;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFVariationConverter::TryParseVisibilityPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -215,7 +215,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVa
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFVariationConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(const_cast<UPropertyValue*>(Property));
 	if (MaterialProperty == nullptr)
@@ -284,7 +284,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVari
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFVariationConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -341,7 +341,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVa
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFVariationConverter::TryParseSkeletalMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -399,7 +399,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJson
 }
 
 template<typename T>
-bool FGLTFLevelVariantSetsConverter::TryGetPropertyValue(UPropertyValue* Property, T& OutValue) const
+bool FGLTFVariationConverter::TryGetPropertyValue(UPropertyValue* Property, T& OutValue) const
 {
 	if (Property == nullptr || !Property->HasRecordedData())
 	{
@@ -410,31 +410,31 @@ bool FGLTFLevelVariantSetsConverter::TryGetPropertyValue(UPropertyValue* Propert
 	return true;
 }
 
-FString FGLTFLevelVariantSetsConverter::GetLogContext(const UPropertyValue* Property) const
+FString FGLTFVariationConverter::GetLogContext(const UPropertyValue* Property) const
 {
 	const UVariantObjectBinding* Parent = Property->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + Property->GetFullDisplayString();
 }
 
-FString FGLTFLevelVariantSetsConverter::GetLogContext(const UVariantObjectBinding* Binding) const
+FString FGLTFVariationConverter::GetLogContext(const UVariantObjectBinding* Binding) const
 {
 	const UVariant* Parent = const_cast<UVariantObjectBinding*>(Binding)->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + Binding->GetDisplayText().ToString();
 }
 
-FString FGLTFLevelVariantSetsConverter::GetLogContext(const UVariant* Variant) const
+FString FGLTFVariationConverter::GetLogContext(const UVariant* Variant) const
 {
 	const UVariantSet* Parent = const_cast<UVariant*>(Variant)->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + Variant->GetDisplayText().ToString();
 }
 
-FString FGLTFLevelVariantSetsConverter::GetLogContext(const UVariantSet* VariantSet) const
+FString FGLTFVariationConverter::GetLogContext(const UVariantSet* VariantSet) const
 {
 	const ULevelVariantSets* Parent = const_cast<UVariantSet*>(VariantSet)->GetParent();
 	return GetLogContext(Parent) + TEXT("/") + VariantSet->GetDisplayText().ToString();
 }
 
-FString FGLTFLevelVariantSetsConverter::GetLogContext(const ULevelVariantSets* LevelVariantSets) const
+FString FGLTFVariationConverter::GetLogContext(const ULevelVariantSets* LevelVariantSets) const
 {
 	return LevelVariantSets->GetName();
 }
