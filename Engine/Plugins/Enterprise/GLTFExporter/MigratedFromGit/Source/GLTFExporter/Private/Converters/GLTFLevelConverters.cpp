@@ -4,6 +4,7 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFActorUtility.h"
+#include "Engine/MapBuildDataRegistry.h"
 
 FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent)
 {
@@ -32,7 +33,10 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
+		// TODO: make export of light-maps optional (selectable via export options)
+
 		Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
+		Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
 	}
 
 	return NodeIndex;

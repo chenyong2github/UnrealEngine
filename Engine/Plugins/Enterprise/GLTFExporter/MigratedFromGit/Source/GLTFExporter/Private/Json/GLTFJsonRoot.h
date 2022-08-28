@@ -14,6 +14,7 @@
 #include "Json/GLTFJsonSampler.h"
 #include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonTexture.h"
+#include "Json/GLTFJsonLightMap.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 
 
@@ -64,6 +65,7 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonSampler>    Samplers;
 	TArray<FGLTFJsonScene>      Scenes;
 	TArray<FGLTFJsonTexture>    Textures;
+	TArray<FGLTFJsonLightMap>   LightMaps;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
@@ -90,6 +92,28 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("samplers"), Samplers, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
+
+		const bool bWriteExtensions = LightMaps.Num() > 0;
+
+		if (bWriteExtensions)
+		{
+			JsonWriter.WriteObjectStart(TEXT("extensions"));
+
+			if (LightMaps.Num() > 0)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightMapTextures;
+
+				AllExtensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+
+				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
+
+				JsonWriter.WriteObjectEnd();
+			}
+
+			JsonWriter.WriteObjectEnd();
+		}
 
 		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), AllExtensions.Used);
 		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), AllExtensions.Required);

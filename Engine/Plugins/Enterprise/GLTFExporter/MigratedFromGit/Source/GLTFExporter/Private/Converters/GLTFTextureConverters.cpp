@@ -28,8 +28,23 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builde
 	return FGLTFJsonTextureIndex(INDEX_NONE);
 }
 
-FGLTFJsonTextureIndex FGLTFLightMapTexture2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightMapTexture2D* LightMap)
+FGLTFJsonTextureIndex FGLTFLightMapTexture2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightMapTexture2D* LightMapTexture2D)
 {
-	// TODO: implement support
-	return FGLTFJsonTextureIndex(INDEX_NONE);
+	// TODO: maybe we should reuse existing samplers?
+	FGLTFJsonSampler JsonSampler;
+	JsonSampler.Name = Name;
+
+	// TODO: are these filters ok to use as default? The actual texture uses "nearest"
+	JsonSampler.MinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
+	JsonSampler.MagFilter = EGLTFJsonTextureFilter::Linear;
+
+	JsonSampler.WrapS = FGLTFConverterUtility::ConvertWrap(LightMapTexture2D->AddressX);
+	JsonSampler.WrapT = FGLTFConverterUtility::ConvertWrap(LightMapTexture2D->AddressY);
+
+	FGLTFJsonTexture JsonTexture;
+	JsonTexture.Name = Name;
+	JsonTexture.Sampler = Builder.AddSampler(JsonSampler);
+	JsonTexture.Source = Builder.AddImage(LightMapTexture2D->Source, Name);
+
+	return Builder.AddTexture(JsonTexture);
 }
