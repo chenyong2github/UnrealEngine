@@ -8,7 +8,7 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 	HighlightSprite(nullptr),
 	ToggledSprite(nullptr)
 {
-	// A scene component with a transform in the root
+	// TODO: Figure out how to make hotspot component the root without affecting its collision volume
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	RootComponent = SceneComponent;
 
@@ -28,6 +28,7 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 
 void AGLTFInteractionHotspotActor::ForwardPropertiesToComponent()
 {
+	// TODO: Forward full transform to component
 	if (InteractionHotspotComponent->Animations != Animations)
 	{
 		InteractionHotspotComponent->Animations = Animations;
