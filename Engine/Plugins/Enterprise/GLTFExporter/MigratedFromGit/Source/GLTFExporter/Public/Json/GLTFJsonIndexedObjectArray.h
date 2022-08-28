@@ -57,15 +57,6 @@ struct TGLTFJsonIndexedObjectArray : IGLTFJsonArray
 	TGLTFJsonIndexedObjectArray(const TGLTFJsonIndexedObjectArray&) = delete;
 	TGLTFJsonIndexedObjectArray& operator=(const TGLTFJsonIndexedObjectArray&) = delete;
 
-	ElementType* Add(const ElementType& Temp)
-	{
-		ElementType* Element = new ElementType(Array.Num());
-		*Element = Temp;
-		Element->Index = Array.Num();
-		Array.Add(TUniquePtr<ElementType>(Element));
-		return Element;
-	}
-
 	ElementType* Add()
 	{
 		ElementType* Element = new ElementType(Array.Num());

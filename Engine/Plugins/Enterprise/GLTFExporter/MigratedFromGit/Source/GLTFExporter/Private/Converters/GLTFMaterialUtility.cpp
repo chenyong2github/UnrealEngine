@@ -265,20 +265,20 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 FGLTFJsonTexture* FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Builder, TGLTFSharedArray<FColor>& Pixels, const FIntPoint& TextureSize, bool bIgnoreAlpha, bool bIsNormalMap, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT)
 {
 	// TODO: maybe we should reuse existing samplers?
-	FGLTFJsonSampler JsonSampler;
-	JsonSampler.Name = TextureName;
-	JsonSampler.MinFilter = MinFilter;
-	JsonSampler.MagFilter = MagFilter;
-	JsonSampler.WrapS = WrapS;
-	JsonSampler.WrapT = WrapT;
+	FGLTFJsonSampler* JsonSampler = Builder.AddSampler();
+	JsonSampler->Name = TextureName;
+	JsonSampler->MinFilter = MinFilter;
+	JsonSampler->MagFilter = MagFilter;
+	JsonSampler->WrapS = WrapS;
+	JsonSampler->WrapT = WrapT;
 
 	// TODO: reuse same texture index when image is the same
-	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = TextureName;
-	JsonTexture.Sampler = Builder.AddSampler(JsonSampler);
-	JsonTexture.Source = Builder.GetOrAddImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
+	FGLTFJsonTexture* JsonTexture = Builder.AddTexture();
+	JsonTexture->Name = TextureName;
+	JsonTexture->Sampler = JsonSampler;
+	JsonTexture->Source = Builder.GetOrAddImage(Pixels, TextureSize, bIgnoreAlpha, bIsNormalMap ? EGLTFTextureType::Normalmaps : EGLTFTextureType::None, TextureName);
 
-	return Builder.AddTexture(JsonTexture);
+	return JsonTexture;
 }
 
 FLinearColor FGLTFMaterialUtility::GetMask(const FExpressionInput& ExpressionInput)

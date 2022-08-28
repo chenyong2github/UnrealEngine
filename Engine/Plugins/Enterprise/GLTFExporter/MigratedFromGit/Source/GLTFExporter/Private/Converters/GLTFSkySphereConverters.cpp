@@ -17,8 +17,8 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 		return nullptr;
 	}
 
-	FGLTFJsonSkySphere JsonSkySphere;
-	SkySphereActor->GetName(JsonSkySphere.Name);
+	FGLTFJsonSkySphere* JsonSkySphere = Builder.AddSkySphere();
+	SkySphereActor->GetName(JsonSkySphere->Name);
 
 	const UStaticMeshComponent* StaticMeshComponent = nullptr;
 	FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("SkySphereMesh"), StaticMeshComponent);
@@ -32,8 +32,8 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 		const FTransform ParentTransform = ParentComponent->GetSocketTransform(SocketName);
 		const FTransform RelativeTransform = Transform.GetRelativeTransform(ParentTransform);
 
-		JsonSkySphere.Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
-		JsonSkySphere.SkySphereMesh = Builder.GetOrAddMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefaultMaterial() });
+		JsonSkySphere->Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
+		JsonSkySphere->SkySphereMesh = Builder.GetOrAddMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefaultMaterial() });
 	}
 	else
 	{
@@ -43,7 +43,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 	const ADirectionalLight* DirectionalLight = nullptr;
 	if (FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("Directional light actor"), DirectionalLight))
 	{
-		JsonSkySphere.DirectionalLight = Builder.GetOrAddNode(DirectionalLight);
+		JsonSkySphere->DirectionalLight = Builder.GetOrAddNode(DirectionalLight);
 	}
 	else
 	{
@@ -55,13 +55,13 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 
 	if (SkyMaterial != nullptr)
 	{
-		ConvertScalarParameter(SkySphereActor, SkyMaterial, TEXT("Sun Radius"), JsonSkySphere.SunRadius);
-		ConvertScalarParameter(SkySphereActor, SkyMaterial, TEXT("NoisePower1"), JsonSkySphere.NoisePower1);
-		ConvertScalarParameter(SkySphereActor, SkyMaterial, TEXT("NoisePower2"), JsonSkySphere.NoisePower2);
+		ConvertScalarParameter(SkySphereActor, SkyMaterial, TEXT("Sun Radius"), JsonSkySphere->SunRadius);
+		ConvertScalarParameter(SkySphereActor, SkyMaterial, TEXT("NoisePower1"), JsonSkySphere->NoisePower1);
+		ConvertScalarParameter(SkySphereActor, SkyMaterial, TEXT("NoisePower2"), JsonSkySphere->NoisePower2);
 
-		ConvertTextureParameter(SkySphereActor, SkyMaterial, ESkySphereTextureParameter::SkyTexture, JsonSkySphere.SkyTexture);
-		ConvertTextureParameter(SkySphereActor, SkyMaterial, ESkySphereTextureParameter::CloudsTexture, JsonSkySphere.CloudsTexture);
-		ConvertTextureParameter(SkySphereActor, SkyMaterial, ESkySphereTextureParameter::StarsTexture, JsonSkySphere.StarsTexture);
+		ConvertTextureParameter(SkySphereActor, SkyMaterial, ESkySphereTextureParameter::SkyTexture, JsonSkySphere->SkyTexture);
+		ConvertTextureParameter(SkySphereActor, SkyMaterial, ESkySphereTextureParameter::CloudsTexture, JsonSkySphere->CloudsTexture);
+		ConvertTextureParameter(SkySphereActor, SkyMaterial, ESkySphereTextureParameter::StarsTexture, JsonSkySphere->StarsTexture);
 	}
 	else
 	{
@@ -70,24 +70,24 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 			*SkySphereActor->GetName()));
 	}
 
-	ConvertProperty(SkySphereActor, TEXT("Sun height"), JsonSkySphere.SunHeight);
-	ConvertProperty(SkySphereActor, TEXT("Sun brightness"), JsonSkySphere.SunBrightness);
-	ConvertProperty(SkySphereActor, TEXT("Stars brightness"), JsonSkySphere.StarsBrightness);
-	ConvertProperty(SkySphereActor, TEXT("Cloud speed"), JsonSkySphere.CloudSpeed);
-	ConvertProperty(SkySphereActor, TEXT("Cloud opacity"), JsonSkySphere.CloudOpacity);
-	ConvertProperty(SkySphereActor, TEXT("Horizon Falloff"), JsonSkySphere.HorizonFalloff);
-	ConvertProperty(SkySphereActor, TEXT("Colors determined by sun position"), JsonSkySphere.bColorsDeterminedBySunPosition);
+	ConvertProperty(SkySphereActor, TEXT("Sun height"), JsonSkySphere->SunHeight);
+	ConvertProperty(SkySphereActor, TEXT("Sun brightness"), JsonSkySphere->SunBrightness);
+	ConvertProperty(SkySphereActor, TEXT("Stars brightness"), JsonSkySphere->StarsBrightness);
+	ConvertProperty(SkySphereActor, TEXT("Cloud speed"), JsonSkySphere->CloudSpeed);
+	ConvertProperty(SkySphereActor, TEXT("Cloud opacity"), JsonSkySphere->CloudOpacity);
+	ConvertProperty(SkySphereActor, TEXT("Horizon Falloff"), JsonSkySphere->HorizonFalloff);
+	ConvertProperty(SkySphereActor, TEXT("Colors determined by sun position"), JsonSkySphere->bColorsDeterminedBySunPosition);
 
-	ConvertColorProperty(SkySphereActor, TEXT("Zenith Color"), JsonSkySphere.ZenithColor);
-	ConvertColorProperty(SkySphereActor, TEXT("Horizon color"), JsonSkySphere.HorizonColor);
-	ConvertColorProperty(SkySphereActor, TEXT("Cloud color"), JsonSkySphere.CloudColor);
-	ConvertColorProperty(SkySphereActor, TEXT("Overall Color"), JsonSkySphere.OverallColor);
+	ConvertColorProperty(SkySphereActor, TEXT("Zenith Color"), JsonSkySphere->ZenithColor);
+	ConvertColorProperty(SkySphereActor, TEXT("Horizon color"), JsonSkySphere->HorizonColor);
+	ConvertColorProperty(SkySphereActor, TEXT("Cloud color"), JsonSkySphere->CloudColor);
+	ConvertColorProperty(SkySphereActor, TEXT("Overall Color"), JsonSkySphere->OverallColor);
 
-	ConvertColorCurveProperty(SkySphereActor, TEXT("Zenith color curve"), JsonSkySphere.ZenithColorCurve);
-	ConvertColorCurveProperty(SkySphereActor, TEXT("Horizon color curve"), JsonSkySphere.HorizonColorCurve);
-	ConvertColorCurveProperty(SkySphereActor, TEXT("Cloud color curve"), JsonSkySphere.CloudColorCurve);
+	ConvertColorCurveProperty(SkySphereActor, TEXT("Zenith color curve"), JsonSkySphere->ZenithColorCurve);
+	ConvertColorCurveProperty(SkySphereActor, TEXT("Horizon color curve"), JsonSkySphere->HorizonColorCurve);
+	ConvertColorCurveProperty(SkySphereActor, TEXT("Cloud color curve"), JsonSkySphere->CloudColorCurve);
 
-	return Builder.AddSkySphere(JsonSkySphere);
+	return JsonSkySphere;
 }
 
 template <class ValueType>

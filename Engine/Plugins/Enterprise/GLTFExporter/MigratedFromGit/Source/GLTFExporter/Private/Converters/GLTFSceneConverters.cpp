@@ -8,8 +8,8 @@
 
 FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 {
-	FGLTFJsonScene Scene;
-	World->GetName(Scene.Name);
+	FGLTFJsonScene* Scene = Builder.AddScene();
+	World->GetName(Scene->Name);
 
 	const TArray<ULevel*>& Levels = World->GetLevels();
 	if (Levels.Num() > 0)
@@ -39,7 +39,7 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 								FGLTFJsonEpicLevelVariantSets* JsonEpicLevelVariantSets = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
 								if (JsonEpicLevelVariantSets != nullptr)
 								{
-									Scene.EpicLevelVariantSets.Add(JsonEpicLevelVariantSets);
+									Scene->EpicLevelVariantSets.Add(JsonEpicLevelVariantSets);
 								}
 							}
 						}
@@ -65,9 +65,9 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 				FGLTFJsonNode* JsonNode = Builder.GetOrAddNode(Actor);
 				if (JsonNode != nullptr && Builder.IsRootActor(Actor))
 				{
-					// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene.
+					// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to Scene->
 					// This change may require node converters to support cyclic calls.
-					Scene.Nodes.Add(JsonNode);
+					Scene->Nodes.Add(JsonNode);
 				}
 			}
 		}
@@ -79,5 +79,5 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 			*World->GetName()));
 	}
 
-	return Builder.AddScene(Scene);
+	return Scene;
 }

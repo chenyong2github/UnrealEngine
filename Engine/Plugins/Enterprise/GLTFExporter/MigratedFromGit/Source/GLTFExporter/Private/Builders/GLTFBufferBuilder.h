@@ -28,6 +28,6 @@ private:
 
 	bool InitializeBuffer();
 
-	FGLTFJsonBuffer* BufferIndex;
+	FGLTFJsonBuffer* JsonBuffer;
 	TUniquePtr<FArchive> BufferArchive;
 };

@@ -40,7 +40,7 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		return false;
 	}
 
-	FGLTFJsonNode Node;
+	FGLTFJsonNode* Node = Builder.AddNode();
 
 	if (Builder.ExportOptions->bExportPreviewMesh)
 	{
@@ -54,12 +54,11 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 			return false;
 		}
 
-		Node.Mesh = MeshIndex;
+		Node->Mesh = MeshIndex;
 	}
 
-	FGLTFJsonNode* NodeIndex = Builder.AddNode(Node);
 
-	FGLTFJsonSkin* SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMesh);
+	FGLTFJsonSkin* SkinIndex = Builder.GetOrAddSkin(Node, SkeletalMesh);
 	if (SkinIndex == nullptr)
 	{
 		Builder.LogError(
@@ -69,9 +68,9 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		return false;
 	}
 
-	Builder.GetNode(NodeIndex).Skin = SkinIndex;
+	Node->Skin = SkinIndex;
 
-	FGLTFJsonAnimation* AnimationIndex =  Builder.GetOrAddAnimation(NodeIndex, SkeletalMesh, AnimSequence);
+	FGLTFJsonAnimation* AnimationIndex =  Builder.GetOrAddAnimation(Node, SkeletalMesh, AnimSequence);
 	if (AnimationIndex == nullptr)
 	{
 		Builder.LogError(
@@ -80,10 +79,9 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		return false;
 	}
 
-	FGLTFJsonScene Scene;
-	Scene.Nodes.Add(NodeIndex);
-	FGLTFJsonScene* SceneIndex = Builder.AddScene(Scene);
+	FGLTFJsonScene* Scene = Builder.AddScene();
+	Scene->Nodes.Add(Node);
 
-	Builder.DefaultScene = SceneIndex;
+	Builder.DefaultScene = Scene;
 	return true;
 }

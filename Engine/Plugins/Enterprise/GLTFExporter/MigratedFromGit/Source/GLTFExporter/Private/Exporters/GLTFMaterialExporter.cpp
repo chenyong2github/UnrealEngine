@@ -37,15 +37,13 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 			return false;
 		}
 
-		FGLTFJsonNode Node;
-		Node.Mesh = MeshIndex;
-		FGLTFJsonNode* NodeIndex = Builder.AddNode(Node);
+		FGLTFJsonNode* Node = Builder.AddNode();
+		Node->Mesh = MeshIndex;
 
-		FGLTFJsonScene Scene;
-		Scene.Nodes.Add(NodeIndex);
-		FGLTFJsonScene* SceneIndex = Builder.AddScene(Scene);
+		FGLTFJsonScene* Scene = Builder.AddScene();
+		Scene->Nodes.Add(Node);
 
-		Builder.DefaultScene = SceneIndex;
+		Builder.DefaultScene = Scene;
 	}
 	else
 	{

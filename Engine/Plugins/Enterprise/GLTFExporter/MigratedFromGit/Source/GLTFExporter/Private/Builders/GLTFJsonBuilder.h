@@ -40,31 +40,8 @@ public:
 	FGLTFJsonEpicLevelVariantSets* AddEpicLevelVariantSets();
 	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant();
 
-	FGLTFJsonNode* AddChildNode(FGLTFJsonNode* ParentNode);
-	FGLTFJsonNode* AddChildComponentNode(FGLTFJsonNode* ParentNode);
-
-	FGLTFJsonAccessor* AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
-	FGLTFJsonBuffer* AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
-	FGLTFJsonBufferView* AddBufferView(const FGLTFJsonBufferView& JsonBufferView);
-	FGLTFJsonCamera* AddCamera(const FGLTFJsonCamera& JsonCamera);
-	FGLTFJsonImage* AddImage(const FGLTFJsonImage& JsonImage);
-	FGLTFJsonMaterial* AddMaterial(const FGLTFJsonMaterial& JsonMaterial);
-	FGLTFJsonMesh* AddMesh(const FGLTFJsonMesh& JsonMesh);
-	FGLTFJsonNode* AddNode(const FGLTFJsonNode& JsonNode);
-	FGLTFJsonSampler* AddSampler(const FGLTFJsonSampler& JsonSampler);
-	FGLTFJsonScene* AddScene(const FGLTFJsonScene& JsonScene);
-	FGLTFJsonSkin* AddSkin(const FGLTFJsonSkin& JsonSkin);
-	FGLTFJsonTexture* AddTexture(const FGLTFJsonTexture& JsonTexture);
-	FGLTFJsonBackdrop* AddBackdrop(const FGLTFJsonBackdrop& JsonBackdrop);
-	FGLTFJsonHotspot* AddHotspot(const FGLTFJsonHotspot& JsonHotspot);
-	FGLTFJsonLight* AddLight(const FGLTFJsonLight& JsonLight);
-	FGLTFJsonLightMap* AddLightMap(const FGLTFJsonLightMap& JsonLightMap);
-	FGLTFJsonSkySphere* AddSkySphere(const FGLTFJsonSkySphere& JsonSkySphere);
-	FGLTFJsonEpicLevelVariantSets* AddEpicLevelVariantSets(const FGLTFJsonEpicLevelVariantSets& JsonEpicLevelVariantSets);
-	FGLTFJsonKhrMaterialVariant* AddKhrMaterialVariant(const FGLTFJsonKhrMaterialVariant& JsonKhrMaterialVariant);
-
-	FGLTFJsonNode* AddChildNode(FGLTFJsonNode* ParentNode, const FGLTFJsonNode& JsonNode);
-	FGLTFJsonNode* AddChildComponentNode(FGLTFJsonNode* ParentNode, const FGLTFJsonNode& JsonNode);
+	FGLTFJsonNode* AddChildNode(FGLTFJsonNode* ParentNode, FGLTFJsonNode* ChildNode = nullptr);
+	FGLTFJsonNode* AddChildComponentNode(FGLTFJsonNode* ParentNodeParentNode, FGLTFJsonNode* ChildNode = nullptr);
 
 	const FGLTFJsonRoot& GetRoot() const;
 	FGLTFJsonAccessor& GetAccessor(FGLTFJsonAccessor* AccessorIndex);

@@ -28,20 +28,20 @@ FGLTFJsonImage* FGLTFImageConverter::Convert(TGLTFSuperfluous<FString> Name, EGL
 			break;
 	}
 
-	FGLTFJsonImage JsonImage;
+	FGLTFJsonImage* JsonImage = Builder.AddImage();
 
 	if (Builder.bIsGlbFile)
 	{
-		JsonImage.Name = Name;
-		JsonImage.MimeType = MimeType;
-		JsonImage.BufferView = Builder.AddBufferView(CompressedData.GetData(), CompressedData.Num());
+		JsonImage->Name = Name;
+		JsonImage->MimeType = MimeType;
+		JsonImage->BufferView = Builder.AddBufferView(CompressedData.GetData(), CompressedData.Num());
 	}
 	else
 	{
-		JsonImage.Uri = SaveToFile(CompressedData.GetData(), CompressedData.Num(), MimeType, Name);
+		JsonImage->Uri = SaveToFile(CompressedData.GetData(), CompressedData.Num(), MimeType, Name);
 	}
 
-	return Builder.AddImage(JsonImage);
+	return JsonImage;
 }
 
 EGLTFJsonMimeType FGLTFImageConverter::GetMimeType(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type) const
