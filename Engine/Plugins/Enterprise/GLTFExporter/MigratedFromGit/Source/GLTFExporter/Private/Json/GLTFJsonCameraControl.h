@@ -25,9 +25,9 @@ struct FGLTFJsonCameraControl : IGLTFJsonObject
 		: Mode(EGLTFJsonCameraControlMode::FreeLook)
 		, MaxDistance(0)
 		, MinDistance(0)
-		, MaxPitch(90.0f)
-		, MinPitch(-90.0f)
-		, MaxYaw(360.0f)
+		, MaxPitch(90)
+		, MinPitch(-90)
+		, MaxYaw(360)
 		, MinYaw(0)
 		, RotationSensitivity(0)
 		, RotationInertia(0)
@@ -48,22 +48,22 @@ struct FGLTFJsonCameraControl : IGLTFJsonObject
 		Writer.Write(TEXT("maxDistance"), MaxDistance);
 		Writer.Write(TEXT("minDistance"), MinDistance);
 
-		if (!FMath::IsNearlyEqual(MaxPitch, 90.0f))
+		if (!FMath::IsNearlyEqual(MaxPitch, 90))
 		{
 			Writer.Write(TEXT("maxPitch"), MaxPitch);
 		}
 
-		if (!FMath::IsNearlyEqual(MinPitch, -90.0f))
+		if (!FMath::IsNearlyEqual(MinPitch, -90))
 		{
 			Writer.Write(TEXT("minPitch"), MinPitch);
 		}
 
-		if (!FMath::IsNearlyEqual(MaxYaw, 360.0f))
+		if (!FMath::IsNearlyEqual(MaxYaw, 360))
 		{
 			Writer.Write(TEXT("maxYaw"), MaxYaw);
 		}
 
-		if (!FMath::IsNearlyEqual(MinYaw, 0.0f))
+		if (!FMath::IsNearlyEqual(MinYaw, 0))
 		{
 			Writer.Write(TEXT("minYaw"), MinYaw);
 		}

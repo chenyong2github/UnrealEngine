@@ -28,7 +28,7 @@ struct FGLTFJsonTextureInfo : IGLTFJsonObject
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (!Transform.IsDefault())
+		if (!Transform.IsNearlyDefault())
 		{
 			Writer.StartExtensions();
 			Writer.Write(EGLTFJsonExtension::KHR_TextureTransform, Transform);
@@ -55,7 +55,7 @@ struct FGLTFJsonNormalTextureInfo : FGLTFJsonTextureInfo
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (Scale != 1)
+		if (!FMath::IsNearlyEqual(Scale, 1))
 		{
 			Writer.Write(TEXT("scale"), Scale);
 		}
@@ -80,7 +80,7 @@ struct FGLTFJsonOcclusionTextureInfo : FGLTFJsonTextureInfo
 			Writer.Write(TEXT("texCoord"), TexCoord);
 		}
 
-		if (Strength != 1)
+		if (!FMath::IsNearlyEqual(Strength, 1))
 		{
 			Writer.Write(TEXT("strength"), Strength);
 		}
@@ -115,12 +115,12 @@ struct FGLTFJsonPBRMetallicRoughness : IGLTFJsonObject
 			Writer.Write(TEXT("baseColorTexture"), BaseColorTexture);
 		}
 
-		if (MetallicFactor != 1)
+		if (!FMath::IsNearlyEqual(MetallicFactor, 1))
 		{
 			Writer.Write(TEXT("metallicFactor"), MetallicFactor);
 		}
 
-		if (RoughnessFactor != 1)
+		if (!FMath::IsNearlyEqual(RoughnessFactor, 1))
 		{
 			Writer.Write(TEXT("roughnessFactor"), RoughnessFactor);
 		}
@@ -150,7 +150,7 @@ struct FGLTFJsonClearCoatExtension : IGLTFJsonObject
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		if (ClearCoatFactor != 0)
+		if (!FMath::IsNearlyEqual(ClearCoatFactor, 0))
 		{
 			Writer.Write(TEXT("clearcoatFactor"), ClearCoatFactor);
 		}
@@ -160,7 +160,7 @@ struct FGLTFJsonClearCoatExtension : IGLTFJsonObject
 			Writer.Write(TEXT("clearcoatTexture"), ClearCoatTexture);
 		}
 
-		if (ClearCoatRoughnessFactor != 0)
+		if (!FMath::IsNearlyEqual(ClearCoatRoughnessFactor, 0))
 		{
 			Writer.Write(TEXT("clearcoatRoughnessFactor"), ClearCoatRoughnessFactor);
 		}
@@ -245,11 +245,11 @@ struct FGLTFJsonMaterial : IGLTFJsonObject
 		if (AlphaMode != EGLTFJsonAlphaMode::Opaque)
 		{
 			Writer.Write(TEXT("alphaMode"), AlphaMode);
-		}
 
-		if (AlphaMode == EGLTFJsonAlphaMode::Mask && AlphaCutoff != 0.5f)
-		{
-			Writer.Write(TEXT("alphaCutoff"), AlphaCutoff);
+			if (AlphaMode == EGLTFJsonAlphaMode::Mask && !FMath::IsNearlyEqual(AlphaCutoff, 0.5f))
+			{
+				Writer.Write(TEXT("alphaCutoff"), AlphaCutoff);
+			}
 		}
 
 		if (DoubleSided)

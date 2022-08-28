@@ -30,28 +30,33 @@ struct FGLTFJsonTextureTransform : IGLTFJsonObject
 			Writer.Write(TEXT("scale"), Scale);
 		}
 
-		if (Rotation != 0)
+		if (!FMath::IsNearlyEqual(Rotation, 0))
 		{
 			Writer.Write(TEXT("rotation"), Rotation);
 		}
 	}
 
-	bool IsNearlyEqual(const FGLTFJsonTextureTransform& Other) const
+	bool IsNearlyEqual(const FGLTFJsonTextureTransform& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		return Offset.IsNearlyEqual(Other.Offset)
-			&& Scale.IsNearlyEqual(Other.Scale)
-			&& FMath::IsNearlyEqual(Rotation, Other.Rotation);
+		return Offset.IsNearlyEqual(Other.Offset, Tolerance)
+			&& Scale.IsNearlyEqual(Other.Scale, Tolerance)
+			&& FMath::IsNearlyEqual(Rotation, Other.Rotation, Tolerance);
 	}
 
-	bool IsExactEqual(const FGLTFJsonTextureTransform& Other) const
+	bool IsExactlyEqual(const FGLTFJsonTextureTransform& Other) const
 	{
 		return Offset.X == Other.Offset.X && Offset.Y == Other.Offset.Y
 			&& Scale.X == Other.Scale.X && Scale.Y == Other.Scale.Y
 			&& Rotation == Other.Rotation;
 	}
 
-	bool IsDefault() const
+	bool IsNearlyDefault(float Tolerance = KINDA_SMALL_NUMBER) const
 	{
-		return IsExactEqual(FGLTFJsonTextureTransform());
+		return IsNearlyEqual(FGLTFJsonTextureTransform(), Tolerance);
+	}
+
+	bool IsExactlyDefault() const
+	{
+		return IsExactlyEqual(FGLTFJsonTextureTransform());
 	}
 };
