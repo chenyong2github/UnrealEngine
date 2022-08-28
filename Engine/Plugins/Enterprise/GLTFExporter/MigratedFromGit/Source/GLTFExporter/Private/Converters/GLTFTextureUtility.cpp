@@ -83,9 +83,9 @@ TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 		case ETextureSamplerFilter::Point:             return TF_Nearest;
 		case ETextureSamplerFilter::Bilinear:          return TF_Bilinear;
 		case ETextureSamplerFilter::Trilinear:         return TF_Trilinear;
-		case ETextureSamplerFilter::AnisotropicPoint:  return TF_Nearest;
+		case ETextureSamplerFilter::AnisotropicPoint:  return TF_Trilinear; // A lot of engine code doesn't result in nearest
 		case ETextureSamplerFilter::AnisotropicLinear: return TF_Trilinear;
-		default:                                       return TF_Default; // fallback
+		default:                                       return TF_Default; // Let caller decide fallback
 	}
 }
 
