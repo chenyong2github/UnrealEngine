@@ -56,3 +56,17 @@ EGLTFJsonTextureFilter FGLTFConverterUtility::ConvertMagFilter(TextureFilter Fil
 {
 	return ConvertMagFilter(Filter == TF_Default ? FGLTFTextureUtility::GetDefaultFilter(LODGroup) : Filter);
 }
+
+EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
+{
+	switch (CubeFace)
+	{
+		case CubeFace_PosX:	return EGLTFJsonCubeFace::NegX;
+		case CubeFace_NegX:	return EGLTFJsonCubeFace::PosX;
+		case CubeFace_PosY:	return EGLTFJsonCubeFace::PosZ;
+		case CubeFace_NegY:	return EGLTFJsonCubeFace::NegZ;
+		case CubeFace_PosZ:	return EGLTFJsonCubeFace::PosY;
+		case CubeFace_NegZ:	return EGLTFJsonCubeFace::NegY;
+		default:            return EGLTFJsonCubeFace::None;
+	}
+}

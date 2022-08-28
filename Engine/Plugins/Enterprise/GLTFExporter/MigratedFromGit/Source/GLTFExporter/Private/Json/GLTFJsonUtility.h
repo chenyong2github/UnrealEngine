@@ -78,6 +78,20 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static const TCHAR* ToString(EGLTFJsonCubeFace Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonCubeFace::PosX: return TEXT("PosX");
+			case EGLTFJsonCubeFace::NegX: return TEXT("NegX");
+			case EGLTFJsonCubeFace::PosY: return TEXT("PosY");
+			case EGLTFJsonCubeFace::NegY: return TEXT("NegY");
+			case EGLTFJsonCubeFace::PosZ: return TEXT("PosZ");
+			case EGLTFJsonCubeFace::NegZ: return TEXT("NegZ");
+			default:                      return TEXT("Unknown");
+		}
+	}
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
 	{

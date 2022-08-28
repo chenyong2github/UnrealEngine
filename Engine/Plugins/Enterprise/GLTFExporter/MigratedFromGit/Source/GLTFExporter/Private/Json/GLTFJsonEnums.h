@@ -34,6 +34,17 @@ enum class EGLTFJsonHDREncoding
     RGBM
 };
 
+enum class EGLTFJsonCubeFace
+{
+	None = -1,
+	PosX,
+    NegX,
+    PosY,
+    NegY,
+    PosZ,
+    NegZ
+};
+
 enum class EGLTFJsonAccessorType
 {
 	None = -1,
