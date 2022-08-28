@@ -1085,18 +1085,25 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 		return true;
 	}
 
-	// NOTE: since this function is meant to bake to a texture, we assume that the property
-	// that was passed into the function is using a non-constant expression.
-	// We therefore treat a constant result with non-default value as a failure.
-
-	// NOTE: in some cases a constant baking result is returned for a property that is non-constant.
-	// This happens (for example) when baking AmbientOcclusion for a translucent material,
+	// TODO: let function fail and investigate why in some cases a constant baking result is returned for a property
+	// that is non-constant. This happens (for example) when baking AmbientOcclusion for a translucent material,
 	// even though the same material when set to opaque will properly bake AmbientOcclusion to a texture.
-	// It also happens when baking Normal in some (not yet identified) circumstances.
-	// For now, these incorrect bakes are discarded.
+	// For now, create a 1x1 texture with the constant value.
 
-	// TODO: investigate why non-constant properties are sometimes baked to a constant expression (see note above)
-	return false;
+	const FString TextureName = Material->GetName() + TEXT("_") + PropertyName;
+	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+		Builder,
+	    PropertyBakeOutput.Pixels,
+	    PropertyBakeOutput.Size,
+		Material->GetName() + TEXT("_") + PropertyName,
+		EGLTFJsonTextureFilter::Nearest,
+		EGLTFJsonTextureFilter::Nearest,
+		EGLTFJsonTextureWrap::ClampToEdge,
+        EGLTFJsonTextureWrap::ClampToEdge);
+
+	OutTexInfo.TexCoord = 0;
+	OutTexInfo.Index = TextureIndex;
+	return true;
 }
 
 FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialProperty Property, const UMaterialInterface* Material, const FIntPoint* PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
@@ -1136,7 +1143,6 @@ bool FGLTFMaterialConverter::StoreBakedPropertyTexture(FGLTFConvertBuilder& Buil
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
 		TextureName,
-		PropertyBakeOutput.PixelFormat,
 		TextureMinFilter,
 		TextureMagFilter,
 		TextureWrapS,
