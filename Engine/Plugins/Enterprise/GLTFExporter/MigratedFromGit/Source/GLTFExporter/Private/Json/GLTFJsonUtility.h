@@ -68,6 +68,16 @@ struct FGLTFJsonUtility
 		}
 	}
 
+	static const TCHAR* ToString(EGLTFJsonHDREncoding Value)
+	{
+		switch (Value)
+		{
+			case EGLTFJsonHDREncoding::RGBE: return TEXT("RGBE");
+			case EGLTFJsonHDREncoding::RGBM: return TEXT("RGBM");
+			default:                         return TEXT("UNKNOWN");
+		}
+	}
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
 	{
