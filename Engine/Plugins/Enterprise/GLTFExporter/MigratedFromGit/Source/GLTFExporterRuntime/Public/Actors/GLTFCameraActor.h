@@ -59,37 +59,37 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
 	AActor* Focus;
 
+	/* Minimum pitch angle (in degrees) for the camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
+	float PitchAngleMin;
+
+	/* Maximum pitch angle (in degrees) for the camera. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
+	float PitchAngleMax;
+
 	/* Closest distance the camera can approach the focused actor. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
 	float DistanceMin;
 
 	/* Farthest distance the camera can recede from the focused actor. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
 	float DistanceMax;
 
-	/* Minimum angle (in degrees) that the camera can pitch relative to the focused actor. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
-	float PitchAngleMin;
-
-	/* Maximum angle (in degrees) that the camera can pitch relative to the focused actor. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Orbit Camera Actor")
-	float PitchAngleMax;
-
 	/* Duration (in seconds) that it takes the camera to complete a change in distance. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Camera Actor")
 	float DollyDuration;
 
-	/* Deceleration that occurs after orbital movement. The higher the value, the longer it takes to settle. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
-	float OrbitInertia;
-
-	/* Size of the orbital movement relative to user input. The higher the value, the faster it moves. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
-	float OrbitSensitivity;
-
 	/* Size of the dolly movement relative to user input. The higher the value, the faster it moves. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Orbit Camera Actor")
-	float DistanceSensitivity;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Camera Actor")
+	float DollySensitivity;
+
+	/* Deceleration that occurs after rotational movement. The higher the value, the longer it takes to settle. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Camera Actor")
+	float RotationInertia;
+
+	/* Size of the rotational movement relative to user input. The higher the value, the faster it moves. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "GLTF Camera Actor")
+	float RotationSensitivity;
 
 private:
 	float Distance;
