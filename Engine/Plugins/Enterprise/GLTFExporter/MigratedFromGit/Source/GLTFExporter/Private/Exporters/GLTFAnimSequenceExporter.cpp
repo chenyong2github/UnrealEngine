@@ -18,19 +18,29 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 	const USkeletalMesh* SkeletalMesh = FGLTFExporterUtility::GetPreviewMesh(AnimSequence);
 	if (SkeletalMesh == nullptr)
 	{
-		// report error
-		return false;
-	}
-
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
-	if (MeshIndex == INDEX_NONE)
-	{
-		Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export skeletal mesh %s"), *SkeletalMesh->GetName()));
+		Builder.AddErrorMessage(
+			FString::Printf(TEXT("Failed to export animation sequence %s because of missing preview mesh"),
+			*AnimSequence->GetName()));
 		return false;
 	}
 
 	FGLTFJsonNode Node;
-	Node.Mesh = MeshIndex;
+
+	if (Builder.ExportOptions->bExportPreviewMesh)
+	{
+		const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
+		if (MeshIndex == INDEX_NONE)
+		{
+			Builder.AddErrorMessage(
+				FString::Printf(TEXT("Failed to export skeletal mesh %s for animation sequence %s"),
+				*SkeletalMesh->GetName(),
+				*AnimSequence->GetName()));
+			return false;
+		}
+
+		Node.Mesh = MeshIndex;
+	}
+
 	const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
 
 	if (Builder.ExportOptions->bExportVertexSkinWeights)
@@ -38,7 +48,10 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMesh);
 		if (SkinIndex == INDEX_NONE)
 		{
-			Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export bones in skeletal mesh %s"), *SkeletalMesh->GetName()));
+			Builder.AddErrorMessage(
+				FString::Printf(TEXT("Failed to export bones in skeletal mesh %s for animation sequence %s"),
+				*SkeletalMesh->GetName(),
+				*AnimSequence->GetName()));
 			return false;
 		}
 
@@ -49,18 +62,24 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 			const FGLTFJsonAnimationIndex AnimationIndex =  Builder.GetOrAddAnimation(NodeIndex, SkeletalMesh, AnimSequence);
 			if (AnimationIndex == INDEX_NONE)
 			{
-				Builder.AddErrorMessage(FString::Printf(TEXT("Failed to export animation sequence %s"), *AnimSequence->GetName()));
+				Builder.AddErrorMessage(
+					FString::Printf(TEXT("Failed to export animation sequence %s"),
+					*AnimSequence->GetName()));
 				return false;
 			}
 		}
 		else
 		{
-			Builder.AddWarningMessage(FString::Printf(TEXT("Export of animation sequences disabled by export options")));
+			Builder.AddWarningMessage(
+				FString::Printf(TEXT("Failed to export animation sequence %s because animation sequences are disabled by export options"),
+				*AnimSequence->GetName()));
 		}
 	}
 	else
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Export of vertex skin weights disabled by export options")));
+		Builder.AddWarningMessage(
+			FString::Printf(TEXT("Failed to export animation sequence %s because vertex skin weights are disabled by export options"),
+			*AnimSequence->GetName()));
 	}
 
 	FGLTFJsonScene Scene;
