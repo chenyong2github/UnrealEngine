@@ -167,19 +167,9 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 	const FIntPoint Size(TextureCube->GetSizeX(), TextureCube->GetSizeY());
 	const EPixelFormat Format = TextureCube->GetPixelFormat();
 
-	if (TextureCube->PlatformData == nullptr || TextureCube->PlatformData->Mips.Num() == 0)
+	if (!LoadPlatformData(const_cast<UTextureCube*>(TextureCube)))
 	{
 		return nullptr;
-	}
-
-	if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
-	{
-		// TODO: is this correct handling?
-		const_cast<UTextureCube*>(TextureCube)->ForceRebuildPlatformData();
-		if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
-		{
-			return nullptr;
-		}
 	}
 
 	const FByteBulkData& BulkData = TextureCube->PlatformData->Mips[0].BulkData;
@@ -281,4 +271,44 @@ void FGLTFTextureUtility::EncodeRGBM(const TArray<FLinearColor>& InPixels, TArra
 	{
 		OutPixels[Index] = EncodeRGBM(InPixels[Index], MaxRange);
 	}
+}
+
+bool FGLTFTextureUtility::LoadPlatformData(UTexture2D* Texture)
+{
+	if (Texture->PlatformData == nullptr || Texture->PlatformData->Mips.Num() == 0)
+	{
+		return false;
+	}
+
+	if (Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+	{
+		// TODO: is this correct handling?
+		Texture->ForceRebuildPlatformData();
+		if (Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FGLTFTextureUtility::LoadPlatformData(UTextureCube* TextureCube)
+{
+	if (TextureCube->PlatformData == nullptr || TextureCube->PlatformData->Mips.Num() == 0)
+	{
+		return false;
+	}
+
+	if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+	{
+		// TODO: is this correct handling?
+		TextureCube->ForceRebuildPlatformData();
+		if (TextureCube->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
