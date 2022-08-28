@@ -59,6 +59,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	uint32 bExportVertexColors : 1;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
+	int32 DefaultLevelOfDetail;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Animation)
+	uint32 bMapSkeletalMotionToRoot : 1;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material)
 	uint32 bExportUnlitMaterials : 1;
 

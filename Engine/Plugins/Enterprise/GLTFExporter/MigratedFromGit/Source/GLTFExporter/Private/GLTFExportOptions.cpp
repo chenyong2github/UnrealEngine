@@ -20,6 +20,8 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportPreviewMesh = true;
 	bExtensionsRequired = true;
 	bExportVertexColors = true;
+	DefaultLevelOfDetail = 0;
+	bMapSkeletalMotionToRoot = false;
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
 	bBakeMaterialInputs = true;
