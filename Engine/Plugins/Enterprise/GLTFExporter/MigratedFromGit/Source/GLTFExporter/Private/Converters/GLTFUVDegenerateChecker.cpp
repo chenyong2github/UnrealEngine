@@ -38,7 +38,7 @@ float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, FGL
 	if (Description != nullptr)
 	{
 		const TVertexAttributesConstRef<FVector3f> Positions =
-		Description->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
+			Description->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 		const TVertexInstanceAttributesConstRef<FVector2f> UVs =
 			Description->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 
@@ -51,8 +51,8 @@ float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, FGL
 			{
 				for (const FTriangleID TriangleID : Description->GetPolygonTriangleIDs(PolygonID))
 				{
-					const TStaticArray<FVertexID, 3> TriangleVertexIDs = Description->GetTriangleVertices(TriangleID);
-					TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = Description->GetTriangleVertexInstances(TriangleID);
+					const TArrayView<const FVertexID> TriangleVertexIDs = Description->GetTriangleVertices(TriangleID);
+					const TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = Description->GetTriangleVertexInstances(TriangleID);
 
 					TStaticArray<FVector3f, 3> TrianglePositions;
 					TStaticArray<FVector2f, 3> TriangleUVs;

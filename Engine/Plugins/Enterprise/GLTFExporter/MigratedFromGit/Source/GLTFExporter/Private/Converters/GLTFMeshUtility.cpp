@@ -124,7 +124,7 @@ FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const USkeletalMesh* Skeleta
 
 FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
 {
-	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD.Sections;
+	const FStaticMeshSectionArray& Sections = MeshLOD.Sections;
 
 	FGLTFIndexArray SectionIndices;
 	SectionIndices.Reserve(Sections.Num());
