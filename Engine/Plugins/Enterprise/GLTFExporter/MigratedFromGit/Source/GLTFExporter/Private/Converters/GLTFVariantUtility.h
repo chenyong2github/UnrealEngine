@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Json/GLTFJsonIndex.h"
+
+class FGLTFConvertBuilder;
 struct FCapturedPropSegment;
 class ULevelVariantSets;
 class UVariantSet;
@@ -26,4 +29,6 @@ struct FGLTFVariantUtility
 	static FString GetLogContext(const UVariant* Variant);
 	static FString GetLogContext(const UVariantSet* VariantSet);
 	static FString GetLogContext(const ULevelVariantSets* LevelVariantSets);
+
+	static FGLTFJsonMaterialIndex GetOrAddMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex);
 };

@@ -21,6 +21,29 @@ const TArray<FSkeletalMaterial>& FGLTFMeshUtility::GetMaterials(const USkeletalM
 #endif
 }
 
+FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const UStaticMesh* StaticMesh, int32 LODIndex, int32 MaterialIndex)
+{
+	if (StaticMesh == nullptr)
+	{
+		return {};
+	}
+
+	const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
+	return GetSectionIndices(MeshLOD, MaterialIndex);
+}
+
+FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const USkeletalMesh* SkeletalMesh, int32 LODIndex, int32 MaterialIndex)
+{
+	if (SkeletalMesh == nullptr)
+	{
+		return {};
+	}
+
+	const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+	const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
+	return GetSectionIndices(MeshLOD, MaterialIndex);
+}
+
 FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
 {
 	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD.Sections;

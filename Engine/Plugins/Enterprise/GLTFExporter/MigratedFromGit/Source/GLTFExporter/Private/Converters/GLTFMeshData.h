@@ -20,6 +20,7 @@ struct FGLTFMeshData
 	const FGLTFMeshData* Parent;
 
 	FString Name;
+	int32 LODIndex;
 
 #if WITH_EDITOR
 	FPrimitiveData PrimitiveData;

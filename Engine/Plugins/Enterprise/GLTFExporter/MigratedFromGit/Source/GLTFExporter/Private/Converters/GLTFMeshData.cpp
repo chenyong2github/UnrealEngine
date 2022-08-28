@@ -12,6 +12,7 @@
 
 FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
 	: Parent(nullptr)
+	, LODIndex(LODIndex)
 #if WITH_EDITOR
 	, LightMap(nullptr)
 	, LightMapResourceCluster(nullptr)
@@ -30,9 +31,10 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 		PrimitiveData = { StaticMeshComponent };
 		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
 
-		if (StaticMeshComponent->LODData.IsValidIndex(LODIndex))
+		constexpr int32 LightMapLODIndex = 0; // TODO: why is this zero?
+		if (StaticMeshComponent->LODData.IsValidIndex(LightMapLODIndex))
 		{
-			const FStaticMeshComponentLODInfo& LODData = StaticMeshComponent->LODData[LODIndex];
+			const FStaticMeshComponentLODInfo& LODData = StaticMeshComponent->LODData[LightMapLODIndex];
 			const FMeshMapBuildData* BuildData = StaticMeshComponent->GetMeshMapBuildData(LODData);
 			if (BuildData != nullptr)
 			{
@@ -68,6 +70,7 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 
 FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex)
 	: Parent(nullptr)
+	, LODIndex(LODIndex)
 #if WITH_EDITOR
 	, LightMap(nullptr)
 	, LightMapResourceCluster(nullptr)
