@@ -13,10 +13,6 @@
 	"Modules":
 	[
 		{
-			"Name": "GLTFCore",
-			"Type": "Runtime"
-		},
-		{
 			"Name": "GLTFExporter",
 			"Type": "Editor"
 		}
