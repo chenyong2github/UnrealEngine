@@ -99,6 +99,16 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 		return false;
 	}
 
+	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Actor '%s' for variant '%s' is not selected and will be skipped. Context: %s"),
+			*Binding->GetDisplayText().ToString(),
+			*Variant->GetDisplayText().ToString(),
+			*GetLogContext(Variant)));
+		return false;
+	}
+
 	FGLTFJsonVariantNode JsonVariantNode;
 	bool bHasAnyProperty = false;
 
@@ -142,7 +152,6 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariantNode(FGLTFConvertBuilder
 	const FGLTFJsonNodeIndex Node = Builder.GetOrAddNode(Actor);
 	if (Node == INDEX_NONE)
 	{
-		// NOTE: this could occur if the user is exporting selected actors only, if the actor isn't part of the selection
 		Builder.AddWarningMessage(FString::Printf(
 			TEXT("Actor '%s' for variant '%s' could not be exported and will be skipped. Context: %s"),
 			*Binding->GetDisplayText().ToString(),
