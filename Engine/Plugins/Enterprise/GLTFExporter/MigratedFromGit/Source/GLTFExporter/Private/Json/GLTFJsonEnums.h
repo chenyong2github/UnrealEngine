@@ -67,8 +67,8 @@ enum class EGLTFJsonAlphaMode
 enum class EGLTFJsonMimeType
 {
 	None = -1,
-    PNG,
-    JPEG
+	PNG,
+	JPEG
 };
 
 enum class EGLTFJsonTextureFilter

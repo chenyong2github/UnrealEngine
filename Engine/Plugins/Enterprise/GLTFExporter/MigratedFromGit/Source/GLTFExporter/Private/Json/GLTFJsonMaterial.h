@@ -14,12 +14,12 @@ struct FGLTFJsonTextureInfo
 	int32 TexCoord;
 
 	FGLTFJsonTextureInfo()
-        : TexCoord(0)
+		: TexCoord(0)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -39,12 +39,12 @@ struct FGLTFJsonNormalTextureInfo : FGLTFJsonTextureInfo
 	float Scale;
 
 	FGLTFJsonNormalTextureInfo()
-        : Scale(1)
+		: Scale(1)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -69,12 +69,12 @@ struct FGLTFJsonOcclusionTextureInfo : FGLTFJsonTextureInfo
 	float Strength;
 
 	FGLTFJsonOcclusionTextureInfo()
-        : Strength(1)
+		: Strength(1)
 	{
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-    void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
