@@ -18,8 +18,6 @@ public:
 	{
 		check(Length >= 0);
 
-		auto x = Num();
-
 		const int64 NumBytesToAdd = Offset + Length - Num();
 		AddUninitialized(NumBytesToAdd);
 
