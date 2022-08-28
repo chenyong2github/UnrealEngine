@@ -61,6 +61,11 @@ bool FGLTFZipUtility::ExtractCurrentFile(void* ZipFile, const FString& Destinati
 	else
 	{
 		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*DestinationFilePath);
+		if (FileWriter == nullptr)
+		{
+			Builder.AddErrorMessage(FString::Printf(TEXT("Can't write to file %s from zip archive"), *DestinationFilePath));
+			return false;
+		}
 
 		if (const int ErrorCode = unzOpenCurrentFile(ZipFile))
 		{
