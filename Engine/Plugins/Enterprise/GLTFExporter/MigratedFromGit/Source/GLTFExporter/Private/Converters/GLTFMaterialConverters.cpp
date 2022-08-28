@@ -160,6 +160,18 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 							JsonMaterial.ClearCoat.ClearCoatRoughnessFactor = 1; // make sure factor is not zero
 						}
 					}
+
+					const EMaterialProperty ClearCoatNormalProperty = MP_CustomOutput;
+					if (IsPropertyNonDefault(ClearCoatNormalProperty, Material))
+					{
+						if (!TryGetSourceTexture(Builder, JsonMaterial.ClearCoat.ClearCoatNormalTexture, ClearCoatNormalProperty, Material, DefaultColorInputMasks))
+						{
+							if (!TryGetBakedMaterialProperty(Builder, JsonMaterial.ClearCoat.ClearCoatNormalTexture, ClearCoatNormalProperty, TEXT("ClearCoatNormal"), Material))
+							{
+								// TODO: handle failure?
+							}
+						}
+					}
 				}
 			}
 		}
