@@ -8,6 +8,9 @@ class FSkeletalMeshLODRenderData;
 
 struct FGLTFMeshUtility
 {
+	static const TArray<FStaticMaterial>& GetMaterials(const UStaticMesh* StaticMesh);
+	static const TArray<FSkeletalMaterial>& GetMaterials(const USkeletalMesh* SkeletalMesh);
+
 	static FGLTFIndexArray GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex);
 	static FGLTFIndexArray GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex);
 
