@@ -69,5 +69,5 @@ struct FGLTFMaterialUtility
 	static FString ShadingModelsToString(const FMaterialShadingModelField& ShadingModels);
 
 	static bool MaterialNeedsVertexData(const UMaterialInterface* Material);
-	static bool MaterialsNeedVertexData(const TArray<UMaterialInterface*> Materials);
+	static bool MaterialsNeedVertexData(const TArray<const UMaterialInterface*>& Materials);
 };

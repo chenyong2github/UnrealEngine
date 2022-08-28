@@ -1364,10 +1364,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
 		{
 			const FSectionInfo& Section = Sections[SectionIndex];
-			const UMaterialInterface* OverrideMaterial = OverrideMaterials.IsValidIndex(Section.MaterialIndex) ? OverrideMaterials[Section.MaterialIndex] : nullptr;
-			const UMaterialInterface* SectionMaterial = OverrideMaterial != nullptr ? OverrideMaterial : Section.Material;
-
-			if (SectionMaterial == Material)
+			if (Materials[Section.MaterialIndex] == Material)
 			{
 				MeshSectionIndices.Add(SectionIndex);
 			}

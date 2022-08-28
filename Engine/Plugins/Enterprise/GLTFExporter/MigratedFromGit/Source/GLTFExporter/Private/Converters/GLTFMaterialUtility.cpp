@@ -540,7 +540,7 @@ bool FGLTFMaterialUtility::MaterialNeedsVertexData(const UMaterialInterface* Mat
 	return bRequiresVertexData;
 }
 
-bool FGLTFMaterialUtility::MaterialsNeedVertexData(const TArray<UMaterialInterface*> Materials)
+bool FGLTFMaterialUtility::MaterialsNeedVertexData(const TArray<const UMaterialInterface*>& Materials)
 {
 	for (const UMaterialInterface* Material: Materials)
 	{
