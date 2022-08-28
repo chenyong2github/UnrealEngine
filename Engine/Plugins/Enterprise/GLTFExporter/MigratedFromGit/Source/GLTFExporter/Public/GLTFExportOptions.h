@@ -130,7 +130,7 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 
 	/** If enabled, export Unreal-configured quantization for vertex tangents and normals, reducing size. Requires extension KHR_mesh_quantization, which is not supported by all glTF viewers. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
-	bool bExportMeshQuantization;
+	bool bUseMeshQuantization;
 
 	/** If enabled, export level sequences. Only transform tracks are currently supported. The level sequence will be played at the assigned display rate. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Animation)
