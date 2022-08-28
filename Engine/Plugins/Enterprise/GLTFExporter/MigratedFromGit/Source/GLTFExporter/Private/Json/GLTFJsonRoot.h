@@ -15,6 +15,7 @@
 #include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonTexture.h"
 #include "Json/GLTFJsonLightMap.h"
+#include "Json/GLTFJsonLevelVariantSets.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 
 
@@ -67,6 +68,8 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonTexture>    Textures;
 	TArray<FGLTFJsonLightMap>   LightMaps;
 
+	TArray<FGLTFJsonLevelVariantSets> LevelVariantSets;
+
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
@@ -93,7 +96,7 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
 
-		if (LightMaps.Num() > 0 /* TODO: add more extension support */)
+		if (LightMaps.Num() > 0 || LevelVariantSets.Num() > 0 /* TODO: add more extension support */)
 		{
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 
@@ -104,6 +107,19 @@ struct FGLTFJsonRoot
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
 				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
+				JsonWriter.WriteObjectEnd();
+			}
+
+			if (LevelVariantSets.Num() > 0)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
+
+				AllExtensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+
+				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("levelVariantSets"), LevelVariantSets, AllExtensions);
+
 				JsonWriter.WriteObjectEnd();
 			}
 

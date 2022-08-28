@@ -86,12 +86,21 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 
 	for (const AActor* Actor : Level->Actors)
 	{
-		// TODO: add support for ALevelVariantSetsActor
-
-		const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
-		if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
+		if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 		{
-			Scene.Nodes.Add(NodeIndex);
+			const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSetsActor);
+			if (LevelVariantSetsIndex != INDEX_NONE)
+			{
+				Scene.LevelVariantSets.Add(LevelVariantSetsIndex);
+			}
+		}
+		else
+		{
+			const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
+			if (NodeIndex != INDEX_NONE && FGLTFActorUtility::IsRootActor(Actor, Builder.bSelectedActorsOnly))
+			{
+				Scene.Nodes.Add(NodeIndex);
+			}
 		}
 	}
 

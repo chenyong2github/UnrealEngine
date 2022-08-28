@@ -183,3 +183,13 @@ FGLTFJsonSceneIndex FGLTFConvertBuilder::GetOrAddScene(const UWorld* World, cons
 
 	return GetOrAddScene(World->PersistentLevel, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
 }
+
+FGLTFJsonLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddLevelVariantSets(const ALevelVariantSetsActor* LevelVariantSetsActor, const FString& DesiredName)
+{
+	if (LevelVariantSetsActor == nullptr)
+	{
+		return FGLTFJsonLevelVariantSetsIndex(INDEX_NONE);
+	}
+
+	return LevelVariantSetsConverter.GetOrAdd(*this, DesiredName, LevelVariantSetsActor);
+}
