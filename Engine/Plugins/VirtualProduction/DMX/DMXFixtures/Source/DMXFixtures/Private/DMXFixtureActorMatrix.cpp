@@ -14,7 +14,7 @@ DECLARE_CYCLE_STAT(TEXT("Fixture Actor Matrix Push Fixture Matrix Cell Data"), S
 
 namespace
 {
-	void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, FUpdateTextureRegion2D Region, uint32 SrcPitch, uint32 SrcBpp)
+	void UpdateMatrixTexture(uint8* MatrixData, UTexture2D* DynamicTexture, int32 MipIndex, uint32 NumRegions, const FUpdateTextureRegion2D& Region, uint32 SrcPitch, uint32 SrcBpp)
 	{
 		if (DynamicTexture->GetResource())
 		{
@@ -54,14 +54,6 @@ ADMXFixtureActorMatrix::ADMXFixtureActorMatrix()
 	XCells = 1;
 	YCells = 1;
 	MatrixDataSize = 0;
-
-	TextureRegion = nullptr;
-}
-
-ADMXFixtureActorMatrix::~ADMXFixtureActorMatrix()
-{
-	if (TextureRegion)
-		delete TextureRegion;
 }
 
 #if WITH_EDITOR
@@ -169,8 +161,7 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 		MatrixDataTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
 		MatrixDataTexture->UpdateResource(); //to initialize resource
 
-		check(!TextureRegion);
-		TextureRegion = new FUpdateTextureRegion2D(0, 0, 0, 0, TextureWidth, TextureHeight);
+		TextureRegion = FUpdateTextureRegion2D(0, 0, 0, 0, TextureWidth, TextureHeight);
 
 		// Push fixture data into materials and lights
 		FeedFixtureData();
@@ -359,7 +350,7 @@ void ADMXFixtureActorMatrix::UpdateDynamicTexture()
 	if (MatrixDataTexture)
 	{
 		int NbrCells = XCells * YCells;
-		UpdateMatrixTexture(MatrixData.GetData(), MatrixDataTexture, 0, 1, *TextureRegion, NbrCells * 4, 4);
+		UpdateMatrixTexture(MatrixData.GetData(), MatrixDataTexture, 0, 1, TextureRegion, NbrCells * 4, 4);
 	}
 }
 
