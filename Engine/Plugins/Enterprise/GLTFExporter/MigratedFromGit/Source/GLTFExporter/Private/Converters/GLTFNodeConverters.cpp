@@ -54,6 +54,8 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 	}
 	else
 	{
+		// TODO: add support for exporting brush geometry?
+
 		// TODO: to reduce number of nodes, only export components that are of interest
 
 		for (const UActorComponent* Component : Actor->GetComponents())
