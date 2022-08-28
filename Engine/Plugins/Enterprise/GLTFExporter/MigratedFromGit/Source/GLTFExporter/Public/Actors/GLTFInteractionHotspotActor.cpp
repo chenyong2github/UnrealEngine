@@ -20,6 +20,8 @@ AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitiali
 #if WITH_EDITOR
 void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	ForwardPropertiesToComponent();
 }
 #endif // WITH_EDITOR
