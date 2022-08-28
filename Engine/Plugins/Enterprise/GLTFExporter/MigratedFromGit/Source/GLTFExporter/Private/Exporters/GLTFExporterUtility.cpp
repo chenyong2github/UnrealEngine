@@ -4,6 +4,22 @@
 #include "Materials/MaterialInstance.h"
 #include "AssetRegistryModule.h"
 
+void FGLTFExporterUtility::GetSelectedActors(TSet<AActor*>& OutSelectedActors)
+{
+#if WITH_EDITOR
+	const TMap<const UObjectBase*, FBoolAnnotation>& AnnotationMap = ((const FUObjectAnnotationSparse<FBoolAnnotation, true>&)GSelectedActorAnnotation).GetAnnotationMap();
+	OutSelectedActors.Reserve(AnnotationMap.Num());
+
+	for (const TPair<const UObjectBase*, FBoolAnnotation>& Pair : AnnotationMap)
+	{
+		if (Pair.Value.Mark)
+		{
+			OutSelectedActors.Add(static_cast<AActor*>(const_cast<UObjectBase*>(Pair.Key)));
+		}
+	}
+#endif
+}
+
 const UStaticMesh* FGLTFExporterUtility::GetPreviewMesh(const UMaterialInterface* Material)
 {
 #if WITH_EDITORONLY_DATA

@@ -1,15 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFActorUtility.h"
-#include "Engine/Blueprint.h"
 #include "Actors/GLTFHotspotActor.h"
 #include "LevelSequenceActor.h"
-
-bool FGLTFActorUtility::IsRootActor(const AActor* Actor, bool bSelectedOnly)
-{
-	const AActor* ParentActor = Actor->GetAttachParentActor();
-	return ParentActor == nullptr || (bSelectedOnly && !ParentActor->IsSelected());
-}
 
 bool FGLTFActorUtility::IsGenericActor(const AActor* Actor)
 {

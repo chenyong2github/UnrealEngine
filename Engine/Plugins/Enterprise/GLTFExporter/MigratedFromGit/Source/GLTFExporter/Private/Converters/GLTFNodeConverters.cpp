@@ -19,7 +19,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
+	if (!Builder.IsSelectedActor(Actor))
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
@@ -94,13 +94,13 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	if (Builder.bSelectedActorsOnly && !Owner->IsSelected())
+	if (!Builder.IsSelectedActor(Owner))
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
 	const bool bIsRootComponent = Owner->GetRootComponent() == SceneComponent;
-	const bool bIsRootNode = bIsRootComponent && FGLTFActorUtility::IsRootActor(Owner, Builder.bSelectedActorsOnly);
+	const bool bIsRootNode = bIsRootComponent && Builder.IsRootActor(Owner);
 
 	const USceneComponent* ParentComponent = !bIsRootNode ? SceneComponent->GetAttachParent() : nullptr;
 	const FName SocketName = SceneComponent->GetAttachSocketName();

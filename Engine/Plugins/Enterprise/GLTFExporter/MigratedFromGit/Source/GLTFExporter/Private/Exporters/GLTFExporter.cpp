@@ -6,6 +6,7 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "AssetExportTask.h"
+#include "GLTFExporterUtility.h"
 
 UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -32,9 +33,15 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	FGCObjectScopeGuard OptionsGuard(Options);
 
+	TSet<AActor*> SelectedActors;
+	if (bSelectedOnly)
+	{
+		FGLTFExporterUtility::GetSelectedActors(SelectedActors);
+	}
+
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
-	FGLTFContainerBuilder Builder(GetFilePath(), Options, bSelectedOnly);
+	FGLTFContainerBuilder Builder(GetFilePath(), Options, SelectedActors);
 	Builder.ClearLog();
 
 	const bool bSuccess = AddObject(Builder, Object);
@@ -53,7 +60,7 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 	return bSuccess;
 }
 
-bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, FGLTFExportMessages& OutMessages)
+bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors, FGLTFExportMessages& OutMessages)
 {
 	if (Object == nullptr)
 	{
@@ -68,7 +75,7 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const
 		return false;
 	}
 
-	FGLTFContainerBuilder Builder(Filename, Options, false);
+	FGLTFContainerBuilder Builder(Filename, Options, SelectedActors);
 	const bool bSuccess = Exporter->AddObject(Builder, Object);
 
 	OutMessages.Suggestions = Builder.GetLoggedSuggestions();
@@ -91,10 +98,10 @@ bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const
 	return bSuccess;
 }
 
-bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options)
+bool UGLTFExporter::ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors)
 {
 	FGLTFExportMessages Messages;
-	return ExportToGLTF(Object, Filename, Options, Messages);
+	return ExportToGLTF(Object, Filename, Options, SelectedActors, Messages);
 }
 
 bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Object)

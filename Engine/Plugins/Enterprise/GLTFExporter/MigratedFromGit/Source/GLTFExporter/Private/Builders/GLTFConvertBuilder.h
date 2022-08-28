@@ -26,11 +26,14 @@ class FGLTFConvertBuilder : public FGLTFImageBuilder
 {
 protected:
 
-	FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
+	FGLTFConvertBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors);
 
 public:
 
-	const bool bSelectedActorsOnly;
+	const TSet<AActor*> SelectedActors;
+
+	bool IsSelectedActor(const AActor* Object) const;
+	bool IsRootActor(const AActor* Actor) const;
 
 	FGLTFJsonAccessorIndex GetOrAddPositionAccessor(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer);
 	FGLTFJsonAccessorIndex GetOrAddColorAccessor(const FGLTFMeshSection* MeshSection, const FColorVertexBuffer* VertexBuffer);

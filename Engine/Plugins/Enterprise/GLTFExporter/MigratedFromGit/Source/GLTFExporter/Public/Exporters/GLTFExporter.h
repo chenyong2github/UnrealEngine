@@ -36,8 +36,8 @@ public:
 	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Miscellaneous")
-	static bool ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, FGLTFExportMessages& OutMessages);
-	static bool ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options = nullptr);
+	static bool ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options, const TSet<AActor*>& SelectedActors, FGLTFExportMessages& OutMessages);
+	static bool ExportToGLTF(UObject* Object, const FString& Filename, const UGLTFExportOptions* Options = nullptr, const TSet<AActor*>& SelectedActors = {});
 
 protected:
 
