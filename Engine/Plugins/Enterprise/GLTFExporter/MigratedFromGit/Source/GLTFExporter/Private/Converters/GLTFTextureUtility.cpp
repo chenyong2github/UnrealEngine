@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFTextureUtility.h"
-#include "IImageWrapper.h"
 #include "NormalMapPreview.h"
 
 bool FGLTFTextureUtility::IsHDR(EPixelFormat Format)
@@ -23,35 +22,6 @@ bool FGLTFTextureUtility::IsHDR(EPixelFormat Format)
 		case PF_PLATFORM_HDR_1:
 		case PF_PLATFORM_HDR_2:
 			return true;
-		default:
-			return false;
-	}
-}
-
-bool FGLTFTextureUtility::CanPNGCompressFormat(ETextureSourceFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth)
-{
-	switch (InFormat)
-	{
-		case TSF_BGRA8:   OutFormat = ERGBFormat::BGRA; OutBitDepth = 8;  return true;
-		case TSF_RGBA8:   OutFormat = ERGBFormat::RGBA; OutBitDepth = 8;  return true;
-		case TSF_RGBA16:  OutFormat = ERGBFormat::RGBA; OutBitDepth = 16; return true;
-		case TSF_G8:      OutFormat = ERGBFormat::Gray; OutBitDepth = 8;  return true;
-		case TSF_G16:     OutFormat = ERGBFormat::Gray; OutBitDepth = 16; return true;
-		default:
-			return false;
-	}
-}
-
-bool FGLTFTextureUtility::CanPNGCompressFormat(EPixelFormat InFormat, ERGBFormat& OutFormat, uint32& OutBitDepth)
-{
-	switch (InFormat)
-	{
-		case PF_B8G8R8A8:           OutFormat = ERGBFormat::BGRA; OutBitDepth = 8;  return true;
-		case PF_R8G8B8A8:           OutFormat = ERGBFormat::RGBA; OutBitDepth = 8;  return true;
-		case PF_R16G16B16A16_UNORM: OutFormat = ERGBFormat::RGBA; OutBitDepth = 16; return true;
-		case PF_L8:                 OutFormat = ERGBFormat::Gray; OutBitDepth = 8;  return true;
-		case PF_G8:                 OutFormat = ERGBFormat::Gray; OutBitDepth = 8;  return true;
-		case PF_G16:                OutFormat = ERGBFormat::Gray; OutBitDepth = 16; return true;
 		default:
 			return false;
 	}
