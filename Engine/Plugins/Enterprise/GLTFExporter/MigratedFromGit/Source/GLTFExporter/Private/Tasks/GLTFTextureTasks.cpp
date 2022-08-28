@@ -27,14 +27,14 @@ void FGLTFTexture2DTask::Complete()
 		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D->GetPixelFormat());
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D);
 	const FIntPoint Size = FGLTFTextureUtility::GetInGameSize(Texture2D);
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
 	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D, FVector2D::ZeroVector, Size);
 
-	if (!Texture2D->IsNormalMap() && bIsHDR)
+	if (bIsHDR)
 	{
 		JsonTexture.Encoding = Builder.GetTextureHDREncoding();
 	}
@@ -88,7 +88,7 @@ void FGLTFTextureCubeTask::Complete()
 		return;
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(TextureCube->GetPixelFormat());
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(TextureCube);
 	const FIntPoint Size = { TextureCube->GetSizeX(), TextureCube->GetSizeY() };
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
@@ -132,7 +132,7 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 		JsonTexture.Name += bToSRGB ? TEXT("_sRGB") : TEXT("_Linear");
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D->GetFormat());
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTarget2D);
 	const FIntPoint Size = { RenderTarget2D->SizeX, RenderTarget2D->SizeY };
 
 	if (bIsHDR)
@@ -181,7 +181,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 		return;
 	}
 
-	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTargetCube->GetFormat());
+	const bool bIsHDR = FGLTFTextureUtility::IsHDR(RenderTargetCube);
 	const FIntPoint Size = { RenderTargetCube->SizeX, RenderTargetCube->SizeX };
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
