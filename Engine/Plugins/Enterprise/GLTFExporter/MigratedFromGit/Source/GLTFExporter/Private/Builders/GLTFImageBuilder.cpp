@@ -6,11 +6,12 @@
 #include "IImageWrapper.h"
 #include "Misc/FileHelper.h"
 
-FGLTFImageBuilder::FGLTFImageBuilder()
+FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
+    : FGLTFBufferBuilder(FilePath, ExportOptions)
 {
 }
 
-bool FGLTFImageBuilder::Serialize(const FString& FilePath)
+bool FGLTFImageBuilder::Serialize()
 {
 	const FString ImageDir = FPaths::GetPath(FilePath);
 	TSet<FString> UniqueImageUris;

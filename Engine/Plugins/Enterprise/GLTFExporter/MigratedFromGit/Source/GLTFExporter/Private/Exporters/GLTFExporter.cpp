@@ -36,10 +36,10 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
-	FGLTFContainerBuilder Builder(Options, bSelectedOnly);
+	FGLTFContainerBuilder Builder(CurrentFilename, Options, bSelectedOnly);
 	if (AddObject(Builder, Object))
 	{
-		if (!Builder.Serialize(Archive, CurrentFilename))
+		if (!Builder.Serialize(Archive))
 		{
 			// TODO: more descriptive error
 			Builder.AddErrorMessage(TEXT("Serialize failed"));

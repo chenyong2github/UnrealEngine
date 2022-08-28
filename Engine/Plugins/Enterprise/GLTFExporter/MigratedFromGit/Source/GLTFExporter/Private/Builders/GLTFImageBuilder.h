@@ -10,9 +10,9 @@ class FGLTFImageBuilder : public FGLTFBufferBuilder
 {
 protected:
 
-	FGLTFImageBuilder();
+	FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
-	bool Serialize(const FString& FilePath);
+	bool Serialize();
 
 public:
 

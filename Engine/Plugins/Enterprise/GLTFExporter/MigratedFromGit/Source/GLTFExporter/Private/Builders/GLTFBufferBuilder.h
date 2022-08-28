@@ -8,9 +8,9 @@ class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 protected:
 
-	FGLTFBufferBuilder();
+	FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 
-	bool Serialize(FArchive& Archive, const FString& FilePath);
+	bool Serialize(FArchive& Archive);
 
 public:
 
