@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporter.h"
-#include "Builders/GLTFContainerBuilder.h"
 #include "GLTFExportOptions.h"
+#include "UI/GLTFExportOptionsWindow.h"
+#include "Builders/GLTFContainerBuilder.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "AssetExportTask.h"
 
@@ -23,20 +24,14 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 
 bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Archive, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags)
 {
-	UGLTFExportOptions* Options = GetAutomatedExportOptions();
+	UGLTFExportOptions* Options = GetExportOptions();
 	if (Options == nullptr)
-	{
-		Options = NewObject<UGLTFExportOptions>();
-	}
-
-	FGCObjectScopeGuard OptionsGuard(Options);
-
-	if (!FillExportOptions(Options))
 	{
 		// User cancelled the export
 		return false;
 	}
 
+	FGCObjectScopeGuard OptionsGuard(Options);
 	bool bSuccess = true;
 
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
@@ -77,28 +72,44 @@ bool UGLTFExporter::AddObject(FGLTFContainerBuilder& Builder, const UObject* Obj
 	return false;
 }
 
-bool UGLTFExporter::FillExportOptions(UGLTFExportOptions* ExportOptions)
+UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 {
-	bool bExportAll = GetBatchMode() && !GetShowExportOption();
-	bool bExportCancel = false;
+	UGLTFExportOptions* Options = nullptr;
+	bool bAutomatedTask = GIsAutomationTesting || FApp::IsUnattended();
 
-	ExportOptions->FillOptions(GetBatchMode(), GetShowExportOption(), CurrentFilename, bExportCancel, bExportAll);
-	if (bExportCancel)
+	if (ExportTask != nullptr)
 	{
-		SetCancelBatch(GetBatchMode());
-		return false;
+		Options = Cast<UGLTFExportOptions>(ExportTask->Options);
+
+		if (ExportTask->bAutomated)
+		{
+			bAutomatedTask = true;
+		}
 	}
 
-	SetShowExportOption(!bExportAll);
-	return true;
-}
-
-UGLTFExportOptions* UGLTFExporter::GetAutomatedExportOptions() const
-{
-	if (ExportTask != nullptr && ExportTask->bAutomated)
+	if (Options == nullptr)
 	{
-		return Cast<UGLTFExportOptions>(ExportTask->Options);
+		Options = NewObject<UGLTFExportOptions>();
+		Options->LoadOptions();
 	}
 
-	return nullptr;
+	if (GetShowExportOption() && !bAutomatedTask)
+	{
+		bool bExportAll = GetBatchMode();
+		bool bOperationCanceled = false;
+
+		FGCObjectScopeGuard OptionsGuard(Options);
+		SGLTFExportOptionsWindow::ShowDialog(Options, CurrentFilename, GetBatchMode(), bOperationCanceled, bExportAll);
+
+		if (bOperationCanceled)
+		{
+			SetCancelBatch(GetBatchMode());
+			return nullptr;
+		}
+
+		SetShowExportOption(!bExportAll);
+		Options->SaveOptions();
+	}
+
+	return Options;
 }

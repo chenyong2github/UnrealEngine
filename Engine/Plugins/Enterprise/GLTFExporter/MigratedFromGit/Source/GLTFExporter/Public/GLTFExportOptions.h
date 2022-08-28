@@ -159,16 +159,6 @@ public:
 	/* Load the each property from a local ini which the value was store by the function SaveOptions() */
 	void LoadOptions();
 
-	/**
-	* Load the export option from the last save state and show the dialog if bShowOptionDialog is true.
-	* FullPath is the export file path we display it in the dialog
-	* If user cancel the dialog, the bOutOperationCanceled will be true
-	* bOutExportAll will be true if the user want to use the same option for all other asset he want to export
-	*
-	* The function is saving the dialog state in a user ini file and reload it from there. It is not changing the CDO.
-	*/
-	void FillOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& bOutOperationCanceled, bool& bOutExportAll);
-
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 
 	FIntPoint GetDefaultMaterialBakeSize() const;

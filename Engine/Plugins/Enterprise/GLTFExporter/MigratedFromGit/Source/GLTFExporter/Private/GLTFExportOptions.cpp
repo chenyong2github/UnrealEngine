@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExportOptions.h"
-#include "UI/GLTFExportOptionsWindow.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -187,24 +186,6 @@ void UGLTFExportOptions::SaveOptions()
 		}
 	}
 	GConfig->Flush(false);
-}
-
-void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& bOutOperationCanceled, bool& bOutExportAll)
-{
-	bOutOperationCanceled = false;
-
-	// TODO: call LoadOptions();
-
-	//Return if we do not show the export options or we are running automation test or we are unattended
-	if (!bShowOptionDialog || GIsAutomationTesting || FApp::IsUnattended())
-	{
-		return;
-	}
-
-	bOutExportAll = false;
-
-	SGLTFExportOptionsWindow::ShowDialog(this, FullPath, bBatchMode, bOutOperationCanceled, bOutExportAll);
-	// TODO: call SaveOptions();
 }
 
 bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
