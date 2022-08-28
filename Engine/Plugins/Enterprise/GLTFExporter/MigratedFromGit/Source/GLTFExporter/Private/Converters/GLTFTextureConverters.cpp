@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 
-FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTexture* Texture)
+FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Convert(const FString& Name, const UTexture* Texture)
 {
 	// TODO: maybe we should reuse existing samplers?
 
@@ -41,7 +41,7 @@ FGLTFJsonSamplerIndex FGLTFTextureSamplerConverter::Add(FGLTFConvertBuilder& Bui
 	return Builder.AddSampler(JsonSampler);
 }
 
-FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTexture2D* Texture2D)
+FGLTFJsonTextureIndex FGLTFTexture2DConverter::Convert(const FString& Name, const UTexture2D* Texture2D)
 {
 	FGLTFJsonImageIndex ImageIndex;
 
@@ -122,7 +122,7 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 	return Builder.AddTexture(JsonTexture);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureCube* TextureCube, ECubeFace CubeFace)
+FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Convert(const FString& Name, const UTextureCube* TextureCube, ECubeFace CubeFace)
 {
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;
@@ -156,7 +156,7 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builde
 	return Builder.AddTexture(JsonTexture);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureRenderTarget2D* RenderTarget2D)
+FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Convert(const FString& Name, const UTextureRenderTarget2D* RenderTarget2D)
 {
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;
@@ -174,7 +174,7 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTarget2DConverter::Add(FGLTFConvertBuild
 	return Builder.AddTexture(JsonTexture);
 }
 
-FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace)
+FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Convert(const FString& Name, const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace)
 {
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;

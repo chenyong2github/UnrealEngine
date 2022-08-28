@@ -6,38 +6,61 @@
 
 class FGLTFConvertBuilder;
 
-template <typename IndexType, typename... ArgTypes>
+template <typename OutputType, typename... InputTypes>
 class TGLTFConverter
 {
-	typedef TTuple<ArgTypes...> KeyType;
+	typedef TTuple<InputTypes...> InputKeyType;
 
 public:
 
+	TGLTFConverter(FGLTFConvertBuilder& Builder)
+		: Builder(Builder)
+	{
+	}
+
 	virtual ~TGLTFConverter() = default;
 
-	IndexType Get(ArgTypes&&... Args) const
+	OutputType Get(InputTypes&&... Inputs) const
 	{
-		const KeyType Key(Forward<ArgTypes>(Args)...);
-		return IndexLookup.FindRef(Key);
-	}
-
-	IndexType GetOrAdd(FGLTFConvertBuilder& Builder, const FString& DesiredName, ArgTypes... Args)
-	{
-		const KeyType Key(Forward<ArgTypes>(Args)...);
-		if (IndexType* FoundIndex = IndexLookup.Find(Key))
+		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
+		if (OutputType* SavedOutput = SavedOutputs.Find(InputKey))
 		{
-			return *FoundIndex;
+			return *SavedOutput;
 		}
 
-		IndexType NewIndex = Add(Builder, DesiredName, Forward<ArgTypes>(Args)...);
-
-		IndexLookup.Add(Key, NewIndex);
-		return NewIndex;
+		return {};
 	}
+
+	OutputType Add(const FString& DesiredName, InputTypes... Inputs)
+	{
+		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
+		OutputType NewOutput = Convert(DesiredName, Forward<InputTypes>(Inputs)...);
+
+		SavedOutputs.Add(InputKey, NewOutput);
+		return NewOutput;
+	}
+
+	OutputType GetOrAdd(const FString& DesiredName, InputTypes... Inputs)
+	{
+		const InputKeyType InputKey(Forward<InputTypes>(Inputs)...);
+		if (OutputType* SavedOutput = SavedOutputs.Find(InputKey))
+		{
+			return *SavedOutput;
+		}
+
+		OutputType NewOutput = Convert(DesiredName, Forward<InputTypes>(Inputs)...);
+
+		SavedOutputs.Add(InputKey, NewOutput);
+		return NewOutput;
+	}
+
+protected:
+
+	virtual OutputType Convert(const FString& Name, InputTypes... Inputs) = 0;
+
+	FGLTFConvertBuilder& Builder;
 
 private:
 
-	virtual IndexType Add(FGLTFConvertBuilder& Builder, const FString& Name, ArgTypes... Args) = 0;
-
-	TMap<KeyType, IndexType> IndexLookup;
+	TMap<InputKeyType, OutputType> SavedOutputs;
 };

@@ -4,7 +4,7 @@
 #include "Json/FGLTFJsonHotspot.h"
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFJsonHotspotIndex FGLTFHotspotComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UGLTFInteractionHotspotComponent* HotspotComponent)
+FGLTFJsonHotspotIndex FGLTFHotspotComponentConverter::Convert(const FString& Name, const UGLTFInteractionHotspotComponent* HotspotComponent)
 {
 	// TODO: should we warn and / or return INDEX_NONE if the hotspot has no valid Image assigned?
 

@@ -8,5 +8,7 @@
 
 class FGLTFLightMapConverter final : public TGLTFConverter<FGLTFJsonLightMapIndex, const UStaticMeshComponent*>
 {
-	FGLTFJsonLightMapIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UStaticMeshComponent* StaticMeshComponent) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonLightMapIndex Convert(const FString& Name, const UStaticMeshComponent* StaticMeshComponent) override;
 };

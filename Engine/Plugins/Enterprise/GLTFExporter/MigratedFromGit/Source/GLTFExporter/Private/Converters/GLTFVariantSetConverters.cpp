@@ -23,7 +23,7 @@ namespace
 	};
 } // anonymous namespace
 
-FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ALevelVariantSetsActor* LevelVariantSetsActor)
+FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Convert(const FString& Name, const ALevelVariantSetsActor* LevelVariantSetsActor)
 {
 	const ULevelVariantSets* LevelVariantSets = const_cast<ALevelVariantSetsActor*>(LevelVariantSetsActor)->GetLevelVariantSets(true);
 	if (LevelVariantSets == nullptr)
@@ -42,7 +42,7 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Add(FGLTFConvertB
 		for (const UVariant* Variant: VariantSet->GetVariants())
 		{
 			FGLTFJsonVariant JsonVariant;
-			if (TryParseVariant(Builder, JsonVariant, Variant))
+			if (TryParseVariant(JsonVariant, Variant))
 			{
 				JsonVariantSet.Variants.Add(JsonVariant);
 			}
@@ -68,13 +68,13 @@ FGLTFJsonLevelVariantSetsIndex FGLTFLevelVariantSetsConverter::Add(FGLTFConvertB
 	return Builder.AddLevelVariantSets(JsonLevelVariantSets);
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UVariant* Variant) const
+bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFJsonVariant& OutVariant, const UVariant* Variant) const
 {
 	FGLTFJsonVariant JsonVariant;
 
 	for (const UVariantObjectBinding* Binding: Variant->GetBindings())
 	{
-		TryParseVariantBinding(Builder, JsonVariant, Binding);
+		TryParseVariantBinding(JsonVariant, Binding);
 	}
 
 	if (JsonVariant.Nodes.Num() == 0)
@@ -98,7 +98,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariant(FGLTFConvertBuilder& Builde
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const
+bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFJsonVariant& OutVariant, const UVariantObjectBinding* Binding) const
 {
 	bool bHasParsedAnyProperty = false;
 
@@ -122,28 +122,28 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFConvertBuilder&
 
 		if (bIsVisibilityProperty)
 		{
-			if (TryParseVisibilityPropertyValue(Builder, OutVariant, Property))
+			if (TryParseVisibilityPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
 		else if (bIsMaterialProperty)
 		{
-			if (TryParseMaterialPropertyValue(Builder, OutVariant, Property))
+			if (TryParseMaterialPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
 		else if (bIsStaticMeshProperty)
 		{
-			if (TryParseStaticMeshPropertyValue(Builder, OutVariant, Property))
+			if (TryParseStaticMeshPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
 		else if (bIsSkeletalMeshProperty)
 		{
-			if (TryParseSkeletalMeshPropertyValue(Builder, OutVariant, Property))
+			if (TryParseSkeletalMeshPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
@@ -168,7 +168,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFConvertBuilder&
 	return bHasParsedAnyProperty;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -215,7 +215,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFConver
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(const_cast<UPropertyValue*>(Property));
 	if (MaterialProperty == nullptr)
@@ -284,7 +284,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFConvertB
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -341,7 +341,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFConver
 	return true;
 }
 
-bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
 {
 	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)

@@ -7,7 +7,7 @@
 #include "Converters/GLTFCameraUtility.h"
 #include "Components/GLTFInteractionHotspotComponent.h"
 
-FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const USceneComponent* SceneComponent)
+FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Convert(const FString& Name, const USceneComponent* SceneComponent)
 {
 	const AActor* Owner = SceneComponent->GetOwner();
 	if (Owner == nullptr)
@@ -142,7 +142,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	return NodeIndex;
 }
 
-FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor)
+FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const FString& Name, const AActor* Actor)
 {
 	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
 	{
@@ -189,7 +189,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Add(FGLTFConvertBuilder& Builder, const 
 	return RootNodeIndex;
 }
 
-FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULevel* Level)
+FGLTFJsonSceneIndex FGLTFLevelConverter::Convert(const FString& Name, const ULevel* Level)
 {
 	FGLTFJsonScene Scene;
 	Scene.Name = Name;
@@ -227,7 +227,7 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 	return Builder.AddScene(Scene);
 }
 
-FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UCameraComponent* CameraComponent)
+FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Convert(const FString& Name, const UCameraComponent* CameraComponent)
 {
 	FGLTFJsonCamera Camera;
 	Camera.Name = Name;
@@ -254,7 +254,7 @@ FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Add(FGLTFConvertBuilder& Bui
 	return Builder.AddCamera(Camera);
 }
 
-FGLTFJsonLightIndex FGLTFLightComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightComponent* LightComponent)
+FGLTFJsonLightIndex FGLTFLightComponentConverter::Convert(const FString& Name, const ULightComponent* LightComponent)
 {
 	FGLTFJsonLight Light;
 	Light.Name = Name;

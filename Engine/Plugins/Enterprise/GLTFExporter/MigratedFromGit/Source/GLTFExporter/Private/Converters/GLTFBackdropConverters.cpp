@@ -5,7 +5,7 @@
 #include "Converters/GLTFActorUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 
-FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const AActor* Actor)
+FGLTFJsonBackdropIndex FGLTFBackdropConverter::Convert(const FString& Name, const AActor* Actor)
 {
 	const UBlueprint* Blueprint = FGLTFActorUtility::GetBlueprintFromActor(Actor);
 	if (!FGLTFActorUtility::IsHDRIBackdropBlueprint(Blueprint))

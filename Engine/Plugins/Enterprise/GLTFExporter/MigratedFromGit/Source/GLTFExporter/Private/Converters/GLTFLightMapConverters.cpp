@@ -5,7 +5,7 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/MapBuildDataRegistry.h"
 
-FGLTFJsonLightMapIndex FGLTFLightMapConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UStaticMeshComponent* StaticMeshComponent)
+FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const FString& Name, const UStaticMeshComponent* StaticMeshComponent)
 {
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 

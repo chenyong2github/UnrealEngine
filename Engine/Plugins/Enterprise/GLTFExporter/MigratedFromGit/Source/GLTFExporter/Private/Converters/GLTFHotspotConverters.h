@@ -9,5 +9,7 @@
 
 class FGLTFHotspotComponentConverter final : public TGLTFConverter<FGLTFJsonHotspotIndex, const UGLTFInteractionHotspotComponent*>
 {
-	FGLTFJsonHotspotIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UGLTFInteractionHotspotComponent* HotspotComponent) override;
+	using TGLTFConverter::TGLTFConverter;
+
+	FGLTFJsonHotspotIndex Convert(const FString& Name, const UGLTFInteractionHotspotComponent* HotspotComponent) override;
 };
