@@ -8,7 +8,7 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonBufferIndex Buffer;
+	FGLTFJsonBuffer* Buffer;
 
 	int64 ByteLength;
 	int64 ByteOffset;
@@ -18,6 +18,7 @@ struct GLTFEXPORTER_API FGLTFJsonBufferView : IGLTFJsonIndexedObject
 
 	FGLTFJsonBufferView(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, Buffer(nullptr)
 		, ByteLength(0)
 		, ByteOffset(0)
 		, ByteStride(0)

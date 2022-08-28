@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonHotspot.h"
+#include "Json/GLTFJsonAnimation.h"
+#include "Json/GLTFJsonTexture.h"
 
 void FGLTFJsonHotspot::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -12,17 +14,17 @@ void FGLTFJsonHotspot::WriteObject(IGLTFJsonWriter& Writer) const
 	Writer.Write(TEXT("animation"), Animation);
 	Writer.Write(TEXT("image"), Image);
 
-	if (HoveredImage != INDEX_NONE)
+	if (HoveredImage != nullptr)
 	{
 		Writer.Write(TEXT("hoveredImage"), HoveredImage);
 	}
 
-	if (ToggledImage != INDEX_NONE)
+	if (ToggledImage != nullptr)
 	{
 		Writer.Write(TEXT("toggledImage"), ToggledImage);
 	}
 
-	if (ToggledHoveredImage != INDEX_NONE)
+	if (ToggledHoveredImage != nullptr)
 	{
 		Writer.Write(TEXT("toggledHoveredImage"), ToggledHoveredImage);
 	}

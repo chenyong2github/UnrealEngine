@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonMaterial.h"
+#include "Json/GLTFJsonTexture.h"
 
 void FGLTFJsonTextureInfo::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -56,7 +57,7 @@ void FGLTFJsonPBRMetallicRoughness::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("baseColorFactor"), BaseColorFactor);
 	}
 
-	if (BaseColorTexture.Index != INDEX_NONE)
+	if (BaseColorTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("baseColorTexture"), BaseColorTexture);
 	}
@@ -71,7 +72,7 @@ void FGLTFJsonPBRMetallicRoughness::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("roughnessFactor"), RoughnessFactor);
 	}
 
-	if (MetallicRoughnessTexture.Index != INDEX_NONE)
+	if (MetallicRoughnessTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("metallicRoughnessTexture"), MetallicRoughnessTexture);
 	}
@@ -84,7 +85,7 @@ void FGLTFJsonClearCoatExtension::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("clearcoatFactor"), ClearCoatFactor);
 	}
 
-	if (ClearCoatTexture.Index != INDEX_NONE)
+	if (ClearCoatTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("clearcoatTexture"), ClearCoatTexture);
 	}
@@ -94,12 +95,12 @@ void FGLTFJsonClearCoatExtension::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("clearcoatRoughnessFactor"), ClearCoatRoughnessFactor);
 	}
 
-	if (ClearCoatRoughnessTexture.Index != INDEX_NONE)
+	if (ClearCoatRoughnessTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("clearcoatRoughnessTexture"), ClearCoatRoughnessTexture);
 	}
 
-	if (ClearCoatNormalTexture.Index != INDEX_NONE)
+	if (ClearCoatNormalTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("clearcoatNormalTexture"), ClearCoatNormalTexture);
 	}
@@ -117,17 +118,17 @@ void FGLTFJsonMaterial::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("pbrMetallicRoughness"), PBRMetallicRoughness);
 	}
 
-	if (NormalTexture.Index != INDEX_NONE)
+	if (NormalTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("normalTexture"), NormalTexture);
 	}
 
-	if (OcclusionTexture.Index != INDEX_NONE)
+	if (OcclusionTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("occlusionTexture"), OcclusionTexture);
 	}
 
-	if (EmissiveTexture.Index != INDEX_NONE)
+	if (EmissiveTexture.Index != nullptr)
 	{
 		Writer.Write(TEXT("emissiveTexture"), EmissiveTexture);
 	}

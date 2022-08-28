@@ -48,12 +48,12 @@ const TArray64<uint8>* FGLTFBufferBuilder::GetBufferData() const
 	return bIsGlbFile ? static_cast<FGLTFMemoryArchive*>(BufferArchive.Get()) : nullptr;
 }
 
-FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
+FGLTFJsonBufferView* FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
 {
 	if (BufferArchive == nullptr && !InitializeBuffer())
 	{
 		// TODO: report error
-		return FGLTFJsonBufferViewIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	uint64 ByteOffset = BufferArchive->Tell();
@@ -71,11 +71,11 @@ FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, 
 	FGLTFJsonBuffer& JsonBuffer = GetBuffer(BufferIndex);
 	JsonBuffer.ByteLength = BufferArchive->Tell();
 
-	FGLTFJsonBufferView JsonBufferView;
-	JsonBufferView.Buffer = BufferIndex;
-	JsonBufferView.ByteOffset = ByteOffset;
-	JsonBufferView.ByteLength = ByteLength;
-	JsonBufferView.Target = BufferTarget;
+	FGLTFJsonBufferView* JsonBufferView = FGLTFJsonBuilder::AddBufferView();
+	JsonBufferView->Buffer = BufferIndex;
+	JsonBufferView->ByteOffset = ByteOffset;
+	JsonBufferView->ByteLength = ByteLength;
+	JsonBufferView->Target = BufferTarget;
 
-	return FGLTFJsonBuilder::AddBufferView(JsonBufferView);
+	return JsonBufferView;
 }

@@ -41,8 +41,8 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 	}
 
 	UWorld* World = Worlds[0];
-	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World);
-	if (SceneIndex == INDEX_NONE)
+	FGLTFJsonScene* SceneIndex = Builder.GetOrAddScene(World);
+	if (SceneIndex == nullptr)
 	{
 		Builder.LogError(
 			FString::Printf(TEXT("Failed to export level %s for level sequence %s"),
@@ -51,8 +51,8 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(World->PersistentLevel, LevelSequence);
-	if (AnimationIndex == INDEX_NONE)
+	FGLTFJsonAnimation* AnimationIndex = Builder.GetOrAddAnimation(World->PersistentLevel, LevelSequence);
+	if (AnimationIndex == nullptr)
 	{
 		Builder.LogError(
 			FString::Printf(TEXT("Failed to export level sequence %s"),

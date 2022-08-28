@@ -6,7 +6,7 @@
 #include "LevelVariantSets.h"
 #include "VariantSet.h"
 
-FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
+FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 {
 	FGLTFJsonScene Scene;
 	World->GetName(Scene.Name);
@@ -36,10 +36,10 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 						{
 							if (LevelVariantSets != nullptr)
 							{
-								const FGLTFJsonEpicLevelVariantSetsIndex EpicLevelVariantSetsIndex = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
-								if (EpicLevelVariantSetsIndex != INDEX_NONE)
+								FGLTFJsonEpicLevelVariantSets* JsonEpicLevelVariantSets = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
+								if (JsonEpicLevelVariantSets != nullptr)
 								{
-									Scene.EpicLevelVariantSets.Add(EpicLevelVariantSetsIndex);
+									Scene.EpicLevelVariantSets.Add(JsonEpicLevelVariantSets);
 								}
 							}
 						}
@@ -62,12 +62,12 @@ FGLTFJsonSceneIndex FGLTFSceneConverter::Convert(const UWorld* World)
 
 			for (const AActor* Actor : Level->Actors)
 			{
-				const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Actor);
-				if (NodeIndex != INDEX_NONE && Builder.IsRootActor(Actor))
+				FGLTFJsonNode* JsonNode = Builder.GetOrAddNode(Actor);
+				if (JsonNode != nullptr && Builder.IsRootActor(Actor))
 				{
 					// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to scene.
 					// This change may require node converters to support cyclic calls.
-					Scene.Nodes.Add(NodeIndex);
+					Scene.Nodes.Add(JsonNode);
 				}
 			}
 		}

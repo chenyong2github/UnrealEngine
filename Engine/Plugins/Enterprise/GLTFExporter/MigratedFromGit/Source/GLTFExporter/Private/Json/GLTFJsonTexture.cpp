@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonTexture.h"
+#include "Json/GLTFJsonSampler.h"
+#include "Json/GLTFJsonImage.h"
 
 void FGLTFJsonTexture::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -9,12 +11,12 @@ void FGLTFJsonTexture::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("name"), Name);
 	}
 
-	if (Sampler != INDEX_NONE)
+	if (Sampler != nullptr)
 	{
 		Writer.Write(TEXT("sampler"), Sampler);
 	}
 
-	if (Source != INDEX_NONE)
+	if (Source != nullptr)
 	{
 		Writer.Write(TEXT("source"), Source);
 	}

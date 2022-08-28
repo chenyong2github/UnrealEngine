@@ -8,11 +8,11 @@
 #include "PropertyValue.h"
 #include "Variant.h"
 
-FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const UVariant* Variant)
+FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVariant* Variant)
 {
 	if (Variant == nullptr || Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::None)
 	{
-		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	FGLTFJsonKhrMaterialVariant MaterialVariant;
@@ -22,7 +22,7 @@ FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const
 	// cause confusion when trying to select the correct variant in a viewer.
 	MaterialVariant.Name = Variant->GetDisplayText().ToString();
 
-	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterialIndex> TPrimitiveMaterial;
+	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterial*> TPrimitiveMaterial;
 	TArray<TPrimitiveMaterial> PrimitiveMaterials;
 
 	for (const UVariantObjectBinding* Binding: Variant->GetBindings())
@@ -37,7 +37,7 @@ FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const
 			if (const UPropertyValueMaterial* MaterialProperty = Cast<UPropertyValueMaterial>(Property))
 			{
 				FGLTFJsonPrimitive* Primitive = nullptr;
-				FGLTFJsonMaterialIndex MaterialIndex;
+				FGLTFJsonMaterial* MaterialIndex;
 
 				if (TryParseMaterialProperty(Primitive, MaterialIndex, MaterialProperty))
 				{
@@ -51,15 +51,15 @@ FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const
 	{
 		// TODO: add warning and / or allow unused material variants to be added?
 
-		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
+		return nullptr;
 	}
 
-	const FGLTFJsonKhrMaterialVariantIndex MaterialVariantIndex = Builder.AddKhrMaterialVariant(MaterialVariant);
+	FGLTFJsonKhrMaterialVariant* MaterialVariantIndex = Builder.AddKhrMaterialVariant(MaterialVariant);
 
 	for (const TPrimitiveMaterial& PrimitiveMaterial: PrimitiveMaterials)
 	{
 		FGLTFJsonPrimitive* Primitive = PrimitiveMaterial.Key;
-		const FGLTFJsonMaterialIndex MaterialIndex = PrimitiveMaterial.Value;
+		FGLTFJsonMaterial* MaterialIndex = PrimitiveMaterial.Value;
 
 		FGLTFJsonKhrMaterialVariantMapping* ExistingMapping = Primitive->KhrMaterialVariantMappings.FindByPredicate(
 			[MaterialIndex](const FGLTFJsonKhrMaterialVariantMapping& Mapping)
@@ -84,7 +84,7 @@ FGLTFJsonKhrMaterialVariantIndex FGLTFKhrMaterialVariantConverter::Convert(const
 	return MaterialVariantIndex;
 }
 
-bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterialIndex& OutMaterialIndex, const UPropertyValueMaterial* Property) const
+bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimitive*& OutPrimitive, FGLTFJsonMaterial*& OutMaterialIndex, const UPropertyValueMaterial* Property) const
 {
 	const UMeshComponent* Target = static_cast<UMeshComponent*>(Property->GetPropertyParentContainerAddress());
 	if (Target == nullptr)
@@ -142,7 +142,7 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we don't need to register this on the actor
 
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
-	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(Target);
+	FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(Target);
 
 	OutPrimitive = &Builder.GetMesh(MeshIndex).Primitives[MaterialIndex];
 	OutMaterialIndex = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);

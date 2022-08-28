@@ -9,7 +9,7 @@ void FGLTFJsonLightMap::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("name"), Name);
 	}
 
-	if (Texture.Index != INDEX_NONE)
+	if (Texture.Index != nullptr)
 	{
 		Writer.Write(TEXT("texture"), Texture);
 	}

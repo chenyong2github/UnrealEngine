@@ -7,29 +7,39 @@
 
 struct GLTFEXPORTER_API FGLTFJsonAttributes : IGLTFJsonObject
 {
-	FGLTFJsonAccessorIndex Position;
-	FGLTFJsonAccessorIndex Color0;
-	FGLTFJsonAccessorIndex Normal;
-	FGLTFJsonAccessorIndex Tangent;
+	FGLTFJsonAccessor* Position;
+	FGLTFJsonAccessor* Color0;
+	FGLTFJsonAccessor* Normal;
+	FGLTFJsonAccessor* Tangent;
 
-	TArray<FGLTFJsonAccessorIndex> TexCoords;
-	TArray<FGLTFJsonAccessorIndex> Joints;
-	TArray<FGLTFJsonAccessorIndex> Weights;
+	TArray<FGLTFJsonAccessor*> TexCoords;
+	TArray<FGLTFJsonAccessor*> Joints;
+	TArray<FGLTFJsonAccessor*> Weights;
+
+	FGLTFJsonAttributes()
+		: Position(nullptr)
+		, Color0(nullptr)
+		, Normal(nullptr)
+		, Tangent(nullptr)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
 struct GLTFEXPORTER_API FGLTFJsonPrimitive : IGLTFJsonObject
 {
-	FGLTFJsonAccessorIndex Indices;
-	FGLTFJsonMaterialIndex Material;
+	FGLTFJsonAttributes Attributes;
+	FGLTFJsonAccessor* Indices;
+	FGLTFJsonMaterial* Material;
 	EGLTFJsonPrimitiveMode Mode;
-	FGLTFJsonAttributes    Attributes;
 
 	TArray<FGLTFJsonKhrMaterialVariantMapping> KhrMaterialVariantMappings;
 
 	FGLTFJsonPrimitive()
-		: Mode(EGLTFJsonPrimitiveMode::Triangles)
+		: Indices(nullptr)
+		, Material(nullptr)
+		, Mode(EGLTFJsonPrimitiveMode::Triangles)
 	{
 	}
 

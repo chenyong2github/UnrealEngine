@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonImage.h"
+#include "Json/GLTFJsonBufferView.h"
 
 void FGLTFJsonImage::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -19,7 +20,7 @@ void FGLTFJsonImage::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("mimeType"), MimeType);
 	}
 
-	if (BufferView != INDEX_NONE)
+	if (BufferView != nullptr)
 	{
 		Writer.Write(TEXT("bufferView"), BufferView);
 	}

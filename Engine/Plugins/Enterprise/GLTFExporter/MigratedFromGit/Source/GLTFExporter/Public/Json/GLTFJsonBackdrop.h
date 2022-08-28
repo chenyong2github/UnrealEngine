@@ -8,8 +8,8 @@ struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonMeshIndex Mesh;
-	FGLTFJsonTextureIndex Cubemap[6];
+	FGLTFJsonMesh* Mesh;
+	FGLTFJsonTexture* Cubemap[6];
 
 	float Intensity;
 	float Size;
@@ -22,6 +22,8 @@ struct GLTFEXPORTER_API FGLTFJsonBackdrop : IGLTFJsonIndexedObject
 
 	FGLTFJsonBackdrop(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, Mesh(nullptr)
+		, Cubemap{nullptr}
 		, Intensity(0)
 		, Size(0)
 		, Angle(0)

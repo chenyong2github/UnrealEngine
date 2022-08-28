@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonSkySphere.h"
+#include "Json/GLTFJsonMesh.h"
+#include "Json/GLTFJsonTexture.h"
+#include "Json/GLTFJsonNode.h"
 
 void FGLTFJsonSkySphereColorCurve::WriteArray(IGLTFJsonWriter& Writer) const
 {
@@ -32,7 +35,7 @@ void FGLTFJsonSkySphere::WriteObject(IGLTFJsonWriter& Writer) const
 	Writer.Write(TEXT("cloudsTexture"), CloudsTexture);
 	Writer.Write(TEXT("starsTexture"), StarsTexture);
 
-	if (DirectionalLight != INDEX_NONE)
+	if (DirectionalLight != nullptr)
 	{
 		Writer.Write(TEXT("directionalLight"), DirectionalLight);
 	}

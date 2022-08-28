@@ -31,7 +31,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 
 	FGLTFJsonExtensions Extensions;
 
-	FGLTFJsonSceneIndex DefaultScene;
+	FGLTFJsonScene* DefaultScene;
 
 	TGLTFJsonIndexedObjectArray<FGLTFJsonAccessor>   Accessors;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonAnimation>  Animations;
@@ -54,7 +54,11 @@ struct GLTFEXPORTER_API FGLTFJsonRoot : IGLTFJsonObject
 	TGLTFJsonIndexedObjectArray<FGLTFJsonEpicLevelVariantSets> EpicLevelVariantSets;
 	TGLTFJsonIndexedObjectArray<FGLTFJsonKhrMaterialVariant>   KhrMaterialVariants;
 
-	FGLTFJsonRoot() = default;
+	FGLTFJsonRoot()
+		: DefaultScene(nullptr)
+	{
+	}
+
 	FGLTFJsonRoot(FGLTFJsonRoot&&) = default;
 	FGLTFJsonRoot& operator=(FGLTFJsonRoot&&) = default;
 

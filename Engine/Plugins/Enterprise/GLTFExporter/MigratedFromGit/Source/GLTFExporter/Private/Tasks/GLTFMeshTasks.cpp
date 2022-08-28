@@ -166,7 +166,7 @@ void FGLTFStaticMeshTask::Complete()
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
 
 		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, &PositionBuffer);
-		if (JsonPrimitive.Attributes.Position == INDEX_NONE)
+		if (JsonPrimitive.Attributes.Position == nullptr)
 		{
 			FString SectionString = TEXT("section");
 			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");
@@ -269,7 +269,7 @@ void FGLTFSkeletalMeshTask::Complete()
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
 
 		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, &PositionBuffer);
-		if (JsonPrimitive.Attributes.Position == INDEX_NONE)
+		if (JsonPrimitive.Attributes.Position == nullptr)
 		{
 			FString SectionString = TEXT("section");
 			SectionString += SectionIndices.Num() > 1 ? TEXT("s ") : TEXT(" ");

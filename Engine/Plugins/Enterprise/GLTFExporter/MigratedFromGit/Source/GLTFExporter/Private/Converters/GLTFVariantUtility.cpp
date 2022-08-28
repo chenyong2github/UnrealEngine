@@ -85,7 +85,7 @@ FString FGLTFVariantUtility::GetLogContext(const ULevelVariantSets* LevelVariant
 	return LevelVariantSets->GetName();
 }
 
-FGLTFJsonMaterialIndex FGLTFVariantUtility::GetOrAddMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFVariantUtility::GetOrAddMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
 {
 	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
 	{

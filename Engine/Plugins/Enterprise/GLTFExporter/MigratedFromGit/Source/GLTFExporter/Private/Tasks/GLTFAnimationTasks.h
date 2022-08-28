@@ -11,7 +11,7 @@ class FGLTFAnimSequenceTask : public FGLTFTask
 {
 public:
 
-	FGLTFAnimSequenceTask(FGLTFConvertBuilder& Builder, FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimation* JsonAnimation)
+	FGLTFAnimSequenceTask(FGLTFConvertBuilder& Builder,  FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence, FGLTFJsonAnimation* JsonAnimation)
 		: FGLTFTask(EGLTFTaskPriority::Animation)
 		, Builder(Builder)
 		, RootNode(RootNode)
@@ -31,7 +31,7 @@ public:
 private:
 
 	FGLTFConvertBuilder& Builder;
-	FGLTFJsonNodeIndex RootNode;
+	FGLTFJsonNode* RootNode;
 	const USkeletalMesh* SkeletalMesh;
 	const UAnimSequence* AnimSequence;
 	FGLTFJsonAnimation* JsonAnimation;

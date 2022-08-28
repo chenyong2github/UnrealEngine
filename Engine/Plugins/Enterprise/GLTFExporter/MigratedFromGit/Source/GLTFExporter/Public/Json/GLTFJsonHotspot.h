@@ -8,14 +8,19 @@ struct GLTFEXPORTER_API FGLTFJsonHotspot : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonAnimationIndex Animation;
-	FGLTFJsonTextureIndex   Image;
-	FGLTFJsonTextureIndex   HoveredImage;
-	FGLTFJsonTextureIndex   ToggledImage;
-	FGLTFJsonTextureIndex   ToggledHoveredImage;
+	FGLTFJsonAnimation* Animation;
+	FGLTFJsonTexture*   Image;
+	FGLTFJsonTexture*   HoveredImage;
+	FGLTFJsonTexture*   ToggledImage;
+	FGLTFJsonTexture*   ToggledHoveredImage;
 
 	FGLTFJsonHotspot(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, Animation(nullptr)
+		, Image(nullptr)
+		, HoveredImage(nullptr)
+		, ToggledImage(nullptr)
+		, ToggledHoveredImage(nullptr)
 	{
 	}
 

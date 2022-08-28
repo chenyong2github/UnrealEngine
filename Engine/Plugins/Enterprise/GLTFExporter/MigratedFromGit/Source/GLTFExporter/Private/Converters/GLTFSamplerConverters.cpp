@@ -5,7 +5,7 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 
-FGLTFJsonSamplerIndex FGLTFSamplerConverter::Convert(const UTexture* Texture)
+FGLTFJsonSampler* FGLTFSamplerConverter::Convert(const UTexture* Texture)
 {
 	// TODO: reuse existing samplers, don't create a unique sampler per texture
 

@@ -7,11 +7,12 @@
 
 struct GLTFEXPORTER_API FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
 {
-	FGLTFJsonNodeIndex Node;
+	FGLTFJsonNode* Node;
 	EGLTFJsonTargetPath Path;
 
 	FGLTFJsonAnimationChannelTarget()
-		: Path(EGLTFJsonTargetPath::None)
+		: Node(nullptr)
+		, Path(EGLTFJsonTargetPath::None)
 	{
 	}
 
@@ -20,21 +21,29 @@ struct GLTFEXPORTER_API FGLTFJsonAnimationChannelTarget : IGLTFJsonObject
 
 struct GLTFEXPORTER_API FGLTFJsonAnimationChannel : IGLTFJsonObject
 {
-	FGLTFJsonAnimationSamplerIndex Sampler;
+	FGLTFJsonAnimationSampler* Sampler;
 	FGLTFJsonAnimationChannelTarget Target;
+
+	FGLTFJsonAnimationChannel()
+		: Sampler(nullptr)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
 
-struct GLTFEXPORTER_API FGLTFJsonAnimationSampler : IGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAnimationSampler : IGLTFJsonIndexedObject
 {
-	FGLTFJsonAccessorIndex Input;
-	FGLTFJsonAccessorIndex Output;
+	FGLTFJsonAccessor* Input;
+	FGLTFJsonAccessor* Output;
 
 	EGLTFJsonInterpolation Interpolation;
 
-	FGLTFJsonAnimationSampler()
-		: Interpolation(EGLTFJsonInterpolation::Linear)
+	FGLTFJsonAnimationSampler(int32 Index = INDEX_NONE)
+		: IGLTFJsonIndexedObject(Index)
+		, Input(nullptr)
+		, Output(nullptr)
+		, Interpolation(EGLTFJsonInterpolation::Linear)
 	{
 	}
 
@@ -46,7 +55,7 @@ struct GLTFEXPORTER_API FGLTFJsonAnimation : IGLTFJsonIndexedObject
 	FString Name;
 
 	TArray<FGLTFJsonAnimationChannel> Channels;
-	TArray<FGLTFJsonAnimationSampler> Samplers;
+	TGLTFJsonIndexedObjectArray<FGLTFJsonAnimationSampler> Samplers;
 
 	FGLTFJsonAnimationPlayback Playback;
 

@@ -5,7 +5,7 @@
 #include "Converters/GLTFBoneUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 
-FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh)
+FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh)
 {
 #if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 27)
 	const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
@@ -23,7 +23,7 @@ FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, cons
 	if (BoneCount == 0)
 	{
 		// TODO: report warning
-		return FGLTFJsonSkinIndex(INDEX_NONE);
+		return nullptr;
 	}
 
 	Skin.Joints.AddUninitialized(BoneCount);

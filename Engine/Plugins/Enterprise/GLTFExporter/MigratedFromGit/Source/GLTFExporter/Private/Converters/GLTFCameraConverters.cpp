@@ -7,7 +7,7 @@
 #include "Actors/GLTFCameraActor.h"
 #include "Camera/CameraComponent.h"
 
-FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
+FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
 {
 	FGLTFJsonCamera Camera;
 	Camera.Name = FGLTFNameUtility::GetName(CameraComponent);
@@ -43,7 +43,7 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 
 		case EGLTFJsonCameraType::None:
 			// TODO: report error (unsupported camera type)
-			return FGLTFJsonCameraIndex(INDEX_NONE);
+			return nullptr;
 
 		default:
 			checkNoEntry();

@@ -590,7 +590,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 			return FColor(BaseColor.R, BaseColor.G, BaseColor.B, Opacity.R);
 		});
 
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		CombinedPixels,
 		TextureSize,
@@ -714,7 +714,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 			return FColor(0, Roughness.R, Metallic.R);
 		});
 
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		CombinedPixels,
 		TextureSize,
@@ -765,7 +765,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		IntensityTexCoord == RoughnessTexCoord &&
 		IntensityTransform.IsExactlyEqual(RoughnessTransform))
 	{
-		const FGLTFJsonTextureIndex TextureIndex = Builder.GetOrAddTexture(IntensityTexture, false);
+		FGLTFJsonTexture* TextureIndex = Builder.GetOrAddTexture(IntensityTexture, false);
 		OutExtParams.ClearCoatTexture.Index = TextureIndex;
 		OutExtParams.ClearCoatTexture.TexCoord = IntensityTexCoord;
 		OutExtParams.ClearCoatRoughnessTexture.Index = TextureIndex;
@@ -839,7 +839,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 			return FColor(Intensity.R, Roughness.R, 0);
 		});
 
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		CombinedPixels,
 		TextureSize,
@@ -896,7 +896,7 @@ bool FGLTFMaterialTask::TryGetEmissive(FGLTFJsonMaterial& OutMaterial, const FMa
 	{
 		if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 		{
-			OutMaterial.EmissiveTexture.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+			OutMaterial.EmissiveTexture.Index = nullptr;
 			return true;
 		}
 
@@ -1329,7 +1329,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
-		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		OutTexInfo.Index = nullptr;
 		return true;
 	}
 
@@ -1363,7 +1363,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
-		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		OutTexInfo.Index = nullptr;
 		return true;
 	}
 
@@ -1397,7 +1397,7 @@ inline bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 
 	if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 	{
-		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		OutTexInfo.Index = nullptr;
 		return true;
 	}
 
@@ -1427,7 +1427,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	{
 		if (Builder.ExportOptions->TextureImageFormat == EGLTFTextureImageFormat::None)
 		{
-			OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+			OutTexInfo.Index = nullptr;
 			return true;
 		}
 
@@ -1438,7 +1438,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	if (MaskedConstant == FGLTFMaterialUtility::GetPropertyDefaultValue(Property))
 	{
 		// Constant value is the same as the property's default so we can set gltf to default.
-		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		OutTexInfo.Index = nullptr;
 		return true;
 	}
 
@@ -1447,7 +1447,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		// TODO: In some cases baking normal can result in constant vector that differs slight from default (i.e 0,0,1).
 		// Yet often, when looking at such a material, it should be exactly default. Needs further investigation.
 		// Maybe because of incorrect sRGB conversion? For now, assume a constant normal is always default.
-		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		OutTexInfo.Index = nullptr;
 		return true;
 	}
 
@@ -1456,7 +1456,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	// even though the same material when set to opaque will properly bake AmbientOcclusion to a texture.
 	// For now, create a 1x1 texture with the constant value.
 
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
@@ -1533,7 +1533,7 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
 	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
-	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
+	FGLTFJsonTexture* TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,

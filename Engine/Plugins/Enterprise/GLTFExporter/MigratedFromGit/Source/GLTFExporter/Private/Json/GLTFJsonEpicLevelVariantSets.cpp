@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonEpicLevelVariantSets.h"
+#include "Json/GLTFJsonMaterial.h"
+#include "Json/GLTFJsonTexture.h"
+#include "Json/GLTFJsonMesh.h"
+#include "Json/GLTFJsonNode.h"
 
 void FGLTFJsonEpicVariantMaterial::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -14,10 +18,7 @@ void FGLTFJsonEpicVariantMaterial::WriteObject(IGLTFJsonWriter& Writer) const
 
 void FGLTFJsonEpicVariantNodeProperties::WriteObject(IGLTFJsonWriter& Writer) const
 {
-	if (Node != INDEX_NONE)
-	{
-		Writer.Write(TEXT("node"), Node);
-	}
+	Writer.Write(TEXT("node"), Node);
 
 	Writer.StartObject(TEXT("properties"));
 
@@ -44,7 +45,7 @@ void FGLTFJsonEpicVariant::WriteObject(IGLTFJsonWriter& Writer) const
 	Writer.Write(TEXT("name"), Name);
 	Writer.Write(TEXT("active"), bIsActive);
 
-	if (Thumbnail != INDEX_NONE)
+	if (Thumbnail != nullptr)
 	{
 		Writer.Write(TEXT("thumbnail"), Thumbnail);
 	}

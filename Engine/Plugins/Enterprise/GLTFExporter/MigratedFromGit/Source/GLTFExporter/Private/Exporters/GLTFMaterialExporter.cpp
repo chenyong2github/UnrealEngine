@@ -27,8 +27,8 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 			PreviewMesh = DefaultPreviewMesh;
 		}
 
-		const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, { Material });
-		if (MeshIndex == INDEX_NONE)
+		FGLTFJsonMesh* MeshIndex = Builder.GetOrAddMesh(PreviewMesh, { Material });
+		if (MeshIndex == nullptr)
 		{
 			Builder.LogError(
 				FString::Printf(TEXT("Failed to export preview mesh %s for material %s"),
@@ -39,11 +39,11 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 
 		FGLTFJsonNode Node;
 		Node.Mesh = MeshIndex;
-		const FGLTFJsonNodeIndex NodeIndex = Builder.AddNode(Node);
+		FGLTFJsonNode* NodeIndex = Builder.AddNode(Node);
 
 		FGLTFJsonScene Scene;
 		Scene.Nodes.Add(NodeIndex);
-		const FGLTFJsonSceneIndex SceneIndex = Builder.AddScene(Scene);
+		FGLTFJsonScene* SceneIndex = Builder.AddScene(Scene);
 
 		Builder.DefaultScene = SceneIndex;
 	}

@@ -6,7 +6,7 @@ void FGLTFJsonRoot::WriteObject(IGLTFJsonWriter& Writer) const
 {
 	Writer.Write(TEXT("asset"), Asset);
 
-	if (DefaultScene != INDEX_NONE)
+	if (DefaultScene != nullptr)
 	{
 		Writer.Write(TEXT("scene"), DefaultScene);
 	}

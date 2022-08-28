@@ -8,14 +8,16 @@ struct GLTFEXPORTER_API FGLTFJsonTexture : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonSamplerIndex Sampler;
+	FGLTFJsonSampler* Sampler;
 
-	FGLTFJsonImageIndex Source;
+	FGLTFJsonImage* Source;
 
 	EGLTFJsonHDREncoding Encoding;
 
 	FGLTFJsonTexture(int32 Index = INDEX_NONE)
 		: IGLTFJsonIndexedObject(Index)
+		, Sampler(nullptr)
+		, Source(nullptr)
 		, Encoding(EGLTFJsonHDREncoding::None)
 	{
 	}

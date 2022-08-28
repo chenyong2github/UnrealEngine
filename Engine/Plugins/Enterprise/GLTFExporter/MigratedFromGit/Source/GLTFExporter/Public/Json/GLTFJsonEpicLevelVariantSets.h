@@ -6,11 +6,11 @@
 
 struct GLTFEXPORTER_API FGLTFJsonEpicVariantMaterial : IGLTFJsonObject
 {
-	FGLTFJsonMaterialIndex Material;
-	int32                  Index;
+	FGLTFJsonMaterial* Material;
+	int32 Index;
 
 	FGLTFJsonEpicVariantMaterial()
-		: Material(INDEX_NONE)
+		: Material(nullptr)
 		, Index(INDEX_NONE)
 	{
 	}
@@ -20,11 +20,16 @@ struct GLTFEXPORTER_API FGLTFJsonEpicVariantMaterial : IGLTFJsonObject
 
 struct GLTFEXPORTER_API FGLTFJsonEpicVariantNodeProperties : IGLTFJsonObject
 {
-	FGLTFJsonNodeIndex Node;
-	TOptional<bool>    bIsVisible;
+	FGLTFJsonNode* Node;
+	TOptional<bool> bIsVisible;
 
-	TOptional<FGLTFJsonMeshIndex>        Mesh;
+	TOptional<FGLTFJsonMesh*> Mesh;
 	TArray<FGLTFJsonEpicVariantMaterial> Materials;
+
+	FGLTFJsonEpicVariantNodeProperties()
+		: Node(nullptr)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
@@ -32,10 +37,16 @@ struct GLTFEXPORTER_API FGLTFJsonEpicVariantNodeProperties : IGLTFJsonObject
 struct GLTFEXPORTER_API FGLTFJsonEpicVariant : IGLTFJsonObject
 {
 	FString Name;
-	bool    bIsActive;
+	bool bIsActive;
 
-	FGLTFJsonTextureIndex Thumbnail;
-	TMap<FGLTFJsonNodeIndex, FGLTFJsonEpicVariantNodeProperties> Nodes;
+	FGLTFJsonTexture* Thumbnail;
+	TMap<FGLTFJsonNode*, FGLTFJsonEpicVariantNodeProperties> Nodes;
+
+	FGLTFJsonEpicVariant()
+		: bIsActive(false)
+		, Thumbnail(nullptr)
+	{
+	}
 
 	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

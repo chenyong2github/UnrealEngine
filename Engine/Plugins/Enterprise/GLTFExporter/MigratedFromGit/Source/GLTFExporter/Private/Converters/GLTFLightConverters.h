@@ -6,11 +6,11 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-typedef TGLTFConverter<FGLTFJsonLightIndex, const ULightComponent*> IGLTFLightConverter;
+typedef TGLTFConverter<FGLTFJsonLight*, const ULightComponent*> IGLTFLightConverter;
 
 class FGLTFLightConverter final : public FGLTFBuilderContext, public IGLTFLightConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonLightIndex Convert(const ULightComponent* LightComponent) override;
+	virtual FGLTFJsonLight* Convert(const ULightComponent* LightComponent) override;
 };

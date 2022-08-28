@@ -6,11 +6,11 @@
 #include "Converters/GLTFConverter.h"
 #include "Converters/GLTFBuilderContext.h"
 
-typedef TGLTFConverter<FGLTFJsonSceneIndex, const UWorld*> IGLTFSceneConverter;
+typedef TGLTFConverter<FGLTFJsonScene*, const UWorld*> IGLTFSceneConverter;
 
 class FGLTFSceneConverter final : public FGLTFBuilderContext, public IGLTFSceneConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonSceneIndex Convert(const UWorld* Level) override;
+	virtual FGLTFJsonScene* Convert(const UWorld* Level) override;
 };

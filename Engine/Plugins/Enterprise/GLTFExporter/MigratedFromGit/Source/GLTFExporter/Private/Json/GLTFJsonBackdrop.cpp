@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Json/GLTFJsonBackdrop.h"
+#include "Json/GLTFJsonTexture.h"
+#include "Json/GLTFJsonMesh.h"
 
 void FGLTFJsonBackdrop::WriteObject(IGLTFJsonWriter& Writer) const
 {
@@ -9,7 +11,7 @@ void FGLTFJsonBackdrop::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("name"), Name);
 	}
 
-	if (Mesh != INDEX_NONE)
+	if (Mesh != nullptr)
 	{
 		Writer.Write(TEXT("mesh"), Mesh);
 	}

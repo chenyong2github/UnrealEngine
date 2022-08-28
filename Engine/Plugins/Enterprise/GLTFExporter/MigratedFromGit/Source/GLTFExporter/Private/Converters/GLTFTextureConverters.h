@@ -10,11 +10,11 @@
 
 // TODO: remove lightmap-specific converter (since it won't work in runtime)
 
-typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTexture2D*, bool> IGLTFTexture2DConverter;
-typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTextureCube*, ECubeFace, bool> IGLTFTextureCubeConverter;
-typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTarget2D*, bool> IGLTFTextureRenderTarget2DConverter;
-typedef TGLTFConverter<FGLTFJsonTextureIndex, const UTextureRenderTargetCube*, ECubeFace, bool> IGLTFTextureRenderTargetCubeConverter;
-typedef TGLTFConverter<FGLTFJsonTextureIndex, const ULightMapTexture2D*> IGLTFTextureLightMapConverter;
+typedef TGLTFConverter<FGLTFJsonTexture*, const UTexture2D*, bool> IGLTFTexture2DConverter;
+typedef TGLTFConverter<FGLTFJsonTexture*, const UTextureCube*, ECubeFace, bool> IGLTFTextureCubeConverter;
+typedef TGLTFConverter<FGLTFJsonTexture*, const UTextureRenderTarget2D*, bool> IGLTFTextureRenderTarget2DConverter;
+typedef TGLTFConverter<FGLTFJsonTexture*, const UTextureRenderTargetCube*, ECubeFace, bool> IGLTFTextureRenderTargetCubeConverter;
+typedef TGLTFConverter<FGLTFJsonTexture*, const ULightMapTexture2D*> IGLTFTextureLightMapConverter;
 
 class FGLTFTexture2DConverter final : public FGLTFBuilderContext, public IGLTFTexture2DConverter
 {
@@ -22,7 +22,7 @@ class FGLTFTexture2DConverter final : public FGLTFBuilderContext, public IGLTFTe
 
 	virtual void Sanitize(const UTexture2D*& Texture2D, bool& bToSRGB) override;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTexture2D* Texture2D, bool bToSRGB) override;
+	virtual FGLTFJsonTexture* Convert(const UTexture2D* Texture2D, bool bToSRGB) override;
 };
 
 class FGLTFTextureCubeConverter final : public FGLTFBuilderContext, public IGLTFTextureCubeConverter
@@ -31,7 +31,7 @@ class FGLTFTextureCubeConverter final : public FGLTFBuilderContext, public IGLTF
 
 	virtual void Sanitize(const UTextureCube*& TextureCube, ECubeFace& CubeFace, bool& bToSRGB) override;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB) override;
+	virtual FGLTFJsonTexture* Convert(const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
 
 class FGLTFTextureRenderTarget2DConverter final : public FGLTFBuilderContext, public IGLTFTextureRenderTarget2DConverter
@@ -40,7 +40,7 @@ class FGLTFTextureRenderTarget2DConverter final : public FGLTFBuilderContext, pu
 
 	virtual void Sanitize(const UTextureRenderTarget2D*& RenderTarget2D, bool& bToSRGB) override;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB) override;
+	virtual FGLTFJsonTexture* Convert(const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB) override;
 };
 
 class FGLTFTextureRenderTargetCubeConverter final : public FGLTFBuilderContext, public IGLTFTextureRenderTargetCubeConverter
@@ -49,12 +49,12 @@ class FGLTFTextureRenderTargetCubeConverter final : public FGLTFBuilderContext, 
 
 	virtual void Sanitize(const UTextureRenderTargetCube*& RenderTargetCube, ECubeFace& CubeFace, bool& bToSRGB) override;
 
-	virtual FGLTFJsonTextureIndex Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB) override;
+	virtual FGLTFJsonTexture* Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
 
 class FGLTFTextureLightMapConverter final : public FGLTFBuilderContext, public IGLTFTextureLightMapConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
-	virtual FGLTFJsonTextureIndex Convert(const ULightMapTexture2D* LightMap) override;
+	virtual FGLTFJsonTexture* Convert(const ULightMapTexture2D* LightMap) override;
 };
