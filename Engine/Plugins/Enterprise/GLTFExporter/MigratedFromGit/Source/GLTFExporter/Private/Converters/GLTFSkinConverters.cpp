@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFSkinConverters.h"
 #include "Converters/GLTFConverterUtility.h"
+#include "Converters/GLTFBoneUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 
 FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh)
@@ -18,5 +19,21 @@ FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, cons
 		Skin.Joints[BoneIndex] = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
 	}
 
+	TArray<FGLTFJsonMatrix4> InverseBindMatrices;
+	InverseBindMatrices.AddUninitialized(BoneCount);
+
+	for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
+	{
+		const FTransform InverseTransform = FGLTFBoneUtility::GetBindTransform(SkeletalMesh->RefSkeleton, BoneIndex).Inverse();
+		InverseBindMatrices[BoneIndex] = FGLTFConverterUtility::ConvertTransform(InverseTransform, Builder.ExportOptions->ExportScale);
+	}
+
+	FGLTFJsonAccessor JsonAccessor;
+	JsonAccessor.BufferView = Builder.AddBufferView(InverseBindMatrices);
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
+	JsonAccessor.Count = BoneCount;
+	JsonAccessor.Type = EGLTFJsonAccessorType::Mat4;
+
+	Skin.InverseBindMatrices = Builder.AddAccessor(JsonAccessor);
 	return Builder.AddSkin(Skin);
 }
