@@ -9,4 +9,6 @@ class FGLTFContainerBuilder : public FGLTFConvertBuilder
 public:
 
 	FGLTFContainerBuilder(const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
+
+	bool Serialize(FArchive& Archive, const FString& FilePath);
 };

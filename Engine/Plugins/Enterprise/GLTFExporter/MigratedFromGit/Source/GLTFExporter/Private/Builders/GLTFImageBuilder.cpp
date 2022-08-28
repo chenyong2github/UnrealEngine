@@ -10,6 +10,36 @@ FGLTFImageBuilder::FGLTFImageBuilder()
 {
 }
 
+bool FGLTFImageBuilder::Serialize(const FString& FilePath)
+{
+	const FString ImageDir = FPaths::GetPath(FilePath);
+	TSet<FString> UniqueImageUris;
+
+	for (const auto& DataPair : ImageDataLookup)
+	{
+		const TArray64<uint8>& ImageData = DataPair.Value;
+		FGLTFJsonImage& JsonImage = GetImage(DataPair.Key);
+
+		const TCHAR* Extension = FGLTFBuilderUtility::GetFileExtension(JsonImage.MimeType);
+		const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(JsonImage.Name, Extension, UniqueImageUris);
+
+		const FString ImagePath = FPaths::Combine(ImageDir, ImageUri);
+		if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
+		{
+			// TODO: report error
+			continue;
+		}
+
+		UniqueImageUris.Add(ImageUri);
+
+		JsonImage.Uri = ImageUri;
+		JsonImage.Name.Empty(); // URI already contains name
+		JsonImage.MimeType = EGLTFJsonMimeType::None; // Not required if external file
+	}
+
+	return true;
+}
+
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType, const FString& Name)
 {
 	FGLTFJsonImageIndex ImageIndex = FindImage(CompressedData, CompressedByteLength);
@@ -54,36 +84,6 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint 
 {
 	const int64 ByteLength = Size.X * Size.Y * sizeof(FColor);
 	return AddImage(Pixels, ByteLength, Size, ERGBFormat::BGRA, 8, Name);
-}
-
-bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)
-{
-	const FString ImageDir = FPaths::GetPath(FilePath);
-	TSet<FString> UniqueImageUris;
-
-	for (const auto& DataPair : ImageDataLookup)
-	{
-		const TArray64<uint8>& ImageData = DataPair.Value;
-		FGLTFJsonImage& JsonImage = GetImage(DataPair.Key);
-
-		const TCHAR* Extension = FGLTFBuilderUtility::GetFileExtension(JsonImage.MimeType);
-		const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(JsonImage.Name, Extension, UniqueImageUris);
-
-		const FString ImagePath = FPaths::Combine(ImageDir, ImageUri);
-		if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
-		{
-			// TODO: report error
-			continue;
-		}
-
-		UniqueImageUris.Add(ImageUri);
-
-		JsonImage.Uri = ImageUri;
-		JsonImage.Name.Empty(); // URI already contains name
-		JsonImage.MimeType = EGLTFJsonMimeType::None; // Not required if external file
-	}
-
-	return FGLTFBufferBuilder::Serialize(Archive, FilePath);
 }
 
 FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength) const

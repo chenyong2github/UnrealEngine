@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFJsonBuilder.h"
-#include "Builders/GLTFBuilderUtility.h"
 
 FGLTFJsonBuilder::FGLTFJsonBuilder()
 	: DefaultScene(JsonRoot.DefaultScene)
 {
+}
+
+bool FGLTFJsonBuilder::Serialize(FArchive& Archive)
+{
+	JsonRoot.Serialize(&Archive, true);
+	return true;
 }
 
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)
@@ -230,10 +235,4 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::GetComponentNodeIndex(FGLTFJsonNodeIndex No
 
 	const FGLTFJsonNode& Node = GetNode(NodeIndex);
 	return Node.ComponentNode != INDEX_NONE ? Node.ComponentNode : NodeIndex;
-}
-
-bool FGLTFJsonBuilder::Serialize(FArchive& Archive, const FString& FilePath)
-{
-	JsonRoot.Serialize(&Archive, true);
-	return true;
 }

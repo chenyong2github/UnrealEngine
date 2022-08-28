@@ -14,7 +14,6 @@ class FGLTFMessageBuilder
 protected:
 
 	FGLTFMessageBuilder();
-	virtual ~FGLTFMessageBuilder();
 
 public:
 

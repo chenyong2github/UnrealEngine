@@ -11,6 +11,8 @@ protected:
 
 	FGLTFJsonBuilder();
 
+	bool Serialize(FArchive& Archive);
+
 public:
 
 	FGLTFJsonSceneIndex& DefaultScene;
@@ -59,8 +61,6 @@ public:
 	FGLTFJsonHotspot& GetHotspot(FGLTFJsonHotspotIndex HotspotIndex);
 
 	FGLTFJsonNodeIndex GetComponentNodeIndex(FGLTFJsonNodeIndex NodeIndex);
-
-	virtual bool Serialize(FArchive& Archive, const FString& FilePath);
 
 private:
 
