@@ -40,7 +40,7 @@ struct FGLTFJsonVariant
 	FString Name;
 	bool    bIsActive;
 
-	FGLTFJsonImageIndex          Thumbnail;
+	FGLTFJsonTextureIndex        Thumbnail;
 	TArray<FGLTFJsonVariantNode> Nodes;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>

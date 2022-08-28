@@ -73,8 +73,7 @@ bool FGLTFLevelVariantSetsConverter::TryParseJsonVariant(FGLTFConvertBuilder& Bu
 
 	if (const UTexture2D* Thumbnail = const_cast<UVariant*>(Variant)->GetThumbnail())
 	{
-		const FString ThumbnailName = ThumbnailPrefix + JsonVariant.Name + TEXT("_thumbnail");
-		JsonVariant.Thumbnail = Builder.AddImage(Thumbnail->Source, ThumbnailName);
+		JsonVariant.Thumbnail = Builder.GetOrAddTexture(Thumbnail);
 	}
 
 	OutVariant = JsonVariant;
