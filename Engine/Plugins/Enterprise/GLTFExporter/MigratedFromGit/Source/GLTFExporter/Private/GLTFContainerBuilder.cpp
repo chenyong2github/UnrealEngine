@@ -53,7 +53,7 @@ void FGLTFContainerBuilder::Serialize(FArchive& Archive)
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors)
 {
-	return FGLTFMeshBuilder(StaticMesh, LODIndex, OverrideVertexColors).AddMesh(*this);
+	return IndexBuilder.FindOrAdd(FGLTFStaticMeshKey(StaticMesh, LODIndex, OverrideVertexColors), *this);
 }
 
 FGLTFJsonMeshIndex FGLTFContainerBuilder::AddMesh(const UStaticMeshComponent* StaticMeshComponent)

@@ -4,12 +4,14 @@
 
 #include "GLTFJsonRoot.h"
 #include "GLTFBufferBuilder.h"
+#include "GLTFIndexBuilder.h"
 #include "Engine.h"
 
 struct GLTFEXPORTER_API FGLTFContainerBuilder
 {
 	FGLTFJsonRoot JsonRoot;
 	FGLTFBufferBuilder BufferBuilder;
+	FGLTFIndexBuilder IndexBuilder;
 
 	FGLTFContainerBuilder();
 
