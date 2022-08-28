@@ -11,7 +11,7 @@
 
 typedef TGLTFConverter<FGLTFJsonImage*, TGLTFSuperfluous<FString>, EGLTFTextureType, bool, FIntPoint, TGLTFSharedArray<FColor>> IGLTFImageConverter;
 
-class FGLTFImageConverter final : public FGLTFBuilderContext, public IGLTFImageConverter
+class GLTFEXPORTER_API FGLTFImageConverter final : public FGLTFBuilderContext, public IGLTFImageConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

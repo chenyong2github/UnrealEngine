@@ -13,7 +13,7 @@ public:
 
 	virtual ~TGLTFConverter() = default;
 
-	OutputType Get(InputTypes... Inputs) const
+	OutputType Get(InputTypes... Inputs)
 	{
 		Sanitize(Inputs...);
 		InputTupleType InputTuple(MoveTemp(Inputs)...);

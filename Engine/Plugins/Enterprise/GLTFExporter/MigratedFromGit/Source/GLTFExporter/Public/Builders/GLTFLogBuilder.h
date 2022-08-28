@@ -8,7 +8,7 @@
 class IMessageLogListing;
 #endif
 
-class FGLTFLogBuilder : public FGLTFBuilder
+class GLTFEXPORTER_API FGLTFLogBuilder : public FGLTFBuilder
 {
 public:
 

@@ -10,7 +10,7 @@
 #include "GLTFMaterialBakingStructures.h"
 #endif
 
-struct FGLTFMeshData
+struct GLTFEXPORTER_API FGLTFMeshData
 {
 	FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex);
 	FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex);

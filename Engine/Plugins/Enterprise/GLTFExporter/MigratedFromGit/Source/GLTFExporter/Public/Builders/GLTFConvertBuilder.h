@@ -23,7 +23,7 @@
 #include "Converters/GLTFKhrVariantConverters.h"
 #include "Converters/GLTFSkySphereConverters.h"
 
-class FGLTFConvertBuilder : public FGLTFBufferBuilder
+class GLTFEXPORTER_API FGLTFConvertBuilder : public FGLTFBufferBuilder
 {
 public:
 

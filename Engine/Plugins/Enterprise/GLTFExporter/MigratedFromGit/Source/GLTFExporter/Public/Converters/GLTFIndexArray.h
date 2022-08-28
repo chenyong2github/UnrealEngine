@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+// TODO: should we add GLTFEXPORTER_API ?
 class FGLTFIndexArray : public TArray<int32>
 {
 public:

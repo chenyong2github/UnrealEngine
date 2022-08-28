@@ -9,7 +9,7 @@
 typedef TGLTFConverter<FGLTFJsonBackdrop*, const AActor*> IGLTFBackdropConverter;
 
 
-class FGLTFBackdropConverter final : public FGLTFBuilderContext, public IGLTFBackdropConverter
+class GLTFEXPORTER_API FGLTFBackdropConverter final : public FGLTFBuilderContext, public IGLTFBackdropConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

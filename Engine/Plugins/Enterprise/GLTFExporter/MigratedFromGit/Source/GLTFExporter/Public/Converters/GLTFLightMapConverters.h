@@ -8,7 +8,7 @@
 
 typedef TGLTFConverter<FGLTFJsonLightMap*, const UStaticMeshComponent*> IGLTFLightMapConverter;
 
-class FGLTFLightMapConverter final : public FGLTFBuilderContext, public IGLTFLightMapConverter
+class GLTFEXPORTER_API FGLTFLightMapConverter final : public FGLTFBuilderContext, public IGLTFLightMapConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

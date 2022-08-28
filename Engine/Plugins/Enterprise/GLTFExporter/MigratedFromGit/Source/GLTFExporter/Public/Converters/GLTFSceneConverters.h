@@ -8,7 +8,7 @@
 
 typedef TGLTFConverter<FGLTFJsonScene*, const UWorld*> IGLTFSceneConverter;
 
-class FGLTFSceneConverter final : public FGLTFBuilderContext, public IGLTFSceneConverter
+class GLTFEXPORTER_API FGLTFSceneConverter final : public FGLTFBuilderContext, public IGLTFSceneConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 

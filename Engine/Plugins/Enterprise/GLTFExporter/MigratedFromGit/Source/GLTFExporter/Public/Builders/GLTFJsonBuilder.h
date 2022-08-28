@@ -5,7 +5,7 @@
 #include "Json/GLTFJsonRoot.h"
 #include "Builders/GLTFFileBuilder.h"
 
-class FGLTFJsonBuilder : public FGLTFFileBuilder
+class GLTFEXPORTER_API FGLTFJsonBuilder : public FGLTFFileBuilder
 {
 public:
 

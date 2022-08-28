@@ -4,7 +4,7 @@
 
 #include "Builders/GLTFJsonBuilder.h"
 
-class FGLTFBufferBuilder : public FGLTFJsonBuilder
+class GLTFEXPORTER_API FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 protected:
 

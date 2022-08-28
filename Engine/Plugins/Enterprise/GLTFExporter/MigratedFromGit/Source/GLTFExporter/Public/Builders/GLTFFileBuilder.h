@@ -5,7 +5,7 @@
 #include "Builders/GLTFTaskBuilder.h"
 #include "Builders/GLTFMemoryArchive.h"
 
-class FGLTFFileBuilder : public FGLTFTaskBuilder
+class GLTFEXPORTER_API FGLTFFileBuilder : public FGLTFTaskBuilder
 {
 public:
 

@@ -16,7 +16,7 @@ typedef TGLTFConverter<FGLTFJsonTexture*, const UTextureRenderTarget2D*, bool> I
 typedef TGLTFConverter<FGLTFJsonTexture*, const UTextureRenderTargetCube*, ECubeFace, bool> IGLTFTextureRenderTargetCubeConverter;
 typedef TGLTFConverter<FGLTFJsonTexture*, const ULightMapTexture2D*> IGLTFTextureLightMapConverter;
 
-class FGLTFTexture2DConverter final : public FGLTFBuilderContext, public IGLTFTexture2DConverter
+class GLTFEXPORTER_API FGLTFTexture2DConverter final : public FGLTFBuilderContext, public IGLTFTexture2DConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -25,7 +25,7 @@ class FGLTFTexture2DConverter final : public FGLTFBuilderContext, public IGLTFTe
 	virtual FGLTFJsonTexture* Convert(const UTexture2D* Texture2D, bool bToSRGB) override;
 };
 
-class FGLTFTextureCubeConverter final : public FGLTFBuilderContext, public IGLTFTextureCubeConverter
+class GLTFEXPORTER_API FGLTFTextureCubeConverter final : public FGLTFBuilderContext, public IGLTFTextureCubeConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -34,7 +34,7 @@ class FGLTFTextureCubeConverter final : public FGLTFBuilderContext, public IGLTF
 	virtual FGLTFJsonTexture* Convert(const UTextureCube* TextureCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
 
-class FGLTFTextureRenderTarget2DConverter final : public FGLTFBuilderContext, public IGLTFTextureRenderTarget2DConverter
+class GLTFEXPORTER_API FGLTFTextureRenderTarget2DConverter final : public FGLTFBuilderContext, public IGLTFTextureRenderTarget2DConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -43,7 +43,7 @@ class FGLTFTextureRenderTarget2DConverter final : public FGLTFBuilderContext, pu
 	virtual FGLTFJsonTexture* Convert(const UTextureRenderTarget2D* RenderTarget2D, bool bToSRGB) override;
 };
 
-class FGLTFTextureRenderTargetCubeConverter final : public FGLTFBuilderContext, public IGLTFTextureRenderTargetCubeConverter
+class GLTFEXPORTER_API FGLTFTextureRenderTargetCubeConverter final : public FGLTFBuilderContext, public IGLTFTextureRenderTargetCubeConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
@@ -52,7 +52,7 @@ class FGLTFTextureRenderTargetCubeConverter final : public FGLTFBuilderContext, 
 	virtual FGLTFJsonTexture* Convert(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace, bool bToSRGB) override;
 };
 
-class FGLTFTextureLightMapConverter final : public FGLTFBuilderContext, public IGLTFTextureLightMapConverter
+class GLTFEXPORTER_API FGLTFTextureLightMapConverter final : public FGLTFBuilderContext, public IGLTFTextureLightMapConverter
 {
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 
