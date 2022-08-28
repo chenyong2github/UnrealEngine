@@ -45,6 +45,20 @@ namespace
 
 FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const UMaterialInterface* Material)
 {
+	{
+		const UMaterial* ParentMaterial = Material->GetMaterial();
+
+		if (ParentMaterial->MaterialDomain != MD_Surface)
+		{
+			// TODO: report warning (non-surface materials not supported, will be treated as surface)
+		}
+
+		if (!ParentMaterial->bTangentSpaceNormal)
+		{
+			// TODO: report warning (world-space normals not supported, will be treated as tangent-space)
+		}
+	}
+
 	FGLTFJsonMaterial JsonMaterial;
 	JsonMaterial.Name = Name;
 
