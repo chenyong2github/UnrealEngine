@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonEnums.h"
 
-struct GLTFEXPORTER_API FGLTFJsonUtility
+struct FGLTFJsonUtility
 {
 	static const TCHAR* ExtensionToString(EGLTFExtension Extension)
 	{

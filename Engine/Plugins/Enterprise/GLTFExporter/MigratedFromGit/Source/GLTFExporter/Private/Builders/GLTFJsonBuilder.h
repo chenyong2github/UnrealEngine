@@ -4,7 +4,7 @@
 
 #include "Json/GLTFJsonRoot.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBuilder
+struct FGLTFJsonBuilder
 {
 	FGLTFJsonRoot JsonRoot;
 

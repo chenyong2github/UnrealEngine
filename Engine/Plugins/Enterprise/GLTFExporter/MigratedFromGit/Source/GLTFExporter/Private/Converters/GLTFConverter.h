@@ -7,7 +7,7 @@
 struct FGLTFConvertBuilder;
 
 template <class IndexType, class KeyType>
-class GLTFEXPORTER_API TGLTFConverter
+class TGLTFConverter
 {
 public:
 	virtual ~TGLTFConverter() = default;

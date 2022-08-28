@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "Engine/EngineTypes.h"
 
-struct GLTFEXPORTER_API FGLTFConverterUtility
+struct FGLTFConverterUtility
 {
 	static FVector ConvertVector(const FVector& Vector)
 	{
