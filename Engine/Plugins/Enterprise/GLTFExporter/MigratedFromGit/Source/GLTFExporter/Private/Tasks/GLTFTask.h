@@ -21,7 +21,7 @@ public:
 	const EGLTFTaskPriority Priority;
 
 	FGLTFTask(EGLTFTaskPriority Priority)
-        : Priority(Priority)
+		: Priority(Priority)
 	{
 	}
 
