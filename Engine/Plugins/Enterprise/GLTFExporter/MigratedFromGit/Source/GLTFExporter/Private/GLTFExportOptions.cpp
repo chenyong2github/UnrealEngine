@@ -208,7 +208,10 @@ void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, co
 
 bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 {
-	if (InProperty->GetName() == TEXT("DefaultMaterialBakeSize"))
+	const FString PropertyName = InProperty->GetName();
+
+	if (PropertyName == TEXT("bExportUnlitMaterials") ||
+		PropertyName == TEXT("DefaultMaterialBakeSize"))
 	{
 		return true;
 	}
