@@ -108,39 +108,21 @@ void UGLTFInteractionHotspotComponent::SetActiveImage(class UTexture2D* NewImage
 {
 	if (NewImage != ActiveImage)
 	{
+		GetSpriteMaterial()->SetTextureParameterValue("Sprite", NewImage);
 		ActiveImage = NewImage;
-		GetSpriteMaterial()->SetTextureParameterValue("Sprite", ActiveImage);
-
-		const FVector2D NewImageSize(
-			ActiveImage != nullptr ? ActiveImage->GetSurfaceWidth() : 32.0f,
-			ActiveImage != nullptr ? ActiveImage->GetSurfaceHeight() : 32.0f);
-
-		if (NewImageSize != ActiveImageSize)
-		{
-			ActiveImageSize = NewImageSize;
-
-			FMaterialSpriteElement& Element = GetSpriteElement();
-
-			if (UGameViewportClient* GameViewportClient = GetWorld()->GetGameViewport())
-			{
-				FVector2D ViewportSize;
-				GameViewportClient->GetViewportSize(ViewportSize);
-
-				Element.BaseSizeX = ActiveImageSize.X / ViewportSize.X;
-				Element.BaseSizeY = ActiveImageSize.X / ViewportSize.Y;
-			}
-			else
-			{
-				// TODO: if running in the editor, find and use the size of the viewport
-
-				Element.BaseSizeX = 0.1f;
-				Element.BaseSizeY = 0.1f;
-			}
-
-			MarkRenderStateDirty();
-			UpdateCollisionVolume();
-		}
 	}
+
+	const FVector2D NewImageSize(
+		NewImage != nullptr ? NewImage->GetSurfaceWidth() : 32.0f,
+		NewImage != nullptr ? NewImage->GetSurfaceHeight() : 32.0f);
+
+	if (NewImageSize != ActiveImageSize)
+	{
+		ActiveImageSize = NewImageSize;
+	}
+
+	// NOTE: we do this even if size is unchanged since the last update may have failed
+	UpdateSpriteSize();
 }
 
 void UGLTFInteractionHotspotComponent::BeginCursorOver(UPrimitiveComponent* TouchedComponent)
@@ -252,4 +234,27 @@ FMaterialSpriteElement& UGLTFInteractionHotspotComponent::GetSpriteElement()
 UMaterialInstanceDynamic* UGLTFInteractionHotspotComponent::GetSpriteMaterial() const
 {
 	return static_cast<UMaterialInstanceDynamic*>(GetMaterial(0));
+}
+
+void UGLTFInteractionHotspotComponent::UpdateSpriteSize()
+{
+	if (UGameViewportClient* GameViewportClient = GetWorld()->GetGameViewport())
+	{
+		FVector2D ViewportSize;
+		GameViewportClient->GetViewportSize(ViewportSize);
+
+		const float BaseSizeX = ActiveImageSize.X / ViewportSize.X;
+		const float BaseSizeY = ActiveImageSize.Y / ViewportSize.Y;
+
+		FMaterialSpriteElement& Element = GetSpriteElement();
+
+		if (BaseSizeX != Element.BaseSizeX || BaseSizeY != Element.BaseSizeY)	// TODO: use epsilon for comparison?
+		{
+			Element.BaseSizeX = BaseSizeX;
+			Element.BaseSizeY = BaseSizeY;
+
+			MarkRenderStateDirty();
+			UpdateCollisionVolume();
+		}
+	}
 }

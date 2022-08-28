@@ -95,4 +95,6 @@ private:
 	FMaterialSpriteElement& GetSpriteElement();
 
 	UMaterialInstanceDynamic* GetSpriteMaterial() const;
+
+	void UpdateSpriteSize();
 };
