@@ -28,7 +28,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
 	ExportScale = 0.01;
-	bExportLights = true;
+	bExportLights = EGLTFExporterLightMobility::MovableAndStationary;
 	bExportCameras = true;
 	bExportOrbitalCameras = false;
 	bExportReflectionCaptures = false;
