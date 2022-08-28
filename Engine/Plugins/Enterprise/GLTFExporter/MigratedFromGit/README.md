@@ -41,3 +41,18 @@ Textures                  |        |
 └ Cubemap                 |        |
 └ Lightmap                |        |
 Exporter Options          |   👷   |
+
+
+Installation
+------------
+
+* Alt 1: Install to project:
+    1. Go to project folder which contains `[ProjectName].uproject`
+    1. Create a folder called `Plugins` (if it doesn't already exist).
+    1. Copy `GLTFExporter` folder into the `Plugins` folder.
+
+* Alt 2: Install to Unreal Engine:
+    1. Go to the plugin folder of Unreal Engine which is `Engine/Plugins`
+    1. Copy `GLTFExporter` folder into the `Plugins` folder.
+
+In Unreal Editor, open `Menu -> Edit -> Plugins` and make sure `glTF Exporter` is installed and enabled.
