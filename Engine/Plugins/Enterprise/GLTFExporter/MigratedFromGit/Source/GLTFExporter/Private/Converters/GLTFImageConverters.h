@@ -8,7 +8,7 @@
 #include "Converters/GLTFBuilderContext.h"
 #include "Converters/GLTFSuperfluous.h"
 #include "Converters/GLTFSharedArray.h"
-#include "GLTFExportOptions.h"
+#include "Options/GLTFExportOptions.h"
 
 typedef TGLTFConverter<FGLTFJsonImageIndex, TGLTFSuperfluous<FString>, EGLTFTextureType, bool, FIntPoint, TGLTFSharedArray<FColor>> IGLTFImageConverter;
 

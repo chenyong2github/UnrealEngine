@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "GLTFExportOptions.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
+#include "Options/GLTFExportOptions.h"
 
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
