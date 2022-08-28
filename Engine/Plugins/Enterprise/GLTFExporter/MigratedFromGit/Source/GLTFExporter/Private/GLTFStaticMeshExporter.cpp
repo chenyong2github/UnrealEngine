@@ -26,15 +26,15 @@ bool UGLTFStaticMeshExporter::ExportBinary(UObject* Object, const TCHAR* Type, F
 	FGLTFBufferBuilder BufferBuilder(Root);
 	FGLTFMeshConverter MeshConverter(Root, BufferBuilder);
 
-	FGLTFJsonIndex MeshIndex = MeshConverter.AppendMesh(StaticMesh, 0);
+	FGLTFJsonMeshIndex MeshIndex = MeshConverter.AppendMesh(StaticMesh, 0);
 
 	FGLTFJsonNode Node;
 	Node.Mesh = MeshIndex;
-	FGLTFJsonIndex NodeIndex = Root.Nodes.Add(Node);
+	FGLTFJsonNodeIndex NodeIndex = Root.Nodes.Add(Node);
 
 	FGLTFJsonScene Scene;
 	Scene.Nodes.Add(NodeIndex);
-	FGLTFJsonIndex SceneIndex = Root.Scenes.Add(Scene);
+	FGLTFJsonSceneIndex SceneIndex = Root.Scenes.Add(Scene);
 
 	Root.DefaultScene = SceneIndex;
 

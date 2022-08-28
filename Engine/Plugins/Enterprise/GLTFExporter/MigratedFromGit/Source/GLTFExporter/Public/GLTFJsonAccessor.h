@@ -3,18 +3,19 @@
 #pragma once
 
 #include "GLTFJsonEnums.h"
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
 #include "GLTFJsonUtilities.h"
+#include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonAccessor : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonAccessor
 {
 	FString Name;
 
-	FGLTFJsonIndex         BufferView;
-	int32                  Count;
-	EGLTFJsonAccessorType  Type;
-	EGLTFJsonComponentType ComponentType;
-	bool                   Normalized;
+	FGLTFJsonBufferViewIndex BufferView;
+	int32                    Count;
+	EGLTFJsonAccessorType    Type;
+	EGLTFJsonComponentType   ComponentType;
+	bool                     Normalized;
 
 	int32 MinMaxLength;
 	float Min[16];

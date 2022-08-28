@@ -3,14 +3,15 @@
 #pragma once
 
 #include "GLTFJsonEnums.h"
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
 #include "GLTFJsonUtilities.h"
+#include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonBufferView : FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonBufferView
 {
 	FString Name;
 
-	FGLTFJsonIndex Buffer;
+	FGLTFJsonBufferIndex Buffer;
 
 	int64 ByteLength;
 	int64 ByteOffset;

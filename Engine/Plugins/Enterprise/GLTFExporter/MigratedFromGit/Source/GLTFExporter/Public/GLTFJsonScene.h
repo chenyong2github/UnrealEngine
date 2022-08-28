@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "GLTFJsonObject.h"
+#include "GLTFJsonIndex.h"
+#include "Serialization/JsonSerializer.h"
 
-struct GLTFEXPORTER_API FGLTFJsonScene: FGLTFJsonObject
+struct GLTFEXPORTER_API FGLTFJsonScene
 {
 	FString Name;
 
-	TArray<FGLTFJsonIndex> Nodes;
+	TArray<FGLTFJsonNodeIndex> Nodes;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
