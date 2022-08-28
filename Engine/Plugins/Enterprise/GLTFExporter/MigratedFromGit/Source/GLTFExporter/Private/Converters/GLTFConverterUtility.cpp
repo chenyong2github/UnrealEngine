@@ -114,12 +114,12 @@ EGLTFJsonCubeFace FGLTFConverterUtility::ConvertCubeFace(ECubeFace CubeFace)
 	}
 }
 
-EGLTFJsonPlayerCameraMode FGLTFConverterUtility::ConvertPlayerCameraMode(EGLTFCameraMode CameraMode)
+EGLTFJsonCameraControlMode FGLTFConverterUtility::ConvertCameraControlMode(EGLTFCameraControlMode CameraMode)
 {
 	switch (CameraMode)
 	{
-		case EGLTFCameraMode::FreeLook: return EGLTFJsonPlayerCameraMode::FreeLook;
-		case EGLTFCameraMode::Orbital:  return EGLTFJsonPlayerCameraMode::Orbital;
-		default:                        return EGLTFJsonPlayerCameraMode::None; // TODO: add error handling in callers
+		case EGLTFCameraControlMode::FreeLook: return EGLTFJsonCameraControlMode::FreeLook;
+		case EGLTFCameraControlMode::Orbital:  return EGLTFJsonCameraControlMode::Orbital;
+		default:                               return EGLTFJsonCameraControlMode::None; // TODO: add error handling in callers
 	}
 }

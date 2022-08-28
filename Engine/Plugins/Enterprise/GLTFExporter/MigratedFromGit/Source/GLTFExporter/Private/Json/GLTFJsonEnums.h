@@ -11,7 +11,7 @@ enum class EGLTFJsonExtension
 	KHR_MaterialsClearCoat,
 	KHR_MeshQuantization,
 	KHR_TextureTransform,
-	EPIC_PlayerCameras,
+	EPIC_CameraControls,
 	EPIC_HDRIBackdrops,
 	EPIC_AnimationHotspots,
 	EPIC_LightmapTextures,
@@ -161,7 +161,7 @@ enum class EGLTFJsonLightType
 	Spot
 };
 
-enum class EGLTFJsonPlayerCameraMode
+enum class EGLTFJsonCameraControlMode
 {
 	None = -1,
 	FreeLook,

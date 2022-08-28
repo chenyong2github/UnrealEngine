@@ -6,7 +6,7 @@
 #include "GLTFCameraActor.generated.h"
 
 UENUM(BlueprintType)
-enum class EGLTFCameraMode : uint8
+enum class EGLTFCameraControlMode : uint8
 {
 	FreeLook,
 	Orbital
@@ -69,10 +69,10 @@ public:
 
 	/* Camera mode */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor")
-	EGLTFCameraMode Mode;
+	EGLTFCameraControlMode Mode;
 
 	/* Actor which the camera will focus on and subsequently orbit when using Third Person mode. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraMode::Orbital"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Camera Actor", meta=(EditCondition="Mode == EGLTFCameraControlMode::Orbital"))
 	AActor* Focus;
 
 	/* Minimum pitch angle (in degrees) for the camera. */

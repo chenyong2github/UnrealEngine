@@ -22,7 +22,7 @@ struct FGLTFJsonUtility
 			case EGLTFJsonExtension::KHR_MaterialsClearCoat:  return TEXT("KHR_materials_clearcoat");
 			case EGLTFJsonExtension::KHR_MeshQuantization:    return TEXT("KHR_mesh_quantization");
 			case EGLTFJsonExtension::KHR_TextureTransform:    return TEXT("KHR_texture_transform");
-			case EGLTFJsonExtension::EPIC_PlayerCameras:      return TEXT("EPIC_player_cameras");
+			case EGLTFJsonExtension::EPIC_CameraControls:     return TEXT("EPIC_camera_controls");
 			case EGLTFJsonExtension::EPIC_HDRIBackdrops:      return TEXT("EPIC_hdri_backdrops");
 			case EGLTFJsonExtension::EPIC_AnimationHotspots:  return TEXT("EPIC_animation_hotspots");
 			case EGLTFJsonExtension::EPIC_LightmapTextures:   return TEXT("EPIC_lightmap_textures");
@@ -159,12 +159,12 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonPlayerCameraMode Value)
+	static const TCHAR* ToString(EGLTFJsonCameraControlMode Value)
 	{
 		switch (Value)
 		{
-			case EGLTFJsonPlayerCameraMode::FreeLook: return TEXT("freeLook");
-			case EGLTFJsonPlayerCameraMode::Orbital:  return TEXT("orbital");
+			case EGLTFJsonCameraControlMode::FreeLook: return TEXT("freeLook");
+			case EGLTFJsonCameraControlMode::Orbital:  return TEXT("orbital");
 			default:
 				checkNoEntry();
 				return TEXT("");
