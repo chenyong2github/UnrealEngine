@@ -88,6 +88,10 @@ bool FGLTFImageBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 
 FGLTFJsonImageIndex FGLTFImageBuilder::FindImage(const void* CompressedData, int64 CompressedByteLength, EGLTFJsonMimeType MimeType) const
 {
+	// TODO: maybe use size and / or other properties when looking for an identical image, just in case
+	// images with different properties happen to have the exact same compressed data.
+	// It would however limit the call-sites from where this function can be used, since we need to know these properties.
+
 	for (const auto& DataPair : ImageDataLookup)
 	{
 		const FGLTFJsonImage& JsonImage = const_cast<FGLTFImageBuilder*>(this)->GetImage(DataPair.Key);
