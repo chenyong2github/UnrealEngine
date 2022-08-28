@@ -32,7 +32,7 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 		// otherwise export a copy of this mesh for each mesh-component.
 		if (!Builder.ExportOptions->bBakeMaterialInputs ||
 			!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
-			!FGLTFMaterialUtility::MaterialsNeedVertexData(Materials))
+			!FGLTFMaterialUtility::NeedsMeshData(Materials)) // TODO: if this expensive, cache the results for each material
 		{
 			StaticMeshComponent = nullptr;
 		}
@@ -72,7 +72,7 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 		// otherwise export a copy of this mesh for each mesh-component.
 		if (!Builder.ExportOptions->bBakeMaterialInputs ||
 			!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
-			!FGLTFMaterialUtility::MaterialsNeedVertexData(Materials))
+			!FGLTFMaterialUtility::NeedsMeshData(Materials)) // TODO: if this expensive, cache the results for each material
 		{
 			SkeletalMeshComponent = nullptr;
 		}

@@ -502,7 +502,7 @@ FString FGLTFMaterialUtility::ShadingModelsToString(const FMaterialShadingModelF
 	return Result;
 }
 
-bool FGLTFMaterialUtility::MaterialNeedsVertexData(const UMaterialInterface* Material)
+bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 {
 	if (Material == nullptr)
 	{
@@ -510,7 +510,6 @@ bool FGLTFMaterialUtility::MaterialNeedsVertexData(const UMaterialInterface* Mat
 	}
 
 	// TODO: only analyze properties that will be needed for this specific material
-
 	const TArray<EMaterialProperty> Properties =
 	{
 		MP_BaseColor,
@@ -520,10 +519,10 @@ bool FGLTFMaterialUtility::MaterialNeedsVertexData(const UMaterialInterface* Mat
 		MP_Metallic,
 		MP_Roughness,
 		MP_Normal,
-		// MP_CustomOutput,	// NOTE: causes a crash when used with AnalyzeMaterialProperty
 		MP_AmbientOcclusion,
 		MP_CustomData0,
-		MP_CustomData1
+		MP_CustomData1,
+		// TODO: add support for custom output ClearCoatBottomNormal
 	};
 
 	bool bRequiresVertexData = false;
@@ -540,11 +539,11 @@ bool FGLTFMaterialUtility::MaterialNeedsVertexData(const UMaterialInterface* Mat
 	return bRequiresVertexData;
 }
 
-bool FGLTFMaterialUtility::MaterialsNeedVertexData(const TArray<const UMaterialInterface*>& Materials)
+bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>& Materials)
 {
 	for (const UMaterialInterface* Material: Materials)
 	{
-		if (MaterialNeedsVertexData(Material))
+		if (NeedsMeshData(Material))
 		{
 			return true;
 		}
