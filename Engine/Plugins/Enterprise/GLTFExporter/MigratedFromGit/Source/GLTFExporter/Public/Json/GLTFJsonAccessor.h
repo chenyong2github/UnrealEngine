@@ -19,7 +19,13 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonIndexedObject
 	float Min[16];
 	float Max[16];
 
-	FGLTFJsonAccessor(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonAccessor, void>;
+
+	FGLTFJsonAccessor(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, BufferView(nullptr)
 		, ByteOffset(0)
@@ -29,9 +35,7 @@ struct GLTFEXPORTER_API FGLTFJsonAccessor : IGLTFJsonIndexedObject
 		, bNormalized(false)
 		, MinMaxLength(0)
 		, Min{0}
-		, Max{0}
+	, Max{0}
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

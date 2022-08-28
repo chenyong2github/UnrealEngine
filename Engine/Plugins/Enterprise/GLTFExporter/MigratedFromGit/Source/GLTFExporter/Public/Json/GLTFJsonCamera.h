@@ -51,11 +51,15 @@ struct GLTFEXPORTER_API FGLTFJsonCamera : IGLTFJsonIndexedObject
 	FGLTFJsonOrthographic Orthographic;
 	FGLTFJsonPerspective  Perspective;
 
-	FGLTFJsonCamera(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonCamera, void>;
+
+	FGLTFJsonCamera(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Type(EGLTFJsonCameraType::None)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

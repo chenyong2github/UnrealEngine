@@ -25,7 +25,13 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 
 	TArray<FGLTFJsonNode*> Children;
 
-	FGLTFJsonNode(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonNode, void>;
+
+	FGLTFJsonNode(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
@@ -41,6 +47,4 @@ struct GLTFEXPORTER_API FGLTFJsonNode : IGLTFJsonIndexedObject
 		, ComponentNode(nullptr)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

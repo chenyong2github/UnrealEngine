@@ -21,10 +21,14 @@ struct GLTFEXPORTER_API FGLTFJsonKhrMaterialVariant : IGLTFJsonIndexedObject
 {
 	FString Name;
 
-	FGLTFJsonKhrMaterialVariant(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonKhrMaterialVariant, void>;
+
+	FGLTFJsonKhrMaterialVariant(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

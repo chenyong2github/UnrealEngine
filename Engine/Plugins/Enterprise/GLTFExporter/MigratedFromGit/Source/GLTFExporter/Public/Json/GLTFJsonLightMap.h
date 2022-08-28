@@ -13,13 +13,17 @@ struct GLTFEXPORTER_API FGLTFJsonLightMap : IGLTFJsonIndexedObject
 	FGLTFJsonVector4     LightMapAdd;
 	FGLTFJsonVector4     CoordinateScaleBias;
 
-	FGLTFJsonLightMap(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonLightMap, void>;
+
+	FGLTFJsonLightMap(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, LightMapScale(FGLTFJsonVector4::One)
 		, LightMapAdd(FGLTFJsonVector4::Zero)
 		, CoordinateScaleBias({ 1, 1, 0, 0 })
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

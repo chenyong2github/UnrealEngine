@@ -14,7 +14,13 @@ struct GLTFEXPORTER_API FGLTFJsonSampler : IGLTFJsonIndexedObject
 	EGLTFJsonTextureWrap WrapS;
 	EGLTFJsonTextureWrap WrapT;
 
-	FGLTFJsonSampler(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonSampler, void>;
+
+	FGLTFJsonSampler(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, MinFilter(EGLTFJsonTextureFilter::None)
 		, MagFilter(EGLTFJsonTextureFilter::None)
@@ -22,6 +28,4 @@ struct GLTFEXPORTER_API FGLTFJsonSampler : IGLTFJsonIndexedObject
 		, WrapT(EGLTFJsonTextureWrap::Repeat)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };

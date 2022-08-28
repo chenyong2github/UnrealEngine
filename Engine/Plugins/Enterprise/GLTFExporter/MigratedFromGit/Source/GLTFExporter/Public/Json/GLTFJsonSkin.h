@@ -13,12 +13,16 @@ struct GLTFEXPORTER_API FGLTFJsonSkin : IGLTFJsonIndexedObject
 
 	TArray<FGLTFJsonNode*> Joints;
 
-	FGLTFJsonSkin(int32 Index = INDEX_NONE)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
+
+protected:
+
+	friend TGLTFJsonIndexedObjectArray<FGLTFJsonSkin, void>;
+
+	FGLTFJsonSkin(int32 Index)
 		: IGLTFJsonIndexedObject(Index)
 		, InverseBindMatrices(nullptr)
 		, Skeleton(nullptr)
 	{
 	}
-
-	virtual void WriteObject(IGLTFJsonWriter& Writer) const override;
 };
