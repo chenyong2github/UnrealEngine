@@ -34,6 +34,18 @@ struct FGLTFPropertyBakeOutput
 
 struct FGLTFMaterialUtility
 {
+	template<class InputType>
+    static const FMaterialInput<InputType>* GetInputFromProperty(const UMaterialInterface* Material, EMaterialProperty Property)
+	{
+		const FExpressionInput* ExpressionInput = const_cast<UMaterial*>(Material->GetMaterial())->GetExpressionInputForProperty(Property);
+		return static_cast<const FMaterialInput<InputType>*>(ExpressionInput);
+	}
+
+    static const FExpressionInput* GetInputFromProperty(const UMaterialInterface* Material, EMaterialProperty Property)
+	{
+		return const_cast<UMaterial*>(Material->GetMaterial())->GetExpressionInputForProperty(Property);
+	}
+
 	static UTexture2D* CreateTransientTexture(const FGLTFPropertyBakeOutput& PropertyBakeOutput, bool bUseSRGB = false);
 	static UTexture2D* CreateTransientTexture(const TArray<FColor>& Pixels, const FIntPoint& TextureSize, EPixelFormat TextureFormat, bool bUseSRGB = false);
 	static bool CombineTextures(TArray<FColor>& OutPixels, const TArray<FGLTFTextureCombineSource>& Sources, const FIntPoint& OutputSize, EPixelFormat OutputPixelFormat);
