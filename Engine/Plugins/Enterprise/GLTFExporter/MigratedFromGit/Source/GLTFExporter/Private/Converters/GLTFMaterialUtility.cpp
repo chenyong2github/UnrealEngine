@@ -11,6 +11,48 @@
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionClearCoatNormalCustomOutput.h"
 
+const TCHAR* FGLTFMaterialUtility::GetPropertyName(EMaterialProperty Property)
+{
+	// TODO: replace this hardcoded list with some lookup function that should be in the engine.
+
+	switch (Property)
+	{
+		case MP_EmissiveColor:          return TEXT("EmissiveColor");
+		case MP_Opacity:                return TEXT("Opacity");
+		case MP_OpacityMask:            return TEXT("OpacityMask");
+		case MP_BaseColor:              return TEXT("BaseColor");
+		case MP_Metallic:               return TEXT("Metallic");
+		case MP_Specular:               return TEXT("Specular");
+		case MP_Roughness:              return TEXT("Roughness");
+		case MP_Anisotropy:             return TEXT("Anisotropy");
+		case MP_Normal:                 return TEXT("Normal");
+		case MP_Tangent:                return TEXT("Tangent");
+		case MP_WorldPositionOffset:    return TEXT("WorldPositionOffset");
+		case MP_WorldDisplacement:      return TEXT("WorldDisplacement");
+		case MP_TessellationMultiplier: return TEXT("TessellationMultiplier");
+		case MP_SubsurfaceColor:        return TEXT("SubsurfaceColor");
+		case MP_CustomData0:            return TEXT("ClearCoat");
+		case MP_CustomData1:            return TEXT("ClearCoatRoughness");
+		case MP_AmbientOcclusion:       return TEXT("AmbientOcclusion");
+		case MP_Refraction:             return TEXT("Refraction");
+		case MP_CustomizedUVs0:         return TEXT("CustomizedUV0");
+		case MP_CustomizedUVs1:         return TEXT("CustomizedUV1");
+		case MP_CustomizedUVs2:         return TEXT("CustomizedUV2");
+		case MP_CustomizedUVs3:         return TEXT("CustomizedUV3");
+		case MP_CustomizedUVs4:         return TEXT("CustomizedUV4");
+		case MP_CustomizedUVs5:         return TEXT("CustomizedUV5");
+		case MP_CustomizedUVs6:         return TEXT("CustomizedUV6");
+		case MP_CustomizedUVs7:         return TEXT("CustomizedUV7");
+		case MP_PixelDepthOffset:       return TEXT("PixelDepthOffset");
+		case MP_ShadingModel:           return TEXT("ShadingModel");
+		case MP_MaterialAttributes:     return TEXT("MaterialAttributes");
+		case MP_CustomOutput:           return TEXT("ClearCoatBottomNormal");
+		default:                        checkNoEntry();
+	}
+
+	return TEXT("");
+}
+
 FVector4 FGLTFMaterialUtility::GetPropertyDefaultValue(EMaterialProperty Property)
 {
 	// TODO: replace with GMaterialPropertyAttributesMap lookup (when public API available)
