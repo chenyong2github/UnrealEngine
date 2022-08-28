@@ -12,7 +12,7 @@ protected:
 	FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
 	~FGLTFBufferBuilder();
 
-	const FBufferArchive* GetBufferData() const;
+	const TArray64<uint8>* GetBufferData() const;
 
 public:
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFBufferBuilder.h"
+#include "Builders/GLTFMemoryArchive.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -23,7 +24,7 @@ bool FGLTFBufferBuilder::InitializeBuffer()
 
 	if (bIsGlbFile)
 	{
-		BufferArchive = MakeUnique<FBufferArchive>();
+		BufferArchive = MakeUnique<FGLTFMemoryArchive>();
 	}
 	else
 	{
@@ -42,9 +43,9 @@ bool FGLTFBufferBuilder::InitializeBuffer()
 	return true;
 }
 
-const FBufferArchive* FGLTFBufferBuilder::GetBufferData() const
+const TArray64<uint8>* FGLTFBufferBuilder::GetBufferData() const
 {
-	return bIsGlbFile ? static_cast<FBufferArchive*>(BufferArchive.Get()) : nullptr;
+	return bIsGlbFile ? static_cast<FGLTFMemoryArchive*>(BufferArchive.Get()) : nullptr;
 }
 
 FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
