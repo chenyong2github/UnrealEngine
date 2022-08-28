@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFLevelExporter.h"
-#include "GLTFSceneBuilder.h"
+#include "GLTFContainerBuilder.h"
 #include "Engine/World.h"
 
 UGLTFLevelExporter::UGLTFLevelExporter(const FObjectInitializer& ObjectInitializer)
@@ -20,8 +20,10 @@ bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchi
 		return false;
 	}
 
-	FGLTFSceneBuilder(World, bSelectedOnly)._DebugLog();
+	FGLTFContainerBuilder Container;
+	const FGLTFJsonSceneIndex SceneIndex = Container.AddScene(World, bSelectedOnly);
+	Container.JsonRoot.DefaultScene = SceneIndex;
 
-	// TODO: implement
+	Container.Serialize(Archive);
 	return true;
 }
