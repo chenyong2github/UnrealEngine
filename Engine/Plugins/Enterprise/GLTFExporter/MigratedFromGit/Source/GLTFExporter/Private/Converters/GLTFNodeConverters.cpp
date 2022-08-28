@@ -10,6 +10,11 @@
 
 FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 {
+	if (Actor->bIsEditorOnlyActor)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
 	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
@@ -73,6 +78,11 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 
 FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* SceneComponent)
 {
+	if (SceneComponent->IsEditorOnly())
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
 	const AActor* Owner = SceneComponent->GetOwner();
 	if (Owner == nullptr)
 	{
