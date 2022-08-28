@@ -113,16 +113,18 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 
 	if (bCopyAlphaFromRedChannel)
 	{
-		// NOTE: Baked property-textures only have values in RGB, not A.
-		// If someone wants to use the alpha-channel of the baked texture (for compositing),
-		// it needs to be filled with values first.
-		// Since scalar properties are baked to R + G + B, it doesn't matter which channel
-		// we use as source. For now it's set to R.
-		// TODO: Determine if we can get the baking module to somehow output values in A automatically.
-		// If not, see if the copy-operation can be performed via the canvas (using a proxy-material or similar).
 		for (FColor& Pixel: BakedPixels)
 		{
 			Pixel.A = Pixel.R;
+		}
+	}
+	else
+	{
+		// NOTE: alpha is 0 by default after baking a property, but we prefer 255 (1.0).
+		// It makes it easier to view the exported textures.
+		for (FColor& Pixel: BakedPixels)
+		{
+			Pixel.A = 255;
 		}
 	}
 
