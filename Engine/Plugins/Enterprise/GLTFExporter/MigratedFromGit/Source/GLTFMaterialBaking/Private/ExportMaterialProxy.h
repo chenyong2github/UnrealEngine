@@ -226,7 +226,7 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return EMaterialCompilerType::MaterialProxy;
 	}
 
-#if !(ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 	virtual int32 PreSkinVertexOffset() override
 	{
 		return Compiler->PreSkinVertexOffset();
@@ -251,10 +251,10 @@ public:
 		, ProxyBlendMode(ProxyBlendMode)
 	{
 
-#if (ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
-#else
+#if (ENGINE_MAJOR_VERSION > 4 || ENGINE_MINOR_VERSION >= 26)
 		SetQualityLevelProperties(GMaxRHIFeatureLevel, EMaterialQualityLevel::High);
+#else
+		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
 #endif
 		Material = InMaterialInterface->GetMaterial();
 		ReferencedTextures = InMaterialInterface->GetReferencedTextures();
