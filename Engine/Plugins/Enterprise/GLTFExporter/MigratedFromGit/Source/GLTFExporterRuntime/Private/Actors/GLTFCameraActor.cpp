@@ -17,6 +17,8 @@ AGLTFCameraActor::AGLTFCameraActor(const FObjectInitializer& ObjectInitializer)
 	, Focus(nullptr)
 	, PitchAngleMin(-90.0f)
 	, PitchAngleMax(90.0f)
+	, YawAngleMin(0.0f)
+	, YawAngleMax(360.0f)
 	, DistanceMin(100.0f)
 	, DistanceMax(1000.0f)
 	, DollyDuration(0.2f)
@@ -150,7 +152,7 @@ void AGLTFCameraActor::PostActorCreated()
 
 void AGLTFCameraActor::OnMouseX(float AxisValue)
 {
-	TargetYaw += AxisValue * RotationSensitivity * RotationSensitivityScale;
+	TargetYaw = ClampYaw(TargetYaw + AxisValue * RotationSensitivity * RotationSensitivityScale);
 }
 
 void AGLTFCameraActor::OnMouseY(float AxisValue)
@@ -185,9 +187,7 @@ float AGLTFCameraActor::ClampPitch(float Value) const
 
 float AGLTFCameraActor::ClampYaw(float Value) const
 {
-	// TODO: implement
-
-	return Value;
+	return UsesYawLimits() ? FMath::Clamp(Value, YawAngleMin, YawAngleMax) : Value;
 }
 
 void AGLTFCameraActor::RemoveInertia()
@@ -226,4 +226,9 @@ bool AGLTFCameraActor::SetAutoActivateForPlayer(const EAutoReceiveInput::Type Pl
 
 	*ValuePtr = Player;
 	return true;
+}
+
+bool AGLTFCameraActor::UsesYawLimits() const
+{
+	return !FMath::IsNearlyEqual(YawAngleMax - YawAngleMin, 360.0f);
 }
