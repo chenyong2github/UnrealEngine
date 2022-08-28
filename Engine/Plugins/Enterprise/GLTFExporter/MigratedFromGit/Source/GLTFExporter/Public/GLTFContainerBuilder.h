@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "GLTFIndexedBuilder.h"
+#include "GLTFConvertBuilder.h"
 
-struct GLTFEXPORTER_API FGLTFContainerBuilder : public FGLTFIndexedBuilder
+struct GLTFEXPORTER_API FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
 };
