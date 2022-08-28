@@ -12,7 +12,7 @@
 
 class SButton;
 
-class SGLTFExportOptionsWindow : public SCompoundWidget
+class GLTFEXPORTER_API SGLTFExportOptionsWindow : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SGLTFExportOptionsWindow)
