@@ -54,7 +54,7 @@ const TArray<FGLTFBuilder::FLogMessage>& FGLTFBuilder::GetLogMessages() const
 TArray<FGLTFBuilder::FLogMessage> FGLTFBuilder::GetLogMessages(EGLTFMessageSeverity Severity) const
 {
 	return LogMessages.FilterByPredicate(
-		[&Severity](const FLogMessage& LogMessage)
+		[Severity](const FLogMessage& LogMessage)
 		{
 			return LogMessage.Key == Severity;
 		});
