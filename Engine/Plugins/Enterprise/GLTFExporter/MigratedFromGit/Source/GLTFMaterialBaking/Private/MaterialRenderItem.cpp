@@ -47,8 +47,11 @@ bool FGLTFMeshMaterialRenderItem::Render_RenderThread(FCanvasRenderContext& Rend
 	View.FinalPostProcessSettings.bOverride_IndirectLightingIntensity = 1;
 	View.FinalPostProcessSettings.IndirectLightingIntensity = 0.0f;
 
-	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && !Canvas->GetAllowSwitchVerticalAxis();
-	check(bNeedsToSwitchVerticalAxis == false);
+	// TODO: The 2 lines below has been disabled because of compilation errors:
+	//		RHINeedsToSwitchVerticalAxis does nt exist anymore
+	//		GetAllowSwitchVerticalAxis is not a member of FCanvas anymore
+	//const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && !Canvas->GetAllowSwitchVerticalAxis();
+	//check(bNeedsToSwitchVerticalAxis == false);
 
 	if (Vertices.Num() && Indices.Num())
 	{

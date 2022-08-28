@@ -301,7 +301,7 @@ FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, cons
 	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->RefSkeleton;
 #endif
 
-	// TODO: add support for MasterPoseComponent?
+	// TODO: add support for [Principal]PoseComponent?
 
 	const TArray<FMeshBoneInfo>& BoneInfos = RefSkeleton.GetRefBoneInfo();
 	if (!BoneInfos.IsValidIndex(BoneIndex))

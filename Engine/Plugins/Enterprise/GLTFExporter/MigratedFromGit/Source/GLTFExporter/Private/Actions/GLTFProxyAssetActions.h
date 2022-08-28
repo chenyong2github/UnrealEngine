@@ -46,6 +46,7 @@ public:
 	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const override { return OriginalActions->GetDisplayNameFromAssetData(AssetData); }
 	virtual void SetSupported(bool bInSupported) override { OriginalActions->SetSupported(bInSupported); }
 	virtual bool IsSupported() const override { return OriginalActions->IsSupported(); }
+	virtual FTopLevelAssetPath GetClassPathName() const override { return TopLevelAssetPath; };
 
 private:
 
@@ -54,6 +55,8 @@ private:
 	void OnCreateProxy(TArray<FWeakObjectPtr> Objects) const;
 
 	TSharedRef<IAssetTypeActions> OriginalActions;
+
+	FTopLevelAssetPath TopLevelAssetPath;
 };
 
 #endif
