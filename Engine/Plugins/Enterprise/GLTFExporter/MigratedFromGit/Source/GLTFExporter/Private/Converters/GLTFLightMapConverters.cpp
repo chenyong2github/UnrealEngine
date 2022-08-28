@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFLightMapConverters.h"
+#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Engine/MapBuildDataRegistry.h"
 
@@ -13,22 +14,22 @@ FGLTFJsonLightMapIndex FGLTFLightMapConverter::Convert(const UStaticMeshComponen
 		return FGLTFJsonLightMapIndex(INDEX_NONE);
 	}
 
-	const int32 LODIndex = StaticMeshComponent->ForcedLodModel > 0 ? StaticMeshComponent->ForcedLodModel - 1 : Builder.ExportOptions->DefaultLevelOfDetail;
-
-	if (LODIndex < 0 || StaticMesh->GetNumLODs() <= LODIndex || StaticMeshComponent->LODData.Num() <= LODIndex)
-	{
-		return FGLTFJsonLightMapIndex(INDEX_NONE);
-	}
-
-	const int32 CoordinateIndex = StaticMesh->LightMapCoordinateIndex;
+	const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, Builder.ExportOptions->DefaultLevelOfDetail);
 	const FStaticMeshLODResources& LODResources = StaticMesh->GetLODForExport(LODIndex);
 
+	const int32 CoordinateIndex = StaticMesh->LightMapCoordinateIndex;
 	if (CoordinateIndex < 0 || CoordinateIndex >= LODResources.GetNumTexCoords())
 	{
 		return FGLTFJsonLightMapIndex(INDEX_NONE);
 	}
 
-	const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LODIndex];
+	const int32 LightMapLODIndex = 0;
+	if (!StaticMeshComponent->LODData.IsValidIndex(LightMapLODIndex))
+	{
+		return FGLTFJsonLightMapIndex(INDEX_NONE);
+	}
+
+	const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LightMapLODIndex];
 	const FMeshMapBuildData* MeshMapBuildData = StaticMeshComponent->GetMeshMapBuildData(ComponentLODInfo);
 
 	if (MeshMapBuildData == nullptr || MeshMapBuildData->LightMap == nullptr)
