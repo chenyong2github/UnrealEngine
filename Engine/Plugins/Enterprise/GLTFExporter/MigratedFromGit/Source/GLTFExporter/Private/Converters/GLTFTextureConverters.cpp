@@ -54,6 +54,11 @@ FGLTFJsonTextureIndex FGLTFTexture2DConverter::Add(FGLTFConvertBuilder& Builder,
 
 	if (FGLTFTextureUtility::CanPNGCompressFormat(Texture2D->GetPixelFormat(), RGBFormat, BitDepth))
 	{
+		if (Texture2D->PlatformData->Mips[0].BulkData.GetBulkDataSize() == 0)
+		{
+			const_cast<UTexture2D*>(Texture2D)->ForceRebuildPlatformData();
+		}
+
 		if (Texture2D->PlatformData->TryInlineMipData(0, const_cast<UTexture2D*>(Texture2D)))
 		{
 			const FByteBulkData& BulkData = Texture2D->PlatformData->Mips[0].BulkData;
