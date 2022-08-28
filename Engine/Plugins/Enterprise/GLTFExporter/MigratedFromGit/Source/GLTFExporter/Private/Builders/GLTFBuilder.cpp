@@ -6,6 +6,7 @@
 FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: bIsGlbFile(FGLTFBuilderUtility::IsGlbFile(FilePath))
 	, FilePath(FilePath)
+	, DirPath(FPaths::GetPath(FilePath))
 	, ExportOptions(ExportOptions)
 {
 }

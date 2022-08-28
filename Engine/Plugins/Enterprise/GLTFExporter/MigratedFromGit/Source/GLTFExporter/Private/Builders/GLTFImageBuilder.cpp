@@ -8,7 +8,6 @@
 
 FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
     : FGLTFBufferBuilder(FilePath, ExportOptions)
-	, ImageDirPath(FPaths::GetPath(FilePath))
 {
 }
 
@@ -75,7 +74,7 @@ FString FGLTFImageBuilder::SaveImageToFile(const void* CompressedData, int64 Com
 	const FString ImageUri = FGLTFBuilderUtility::GetUniqueFilename(Name, Extension, UniqueImageUris);
 
 	const TArrayView<const uint8> ImageData(static_cast<const uint8*>(CompressedData), CompressedByteLength);
-	const FString ImagePath = FPaths::Combine(ImageDirPath, ImageUri);
+	const FString ImagePath = FPaths::Combine(DirPath, ImageUri);
 
 	if (!FFileHelper::SaveArrayToFile(ImageData, *ImagePath))
 	{
