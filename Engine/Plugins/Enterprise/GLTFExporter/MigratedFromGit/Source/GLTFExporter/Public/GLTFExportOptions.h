@@ -27,9 +27,22 @@ enum class EGLTFExporterMaterialBakeSize : uint8
 UENUM(BlueprintType)
 enum class EGLTFExporterTextureCompression : uint8
 {
-	PNG UMETA(DisplayName = "PNG"),
+	PNG,
     JPEG UMETA(DisplayName = "JPEG (if no alpha)")
 };
+
+UENUM(BlueprintType, Meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EGLTFExporterTextureFlags : uint8
+{
+	None = 0 UMETA(Hidden),
+
+	HDR = 1 << 0,
+	Normalmaps = 1 << 1,
+    Lightmaps = 1 << 2,
+
+	All = HDR | Normalmaps | Lightmaps UMETA(Hidden)
+};
+ENUM_CLASS_FLAGS(EGLTFExporterTextureFlags);
 
 UENUM(BlueprintType)
 enum class EGLTFExporterTextureHDREncoding : uint8
@@ -99,8 +112,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	EGLTFExporterTextureCompression TextureCompression;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression == EGLTFExporterTextureCompression::JPEG"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
 	int32 TextureCompressionQuality;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFExporterTextureFlags, EditCondition = "TextureCompression != EGLTFExporterTextureCompression::PNG"))
+	int32 LosslessCompressTextures;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	bool bExportTextureTransforms;

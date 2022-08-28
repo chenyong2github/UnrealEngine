@@ -36,7 +36,11 @@ void FGLTFTexture2DTask::Complete()
 	}
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(Texture2D->GetPixelFormat());
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
+	const EGLTFExporterTextureFlags Flags =
+		(Texture2D->IsNormalMap() ? EGLTFExporterTextureFlags::Normalmaps : EGLTFExporterTextureFlags::None) |
+		(bIsHDR ? EGLTFExporterTextureFlags::HDR : EGLTFExporterTextureFlags::None);
+
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Flags, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
 }
 
@@ -75,7 +79,9 @@ void FGLTFTextureCubeTask::Complete()
 	}
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(TextureCube->GetPixelFormat());
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
+	const EGLTFExporterTextureFlags Flags = bIsHDR ? EGLTFExporterTextureFlags::HDR : EGLTFExporterTextureFlags::None;
+
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Flags, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(TextureCube);
 }
 
@@ -100,7 +106,9 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	}
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTarget2D->GetFormat());
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
+	const EGLTFExporterTextureFlags Flags = bIsHDR ? EGLTFExporterTextureFlags::HDR : EGLTFExporterTextureFlags::None;
+
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Flags, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTarget2D);
 }
 
@@ -138,7 +146,9 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	}
 
 	const bool bIgnoreAlpha = FGLTFTextureUtility::IsAlphaless(RenderTargetCube->GetFormat());
-	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, JsonTexture.Name);
+	const EGLTFExporterTextureFlags Flags = bIsHDR ? EGLTFExporterTextureFlags::HDR : EGLTFExporterTextureFlags::None;
+
+	JsonTexture.Source = Builder.AddImage(Pixels, Size, bIgnoreAlpha, Flags, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(RenderTargetCube);
 }
 
@@ -167,8 +177,11 @@ void FGLTFTextureLightMapTask::Complete()
 	const FIntPoint Size = { Source.GetSizeX(), Source.GetSizeY() };
 	const int64 ByteLength = Source.CalcMipSize(0);
 
+	const bool bIgnoreAlpha = false;
+	const EGLTFExporterTextureFlags Flags = EGLTFExporterTextureFlags::Lightmaps;
+
 	const void* RawData = Source.LockMip(0);
-	JsonTexture.Source = Builder.AddImage(static_cast<const FColor*>(RawData), ByteLength, Size, false, JsonTexture.Name);
+	JsonTexture.Source = Builder.AddImage(static_cast<const FColor*>(RawData), ByteLength, Size, bIgnoreAlpha, Flags, JsonTexture.Name);
 	Source.UnlockMip(0);
 
 	JsonTexture.Sampler = Builder.GetOrAddSampler(LightMap);

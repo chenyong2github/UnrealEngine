@@ -30,6 +30,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportPlaybackSettings = true;
 	TextureCompression = EGLTFExporterTextureCompression::PNG;
 	TextureCompressionQuality = 0;
+	LosslessCompressTextures = static_cast<int32>(EGLTFExporterTextureFlags::All);
 	bExportTextureTransforms = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;

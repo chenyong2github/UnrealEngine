@@ -1311,6 +1311,7 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
 		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
+		false, // Normal and ClearCoatBottomNormal are handled above
 		GetBakedTextureName(PropertyName),
 		EGLTFJsonTextureFilter::Nearest,
 		EGLTFJsonTextureFilter::Nearest,
@@ -1386,11 +1387,14 @@ bool FGLTFMaterialTask::StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexIn
 	const EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
 	const EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
+	const bool bIsNormalmap = PropertyBakeOutput.Property == MP_Normal || PropertyBakeOutput.Property == MP_CustomOutput /* ClearCoatBottomNormal */;
+
 	const FGLTFJsonTextureIndex TextureIndex = FGLTFMaterialUtility::AddTexture(
 		Builder,
 		PropertyBakeOutput.Pixels,
 		PropertyBakeOutput.Size,
 		true, // NOTE: we can ignore alpha in everything but TryGetBaseColorAndOpacity
+		bIsNormalmap,
 		GetBakedTextureName(PropertyName),
 		TextureMinFilter,
 		TextureMagFilter,
