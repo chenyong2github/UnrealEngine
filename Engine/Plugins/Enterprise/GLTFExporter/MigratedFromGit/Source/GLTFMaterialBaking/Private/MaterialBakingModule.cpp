@@ -242,6 +242,7 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyGamma.Add(MP_Normal);
 	PerPropertyGamma.Add(MP_Opacity);
 	PerPropertyGamma.Add(MP_OpacityMask);
+	PerPropertyGamma.Add(MP_ShadingModel);
 	PerPropertyGamma.Add(TEXT("ClearCoatBottomNormal"));
 
 	// Set which pixel format should be used for the possible baked out material properties
@@ -259,6 +260,7 @@ void FMaterialBakingModule::StartupModule()
 	PerPropertyFormat.Add(MP_SubsurfaceColor, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_CustomData0, PF_B8G8R8A8);
 	PerPropertyFormat.Add(MP_CustomData1, PF_B8G8R8A8);
+	PerPropertyFormat.Add(MP_ShadingModel, PF_B8G8R8A8);
 	PerPropertyFormat.Add(TEXT("ClearCoatBottomNormal"), PF_B8G8R8A8);
 
 	// Register property customization

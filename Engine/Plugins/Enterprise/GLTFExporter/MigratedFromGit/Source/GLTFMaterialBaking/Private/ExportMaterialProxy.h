@@ -19,6 +19,8 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionCustomOutput.h"
 
+#include "Materials/HLSLMaterialTranslator.h"
+
 struct FExportMaterialCompiler : public FProxyMaterialCompiler
 {
 	FExportMaterialCompiler(FMaterialCompiler* InCompiler) :
@@ -273,7 +275,8 @@ public:
 		// NOTE: the following cases for custom data 0/1 and custom output are hacks since a proper solution requires engine changes:
 		case MP_CustomData0: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 1); break;
 		case MP_CustomData1: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 2); break;
-		case MP_CustomOutput: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 3); break;
+		case MP_ShadingModel: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 3); break;
+		case MP_CustomOutput: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 4); break;
 
 		default:
 			ensureMsgf(false, TEXT("ExportMaterial has no usage for property %i.  Will likely reuse the normal rendering shader and crash later with a parameter mismatch"), (int32)InPropertyToCompile);
@@ -359,6 +362,10 @@ public:
 		// needs to be called in this function!!
 		Compiler->SetMaterialProperty(Property, OverrideShaderFrequency, bUsePreviousFrameTime);
 		const int32 Ret = CompilePropertyAndSetMaterialPropertyWithoutCast(Property, Compiler);
+		if (Property == MP_ShadingModel)
+		{
+			return Ret; // NOTE: don't try to cast shading model since it will fail
+		}
 		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch | MFCF_ReplicateValue);
 	}
 
@@ -409,7 +416,7 @@ public:
 				}
 				break;
 			case MP_ShadingModel:
-				return MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel);
+				return CompileShadingModel(Compiler, MaterialInterface->CompileProperty(&ProxyCompiler, MP_ShadingModel));
 			case MP_CustomOutput:
 				 // NOTE: Currently we can assume input index is always 0, which it is for all custom outputs that are registered as material attributes
 				return CompileInputForCustomOutput(Compiler, 0, ForceCast_Exact_Replicate);
@@ -677,6 +684,26 @@ private:
 		}
 
 		return nullptr;
+	}
+
+	static int32 CompileShadingModel(FMaterialCompiler* Compiler, int32 Code)
+	{
+		class FMaterialCompilerHack : public FHLSLMaterialTranslator
+		{
+			using FHLSLMaterialTranslator::FHLSLMaterialTranslator;
+
+		public:
+
+			void SetParameterType(int32 Index, EMaterialValueType Type)
+			{
+				check(Index >= 0 && Index < CurrentScopeChunks->Num());
+				(*CurrentScopeChunks)[Index].Type = Type;
+			}
+		};
+
+		// NOTE: ugly hack to workaround casting shading model (uint) to float
+		static_cast<FMaterialCompilerHack*>(Compiler)->SetParameterType(Code, MCT_Float1);
+		return Compiler->Div(Code, Compiler->Constant(255)); // [0,255] / 255
 	}
 
 private:
