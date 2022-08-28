@@ -3,27 +3,25 @@
 #pragma once
 
 #include "GLTFJsonRoot.h"
+#include "GLTFBufferBuilder.h"
 #include "Engine.h"
 
 struct GLTFEXPORTER_API FGLTFBuilder
 {
 	FGLTFJsonRoot JsonRoot;
-
-	const FGLTFJsonBufferIndex MergedBufferIndex;
-	TArray<uint8> MergedBufferData;
+	FGLTFBufferBuilder BufferBuilder;
 
 	FGLTFBuilder();
+
+	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
 	template <class ElementType>
 	FGLTFJsonBufferViewIndex AddBufferView(const TArray<ElementType>& Array, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer)
 	{
-		return AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
+		return BufferBuilder.AddBufferView(Array.GetData(), Array.Num() * sizeof(ElementType), Name, BufferTarget);
 	}
-
-	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 
 	FGLTFJsonMeshIndex AddMesh(const UStaticMesh* StaticMesh, int32 LODIndex);
 
-	void UpdateMergedBuffer();
 	void Serialize(FArchive& Archive);
 };
