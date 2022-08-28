@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonEnums.h"
+#include "Json/GLTFJsonOrbitCamera.h"
 #include "Json/GLTFJsonUtility.h"
 #include "Serialization/JsonSerializer.h"
 
@@ -81,7 +82,8 @@ struct FGLTFJsonCamera
 {
 	FString Name;
 
-	EGLTFJsonCameraType Type;
+	EGLTFJsonCameraType             Type;
+	TOptional<FGLTFJsonOrbitCamera> OrbitCamera;
 
 	union {
 		FGLTFJsonOrthographic Orthographic;
@@ -121,6 +123,19 @@ struct FGLTFJsonCamera
 
 			default:
 				break;
+		}
+
+		if (OrbitCamera.IsSet())
+		{
+			JsonWriter.WriteObjectStart(TEXT("extensions"));
+
+			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_OrbitalCameras;
+			Extensions.Used.Add(Extension);
+
+			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
+			OrbitCamera.GetValue().WriteObject(JsonWriter, Extensions);
+
+			JsonWriter.WriteObjectEnd();
 		}
 
 		JsonWriter.WriteObjectEnd();
