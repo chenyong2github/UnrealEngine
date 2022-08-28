@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Converters/GLTFPackedColor.h"
+#include "Converters/GLTFPackedTypes.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonVector2.h"
 #include "Json/GLTFJsonVector3.h"
@@ -41,10 +41,30 @@ struct FGLTFConverterUtility
 		return ConvertVector(Normal);
 	}
 
+	static FGLTFPackedVector16 ConvertNormal(const FPackedRGBA16N& Normal)
+	{
+		return { Normal.X, Normal.Z, Normal.Y };
+	}
+
+	static FGLTFPackedVector8 ConvertNormal(const FPackedNormal& Normal)
+	{
+		return { Normal.Vector.X, Normal.Vector.Z, Normal.Vector.Y };
+	}
+
 	static FGLTFJsonVector4 ConvertTangent(const FVector& Tangent)
 	{
 		// glTF stores tangent as Vec4, with W component indicating handedness of tangent basis.
 		return { ConvertVector(Tangent), 1.0f };
+	}
+
+	static FGLTFPackedVector16 ConvertTangent(const FPackedRGBA16N& Tangent)
+	{
+		return { Tangent.X, Tangent.Z, Tangent.Y, MAX_int16 /* = 1.0 */ };
+	}
+
+	static FGLTFPackedVector8 ConvertTangent(const FPackedNormal& Tangent)
+	{
+		return { Tangent.Vector.X, Tangent.Vector.Z, Tangent.Vector.Y, MAX_int8 /* = 1.0 */ };
 	}
 
 	static FGLTFJsonVector2 ConvertUV(const FVector2D& UV)
