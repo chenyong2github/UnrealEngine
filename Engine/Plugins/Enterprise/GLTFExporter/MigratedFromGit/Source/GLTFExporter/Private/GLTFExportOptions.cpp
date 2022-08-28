@@ -6,7 +6,6 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "UObject/UObjectBaseUtility.h"
-#include "UObject/UObjectHash.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "Misc/ConfigCacheIni.h"
@@ -15,19 +14,16 @@
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bBundleWebViewer = false;
-	bExportPreviewMesh = true;
-	bAllExtensionsRequired = false;
+	bExportUnlitMaterials = true;
+	bExportClearCoatMaterials = true;
+	bBakeMaterialInputs = true;
+	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	bExportVertexColors = true;
 	NormalExportMethod = EGLTFExporterNormalExportMethod::NormalsAndTangents;
 	bTangentDataQuantization = false;
 	bNormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
 	bMapSkeletalMotionToRoot = false;
-	bExportUnlitMaterials = true;
-	bExportClearCoatMaterials = true;
-	bBakeMaterialInputs = true;
-	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
@@ -39,6 +35,9 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
 	bExportInteractionHotspots = false;
+	bBundleWebViewer = false;
+	bExportPreviewMesh = true;
+	bAllExtensionsRequired = false;
 }
 
 void UGLTFExportOptions::ResetToDefault()
@@ -209,5 +208,16 @@ void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, co
 
 bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 {
+	if (InProperty->GetName() == TEXT("DefaultMaterialBakeSize"))
+	{
+		return true;
+	}
+
 	return false; // TODO: change to true for each option implemented and support by the object to be exported.
+}
+
+FIntPoint UGLTFExportOptions::GetDefaultMaterialBakeSize() const
+{
+	const int32 Size = 1 << static_cast<int>(DefaultMaterialBakeSize);
+	return { Size, Size };
 }
