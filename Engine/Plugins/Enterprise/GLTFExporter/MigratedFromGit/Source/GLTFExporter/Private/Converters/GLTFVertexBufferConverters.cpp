@@ -160,13 +160,13 @@ FGLTFJsonAccessorIndex FGLTFUVVertexBufferConverter::Add(FGLTFConvertBuilder& Bu
 	return Builder.AddAccessor(JsonAccessor);
 }
 
-FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset)
+FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 InfluenceOffset, FGLTFBoneMap BoneMap)
 {
-	return VertexBuffer->Use16BitBoneIndex() ? Add<uint16>(Builder, Name, VertexBuffer, InfluenceOffset) : Add<uint8>(Builder, Name, VertexBuffer, InfluenceOffset);
+	return VertexBuffer->Use16BitBoneIndex() ? Add<uint16>(Builder, Name, VertexBuffer, InfluenceOffset, BoneMap) : Add<uint8>(Builder, Name, VertexBuffer, InfluenceOffset, BoneMap);
 }
 
 template <typename IndexType>
-FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex)
+FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const FSkinWeightVertexBuffer* VertexBuffer, int32 JointsGroupIndex, FGLTFBoneMap BoneMap)
 {
 	const uint32 VertexCount = VertexBuffer->GetNumVertices();
 	const int32 MaxInfluenceCount = VertexBuffer->GetMaxBoneInfluences();
@@ -176,8 +176,6 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuil
 	{
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
-
-	const int32 InfluenceCount = FMath::Min(MaxInfluenceCount - InfluenceOffset, 4);
 
 	struct VertexBoneIndices
 	{
@@ -189,18 +187,14 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexVertexBufferConverter::Add(FGLTFConvertBuil
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+		for (int32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
 		{
 			// TODO: remove hack
-			const uint32 BoneIndex = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneIndex(VertexIndex, InfluenceOffset + InfluenceIndex);
+			const uint32 UnmappedBoneIndex = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneIndex(VertexIndex, InfluenceOffset + InfluenceIndex);
+			const FBoneIndexType BoneIndex = BoneMap[UnmappedBoneIndex];
 			check(BoneIndex <= TNumericLimits<IndexType>::Max());
 
 			BoneIndices[VertexIndex].Index[InfluenceIndex] = static_cast<IndexType>(BoneIndex);
-		}
-
-		for (int32 InfluenceIndex = InfluenceCount; InfluenceIndex < 4; ++InfluenceIndex)
-		{
-			BoneIndices[VertexIndex].Index[InfluenceIndex] = 0;
 		}
 	}
 
@@ -225,8 +219,6 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Add(FGLTFConvertBui
 		return FGLTFJsonAccessorIndex(INDEX_NONE);
 	}
 
-	const int32 InfluenceCount = FMath::Min(MaxInfluenceCount - InfluenceOffset, 4);
-
 	struct VertexBoneWeights
 	{
 		uint8 Weights[4];
@@ -237,16 +229,11 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightVertexBufferConverter::Add(FGLTFConvertBui
 
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
-		for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
+		for (int32 InfluenceIndex = 0; InfluenceIndex < 4; ++InfluenceIndex)
 		{
 			// TODO: remove hack
 			const uint8 BoneWeight = FGLTFSkinWeightVertexBufferHack(VertexBuffer).GetBoneWeight(VertexIndex, InfluenceOffset + InfluenceIndex);
 			BoneWeights[VertexIndex].Weights[InfluenceIndex] = BoneWeight;
-		}
-
-		for (int32 InfluenceIndex = InfluenceCount; InfluenceIndex < 4; ++InfluenceIndex)
-		{
-			BoneWeights[VertexIndex].Weights[InfluenceIndex] = 0;
 		}
 	}
 
