@@ -4,7 +4,6 @@
 
 #include "Tasks/GLTFDelayedTask.h"
 #include "Builders/GLTFConvertBuilder.h"
-#include "LevelSequenceActor.h"
 #include "LevelSequence.h"
 
 class FGLTFDelayedAnimSequenceTask : public FGLTFDelayedTask
