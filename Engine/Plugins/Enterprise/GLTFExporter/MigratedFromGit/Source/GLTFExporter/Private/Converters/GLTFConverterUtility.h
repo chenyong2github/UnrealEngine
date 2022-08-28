@@ -92,6 +92,14 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
+	static FGLTFJsonQuaternion ConvertCameraDirection()
+	{
+		// Unreal uses +X axis as camera direction in Unreal coordinates.
+		// glTF uses -Y as camera direction in Unreal coordinates.
+
+		return ConvertRotation(FRotator(0, -90, 0).Quaternion());
+	}
+
 	static EGLTFJsonCameraType ConvertCameraType(ECameraProjectionMode::Type ProjectionMode);
 
 	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel);
