@@ -115,6 +115,11 @@ void AGLTFOrbitCameraActor::PreInitializeComponents()
 	Super::PreInitializeComponents();
 }
 
+void AGLTFOrbitCameraActor::PostActorCreated()
+{
+	SetAutoActivateForPlayer(EAutoReceiveInput::Player0);
+}
+
 void AGLTFOrbitCameraActor::OnMouseX(float AxisValue)
 {
 	TargetYaw += AxisValue * OrbitSensitivity * OrbitSensitivityScale;
@@ -178,4 +183,23 @@ FVector AGLTFOrbitCameraActor::GetFocusPosition(bool* bOutHasValidFocusActor) co
 	}
 
 	return bHasValidFocusActor ? this->Focus->GetActorLocation() : FVector::ZeroVector;
+}
+
+bool AGLTFOrbitCameraActor::SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player)
+{
+	// TODO: remove hack by adding proper API access to ACameraActor (or by other means)
+	FProperty* Property = GetClass()->FindPropertyByName(TEXT("AutoActivateForPlayer"));
+	if (Property == nullptr)
+	{
+		return false;
+	}
+
+	TEnumAsByte<EAutoReceiveInput::Type>* ValuePtr = Property->ContainerPtrToValuePtr<TEnumAsByte<EAutoReceiveInput::Type>>(this);
+	if (ValuePtr == nullptr)
+	{
+		return false;
+	}
+
+	*ValuePtr = Player;
+	return true;
 }

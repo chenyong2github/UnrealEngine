@@ -24,6 +24,7 @@ protected:
 public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PreInitializeComponents() override;
+	virtual void PostActorCreated() override;
 	//~ End AActor Interface
 
 private:
@@ -47,6 +48,8 @@ private:
 	FRotator GetLookAtRotation(const FVector TargetPosition) const;
 
 	FVector GetFocusPosition(bool* bOutHasValidFocusActor = nullptr) const;
+
+	bool SetAutoActivateForPlayer(const EAutoReceiveInput::Type Player);
 
 public:
 	/* Actor which the camera will focus on and subsequently orbit. */
