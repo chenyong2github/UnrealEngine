@@ -3,7 +3,6 @@
 #pragma once
 
 #include "GLTFExportOptions.h"
-#include "InputCoreTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"

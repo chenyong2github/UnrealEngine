@@ -391,10 +391,8 @@ FIntPoint AGLTFHotspotActor::GetCurrentViewportSize()
 
 		return Viewport->GetSizeXY();
 	}
-	else
-	{
-		return FIntPoint(0, 0);
-	}
+
+	return FIntPoint::ZeroValue;
 }
 
 void AGLTFHotspotActor::ViewportResized(FViewport*, uint32)

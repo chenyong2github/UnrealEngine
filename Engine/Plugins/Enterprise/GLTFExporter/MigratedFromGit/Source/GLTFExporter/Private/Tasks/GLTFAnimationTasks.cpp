@@ -147,7 +147,7 @@ void FGLTFAnimSequenceTask::Complete()
 			JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec4;
 
 			FGLTFJsonAnimationSampler JsonSampler;
-			JsonSampler.Input = Builder.AddAccessor(JsonInputAccessor);;
+			JsonSampler.Input = Builder.AddAccessor(JsonInputAccessor);
 			JsonSampler.Output = Builder.AddAccessor(JsonOutputAccessor);
 			JsonSampler.Interpolation = Interpolation;
 

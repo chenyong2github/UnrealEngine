@@ -24,29 +24,23 @@ public:
 				FBoneIndex16* BoneIndex16Ptr = (FBoneIndex16*)BoneData;
 				return BoneIndex16Ptr[InfluenceIndex];
 			}
-			else
-			{
-				return BoneData[InfluenceIndex];
-			}
+
+			return BoneData[InfluenceIndex];
 		}
-		else
-		{
-			return 0;
-		}
+
+		return 0;
 	}
 
 	uint8 GetBoneWeight(uint32 VertexWeightOffset, uint32 VertexInfluenceCount, uint32 InfluenceIndex) const
 	{
 		if (InfluenceIndex < VertexInfluenceCount)
 		{
-			uint8* BoneData = Data + VertexWeightOffset;
-			uint32 BoneWeightOffset = GetBoneIndexByteSize() * VertexInfluenceCount;
+			const uint8* BoneData = Data + VertexWeightOffset;
+			const uint32 BoneWeightOffset = GetBoneIndexByteSize() * VertexInfluenceCount;
 			return BoneData[BoneWeightOffset + InfluenceIndex];
 		}
-		else
-		{
-			return 0;
-		}
+
+		return 0;
 	}
 
 	// guaranteed only to be valid if the vertex buffer is valid
@@ -83,8 +77,8 @@ public:
 
 	void GetWeightOffsetAndInfluenceCount(uint32 VertexIndex, uint32& OutWeightOffset, uint32& OutInfluenceCount) const
 	{
-		uint32 Offset = VertexIndex * 4;
-		uint32 DataUInt32 = *((uint32*)(&Data[Offset]));
+		const uint32 Offset = VertexIndex * 4;
+		const uint32 DataUInt32 = *((uint32*)(&Data[Offset]));
 		OutWeightOffset = DataUInt32 >> 8;
 		OutInfluenceCount = DataUInt32 & 0xff;
 	}

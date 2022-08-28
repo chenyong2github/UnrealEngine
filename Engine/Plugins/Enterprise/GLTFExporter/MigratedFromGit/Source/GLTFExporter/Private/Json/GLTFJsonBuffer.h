@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Json/GLTFJsonIndex.h"
 #include "Serialization/JsonSerializer.h"
 
 struct FGLTFJsonBuffer

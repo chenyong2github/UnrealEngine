@@ -301,7 +301,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return true;
 	}
 
-	// NOTE: since we always bake the properties (for now) when atleast property is non-const, we need
+	// NOTE: since we always bake the properties (for now) when at least property is non-const, we need
 	// to reset the constant factors to their defaults. Otherwise the baked value of a constant property
 	// would be scaled with the factor, i.e a double scaling.
 	OutPBRParams.BaseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -425,7 +425,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		return true;
 	}
 
-	// NOTE: since we always bake the properties (for now) when atleast one property is non-const, we need
+	// NOTE: since we always bake the properties (for now) when at least one property is non-const, we need
 	// to reset the constant factors to their defaults. Otherwise the baked value of a constant property
 	// would be scaled with the factor, i.e a double scaling.
 	OutPBRParams.MetallicFactor = 1.0f;
@@ -550,7 +550,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return true;
 	}
 
-	// NOTE: since we always bake the properties (for now) when atleast one property is non-const, we need
+	// NOTE: since we always bake the properties (for now) when at least one property is non-const, we need
 	// to reset the constant factors to their defaults. Otherwise the baked value of a constant property
 	// would be scaled with the factor, i.e a double scaling.
 	OutExtParams.ClearCoatFactor = 1.0f;

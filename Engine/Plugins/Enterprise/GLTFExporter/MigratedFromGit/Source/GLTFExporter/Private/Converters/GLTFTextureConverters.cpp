@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFTextureConverters.h"
-#include "Builders/GLTFContainerBuilder.h"
 #include "Tasks/GLTFTextureTasks.h"
 
 FGLTFJsonTextureIndex FGLTFTexture2DConverter::Convert(const UTexture2D* Texture2D)
