@@ -110,7 +110,7 @@ UTexture2D* FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint OutputSiz
 		PF_B8G8R8A8);
 }
 
-FGLTFJsonTextureIndex FGLTFMaterialUtility::AddMetallicRoughnessTexture(FGLTFConvertBuilder& Builder, const UTexture2D* MetallicTexture, const UTexture2D* RoughnessTexture, EGLTFJsonTextureFilter Filter, EGLTFJsonTextureWrap Wrap)
+FGLTFJsonTextureIndex FGLTFMaterialUtility::AddMetallicRoughnessTexture(FGLTFConvertBuilder& Builder, const UTexture2D* MetallicTexture, const UTexture2D* RoughnessTexture, EGLTFJsonTextureFilter Filter, EGLTFJsonTextureWrap Wrap, const FString& TextureName)
 {
 	check(MetallicTexture->GetPixelFormat() == RoughnessTexture->GetPixelFormat());
 
@@ -133,18 +133,16 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddMetallicRoughnessTexture(FGLTFCon
 		return FGLTFJsonTextureIndex(INDEX_NONE);
 	}
 
-	const FString Name = TEXT("MetallicRoughness");
-
 	// TODO: maybe we should reuse existing samplers?
 	FGLTFJsonSampler JsonSampler;
-	JsonSampler.Name = Name;
+	JsonSampler.Name = TextureName;
 	JsonSampler.MagFilter = JsonSampler.MinFilter = Filter;
 	JsonSampler.WrapS = JsonSampler.WrapT = Wrap;
 
 	FGLTFJsonTexture JsonTexture;
-	JsonTexture.Name = Name;
+	JsonTexture.Name = TextureName;
 	JsonTexture.Sampler = Builder.AddSampler(JsonSampler);
-	JsonTexture.Source = Builder.AddImage(Pixels, TextureSize.X, TextureSize.Y, PixelFormat, Name);
+	JsonTexture.Source = Builder.AddImage(Pixels, TextureSize.X, TextureSize.Y, PixelFormat, TextureName);
 
 	return Builder.AddTexture(JsonTexture);
 }
