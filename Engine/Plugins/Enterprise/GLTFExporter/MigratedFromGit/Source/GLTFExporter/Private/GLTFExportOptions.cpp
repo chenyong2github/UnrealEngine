@@ -214,7 +214,8 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyName == TEXT("bExportClearCoatMaterials") ||
 		PropertyName == TEXT("bBakeMaterialInputs") ||
 		PropertyName == TEXT("DefaultMaterialBakeSize") ||
-		PropertyName == TEXT("bExportVertexColors"))
+		PropertyName == TEXT("bExportVertexColors") ||
+		PropertyName == TEXT("bExportLightmaps"))
 	{
 		return true;
 	}

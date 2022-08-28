@@ -40,11 +40,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	else if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		Node.Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
-
-		if (true /* TODO: make export of light-maps optional (selectable via export options) */)
-		{
-			Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
-		}
+		Node.LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 	{
