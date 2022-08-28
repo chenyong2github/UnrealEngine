@@ -248,7 +248,7 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	int32 TexCoord = 0;
-	FIntPoint TextureSize(512, 512);
+	FIntPoint TextureSize(1024, 1024);
 
 	// TODO: should this be the default wrap-mode?
 	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
@@ -390,7 +390,7 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	int32 TexCoord = 0;
-	FIntPoint TextureSize(512, 512);
+	FIntPoint TextureSize(1024, 1024);
 
 	// TODO: should this be the default wrap-mode?
 	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
@@ -971,7 +971,7 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialProperty Property, const UMaterialInterface* Material, const FIntPoint* PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
 {
 	// TODO: make default baking-resolution configurable
-	const FIntPoint DefaultTextureSize(512, 512);
+	const FIntPoint DefaultTextureSize(1024, 1024);
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
