@@ -6,7 +6,7 @@
 #include "Json/GLTFJsonArray.h"
 
 template <typename BaseType>
-struct TGLTFJsonMatrix final : BaseType, IGLTFJsonArray
+struct TGLTFJsonMatrix : BaseType, IGLTFJsonArray
 {
 	static const TGLTFJsonMatrix Identity;
 
@@ -43,6 +43,26 @@ struct TGLTFJsonMatrix final : BaseType, IGLTFJsonArray
 	}
 };
 
-typedef TGLTFJsonMatrix<FGLTFMatrix2> FGLTFJsonMatrix2;
-typedef TGLTFJsonMatrix<FGLTFMatrix3> FGLTFJsonMatrix3;
-typedef TGLTFJsonMatrix<FGLTFMatrix4> FGLTFJsonMatrix4;
+struct FGLTFJsonMatrix2 : TGLTFJsonMatrix<FGLTFMatrix2>
+{
+	static const FGLTFJsonMatrix2 Identity;
+
+	using TGLTFJsonMatrix::TGLTFJsonMatrix;
+	using TGLTFJsonMatrix::operator=;
+};
+
+struct FGLTFJsonMatrix3 : TGLTFJsonMatrix<FGLTFMatrix3>
+{
+	static const FGLTFJsonMatrix3 Identity;
+
+	using TGLTFJsonMatrix::TGLTFJsonMatrix;
+	using TGLTFJsonMatrix::operator=;
+};
+
+struct FGLTFJsonMatrix4 : TGLTFJsonMatrix<FGLTFMatrix4>
+{
+	static const FGLTFJsonMatrix4 Identity;
+
+	using TGLTFJsonMatrix::TGLTFJsonMatrix;
+	using TGLTFJsonMatrix::operator=;
+};
