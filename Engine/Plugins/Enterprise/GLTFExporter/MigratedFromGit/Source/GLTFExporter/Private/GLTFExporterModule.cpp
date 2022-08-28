@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+DEFINE_LOG_CATEGORY(LogGLTFExporter);
+
 /**
  * glTF Exporter module implementation (private)
  */
