@@ -51,7 +51,12 @@ FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMesh* StaticMes
 {
 	const FStaticMeshLODResources* StaticMeshLOD = &StaticMesh->GetLODForExport(LODIndex);
 	FString Name = DesiredName.IsEmpty() ? StaticMesh->GetName() : DesiredName;
-	if (LODIndex != 0) Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+
+	if (LODIndex != 0)
+	{
+		Name += TEXT("_LOD") + FString::FromInt(LODIndex);
+	}
+
 	return ConvertMesh(StaticMeshLOD, OverrideVertexColors, Name);
 }
 
@@ -60,6 +65,7 @@ FGLTFJsonMeshIndex FGLTFIndexedBuilder::ConvertMesh(const UStaticMeshComponent* 
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	const int32 LODIndex = StaticMeshComponent->ForcedLodModel > 0 ? StaticMeshComponent->ForcedLodModel - 1 : /* auto-select */ 0;
 	const FColorVertexBuffer* OverrideVertexColors = LODIndex < StaticMeshComponent->LODData.Num() ? StaticMeshComponent->LODData[LODIndex].OverrideVertexColors : nullptr;
+
 	return ConvertMesh(StaticMesh, LODIndex, OverrideVertexColors, DesiredName);
 }
 
@@ -75,6 +81,5 @@ FGLTFJsonSceneIndex FGLTFIndexedBuilder::ConvertScene(const ULevel* Level, bool 
 
 FGLTFJsonSceneIndex FGLTFIndexedBuilder::ConvertScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName)
 {
-	const ULevel* Level = World->PersistentLevel;
-	return ConvertScene(Level, bSelectedOnly, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
+	return ConvertScene(World->PersistentLevel, bSelectedOnly, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
 }
