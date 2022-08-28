@@ -8,6 +8,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 
 FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
+	: Parent(nullptr)
 {
 	FStaticMeshAttributes(Description).Register();
 
@@ -29,6 +30,7 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 }
 
 FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex)
+	: Parent(nullptr)
 {
 	FStaticMeshAttributes(Description).Register();
 
@@ -71,4 +73,9 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 	TexCoord = NumTexCoords - 1;
 
 	// TODO: add warning if texture coordinate has overlap
+}
+
+const FGLTFMeshData* FGLTFMeshData::GetParent() const
+{
+	return Parent != nullptr ? Parent : this;
 }
