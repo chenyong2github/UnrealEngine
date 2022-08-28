@@ -80,14 +80,17 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	{
 		Node.Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
 
-		// TODO: remove need for NodeIndex by adding support for cyclic calls in converter
-		const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMeshComponent);
-		if (SkinIndex != INDEX_NONE)
+		if (Builder.ExportOptions->bExportVertexSkinWeights)
 		{
-			Builder.GetNode(NodeIndex).Skin = SkinIndex;
-			if (Builder.ExportOptions->bExportAnimationSequences)
+			// TODO: remove need for NodeIndex by adding support for cyclic calls in converter
+			const FGLTFJsonSkinIndex SkinIndex = Builder.GetOrAddSkin(NodeIndex, SkeletalMeshComponent);
+			if (SkinIndex != INDEX_NONE)
 			{
-				Builder.GetOrAddAnimation(NodeIndex, SkeletalMeshComponent);
+				Builder.GetNode(NodeIndex).Skin = SkinIndex;
+				if (Builder.ExportOptions->bExportAnimationSequences)
+				{
+					Builder.GetOrAddAnimation(NodeIndex, SkeletalMeshComponent);
+				}
 			}
 		}
 	}
