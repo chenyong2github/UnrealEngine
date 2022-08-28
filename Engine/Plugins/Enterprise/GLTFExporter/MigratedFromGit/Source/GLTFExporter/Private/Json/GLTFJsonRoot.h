@@ -75,27 +75,8 @@ struct FGLTFJsonRoot
 		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
 		Asset.WriteObject(JsonWriter);
 
-		if (ExtensionsUsed.Num() > 0)
-		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("extensionsUsed"));
-			JsonWriter.WriteArrayStart();
-			for (const EGLTFJsonExtension& Extension : ExtensionsUsed)
-			{
-				JsonWriter.WriteValue(FGLTFJsonUtility::ToString(Extension));
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-
-		if (ExtensionsRequired.Num() > 0)
-		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("extensionsRequired"));
-			JsonWriter.WriteArrayStart();
-			for (const EGLTFJsonExtension& Extension : ExtensionsRequired)
-			{
-				JsonWriter.WriteValue(FGLTFJsonUtility::ToString(Extension));
-			}
-			JsonWriter.WriteArrayEnd();
-		}
+		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), ExtensionsUsed);
+		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), ExtensionsRequired);
 
 		if (DefaultScene != INDEX_NONE)
 		{
