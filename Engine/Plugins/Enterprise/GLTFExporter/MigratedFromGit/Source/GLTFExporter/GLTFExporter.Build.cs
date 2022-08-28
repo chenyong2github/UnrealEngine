@@ -26,7 +26,6 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"RenderCore",
 					"RHI",
-					"DesktopPlatform",
 					"LevelSequence",
 					"MovieScene",
 					"MovieSceneTracks",
