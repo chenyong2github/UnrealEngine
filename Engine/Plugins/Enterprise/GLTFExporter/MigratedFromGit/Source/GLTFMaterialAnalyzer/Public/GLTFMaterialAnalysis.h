@@ -6,6 +6,11 @@
 
 struct FGLTFMaterialAnalysis
 {
+	FGLTFMaterialAnalysis()
+		: bRequiresVertexData(false)
+	{
+	}
+
 	/** Tracks the texture coordinates used by this material */
 	TBitArray<> TextureCoordinates;
 
