@@ -1361,6 +1361,12 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 
 	if (Mesh != nullptr)
 	{
+		// TODO: add support for override materials
+
+		// TODO: add support for override vertex colors
+
+		// TODO: add support for baking world-position, -normals and other inputs that depend on component transform
+
 		FStaticMeshAttributes(MeshDescription).Register();
 		FMeshMergeHelpers::RetrieveMesh(Mesh, LODIndex, MeshDescription);
 
