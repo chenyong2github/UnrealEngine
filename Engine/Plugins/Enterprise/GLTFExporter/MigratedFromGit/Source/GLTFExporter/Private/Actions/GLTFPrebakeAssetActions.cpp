@@ -4,6 +4,8 @@
 
 #include "Actions/GLTFPrebakeAssetActions.h"
 #include "Actions/GLTFEditorStyle.h"
+#include "Options/GLTFPrebakeOptions.h"
+#include "UI/GLTFPrebakeOptionsWindow.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "GLTFPrebakeAssetActions"
@@ -39,6 +41,13 @@ void FGLTFPrebakeAssetActions::GetPrebakeActions(const TArray<UObject*>& InObjec
 
 void FGLTFPrebakeAssetActions::OnPrebake(TArray<FWeakObjectPtr> Objects) const
 {
+	UGLTFPrebakeOptions* Options = NewObject<UGLTFPrebakeOptions>();
+
+	if (!SGLTFPrebakeOptionsWindow::ShowDialog(Options))
+	{
+		return;
+	}
+
 	for (const FWeakObjectPtr& Object : Objects)
 	{
 		if (UMaterialInterface* Material = Cast<UMaterialInterface>(Object.Get()))
