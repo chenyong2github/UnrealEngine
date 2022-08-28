@@ -11,5 +11,7 @@ struct FGLTFMeshSection
 
 	TArray<uint32> IndexMap;
 	TArray<uint32> IndexBuffer;
+
 	TArray<FBoneIndexType> BoneMap;
+	uint32 MaxBoneIndex;
 };
