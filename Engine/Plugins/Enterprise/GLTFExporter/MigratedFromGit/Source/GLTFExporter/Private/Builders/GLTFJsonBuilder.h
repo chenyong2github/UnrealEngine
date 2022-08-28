@@ -16,6 +16,7 @@ public:
 	FGLTFJsonAccessorIndex AddAccessor(const FGLTFJsonAccessor& JsonAccessor);
 	FGLTFJsonBufferIndex AddBuffer(const FGLTFJsonBuffer& JsonBuffer);
 	FGLTFJsonBufferViewIndex AddBufferView(const FGLTFJsonBufferView& JsonBufferView);
+	FGLTFJsonMaterialIndex AddMaterial(const FGLTFJsonMaterial& JsonMaterial);
 	FGLTFJsonMeshIndex AddMesh(const FGLTFJsonMesh& JsonMesh);
 	FGLTFJsonNodeIndex AddNode(const FGLTFJsonNode& JsonNode);
 	FGLTFJsonSceneIndex AddScene(const FGLTFJsonScene& JsonScene);
