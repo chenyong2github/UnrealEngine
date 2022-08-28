@@ -22,7 +22,7 @@ bool UGLTFExporter::FillExportOptions()
 	bool bExportAll = GetBatchMode() && !GetShowExportOption();
 	bool bExportCancel = false;
 
-	ExportOptions->FillOptions(GetBatchMode(), GetShowExportOption(), UExporter::CurrentFilename, bExportCancel, bExportAll);
+	ExportOptions->FillOptions(GetBatchMode(), GetShowExportOption(), CurrentFilename, bExportCancel, bExportAll);
 	if (bExportCancel)
 	{
 		SetCancelBatch(GetBatchMode());
