@@ -1,65 +1,73 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UserData/GLTFMaterialUserData.h"
-#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstance.h"
+#include "Engine/Texture.h"
 
-UGLTFMaterialUserData::UGLTFMaterialUserData()
-	: DefaultBakeSize(EGLTFOverrideMaterialBakeSizePOT::POT_1024)
+FGLTFOverrideMaterialBakeSettings::FGLTFOverrideMaterialBakeSettings()
+	: bOverrideSize(false)
+	, Size(EGLTFMaterialBakeSizePOT::POT_1024)
+	, bOverrideFilter(false)
+	, Filter(TF_Trilinear)
+	, bOverrideTiling(false)
+	, Tiling(TA_Wrap)
 {
 }
 
-EGLTFOverrideMaterialBakeSizePOT UGLTFMaterialUserData::GetBakeSizeForProperty(EMaterialProperty Property) const
+EGLTFMaterialBakeSizePOT UGLTFMaterialExportOptions::GetBakeSizeForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, EGLTFMaterialBakeSizePOT DefaultValue)
 {
-	const EGLTFOverrideMaterialPropertyGroup PropertyGroup = GetPropertyGroup(Property);
-	if (const EGLTFOverrideMaterialBakeSizePOT* PropertyBakeSize = BakeSizePerProperty.Find(PropertyGroup))
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = GetBakeSettingsByPredicate(Material, PropertyGroup, [](const FGLTFOverrideMaterialBakeSettings& BakeSettings) { return BakeSettings.bOverrideSize; }))
 	{
-		return *PropertyBakeSize;
+		return BakeSettings->Size;
 	}
 
-	return DefaultBakeSize;
+	return DefaultValue;
 }
 
-enum class EGLTFOverrideMater : uint8
+TextureFilter UGLTFMaterialExportOptions::GetBakeFilterForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, TextureFilter DefaultValue)
 {
-	None UMETA(DisplayName = "None"),
-
-    BaseColorOpacity UMETA(DisplayName = "Base Color + Opacity (Mask)"),
-    MetallicRoughness UMETA(DisplayName = "Metallic + Roughness"),
-    EmissiveColor UMETA(DisplayName = "Emissive Color"),
-    Normal UMETA(DisplayName = "Normal"),
-    AmbientOcclusion UMETA(DisplayName = "Ambient Occlusion"),
-    ClearCoatRoughness UMETA(DisplayName = "Clear Coat + Clear Coat Roughness"),
-    ClearCoatBottomNormal UMETA(DisplayName = "Clear Coat Bottom Normal"),
-};
-
-EGLTFOverrideMaterialPropertyGroup UGLTFMaterialUserData::GetPropertyGroup(EMaterialProperty Property)
-{
-	switch (Property)
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = GetBakeSettingsByPredicate(Material, PropertyGroup, [](const FGLTFOverrideMaterialBakeSettings& BakeSettings) { return BakeSettings.bOverrideFilter; }))
 	{
-		case MP_BaseColor:
-		case MP_Opacity:
-		case MP_OpacityMask:
-			return EGLTFOverrideMaterialPropertyGroup::BaseColorOpacity;
-		case MP_Metallic:
-		case MP_Roughness:
-			return EGLTFOverrideMaterialPropertyGroup::MetallicRoughness;
-		case MP_EmissiveColor:
-			return EGLTFOverrideMaterialPropertyGroup::EmissiveColor;
-		case MP_Normal:
-			return EGLTFOverrideMaterialPropertyGroup::Normal;
-		case MP_AmbientOcclusion:
-			return EGLTFOverrideMaterialPropertyGroup::AmbientOcclusion;
-		case MP_CustomData0:
-		case MP_CustomData1:
-			return EGLTFOverrideMaterialPropertyGroup::ClearCoatRoughness;
-		case MP_CustomOutput: // TODO: fix assumption
-			return EGLTFOverrideMaterialPropertyGroup::ClearCoatBottomNormal;
-		default:
-			return EGLTFOverrideMaterialPropertyGroup::None;
+		return BakeSettings->Filter;
 	}
+
+	return DefaultValue;
 }
 
-const UGLTFMaterialUserData* UGLTFMaterialUserData::GetUserData(const UMaterialInterface* Material)
+TextureAddress UGLTFMaterialExportOptions::GetBakeTilingForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, TextureAddress DefaultValue)
 {
-	return const_cast<UMaterialInterface*>(Material)->GetAssetUserData<UGLTFMaterialUserData>();
+	if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = GetBakeSettingsByPredicate(Material, PropertyGroup, [](const FGLTFOverrideMaterialBakeSettings& BakeSettings) { return BakeSettings.bOverrideTiling; }))
+	{
+		return BakeSettings->Tiling;
+	}
+
+	return DefaultValue;
+}
+
+template <typename Predicate>
+const FGLTFOverrideMaterialBakeSettings* UGLTFMaterialExportOptions::GetBakeSettingsByPredicate(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, Predicate Pred)
+{
+	do
+	{
+		if (const UGLTFMaterialExportOptions* UserData = const_cast<UMaterialInterface*>(Material)->GetAssetUserData<UGLTFMaterialExportOptions>())
+		{
+			if (const FGLTFOverrideMaterialBakeSettings* BakeSettings = UserData->PerInput.Find(PropertyGroup))
+			{
+				if (Pred(*BakeSettings))
+				{
+					return BakeSettings;
+				}
+			}
+
+			if (Pred(UserData->Default))
+			{
+				return &UserData->Default;
+			}
+		}
+
+		const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material);
+		Material = MaterialInstance != nullptr ? MaterialInstance->Parent : nullptr;
+	} while (Material != nullptr);
+
+	return nullptr;
 }

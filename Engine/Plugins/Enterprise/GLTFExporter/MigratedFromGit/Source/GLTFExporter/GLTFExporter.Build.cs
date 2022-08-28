@@ -34,9 +34,15 @@ namespace UnrealBuildTool.Rules
 					"VariantManagerContent",
 					"MeshMergeUtilities",
 					"zlib",
-					"GLTFExporterRuntime",
 					"GLTFMaterialBaking",
 					"GLTFMaterialAnalyzer"
+				}
+				);
+
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"GLTFExporterRuntime"
 				}
 				);
 		}

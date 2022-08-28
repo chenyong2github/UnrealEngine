@@ -309,63 +309,15 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return false;
 	}
 
-	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, BaseColorProperty);
 
-	// TODO: should this be the default wrap-mode?
-	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
-	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
+	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, BaseColorProperty);
+	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);
+	const EGLTFJsonTextureWrap TextureWrapT = FGLTFConverterUtility::ConvertWrap(TextureAddress);
 
-	// TODO: should this be the default filter?
-	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
-	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
-
-	if (bHasBaseColorSourceTexture && bHasOpacitySourceTexture)
-	{
-		const bool bAreTexturesCompatible = BaseColorTexCoord == OpacityTexCoord &&
-			BaseColorTexture->AddressX == OpacityTexture->AddressX &&
-			BaseColorTexture->AddressY == OpacityTexture->AddressY;
-
-		if (!bAreTexturesCompatible)
-		{
-			// TODO: handle differences in wrapping or uv-coords
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("BaseColor- and Opacity-textures for material %s were not able to be combined and will be skipped"),
-				*Material->GetName()));
-
-			return false;
-		}
-
-		TextureSize =
-		{
-			FMath::Max(BaseColorTexture->GetSizeX(), OpacityTexture->GetSizeX()),
-			FMath::Max(BaseColorTexture->GetSizeY(), OpacityTexture->GetSizeY())
-		};
-
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressY);
-
-		// TODO: compare min- and mag-filter for BaseColorTexture and OpacityTexture. If they differ,
-		// we should choose one or the other and inform the user about the choice made by logging to the console.
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
-	}
-	else if (bHasBaseColorSourceTexture)
-	{
-		TextureSize = { BaseColorTexture->GetSizeX(), BaseColorTexture->GetSizeY() };
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressY);
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(BaseColorTexture->Filter, BaseColorTexture->LODGroup);
-	}
-	else if (bHasOpacitySourceTexture)
-	{
-		TextureSize = { OpacityTexture->GetSizeX(), OpacityTexture->GetSizeY() };
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(OpacityTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(OpacityTexture->AddressY);
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(OpacityTexture->Filter, OpacityTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(OpacityTexture->Filter, OpacityTexture->LODGroup);
-	}
+	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, BaseColorProperty);
+	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
+	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
 	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, BaseColorTexCoord, TextureSize);
 	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, OpacityTexCoord, TextureSize, true);
@@ -480,60 +432,13 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, MetallicProperty);
 
-	// TODO: should this be the default wrap-mode?
-	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
-	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
+	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, MetallicProperty);
+	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);
+	const EGLTFJsonTextureWrap TextureWrapT = FGLTFConverterUtility::ConvertWrap(TextureAddress);
 
-	// TODO: should this be the default filter?
-	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
-	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
-
-	if (bHasMetallicSourceTexture && bHasRoughnessSourceTexture)
-	{
-		const bool bAreTexturesCompatible = MetallicTexCoord == RoughnessTexCoord &&
-			MetallicTexture->AddressX == RoughnessTexture->AddressX &&
-			MetallicTexture->AddressY == RoughnessTexture->AddressY;
-
-		if (!bAreTexturesCompatible)
-		{
-			// TODO: handle differences in wrapping or uv-coords
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Metallic- and Roughness-textures for material %s were not able to be combined and will be skipped"),
-				*Material->GetName()));
-
-			return false;
-		}
-
-		TextureSize =
-		{
-			FMath::Max(MetallicTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
-			FMath::Max(MetallicTexture->GetSizeY(), RoughnessTexture->GetSizeY())
-		};
-
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressY);
-
-		// TODO: compare min- and mag-filter for BaseColorTexture and OpacityTexture. If they differ,
-		// we should choose one or the other and inform the user about the choice made by logging to the console.
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
-	}
-	else if (bHasMetallicSourceTexture)
-	{
-		TextureSize = { MetallicTexture->GetSizeX(), MetallicTexture->GetSizeY() };
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressY);
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(MetallicTexture->Filter, MetallicTexture->LODGroup);
-	}
-	else if (bHasRoughnessSourceTexture)
-	{
-		TextureSize = { RoughnessTexture->GetSizeX(), RoughnessTexture->GetSizeY() };
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressY);
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
-	}
+	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, MetallicProperty);
+	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
+	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
 	const FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, MetallicTexCoord, TextureSize);
 	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize);
@@ -644,63 +549,15 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return false;
 	}
 
-	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 	FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, IntensityProperty);
 
-	// TODO: should this be the default wrap-mode?
-	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
-	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
+	const TextureAddress TextureAddress = Builder.GetBakeTilingForMaterialProperty(Material, IntensityProperty);
+	const EGLTFJsonTextureWrap TextureWrapS = FGLTFConverterUtility::ConvertWrap(TextureAddress);
+	const EGLTFJsonTextureWrap TextureWrapT = FGLTFConverterUtility::ConvertWrap(TextureAddress);
 
-	// TODO: should this be the default filter?
-	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
-	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
-
-	if (bHasIntensitySourceTexture && bHasRoughnessSourceTexture)
-	{
-		const bool bAreTexturesCompatible = IntensityTexCoord == RoughnessTexCoord &&
-			IntensityTexture->AddressX == RoughnessTexture->AddressX &&
-			IntensityTexture->AddressY == RoughnessTexture->AddressY;
-
-		if (!bAreTexturesCompatible)
-		{
-			// TODO: handle differences in wrapping or uv-coords
-			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Intensity- and Roughness-textures for material %s were not able to be combined and will be skipped"),
-				*Material->GetName()));
-
-			return false;
-		}
-
-		TextureSize =
-		{
-			FMath::Max(IntensityTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
-			FMath::Max(IntensityTexture->GetSizeY(), RoughnessTexture->GetSizeY())
-		};
-
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(IntensityTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(IntensityTexture->AddressY);
-
-		// TODO: compare min- and mag-filter for BaseColorTexture and OpacityTexture. If they differ,
-		// we should choose one or the other and inform the user about the choice made by logging to the console.
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(IntensityTexture->Filter, IntensityTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(IntensityTexture->Filter, IntensityTexture->LODGroup);
-	}
-	else if (bHasIntensitySourceTexture)
-	{
-		TextureSize = { IntensityTexture->GetSizeX(), IntensityTexture->GetSizeY() };
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(IntensityTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(IntensityTexture->AddressY);
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(IntensityTexture->Filter, IntensityTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(IntensityTexture->Filter, IntensityTexture->LODGroup);
-	}
-	else if (bHasRoughnessSourceTexture)
-	{
-		TextureSize = { RoughnessTexture->GetSizeX(), RoughnessTexture->GetSizeY() };
-		TextureWrapS = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressX);
-		TextureWrapT = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressY);
-		TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
-		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
-	}
+	const TextureFilter TextureFilter = Builder.GetBakeFilterForMaterialProperty(Material, IntensityProperty);
+	const EGLTFJsonTextureFilter TextureMinFilter = FGLTFConverterUtility::ConvertMinFilter(TextureFilter);
+	const EGLTFJsonTextureFilter TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(TextureFilter);
 
 	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, IntensityTexCoord, TextureSize);
 	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, RoughnessTexCoord, TextureSize);
@@ -1332,7 +1189,13 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	return true;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, FIntPoint PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
+FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, bool bCopyAlphaFromRedChannel) const
+{
+	const FIntPoint TextureSize = Builder.GetBakeSizeForMaterialProperty(Material, Property);
+	return BakeMaterialProperty(Property, OutTexCoord, TextureSize, bCopyAlphaFromRedChannel);
+}
+
+FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialPropertyEx& Property, int32& OutTexCoord, const FIntPoint& TextureSize, bool bCopyAlphaFromRedChannel) const
 {
 	if (MeshData == nullptr)
 	{
@@ -1358,9 +1221,6 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 	{
 		OutTexCoord = MeshData->TexCoord;
 	}
-
-	const FIntPoint DefaultTextureSize = Builder.GetBakeSizeForMaterialProperty(Material, Property);
-	const FIntPoint TextureSize = PreferredTextureSize != FIntPoint::ZeroValue ? PreferredTextureSize : DefaultTextureSize;
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
 

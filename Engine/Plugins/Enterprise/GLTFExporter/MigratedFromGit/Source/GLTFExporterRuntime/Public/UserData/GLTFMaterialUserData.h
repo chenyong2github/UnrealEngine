@@ -6,13 +6,20 @@
 #include "GLTFMaterialUserData.generated.h"
 
 class UMaterialInterface;
-enum EMaterialProperty;
+enum TextureFilter;
+enum TextureAddress;
 
 UENUM(BlueprintType)
-enum class EGLTFOverrideMaterialBakeSizePOT : uint8
+enum class EGLTFMaterialBakeMode : uint8
 {
-	NoOverride UMETA(DisplayName = "No Override"),
+    None,
+	Simple,
+	UseMeshData,
+};
 
+UENUM(BlueprintType)
+enum class EGLTFMaterialBakeSizePOT : uint8
+{
     POT_1 UMETA(DisplayName = "1 x 1"),
     POT_2 UMETA(DisplayName = "2 x 2"),
     POT_4 UMETA(DisplayName = "4 x 4"),
@@ -30,7 +37,7 @@ enum class EGLTFOverrideMaterialBakeSizePOT : uint8
 };
 
 UENUM(BlueprintType)
-enum class EGLTFOverrideMaterialPropertyGroup : uint8
+enum class EGLTFMaterialPropertyGroup : uint8
 {
 	None UMETA(DisplayName = "None"),
 
@@ -43,25 +50,52 @@ enum class EGLTFOverrideMaterialPropertyGroup : uint8
     ClearCoatBottomNormal UMETA(DisplayName = "Clear Coat Bottom Normal"),
 };
 
+USTRUCT(Blueprintable)
+struct FGLTFOverrideMaterialBakeSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle))
+	bool bOverrideSize;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bOverrideSize"))
+	EGLTFMaterialBakeSizePOT Size;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle))
+	bool bOverrideFilter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bOverrideFilter", ValidEnumValues="TF_Nearest, TF_Bilinear, TF_Trilinear"))
+	TEnumAsByte<TextureFilter> Filter;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (InlineEditConditionToggle))
+	bool bOverrideTiling;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bOverrideTiling"))
+	TEnumAsByte<TextureAddress> Tiling;
+
+	FGLTFOverrideMaterialBakeSettings();
+};
+
 /** glTF-specific user data that can be added to material assets to override export options */
-UCLASS(BlueprintType, meta = (DisplayName = "GLTF Material User Data"))
-class GLTFEXPORTERRUNTIME_API UGLTFMaterialUserData : public UAssetUserData
+UCLASS(BlueprintType, meta = (DisplayName = "GLTF Material Export Options"))
+class GLTFEXPORTERRUNTIME_API UGLTFMaterialExportOptions : public UAssetUserData
 {
 	GENERATED_BODY()
 
 public:
 
-	UGLTFMaterialUserData();
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings", meta = (ShowOnlyInnerProperties))
+	FGLTFOverrideMaterialBakeSettings Default;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Export Options")
-	EGLTFOverrideMaterialBakeSizePOT DefaultBakeSize;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Bake Settings")
+	TMap<EGLTFMaterialPropertyGroup, FGLTFOverrideMaterialBakeSettings> PerInput;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override Export Options")
-	TMap<EGLTFOverrideMaterialPropertyGroup, EGLTFOverrideMaterialBakeSizePOT> BakeSizePerProperty;
+	static EGLTFMaterialBakeSizePOT GetBakeSizeForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, EGLTFMaterialBakeSizePOT DefaultValue);
+	static TextureFilter GetBakeFilterForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, TextureFilter DefaultValue);
+	static TextureAddress GetBakeTilingForPropertyGroup(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, TextureAddress DefaultValue);
 
-	EGLTFOverrideMaterialBakeSizePOT GetBakeSizeForProperty(EMaterialProperty Property) const;
+private:
 
-	static EGLTFOverrideMaterialPropertyGroup GetPropertyGroup(EMaterialProperty Property);
-
-	static const UGLTFMaterialUserData* GetUserData(const UMaterialInterface* Material);
+	template <typename Predicate>
+	static const FGLTFOverrideMaterialBakeSettings* GetBakeSettingsByPredicate(const UMaterialInterface* Material, EGLTFMaterialPropertyGroup PropertyGroup, Predicate Pred);
 };
