@@ -223,9 +223,7 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	}
 
 	// TODO: make default baking-resolution configurable
-	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	int32 TexCoord = 0;
 	FIntPoint TextureSize(1024, 1024);
 
 	// TODO: should this be the default wrap-mode?
@@ -252,7 +250,6 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 			return false;
 		}
 
-		TexCoord = BaseColorTexCoord;
 		TextureSize =
 		{
 			FMath::Max(BaseColorTexture->GetSizeX(), OpacityTexture->GetSizeX()),
@@ -269,7 +266,6 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	}
 	else if (bHasBaseColorSourceTexture)
 	{
-		TexCoord = BaseColorTexCoord;
 		TextureSize = { BaseColorTexture->GetSizeX(), BaseColorTexture->GetSizeY() };
 		TextureWrapS = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressX);
 		TextureWrapT = FGLTFConverterUtility::ConvertWrap(BaseColorTexture->AddressY);
@@ -278,7 +274,6 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	}
 	else if (bHasOpacitySourceTexture)
 	{
-		TexCoord = OpacityTexCoord;
 		TextureSize = { OpacityTexture->GetSizeX(), OpacityTexture->GetSizeY() };
 		TextureWrapS = FGLTFConverterUtility::ConvertWrap(OpacityTexture->AddressX);
 		TextureWrapT = FGLTFConverterUtility::ConvertWrap(OpacityTexture->AddressY);
@@ -286,8 +281,8 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(OpacityTexture->Filter, OpacityTexture->LODGroup);
 	}
 
-	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, Material, &TextureSize);
-	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, Material, &TextureSize, true);
+	const FGLTFPropertyBakeOutput BaseColorBakeOutput = BakeMaterialProperty(BaseColorProperty, Material, BaseColorTexCoord, &TextureSize);
+	const FGLTFPropertyBakeOutput OpacityBakeOutput = BakeMaterialProperty(OpacityProperty, Material, OpacityTexCoord, &TextureSize, true);
 	const float BaseColorScale = BaseColorProperty == MP_EmissiveColor ? BaseColorBakeOutput.EmissiveScale : 1;
 
 	// Detect when both baked properties are constants, which means we can avoid exporting a texture
@@ -298,6 +293,25 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 
 		OutPBRParams.BaseColorFactor = FGLTFConverterUtility::ConvertColor(BaseColorFactor);
 		return true;
+	}
+
+	int32 TexCoord;
+	if (BaseColorBakeOutput.bIsConstant)
+	{
+		TexCoord = OpacityTexCoord;
+	}
+	else if (OpacityBakeOutput.bIsConstant)
+	{
+		TexCoord = BaseColorTexCoord;
+	}
+	else if (BaseColorTexCoord == OpacityTexCoord)
+	{
+		TexCoord = BaseColorTexCoord;
+	}
+	else
+	{
+		// TODO: report texture coordinate conflict
+		return false;
 	}
 
 	TextureSize = BaseColorBakeOutput.Size.ComponentMax(OpacityBakeOutput.Size);
@@ -365,9 +379,7 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	}
 
 	// TODO: make default baking-resolution configurable
-	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	int32 TexCoord = 0;
 	FIntPoint TextureSize(1024, 1024);
 
 	// TODO: should this be the default wrap-mode?
@@ -394,7 +406,6 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 			return false;
 		}
 
-		TexCoord = MetallicTexCoord;
 		TextureSize =
 		{
 			FMath::Max(MetallicTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
@@ -411,7 +422,6 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	}
 	else if (bHasMetallicSourceTexture)
 	{
-		TexCoord = MetallicTexCoord;
 		TextureSize = { MetallicTexture->GetSizeX(), MetallicTexture->GetSizeY() };
 		TextureWrapS = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressX);
 		TextureWrapT = FGLTFConverterUtility::ConvertWrap(MetallicTexture->AddressY);
@@ -420,7 +430,6 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	}
 	else if (bHasRoughnessSourceTexture)
 	{
-		TexCoord = RoughnessTexCoord;
 		TextureSize = { RoughnessTexture->GetSizeX(), RoughnessTexture->GetSizeY() };
 		TextureWrapS = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressX);
 		TextureWrapT = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressY);
@@ -428,8 +437,8 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
 	}
 
-	const FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, Material, &TextureSize);
-	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, Material, &TextureSize);
+	const FGLTFPropertyBakeOutput MetallicBakeOutput = BakeMaterialProperty(MetallicProperty, Material, MetallicTexCoord, &TextureSize);
+	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, Material, RoughnessTexCoord, &TextureSize);
 
 	// Detect when both baked properties are constants, which means we can use factors and avoid exporting a texture
 	if (MetallicBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
@@ -437,6 +446,25 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 		OutPBRParams.MetallicFactor = MetallicBakeOutput.ConstantValue.R;
 		OutPBRParams.RoughnessFactor = RoughnessBakeOutput.ConstantValue.R;
 		return true;
+	}
+
+	int32 TexCoord;
+	if (MetallicBakeOutput.bIsConstant)
+	{
+		TexCoord = RoughnessTexCoord;
+	}
+	else if (MetallicBakeOutput.bIsConstant)
+	{
+		TexCoord = MetallicTexCoord;
+	}
+	else if (MetallicTexCoord == RoughnessTexCoord)
+	{
+		TexCoord = MetallicTexCoord;
+	}
+	else
+	{
+		// TODO: report texture coordinate conflict
+		return false;
 	}
 
 	TextureSize = RoughnessBakeOutput.Size.ComponentMax(MetallicBakeOutput.Size);
@@ -506,9 +534,7 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 	}
 
 	// TODO: make default baking-resolution configurable
-	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
-	int32 TexCoord = 0;
 	FIntPoint TextureSize(1024, 1024);
 
 	// TODO: should this be the default wrap-mode?
@@ -535,7 +561,6 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 			return false;
 		}
 
-		TexCoord = IntensityTexCoord;
 		TextureSize =
 		{
 			FMath::Max(IntensityTexture->GetSizeX(), RoughnessTexture->GetSizeX()),
@@ -552,7 +577,6 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 	}
 	else if (bHasIntensitySourceTexture)
 	{
-		TexCoord = IntensityTexCoord;
 		TextureSize = { IntensityTexture->GetSizeX(), IntensityTexture->GetSizeY() };
 		TextureWrapS = FGLTFConverterUtility::ConvertWrap(IntensityTexture->AddressX);
 		TextureWrapT = FGLTFConverterUtility::ConvertWrap(IntensityTexture->AddressY);
@@ -561,7 +585,6 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 	}
 	else if (bHasRoughnessSourceTexture)
 	{
-		TexCoord = RoughnessTexCoord;
 		TextureSize = { RoughnessTexture->GetSizeX(), RoughnessTexture->GetSizeY() };
 		TextureWrapS = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressX);
 		TextureWrapT = FGLTFConverterUtility::ConvertWrap(RoughnessTexture->AddressY);
@@ -569,8 +592,8 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 		TextureMagFilter = FGLTFConverterUtility::ConvertMagFilter(RoughnessTexture->Filter, RoughnessTexture->LODGroup);
 	}
 
-	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, Material, &TextureSize);
-	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, Material, &TextureSize);
+	const FGLTFPropertyBakeOutput IntensityBakeOutput = BakeMaterialProperty(IntensityProperty, Material, IntensityTexCoord, &TextureSize);
+	const FGLTFPropertyBakeOutput RoughnessBakeOutput = BakeMaterialProperty(RoughnessProperty, Material, RoughnessTexCoord, &TextureSize);
 
 	// Detect when both baked properties are constants, which means we can use factors and avoid exporting a texture
 	if (IntensityBakeOutput.bIsConstant && RoughnessBakeOutput.bIsConstant)
@@ -578,6 +601,25 @@ bool FGLTFMaterialConverter::TryGetClearCoatRoughness(FGLTFConvertBuilder& Build
 		OutExtParams.ClearCoatFactor = IntensityBakeOutput.ConstantValue.R;
 		OutExtParams.ClearCoatRoughnessFactor =  RoughnessBakeOutput.ConstantValue.R;
 		return true;
+	}
+
+	int32 TexCoord;
+	if (IntensityBakeOutput.bIsConstant)
+	{
+		TexCoord = RoughnessTexCoord;
+	}
+	else if (IntensityBakeOutput.bIsConstant)
+	{
+		TexCoord = IntensityTexCoord;
+	}
+	else if (IntensityTexCoord == RoughnessTexCoord)
+	{
+		TexCoord = IntensityTexCoord;
+	}
+	else
+	{
+		// TODO: report texture coordinate conflict
+		return false;
 	}
 
 	TextureSize = RoughnessBakeOutput.Size.ComponentMax(IntensityBakeOutput.Size);
@@ -626,7 +668,7 @@ bool FGLTFMaterialConverter::TryGetEmissive(FGLTFConvertBuilder& Builder, FGLTFJ
 		return true;
 	}
 
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, Material);
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(EmissiveProperty, Material, JsonMaterial.EmissiveTexture.TexCoord);
 	const float EmissiveScale = PropertyBakeOutput.EmissiveScale;
 
 	if (PropertyBakeOutput.bIsConstant)
@@ -944,45 +986,23 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 
 	if (const UMaterialExpressionTextureSampleParameter2D* TextureParameter = ExactCast<UMaterialExpressionTextureSampleParameter2D>(Expression))
 	{
+		UTexture* ParameterValue = TextureParameter->Texture;
+
 		const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material);
 		if (MaterialInstance != nullptr)
 		{
-			UTexture* ParameterValue;
-
 			const FHashedMaterialParameterInfo ParameterInfo(TextureParameter->GetParameterName());
 			if (!MaterialInstance->GetTextureParameterValue(ParameterInfo, ParameterValue))
 			{
 				// TODO: how to handle this?
 			}
-
-			OutTexture = Cast<UTexture2D>(ParameterValue);
 		}
+
+		OutTexture = Cast<UTexture2D>(ParameterValue);
 
 		if (OutTexture == nullptr)
 		{
-			OutTexture = Cast<UTexture2D>(TextureParameter->Texture);
-		}
-
-		if (OutTexture == nullptr)
-		{
-			// TODO: report material as broken
-			return false;
-		}
-
-		// TODO: add support for texture coordinate input expression
-		OutTexCoord = TextureParameter->ConstCoordinate;
-
-		return true;
-	}
-
-	if (const UMaterialExpressionTextureSample* TextureSample = ExactCast<UMaterialExpressionTextureSample>(Expression))
-	{
-		// TODO: add support for texture object input expression
-		OutTexture = Cast<UTexture2D>(TextureSample->Texture);
-
-		if (OutTexture == nullptr)
-		{
-			if (TextureSample->Texture == nullptr)
+			if (ParameterValue == nullptr)
 			{
 				// TODO: report material as broken
 			}
@@ -993,8 +1013,38 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 			return false;
 		}
 
-		// TODO: add support for texture coordinate input expression
-		OutTexCoord = TextureSample->ConstCoordinate;
+		if (!FGLTFMaterialUtility::TryGetTextureCoordinateIndex(TextureParameter, OutTexCoord))
+		{
+			// TODO: report failed to identify texture coordinate index
+			return false;
+		}
+
+		return true;
+	}
+
+	if (const UMaterialExpressionTextureSample* TextureSampler = ExactCast<UMaterialExpressionTextureSample>(Expression))
+	{
+		// TODO: add support for texture object input expression
+		OutTexture = Cast<UTexture2D>(TextureSampler->Texture);
+
+		if (OutTexture == nullptr)
+		{
+			if (TextureSampler->Texture == nullptr)
+			{
+				// TODO: report material as broken
+			}
+			else
+			{
+				// TODO: report incorrect texture type
+			}
+			return false;
+		}
+
+		if (!FGLTFMaterialUtility::TryGetTextureCoordinateIndex(TextureSampler, OutTexCoord))
+		{
+			// TODO: report failed to identify texture coordinate index
+			return false;
+		}
 
 		return true;
 	}
@@ -1004,7 +1054,7 @@ bool FGLTFMaterialConverter::TryGetSourceTexture(const UTexture2D*& OutTexture, 
 
 bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor3& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material);
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material, OutTexInfo.TexCoord);
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
@@ -1023,7 +1073,7 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 
 bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, FGLTFJsonColor4& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material);
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material, OutTexInfo.TexCoord);
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
@@ -1042,7 +1092,7 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 
 inline bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, float& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material);
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material, OutTexInfo.TexCoord);
 
 	if (PropertyBakeOutput.bIsConstant)
 	{
@@ -1061,7 +1111,7 @@ inline bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuil
 
 bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
 {
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material);
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material, OutTexInfo.TexCoord);
 
 	if (!PropertyBakeOutput.bIsConstant)
 	{
@@ -1106,8 +1156,31 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 	return true;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialProperty Property, const UMaterialInterface* Material, const FIntPoint* PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
+FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialProperty Property, const UMaterialInterface* Material, int32& OutTexCoord, const FIntPoint* PreferredTextureSize, bool bCopyAlphaFromRedChannel) const
 {
+	const FExpressionInput* PropertyInput = FGLTFMaterialUtility::GetInputForProperty(Material, Property);
+	TSet<int32> TexCoords;
+
+	FGLTFMaterialUtility::GetAllTextureCoordinateIndices(*PropertyInput, TexCoords);
+	if (TexCoords.Num() > 0)
+	{
+		// TODO: is there a nicer way to get the first element in a TSet?
+		for (int32 TexCoord : TexCoords)
+		{
+			OutTexCoord = TexCoord;
+			break;
+		}
+
+		if (TexCoords.Num() > 1)
+		{
+			// TODO: report multiple texture coordinates found, will use first
+		}
+	}
+	else
+	{
+		OutTexCoord = 0; // property is texture coordinate independent
+	}
+
 	// TODO: make default baking-resolution configurable
 	const FIntPoint DefaultTextureSize(1024, 1024);
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
@@ -1118,7 +1191,13 @@ FGLTFPropertyBakeOutput FGLTFMaterialConverter::BakeMaterialProperty(EMaterialPr
 		TextureSize,
 		Property,
 		Material,
+		OutTexCoord,
 		bCopyAlphaFromRedChannel);
+
+	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)
+	{
+		// TODO: report warning about property not being constant yet texture coordinate independent
+	}
 
 	return PropertyBakeOutput;
 }
