@@ -16,6 +16,8 @@ struct FGLTFTextureUtility
 
 	static bool IsCubemap(const UTexture* Texture);
 
+	static bool HasAnyAdjustment(const UTexture* Texture);
+
 	static float GetCubeFaceRotation(ECubeFace CubeFace);
 
 	static TextureFilter GetDefaultFilter(TextureGroup Group);
