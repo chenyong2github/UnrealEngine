@@ -96,6 +96,8 @@ FGLTFJsonTextureIndex FGLTFTextureCubeConverter::Add(FGLTFConvertBuilder& Builde
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;
 
+	// TODO: add optimized "happy path" if cube face doesn't need rotation and has suitable pixel format
+
 	const UTexture2D* FaceTexture = FGLTFTextureUtility::CreateTextureFromCubeFace(TextureCube, CubeFace);
 	if (FaceTexture == nullptr)
 	{
@@ -146,6 +148,8 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Add(FGLTFConvertBui
 	FGLTFJsonTexture JsonTexture;
 	JsonTexture.Name = Name;
 
+	// TODO: add optimized "happy path" if cube face doesn't need rotation
+
 	const UTexture2D* FaceTexture = FGLTFTextureUtility::CreateTextureFromCubeFace(RenderTargetCube, CubeFace);
 	if (FaceTexture == nullptr)
 	{
@@ -172,4 +176,3 @@ FGLTFJsonTextureIndex FGLTFTextureRenderTargetCubeConverter::Add(FGLTFConvertBui
 
 	return Builder.AddTexture(JsonTexture);
 }
-
