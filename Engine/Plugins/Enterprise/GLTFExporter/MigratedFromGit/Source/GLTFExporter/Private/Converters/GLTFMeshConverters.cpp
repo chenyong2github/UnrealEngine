@@ -4,7 +4,6 @@
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
-#include "Rendering/MultiSizeIndexContainer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, int32& LODIndex, const FColorVertexBuffer*& OverrideVertexColors, FGLTFMaterialArray& OverrideMaterials)
@@ -46,20 +45,18 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 	FGLTFJsonMesh JsonMesh;
 	JsonMesh.Name = FGLTFNameUtility::GetName(StaticMesh, LODIndex);
 
-	const FRawStaticIndexBuffer* IndexBuffer = &MeshLOD.IndexBuffer;
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.VertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.VertexBuffers.StaticMeshVertexBuffer;
 	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.VertexBuffers.ColorVertexBuffer;
 
-	const int32 SectionCount = MeshLOD.Sections.Num();
-	JsonMesh.Primitives.AddDefaulted(SectionCount);
+	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
+	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
-	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+	for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		const FStaticMeshSection* Section = &MeshLOD.Sections[SectionIndex];
-		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(Section, IndexBuffer);
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, MaterialIndex);
 
-		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
+		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[MaterialIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
 
 		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, PositionBuffer);
@@ -84,7 +81,7 @@ FGLTFJsonMeshIndex FGLTFStaticMeshConverter::Convert(const UStaticMesh* StaticMe
 			JsonPrimitive.Attributes.TexCoords[UVIndex] = Builder.GetOrAddUVAccessor(ConvertedSection, VertexBuffer, UVIndex);
 		}
 
-		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, Section->MaterialIndex);
+		const UMaterialInterface* Material = OverrideMaterials.GetOverride(StaticMesh->StaticMaterials, MaterialIndex);
 		if (Material == nullptr)
 		{
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
@@ -149,21 +146,19 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 	FGLTFJsonMesh JsonMesh;
 	JsonMesh.Name = FGLTFNameUtility::GetName(SkeletalMesh, LODIndex);
 
-	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = MeshLOD.MultiSizeIndexContainer.GetIndexBuffer();
 	const FPositionVertexBuffer* PositionBuffer = &MeshLOD.StaticVertexBuffers.PositionVertexBuffer;
 	const FStaticMeshVertexBuffer* VertexBuffer = &MeshLOD.StaticVertexBuffers.StaticMeshVertexBuffer;
 	const FColorVertexBuffer* ColorBuffer = OverrideVertexColors != nullptr ? OverrideVertexColors : &MeshLOD.StaticVertexBuffers.ColorVertexBuffer;
 	const FSkinWeightVertexBuffer* SkinWeightBuffer = OverrideSkinWeights != nullptr ? OverrideSkinWeights : MeshLOD.GetSkinWeightVertexBuffer();
 
-	const int32 SectionCount = MeshLOD.RenderSections.Num();
-	JsonMesh.Primitives.AddDefaulted(SectionCount);
+	const uint16 MaterialCount = SkeletalMesh->Materials.Num();
+	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
-	for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+	for (uint16 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		const FSkelMeshRenderSection* Section = &MeshLOD.RenderSections[SectionIndex];
-		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(Section, IndexBuffer);
+		const FGLTFMeshSection* ConvertedSection = MeshSectionConverter.GetOrAdd(&MeshLOD, MaterialIndex);
 
-		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[SectionIndex];
+		FGLTFJsonPrimitive& JsonPrimitive = JsonMesh.Primitives[MaterialIndex];
 		JsonPrimitive.Indices = Builder.GetOrAddIndexAccessor(ConvertedSection);
 
 		JsonPrimitive.Attributes.Position = Builder.GetOrAddPositionAccessor(ConvertedSection, PositionBuffer);
@@ -201,7 +196,7 @@ FGLTFJsonMeshIndex FGLTFSkeletalMeshConverter::Convert(const USkeletalMesh* Skel
 			}
 		}
 
-		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, Section->MaterialIndex);
+		const UMaterialInterface* Material = OverrideMaterials.GetOverride(SkeletalMesh->Materials, MaterialIndex);
 		if (Material == nullptr)
 		{
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);

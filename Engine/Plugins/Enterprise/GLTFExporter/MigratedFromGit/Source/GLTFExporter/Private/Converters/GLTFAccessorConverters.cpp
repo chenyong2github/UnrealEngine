@@ -342,10 +342,9 @@ FGLTFJsonAccessorIndex FGLTFBoneIndexBufferConverter::Convert(const FGLTFMeshSec
 	TArray<VertexBoneIndices> BoneIndices;
 	BoneIndices.AddUninitialized(VertexCount);
 
-	const TArray<FBoneIndexType>& BoneMap = MeshSection->BoneMap;
-
 	for (uint32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
 	{
+		const TArray<FBoneIndexType>& BoneMap = MeshSection->BoneMaps[MeshSection->BoneMapLookup[VertexIndex]];
 		const uint32 MappedVertexIndex = IndexMap[VertexIndex];
 		VertexBoneIndices& VertexBones = BoneIndices[VertexIndex];
 

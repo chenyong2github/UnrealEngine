@@ -15,14 +15,14 @@ class TGLTFMeshConverter : public FGLTFBuilderContext, public TGLTFConverter<FGL
 	using FGLTFBuilderContext::FGLTFBuilderContext;
 };
 
-template <typename MeshSectionType, typename IndexBufferType>
-class TGLTFMeshSectionConverter final : public TGLTFConverter<const FGLTFMeshSection*, const MeshSectionType*, const IndexBufferType*>
+template <typename MeshLODType, typename MaterialIndexType>
+class TGLTFMeshSectionConverter final : public TGLTFConverter<const FGLTFMeshSection*, const MeshLODType*, const MaterialIndexType>
 {
 	TArray<TUniquePtr<FGLTFMeshSection>> Outputs;
 
-	const FGLTFMeshSection* Convert(const MeshSectionType* MeshSection, const IndexBufferType* IndexBuffer)
+	const FGLTFMeshSection* Convert(const MeshLODType* MeshLOD, const MaterialIndexType MaterialIndex)
 	{
-		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshSection>(MeshSection, IndexBuffer)).Get();
+		return Outputs.Add_GetRef(MakeUnique<FGLTFMeshSection>(MeshLOD, MaterialIndex)).Get();
 	}
 };
 
@@ -34,7 +34,7 @@ class FGLTFStaticMeshConverter final : public TGLTFMeshConverter<const UStaticMe
 
 	virtual FGLTFJsonMeshIndex Convert(const UStaticMesh* StaticMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, FGLTFMaterialArray OverrideMaterials) override;
 
-	TGLTFMeshSectionConverter<FStaticMeshSection, FRawStaticIndexBuffer> MeshSectionConverter;
+	TGLTFMeshSectionConverter<FStaticMeshLODResources, int32> MeshSectionConverter;
 };
 
 class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkeletalMesh*, int32, const FColorVertexBuffer*, const FSkinWeightVertexBuffer*, FGLTFMaterialArray>
@@ -45,5 +45,5 @@ class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkelet
 
 	virtual FGLTFJsonMeshIndex Convert(const USkeletalMesh* SkeletalMesh, int32 LODIndex, const FColorVertexBuffer* OverrideVertexColors, const FSkinWeightVertexBuffer* OverrideSkinWeights, FGLTFMaterialArray OverrideMaterials) override;
 
-	TGLTFMeshSectionConverter<FSkelMeshRenderSection, FRawStaticIndexBuffer16or32Interface> MeshSectionConverter;
+	TGLTFMeshSectionConverter<FSkeletalMeshLODRenderData, uint16> MeshSectionConverter;
 };
