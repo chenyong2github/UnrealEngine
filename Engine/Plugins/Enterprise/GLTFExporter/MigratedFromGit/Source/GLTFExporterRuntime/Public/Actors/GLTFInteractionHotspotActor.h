@@ -132,6 +132,8 @@ private:
 
 	void ViewportResized(FViewport*, uint32);
 
+	void ValidateAnimation();
+
 public:
 
 	const UTexture2D* GetImageForState(EGLTFHotspotState State) const;

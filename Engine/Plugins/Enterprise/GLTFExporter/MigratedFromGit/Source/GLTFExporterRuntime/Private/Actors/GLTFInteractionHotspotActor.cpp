@@ -126,17 +126,15 @@ void AGLTFInteractionHotspotActor::PostEditChangeProperty(FPropertyChangedEvent&
 		}
 		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, SkeletalMeshActor))
 		{
-			if (AnimationSequence != nullptr && AnimationSequence->GetSkeleton() != SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh->Skeleton)
+			if (SkeletalMeshActor != nullptr && AnimationSequence == nullptr)
 			{
-				UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("The skeleton of this actor is not compatible with the previously assigned animation sequence"));
+				AnimationSequence = Cast<UAnimSequence>(SkeletalMeshActor->GetSkeletalMeshComponent()->AnimationData.AnimToPlay);
 			}
+			ValidateAnimation();
 		}
 		else if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, AnimationSequence))
 		{
-			if (SkeletalMeshActor != nullptr && SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh->Skeleton != AnimationSequence->GetSkeleton())
-			{
-				UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("This animation sequence is not compatible with the skeleton of the previously assigned actor"));
-			}
+			ValidateAnimation();
 		}
 	}
 }
@@ -400,6 +398,29 @@ FIntPoint AGLTFInteractionHotspotActor::GetCurrentViewportSize()
 void AGLTFInteractionHotspotActor::ViewportResized(FViewport*, uint32)
 {
 	UpdateSpriteSize();
+}
+
+void AGLTFInteractionHotspotActor::ValidateAnimation()
+{
+	if (SkeletalMeshActor != nullptr && AnimationSequence != nullptr)
+	{
+		if (USkeletalMesh* SkeletalMesh = SkeletalMeshActor->GetSkeletalMeshComponent()->SkeletalMesh)
+		{
+			if (SkeletalMesh->Skeleton != AnimationSequence->GetSkeleton())
+			{
+				if (SkeletalMesh->Skeleton != nullptr)
+				{
+					UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("Animation %s is incompatible with skeleton %s, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->Skeleton->GetName());
+				}
+				else
+				{
+					UE_LOG(LogEditorGLTFInteractionHotspot, Warning, TEXT("Animation %s is incompatible because mesh %s has no skeleton, removing animation from actor."), *AnimationSequence->GetName(), *SkeletalMesh->GetName());
+				}
+
+				AnimationSequence = nullptr;
+			}
+		}
+	}
 }
 
 const UTexture2D* AGLTFInteractionHotspotActor::GetImageForState(EGLTFHotspotState State) const
