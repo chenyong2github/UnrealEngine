@@ -35,12 +35,14 @@ public:
 		const FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("GLTFExporter"))->GetBaseDir(), TEXT("Shaders"));
 		AddShaderSourceDirectoryMapping(TEXT("/Plugin/GLTFExporter"), PluginShaderDir);
 
+#if WITH_EDITOR
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FGLTFExporterModule::PostEngineInit);
+#endif
 	}
 
+#if WITH_EDITOR
 	void PostEngineInit()
 	{
-#if WITH_EDITOR
 		if (FAssetToolsModule::IsModuleLoaded())
 		{
 			IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
@@ -56,8 +58,8 @@ public:
 				AssetTools.RegisterAssetTypeActions(AssetTypeActions);
 			}
 		}
-#endif
 	}
+#endif
 
 	virtual void ShutdownModule() override
 	{
