@@ -11,6 +11,7 @@
 #include "Json/GLTFJsonQuaternion.h"
 #include "Engine/EngineTypes.h"
 #include "Json/GLTFJsonCamera.h"
+#include "Json/GLTFJsonLight.h"
 
 struct FGLTFConverterUtility
 {
@@ -100,7 +101,28 @@ struct FGLTFConverterUtility
 		return ConvertRotation(FRotator(0, -90, 0).Quaternion());
 	}
 
+	static FGLTFJsonQuaternion ConvertLightDirection()
+	{
+		// Unreal uses +X axis as light direction in Unreal coordinates.
+		// glTF uses -Y as light direction in Unreal coordinates.
+
+		return ConvertRotation(FRotator(0, -90, 0).Quaternion());
+	}
+
+	static float ConvertLightAngle(const float Angle)
+	{
+		// Unreal uses degrees.
+		// glTF uses radians.
+		return FMath::DegreesToRadians(Angle);
+	}
+
+	static float ConvertLightRange(const float Radius)
+	{
+		return Radius * 0.01f; // TODO: use options export scale instead of hardcoded value
+	}
+
 	static EGLTFJsonCameraType ConvertCameraType(ECameraProjectionMode::Type ProjectionMode);
+	static EGLTFJsonLightType ConvertLightType(ELightComponentType ComponentType);
 
 	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel);
 

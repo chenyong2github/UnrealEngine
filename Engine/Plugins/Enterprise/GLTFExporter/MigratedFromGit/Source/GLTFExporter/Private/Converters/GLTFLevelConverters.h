@@ -25,3 +25,8 @@ class FGLTFCameraComponentConverter final : public TGLTFConverter<FGLTFJsonCamer
 {
 	FGLTFJsonCameraIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const UCameraComponent* CameraComponent) override;
 };
+
+class FGLTFLightComponentConverter final : public TGLTFConverter<FGLTFJsonLightIndex, const ULightComponent*>
+{
+	FGLTFJsonLightIndex Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightComponent* LightComponent) override;
+};

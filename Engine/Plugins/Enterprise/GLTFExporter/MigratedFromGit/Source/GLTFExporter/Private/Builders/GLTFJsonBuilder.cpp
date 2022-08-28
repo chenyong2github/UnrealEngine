@@ -78,6 +78,11 @@ FGLTFJsonLightMapIndex FGLTFJsonBuilder::AddLightMap(const FGLTFJsonLightMap& Js
 	return FGLTFJsonLightMapIndex(JsonRoot.LightMaps.Add(JsonLightMap));
 }
 
+FGLTFJsonLightIndex FGLTFJsonBuilder::AddLight(const FGLTFJsonLight& JsonLight)
+{
+	return FGLTFJsonLightIndex(JsonRoot.Lights.Add(JsonLight));
+}
+
 FGLTFJsonNodeIndex FGLTFJsonBuilder::AddChildNode(FGLTFJsonNodeIndex ParentIndex, const FGLTFJsonNode& JsonNode)
 {
 	const FGLTFJsonNodeIndex ChildIndex = AddNode(JsonNode);
@@ -158,6 +163,11 @@ FGLTFJsonLevelVariantSets& FGLTFJsonBuilder::GetLevelVariantSets(FGLTFJsonLevelV
 FGLTFJsonLightMap& FGLTFJsonBuilder::GetLightMap(FGLTFJsonLightMapIndex LightMapIndex)
 {
 	return JsonRoot.LightMaps[LightMapIndex];
+}
+
+FGLTFJsonLight& FGLTFJsonBuilder::GetLight(FGLTFJsonLightIndex LightIndex)
+{
+	return JsonRoot.Lights[LightIndex];
 }
 
 bool FGLTFJsonBuilder::Serialize(FArchive& Archive, const FString& FilePath)

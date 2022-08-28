@@ -13,6 +13,17 @@ EGLTFJsonCameraType FGLTFConverterUtility::ConvertCameraType(ECameraProjectionMo
 	}
 }
 
+EGLTFJsonLightType FGLTFConverterUtility::ConvertLightType(ELightComponentType ComponentType)
+{
+	switch (ComponentType)
+	{
+		case LightType_Directional: return EGLTFJsonLightType::Directional;
+		case LightType_Point:       return EGLTFJsonLightType::Point;
+		case LightType_Spot:        return EGLTFJsonLightType::Spot;
+		default:                    return EGLTFJsonLightType::None;
+	}
+}
+
 EGLTFJsonShadingModel FGLTFConverterUtility::ConvertShadingModel(EMaterialShadingModel ShadingModel)
 {
 	switch (ShadingModel)

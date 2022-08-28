@@ -52,6 +52,14 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 		CameraNode.Camera = Builder.GetOrAddCamera(CameraComponent);
 		Builder.AddChildNode(NodeIndex, CameraNode);
 	}
+	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
+	{
+		// TODO: conversion of light direction should be done in separate converter
+		FGLTFJsonNode LightNode;
+		LightNode.Rotation = FGLTFConverterUtility::ConvertLightDirection();
+		LightNode.Light = Builder.GetOrAddLight(LightComponent);
+		Builder.AddChildNode(NodeIndex, LightNode);
+	}
 
 	return NodeIndex;
 }
@@ -142,8 +150,40 @@ FGLTFJsonCameraIndex FGLTFCameraComponentConverter::Add(FGLTFConvertBuilder& Bui
 			break;
 
 		default:
-			checkNoEntry();
+		    // TODO: report unsupported camera type
+		    return FGLTFJsonCameraIndex(INDEX_NONE);
 	}
 
 	return Builder.AddCamera(Camera);
+}
+
+FGLTFJsonLightIndex FGLTFLightComponentConverter::Add(FGLTFConvertBuilder& Builder, const FString& Name, const ULightComponent* LightComponent)
+{
+	FGLTFJsonLight Light;
+	Light.Name = Name;
+	Light.Type = FGLTFConverterUtility::ConvertLightType(LightComponent->GetLightType());
+
+	if (Light.Type == EGLTFJsonLightType::None)
+	{
+		// TODO: report unsupported light component type
+		return FGLTFJsonLightIndex(INDEX_NONE);
+	}
+
+	Light.Intensity = LightComponent->Intensity;
+
+	const FLinearColor LightColor = LightComponent->bUseTemperature ? FLinearColor::MakeFromColorTemperature(LightComponent->Temperature) : LightComponent->GetLightColor();
+	Light.Color = FGLTFConverterUtility::ConvertColor(LightColor);
+
+	if (const UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
+	{
+		Light.Range = FGLTFConverterUtility::ConvertLightRange(PointLightComponent->AttenuationRadius);
+	}
+
+	if (const USpotLightComponent* SpotLightComponent = Cast<USpotLightComponent>(LightComponent))
+	{
+		Light.InnerConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->InnerConeAngle);
+		Light.OuterConeAngle = FGLTFConverterUtility::ConvertLightAngle(SpotLightComponent->OuterConeAngle);
+	}
+
+	return Builder.AddLight(Light);
 }
