@@ -33,7 +33,7 @@ FGLTFJsonNodeIndex FGLTFSceneComponentConverter::Add(FGLTFConvertBuilder& Builde
 	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
 	Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
 
-	if (SceneComponent->bHiddenInGame)
+	if (SceneComponent->bHiddenInGame) // TODO: make this configurable
 	{
 		// ignore any visible properties
 	}
@@ -123,6 +123,7 @@ FGLTFJsonSceneIndex FGLTFLevelConverter::Add(FGLTFConvertBuilder& Builder, const
 
 	for (const AActor* Actor : Level->Actors)
 	{
+		// TODO: should a LevelVariantSet be exported even if not selected for export?
 		if (const ALevelVariantSetsActor *LevelVariantSetsActor = Cast<ALevelVariantSetsActor>(Actor))
 		{
 			const FGLTFJsonLevelVariantSetsIndex LevelVariantSetsIndex = Builder.GetOrAddLevelVariantSets(LevelVariantSetsActor);
