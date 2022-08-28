@@ -5,12 +5,11 @@
 #include "GLTFExporterModule.h"
 
 FGLTFNodeBuilder::FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bRootNode)
-	: SceneComponent(SceneComponent)
+	: Name(ComponentOwner->GetName() + TEXT("_") + SceneComponent->GetName())
+	, SceneComponent(SceneComponent)
 	, ComponentOwner(ComponentOwner)
 	, bRootNode(bRootNode)
 {
-	Name = ComponentOwner->GetName() + TEXT("_") + SceneComponent->GetName();
-
 	const TArray<USceneComponent*>& Children = SceneComponent->GetAttachChildren();
 	for (const USceneComponent* ChildComponent : Children)
 	{
