@@ -15,13 +15,13 @@ public:
 
 	virtual ~TGLTFConverter() = default;
 
-	FORCEINLINE IndexType Get(ArgTypes&&... Args) const
+	IndexType Get(ArgTypes&&... Args) const
 	{
 		const KeyType Key(Forward<ArgTypes>(Args)...);
 		return IndexLookup.FindRef(Key);
 	}
 
-	FORCEINLINE IndexType GetOrAdd(FGLTFConvertBuilder& Builder, const FString& DesiredName, ArgTypes... Args)
+	IndexType GetOrAdd(FGLTFConvertBuilder& Builder, const FString& DesiredName, ArgTypes... Args)
 	{
 		const KeyType Key(Forward<ArgTypes>(Args)...);
 
