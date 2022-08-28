@@ -5,8 +5,7 @@
 
 bool FGLTFActorUtility::IsRootActor(const AActor* Actor, bool bSelectedOnly)
 {
-	const AActor* ParentActor = Actor->GetAttachParentActor();
-	return bSelectedOnly ? Actor->IsSelected() && (ParentActor == nullptr || !ParentActor->IsSelected()) : ParentActor == nullptr;
+	return bSelectedOnly ? Actor->IsSelected() : Actor->GetAttachParentActor() == nullptr;
 }
 
 UBlueprint* FGLTFActorUtility::GetBlueprintFromActor(const AActor* Actor)
