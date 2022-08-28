@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFSceneBuilder.h"
-#include "GLTFConversionUtilities.h"
+#include "GLTFConverterUtility.h"
 #include "GLTFExporterModule.h"
 
 FGLTFNodeBuilder::FGLTFNodeBuilder(const USceneComponent* SceneComponent, const AActor* ComponentOwner, bool bSelectedOnly, bool bRootNode)
@@ -31,15 +31,15 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	Node.Name = Name;
 
 	const FTransform Transform = bRootNode ? SceneComponent->GetComponentTransform() : SceneComponent->GetRelativeTransform();
-	Node.Translation = ConvertPosition(Transform.GetTranslation());
-	Node.Rotation = ConvertRotation(Transform.GetRotation());
-	Node.Scale = ConvertScale(Transform.GetScale3D());
+	Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation());
+	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
+	Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
 
 	const UClass* OwnerClass = ComponentOwner->GetClass();
 	const UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(OwnerClass);
 	const bool bIsRootComponent = ComponentOwner->GetRootComponent() == SceneComponent;
 
-	if (IsSkySphereBlueprint(Blueprint))
+	if (FGLTFConverterUtility::IsSkySphereBlueprint(Blueprint))
 	{
 		// Avoid exporting any SkySphere actor components (like StaticMeshComponent)
 	}
@@ -47,7 +47,7 @@ FGLTFJsonNodeIndex FGLTFNodeBuilder::AddNode(FGLTFContainerBuilder& Container) c
 	{
 		Node.Mesh = Container.AddMesh(StaticMeshComponent);
 	}
-	else if (bIsRootComponent && IsHDRIBackdropBlueprint(Blueprint))
+	else if (bIsRootComponent && FGLTFConverterUtility::IsHDRIBackdropBlueprint(Blueprint))
 	{
 		// TODO: add support for backdrop
 	}

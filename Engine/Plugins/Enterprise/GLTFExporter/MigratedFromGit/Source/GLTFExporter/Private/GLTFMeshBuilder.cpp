@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFMeshBuilder.h"
-#include "GLTFConversionUtilities.h"
+#include "GLTFConverterUtility.h"
 
 FGLTFSectionBuilder::FGLTFSectionBuilder(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray)
 	: Name(SectionName)
@@ -60,7 +60,7 @@ FGLTFMeshBuilder::FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex
 
 	for (int32 PosIndex = 0; PosIndex < PositionCount; ++PosIndex)
 	{
-		Positions[PosIndex] = ConvertPosition(PositionVertexBuffer.VertexPosition(PosIndex));
+		Positions[PosIndex] = FGLTFConverterUtility::ConvertPosition(PositionVertexBuffer.VertexPosition(PosIndex));
 	}
 
 	const FColorVertexBuffer& ColorVertexBuffer = OverrideVertexColors != nullptr ? *OverrideVertexColors : LODMesh.VertexBuffers.ColorVertexBuffer;
@@ -72,7 +72,7 @@ FGLTFMeshBuilder::FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex
 
 		for (int32 ColorIndex = 0; ColorIndex < ColorCount; ++ColorIndex)
 		{
-			Colors[ColorIndex] = ConvertColor(ColorVertexBuffer.VertexColor(ColorIndex));
+			Colors[ColorIndex] = FGLTFConverterUtility::ConvertColor(ColorVertexBuffer.VertexColor(ColorIndex));
 		}
 	}
 
@@ -84,8 +84,8 @@ FGLTFMeshBuilder::FGLTFMeshBuilder(const UStaticMesh* StaticMesh, int32 LODIndex
 
 	for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
 	{
-		Normals[VertIndex] = ConvertVector(StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
-		Tangents[VertIndex] = ConvertTangent(StaticMeshVertexBuffer.VertexTangentX(VertIndex));
+		Normals[VertIndex] = FGLTFConverterUtility::ConvertVector(StaticMeshVertexBuffer.VertexTangentZ(VertIndex));
+		Tangents[VertIndex] = FGLTFConverterUtility::ConvertTangent(StaticMeshVertexBuffer.VertexTangentX(VertIndex));
 	}
 
 	const int32 UVCount = StaticMeshVertexBuffer.GetNumTexCoords();
