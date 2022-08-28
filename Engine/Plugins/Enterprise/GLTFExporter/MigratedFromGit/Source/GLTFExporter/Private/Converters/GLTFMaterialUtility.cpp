@@ -309,6 +309,14 @@ FGLTFJsonTextureIndex FGLTFMaterialUtility::AddTexture(FGLTFConvertBuilder& Buil
 	return Builder.AddTexture(JsonTexture);
 }
 
+void FGLTFMaterialUtility::TransformToLinear(TArray<FColor>& InOutPixels)
+{
+	for (FColor& Pixel: InOutPixels)
+	{
+		Pixel = FLinearColor(Pixel).ToFColor(false);
+	}
+}
+
 FLinearColor FGLTFMaterialUtility::GetMask(const FExpressionInput& ExpressionInput)
 {
 	return FLinearColor(ExpressionInput.MaskR, ExpressionInput.MaskG, ExpressionInput.MaskB, ExpressionInput.MaskA);
