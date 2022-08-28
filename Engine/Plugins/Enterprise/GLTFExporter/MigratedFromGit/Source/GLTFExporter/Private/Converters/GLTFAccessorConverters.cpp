@@ -52,7 +52,7 @@ FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSect
 
 	FGLTFJsonAccessor JsonAccessor;
 	JsonAccessor.BufferView = Builder.AddBufferView(Positions, EGLTFJsonBufferTarget::ArrayBuffer);
-	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::Float;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec3;
 
@@ -113,7 +113,7 @@ FGLTFJsonAccessorIndex FGLTFColorBufferConverter::Convert(const FGLTFMeshSection
 
 	FGLTFJsonAccessor JsonAccessor;
 	JsonAccessor.BufferView = Builder.AddBufferView(Colors, EGLTFJsonBufferTarget::ArrayBuffer);
-	JsonAccessor.ComponentType = EGLTFJsonComponentType::U8;
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::UInt8;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
 	JsonAccessor.bNormalized = true;
@@ -149,20 +149,20 @@ FGLTFJsonAccessorIndex FGLTFNormalBufferConverter::Convert(const FGLTFMeshSectio
 
 		if (bHighPrecision)
 		{
-			ComponentType = EGLTFJsonComponentType::S16;
+			ComponentType = EGLTFJsonComponentType::Int16;
 			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, SourceData);
 			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFInt16Vector4);
 		}
 		else
 		{
-			ComponentType = EGLTFJsonComponentType::S8;
+			ComponentType = EGLTFJsonComponentType::Int8;
 			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, SourceData);
 			Builder.GetBufferView(BufferViewIndex).ByteStride = sizeof(FGLTFInt8Vector4);
 		}
 	}
 	else
 	{
-		ComponentType = EGLTFJsonComponentType::F32;
+		ComponentType = EGLTFJsonComponentType::Float;
 		BufferViewIndex = bHighPrecision
 			? ConvertBufferView<FGLTFVector3, FPackedRGBA16N>(MeshSection, SourceData)
 			: ConvertBufferView<FGLTFVector3, FPackedNormal>(MeshSection, SourceData);
@@ -230,18 +230,18 @@ FGLTFJsonAccessorIndex FGLTFTangentBufferConverter::Convert(const FGLTFMeshSecti
 
 		if (bHighPrecision)
 		{
-			ComponentType = EGLTFJsonComponentType::S16;
+			ComponentType = EGLTFJsonComponentType::Int16;
 			BufferViewIndex = ConvertBufferView<FGLTFInt16Vector4, FPackedRGBA16N>(MeshSection, SourceData);
 		}
 		else
 		{
-			ComponentType = EGLTFJsonComponentType::S8;
+			ComponentType = EGLTFJsonComponentType::Int8;
 			BufferViewIndex = ConvertBufferView<FGLTFInt8Vector4, FPackedNormal>(MeshSection, SourceData);
 		}
 	}
 	else
 	{
-		ComponentType = EGLTFJsonComponentType::F32;
+		ComponentType = EGLTFJsonComponentType::Float;
 		BufferViewIndex = bHighPrecision
 			? ConvertBufferView<FGLTFVector4, FPackedRGBA16N>(MeshSection, SourceData)
 			: ConvertBufferView<FGLTFVector4, FPackedNormal>(MeshSection, SourceData);
@@ -332,7 +332,7 @@ FGLTFJsonAccessorIndex FGLTFUVBufferConverter::Convert(const FGLTFMeshSection* M
 
 	FGLTFJsonAccessor JsonAccessor;
 	JsonAccessor.BufferView = Builder.AddBufferView(UVs, EGLTFJsonBufferTarget::ArrayBuffer);
-	JsonAccessor.ComponentType = EGLTFJsonComponentType::F32;
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::Float;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec2;
 
@@ -536,7 +536,7 @@ FGLTFJsonAccessorIndex FGLTFBoneWeightBufferConverter::Convert(const FGLTFMeshSe
 
 	FGLTFJsonAccessor JsonAccessor;
 	JsonAccessor.BufferView = Builder.AddBufferView(BoneWeights, EGLTFJsonBufferTarget::ArrayBuffer);
-	JsonAccessor.ComponentType = EGLTFJsonComponentType::U8;
+	JsonAccessor.ComponentType = EGLTFJsonComponentType::UInt8;
 	JsonAccessor.Count = VertexCount;
 	JsonAccessor.Type = EGLTFJsonAccessorType::Vec4;
 	JsonAccessor.bNormalized = true;

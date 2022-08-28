@@ -64,13 +64,13 @@ enum class EGLTFJsonAccessorType
 enum class EGLTFJsonComponentType
 {
 	None = -1,
-	S8 = 5120, // signed byte
-	U8 = 5121, // unsigned byte
-	S16 = 5122, // signed short
-	U16 = 5123, // unsigned short
-	S32 = 5124, // unused
-	U32 = 5125, // unsigned int -- only valid for indices, not attributes
-	F32 = 5126  // float
+	Int8 = 5120,
+	UInt8 = 5121,
+	Int16 = 5122,
+	UInt16 = 5123,
+	Int32 = 5124, // unused
+	UInt32 = 5125,
+	Float = 5126
 };
 
 enum class EGLTFJsonBufferTarget
@@ -82,14 +82,11 @@ enum class EGLTFJsonBufferTarget
 
 enum class EGLTFJsonPrimitiveMode
 {
-	// unsupported
 	Points = 0,
 	Lines = 1,
 	LineLoop = 2,
 	LineStrip = 3,
-	// initially supported
 	Triangles = 4,
-	// will be supported prior to release
 	TriangleStrip = 5,
 	TriangleFan = 6
 };
@@ -120,10 +117,8 @@ enum class EGLTFJsonMimeType
 enum class EGLTFJsonTextureFilter
 {
 	None = -1,
-	// valid for Min & Mag
 	Nearest = 9728,
 	Linear = 9729,
-	// valid for Min only
 	NearestMipmapNearest = 9984,
 	LinearMipmapNearest = 9985,
 	NearestMipmapLinear = 9986,

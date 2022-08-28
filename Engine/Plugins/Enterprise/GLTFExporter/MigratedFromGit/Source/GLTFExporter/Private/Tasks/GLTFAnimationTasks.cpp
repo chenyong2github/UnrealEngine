@@ -32,7 +32,7 @@ void FGLTFAnimSequenceTask::Complete()
 	{
 		FGLTFJsonAccessor JsonInputAccessor;
 		JsonInputAccessor.BufferView = Builder.AddBufferView(Timestamps);
-		JsonInputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+		JsonInputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 		JsonInputAccessor.Type = EGLTFJsonAccessorType::Scalar;
 		JsonInputAccessor.Count = FrameCount;
 		JsonInputAccessor.MinMaxLength = 1;
@@ -72,7 +72,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 			FGLTFJsonAccessor JsonOutputAccessor;
 			JsonOutputAccessor.BufferView = Builder.AddBufferView(Translations);
-			JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+			JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 			JsonOutputAccessor.Count = Translations.Num();
 			JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec3;
 
@@ -100,7 +100,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 			FGLTFJsonAccessor JsonOutputAccessor;
 			JsonOutputAccessor.BufferView = Builder.AddBufferView(Rotations);
-			JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+			JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 			JsonOutputAccessor.Count = Rotations.Num();
 			JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec4;
 
@@ -128,7 +128,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 			FGLTFJsonAccessor JsonOutputAccessor;
 			JsonOutputAccessor.BufferView = Builder.AddBufferView(Scales);
-			JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+			JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 			JsonOutputAccessor.Count = Scales.Num();
 			JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec3;
 
@@ -183,7 +183,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 	FGLTFJsonAccessor JsonInputAccessor;
 	JsonInputAccessor.BufferView = Builder.AddBufferView(Timestamps);
-	JsonInputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+	JsonInputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 	JsonInputAccessor.Type = EGLTFJsonAccessorType::Scalar;
 	JsonInputAccessor.Count = FrameCount;
 	JsonInputAccessor.MinMaxLength = 1;
@@ -268,7 +268,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 						FGLTFJsonAccessor JsonOutputAccessor;
 						JsonOutputAccessor.BufferView = Builder.AddBufferView(Translations);
-						JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+						JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 						JsonOutputAccessor.Count = Translations.Num();
 						JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec3;
 
@@ -306,7 +306,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 						FGLTFJsonAccessor JsonOutputAccessor;
 						JsonOutputAccessor.BufferView = Builder.AddBufferView(Rotations);
-						JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+						JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 						JsonOutputAccessor.Count = Rotations.Num();
 						JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec4;
 
@@ -341,7 +341,7 @@ void FGLTFLevelSequenceTask::Complete()
 
 						FGLTFJsonAccessor JsonOutputAccessor;
 						JsonOutputAccessor.BufferView = Builder.AddBufferView(Scales);
-						JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::F32;
+						JsonOutputAccessor.ComponentType = EGLTFJsonComponentType::Float;
 						JsonOutputAccessor.Count = Scales.Num();
 						JsonOutputAccessor.Type = EGLTFJsonAccessorType::Vec3;
 

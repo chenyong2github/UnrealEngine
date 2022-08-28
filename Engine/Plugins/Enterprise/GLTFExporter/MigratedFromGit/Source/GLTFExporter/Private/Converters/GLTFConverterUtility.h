@@ -224,13 +224,13 @@ struct FGLTFConverterUtility
 	template <typename ComponentType>
 	static EGLTFJsonComponentType GetComponentType()
 	{
-		if (TIsSame<ComponentType, int8  >::Value) return EGLTFJsonComponentType::S8;
-		if (TIsSame<ComponentType, uint8 >::Value) return EGLTFJsonComponentType::U8;
-		if (TIsSame<ComponentType, int16 >::Value) return EGLTFJsonComponentType::S16;
-		if (TIsSame<ComponentType, uint16>::Value) return EGLTFJsonComponentType::U16;
-		if (TIsSame<ComponentType, int32 >::Value) return EGLTFJsonComponentType::S32;
-		if (TIsSame<ComponentType, uint32>::Value) return EGLTFJsonComponentType::U32;
-		if (TIsSame<ComponentType, float >::Value) return EGLTFJsonComponentType::F32;
+		if (TIsSame<ComponentType, int8  >::Value) return EGLTFJsonComponentType::Int8;
+		if (TIsSame<ComponentType, uint8 >::Value) return EGLTFJsonComponentType::UInt8;
+		if (TIsSame<ComponentType, int16 >::Value) return EGLTFJsonComponentType::Int16;
+		if (TIsSame<ComponentType, uint16>::Value) return EGLTFJsonComponentType::UInt16;
+		if (TIsSame<ComponentType, int32 >::Value) return EGLTFJsonComponentType::Int32;
+		if (TIsSame<ComponentType, uint32>::Value) return EGLTFJsonComponentType::UInt32;
+		if (TIsSame<ComponentType, float >::Value) return EGLTFJsonComponentType::Float;
 		return EGLTFJsonComponentType::None;
 	}
 };
