@@ -28,18 +28,18 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
 	bBakeMaterialInputs = true;
-	BakedMaterialInputSize = EGLTFExporterTextureSize::POT_512;
+	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	TextureFormat = EGLTFExporterTextureFormat::PNG;
-	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBD;
 	bExportLightmaps = true;
+	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBD;
 	ExportScale = 0.01;
 	bExportLights = true;
 	bExportCameras = true;
+	bExportOrbitalCameras = true;
 	bExportReflectionCaptures = true;
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
 	bExportInteractionHotspots = true;
-	bExportOrbitalCameras = true;
 }
 
 void UGLTFExportOptions::ResetToDefault()
