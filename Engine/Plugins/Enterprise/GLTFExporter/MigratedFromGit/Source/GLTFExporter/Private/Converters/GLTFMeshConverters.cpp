@@ -14,7 +14,7 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 	}
 	else
 	{
-		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMesh->StaticMaterials);
+		FGLTFMaterialUtility::ResolveOverrides(Materials, StaticMesh->GetStaticMaterials());
 	}
 
 	if (LODIndex < 0)
@@ -53,7 +53,7 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 	}
 	else
 	{
-		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMesh->Materials);
+		FGLTFMaterialUtility::ResolveOverrides(Materials, SkeletalMesh->GetMaterials());
 	}
 
 	if (LODIndex < 0)
