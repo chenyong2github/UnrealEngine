@@ -1,0 +1,123 @@
+{
+  "application_properties": {
+    "i18nAssets": [],
+    "useTouch": true,
+    "layerOrder": [
+      {
+        "layer": 0,
+        "enabled": true,
+        "transparent": false
+      },
+      {
+        "layer": 1,
+        "enabled": true,
+        "transparent": false
+      },
+      {
+        "layer": 2,
+        "enabled": true,
+        "transparent": false
+      },
+      {
+        "layer": 0,
+        "enabled": true,
+        "transparent": true
+      },
+      {
+        "layer": 3,
+        "enabled": true,
+        "transparent": false
+      },
+      {
+        "layer": 3,
+        "enabled": true,
+        "transparent": true
+      },
+      {
+        "layer": 4,
+        "enabled": true,
+        "transparent": true
+      }
+    ],
+    "externalScripts": [],
+    "height": 720,
+    "vr": false,
+    "useModelV2": false,
+    "antiAlias": true,
+    "layers": {
+      "0": {
+        "transparentSortMode": 3,
+        "opaqueSortMode": 2,
+        "name": "World"
+      },
+      "1": {
+        "transparentSortMode": 3,
+        "opaqueSortMode": 2,
+        "name": "Depth"
+      },
+      "2": {
+        "transparentSortMode": 3,
+        "opaqueSortMode": 0,
+        "name": "Skybox"
+      },
+      "3": {
+        "transparentSortMode": 3,
+        "opaqueSortMode": 0,
+        "name": "Immediate"
+      },
+      "4": {
+        "transparentSortMode": 1,
+        "opaqueSortMode": 1,
+        "name": "UI"
+      }
+    },
+    "width": 1280,
+    "useDevicePixelRatio": false,
+    "useKeyboard": true,
+    "batchGroups": [],
+    "preserveDrawingBuffer": false,
+    "useLegacyScripts": false,
+    "fillMode": "FILL_WINDOW",
+    "scripts": [],
+    "useMouse": true,
+    "use3dPhysics": false,
+    "transparentCanvas": false,
+    "resolutionMode": "AUTO",
+    "loadingScreenScript": null,
+    "preferWebGl2": true,
+    "useGamepads": false,
+    "libraries": []
+  },
+  "scenes": [
+    {
+      "name": "ClearSky",
+      "url": "1002267.json"
+    }
+  ],
+  "assets": {
+    "36180622": {
+      "tags": [],
+      "name": "clearsky",
+      "revision": 1,
+      "preload": true,
+      "meta": null,
+      "data": {
+        "name": "clearsky",
+        "minFilter": 5,
+        "magFilter": 1,
+        "anisotropy": 1,
+        "rgbm": true
+      },
+      "type": "cubemap",
+      "file": {
+        "filename": "clearsky.dds",
+        "size": 524456,
+        "hash": "562ce97935ad1f80ef9afd8363a85782",
+        "url": "files/assets/36180622/1/clearsky.dds"
+      },
+      "region": "eu-west-1",
+      "i18n": {},
+      "id": "36180622"
+    }
+  }
+}
