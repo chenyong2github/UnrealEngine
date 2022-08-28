@@ -85,17 +85,17 @@ FString FGLTFVariantUtility::GetLogContext(const ULevelVariantSets* LevelVariant
 	return LevelVariantSets->GetName();
 }
 
-FGLTFJsonMaterial* FGLTFVariantUtility::GetOrAddMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
+FGLTFJsonMaterial* FGLTFVariantUtility::AddUniqueMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex)
 {
 	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialVariantMode::UseMeshData)
 	{
 		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
 		{
-			return Builder.GetOrAddMaterial(Material, MeshComponent, -1, MaterialIndex);
+			return Builder.AddUniqueMaterial(Material, MeshComponent, -1, MaterialIndex);
 		}
 
 		// TODO: report warning (about materials won't be export using mesh data because BakeMaterialInputs is not set to UseMeshData)
 	}
 
-	return Builder.GetOrAddMaterial(Material);
+	return Builder.AddUniqueMaterial(Material);
 }

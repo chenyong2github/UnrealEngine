@@ -59,7 +59,7 @@ FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraCom
 		{
 			FGLTFJsonCameraControl CameraControl;
 			CameraControl.Mode = FGLTFConverterUtility::ConvertCameraControlMode(CameraActor->Mode);
-			CameraControl.Target = Builder.GetOrAddNode(CameraActor->Target);
+			CameraControl.Target = Builder.AddUniqueNode(CameraActor->Target);
 			CameraControl.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, ExportScale);
 			CameraControl.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
 			CameraControl.MaxPitch = CameraActor->PitchAngleMax;

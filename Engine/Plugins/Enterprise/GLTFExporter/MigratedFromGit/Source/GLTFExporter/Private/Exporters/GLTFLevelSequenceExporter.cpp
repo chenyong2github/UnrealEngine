@@ -41,7 +41,7 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 	}
 
 	const UWorld* World = Worlds[0];
-	FGLTFJsonScene* Scene = Builder.GetOrAddScene(World);
+	FGLTFJsonScene* Scene = Builder.AddUniqueScene(World);
 	if (Scene == nullptr)
 	{
 		Builder.LogError(
@@ -51,7 +51,7 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	FGLTFJsonAnimation* Animation = Builder.GetOrAddAnimation(World->PersistentLevel, LevelSequence);
+	FGLTFJsonAnimation* Animation = Builder.AddUniqueAnimation(World->PersistentLevel, LevelSequence);
 	if (Animation == nullptr)
 	{
 		Builder.LogError(

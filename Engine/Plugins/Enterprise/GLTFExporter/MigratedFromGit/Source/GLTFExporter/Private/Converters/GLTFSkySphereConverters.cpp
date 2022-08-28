@@ -33,7 +33,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 		const FTransform RelativeTransform = Transform.GetRelativeTransform(ParentTransform);
 
 		JsonSkySphere->Scale = FGLTFConverterUtility::ConvertScale(RelativeTransform.GetScale3D());
-		JsonSkySphere->SkySphereMesh = Builder.GetOrAddMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefaultMaterial() });
+		JsonSkySphere->SkySphereMesh = Builder.AddUniqueMesh(StaticMeshComponent, { FGLTFMaterialUtility::GetDefaultMaterial() });
 	}
 	else
 	{
@@ -43,7 +43,7 @@ FGLTFJsonSkySphere* FGLTFSkySphereConverter::Convert(const AActor* SkySphereActo
 	const ADirectionalLight* DirectionalLight = nullptr;
 	if (FGLTFActorUtility::TryGetPropertyValue(SkySphereActor, TEXT("Directional light actor"), DirectionalLight))
 	{
-		JsonSkySphere->DirectionalLight = Builder.GetOrAddNode(DirectionalLight);
+		JsonSkySphere->DirectionalLight = Builder.AddUniqueNode(DirectionalLight);
 	}
 	else
 	{
@@ -199,7 +199,7 @@ void FGLTFSkySphereConverter::ConvertTextureParameter(const AActor* Actor, const
 	const UTexture2D* Texture2D = TexturePath != nullptr ? LoadObject<UTexture2D>(nullptr, TexturePath) : nullptr;
 	if (Texture2D != nullptr)
 	{
-		OutValue = Builder.GetOrAddTexture(Texture2D);
+		OutValue = Builder.AddUniqueTexture(Texture2D);
 	}
 	else
 	{

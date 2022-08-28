@@ -66,7 +66,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVariant(FGLTFJsonEpicVariant& O
 	if (const UTexture2D* Thumbnail = const_cast<UVariant*>(Variant)->GetThumbnail())
 	{
 		// TODO: if thumbnail has generic name "Texture2D", give it a variant-relevant name
-		JsonVariant.Thumbnail = Builder.GetOrAddTexture(Thumbnail);
+		JsonVariant.Thumbnail = Builder.AddUniqueTexture(Thumbnail);
 	}
 
 	OutVariant = JsonVariant;
@@ -159,7 +159,7 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFJs
 
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
-	FGLTFJsonNode* Node = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* Node = Builder.AddUniqueNode(Target);
 	if (Target->IsA<UCameraComponent>() || Target->IsA<ULightComponent>())
 	{
 		// NOTE: If target component is a camera or light, we know that the target gltf node is actually the first child.
@@ -229,10 +229,10 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFJson
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	FGLTFJsonEpicVariantMaterial VariantMaterial;
-	VariantMaterial.Material = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
+	VariantMaterial.Material = FGLTFVariantUtility::AddUniqueMaterial(Builder, Material, Target, MaterialIndex);
 	VariantMaterial.Index = MaterialIndex;
 
-	FGLTFJsonNode* Node = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* Node = Builder.AddUniqueNode(Target);
 	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(Node);
 
 	NodeProperties.Node = Node;
@@ -282,9 +282,9 @@ bool FGLTFEpicLevelVariantSetsConverter::TryParseMeshPropertyValue(FGLTFJsonEpic
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we should register this on the component
 
 	const FGLTFMaterialArray OverrideMaterials(Target->OverrideMaterials);
-	FGLTFJsonNode* JsonNode = Builder.GetOrAddNode(Target);
+	FGLTFJsonNode* JsonNode = Builder.AddUniqueNode(Target);
 	FGLTFJsonEpicVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(JsonNode);
-	FGLTFJsonMesh* JsonMesh = Builder.GetOrAddMesh(Mesh, OverrideMaterials);
+	FGLTFJsonMesh* JsonMesh = Builder.AddUniqueMesh(Mesh, OverrideMaterials);
 
 	NodeProperties.Node = JsonNode;
 	NodeProperties.Mesh = JsonMesh;

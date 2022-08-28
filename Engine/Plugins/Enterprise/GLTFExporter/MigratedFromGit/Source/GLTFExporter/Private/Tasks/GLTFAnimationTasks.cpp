@@ -51,7 +51,7 @@ void FGLTFAnimSequenceTask::Complete()
 
 	for (const FBoneIndexType BoneIndex : BoneIndices)
 	{
-		FGLTFJsonNode* Node = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
+		FGLTFJsonNode* Node = Builder.AddUniqueNode(RootNode, SkeletalMesh, BoneIndex);
 
 		// TODO: detect if a bone has the same transforms across multiple frames (at least if its the same across all frames) and optimize
 
@@ -192,11 +192,11 @@ void FGLTFLevelSequenceTask::Complete()
 
 			if (AActor* Actor = Cast<AActor>(Object.Get()))
 			{
-				Node = Builder.GetOrAddNode(Actor);
+				Node = Builder.AddUniqueNode(Actor);
 			}
 			else if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object.Get()))
 			{
-				Node = Builder.GetOrAddNode(SceneComponent);
+				Node = Builder.AddUniqueNode(SceneComponent);
 			}
 			else
 			{

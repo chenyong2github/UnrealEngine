@@ -286,7 +286,7 @@ void FGLTFMaterialTask::GetProxyParameter(const FGLTFProxyMaterialTextureParamet
 	}
 
 	const bool bSRGB = ParameterInfo == FGLTFProxyMaterialInfo::BaseColor || ParameterInfo == FGLTFProxyMaterialInfo::Emissive;
-	OutValue.Index = Builder.GetOrAddTexture(Texture, bSRGB);
+	OutValue.Index = Builder.AddUniqueTexture(Texture, bSRGB);
 
 	float UVIndex;
 	if (ParameterInfo.UVIndex.Get(Material, UVIndex, true))
@@ -516,7 +516,7 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		BaseColorTexCoord == OpacityTexCoord &&
 		BaseColorTransform.IsExactlyEqual(OpacityTransform))
 	{
-		OutPBRParams.BaseColorTexture.Index = Builder.GetOrAddTexture(BaseColorTexture, true);
+		OutPBRParams.BaseColorTexture.Index = Builder.AddUniqueTexture(BaseColorTexture, true);
 		OutPBRParams.BaseColorTexture.TexCoord = BaseColorTexCoord;
 		OutPBRParams.BaseColorTexture.Transform = BaseColorTransform;
 		return true;
@@ -642,7 +642,7 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 		MetallicTexCoord == RoughnessTexCoord &&
 		MetallicTransform.IsExactlyEqual(RoughnessTransform))
 	{
-		OutPBRParams.MetallicRoughnessTexture.Index = Builder.GetOrAddTexture(MetallicTexture, false);
+		OutPBRParams.MetallicRoughnessTexture.Index = Builder.AddUniqueTexture(MetallicTexture, false);
 		OutPBRParams.MetallicRoughnessTexture.TexCoord = MetallicTexCoord;
 		OutPBRParams.MetallicRoughnessTexture.Transform = MetallicTransform;
 		return true;
@@ -765,7 +765,7 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		IntensityTexCoord == RoughnessTexCoord &&
 		IntensityTransform.IsExactlyEqual(RoughnessTransform))
 	{
-		FGLTFJsonTexture* Texture = Builder.GetOrAddTexture(IntensityTexture, false);
+		FGLTFJsonTexture* Texture = Builder.AddUniqueTexture(IntensityTexture, false);
 		OutExtParams.ClearCoatTexture.Index = Texture;
 		OutExtParams.ClearCoatTexture.TexCoord = IntensityTexCoord;
 		OutExtParams.ClearCoatRoughnessTexture.Index = Texture;
@@ -1176,7 +1176,7 @@ bool FGLTFMaterialTask::TryGetSourceTexture(FGLTFJsonTextureInfo& OutTexInfo, co
 
 	if (TryGetSourceTexture(Texture, TexCoord, Transform, Property, AllowedMasks))
 	{
-		OutTexInfo.Index = Builder.GetOrAddTexture(Texture, FGLTFMaterialUtility::IsSRGB(Property));
+		OutTexInfo.Index = Builder.AddUniqueTexture(Texture, FGLTFMaterialUtility::IsSRGB(Property));
 		OutTexInfo.TexCoord = TexCoord;
 		OutTexInfo.Transform = Transform;
 		return true;

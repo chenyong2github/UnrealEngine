@@ -32,7 +32,7 @@ UMaterialInterface* FGLTFMaterialProxyFactory::Create(UMaterialInterface* Origin
 			*OriginalMaterial->GetName()));
 	}
 
-	FGLTFJsonMaterial* JsonMaterial = Builder.GetOrAddMaterial(OriginalMaterial);
+	FGLTFJsonMaterial* JsonMaterial = Builder.AddUniqueMaterial(OriginalMaterial);
 	if (JsonMaterial == nullptr)
 	{
 		// TODO: report error

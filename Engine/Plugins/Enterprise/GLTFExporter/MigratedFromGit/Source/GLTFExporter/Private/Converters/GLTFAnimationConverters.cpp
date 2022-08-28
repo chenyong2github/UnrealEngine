@@ -47,7 +47,7 @@ FGLTFJsonAnimation* FGLTFAnimationDataConverter::Convert(FGLTFJsonNode* RootNode
 		return nullptr;
 	}
 
-	FGLTFJsonAnimation* JsonAnimation = Builder.GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
+	FGLTFJsonAnimation* JsonAnimation = Builder.AddUniqueAnimation(RootNode, SkeletalMesh, AnimSequence);
 	if (JsonAnimation != nullptr && Builder.ExportOptions->bExportPlaybackSettings)
 	{
 		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation->Playback;
@@ -78,7 +78,7 @@ FGLTFJsonAnimation* FGLTFLevelSequenceDataConverter::Convert(const ALevelSequenc
 		return nullptr;
 	}
 
-	FGLTFJsonAnimation* JsonAnimation = Builder.GetOrAddAnimation(Level, LevelSequence);
+	FGLTFJsonAnimation* JsonAnimation = Builder.AddUniqueAnimation(Level, LevelSequence);
 	if (JsonAnimation != nullptr && Builder.ExportOptions->bExportPlaybackSettings)
 	{
 		FGLTFJsonAnimationPlayback& JsonPlayback = JsonAnimation->Playback;

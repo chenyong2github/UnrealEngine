@@ -25,7 +25,7 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 	}
 
 	const USceneComponent* RootComponent = Actor->GetRootComponent();
-	FGLTFJsonNode* RootNode = Builder.GetOrAddNode(RootComponent);
+	FGLTFJsonNode* RootNode = Builder.AddUniqueNode(RootComponent);
 
 	// TODO: process all components since any component can be attached to any other component in runtime
 
@@ -34,28 +34,28 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 	{
 		if (Builder.ExportOptions->bExportSkySpheres)
 		{
-			RootNode->SkySphere = Builder.GetOrAddSkySphere(Actor);
+			RootNode->SkySphere = Builder.AddUniqueSkySphere(Actor);
 		}
 	}
 	else if (FGLTFActorUtility::IsHDRIBackdropBlueprint(BlueprintPath))
 	{
 		if (Builder.ExportOptions->bExportHDRIBackdrops)
 		{
-			RootNode->Backdrop = Builder.GetOrAddBackdrop(Actor);
+			RootNode->Backdrop = Builder.AddUniqueBackdrop(Actor);
 		}
 	}
 	else if (const ALevelSequenceActor* LevelSequenceActor = Cast<ALevelSequenceActor>(Actor))
 	{
 		if (Builder.ExportOptions->bExportLevelSequences)
 		{
-			Builder.GetOrAddAnimation(LevelSequenceActor);
+			Builder.AddUniqueAnimation(LevelSequenceActor);
 		}
 	}
 	else if (const AGLTFHotspotActor* HotspotActor = Cast<AGLTFHotspotActor>(Actor))
 	{
 		if (Builder.ExportOptions->bExportAnimationHotspots)
 		{
-			RootNode->Hotspot = Builder.GetOrAddHotspot(HotspotActor);
+			RootNode->Hotspot = Builder.AddUniqueHotspot(HotspotActor);
 		}
 	}
 	else
@@ -69,7 +69,7 @@ FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 			const USceneComponent* SceneComponent = Cast<USceneComponent>(Component);
 			if (SceneComponent != nullptr)
 			{
-				Builder.GetOrAddNode(SceneComponent);
+				Builder.AddUniqueNode(SceneComponent);
 			}
 		}
 	}
@@ -101,7 +101,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 
 	const USceneComponent* ParentComponent = !bIsRootNode ? SceneComponent->GetAttachParent() : nullptr;
 	const FName SocketName = SceneComponent->GetAttachSocketName();
-	FGLTFJsonNode* ParentNode = Builder.GetOrAddNode(ParentComponent, SocketName);
+	FGLTFJsonNode* ParentNode = Builder.AddUniqueNode(ParentComponent, SocketName);
 
 	if (ParentComponent != nullptr && !SceneComponent->IsUsingAbsoluteScale())
 	{
@@ -138,25 +138,25 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 	{
 		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 		{
-			Node->Mesh = Builder.GetOrAddMesh(StaticMeshComponent);
+			Node->Mesh = Builder.AddUniqueMesh(StaticMeshComponent);
 
 			if (Builder.ExportOptions->bExportLightmaps)
 			{
-				Node->LightMap = Builder.GetOrAddLightMap(StaticMeshComponent);
+				Node->LightMap = Builder.AddUniqueLightMap(StaticMeshComponent);
 			}
 		}
 		else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SceneComponent))
 		{
-			Node->Mesh = Builder.GetOrAddMesh(SkeletalMeshComponent);
+			Node->Mesh = Builder.AddUniqueMesh(SkeletalMeshComponent);
 
 			if (Builder.ExportOptions->bExportVertexSkinWeights)
 			{
-				Node->Skin = Builder.GetOrAddSkin(Node, SkeletalMeshComponent);
+				Node->Skin = Builder.AddUniqueSkin(Node, SkeletalMeshComponent);
 				if (Node->Skin != nullptr)
 				{
 					if (Builder.ExportOptions->bExportAnimationSequences)
 					{
-						Builder.GetOrAddAnimation(Node, SkeletalMeshComponent);
+						Builder.AddUniqueAnimation(Node, SkeletalMeshComponent);
 					}
 				}
 			}
@@ -169,7 +169,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 				FGLTFJsonNode* CameraNode = Builder.AddNode();
 				CameraNode->Name = FGLTFNameUtility::GetName(CameraComponent);
 				CameraNode->Rotation = FGLTFConverterUtility::ConvertCameraDirection();
-				CameraNode->Camera = Builder.GetOrAddCamera(CameraComponent);
+				CameraNode->Camera = Builder.AddUniqueCamera(CameraComponent);
 				Node->Children.Add(CameraNode);
 			}
 		}
@@ -181,7 +181,7 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 				FGLTFJsonNode* LightNode = Builder.AddNode();
 				LightNode->Name = FGLTFNameUtility::GetName(LightComponent);
 				LightNode->Rotation = FGLTFConverterUtility::ConvertLightDirection();
-				LightNode->Light = Builder.GetOrAddLight(LightComponent);
+				LightNode->Light = Builder.AddUniqueLight(LightComponent);
 				Node->Children.Add(LightNode);
 			}
 		}
@@ -192,21 +192,21 @@ FGLTFJsonNode* FGLTFComponentConverter::Convert(const USceneComponent* SceneComp
 
 FGLTFJsonNode* FGLTFComponentSocketConverter::Convert(const USceneComponent* SceneComponent, FName SocketName)
 {
-	FGLTFJsonNode* JsonNode = Builder.GetOrAddNode(SceneComponent);
+	FGLTFJsonNode* JsonNode = Builder.AddUniqueNode(SceneComponent);
 
 	if (SocketName != NAME_None)
 	{
 		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 		{
 			const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-			return Builder.GetOrAddNode(JsonNode, StaticMesh, SocketName);
+			return Builder.AddUniqueNode(JsonNode, StaticMesh, SocketName);
 		}
 
 		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
 		{
 			// TODO: add support for SocketOverrideLookup?
 			const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
-			return Builder.GetOrAddNode(JsonNode, SkeletalMesh, SocketName);
+			return Builder.AddUniqueNode(JsonNode, SkeletalMesh, SocketName);
 		}
 
 		// TODO: add support for more socket types
@@ -261,7 +261,7 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 		Node->Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
 
 		const int32 ParentBone = RefSkeleton.FindBoneIndex(Socket->BoneName);
-		FGLTFJsonNode* ParentNode = ParentBone != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
+		FGLTFJsonNode* ParentNode = ParentBone != INDEX_NONE ? Builder.AddUniqueNode(RootNode, SkeletalMesh, ParentBone) : RootNode;
 
 		ParentNode->Children.Add(Node);
 		return Node;
@@ -270,7 +270,7 @@ FGLTFJsonNode* FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNode* RootNode, co
 	const int32 BoneIndex = RefSkeleton.FindBoneIndex(SocketName);
 	if (BoneIndex != INDEX_NONE)
 	{
-		return Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
+		return Builder.AddUniqueNode(RootNode, SkeletalMesh, BoneIndex);
 	}
 
 	// TODO: report error
@@ -313,7 +313,7 @@ FGLTFJsonNode* FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNode* RootNode, cons
 		// TODO: report error
 	}
 
-	FGLTFJsonNode* ParentNode = BoneInfo.ParentIndex != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneInfo.ParentIndex) : RootNode;
+	FGLTFJsonNode* ParentNode = BoneInfo.ParentIndex != INDEX_NONE ? Builder.AddUniqueNode(RootNode, SkeletalMesh, BoneInfo.ParentIndex) : RootNode;
 	ParentNode->Children.Add(Node);
 	return Node;
 }

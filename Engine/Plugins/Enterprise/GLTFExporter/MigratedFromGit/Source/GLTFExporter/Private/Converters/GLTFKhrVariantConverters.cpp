@@ -141,10 +141,10 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 	Builder.RegisterObjectVariant(Owner, Property); // TODO: we don't need to register this on the actor
 
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
-	FGLTFJsonMesh* JsonMesh = Builder.GetOrAddMesh(Target);
+	FGLTFJsonMesh* JsonMesh = Builder.AddUniqueMesh(Target);
 
 	OutPrimitive = &JsonMesh->Primitives[MaterialIndex];
-	OutMaterial = FGLTFVariantUtility::GetOrAddMaterial(Builder, Material, Target, MaterialIndex);
+	OutMaterial = FGLTFVariantUtility::AddUniqueMaterial(Builder, Material, Target, MaterialIndex);
 
 	return true;
 }

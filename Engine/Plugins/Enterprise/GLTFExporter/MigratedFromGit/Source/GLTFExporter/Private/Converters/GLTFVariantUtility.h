@@ -34,5 +34,5 @@ struct FGLTFVariantUtility
 	static FString GetLogContext(const UVariantSet* VariantSet);
 	static FString GetLogContext(const ULevelVariantSets* LevelVariantSets);
 
-	static FGLTFJsonMaterial* GetOrAddMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex);
+	static FGLTFJsonMaterial* AddUniqueMaterial(FGLTFConvertBuilder& Builder, const UMaterialInterface* Material, const UMeshComponent* MeshComponent, int32 MaterialIndex);
 };

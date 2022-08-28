@@ -36,7 +36,7 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 						{
 							if (LevelVariantSets != nullptr)
 							{
-								FGLTFJsonEpicLevelVariantSets* JsonEpicLevelVariantSets = Builder.GetOrAddEpicLevelVariantSets(LevelVariantSets);
+								FGLTFJsonEpicLevelVariantSets* JsonEpicLevelVariantSets = Builder.AddUniqueEpicLevelVariantSets(LevelVariantSets);
 								if (JsonEpicLevelVariantSets != nullptr)
 								{
 									Scene->EpicLevelVariantSets.Add(JsonEpicLevelVariantSets);
@@ -51,7 +51,7 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 								{
 									for (const UVariant* Variant: VariantSet->GetVariants())
 									{
-										Builder.GetOrAddKhrMaterialVariant(Variant);
+										Builder.AddUniqueKhrMaterialVariant(Variant);
 									}
 								}
 							}
@@ -62,7 +62,7 @@ FGLTFJsonScene* FGLTFSceneConverter::Convert(const UWorld* World)
 
 			for (const AActor* Actor : Level->Actors)
 			{
-				FGLTFJsonNode* JsonNode = Builder.GetOrAddNode(Actor);
+				FGLTFJsonNode* JsonNode = Builder.AddUniqueNode(Actor);
 				if (JsonNode != nullptr && Builder.IsRootActor(Actor))
 				{
 					// TODO: to avoid having to add irrelevant actors/components let GLTFComponentConverter decide and add root nodes to Scene->
