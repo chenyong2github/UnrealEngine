@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFNameUtility.h"
-#include "Actors/GLTFInteractionHotspotActor.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Engine.h"
 
@@ -70,9 +69,4 @@ FString FGLTFNameUtility::GetName(const ULightComponent* Component)
 FString FGLTFNameUtility::GetName(const UCameraComponent* Component)
 {
 	return GetActorNameIfOwnerOfType<ACameraActor>(Component);
-}
-
-FString FGLTFNameUtility::GetName(const UGLTFInteractionHotspotComponent* Component)
-{
-	return GetActorNameIfOwnerOfType<AGLTFInteractionHotspotActor>(Component);
 }

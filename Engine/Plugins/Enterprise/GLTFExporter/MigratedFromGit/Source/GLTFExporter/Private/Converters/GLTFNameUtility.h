@@ -6,7 +6,7 @@
 
 class ULightComponent;
 class UCameraComponent;
-class UGLTFInteractionHotspotComponent;
+class AGLTFInteractionHotspotActor;
 
 struct FGLTFNameUtility
 {
@@ -27,5 +27,4 @@ struct FGLTFNameUtility
 	static FString GetName(const USkeletalMeshComponent* Component);
 	static FString GetName(const ULightComponent* Component);
 	static FString GetName(const UCameraComponent* Component);
-	static FString GetName(const UGLTFInteractionHotspotComponent* Component);
 };
