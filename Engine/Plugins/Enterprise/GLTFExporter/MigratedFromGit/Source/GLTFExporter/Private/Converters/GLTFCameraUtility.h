@@ -6,8 +6,8 @@
 
 struct FGLTFCameraUtility
 {
-	static FGLTFJsonOrthographic ConvertOrthographic(const FMinimalViewInfo& View, const float ExportScale);
-	static FGLTFJsonPerspective ConvertPerspective(const FMinimalViewInfo& View, const float ExportScale);
+	static FGLTFJsonOrthographic ConvertOrthographic(const FMinimalViewInfo& View, const float ConversionScale);
+	static FGLTFJsonPerspective ConvertPerspective(const FMinimalViewInfo& View, const float ConversionScale);
 
 	static float ConvertFieldOfView(const FMinimalViewInfo& View);
 };
