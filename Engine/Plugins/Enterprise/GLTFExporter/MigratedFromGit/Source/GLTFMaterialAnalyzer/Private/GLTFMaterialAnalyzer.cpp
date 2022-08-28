@@ -19,6 +19,12 @@ void UGLTFMaterialAnalyzer::ResetToDefaults()
 
 void UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis)
 {
+	if (const_cast<UMaterialInterface*>(InMaterial)->GetMaterialResource(GMaxRHIFeatureLevel) == nullptr)
+	{
+		// NOTE: make sure material has a resource before calling UMaterialInterface::AnalyzeMaterialProperty
+		const_cast<UMaterialInterface*>(InMaterial)->ForceRecompileForRendering();
+	}
+
 	// NOTE: besides avoiding creating a new object each time a property is analyzed,
 	// the use of GetDefaultObject() also server another purpose:
 	//
@@ -28,7 +34,6 @@ void UGLTFMaterialAnalyzer::AnalyzeMaterialPropertyEx(const UMaterialInterface* 
 	// defined in UMaterialInterface, and the editor would crash if it was processed.
 	// Fortunately objects with the RF_ClassDefaultObject flag
 	// are excluded from being processed.
-
 	UGLTFMaterialAnalyzer* Analyzer = Cast<UGLTFMaterialAnalyzer>(StaticClass()->GetDefaultObject());
 
 	Analyzer->Property = InProperty;

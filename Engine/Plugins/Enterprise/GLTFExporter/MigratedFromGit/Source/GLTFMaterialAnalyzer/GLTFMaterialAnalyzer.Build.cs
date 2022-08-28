@@ -12,7 +12,8 @@ public class GLTFMaterialAnalyzer : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"RenderCore"
+				"RenderCore",
+				"RHI"
 			}
 		);
 
