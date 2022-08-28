@@ -10,6 +10,15 @@
 #include "IMaterialBakingModule.h"
 #include "MaterialBakingStructures.h"
 
+UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const FGLTFPropertyBakeOutput& PropertyBakeOutput, bool bUseSRGB)
+{
+	return CreateTransientTexture(
+		PropertyBakeOutput.Pixels,
+		PropertyBakeOutput.Size,
+		PropertyBakeOutput.PixelFormat,
+		bUseSRGB);
+}
+
 UTexture2D* FGLTFMaterialUtility::CreateTransientTexture(const TArray<FColor>& Pixels, const FIntPoint& TextureSize, EPixelFormat TextureFormat, bool bUseSRGB)
 {
 	check(TextureSize.X * TextureSize.Y == Pixels.Num());
@@ -124,16 +133,12 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		const FColor& Pixel = BakedPixels[0];
 
 		PropertyBakeOutput.bIsConstant = true;
+
+		// TODO: is the current conversion from sRGB => linear correct?
 		PropertyBakeOutput.ConstantValue = Pixel;
 	}
 
 	return PropertyBakeOutput;
-}
-
-UTexture2D* FGLTFMaterialUtility::BakeMaterialPropertyToTexture(const FIntPoint& OutputSize, EMaterialProperty MaterialProperty, const UMaterialInterface* Material, bool bCopyAlphaFromRedChannel, bool bUseSRGB)
-{
-	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(OutputSize, MaterialProperty, Material, bCopyAlphaFromRedChannel);
-	return CreateTransientTexture(PropertyBakeOutput.Pixels, PropertyBakeOutput.Size, PropertyBakeOutput.PixelFormat, bUseSRGB);
 }
 
 FGLTFJsonTextureIndex FGLTFMaterialUtility::AddCombinedTexture(FGLTFConvertBuilder& Builder, const TArray<FGLTFTextureCombineSource>& CombineSources, const FIntPoint& TextureSize, const FString& TextureName, EGLTFJsonTextureFilter MinFilter, EGLTFJsonTextureFilter MagFilter, EGLTFJsonTextureWrap WrapS, EGLTFJsonTextureWrap WrapT)
