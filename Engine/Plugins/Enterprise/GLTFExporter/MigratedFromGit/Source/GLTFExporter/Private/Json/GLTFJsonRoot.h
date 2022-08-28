@@ -18,11 +18,11 @@
 #include "Json/GLTFJsonSkin.h"
 #include "Json/GLTFJsonTexture.h"
 #include "Json/GLTFJsonBackdrop.h"
-#include "Json/GLTFJsonVariation.h"
-#include "Json/GLTFJsonLightMap.h"
-#include "Json/GLTFJsonLight.h"
 #include "Json/GLTFJsonHotspot.h"
+#include "Json/GLTFJsonLight.h"
+#include "Json/GLTFJsonLightMap.h"
 #include "Json/GLTFJsonSkySphere.h"
+#include "Json/GLTFJsonVariation.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 
 
@@ -77,11 +77,11 @@ struct FGLTFJsonRoot
 	TArray<TUniquePtr<FGLTFJsonSkin>>       Skins;
 	TArray<TUniquePtr<FGLTFJsonTexture>>    Textures;
 	TArray<TUniquePtr<FGLTFJsonBackdrop>>   Backdrops;
-	TArray<TUniquePtr<FGLTFJsonLightMap>>   LightMaps;
-	TArray<TUniquePtr<FGLTFJsonLight>>      Lights;
-	TArray<TUniquePtr<FGLTFJsonVariation>>  Variations;
 	TArray<TUniquePtr<FGLTFJsonHotspot>>    Hotspots;
+	TArray<TUniquePtr<FGLTFJsonLight>>      Lights;
+	TArray<TUniquePtr<FGLTFJsonLightMap>>   LightMaps;
 	TArray<TUniquePtr<FGLTFJsonSkySphere>>  SkySpheres;
+	TArray<TUniquePtr<FGLTFJsonVariation>>  Variations;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, bool bAllExtensionsRequired) const
@@ -112,7 +112,7 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("skins"), Skins, AllExtensions);
 		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
 
-		if (Backdrops.Num() > 0 || Variations.Num() > 0 || LightMaps.Num() > 0 || Lights.Num() > 0 || Hotspots.Num() > 0 || SkySpheres.Num() > 0 /* TODO: add more extension support */)
+		if (Backdrops.Num() > 0 || Hotspots.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || Variations.Num() > 0)
 		{
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 
@@ -126,6 +126,16 @@ struct FGLTFJsonRoot
 				JsonWriter.WriteObjectEnd();
 			}
 
+			if (Hotspots.Num() > 0)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
+				AllExtensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("hotspots"), Hotspots, AllExtensions);
+				JsonWriter.WriteObjectEnd();
+			}
+
 			if (Variations.Num() > 0)
 			{
 				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
@@ -133,16 +143,6 @@ struct FGLTFJsonRoot
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
 				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("levelVariantSets"), Variations, AllExtensions);
-				JsonWriter.WriteObjectEnd();
-			}
-
-			if (LightMaps.Num() > 0)
-			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
-				AllExtensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -156,13 +156,13 @@ struct FGLTFJsonRoot
 				JsonWriter.WriteObjectEnd();
 			}
 
-			if (Hotspots.Num() > 0)
+			if (LightMaps.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("hotspots"), Hotspots, AllExtensions);
+				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
