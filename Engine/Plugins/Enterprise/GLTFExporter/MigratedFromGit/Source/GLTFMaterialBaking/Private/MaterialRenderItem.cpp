@@ -11,13 +11,11 @@
 #define SHOW_WIREFRAME_MESH 0
 
 FMeshMaterialRenderItem::FMeshMaterialRenderItem(
-	const FMaterialData* InMaterialSettings,
+	const FIntPoint& InTextureSize,
 	const FMeshData* InMeshSettings,
-	EMaterialProperty InMaterialProperty,
 	FDynamicMeshBufferAllocator* InDynamicMeshBufferAllocator)
 	: MeshSettings(InMeshSettings)
-	, MaterialSettings(InMaterialSettings)
-	, MaterialProperty(InMaterialProperty)
+	, TextureSize(InTextureSize)
 	, MaterialRenderProxy(nullptr)
 	, ViewFamily(nullptr)
 	, bMeshElementDirty(true)
@@ -157,9 +155,8 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 	const float V = MeshSettings->TextureCoordinateBox.Min.Y;
 	const float SizeU = MeshSettings->TextureCoordinateBox.Max.X - MeshSettings->TextureCoordinateBox.Min.X;
 	const float SizeV = MeshSettings->TextureCoordinateBox.Max.Y - MeshSettings->TextureCoordinateBox.Min.Y;
-	const FIntPoint& PropertySize = MaterialSettings->PropertySizes[MaterialProperty];
-	const float ScaleX = PropertySize.X;
-	const float ScaleY = PropertySize.Y;
+	const float ScaleX = TextureSize.X;
+	const float ScaleY = TextureSize.Y;
 
 	// add vertices
 	for (int32 VertIndex = 0; VertIndex < 4; VertIndex++)
@@ -198,9 +195,8 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	Vertices.Empty(NumVerts);
 	Indices.Empty(NumVerts >> 1);
 
-	const FIntPoint& PropertySize = MaterialSettings->PropertySizes[MaterialProperty];
-	const float ScaleX = PropertySize.X;
-	const float ScaleY = PropertySize.Y;
+	const float ScaleX = TextureSize.X;
+	const float ScaleY = TextureSize.Y;
 
 	const static int32 VertexPositionStoredUVChannel = 6;
 	// count number of texture coordinates for this mesh
@@ -223,7 +219,7 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	{
 		const FPolygonGroupID PolygonGroupID = RawMesh->GetPolygonPolygonGroup(PolygonID);
 		const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
-		for (const FTriangleID TriangleID : TriangleIDs)
+		for (const FTriangleID& TriangleID : TriangleIDs)
 		{
 			if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))
 			{
