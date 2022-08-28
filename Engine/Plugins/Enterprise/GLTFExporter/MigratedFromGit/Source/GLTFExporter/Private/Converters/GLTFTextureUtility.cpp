@@ -224,11 +224,15 @@ UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* T
 
 	const FByteBulkData& BulkData = TextureCube->PlatformData->Mips[0].BulkData;
 	const int64 MipSize = BulkData.GetBulkDataSize() / 6;
+	UTexture2D* FaceTexture = nullptr;
 
 	const void* MipDataPtr = BulkData.LockReadOnly();
-	const void* FaceDataPtr =  static_cast<const uint8*>(MipDataPtr) + MipSize * CubeFace;
-	UTexture2D* FaceTexture = CreateTransientTexture(FaceDataPtr, MipSize, Size, Format, TextureCube->SRGB);
-	BulkData.Unlock();
+	if (MipDataPtr != nullptr)
+	{
+		const void* FaceDataPtr = static_cast<const uint8*>(MipDataPtr) + MipSize * CubeFace;
+		FaceTexture = CreateTransientTexture(FaceDataPtr, MipSize, Size, Format, TextureCube->SRGB);
+	}
+	const_cast<FByteBulkData&>(BulkData).Unlock();
 
 	return FaceTexture;
 }
