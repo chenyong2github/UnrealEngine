@@ -157,8 +157,11 @@ bool FGLTFMaterialConverter::TryGetBaseColorAndOpacity(FGLTFConvertBuilder& Buil
 	int32 TexCoord = 0;
 	FIntPoint TextureSize(512, 512);
 
-	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::ClampToEdge;
-	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::ClampToEdge;
+	// TODO: should this be the default wrap-mode?
+	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
+	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
+
+	// TODO: should this be the default filter?
 	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
 	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
@@ -296,8 +299,11 @@ bool FGLTFMaterialConverter::TryGetMetallicAndRoughness(FGLTFConvertBuilder& Bui
 	int32 TexCoord = 0;
 	FIntPoint TextureSize(512, 512);
 
-	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::ClampToEdge;
-	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::ClampToEdge;
+	// TODO: should this be the default wrap-mode?
+	EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
+	EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
+
+	// TODO: should this be the default filter?
 	EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
 	EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
@@ -742,9 +748,11 @@ bool FGLTFMaterialConverter::StoreBakedPropertyTexture(FGLTFConvertBuilder& Buil
 	// TODO: add support for detecting the correct tex-coord for this property based on connected nodes
 	const uint32 TexCoord = 0;
 
-	// TODO: support for other wrapping / filters?
-	const EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::ClampToEdge;
-	const EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::ClampToEdge;
+	// TODO: should this be the default wrap-mode?
+	const EGLTFJsonTextureWrap TextureWrapS = EGLTFJsonTextureWrap::Repeat;
+	const EGLTFJsonTextureWrap TextureWrapT = EGLTFJsonTextureWrap::Repeat;
+
+	// TODO: should this be the default filter?
 	const EGLTFJsonTextureFilter TextureMinFilter = EGLTFJsonTextureFilter::LinearMipmapLinear;
 	const EGLTFJsonTextureFilter TextureMagFilter = EGLTFJsonTextureFilter::Linear;
 
