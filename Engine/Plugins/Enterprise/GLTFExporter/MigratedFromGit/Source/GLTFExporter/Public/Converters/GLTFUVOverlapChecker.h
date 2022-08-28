@@ -12,8 +12,6 @@ class GLTFEXPORTER_API FGLTFUVOverlapChecker : public TGLTFConverter<float, cons
 {
 protected:
 
-	virtual void Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord) override;
-
 	virtual float Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord) override;
 
 private:
