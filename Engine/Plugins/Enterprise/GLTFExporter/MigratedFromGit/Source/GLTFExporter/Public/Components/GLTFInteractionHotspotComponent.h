@@ -52,11 +52,16 @@ public:
 
 protected:
 	virtual void OnRegister() override;
+	virtual void OnCreatePhysicsState() override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin UBillboardComponent Interface.
 public:
 	virtual void SetSprite(class UTexture2D* NewSprite) override;
+	//~ End UBillboardComponent Interface.
+
+	//~ Begin UPrimitiveComponent Interface.
+	virtual UBodySetup* GetBodySetup() { return ShapeBodySetup; }
 	//~ End UBillboardComponent Interface.
 
 private:
@@ -71,14 +76,13 @@ private:
 
 	void UpdateCollisionVolume();
 	float GetBillboardBoundingRadius() const;
-	FTransform GetWorldTransform() const;
 
 public:
 	/** List of skeletal meshes and animations to be played when the hotspot is interacted with */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	TArray<FGLTFAnimation> Animations;
 
-	/** The billboard image that will be shown when the hotspot is in an inactive state */
+	/** The billboard image that will be shown when the hotspot is in an inactive state or one without a specified sprite */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF Interaction Hotspot")
 	UTexture2D* DefaultSprite;
 

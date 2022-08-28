@@ -78,8 +78,13 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 
 	ShapeBodySetup->CollisionTraceFlag = CTF_UseSimpleAsComplex;
 	ShapeBodySetup->AggGeom.SphereElems.Add(FKSphereElem(UnitSphereRadius));
+	
+	Super::OnRegister();
+}
 
-	BodyInstance.InitBody(ShapeBodySetup, GetWorldTransform(), this, GetWorld()->GetPhysicsScene());
+void UGLTFInteractionHotspotComponent::OnCreatePhysicsState()
+{
+	Super::OnCreatePhysicsState();
 
 	if (BodyInstance.IsValidBodyInstance())
 	{
@@ -101,8 +106,6 @@ void UGLTFInteractionHotspotComponent::OnRegister()
 	}
 
 	UpdateCollisionVolume();
-
-	Super::OnRegister();
 }
 
 void UGLTFInteractionHotspotComponent::SetSprite(class UTexture2D* NewSprite)
@@ -177,7 +180,7 @@ void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
 	if (ShapeBodySetup != nullptr)
 	{
 		// TODO: Figure out why the bounding radius doesn't match the size of the billboard
-		const float Scaling = 0.15;
+		const float Scaling = 0.15f;
 		const float BillboardBoundingRadius = GetBillboardBoundingRadius() * Scaling;
 
 		check(ShapeBodySetup->AggGeom.SphereElems.Num() == 1);
@@ -189,16 +192,9 @@ void UGLTFInteractionHotspotComponent::UpdateCollisionVolume()
 	}
 }
 
-FTransform UGLTFInteractionHotspotComponent::GetWorldTransform() const
-{
-	const AActor* Owner = GetOwner();
-
-	return (Owner != nullptr) ? (Owner->GetTransform() * GetComponentTransform()) : GetComponentTransform();
-}
-
 float UGLTFInteractionHotspotComponent::GetBillboardBoundingRadius() const
 {
-	const FTransform WorldTransform = GetWorldTransform();
+	const FTransform WorldTransform = GetComponentTransform();
 	const FBoxSphereBounds WorldBounds = CalcBounds(WorldTransform);
 
 	return WorldBounds.SphereRadius;
