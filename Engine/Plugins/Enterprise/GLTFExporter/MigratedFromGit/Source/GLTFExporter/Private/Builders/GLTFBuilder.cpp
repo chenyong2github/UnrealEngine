@@ -77,16 +77,21 @@ EGLTFJsonHDREncoding FGLTFBuilder::GetTextureHDREncoding() const
 
 bool FGLTFBuilder::ShouldExportLight(EComponentMobility::Type LightMobility) const
 {
-	switch (ExportOptions->ExportLights)
+	const EGLTFSceneMobility AllowedMobility = static_cast<EGLTFSceneMobility>(ExportOptions->ExportLights);
+	const EGLTFSceneMobility QueriedMobility = GetSceneMobility(LightMobility);
+	return EnumHasAllFlags(AllowedMobility, QueriedMobility);
+}
+
+EGLTFSceneMobility FGLTFBuilder::GetSceneMobility(EComponentMobility::Type Mobility)
+{
+	switch (Mobility)
 	{
-		case EGLTFExportLightMobility::All:
-			return true;
-		case EGLTFExportLightMobility::MovableAndStationary:
-			return LightMobility == EComponentMobility::Movable || LightMobility == EComponentMobility::Stationary;
-		case EGLTFExportLightMobility::MovableOnly:
-			return LightMobility == EComponentMobility::Movable;
+		case EComponentMobility::Static:     return EGLTFSceneMobility::Static;
+		case EComponentMobility::Stationary: return EGLTFSceneMobility::Stationary;
+		case EComponentMobility::Movable:    return EGLTFSceneMobility::Movable;
 		default:
-			return false;
+			checkNoEntry();
+			return EGLTFSceneMobility::None;
 	}
 }
 

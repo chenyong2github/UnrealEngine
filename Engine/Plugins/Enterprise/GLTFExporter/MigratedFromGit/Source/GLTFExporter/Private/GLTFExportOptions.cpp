@@ -32,19 +32,19 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportPlaybackSettings = true;
 	TextureCompression = EGLTFTextureCompression::PNG;
 	TextureCompressionQuality = 0;
-	LosslessCompressTextures = static_cast<int32>(EGLTFTextureGroupFlags::All);
+	NoLossyCompressionFor = static_cast<int32>(EGLTFTextureType::All);
 	bExportTextureTransforms = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFTextureHDREncoding::RGBM;
 	bExportHiddenInGame = false;
-	ExportLights = EGLTFExportLightMobility::MovableAndStationary;
+	ExportLights = static_cast<int32>(EGLTFSceneMobility::Stationary | EGLTFSceneMobility::Movable);
 	bExportCameras = true;
 	bExportCameraControls = true;
 	bExportAnimationHotspots = true;
 	bExportHDRIBackdrops = true;
 	bExportSkySpheres = true;
 	bExportVariantSets = true;
-	ExportMaterialVariants = EGLTFMaterialBakeMode::UseMeshData;
+	ExportMaterialVariants = EGLTFMaterialVariantMode::UseMeshData;
 	bExportMeshVariants = true;
 	bExportVisibilityVariants = true;
 }

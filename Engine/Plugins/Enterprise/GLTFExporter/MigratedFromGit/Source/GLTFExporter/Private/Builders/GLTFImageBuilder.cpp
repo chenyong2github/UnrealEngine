@@ -10,23 +10,23 @@ FGLTFImageBuilder::FGLTFImageBuilder(const FString& FilePath, const UGLTFExportO
 {
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const TArray<FColor>& Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
 {
 	check(Pixels.Num() == Size.X * Size.Y);
-	return AddImage(Pixels.GetData(), Size, bIgnoreAlpha, Flags, Name);
+	return AddImage(Pixels.GetData(), Size, bIgnoreAlpha, Type, Name);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, int64 ByteLength, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, int64 ByteLength, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
 {
 	check(ByteLength == Size.X * Size.Y * sizeof(FColor));
-	return AddImage(Pixels, Size, bIgnoreAlpha, Flags, Name);
+	return AddImage(Pixels, Size, bIgnoreAlpha, Type, Name);
 }
 
-FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags, const FString& Name)
+FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type, const FString& Name)
 {
 	TArray64<uint8> CompressedData;
 
-	const EGLTFJsonMimeType ImageFormat = GetImageFormat(Pixels, Size, bIgnoreAlpha, Flags);
+	const EGLTFJsonMimeType ImageFormat = GetImageFormat(Pixels, Size, bIgnoreAlpha, Type);
 	switch (ImageFormat)
 	{
 		case EGLTFJsonMimeType::PNG:
@@ -73,7 +73,7 @@ FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* CompressedData, int6
 	return ImageIndex;
 }
 
-EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureGroupFlags Flags) const
+EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPoint Size, bool bIgnoreAlpha, EGLTFTextureType Type) const
 {
 	switch (ExportOptions->TextureCompression)
 	{
@@ -82,7 +82,7 @@ EGLTFJsonMimeType FGLTFImageBuilder::GetImageFormat(const FColor* Pixels, FIntPo
 
 		case EGLTFTextureCompression::JPEG:
 			return
-				!EnumHasAllFlags(static_cast<EGLTFTextureGroupFlags>(ExportOptions->LosslessCompressTextures), Flags) &&
+				!EnumHasAllFlags(static_cast<EGLTFTextureType>(ExportOptions->NoLossyCompressionFor), Type) &&
 				(bIgnoreAlpha || FGLTFImageUtility::NoAlphaNeeded(Pixels, Size)) ?
 				EGLTFJsonMimeType::JPEG : EGLTFJsonMimeType::PNG;
 
