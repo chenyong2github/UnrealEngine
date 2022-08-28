@@ -127,7 +127,30 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 
 			if (JsonMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
 			{
-				// TODO: add support for clear coat properties
+				if (JsonMaterial.ShadingModel == EGLTFJsonShadingModel::ClearCoat)
+				{
+					if (!TryGetConstantScalar(JsonMaterial.ClearCoat.ClearCoatFactor, MP_CustomData0, Material))
+					{
+						if (!TryGetSourceTexture(Builder, JsonMaterial.ClearCoat.ClearCoatTexture, MP_CustomData0, Material, { RedMask }))
+						{
+							if (!TryGetBakedMaterialProperty(Builder, JsonMaterial.ClearCoat.ClearCoatTexture, JsonMaterial.ClearCoat.ClearCoatFactor, MP_CustomData0, TEXT("ClearCoat"), Material))
+							{
+								// TODO: handle failure?
+							}
+						}
+					}
+
+					if (!TryGetConstantScalar(JsonMaterial.ClearCoat.ClearCoatRoughnessFactor, MP_CustomData1, Material))
+					{
+						if (!TryGetSourceTexture(Builder, JsonMaterial.ClearCoat.ClearCoatRoughnessTexture, MP_CustomData1, Material, { GreenMask }))
+						{
+							if (!TryGetBakedMaterialProperty(Builder, JsonMaterial.ClearCoat.ClearCoatRoughnessTexture, JsonMaterial.ClearCoat.ClearCoatRoughnessFactor, MP_CustomData1, TEXT("ClearCoatRoughness"), Material))
+							{
+								// TODO: handle failure?
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -858,6 +881,21 @@ bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Bu
 	if (PropertyBakeOutput.bIsConstant)
 	{
 		OutConstant = FGLTFConverterUtility::ConvertColor(PropertyBakeOutput.ConstantValue);
+		return true;
+	}
+	else
+	{
+		return StoreBakedPropertyTexture(Builder, OutTexInfo, PropertyBakeOutput, PropertyName, Material);
+	}
+}
+
+inline bool FGLTFMaterialConverter::TryGetBakedMaterialProperty(FGLTFConvertBuilder& Builder, FGLTFJsonTextureInfo& OutTexInfo, float& OutConstant, EMaterialProperty Property, const FString& PropertyName, const UMaterialInterface* Material) const
+{
+	const FGLTFPropertyBakeOutput PropertyBakeOutput = BakeMaterialProperty(Property, Material);
+
+	if (PropertyBakeOutput.bIsConstant)
+	{
+		OutConstant = PropertyBakeOutput.ConstantValue.R;
 		return true;
 	}
 	else
