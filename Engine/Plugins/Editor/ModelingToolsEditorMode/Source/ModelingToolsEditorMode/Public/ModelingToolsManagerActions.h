@@ -130,6 +130,7 @@ public:
 	
 	TSharedPtr<FUICommandInfo> BeginLODManagerTool;
 	TSharedPtr<FUICommandInfo> BeginGenerateStaticMeshLODAssetTool;
+	TSharedPtr<FUICommandInfo> BeginISMEditorTool;
 
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_FaceSelect;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_EdgeSelect;
