@@ -15,4 +15,17 @@ struct GLTFEXPORTER_API FGLTFJsonBuffer : FGLTFJsonObject
 		: ByteLength(0)
 	{
 	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	{
+		JsonWriter.WriteObjectStart();
+
+		if (!Name.IsEmpty()) JsonWriter.WriteValue(TEXT("name"), Name);
+
+		if (!URI.IsEmpty()) JsonWriter.WriteValue(TEXT("uri"), URI);
+		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
+
+		JsonWriter.WriteObjectEnd();
+	}
 };
