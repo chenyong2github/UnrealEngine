@@ -45,8 +45,8 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 				OrbitCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMax, Builder.ExportOptions->ExportScale);
 				OrbitCamera.MinDistance = FGLTFConverterUtility::ConvertLength(OrbitCameraActor->DistanceMin, Builder.ExportOptions->ExportScale);
 
-				// TODO: we need to decide what values to use for looking straight ahead, up and down.
-				// Right now the actor and the viewer have different opinions.
+				// TODO: should we modify AGLTFOrbitCameraActor to calculate pitch the same way
+				// as the viewer, to avoid having to manually add 90 degrees at export?
 				OrbitCamera.MaxAngle = OrbitCameraActor->PitchAngleMax + 90.0f;
 				OrbitCamera.MinAngle = OrbitCameraActor->PitchAngleMin + 90.0f;
 
