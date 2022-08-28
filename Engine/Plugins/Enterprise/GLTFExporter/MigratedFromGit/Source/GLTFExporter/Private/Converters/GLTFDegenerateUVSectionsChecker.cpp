@@ -4,14 +4,20 @@
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
 
-void FGLTFDegenerateUVSectionsChecker::Sanitize(const FMeshDescription*& Description, int32& TexCoord)
+void FGLTFDegenerateUVSectionsChecker::Sanitize(const FMeshDescription*& Description, int32& SectionIndex, int32& TexCoord)
 {
 	if (Description != nullptr)
 	{
-		const TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs =
-			Description->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		const int32 TexCoordCount = VertexInstanceUVs.GetNumIndices();
+		const int32 SectionCount = Description->PolygonGroups().Num();
+		if (SectionIndex < 0 || SectionIndex >= SectionCount)
+		{
+			Description = nullptr;
+		}
+	}
 
+	if (Description != nullptr)
+	{
+		const int32 TexCoordCount = Description->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate).GetNumIndices();
 		if (TexCoord < 0 || TexCoord >= TexCoordCount)
 		{
 			Description = nullptr;
@@ -19,57 +25,40 @@ void FGLTFDegenerateUVSectionsChecker::Sanitize(const FMeshDescription*& Descrip
 	}
 }
 
-const TArray<int32>* FGLTFDegenerateUVSectionsChecker::Convert(const FMeshDescription* Description, int32 TexCoord)
+bool FGLTFDegenerateUVSectionsChecker::Convert(const FMeshDescription* Description, int32 SectionIndex, int32 TexCoord)
 {
 	if (Description == nullptr)
 	{
 		// TODO: report warning?
 
-		return nullptr;
+		return false;
 	}
 
-	TArray<uint32> DegenerateSections;
-
+	const FPolygonGroupID PolygonGroupID = FPolygonGroupID(SectionIndex);
 	const TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs =
 		Description->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
-	for (const FPolygonGroupID PolygonGroupID : Description->PolygonGroups().GetElementIDs())
+	uint32 Index = 0;
+	FVector2D ReferenceUV;
+
+	for (const FPolygonID PolygonID : Description->GetPolygonGroupPolygons(PolygonGroupID))
 	{
-		bool bGroupIsValid = false;
-		uint32 Index = 0;
-		FVector2D ReferenceUV;
-
-		for (const FPolygonID PolygonID : Description->GetPolygonGroupPolygons(PolygonGroupID))
+		for (const FVertexInstanceID VertexInstanceID : Description->GetPolygonVertexInstances(PolygonID))
 		{
-			for (const FVertexInstanceID VertexInstanceID : Description->GetPolygonVertexInstances(PolygonID))
+			const FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, TexCoord);
+
+			if (Index == 0)
 			{
-				const FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, TexCoord);
-
-				if (Index == 0)
-				{
-					ReferenceUV = UV;
-				}
-				else if (!UV.Equals(ReferenceUV))
-				{
-					bGroupIsValid = true;
-					break;
-				}
-
-				++Index;
+				ReferenceUV = UV;
+			}
+			else if (!UV.Equals(ReferenceUV))
+			{
+				return false;
 			}
 
-			if (bGroupIsValid)
-			{
-				break;
-			}
-		}
-
-		if (!bGroupIsValid)
-		{
-			DegenerateSections.Add(PolygonGroupID.GetValue());
+			++Index;
 		}
 	}
 
-	TUniquePtr<TArray<int32>> Output = MakeUnique<TArray<int32>>(DegenerateSections);
-	return Outputs.Add_GetRef(MoveTemp(Output)).Get();
+	return true;
 }
