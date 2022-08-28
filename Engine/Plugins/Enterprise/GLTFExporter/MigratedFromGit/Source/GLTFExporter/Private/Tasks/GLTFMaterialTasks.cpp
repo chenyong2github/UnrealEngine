@@ -163,21 +163,21 @@ void FGLTFMaterialTask::Complete()
 	if (MeshData != nullptr && MeshDataBakedProperties.Num() > 0)
 	{
 		// TODO: when a mesh-component is used, MeshData will be unique for each converted component even if
-		// they use the same mesh internally. This leads to an excessive number of unique UV analyses.
+		// they use the same mesh internally. This leads to an excessive number of unique UV overlapp checks.
 		// We should look into creating a separate FGLTFMeshData for the mesh itself in these cases, and pass
 		// that as parameter to the UV analysis converter instead of MeshData.
 
-		const float MaxOverlapPercentage = 1.0f;
-		const FGLTFUVAnalysis UVAnalysis = Builder.UVAnalysisConverter.GetOrAdd(&MeshData->Description, SectionIndices, MeshData->TexCoord);
+		const float UVOverlapThreshold = 1.0f / 100.0f;
+		const float UVOverlap = UVOverlapChecker.GetOrAdd(&MeshData->Description, SectionIndices, MeshData->TexCoord);
 
-		if (UVAnalysis.OverlapPercentage > MaxOverlapPercentage)
+		if (UVOverlap > UVOverlapThreshold)
 		{
 			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Material %s is baked using TexCoord %d of %s which has %.2f%% overlapping UVs and may produce incorrect results"),
+				TEXT("Material %s is baked using mesh data from %s but the lightmap UV (channel %d) are overlapping by %.2f%% and may produce incorrect results"),
 				*Material->GetName(),
-				MeshData->TexCoord,
 				*MeshData->Name,
-				UVAnalysis.OverlapPercentage));
+				MeshData->TexCoord,
+				UVOverlap * 100));
 		}
 	}
 }

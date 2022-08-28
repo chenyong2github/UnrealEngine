@@ -2,7 +2,6 @@
 
 #include "Converters/GLTFMaterialConverters.h"
 #include "Converters/GLTFMaterialUtility.h"
-#include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMaterialTasks.h"
 
@@ -25,6 +24,6 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface*
 	}
 
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
-	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, MeshData, SectionIndices, MaterialIndex);
+	Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, MaterialIndex);
 	return MaterialIndex;
 }
