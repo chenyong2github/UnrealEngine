@@ -9,7 +9,7 @@ THIRD_PARTY_INCLUDES_END
 
 TArray<FString> FGLTFZipUtility::GetAllFiles(const FString& ArchiveFile)
 {
-	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
+	const unzFile ZipHandle = unzOpen64(TCHAR_TO_UTF8(*ArchiveFile));
 	if (ZipHandle == nullptr)
 	{
 		return {};
@@ -41,7 +41,7 @@ TArray<FString> FGLTFZipUtility::GetAllFiles(const FString& ArchiveFile)
 
 bool FGLTFZipUtility::ExtractAllFiles(const FString& ArchiveFile, const FString& TargetDirectory)
 {
-	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
+	const unzFile ZipHandle = unzOpen64(TCHAR_TO_UTF8(*ArchiveFile));
 	if (ZipHandle == nullptr)
 	{
 		return false;
@@ -75,7 +75,7 @@ bool FGLTFZipUtility::ExtractAllFiles(const FString& ArchiveFile, const FString&
 
 bool FGLTFZipUtility::ExtractOneFile(const FString& ArchiveFile, const FString& FileToExtract, const FString& TargetDirectory)
 {
-	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
+	const unzFile ZipHandle = unzOpen64(TCHAR_TO_UTF8(*ArchiveFile));
 	if (ZipHandle == nullptr)
 	{
 		return false;
@@ -87,7 +87,7 @@ bool FGLTFZipUtility::ExtractOneFile(const FString& ArchiveFile, const FString& 
 		return false;
 	}
 
-	if (unzLocateFile(ZipHandle, TCHAR_TO_ANSI(*FileToExtract), 0) != UNZ_OK)
+	if (unzLocateFile(ZipHandle, TCHAR_TO_UTF8(*FileToExtract), 0) != UNZ_OK)
 	{
 		unzClose(ZipHandle);
 		return false;
@@ -112,14 +112,14 @@ FString FGLTFZipUtility::GetCurrentFilename(void* ZipHandle)
 	}
 
 	TArray<char> Filename;
-
 	Filename.Init('\0', FileInfo.size_filename + 1);
-	if (unzGetCurrentFileInfo64(ZipHandle, nullptr, Filename.GetData(), Filename.Num() - 1, nullptr, 0, nullptr, 0) != UNZ_OK)
+
+	if (unzGetCurrentFileInfo64(ZipHandle, nullptr, Filename.GetData(), FileInfo.size_filename, nullptr, 0, nullptr, 0) != UNZ_OK)
 	{
 		return {};
 	}
 
-	return Filename.GetData();
+	return UTF8_TO_TCHAR(Filename.GetData());
 }
 
 bool FGLTFZipUtility::ExtractCurrentFile(void* ZipHandle, const FString& TargetFile)

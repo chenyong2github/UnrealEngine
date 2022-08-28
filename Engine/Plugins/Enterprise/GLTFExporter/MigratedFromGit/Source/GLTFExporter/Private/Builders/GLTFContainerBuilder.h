@@ -6,20 +6,23 @@
 
 class FGLTFContainerBuilder : public FGLTFConvertBuilder
 {
-public:
+protected:
 
 	FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, bool bSelectedActorsOnly);
 
-	void Write(FArchive& Archive, FFeedbackContext* Context = GWarn);
+	void WriteGlb(FArchive& Archive) const;
 
 private:
 
-	void WriteGlb(FArchive& Archive) const;
+	static void WriteGlb(FArchive& Archive, const TArray<uint8>& JsonData, const TArray<uint8>& BinaryData);
 
-	void BundleWebViewer();
+	static void WriteHeader(FArchive& Archive, uint32 FileSize);
+	static void WriteChunk(FArchive& Archive, uint32 ChunkType, const TArray<uint8>& ChunkData, uint8 ChunkTrailingByte);
 
-	void UpdateWebViewerIndex();
+	static void WriteInt(FArchive& Archive, uint32 Value);
+	static void WriteData(FArchive& Archive, const TArray<uint8>& Data);
+	static void WriteFill(FArchive& Archive, int32 Size, uint8 Value);
 
-	static bool ReadJsonFile(const FString& FilePath, TSharedPtr<FJsonObject>& JsonObject);
-	static bool WriteJsonFile(const FString& FilePath, const TSharedRef<FJsonObject>& JsonObject);
+	static int32 GetPaddedChunkSize(int32 Size);
+	static int32 GetTrailingChunkSize(int32 Size);
 };
