@@ -134,16 +134,6 @@ FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const UTexture2D* Tex
 	return Texture2DConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? Texture->GetName() : DesiredName, Texture);
 }
 
-FGLTFJsonTextureIndex FGLTFConvertBuilder::GetOrAddTexture(const ULightMapTexture2D* LightMapTexture2D, const FString& DesiredName)
-{
-	if (LightMapTexture2D == nullptr)
-	{
-		return FGLTFJsonTextureIndex(INDEX_NONE);
-	}
-
-	return LightMapTexture2DConverter.GetOrAdd(*this, DesiredName.IsEmpty() ? LightMapTexture2D->GetName() : DesiredName, LightMapTexture2D);
-}
-
 FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName)
 {
 	if (StaticMeshComponent == nullptr)
