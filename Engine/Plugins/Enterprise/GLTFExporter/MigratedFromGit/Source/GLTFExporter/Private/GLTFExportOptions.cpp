@@ -35,6 +35,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportCameras = true;
 	bExportOrbitalCameras = true;
 	bExportHDRIBackdrops = true;
+	bExportSkySpheres = true;
 	bExportVariantSets = true;
 	bExportAnimationHotspots = true;
 	bBundleWebViewer = true;
