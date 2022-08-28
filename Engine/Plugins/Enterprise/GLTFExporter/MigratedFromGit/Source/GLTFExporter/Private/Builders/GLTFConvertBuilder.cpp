@@ -268,7 +268,7 @@ FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeInde
 
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName)
 {
-	if (SceneComponent == nullptr || SocketName == NAME_None)
+	if (SceneComponent == nullptr)
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}

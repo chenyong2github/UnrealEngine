@@ -11,16 +11,24 @@ FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent*
 {
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(SceneComponent);
 
-	if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
+	if (SocketName != NAME_None)
 	{
-		// TODO: add support for SocketOverrideLookup?
-		const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
-		return Builder.GetOrAddNode(NodeIndex, SkeletalMesh, SocketName);
+		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
+		{
+			// TODO: add support for SocketOverrideLookup?
+			const USkeletalMesh* SkeletalMesh = SkinnedMeshComponent->SkeletalMesh;
+			return Builder.GetOrAddNode(NodeIndex, SkeletalMesh, SocketName);
+		}
+
+		// TODO: add support for non-skeletalmesh sockets
+
+		Builder.AddWarningMessage(
+			FString::Printf(TEXT("Can't export socket %s (in component %s) because it doesn't belong to a skeletal mesh"),
+			*SocketName.ToString(),
+			*SceneComponent->GetName()));
 	}
 
-	// TODO: add support for non-skeletalmesh sockets
-
-	return FGLTFJsonNodeIndex(INDEX_NONE);
+	return NodeIndex;
 }
 
 FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* SceneComponent)
@@ -41,7 +49,8 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	const bool bIsRootNode = bIsRootComponent && FGLTFActorUtility::IsRootActor(Owner, Builder.bSelectedActorsOnly);
 
 	const USceneComponent* ParentComponent = !bIsRootNode ? SceneComponent->GetAttachParent() : nullptr;
-	const FGLTFJsonNodeIndex ParentNodeIndex = Builder.GetOrAddNode(ParentComponent);
+	const FName SocketName = SceneComponent->GetAttachSocketName();
+	const FGLTFJsonNodeIndex ParentNodeIndex = Builder.GetOrAddNode(ParentComponent, SocketName);
 
 	if (ParentComponent != nullptr && !SceneComponent->IsUsingAbsoluteScale())
 	{
@@ -49,7 +58,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 		if (ParentScale.X != ParentScale.Y || ParentScale.Y != ParentScale.Z)
 		{
 			Builder.AddWarningMessage(
-			FString::Printf(TEXT("Non-uniform parent scale (%s) for component %s (in actor %s) may be represented differently in glTF"),
+				FString::Printf(TEXT("Non-uniform parent scale (%s) for component %s (in actor %s) may be represented differently in glTF"),
 				*ParentScale.ToString(),
 				*SceneComponent->GetName(),
 				*Owner->GetName()));
@@ -57,7 +66,8 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	}
 
 	const FTransform Transform = SceneComponent->GetComponentTransform();
-	const FTransform RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentComponent->GetComponentTransform());
+	const FTransform ParentTransform = ParentComponent != nullptr ? ParentComponent->GetSocketTransform(SocketName) : FTransform::Identity;
+	const FTransform RelativeTransform = bIsRootNode ? Transform : Transform.GetRelativeTransform(ParentTransform);
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.AddChildNode(ParentNodeIndex);
 	FGLTFJsonNode& Node = Builder.GetNode(NodeIndex);
@@ -185,7 +195,7 @@ FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex Root
 		FGLTFJsonNode Node;
 		Node.Name = SocketName.ToString();
 
-		// TODO: add support for non-uniform scaling
+		// TODO: add warning check for non-uniform scaling
 		const FTransform Transform = Socket->GetSocketLocalTransform();
 		Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation(), Builder.ExportOptions->ExportScale);
 		Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
@@ -225,7 +235,7 @@ FGLTFJsonNodeIndex FGLTFSkeletalBoneConverter::Convert(FGLTFJsonNodeIndex RootNo
 	const TArray<FTransform>& BonePoses = SkeletalMesh->RefSkeleton.GetRefBonePose();
 	if (BonePoses.IsValidIndex(BoneIndex))
 	{
-		// TODO: add support for non-uniform scaling
+		// TODO: add warning check for non-uniform scaling
 		const FTransform& BonePose = BonePoses[BoneIndex];
 		Node.Translation = FGLTFConverterUtility::ConvertPosition(BonePose.GetTranslation(), Builder.ExportOptions->ExportScale);
 		Node.Rotation = FGLTFConverterUtility::ConvertRotation(BonePose.GetRotation());
