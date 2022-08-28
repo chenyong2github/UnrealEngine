@@ -471,7 +471,8 @@ bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>
 
 void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutAnalysis)
 {
-	if (GetInputForProperty(InMaterial, InProperty) == nullptr)
+	const FExpressionInput* Input = GetInputForProperty(InMaterial, InProperty);
+	if (Input == nullptr || Input->Expression == nullptr)
 	{
 		OutAnalysis = FGLTFMaterialAnalysis();
 		return;
