@@ -206,11 +206,11 @@ bool FGLTFLevelVariantSetsConverter::TryParseVisibilityPropertyValue(FGLTFConver
 	}
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target); // TODO: what if the target is not selected for export?
-	const FGLTFJsonNodeIndex LeafNodeIndex = Builder.GetLeafNodeIndex(NodeIndex);
+	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
 
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(LeafNodeIndex);
+	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
-	NodeProperties.Node = LeafNodeIndex;
+	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.bIsVisible = bIsVisible;
 	return true;
 }
@@ -276,10 +276,10 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFConvertB
 	VariantMaterial.Index = ElementIndex;
 
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonNodeIndex LeafNodeIndex = Builder.GetLeafNodeIndex(NodeIndex);
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(LeafNodeIndex);
+	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
+	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
-	NodeProperties.Node = LeafNodeIndex;
+	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.Materials.Add(VariantMaterial);
 	return true;
 }
@@ -332,11 +332,11 @@ bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFConver
 
 	const FGLTFMaterialArray OverrideMaterials(MeshComponent->OverrideMaterials);
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
-	const FGLTFJsonNodeIndex LeafNodeIndex = Builder.GetLeafNodeIndex(NodeIndex);
+	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh, -1, nullptr, OverrideMaterials);
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(LeafNodeIndex);
+	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
-	NodeProperties.Node = LeafNodeIndex;
+	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.Mesh = MeshIndex;
 	return true;
 }
@@ -390,10 +390,10 @@ bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFConv
 	const FGLTFMaterialArray OverrideMaterials(MeshComponent->OverrideMaterials);
 	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh, -1, nullptr, nullptr, OverrideMaterials);
-	const FGLTFJsonNodeIndex LeafNodeIndex = Builder.GetLeafNodeIndex(NodeIndex);
-	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(LeafNodeIndex);
+	const FGLTFJsonNodeIndex ComponentNodeIndex = Builder.GetComponentNodeIndex(NodeIndex);
+	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(ComponentNodeIndex);
 
-	NodeProperties.Node = LeafNodeIndex;
+	NodeProperties.Node = ComponentNodeIndex;
 	NodeProperties.Mesh = MeshIndex;
 	return true;
 }

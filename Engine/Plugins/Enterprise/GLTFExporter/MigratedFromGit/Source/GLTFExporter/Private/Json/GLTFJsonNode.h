@@ -33,7 +33,7 @@ struct FGLTFJsonNode
 	FGLTFJsonLightMapIndex  LightMap;
 	FGLTFJsonLightIndex     Light;
 
-	FGLTFJsonNodeIndex LeafNode;
+	FGLTFJsonNodeIndex ComponentNode;
 
 	TArray<FGLTFJsonNodeIndex> Children;
 
