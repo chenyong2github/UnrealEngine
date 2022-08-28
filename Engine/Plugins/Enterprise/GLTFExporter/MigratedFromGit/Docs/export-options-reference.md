@@ -29,6 +29,7 @@ Option                         | Description
 `Export Texture Transforms`    | If enabled, export UV tiling and un-mirroring settings in a texture coordinate expression node for simple material input expressions. Uses extension KHR_texture_transform.
 `Export Lightmaps`             | If enabled, export lightmaps (created by Lightmass) when exporting a level. Uses extension EPIC_lightmap_textures, which is supported by Unreal's glTF viewer.
 `Texture HDR Encoding`         | Encoding used to store textures that have pixel colors with more than 8-bit per channel. Uses extension EPIC_texture_hdr_encoding, which is supported by Unreal's glTF viewer.
+`Adjust Normalmaps`            | If enabled, exported normalmaps will be adjusted from Unreal to glTF convention (i.e. the green channel is flipped).
 `Export Hidden In Game`        | If enabled, export actors and components that are flagged as hidden in-game.
 `Export Lights`                | Mobility of directional, point, and spot light components that will be exported. Uses extension KHR_lights_punctual.
 `Export Cameras`               | If enabled, export camera components.
