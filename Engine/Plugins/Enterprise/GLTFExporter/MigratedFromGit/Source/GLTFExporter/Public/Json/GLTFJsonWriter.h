@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonValue.h"
+#include "Json/GLTFJsonIndexedObject.h"
 #include "Json/GLTFJsonUtility.h"
 #include "Json/GLTFJsonExtensions.h"
 
@@ -49,15 +50,15 @@ public:
 		Value.WriteValue(*this);
 	}
 
-	void Write(const IGLTFJsonValue* Value)
+	void Write(const IGLTFJsonIndexedObject* Object)
 	{
-		if (Value != nullptr)
+		if (Object != nullptr)
 		{
-			Value->WriteValue(*this);
+			Write(Object->Index);
 		}
 		else
 		{
-			Write(nullptr);
+			Write(INDEX_NONE);
 		}
 	}
 
@@ -161,7 +162,7 @@ public:
 		Write(Value);
 	}
 
-	void Write(const FString& Identifier, const IGLTFJsonValue* Value)
+	void Write(const FString& Identifier, const IGLTFJsonIndexedObject* Value)
 	{
 		SetIdentifier(Identifier);
 		Write(Value);

@@ -4,9 +4,10 @@
 
 #include "Core/GLTFColor.h"
 #include "Json/GLTFJsonArray.h"
+#include "Json/GLTFJsonWriter.h"
 
 template <typename BaseType>
-struct GLTFEXPORTER_API TGLTFJsonColor : BaseType, IGLTFJsonArray
+struct TGLTFJsonColor : BaseType, IGLTFJsonArray
 {
 	TGLTFJsonColor(const BaseType& Other)
 		: BaseType(Other)

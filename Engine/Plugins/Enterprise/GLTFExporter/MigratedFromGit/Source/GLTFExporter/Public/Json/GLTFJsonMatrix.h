@@ -4,12 +4,11 @@
 
 #include "Core/GLTFMatrix.h"
 #include "Json/GLTFJsonArray.h"
+#include "Json/GLTFJsonWriter.h"
 
 template <typename BaseType>
-struct GLTFEXPORTER_API TGLTFJsonMatrix : BaseType, IGLTFJsonArray
+struct TGLTFJsonMatrix : BaseType, IGLTFJsonArray
 {
-	static const TGLTFJsonMatrix Identity;
-
 	TGLTFJsonMatrix(const BaseType& Other)
 		: BaseType(Other)
 	{
@@ -23,9 +22,9 @@ struct GLTFEXPORTER_API TGLTFJsonMatrix : BaseType, IGLTFJsonArray
 
 	bool operator==(const BaseType& Other) const
 	{
-		for (SIZE_T i = 0; i < GetNum(BaseType::Components); ++i)
+		for (SIZE_T i = 0; i < GetNum(BaseType::Elements); ++i)
 		{
-			if (BaseType::Components[i] != Other.Components[i])
+			if (BaseType::Elements[i] != Other.Elements[i])
 			{
 				return false;
 			}

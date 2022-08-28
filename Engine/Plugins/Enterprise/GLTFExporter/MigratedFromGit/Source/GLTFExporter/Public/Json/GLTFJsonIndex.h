@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 template <typename DerivedType>
-struct GLTFEXPORTER_API FGLTFJsonIndex
+struct FGLTFJsonIndex
 {
 	FGLTFJsonIndex()
 		: Value(INDEX_NONE)

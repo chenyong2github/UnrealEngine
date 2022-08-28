@@ -4,13 +4,11 @@
 
 #include "Core/GLTFVector.h"
 #include "Json/GLTFJsonArray.h"
+#include "Json/GLTFJsonWriter.h"
 
 template <typename BaseType>
-struct GLTFEXPORTER_API TGLTFJsonVector : BaseType, IGLTFJsonArray
+struct TGLTFJsonVector : BaseType, IGLTFJsonArray
 {
-	static const TGLTFJsonVector Zero;
-	static const TGLTFJsonVector One;
-
 	TGLTFJsonVector(const BaseType& Other)
 		: BaseType(Other)
 	{
