@@ -15,7 +15,7 @@ FGLTFJsonNodeIndex FGLTFActorConverter::Convert(const AActor* Actor)
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
 
-	if (Builder.bSelectedActorsOnly && !Actor->IsSelected())
+	if (Builder.bSelectedActorsOnly && !Actor->IsSelected() || !Builder.ExportOptions->bExportHiddenInGame && Actor->IsHidden())
 	{
 		return FGLTFJsonNodeIndex(INDEX_NONE);
 	}
