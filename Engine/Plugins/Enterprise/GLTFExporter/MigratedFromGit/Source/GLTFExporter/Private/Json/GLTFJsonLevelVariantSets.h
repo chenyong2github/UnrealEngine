@@ -8,10 +8,42 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/Optional.h"
 
-struct FGLTFJsonVariantNode
+struct FGLTFJsonVariantMaterial
+{
+	FGLTFJsonMaterialIndex Material;
+	int32                  Index;
+
+	FGLTFJsonVariantMaterial()
+		: Material(INDEX_NONE)
+		, Index(INDEX_NONE)
+	{
+	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	{
+		JsonWriter.WriteObjectStart();
+
+		if (Material != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("material"), Material);
+		}
+
+		if (Index != INDEX_NONE)
+		{
+			JsonWriter.WriteValue(TEXT("index"), Index);
+		}
+
+		JsonWriter.WriteObjectEnd();
+	}
+};
+
+struct FGLTFJsonVariantNodeProperties
 {
 	FGLTFJsonNodeIndex Node;
 	TOptional<bool>    bIsVisible;
+
+	TArray<FGLTFJsonVariantMaterial> Materials;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -30,6 +62,8 @@ struct FGLTFJsonVariantNode
 			JsonWriter.WriteValue(TEXT("visible"), bIsVisible.GetValue());
 		}
 
+		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("materials"), Materials, Extensions);
+
 		JsonWriter.WriteObjectEnd();
 		JsonWriter.WriteObjectEnd();
 	}
@@ -37,11 +71,13 @@ struct FGLTFJsonVariantNode
 
 struct FGLTFJsonVariant
 {
+	typedef TMap<FGLTFJsonNodeIndex, FGLTFJsonVariantNodeProperties> FNodeProperties;
+
 	FString Name;
 	bool    bIsActive;
 
-	FGLTFJsonTextureIndex        Thumbnail;
-	TArray<FGLTFJsonVariantNode> Nodes;
+	FGLTFJsonTextureIndex Thumbnail;
+	FNodeProperties       Nodes;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
@@ -55,8 +91,17 @@ struct FGLTFJsonVariant
 			JsonWriter.WriteValue(TEXT("thumbnail"), Thumbnail);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("nodes"), Nodes, Extensions);
+		JsonWriter.WriteArrayStart(TEXT("nodes"));
 
+		for (const auto& DataPair: Nodes)
+		{
+			if (DataPair.Key != INDEX_NONE)
+			{
+				DataPair.Value.WriteObject(JsonWriter, Extensions);
+			}
+		}
+
+		JsonWriter.WriteArrayEnd();
 		JsonWriter.WriteObjectEnd();
 	}
 };
