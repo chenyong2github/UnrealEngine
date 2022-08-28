@@ -1357,11 +1357,32 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
 	FMeshDescription MeshDescription;
+	TArray<int32> MaterialIndices;
 
 	if (Mesh != nullptr)
 	{
 		FStaticMeshAttributes(MeshDescription).Register();
-		FMeshMergeHelpers::RetrieveMesh(const_cast<UStaticMesh*>(Mesh), LODIndex, MeshDescription);
+		FMeshMergeHelpers::RetrieveMesh(Mesh, LODIndex, MeshDescription);
+
+		TArray<FSectionInfo> Sections;
+		FMeshMergeHelpers::ExtractSections(Mesh, LODIndex, Sections);
+
+		// Add material indices of all sections that reference the current material
+		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+		{
+			FSectionInfo& Section = Sections[SectionIndex];
+			if (Section.Material == Material)
+			{
+				MaterialIndices.Add(Section.MaterialIndex);
+			}
+		}
+
+		if (MaterialIndices.Num() == 0)
+		{
+			// Fall back to using the first material index,
+			// just like when baking from within the editor
+			MaterialIndices.Add(0);
+		}
 	}
 
 	// TODO: add support for calculating the ideal resolution to use for baking based on connected (texture) nodes
@@ -1372,6 +1393,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		Material,
 		OutTexCoord,
 		Mesh != nullptr ? &MeshDescription : nullptr,
+		Mesh != nullptr ? &MaterialIndices : nullptr,
 		bCopyAlphaFromRedChannel);
 
 	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)

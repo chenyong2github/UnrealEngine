@@ -241,7 +241,7 @@ bool FGLTFMaterialUtility::CombineTextures(TArray<FColor>& OutPixels, const TArr
 	return bReadSuccessful;
 }
 
-FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, FMeshDescription* MeshDescription, bool bCopyAlphaFromRedChannel)
+FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoint& OutputSize, EMaterialProperty Property, const UMaterialInterface* Material, int32 TexCoord, FMeshDescription* MeshDescription, TArray<int32>* MeshMaterialIndices, bool bCopyAlphaFromRedChannel)
 {
 	EMaterialProperty HackProperty = MP_MAX;
 	TTuple<int32, UMaterialExpression*> HackPrevState;
@@ -277,17 +277,9 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 	MeshSet.TextureCoordinateIndex = TexCoord;
 	MeshSet.RawMeshDescription = MeshDescription;
 
-	if (MeshDescription != nullptr)
+	if (MeshMaterialIndices != nullptr)
 	{
-		// NOTE: we use polygon group ID's instead of material indices since that's what
-		// FMeshMaterialRenderItem::PopulateWithMeshData compares MeshSet.MaterialIndices against.
-		for (const auto& PolygonGroupID: MeshDescription->PolygonGroups().GetElementIDs())
-		{
-			// TODO: should we only add polygon groups that are actually using the material
-			// we're trying to bake? Or would that prevent us from baking materials using unrelated meshes?
-
-			MeshSet.MaterialIndices.Add(PolygonGroupID.GetValue());
-		}
+		MeshSet.MaterialIndices = *MeshMaterialIndices;
 	}
 
 	MeshSettings.Add(&MeshSet);
