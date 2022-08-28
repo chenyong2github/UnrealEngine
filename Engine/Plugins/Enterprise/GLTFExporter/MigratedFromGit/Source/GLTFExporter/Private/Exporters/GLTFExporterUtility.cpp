@@ -3,18 +3,17 @@
 #include "Exporters/GLTFExporterUtility.h"
 #include "Materials/MaterialInstance.h"
 #include "AssetRegistryModule.h"
+#include "Engine/Selection.h"
 
 void FGLTFExporterUtility::GetSelectedActors(TSet<AActor*>& OutSelectedActors)
 {
 #if WITH_EDITOR
-	const TMap<const UObjectBase*, FBoolAnnotation>& AnnotationMap = ((const FUObjectAnnotationSparse<FBoolAnnotation, true>&)GSelectedActorAnnotation).GetAnnotationMap();
-	OutSelectedActors.Reserve(AnnotationMap.Num());
-
-	for (const TPair<const UObjectBase*, FBoolAnnotation>& Pair : AnnotationMap)
+	USelection* Selection = GEditor->GetSelectedActors();
+	for (FSelectionIterator SelectedObject(*Selection); SelectedObject; ++SelectedObject)
 	{
-		if (Pair.Value.Mark)
+		if (AActor* SelectedActor = Cast<AActor>(*SelectedObject))
 		{
-			OutSelectedActors.Add(static_cast<AActor*>(const_cast<UObjectBase*>(Pair.Key)));
+			OutSelectedActors.Add(SelectedActor);
 		}
 	}
 #endif
