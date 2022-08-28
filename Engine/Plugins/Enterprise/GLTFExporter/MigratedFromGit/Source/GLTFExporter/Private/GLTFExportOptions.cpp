@@ -1,6 +1,7 @@
 // Copyriyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFExportOptions.h"
+#include "GLTFExportOptionsWindow.h"
 
 UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -35,4 +36,21 @@ void UGLTFExportOptions::LoadOptions()
 
 void UGLTFExportOptions::SaveOptions()
 {
+}
+
+void UGLTFExportOptions::FillOptions(bool bShowOptionDialog, const FString& FullPath, bool BatchMode, bool& OutOperationCanceled, bool& bOutExportAll)
+{
+	OutOperationCanceled = false;
+
+	LoadOptions();
+
+	if (!bShowOptionDialog || GIsAutomationTesting || FApp::IsUnattended())
+	{
+		return;
+	}
+
+	bOutExportAll = false;
+
+	SGLTFExportOptionsWindow::ShowDialog(this, FullPath, BatchMode, OutOperationCanceled, bOutExportAll);
+	SaveOptions();
 }

@@ -94,4 +94,6 @@ public:
 	void SaveOptions();
 
 	void LoadOptions();
+
+	void FillOptions(bool bShowOptionDialog, const FString& FullPath, bool BatchMode, bool& OutOperationCanceled, bool& bOutExportAll);
 };
