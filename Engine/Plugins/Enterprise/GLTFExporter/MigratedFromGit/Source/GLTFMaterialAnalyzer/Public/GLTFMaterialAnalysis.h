@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 struct FGLTFMaterialAnalysis
 {
 	/** Tracks the texture coordinates used by this material */
@@ -9,6 +11,9 @@ struct FGLTFMaterialAnalysis
 
 	/** Will contain all the shading models picked up from the material expression graph */
 	FMaterialShadingModelField ShadingModels;
+
+	/** The resulting code corresponding to the currently compiled property or custom output. */
+	FString ParameterCode;
 
 	/** True if this material reads any vertex data */
 	bool bRequiresVertexData;
