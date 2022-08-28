@@ -14,8 +14,9 @@
 #include "Json/GLTFJsonSampler.h"
 #include "Json/GLTFJsonScene.h"
 #include "Json/GLTFJsonTexture.h"
-#include "Json/GLTFJsonLightMap.h"
+#include "Json/GLTFJsonBackdrop.h"
 #include "Json/GLTFJsonLevelVariantSets.h"
+#include "Json/GLTFJsonLightMap.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
 
 
@@ -66,8 +67,8 @@ struct FGLTFJsonRoot
 	TArray<FGLTFJsonSampler>    Samplers;
 	TArray<FGLTFJsonScene>      Scenes;
 	TArray<FGLTFJsonTexture>    Textures;
+	TArray<FGLTFJsonBackdrop>   Backdrops;
 	TArray<FGLTFJsonLightMap>   LightMaps;
-
 	TArray<FGLTFJsonLevelVariantSets> LevelVariantSets;
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
@@ -96,17 +97,17 @@ struct FGLTFJsonRoot
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("scenes"), Scenes, AllExtensions);
 		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("textures"), Textures, AllExtensions);
 
-		if (LightMaps.Num() > 0 || LevelVariantSets.Num() > 0 /* TODO: add more extension support */)
+		if (Backdrops.Num() > 0 || LevelVariantSets.Num() > 0 || LightMaps.Num() > 0 /* TODO: add more extension support */)
 		{
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
 
-			if (LightMaps.Num() > 0)
+			if (Backdrops.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_HDRIBackdrops;
 				AllExtensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
+				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("backdrops"), Backdrops, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 
@@ -117,6 +118,16 @@ struct FGLTFJsonRoot
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
 				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("levelVariantSets"), LevelVariantSets, AllExtensions);
+				JsonWriter.WriteObjectEnd();
+			}
+
+			if (LightMaps.Num() > 0)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
+				AllExtensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+				FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("lightmaps"), LightMaps, AllExtensions);
 				JsonWriter.WriteObjectEnd();
 			}
 

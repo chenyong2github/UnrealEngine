@@ -18,6 +18,7 @@ struct FGLTFJsonNode
 	FGLTFJsonCameraIndex    Camera;
 	FGLTFJsonSkinIndex      Skin;
 	FGLTFJsonMeshIndex      Mesh;
+	FGLTFJsonBackdropIndex  Backdrop;
 	FGLTFJsonLightMapIndex  LightMap;
 
 	TArray<FGLTFJsonNodeIndex> Children;
@@ -72,11 +73,19 @@ struct FGLTFJsonNode
 			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
 		}
 
-		const bool bWriteExtensions = LightMap != INDEX_NONE;
-
-		if (bWriteExtensions)
+		if (Backdrop != INDEX_NONE || LightMap != INDEX_NONE)
 		{
 			JsonWriter.WriteObjectStart(TEXT("extensions"));
+
+			if (Backdrop != INDEX_NONE)
+			{
+				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_HDRIBackdrops;
+				Extensions.Used.Add(Extension);
+
+				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+				JsonWriter.WriteValue(TEXT("backdrop"), Backdrop);
+				JsonWriter.WriteObjectEnd();
+			}
 
 			if (LightMap != INDEX_NONE)
 			{
