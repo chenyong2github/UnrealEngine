@@ -20,10 +20,10 @@ protected:
 protected:
 	/** Property restriction instance used for limiting EMaterialProperty selection */
 	TSharedPtr<FPropertyRestriction> PropertyRestriction;
-	class UMaterialOptions* CurrentOptions;
+	class UGLTFMaterialOptions* CurrentOptions;
 };
 
-/** Detail customization for UMaterialOptions */
+/** Detail customization for UGLTFMaterialOptions */
 class FMaterialOptionsCustomization : public IDetailCustomization
 {
 public:

@@ -24,7 +24,7 @@
 #include "Misc/FileHelper.h"
 #endif
 
-IMPLEMENT_MODULE(FMaterialBakingModule, MaterialBaking);
+IMPLEMENT_MODULE(FMaterialBakingModule, GLTFMaterialBaking);
 
 #define LOCTEXT_NAMESPACE "MaterialBakingModule"
 
