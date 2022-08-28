@@ -21,7 +21,7 @@ bool UGLTFLevelExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchi
 	}
 
 	FGLTFContainerBuilder Container;
-	const FGLTFJsonSceneIndex SceneIndex = Container.AddScene(World, bSelectedOnly);
+	const FGLTFJsonSceneIndex SceneIndex = Container.ConvertScene(World, bSelectedOnly);
 	Container.JsonRoot.DefaultScene = SceneIndex;
 
 	Container.Serialize(Archive);

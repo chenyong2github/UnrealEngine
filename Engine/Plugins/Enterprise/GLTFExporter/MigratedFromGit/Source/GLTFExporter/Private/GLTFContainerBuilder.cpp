@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFContainerBuilder.h"
-#include "GLTFSceneBuilder.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder()
 	: BufferBuilder(AddBuffer(FGLTFJsonBuffer()))
@@ -102,9 +101,20 @@ FGLTFJsonMeshIndex FGLTFContainerBuilder::ConvertMesh(const UStaticMeshComponent
 	return ConvertMesh(StaticMesh, LODIndex, OverrideVertexColors, DesiredName);
 }
 
-FGLTFJsonSceneIndex FGLTFContainerBuilder::AddScene(const UWorld* World, bool bSelectedOnly)
+FGLTFJsonNodeIndex FGLTFContainerBuilder::ConvertNode(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode, const FString& DesiredName)
 {
-	return FGLTFSceneBuilder(World, bSelectedOnly).AddScene(*this);
+	return IndexedConverts.SceneComponents.Convert(*this, DesiredName, SceneComponent, bSelectedOnly, bRootNode);
+}
+
+FGLTFJsonSceneIndex FGLTFContainerBuilder::ConvertScene(const ULevel* Level, bool bSelectedOnly, const FString& DesiredName)
+{
+	return IndexedConverts.Levels.Convert(*this, DesiredName, Level, bSelectedOnly);
+}
+
+FGLTFJsonSceneIndex FGLTFContainerBuilder::ConvertScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName)
+{
+	const ULevel* Level = World->PersistentLevel;
+	return ConvertScene(Level, bSelectedOnly, DesiredName.IsEmpty() ? World->GetName() : DesiredName);
 }
 
 void FGLTFContainerBuilder::Serialize(FArchive& Archive)
