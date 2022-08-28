@@ -3,7 +3,7 @@
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
-#include "GLTFMaterialStatistics.h"
+#include "GLTFMaterialAnalysis.h"
 #include "GLTFMaterialAnalyzer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
@@ -517,12 +517,12 @@ bool FGLTFMaterialUtility::NeedsMeshData(const UMaterialInterface* Material)
 	};
 
 	bool bRequiresVertexData = false;
-	FGLTFMaterialStatistics MaterialStatistics;
+	FGLTFMaterialAnalysis Analysis;
 
 	for (const FMaterialPropertyEx& Property: Properties)
 	{
-		AnalyzeMaterialProperty(Material, Property, MaterialStatistics);
-		bRequiresVertexData |= MaterialStatistics.bRequiresVertexData;
+		AnalyzeMaterialProperty(Material, Property, Analysis);
+		bRequiresVertexData |= Analysis.bRequiresVertexData;
 	}
 
 	return bRequiresVertexData;
@@ -541,12 +541,12 @@ bool FGLTFMaterialUtility::NeedsMeshData(const TArray<const UMaterialInterface*>
 	return false;
 }
 
-void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialStatistics& OutMaterialStatistics)
+void FGLTFMaterialUtility::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, FGLTFMaterialAnalysis& OutMaterialAnalysis)
 {
 	// TODO: use a shared UGLTFMaterialAnalyzer instance instead of creating a new one for each invocation
 
 	UGLTFMaterialAnalyzer* Analyzer = NewObject<UGLTFMaterialAnalyzer>();
-	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutMaterialStatistics);
+	Analyzer->AnalyzeMaterialProperty(InMaterial, InProperty.Type, InProperty.CustomOutput.ToString(), OutMaterialAnalysis);
 }
 
 const UMaterialInterface* FGLTFMaterialUtility::GetInterface(const UMaterialInterface* Material)

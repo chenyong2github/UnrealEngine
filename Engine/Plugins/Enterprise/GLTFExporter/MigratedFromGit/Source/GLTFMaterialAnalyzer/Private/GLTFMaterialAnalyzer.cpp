@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GLTFMaterialAnalyzer.h"
-#include "GLTFMaterialStatistics.h"
+#include "GLTFMaterialAnalysis.h"
 #include "GLTFMaterialBaking/Public/MaterialBakingStructures.h"
 #include "Materials/HLSLMaterialTranslator.h"
 
-void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialStatistics& OutMaterialStatistics)
+void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis)
 {
 	Property = InProperty;
 	CustomOutput = InCustomOutput;
 	Material = const_cast<UMaterialInterface*>(InMaterial);
-	MaterialStatistics = &OutMaterialStatistics;
+	Analysis = &OutAnalysis;
 
 	// NOTE: When analyzing custom outputs, the property *must* be set to MP_MAX or the compiler will refuse to compile the output
 	const EMaterialProperty SafeProperty = InProperty == MP_CustomOutput ? MP_MAX : InProperty;
@@ -22,7 +22,7 @@ void UGLTFMaterialAnalyzer::AnalyzeMaterialProperty(const UMaterialInterface* In
 	Property = MP_MAX;
 	CustomOutput = {};
 	Material = nullptr;
-	MaterialStatistics = nullptr;
+	Analysis = nullptr;
 }
 
 UMaterialExpressionCustomOutput* UGLTFMaterialAnalyzer::GetCustomOutputExpression() const
@@ -53,6 +53,7 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 		friend UGLTFMaterialAnalyzer;
 	};
 
+	FTranslatorHack* Translator = static_cast<FTranslatorHack*>(Compiler);
 	int32 Result;
 
 	if (Property == MP_CustomOutput)
@@ -62,49 +63,20 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 	}
 	else
 	{
-		Result = Material->CompilePropertyEx(Compiler, AttributeID);
+		Result = Material->CompilePropertyEx(Translator, AttributeID);
 	}
 
-	FTranslatorHack* Translator = static_cast<FTranslatorHack*>(Compiler);
+	Analysis->TextureCoordinates = Translator->AllocatedUserTexCoords;
+	Analysis->NumTextureCoordinates = 0;
 
-	MaterialStatistics->bUsesSceneDepth = Translator->bUsesSceneDepth;
-	MaterialStatistics->bNeedsParticlePosition = Translator->bNeedsParticlePosition;
-	MaterialStatistics->bNeedsParticleVelocity = Translator->bNeedsParticleVelocity;
-	MaterialStatistics->bNeedsParticleTime = Translator->bNeedsParticleTime;
-	MaterialStatistics->bUsesParticleMotionBlur = Translator->bUsesParticleMotionBlur;
-	MaterialStatistics->bNeedsParticleRandom = Translator->bNeedsParticleRandom;
-	MaterialStatistics->bUsesSphericalParticleOpacity = Translator->bUsesSphericalParticleOpacity;
-	MaterialStatistics->bUsesParticleSubUVs = Translator->bUsesParticleSubUVs;
-	MaterialStatistics->bUsesLightmapUVs = Translator->bUsesLightmapUVs;
-	MaterialStatistics->bUsesAOMaterialMask = Translator->bUsesAOMaterialMask;
-	MaterialStatistics->bUsesSpeedTree = Translator->bUsesSpeedTree;
-	MaterialStatistics->bNeedsWorldPositionExcludingShaderOffsets = Translator->bNeedsWorldPositionExcludingShaderOffsets;
-	MaterialStatistics->bNeedsParticleSize = Translator->bNeedsParticleSize;
-	MaterialStatistics->bNeedsSceneTexturePostProcessInputs = Translator->bNeedsSceneTexturePostProcessInputs;
-	MaterialStatistics->bUsesAtmosphericFog = Translator->bUsesAtmosphericFog;
-	MaterialStatistics->bUsesSkyAtmosphere = Translator->bUsesSkyAtmosphere;
-	MaterialStatistics->bUsesVertexColor = Translator->bUsesVertexColor;
-	MaterialStatistics->bUsesParticleColor = Translator->bUsesParticleColor;
-	MaterialStatistics->bUsesParticleLocalToWorld = Translator->bUsesParticleLocalToWorld;
-	MaterialStatistics->bUsesParticleWorldToLocal = Translator->bUsesParticleWorldToLocal;
-	MaterialStatistics->bUsesVertexPosition = Translator->bUsesVertexPosition;
-	MaterialStatistics->bUsesTransformVector = Translator->bUsesTransformVector;
-	MaterialStatistics->bCompilingPreviousFrame = Translator->bCompilingPreviousFrame;
-	MaterialStatistics->bOutputsBasePassVelocities = Translator->bOutputsBasePassVelocities;
-	MaterialStatistics->bUsesPixelDepthOffset = Translator->bUsesPixelDepthOffset;
-	MaterialStatistics->bUsesWorldPositionOffset = Translator->bUsesWorldPositionOffset;
-	MaterialStatistics->bUsesEmissiveColor = Translator->bUsesEmissiveColor;
-	MaterialStatistics->bUsesDistanceCullFade = Translator->bUsesDistanceCullFade;
-	MaterialStatistics->bIsFullyRough = Translator->bIsFullyRough;
-	MaterialStatistics->bAllowCodeChunkGeneration = Translator->bAllowCodeChunkGeneration;
-	MaterialStatistics->bUsesPerInstanceCustomData = Translator->bUsesPerInstanceCustomData;
-	MaterialStatistics->AllocatedUserTexCoords = Translator->AllocatedUserTexCoords;
-	MaterialStatistics->AllocatedUserVertexTexCoords = Translator->AllocatedUserVertexTexCoords;
-	MaterialStatistics->DynamicParticleParameterMask = Translator->DynamicParticleParameterMask;
-	MaterialStatistics->ShadingModelsFromCompilation = Translator->ShadingModelsFromCompilation;
+	for (int32 TexCoordIndex = 0; TexCoordIndex < Translator->AllocatedUserTexCoords.Num(); TexCoordIndex++)
+	{
+		const bool IsTexCoordUsed = Translator->AllocatedUserTexCoords[TexCoordIndex];
+		Analysis->NumTextureCoordinates += IsTexCoordUsed ? 1 : 0;
+	}
 
 	// TODO: investigate if we need to check more conditions to determine that vertex data is required
-	MaterialStatistics->bRequiresVertexData =
+	Analysis->bRequiresVertexData =
 		Translator->bUsesVertexColor ||
 		Translator->bUsesTransformVector ||
 		Translator->bNeedsWorldPositionExcludingShaderOffsets ||

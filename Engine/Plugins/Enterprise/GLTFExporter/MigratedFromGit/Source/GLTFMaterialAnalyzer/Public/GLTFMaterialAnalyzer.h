@@ -5,7 +5,7 @@
 #include "Materials/MaterialInterface.h"
 #include "GLTFMaterialAnalyzer.generated.h"
 
-struct FGLTFMaterialStatistics;
+struct FGLTFMaterialAnalysis;
 
 UCLASS()
 class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
@@ -14,7 +14,7 @@ class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInterface
 
 public:
 
-	void AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialStatistics& OutMaterialStatistics);
+	void AnalyzeMaterialProperty(const UMaterialInterface* InMaterial, const EMaterialProperty& InProperty, const FString& InCustomOutput, FGLTFMaterialAnalysis& OutAnalysis);
 
 private:
 
@@ -32,5 +32,5 @@ private:
 	// ReSharper disable once CppUE4ProbableMemoryIssuesWithUObject
 	UMaterialInterface* Material;
 
-	FGLTFMaterialStatistics* MaterialStatistics;
+	FGLTFMaterialAnalysis* Analysis;
 };
