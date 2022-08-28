@@ -29,7 +29,7 @@ bool UGLTFMaterialExporter::AddObject(FGLTFContainerBuilder& Builder, const UObj
 	{
 		if (PreviewMesh != nullptr)
 		{
-			const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, -1, { Material });
+			const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(PreviewMesh, { Material });
 			if (MeshIndex == INDEX_NONE)
 			{
 				Builder.AddErrorMessage(

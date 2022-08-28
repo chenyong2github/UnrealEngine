@@ -6,7 +6,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFMaterialTasks.h"
 
-void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const UObject*& MeshOrComponent, int32& LODIndex, FGLTFMaterialArray& OverrideMaterials)
+void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const UObject*& MeshOrComponent, FGLTFMaterialArray& OverrideMaterials)
 {
 	const UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshOrComponent);
 	const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshOrComponent);
@@ -23,37 +23,24 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 		}
 	}
 
-	if ((StaticMesh != nullptr || SkeletalMesh != nullptr) &&
-		Builder.ExportOptions->bBakeMaterialInputs &&
-		Builder.ExportOptions->bBakeMaterialInputsUsingMeshData &&
-		FGLTFMaterialUtility::MaterialNeedsVertexData(Material))
-	{
-		if (LODIndex < 0)
-		{
-			if (StaticMesh != nullptr)
-			{
-				LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(StaticMesh));
-			}
-			else if (SkeletalMesh != nullptr)
-			{
-				LODIndex = FMath::Max(Builder.ExportOptions->DefaultLevelOfDetail, FGLTFMeshUtility::GetMinimumLOD(SkeletalMesh));
-			}
-		}
-	}
-	else
+	if (StaticMesh == nullptr && SkeletalMesh == nullptr ||
+		!Builder.ExportOptions->bBakeMaterialInputs ||
+		!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
+		!FGLTFMaterialUtility::MaterialNeedsVertexData(Material))
 	{
 		MeshOrComponent = nullptr;
-		LODIndex = -1;
 		OverrideMaterials = {};
 	}
 }
 
-FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const UObject* MeshOrComponent, int32 LODIndex, const FGLTFMaterialArray OverrideMaterials)
+FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const UObject* MeshOrComponent, const FGLTFMaterialArray OverrideMaterials)
 {
 	if (Material == FGLTFMaterialUtility::GetDefault())
 	{
 		return FGLTFJsonMaterialIndex(INDEX_NONE); // use default gltf definition
 	}
+
+	const int32 LODIndex = FGLTFMeshUtility::GetLOD(MeshOrComponent, Builder.ExportOptions->DefaultLevelOfDetail);
 
 	const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
 	Builder.SetupTask<FGLTFMaterialTask>(Builder, Material, MeshOrComponent, LODIndex, OverrideMaterials, MaterialIndex);
