@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/GLTFInteractionHotspotComponent.h"
+#include "Animation/SkeletalMeshActor.h"
+#include "Animation/AnimSequence.h"
 
 UGLTFInteractionHotspotComponent::UGLTFInteractionHotspotComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

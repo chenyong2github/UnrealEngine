@@ -6,9 +6,8 @@
 AGLTFInteractionHotspotActor::AGLTFInteractionHotspotActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// A scene component with a transform in the root
 	SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
-
-	// Make the scene component the root component
 	RootComponent = SceneComponent;
 
 	InteractionHotspotComponent = CreateDefaultSubobject<UGLTFInteractionHotspotComponent>(TEXT("InteractionHotspotComponent"));
