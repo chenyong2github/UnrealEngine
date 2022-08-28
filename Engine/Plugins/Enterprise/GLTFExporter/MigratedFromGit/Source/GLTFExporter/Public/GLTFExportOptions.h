@@ -59,6 +59,9 @@ public:
 	bool bBakeMaterialInputs;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
+	bool bBakeMaterialInputsUsingMeshData;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	EGLTFExporterMaterialBakeSize DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)

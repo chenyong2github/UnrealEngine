@@ -8,7 +8,11 @@
 
 void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const UStaticMesh*& Mesh, int32& LODIndex)
 {
-	if (Mesh != nullptr)
+	bool bRequiresVertexData = false;
+
+	if (Mesh != nullptr &&
+		Builder.ExportOptions->bBakeMaterialInputs &&
+		Builder.ExportOptions->bBakeMaterialInputsUsingMeshData)
 	{
 		if (LODIndex < 0)
 		{
@@ -30,8 +34,6 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 			MP_CustomData1
 		};
 
-		bool bRequiresVertexData = false;
-
 		int32 NumTextureCoordinates;
 		bool bPropertyRequiresVertexData;
 
@@ -40,12 +42,12 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 			const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bPropertyRequiresVertexData);
 			bRequiresVertexData |= bPropertyRequiresVertexData;
 		}
+	}
 
-		if (!bRequiresVertexData)
-		{
-			Mesh = nullptr;
-			LODIndex = -1;
-		}
+	if (!bRequiresVertexData)
+	{
+		Mesh = nullptr;
+		LODIndex = -1;
 	}
 }
 
