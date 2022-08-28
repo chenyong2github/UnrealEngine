@@ -27,7 +27,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 			SectionString += FString::JoinBy(SectionIndices, TEXT(", "), FString::FromInt);
 
 			Builder.AddWarningMessage(FString::Printf(
-				TEXT("Material %s uses mesh data from %s but the lightmap UVs (channel %d) are 100%% degenerate (in %s). Simple baking will be used as fallback"),
+				TEXT("Material %s uses mesh data from %s but the lightmap UVs (channel %d) are nearly 100%% degenerate (in %s). Simple baking will be used as fallback"),
 				*Material->GetName(),
 				*MeshData->GetParent()->Name,
 				MeshData->TexCoord,

@@ -353,17 +353,18 @@ bool FGLTFMaterialUtility::TryGetTextureCoordinateIndex(const UMaterialExpressio
 	return false;
 }
 
-void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, int32& OutNumTexCoords, TBitArray<>& OutTexCoords)
+void FGLTFMaterialUtility::GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, TArray<int32>& OutTexCoords)
 {
 	FGLTFMaterialAnalysis Analysis;
 	AnalyzeMaterialProperty(InMaterial, InProperty, Analysis);
 
-	OutNumTexCoords = 0;
-	OutTexCoords = Analysis.TextureCoordinates;
-
-	for (int32 Index = 0; Index < OutTexCoords.Num(); Index++)
+	const TBitArray<>& TexCoords = Analysis.TextureCoordinates;
+	for (int32 Index = 0; Index < TexCoords.Num(); Index++)
 	{
-		OutNumTexCoords += OutTexCoords[Index] ? 1 : 0;
+		if (TexCoords[Index])
+		{
+			OutTexCoords.Add(Index);
+		}
 	}
 }
 
