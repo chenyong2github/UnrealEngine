@@ -9,6 +9,8 @@
 UENUM(BlueprintType)
 enum class EGLTFTextureCompression : uint8
 {
+	/** Don't export any textures. */
+	None,
 	/** Always use PNG (lossless compression). */
 	PNG,
 	/** If texture does not have an alpha channel, use JPEG (lossy compression); otherwise fallback to PNG. */
@@ -151,23 +153,23 @@ class GLTFEXPORTER_API UGLTFExportOptions : public UObject
 	EGLTFTextureCompression TextureCompression;
 
 	/** Level of compression used for exported textures, between 1 (worst quality, best compression) and 100 (best quality, worst compression). Does not apply to lossless formats (e.g. PNG). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (ClampMin = "0", ClampMax = "100", EditCondition = "TextureCompression == EGLTFTextureCompression::JPEG"))
 	int32 TextureCompressionQuality;
 
 	/** Texture types that will always use lossless formats (e.g. PNG) because of sensitivity to compression artifacts. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureType, EditCondition = "TextureCompression != EGLTFTextureCompression::PNG"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (Bitmask, BitmaskEnum = EGLTFTextureType, EditCondition = "TextureCompression == EGLTFTextureCompression::JPEG"))
 	int32 NoLossyCompressionFor;
 
 	/** If enabled, export UV tiling and un-mirroring settings in a texture coordinate expression node for simple material input expressions. Uses extension KHR_texture_transform. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (EditCondition = "TextureCompression != EGLTFTextureCompression::None"))
 	bool bExportTextureTransforms;
 
 	/** If enabled, export lightmaps (created by Lightmass) when exporting a level. Uses extension EPIC_lightmap_textures, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (EditCondition = "TextureCompression != EGLTFTextureCompression::None"))
 	bool bExportLightmaps;
 
 	/** Encoding used to store textures that have pixel colors with more than 8-bit per channel. Uses extension EPIC_texture_hdr_encoding, which is supported by Unreal's glTF viewer. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture, Meta = (DisplayName = "Texture HDR Encoding", EditCondition = "TextureCompression != EGLTFTextureCompression::None"))
 	EGLTFTextureHDREncoding TextureHDREncoding;
 
 	/** If enabled, export components that are flagged as hidden in-game. */

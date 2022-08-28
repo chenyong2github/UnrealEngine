@@ -363,6 +363,11 @@ bool FGLTFMaterialTask::TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness&
 		return true;
 	}
 
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
+		return true;
+	}
+
 	int32 TexCoord;
 	if (BaseColorBakeOutput.bIsConstant)
 	{
@@ -478,6 +483,11 @@ bool FGLTFMaterialTask::TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness
 	{
 		OutPBRParams.MetallicFactor = MetallicBakeOutput.ConstantValue.R;
 		OutPBRParams.RoughnessFactor = RoughnessBakeOutput.ConstantValue.R;
+		return true;
+	}
+
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
 		return true;
 	}
 
@@ -603,6 +613,11 @@ bool FGLTFMaterialTask::TryGetClearCoatRoughness(FGLTFJsonClearCoatExtension& Ou
 		return true;
 	}
 
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
+		return true;
+	}
+
 	int32 TexCoord;
 	if (IntensityBakeOutput.bIsConstant)
 	{
@@ -686,6 +701,12 @@ bool FGLTFMaterialTask::TryGetEmissive(FGLTFJsonMaterial& JsonMaterial, const FM
 	}
 	else
 	{
+		if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+		{
+			JsonMaterial.EmissiveTexture.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+			return true;
+		}
+
 		if (!StoreBakedPropertyTexture(JsonMaterial.EmissiveTexture, PropertyBakeOutput, TEXT("Emissive")))
 		{
 			return false;
@@ -973,6 +994,11 @@ bool FGLTFMaterialTask::TryGetSourceTexture(FGLTFJsonTextureInfo& OutTexInfo, co
 
 bool FGLTFMaterialTask::TryGetSourceTexture(const UTexture2D*& OutTexture, int32& OutTexCoord, FGLTFJsonTextureTransform& OutTransform, const FMaterialPropertyEx& Property, const TArray<FLinearColor>& AllowedMasks) const
 {
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
+		return false;
+	}
+
 	const FExpressionInput* MaterialInput = FGLTFMaterialUtility::GetInputForProperty(Material, Property);
 	if (MaterialInput == nullptr)
 	{
@@ -1101,6 +1127,12 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 		return true;
 	}
 
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
+		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		return true;
+	}
+
 	if (bTransformToLinear)
 	{
 		FGLTFMaterialUtility::TransformToLinear(PropertyBakeOutput.Pixels);
@@ -1131,6 +1163,12 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 	if (PropertyBakeOutput.bIsConstant)
 	{
 		OutConstant = FGLTFConverterUtility::ConvertColor(PropertyBakeOutput.ConstantValue);
+		return true;
+	}
+
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
+		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
 		return true;
 	}
 
@@ -1167,6 +1205,12 @@ inline bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo&
 		return true;
 	}
 
+	if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+	{
+		OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+		return true;
+	}
+
 	if (bTransformToLinear)
 	{
 		FGLTFMaterialUtility::TransformToLinear(PropertyBakeOutput.Pixels);
@@ -1196,6 +1240,12 @@ bool FGLTFMaterialTask::TryGetBakedMaterialProperty(FGLTFJsonTextureInfo& OutTex
 
 	if (!PropertyBakeOutput.bIsConstant)
 	{
+		if (Builder.ExportOptions->TextureCompression == EGLTFTextureCompression::None)
+		{
+			OutTexInfo.Index = FGLTFJsonTextureIndex(INDEX_NONE);
+			return true;
+		}
+
 		if (bTransformToLinear)
 		{
 			FGLTFMaterialUtility::TransformToLinear(PropertyBakeOutput.Pixels);
