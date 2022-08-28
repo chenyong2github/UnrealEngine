@@ -2,13 +2,13 @@
 
 #pragma once
 
-#if WITH_EDITOR
-
 #include "Tasks/GLTFTask.h"
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFUVOverlapChecker.h"
 #include "Converters/GLTFMeshData.h"
+#if WITH_EDITOR
 #include "MaterialPropertyEx.h"
+#endif
 
 struct FGLTFPropertyBakeOutput;
 
@@ -43,7 +43,8 @@ private:
 	const FGLTFIndexArray SectionIndices;
 	const FGLTFJsonMaterialIndex MaterialIndex;
 
-	TSet<FMaterialPropertyEx> MeshDataBakedProperties;
+	FString GetMaterialName() const;
+	FString GetBakedTextureName(const FString& PropertyName) const;
 
 	void ApplyPrebakedProperties(FGLTFJsonMaterial& OutMaterial) const;
 	void ApplyPrebakedProperty(const FString& PropertyName, float& OutValue) const;
@@ -54,6 +55,9 @@ private:
 	EMaterialShadingModel GetShadingModel() const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;
 	void ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const;
+
+#if WITH_EDITOR
+	TSet<FMaterialPropertyEx> MeshDataBakedProperties;
 
 	bool TryGetBaseColorAndOpacity(FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FMaterialPropertyEx& BaseColorProperty, const FMaterialPropertyEx& OpacityProperty);
 	bool TryGetMetallicAndRoughness(FGLTFJsonPBRMetallicRoughness& OutPBRParams, const FMaterialPropertyEx& MetallicProperty, const FMaterialPropertyEx& RoughnessProperty);
@@ -79,13 +83,10 @@ private:
 
 	bool StoreBakedPropertyTexture(FGLTFJsonTextureInfo& OutTexInfo, FGLTFPropertyBakeOutput& PropertyBakeOutput, const FString& PropertyName) const;
 
-	FString GetMaterialName() const;
-	FString GetBakedTextureName(const FString& PropertyName) const;
-
 	static EGLTFMaterialPropertyGroup GetPropertyGroup(const FMaterialPropertyEx& Property);
 
 	template <typename CallbackType>
 	static void CombinePixels(const TArray<FColor>& FirstPixels, const TArray<FColor>& SecondPixels, TArray<FColor>& OutPixels, CallbackType Callback);
-};
 
 #endif
+};

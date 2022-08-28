@@ -43,14 +43,12 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 
 FGLTFJsonMaterialIndex FGLTFMaterialConverter::Convert(const UMaterialInterface* Material, const FGLTFMeshData* MeshData, FGLTFIndexArray SectionIndices)
 {
-#if WITH_EDITOR
 	if (Material != FGLTFMaterialUtility::GetDefault())
 	{
 		const FGLTFJsonMaterialIndex MaterialIndex = Builder.AddMaterial();
 		Builder.SetupTask<FGLTFMaterialTask>(Builder, UVOverlapChecker, Material, MeshData, SectionIndices, MaterialIndex);
 		return MaterialIndex;
 	}
-#endif
 
 	return FGLTFJsonMaterialIndex(INDEX_NONE); // use default gltf definition
 }

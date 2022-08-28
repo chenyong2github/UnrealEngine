@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITOR
-
 #include "Converters/GLTFUVDegenerateChecker.h"
+#if WITH_EDITOR
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
+#endif
 
 void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, FGLTFIndexArray& SectionIndices, int32& TexCoord)
 {
+#if WITH_EDITOR
 	if (Description != nullptr)
 	{
 		const int32 SectionCount = Description->PolygonGroups().Num();
@@ -28,66 +29,68 @@ void FGLTFUVDegenerateChecker::Sanitize(const FMeshDescription*& Description, FG
 			Description = nullptr;
 		}
 	}
+#endif
 }
 
 float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, FGLTFIndexArray SectionIndices, int32 TexCoord)
 {
-	if (Description == nullptr)
+#if WITH_EDITOR
+	if (Description != nullptr)
 	{
-		// TODO: report warning?
-		return -1;
-	}
-
-	const TVertexAttributesConstRef<FVector> Positions =
+		const TVertexAttributesConstRef<FVector> Positions =
 		Description->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-	const TVertexInstanceAttributesConstRef<FVector2D> UVs =
-		Description->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		const TVertexInstanceAttributesConstRef<FVector2D> UVs =
+			Description->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 
-	int32 TriangleCount = 0;
-	int32 DegenerateCount = 0;
+		int32 TriangleCount = 0;
+		int32 DegenerateCount = 0;
 
-	for (const int32 SectionIndex : SectionIndices)
-	{
-		for (const FPolygonID PolygonID : Description->GetPolygonGroupPolygons(FPolygonGroupID(SectionIndex)))
+		for (const int32 SectionIndex : SectionIndices)
 		{
-			for (const FTriangleID TriangleID : Description->GetPolygonTriangleIDs(PolygonID))
+			for (const FPolygonID PolygonID : Description->GetPolygonGroupPolygons(FPolygonGroupID(SectionIndex)))
 			{
-				const TStaticArray<FVertexID, 3> TriangleVertexIDs = Description->GetTriangleVertices(TriangleID);
-				TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = Description->GetTriangleVertexInstances(TriangleID);
-
-				TStaticArray<FVector, 3> TrianglePositions;
-				TStaticArray<FVector2D, 3> TriangleUVs;
-
-				for (int32 Index = 0; Index < 3; Index++)
+				for (const FTriangleID TriangleID : Description->GetPolygonTriangleIDs(PolygonID))
 				{
-					TrianglePositions[Index] = Positions.Get(TriangleVertexIDs[Index]);
-					TriangleUVs[Index] = UVs.Get(TriangleVertexInstanceIDs[Index], TexCoord);
-				}
+					const TStaticArray<FVertexID, 3> TriangleVertexIDs = Description->GetTriangleVertices(TriangleID);
+					TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = Description->GetTriangleVertexInstances(TriangleID);
 
-				if (!IsDegenerateTriangle(TrianglePositions))
-				{
-					TriangleCount++;
+					TStaticArray<FVector, 3> TrianglePositions;
+					TStaticArray<FVector2D, 3> TriangleUVs;
 
-					if (IsDegenerateTriangle(TriangleUVs))
+					for (int32 Index = 0; Index < 3; Index++)
 					{
-						DegenerateCount++;
+						TrianglePositions[Index] = Positions.Get(TriangleVertexIDs[Index]);
+						TriangleUVs[Index] = UVs.Get(TriangleVertexInstanceIDs[Index], TexCoord);
+					}
+
+					if (!IsDegenerateTriangle(TrianglePositions))
+					{
+						TriangleCount++;
+
+						if (IsDegenerateTriangle(TriangleUVs))
+						{
+							DegenerateCount++;
+						}
 					}
 				}
 			}
 		}
-	}
 
-	if (TriangleCount == 0)
-	{
-		return -1;
-	}
+		if (TriangleCount == 0)
+		{
+			return -1;
+		}
 
-	if (TriangleCount == DegenerateCount)
-	{
-		return 1;
-	}
+		if (TriangleCount == DegenerateCount)
+		{
+			return 1;
+		}
 
-	return static_cast<float>(DegenerateCount) / static_cast<float>(TriangleCount);
+		return static_cast<float>(DegenerateCount) / static_cast<float>(TriangleCount);
+	}
+#endif
+
+	return -1;
 }
 
 bool FGLTFUVDegenerateChecker::IsDegenerateTriangle(const TStaticArray<FVector2D, 3>& Points)
@@ -105,5 +108,3 @@ bool FGLTFUVDegenerateChecker::IsDegenerateTriangle(const TStaticArray<FVector, 
 	const float DoubleAreaSquared = (AB ^ AC).SizeSquared();
 	return DoubleAreaSquared < 2 * SMALL_NUMBER * SMALL_NUMBER;
 }
-
-#endif
