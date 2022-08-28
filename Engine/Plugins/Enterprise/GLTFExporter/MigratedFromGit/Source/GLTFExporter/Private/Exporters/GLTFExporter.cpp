@@ -88,7 +88,6 @@ UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 	if (Options == nullptr)
 	{
 		Options = NewObject<UGLTFExportOptions>();
-		Options->LoadOptions();
 	}
 
 	if (GetShowExportOption() && !bAutomatedTask)
@@ -106,7 +105,7 @@ UGLTFExportOptions* UGLTFExporter::GetExportOptions()
 		}
 
 		SetShowExportOption(!bExportAll);
-		Options->SaveOptions();
+		Options->SaveConfig();
 	}
 
 	return Options;
