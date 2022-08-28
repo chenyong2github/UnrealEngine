@@ -68,6 +68,7 @@ struct FGLTFMaterialUtility
 	static bool TryGetTextureCoordinateIndex(const UMaterialExpressionTextureSample* TextureSampler, int32& TexCoord, FGLTFJsonTextureTransform& Transform);
 	static void GetAllTextureCoordinateIndices(const UMaterialInterface* InMaterial, const FMaterialPropertyEx& InProperty, int32& OutNumTexCoords, TBitArray<>& OutTexCoords);
 
+	static FMaterialShadingModelField EvaluateShadingModelExpression(const UMaterialInterface* Material);
 	static EMaterialShadingModel GetRichestShadingModel(const FMaterialShadingModelField& ShadingModels);
 	static FString ShadingModelsToString(const FMaterialShadingModelField& ShadingModels);
 
