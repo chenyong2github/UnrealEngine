@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFTextureUtility.h"
-#include "NormalMapPreview.h"
+#include "GLTFNormalMapPreview.h"
 
 bool FGLTFTextureUtility::IsHDR(EPixelFormat Format)
 {
@@ -141,6 +141,7 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	Texture->PlatformData->Mips[0].BulkData.Unlock();
 
 	Texture->SRGB = bSRGB ? 1 : 0;
+	Texture->CompressionSettings = TC_VectorDisplacementmap; // best quality
 #if WITH_EDITOR
 	Texture->CompressionNone = true;
 	Texture->MipGenSettings = TMGS_NoMipmaps;
@@ -183,7 +184,7 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 
 	if (InSource->IsNormalMap())
 	{
-		BatchedElementParameters = new FNormalMapBatchedElementParameters();
+		BatchedElementParameters = new FGLTFNormalMapPreview();
 	}
 
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
