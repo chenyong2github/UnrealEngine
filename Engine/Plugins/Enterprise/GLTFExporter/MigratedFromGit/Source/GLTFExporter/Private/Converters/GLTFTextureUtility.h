@@ -16,14 +16,18 @@ struct FGLTFTextureUtility
 
 	static TextureFilter GetDefaultFilter(TextureGroup Group);
 
+	static int32 GetMipBias(const UTexture* Texture);
+
+	static FIntPoint GetInGameSize(const UTexture* Texture);
+
 	static TTuple<TextureAddress, TextureAddress> GetAddressXY(const UTexture* Texture);
 
 	static UTexture2D* CreateTransientTexture(const void* RawData, int64 ByteLength, const FIntPoint& Size, EPixelFormat Format, bool bSRGB = false);
 
 	static UTextureRenderTarget2D* CreateRenderTarget(const FIntPoint& Size, bool bIsHDR);
 
-	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FMatrix& InTransform = FMatrix::Identity);
-	static bool RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, float InDegrees);
+	static bool DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, const FMatrix& InTransform = FMatrix::Identity);
+	static bool RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, float InDegrees);
 
 	static UTexture2D* CreateTextureFromCubeFace(const UTextureCube* TextureCube, ECubeFace CubeFace);
 	static UTexture2D* CreateTextureFromCubeFace(const UTextureRenderTargetCube* RenderTargetCube, ECubeFace CubeFace);
@@ -38,7 +42,4 @@ struct FGLTFTextureUtility
 	static bool LoadPlatformData(UTextureCube* TextureCube);
 
 	static void FlipGreenChannel(TArray<FColor>& Pixels);
-
-	static bool HasAlphaChannel(const UTexture* Texture);
-	static bool HasAlphaChannel(EPixelFormat PixelFormat);
 };

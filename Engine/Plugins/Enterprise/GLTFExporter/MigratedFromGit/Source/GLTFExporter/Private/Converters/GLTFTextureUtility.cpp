@@ -82,6 +82,29 @@ TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
 	}
 }
 
+int32 FGLTFTextureUtility::GetMipBias(const UTexture* Texture)
+{
+	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
+	{
+		return Texture2D->GetNumMips() - Texture2D->GetNumMipsAllowed(true);
+	}
+
+	return Texture->GetCachedLODBias();
+}
+
+FIntPoint FGLTFTextureUtility::GetInGameSize(const UTexture* Texture)
+{
+	const int32 Width = Texture->GetSurfaceWidth();
+	const int32 Height = Texture->GetSurfaceHeight();
+
+	const int32 MipBias = GetMipBias(Texture);
+
+	const int32 InGameWidth = FMath::Max(Width >> MipBias, 1);
+	const int32 InGameHeight = FMath::Max(Height >> MipBias, 1);
+
+	return { InGameWidth, InGameHeight };
+}
+
 TTuple<TextureAddress, TextureAddress> FGLTFTextureUtility::GetAddressXY(const UTexture* Texture)
 {
 	TextureAddress AddressX;
@@ -142,7 +165,7 @@ UTextureRenderTarget2D* FGLTFTextureUtility::CreateRenderTarget(const FIntPoint&
 	return RenderTarget;
 }
 
-bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FMatrix& InTransform)
+bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, const FMatrix& InTransform)
 {
 	FRenderTarget* RenderTarget = OutTarget->GameThread_GetRenderTargetResource();
 	if (RenderTarget == nullptr)
@@ -162,7 +185,7 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	}
 
 	FCanvas Canvas(RenderTarget, nullptr, 0.0f, 0.0f, 0.0f, GMaxRHIFeatureLevel);
-	FCanvasTileItem TileItem(FVector2D::ZeroVector, InSource->Resource, FLinearColor::White);
+	FCanvasTileItem TileItem(InPosition, InSource->Resource, InSize, FLinearColor::White);
 	TileItem.BatchedElementParameters = BatchedElementParameters;
 
 	Canvas.PushAbsoluteTransform(InTransform);
@@ -177,16 +200,16 @@ bool FGLTFTextureUtility::DrawTexture(UTextureRenderTarget2D* OutTarget, const U
 	return true;
 }
 
-bool FGLTFTextureUtility::RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, float InDegrees)
+bool FGLTFTextureUtility::RotateTexture(UTextureRenderTarget2D* OutTarget, const UTexture2D* InSource, const FVector2D& InPosition, const FVector2D& InSize, float InDegrees)
 {
 	FMatrix Transform = FMatrix::Identity;
 	if (InDegrees != 0)
 	{
-		const FVector Center = FVector(InSource->GetSizeX() / 2.0f, InSource->GetSizeY() / 2.0f, 0);
+		const FVector Center = FVector(InSize.X / 2.0f, InSize.Y / 2.0f, 0);
 		Transform = FTranslationMatrix(-Center) * FRotationMatrix({ 0, InDegrees, 0 }) * FTranslationMatrix(Center);
 	}
 
-	return DrawTexture(OutTarget, InSource, Transform);
+	return DrawTexture(OutTarget, InSource, InPosition, InSize, Transform);
 }
 
 UTexture2D* FGLTFTextureUtility::CreateTextureFromCubeFace(const UTextureCube* TextureCube, ECubeFace CubeFace)

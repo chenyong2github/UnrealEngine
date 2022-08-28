@@ -12,11 +12,11 @@ void FGLTFTexture2DTask::Complete()
 	Texture2D->GetName(JsonTexture.Name);
 
 	const bool bIsHDR = FGLTFTextureUtility::IsHDR(Texture2D->GetPixelFormat());
-	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
+	const FIntPoint Size = FGLTFTextureUtility::GetInGameSize(Texture2D);
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
-	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
+	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D, FVector2D::ZeroVector, Size);
 
 	if (!Texture2D->IsNormalMap() && bIsHDR)
 	{
@@ -64,7 +64,7 @@ void FGLTFTextureCubeTask::Complete()
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	const float FaceRotation = FGLTFTextureUtility::GetCubeFaceRotation(CubeFace);
-	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
+	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FVector2D::ZeroVector, Size, FaceRotation);
 
 	if (bIsHDR)
 	{
@@ -131,7 +131,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, bIsHDR);
 
 	const float FaceRotation = FGLTFTextureUtility::GetCubeFaceRotation(CubeFace);
-	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
+	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FVector2D::ZeroVector, Size, FaceRotation);
 
 	if (bIsHDR)
 	{
