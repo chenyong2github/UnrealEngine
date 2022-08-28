@@ -2,7 +2,6 @@
 
 #include "Builders/GLTFMessageBuilder.h"
 #include "GLTFExporterModule.h"
-#include "Interfaces/IPluginManager.h"
 #include "MessageLogModule.h"
 #include "IMessageLogListing.h"
 
@@ -92,10 +91,7 @@ void FGLTFMessageBuilder::ShowMessages() const
 		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 		const TSharedRef<IMessageLogListing> LogListing = MessageLogModule.GetLogListing(GLTFEXPORTER_MODULE_NAME);
 
-		const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);
-		const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
-
-		LogListing->SetLabel(FText::FromString(PluginDescriptor.FriendlyName));
+		LogListing->SetLabel(FText::FromString(GLTFEXPORTER_FRIENDLY_NAME));
 		LogListing->ClearMessages();
 
 		for (const FLogMessage& Message : Messages)
