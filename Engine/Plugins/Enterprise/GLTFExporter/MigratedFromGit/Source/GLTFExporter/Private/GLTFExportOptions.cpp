@@ -35,6 +35,7 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
 	bExportInteractionHotspots = false;
+	bSupportNonUniformScale = false;
 	bBundleWebViewer = false;
 	bExportPreviewMesh = true;
 	bAllExtensionsRequired = false;
@@ -222,6 +223,7 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportCameras) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHDRIBackdrops) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportVariantSets) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bSupportNonUniformScale) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportPreviewMesh))
 	{
 		return true;
