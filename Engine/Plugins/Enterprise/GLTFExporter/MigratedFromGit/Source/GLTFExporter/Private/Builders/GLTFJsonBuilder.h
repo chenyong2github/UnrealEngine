@@ -68,5 +68,7 @@ public:
 
 private:
 
+	FString GetGeneratorString() const;
+
 	FGLTFJsonRoot JsonRoot;
 };

@@ -11,7 +11,10 @@ struct FGLTFJsonAsset
 	FString Generator;
 	FString Copyright;
 
-	FGLTFJsonAsset();
+	FGLTFJsonAsset()
+		: Version(TEXT("2.0"))
+	{
+	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
 	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const

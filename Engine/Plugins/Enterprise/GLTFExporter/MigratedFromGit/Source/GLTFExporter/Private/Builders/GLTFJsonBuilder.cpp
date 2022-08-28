@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Builders/GLTFJsonBuilder.h"
+#include "GLTFExporterModule.h"
+#include "Interfaces/IPluginManager.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
 	: FGLTFTaskBuilder(FilePath, ExportOptions)
 	, DefaultScene(JsonRoot.DefaultScene)
 {
+	JsonRoot.Asset.Generator = GetGeneratorString();
 }
 
 void FGLTFJsonBuilder::WriteJson(FArchive& Archive)
@@ -263,4 +267,14 @@ FGLTFJsonNodeIndex FGLTFJsonBuilder::GetComponentNodeIndex(FGLTFJsonNodeIndex No
 
 	const FGLTFJsonNode& Node = GetNode(NodeIndex);
 	return Node.ComponentNode != INDEX_NONE ? Node.ComponentNode : NodeIndex;
+}
+
+FString FGLTFJsonBuilder::GetGeneratorString() const
+{
+	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(GLTFEXPORTER_MODULE_NAME);
+	const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
+
+	return ExportOptions->bIncludeGeneratorVersion
+		? TEXT(EPIC_PRODUCT_NAME) TEXT(" ") ENGINE_VERSION_STRING TEXT(" ") + PluginDescriptor.FriendlyName + TEXT(" ") + PluginDescriptor.VersionName
+		: TEXT(EPIC_PRODUCT_NAME) TEXT(" ") + PluginDescriptor.FriendlyName;
 }
