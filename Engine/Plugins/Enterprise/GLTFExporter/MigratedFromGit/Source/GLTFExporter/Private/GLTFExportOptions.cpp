@@ -17,7 +17,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportUnlitMaterials = true;
 	bExportClearCoatMaterials = true;
 	bBakeMaterialInputs = true;
-	bMaterialBakeUsingMeshData = true;
+	bMaterialBakeUsingMeshData = false;
 	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	bExportVertexColors = false;
 	bQuantizeVertexNormals = true;
