@@ -25,7 +25,6 @@ class FGLTFStaticMeshConverter final : public TGLTFMeshConverter<const UStaticMe
 	virtual FGLTFJsonMeshIndex Convert(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex) override;
 
 	FGLTFStaticMeshSectionConverter MeshSectionConverter;
-	FGLTFStaticMeshDataConverter MeshDataConverter;
 };
 
 class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkeletalMesh*, const USkeletalMeshComponent*, FGLTFMaterialArray, int32>
@@ -37,5 +36,4 @@ class FGLTFSkeletalMeshConverter final : public TGLTFMeshConverter<const USkelet
 	virtual FGLTFJsonMeshIndex Convert(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, FGLTFMaterialArray Materials, int32 LODIndex) override;
 
 	FGLTFSkeletalMeshSectionConverter MeshSectionConverter;
-	FGLTFSkeletalMeshDataConverter MeshDataConverter;
 };
