@@ -24,7 +24,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Mesh for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	const UTextureCube* Cubemap;
@@ -43,7 +43,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Cubemap for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	float Intensity;
@@ -53,7 +53,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Intensity for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	float Size;
@@ -63,7 +63,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export Size for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	FVector ProjectionCenter;
@@ -73,7 +73,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export ProjectionCenter for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	float LightingDistanceFactor;
@@ -83,7 +83,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export LightingDistanceFactor for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	bool UseCameraProjection;
@@ -93,7 +93,7 @@ FGLTFJsonBackdropIndex FGLTFBackdropConverter::Add(FGLTFConvertBuilder& Builder,
 	}
 	else
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export UseCameraProjection for HDRIBackdrop %s"), *Actor->GetName()));
 	}
 
 	return Builder.AddBackdrop(JsonBackdrop);
