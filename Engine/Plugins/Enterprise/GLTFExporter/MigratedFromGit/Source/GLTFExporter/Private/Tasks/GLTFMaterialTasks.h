@@ -45,6 +45,12 @@ private:
 
 	TSet<FMaterialPropertyEx> MeshDataBakedProperties;
 
+	void ApplyPrebakedProperties(FGLTFJsonMaterial& OutMaterial) const;
+	void ApplyPrebakedProperty(const FString& PropertyName, float& OutValue) const;
+	void ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonColor3& OutValue) const;
+	void ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonColor4& OutValue) const;
+	void ApplyPrebakedProperty(const FString& PropertyName, FGLTFJsonTextureInfo& OutValue) const;
+
 	EMaterialShadingModel GetShadingModel() const;
 	void ConvertShadingModel(EGLTFJsonShadingModel& OutShadingModel) const;
 	void ConvertAlphaMode(EGLTFJsonAlphaMode& OutAlphaMode, EGLTFJsonBlendMode& OutBlendMode) const;
