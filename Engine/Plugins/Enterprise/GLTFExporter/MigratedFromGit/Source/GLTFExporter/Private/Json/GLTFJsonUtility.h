@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Json/GLTFJsonEnums.h"
+#include "Json/GLTFJsonExtensions.h"
 
 struct FGLTFJsonUtility
 {
@@ -75,14 +76,14 @@ struct FGLTFJsonUtility
 	}
 
 	template <class WriterType, class ContainerType>
-	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, bool bWriteIfEmpty = false)
+    static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
 	{
 		if (Container.Num() > 0 || bWriteIfEmpty)
 		{
 			JsonWriter.WriteArrayStart(Identifier);
 			for (const auto& Element : Container)
 			{
-				Element.WriteObject(JsonWriter);
+				Element.WriteObject(JsonWriter, Extensions);
 			}
 			JsonWriter.WriteArrayEnd();
 		}

@@ -19,7 +19,7 @@ struct FGLTFJsonTextureInfo
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -44,7 +44,7 @@ struct FGLTFJsonNormalTextureInfo : FGLTFJsonTextureInfo
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -74,7 +74,7 @@ struct FGLTFJsonOcclusionTextureInfo : FGLTFJsonTextureInfo
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -111,7 +111,7 @@ struct FGLTFJsonPBRMetallicRoughness
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -124,7 +124,7 @@ struct FGLTFJsonPBRMetallicRoughness
 		if (BaseColorTexture.Index != INDEX_NONE)
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("baseColorTexture"));
-			BaseColorTexture.WriteObject(JsonWriter);
+			BaseColorTexture.WriteObject(JsonWriter, Extensions);
 		}
 
 		if (MetallicFactor != 1)
@@ -140,7 +140,7 @@ struct FGLTFJsonPBRMetallicRoughness
 		if (MetallicRoughnessTexture.Index != INDEX_NONE)
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("metallicRoughnessTexture"));
-			MetallicRoughnessTexture.WriteObject(JsonWriter);
+			MetallicRoughnessTexture.WriteObject(JsonWriter, Extensions);
 		}
 
 		JsonWriter.WriteObjectEnd();
@@ -173,7 +173,7 @@ struct FGLTFJsonMaterial
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -183,24 +183,24 @@ struct FGLTFJsonMaterial
 		}
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("pbrMetallicRoughness"));
-		PBRMetallicRoughness.WriteObject(JsonWriter);
+		PBRMetallicRoughness.WriteObject(JsonWriter, Extensions);
 
 		if (NormalTexture.Index != INDEX_NONE)
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("normalTexture"));
-			NormalTexture.WriteObject(JsonWriter);
+			NormalTexture.WriteObject(JsonWriter, Extensions);
 		}
 
 		if (OcclusionTexture.Index != INDEX_NONE)
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("occlusionTexture"));
-			OcclusionTexture.WriteObject(JsonWriter);
+			OcclusionTexture.WriteObject(JsonWriter, Extensions);
 		}
 
 		if (EmissiveTexture.Index != INDEX_NONE)
 		{
 			JsonWriter.WriteIdentifierPrefix(TEXT("emissiveTexture"));
-			EmissiveTexture.WriteObject(JsonWriter);
+			EmissiveTexture.WriteObject(JsonWriter, Extensions);
 		}
 
 		if (EmissiveFactor != FGLTFJsonColor3::Black)
