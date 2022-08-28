@@ -33,7 +33,30 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 	}
 	else
 	{
-		FGLTFMeshUtility::RetrieveMesh(const_cast<USkeletalMesh*>(SkeletalMesh), LODIndex, Description);
+		// NOTE: this is a workaround for the fact that there's no overload for FMeshMergeHelpers::RetrieveMesh
+		// that accepts a USkeletalMesh, only a USkeletalMeshComponent.
+		// Writing a custom utility function that would work on a "standalone" skeletal mesh is problematic
+		// since we would need to implement an equivalent of USkinnedMeshComponent::GetCPUSkinnedVertices too.
+
+		if (UWorld* World = GEditor->GetEditorWorldContext().World())
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			SpawnParams.ObjectFlags |= RF_Transient;
+			SpawnParams.bAllowDuringConstructionScript = true;
+
+			if (AActor* Actor = World->SpawnActor<AActor>(SpawnParams))
+			{
+				USkeletalMeshComponent* Component = NewObject<USkeletalMeshComponent>(Actor, TEXT(""), RF_Transient);
+				Component->RegisterComponent();
+				Component->SetSkeletalMesh(const_cast<USkeletalMesh*>(SkeletalMesh));
+
+				FMeshMergeHelpers::RetrieveMesh(Component, LODIndex, Description, true);
+
+				World->DestroyActor(Actor, false, false);
+			}
+		}
+
 		SkeletalMesh->GetName(Name);
 	}
 }
