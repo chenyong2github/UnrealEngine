@@ -10,10 +10,14 @@ UGLTFExporter::UGLTFExporter(const FObjectInitializer& ObjectInitializer)
 	SupportedClass = nullptr;
 	bText = false;
 	PreferredFormatIndex = 0;
+
 	FormatExtension.Add(TEXT("gltf"));
-	FormatExtension.Add(TEXT("glb"));
 	FormatDescription.Add(TEXT("GL Transmission Format"));
-	FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
+
+	// TODO: uncomment when support for .glb is implemented
+	// FormatExtension.Add(TEXT("glb"));
+	// FormatDescription.Add(TEXT("GL Transmission Format (Binary)"));
+
 	ExportOptions = NewObject<UGLTFExportOptions>(this, TEXT("GLTF Export Options"));
 }
 
