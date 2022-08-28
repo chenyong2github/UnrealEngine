@@ -6,14 +6,14 @@
 
 struct FGLTFJsonUtility
 {
-	static const TCHAR* ExtensionToString(EGLTFExtension Extension)
+	static const TCHAR* ExtensionToString(EGLTFJsonExtension Extension)
 	{
 		switch (Extension)
 		{
-			case EGLTFExtension::KHR_LightsPunctual:     return TEXT("KHR_lights_punctual");
-			case EGLTFExtension::KHR_MaterialsUnlit:     return TEXT("KHR_materials_unlit");
-			case EGLTFExtension::KHR_MaterialsClearCoat: return TEXT("KHR_materials_clearcoat");
-			case EGLTFExtension::KHR_MeshQuantization:   return TEXT("KHR_mesh_quantization");
+			case EGLTFJsonExtension::KHR_LightsPunctual:     return TEXT("KHR_lights_punctual");
+			case EGLTFJsonExtension::KHR_MaterialsUnlit:     return TEXT("KHR_materials_unlit");
+			case EGLTFJsonExtension::KHR_MaterialsClearCoat: return TEXT("KHR_materials_clearcoat");
+			case EGLTFJsonExtension::KHR_MeshQuantization:   return TEXT("KHR_mesh_quantization");
 			default:                                     return TEXT("unknown");
 		}
 	}
