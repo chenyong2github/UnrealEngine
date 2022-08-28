@@ -15,11 +15,13 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 	if (StaticMeshComponent != nullptr)
 	{
 		Name = FGLTFNameUtility::GetName(StaticMeshComponent);
+		PrimitiveData = { StaticMeshComponent };
 		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
 	}
 	else
 	{
 		StaticMesh->GetName(Name);
+		PrimitiveData = { StaticMesh };
 		FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, Description);
 	}
 
@@ -37,11 +39,13 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 	if (SkeletalMeshComponent != nullptr)
 	{
 		Name = FGLTFNameUtility::GetName(SkeletalMeshComponent);
+		PrimitiveData = { SkeletalMeshComponent };
 		FMeshMergeHelpers::RetrieveMesh(const_cast<USkeletalMeshComponent*>(SkeletalMeshComponent), LODIndex, Description, true);
 	}
 	else
 	{
 		SkeletalMesh->GetName(Name);
+		PrimitiveData = { SkeletalMesh };
 
 		// NOTE: this is a workaround for the fact that there's no overload for FMeshMergeHelpers::RetrieveMesh
 		// that accepts a USkeletalMesh, only a USkeletalMeshComponent.

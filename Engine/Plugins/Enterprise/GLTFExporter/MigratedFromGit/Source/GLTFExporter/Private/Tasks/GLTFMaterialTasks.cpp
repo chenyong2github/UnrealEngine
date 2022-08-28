@@ -1337,7 +1337,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(const FMaterialP
 		Property,
 		Material,
 		OutTexCoord,
-		MeshData != nullptr ? &MeshData->Description : nullptr,
+		MeshData,
 		SectionIndices,
 		bCopyAlphaFromRedChannel);
 

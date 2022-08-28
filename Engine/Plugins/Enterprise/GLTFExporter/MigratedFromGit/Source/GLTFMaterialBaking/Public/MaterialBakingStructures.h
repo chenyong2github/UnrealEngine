@@ -54,10 +54,61 @@ struct FMaterialDataEx
 	bool bTangentSpaceNormal;
 };
 
+/** Structure containing primitive information (regarding a mesh or mesh component) that is accessible through material expressions */
+struct FPrimitiveData
+{
+	FPrimitiveData(const FBoxSphereBounds& LocalBounds = FBoxSphereBounds(ForceInitToZero))
+		: ActorPosition(ForceInitToZero)
+		, ObjectOrientation(FVector::UpVector)
+		, ObjectBounds(LocalBounds)
+		, ObjectLocalBounds(LocalBounds)
+		, PreSkinnedLocalBounds(LocalBounds)
+		, CustomPrimitiveData(nullptr)
+	{}
+
+	FPrimitiveData(const UStaticMesh* StaticMesh)
+		: FPrimitiveData(StaticMesh->GetBounds())
+	{}
+
+	FPrimitiveData(const USkeletalMesh* SkeletalMesh)
+		: FPrimitiveData(SkeletalMesh->GetBounds())
+	{}
+
+	FPrimitiveData(const UMeshComponent* MeshComponent)
+		: ActorPosition(MeshComponent->GetComponentLocation())
+		, ObjectOrientation(MeshComponent->GetRenderMatrix().GetUnitAxis(EAxis::Z))
+		, ObjectBounds(MeshComponent->CalcBounds(MeshComponent->GetComponentTransform()))
+		, ObjectLocalBounds(MeshComponent->CalcLocalBounds())
+		, CustomPrimitiveData(&MeshComponent->GetCustomPrimitiveData())
+	{
+		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(MeshComponent))
+		{
+			SkinnedMeshComponent->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
+		}
+		else
+		{
+			PreSkinnedLocalBounds = ObjectLocalBounds;
+		}
+	}
+
+	/** The location of the actor in world-space */
+	FVector ActorPosition;
+	/** The up vector of the object in world-space */
+	FVector ObjectOrientation;
+	/** The bounds of the object in world-space */
+	FBoxSphereBounds ObjectBounds;
+	/** The bounds of the object in local-space */
+	FBoxSphereBounds ObjectLocalBounds;
+	/** The pre-skinning bounds for the object in local-space */
+	FBoxSphereBounds PreSkinnedLocalBounds;
+	/** The custom primitive data for the mesh component */
+	const FCustomPrimitiveData* CustomPrimitiveData;
+};
+
 struct FMeshData
 {
 	FMeshData()
-		: RawMeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr)
+		: RawMeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr), PrimitiveData(nullptr)
 	{}
 
 	/** Ptr to raw mesh data to use for baking out the material data, if nullptr a standard quad is used */
@@ -92,6 +143,9 @@ struct FMeshData
 
 	/** Pointer to the LightmapResourceCluster to be passed on the the LightCacheInterface when baking */
 	const FLightmapResourceCluster* LightmapResourceCluster;
+
+	/** Pointer to primitive data that is accessible through material expressions, if nullptr default values are used */
+	const FPrimitiveData* PrimitiveData;
 };
 
 /** Structure containing data being processed while baking out materials*/

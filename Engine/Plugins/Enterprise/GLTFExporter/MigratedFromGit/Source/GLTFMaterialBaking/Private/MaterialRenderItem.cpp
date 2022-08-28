@@ -122,6 +122,38 @@ void FMeshMaterialRenderItem::QueueMaterial(FRHICommandListImmediate& RHICmdList
 
 		DynamicMeshBuilder.GetMeshElement(FMatrix::Identity, MaterialRenderProxy, SDPG_Foreground, true, false, 0, MeshBuilderResources, MeshElement);
 
+		// NOTE: Since we can't pass these parameters during creation, we overwrite them here
+		const FPrimitiveData* PrimitiveData = MeshSettings->PrimitiveData;
+		if (PrimitiveData != nullptr)
+		{
+			FPrimitiveUniformShaderParameters PrimitiveParams = GetPrimitiveUniformShaderParameters(
+				FMatrix::Identity,
+				FMatrix::Identity,
+				PrimitiveData->ActorPosition,
+				PrimitiveData->ObjectBounds,
+				PrimitiveData->ObjectLocalBounds,
+				PrimitiveData->PreSkinnedLocalBounds,
+				false,
+				false,
+				false,
+				false,
+				false,
+				/* bDrawsVelocity = */ false,
+				GetDefaultLightingChannelMask(),
+				0,
+				INDEX_NONE,
+				INDEX_NONE,
+				false,
+				PrimitiveData->CustomPrimitiveData
+			);
+
+			// Overwrite object orientation, since original calculation is derived from LocalToWorld matrix,
+			// which currently needs to be identity matrix to avoid transforming the "2D" vertices used for baking
+			PrimitiveParams.ObjectOrientation = PrimitiveData->ObjectOrientation;
+
+			const_cast<TUniformBuffer<FPrimitiveUniformShaderParameters>*>(MeshElement.Elements[0].PrimitiveUniformBufferResource)->SetContents(PrimitiveParams);
+		}
+
 		check(MeshBuilderResources.IsValidForRendering());
 		bMeshElementDirty = false;
 	}

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MeshDescription.h"
+#include "MaterialBakingStructures.h"
 
 struct FGLTFMeshData
 {
@@ -13,6 +14,7 @@ struct FGLTFMeshData
 	const FGLTFMeshData* GetParent() const;
 
 	FString Name;
+	FPrimitiveData PrimitiveData;
 	FMeshDescription Description;
 	int32 TexCoord;
 
