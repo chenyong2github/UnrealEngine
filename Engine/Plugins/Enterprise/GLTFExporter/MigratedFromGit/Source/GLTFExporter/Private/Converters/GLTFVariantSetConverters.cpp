@@ -117,6 +117,8 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFConvertBuilder&
 			Property->GetPropertyClass()->IsChildOf(FBoolProperty::StaticClass());
 
 		const bool bIsMaterialProperty = Property->IsA<UPropertyValueMaterial>();
+		const bool bIsStaticMeshProperty = Property->GetPropertyName() == TEXT("StaticMesh");
+		const bool bIsSkeletalMeshProperty = Property->GetPropertyName() == TEXT("SkeletalMesh");
 
 		if (bIsVisibilityProperty)
 		{
@@ -128,6 +130,20 @@ bool FGLTFLevelVariantSetsConverter::TryParseVariantBinding(FGLTFConvertBuilder&
 		else if (bIsMaterialProperty)
 		{
 			if (TryParseMaterialPropertyValue(Builder, OutVariant, Property))
+			{
+				bHasParsedAnyProperty = true;
+			}
+		}
+		else if (bIsStaticMeshProperty)
+		{
+			if (TryParseStaticMeshPropertyValue(Builder, OutVariant, Property))
+			{
+				bHasParsedAnyProperty = true;
+			}
+		}
+		else if (bIsSkeletalMeshProperty)
+		{
+			if (TryParseSkeletalMeshPropertyValue(Builder, OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
@@ -262,6 +278,98 @@ bool FGLTFLevelVariantSetsConverter::TryParseMaterialPropertyValue(FGLTFConvertB
 
 	NodeProperties.Node = NodeIndex;
 	NodeProperties.Materials.Add(VariantMaterial);
+	return true;
+}
+
+bool FGLTFLevelVariantSetsConverter::TryParseStaticMeshPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+{
+	if (Property->GetPropertyName() != TEXT("StaticMesh"))
+	{
+		Builder.AddErrorMessage(FString::Printf(
+			TEXT("Attempted to parse static mesh from an incompatible property. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
+	if (Target == nullptr)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	if (Builder.bSelectedActorsOnly && !Target->IsSelected())
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Target object for property is not selected for export, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const UStaticMesh* StaticMesh;
+
+	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), StaticMesh) || StaticMesh == nullptr)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
+	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(StaticMesh);
+	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(NodeIndex);
+
+	NodeProperties.Node = NodeIndex;
+	NodeProperties.Mesh = MeshIndex;
+	return true;
+}
+
+bool FGLTFLevelVariantSetsConverter::TryParseSkeletalMeshPropertyValue(FGLTFConvertBuilder& Builder, FGLTFJsonVariant& OutVariant, const UPropertyValue* Property) const
+{
+	if (Property->GetPropertyName() != TEXT("SkeletalMesh"))
+	{
+		Builder.AddErrorMessage(FString::Printf(
+			TEXT("Attempted to parse skeletal mesh from an incompatible property. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const USceneComponent* Target = static_cast<USceneComponent*>(Property->GetPropertyParentContainerAddress());
+	if (Target == nullptr)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Target object for property is invalid, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	if (Builder.bSelectedActorsOnly && !Target->IsSelected())
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Target object for property is not selected for export, the property will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const USkeletalMesh* SkeletalMesh;
+
+	if (!TryGetPropertyValue(const_cast<UPropertyValue*>(Property), SkeletalMesh) || SkeletalMesh == nullptr)
+	{
+		Builder.AddWarningMessage(FString::Printf(
+			TEXT("Failed to parse recorded data for property, it will be skipped. Context: %s"),
+			*GetLogContext(Property)));
+		return false;
+	}
+
+	const FGLTFJsonNodeIndex NodeIndex = Builder.GetOrAddNode(Target);
+	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(SkeletalMesh);
+	FGLTFJsonVariantNodeProperties& NodeProperties = OutVariant.Nodes.FindOrAdd(NodeIndex);
+
+	NodeProperties.Node = NodeIndex;
+	NodeProperties.Mesh = MeshIndex;
 	return true;
 }
 
