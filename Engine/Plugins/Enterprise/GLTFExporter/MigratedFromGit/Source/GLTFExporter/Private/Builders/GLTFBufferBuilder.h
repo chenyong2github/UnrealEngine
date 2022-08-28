@@ -9,10 +9,10 @@ class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 protected:
 
-	FGLTFBufferBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
+	FGLTFBufferBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
 	~FGLTFBufferBuilder();
 
-	const TArray64<uint8>* GetBufferData() const;
+	const FGLTFMemoryArchive* GetBufferData() const;
 
 public:
 
@@ -26,8 +26,8 @@ public:
 
 private:
 
-	bool InitializeBuffer();
+	void InitializeBuffer();
 
 	FGLTFJsonBuffer* JsonBuffer;
-	TUniquePtr<FArchive> BufferArchive;
+	TSharedPtr<FGLTFMemoryArchive> BufferArchive;
 };

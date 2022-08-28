@@ -10,14 +10,12 @@ class FGLTFBuilder
 {
 public:
 
-	const bool bIsGlbFile;
-	const FString FilePath;
-	const FString DirPath;
+	const FString FileName;
+	const bool bIsGLB;
 
-	// TODO: make ExportOptions private and expose each option via getters to ease overriding settings in future
-	const UGLTFExportOptions* ExportOptions;
+	const UGLTFExportOptions* ExportOptions; // TODO: make ExportOptions private and expose each option via getters to ease overriding settings in future
 
-	FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions);
+	FGLTFBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions);
 
 	const UMaterialInterface* ResolveProxy(const UMaterialInterface* Material) const;
 	void ResolveProxies(TArray<const UMaterialInterface*>& Materials) const;

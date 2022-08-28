@@ -3,16 +3,14 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Builders/GLTFMemoryArchive.h"
 
-FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
-	: FGLTFConvertBuilder(FilePath, ExportOptions, SelectedActors)
+FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
+	: FGLTFConvertBuilder(FileName, ExportOptions, SelectedActors)
 {
 }
 
-void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
+void FGLTFContainerBuilder::WriteToArchive(FArchive& Archive)
 {
-	CompleteAllTasks(Context);
-
-	if (bIsGlbFile)
+	if (bIsGLB)
 	{
 		WriteGlb(Archive);
 	}
@@ -32,6 +30,20 @@ void FGLTFContainerBuilder::Write(FArchive& Archive, FFeedbackContext* Context)
 
 		LogWarning(FString::Printf(TEXT("Export uses some extensions that may only be supported in Unreal's glTF viewer: %s"), *ExtensionsString));
 	}
+}
+
+bool FGLTFContainerBuilder::WriteAllFiles(const FString& DirPath, bool bOverwrite)
+{
+	FGLTFMemoryArchive Archive;
+	WriteToArchive(Archive);
+
+	const FString FilePath = FPaths::Combine(DirPath, FileName);
+	if (!SaveToFile(FilePath, Archive, bOverwrite))
+	{
+		return false;
+	}
+
+	return WriteExternalFiles(DirPath, bOverwrite);
 }
 
 void FGLTFContainerBuilder::WriteGlb(FArchive& Archive)

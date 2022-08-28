@@ -10,9 +10,9 @@ void FGLTFJsonImage::WriteObject(IGLTFJsonWriter& Writer) const
 		Writer.Write(TEXT("name"), Name);
 	}
 
-	if (!Uri.IsEmpty())
+	if (!URI.IsEmpty())
 	{
-		Writer.Write(TEXT("uri"), Uri);
+		Writer.Write(TEXT("uri"), URI);
 	}
 
 	if (MimeType != EGLTFJsonMimeType::None)

@@ -4,8 +4,8 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
 
-FGLTFTaskBuilder::FGLTFTaskBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: FGLTFLogBuilder(FilePath, ExportOptions)
+FGLTFTaskBuilder::FGLTFTaskBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions)
+	: FGLTFLogBuilder(FileName, ExportOptions)
 	, PriorityIndexLock(INDEX_NONE)
 {
 }

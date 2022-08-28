@@ -4,10 +4,9 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "UserData/GLTFMaterialUserData.h"
 
-FGLTFBuilder::FGLTFBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: bIsGlbFile(FPaths::GetExtension(FilePath).Equals(TEXT("glb"), ESearchCase::IgnoreCase))
-	, FilePath(FilePath)
-	, DirPath(FPaths::GetPath(FilePath))
+FGLTFBuilder::FGLTFBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions)
+	: FileName(FPaths::GetCleanFilename(FileName))
+	, bIsGLB(FileName.EndsWith(TEXT(".glb"), ESearchCase::IgnoreCase))
 	, ExportOptions(SanitizeExportOptions(ExportOptions))
 	, ExportOptionsGuard(ExportOptions)
 {
