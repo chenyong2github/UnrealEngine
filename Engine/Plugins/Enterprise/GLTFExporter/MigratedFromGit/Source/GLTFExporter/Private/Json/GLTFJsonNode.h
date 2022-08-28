@@ -2,29 +2,22 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonMatrix4.h"
 #include "Json/GLTFJsonVector3.h"
 #include "Json/GLTFJsonQuaternion.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonNode
+struct FGLTFJsonNode : IGLTFJsonObject
 {
 	FString Name;
 
 	bool bUseMatrix;
 
-	union
-	{
-		FGLTFJsonMatrix4 Matrix;
-
-		struct
-		{
-			FGLTFJsonVector3    Translation;
-			FGLTFJsonQuaternion Rotation;
-			FGLTFJsonVector3    Scale;
-		};
-	};
+	FGLTFJsonMatrix4    Matrix;
+	FGLTFJsonVector3    Translation;
+	FGLTFJsonQuaternion Rotation;
+	FGLTFJsonVector3    Scale;
 
 	FGLTFJsonCameraIndex    Camera;
 	FGLTFJsonSkinIndex      Skin;
@@ -41,128 +34,105 @@ struct FGLTFJsonNode
 
 	FGLTFJsonNode()
 		: bUseMatrix(false)
+		, Matrix(FGLTFJsonMatrix4::Identity)
 		, Translation(FGLTFJsonVector3::Zero)
 		, Rotation(FGLTFJsonQuaternion::Identity)
 		, Scale(FGLTFJsonVector3::One)
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (bUseMatrix)
 		{
 			if (Matrix != FGLTFJsonMatrix4::Identity)
 			{
-				JsonWriter.WriteIdentifierPrefix(TEXT("matrix"));
-				Matrix.WriteArray(JsonWriter);
+				Writer.Write(TEXT("matrix"), Matrix);
 			}
 		}
 		else
 		{
 			if (Translation != FGLTFJsonVector3::Zero)
 			{
-				JsonWriter.WriteIdentifierPrefix(TEXT("translation"));
-				Translation.WriteArray(JsonWriter);
+				Writer.Write(TEXT("translation"), Translation);
 			}
 
 			if (Rotation != FGLTFJsonQuaternion::Identity)
 			{
-				JsonWriter.WriteIdentifierPrefix(TEXT("rotation"));
-				Rotation.WriteArray(JsonWriter);
+				Writer.Write(TEXT("rotation"), Rotation);
 			}
 
 			if (Scale != FGLTFJsonVector3::One)
 			{
-				JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
-				Scale.WriteArray(JsonWriter);
+				Writer.Write(TEXT("scale"), Scale);
 			}
 		}
 
 		if (Camera != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("camera"), Camera);
+			Writer.Write(TEXT("camera"), Camera);
 		}
 
 		if (Skin != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("skin"), Skin);
+			Writer.Write(TEXT("skin"), Skin);
 		}
 
 		if (Mesh != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
+			Writer.Write(TEXT("mesh"), Mesh);
 		}
 
 		if (Backdrop != INDEX_NONE || Hotspot != INDEX_NONE || Light != INDEX_NONE || LightMap != INDEX_NONE || SkySphere != INDEX_NONE)
 		{
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			Writer.StartExtensions();
 
 			if (Backdrop != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_HDRIBackdrops;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("backdrop"), Backdrop);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_HDRIBackdrops);
+				Writer.Write(TEXT("backdrop"), Backdrop);
+				Writer.EndExtension();
 			}
 
 			if (Hotspot != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("hotspot"), Hotspot);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_AnimationHotspots);
+				Writer.Write(TEXT("hotspot"), Hotspot);
+				Writer.EndExtension();
 			}
 
 			if (Light != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_LightsPunctual;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("light"), Light);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::KHR_LightsPunctual);
+				Writer.Write(TEXT("light"), Light);
+				Writer.EndExtension();
 			}
 
 			if (LightMap != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("lightmap"), LightMap);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_LightmapTextures);
+				Writer.Write(TEXT("lightmap"), LightMap);
+				Writer.EndExtension();
 			}
 
 			if (SkySphere != INDEX_NONE)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_SkySpheres;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				JsonWriter.WriteValue(TEXT("skySphere"), SkySphere);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_SkySpheres);
+				Writer.Write(TEXT("skySphere"), SkySphere);
+				Writer.EndExtension();
 			}
 
-			JsonWriter.WriteObjectEnd();
+			Writer.EndExtensions();
 		}
 
 		if (Children.Num() > 0)
 		{
-			JsonWriter.WriteValue(TEXT("children"), Children);
+			Writer.Write(TEXT("children"), Children);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonSkin
+struct FGLTFJsonSkin : IGLTFJsonObject
 {
 	FString Name;
 
@@ -14,31 +14,26 @@ struct FGLTFJsonSkin
 
 	TArray<FGLTFJsonNodeIndex> Joints;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (InverseBindMatrices != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("inverseBindMatrices"), InverseBindMatrices);
+			Writer.Write(TEXT("inverseBindMatrices"), InverseBindMatrices);
 		}
 
 		if (Skeleton != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("skeleton"), Skeleton);
+			Writer.Write(TEXT("skeleton"), Skeleton);
 		}
 
 		if (Joints.Num() > 0)
 		{
-			JsonWriter.WriteValue(TEXT("joints"), Joints);
+			Writer.Write(TEXT("joints"), Joints);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonAsset.h"
-#include "Json/GLTFJsonExtensions.h"
 #include "Json/GLTFJsonAccessor.h"
 #include "Json/GLTFJsonAnimation.h"
 #include "Json/GLTFJsonBuffer.h"
@@ -24,9 +24,9 @@
 #include "Json/GLTFJsonLightMap.h"
 #include "Json/GLTFJsonSkySphere.h"
 #include "Json/GLTFJsonLevelVariantSets.h"
-#include "Policies/CondensedJsonPrintPolicy.h"
+#include "Json/GLTFJsonWriter.h"
 
-struct FGLTFJsonRoot
+struct FGLTFJsonRoot : IGLTFJsonObject
 {
 	FGLTFJsonAsset Asset;
 
@@ -54,123 +54,88 @@ struct FGLTFJsonRoot
 	TArray<TUniquePtr<FGLTFJsonSkySphere>>  SkySpheres;
 	TArray<TUniquePtr<FGLTFJsonLevelVariantSets>>  LevelVariantSets;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter)
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
-		Asset.WriteObject(JsonWriter, Extensions);
+		Writer.Write(TEXT("asset"), Asset);
 
 		if (DefaultScene != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
+			Writer.Write(TEXT("scene"), DefaultScene);
 		}
 
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("accessors"), Accessors, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("animations"), Animations, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("buffers"), Buffers, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("bufferViews"), BufferViews, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("cameras"), Cameras, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("images"), Images, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("materials"), Materials, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("meshes"), Meshes, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("nodes"), Nodes, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("samplers"), Samplers, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("scenes"), Scenes, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("skins"), Skins, Extensions);
-		FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("textures"), Textures, Extensions);
+		if (Accessors.Num() > 0) Writer.Write(TEXT("accessors"), Accessors);
+		if (Animations.Num() > 0) Writer.Write(TEXT("animations"), Animations);
+		if (Buffers.Num() > 0) Writer.Write(TEXT("buffers"), Buffers);
+		if (BufferViews.Num() > 0) Writer.Write(TEXT("bufferViews"), BufferViews);
+		if (Cameras.Num() > 0) Writer.Write(TEXT("cameras"), Cameras);
+		if (Images.Num() > 0) Writer.Write(TEXT("images"), Images);
+		if (Materials.Num() > 0) Writer.Write(TEXT("materials"), Materials);
+		if (Meshes.Num() > 0) Writer.Write(TEXT("meshes"), Meshes);
+		if (Nodes.Num() > 0) Writer.Write(TEXT("nodes"), Nodes);
+		if (Samplers.Num() > 0) Writer.Write(TEXT("samplers"), Samplers);
+		if (Scenes.Num() > 0) Writer.Write(TEXT("scenes"), Scenes);
+		if (Skins.Num() > 0) Writer.Write(TEXT("skins"), Skins);
+		if (Textures.Num() > 0) Writer.Write(TEXT("textures"), Textures);
 
 		if (Backdrops.Num() > 0 || Hotspots.Num() > 0 || Lights.Num() > 0 || LightMaps.Num() > 0 || SkySpheres.Num() > 0 || LevelVariantSets.Num() > 0)
 		{
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
+			Writer.StartExtensions();
 
 			if (Backdrops.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_HDRIBackdrops;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("backdrops"), Backdrops, Extensions);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_HDRIBackdrops);
+				Writer.Write(TEXT("backdrops"), Backdrops);
+				Writer.EndExtension();
 			}
 
 			if (Hotspots.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_AnimationHotspots;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("hotspots"), Hotspots, Extensions);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_AnimationHotspots);
+				Writer.Write(TEXT("hotspots"), Hotspots);
+				Writer.EndExtension();
 			}
 
 			if (LevelVariantSets.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("levelVariantSets"), LevelVariantSets, Extensions);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_LevelVariantSets);
+				Writer.Write(TEXT("levelVariantSets"), LevelVariantSets);
+				Writer.EndExtension();
 			}
 
 			if (Lights.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::KHR_LightsPunctual;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("lights"), Lights, Extensions);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::KHR_LightsPunctual);
+				Writer.Write(TEXT("lights"), Lights);
+				Writer.EndExtension();
 			}
 
 			if (LightMaps.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LightmapTextures;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("lightmaps"), LightMaps, Extensions);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_LightmapTextures);
+				Writer.Write(TEXT("lightmaps"), LightMaps);
+				Writer.EndExtension();
 			}
 
 			if (SkySpheres.Num() > 0)
 			{
-				const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_SkySpheres;
-				Extensions.Used.Add(Extension);
-
-				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WriteObjectPtrArray(JsonWriter, TEXT("skySpheres"), SkySpheres, Extensions);
-				JsonWriter.WriteObjectEnd();
+				Writer.StartExtension(EGLTFJsonExtension::EPIC_SkySpheres);
+				Writer.Write(TEXT("skySpheres"), SkySpheres);
+				Writer.EndExtension();
 			}
 
-			JsonWriter.WriteObjectEnd();
+			Writer.EndExtensions();
 		}
 
-		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsUsed"), Extensions.Used);
-		FGLTFJsonUtility::WriteStringArray(JsonWriter, TEXT("extensionsRequired"), Extensions.Required);
-
-		JsonWriter.WriteObjectEnd();
+		if (Writer.Extensions.Used.Num() > 0) Writer.Write(TEXT("extensionsUsed"), Writer.Extensions.Used);
+		if (Writer.Extensions.Required.Num() > 0) Writer.Write(TEXT("extensionsRequired"), Writer.Extensions.Required);
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void ToJson(FArchive* const Archive)
+	void ToJson(FArchive* const Archive, bool bPrettyJson)
 	{
-		TSharedRef<TJsonWriter<CharType, PrintPolicy>> JsonWriter = TJsonWriterFactory<CharType, PrintPolicy>::Create(Archive);
-		WriteObject(*JsonWriter);
-		JsonWriter->Close();
-	}
-
-	void ToJson(FArchive* const Archive, bool bCondensedPrint)
-	{
-		if (bCondensedPrint)
-		{
-			ToJson<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive);
-		}
-		else
-		{
-			ToJson<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive);
-		}
+		TSharedRef<IGLTFJsonWriter> Writer = IGLTFJsonWriter::Create(Archive, bPrettyJson);
+		Writer->Extensions = Extensions;
+		Writer->Write(this);
+		Writer->Close();
+		Extensions = Writer->Extensions; // TODO: fix ugly hack
 	}
 };

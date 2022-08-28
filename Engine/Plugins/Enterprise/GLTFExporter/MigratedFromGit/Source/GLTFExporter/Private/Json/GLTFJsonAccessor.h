@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonAccessor
+struct FGLTFJsonAccessor : IGLTFJsonObject
 {
 	FString Name;
 
@@ -34,49 +33,33 @@ struct FGLTFJsonAccessor
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteValue(TEXT("bufferView"), BufferView);
+		Writer.Write(TEXT("bufferView"), BufferView);
 
 		if (ByteOffset != 0)
 		{
-			JsonWriter.WriteValue(TEXT("byteOffset"), ByteOffset);
+			Writer.Write(TEXT("byteOffset"), ByteOffset);
 		}
 
-		JsonWriter.WriteValue(TEXT("count"), Count);
-		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::ToString(Type));
-		JsonWriter.WriteValue(TEXT("componentType"), FGLTFJsonUtility::ToInteger(ComponentType));
+		Writer.Write(TEXT("count"), Count);
+		Writer.Write(TEXT("type"), Type);
+		Writer.Write(TEXT("componentType"), ComponentType);
 
 		if (bNormalized)
 		{
-			JsonWriter.WriteValue(TEXT("normalized"), bNormalized);
+			Writer.Write(TEXT("normalized"), bNormalized);
 		}
 
 		if (MinMaxLength > 0)
 		{
-			JsonWriter.WriteArrayStart(TEXT("min"));
-			for (int32 ComponentIndex = 0; ComponentIndex < MinMaxLength; ++ComponentIndex)
-			{
-				FGLTFJsonUtility::WriteExactValue(JsonWriter, Min[ComponentIndex]);
-			}
-			JsonWriter.WriteArrayEnd();
-
-			JsonWriter.WriteArrayStart(TEXT("max"));
-			for (int32 ComponentIndex = 0; ComponentIndex < MinMaxLength; ++ComponentIndex)
-			{
-				FGLTFJsonUtility::WriteExactValue(JsonWriter, Max[ComponentIndex]);
-			}
-			JsonWriter.WriteArrayEnd();
+			Writer.Write(TEXT("min"), Min, MinMaxLength);
+			Writer.Write(TEXT("max"), Max, MinMaxLength);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

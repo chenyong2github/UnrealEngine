@@ -14,7 +14,7 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOpt
 
 void FGLTFJsonBuilder::WriteJson(FArchive& Archive)
 {
-	JsonRoot.ToJson(&Archive, bIsGlbFile);
+	JsonRoot.ToJson(&Archive, !bIsGlbFile);
 }
 
 TSet<EGLTFJsonExtension> FGLTFJsonBuilder::GetCustomExtensionsUsed() const
@@ -25,7 +25,7 @@ TSet<EGLTFJsonExtension> FGLTFJsonBuilder::GetCustomExtensionsUsed() const
 
 	for (EGLTFJsonExtension Extension : JsonRoot.Extensions.Used)
 	{
-		const TCHAR* ExtensionString = FGLTFJsonUtility::ToString(Extension);
+		const TCHAR* ExtensionString = FGLTFJsonUtility::GetValue(Extension);
 		if (FCString::Strncmp(ExtensionString, CustomPrefix, (sizeof(CustomPrefix) / sizeof(TCHAR)) - 1) == 0)
 		{
 			CustomExtensions.Add(Extension);

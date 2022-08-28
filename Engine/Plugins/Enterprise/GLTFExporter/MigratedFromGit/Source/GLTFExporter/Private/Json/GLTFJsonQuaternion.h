@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonArray.h"
+#include "Converters/GLTFRawTypes.h"
 
-struct FGLTFJsonQuaternion
+struct FGLTFJsonQuaternion : IGLTFJsonArray
 {
 	float X, Y, Z, W;
 
@@ -16,15 +16,17 @@ struct FGLTFJsonQuaternion
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	FGLTFJsonQuaternion(const FGLTFRawQuaternion& Raw)
+		: X(Raw.X), Y(Raw.Y), Z(Raw.Z), W(Raw.W)
 	{
-		JsonWriter.WriteArrayStart();
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, Z);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, W);
-		JsonWriter.WriteArrayEnd();
+	}
+
+	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
+	{
+		Writer.Write(X);
+		Writer.Write(Y);
+		Writer.Write(Z);
+		Writer.Write(W);
 	}
 
 	bool operator==(const FGLTFJsonQuaternion& Other) const

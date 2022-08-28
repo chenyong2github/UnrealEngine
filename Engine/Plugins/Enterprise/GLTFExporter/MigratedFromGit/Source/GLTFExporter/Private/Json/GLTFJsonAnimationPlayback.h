@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonObject.h"
 
-struct FGLTFJsonAnimationPlayback
+struct FGLTFJsonAnimationPlayback : IGLTFJsonObject
 {
 	FString Name;
 
@@ -23,37 +22,32 @@ struct FGLTFJsonAnimationPlayback
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (bLoop != true)
 		{
-			JsonWriter.WriteValue(TEXT("loop"), bLoop);
+			Writer.Write(TEXT("loop"), bLoop);
 		}
 
 		if (bAutoPlay != true)
 		{
-			JsonWriter.WriteValue(TEXT("autoPlay"), bAutoPlay);
+			Writer.Write(TEXT("autoPlay"), bAutoPlay);
 		}
 
 		if (PlayRate != 1)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("playRate"), PlayRate);
+			Writer.Write(TEXT("playRate"), PlayRate);
 		}
 
 		if (StartTime != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("startTime"), StartTime);
+			Writer.Write(TEXT("startTime"), StartTime);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 
 	bool operator==(const FGLTFJsonAnimationPlayback& Other) const

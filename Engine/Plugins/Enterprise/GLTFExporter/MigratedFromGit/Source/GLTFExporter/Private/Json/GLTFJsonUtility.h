@@ -3,19 +3,18 @@
 #pragma once
 
 #include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonExtensions.h"
 
 struct FGLTFJsonUtility
 {
-	template <typename EnumType>
-	static int32 ToInteger(EnumType Value)
+	template <typename EnumType, typename = typename TEnableIf<TIsEnum<EnumType>::Value>::Type>
+	static int32 GetValue(EnumType Enum)
 	{
-		return static_cast<int32>(Value);
+		return static_cast<int32>(Enum);
 	}
 
-	static const TCHAR* ToString(EGLTFJsonExtension Value)
+	static const TCHAR* GetValue(EGLTFJsonExtension Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonExtension::KHR_LightsPunctual:      return TEXT("KHR_lights_punctual");
 			case EGLTFJsonExtension::KHR_MaterialsClearCoat:  return TEXT("KHR_materials_clearcoat");
@@ -37,9 +36,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonAlphaMode Value)
+	static const TCHAR* GetValue(EGLTFJsonAlphaMode Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonAlphaMode::Opaque: return TEXT("OPAQUE");
 			case EGLTFJsonAlphaMode::Blend:  return TEXT("BLEND");
@@ -50,9 +49,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonBlendMode Value)
+	static const TCHAR* GetValue(EGLTFJsonBlendMode Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonBlendMode::Additive:       return TEXT("ADDITIVE");
 			case EGLTFJsonBlendMode::Modulate:       return TEXT("MODULATE");
@@ -63,9 +62,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonMimeType Value)
+	static const TCHAR* GetValue(EGLTFJsonMimeType Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonMimeType::PNG:  return TEXT("image/png");
 			case EGLTFJsonMimeType::JPEG: return TEXT("image/jpeg");
@@ -75,9 +74,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonAccessorType Value)
+	static const TCHAR* GetValue(EGLTFJsonAccessorType Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonAccessorType::Scalar: return TEXT("SCALAR");
 			case EGLTFJsonAccessorType::Vec2:   return TEXT("VEC2");
@@ -92,9 +91,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonHDREncoding Value)
+	static const TCHAR* GetValue(EGLTFJsonHDREncoding Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonHDREncoding::RGBM: return TEXT("RGBM");
 			case EGLTFJsonHDREncoding::RGBE: return TEXT("RGBE");
@@ -104,9 +103,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonCubeFace Value)
+	static const TCHAR* GetValue(EGLTFJsonCubeFace Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonCubeFace::PosX: return TEXT("PosX");
 			case EGLTFJsonCubeFace::NegX: return TEXT("NegX");
@@ -120,9 +119,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonCameraType Value)
+	static const TCHAR* GetValue(EGLTFJsonCameraType Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonCameraType::Perspective:  return TEXT("perspective");
 			case EGLTFJsonCameraType::Orthographic: return TEXT("orthographic");
@@ -132,9 +131,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonLightType Value)
+	static const TCHAR* GetValue(EGLTFJsonLightType Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonLightType::Directional: return TEXT("directional");
 			case EGLTFJsonLightType::Point:       return TEXT("point");
@@ -145,9 +144,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonInterpolation Value)
+	static const TCHAR* GetValue(EGLTFJsonInterpolation Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonInterpolation::Linear:      return TEXT("LINEAR");
 			case EGLTFJsonInterpolation::Step:        return TEXT("STEP");
@@ -158,9 +157,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonTargetPath Value)
+	static const TCHAR* GetValue(EGLTFJsonTargetPath Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonTargetPath::Translation: return TEXT("translation");
 			case EGLTFJsonTargetPath::Rotation:    return TEXT("rotation");
@@ -172,9 +171,9 @@ struct FGLTFJsonUtility
 		}
 	}
 
-	static const TCHAR* ToString(EGLTFJsonCameraControlMode Value)
+	static const TCHAR* GetValue(EGLTFJsonCameraControlMode Enum)
 	{
-		switch (Value)
+		switch (Enum)
 		{
 			case EGLTFJsonCameraControlMode::FreeLook: return TEXT("freeLook");
 			case EGLTFJsonCameraControlMode::Orbital:  return TEXT("orbital");
@@ -182,72 +181,5 @@ struct FGLTFJsonUtility
 				checkNoEntry();
 				return TEXT("");
 		}
-	}
-
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, float Value)
-	{
-		FString ExactStringRepresentation = FString::Printf(TEXT("%.9g"), Value);
-		JsonWriter.WriteRawJSONValue(ExactStringRepresentation);
-	}
-
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	static void WriteExactValue(TJsonWriter<CharType, PrintPolicy>& JsonWriter, const FString& Identifier, float Value)
-	{
-		FString ExactStringRepresentation = FString::Printf(TEXT("%.9g"), Value);
-		JsonWriter.WriteRawJSONValue(Identifier, ExactStringRepresentation);
-	}
-
-	template <class WriterType, class ContainerType>
-	static void WriteObjectArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
-	{
-		if (Container.Num() > 0 || bWriteIfEmpty)
-		{
-			JsonWriter.WriteArrayStart(Identifier);
-			for (const auto& Element : Container)
-			{
-				Element.WriteObject(JsonWriter, Extensions);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-	}
-
-	template <class WriterType, class ContainerType>
-	static void WriteObjectPtrArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, FGLTFJsonExtensions& Extensions, bool bWriteIfEmpty = false)
-	{
-		if (Container.Num() > 0 || bWriteIfEmpty)
-		{
-			JsonWriter.WriteArrayStart(Identifier);
-			for (const auto& Element : Container)
-			{
-				Element->WriteObject(JsonWriter, Extensions);
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-	}
-
-	template <class WriterType, class ContainerType>
-	static void WriteStringArray(WriterType& JsonWriter, const FString& Identifier, const ContainerType& Container, bool bWriteIfEmpty = false)
-	{
-		if (Container.Num() > 0 || bWriteIfEmpty)
-		{
-			JsonWriter.WriteArrayStart(Identifier);
-			for (const auto& Element : Container)
-			{
-				JsonWriter.WriteValue(ToString(Element));
-			}
-			JsonWriter.WriteArrayEnd();
-		}
-	}
-
-	template <class WriterType, class ElementType, SIZE_T Size>
-	static void WriteFixedArray(WriterType& JsonWriter, const FString& Identifier, const ElementType (&Array)[Size])
-	{
-		JsonWriter.WriteArrayStart(Identifier);
-		for (const ElementType& Element : Array)
-		{
-			JsonWriter.WriteValue(Element);
-		}
-		JsonWriter.WriteArrayEnd();
 	}
 };

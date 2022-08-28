@@ -2,45 +2,37 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonScene
+struct FGLTFJsonScene : IGLTFJsonObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonNodeIndex> Nodes;
 	TArray<FGLTFJsonLevelVariantSetsIndex>  LevelVariantSets;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (Nodes.Num() > 0)
 		{
-			JsonWriter.WriteValue(TEXT("nodes"), Nodes);
+			Writer.Write(TEXT("nodes"), Nodes);
 		}
 
 		if (LevelVariantSets.Num() > 0)
 		{
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_LevelVariantSets;
-			Extensions.Used.Add(Extension);
+			Writer.StartExtensions();
 
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
-			JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
+			Writer.StartExtension(EGLTFJsonExtension::EPIC_LevelVariantSets);
+			Writer.Write(TEXT("levelVariantSets"), LevelVariantSets);
+			Writer.EndExtension();
 
-			JsonWriter.WriteValue(TEXT("levelVariantSets"), LevelVariantSets);
-
-			JsonWriter.WriteObjectEnd();
-			JsonWriter.WriteObjectEnd();
+			Writer.EndExtensions();
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

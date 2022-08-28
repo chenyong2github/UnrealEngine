@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "Json/GLTFJsonExtensions.h"
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonObject.h"
 
-struct FGLTFJsonAsset
+struct FGLTFJsonAsset : IGLTFJsonObject
 {
 	FString Version;
 	FString Generator;
@@ -16,23 +15,18 @@ struct FGLTFJsonAsset
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteValue(TEXT("version"), Version);
+		Writer.Write(TEXT("version"), Version);
 
 		if (!Generator.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("generator"), Generator);
+			Writer.Write(TEXT("generator"), Generator);
 		}
 
 		if (!Copyright.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("copyright"), Copyright);
+			Writer.Write(TEXT("copyright"), Copyright);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

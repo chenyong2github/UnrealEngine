@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonBufferView
+struct FGLTFJsonBufferView : IGLTFJsonObject
 {
 	FString Name;
 
@@ -28,34 +27,29 @@ struct FGLTFJsonBufferView
 		// check that view fits completely inside the buffer
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteValue(TEXT("buffer"), Buffer);
-		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
+		Writer.Write(TEXT("buffer"), Buffer);
+		Writer.Write(TEXT("byteLength"), ByteLength);
 
 		if (ByteOffset != 0)
 		{
-			JsonWriter.WriteValue(TEXT("byteOffset"), ByteOffset);
+			Writer.Write(TEXT("byteOffset"), ByteOffset);
 		}
 
 		if (ByteStride != 0)
 		{
-			JsonWriter.WriteValue(TEXT("byteStride"), ByteStride);
+			Writer.Write(TEXT("byteStride"), ByteStride);
 		}
 
 		if (Target != EGLTFJsonBufferTarget::None)
 		{
-			JsonWriter.WriteValue(TEXT("target"), FGLTFJsonUtility::ToInteger(Target));
+			Writer.Write(TEXT("target"), Target);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

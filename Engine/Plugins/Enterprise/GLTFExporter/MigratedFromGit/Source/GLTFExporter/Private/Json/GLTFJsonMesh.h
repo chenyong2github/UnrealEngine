@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonAttributes
+struct FGLTFJsonAttributes : IGLTFJsonObject
 {
 	FGLTFJsonAccessorIndex Position; // always required
 	FGLTFJsonAccessorIndex Color0;
@@ -18,37 +18,32 @@ struct FGLTFJsonAttributes
 	TArray<FGLTFJsonAccessorIndex> Joints;
 	TArray<FGLTFJsonAccessorIndex> Weights;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
+		Writer.Write(TEXT("POSITION"), Position);
 
-		JsonWriter.WriteValue(TEXT("POSITION"), Position);
-
-		if (Color0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("COLOR_0"), Color0);
-		if (Normal != INDEX_NONE) JsonWriter.WriteValue(TEXT("NORMAL"), Normal);
-		if (Tangent != INDEX_NONE) JsonWriter.WriteValue(TEXT("TANGENT"), Tangent);
+		if (Color0 != INDEX_NONE) Writer.Write(TEXT("COLOR_0"), Color0);
+		if (Normal != INDEX_NONE) Writer.Write(TEXT("NORMAL"), Normal);
+		if (Tangent != INDEX_NONE) Writer.Write(TEXT("TANGENT"), Tangent);
 
 		for (int32 Index = 0; Index < TexCoords.Num(); ++Index)
 		{
-			JsonWriter.WriteValue(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoords[Index]);
+			Writer.Write(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoords[Index]);
 		}
 
 		for (int32 Index = 0; Index < Joints.Num(); ++Index)
 		{
-			JsonWriter.WriteValue(TEXT("JOINTS_") + FString::FromInt(Index), Joints[Index]);
+			Writer.Write(TEXT("JOINTS_") + FString::FromInt(Index), Joints[Index]);
 		}
 
 		for (int32 Index = 0; Index < Weights.Num(); ++Index)
 		{
-			JsonWriter.WriteValue(TEXT("WEIGHTS_") + FString::FromInt(Index), Weights[Index]);
+			Writer.Write(TEXT("WEIGHTS_") + FString::FromInt(Index), Weights[Index]);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonPrimitive
+struct FGLTFJsonPrimitive : IGLTFJsonObject
 {
 	FGLTFJsonAccessorIndex Indices;
 	FGLTFJsonMaterialIndex Material;
@@ -60,51 +55,40 @@ struct FGLTFJsonPrimitive
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		JsonWriter.WriteIdentifierPrefix(TEXT("attributes"));
-		Attributes.WriteObject(JsonWriter, Extensions);
+		Writer.Write(TEXT("attributes"), Attributes);
 
 		if (Indices != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("indices"), Indices);
+			Writer.Write(TEXT("indices"), Indices);
 		}
 
 		if (Material != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("material"), Material);
+			Writer.Write(TEXT("material"), Material);
 		}
 
 		if (Mode != EGLTFJsonPrimitiveMode::Triangles)
 		{
-			JsonWriter.WriteValue(TEXT("mode"), FGLTFJsonUtility::ToInteger(Mode));
+			Writer.Write(TEXT("mode"), Mode);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonMesh
+struct FGLTFJsonMesh : IGLTFJsonObject
 {
 	FString Name;
 
 	TArray<FGLTFJsonPrimitive> Primitives;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		FGLTFJsonUtility::WriteObjectArray(JsonWriter, TEXT("primitives"), Primitives, Extensions, true);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("primitives"), Primitives);
 	}
 };

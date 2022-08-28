@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonCameraControl.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonOrthographic
+struct FGLTFJsonOrthographic : IGLTFJsonObject
 {
 	float XMag; // horizontal magnification of the view
 	float YMag; // vertical magnification of the view
@@ -22,21 +21,16 @@ struct FGLTFJsonOrthographic
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("xmag"), XMag);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("ymag"), YMag);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("zfar"), ZFar);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("znear"), ZNear);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("xmag"), XMag);
+		Writer.Write(TEXT("ymag"), YMag);
+		Writer.Write(TEXT("zfar"), ZFar);
+		Writer.Write(TEXT("znear"), ZNear);
 	}
 };
 
-struct FGLTFJsonPerspective
+struct FGLTFJsonPerspective : IGLTFJsonObject
 {
 	float AspectRatio; // aspect ratio of the field of view
 	float YFov; // vertical field of view in radians
@@ -51,70 +45,56 @@ struct FGLTFJsonPerspective
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (AspectRatio != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("aspectRatio"), AspectRatio);
+			Writer.Write(TEXT("aspectRatio"), AspectRatio);
 		}
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("yfov"), YFov);
+		Writer.Write(TEXT("yfov"), YFov);
 
 		if (ZFar != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("zfar"), ZFar);
+			Writer.Write(TEXT("zfar"), ZFar);
 		}
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("znear"), ZNear);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("znear"), ZNear);
 	}
 };
 
-struct FGLTFJsonCamera
+struct FGLTFJsonCamera : IGLTFJsonObject
 {
 	FString Name;
 
 	EGLTFJsonCameraType               Type;
 	TOptional<FGLTFJsonCameraControl> CameraControl;
 
-	union {
-		FGLTFJsonOrthographic Orthographic;
-		FGLTFJsonPerspective  Perspective;
-	};
+	FGLTFJsonOrthographic Orthographic;
+	FGLTFJsonPerspective  Perspective;
 
 	FGLTFJsonCamera()
 		: Type(EGLTFJsonCameraType::None)
-		, Orthographic()
-		, Perspective()
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::ToString(Type));
+		Writer.Write(TEXT("type"), Type);
 
 		switch (Type)
 		{
 			case EGLTFJsonCameraType::Orthographic:
-				JsonWriter.WriteIdentifierPrefix(TEXT("orthographic"));
-				Orthographic.WriteObject(JsonWriter, Extensions);
+				Writer.Write(TEXT("orthographic"), Orthographic);
 				break;
 
 			case EGLTFJsonCameraType::Perspective:
-				JsonWriter.WriteIdentifierPrefix(TEXT("perspective"));
-				Perspective.WriteObject(JsonWriter, Extensions);
+				Writer.Write(TEXT("perspective"), Perspective);
 				break;
 
 			default:
@@ -123,17 +103,9 @@ struct FGLTFJsonCamera
 
 		if (CameraControl.IsSet())
 		{
-			JsonWriter.WriteObjectStart(TEXT("extensions"));
-
-			const EGLTFJsonExtension Extension = EGLTFJsonExtension::EPIC_CameraControls;
-			Extensions.Used.Add(Extension);
-
-			JsonWriter.WriteIdentifierPrefix(FGLTFJsonUtility::ToString(Extension));
-			CameraControl.GetValue().WriteObject(JsonWriter, Extensions);
-
-			JsonWriter.WriteObjectEnd();
+			Writer.StartExtensions();
+			Writer.Write(EGLTFJsonExtension::EPIC_CameraControls, CameraControl.GetValue());
+			Writer.EndExtensions();
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

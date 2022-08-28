@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonSampler
+struct FGLTFJsonSampler : IGLTFJsonObject
 {
 	FString Name;
 
@@ -24,36 +23,31 @@ struct FGLTFJsonSampler
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (MinFilter != EGLTFJsonTextureFilter::None)
 		{
-			JsonWriter.WriteValue(TEXT("minFilter"), FGLTFJsonUtility::ToInteger(MinFilter));
+			Writer.Write(TEXT("minFilter"), MinFilter);
 		}
 
 		if (MagFilter != EGLTFJsonTextureFilter::None)
 		{
-			JsonWriter.WriteValue(TEXT("magFilter"), FGLTFJsonUtility::ToInteger(MagFilter));
+			Writer.Write(TEXT("magFilter"), MagFilter);
 		}
 
 		if (WrapS != EGLTFJsonTextureWrap::Repeat)
 		{
-			JsonWriter.WriteValue(TEXT("wrapS"), FGLTFJsonUtility::ToInteger(WrapS));
+			Writer.Write(TEXT("wrapS"), WrapS);
 		}
 
 		if (WrapT != EGLTFJsonTextureWrap::Repeat)
 		{
-			JsonWriter.WriteValue(TEXT("wrapT"), FGLTFJsonUtility::ToInteger(WrapT));
+			Writer.Write(TEXT("wrapT"), WrapT);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "Json/GLTFJsonUtility.h"
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonVector2.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonTextureTransform
+struct FGLTFJsonTextureTransform : IGLTFJsonObject
 {
 	FGLTFJsonVector2 Offset;
 	FGLTFJsonVector2 Scale;
@@ -19,30 +18,22 @@ struct FGLTFJsonTextureTransform
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (Offset != FGLTFJsonVector2::Zero)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("offset"));
-			Offset.WriteArray(JsonWriter);
+			Writer.Write(TEXT("offset"), Offset);
 		}
 
 		if (Scale != FGLTFJsonVector2::One)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("scale"));
-			Scale.WriteArray(JsonWriter);
+			Writer.Write(TEXT("scale"), Scale);
 		}
 
 		if (Rotation != 0)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("rotation"));
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, Rotation);
+			Writer.Write(TEXT("rotation"), Rotation);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 
 	bool operator==(const FGLTFJsonTextureTransform& Other) const

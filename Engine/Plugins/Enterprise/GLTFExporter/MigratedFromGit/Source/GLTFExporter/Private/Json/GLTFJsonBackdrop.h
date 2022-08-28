@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
 #include "Json/GLTFJsonVector3.h"
-#include "Json/GLTFJsonUtility.h"
 
-struct FGLTFJsonBackdrop
+struct FGLTFJsonBackdrop : IGLTFJsonObject
 {
 	FString Name;
 
@@ -32,37 +32,31 @@ struct FGLTFJsonBackdrop
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (Mesh != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("mesh"), Mesh);
+			Writer.Write(TEXT("mesh"), Mesh);
 		}
 
-		FGLTFJsonUtility::WriteFixedArray(JsonWriter, TEXT("cubemap"), Cubemap);
+		Writer.Write(TEXT("cubemap"), Cubemap);
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("intensity"), Intensity);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("size"), Size);
+		Writer.Write(TEXT("intensity"), Intensity);
+		Writer.Write(TEXT("size"), Size);
 
 		if (!FMath::IsNearlyZero(Angle))
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("angle"), Angle);
+			Writer.Write(TEXT("angle"), Angle);
 		}
 
-		JsonWriter.WriteIdentifierPrefix(TEXT("projectionCenter"));
-		ProjectionCenter.WriteArray(JsonWriter);
+		Writer.Write(TEXT("projectionCenter"), ProjectionCenter);
 
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("lightingDistanceFactor"), LightingDistanceFactor);
-		JsonWriter.WriteValue(TEXT("useCameraProjection"), UseCameraProjection);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("lightingDistanceFactor"), LightingDistanceFactor);
+		Writer.Write(TEXT("useCameraProjection"), UseCameraProjection);
 	}
 };

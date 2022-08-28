@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Serialization/JsonSerializer.h"
+#include "Json/GLTFJsonObject.h"
 
-struct FGLTFJsonBuffer
+struct FGLTFJsonBuffer : IGLTFJsonObject
 {
 	FString Name;
 
@@ -16,23 +16,18 @@ struct FGLTFJsonBuffer
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
 		if (!URI.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("uri"), URI);
+			Writer.Write(TEXT("uri"), URI);
 		}
 
-		JsonWriter.WriteValue(TEXT("byteLength"), ByteLength);
-
-		JsonWriter.WriteObjectEnd();
+		Writer.Write(TEXT("byteLength"), ByteLength);
 	}
 };

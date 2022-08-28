@@ -25,7 +25,7 @@ FGLTFJsonSkinIndex FGLTFSkinConverter::Convert(FGLTFJsonNodeIndex RootNode, cons
 		Skin.Joints[BoneIndex] = Builder.GetOrAddNode(RootNode, SkeletalMesh, BoneIndex);
 	}
 
-	TArray<FGLTFJsonMatrix4> InverseBindMatrices;
+	TArray<FGLTFRawMatrix4> InverseBindMatrices;
 	InverseBindMatrices.AddUninitialized(BoneCount);
 
 	for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)

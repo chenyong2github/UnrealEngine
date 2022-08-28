@@ -2,11 +2,10 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonIndex.h"
-#include "Json/GLTFJsonExtensions.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonHotspot
+struct FGLTFJsonHotspot : IGLTFJsonObject
 {
 	FString Name;
 
@@ -16,34 +15,29 @@ struct FGLTFJsonHotspot
 	FGLTFJsonTextureIndex   ToggledImage;
 	FGLTFJsonTextureIndex   ToggledHoveredImage;
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteValue(TEXT("animation"), Animation);
-		JsonWriter.WriteValue(TEXT("image"), Image);
+		Writer.Write(TEXT("animation"), Animation);
+		Writer.Write(TEXT("image"), Image);
 
 		if (HoveredImage != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("hoveredImage"), HoveredImage);
+			Writer.Write(TEXT("hoveredImage"), HoveredImage);
 		}
 
 		if (ToggledImage != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("toggledImage"), ToggledImage);
+			Writer.Write(TEXT("toggledImage"), ToggledImage);
 		}
 
 		if (ToggledHoveredImage != INDEX_NONE)
 		{
-			JsonWriter.WriteValue(TEXT("toggledHoveredImage"), ToggledHoveredImage);
+			Writer.Write(TEXT("toggledHoveredImage"), ToggledHoveredImage);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };

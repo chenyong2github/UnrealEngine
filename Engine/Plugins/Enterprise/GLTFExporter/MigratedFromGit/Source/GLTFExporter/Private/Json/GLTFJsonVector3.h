@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonArray.h"
 #include "Json/GLTFJsonVector2.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
+#include "Converters/GLTFRawTypes.h"
 
-struct FGLTFJsonVector3
+struct FGLTFJsonVector3 : IGLTFJsonArray
 {
 	float X, Y, Z;
 
@@ -23,14 +23,16 @@ struct FGLTFJsonVector3
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteArray(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	FGLTFJsonVector3(const FGLTFRawVector3& Raw)
+		: X(Raw.X), Y(Raw.Y), Z(Raw.Z)
 	{
-		JsonWriter.WriteArrayStart();
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, X);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, Y);
-		FGLTFJsonUtility::WriteExactValue(JsonWriter, Z);
-		JsonWriter.WriteArrayEnd();
+	}
+
+	virtual void WriteArray(IGLTFJsonWriter& Writer) const override
+	{
+		Writer.Write(X);
+		Writer.Write(Y);
+		Writer.Write(Z);
 	}
 
 	bool operator==(const FGLTFJsonVector3& Other) const

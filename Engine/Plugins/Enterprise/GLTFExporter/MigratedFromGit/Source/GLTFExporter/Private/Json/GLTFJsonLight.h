@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "Json/GLTFJsonObject.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Json/GLTFJsonColor3.h"
-#include "Json/GLTFJsonUtility.h"
-#include "Serialization/JsonSerializer.h"
 
-struct FGLTFJsonSpotLight
+struct FGLTFJsonSpotLight : IGLTFJsonObject
 {
 	float InnerConeAngle;
 	float OuterConeAngle;
@@ -18,26 +17,21 @@ struct FGLTFJsonSpotLight
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (InnerConeAngle != 0)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("innerConeAngle"), InnerConeAngle);
+			Writer.Write(TEXT("innerConeAngle"), InnerConeAngle);
 		}
 
 		if (OuterConeAngle != PI / 2.0f)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("outerConeAngle"), OuterConeAngle);
+			Writer.Write(TEXT("outerConeAngle"), OuterConeAngle);
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
 
-struct FGLTFJsonLight
+struct FGLTFJsonLight : IGLTFJsonObject
 {
 	FString Name;
 
@@ -58,43 +52,36 @@ struct FGLTFJsonLight
 	{
 	}
 
-	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter, FGLTFJsonExtensions& Extensions) const
+	virtual void WriteObject(IGLTFJsonWriter& Writer) const override
 	{
-		JsonWriter.WriteObjectStart();
-
 		if (!Name.IsEmpty())
 		{
-			JsonWriter.WriteValue(TEXT("name"), Name);
+			Writer.Write(TEXT("name"), Name);
 		}
 
-		JsonWriter.WriteValue(TEXT("type"), FGLTFJsonUtility::ToString(Type));
+		Writer.Write(TEXT("type"), Type);
 
 		if (Color != FGLTFJsonColor3::White)
 		{
-			JsonWriter.WriteIdentifierPrefix(TEXT("color"));
-			Color.WriteArray(JsonWriter);
+			Writer.Write(TEXT("color"), Color);
 		}
 
 		if (Intensity != 1)
 		{
-			FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("intensity"), Intensity);
+			Writer.Write(TEXT("intensity"), Intensity);
 		}
 
 		if (Type == EGLTFJsonLightType::Point || Type == EGLTFJsonLightType::Spot)
 		{
 			if (Range != 0)
 			{
-				FGLTFJsonUtility::WriteExactValue(JsonWriter, TEXT("range"), Range);
+				Writer.Write(TEXT("range"), Range);
 			}
 
 			if (Type == EGLTFJsonLightType::Spot)
 			{
-				JsonWriter.WriteIdentifierPrefix(TEXT("spot"));
-				Spot.WriteObject(JsonWriter, Extensions);
+				Writer.Write(TEXT("spot"), Spot);
 			}
 		}
-
-		JsonWriter.WriteObjectEnd();
 	}
 };
