@@ -6,6 +6,7 @@
 #include "Converters/GLTFVertexBufferConverters.h"
 #include "Converters/GLTFStaticMeshConverters.h"
 #include "Converters/GLTFMaterialConverters.h"
+#include "Converters/GLTFTextureConverters.h"
 #include "Converters/GLTFLevelConverters.h"
 
 class FGLTFConvertBuilder : public FGLTFImageBuilder
@@ -23,11 +24,12 @@ public:
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMesh* StaticMesh, int32 LODIndex = 0, const FColorVertexBuffer* OverrideVertexColors = nullptr, const FGLTFMaterialArray& OverrideMaterials = {}, const FString& DesiredName = TEXT(""));
 	FGLTFJsonMeshIndex GetOrAddMesh(const UStaticMeshComponent* StaticMeshComponent, const FString& DesiredName = TEXT(""));
 
+	FGLTFJsonMaterialIndex GetOrAddMaterial(const UMaterialInterface* Material, const FString& DesiredName = TEXT(""));
+	FGLTFJsonTextureIndex GetOrAddTexture(const UTexture2D* Texture, const FString& DesiredName = TEXT(""));
+
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent, bool bSelectedOnly, bool bRootNode = false, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level, bool bSelectedOnly, const FString& DesiredName = TEXT(""));
 	FGLTFJsonSceneIndex GetOrAddScene(const UWorld* World, bool bSelectedOnly, const FString& DesiredName = TEXT(""));
-
-	FGLTFJsonMaterialIndex GetOrAddMaterial(const UMaterialInterface* Material, const FString& DesiredName = TEXT(""));
 
 private:
 
@@ -42,6 +44,7 @@ private:
 	FGLTFStaticMeshConverter StaticMeshConverter;
 
 	FGLTFMaterialConverter MaterialConverter;
+	FGLTFTexture2DConverter Texture2DConverter;
 
 	FGLTFSceneComponentConverter SceneComponentConverter;
 	FGLTFLevelConverter LevelConverter;

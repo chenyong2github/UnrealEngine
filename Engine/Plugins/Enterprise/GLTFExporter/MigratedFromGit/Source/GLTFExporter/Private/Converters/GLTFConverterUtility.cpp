@@ -1,7 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFConverterUtility.h"
+#include "Engine/TextureLODSettings.h"
 #include "Engine/Blueprint.h"
+
+ETextureSamplerFilter FGLTFConverterUtility::GetDefaultFilter(TextureGroup LODGroup)
+{
+	const ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform(); // TODO: should this be the running platform?
+	const UTextureLODSettings& TextureLODSettings = RunningPlatform->GetTextureLODSettings();
+	const FTextureLODGroup& TextureLODGroup = TextureLODSettings.GetTextureLODGroup(LODGroup);
+	return TextureLODGroup.Filter;
+}
 
 bool FGLTFConverterUtility::IsSkySphereBlueprint(const UBlueprint* Blueprint)
 {
