@@ -19,7 +19,7 @@ enum class EGLTFCameraControlMode : uint8
  * - Orbital: Focuses one actor in the scene and orbits it through mouse control.
  */
 UCLASS(BlueprintType, Blueprintable, DisplayName = "GLTF Camera")
-class GLTFEXPORTERRUNTIME_API AGLTFCameraActor : public ACameraActor
+class GLTFEXPORTER_API AGLTFCameraActor : public ACameraActor
 {
 	GENERATED_BODY()
 	//~ Begin UObject Interface

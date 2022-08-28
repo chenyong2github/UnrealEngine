@@ -29,7 +29,7 @@ enum class EGLTFHotspotState : uint8
  * Actor wrapper for the GLTF hotspot component. Appears as a billboard and allows playback of animations when cursor input is enabled.
  */
 UCLASS(BlueprintType, Blueprintable, HideCategories = (Sprite, Physics, Collision, Navigation), DisplayName = "GLTF Hotspot")
-class GLTFEXPORTERRUNTIME_API AGLTFHotspotActor : public AActor
+class GLTFEXPORTER_API AGLTFHotspotActor : public AActor
 {
 	GENERATED_BODY()
 	//~ Begin UObject Interface
