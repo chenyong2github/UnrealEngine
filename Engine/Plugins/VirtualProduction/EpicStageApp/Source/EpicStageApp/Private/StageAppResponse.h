@@ -42,7 +42,7 @@ struct FRCPreviewRenderCompletedEventActorPosition
 
 	/** The actor's position on the preview texture in coordinates normalized to the size of the preview render's texture. */
 	UPROPERTY()
-	FVector2D Position;
+	FVector2D Position = FVector2D::ZeroVector;
 };
 
 /**

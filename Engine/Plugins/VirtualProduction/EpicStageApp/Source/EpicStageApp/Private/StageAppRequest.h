@@ -279,7 +279,7 @@ struct FRCWebSocketNDisplayPreviewLightCardDragMoveBody : public FRCRequest
 	 * The position of the drag cursor in coordinates normalized to the size of the preview image.
 	 */
 	UPROPERTY()
-	FVector2D DragPosition;
+	FVector2D DragPosition = FVector2D::ZeroVector;
 
 	/**
 	 * The sequence number of this change. The highest sequence number received from this client will be
@@ -317,7 +317,7 @@ struct FRCWebSocketNDisplayPreviewLightCardDragEndBody : public FRCRequest
 	 * The final position of the drag cursor in coordinates normalized to the size of the preview image.
 	 */
 	UPROPERTY()
-	FVector2D DragPosition;
+	FVector2D DragPosition = FVector2D::ZeroVector;
 
 	/**
 	 * The sequence number of this change. The highest sequence number received from this client will be

@@ -283,7 +283,7 @@ public:
 
 	/** Event for this critical state */
 	UPROPERTY(VisibleAnywhere, Category = "AssetLoading")
-	EStageLoadingState LoadingState;
+	EStageLoadingState LoadingState = EStageLoadingState::PreLoad;
 
 	/** Name of the asset currently loading. */
 	UPROPERTY(VisibleAnywhere, Category = "AssetLoading")
