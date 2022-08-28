@@ -208,21 +208,21 @@ void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, co
 
 bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 {
-	const FString PropertyName = InProperty->GetName();
+	const FName PropertyFName = InProperty->GetFName();
 
-	if (PropertyName == TEXT("bExportUnlitMaterials") ||
-		PropertyName == TEXT("bExportClearCoatMaterials") ||
-		PropertyName == TEXT("bBakeMaterialInputs") ||
-		PropertyName == TEXT("DefaultMaterialBakeSize") ||
-		PropertyName == TEXT("bExportVertexColors") ||
-		PropertyName == TEXT("DefaultLevelOfDetail") ||
-		PropertyName == TEXT("bExportLightmaps") ||
-		PropertyName == TEXT("ExportScale") ||
-		PropertyName == TEXT("bExportLights") ||
-		PropertyName == TEXT("bExportCameras") ||
-		PropertyName == TEXT("bExportHDRIBackdrops") ||
-		PropertyName == TEXT("bExportVariantSets") ||
-		PropertyName == TEXT("bExportPreviewMesh"))
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportUnlitMaterials) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportClearCoatMaterials) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bBakeMaterialInputs) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultMaterialBakeSize) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportVertexColors) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, DefaultLevelOfDetail) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportLightmaps) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, ExportScale) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportLights) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportCameras) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHDRIBackdrops) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportVariantSets) ||
+		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportPreviewMesh))
 	{
 		return true;
 	}
