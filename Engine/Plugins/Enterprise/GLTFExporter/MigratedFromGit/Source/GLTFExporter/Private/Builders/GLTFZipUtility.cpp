@@ -7,7 +7,39 @@ THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/zlib/zlib-1.2.5/Src/contrib/minizip/unzip.h"
 THIRD_PARTY_INCLUDES_END
 
-bool FGLTFZipUtility::ExtractToDirectory(const FString& ArchiveFile, const FString& TargetDirectory)
+TArray<FString> FGLTFZipUtility::GetAllFiles(const FString& ArchiveFile)
+{
+	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
+	if (ZipHandle == nullptr)
+	{
+		return {};
+	}
+
+	if (unzGoToFirstFile(ZipHandle) != UNZ_OK)
+	{
+		unzClose(ZipHandle);
+		return {};
+	}
+
+	TArray<FString> Filenames;
+
+	do
+	{
+		const FString Filename = GetCurrentFilename(ZipHandle);
+		if (Filename.IsEmpty())
+		{
+			unzClose(ZipHandle);
+			return {};
+		}
+
+		Filenames.Add(Filename);
+	} while (unzGoToNextFile(ZipHandle) == UNZ_OK);
+
+	unzClose(ZipHandle);
+	return Filenames;
+}
+
+bool FGLTFZipUtility::ExtractAllFiles(const FString& ArchiveFile, const FString& TargetDirectory)
 {
 	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
 	if (ZipHandle == nullptr)
@@ -23,7 +55,14 @@ bool FGLTFZipUtility::ExtractToDirectory(const FString& ArchiveFile, const FStri
 
 	do
 	{
-		if (!ExtractCurrentFile(ZipHandle, TargetDirectory))
+		const FString Filename = GetCurrentFilename(ZipHandle);
+		if (Filename.IsEmpty())
+		{
+			unzClose(ZipHandle);
+			return false;
+		}
+
+		if (!ExtractCurrentFile(ZipHandle, TargetDirectory / Filename))
 		{
 			unzClose(ZipHandle);
 			return false;
@@ -34,29 +73,70 @@ bool FGLTFZipUtility::ExtractToDirectory(const FString& ArchiveFile, const FStri
 	return true;
 }
 
-bool FGLTFZipUtility::ExtractCurrentFile(void* ZipHandle, const FString& TargetDirectory)
+bool FGLTFZipUtility::ExtractOneFile(const FString& ArchiveFile, const FString& FileToExtract, const FString& TargetDirectory)
+{
+	const unzFile ZipHandle = unzOpen64(TCHAR_TO_ANSI(*ArchiveFile));
+	if (ZipHandle == nullptr)
+	{
+		return false;
+	}
+
+	if (unzGoToFirstFile(ZipHandle) != UNZ_OK)
+	{
+		unzClose(ZipHandle);
+		return false;
+	}
+
+	if (unzLocateFile(ZipHandle, TCHAR_TO_ANSI(*FileToExtract), 0) != UNZ_OK)
+	{
+		unzClose(ZipHandle);
+		return false;
+	}
+
+	if (!ExtractCurrentFile(ZipHandle, TargetDirectory / FileToExtract))
+	{
+		unzClose(ZipHandle);
+		return false;
+	}
+
+	unzClose(ZipHandle);
+	return true;
+}
+
+FString FGLTFZipUtility::GetCurrentFilename(void* ZipHandle)
 {
 	unz_file_info64 FileInfo;
 	if (unzGetCurrentFileInfo64(ZipHandle, &FileInfo, nullptr, 0, nullptr, 0, nullptr, 0) != UNZ_OK)
 	{
-		return false;
+		return {};
 	}
 
 	TArray<char> Filename;
+
 	Filename.Init('\0', FileInfo.size_filename + 1);
 	if (unzGetCurrentFileInfo64(ZipHandle, nullptr, Filename.GetData(), Filename.Num() - 1, nullptr, 0, nullptr, 0) != UNZ_OK)
+	{
+		return {};
+	}
+
+	return Filename.GetData();
+}
+
+bool FGLTFZipUtility::ExtractCurrentFile(void* ZipHandle, const FString& TargetFile)
+{
+	const FString Filename = GetCurrentFilename(ZipHandle);
+	if (Filename.IsEmpty())
 	{
 		return false;
 	}
 
-	const FString DestinationFilePath = TargetDirectory / Filename.GetData();
-	if (DestinationFilePath.EndsWith(TEXT("/")) || DestinationFilePath.EndsWith(TEXT("\\")))
+	if (TargetFile.EndsWith(TEXT("/")) || TargetFile.EndsWith(TEXT("\\")))
 	{
-		IFileManager::Get().MakeDirectory(*DestinationFilePath, true);
+		IFileManager::Get().MakeDirectory(*TargetFile, true);
 	}
 	else
 	{
-		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*DestinationFilePath);
+		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*TargetFile);
 		if (FileWriter == nullptr)
 		{
 			return false;
