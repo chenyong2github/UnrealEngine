@@ -105,6 +105,10 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 		}
 
 		BoneMaps.Add(MeshSection->BoneMap);
-		MaxBoneIndex = MeshSection->BoneMap.Num() > 0 ? FMath::Max(*Algo::MaxElement(MeshSection->BoneMap), MaxBoneIndex) : MaxBoneIndex;
+
+		if (const FBoneIndexType* MaxSectionBoneIndex = Algo::MaxElement(MeshSection->BoneMap))
+		{
+		    MaxBoneIndex = FMath::Max(*MaxSectionBoneIndex, MaxBoneIndex);
+		}
 	}
 }
