@@ -36,7 +36,7 @@ public:
 	 * @param TextureCube - The cubemap to render.
 	 * @param CubeFace - The cubemap face to render.
 	 */
-	void SetParameters(FRHICommandList& RHICmdList, FRHITexture& TextureCube, ECubeFace CubeFace)
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureCube, ECubeFace CubeFace) const
 	{
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
 		SetTextureParameter(
@@ -44,8 +44,7 @@ public:
 			PixelShaderRHI,
 			InTextureCube,
 			InTextureCubeSampler,
-			TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-			&TextureCube);
+			TextureCube);
 		SetShaderValue(RHICmdList, PixelShaderRHI, InCubeFaceIndex, CubeFace);
 	}
 
@@ -79,5 +78,5 @@ void FGLTFCubemapFacePreview::BindShaders(
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::ForceApply);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, *TextureCube, CubeFace);
+	PixelShader->SetParameters(RHICmdList, Texture, CubeFace);
 }
