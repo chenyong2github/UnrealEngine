@@ -18,15 +18,12 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	bBakeMaterialInputs = true;
 	DefaultMaterialBakeSize = EGLTFExporterMaterialBakeSize::POT_1024;
 	bExportVertexColors = true;
-	NormalExportMethod = EGLTFExporterNormalExportMethod::NormalsAndTangents;
 	bQuantizeVertexNormals = true;
 	bQuantizeVertexTangents = true;
-	NormalizeUVCoordinates = EGLTFExporterNormalizeUVCoordinates::Never;
 	DefaultLevelOfDetail = 0;
 	bExportVertexSkinWeights = true;
 	bExportAnimationSequences = true;
 	bRetargetBoneTransforms = true;
-	TextureFormat = EGLTFExporterTextureFormat::PNG;
 	bExportSourceTextures = true;
 	bExportLightmaps = true;
 	TextureHDREncoding = EGLTFExporterTextureHDREncoding::RGBM;
@@ -35,7 +32,6 @@ UGLTFExportOptions::UGLTFExportOptions(const FObjectInitializer& ObjectInitializ
 	ExportLights = EGLTFExporterLightMobility::MovableAndStationary;
 	bExportCameras = true;
 	bExportOrbitalCameras = true;
-	bExportReflectionCaptures = false;
 	bExportHDRIBackdrops = true;
 	bExportVariantSets = true;
 	bExportInteractionHotspots = true;
@@ -197,12 +193,8 @@ bool UGLTFExportOptions::CanEditChange(const FProperty* InProperty) const
 	const FName PropertyFName = InProperty->GetFName();
 
 	// TODO: remove options that have been implemented in exporters/converters.
-	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, NormalExportMethod) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, NormalizeUVCoordinates) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureFormat) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureHDREncoding) ||
+	if (PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, TextureHDREncoding) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportHiddenInGame) ||
-		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bExportReflectionCaptures) ||
 		PropertyFName == GET_MEMBER_NAME_CHECKED(ThisClass, bAllExtensionsRequired))
 	{
 		return false;

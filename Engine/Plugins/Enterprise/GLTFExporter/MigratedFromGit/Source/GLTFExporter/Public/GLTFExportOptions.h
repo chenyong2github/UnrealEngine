@@ -6,22 +6,6 @@
 #include "GLTFExportOptions.generated.h"
 
 UENUM(BlueprintType)
-enum class EGLTFExporterNormalizeUVCoordinates : uint8
-{
-	Always,
-	Auto,
-	Never
-};
-
-UENUM(BlueprintType)
-enum class EGLTFExporterNormalExportMethod : uint8
-{
-	None UMETA(DisplayName = "None"),
-	Normals UMETA(DisplayName = "Normals"),
-	NormalsAndTangents UMETA(DisplayName = "Normals and Tangents")
-};
-
-UENUM(BlueprintType)
 enum class EGLTFExporterMaterialBakeSize : uint8
 {
 	POT_1 UMETA(DisplayName = "1 x 1"),
@@ -38,14 +22,6 @@ enum class EGLTFExporterMaterialBakeSize : uint8
 	POT_2048 UMETA(DisplayName = "2048 x 2048"),
 	POT_4096 UMETA(DisplayName = "4096 x 4096"),
 	POT_8192 UMETA(DisplayName = "8192 x 8192")
-};
-
-UENUM(BlueprintType)
-enum class EGLTFExporterTextureFormat : uint8
-{
-	None,
-	PNG
-	// TODO: add more formats
 };
 
 UENUM(BlueprintType)
@@ -89,16 +65,10 @@ public:
 	uint32 bExportVertexColors : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
-	EGLTFExporterNormalExportMethod NormalExportMethod;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bQuantizeVertexNormals : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bQuantizeVertexTangents : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
-	EGLTFExporterNormalizeUVCoordinates NormalizeUVCoordinates;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	int32 DefaultLevelOfDetail;
@@ -111,9 +81,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Animation)
 	uint32 bRetargetBoneTransforms : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
-	EGLTFExporterTextureFormat TextureFormat;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Texture)
 	uint32 bExportSourceTextures : 1;
@@ -140,9 +107,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportOrbitalCameras : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
-	uint32 bExportReflectionCaptures : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Scene)
 	uint32 bExportHDRIBackdrops : 1;
