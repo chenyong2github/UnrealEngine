@@ -10,7 +10,7 @@ void FGLTFMaterialConverter::Sanitize(const UMaterialInterface*& Material, const
 {
 	if (MeshData == nullptr ||
 		!Builder.ExportOptions->bBakeMaterialInputs ||
-		!Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ||
+		!Builder.ExportOptions->bMaterialBakeUsingMeshData ||
 		!FGLTFMaterialUtility::NeedsMeshData(Material))
 	{
 		MeshData = nullptr;
