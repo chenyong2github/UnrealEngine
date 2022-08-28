@@ -17,7 +17,7 @@ enum class EGLTFJsonShadingModel
 	None = -1,
 	Default,
 	Unlit,
-    ClearCoat
+	ClearCoat
 };
 
 enum class EGLTFJsonAccessorType
