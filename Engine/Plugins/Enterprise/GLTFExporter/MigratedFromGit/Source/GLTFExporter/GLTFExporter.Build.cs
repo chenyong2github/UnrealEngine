@@ -6,8 +6,9 @@ public class GLTFExporter : ModuleRules
 {
 	public GLTFExporter(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-		bTreatAsEngineModule = true; // Only necessary when plugin installed in project
+		//PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.NoPCHs;
+		bUseUnity = false;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
