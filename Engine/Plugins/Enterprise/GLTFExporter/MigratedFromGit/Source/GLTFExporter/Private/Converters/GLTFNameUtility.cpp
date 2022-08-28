@@ -6,19 +6,6 @@
 
 namespace
 {
-	FString GetNameWithLODSuffix(const UObject* Object, int32 LODIndex)
-	{
-		FString Name;
-		Object->GetName(Name);
-
-		if (LODIndex != 0)
-		{
-			Name += TEXT("_LOD") + FString::FromInt(LODIndex);
-		}
-
-		return Name;
-	}
-
 	template <typename ActorType>
 	FString GetActorNameIfOwnerOfType(const UActorComponent* Component)
 	{
@@ -29,16 +16,6 @@ namespace
 
 		return Component->GetName();
 	}
-}
-
-FString FGLTFNameUtility::GetName(const UStaticMesh* StaticMesh, int32 LODIndex)
-{
-	return GetNameWithLODSuffix(StaticMesh, LODIndex);
-}
-
-FString FGLTFNameUtility::GetName(const USkeletalMesh* SkeletalMesh, int32 LODIndex)
-{
-	return GetNameWithLODSuffix(SkeletalMesh, LODIndex);
 }
 
 FString FGLTFNameUtility::GetName(const USceneComponent* Component)

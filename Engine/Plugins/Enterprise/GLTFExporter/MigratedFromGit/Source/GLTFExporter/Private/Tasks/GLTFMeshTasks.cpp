@@ -24,6 +24,10 @@ void FGLTFStaticMeshTask::Complete()
 		ColorBuffer = LODInfo.OverrideVertexColors != nullptr ? LODInfo.OverrideVertexColors : ColorBuffer;
 	}
 
+	const FGLTFMeshData* MeshData =
+        Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ?
+            MeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
+
 	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
 	JsonMesh.Primitives.AddDefaulted(MaterialCount);
 
@@ -65,9 +69,7 @@ void FGLTFStaticMeshTask::Complete()
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		JsonPrimitive.Material = StaticMeshComponent != nullptr
-			? Builder.GetOrAddMaterial(Material, StaticMeshComponent, OverrideMaterials)
-			: Builder.GetOrAddMaterial(Material, StaticMesh, OverrideMaterials);
+		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, OverrideMaterials);
 	}
 }
 
@@ -90,6 +92,15 @@ void FGLTFSkeletalMeshTask::Complete()
 		const FSkelMeshComponentLODInfo& LODInfo = SkeletalMeshComponent->LODInfo[LODIndex];
 		ColorBuffer = LODInfo.OverrideVertexColors != nullptr ? LODInfo.OverrideVertexColors : ColorBuffer;
 		SkinWeightBuffer = LODInfo.OverrideSkinWeights != nullptr ? LODInfo.OverrideSkinWeights : SkinWeightBuffer;
+	}
+
+	const FGLTFMeshData* MeshData =
+		Builder.ExportOptions->bBakeMaterialInputs && Builder.ExportOptions->bBakeMaterialInputsUsingMeshData ?
+			MeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
+
+	if (SkeletalMeshComponent == nullptr)
+	{
+		MeshData = nullptr; // TODO: remove and add support for skeletal meshes in FGLTFMeshData
 	}
 
 	const uint16 MaterialCount = SkeletalMesh->Materials.Num();
@@ -146,8 +157,6 @@ void FGLTFSkeletalMeshTask::Complete()
 			Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
-		JsonPrimitive.Material = SkeletalMeshComponent != nullptr
-			? Builder.GetOrAddMaterial(Material, SkeletalMeshComponent, OverrideMaterials)
-			: Builder.GetOrAddMaterial(Material, SkeletalMesh, OverrideMaterials);
+		JsonPrimitive.Material =  Builder.GetOrAddMaterial(Material, MeshData, OverrideMaterials);
 	}
 }
