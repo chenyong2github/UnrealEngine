@@ -8,8 +8,6 @@
 
 #define GLTFEXPORTER_MODULE_NAME TEXT("GLTFExporter")
 
-DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
-
 /**
  * The public interface of the GLTFExporter module
  */

@@ -7,10 +7,6 @@ FGLTFJsonBuilder::FGLTFJsonBuilder()
 {
 }
 
-FGLTFJsonBuilder::~FGLTFJsonBuilder()
-{
-}
-
 FGLTFJsonAccessorIndex FGLTFJsonBuilder::AddAccessor(const FGLTFJsonAccessor& JsonAccessor)
 {
 	return FGLTFJsonAccessorIndex(JsonRoot.Accessors.Add(JsonAccessor));
