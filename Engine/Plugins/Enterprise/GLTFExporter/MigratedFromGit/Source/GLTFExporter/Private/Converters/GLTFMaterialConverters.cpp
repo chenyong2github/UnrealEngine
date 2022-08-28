@@ -300,21 +300,18 @@ bool FGLTFMaterialConverter::TryGetConstantColor(FLinearColor& OutValue, const F
 
 	if (const UMaterialExpressionConstant4Vector* Constant4Vector = ExactCast<UMaterialExpressionConstant4Vector>(Expression))
 	{
-		// TODO: add support for output mask
 		OutValue = Constant4Vector->Constant;
 		return true;
 	}
 
 	if (const UMaterialExpressionConstant3Vector* Constant3Vector = ExactCast<UMaterialExpressionConstant3Vector>(Expression))
 	{
-		// TODO: add support for output mask
 		OutValue = Constant3Vector->Constant;
 		return true;
 	}
 
 	if (const UMaterialExpressionConstant2Vector* Constant2Vector = ExactCast<UMaterialExpressionConstant2Vector>(Expression))
 	{
-		// TODO: add support for output mask
 		OutValue = { Constant2Vector->R, Constant2Vector->G, 0, 0 };
 		return true;
 	}
@@ -375,21 +372,18 @@ bool FGLTFMaterialConverter::TryGetConstantScalar(float& OutValue, const FScalar
 
 	if (const UMaterialExpressionConstant4Vector* Constant4Vector = ExactCast<UMaterialExpressionConstant4Vector>(Expression))
 	{
-		// TODO: add support for output mask
 		OutValue = Constant4Vector->Constant.R;
 		return true;
 	}
 
 	if (const UMaterialExpressionConstant3Vector* Constant3Vector = ExactCast<UMaterialExpressionConstant3Vector>(Expression))
 	{
-		// TODO: add support for output mask
 		OutValue = Constant3Vector->Constant.R;
 		return true;
 	}
 
 	if (const UMaterialExpressionConstant2Vector* Constant2Vector = ExactCast<UMaterialExpressionConstant2Vector>(Expression))
 	{
-		// TODO: add support for output mask
 		OutValue = Constant2Vector->R;
 		return true;
 	}
