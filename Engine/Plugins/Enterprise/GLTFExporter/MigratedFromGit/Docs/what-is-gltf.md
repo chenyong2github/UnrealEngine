@@ -33,6 +33,7 @@ Extension                   | Description
 `KHR_lights_punctual`       | Point, spot, and directional lights
 `KHR_materials_unlit`       | Materials with unlit shading model
 `KHR_materials_clearcoat`   | Materials with clear coat shading model
+`KHR_materials_variants`    | Compact multiple material variants per asset
 `KHR_mesh_quantization`     | Decrease vertex data size and precision
 `KHR_texture_transform`     | Tiling and mirroring texture coordinates
 `EPIC_lightmap_textures`    | Lightmass baked Unreal-encoded lightmaps

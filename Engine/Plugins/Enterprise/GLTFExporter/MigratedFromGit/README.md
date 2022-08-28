@@ -20,6 +20,7 @@ Currently, the plugin works with Unreal Engine 5.0 on Windows, Mac, and Linux.
   - In the top menu, select `File -> Export Selected...`
   - Change `Save as type` to `.gltf` (or `.glb`) and click `Save`
   - When `glTF Export Options` window is shown, click `Export`
+- Alt 3: Script the export using `Blueprint` in `Editor` or at `Runtime`, or use `Python` in `Editor`.
 
 
 ## Documentation
@@ -27,3 +28,4 @@ Currently, the plugin works with Unreal Engine 5.0 on Windows, Mac, and Linux.
 - [What is glTF?](Docs/what-is-gltf.md)
 - [What can be exported?](Docs/what-can-be-exported.md)
 - [Export options reference](Docs/export-options-reference.md)
+- [Scripting the export](Docs/scripting-the-export.md)
