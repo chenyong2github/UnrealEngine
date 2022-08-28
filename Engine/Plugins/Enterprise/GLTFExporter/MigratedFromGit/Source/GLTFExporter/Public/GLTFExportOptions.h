@@ -95,9 +95,6 @@ public:
 	bool bExportTextureTransforms;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
-	bool bExportSourceTextures;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)
 	bool bExportLightmaps;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Texture)

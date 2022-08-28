@@ -4,104 +4,51 @@
 #include "Builders/GLTFContainerBuilder.h"
 #include "Converters/GLTFConverterUtility.h"
 #include "Converters/GLTFTextureUtility.h"
+#include "Converters/GLTFNameUtility.h"
 
 void FGLTFTexture2DTask::Complete()
 {
-	bool bIsNormalMap = Texture2D->IsNormalMap();
-	FGLTFJsonImageIndex ImageIndex;
-
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
-	// NOTE: export of normalmaps via source data is disabled because we need to manipulate the pixels during conversion.
-	const bool bPreferSourceExport = bIsNormalMap ? false : Builder.ExportOptions->bExportSourceTextures;
+	// TODO: both bForceLinearGamma and TargetGamma=2.2f seem to be necessary for the exported images to match the results
+	// from exporting using the texture's source or its platform-data.
+	// It's not entirely clear why gamma must be set to 2.2 instead of 0.0 (which should use the correct gamma anyway),
+	// and why bInForceLinearGamma must also be true.
+	const bool bForceLinearGamma = true;
+	const float TargetGamma = 2.2f;
+	const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
 
-	// NOTE: export of lightmaps via source data is used to work around issues
-	// with quality-loss due to incorrect gamma transformation when rendering to a canvas.
+	const EPixelFormat RenderTargetFormat = FGLTFTextureUtility::IsHDRFormat(Texture2D->GetPixelFormat()) ? PF_FloatRGBA : PF_B8G8R8A8;
+	UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, bForceLinearGamma);
+	RenderTarget->TargetGamma = TargetGamma;
 
-	// TODO: make sure there are no other special cases than lightmaps that require source-export
-	const bool bRequireSourceExport = Texture2D->IsA<ULightMapTexture2D>();
+	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
+	FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
 
-	if (bRequireSourceExport || bPreferSourceExport)
+	TArray<FColor> Pixels;
+	if (!Texture2D->IsNormalMap() && FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
 	{
-		ERGBFormat RGBFormat;
-		uint32 BitDepth;
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM; // TODO: use only encoding as specified by export options
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding);
+	}
+	else
+	{
+		FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels);
 
-		FTextureSource& Source = const_cast<FTextureSource&>(Texture2D->Source);
-		const FIntPoint Size = { Source.GetSizeX(), Source.GetSizeY() };
-
-		if (Source.IsValid() && FGLTFTextureUtility::CanPNGCompressFormat(Source.GetFormat(), RGBFormat, BitDepth))
+		if (Texture2D->IsNormalMap())
 		{
-			const void* RawData = Source.LockMip(0);
-			ImageIndex = Builder.AddImage(RawData, Source.CalcMipSize(0), Size, RGBFormat, BitDepth, JsonTexture.Name);
-			Source.UnlockMip(0);
-		}
-
-		if (ImageIndex != INDEX_NONE)
-		{
-			if (FGLTFTextureUtility::HasAnyAdjustment(Texture2D))
-			{
-				Builder.AddWarningMessage(FString::Printf(TEXT("Adjustments for texture %s are not supported when exporting source data"), *JsonTexture.Name));
-			}
-		}
-		else
-		{
-			if (bPreferSourceExport)
-			{
-				Builder.AddWarningMessage(FString::Printf(TEXT("Unable to export source for texture %s, render data will be used as fallback"), *JsonTexture.Name));
-			}
+			FGLTFTextureUtility::FlipGreenChannel(Pixels);
 		}
 	}
 
-	if (ImageIndex == INDEX_NONE && !bRequireSourceExport)
+	if (Pixels.Num() == 0)
 	{
-		const FIntPoint Size = { Texture2D->GetSizeX(), Texture2D->GetSizeY() };
-
-		// TODO: both bForceLinearGamma and TargetGamma=2.2f seem to be necessary for the exported images to match the results
-		// from exporting using the texture's source or its platform-data.
-		// It's not entirely clear why gamma must be set to 2.2 instead of 0.0 (which should use the correct gamma anyway),
-		// and why bInForceLinearGamma must also be true.
-		const bool bForceLinearGamma = true;
-		const float TargetGamma = 2.2f;
-
-		const EPixelFormat RenderTargetFormat = FGLTFTextureUtility::IsHDRFormat(Texture2D->GetPixelFormat()) ? PF_FloatRGBA : PF_B8G8R8A8;
-		UTextureRenderTarget2D* RenderTarget = FGLTFTextureUtility::CreateRenderTarget(Size, RenderTargetFormat, bForceLinearGamma);
-		RenderTarget->TargetGamma = TargetGamma;
-
-		FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
-
-		TArray<FColor> Pixels;
-		if (!bIsNormalMap && FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
-		{
-			JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
-			FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
-		}
-		else
-		{
-			FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels);
-
-			if (bIsNormalMap)
-			{
-				FGLTFTextureUtility::FlipGreenChannel(Pixels);
-			}
-		}
-
-		if (Pixels.Num() == 0)
-		{
-			Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for 2D texture %s"), *JsonTexture.Name));
-			return;
-		}
-
-		ImageIndex = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
-	}
-
-	if (ImageIndex == INDEX_NONE)
-	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export 2D texture %s"), *JsonTexture.Name));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for 2D texture %s"), *JsonTexture.Name));
 		return;
 	}
 
-	JsonTexture.Source = ImageIndex;
+	JsonTexture.Source = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
 	JsonTexture.Sampler = Builder.GetOrAddSampler(Texture2D);
 }
 
@@ -112,6 +59,7 @@ void FGLTFTextureCubeTask::Complete()
 
 	// TODO: add optimized "happy path" if cube face doesn't need rotation and has suitable pixel format
 
+	// TODO: preserve maximum image quality (avoid compression artifacts) by copying source data (and adjustments) to a temp texture
 	const UTexture2D* FaceTexture = FGLTFTextureUtility::CreateTextureFromCubeFace(TextureCube, CubeFace);
 	if (FaceTexture == nullptr)
 	{
@@ -129,8 +77,8 @@ void FGLTFTextureCubeTask::Complete()
 	TArray<FColor> Pixels;
 	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
 	{
-		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
-		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM; // TODO: use only encoding as specified by export options
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding);
 	}
 	else
 	{
@@ -155,8 +103,8 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	TArray<FColor> Pixels;
 	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget2D->GetFormat()))
 	{
-		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
-		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget2D, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM; // TODO: use only encoding as specified by export options
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget2D, Pixels, JsonTexture.Encoding);
 	}
 	else
 	{
@@ -197,8 +145,8 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	TArray<FColor> Pixels;
 	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
 	{
-		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
-		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM; // TODO: use only encoding as specified by export options
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding);
 	}
 	else
 	{
