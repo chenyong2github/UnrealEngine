@@ -63,8 +63,12 @@ void FGLTFMaterialTask::Complete()
 	FGLTFJsonMaterial& JsonMaterial = Builder.GetMaterial(MaterialIndex);
 	Material->GetName(JsonMaterial.Name);
 
-	// TODO: add support for additional blend modes (like Additive and Modulate)?
-	JsonMaterial.AlphaMode = FGLTFConverterUtility::ConvertBlendMode(Material->GetBlendMode());
+	if (!TryGetAlphaMode(JsonMaterial.AlphaMode))
+	{
+		JsonMaterial.AlphaMode = EGLTFJsonAlphaMode::Opaque;
+		Builder.AddWarningMessage(FString::Printf(TEXT("Material %s will be exported as blend mode %s"), *Material->GetName(), *FGLTFNameUtility::GetName(BLEND_Opaque)));
+	}
+
 	JsonMaterial.AlphaCutoff = Material->GetOpacityMaskClipValue();
 	JsonMaterial.DoubleSided = Material->IsTwoSided();
 
@@ -169,6 +173,24 @@ void FGLTFMaterialTask::Complete()
 			}
 		}
 	}
+}
+
+bool FGLTFMaterialTask::TryGetAlphaMode(EGLTFJsonAlphaMode& AlphaMode) const
+{
+	const EBlendMode BlendMode = Material->GetBlendMode();
+
+	// TODO: add support for additional blend modes (like Additive and Modulate)?
+
+	const EGLTFJsonAlphaMode ConvertedAlphaMode = FGLTFConverterUtility::ConvertBlendMode(BlendMode);
+	if (ConvertedAlphaMode == EGLTFJsonAlphaMode::None)
+	{
+		const FString BlendModeName = FGLTFNameUtility::GetName(BlendMode);
+		Builder.AddWarningMessage(FString::Printf(TEXT("Unsupported blend mode (%s) in material %s"), *BlendModeName, *Material->GetName()));
+		return false;
+	}
+
+	AlphaMode = ConvertedAlphaMode;
+	return true;
 }
 
 bool FGLTFMaterialTask::TryGetShadingModel(EGLTFJsonShadingModel& OutShadingModel) const

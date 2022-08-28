@@ -95,6 +95,7 @@ enum class EGLTFJsonPrimitiveMode
 
 enum class EGLTFJsonAlphaMode
 {
+	None = -1,
 	Opaque,
 	Mask,
 	Blend
