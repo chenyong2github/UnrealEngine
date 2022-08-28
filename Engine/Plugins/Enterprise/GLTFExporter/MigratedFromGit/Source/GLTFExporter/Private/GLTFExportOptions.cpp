@@ -185,7 +185,7 @@ void UGLTFExportOptions::SaveOptions()
 	GConfig->Flush(0);
 }
 
-void UGLTFExportOptions::FillOptions(bool bShowOptionDialog, const FString& FullPath, bool bBatchMode, bool& bOutOperationCanceled, bool& bOutExportAll)
+void UGLTFExportOptions::FillOptions(bool bBatchMode, bool bShowOptionDialog, const FString& FullPath, bool& bOutOperationCanceled, bool& bOutExportAll)
 {
 	bOutOperationCanceled = false;
 
