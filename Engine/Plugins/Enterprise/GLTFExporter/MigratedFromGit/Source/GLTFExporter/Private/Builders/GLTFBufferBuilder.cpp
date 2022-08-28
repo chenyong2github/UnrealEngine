@@ -22,7 +22,7 @@ FGLTFBufferBuilder::FGLTFBufferBuilder(const FString& FilePath, const UGLTFExpor
 		BufferArchive.Reset(IFileManager::Get().CreateFileWriter(*ExternalBinaryPath));
 		if (BufferArchive == nullptr)
 		{
-			// TODO: report error
+			AddErrorMessage(FString::Printf(TEXT("Failed to write external binary buffer to file: %s"), *ExternalBinaryPath));
 		}
 	}
 

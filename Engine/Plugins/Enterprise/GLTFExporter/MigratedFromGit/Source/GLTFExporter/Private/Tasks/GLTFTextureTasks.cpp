@@ -55,7 +55,7 @@ void FGLTFTextureCubeTask::Complete()
 	const UTexture2D* FaceTexture = FGLTFTextureUtility::CreateTextureFromCubeFace(TextureCube, CubeFace);
 	if (FaceTexture == nullptr)
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to extract cube face %d for cubemap texture %s"), CubeFace, *TextureCube->GetName()));
 		return;
 	}
 
@@ -74,7 +74,7 @@ void FGLTFTextureCubeTask::Complete()
 	TArray<FColor> Pixels;
 	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels, JsonTexture.Encoding))
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for cubemap texture %s"), *JsonTexture.Name));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels (cube face %d) for cubemap texture %s"), CubeFace, *TextureCube->GetName()));
 		return;
 	}
 
@@ -122,7 +122,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	const UTexture2D* FaceTexture = FGLTFTextureUtility::CreateTextureFromCubeFace(RenderTargetCube, CubeFace);
 	if (FaceTexture == nullptr)
 	{
-		// TODO: report error
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to extract cube face %d for cubemap render target %s"), CubeFace, *RenderTargetCube->GetName()));
 		return;
 	}
 
@@ -141,7 +141,7 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	TArray<FColor> Pixels;
 	if (!FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels, JsonTexture.Encoding))
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for cubemap render target %s"), *JsonTexture.Name));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels (cube face %d) for cubemap render target %s"), CubeFace, *RenderTargetCube->GetName()));
 		return;
 	}
 

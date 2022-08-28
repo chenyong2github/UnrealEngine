@@ -98,7 +98,7 @@ void FGLTFStaticMeshTask::Complete()
 		}
 		else if (MeshData->TexCoord < 0)
 		{
-			// TODO: report warning (about missing non-overlapping texture coordinate for baking with mesh data).
+			// TODO: report warning (about missing lightmap texture coordinate for baking with mesh data).
 			MeshData = nullptr;
 		}
 	}

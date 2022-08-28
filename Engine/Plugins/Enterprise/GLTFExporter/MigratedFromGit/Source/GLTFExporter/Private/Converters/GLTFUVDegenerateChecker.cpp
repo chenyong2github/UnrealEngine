@@ -33,7 +33,6 @@ float FGLTFUVDegenerateChecker::Convert(const FMeshDescription* Description, TAr
 	if (Description == nullptr)
 	{
 		// TODO: report warning?
-
 		return -1;
 	}
 

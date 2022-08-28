@@ -47,13 +47,13 @@ bool FGLTFTaskBuilder::SetupTask(TUniquePtr<FGLTFTask> Task)
 	const EGLTFTaskPriority Priority = Task->Priority;
 	if (static_cast<int32>(Priority) >= static_cast<int32>(EGLTFTaskPriority::MAX))
 	{
-		// TODO: report error
+		checkNoEntry();
 		return false;
 	}
 
 	if (static_cast<int32>(Priority) <= PriorityIndexLock)
 	{
-		// TODO: report error
+		checkNoEntry();
 		return false;
 	}
 
