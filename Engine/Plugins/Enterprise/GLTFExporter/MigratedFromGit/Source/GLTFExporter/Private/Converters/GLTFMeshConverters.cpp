@@ -32,10 +32,14 @@ void FGLTFStaticMeshConverter::Sanitize(const UStaticMesh*& StaticMesh, const US
 
 	if (StaticMeshComponent != nullptr)
 	{
-		// Only use the component if it's needed for baking, since we would
+		const bool bUsesMeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData &&
+			FGLTFMaterialUtility::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
+
+		const bool bIsReferencedByVariant = Builder.VariantReferenceChecker.IsReferenced(StaticMeshComponent); 
+
+		// Only use the component if it's needed for baking or variants, since we would
 		// otherwise export a copy of this mesh for each mesh-component.
-		if (Builder.ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::UseMeshData ||
-			!FGLTFMaterialUtility::NeedsMeshData(Materials)) // TODO: if this expensive, cache the results for each material
+		if (!bUsesMeshData && !bIsReferencedByVariant)
 		{
 			StaticMeshComponent = nullptr;
 		}
@@ -84,10 +88,14 @@ void FGLTFSkeletalMeshConverter::Sanitize(const USkeletalMesh*& SkeletalMesh, co
 
 	if (SkeletalMeshComponent != nullptr)
 	{
-		// Only use the component if it's needed for baking, since we would
+		const bool bUsesMeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData &&
+			FGLTFMaterialUtility::NeedsMeshData(Materials); // TODO: if this expensive, cache the results for each material
+
+		const bool bIsReferencedByVariant = Builder.VariantReferenceChecker.IsReferenced(SkeletalMeshComponent); 
+
+		// Only use the component if it's needed for baking or variants, since we would
 		// otherwise export a copy of this mesh for each mesh-component.
-		if (Builder.ExportOptions->BakeMaterialInputs != EGLTFMaterialBakeMode::UseMeshData ||
-			!FGLTFMaterialUtility::NeedsMeshData(Materials)) // TODO: if this expensive, cache the results for each material
+		if (!bUsesMeshData && !bIsReferencedByVariant)
 		{
 			SkeletalMeshComponent = nullptr;
 		}
