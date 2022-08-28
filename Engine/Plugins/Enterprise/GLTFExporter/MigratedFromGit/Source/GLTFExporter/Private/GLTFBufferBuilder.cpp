@@ -9,7 +9,7 @@ FGLTFBufferBuilder::FGLTFBufferBuilder(FGLTFJsonBufferIndex BufferIndex)
 {
 }
 
-FGLTFJsonBufferViewIndex FGLTFBufferBuilder::CreateBufferView(FGLTFContainerBuilder& Container, const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(FGLTFContainerBuilder& Container, const void* RawData, uint64 ByteLength, const FString& Name, EGLTFJsonBufferTarget BufferTarget)
 {
 	FGLTFJsonBufferView BufferView;
 	BufferView.Name = Name;
@@ -20,7 +20,7 @@ FGLTFJsonBufferViewIndex FGLTFBufferBuilder::CreateBufferView(FGLTFContainerBuil
 
 	BufferData.Append(static_cast<const uint8*>(RawData), ByteLength);
 
-	return Container.CreateBufferView(BufferView);
+	return Container.AddBufferView(BufferView);
 }
 
 void FGLTFBufferBuilder::UpdateBuffer(FGLTFJsonBuffer& JsonBuffer)
