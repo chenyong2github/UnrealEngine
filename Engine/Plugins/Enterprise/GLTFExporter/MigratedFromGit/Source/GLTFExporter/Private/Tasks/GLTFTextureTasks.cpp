@@ -7,13 +7,14 @@
 
 void FGLTFTexture2DTask::Complete()
 {
+	bool bIsNormalMap = Texture2D->IsNormalMap();
 	FGLTFJsonImageIndex ImageIndex;
 
 	FGLTFJsonTexture& JsonTexture = Builder.GetTexture(TextureIndex);
 	Texture2D->GetName(JsonTexture.Name);
 
 	// NOTE: export of normalmaps via source data is disabled because we need to manipulate the pixels during conversion.
-	const bool bPreferSourceExport = Texture2D->IsNormalMap() ? false : Builder.ExportOptions->bExportSourceTextures;
+	const bool bPreferSourceExport = bIsNormalMap ? false : Builder.ExportOptions->bExportSourceTextures;
 
 	// NOTE: export of lightmaps via source data is used to work around issues
 	// with quality-loss due to incorrect gamma transformation when rendering to a canvas.
@@ -70,28 +71,33 @@ void FGLTFTexture2DTask::Complete()
 		FGLTFTextureUtility::DrawTexture(RenderTarget, Texture2D);
 
 		TArray<FColor> Pixels;
-		if (FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding)) // TODO: use only encoding as specified by export options
+		if (!bIsNormalMap && FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
 		{
-			if (Texture2D->IsNormalMap())
-			{
-				if (JsonTexture.Encoding == EGLTFJsonHDREncoding::None)
-				{
-					// Convert normalmaps to use +Y (OpenGL / WebGL standard)
-					FGLTFTextureUtility::FlipGreenChannel(Pixels);
-				}
-				else
-				{
-					Builder.AddWarningMessage(FString::Printf(TEXT("Failed to invert green channel for normalmap %s"), *JsonTexture.Name));
-				}
-			}
-
-			ImageIndex = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
+			JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
+			FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
 		}
+		else
+		{
+			FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels);
+
+			if (bIsNormalMap)
+			{
+				FGLTFTextureUtility::FlipGreenChannel(Pixels);
+			}
+		}
+
+		if (Pixels.Num() == 0)
+		{
+			Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for 2D texture %s"), *JsonTexture.Name));
+			return;
+		}
+
+		ImageIndex = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
 	}
 
 	if (ImageIndex == INDEX_NONE)
 	{
-		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export texture %s"), *JsonTexture.Name));
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export 2D texture %s"), *JsonTexture.Name));
 		return;
 	}
 
@@ -121,9 +127,19 @@ void FGLTFTextureCubeTask::Complete()
 	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
 
 	TArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding)) // TODO: use only encoding as specified by export options
+	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
 	{
-		// TODO: report error
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
+	}
+	else
+	{
+		FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels);
+	}
+
+	if (Pixels.Num() == 0)
+	{
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for cubemap texture %s"), *JsonTexture.Name));
 		return;
 	}
 
@@ -137,9 +153,19 @@ void FGLTFTextureRenderTarget2DTask::Complete()
 	RenderTarget2D->GetName(JsonTexture.Name);
 
 	TArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadEncodedPixels(RenderTarget2D, Pixels, JsonTexture.Encoding)) // TODO: use only encoding as specified by export options
+	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget2D->GetFormat()))
 	{
-		// TODO: report error
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget2D, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
+	}
+	else
+	{
+		FGLTFTextureUtility::ReadPixels(RenderTarget2D, Pixels);
+	}
+
+	if (Pixels.Num() == 0)
+	{
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for 2D render target %s"), *JsonTexture.Name));
 		return;
 	}
 
@@ -169,9 +195,19 @@ void FGLTFTextureRenderTargetCubeTask::Complete()
 	FGLTFTextureUtility::RotateTexture(RenderTarget, FaceTexture, FaceRotation);
 
 	TArray<FColor> Pixels;
-	if (!FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding)) // TODO: use only encoding as specified by export options
+	if (FGLTFTextureUtility::IsHDRFormat(RenderTarget->GetFormat()))
 	{
-		// TODO: report error
+		JsonTexture.Encoding = EGLTFJsonHDREncoding::RGBM;
+		FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding); // TODO: use only encoding as specified by export options
+	}
+	else
+	{
+		FGLTFTextureUtility::ReadPixels(RenderTarget, Pixels);
+	}
+
+	if (Pixels.Num() == 0)
+	{
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to read pixels for cubemap render target %s"), *JsonTexture.Name));
 		return;
 	}
 
