@@ -8,6 +8,8 @@ struct FGLTFTextureUtility
 {
 	static bool IsAlphaless(EPixelFormat PixelFormat);
 
+	static void FullyLoad(const UTexture* Texture);
+
 	static bool IsHDR(const UTexture* Texture);
 	static bool IsCubemap(const UTexture* Texture);
 

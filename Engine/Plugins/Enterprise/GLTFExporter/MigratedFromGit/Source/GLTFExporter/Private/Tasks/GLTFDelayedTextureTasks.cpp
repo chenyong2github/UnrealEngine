@@ -18,6 +18,7 @@ FString FGLTFDelayedTexture2DTask::GetName()
 
 void FGLTFDelayedTexture2DTask::Process()
 {
+	FGLTFTextureUtility::FullyLoad(Texture2D);
 	Texture2D->GetName(JsonTexture->Name);
 
 	const bool bFromSRGB = Texture2D->SRGB;
@@ -69,6 +70,7 @@ FString FGLTFDelayedTextureCubeTask::GetName()
 
 void FGLTFDelayedTextureCubeTask::Process()
 {
+	FGLTFTextureUtility::FullyLoad(TextureCube);
 	JsonTexture->Name = TextureCube->GetName() + TEXT("_") + FGLTFJsonUtilities::GetValue(FGLTFCoreUtilities::ConvertCubeFace(CubeFace));
 
 	const bool bFromSRGB = TextureCube->SRGB;
@@ -126,6 +128,7 @@ FString FGLTFDelayedTextureRenderTarget2DTask::GetName()
 
 void FGLTFDelayedTextureRenderTarget2DTask::Process()
 {
+	FGLTFTextureUtility::FullyLoad(RenderTarget2D);
 	RenderTarget2D->GetName(JsonTexture->Name);
 
 	const bool bFromSRGB = RenderTarget2D->SRGB;
@@ -165,6 +168,7 @@ FString FGLTFDelayedTextureRenderTargetCubeTask::GetName()
 
 void FGLTFDelayedTextureRenderTargetCubeTask::Process()
 {
+	FGLTFTextureUtility::FullyLoad(RenderTargetCube);
 	JsonTexture->Name = RenderTargetCube->GetName() + TEXT("_") + FGLTFJsonUtilities::GetValue(FGLTFCoreUtilities::ConvertCubeFace(CubeFace));
 
 	const bool bFromSRGB = RenderTargetCube->SRGB;
