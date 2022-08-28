@@ -58,6 +58,7 @@ public:
 	FGLTFJsonNodeIndex GetOrAddNode(const AActor* Actor);
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent);
 	FGLTFJsonNodeIndex GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName);
+	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const UStaticMesh* StaticMesh, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex);
 	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level);
@@ -91,15 +92,16 @@ private:
 	FGLTFTextureRenderTarget2DConverter TextureRenderTarget2DConverter{ *this };
 	FGLTFTextureRenderTargetCubeConverter TextureRenderTargetCubeConverter{ *this };
 
-	FGLTFSkeletalSocketConverter SkeletalSocketConverter{ *this };
-	FGLTFSkeletalBoneConverter SkeletalBoneConverter{ *this };
 	FGLTFSkinConverter SkinConverter{ *this };
 	FGLTFAnimationConverter AnimationConverter{ *this };
 	FGLTFAnimationDataConverter AnimationDataConverter{ *this };
 
-	FGLTFComponentSocketConverter ComponentSocketConverter{ *this };
-	FGLTFComponentConverter ComponentConverter{ *this };
 	FGLTFActorConverter ActorConverter{ *this };
+	FGLTFComponentConverter ComponentConverter{ *this };
+	FGLTFComponentSocketConverter ComponentSocketConverter{ *this };
+	FGLTFStaticSocketConverter StaticSocketConverter{ *this };
+	FGLTFSkeletalSocketConverter SkeletalSocketConverter{ *this };
+	FGLTFSkeletalBoneConverter SkeletalBoneConverter{ *this };
 	FGLTFSceneConverter SceneConverter{ *this };
 
 	FGLTFCameraConverter CameraConverter{ *this };

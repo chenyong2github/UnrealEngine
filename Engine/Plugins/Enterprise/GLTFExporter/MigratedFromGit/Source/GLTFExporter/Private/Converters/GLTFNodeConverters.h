@@ -34,6 +34,13 @@ class FGLTFComponentSocketConverter final : public TGLTFNodeConverter<const USce
 	virtual FGLTFJsonNodeIndex Convert(const USceneComponent* SceneComponent, FName SocketName) override;
 };
 
+class FGLTFStaticSocketConverter final : public TGLTFNodeConverter<FGLTFJsonNodeIndex, const UStaticMesh*, FName>
+{
+	using TGLTFNodeConverter::TGLTFNodeConverter;
+
+	virtual FGLTFJsonNodeIndex Convert(FGLTFJsonNodeIndex RootNode, const UStaticMesh* StaticMesh, FName SocketName) override;
+};
+
 class FGLTFSkeletalSocketConverter final : public TGLTFNodeConverter<FGLTFJsonNodeIndex, const USkeletalMesh*, FName>
 {
 	using TGLTFNodeConverter::TGLTFNodeConverter;

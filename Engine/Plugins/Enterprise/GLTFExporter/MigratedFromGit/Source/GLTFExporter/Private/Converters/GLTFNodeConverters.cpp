@@ -169,6 +169,12 @@ FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent*
 
 	if (SocketName != NAME_None)
 	{
+		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
+		{
+			const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+			return Builder.GetOrAddNode(NodeIndex, StaticMesh, SocketName);
+		}
+
 		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(SceneComponent))
 		{
 			// TODO: add support for SocketOverrideLookup?
@@ -176,15 +182,35 @@ FGLTFJsonNodeIndex FGLTFComponentSocketConverter::Convert(const USceneComponent*
 			return Builder.GetOrAddNode(NodeIndex, SkeletalMesh, SocketName);
 		}
 
-		// TODO: add support for non-skeletalmesh sockets
+		// TODO: add support for more socket types
 
 		Builder.AddWarningMessage(
-            FString::Printf(TEXT("Can't export socket %s (in component %s) because it doesn't belong to a skeletal mesh"),
+            FString::Printf(TEXT("Can't export socket %s because it belongs to an unsupported mesh component %s"),
             *SocketName.ToString(),
             *SceneComponent->GetName()));
 	}
 
 	return NodeIndex;
+}
+
+FGLTFJsonNodeIndex FGLTFStaticSocketConverter::Convert(FGLTFJsonNodeIndex RootNode, const UStaticMesh* StaticMesh, FName SocketName)
+{
+	const UStaticMeshSocket* Socket = StaticMesh->FindSocket(SocketName);
+	if (Socket == nullptr)
+	{
+		// TODO: report error
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	FGLTFJsonNode Node;
+	Node.Name = SocketName.ToString();
+
+	// TODO: add warning check for non-uniform scaling
+	Node.Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportScale);
+	Node.Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
+	Node.Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
+
+	return Builder.AddChildNode(RootNode, Node);
 }
 
 FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
@@ -196,10 +222,9 @@ FGLTFJsonNodeIndex FGLTFSkeletalSocketConverter::Convert(FGLTFJsonNodeIndex Root
 		Node.Name = SocketName.ToString();
 
 		// TODO: add warning check for non-uniform scaling
-		const FTransform Transform = Socket->GetSocketLocalTransform();
-		Node.Translation = FGLTFConverterUtility::ConvertPosition(Transform.GetTranslation(), Builder.ExportOptions->ExportScale);
-		Node.Rotation = FGLTFConverterUtility::ConvertRotation(Transform.GetRotation());
-		Node.Scale = FGLTFConverterUtility::ConvertScale(Transform.GetScale3D());
+		Node.Translation = FGLTFConverterUtility::ConvertPosition(Socket->RelativeLocation, Builder.ExportOptions->ExportScale);
+		Node.Rotation = FGLTFConverterUtility::ConvertRotation(Socket->RelativeRotation.Quaternion());
+		Node.Scale = FGLTFConverterUtility::ConvertScale(Socket->RelativeScale);
 
 		const int32 ParentBone = SkeletalMesh->RefSkeleton.FindBoneIndex(Socket->BoneName);
 		const FGLTFJsonNodeIndex ParentNode = ParentBone != INDEX_NONE ? Builder.GetOrAddNode(RootNode, SkeletalMesh, ParentBone) : RootNode;

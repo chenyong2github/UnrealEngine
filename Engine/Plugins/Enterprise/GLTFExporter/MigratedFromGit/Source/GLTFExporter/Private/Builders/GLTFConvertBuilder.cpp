@@ -276,6 +276,16 @@ FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* Scen
 	return ComponentSocketConverter.GetOrAdd(SceneComponent, SocketName);
 }
 
+FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNodeIndex RootNode, const UStaticMesh* StaticMesh, FName SocketName)
+{
+	if (RootNode == INDEX_NONE || StaticMesh == nullptr || SocketName == NAME_None)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	return StaticSocketConverter.GetOrAdd(RootNode, StaticMesh, SocketName);
+}
+
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName)
 {
 	if (RootNode == INDEX_NONE || SkeletalMesh == nullptr || SocketName == NAME_None)
