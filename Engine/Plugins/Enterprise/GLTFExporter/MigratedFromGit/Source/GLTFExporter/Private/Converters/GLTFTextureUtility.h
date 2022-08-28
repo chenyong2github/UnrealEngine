@@ -43,4 +43,7 @@ struct FGLTFTextureUtility
 	// TODO: maybe use template specialization to avoid the need for duplicated functions
 	static bool LoadPlatformData(UTexture2D* Texture);
 	static bool LoadPlatformData(UTextureCube* TextureCube);
+
+	static void FlipGreenChannel(TArray<FLinearColor>& Pixels);
+	static void FlipGreenChannel(TArray<FColor>& Pixels);
 };

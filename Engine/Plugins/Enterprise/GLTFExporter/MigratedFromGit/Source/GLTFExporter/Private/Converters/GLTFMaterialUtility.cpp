@@ -315,6 +315,13 @@ FGLTFPropertyBakeOutput FGLTFMaterialUtility::BakeMaterialProperty(const FIntPoi
 		}
 	}
 
+	// TODO: add condition for ClearCoat normal property when it's been added to MaterialBaking module
+	if (Property == MP_Normal)
+	{
+		// Convert normalmaps to use +Y (OpenGL / WebGL standard)
+		FGLTFTextureUtility::FlipGreenChannel(BakedPixels);
+	}
+
 	FGLTFPropertyBakeOutput PropertyBakeOutput(Property, PF_B8G8R8A8, BakedPixels, BakedSize, EmissiveScale);
 
 	if (BakedPixels.Num() == 1)

@@ -72,6 +72,19 @@ void FGLTFTexture2DTask::Complete()
 		TArray<FColor> Pixels;
 		if (FGLTFTextureUtility::ReadEncodedPixels(RenderTarget, Pixels, JsonTexture.Encoding)) // TODO: use only encoding as specified by export options
 		{
+			if (Texture2D->IsNormalMap())
+			{
+				if (JsonTexture.Encoding == EGLTFJsonHDREncoding::None)
+				{
+					// Convert normalmaps to use +Y (OpenGL / WebGL standard)
+					FGLTFTextureUtility::FlipGreenChannel(Pixels);
+				}
+				else
+				{
+					Builder.AddWarningMessage(FString::Printf(TEXT("Failed to invert green channel for normalmap %s"), *JsonTexture.Name));
+				}
+			}
+
 			ImageIndex = Builder.AddImage(Pixels.GetData(), Size, JsonTexture.Name);
 		}
 	}
