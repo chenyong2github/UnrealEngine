@@ -40,7 +40,7 @@ struct FGLTFJsonScene
 				Extensions.Used.Add(Extension);
 
 				JsonWriter.WriteObjectStart(FGLTFJsonUtility::ToString(Extension));
-				FGLTFJsonUtility::WritePrimitiveArray(JsonWriter, TEXT("levelVariantSets"), LevelVariantSets);
+				JsonWriter.WriteValue(TEXT("levelVariantSets"), LevelVariantSets);
 				JsonWriter.WriteObjectEnd();
 			}
 
