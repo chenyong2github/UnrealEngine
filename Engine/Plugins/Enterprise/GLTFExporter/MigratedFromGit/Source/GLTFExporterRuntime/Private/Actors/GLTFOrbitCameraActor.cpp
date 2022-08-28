@@ -4,8 +4,6 @@
 
 namespace
 {
-	const float DollyDuration = 0.2f;
-
 	float EaseInQuad(float T, float B, float C, float D)
 	{
 		return C * (T /= D) * T + B;
@@ -28,6 +26,7 @@ AGLTFOrbitCameraActor::AGLTFOrbitCameraActor(const FObjectInitializer& ObjectIni
 	DistanceMax(1000.0f),
 	PitchAngleMin(-90.0f),
 	PitchAngleMax(90.0f),
+	DollyDuration(0.2f),
 	OrbitInertia(0.07f),
 	OrbitSensitivity(30.0f),
 	DistanceSensitivity(50.0f),
