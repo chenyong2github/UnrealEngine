@@ -27,7 +27,7 @@ FMeshMaterialRenderItem::FMeshMaterialRenderItem(
 
 bool FMeshMaterialRenderItem::Render_RenderThread(FRHICommandListImmediate& RHICmdList, FMeshPassProcessorRenderState& DrawRenderState, const FCanvas* Canvas)
 {
-	checkSlow(ViewFamily && MaterialSettings && MeshSettings && MaterialRenderProxy);
+	checkSlow(ViewFamily && MeshSettings && MaterialRenderProxy);
 	// current render target set for the canvas
 	const FRenderTarget* CanvasRenderTarget = Canvas->GetRenderTarget();
 	const FIntRect ViewRect(FIntPoint(0, 0), CanvasRenderTarget->GetSizeXY());
