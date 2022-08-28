@@ -23,8 +23,8 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	TArray<ULevel*> Levels = FGLTFExporterUtility::GetReferencedLevels(LevelVariantSets);
-	if (Levels.Num() == 0)
+	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetReferencedWorlds(LevelVariantSets);
+	if (Worlds.Num() == 0)
 	{
 		Builder.AddErrorMessage(
 			FString::Printf(TEXT("Failed to export level variant sets %s because no level referenced"),
@@ -32,7 +32,7 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	if (Levels.Num() > 1)
+	if (Worlds.Num() > 1)
 	{
 		Builder.AddErrorMessage(
             FString::Printf(TEXT("Failed to export level variant sets %s because more than one level referenced"),
@@ -40,13 +40,13 @@ bool UGLTFLevelVariantSetsExporter::AddObject(FGLTFContainerBuilder& Builder, co
 		return false;
 	}
 
-	ULevel* Level = Levels[0];
-	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(Level);
+	UWorld* World = Worlds[0];
+	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World);
 	if (SceneIndex == INDEX_NONE)
 	{
 		Builder.AddErrorMessage(
 			FString::Printf(TEXT("Failed to export level %s for level variant sets %s"),
-			*Level->GetName(),
+			*World->GetName(),
 			*LevelVariantSets->GetName()));
 		return false;
 	}

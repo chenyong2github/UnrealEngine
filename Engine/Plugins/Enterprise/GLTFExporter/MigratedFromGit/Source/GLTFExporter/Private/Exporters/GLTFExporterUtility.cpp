@@ -48,12 +48,12 @@ const USkeletalMesh* FGLTFExporterUtility::GetPreviewMesh(const UAnimSequence* A
 	return PreviewMesh;
 }
 
-TArray<ULevel*> FGLTFExporterUtility::GetReferencedLevels(const UObject* Object)
+TArray<UWorld*> FGLTFExporterUtility::GetReferencedWorlds(const UObject* Object)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	const FName OuterPathName = *Object->GetOutermost()->GetPathName();
 
-	TArray<ULevel*> ReferencedLevels;
+	TArray<UWorld*> ReferencedWorlds;
 	TArray<FAssetIdentifier> AssetDependencies;
 	AssetRegistryModule.Get().GetDependencies(OuterPathName, AssetDependencies);
 
@@ -65,10 +65,10 @@ TArray<ULevel*> FGLTFExporterUtility::GetReferencedLevels(const UObject* Object)
 			UWorld* World = LoadObject<UWorld>(nullptr, *PackageName);
 			if (World != nullptr)
 			{
-				ReferencedLevels.AddUnique(World->PersistentLevel);
+				ReferencedWorlds.AddUnique(World);
 			}
 		}
 	}
 
-	return ReferencedLevels;
+	return ReferencedWorlds;
 }

@@ -71,7 +71,6 @@ public:
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const UStaticMesh* StaticMesh, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, FName SocketName);
 	FGLTFJsonNodeIndex GetOrAddNode(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, int32 BoneIndex);
-	FGLTFJsonSceneIndex GetOrAddScene(const ULevel* Level);
 	FGLTFJsonSceneIndex GetOrAddScene(const UWorld* World);
 
 	FGLTFJsonCameraIndex GetOrAddCamera(const UCameraComponent* CameraComponent);

@@ -23,8 +23,8 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	TArray<ULevel*> Levels = FGLTFExporterUtility::GetReferencedLevels(LevelSequence);
-	if (Levels.Num() == 0)
+	TArray<UWorld*> Worlds = FGLTFExporterUtility::GetReferencedWorlds(LevelSequence);
+	if (Worlds.Num() == 0)
 	{
 		Builder.AddErrorMessage(
 			FString::Printf(TEXT("Failed to export level sequence %s because no level referenced"),
@@ -32,7 +32,7 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	if (Levels.Num() > 1)
+	if (Worlds.Num() > 1)
 	{
 		Builder.AddErrorMessage(
             FString::Printf(TEXT("Failed to export level sequence %s because more than one level referenced"),
@@ -40,18 +40,18 @@ bool UGLTFLevelSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const
 		return false;
 	}
 
-	ULevel* Level = Levels[0];
-	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(Level);
+	UWorld* World = Worlds[0];
+	const FGLTFJsonSceneIndex SceneIndex = Builder.GetOrAddScene(World);
 	if (SceneIndex == INDEX_NONE)
 	{
 		Builder.AddErrorMessage(
 			FString::Printf(TEXT("Failed to export level %s for level sequence %s"),
-			*Level->GetName(),
+			*World->GetName(),
 			*LevelSequence->GetName()));
 		return false;
 	}
 
-	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(Level, LevelSequence);
+	const FGLTFJsonAnimationIndex AnimationIndex = Builder.GetOrAddAnimation(World->PersistentLevel, LevelSequence);
 	if (AnimationIndex == INDEX_NONE)
 	{
 		Builder.AddErrorMessage(

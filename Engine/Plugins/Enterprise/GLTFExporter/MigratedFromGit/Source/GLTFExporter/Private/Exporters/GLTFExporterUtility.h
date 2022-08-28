@@ -12,5 +12,5 @@ struct FGLTFExporterUtility
 	static const UStaticMesh* GetPreviewMesh(const UMaterialInterface* Material);
 	static const USkeletalMesh* GetPreviewMesh(const UAnimSequence* AnimSequence);
 
-	static TArray<ULevel*> GetReferencedLevels(const UObject* LevelSequence);
+	static TArray<UWorld*> GetReferencedWorlds(const UObject* LevelSequence);
 };
