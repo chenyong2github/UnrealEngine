@@ -56,6 +56,7 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 }
 
 FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const uint16 MaterialIndex)
+	: MaxBoneIndex(0)
 {
 	uint32 TotalIndexCount = 0;
 
@@ -104,6 +105,6 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 		}
 
 		BoneMaps.Add(MeshSection->BoneMap);
-		MaxBoneIndex = MeshSection->BoneMap.Num() > 0 ? *Algo::MaxElement(MeshSection->BoneMap) : 0;
+		MaxBoneIndex = MeshSection->BoneMap.Num() > 0 ? FMath::Max(*Algo::MaxElement(MeshSection->BoneMap), MaxBoneIndex) : MaxBoneIndex;
 	}
 }
