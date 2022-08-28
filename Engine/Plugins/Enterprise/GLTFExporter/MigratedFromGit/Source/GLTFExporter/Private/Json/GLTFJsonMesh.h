@@ -9,11 +9,11 @@
 struct FGLTFJsonAttributes
 {
 	FGLTFJsonAccessorIndex Position; // always required
+	FGLTFJsonAccessorIndex Color0;
 	FGLTFJsonAccessorIndex Normal;
 	FGLTFJsonAccessorIndex Tangent;
-	FGLTFJsonAccessorIndex TexCoord0;
-	FGLTFJsonAccessorIndex TexCoord1;
-	FGLTFJsonAccessorIndex Color0;
+	TArray<FGLTFJsonAccessorIndex> TexCoords;
+
 	// skeletal mesh attributes
 	FGLTFJsonAccessorIndex Joints0;
 	FGLTFJsonAccessorIndex Weights0;
@@ -24,11 +24,16 @@ struct FGLTFJsonAttributes
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteValue(TEXT("POSITION"), Position);
+
+		if (Color0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("COLOR_0"), Color0);
 		if (Normal != INDEX_NONE) JsonWriter.WriteValue(TEXT("NORMAL"), Normal);
 		if (Tangent != INDEX_NONE) JsonWriter.WriteValue(TEXT("TANGENT"), Tangent);
-		if (TexCoord0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("TEXCOORD_0"), TexCoord0);
-		if (TexCoord1 != INDEX_NONE) JsonWriter.WriteValue(TEXT("TEXCOORD_1"), TexCoord1);
-		if (Color0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("COLOR_0"), Color0);
+
+		for (int32 Index = 0; Index < TexCoords.Num(); ++Index)
+		{
+			JsonWriter.WriteValue(TEXT("TEXCOORD_") + FString::FromInt(Index), TexCoords[Index]);
+		}
+
 		if (Joints0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("JOINTS_0"), Joints0);
 		if (Weights0 != INDEX_NONE) JsonWriter.WriteValue(TEXT("WEIGHTS_0"), Weights0);
 
