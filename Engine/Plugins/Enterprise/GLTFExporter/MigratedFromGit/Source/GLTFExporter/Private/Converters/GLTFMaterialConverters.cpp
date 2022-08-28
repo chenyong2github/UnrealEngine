@@ -82,7 +82,7 @@ FGLTFJsonMaterialIndex FGLTFMaterialConverter::Add(FGLTFConvertBuilder& Builder,
 
 	if (!TryGetEmissive(Builder, JsonMaterial, Material))
 	{
-		// TODO: handle failure?
+		Builder.AddWarningMessage(FString::Printf(TEXT("Failed to export EmissiveColor for material %s"), *Material->GetName()));
 	}
 
 	if (IsPropertyNonDefault(MP_Normal, Material))
