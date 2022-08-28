@@ -9,7 +9,7 @@ FGLTFBufferBuilder::FGLTFBufferBuilder()
 	BufferIndex = AddBuffer();
 }
 
-FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, uint8 DataAlignment, EGLTFJsonBufferTarget BufferTarget)
+FGLTFJsonBufferViewIndex FGLTFBufferBuilder::AddBufferView(const void* RawData, uint64 ByteLength, EGLTFJsonBufferTarget BufferTarget, uint8 DataAlignment)
 {
 	uint64 ByteOffset = BufferData.Num();
 
