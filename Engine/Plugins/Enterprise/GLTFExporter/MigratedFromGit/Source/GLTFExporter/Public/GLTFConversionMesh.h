@@ -12,7 +12,7 @@ struct GLTFEXPORTER_API FGLTFConversionSection
 
 	TArray<uint32> Indices;
 
-	FGLTFConversionSection(const FString& SectionName, const FStaticMeshLODResources& LODMesh, int32 SectionIndex);
+	FGLTFConversionSection(const FString& SectionName, const FStaticMeshSection& MeshSection, const FIndexArrayView& IndexArray);
 
 	FGLTFJsonAccessorIndex AppendAccessorForIndices(FGLTFContainer& Container) const;
 };
