@@ -6,6 +6,7 @@
 #include "MeshDescription.h"
 
 #if WITH_EDITOR
+// TODO: remove dependency to GLTFMaterialBaking in public header
 #include "GLTFMaterialBakingStructures.h"
 #endif
 
