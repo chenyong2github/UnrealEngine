@@ -22,6 +22,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
+	virtual void PostLoad() override;
 	//~ End UObject Interface
 
 	//~ Begin UActorComponent Interface
@@ -82,5 +83,16 @@ private:
 	UPROPERTY(transient, duplicatetransient)
 	UBodySetup* ShapeBodySetup;
 
+	UPROPERTY(transient, duplicatetransient)
+	UMaterialInstanceDynamic* DefaultMaterial;
+
 	bool bToggled;
+
+	void CreateDefaultSpriteElement();
+
+	FMaterialSpriteElement& GetSpriteElement();
+
+	UMaterialInstanceDynamic* GetSpriteMaterial() const;
+
+	void UpdateSpriteSize(const FVector2D& PixelSize);
 };
