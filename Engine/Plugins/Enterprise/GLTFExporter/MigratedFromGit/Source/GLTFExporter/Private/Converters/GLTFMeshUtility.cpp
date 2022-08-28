@@ -2,7 +2,6 @@
 
 #include "Converters/GLTFMeshUtility.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "PlatformInfo.h"
 
 FGLTFIndexArray FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
 {
@@ -82,7 +81,7 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const UStaticMesh* StaticMesh, const UStat
 
 	if (StaticMesh != nullptr)
 	{
-		return GetValueForRunningPlatform<int32>(StaticMesh->GetMinLOD());
+		return StaticMesh->GetMinLOD().Default;
 	}
 
 	return -1;
@@ -97,15 +96,8 @@ int32 FGLTFMeshUtility::GetMinimumLOD(const USkeletalMesh* SkeletalMesh, const U
 
 	if (SkeletalMesh != nullptr)
 	{
-		return GetValueForRunningPlatform<int32>(SkeletalMesh->GetMinLod());
+		return SkeletalMesh->GetMinLod().Default;
 	}
 
 	return -1;
-}
-
-template <typename ValueType, typename StructType>
-ValueType FGLTFMeshUtility::GetValueForRunningPlatform(const StructType& Properties)
-{
-	const PlatformInfo::FPlatformInfo& PlatformInfo = GetTargetPlatformManagerRef().GetRunningTargetPlatform()->GetPlatformInfo();
-	return Properties.GetValueForPlatformIdentifiers(PlatformInfo.PlatformGroupName, PlatformInfo.VanillaPlatformName);
 }

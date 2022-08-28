@@ -20,9 +20,4 @@ struct FGLTFMeshUtility
 
 	static int32 GetMinimumLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent);
 	static int32 GetMinimumLOD(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent);
-
-private:
-
-	template <typename ValueType, typename StructType>
-	static ValueType GetValueForRunningPlatform(const StructType& Properties);
 };
