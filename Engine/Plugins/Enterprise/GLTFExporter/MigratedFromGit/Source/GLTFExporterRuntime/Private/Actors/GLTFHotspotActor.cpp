@@ -20,6 +20,10 @@
 #include "Slate/SceneViewport.h"
 #endif
 
+#if !(ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
+using namespace UE;
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogGLTFHotspot, Log, All);
 
 namespace

@@ -11,6 +11,10 @@
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#if !(ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 25)
+using namespace UE;
+#endif
+
 void FGLTFAnimSequenceTask::Complete()
 {
 	// TODO: bone transforms should be absolute (not relative) according to gltf spec
