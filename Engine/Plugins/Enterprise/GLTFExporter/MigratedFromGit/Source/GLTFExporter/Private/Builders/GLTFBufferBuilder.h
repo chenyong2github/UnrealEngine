@@ -8,7 +8,7 @@ class FGLTFBufferBuilder : public FGLTFJsonBuilder
 {
 public:
 
-	FGLTFBufferBuilder();
+	FGLTFBufferBuilder(const UGLTFExportOptions* ExportOptions);
 
 	FGLTFJsonBufferViewIndex AddBufferView(const void* RawData, uint64 ByteLength, const FString& Name = TEXT(""), uint8 DataAlignment = 4, EGLTFJsonBufferTarget BufferTarget = EGLTFJsonBufferTarget::ArrayBuffer);
 

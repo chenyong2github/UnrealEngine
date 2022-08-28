@@ -5,6 +5,11 @@
 #include "IImageWrapper.h"
 #include "Engine/Texture.h"
 
+FGLTFImageBuilder::FGLTFImageBuilder(const UGLTFExportOptions* ExportOptions)
+	: FGLTFBufferBuilder(ExportOptions)
+{
+}
+
 FGLTFJsonImageIndex FGLTFImageBuilder::AddImage(const void* RawData, int64 ByteLength, int32 Width, int32 Height, ERGBFormat RawFormat, int32 BitDepth, bool bFloatFormat, const FString& Name, EGLTFJsonMimeType MimeType, int32 Quality)
 {
 	TArray64<uint8> ImageData;

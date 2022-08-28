@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "GLTFExportOptions.h"
+
 DECLARE_LOG_CATEGORY_EXTERN(LogGLTFExporter, Log, All);
 
 enum class EGLTFMessageSeverity
@@ -15,7 +17,9 @@ class FGLTFBuilder
 {
 public:
 
-	FGLTFBuilder();
+	const UGLTFExportOptions* const ExportOptions;
+
+	FGLTFBuilder(const UGLTFExportOptions* ExportOptions);
 	virtual ~FGLTFBuilder();
 
 	typedef TTuple<EGLTFMessageSeverity, FString> FLogMessage;

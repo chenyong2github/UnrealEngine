@@ -31,10 +31,9 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		return false;
 	}
 
-	FGLTFContainerBuilder Builder(bSelectedOnly);
-
 	bool bSuccess = true;
 
+	FGLTFContainerBuilder Builder(Options, bSelectedOnly);
 	if (AddObject(Builder, Object))
 	{
 		if (!Builder.Serialize(Archive, CurrentFilename))
