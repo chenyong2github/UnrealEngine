@@ -24,15 +24,15 @@ public:
 	IndexType GetOrAdd(FGLTFConvertBuilder& Builder, const FString& DesiredName, ArgTypes... Args)
 	{
 		const KeyType Key(Forward<ArgTypes>(Args)...);
-
-		IndexType Index = IndexLookup.FindRef(Key);
-		if (Index == INDEX_NONE)
+		if (IndexType* FoundIndex = IndexLookup.Find(Key))
 		{
-			Index = Add(Builder, DesiredName, Forward<ArgTypes>(Args)...);
-			IndexLookup.Add(Key, Index);
+			return *FoundIndex;
 		}
 
-		return Index;
+		IndexType NewIndex = Add(Builder, DesiredName, Forward<ArgTypes>(Args)...);
+
+		IndexLookup.Add(Key, NewIndex);
+		return NewIndex;
 	}
 
 private:
