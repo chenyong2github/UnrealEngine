@@ -309,4 +309,44 @@ struct FGLTFJsonUtility
 
 		return EGLTFJsonMimeType::None;
 	}
+
+	static EGLTFJsonTargetPath ParseTargetPath(const FString& TargetPath)
+	{
+		if (TargetPath.Equals(TEXT("translation")))
+		{
+			return EGLTFJsonTargetPath::Translation;
+		}
+		if (TargetPath.Equals(TEXT("rotation")))
+		{
+			return EGLTFJsonTargetPath::Rotation;
+		}
+		if (TargetPath.Equals(TEXT("scale")))
+		{
+			return EGLTFJsonTargetPath::Scale;
+		}
+		if (TargetPath.Equals(TEXT("weights")))
+		{
+			return EGLTFJsonTargetPath::Weights;
+		}
+
+		return EGLTFJsonTargetPath::None;
+	}
+
+	static EGLTFJsonInterpolation ParseInterpolation(const FString& Interpolation)
+	{
+		if (Interpolation.Equals(TEXT("LINEAR")))
+		{
+			return EGLTFJsonInterpolation::Linear;
+		}
+		if (Interpolation.Equals(TEXT("STEP")))
+		{
+			return EGLTFJsonInterpolation::Step;
+		}
+		if (Interpolation.Equals(TEXT("CUBICSPLINE")))
+		{
+			return EGLTFJsonInterpolation::CubicSpline;
+		}
+
+		return EGLTFJsonInterpolation::None;
+	}
 };
