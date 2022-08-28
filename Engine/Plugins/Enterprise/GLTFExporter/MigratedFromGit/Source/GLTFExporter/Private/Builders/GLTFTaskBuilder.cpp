@@ -69,8 +69,8 @@ FText FGLTFTaskBuilder::GetPriorityMessageFormat(EGLTFTaskPriority Priority)
 		case EGLTFTaskPriority::Mesh:      return NSLOCTEXT("GLTFExporter", "MeshTaskMessage", "Mesh(es): {0}");
 		case EGLTFTaskPriority::Material:  return NSLOCTEXT("GLTFExporter", "MaterialTaskMessage", "Material(s): {0}");
 		case EGLTFTaskPriority::Texture:   return NSLOCTEXT("GLTFExporter", "TextureTaskMessage", "Texture(s): {0}");
-		default:                           checkNoEntry();
+		default:
+			checkNoEntry();
+			return {};
 	}
-
-	return {};
 }
