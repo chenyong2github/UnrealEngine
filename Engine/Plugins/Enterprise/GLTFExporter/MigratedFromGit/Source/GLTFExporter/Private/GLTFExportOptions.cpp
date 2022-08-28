@@ -41,6 +41,7 @@ void UGLTFExportOptions::ResetToDefault()
 	bExportHDRIBackdrops = true;
 	bExportSkySpheres = true;
 	bExportVariantSets = true;
+	bVariantMaterialBakeUsingMeshData = false;
 	bExportAnimationHotspots = true;
 	bBundleWebViewer = true;
 	bExportPreviewMesh = true;

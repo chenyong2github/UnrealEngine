@@ -150,6 +150,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportVariantSets;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bExportVariantSets && bBakeMaterialInputs && bMaterialBakeUsingMeshData"))
+	bool bVariantMaterialBakeUsingMeshData;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportAnimationHotspots;
 
