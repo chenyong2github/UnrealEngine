@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"RenderCore",
 					"RHI",
+					"DesktopPlatform",
 					"LevelSequence",
 					"MovieScene",
 					"MovieSceneTracks",
