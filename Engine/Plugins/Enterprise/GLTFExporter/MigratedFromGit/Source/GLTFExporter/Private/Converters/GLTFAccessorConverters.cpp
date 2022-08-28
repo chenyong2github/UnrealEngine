@@ -43,7 +43,7 @@ namespace
 		}
 	};
 
-	const float UnitLengthToleranceSq = FMath::Pow(1.006f, 2.0f) - 1.0f;	// Slightly less than the tolerance used by the glTF Validator for Vec3
+	const float UnitLengthToleranceSq = FMath::Pow(1.0067f, 2.0f) - 1.0f;	// Slightly less than the tolerance of 0.00674 used by the glTF Validator for Vec3
 }
 
 FGLTFJsonAccessorIndex FGLTFPositionBufferConverter::Convert(const FGLTFMeshSection* MeshSection, const FPositionVertexBuffer* VertexBuffer)
