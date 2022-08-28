@@ -20,7 +20,7 @@ struct FGLTFVariantUtility
 	static bool IsSkeletalMeshProperty(const UPropertyValue* Property);
 	static bool IsVisibleProperty(const UPropertyValue* Property);
 
-	template<typename T>
+	template <typename T>
 	static bool TryGetPropertyValue(UPropertyValue* Property, T& OutValue)
 	{
 		return TryGetPropertyValue(Property, &OutValue, sizeof(T));
