@@ -2,5 +2,5 @@
 
 #include "Json/GLTFJsonVector4.h"
 
-const FGLTFJsonVector4 FGLTFJsonVector4::Zero(0, 0, 0, 0);
-const FGLTFJsonVector4 FGLTFJsonVector4::One(1, 1, 1, 1);
+const FGLTFJsonVector4 FGLTFJsonVector4::Zero(0.0f, 0.0f, 0.0f, 0.0f);
+const FGLTFJsonVector4 FGLTFJsonVector4::One(1.0f, 1.0f, 1.0f, 1.0f);

@@ -3,6 +3,11 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "GLTFBuilderUtility.h"
 
+FGLTFConvertBuilder::FGLTFConvertBuilder(bool bSelectedActorsOnly)
+	: bSelectedActorsOnly(bSelectedActorsOnly)
+{
+}
+
 FGLTFJsonAccessorIndex FGLTFConvertBuilder::GetOrAddPositionAccessor(const FPositionVertexBuffer* VertexBuffer, const FString& DesiredName)
 {
 	if (VertexBuffer == nullptr)
