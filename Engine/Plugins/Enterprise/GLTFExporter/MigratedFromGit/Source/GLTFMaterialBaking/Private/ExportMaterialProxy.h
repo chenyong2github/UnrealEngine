@@ -269,12 +269,12 @@ public:
 		case MP_Opacity: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacity; break;
 		case MP_OpacityMask: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportOpacityMask; break;
 		case MP_SubsurfaceColor: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportSubSurfaceColor; break;
-		case MP_CustomData0: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportClearCoat; break;
-		case MP_CustomData1: ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportClearCoatRoughness; break;
-		case MP_CustomOutput:
-			ResourceId.Usage = EMaterialShaderMapUsage::MaterialExportCustomOutput;
-			ResourceId.UsageCustomOutput = InCustomOutputToCompile;
-			break;
+
+		// NOTE: the following cases for custom data 0/1 and custom output are hacks since a proper solution requires engine changes:
+		case MP_CustomData0: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 1); break;
+		case MP_CustomData1: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 2); break;
+		case MP_CustomOutput: ResourceId.Usage = static_cast<EMaterialShaderMapUsage::Type>(EMaterialShaderMapUsage::DebugViewMode + 3); break;
+
 		default:
 			ensureMsgf(false, TEXT("ExportMaterial has no usage for property %i.  Will likely reuse the normal rendering shader and crash later with a parameter mismatch"), (int32)InPropertyToCompile);
 			break;
@@ -622,9 +622,25 @@ public:
 	}
 
 private:
+	static FGuid GetCustomAttributeID(const FString& AttributeName)
+	{
+		TArray<FMaterialCustomOutputAttributeDefintion> CustomAttributes;
+		FMaterialAttributeDefinitionMap::GetCustomAttributeList(CustomAttributes);
+
+		for (auto& Attribute : CustomAttributes)
+		{
+			if (Attribute.AttributeName == AttributeName)
+			{
+				return Attribute.AttributeID;
+			}
+		}
+
+		return {};
+	}
+
 	int32 CompileInputForCustomOutput(FMaterialCompiler* Compiler, int32 InputIndex, uint32 ForceCastFlags) const
 	{
-		FGuid AttributeID = FMaterialAttributeDefinitionMap::GetCustomAttributeID(CustomOutputToCompile);
+		FGuid AttributeID = GetCustomAttributeID(CustomOutputToCompile);
 		check(AttributeID.IsValid());
 
 		UMaterialExpressionCustomOutput* Expression = GetCustomOutputExpressionToCompile();
