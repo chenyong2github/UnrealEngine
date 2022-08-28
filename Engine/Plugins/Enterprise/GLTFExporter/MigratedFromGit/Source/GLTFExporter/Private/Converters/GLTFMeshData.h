@@ -11,6 +11,5 @@ struct FGLTFMeshData
 	FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex);
 
 	FMeshDescription Description;
-	TArray<FSectionInfo> Sections;
 	FString Name;
 };

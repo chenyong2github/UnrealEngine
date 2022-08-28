@@ -4,6 +4,42 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "PlatformInfo.h"
 
+TArray<int32> FGLTFMeshUtility::GetSectionIndices(const FStaticMeshLODResources& MeshLOD, int32 MaterialIndex)
+{
+	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD.Sections;
+
+	TArray<int32> SectionIndices;
+	SectionIndices.Reserve(Sections.Num());
+
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+	{
+		if (Sections[SectionIndex].MaterialIndex == MaterialIndex)
+		{
+			SectionIndices.Add(SectionIndex);
+		}
+	}
+
+	return SectionIndices;
+}
+
+TArray<int32> FGLTFMeshUtility::GetSectionIndices(const FSkeletalMeshLODRenderData& MeshLOD, int32 MaterialIndex)
+{
+	const TArray<FSkelMeshRenderSection>& Sections = MeshLOD.RenderSections;
+
+	TArray<int32> SectionIndices;
+	SectionIndices.Reserve(Sections.Num());
+
+	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+	{
+		if (Sections[SectionIndex].MaterialIndex == MaterialIndex)
+		{
+			SectionIndices.Add(SectionIndex);
+		}
+	}
+
+	return SectionIndices;
+}
+
 int32 FGLTFMeshUtility::GetLOD(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 DefaultLOD)
 {
 	const int32 ForcedLOD = StaticMeshComponent != nullptr ? StaticMeshComponent->ForcedLodModel - 1 : -1;

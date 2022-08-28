@@ -12,13 +12,11 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 	if (StaticMeshComponent != nullptr)
 	{
 		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
-		FMeshMergeHelpers::ExtractSections(StaticMeshComponent, LODIndex, Sections);
 		Name = FGLTFNameUtility::GetName(StaticMeshComponent);
 	}
 	else
 	{
 		FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, Description);
-		FMeshMergeHelpers::ExtractSections(StaticMesh, LODIndex, Sections);
 		StaticMesh->GetName(Name);
 	}
 }
@@ -30,7 +28,6 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 	if (SkeletalMeshComponent != nullptr)
 	{
 		FMeshMergeHelpers::RetrieveMesh(const_cast<USkeletalMeshComponent*>(SkeletalMeshComponent), LODIndex, Description, true);
-		FMeshMergeHelpers::ExtractSections(SkeletalMeshComponent, LODIndex, Sections);
 		Name = FGLTFNameUtility::GetName(SkeletalMeshComponent);
 	}
 	else

@@ -6,8 +6,8 @@
 
 struct FGLTFMeshSection
 {
-	FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const int32 MaterialIndex);
-	FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const uint16 MaterialIndex);
+	FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const TArray<int32>& SectionIndices);
+	FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const TArray<int32>& SectionIndices);
 
 	TArray<uint32> IndexMap;
 	TArray<uint32> IndexBuffer;
