@@ -157,8 +157,8 @@ bool FGLTFKhrMaterialVariantConverter::TryParseMaterialProperty(FGLTFJsonPrimiti
 		return false;
 	}
 
-	Builder.VariantReferenceChecker.GetOrAdd(MaterialProperty, MeshComponent);
-	Builder.VariantReferenceChecker.GetOrAdd(MaterialProperty, Owner);
+	Builder.RegisterObjectVariant(MeshComponent, MaterialProperty);
+	Builder.RegisterObjectVariant(Owner, MaterialProperty);
 
 	const int32 MaterialIndex = CapturedPropSegments[NumPropSegments - 1].PropertyIndex;
 	const FGLTFJsonMeshIndex MeshIndex = Builder.GetOrAddMesh(MeshComponent);

@@ -472,26 +472,6 @@ FGLTFJsonBackdropIndex FGLTFConvertBuilder::GetOrAddBackdrop(const AActor* Backd
 	return BackdropConverter.GetOrAdd(BackdropActor);
 }
 
-FGLTFJsonEpicLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets)
-{
-	if (LevelVariantSets == nullptr)
-	{
-		return FGLTFJsonEpicLevelVariantSetsIndex(INDEX_NONE);
-	}
-
-	return EpicLevelVariantSetsConverter.GetOrAdd(LevelVariantSets);
-}
-
-FGLTFJsonKhrMaterialVariantIndex FGLTFConvertBuilder::GetOrAddKhrMaterialVariant(const UVariant* Variant)
-{
-	if (Variant == nullptr)
-	{
-		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
-	}
-
-	return KhrMaterialVariantConverter.GetOrAdd(Variant);
-}
-
 FGLTFJsonLightMapIndex FGLTFConvertBuilder::GetOrAddLightMap(const UStaticMeshComponent* StaticMeshComponent)
 {
 	if (StaticMeshComponent == nullptr)
@@ -520,4 +500,35 @@ FGLTFJsonSkySphereIndex FGLTFConvertBuilder::GetOrAddSkySphere(const AActor* Sky
 	}
 
 	return SkySphereConverter.GetOrAdd(SkySphereActor);
+}
+
+FGLTFJsonEpicLevelVariantSetsIndex FGLTFConvertBuilder::GetOrAddEpicLevelVariantSets(const ULevelVariantSets* LevelVariantSets)
+{
+	if (LevelVariantSets == nullptr)
+	{
+		return FGLTFJsonEpicLevelVariantSetsIndex(INDEX_NONE);
+	}
+
+	return EpicLevelVariantSetsConverter.GetOrAdd(LevelVariantSets);
+}
+
+FGLTFJsonKhrMaterialVariantIndex FGLTFConvertBuilder::GetOrAddKhrMaterialVariant(const UVariant* Variant)
+{
+	if (Variant == nullptr)
+	{
+		return FGLTFJsonKhrMaterialVariantIndex(INDEX_NONE);
+	}
+
+	return KhrMaterialVariantConverter.GetOrAdd(Variant);
+}
+
+void FGLTFConvertBuilder::RegisterObjectVariant(const UObject* Object, const UPropertyValue* Property)
+{
+	TArray<const UPropertyValue*>& Variants = ObjectVariants.FindOrAdd(Object);
+	Variants.AddUnique(Property);
+}
+
+const TArray<const UPropertyValue*>* FGLTFConvertBuilder::GetObjectVariants(const UObject* Object) const
+{
+	return ObjectVariants.Find(Object);
 }
