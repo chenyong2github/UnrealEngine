@@ -229,6 +229,23 @@ FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode
 	return SkinConverter.GetOrAdd(RootNode, SkeletalMesh);
 }
 
+FGLTFJsonSkinIndex FGLTFConvertBuilder::GetOrAddSkin(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
+{
+	if (RootNode == INDEX_NONE || SkeletalMeshComponent == nullptr)
+	{
+		return FGLTFJsonSkinIndex(INDEX_NONE);
+	}
+
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+
+	if (SkeletalMesh == nullptr)
+	{
+		return FGLTFJsonSkinIndex(INDEX_NONE);
+	}
+
+	return GetOrAddSkin(RootNode, SkeletalMesh);
+}
+
 FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)
 {
 	if (RootNode == INDEX_NONE || SkeletalMesh == nullptr || AnimSequence == nullptr)
@@ -237,6 +254,24 @@ FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeInde
 	}
 
 	return AnimationConverter.GetOrAdd(RootNode, SkeletalMesh, AnimSequence);
+}
+
+FGLTFJsonAnimationIndex FGLTFConvertBuilder::GetOrAddAnimation(FGLTFJsonNodeIndex RootNode, const USkeletalMeshComponent* SkeletalMeshComponent)
+{
+	if (RootNode == INDEX_NONE || SkeletalMeshComponent == nullptr || SkeletalMeshComponent->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
+	{
+		return FGLTFJsonAnimationIndex(INDEX_NONE);
+	}
+
+	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+	const UAnimSequence* AnimSequence = Cast<UAnimSequence>(SkeletalMeshComponent->AnimationData.AnimToPlay);
+
+	if (SkeletalMesh == nullptr || AnimSequence == nullptr)
+	{
+		return FGLTFJsonAnimationIndex(INDEX_NONE);
+	}
+
+	return GetOrAddAnimation(RootNode, SkeletalMesh, AnimSequence);
 }
 
 FGLTFJsonNodeIndex FGLTFConvertBuilder::GetOrAddNode(const USceneComponent* SceneComponent, FName SocketName)
