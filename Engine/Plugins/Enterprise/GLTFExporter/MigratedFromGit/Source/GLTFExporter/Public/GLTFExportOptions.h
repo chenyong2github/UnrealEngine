@@ -14,6 +14,14 @@ enum class EGLTFExporterNormalizeUVCoordinates : uint8
 };
 
 UENUM(BlueprintType)
+enum class EGLTFExporterNormalExportMethod : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Normals UMETA(DisplayName = "Normals"),
+	NormalsAndTangents UMETA(DisplayName = "Normals and Tangents")
+};
+
+UENUM(BlueprintType)
 enum class EGLTFExporterTextureFormat : uint8
 {
 	PNG,
@@ -66,6 +74,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = Mesh)
 	uint32 bExportVertexColors : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
+	EGLTFExporterNormalExportMethod NormalExportMethod;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh)
 	uint32 bTangentDataQuantization : 1;
