@@ -129,4 +129,24 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 
 		JsonWriter.WriteObjectEnd();
 	}
+
+	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
+	void Serialize(FArchive* const Archive) const
+	{
+		TSharedRef<TJsonWriter<CharType, PrintPolicy>> JsonWriter = TJsonWriterFactory<CharType, PrintPolicy>::Create(Archive);
+		Write(*JsonWriter);
+		JsonWriter->Close();
+	}
+
+	void Serialize(FArchive* const Archive, bool bPrettyPrint = true) const
+	{
+		if (bPrettyPrint)
+		{
+			Serialize<UTF8CHAR, TPrettyJsonPrintPolicy<UTF8CHAR>>(Archive);
+		}
+		else
+		{
+			Serialize<UTF8CHAR, TCondensedJsonPrintPolicy<UTF8CHAR>>(Archive);
+		}
+	}
 };
