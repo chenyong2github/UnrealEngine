@@ -25,10 +25,18 @@ void FGLTFStaticMeshTask::Complete()
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
 		Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex) : nullptr;
 
-	if (MeshData != nullptr && MeshData->Description.IsEmpty())
+	if (MeshData != nullptr)
 	{
-		// TODO: add warning in case the mesh actually has data, which means we failed to extract a mesh description.
-		MeshData = nullptr;
+		if (MeshData->Description.IsEmpty())
+		{
+			// TODO: report warning in case the mesh actually has data, which means we failed to extract a mesh description.
+			MeshData = nullptr;
+		}
+		else if (MeshData->TexCoord < 0)
+		{
+			// TODO: report warning (about missing non-overlapping texture coordinate for baking with mesh data).
+			MeshData = nullptr;
+		}
 	}
 
 	const int32 MaterialCount = StaticMesh->StaticMaterials.Num();
@@ -94,10 +102,18 @@ void FGLTFSkeletalMeshTask::Complete()
 	const FGLTFMeshData* MeshData = Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData ?
 		Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex) : nullptr;
 
-	if (MeshData != nullptr && MeshData->Description.IsEmpty())
+	if (MeshData != nullptr)
 	{
-		// TODO: add warning in case the mesh actually has data, which means we failed to extract a mesh description.
-		MeshData = nullptr;
+		if (MeshData->Description.IsEmpty())
+		{
+			// TODO: report warning in case the mesh actually has data, which means we failed to extract a mesh description.
+			MeshData = nullptr;
+		}
+		else if (MeshData->TexCoord < 0)
+		{
+			// TODO: report warning (about missing non-overlapping texture coordinate for baking with mesh data).
+			MeshData = nullptr;
+		}
 	}
 
 	const uint16 MaterialCount = SkeletalMesh->Materials.Num();

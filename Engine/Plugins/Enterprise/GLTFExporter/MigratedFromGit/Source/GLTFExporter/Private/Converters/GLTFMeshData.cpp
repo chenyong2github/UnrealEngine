@@ -22,7 +22,8 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 		FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, Description);
 	}
 
-	TexCoord = StaticMesh->LightMapCoordinateIndex;
+	const int32 NumTexCoords = StaticMesh->GetLODForExport(LODIndex).VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	TexCoord = FMath::Min(StaticMesh->LightMapCoordinateIndex, NumTexCoords - 1);
 
 	// TODO: add warning if texture coordinate has overlap
 }
@@ -66,7 +67,7 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 	}
 
 	// TODO: don't assume last UV channel is non-overlapping
-	const uint32 NumTexCoords = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	const int32 NumTexCoords = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 	TexCoord = NumTexCoords - 1;
 
 	// TODO: add warning if texture coordinate has overlap
