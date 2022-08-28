@@ -13,6 +13,9 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
+#include "MeshDescription.h"
+#include "StaticMeshAttributes.h"
+#include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
 
 namespace
 {
@@ -1360,22 +1363,21 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 	const FIntPoint DefaultTextureSize = Builder.ExportOptions->GetDefaultMaterialBakeSize();
 	const FIntPoint TextureSize = PreferredTextureSize != nullptr ? *PreferredTextureSize : DefaultTextureSize;
 
-	FMeshDescription* MeshDescription = nullptr;
+	bool bRequiresVertexData = false;
+	FMeshDescription MeshDescription;
 
 	// Only use the mesh for baking if the material property requires it
 	if (Mesh != nullptr)
 	{
 		int32 NumTextureCoordinates;
-		bool bRequiresVertexData;
 		const_cast<UMaterialInterface*>(Material)->AnalyzeMaterialProperty(Property, NumTextureCoordinates, bRequiresVertexData);
 
 		if (bRequiresVertexData)
 		{
-			MeshDescription = Mesh->GetMeshDescription(LODIndex);
-			if (MeshDescription == nullptr)
-			{
-				// TODO: add warning
-			}
+			// TODO: add support mesh-components (and perhaps skeletal meshes)
+
+			FStaticMeshAttributes(MeshDescription).Register();
+			FMeshMergeHelpers::RetrieveMesh(const_cast<UStaticMesh*>(Mesh), LODIndex, MeshDescription);
 		}
 	}
 
@@ -1386,7 +1388,7 @@ FGLTFPropertyBakeOutput FGLTFMaterialTask::BakeMaterialProperty(EMaterialPropert
 		Property,
 		Material,
 		OutTexCoord,
-		MeshDescription,
+		bRequiresVertexData ? &MeshDescription : nullptr,
 		bCopyAlphaFromRedChannel);
 
 	if (!PropertyBakeOutput.bIsConstant && TexCoords.Num() == 0)

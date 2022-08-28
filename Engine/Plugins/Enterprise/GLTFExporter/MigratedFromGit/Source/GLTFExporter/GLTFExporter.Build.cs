@@ -33,7 +33,8 @@ namespace UnrealBuildTool.Rules
 					"MovieSceneTracks",
 					"MaterialBaking",
 					"VariantManagerContent",
-					"GLTFExporterRuntime"
+					"GLTFExporterRuntime",
+					"MeshMergeUtilities"
 				}
 				);
 		}
