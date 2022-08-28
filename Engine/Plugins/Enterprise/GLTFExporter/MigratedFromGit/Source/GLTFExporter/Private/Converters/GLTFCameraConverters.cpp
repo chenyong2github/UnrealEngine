@@ -61,10 +61,14 @@ FGLTFJsonCameraIndex FGLTFCameraConverter::Convert(const UCameraComponent* Camer
 			PlayerCamera.Focus = Builder.GetOrAddNode(CameraActor->Focus);
 			PlayerCamera.MaxDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMax, ExportScale);
 			PlayerCamera.MinDistance = FGLTFConverterUtility::ConvertLength(CameraActor->DistanceMin, ExportScale);
+
+			// TODO: convert limits for pitch and yaw to match differences in camera direction between Unreal and glTF
+
 			PlayerCamera.MaxPitch = CameraActor->PitchAngleMax;
 			PlayerCamera.MinPitch = CameraActor->PitchAngleMin;
 			PlayerCamera.MaxYaw = CameraActor->YawAngleMax;
 			PlayerCamera.MinYaw = CameraActor->YawAngleMin;
+
 			PlayerCamera.RotationSensitivity = CameraActor->RotationSensitivity;
 			PlayerCamera.RotationInertia = CameraActor->RotationInertia;
 			PlayerCamera.DollySensitivity = CameraActor->DollySensitivity;
