@@ -713,6 +713,12 @@ private:
 
 	int32 CompileNormalTransform(FMaterialCompiler* Compiler, int32 ExpressionIndex) const
 	{
+		// TODO: make this configurable instead of assuming that we always want tangent-space normals
+		if (!Material->bTangentSpaceNormal)
+		{
+			ExpressionIndex = Compiler->TransformVector(MCB_World, MCB_Tangent, ExpressionIndex);
+		}
+
 		return Compiler->Add(
 			Compiler->Mul(ExpressionIndex, Compiler->Constant(0.5f)), // [-1,1] * 0.5
 			Compiler->Constant(0.5f)); // [-0.5,0.5] + 0.5
