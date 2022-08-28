@@ -97,24 +97,3 @@ void UGLTFExportOptions::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		}
 	}
 }
-
-FIntPoint UGLTFExportOptions::GetDefaultMaterialBakeSize() const
-{
-	const int32 Size = 1 << static_cast<int>(DefaultMaterialBakeSize);
-	return { Size, Size };
-}
-
-bool UGLTFExportOptions::ShouldExportLight(EComponentMobility::Type LightMobility) const
-{
-	switch (ExportLights)
-	{
-		case EGLTFExporterLightMobility::All:
-			return true;
-		case EGLTFExporterLightMobility::MovableAndStationary:
-			return LightMobility == EComponentMobility::Movable || LightMobility == EComponentMobility::Stationary;
-		case EGLTFExporterLightMobility::MovableOnly:
-			return LightMobility == EComponentMobility::Movable;
-		default:
-			return false;
-	}
-}

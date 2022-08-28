@@ -3,7 +3,7 @@
 #include "Builders/GLTFJsonBuilder.h"
 
 FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOptions* ExportOptions)
-	: FGLTFMessageBuilder(FilePath, ExportOptions)
+	: FGLTFTaskBuilder(FilePath, ExportOptions)
 	, DefaultScene(JsonRoot.DefaultScene)
 {
 }

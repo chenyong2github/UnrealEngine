@@ -19,4 +19,8 @@ public:
 	const FString DirPath;
 
 	const UGLTFExportOptions* const ExportOptions;
+
+	FIntPoint GetDefaultMaterialBakeSize() const;
+
+	bool ShouldExportLight(EComponentMobility::Type LightMobility) const;
 };

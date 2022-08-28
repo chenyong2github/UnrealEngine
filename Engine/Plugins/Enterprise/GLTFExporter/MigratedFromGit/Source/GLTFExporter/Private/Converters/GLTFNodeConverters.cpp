@@ -158,7 +158,7 @@ FGLTFJsonNodeIndex FGLTFComponentConverter::Convert(const USceneComponent* Scene
 	}
 	else if (const ULightComponent* LightComponent = Cast<ULightComponent>(SceneComponent))
 	{
-		if (Builder.ExportOptions->ShouldExportLight(LightComponent->Mobility))
+		if (Builder.ShouldExportLight(LightComponent->Mobility))
 		{
 			// TODO: conversion of light direction should be done in separate converter
 			FGLTFJsonNode LightNode;
