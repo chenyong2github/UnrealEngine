@@ -90,13 +90,6 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 	}
 
 	Analysis->TextureCoordinates = Translator->AllocatedUserTexCoords;
-	Analysis->NumTextureCoordinates = 0;
-
-	for (int32 TexCoordIndex = 0; TexCoordIndex < Translator->AllocatedUserTexCoords.Num(); TexCoordIndex++)
-	{
-		const bool IsTexCoordUsed = Translator->AllocatedUserTexCoords[TexCoordIndex];
-		Analysis->NumTextureCoordinates += IsTexCoordUsed ? 1 : 0;
-	}
 
 	// TODO: investigate if we need to check more conditions to determine that vertex data is required
 	Analysis->bRequiresVertexData =

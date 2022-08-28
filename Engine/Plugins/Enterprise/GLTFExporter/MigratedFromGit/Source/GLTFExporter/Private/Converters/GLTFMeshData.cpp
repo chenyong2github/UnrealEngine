@@ -5,6 +5,7 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "StaticMeshAttributes.h"
 #include "Developer/MeshMergeUtilities/Private/MeshMergeHelpers.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 
 FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
 {
@@ -12,14 +13,18 @@ FGLTFMeshData::FGLTFMeshData(const UStaticMesh* StaticMesh, const UStaticMeshCom
 
 	if (StaticMeshComponent != nullptr)
 	{
-		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
 		Name = FGLTFNameUtility::GetName(StaticMeshComponent);
+		FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, Description, true);
 	}
 	else
 	{
-		FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, Description);
 		StaticMesh->GetName(Name);
+		FMeshMergeHelpers::RetrieveMesh(StaticMesh, LODIndex, Description);
 	}
+
+	TexCoord = StaticMesh->LightMapCoordinateIndex;
+
+	// TODO: add warning if texture coordinate has overlap
 }
 
 FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex)
@@ -28,11 +33,13 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 
 	if (SkeletalMeshComponent != nullptr)
 	{
-		FMeshMergeHelpers::RetrieveMesh(const_cast<USkeletalMeshComponent*>(SkeletalMeshComponent), LODIndex, Description, true);
 		Name = FGLTFNameUtility::GetName(SkeletalMeshComponent);
+		FMeshMergeHelpers::RetrieveMesh(const_cast<USkeletalMeshComponent*>(SkeletalMeshComponent), LODIndex, Description, true);
 	}
 	else
 	{
+		SkeletalMesh->GetName(Name);
+
 		// NOTE: this is a workaround for the fact that there's no overload for FMeshMergeHelpers::RetrieveMesh
 		// that accepts a USkeletalMesh, only a USkeletalMeshComponent.
 		// Writing a custom utility function that would work on a "standalone" skeletal mesh is problematic
@@ -56,7 +63,11 @@ FGLTFMeshData::FGLTFMeshData(const USkeletalMesh* SkeletalMesh, const USkeletalM
 				World->DestroyActor(Actor, false, false);
 			}
 		}
-
-		SkeletalMesh->GetName(Name);
 	}
+
+	// TODO: don't assume last UV channel is non-overlapping
+	const uint32 NumTexCoords = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
+	TexCoord = NumTexCoords - 1;
+
+	// TODO: add warning if texture coordinate has overlap
 }
