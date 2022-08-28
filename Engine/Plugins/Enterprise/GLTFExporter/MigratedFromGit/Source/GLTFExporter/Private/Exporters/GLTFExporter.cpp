@@ -31,26 +31,20 @@ bool UGLTFExporter::ExportBinary(UObject* Object, const TCHAR* Type, FArchive& A
 		return false;
 	}
 
-	FGCObjectScopeGuard OptionsGuard(Options);
-	bool bSuccess = true;
-
 	// TODO: add support for UAssetExportTask::IgnoreObjectList?
 
+	FGCObjectScopeGuard OptionsGuard(Options);
 	FGLTFContainerBuilder Builder(CurrentFilename, Options, bSelectedOnly);
-	if (AddObject(Builder, Object))
+
+	const bool bSuccess = AddObject(Builder, Object);
+	if (bSuccess)
 	{
-		if (!Builder.Serialize(Archive))
-		{
-			// TODO: more descriptive error
-			Builder.AddErrorMessage(TEXT("Serialize failed"));
-			bSuccess = false;
-		}
+		Builder.Write(Archive);
 	}
 	else
 	{
 		// TODO: more descriptive error
 		Builder.AddErrorMessage(TEXT("AddObject failed"));
-		bSuccess = false;
 	}
 
 	// TODO: should we copy messages to UAssetExportTask::Errors?

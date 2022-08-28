@@ -8,10 +8,9 @@ FGLTFJsonBuilder::FGLTFJsonBuilder(const FString& FilePath, const UGLTFExportOpt
 {
 }
 
-bool FGLTFJsonBuilder::Serialize(FArchive& Archive)
+void FGLTFJsonBuilder::WriteJson(FArchive& Archive) const
 {
-	JsonRoot.Serialize(&Archive, true);
-	return true;
+	JsonRoot.ToJson(&Archive, true);
 }
 
 void FGLTFJsonBuilder::AddExtension(EGLTFJsonExtension Extension, bool bIsRequired)
