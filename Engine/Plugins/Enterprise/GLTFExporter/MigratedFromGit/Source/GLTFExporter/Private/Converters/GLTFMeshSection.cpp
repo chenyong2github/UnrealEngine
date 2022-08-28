@@ -7,6 +7,7 @@
 #include "Algo/MaxElement.h"
 
 FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const FGLTFIndexArray& SectionIndices)
+	: MaxBoneIndex(0)
 {
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(&MeshLOD->IndexBuffer);
 	const uint8* SourceData = SourceBuffer->GetData();
@@ -22,6 +23,7 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 }
 
 FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const FGLTFIndexArray& SectionIndices)
+	: MaxBoneIndex(0)
 {
 	const TUniquePtr<IGLTFBufferAdapter> SourceBuffer = IGLTFBufferAdapter::GetIndices(MeshLOD->MultiSizeIndexContainer.GetIndexBuffer());
 	const uint8* SourceData = SourceBuffer->GetData();
@@ -39,6 +41,12 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 template <typename IndexType, typename SectionArrayType>
 void FGLTFMeshSection::Init(const SectionArrayType& Sections, const FGLTFIndexArray& SectionIndices, const IndexType* SourceData)
 {
+	if (SourceData == nullptr)
+	{
+		// TODO: report error
+		return;
+	}
+
 	uint32 TotalIndexCount = 0;
 	for (const int32 SectionIndex : SectionIndices)
 	{
@@ -48,7 +56,6 @@ void FGLTFMeshSection::Init(const SectionArrayType& Sections, const FGLTFIndexAr
 	IndexMap.Reserve(TotalIndexCount);
 	IndexBuffer.AddUninitialized(TotalIndexCount);
 	BoneMapLookup.Reserve(TotalIndexCount);
-	MaxBoneIndex = 0;
 
 	TMap<uint32, uint32> IndexLookup;
 

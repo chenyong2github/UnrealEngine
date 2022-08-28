@@ -68,9 +68,19 @@ const void* FGLTFBufferUtility::GetBufferData(const FSkinWeightLookupVertexBuffe
 
 void FGLTFBufferUtility::ReadRHIBuffer(FRHIVertexBuffer* SourceBuffer, TArray<uint8>& OutData)
 {
-	const uint32 NumBytes = SourceBuffer->GetSize();
-
 	OutData.Empty();
+
+	if (SourceBuffer == nullptr)
+	{
+		return;
+	}
+
+	const uint32 NumBytes = SourceBuffer->GetSize();
+	if (NumBytes == 0)
+	{
+		return;
+	}
+
 	OutData.AddUninitialized(NumBytes);
 	void *DstData = OutData.GetData();
 
@@ -88,9 +98,19 @@ void FGLTFBufferUtility::ReadRHIBuffer(FRHIVertexBuffer* SourceBuffer, TArray<ui
 
 void FGLTFBufferUtility::ReadRHIBuffer(FRHIIndexBuffer* SourceBuffer, TArray<uint8>& OutData)
 {
-	const uint32 NumBytes = SourceBuffer->GetSize();
-
 	OutData.Empty();
+
+	if (SourceBuffer == nullptr)
+	{
+		return;
+	}
+
+	const uint32 NumBytes = SourceBuffer->GetSize();
+	if (NumBytes == 0)
+	{
+		return;
+	}
+
 	OutData.AddUninitialized(NumBytes);
 	void *DstData = OutData.GetData();
 
