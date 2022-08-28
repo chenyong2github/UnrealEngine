@@ -24,17 +24,27 @@ void FGLTFTaskBuilder::CompleteAllTasks(FFeedbackContext* Context)
 			continue;
 		}
 
-		const FText MessageFormat = GetPriorityMessageFormat(Priority);
-		FScopedSlowTask Progress(Tasks->Num(), FText::Format(MessageFormat, FText()), true, *Context);
-		Progress.MakeDialog();
-
-		for (TUniquePtr<FGLTFTask>& Task : *Tasks)
+		if (Context != nullptr)
 		{
-			const FText Name = FText::FromString(Task->GetName());
-			const FText Message = FText::Format(MessageFormat, Name);
-			Progress.EnterProgressFrame(1, Message);
+			const FText MessageFormat = GetPriorityMessageFormat(Priority);
+			FScopedSlowTask Progress(Tasks->Num(), FText::Format(MessageFormat, FText()), true, *Context);
+			Progress.MakeDialog();
 
-			Task->Complete();
+			for (TUniquePtr<FGLTFTask>& Task : *Tasks)
+			{
+				const FText Name = FText::FromString(Task->GetName());
+				const FText Message = FText::Format(MessageFormat, Name);
+				Progress.EnterProgressFrame(1, Message);
+
+				Task->Complete();
+			}
+		}
+		else
+		{
+			for (TUniquePtr<FGLTFTask>& Task : *Tasks)
+			{
+				Task->Complete();
+			}
 		}
 	}
 
