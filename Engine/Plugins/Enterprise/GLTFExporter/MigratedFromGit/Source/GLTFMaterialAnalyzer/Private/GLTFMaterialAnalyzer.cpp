@@ -118,7 +118,11 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 		TranslatorHack->bUsesTransformVector ||
 		TranslatorHack->bNeedsWorldPositionExcludingShaderOffsets ||
 		TranslatorHack->bUsesAOMaterialMask ||
+		TranslatorHack->bUsesLightmapUVs ||
 		TranslatorHack->bUsesVertexPosition;
+
+	// TODO: need to separate between local data (local bounds, pre-skinned local position & normal, transforming between local-space <-> tangent-space etc)
+	// and between world data (world / actor position, world bounds, ao mask, lightmap uvs, custom primitive data, transforming to and form world-space etc)
 
 	Analysis->bRequiresPrimitiveData =
 		ProxyCompiler.bUsesActorPosition ||
