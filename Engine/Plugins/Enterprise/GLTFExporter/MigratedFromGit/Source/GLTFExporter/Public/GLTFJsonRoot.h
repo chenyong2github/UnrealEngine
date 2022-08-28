@@ -28,7 +28,7 @@ struct GLTFEXPORTER_API FGLTFJsonAsset
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
@@ -58,12 +58,12 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 	}
 
 	template <class CharType = TCHAR, class PrintPolicy = TPrettyJsonPrintPolicy<CharType>>
-	void Write(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
+	void WriteObject(TJsonWriter<CharType, PrintPolicy>& JsonWriter) const
 	{
 		JsonWriter.WriteObjectStart();
 
 		JsonWriter.WriteIdentifierPrefix(TEXT("asset"));
-		Asset.Write(JsonWriter);
+		Asset.WriteObject(JsonWriter);
 
 		if (DefaultScene != INDEX_NONE) JsonWriter.WriteValue(TEXT("scene"), DefaultScene);
 
@@ -72,7 +72,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 			JsonWriter.WriteArrayStart(TEXT("accessors"));
 			for (const FGLTFJsonAccessor& Accessor : Accessors)
 			{
-				Accessor.Write(JsonWriter);
+				Accessor.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -82,7 +82,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 			JsonWriter.WriteArrayStart(TEXT("bufferViews"));
 			for (const FGLTFJsonBufferView& BufferView : BufferViews)
 			{
-				BufferView.Write(JsonWriter);
+				BufferView.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -92,7 +92,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 			JsonWriter.WriteArrayStart(TEXT("meshes"));
 			for (const FGLTFJsonMesh& Mesh : Meshes)
 			{
-				Mesh.Write(JsonWriter);
+				Mesh.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -102,7 +102,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 			JsonWriter.WriteArrayStart(TEXT("nodes"));
 			for (const FGLTFJsonNode& Node : Nodes)
 			{
-				Node.Write(JsonWriter);
+				Node.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -112,7 +112,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 			JsonWriter.WriteArrayStart(TEXT("scenes"));
 			for (const FGLTFJsonScene& Scene : Scenes)
 			{
-				Scene.Write(JsonWriter);
+				Scene.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -122,7 +122,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 			JsonWriter.WriteArrayStart(TEXT("buffers"));
 			for (const FGLTFJsonBuffer& Buffer : Buffers)
 			{
-				Buffer.Write(JsonWriter);
+				Buffer.WriteObject(JsonWriter);
 			}
 			JsonWriter.WriteArrayEnd();
 		}
@@ -134,7 +134,7 @@ struct GLTFEXPORTER_API FGLTFJsonRoot
 	void Serialize(FArchive* const Archive) const
 	{
 		TSharedRef<TJsonWriter<CharType, PrintPolicy>> JsonWriter = TJsonWriterFactory<CharType, PrintPolicy>::Create(Archive);
-		Write(*JsonWriter);
+		WriteObject(*JsonWriter);
 		JsonWriter->Close();
 	}
 
