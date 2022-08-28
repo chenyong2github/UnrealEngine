@@ -120,6 +120,16 @@ int32 UGLTFMaterialAnalyzer::CompilePropertyEx(FMaterialCompiler* Compiler, cons
 		TranslatorHack->bUsesAOMaterialMask ||
 		TranslatorHack->bUsesVertexPosition;
 
+	Analysis->bRequiresPrimitiveData =
+		ProxyCompiler.bUsesActorPosition ||
+		ProxyCompiler.bUsesObjectPosition ||
+		ProxyCompiler.bUsesObjectOrientation ||
+		ProxyCompiler.bUsesObjectRadius ||
+		ProxyCompiler.bUsesObjectBounds ||
+		ProxyCompiler.bUsesObjectLocalBounds ||
+		ProxyCompiler.bUsesPreSkinnedLocalBounds ||
+		ProxyCompiler.bUsesCustomPrimitiveData;
+
 	return Result;
 }
 

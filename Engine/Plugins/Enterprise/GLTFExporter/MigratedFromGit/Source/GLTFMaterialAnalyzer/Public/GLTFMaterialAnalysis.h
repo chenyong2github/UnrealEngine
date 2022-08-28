@@ -8,6 +8,7 @@ struct FGLTFMaterialAnalysis
 {
 	FGLTFMaterialAnalysis()
 		: bRequiresVertexData(false)
+		, bRequiresPrimitiveData(false)
 	{
 	}
 
@@ -22,4 +23,7 @@ struct FGLTFMaterialAnalysis
 
 	/** True if this material reads any vertex data */
 	bool bRequiresVertexData;
+
+	/** True if this material reads any primitive data */
+	bool bRequiresPrimitiveData;
 };
