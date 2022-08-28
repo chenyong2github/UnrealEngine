@@ -170,6 +170,17 @@ FGLTFJsonLight& FGLTFJsonBuilder::GetLight(FGLTFJsonLightIndex LightIndex)
 	return JsonRoot.Lights[LightIndex];
 }
 
+FGLTFJsonNodeIndex FGLTFJsonBuilder::GetLeafNodeIndex(FGLTFJsonNodeIndex NodeIndex)
+{
+	if (NodeIndex == INDEX_NONE)
+	{
+		return FGLTFJsonNodeIndex(INDEX_NONE);
+	}
+
+	const FGLTFJsonNode& Node = GetNode(NodeIndex);
+	return Node.LeafNode != INDEX_NONE ? Node.LeafNode : NodeIndex;
+}
+
 bool FGLTFJsonBuilder::Serialize(FArchive& Archive, const FString& FilePath)
 {
 	JsonRoot.Serialize(&Archive, true);

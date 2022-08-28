@@ -47,6 +47,8 @@ public:
 	FGLTFJsonLightMap& GetLightMap(FGLTFJsonLightMapIndex LightMapIndex);
 	FGLTFJsonLight& GetLight(FGLTFJsonLightIndex LightIndex);
 
+	FGLTFJsonNodeIndex GetLeafNodeIndex(FGLTFJsonNodeIndex NodeIndex);
+
 	virtual bool Serialize(FArchive& Archive, const FString& FilePath);
 
 private:
