@@ -114,38 +114,33 @@ bool FGLTFVariationConverter::TryParseVariantBinding(FGLTFJsonVariant& OutVarian
 			continue;
 		}
 
-		const bool bIsVisibilityProperty =
-			Property->GetPropertyName() == TEXT("bVisible") &&
-			Property->GetPropertyClass()->IsChildOf(FBoolProperty::StaticClass());
+		const FName PropertyName = Property->GetPropertyName();
+		const FFieldClass* PropertyClass = Property->GetPropertyClass();
 
-		const bool bIsMaterialProperty = Property->IsA<UPropertyValueMaterial>();
-		const bool bIsStaticMeshProperty = Property->GetPropertyName() == TEXT("StaticMesh");
-		const bool bIsSkeletalMeshProperty = Property->GetPropertyName() == TEXT("SkeletalMesh");
-
-		if (bIsVisibilityProperty)
+		if (Property->IsA<UPropertyValueMaterial>())
 		{
-			if (TryParseVisibilityPropertyValue(OutVariant, Property))
+			if (Builder.ExportOptions->ExportMaterialVariants != EGLTFMaterialBakeMode::None && TryParseMaterialPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
-		else if (bIsMaterialProperty)
-		{
-			if (TryParseMaterialPropertyValue(OutVariant, Property))
-			{
-				bHasParsedAnyProperty = true;
-			}
-		}
-		else if (bIsStaticMeshProperty)
+		else if (PropertyName == TEXT("StaticMesh")) // TODO: should we not also check PropertyClass?
 		{
 			if (TryParseStaticMeshPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
 		}
-		else if (bIsSkeletalMeshProperty)
+		else if (PropertyName == TEXT("SkeletalMesh")) // TODO: should we not also check PropertyClass?
 		{
 			if (TryParseSkeletalMeshPropertyValue(OutVariant, Property))
+			{
+				bHasParsedAnyProperty = true;
+			}
+		}
+		else if (PropertyName == TEXT("bVisible") && PropertyClass->IsChildOf(FBoolProperty::StaticClass()))
+		{
+			if (TryParseVisibilityPropertyValue(OutVariant, Property))
 			{
 				bHasParsedAnyProperty = true;
 			}
@@ -275,29 +270,35 @@ bool FGLTFVariationConverter::TryParseMaterialPropertyValue(FGLTFJsonVariant& Ou
 	const FGLTFMeshData* MeshData = nullptr;
 	TArray<int32> SectionIndices;
 
-	if (Builder.ExportOptions->bVariantMaterialBakeUsingMeshData &&
-		Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
+	if (Builder.ExportOptions->ExportMaterialVariants == EGLTFMaterialBakeMode::UseMeshData)
 	{
-		const int32 DefaultLODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
-
-		if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target))
+		if (Builder.ExportOptions->BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData)
 		{
-			const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-			const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, DefaultLODIndex);
-			const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
+			const int32 DefaultLODIndex = Builder.ExportOptions->DefaultLevelOfDetail;
 
-			SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
-			MeshData = Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex);
+			if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target))
+			{
+				const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+				const int32 LODIndex = FGLTFMeshUtility::GetLOD(StaticMesh, StaticMeshComponent, DefaultLODIndex);
+				const FStaticMeshLODResources& MeshLOD = StaticMesh->GetLODForExport(LODIndex);
+
+				SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
+				MeshData = Builder.StaticMeshDataConverter.GetOrAdd(StaticMesh, StaticMeshComponent, LODIndex);
+			}
+			else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Target))
+			{
+				const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
+				const int32 LODIndex = FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, DefaultLODIndex);
+				const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+				const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
+
+				SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
+				MeshData = Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex);
+			}
 		}
-		else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Target))
+		else
 		{
-			const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
-			const int32 LODIndex = FGLTFMeshUtility::GetLOD(SkeletalMesh, SkeletalMeshComponent, DefaultLODIndex);
-			const FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
-			const FSkeletalMeshLODRenderData& MeshLOD = RenderData->LODRenderData[LODIndex];
-
-			SectionIndices = FGLTFMeshUtility::GetSectionIndices(MeshLOD, MaterialIndex);
-			MeshData = Builder.SkeletalMeshDataConverter.GetOrAdd(SkeletalMesh, SkeletalMeshComponent, LODIndex);
+			// TODO: report warning (about materials won't be export using mesh data because BakeMaterialInputs is not set to UseMeshData)
 		}
 	}
 

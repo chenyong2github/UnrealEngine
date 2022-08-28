@@ -8,7 +8,7 @@
 UENUM(BlueprintType)
 enum class EGLTFMaterialBakeMode : uint8
 {
-	Disabled,
+	None,
     Simple,
     UseMeshData,
 };
@@ -84,7 +84,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material)
 	EGLTFMaterialBakeMode BakeMaterialInputs;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "BakeMaterialInputs != EGLTFMaterialBakeMode::Disabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "BakeMaterialInputs != EGLTFMaterialBakeMode::None"))
 	EGLTFMaterialBakeSizePOT DefaultMaterialBakeSize;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Mesh)
@@ -155,11 +155,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportVariantSets;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Material, Meta = (EditCondition = "bExportVariantSets && BakeMaterialInputs == EGLTFMaterialBakeMode::UseMeshData"))
-	bool bVariantMaterialBakeUsingMeshData;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Scene)
 	bool bExportAnimationHotspots;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = VariantSets, Meta = (EditCondition = "bExportVariantSets"))
+	EGLTFMaterialBakeMode ExportMaterialVariants;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = Exporter)
 	bool bBundleWebViewer;
