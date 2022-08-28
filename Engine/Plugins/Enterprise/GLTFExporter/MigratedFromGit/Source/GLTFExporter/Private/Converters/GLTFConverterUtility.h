@@ -91,7 +91,7 @@ struct FGLTFConverterUtility
 		return Result;
 	}
 
-	static EGLTFJsonShadingModel ConvertShadingModel(const EMaterialShadingModel ShadingModel)
+	static EGLTFJsonShadingModel ConvertShadingModel(EMaterialShadingModel ShadingModel)
 	{
 		switch (ShadingModel)
 		{
@@ -102,61 +102,15 @@ struct FGLTFConverterUtility
 		}
 	}
 
-	static EGLTFJsonAlphaMode ConvertBlendMode(const EBlendMode Mode)
-	{
-		switch (Mode)
-		{
-			case BLEND_Opaque:      return EGLTFJsonAlphaMode::Opaque;
-			case BLEND_Translucent: return EGLTFJsonAlphaMode::Blend;
-			case BLEND_Masked:      return EGLTFJsonAlphaMode::Mask;
-			default:                return EGLTFJsonAlphaMode::Opaque; // fallback
-		}
-	}
+	static EGLTFJsonAlphaMode ConvertBlendMode(EBlendMode Mode);
 
-	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Address)
-	{
-		switch (Address)
-		{
-			case TA_Wrap:   return EGLTFJsonTextureWrap::Repeat;
-			case TA_Mirror: return EGLTFJsonTextureWrap::MirroredRepeat;
-			case TA_Clamp:  return EGLTFJsonTextureWrap::ClampToEdge;
-			default:        return EGLTFJsonTextureWrap::Repeat; // fallback
-		}
-	}
+	static EGLTFJsonTextureWrap ConvertWrap(TextureAddress Address);
 
-	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter)
-	{
-		switch (Filter)
-		{
-			case TF_Nearest:   return EGLTFJsonTextureFilter::NearestMipmapNearest;
-			case TF_Bilinear:  return EGLTFJsonTextureFilter::LinearMipmapNearest;
-			case TF_Trilinear: return EGLTFJsonTextureFilter::LinearMipmapLinear;
-			default:           return EGLTFJsonTextureFilter::None;
-		}
-	}
+	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter);
+	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter);
 
-	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter)
-	{
-		switch (Filter)
-		{
-			case TF_Nearest:   return EGLTFJsonTextureFilter::Nearest;
-			case TF_Bilinear:  return EGLTFJsonTextureFilter::Linear;
-			case TF_Trilinear: return EGLTFJsonTextureFilter::Linear;
-			default:           return EGLTFJsonTextureFilter::None;
-		}
-	}
-
-	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter, TextureGroup LODGroup)
-	{
-		return ConvertMinFilter(Filter == TextureFilter::TF_Default ? GetDefaultFilter(LODGroup) : Filter);
-	}
-
-	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup)
-	{
-		return ConvertMagFilter(Filter == TextureFilter::TF_Default ? GetDefaultFilter(LODGroup) : Filter);
-	}
-
-	static TextureFilter GetDefaultFilter(TextureGroup Group);
+	static EGLTFJsonTextureFilter ConvertMinFilter(TextureFilter Filter, TextureGroup LODGroup);
+	static EGLTFJsonTextureFilter ConvertMagFilter(TextureFilter Filter, TextureGroup LODGroup);
 
 	template <typename EnumType>
 	static FString GetEnumDisplayName(EnumType Value)

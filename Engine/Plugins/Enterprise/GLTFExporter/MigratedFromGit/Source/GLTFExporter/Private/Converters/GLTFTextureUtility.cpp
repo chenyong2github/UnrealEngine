@@ -3,6 +3,24 @@
 #include "Converters/GLTFTextureUtility.h"
 #include "Engine/Texture2DArray.h"
 
+TextureFilter FGLTFTextureUtility::GetDefaultFilter(TextureGroup LODGroup)
+{
+	// TODO: should this be the running platform?
+	const ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	const UTextureLODSettings& TextureLODSettings = RunningPlatform->GetTextureLODSettings();
+	const FTextureLODGroup& TextureLODGroup = TextureLODSettings.GetTextureLODGroup(LODGroup);
+
+	switch (TextureLODGroup.Filter)
+	{
+		case ETextureSamplerFilter::Point:             return TF_Nearest;
+		case ETextureSamplerFilter::Bilinear:          return TF_Bilinear;
+		case ETextureSamplerFilter::Trilinear:         return TF_Trilinear;
+		case ETextureSamplerFilter::AnisotropicPoint:  return TF_Nearest;
+		case ETextureSamplerFilter::AnisotropicLinear: return TF_Trilinear;
+		default:                                       return TF_Default; // fallback
+	}
+}
+
 TextureAddress FGLTFTextureUtility::GetAddressX(const UTexture* Texture)
 {
 	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
@@ -52,8 +70,8 @@ UTexture2D* FGLTFTextureUtility::CreateTransientTexture(const void* RawData, int
 	check(CalculateImageBytes(Size.X, Size.Y, 0, Format) == ByteLength);
 
 	UTexture2D* Texture = UTexture2D::CreateTransient(Size.X, Size.Y, Format);
-	void* MipData = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 
+	void* MipData = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 	FMemory::Memcpy(MipData, RawData, ByteLength);
 	Texture->PlatformData->Mips[0].BulkData.Unlock();
 

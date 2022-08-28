@@ -6,6 +6,8 @@
 
 struct FGLTFTextureUtility
 {
+	static TextureFilter GetDefaultFilter(TextureGroup Group);
+
 	static TextureAddress GetAddressX(const UTexture* Texture);
 	static TextureAddress GetAddressY(const UTexture* Texture);
 
