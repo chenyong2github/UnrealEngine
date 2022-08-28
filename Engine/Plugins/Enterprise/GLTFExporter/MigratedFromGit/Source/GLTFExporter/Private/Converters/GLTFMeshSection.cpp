@@ -7,6 +7,13 @@
 
 FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const FGLTFIndexArray& SectionIndices)
 {
+	const FRawStaticIndexBuffer& OldIndexBuffer = MeshLOD->IndexBuffer;
+	if (OldIndexBuffer.AccessStream16() == nullptr && OldIndexBuffer.AccessStream32() == nullptr)
+	{
+		// TODO: report error
+		return;
+	}
+
 	const FStaticMeshLODResources::FStaticMeshSectionArray& Sections = MeshLOD->Sections;
 
 	uint32 TotalIndexCount = 0;
@@ -29,7 +36,7 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 
 		for (uint32 Index = 0; Index < IndexCount; Index++)
 		{
-			const uint32 OldIndex = MeshLOD->IndexBuffer.GetIndex(IndexOffset + Index);
+			const uint32 OldIndex = OldIndexBuffer.GetIndex(IndexOffset + Index);
 			uint32 NewIndex;
 
 			if (uint32* FoundIndex = IndexLookup.Find(OldIndex))
@@ -55,6 +62,13 @@ FGLTFMeshSection::FGLTFMeshSection(const FStaticMeshLODResources* MeshLOD, const
 FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, const FGLTFIndexArray& SectionIndices)
 	: MaxBoneIndex(0)
 {
+	const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer = MeshLOD->MultiSizeIndexContainer.GetIndexBuffer();
+	if (const_cast<FRawStaticIndexBuffer16or32Interface*>(OldIndexBuffer)->GetPointerTo(0) == nullptr)
+	{
+		// TODO: report error
+		return;
+	}
+
 	const TArray<FSkelMeshRenderSection>& Sections = MeshLOD->RenderSections;
 
 	uint32 TotalIndexCount = 0;
@@ -68,8 +82,6 @@ FGLTFMeshSection::FGLTFMeshSection(const FSkeletalMeshLODRenderData* MeshLOD, co
 	BoneMapLookup.Reserve(TotalIndexCount);
 
 	TMap<uint32, uint32> IndexLookup;
-
-	const FRawStaticIndexBuffer16or32Interface* OldIndexBuffer = MeshLOD->MultiSizeIndexContainer.GetIndexBuffer();
 
 	for (int32 SectionIndex : SectionIndices)
 	{
