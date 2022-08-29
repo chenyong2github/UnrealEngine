@@ -2,8 +2,9 @@
 
 #include "InstallBundleSourcePlatformBase.h"
 
-#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 #include "DefaultInstallBundleManagerPrivate.h"
+
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 #include "InstallBundleManagerUtil.h"
 
 #include "Misc/ConfigCacheIni.h"
