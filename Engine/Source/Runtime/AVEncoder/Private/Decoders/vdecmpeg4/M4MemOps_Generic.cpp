@@ -35,7 +35,7 @@ struct CLIPinitializer
 		iclp = iclip + 512;
 		for(int32 i= -512; i<512; i++)
 		{
-			iclp[i] = i < -256 ? -256 : i > 255 ? 255 : i;
+			iclp[i] = IntCastChecked<int16>(i < -256 ? -256 : i > 255 ? 255 : i);
 		}
 	}
 };

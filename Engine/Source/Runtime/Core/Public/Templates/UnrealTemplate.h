@@ -191,7 +191,7 @@ constexpr bool FloatFitsIn(InType In, InType Precision)
 	static_assert(std::is_floating_point_v<InType> && std::is_floating_point_v<OutType>, "Only floating point supported");
 	
 	OutType Out = static_cast<OutType>(In);
-	return std::abs(static_cast<InType>(Out) - In) <= Precision;
+	return fabs(static_cast<InType>(Out) - In) <= Precision;
 }
 
 template<typename OutType, typename InType>

@@ -77,7 +77,7 @@ public:
 	 */
 	bool WaitTimeout(int64 InMicroSeconds)
 	{
-		return Event->Wait(FTimespan::FromMicroseconds(InMicroSeconds));
+		return Event->Wait(FTimespan::FromMicroseconds((double)InMicroSeconds));
 	}
 
 	/**
@@ -88,7 +88,7 @@ public:
 	bool WaitTimeoutAndReset(int64 InMicroSeconds)
 	{
 		check(InMicroSeconds > 0);	// 0 is forbidden. either call Wait() without timeout, or check the signal using IsSignaled()
-		if (Event->Wait(FTimespan::FromMicroseconds(InMicroSeconds)))
+		if (Event->Wait(FTimespan::FromMicroseconds((double)InMicroSeconds)))
 		{
 			Event->Reset();
 			return true;

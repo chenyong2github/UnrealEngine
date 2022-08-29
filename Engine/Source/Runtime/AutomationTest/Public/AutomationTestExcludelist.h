@@ -73,7 +73,7 @@ struct FAutomationTestExcludelistEntry
 		int32 Num_Flags = Enum->NumEnums();
 		for (int32 i = 0; i < Num_Flags; i++)
 		{
-			int8 Flag = Enum->GetValueByIndex(i);
+			int8 Flag = IntCastChecked<int8>(Enum->GetValueByIndex(i));
 			if ((int8)ERHI_Flags::NUM == Flag)
 				break; // We reach the maximum value
 

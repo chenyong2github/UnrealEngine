@@ -179,7 +179,7 @@ namespace Audio
 				// Convert from int to float:
 				for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 				{
-					RawPCMData[SampleIndex] = ((float)Other.RawPCMData[SampleIndex]) / 32767.0f;
+					RawPCMData[SampleIndex] = (float)((float)Other.RawPCMData[SampleIndex]) / 32767.0f;
 				}
 			}
 			else

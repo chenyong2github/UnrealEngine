@@ -109,8 +109,8 @@ public:
 	{
 		const bool AlphaSimilar = FMath::IsNearlyEqual((float)ColorA.A, ColorB.A, Tolerance.Alpha);
 
-		const float BrightnessA = FPixelOperations::GetLuminance(ColorA);
-		const float BrightnessB = FPixelOperations::GetLuminance(ColorB);
+		const double BrightnessA = FPixelOperations::GetLuminance(ColorA);
+		const double BrightnessB = FPixelOperations::GetLuminance(ColorB);
 		const bool BrightnessSimilar = FMath::IsNearlyEqual(BrightnessA, BrightnessB, Tolerance.MinBrightness);
 
 		return BrightnessSimilar && AlphaSimilar;
@@ -135,8 +135,8 @@ public:
 
 	static FORCEINLINE bool IsContrasting(const FColor& ColorA, const FColor& ColorB, const FImageTolerance& Tolerance)
 	{
-		const float BrightnessA = FPixelOperations::GetLuminance(ColorA);
-		const float BrightnessB = FPixelOperations::GetLuminance(ColorB);
+		const double BrightnessA = FPixelOperations::GetLuminance(ColorA);
+		const double BrightnessB = FPixelOperations::GetLuminance(ColorB);
 
 		return FMath::Abs(BrightnessA - BrightnessB) > Tolerance.MaxBrightness;
 	}

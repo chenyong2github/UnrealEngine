@@ -377,7 +377,7 @@ public:
 			FString Directory = Options.OutputFilename;
 			FString Ext = FPaths::GetExtension(Directory, true);
 
-			int32 FPS = FMath::RoundToInt(double(Options.CaptureFramerateNumerator) / Options.CaptureFramerateDenominator);
+			int32 FPS = FMath::RoundToInt32(double(Options.CaptureFramerateNumerator) / Options.CaptureFramerateDenominator);
 
 			// Keep 3 seconds worth of frames in memory
 			CapturedFrames.Reset(new FCapturedFrames(Directory.LeftChop(Ext.Len()) + TEXT("_tmp"), FPS * 3));

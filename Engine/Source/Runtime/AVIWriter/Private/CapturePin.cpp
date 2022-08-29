@@ -12,7 +12,7 @@ DEFINE_LOG_CATEGORY(LogMovieCapture);
 
 FCapturePin::FCapturePin(HRESULT *phr, CSource *pFilter, const FAVIWriter& InWriter)
         : CSourceStream(NAME("Push Source"), phr, pFilter, L"Capture")
-		, FrameLength(UNITS / (InWriter.Options.CaptureFramerateNumerator / (double)InWriter.Options.CaptureFramerateDenominator))
+		, FrameLength(FMath::TruncToInt64(UNITS / (InWriter.Options.CaptureFramerateNumerator / (double)InWriter.Options.CaptureFramerateDenominator)))
 		, Writer(InWriter)
 {
 	ImageWidth  = Writer.GetWidth();
@@ -260,8 +260,8 @@ HRESULT FCapturePin::FillBuffer(IMediaSample *pSample)
 	// The current time is the sample's start.
 
 	// Not strictly necessary since AVI is constant framerate
-	REFERENCE_TIME StartTime = UNITS*CurrentFrame->StartTimeSeconds;
-	REFERENCE_TIME StopTime = UNITS*CurrentFrame->EndTimeSeconds;
+	REFERENCE_TIME StartTime = FMath::TruncToInt64(UNITS * CurrentFrame->StartTimeSeconds);
+	REFERENCE_TIME StopTime = FMath::TruncToInt64(UNITS * CurrentFrame->EndTimeSeconds);
 	pSample->SetTime(&StartTime, &StopTime);
 
 	REFERENCE_TIME StartMediaTime = CurrentFrame->FrameIndex;

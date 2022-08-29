@@ -201,7 +201,7 @@ FVideoDecoder::EDecodeResult FVideoDecoderH264_Dummy::Decode(const FVideoDecoder
 			int C = ++YOffset;
 			for(int32 y=0,yMax=Height; y<yMax; ++y)
 			{
-				FMemory::Memset(pY, C++, Width);
+				FMemory::Memset(pY, (uint8)C++, Width);
 				pY += Width;
 			}
 			OnDecodedFrame(pNew.Release());

@@ -301,7 +301,7 @@ public:
 	 *
 	 * @Param InTestFlags - the child test flag to add.
 	 */
-	void AddTestFlags( const uint8 InTestFlags)
+	void AddTestFlags( const uint32 InTestFlags)
 	{
 		TestFlags |= InTestFlags;
 	}

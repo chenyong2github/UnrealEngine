@@ -659,10 +659,10 @@ public:
 	}
 
 	UE_DEPRECATED(5.0, "Use FCanvas::GetTime()")
-	float GetCurrentRealTime() const { return GetTime().GetRealTimeSeconds(); }
+	float GetCurrentRealTime() const { return FloatCastChecked<float>(GetTime().GetRealTimeSeconds(), UE_DOUBLE_SMALL_NUMBER); }
 
 	UE_DEPRECATED(5.0, "Use FCanvas::GetTime()")
-	float GetCurrentWorldTime() const { return GetTime().GetWorldTimeSeconds(); }
+	float GetCurrentWorldTime() const { return FloatCastChecked<float>(GetTime().GetWorldTimeSeconds(), UE_DOUBLE_SMALL_NUMBER); }
 
 	UE_DEPRECATED(5.0, "Use FCanvas::GetTime()")
 	float GetCurrentDeltaWorldTime() const { return GetTime().GetDeltaWorldTimeSeconds(); }
@@ -1310,7 +1310,7 @@ struct FScreenMessageWriter
 
 	void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0, 0.05, 0.05, 1.0))
 	{
-		Canvas.DrawShadowedText(X, Y, Message, GetStatsFont(), Color);
+		Canvas.DrawShadowedText((float)X, (float)Y, Message, GetStatsFont(), Color);
 		EmptyLine();
 	}
 
