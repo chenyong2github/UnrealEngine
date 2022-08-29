@@ -74,7 +74,7 @@ protected:
 #endif
 
 	FDatasmithFacadeDecalMaterial(
-		const TSharedRef<IDatasmithDecalMaterialElement>& InMaterialRef // Datasmith master material element
+		const TSharedRef<IDatasmithDecalMaterialElement>& InMaterialRef
 	);
 
 	TSharedRef<IDatasmithDecalMaterialElement> GetDatasmithDecalMaterial() const;

@@ -55,8 +55,8 @@ void FDatasmithFacadeActorDecal::SetSortOrder(int32 InSortOrder)
 // class FDatasmithFacadeDecalMaterial
 
 FDatasmithFacadeDecalMaterial::FDatasmithFacadeDecalMaterial(
-	const TSharedRef<IDatasmithDecalMaterialElement>& InMaterialRef // Datasmith master material element
-)	
+	const TSharedRef<IDatasmithDecalMaterialElement>& InMaterialRef
+)
 	: FDatasmithFacadeBaseMaterial(InMaterialRef)
 {}
 
