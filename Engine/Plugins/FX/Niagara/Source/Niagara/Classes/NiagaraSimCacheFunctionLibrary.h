@@ -33,6 +33,9 @@ public:
 	UPROPERTY()
 	int32 CaptureFrameCounter = 0;
 
+	UPROPERTY()
+	int32 TimeOutCounter = 0;
+
 	UPROPERTY(BlueprintAssignable)
 	FOnCaptureComplete CaptureComplete;
 

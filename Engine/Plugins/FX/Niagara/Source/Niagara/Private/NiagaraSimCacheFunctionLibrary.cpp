@@ -40,7 +40,7 @@ void UAsyncNiagaraCaptureSimCache::SetReadyToDestroy()
 bool UAsyncNiagaraCaptureSimCache::OnFrameTick(float DeltaTime)
 {
 	// Component invalid or not active?  If so complete the cache recording
-	if ( CaptureComponent == nullptr || !CaptureComponent->IsActive() )
+	if ( CaptureComponent == nullptr || !CaptureComponent->IsActive() || CaptureSimCache == nullptr )
 	{
 		SetReadyToDestroy();
 		return true;
@@ -49,11 +49,26 @@ bool UAsyncNiagaraCaptureSimCache::OnFrameTick(float DeltaTime)
 	// Should we record this frame?
 	if ( (CaptureFrameCounter % CaptureFrameRate) == 0 )
 	{
-		if ( CaptureSimCache != nullptr )
+		// If we fail to capture the frame it might be because things became invalid
+		// Or it might be because the simulation was not ticked since the last capture in which case don't advance the counter
+		if ( CaptureSimCache->WriteFrame(CaptureComponent) == false )
 		{
-			CaptureSimCache->WriteFrame(CaptureComponent);
+			if ( CaptureSimCache->IsCacheValid() == false )
+			{
+				SetReadyToDestroy();
+			}
+
+			// Make sure we don't keep this alive forever, if we didn't managed to capture anything in 10 ticks something has probably gone wrong so bail
+			if (TimeOutCounter++ > 10)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("SimCache Write has failed too many times, abandoning capturing for (%s)"), *GetFullNameSafe(CaptureSimCache));
+				SetReadyToDestroy();
+			}
+			return true;
 		}
 	}
+
+	TimeOutCounter = 0;
 	++CaptureFrameCounter;
 
 	// Have we recorded all the frames we need?

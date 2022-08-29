@@ -28,7 +28,7 @@ bool UNiagaraSimCache::IsReadyForFinishDestroy()
 	return PendingCommandsInFlight == 0;
 }
 
-void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent)
+bool UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent)
 {
 	check(PendingCommandsInFlight == 0);
 
@@ -37,7 +37,7 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	FNiagaraSimCacheHelper Helper(NiagaraComponent);
 	if (Helper.HasValidSimulation() == false)
 	{
-		return;
+		return false;
 	}
 
 	Modify();
@@ -52,6 +52,7 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 	DurationSeconds = 0.0f;
 	CacheLayout = FNiagaraSimCacheLayout();
 	CacheFrames.Empty();
+	CaptureTickCount = INDEX_NONE;
 
 	for ( auto it=DataInterfaceStorage.CreateIterator(); it; ++it )
 	{
@@ -66,7 +67,7 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 		if (CreateParameters.ExplicitCaptureAttributes.IsEmpty())
 		{
 			SoftNiagaraSystem.Reset();
-			return;
+			return false;
 		}
 	}
 	else
@@ -135,46 +136,53 @@ void UNiagaraSimCache::BeginWrite(FNiagaraSimCacheCreateParameters InCreateParam
 			}
 		);
 	}
+	return true;
 }
 
-void UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
+bool UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 {
 	FNiagaraSimCacheHelper Helper(NiagaraComponent);
 	if (Helper.HasValidSimulationData() == false)
 	{
 		SoftNiagaraSystem.Reset();
-		return;
+		return false;
 	}
 
 	if ( SoftNiagaraSystem.Get() != Helper.NiagaraSystem )
 	{
 		SoftNiagaraSystem.Reset();
-		return;
+		return false;
 	}
 
 	// Simulation is complete nothing to cache
 	if ( Helper.SystemInstance->IsComplete() )
 	{
-		return;
+		return false;
 	}
 
 	// Is the simulation running?  If not nothing to cache yet
 	if ( Helper.SystemInstance->SystemInstanceState != ENiagaraSystemInstanceState::Running )
 	{
-		return;
+		return false;
 	}
 
 	// First frame we are about to cache?
-	if ( CacheFrames.Num() == 0 )
+	if (CaptureTickCount == INDEX_NONE)
 	{
 		StartSeconds = Helper.SystemInstance->GetAge();
+		CaptureTickCount = Helper.SystemInstance->GetTickCount();
+	}
+	// If our tick counter hasn't moved then we won't capture a frame as there's nothing new to process
+	else if (CaptureTickCount == Helper.SystemInstance->GetTickCount())
+	{
+		return false;
 	}
 
-	// Invalid we have reset for some reason
-	if ( Helper.SystemInstance->GetAge() < StartSeconds + DurationSeconds )
+	// If the tick counter is lower than the previous value then the system was reset so we won't capture
+	if ( Helper.SystemInstance->GetTickCount() < CaptureTickCount )
 	{
 		SoftNiagaraSystem.Reset();
-		return;
+		return false;
 	}
 
 	DurationSeconds = Helper.SystemInstance->GetAge() - StartSeconds;
@@ -237,11 +245,13 @@ void UNiagaraSimCache::WriteFrame(UNiagaraComponent* NiagaraComponent)
 		if (bDataInterfacesSucess == false)
 		{
 			SoftNiagaraSystem.Reset();
+			return false;
 		}
 	}
+	return true;
 }
 
-void UNiagaraSimCache::EndWrite()
+bool UNiagaraSimCache::EndWrite()
 {
 	check(PendingCommandsInFlight == 0);
 	if ( CacheFrames.Num() == 0 )
@@ -267,6 +277,7 @@ void UNiagaraSimCache::EndWrite()
 	}
 
 	OnCacheEndWrite.Broadcast(this);
+	return IsCacheValid();
 }
 
 bool UNiagaraSimCache::CanRead(UNiagaraSystem* NiagaraSystem)

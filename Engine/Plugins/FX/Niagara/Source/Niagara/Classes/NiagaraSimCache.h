@@ -271,9 +271,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache)
 	bool IsCacheValid() const { return SoftNiagaraSystem.IsNull() == false; }
 
-	void BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
-	void WriteFrame(UNiagaraComponent* NiagaraComponent);
-	void EndWrite();
+	bool BeginWrite(FNiagaraSimCacheCreateParameters InCreateParameters, UNiagaraComponent* NiagaraComponent);
+	bool WriteFrame(UNiagaraComponent* NiagaraComponent);
+	bool EndWrite();
 
 	bool CanRead(UNiagaraSystem* NiagaraSystem);
 	bool Read(float TimeSeconds, FNiagaraSystemInstance* SystemInstance) const;
@@ -414,6 +414,8 @@ private:
 
 	UPROPERTY()
 	TMap<FNiagaraVariableBase, TObjectPtr<UObject>> DataInterfaceStorage;
+
+	int32 CaptureTickCount = INDEX_NONE;
 
 	mutable std::atomic<int32> PendingCommandsInFlight;
 
