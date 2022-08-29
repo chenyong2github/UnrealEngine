@@ -112,6 +112,7 @@ namespace UE::Anim::FootPlacement
 		{
 			FTransform FKTransformCS = FTransform::Identity;
 			FTransform IKRootTransformCS = FTransform::Identity;
+			FTransform RootTransformCS = FTransform::Identity;
 			FVector FootMidpointCS = FVector::ZeroVector;
 		} InputPose;
 
@@ -125,7 +126,7 @@ namespace UE::Anim::FootPlacement
 
 	struct FCharacterData
 	{
-		FVector ComponentLocationWS = FVector::ZeroVector;
+		FTransform ComponentTransformWS = FTransform::Identity;
 		int NumFKPlanted = 0;
 		bool bIsOnGround = false;
 	};
@@ -567,6 +568,8 @@ private:
 	
 	float GetMaxLimbExtension(const float DesiredExtension, const float LimbLength) const;
 	float GetMinLimbExtension(const float DesiredExtension, const float LimbLength) const;
+
+	void ResetRuntimeData();
 
 #if ENABLE_ANIM_DEBUG
 	UE::Anim::FootPlacement::FDebugData DebugData;
