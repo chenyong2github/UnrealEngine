@@ -20,6 +20,7 @@ public class PlasticSourceControl : ModuleRules
 				"XmlParser",
 				"Projects",
 				"AssetRegistry",
+				"DeveloperSettings",
 				"ToolMenus",
 			}
 		);

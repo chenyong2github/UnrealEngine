@@ -7,13 +7,14 @@
 #include "ISourceControlProvider.h"
 #include "IPlasticSourceControlWorker.h"
 
+#include "PlasticSourceControlChangelist.h"
+
 /**
  * Used to execute Plastic commands multi-threaded.
  */
 class FPlasticSourceControlCommand : public IQueuedWork
 {
 public:
-
 	FPlasticSourceControlCommand(const FSourceControlOperationRef& InOperation, const FPlasticSourceControlWorkerRef& InWorker, const FSourceControlOperationComplete& InOperationCompleteDelegate = FSourceControlOperationComplete() );
 
 	/**
@@ -83,11 +84,14 @@ public:
 	const double StartTimestamp;
 
 	/** Files to perform this operation on */
-	TArray< FString > Files;
+	TArray<FString> Files;
 
-	/**Info and/or warning message message storage*/
-	TArray< FString > InfoMessages;
+	/** Changelist to perform this operation on */
+	FPlasticSourceControlChangelist Changelist;
+
+	/**Info and/or warning message storage*/
+	TArray<FString> InfoMessages;
 
 	/**Potential error message storage*/
-	TArray< FString > ErrorMessages;
+	TArray<FString> ErrorMessages;
 };

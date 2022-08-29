@@ -31,11 +31,11 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 {
 	FSlateFontInfo Font = FAppStyle::GetFontStyle(TEXT("SourceControl.LoginWindow.Font"));
 
-	bAutoCreateIgnoreFile = true;
+	bAutoCreateIgnoreFile = CanAutoCreateIgnoreFile();
 	bAutoInitialCommit = true;
 
 	InitialCommitMessage = LOCTEXT("InitialCommitMessage", "Initial checkin");
-	ServerUrl = FText::FromString(TEXT("localhost:8087"));
+	ServerUrl = FText::FromString(TEXT("YourOrganization@cloud"));
 	if (FApp::HasProjectName())
 	{
 		WorkspaceName = FText::FromString(FApp::GetProjectName());
@@ -45,6 +45,34 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+		// Versions (Plugin & Plastic SCM) useful eg to help diagnose issues from screenshots
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SHorizontalBox)
+			.ToolTipText(LOCTEXT("PlasticVersions_Tooltip", "Plastic SCM and Plugin versions"))
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(this, &SPlasticSourceControlSettings::GetVersions)
+				.Font(Font)
+			]
+		]
+		// Plastic SCM command line tool not available warning
+		+SVerticalBox::Slot()
+		.FillHeight(1.0f)
+		.Padding(2.0f)
+		[
+			SNew(STextBlock)
+			.Visibility(this, &SPlasticSourceControlSettings::PlasticNotAvailable)
+			.ToolTipText(LOCTEXT("PlasticNotAvailable_Tooltip", "Failed to launch Plastic SCM 'cm' command line tool. You need to install it and make sure that 'cm' is on the Path and correctly configured."))
+			.Text(LOCTEXT("PlasticNotAvailable", "Plastic SCM Command Line tool 'cm' failed to start:"))
+			.Font(Font)
+		]
 		// Path to the Plastic SCM binary
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -52,12 +80,12 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SHorizontalBox)
-			.ToolTipText(LOCTEXT("BinaryPathLabel_Tooltip", "Path to the Plastic SCM cli binary"))
+			.ToolTipText(LOCTEXT("BinaryPathLabel_Tooltip", "Path to the Plastic SCM Command Line tool 'cm' binary"))
 			+SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("PathLabel", "Plastic SCM Path"))
+				.Text(LOCTEXT("PathLabel", "Plastic SCM Path to cm"))
 				.Font(Font)
 			]
 			+SHorizontalBox::Slot()
@@ -77,7 +105,7 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SHorizontalBox)
-			.ToolTipText(LOCTEXT("WorkspaceRootLabel_Tooltip", "Path to the root of the Plastic SCM workspace"))
+			.ToolTipText(this, &SPlasticSourceControlSettings::GetPathToWorkspaceRoot)
 			+SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			[
@@ -128,19 +156,12 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		+SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(2.0f)
-		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
+			SNew(STextBlock)
 			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
 			.ToolTipText(LOCTEXT("WorkspaceNotFound_Tooltip", "No Workspace found at the level or above the current Project. Use the form to create a new one."))
-			+SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("WorkspaceNotFound", "Current Project is not in a Plastic SCM Workspace. Create a new one:"))
-				.Font(Font)
-			]
+			.Text(LOCTEXT("WorkspaceNotFound", "Current Project is not in a Plastic SCM Workspace. Create a new one:"))
+			.Font(Font)
 		]
 		// Workspace and Repository Name
 		+SVerticalBox::Slot()
@@ -189,7 +210,7 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		[
 			SNew(SHorizontalBox)
 			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
-			.ToolTipText(LOCTEXT("ServerUrl_Tooltip", "Enter the Server URL in the form address:port (eg. localhost:8087 or Organization@cloud)"))
+			.ToolTipText(LOCTEXT("ServerUrl_Tooltip", "Enter the Server URL in the form address:port (eg. YourOrganization@cloud, local, or something like ip:port, eg localhost:8087)"))
 			+SHorizontalBox::Slot()
 			.FillWidth(1.0f)
 			[
@@ -213,19 +234,12 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		.Padding(2.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
+			SNew(SCheckBox)
 			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
 			.ToolTipText(LOCTEXT("CreateIgnoreFile_Tooltip", "Create and add a standard 'ignore.conf' file"))
-			+SHorizontalBox::Slot()
-			.FillWidth(0.1f)
-			[
-				SNew(SCheckBox)
-				.IsChecked(ECheckBoxState::Checked)
-				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedCreateIgnoreFile)
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(2.0f)
-			.VAlign(VAlign_Center)
+			.IsEnabled(this, &SPlasticSourceControlSettings::CanAutoCreateIgnoreFile)
+			.IsChecked(bAutoCreateIgnoreFile)
+			.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedCreateIgnoreFile)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CreateIgnoreFile", "Add a ignore.conf file"))
@@ -242,19 +256,16 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 			.Visibility(this, &SPlasticSourceControlSettings::CanInitializePlasticWorkspace)
 			.ToolTipText(LOCTEXT("InitialCommit_Tooltip", "Make the initial Plastic SCM checkin"))
 			+SHorizontalBox::Slot()
-			.FillWidth(0.1f)
+			.FillWidth(0.7f)
 			[
 				SNew(SCheckBox)
 				.IsChecked(ECheckBoxState::Checked)
 				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedInitialCommit)
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(0.6f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("InitialCommit", "Initial Checkin"))
-				.Font(Font)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("InitialCommit", "Initial Checkin"))
+					.Font(Font)
+				]
 			]
 			+SHorizontalBox::Slot()
 			.FillWidth(1.4f)
@@ -273,18 +284,10 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		.Padding(2.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
+			SNew(SCheckBox)
+			.IsChecked(SPlasticSourceControlSettings::IsUpdateStatusAtStartupChecked())
+			.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusAtStartup)
 			.ToolTipText(LOCTEXT("UpdateStatusAtStartup_Tooltip", "Run an asynchronous Update Status at Editor startup (can be slow)."))
-			+SHorizontalBox::Slot()
-			.FillWidth(0.1f)
-			[
-				SNew(SCheckBox)
-				.IsChecked(SPlasticSourceControlSettings::IsUpdateStatusAtStartupChecked())
-				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusAtStartup)
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(2.0f)
-			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("UpdateStatusAtStartup", "Update workspace Status at Editor startup"))
@@ -297,18 +300,10 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		.Padding(2.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
-			.ToolTipText(LOCTEXT("UpdateStatusOtherBranches_Tooltip", "Enable Update status to detect changesets on other branches (can be slow)."))
-			+SHorizontalBox::Slot()
-			.FillWidth(0.1f)
-			[
-				SNew(SCheckBox)
-				.IsChecked(SPlasticSourceControlSettings::IsUpdateStatusOtherBranchesChecked())
-				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusOtherBranches)
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(2.0f)
-			.VAlign(VAlign_Center)
+			SNew(SCheckBox)
+			.ToolTipText(LOCTEXT("UpdateStatusOtherBranches_Tooltip", "Enable Update status to detect more recent changes on other branches in order to display warnings (can be slow)."))
+			.IsChecked(SPlasticSourceControlSettings::IsUpdateStatusOtherBranchesChecked())
+			.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedUpdateStatusOtherBranches)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("UpdateStatusOtherBranches", "Update status also check branch history."))
@@ -321,18 +316,10 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 		.Padding(2.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
+			SNew(SCheckBox)
 			.ToolTipText(LOCTEXT("EnableVerboseLogs_Tooltip", "Override LogSourceControl default verbosity level to Verbose (except if already set to VeryVerbose)."))
-			+SHorizontalBox::Slot()
-			.FillWidth(0.1f)
-			[
-				SNew(SCheckBox)
-				.IsChecked(SPlasticSourceControlSettings::IsEnableVerboseLogsChecked())
-				.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedEnableVerboseLogs)
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(2.0f)
-			.VAlign(VAlign_Center)
+			.IsChecked(SPlasticSourceControlSettings::IsEnableVerboseLogsChecked())
+			.OnCheckStateChanged(this, &SPlasticSourceControlSettings::OnCheckedEnableVerboseLogs)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("EnableVerboseLogs", "Enable Source Control Verbose logs"))
@@ -380,45 +367,54 @@ void SPlasticSourceControlSettings::Construct(const FArguments& InArgs)
 	];
 }
 
+EVisibility SPlasticSourceControlSettings::PlasticNotAvailable() const
+{
+	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
+	return Provider.IsPlasticAvailable() ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 FText SPlasticSourceControlSettings::GetBinaryPathText() const
 {
-	const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	return FText::FromString(PlasticSourceControl.AccessSettings().GetBinaryPath());
+	return FText::FromString(FPlasticSourceControlModule::Get().GetProvider().AccessSettings().GetBinaryPath());
 }
 
 void SPlasticSourceControlSettings::OnBinaryPathTextCommited(const FText& InText, ETextCommit::Type InCommitType) const
 {
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	const bool bChanged = PlasticSourceControl.AccessSettings().SetBinaryPath(InText.ToString());
+	FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
+	const bool bChanged = Provider.AccessSettings().SetBinaryPath(InText.ToString());
 	if (bChanged)
 	{
 		// Re-Check provided Plastic binary path for each change
-		PlasticSourceControl.GetProvider().CheckPlasticAvailability();
-		if (PlasticSourceControl.GetProvider().IsPlasticAvailable())
+		Provider.CheckPlasticAvailability();
+		if (Provider.IsPlasticAvailable())
 		{
-			PlasticSourceControl.SaveSettings();
+			Provider.AccessSettings().SaveSettings();
 		}
 	}
 }
 
+FText SPlasticSourceControlSettings::GetVersions() const
+{
+	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
+	return FText::FromString(TEXT("Plastic SCM ") + Provider.GetPlasticScmVersion().String + TEXT(" (plugin v") + Provider.GetPluginVersion() + TEXT(")"));
+}
+
 FText SPlasticSourceControlSettings::GetPathToWorkspaceRoot() const
 {
-   const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	return FText::FromString(PlasticSourceControl.GetProvider().GetPathToWorkspaceRoot());
+	return FText::FromString(FPlasticSourceControlModule::Get().GetProvider().GetPathToWorkspaceRoot());
 }
 
 FText SPlasticSourceControlSettings::GetUserName() const
 {
-   const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	return FText::FromString(PlasticSourceControl.GetProvider().GetUserName());
+	return FText::FromString(FPlasticSourceControlModule::Get().GetProvider().GetUserName());
 }
 
 
 EVisibility SPlasticSourceControlSettings::CanInitializePlasticWorkspace() const
 {
-   const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	const bool bPlasticAvailable = PlasticSourceControl.GetProvider().IsPlasticAvailable();
-	const bool bPlasticWorkspaceFound = PlasticSourceControl.GetProvider().IsWorkspaceFound();
+	const FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
+	const bool bPlasticAvailable = Provider.IsPlasticAvailable();
+	const bool bPlasticWorkspaceFound = Provider.IsWorkspaceFound();
 	return (bPlasticAvailable && !bPlasticWorkspaceFound) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
@@ -459,6 +455,12 @@ void SPlasticSourceControlSettings::OnServerUrlCommited(const FText& InText, ETe
 FText SPlasticSourceControlSettings::GetServerUrl() const
 {
 	return ServerUrl;
+}
+
+bool SPlasticSourceControlSettings::CanAutoCreateIgnoreFile() const
+{
+	const bool bIgnoreFileFound = FPaths::FileExists(GetIgnoreFileName());
+	return !bIgnoreFileFound;
 }
 
 void SPlasticSourceControlSettings::OnCheckedCreateIgnoreFile(ECheckBoxState NewCheckedState)
@@ -502,8 +504,8 @@ void SPlasticSourceControlSettings::LaunchMakeWorkspaceOperation()
 	MakeWorkspaceOperation->RepositoryName = RepositoryName.ToString();
 	MakeWorkspaceOperation->ServerUrl = ServerUrl.ToString();
 
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	ECommandResult::Type Result = PlasticSourceControl.GetProvider().Execute(MakeWorkspaceOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlasticSourceControlSettings::OnSourceControlOperationComplete));
+	FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
+	ECommandResult::Type Result = Provider.Execute(MakeWorkspaceOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlasticSourceControlSettings::OnSourceControlOperationComplete));
 	if (Result == ECommandResult::Succeeded)
 	{
 		DisplayInProgressNotification(MakeWorkspaceOperation->GetInProgressString());
@@ -514,25 +516,25 @@ void SPlasticSourceControlSettings::LaunchMakeWorkspaceOperation()
 	}
 }
 
-/// 2. Add all project files to to Source Control (.uproject, Config/, Content/, Source/ files and ignore.conf if any)
+/// 2. Add all project files to Source Control (.uproject, Config/, Content/, Source/ files and ignore.conf if any)
 void SPlasticSourceControlSettings::LaunchMarkForAddOperation()
 {
 	TSharedRef<FMarkForAdd, ESPMode::ThreadSafe> MarkForAddOperation = ISourceControlOperation::Create<FMarkForAdd>();
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
+	FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 
 	// 1.b. Check the new workspace status to enable connection
-	PlasticSourceControl.GetProvider().CheckPlasticAvailability();
+	Provider.CheckPlasticAvailability();
 
-	if (PlasticSourceControl.GetProvider().IsWorkspaceFound())
+	if (Provider.IsWorkspaceFound())
 	{
 		if (bAutoCreateIgnoreFile)
 		{
 			// 1.c Create a standard "ignore.conf" file with common patterns for a typical Blueprint & C++ project
 			CreateIgnoreFile();
 		}
-		// 2. Add all project files to to Source Control (.uproject, Config/, Content/, Source/ files and ignore.conf if any)
+		// 2. Add all project files to Source Control (.uproject, Config/, Content/, Source/ files and ignore.conf if any)
 		const TArray<FString> ProjectFiles = GetProjectFiles();
-		ECommandResult::Type Result = PlasticSourceControl.GetProvider().Execute(MarkForAddOperation, ProjectFiles, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlasticSourceControlSettings::OnSourceControlOperationComplete));
+		ECommandResult::Type Result = Provider.Execute(MarkForAddOperation, ProjectFiles, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlasticSourceControlSettings::OnSourceControlOperationComplete));
 		if (Result == ECommandResult::Succeeded)
 		{
 			DisplayInProgressNotification(MarkForAddOperation->GetInProgressString());
@@ -553,9 +555,9 @@ void SPlasticSourceControlSettings::LaunchCheckInOperation()
 {
 	TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 	CheckInOperation->SetDescription(InitialCommitMessage);
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
+	FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 	const TArray<FString> ProjectFiles = GetProjectFiles(); // Note: listing files and folders is only needed for the update status operation following the checkin to know on what to operate
-	ECommandResult::Type Result = PlasticSourceControl.GetProvider().Execute(CheckInOperation, ProjectFiles, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlasticSourceControlSettings::OnSourceControlOperationComplete));
+	ECommandResult::Type Result = Provider.Execute(CheckInOperation, ProjectFiles, EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateSP(this, &SPlasticSourceControlSettings::OnSourceControlOperationComplete));
 	if (Result == ECommandResult::Succeeded)
 	{
 		DisplayInProgressNotification(CheckInOperation->GetInProgressString());
@@ -581,7 +583,7 @@ void SPlasticSourceControlSettings::OnSourceControlOperationComplete(const FSour
 		DisplayFailureNotification(InOperation->GetName());
 	}
 
-	// Launch the following asynchrounous operation
+	// Launch the following asynchronous operation
 	if ((InOperation->GetName() == "MakeWorkspace") && (InResult == ECommandResult::Succeeded) && bAutoInitialCommit)
 	{
 		// 2. Add .uproject, Config/, Content/ and Source/ files (and ignore.conf if any)
@@ -645,8 +647,7 @@ void SPlasticSourceControlSettings::DisplayFailureNotification(const FName& InOp
 /** Delegate to check for presence of a Plastic ignore.conf file to an existing Plastic SCM workspace */
 EVisibility SPlasticSourceControlSettings::CanAddIgnoreFile() const
 {
-   const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	const bool bPlasticWorkspaceFound = PlasticSourceControl.GetProvider().IsWorkspaceFound();
+	const bool bPlasticWorkspaceFound = FPlasticSourceControlModule::Get().GetProvider().IsWorkspaceFound();
 	const bool bIgnoreFileFound = FPaths::FileExists(GetIgnoreFileName());
 	return (bPlasticWorkspaceFound && !bIgnoreFileFound) ? EVisibility::Visible : EVisibility::Collapsed;
 }
@@ -670,57 +671,57 @@ FReply SPlasticSourceControlSettings::OnClickedAddIgnoreFile() const
 
 void SPlasticSourceControlSettings::OnCheckedUpdateStatusAtStartup(ECheckBoxState NewCheckedState)
 {
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	PlasticSourceControl.AccessSettings().SetUpdateStatusAtStartup(NewCheckedState == ECheckBoxState::Checked);
-	PlasticSourceControl.AccessSettings().SaveSettings();
+	FPlasticSourceControlSettings& PlasticSettings = FPlasticSourceControlModule::Get().GetProvider().AccessSettings();
+	PlasticSettings.SetUpdateStatusAtStartup(NewCheckedState == ECheckBoxState::Checked);
+	PlasticSettings.SaveSettings();
 }
 
 ECheckBoxState SPlasticSourceControlSettings::IsUpdateStatusAtStartupChecked() const
 {
-	const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	return PlasticSourceControl.AccessSettings().GetUpdateStatusAtStartup() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	FPlasticSourceControlSettings& PlasticSettings = FPlasticSourceControlModule::Get().GetProvider().AccessSettings();
+	return PlasticSettings.GetUpdateStatusAtStartup() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void SPlasticSourceControlSettings::OnCheckedUpdateStatusOtherBranches(ECheckBoxState NewCheckedState)
 {
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	PlasticSourceControl.AccessSettings().SetUpdateStatusOtherBranches(NewCheckedState == ECheckBoxState::Checked);
-	PlasticSourceControl.AccessSettings().SaveSettings();
+	FPlasticSourceControlSettings& PlasticSettings = FPlasticSourceControlModule::Get().GetProvider().AccessSettings();
+	PlasticSettings.SetUpdateStatusOtherBranches(NewCheckedState == ECheckBoxState::Checked);
+	PlasticSettings.SaveSettings();
 }
 
 ECheckBoxState SPlasticSourceControlSettings::IsUpdateStatusOtherBranchesChecked() const
 {
-	const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	return PlasticSourceControl.AccessSettings().GetUpdateStatusOtherBranches() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	FPlasticSourceControlSettings& PlasticSettings = FPlasticSourceControlModule::Get().GetProvider().AccessSettings();
+	return PlasticSettings.GetUpdateStatusOtherBranches() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void SPlasticSourceControlSettings::OnCheckedEnableVerboseLogs(ECheckBoxState NewCheckedState)
 {
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	PlasticSourceControl.AccessSettings().SetEnableVerboseLogs(NewCheckedState == ECheckBoxState::Checked);
-	PlasticSourceControl.AccessSettings().SaveSettings();
+	FPlasticSourceControlSettings& PlasticSettings = FPlasticSourceControlModule::Get().GetProvider().AccessSettings();
+	PlasticSettings.SetEnableVerboseLogs(NewCheckedState == ECheckBoxState::Checked);
+	PlasticSettings.SaveSettings();
 
 	PlasticSourceControlUtils::SwitchVerboseLogs(NewCheckedState == ECheckBoxState::Checked);
 }
 
 ECheckBoxState SPlasticSourceControlSettings::IsEnableVerboseLogsChecked() const
 {
-	const FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::GetModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	return PlasticSourceControl.AccessSettings().GetEnableVerboseLogs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	FPlasticSourceControlSettings& PlasticSettings = FPlasticSourceControlModule::Get().GetProvider().AccessSettings();
+	return PlasticSettings.GetEnableVerboseLogs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 /** Path to the "ignore.conf" file */
-const FString& SPlasticSourceControlSettings::GetIgnoreFileName() const
+const FString SPlasticSourceControlSettings::GetIgnoreFileName() const
 {
-	static const FString PathToProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-	static const FString IgnoreFileName = FPaths::Combine(*PathToProjectDir, TEXT("ignore.conf"));
+	const FString PathToWorkspaceRoot = FPlasticSourceControlModule::Get().GetProvider().GetPathToWorkspaceRoot();
+	const FString IgnoreFileName = FPaths::Combine(*PathToWorkspaceRoot, TEXT("ignore.conf"));
 	return IgnoreFileName;
 }
 
 /** Create a standard "ignore.conf" file with common patterns for a typical Blueprint & C++ project */
 bool SPlasticSourceControlSettings::CreateIgnoreFile() const
 {
-	const FString IgnoreFileContent = TEXT("Binaries\nBuild\nDerivedDataCache\nIntermediate\nSaved\n.vscode\n.vs\n*.VC.db\n*.opensdf\n*.opendb\n*.sdf\n*.sln\n*.suo\n*.xcodeproj\n*.xcworkspace");
+	const FString IgnoreFileContent = TEXT("Binaries\nBuild\nDerivedDataCache\nIntermediate\nSaved\nScript\nenc_temp_folder\n.idea\n.vscode\n.vs\n*.VC.db\n*.opensdf\n*.opendb\n*.sdf\n*.sln\n*.suo\n*.xcodeproj\n*.xcworkspace");
 	return FFileHelper::SaveStringToFile(IgnoreFileContent, *GetIgnoreFileName(), FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
 }
 

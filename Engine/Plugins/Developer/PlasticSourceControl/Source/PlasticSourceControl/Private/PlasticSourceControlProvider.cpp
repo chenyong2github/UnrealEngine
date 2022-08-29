@@ -2,9 +2,10 @@
 
 #include "PlasticSourceControlProvider.h"
 
+#include "PlasticSourceControlChangelistState.h"
 #include "PlasticSourceControlCommand.h"
-#include "PlasticSourceControlModule.h"
 #include "PlasticSourceControlOperations.h"
+#include "PlasticSourceControlProjectSettings.h"
 #include "PlasticSourceControlSettings.h"
 #include "PlasticSourceControlState.h"
 #include "PlasticSourceControlUtils.h"
@@ -17,13 +18,20 @@
 #include "SourceControlOperations.h"
 #include "Interfaces/IPluginManager.h"
 
+#include "Algo/Transform.h"
 #include "Misc/Paths.h"
+#include "Misc/MessageDialog.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/QueuedThreadPool.h"
 
 #define LOCTEXT_NAMESPACE "PlasticSourceControl"
 
 static FName ProviderName("Plastic SCM");
+
+FPlasticSourceControlProvider::FPlasticSourceControlProvider()
+{
+	PlasticSourceControlSettings.LoadSettings();
+}
 
 void FPlasticSourceControlProvider::Init(bool bForceConnection)
 {
@@ -40,14 +48,13 @@ void FPlasticSourceControlProvider::Init(bool bForceConnection)
 		CheckPlasticAvailability();
 
 		// Override the source control logs verbosity level if needed based on settings
-		FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-		if (PlasticSourceControl.AccessSettings().GetEnableVerboseLogs())
+		if (AccessSettings().GetEnableVerboseLogs())
 		{
 			PlasticSourceControlUtils::SwitchVerboseLogs(true);
 		}
 	}
 
-	if (bForceConnection && !bServerAvailable)
+	if (bForceConnection && bPlasticAvailable && bWorkspaceFound && !bServerAvailable)
 	{
 		// Execute a 'checkconnection' command to set bServerAvailable based on the connectivity of the server
 		TArray<FString> InfoMessages, ErrorMessages;
@@ -66,8 +73,7 @@ void FPlasticSourceControlProvider::Init(bool bForceConnection)
 
 void FPlasticSourceControlProvider::CheckPlasticAvailability()
 {
-	FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-	FString PathToPlasticBinary = PlasticSourceControl.AccessSettings().GetBinaryPath();
+	FString PathToPlasticBinary = AccessSettings().GetBinaryPath();
 	if (PathToPlasticBinary.IsEmpty())
 	{
 		bPlasticAvailable = false;
@@ -76,7 +82,7 @@ void FPlasticSourceControlProvider::CheckPlasticAvailability()
 		PathToPlasticBinary = PlasticSourceControlUtils::FindPlasticBinaryPath();
 		if (!PathToPlasticBinary.IsEmpty())
 		{
-			PlasticSourceControl.AccessSettings().SetBinaryPath(PathToPlasticBinary);
+			AccessSettings().SetBinaryPath(PathToPlasticBinary);
 		}
 	}
 
@@ -88,20 +94,29 @@ void FPlasticSourceControlProvider::CheckPlasticAvailability()
 
 		// Launch the Plastic SCM cli shell on the background to issue all commands during this session
 		bPlasticAvailable = PlasticSourceControlUtils::LaunchBackgroundPlasticShell(PathToPlasticBinary, PathToWorkspaceRoot);
-		if (bPlasticAvailable)
+		if (!bPlasticAvailable)
 		{
-			PlasticSourceControlUtils::GetPlasticScmVersion(PlasticScmVersion);
+			return;
+		}
 
-			// Get user name (from the global Plastic SCM client config)
-			PlasticSourceControlUtils::GetUserName(UserName);
+		bPlasticAvailable = PlasticSourceControlUtils::GetPlasticScmVersion(PlasticScmVersion);
+		if (!bPlasticAvailable)
+		{
+			return;
+		}
 
-			// Register Console Commands
-			PlasticSourceControlConsole.Register();
+		// Get user name (from the global Plastic SCM client config)
+		PlasticSourceControlUtils::GetUserName(UserName);
 
-			if (!bWorkspaceFound)
-			{
-				UE_LOG(LogSourceControl, Warning, TEXT("'%s' is not part of a Plastic workspace"), *FPaths::ProjectDir());
-			}
+		// Register Console Commands
+		PlasticSourceControlConsole.Register();
+
+		if (!bWorkspaceFound)
+		{
+			// This info message is only useful here, if bPlasticAvailable, for the Login window
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("WorkspacePath"), FText::FromString(PathToWorkspaceRoot));
+			FMessageLog("SourceControl").Info(FText::Format(LOCTEXT("NotInAWorkspace", "{WorkspacePath} is not in a workspace."), Args));
 		}
 	}
 }
@@ -123,7 +138,7 @@ void FPlasticSourceControlProvider::Close()
 	UserName.Empty();
 }
 
-TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> FPlasticSourceControlProvider::GetStateInternal(const FString& InFilename) const
+TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> FPlasticSourceControlProvider::GetStateInternal(const FString& InFilename)
 {
 	TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe>* State = StateCache.Find(InFilename);
 	if (State != NULL)
@@ -134,8 +149,25 @@ TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> FPlasticSourceContro
 	else
 	{
 		// cache an unknown state for this item
-		TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> NewState = MakeShareable(new FPlasticSourceControlState(FString(InFilename)));
+		TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> NewState = MakeShared<FPlasticSourceControlState>(FString(InFilename));
 		StateCache.Add(InFilename, NewState);
+		return NewState;
+	}
+}
+
+TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> FPlasticSourceControlProvider::GetStateInternal(const FPlasticSourceControlChangelist& InChangelist)
+{
+	TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe>* State = ChangelistsStateCache.Find(InChangelist);
+	if (State != NULL)
+	{
+		// found cached item
+		return (*State);
+	}
+	else
+	{
+		// cache an unknown state for this item
+		TSharedRef<FPlasticSourceControlChangelistState, ESPMode::ThreadSafe> NewState = MakeShared<FPlasticSourceControlChangelistState>(InChangelist);
+		ChangelistsStateCache.Add(InChangelist, NewState);
 		return NewState;
 	}
 }
@@ -143,23 +175,43 @@ TSharedRef<FPlasticSourceControlState, ESPMode::ThreadSafe> FPlasticSourceContro
 FText FPlasticSourceControlProvider::GetStatusText() const
 {
 	FFormatNamedArguments Args;
-    Args.Add( TEXT("PlasticScmVersion"), FText::FromString(PlasticScmVersion) );
-    Args.Add( TEXT("PluginVersion"), FText::FromString(PluginVersion) );
-	Args.Add( TEXT("WorkspacePath"), FText::FromString(PathToWorkspaceRoot) );
-	Args.Add( TEXT("WorkspaceName"), FText::FromString(WorkspaceName) );
-	Args.Add( TEXT("BranchName"), FText::FromString(BranchName) );
+	Args.Add(TEXT("PlasticScmVersion"), FText::FromString(PlasticScmVersion.String));
+	Args.Add(TEXT("PluginVersion"), FText::FromString(PluginVersion));
+	Args.Add(TEXT("WorkspacePath"), FText::FromString(PathToWorkspaceRoot));
+	Args.Add(TEXT("WorkspaceName"), FText::FromString(WorkspaceName));
+	Args.Add(TEXT("BranchName"), FText::FromString(BranchName));
 	// Detect special case for a partial checkout (CS:-1 in Gluon mode)!
 	if (-1 != ChangesetNumber)
 	{
-		Args.Add( TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("%d (standard mode)"), ChangesetNumber)) );
+		Args.Add(TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("%d  (regular full workspace)"), ChangesetNumber)));
 	}
 	else
 	{
-		Args.Add( TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("N/A (Gluon/partial mode)"))) );
+		Args.Add(TEXT("ChangesetNumber"), FText::FromString(FString::Printf(TEXT("N/A  (Gluon/partial workspace)"))));
 	}
-	Args.Add( TEXT("UserName"), FText::FromString(UserName) );
+	Args.Add(TEXT("UserName"), FText::FromString(UserName));
+	const FString DisplayName = PlasticSourceControlUtils::UserNameToDisplayName(UserName);
+	if (DisplayName != UserName)
+	{
+		Args.Add(TEXT("DisplayName"), FText::FromString(TEXT("(Display: ") + DisplayName + TEXT(")")));
+	}
+	else
+	{
+		Args.Add(TEXT("DisplayName"), FText::GetEmpty());
+	}
 
-	return FText::Format( NSLOCTEXT("Status", "Provider: Plastic\nEnabledLabel", "Plastic SCM {PlasticScmVersion} (plugin v{PluginVersion})\nWorkspace: {WorkspaceName} ({WorkspacePath})\n{BranchName}\nChangeset: {ChangesetNumber}\nUser: {UserName}"), Args );
+	FText FormattedError;
+	TArray<FString> RecentErrors = GetLastErrors();
+	if (RecentErrors.Num() > 0)
+	{
+		FFormatNamedArguments ErrorArgs;
+		ErrorArgs.Add(TEXT("ErrorText"), FText::FromString(RecentErrors[0]));
+
+		FormattedError = FText::Format(LOCTEXT("PlasticErrorStatusText", "Error: {ErrorText} {UserName}\n\n"), ErrorArgs);
+	}
+	Args.Add(TEXT("ErrorText"), FormattedError);
+
+	return FText::Format(LOCTEXT("PlasticStatusText", "{ErrorText}Plastic SCM {PlasticScmVersion}  (plugin v{PluginVersion})\nWorkspace: {WorkspaceName}  ({WorkspacePath})\n{BranchName}\nChangeset: {ChangesetNumber}\nUser: '{UserName}'  {DisplayName}"), Args);
 }
 
 /** Quick check if source control is enabled. Specifically, it returns true if a source control provider is set (regardless of whether the provider is available) and false if no provider is set. So all providers except the stub DefaultSourceProvider will return true. */
@@ -179,7 +231,20 @@ const FName& FPlasticSourceControlProvider::GetName(void) const
 	return ProviderName;
 }
 
-ECommandResult::Type FPlasticSourceControlProvider::GetState( const TArray<FString>& InFiles, TArray< TSharedRef<ISourceControlState, ESPMode::ThreadSafe> >& OutState, EStateCacheUsage::Type InStateCacheUsage )
+void FPlasticSourceControlProvider::SetLastErrors(const TArray<FString>& InErrors)
+{
+	FScopeLock Lock(&LastErrorsCriticalSection);
+	LastErrors = InErrors;
+}
+
+TArray<FString> FPlasticSourceControlProvider::GetLastErrors() const
+{
+	FScopeLock Lock(&LastErrorsCriticalSection);
+	TArray<FString> Result = LastErrors;
+	return Result;
+}
+
+ECommandResult::Type FPlasticSourceControlProvider::GetState(const TArray<FString>& InFiles, TArray< TSharedRef<ISourceControlState, ESPMode::ThreadSafe> >& OutState, EStateCacheUsage::Type InStateCacheUsage)
 {
 	if (!IsEnabled())
 	{
@@ -204,8 +269,47 @@ ECommandResult::Type FPlasticSourceControlProvider::GetState( const TArray<FStri
 
 ECommandResult::Type FPlasticSourceControlProvider::GetState(const TArray<FSourceControlChangelistRef>& InChangelists, TArray<FSourceControlChangelistStateRef>& OutState, EStateCacheUsage::Type InStateCacheUsage)
 {
-	return ECommandResult::Failed;
+	if (!IsEnabled())
+	{
+		return ECommandResult::Failed;
+	}
+
+	if (InStateCacheUsage == EStateCacheUsage::ForceUpdate)
+	{
+		TSharedRef<class FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
+		UpdatePendingChangelistsOperation->SetChangelistsToUpdate(InChangelists);
+
+		ISourceControlProvider::Execute(UpdatePendingChangelistsOperation, EConcurrency::Synchronous);
+	}
+
+	for (FSourceControlChangelistRef Changelist : InChangelists)
+	{
+		FPlasticSourceControlChangelistRef PlasticChangelist = StaticCastSharedRef<FPlasticSourceControlChangelist>(Changelist);
+		OutState.Add(GetStateInternal(PlasticChangelist.Get()));
+	}
+
+	return ECommandResult::Succeeded;
 }
+
+bool FPlasticSourceControlProvider::RemoveChangelistFromCache(const FPlasticSourceControlChangelist& Changelist)
+{
+	return ChangelistsStateCache.Remove(Changelist) > 0;
+}
+
+TArray<FSourceControlChangelistStateRef> FPlasticSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlChangelistStateRef&)> Predicate) const
+{
+	TArray<FSourceControlChangelistStateRef> Result;
+	for (const auto& CacheItem : ChangelistsStateCache)
+	{
+		FSourceControlChangelistStateRef State = CacheItem.Value;
+		if (Predicate(State))
+		{
+			Result.Add(State);
+		}
+	}
+	return Result;
+}
+
 
 TArray<FSourceControlStateRef> FPlasticSourceControlProvider::GetCachedStateByPredicate(TFunctionRef<bool(const FSourceControlStateRef&)> Predicate) const
 {
@@ -226,21 +330,22 @@ bool FPlasticSourceControlProvider::RemoveFileFromCache(const FString& Filename)
 	return StateCache.Remove(Filename) > 0;
 }
 
-FDelegateHandle FPlasticSourceControlProvider::RegisterSourceControlStateChanged_Handle( const FSourceControlStateChanged::FDelegate& SourceControlStateChanged )
+FDelegateHandle FPlasticSourceControlProvider::RegisterSourceControlStateChanged_Handle(const FSourceControlStateChanged::FDelegate& SourceControlStateChanged)
 {
-	return OnSourceControlStateChanged.Add( SourceControlStateChanged );
+	return OnSourceControlStateChanged.Add(SourceControlStateChanged);
 }
 
-void FPlasticSourceControlProvider::UnregisterSourceControlStateChanged_Handle( FDelegateHandle Handle )
+void FPlasticSourceControlProvider::UnregisterSourceControlStateChanged_Handle(FDelegateHandle Handle)
 {
-	OnSourceControlStateChanged.Remove( Handle );
+	OnSourceControlStateChanged.Remove(Handle);
 }
 
-ECommandResult::Type FPlasticSourceControlProvider::Execute( const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate )
+ECommandResult::Type FPlasticSourceControlProvider::Execute(const FSourceControlOperationRef& InOperation, FSourceControlChangelistPtr InChangelist, const TArray<FString>& InFiles, EConcurrency::Type InConcurrency, const FSourceControlOperationComplete& InOperationCompleteDelegate)
 {
 	if (!bWorkspaceFound && !(InOperation->GetName() == "Connect") && !(InOperation->GetName() == "MakeWorkspace"))
 	{
-		UE_LOG(LogSourceControl, Warning, TEXT("'%s': only Connect operation allowed whithout a workspace"), *InOperation->GetName().ToString());
+		UE_LOG(LogSourceControl, Warning, TEXT("'%s': only Connect operation allowed without a workspace"), *InOperation->GetName().ToString());
+		InOperationCompleteDelegate.ExecuteIfBound(InOperation, ECommandResult::Failed);
 		return ECommandResult::Failed;
 	}
 
@@ -250,8 +355,8 @@ ECommandResult::Type FPlasticSourceControlProvider::Execute( const FSourceContro
 	{
 		// this operation is unsupported by this source control provider
 		FFormatNamedArguments Arguments;
-		Arguments.Add( TEXT("OperationName"), FText::FromName(InOperation->GetName()) );
-		Arguments.Add( TEXT("ProviderName"), FText::FromName(GetName()) );
+		Arguments.Add(TEXT("OperationName"), FText::FromName(InOperation->GetName()));
+		Arguments.Add(TEXT("ProviderName"), FText::FromName(GetName()));
 		FMessageLog("SourceControl").Error(FText::Format(LOCTEXT("UnsupportedOperation", "Operation '{OperationName}' not supported by source control provider '{ProviderName}'"), Arguments));
 		return ECommandResult::Failed;
 	}
@@ -259,6 +364,9 @@ ECommandResult::Type FPlasticSourceControlProvider::Execute( const FSourceContro
 	FPlasticSourceControlCommand* Command = new FPlasticSourceControlCommand(InOperation, Worker.ToSharedRef());
 	Command->Files = SourceControlHelpers::AbsoluteFilenames(InFiles);
 	Command->OperationCompleteDelegate = InOperationCompleteDelegate;
+
+	TSharedPtr<FPlasticSourceControlChangelist, ESPMode::ThreadSafe> ChangelistPtr = StaticCastSharedPtr<FPlasticSourceControlChangelist>(InChangelist);
+	Command->Changelist = ChangelistPtr ? ChangelistPtr.ToSharedRef().Get() : FPlasticSourceControlChangelist();
 
 	// fire off operation
 	if (InConcurrency == EConcurrency::Synchronous)
@@ -277,12 +385,12 @@ ECommandResult::Type FPlasticSourceControlProvider::Execute( const FSourceContro
 	}
 }
 
-bool FPlasticSourceControlProvider::CanCancelOperation( const FSourceControlOperationRef& InOperation ) const
+bool FPlasticSourceControlProvider::CanCancelOperation(const FSourceControlOperationRef& InOperation) const
 {
 	return false;
 }
 
-void FPlasticSourceControlProvider::CancelOperation( const FSourceControlOperationRef& InOperation )
+void FPlasticSourceControlProvider::CancelOperation(const FSourceControlOperationRef& InOperation)
 {
 }
 
@@ -293,28 +401,28 @@ bool FPlasticSourceControlProvider::UsesLocalReadOnlyState() const
 
 bool FPlasticSourceControlProvider::UsesChangelists() const
 {
-	return false; // We don't want to show ChangeList column anymore (Plastic SCM term would be ChangeSet)
+	return true;
 }
 
 bool FPlasticSourceControlProvider::UsesCheckout() const
 {
-	return true;
+	return GetDefault<UPlasticSourceControlProjectSettings>()->bPromptForCheckoutOnChange;
 }
 
-TSharedPtr<IPlasticSourceControlWorker, ESPMode::ThreadSafe> FPlasticSourceControlProvider::CreateWorker(const FName& InOperationName) const
+TSharedPtr<IPlasticSourceControlWorker, ESPMode::ThreadSafe> FPlasticSourceControlProvider::CreateWorker(const FName& InOperationName)
 {
 	const FGetPlasticSourceControlWorker* Operation = WorkersMap.Find(InOperationName);
 	if (Operation != nullptr)
 	{
-		return Operation->Execute();
+		return Operation->Execute(*this);
 	}
-		
+
 	return nullptr;
 }
 
-void FPlasticSourceControlProvider::RegisterWorker( const FName& InName, const FGetPlasticSourceControlWorker& InDelegate )
+void FPlasticSourceControlProvider::RegisterWorker(const FName& InName, const FGetPlasticSourceControlWorker& InDelegate)
 {
-	WorkersMap.Add( InName, InDelegate );
+	WorkersMap.Add(InName, InDelegate);
 }
 
 void FPlasticSourceControlProvider::OutputCommandMessages(const FPlasticSourceControlCommand& InCommand) const
@@ -344,17 +452,50 @@ void FPlasticSourceControlProvider::UpdateWorkspaceStatus(const class FPlasticSo
 		RepositoryName = InCommand.RepositoryName;
 		ServerUrl = InCommand.ServerUrl;
 
+		// only pop-up errors when running in full Editor, not in command line scripts
+		if (!IsRunningCommandlet())
+		{
+			if (bPlasticAvailable)
+			{
+				if (PlasticScmVersion < PlasticSourceControlUtils::GetOldestSupportedPlasticScmVersion())
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("PlasticScmVersion"), FText::FromString(PlasticScmVersion.String));
+					Args.Add(TEXT("OldestSupportedPlasticScmVersion"), FText::FromString(PlasticSourceControlUtils::GetOldestSupportedPlasticScmVersion().String));
+					const FText UnsuportedVersionWarning = FText::Format(LOCTEXT("Plastic_UnsuportedVersion", "Plastic SCM {PlasticScmVersion} is not supported anymore by this plugin.\nPlastic SCM {OldestSupportedPlasticScmVersion} or a more recent version is required.\nPlease upgrade to the latest version."), Args);
+					FMessageLog("SourceControl").Warning(UnsuportedVersionWarning);
+					FMessageDialog::Open(EAppMsgType::Ok, UnsuportedVersionWarning);
+				}
+			}
+			else if (InCommand.ErrorMessages.Num() > 0)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(InCommand.ErrorMessages[0]));
+			}
+		}
+
 		if (bWorkspaceFound)
 		{
 			// Extend the "Source Control" menu in the Editor Toolbar on each successful connection
 			PlasticSourceControlMenu.Unregister(); // cleanup for any previous connection
 			PlasticSourceControlMenu.Register();
 		}
+
+		SetLastErrors(InCommand.ErrorMessages);
 	}
 	else if (InCommand.bConnectionDropped)
 	{
 		// checkconnection failed on UpdateStatus
 		bServerAvailable = false;
+
+		SetLastErrors(InCommand.ErrorMessages);
+	}
+	else if (!bServerAvailable)
+	{
+		bServerAvailable = InCommand.bCommandSuccessful;
+		if (bServerAvailable)
+		{
+			SetLastErrors(TArray<FString>());
+		}
 	}
 
 	// And for all operations running UpdateStatus, get Changeset and Branch informations:
@@ -369,7 +510,9 @@ void FPlasticSourceControlProvider::UpdateWorkspaceStatus(const class FPlasticSo
 }
 
 void FPlasticSourceControlProvider::Tick()
-{	
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlProvider::Tick);
+
 	bool bStatesUpdated = false;
 	for (int32 CommandIndex = 0; CommandIndex < CommandQueue.Num(); ++CommandIndex)
 	{
@@ -408,7 +551,7 @@ void FPlasticSourceControlProvider::Tick()
 				delete &Command;
 			}
 
-			// only do one command per tick loop, as we dont want concurrent modification 
+			// only do one command per tick loop, as we don't want concurrent modification
 			// of the command queue (which can happen in the completion delegate)
 			break;
 		}
@@ -416,11 +559,12 @@ void FPlasticSourceControlProvider::Tick()
 
 	if (bStatesUpdated)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlProvider::Tick::BroadcastStateUpdate);
 		OnSourceControlStateChanged.Broadcast();
 	}
 }
 
-TArray< TSharedRef<ISourceControlLabel> > FPlasticSourceControlProvider::GetLabels( const FString& InMatchingSpec ) const
+TArray<TSharedRef<ISourceControlLabel>> FPlasticSourceControlProvider::GetLabels(const FString& InMatchingSpec) const
 {
 	TArray< TSharedRef<ISourceControlLabel> > Tags;
 	return Tags;
@@ -428,7 +572,22 @@ TArray< TSharedRef<ISourceControlLabel> > FPlasticSourceControlProvider::GetLabe
 
 TArray<FSourceControlChangelistRef> FPlasticSourceControlProvider::GetChangelists( EStateCacheUsage::Type InStateCacheUsage )
 {
-	return TArray<FSourceControlChangelistRef>();
+	if (!IsEnabled())
+	{
+		return TArray<FSourceControlChangelistRef>();
+	}
+
+	if (InStateCacheUsage == EStateCacheUsage::ForceUpdate)
+	{
+		TSharedRef<class FUpdatePendingChangelistsStatus, ESPMode::ThreadSafe> UpdatePendingChangelistsOperation = ISourceControlOperation::Create<FUpdatePendingChangelistsStatus>();
+		UpdatePendingChangelistsOperation->SetUpdateAllChangelists(true);
+
+		ISourceControlProvider::Execute(UpdatePendingChangelistsOperation, EConcurrency::Synchronous);
+	}
+
+	TArray<FSourceControlChangelistRef> Changelists;
+	Algo::Transform(ChangelistsStateCache, Changelists, [](const auto& Pair) { return MakeShared<FPlasticSourceControlChangelist, ESPMode::ThreadSafe>(Pair.Key); });
+	return Changelists;
 }
 
 #if SOURCE_CONTROL_WITH_SLATE
@@ -440,6 +599,8 @@ TSharedRef<class SWidget> FPlasticSourceControlProvider::MakeSettingsWidget() co
 
 ECommandResult::Type FPlasticSourceControlProvider::ExecuteSynchronousCommand(FPlasticSourceControlCommand& InCommand, const FText& Task)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPlasticSourceControlProvider::ExecuteSynchronousCommand);
+
 	ECommandResult::Type Result = ECommandResult::Failed;
 
 	// Display the progress dialog if a string was provided
@@ -447,7 +608,7 @@ ECommandResult::Type FPlasticSourceControlProvider::ExecuteSynchronousCommand(FP
 		FScopedSourceControlProgress Progress(Task);
 
 		// Issue the command asynchronously...
-		IssueCommand( InCommand );
+		IssueCommand(InCommand);
 
 		// ... then wait for its completion (thus making it synchronous)
 		while (!InCommand.bExecuteProcessed)
@@ -471,7 +632,7 @@ ECommandResult::Type FPlasticSourceControlProvider::ExecuteSynchronousCommand(FP
 		else
 		{
 			// TODO If the command failed, inform the user that they need to try again (see Perforce)
-			//FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("Plastic_ServerUnresponsive", "Plastic server is unresponsive. Please check your connection and try again.") );
+			// FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("Plastic_ServerUnresponsive", "Plastic server is unresponsive. Please check your connection and try again.") );
 
 			UE_LOG(LogSourceControl, Error, TEXT("Command '%s' Failed!"), *InCommand.Operation->GetName().ToString());
 		}
@@ -481,9 +642,9 @@ ECommandResult::Type FPlasticSourceControlProvider::ExecuteSynchronousCommand(FP
 	check(!InCommand.bAutoDelete);
 
 	// ensure commands that are not auto deleted do not end up in the command queue
-	if ( CommandQueue.Contains( &InCommand ) ) 
+	if (CommandQueue.Contains(&InCommand))
 	{
-		CommandQueue.Remove( &InCommand );
+		CommandQueue.Remove(&InCommand);
 	}
 	delete &InCommand;
 

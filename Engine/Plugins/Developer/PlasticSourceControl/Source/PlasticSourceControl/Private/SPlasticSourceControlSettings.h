@@ -15,16 +15,15 @@
 class SPlasticSourceControlSettings : public SCompoundWidget
 {
 public:
-	
 	SLATE_BEGIN_ARGS(SPlasticSourceControlSettings) {}
-	
+
 	SLATE_END_ARGS()
 
 public:
-
 	void Construct(const FArguments& InArgs);
 
 private:
+	EVisibility PlasticNotAvailable() const;
 
 	/** Delegate to get cm binary path from settings */
 	FText GetBinaryPathText() const;
@@ -33,6 +32,7 @@ private:
 	void OnBinaryPathTextCommited(const FText& InText, ETextCommit::Type InCommitType) const;
 
 	/** Delegate to get workspace root and user name from provider */
+	FText GetVersions() const;
 	FText GetPathToWorkspaceRoot() const;
 	FText GetUserName() const;
 
@@ -48,6 +48,7 @@ private:
 	void OnServerUrlCommited(const FText& InText, ETextCommit::Type InCommitType);
 	FText GetServerUrl() const;
 	FText ServerUrl;
+	bool CanAutoCreateIgnoreFile() const;
 	void OnCheckedCreateIgnoreFile(ECheckBoxState NewCheckedState);
 	bool bAutoCreateIgnoreFile;
 
@@ -88,7 +89,7 @@ private:
 	EVisibility CanAddIgnoreFile() const;
 	FReply OnClickedAddIgnoreFile() const;
 
-	const FString& GetIgnoreFileName() const;
+	const FString GetIgnoreFileName() const;
 	bool CreateIgnoreFile() const;
 
 	TArray<FString> GetProjectFiles() const;

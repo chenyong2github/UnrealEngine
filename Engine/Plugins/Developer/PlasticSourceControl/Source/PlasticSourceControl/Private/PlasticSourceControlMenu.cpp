@@ -20,6 +20,7 @@
 
 #include "PackageTools.h"
 #include "FileHelpers.h"
+#include "ISettingsModule.h"
 
 #include "Logging/MessageLog.h"
 
@@ -70,7 +71,7 @@ bool FPlasticSourceControlMenu::SaveDirtyPackages()
 
 	bool bSaved = FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, &bHadPackagesToSave);
 
-	// bSaved can be true if the user selects to not save an asset by unchecking it and clicking "save"
+	// bSaved can be true if the user selects to not save an asset by un-checking it and clicking "save"
 	if (bSaved)
 	{
 		TArray<UPackage*> DirtyPackages;
@@ -175,8 +176,7 @@ void FPlasticSourceControlMenu::SyncProjectClicked()
 			PackagesToReload = UnlinkPackages(ListAllPackages());
 
 			// Launch a "Sync" operation
-			FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-			FPlasticSourceControlProvider& Provider = PlasticSourceControl.GetProvider();
+			FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 			TSharedRef<FSync, ESPMode::ThreadSafe> SyncOperation = ISourceControlOperation::Create<FSync>();
 			const ECommandResult::Type Result = Provider.Execute(SyncOperation, TArray<FString>(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw(this, &FPlasticSourceControlMenu::OnSourceControlOperationComplete));
 			if (Result == ECommandResult::Succeeded)
@@ -211,8 +211,7 @@ void FPlasticSourceControlMenu::RevertUnchangedClicked()
 	if (!OperationInProgressNotification.IsValid())
 	{
 		// Launch a "RevertUnchanged" Operation
-		FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-		FPlasticSourceControlProvider& Provider = PlasticSourceControl.GetProvider();
+		FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 		TSharedRef<FPlasticRevertUnchanged, ESPMode::ThreadSafe> RevertUnchangedOperation = ISourceControlOperation::Create<FPlasticRevertUnchanged>();
 		TArray<FString> WorkspaceRoot;
 		WorkspaceRoot.Add(Provider.GetPathToWorkspaceRoot()); // Revert the root of the workspace (needs an absolute path)
@@ -252,8 +251,7 @@ void FPlasticSourceControlMenu::RevertAllClicked()
 				PackagesToReload = UnlinkPackages(ListAllPackages());
 
 				// Launch a "RevertAll" Operation
-				FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-				FPlasticSourceControlProvider& Provider = PlasticSourceControl.GetProvider();
+				FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 				TSharedRef<FPlasticRevertAll, ESPMode::ThreadSafe> RevertAllOperation = ISourceControlOperation::Create<FPlasticRevertAll>();
 				TArray<FString> WorkspaceRoot;
 				WorkspaceRoot.Add(Provider.GetPathToWorkspaceRoot()); // Revert the root of the workspace (needs an absolute path)
@@ -291,8 +289,7 @@ void FPlasticSourceControlMenu::RefreshClicked()
 	if (!OperationInProgressNotification.IsValid())
 	{
 		// Launch an "UpdateStatus" Operation
-		FPlasticSourceControlModule& PlasticSourceControl = FModuleManager::LoadModuleChecked<FPlasticSourceControlModule>("PlasticSourceControl");
-		FPlasticSourceControlProvider& Provider = PlasticSourceControl.GetProvider();
+		FPlasticSourceControlProvider& Provider = FPlasticSourceControlModule::Get().GetProvider();
 		TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> RefreshOperation = ISourceControlOperation::Create<FUpdateStatus>();
 		// This is the flag used by the Content Browser's "Checkout" filter to trigger a full status update
 		RefreshOperation->SetGetOpenedOnly(true);
@@ -316,7 +313,31 @@ void FPlasticSourceControlMenu::RefreshClicked()
 	}
 }
 
-void FPlasticSourceControlMenu::VisitDocsURLClicked()
+void FPlasticSourceControlMenu::ShowSourceControlEditorPreferences() const
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->ShowViewer("Editor", "General", "LoadingSaving");
+	}
+}
+
+void FPlasticSourceControlMenu::ShowSourceControlProjectSettings() const
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->ShowViewer("Project", "Editor", "SourceControlPreferences");
+	}
+}
+
+void FPlasticSourceControlMenu::ShowSourceControlPlasticScmProjectSettings() const
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->ShowViewer("Project", "Editor", "PlasticSourceControlProjectSettings");
+	}
+}
+
+void FPlasticSourceControlMenu::VisitDocsURLClicked() const
 {
 	// Grab the URL from the uplugin file
 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("PlasticSourceControl"));
@@ -326,7 +347,7 @@ void FPlasticSourceControlMenu::VisitDocsURLClicked()
 	}
 }
 
-void FPlasticSourceControlMenu::VisitSupportURLClicked()
+void FPlasticSourceControlMenu::VisitSupportURLClicked() const
 {
 	// Grab the URL from the uplugin file
 	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("PlasticSourceControl"));
@@ -414,17 +435,6 @@ void FPlasticSourceControlMenu::OnSourceControlOperationComplete(const FSourceCo
 void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 {
 	Menu.AddMenuEntry(
-		"PlasticSync",
-		LOCTEXT("PlasticSync",			"Sync/Update Workspace"),
-		LOCTEXT("PlasticSyncTooltip",	"Update all files in the workspace to the latest version."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Sync"),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::SyncProjectClicked),
-			FCanExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::IsSourceControlConnected)
-		)
-	);
-
-	Menu.AddMenuEntry(
 		"PlasticRevertUnchanged",
 		LOCTEXT("PlasticRevertUnchanged",			"Revert Unchanged"),
 		LOCTEXT("PlasticRevertUnchangedTooltip",	"Revert checked-out but unchanged files in the workspace."),
@@ -436,23 +446,44 @@ void FPlasticSourceControlMenu::AddMenuExtension(FToolMenuSection& Menu)
 	);
 
 	Menu.AddMenuEntry(
-		"PlasticRevertAll",
-		LOCTEXT("PlasticRevertAll",			"Revert All"),
-		LOCTEXT("PlasticRevertAllTooltip",	"Revert all files in the workspace to their controlled/unchanged state."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RevertAllClicked),
-			FCanExecuteAction()
-		)
-	);
-
-	Menu.AddMenuEntry(
 		"PlasticRefresh",
 		LOCTEXT("PlasticRefresh",			"Refresh"),
 		LOCTEXT("PlasticRefreshTooltip",	"Update the source control status of all files in the workspace."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::RefreshClicked),
+			FCanExecuteAction()
+		)
+	);
+
+	Menu.AddMenuEntry(
+		"SourceControlEditorPreferences",
+		LOCTEXT("SourceControlEditorPreferences", "Editor Preferences - Source Control"),
+		LOCTEXT("SourceControlEditorPreferencesTooltip", "Open the Load & Save section with Source Control in the Editor Preferences."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::ShowSourceControlEditorPreferences),
+			FCanExecuteAction()
+		)
+	);
+
+	Menu.AddMenuEntry(
+		"SourceControlProjectSettings",
+		LOCTEXT("SourceControlProjectSettings",			"Project Settings - Source Control"),
+		LOCTEXT("SourceControlProjectSettingsTooltip",	"Open the Source Control section in the Project Settings."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProjectSettings.TabIcon"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::ShowSourceControlProjectSettings),
+			FCanExecuteAction()
+		)
+	);
+	Menu.AddMenuEntry(
+		"PlasticProjectSettings",
+		LOCTEXT("PlasticProjectSettings",			"Project Settings - Source Control - Plastic SCM"),
+		LOCTEXT("PlasticProjectSettingsTooltip",	"Open the Plastic SCM section in the Project Settings."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "ProjectSettings.TabIcon"),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FPlasticSourceControlMenu::ShowSourceControlPlasticScmProjectSettings),
 			FCanExecuteAction()
 		)
 	);

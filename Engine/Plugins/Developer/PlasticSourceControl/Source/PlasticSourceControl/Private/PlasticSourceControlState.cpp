@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PlasticSourceControlState.h"
+#include "PlasticSourceControlProjectSettings.h"
 #include "ISourceControlModule.h"
 #include "Styling/AppStyle.h"
 
@@ -31,7 +32,7 @@ const TCHAR* ToString(EWorkspaceState::Type InWorkspaceState)
 	}
 	return WorkspaceStateStr;
 }
-}
+} // namespace EWorkspaceState
 
 
 int32 FPlasticSourceControlState::GetHistorySize() const
@@ -39,13 +40,13 @@ int32 FPlasticSourceControlState::GetHistorySize() const
 	return History.Num();
 }
 
-TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::GetHistoryItem( int32 HistoryIndex ) const
+TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::GetHistoryItem(int32 HistoryIndex) const
 {
 	check(History.IsValidIndex(HistoryIndex));
 	return History[HistoryIndex];
 }
 
-TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::FindHistoryRevision( int32 RevisionNumber ) const
+TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::FindHistoryRevision(int32 RevisionNumber) const
 {
 	for (const auto& Revision : History)
 	{
@@ -75,7 +76,7 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceCont
 {
 	for (const auto& Revision : History)
 	{
-		// look for the the SHA1 id of the file, not the commit id (revision)
+		// look for the SHA1 id of the file, not the commit id (revision)
 		if (Revision->ChangesetNumber == PendingMergeBaseChangeset)
 		{
 			return Revision;
@@ -184,7 +185,7 @@ FText FPlasticSourceControlState::GetDisplayTooltip() const
 {
 	if (!IsCurrent())
 	{
-		return LOCTEXT("NotCurrent_Tooltip", "Not at the head revision");
+		return FText::Format(LOCTEXT("NotCurrent_Tooltip", "Not at the head revision CS:{0} by {1}"), FText::AsNumber(DepotRevisionChangeset), FText::FromString(HeadUserName));
 	}
 	else if (WorkspaceState != EWorkspaceState::LockedByOther)
 	{
@@ -199,33 +200,33 @@ FText FPlasticSourceControlState::GetDisplayTooltip() const
 	switch (WorkspaceState)
 	{
 	case EWorkspaceState::Unknown:
-		return LOCTEXT("Unknown_Tooltip", "The file status is unknown");
+		return FText();
 	case EWorkspaceState::Ignored:
-		return LOCTEXT("Ignored_Tooltip", "The file is ignored");
+		return LOCTEXT("Ignored_Tooltip", "Ignored");
 	case EWorkspaceState::Controlled:
-		return LOCTEXT("Pristine_Tooltip", "The file has no modification");
+		return FText();
 	case EWorkspaceState::CheckedOut:
-		return LOCTEXT("CheckedOut_Tooltip", "The file is checked out");
+		return LOCTEXT("CheckedOut_Tooltip", "Checked-out");
 	case EWorkspaceState::Added:
-		return LOCTEXT("Added_Tooltip", "The file has been added");
+		return LOCTEXT("Added_Tooltip", "Added");
 	case EWorkspaceState::Moved:
-		return LOCTEXT("Moved_Tooltip", "The file has been moved or renamed");
+		return LOCTEXT("Moved_Tooltip", "Moved or renamed");
 	case EWorkspaceState::Copied:
-		return LOCTEXT("Copied_Tooltip", "The file has been copied");
+		return LOCTEXT("Copied_Tooltip", "Copied");
 	case EWorkspaceState::Replaced:
-		return LOCTEXT("Replaced_Tooltip", "The file has been replaced / merged");
+		return LOCTEXT("Replaced_Tooltip", "Replaced: merge conflict resolved");
 	case EWorkspaceState::Deleted:
-		return LOCTEXT("Deleted_Tooltip", "The file has been deleted");
+		return LOCTEXT("Deleted_Tooltip", "Deleted");
 	case EWorkspaceState::LocallyDeleted:
-		return LOCTEXT("LocallyDeleted_Tooltip", "The file is missing");
+		return LOCTEXT("LocallyDeleted_Tooltip", "Locally Deleted");
 	case EWorkspaceState::Changed:
-		return LOCTEXT("Modified_Tooltip", "The file has been modified");
+		return LOCTEXT("Modified_Tooltip", "Locally modified");
 	case EWorkspaceState::Conflicted:
-		return LOCTEXT("ContentsConflict_Tooltip", "The content of the file conflict with updates received from the repository");
+		return LOCTEXT("ContentsConflict_Tooltip", "Conflict with updates received from the repository");
 	case EWorkspaceState::LockedByOther:
 		return FText::Format(LOCTEXT("CheckedOutOther_Tooltip", "Checked out by {0} in {1}"), FText::FromString(LockedBy), FText::FromString(LockedWhere));
 	case EWorkspaceState::Private:
-		return LOCTEXT("NotControlled_Tooltip", "The file is not under version control");
+		return LOCTEXT("NotControlled_Tooltip", "Private: not under version control");
 	}
 
 	return FText();
@@ -249,15 +250,15 @@ const FDateTime& FPlasticSourceControlState::GetTimeStamp() const
 bool FPlasticSourceControlState::CanCheckIn() const
 {
 	const bool bCanCheckIn =
-		(  WorkspaceState == EWorkspaceState::Added
+		  (WorkspaceState == EWorkspaceState::Added
 		|| WorkspaceState == EWorkspaceState::Deleted
 		|| WorkspaceState == EWorkspaceState::LocallyDeleted
 		|| WorkspaceState == EWorkspaceState::Changed
 		|| WorkspaceState == EWorkspaceState::Moved
 		|| WorkspaceState == EWorkspaceState::Copied
 		|| WorkspaceState == EWorkspaceState::Replaced
-		|| WorkspaceState == EWorkspaceState::CheckedOut
-		) && !IsConflicted() && IsCurrent();
+		|| WorkspaceState == EWorkspaceState::CheckedOut)
+		&& !IsConflicted() && IsCurrent();
 
 	if (!IsUnknown())
 	{
@@ -269,9 +270,14 @@ bool FPlasticSourceControlState::CanCheckIn() const
 
 bool FPlasticSourceControlState::CanCheckout() const
 {
-	const bool bCanCheckout  = (   WorkspaceState == EWorkspaceState::Controlled	// In source control, Unmodified
+	if (!GetDefault<UPlasticSourceControlProjectSettings>()->bPromptForCheckoutOnChange)
+	{
+		return false;
+	}
+
+	const bool bCanCheckout  =    (WorkspaceState == EWorkspaceState::Controlled	// In source control, Unmodified
 								|| WorkspaceState == EWorkspaceState::Changed		// In source control, but not checked-out
-								|| WorkspaceState == EWorkspaceState::Replaced)		// In source control, merged, waiting for checkin to conclude the merge 
+								|| WorkspaceState == EWorkspaceState::Replaced)		// In source control, merged, waiting for checkin to conclude the merge
 								&& IsCurrent(); // Is up to date (at the revision of the repo)
 
 	if (!IsUnknown())
@@ -287,7 +293,7 @@ bool FPlasticSourceControlState::IsCheckedOut() const
 	const bool bIsCheckedOut = WorkspaceState == EWorkspaceState::CheckedOut
 							|| WorkspaceState == EWorkspaceState::Moved
 							|| WorkspaceState == EWorkspaceState::Conflicted	// In source control, waiting for merged
-							|| WorkspaceState == EWorkspaceState::Replaced		// In source control, merged, waiting for checkin to conclude the merge 
+							|| WorkspaceState == EWorkspaceState::Replaced		// In source control, merged, waiting for checkin to conclude the merge
 							|| WorkspaceState == EWorkspaceState::Changed;		// Note: Workaround to enable checkin (still required by UE5.0)
 
 	if (bIsCheckedOut)
@@ -295,7 +301,15 @@ bool FPlasticSourceControlState::IsCheckedOut() const
 		UE_LOG(LogSourceControl, Verbose, TEXT("%s IsCheckedOut"), *LocalFilename);
 	}
 
-	return bIsCheckedOut;
+	if (GetDefault<UPlasticSourceControlProjectSettings>()->bPromptForCheckoutOnChange)
+	{
+		return bIsCheckedOut;
+	}
+	else
+	{
+		// Any controlled state will be considered as checked out if the prompt is disabled
+		return IsSourceControlled();
+	}
 }
 
 bool FPlasticSourceControlState::IsCheckedOutOther(FString* Who) const
@@ -318,7 +332,7 @@ bool FPlasticSourceControlState::IsCheckedOutOther(FString* Who) const
 /** Get whether this file is checked out in a different branch, if no branch is specified defaults to FEngineVerion current branch */
 bool FPlasticSourceControlState::IsCheckedOutInOtherBranch(const FString& CurrentBranch /* = FString() */) const
 {
-	// Note: to my knowledge, it's not possible to detect that with PlasticSCM withouth the Locks,
+	// Note: to my knowledge, it's not possible to detect that with PlasticSCM without the Locks,
 	// which are already detected by fileinfo LockedBy/LockedWhere and reported by IsCheckedOutOther() above
 	return false;
 }
@@ -350,7 +364,7 @@ bool FPlasticSourceControlState::IsCurrent() const
 	{
 		UE_LOG(LogSourceControl, VeryVerbose, TEXT("%s IsCurrent"), *LocalFilename);
 	}
-	
+
 	return bIsCurrent;
 }
 
@@ -417,9 +431,9 @@ bool FPlasticSourceControlState::IsUnknown() const
 
 bool FPlasticSourceControlState::IsModified() const
 {
-	// Warning: for a clean "check-in" (commit) checked-out files unmodified should be removed from the changeset (the index)
+	// Warning: for a clean "checkin" (commit) checked-out files unmodified should be removed from the changeset (the index)
 	//
-	// Thus, before check-in UE4 Editor call RevertUnchangedFiles() in PromptForCheckin() and CheckinFiles().
+	// Thus, before checkin UE4 Editor call RevertUnchangedFiles() in PromptForCheckin() and CheckinFiles().
 	//
 	// So here we must take care to enumerate all states that need to be commited, all other will be discarded:
 	//  - Unknown

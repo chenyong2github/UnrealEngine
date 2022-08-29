@@ -2,20 +2,21 @@
 
 #include "PlasticSourceControlConsole.h"
 
-#include "HAL/IConsoleManager.h"
 #include "ISourceControlModule.h"
 
 #include "PlasticSourceControlUtils.h"
 
 void FPlasticSourceControlConsole::Register()
 {
-	CmConsoleCommand = MakeUnique<FAutoConsoleCommand>(
-		TEXT("cm"),
-		TEXT("PlasticSCM Command Line Interface.\n")
-		TEXT("Run any 'cm' command directly from the Unreal Editor Console.\n")
-		TEXT("Type 'cm showcommands' to get a command list."),
-		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FPlasticSourceControlConsole::ExecutePlasticConsoleCommand)
-	);
+	if (!CmConsoleCommand.IsValid())
+	{
+		CmConsoleCommand = MakeUnique<FAutoConsoleCommand>(
+			TEXT("cm"),
+			TEXT("PlasticSCM Command Line Interface.\n")
+			TEXT("Run any 'cm' command directly from the Unreal Editor Console.\n")
+			TEXT("Type 'cm showcommands' to get a command list."),
+			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FPlasticSourceControlConsole::ExecutePlasticConsoleCommand));
+	}
 }
 
 void FPlasticSourceControlConsole::Unregister()
@@ -25,7 +26,7 @@ void FPlasticSourceControlConsole::Unregister()
 
 void FPlasticSourceControlConsole::ExecutePlasticConsoleCommand(const TArray<FString>& a_args)
 {
-	// If called with no argument, explicitely call "cm help" instead to mimic the cm CLI behavior.
+	// If called with no argument, explicitly call "cm help" instead to mimic the cm CLI behavior.
 	if (a_args.Num() < 1)
 	{
 		ExecutePlasticConsoleCommand(TArray<FString>({TEXT("help")}));
