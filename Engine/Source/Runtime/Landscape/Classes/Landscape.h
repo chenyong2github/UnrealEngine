@@ -475,6 +475,9 @@ public:
 	/** Used to temporarily disable Grass Update in Editor */
 	bool bGrassUpdateEnabled;
 
+	UPROPERTY(Transient)
+	bool bEnableEditorLayersTick = false;
+
 	UPROPERTY()
 	TArray<FLandscapeLayer> LandscapeLayers;
 

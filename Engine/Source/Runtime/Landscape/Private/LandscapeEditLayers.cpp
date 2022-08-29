@@ -8137,6 +8137,11 @@ void ALandscape::TickLayers(float DeltaTime)
 {
 	check(GIsEditor);
 
+	if (!bEnableEditorLayersTick)
+	{
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	if (World && !World->IsPlayInEditor() && GetLandscapeInfo() && GEditor->PlayWorld == nullptr)
 	{
