@@ -148,7 +148,17 @@ namespace Horde.Storage.Controllers
                     Response.ContentLength = contentLength;
                     Response.ContentType = contentType;
                     Response.StatusCode = StatusCodes.Status200OK;
-                    await StreamCopyOperation.CopyToAsync(blobContents.Stream, outputStream, count: null, bufferSize: BufferSize, cancel: Response.HttpContext.RequestAborted);
+                    try
+                    {
+                        await StreamCopyOperation.CopyToAsync(blobContents.Stream, outputStream, count: null, bufferSize: BufferSize, cancel: Response.HttpContext.RequestAborted);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // do not raise exceptions for cancelled writes
+                        // as we have already started writing a response we can not change the status code
+                        // so we just drop a warning and proceed
+                        _logger.Warning("The operation was canceled while writing the body");
+                    }
                 }
 
                 string responseType = _formatResolver.GetResponseType(Request, format, CustomMediaTypeNames.UnrealCompactBinary);

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.IO;
 using EpicGames.Serialization;
 using EpicGames.Core;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Extensions.Logging;
@@ -48,10 +49,16 @@ namespace EpicGames.AspNet
         {
             // Buffer the data into an array
             byte[] data;
-            using (MemoryStream stream = new MemoryStream())
+            try
             {
+                using MemoryStream stream = new MemoryStream();
                 await context.HttpContext.Request.Body.CopyToAsync(stream);
                 data = stream.ToArray();
+            }
+            catch (BadHttpRequestException e)
+            {
+                ClientSendSlowExceptionUtil.MaybeThrowSlowSendException(e);
+                throw;
             }
 
             // Serialize the object

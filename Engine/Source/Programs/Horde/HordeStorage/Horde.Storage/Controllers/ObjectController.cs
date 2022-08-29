@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using async_enumerable_dotnet;
+using EpicGames.AspNet;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
@@ -19,6 +20,7 @@ using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
+using CustomMediaTypeNames = Jupiter.CustomMediaTypeNames;
 
 namespace Horde.Storage.Controllers
 {

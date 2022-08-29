@@ -216,7 +216,6 @@ namespace Horde.Storage.Implementation
 
                         yield return b;
                     }
-
                 }
                 else if (attachment is ObjectAttachment objectAttachment)
                 {
