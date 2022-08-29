@@ -80,6 +80,7 @@
 #include "Misc/TransactionObjectEvent.h"
 #include "ConstraintChannelHelper.h"
 #include "MovieSceneConstraintChannelHelper.h"
+#include "Constraints/ControlRigTransformableHandle.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -226,9 +227,10 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 		//the other is if bound object on the edit mode is null we request a re-evaluate which will reset it up.
 		FDelegateHandle OnObjectsReplacedHandle = FCoreUObjectDelegates::OnObjectsReplaced.AddLambda([&](const TMap<UObject*, UObject*>& ReplacementMap)
 		{
-			static bool bHasEnteredSilent = false;
 			if (GetSequencer().IsValid())
 			{
+				static bool bHasEnteredSilent = false;
+				
 				bool bRequestEvaluate = false;
 				TMap<UControlRig*, UControlRig*> OldToNewControlRigs;
 				FControlRigEditMode* ControlRigEditMode = GetEditMode();
@@ -352,16 +354,18 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 					}
 					if (!ControlRigEditMode)
 					{
-						if (bHasEnteredSilent == true)
-						{
-							GetSequencer()->ExitSilentMode();
-							bHasEnteredSilent = false;
-						}
 						if (bRequestEvaluate)
 						{
 							GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 						}
 					}
+				}
+
+				// ensure we exit silent mode if it has been entered
+				if (bHasEnteredSilent)
+				{
+					GetSequencer()->ExitSilentMode();
+					bHasEnteredSilent = false;
 				}
 			}
 		});
@@ -405,6 +409,8 @@ void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
 		ControlRig->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
 		ControlRig->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
 		ControlRig->ControlUndoBracket().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlUndoBracket);
+		ControlRig->ControlRigBound().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnControlRigBound);
+		
 		BoundControlRigs.Add(ControlRig);
 		UMovieSceneControlRigParameterTrack* Track = FindTrack(ControlRig);
 		if (Track)
@@ -419,6 +425,12 @@ void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
 						for (FSpaceControlNameAndChannel& Channel : SpaceChannels)
 						{
 							HandleOnSpaceAdded(Section, Channel.ControlName, &(Channel.SpaceCurve));
+						}
+						
+						TArray<FConstraintAndActiveChannel>& ConstraintChannels = Section->GetConstraintsChannels();
+						for (FConstraintAndActiveChannel& Channel: ConstraintChannels)
+						{ 
+							HandleOnConstraintAdded(Section, &(Channel.ActiveChannel));
 						}
 					}
 				}
@@ -441,6 +453,12 @@ void FControlRigParameterTrackEditor::UnbindControlRig(UControlRig* ControlRig)
 		ControlRig->ControlModified().RemoveAll(this);
 		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
 		ControlRig->ControlSelected().RemoveAll(this);
+		if (const TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+		{
+			Binding->OnControlRigBind().RemoveAll(this);
+		}
+		ControlRig->ControlRigBound().RemoveAll(this);
+		
 		BoundControlRigs.Remove(ControlRig);
 		ClearOutAllSpaceAndConstraintDelegates(ControlRig);
 	}
@@ -1555,6 +1573,7 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 	const EControlRigContextChannelToKey ChannelsToKey = static_cast<EControlRigContextChannelToKey>(Channel); 
 	FScopedTransaction KeyTransaction(LOCTEXT("SetKeysOnControls", "Set Keys On Controls"), !GIsTransacting);
 
+	static constexpr bool bInConstraintSpace = true;
 	for (const TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 	{
 		UControlRig* ControlRig = Selection.Key;
@@ -1567,7 +1586,8 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 				const TArray<FName> ControlNames = ControlRig->CurrentControlSelection();
 				for (const FName& ControlName : ControlNames)
 				{
-					AddControlKeys(Component, ControlRig, Name, ControlName, ChannelsToKey, ESequencerKeyMode::ManualKeyForced, FLT_MAX);
+					AddControlKeys(Component, ControlRig, Name, ControlName, ChannelsToKey,
+						ESequencerKeyMode::ManualKeyForced, FLT_MAX, bInConstraintSpace);
 				}
 			}
 		}
@@ -2878,13 +2898,80 @@ void FControlRigParameterTrackEditor::HandleControlUndoBracket(UControlRig* Subj
 	}
 }
 
+void FControlRigParameterTrackEditor::HandleOnControlRigBound(UControlRig* InControlRig)
+{
+	if (!InControlRig)
+	{
+		return;
+	}
+	
+	UMovieSceneControlRigParameterTrack* Track = FindTrack(InControlRig);
+	if (!Track)
+	{
+		return;
+	}
+
+	const TSharedPtr<IControlRigObjectBinding> Binding = InControlRig->GetObjectBinding();
+	
+	for (UMovieSceneSection* BaseSection : Track->GetAllSections())
+	{
+		if (UMovieSceneControlRigParameterSection* Section = Cast< UMovieSceneControlRigParameterSection>(BaseSection))
+		{
+			const UControlRig* ControlRig = Section->GetControlRig();
+			if (ControlRig && InControlRig == ControlRig)
+			{
+				if (!Binding->OnControlRigBind().IsBoundToObject(this))
+				{
+					Binding->OnControlRigBind().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnObjectBoundToControlRig);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigParameterTrackEditor::HandleOnObjectBoundToControlRig(UObject* InObject)
+{
+	// look for sections to update
+	TArray<UMovieSceneControlRigParameterSection*> SectionsToUpdate;
+	for (const TWeakObjectPtr<UControlRig>& ControlRigPtr : BoundControlRigs)
+	{
+		const TSharedPtr<IControlRigObjectBinding> Binding =
+			ControlRigPtr.IsValid() ? ControlRigPtr->GetObjectBinding() : nullptr;
+		const UObject* CurrentObject = Binding ? Binding->GetBoundObject() : nullptr;
+		if (CurrentObject == InObject)
+		{
+			if (const UMovieSceneControlRigParameterTrack* Track = FindTrack(ControlRigPtr.Get()))
+			{
+				for (UMovieSceneSection* BaseSection : Track->GetAllSections())
+				{
+					if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(BaseSection))
+					{
+						SectionsToUpdate.AddUnique(Section);
+					}
+				}
+			}
+		}
+	}
+
+	// reconstruct proxies
+	if (!SectionsToUpdate.IsEmpty())
+	{
+		for (UMovieSceneControlRigParameterSection* Section: SectionsToUpdate)
+		{
+			Section->ReconstructChannelProxy();
+			Section->MarkAsChanged();
+		}
+	}
+}
+
 void FControlRigParameterTrackEditor::GetControlRigKeys(
 	UControlRig* InControlRig,
 	FName ParameterName,
 	EControlRigContextChannelToKey ChannelsToKey,
 	ESequencerKeyMode KeyMode,
 	UMovieSceneControlRigParameterSection* SectionToKey,
-	FGeneratedTrackKeys& OutGeneratedKeys)
+	FGeneratedTrackKeys& OutGeneratedKeys,
+	const bool bInConstraintSpace)
 {
 	const TArray<bool>& ControlsMask = SectionToKey->GetControlsMask();
 	EMovieSceneTransformChannel TransformMask = SectionToKey->GetTransformMask().GetChannels();
@@ -3021,6 +3108,19 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(
 					Scale = Val.GetScale3D();
 				}
 
+				// switch values to constraint space?
+				if (bInConstraintSpace)
+				{
+					const uint32 ControlHash = UTransformableControlHandle::ComputeHash(InControlRig, ControlElement->GetName());
+					TOptional<FTransform> Transform = FTransformConstraintUtils::GetConstraintRelativeTransform(InControlRig->GetWorld(), ControlHash);
+					if (Transform)
+					{
+						Translation = Transform->GetTranslation();
+						Rotation = Transform->GetRotation().Rotator();
+						Scale = Transform->GetScale3D();
+					}
+				}
+					
 				FVector3f CurrentVector = (FVector3f)Translation;
 				bool bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationX);
 				bool bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationY);
@@ -3229,7 +3329,8 @@ void FControlRigParameterTrackEditor::AddControlKeys(
 	FName RigControlName,
 	EControlRigContextChannelToKey ChannelsToKey,
 	ESequencerKeyMode KeyMode,
-	float InLocalTime)
+	float InLocalTime,
+	const bool bInConstraintSpace)
 {
 	if (KeyMode == ESequencerKeyMode::ManualKey || (GetSequencer().IsValid() && !GetSequencer()->IsAllowedToChange()))
 	{
@@ -3271,8 +3372,8 @@ void FControlRigParameterTrackEditor::AddControlKeys(
 	}
 
 	TSharedRef<FGeneratedTrackKeys> GeneratedKeys = MakeShared<FGeneratedTrackKeys>();
-
-	GetControlRigKeys(InControlRig, RigControlName, ChannelsToKey, KeyMode, ParamSection, *GeneratedKeys);
+	GetControlRigKeys(InControlRig, RigControlName, ChannelsToKey, KeyMode, ParamSection, *GeneratedKeys, bInConstraintSpace);
+	
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 	auto OnKeyProperty = [=](FFrameNumber Time) -> FKeyPropertyResult

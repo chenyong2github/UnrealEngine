@@ -8,12 +8,12 @@
 
 #include "ControlRigTransformableHandle.generated.h"
 
-class UControlRig;
-class USkeletalMeshComponent;
 struct FRigBaseElement;
-class URigHierarchy;
 struct FRigControlElement;
 
+class UControlRig;
+class USkeletalMeshComponent;
+class URigHierarchy;
 
 /**
  * UTransformableControlHandle
@@ -25,6 +25,7 @@ class CONTROLRIG_API UTransformableControlHandle : public UTransformableHandle
 	GENERATED_BODY()
 	
 public:
+	
 	virtual ~UTransformableControlHandle();
 
 	virtual void PostLoad() override;
@@ -101,6 +102,9 @@ private:
 		ERigHierarchyNotification InNotif,
 		URigHierarchy* InHierarchy,
 		const FRigBaseElement* InElement);
+
+	void OnControlRigBound(UControlRig* InControlRig);
+	void OnObjectBoundToControlRig(UObject* InObject);
 
 #if WITH_EDITOR
 	/** @todo document */

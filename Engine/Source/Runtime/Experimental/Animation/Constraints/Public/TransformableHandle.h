@@ -15,6 +15,17 @@ struct FFRameNumber;
 struct FFrameRate;
 enum class EMovieSceneTransformChannel : uint32;
 
+UENUM()
+enum class EHandleEvent : uint8
+{
+	LocalTransformUpdated,
+	GlobalTransformUpdated,
+	ComponentUpdated,
+
+	/** MAX - invalid */
+	Max UMETA(Hidden),
+};
+
 /**
  * UTransformableHandle
  */
@@ -26,7 +37,7 @@ class CONSTRAINTS_API UTransformableHandle : public UObject
 	
 public:
 
-	DECLARE_EVENT_TwoParams(UTransformableHandle, FHandleModifiedEvent, UTransformableHandle*, bool);
+	DECLARE_EVENT_TwoParams(UTransformableHandle, FHandleModifiedEvent, UTransformableHandle*, EHandleEvent);
 	
 	virtual ~UTransformableHandle();
 

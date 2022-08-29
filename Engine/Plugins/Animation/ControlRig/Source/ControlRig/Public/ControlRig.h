@@ -87,6 +87,9 @@ public:
 	DECLARE_EVENT_OneParam(UControlRig, FOnEndLoadPackage, UControlRig*);
 #endif
 
+	/** Bindable event to notify object binding change. */
+	DECLARE_EVENT_OneParam(UControlRig, FControlRigBoundEvent, UControlRig*);
+
 	static const FName OwnerComponent;
 
 	UFUNCTION(BlueprintCallable, Category = ControlRig)
@@ -243,6 +246,7 @@ public:
 	FORCEINLINE void SetObjectBinding(TSharedPtr<IControlRigObjectBinding> InObjectBinding)
 	{
 		ObjectBinding = InObjectBinding;
+		OnControlRigBound.Broadcast(this);
 	}
 
 	FORCEINLINE TSharedPtr<IControlRigObjectBinding> GetObjectBinding() const
@@ -435,6 +439,8 @@ public:
 	// Returns an event that can be used to subscribe to
 	// Undo Bracket requests such as Open and Close.
 	FControlUndoBracketEvent & ControlUndoBracket() { return OnControlUndoBracket; }
+	
+	FControlRigBoundEvent& ControlRigBound() { return OnControlRigBound; };
 
 	bool IsCurveControl(const FRigControlElement* InControlElement) const;
 
@@ -799,6 +805,7 @@ protected:
 	FControlModifiedEvent OnControlModified;
 	FControlSelectedEvent OnControlSelected;
 	FControlUndoBracketEvent OnControlUndoBracket;
+	FControlRigBoundEvent OnControlRigBound;
 
 	UPROPERTY(BlueprintAssignable, Category = ControlRig, meta=(DisplayName="OnControlSelected"))
 	FOnControlSelectedBP OnControlSelected_BP;

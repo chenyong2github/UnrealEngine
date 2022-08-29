@@ -134,7 +134,6 @@ void UConstraintsManager::PostLoad()
 	}
 }
 
-
 void UConstraintsManager::OnActorDestroyed(AActor* InActor)
 {
 	if (USceneComponent* SceneComponent = InActor->GetRootComponent())

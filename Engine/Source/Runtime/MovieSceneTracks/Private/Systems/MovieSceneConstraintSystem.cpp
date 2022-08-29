@@ -149,7 +149,7 @@ void UMovieSceneConstraintSystem::OnRun(FSystemTaskPrerequisites& InPrerequisite
 		{
 			if (UpdateHandle.Constraint.IsValid() && UpdateHandle.TransformHandle.IsValid())
 			{
-				UpdateHandle.Constraint->OnHandleModified(UpdateHandle.TransformHandle.Get(),false);
+				UpdateHandle.Constraint->OnHandleModified(UpdateHandle.TransformHandle.Get(),EHandleEvent::LocalTransformUpdated);
 			}
 		}
 		DynamicOffsets.Reset();

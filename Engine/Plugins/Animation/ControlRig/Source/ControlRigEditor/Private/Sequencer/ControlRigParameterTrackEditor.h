@@ -127,6 +127,8 @@ private:
 	void HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 	void HandleControlUndoBracket(UControlRig* Subject, bool bOpenUndoBracket);
 	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
+	void HandleOnControlRigBound(UControlRig* InControlRig);
+	void HandleOnObjectBoundToControlRig(UObject* InObject);
 
 	//if rig not set then we clear delegates for everyone
 	void ClearOutAllSpaceAndConstraintDelegates(const UControlRig* InOptionalControlRig = nullptr) const;
@@ -200,8 +202,12 @@ private:
 
 public:
 
-	void AddControlKeys(USceneComponent *InSceneComp, UControlRig* InControlRig, FName PropertyName, FName ParameterName, EControlRigContextChannelToKey ChannelsToKey, ESequencerKeyMode KeyMode, float InLocalTime);
-	void GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EControlRigContextChannelToKey ChannelsToKey, ESequencerKeyMode KeyMode, UMovieSceneControlRigParameterSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys);
+	void AddControlKeys(USceneComponent *InSceneComp, UControlRig* InControlRig, FName PropertyName,
+		FName ParameterName, EControlRigContextChannelToKey ChannelsToKey, ESequencerKeyMode KeyMode,
+		float InLocalTime, const bool bInConstraintSpace = false);
+	void GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EControlRigContextChannelToKey ChannelsToKey,
+		ESequencerKeyMode KeyMode, UMovieSceneControlRigParameterSection* SectionToKey,	FGeneratedTrackKeys& OutGeneratedKeys,
+		const bool bInConstraintSpace = false);
 	FKeyPropertyResult AddKeysToControlRig(
 		USceneComponent *InSceneComp, UControlRig* InControlRig, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedKeys,
 		ESequencerKeyMode KeyMode, TSubclassOf<UMovieSceneTrack> TrackClass, FName ControlRigName, FName RigControlName);

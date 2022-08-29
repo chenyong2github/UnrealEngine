@@ -8,6 +8,7 @@
 
 #include "TransformConstraint.generated.h"
 
+enum class EHandleEvent : uint8;
 class UTransformableHandle;
 class UTransformableComponentHandle;
 class USceneComponent;
@@ -84,7 +85,7 @@ public:
 	 * Manages changes on the child/parent transformable handle. This can be used to update internal data (i.e. offset)
 	 * when transform changes outside of that system and need to trigger changes within the constraint itself.   
 	*/
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate);
+	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent);
 
 protected:
 
@@ -146,7 +147,7 @@ public:
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
+	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 
 protected:
 
@@ -189,7 +190,7 @@ public:
 	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
+	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 
 protected:
 
@@ -262,7 +263,7 @@ public:
 	
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, bool bUpdate) override;
+	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 
 protected:
 	/** Cache data structure to store last child local/global transform. */
@@ -367,4 +368,7 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		const FTransform& InChildWorld,
 		const FTransform& InSpaceWorld,
 		const UTickableTransformConstraint* InConstraint);
+
+	/** Computes the current constraint space local transform. */
+	static TOptional<FTransform> GetConstraintRelativeTransform(UWorld* InWorld, const uint32 InHandleHash);
 };

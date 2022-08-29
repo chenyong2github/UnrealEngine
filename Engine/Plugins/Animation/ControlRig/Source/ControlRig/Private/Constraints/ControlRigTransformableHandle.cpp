@@ -4,6 +4,7 @@
 #include "Constraints/ControlRigTransformableHandle.h"
 
 #include "ControlRig.h"
+#include "ControlRigObjectBinding.h"
 #include "IControlRigObjectBinding.h"
 #include "Rigs/RigHierarchyElements.h"
 #include "Channels/MovieSceneChannelProxy.h"
@@ -158,7 +159,7 @@ TWeakObjectPtr<UObject> UTransformableControlHandle::GetTarget() const
 USkeletalMeshComponent* UTransformableControlHandle::GetSkeletalMesh() const
 {
 	const TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig.IsValid() ? ControlRig->GetObjectBinding() : nullptr;
-	return ObjectBinding ? Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject()) : nullptr;
+   	return ObjectBinding ? Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject()) : nullptr;
 }
 
 bool UTransformableControlHandle::HasDirectDependencyWith(const UTransformableHandle& InOther) const
@@ -221,6 +222,12 @@ void UTransformableControlHandle::UnregisterDelegates() const
 			Hierarchy->OnModified().RemoveAll(this);
 		}
 		ControlRig->ControlModified().RemoveAll(this);
+
+		if (const TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+		{
+			Binding->OnControlRigBind().RemoveAll(this);
+		}
+		ControlRig->ControlRigBound().RemoveAll(this);
 	}
 }
 
@@ -240,6 +247,10 @@ void UTransformableControlHandle::RegisterDelegates()
 		}
 		
 		ControlRig->ControlModified().AddUObject(this, &UTransformableControlHandle::OnControlModified);
+		if (!ControlRig->ControlRigBound().IsBoundToObject(this))
+		{
+			ControlRig->ControlRigBound().AddUObject(this, &UTransformableControlHandle::OnControlRigBound);
+		}
 	}
 }
 
@@ -300,8 +311,46 @@ void UTransformableControlHandle::OnControlModified(
 	{
 		if(OnHandleModified.IsBound())
 		{
-			OnHandleModified.Broadcast(this, InContext.bConstraintUpdate);
+			const EHandleEvent Event = InContext.bConstraintUpdate ?
+				EHandleEvent::GlobalTransformUpdated : EHandleEvent::LocalTransformUpdated; 
+			OnHandleModified.Broadcast(this, Event);
 		}
+	}
+}
+
+void UTransformableControlHandle::OnControlRigBound(UControlRig* InControlRig)
+{
+	if (!InControlRig)
+	{
+		return;
+	}
+
+	if (!ControlRig.IsValid() || ControlRig != InControlRig)
+	{
+		return;
+	}
+
+	if (const TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+	{
+		if (!Binding->OnControlRigBind().IsBoundToObject(this))
+		{
+			Binding->OnControlRigBind().AddUObject(this, &UTransformableControlHandle::OnObjectBoundToControlRig);
+		}
+	}
+}
+
+void UTransformableControlHandle::OnObjectBoundToControlRig(UObject* InObject)
+{
+	if (!ControlRig.IsValid() || !InObject)
+	{
+		return;
+	}
+
+	const TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding();
+	const UObject* CurrentObject = Binding ? Binding->GetBoundObject() : nullptr;
+	if (CurrentObject == InObject)
+	{
+		OnHandleModified.Broadcast(this, EHandleEvent::ComponentUpdated);
 	}
 }
 

@@ -191,7 +191,7 @@ bool UTickableTransformConstraint::ReferencesObject(TWeakObjectPtr<UObject> InOb
 	const TWeakObjectPtr<UObject> ChildTarget = ChildTRSHandle->IsValid() ? ChildTRSHandle->GetTarget() : nullptr;
 	if (ChildTarget == InObject)
 	{
-		return true;	
+		return true;
 	}
 
 	const TWeakObjectPtr<UObject> ParentTarget = ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTarget() : nullptr;
@@ -205,7 +205,7 @@ bool UTickableTransformConstraint::ReferencesObject(TWeakObjectPtr<UObject> InOb
 
 void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InGlobal) const
 {
-	if(ChildTRSHandle->IsValid())
+	if(ChildTRSHandle && ChildTRSHandle->IsValid())
 	{
 		ChildTRSHandle->SetGlobalTransform(InGlobal);
 	}
@@ -213,7 +213,7 @@ void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InG
 
 void UTickableTransformConstraint::SetChildLocalTransform(const FTransform& InLocal) const
 {
-	if(ChildTRSHandle->IsValid())
+	if(ChildTRSHandle && ChildTRSHandle->IsValid())
 	{
 		ChildTRSHandle->SetLocalTransform(InLocal);
 	}
@@ -221,26 +221,40 @@ void UTickableTransformConstraint::SetChildLocalTransform(const FTransform& InLo
 
 FTransform UTickableTransformConstraint::GetChildGlobalTransform() const
 {
-	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetGlobalTransform() : FTransform::Identity;
+	return (ChildTRSHandle && ChildTRSHandle->IsValid()) ? ChildTRSHandle->GetGlobalTransform() : FTransform::Identity;
 }
 
 FTransform UTickableTransformConstraint::GetChildLocalTransform() const
 {
-	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetLocalTransform() : FTransform::Identity;
+	return (ChildTRSHandle && ChildTRSHandle->IsValid()) ? ChildTRSHandle->GetLocalTransform() : FTransform::Identity;
 }
 
 FTransform UTickableTransformConstraint::GetParentGlobalTransform() const
 {
-	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetGlobalTransform() : FTransform::Identity;
+	return (ParentTRSHandle && ParentTRSHandle->IsValid()) ? ParentTRSHandle->GetGlobalTransform() : FTransform::Identity;
 }
 
 FTransform UTickableTransformConstraint::GetParentLocalTransform() const
 {
-	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetLocalTransform() : FTransform::Identity;
+	return (ParentTRSHandle && ParentTRSHandle->IsValid()) ? ParentTRSHandle->GetLocalTransform() : FTransform::Identity;
 }
 
-void UTickableTransformConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
-{}
+void UTickableTransformConstraint::OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InNotification)
+{
+	if (!InHandle)
+	{
+		return;
+	}
+
+	if(InHandle == ChildTRSHandle || InHandle == ParentTRSHandle)
+	{
+		if (InNotification == EHandleEvent::ComponentUpdated)
+		{
+			SetupDependencies();
+			return;
+		}
+	}
+}
 
 /** 
  * UTickableTranslationConstraint
@@ -316,14 +330,23 @@ FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetF
 	};
 }
 
-void UTickableTranslationConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+void UTickableTranslationConstraint::OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent)
 {
+	Super::OnHandleModified(InHandle, InEvent);
+	
 	if (!Active || !bDynamicOffset)
 	{
 		return;
 	}
 	
 	if (!InHandle || InHandle != ChildTRSHandle)
+	{
+		return;
+	}
+
+	const bool bUpdateFromGlobal = (InEvent == EHandleEvent::GlobalTransformUpdated);
+	const bool bUpdateTransform = InEvent == EHandleEvent::LocalTransformUpdated || bUpdateFromGlobal;
+	if (!bUpdateTransform)
 	{
 		return;
 	}
@@ -335,7 +358,7 @@ void UTickableTranslationConstraint::OnHandleModified(UTransformableHandle* InHa
 	{
 		Cache.CachedInputHash = InputHash;
 
-		if (bUpdate)
+		if (bUpdateFromGlobal)
 		{
 			const FTransform ParentWorldTransform = GetParentGlobalTransform();
 			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
@@ -440,14 +463,23 @@ FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunc
 	};
 }
 
-void UTickableRotationConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+void UTickableRotationConstraint::OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent)
 {
+	Super::OnHandleModified(InHandle, InEvent);
+	
 	if (!Active || !bDynamicOffset)
 	{
 		return;
 	}
 	
 	if (!InHandle || InHandle != ChildTRSHandle)
+	{
+		return;
+	}
+
+	const bool bUpdateFromGlobal = (InEvent == EHandleEvent::GlobalTransformUpdated);
+	const bool bUpdateTransform = (InEvent == EHandleEvent::LocalTransformUpdated) || bUpdateFromGlobal;
+	if (!bUpdateTransform)
 	{
 		return;
 	}
@@ -459,7 +491,7 @@ void UTickableRotationConstraint::OnHandleModified(UTransformableHandle* InHandl
 	{
 		Cache.CachedInputHash = InputHash;
 
-		if (bUpdate)
+		if (bUpdateFromGlobal)
 		{
 			const FTransform ParentWorldTransform = GetParentGlobalTransform();
 			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
@@ -623,8 +655,10 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 	};
 }
 
-void UTickableParentConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+void UTickableParentConstraint::OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent)
 {
+	Super::OnHandleModified(InHandle, InEvent);
+	
 	if (!Active || !bDynamicOffset)
 	{
 		return;
@@ -635,14 +669,21 @@ void UTickableParentConstraint::OnHandleModified(UTransformableHandle* InHandle,
 		return;
 	}
 
+	const bool bUpdateFromGlobal = (InEvent == EHandleEvent::GlobalTransformUpdated);
+	const bool bUpdateTransform = (InEvent == EHandleEvent::LocalTransformUpdated) || bUpdateFromGlobal;
+	if (!bUpdateTransform)
+	{
+		return;
+	}
+	
 	const uint32 InputHash = CalculateInputHash();
 
 	// update dynamic offset
 	if (InputHash != Cache.CachedInputHash)
 	{
 		Cache.CachedInputHash = InputHash;
-		
-		if (bUpdate)
+
+		if (bUpdateFromGlobal)
 		{
 			const FTransform ParentWorldTransform = GetParentGlobalTransform();
 			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
@@ -1041,4 +1082,44 @@ FTransform FTransformConstraintUtils::ComputeRelativeTransform(
 	}
 	
 	return InChildWorld.GetRelativeTransform(InSpaceWorld);
+}
+
+TOptional<FTransform> FTransformConstraintUtils::GetConstraintRelativeTransform(UWorld* InWorld, const uint32 InHandleHash)
+{
+	if (!InWorld || InHandleHash <= 0)
+	{
+		return TOptional<FTransform>();
+	}
+
+	static constexpr bool bSorted = true;
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	const TArray<TObjectPtr<UTickableConstraint>> Constraints = Controller.GetParentConstraints(InHandleHash, bSorted);
+
+	if (Constraints.IsEmpty())
+	{
+		return TOptional<FTransform>();
+	}
+
+	// get current active transform constraint 	
+	const int32 LastActiveIndex = Constraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
+    {
+    	if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
+    	{
+    		return InConstraint->Active && TransformConstraint->bDynamicOffset;
+    	}
+    	return false;
+    });
+
+	if (!Constraints.IsValidIndex(LastActiveIndex))
+	{
+		return TOptional<FTransform>();
+	}
+
+	// get relative transform
+	const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]);
+	const FTransform ChildLocal = Constraint->GetChildLocalTransform();
+	const FTransform ChildGlobal = Constraint->GetChildGlobalTransform();
+	const FTransform ParentGlobal = Constraint->GetParentGlobalTransform();
+
+	return ComputeRelativeTransform(ChildLocal, ChildGlobal, ParentGlobal, Constraint);
 }

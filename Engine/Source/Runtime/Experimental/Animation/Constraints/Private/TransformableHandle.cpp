@@ -157,7 +157,7 @@ void UTransformableComponentHandle::OnActorMoving(AActor* InActor)
 
 	if(OnHandleModified.IsBound())
 	{
-		OnHandleModified.Broadcast(this, true);
+		OnHandleModified.Broadcast(this, EHandleEvent::GlobalTransformUpdated);
 	}
 }
 
@@ -202,7 +202,7 @@ void UTransformableComponentHandle::OnPostPropertyChanged(
 
 	if(OnHandleModified.IsBound())
 	{
-		OnHandleModified.Broadcast(this, true);
+		OnHandleModified.Broadcast(this, EHandleEvent::GlobalTransformUpdated);
 	}
 }
 
