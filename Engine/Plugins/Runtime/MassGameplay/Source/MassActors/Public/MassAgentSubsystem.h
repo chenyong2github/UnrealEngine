@@ -39,12 +39,14 @@ UCLASS()
 class MASSACTORS_API UMassAgentSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
-public:
 
+protected:
 	// USubsystem BEGIN
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	// USubsystem END
 
+public:
 	/** Registers given AgentComp with the Mass Simulation, including creation of a FMassEntityHandle using 
 	 *  UMassAgentComponent.LWComponentList to determine the Archetype to use. */
 	FMassEntityTemplateID RegisterAgentComponent(UMassAgentComponent& AgentComp);

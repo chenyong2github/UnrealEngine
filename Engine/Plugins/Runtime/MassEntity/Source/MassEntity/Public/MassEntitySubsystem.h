@@ -26,15 +26,13 @@ class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
 public:
 	UMassEntitySubsystem();
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-
 	//~UObject interface
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~End of UObject interface
 
-	const FMassEntityManager& GetEntityManager() const { return EntityManager.Get(); }
-	FMassEntityManager& GetMutableEntityManager() { return EntityManager.Get(); }
+	const FMassEntityManager& GetEntityManager() const { check(EntityManager); return *EntityManager.Get(); }
+	FMassEntityManager& GetMutableEntityManager() { check(EntityManager); return *EntityManager.Get(); }
 
 protected:
-	TSharedRef<FMassEntityManager> EntityManager;
+	TSharedPtr<FMassEntityManager> EntityManager;
 };

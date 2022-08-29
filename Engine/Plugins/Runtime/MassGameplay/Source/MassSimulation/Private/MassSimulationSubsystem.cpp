@@ -70,6 +70,8 @@ void UMassSimulationSubsystem::Deinitialize()
 	GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).RemoveAll(this);
 	StopSimulation();
 
+	EntityManager.Reset();
+
 	Super::Deinitialize();
 }
 

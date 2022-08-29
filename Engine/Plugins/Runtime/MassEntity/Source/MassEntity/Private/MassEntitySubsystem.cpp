@@ -33,16 +33,7 @@ void UMassEntitySubsystem::PostInitialize()
 void UMassEntitySubsystem::Deinitialize()
 {
 	EntityManager->Deinitialize();
-}
-
-void UMassEntitySubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	Super::AddReferencedObjects(InThis, Collector);
-
-	if (UMassEntitySubsystem* Instance = Cast<UMassEntitySubsystem>(InThis))
-	{
-		Instance->EntityManager->AddReferencedObjects(Collector);
-	}
+	EntityManager.Reset();
 }
 
 #if WITH_MASSENTITY_DEBUG

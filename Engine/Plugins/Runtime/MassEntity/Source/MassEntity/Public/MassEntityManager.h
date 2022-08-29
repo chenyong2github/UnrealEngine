@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UObject/GCObject.h"
 #include "MassEntityTypes.h"
 #include "MassProcessingTypes.h"
 #include "InstancedStruct.h"
@@ -37,7 +38,7 @@ enum class EMassFragmentAccess : uint8;
  * (as supplied by deriving from TSharedFromThis<FMassEntityManager>).
  * IMPORTANT: if you create your own FMassEntityManager instance remember to call Initialize() before using it.
  */
-struct MASSENTITY_API FMassEntityManager : public TSharedFromThis<FMassEntityManager>
+struct MASSENTITY_API FMassEntityManager : public TSharedFromThis<FMassEntityManager>, public FGCObject
 {
 	friend FMassEntityQuery;
 	friend FMassDebugger;
@@ -82,9 +83,15 @@ public:
 
 	explicit FMassEntityManager(UObject* InOwner = nullptr);
 	FMassEntityManager(const FMassEntityManager& Other) = delete;
-	~FMassEntityManager();
+	virtual ~FMassEntityManager();
 
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	// FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FMassEntityManager");
+	}
+	// End of FGCObject interface
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 
 	void Initialize();

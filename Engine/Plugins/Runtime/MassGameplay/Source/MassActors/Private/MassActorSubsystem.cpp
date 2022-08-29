@@ -69,6 +69,11 @@ void UMassActorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 }
 
+void UMassActorSubsystem::Deinitialize()
+{
+	EntityManager.Reset();
+}
+
 FMassEntityHandle UMassActorSubsystem::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
 {
 	UE_MT_SCOPED_READ_ACCESS(ActorHandleMapDetector);

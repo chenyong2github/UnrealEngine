@@ -102,6 +102,7 @@ public:
 protected:
 	// USubsystem BEGIN
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	// USubsystem END
 	
 	TMap<TObjectKey<const AActor>, FMassEntityHandle> ActorHandleMap;

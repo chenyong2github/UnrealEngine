@@ -1225,6 +1225,13 @@ void USmartObjectSubsystem::OnWorldBeginPlay(UWorld& World)
 	InitializeRuntime();
 }
 
+void USmartObjectSubsystem::Deinitialize()
+{
+	EntityManager.Reset();
+
+	Super::Deinitialize();
+}
+
 #if WITH_EDITOR
 void USmartObjectSubsystem::ComputeBounds(const UWorld& World, ASmartObjectCollection& Collection) const
 {

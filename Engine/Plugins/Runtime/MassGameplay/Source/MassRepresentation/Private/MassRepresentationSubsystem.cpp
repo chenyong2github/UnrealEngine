@@ -355,7 +355,7 @@ void UMassRepresentationSubsystem::Deinitialize()
 			AgentSystem->GetOnMassAgentComponentEntityDetaching().RemoveAll(this);
 		}
 	}
-
+	EntityManager.Reset();
 }
 
 void UMassRepresentationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds, const EMassProcessingPhase Phase) const

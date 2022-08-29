@@ -65,6 +65,11 @@ void UMassAgentSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #endif // UE_REPLICATION_COMPILE_CLIENT_CODE
 }
 
+void UMassAgentSubsystem::Deinitialize()
+{
+	EntityManager.Reset();
+}
+
 FMassEntityTemplateID UMassAgentSubsystem::RegisterAgentComponent(UMassAgentComponent& AgentComp)
 {
 	check(EntityManager);

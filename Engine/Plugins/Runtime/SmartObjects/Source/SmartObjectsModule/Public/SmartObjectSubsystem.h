@@ -443,6 +443,10 @@ protected:
 	 */
 	virtual void OnWorldBeginPlay(UWorld& World) override;
 
+	// USubsystem BEGIN
+	virtual void Deinitialize() override;
+	// USubsystem END
+
 	/** Creates all runtime data using main collection */
 	void InitializeRuntime();
 

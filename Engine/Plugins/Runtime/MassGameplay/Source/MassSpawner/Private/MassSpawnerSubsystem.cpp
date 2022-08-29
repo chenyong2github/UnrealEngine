@@ -32,6 +32,11 @@ void UMassSpawnerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
 }
 
+void UMassSpawnerSubsystem::Deinitialize() 
+{
+	EntityManager.Reset();
+}
+
 void UMassSpawnerSubsystem::PostInitialize()
 {
 	TemplateRegistryInstance = NewObject<UMassEntityTemplateRegistry>(this);
