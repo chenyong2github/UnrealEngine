@@ -30,7 +30,7 @@ FConcertFrontendLogFilter_TextSearch::FConcertFrontendLogFilter_TextSearch(TShar
 	ChildSlot = SNew(SSearchBox)
 		.OnTextChanged_Lambda([this](const FText& NewSearchText)
 		{
-			OnSearchTextChanged().Broadcast(NewSearchText);
+			SearchText = NewSearchText;
 			Implementation.SetRawFilterText(NewSearchText);
 		})
 		.DelayChangeNotificationsWhileTyping(true);

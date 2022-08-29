@@ -36,7 +36,7 @@ void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConce
 	PagedLogList = MakeShared<FPagedFilteredConcertLogList>(MoveTemp(LogSource), InArgs._Filter);
 	EndpointCache = MoveTemp(InEndpointCache);
 	LogTokenizer = MoveTemp(InLogTokenizer);
-	HighlightText = MakeShared<FText>();
+	Filter = InArgs._Filter;
 	
 	ChildSlot
 	[
@@ -77,10 +77,6 @@ void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConce
 
 	// Subscribe to events
 	PagedLogList->OnPageViewChanged().AddSP(this, &SConcertTransportLog::OnPageViewChanged);
-	if (InArgs._Filter)
-	{
-		InArgs._Filter->GetTextSearchFilter()->OnSearchTextChanged().AddSP(this, &SConcertTransportLog::OnSearchTextChanged);
-	}
 	
 	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().AddSP(this, &SConcertTransportLog::OnColumnVisibilitySettingsChanged);
 	UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), UMultiUserServerColumnVisibilitySettings::GetSettings()->GetTransportLogColumnVisibility());
@@ -89,20 +85,20 @@ void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConce
 	OnConcertLoggingEnabledChanged(ConcertTransportEvents::IsLoggingEnabled());
 }
 
-bool SConcertTransportLog::CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const
+bool SConcertTransportLog::CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
 {
-	return PagedLogList->GetFilteredLogsWithId(MessageId).ContainsByPredicate([Filter](const TSharedPtr<FConcertLogEntry>& LogEntry)
+	return PagedLogList->GetFilteredLogsWithId(MessageId).ContainsByPredicate([FilterFunc](const TSharedPtr<FConcertLogEntry>& LogEntry)
 	{
-		return Filter(*LogEntry);
+		return FilterFunc(*LogEntry);
 	});
 }
 
-void SConcertTransportLog::ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const
+void SConcertTransportLog::ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
 {
 	// Could be optimised further by having FPagedFilteredConcertLogList cache the index but it's fine - ScrollToLog is called very infrequently (when the user presses a button)
-	const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId, Filter](const TSharedPtr<FConcertLogEntry>& Entry)
+	const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId, FilterFunc](const TSharedPtr<FConcertLogEntry>& Entry)
 	{
-		return Entry->Log.MessageId == MessageId && Filter(*Entry);
+		return Entry->Log.MessageId == MessageId && FilterFunc(*Entry);
 	});
 	ScrollToLog(Index);
 }
@@ -196,7 +192,8 @@ TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedP
 		? OriginInfo->AvatarColor
 		: DestinationInfo.IsSet() ? DestinationInfo->AvatarColor : FLinearColor::Black;
 	
-	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef(), HighlightText.ToSharedRef())
+	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef())
+		.HighlightText_Lambda([this](){ return Filter.IsValid() ? Filter->GetTextSearchFilter()->GetSearchText() : FText(); })
 		.AvatarColor(AvatarColor)
 		.CanScrollToAckLog(this, &SConcertTransportLog::CanScrollToAckLog)
 		.CanScrollToAckedLog(this, &SConcertTransportLog::CanScrollToAckedLog)
@@ -341,11 +338,6 @@ void SConcertTransportLog::OnPageViewChanged(const TArray<TSharedPtr<FConcertLog
 	{
 		LogView->ScrollToBottom();
 	}
-}
-
-void SConcertTransportLog::OnSearchTextChanged(const FText& NewSearchText)
-{
-	*HighlightText = NewSearchText;
 }
 
 void SConcertTransportLog::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)

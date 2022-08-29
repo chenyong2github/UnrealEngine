@@ -41,8 +41,8 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer);
 
-	bool CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const;
-	void ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc Filter) const;
+	bool CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const;
+	void ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const;
 	
 private:
 	
@@ -58,8 +58,7 @@ private:
 	/** Used by various systems to convert logs to text */
 	TSharedPtr<FConcertLogTokenizer> LogTokenizer;
 
-	/** Updates to be the content of the search text. Shared with all rows. */
-	TSharedPtr<FText> HighlightText;
+	TSharedPtr<FConcertLogFilter_FrontendRoot> Filter;
 	
 	/** Lists the logs */
 	TSharedPtr<SListView<TSharedPtr<FConcertLogEntry>>> LogView;
@@ -82,7 +81,6 @@ private:
 	void ExtendViewOptions(FMenuBuilder& MenuBuilder);
 	void OnFilterMenuChecked();
 	void OnPageViewChanged(const TArray<TSharedPtr<FConcertLogEntry>>&);
-	void OnSearchTextChanged(const FText& NewSearchText);
 	void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
 	
 	void OnConcertLoggingEnabledChanged(bool bNewEnabled);

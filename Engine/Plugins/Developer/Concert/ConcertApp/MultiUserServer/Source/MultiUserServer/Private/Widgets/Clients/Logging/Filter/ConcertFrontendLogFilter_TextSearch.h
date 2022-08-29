@@ -41,11 +41,9 @@ public:
 
 	FConcertFrontendLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer);
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSearchTextChanged, const FText& /*NewSearchText*/);
-	FOnSearchTextChanged& OnSearchTextChanged() { return OnSearchTextChangedEvent; }
+	FText GetSearchText() const { return SearchText; }
 
 private:
 
-	/** Useful to let external subscriber handle text highlighting */
-	FOnSearchTextChanged OnSearchTextChangedEvent;
+	FText SearchText;
 };

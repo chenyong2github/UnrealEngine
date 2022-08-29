@@ -20,11 +20,11 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTransportLogRow"
 
-void SConcertTransportLogRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertLogEntry> InLogEntry, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedRef<FConcertLogTokenizer> InTokenizer, TSharedRef<FText> InHighlightText)
+void SConcertTransportLogRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertLogEntry> InLogEntry, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedRef<FConcertLogTokenizer> InTokenizer)
 {
 	LogEntry = MoveTemp(InLogEntry);
 	Tokenizer = MoveTemp(InTokenizer);
-	HighlightText = MoveTemp(InHighlightText);
+	HighlightText = InArgs._HighlightText;
 	
 	AvatarColor = InArgs._AvatarColor;
 	CanScrollToAckLogFunc = InArgs._CanScrollToAckLog;
@@ -88,7 +88,7 @@ TSharedRef<SWidget> SConcertTransportLogRow::CreateDefaultColumn(const FName& Pr
 				
 			return FText::GetEmpty();
 		})
-		.HighlightText_Lambda([this](){ return *HighlightText.Get(); });
+		.HighlightText(HighlightText);
 }
 
 TSharedRef<SWidget> SConcertTransportLogRow::CreateAckColumn(const FName& PropertyName)

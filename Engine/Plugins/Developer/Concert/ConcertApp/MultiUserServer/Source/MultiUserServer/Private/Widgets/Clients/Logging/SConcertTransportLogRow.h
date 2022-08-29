@@ -18,6 +18,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SConcertTransportLogRow)
 	{}
+		SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_ARGUMENT(FLinearColor, AvatarColor)
 		SLATE_EVENT(FCanScrollToLog, CanScrollToAckLog)
 		SLATE_EVENT(FCanScrollToLog, CanScrollToAckedLog)
@@ -25,7 +26,7 @@ public:
 		SLATE_EVENT(FScrollToLog, ScrollToAckedLog)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<FConcertLogEntry> InLogEntry, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedRef<FConcertLogTokenizer> InTokenizer, TSharedRef<FText> InHighlightText);
+	void Construct(const FArguments& InArgs, TSharedPtr<FConcertLogEntry> InLogEntry, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedRef<FConcertLogTokenizer> InTokenizer);
 
 	//~ Begin SMultiColumnTableRow Interface
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
@@ -37,8 +38,7 @@ private:
 	/** Used to convert some members into display strings */
 	TSharedPtr<FConcertLogTokenizer> Tokenizer;
 
-	/** Owned by SConcertTransportLog. Updated with the search text. */
-	TSharedPtr<FText> HighlightText;
+	TAttribute<FText> HighlightText;
 
 	FLinearColor AvatarColor;
 	FCanScrollToLog CanScrollToAckLogFunc;
