@@ -188,7 +188,7 @@ protected:
 	void CancelIORequest();
 
 	/** Handle to bulk data request */;
-	FBulkDataRequest BulkDataRequest;
+	FBulkDataBatchRequest BulkDataRequest;
 
 	/** Bulk data I/O buffer */
 	FIoBuffer BulkData;

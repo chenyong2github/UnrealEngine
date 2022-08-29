@@ -511,6 +511,8 @@ public:
 
 	COREUOBJECT_API FBulkDataChunkId& operator=(FBulkDataChunkId&&) = default;
 	
+	COREUOBJECT_API bool operator==(const FBulkDataChunkId& Other) const;
+	
 	bool IsValid() const { return Impl.IsValid(); }
 
 	FPackageId GetPackageId() const;
@@ -587,7 +589,7 @@ public:
 	friend class FLinkerLoad;
 	friend class FExportArchive;
 	friend class UE::Serialization::FEditorBulkData; // To allow access to AttachedAr
-	friend class FBulkDataRequest;
+	friend class FBulkDataBatchRequest;
 
 	using BulkDataRangeArray = TArray<FBulkData*, TInlineAllocator<8>>;
 
@@ -1335,20 +1337,8 @@ public:
 /** Handle to a bulk data I/O request. */
 class COREUOBJECT_API FBulkDataRequest
 {
-	class FBase;
-	class FReadChunk;
-	class FReadFile;
-
-	struct FReadRequest
-	{
-		UE::BulkData::Private::FBulkMetaData BulkMeta;
-		UE::BulkData::Private::FBulkDataChunkId BulkChunkId;
-		uint64 Offset = 0;
-		uint64 Size = ~uint64(0);
-		void* TargetVa = nullptr;
-	};
-
 public:
+	class IHandle;
 
 	/** Bulk data request status. */
 	enum class EStatus : uint32
@@ -1368,17 +1358,26 @@ public:
 	/** Completion callback. */
 	using FCompletionCallback = TFunction<void(EStatus)>;
 
+	/** Default bulk data I/O request priority. */
+	static constexpr EAsyncIOPriorityAndFlags DefaultPriority = AIOP_BelowNormal;
+
 	/** Constructs a new handle to bulk data request. */
-	FBulkDataRequest() = default;
+	FBulkDataRequest();
 
 	/** Destructor, cancels and waits for any pending requests. */
-	~FBulkDataRequest() = default;
+	~FBulkDataRequest();
 
 	/** Moves ownership from an invalid or pending request. */
-	FBulkDataRequest(FBulkDataRequest&&) = default;
+	FBulkDataRequest(FBulkDataRequest&&);
 
 	/** Moves ownership from an invalid or pending request. */
-	FBulkDataRequest& operator=(FBulkDataRequest&&) = default;
+	FBulkDataRequest& operator=(FBulkDataRequest&&);
+	
+	/** Not copy constructable. */
+	FBulkDataRequest(const FBulkDataRequest&) = delete;
+
+	/** Not copy assignable. */
+	FBulkDataRequest& operator=(const FBulkDataRequest&) = delete;
 
 	/** Returns current status of the request. */
 	EStatus GetStatus() const;
@@ -1395,6 +1394,61 @@ public:
 	/** Returns whether the request has been completed. */
 	bool IsCompleted() const;
 
+	/** Cancel the pending request. */
+	void Cancel();
+
+	/** Reset the request handle to an invalid state. Will cancel and wait if the request is not completed. */
+	void Reset();
+
+protected:
+	friend class FChunkBatchRequest;
+	friend class FFileSystemBatchRequest;
+	
+	FBulkDataRequest(IHandle* InHandle);
+	int32 GetRefCount() const;
+
+	TRefCountPtr<IHandle> Handle;
+};
+
+/** Handle to a bulk data I/O batch read request. */
+using FBulkDataBatchReadRequest = FBulkDataRequest;
+
+/**
+ * A batch request is a handle to one or more I/O requests.
+ *
+ * The batch request is kept alive by passing in handles when appending
+ * read operations or by passing in a handle when issuing the batch. At least
+ * one handle needs to be passed in. The last handle will block until the
+ * entire batch is complete before being released.
+ */
+class COREUOBJECT_API FBulkDataBatchRequest : public FBulkDataRequest
+{
+public:
+	class IHandle;
+
+private:
+	class COREUOBJECT_API FBuilder
+	{
+	public:
+		~FBuilder();
+		FBuilder(const FBuilder&) = delete;
+		FBuilder& operator=(const FBuilder&) = delete;
+
+	protected:
+		FBuilder();
+		explicit FBuilder(int32 MaxCount);
+		FBulkDataBatchRequest::IHandle& GetBatch(const FBulkData& BulkData);
+		EStatus IssueBatch(FBulkDataBatchRequest* OutRequest, FCompletionCallback&& Callback);
+
+		int32 BatchMax = -1;
+		int32 BatchCount = 0;
+		int32 NumLoaded = 0;
+		TRefCountPtr<FBulkDataBatchRequest::IHandle> Batch;
+	};
+
+public:	
+	using FBulkDataRequest::FBulkDataRequest;
+
 	/** Blocks the calling thread until the request is completed. */
 	void Wait();
 
@@ -1404,69 +1458,80 @@ public:
 	/** Waits the specified amount of time for the request to be completed. */
 	bool WaitFor(const FTimespan& WaitTime);
 
-	/** Cancel the pending request. */
-	void Cancel();
-
-	/** Base class for building bulk data I/O requests. */
-	class COREUOBJECT_API FRequestBuilder
-	{
-	protected:
-		FRequestBuilder() = default;
-
-		void AddRequest(
-			const UE::BulkData::Private::FBulkMetaData& BulkMeta,
-			const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
-			uint64 Offset,
-			uint64 Size,
-			void* TargetVa);
-
-		TArray<FReadRequest> Requests;
-		uint64 TotalRequestSize = 0;
-	};
-
-	/** Scatter/gather bulk data I/O reads into a single I/O buffer. */
-	class COREUOBJECT_API FScatterGather : public FRequestBuilder
+	/** Issue one or more I/O request in a single batch. */
+	class COREUOBJECT_API FBatchBuilder : public FBuilder
 	{
 	public:
-		FScatterGather& Read(const FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
-		FBulkDataRequest Issue(FIoBuffer& Dst, FCompletionCallback&& Callback, EAsyncIOPriorityAndFlags Priority = AIOP_BelowNormal);
+		FBatchBuilder(int32 MaxCount);
+		/** Read the entire bulk data and copy the result to the specified instance. */
+		FBatchBuilder& Read(FBulkData& BulkData, EAsyncIOPriorityAndFlags Priority = DefaultPriority);
+		/**
+		 * Read the bulk data from the specified offset and size and copy the result into the destination buffer.
+		 * @param BulkData		The bulk data instance.
+		 * @param Offset		Offset relative to the bulk data offset.
+		 * @param Size			Number of bytes to read. Use MAX_uint64 to read the entire bulk data.
+		 * @param Priority		The I/O priority.
+		 * @param Dst			An empty or preallocated I/O buffer.	
+		 */
+		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst);
+		/**
+		 * Read the bulk data from the specified offset and size and copy the result into the destination buffer.
+		 * @param BulkData		The bulk data instance.
+		 * @param Offset		Offset relative to the bulk data.
+		 * @param Size			Number of bytes to read. Use MAX_uint64 to read the entire bulk data.
+		 * @param Priority		The I/O priority.
+		 * @param Dst			An empty or preallocated I/O buffer.	
+		 * @param OutRequest	A handle to the read request.	
+		 */
+		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst, FBulkDataBatchReadRequest& OutRequest);
+		/**
+		 * Issue the batch.
+		 * @param OutRequest	A handle to the batch request.
+		 * @return				Status of the issue operation.
+		 */
+		EStatus Issue(FBulkDataBatchRequest& OutRequest);
+		/**
+		 * Issue the batch. 
+		 * @return				Status of the issue operation.
+		 *
+		 * @note Assumes one or more handle(s) has been passed into any of the read operations.
+		 */
+		[[nodiscard]] EStatus Issue();
 	};
 
-	/** Read the entire bulk data and copy the result into the bulk data instances. */
-	class COREUOBJECT_API FStreamToInstance : public FRequestBuilder
+	/** Reads one or more bulk data and copies the result into a single I/O buffer. */
+	class COREUOBJECT_API FScatterGatherBuilder : public FBuilder
 	{
 	public:
-		FStreamToInstance& Read(FBulkData& BulkData);
-		/** Returns a handle to a pending or completed request depending on if the bulk data has been loaded or not. */
-		FBulkDataRequest Issue(EAsyncIOPriorityAndFlags Priority = AIOP_BelowNormal);
+		FScatterGatherBuilder(int32 MaxCount);
+		/** Read the bulk data from the specified offset and size. */
+		FScatterGatherBuilder& Read(const FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
+		/**
+		 * Issue the batch.
+		 * @param Dst			An empty or preallocated I/O buffer.	
+		 * @param Priority		The I/O priority.
+		 * @param Callback		A callback triggered when the operation is completed.
+		 * @param OutRequest	A handle to the batch request.
+		 * @return				Status of the issue operation.
+		 *
+		 * @note Assumes one or more handle(s) has been passed into any of the read operations.
+		 */
+		EStatus Issue(FIoBuffer& Dst, EAsyncIOPriorityAndFlags Priority, FCompletionCallback&& Callback, FBulkDataBatchRequest& OutRequest);
 
 	private:
-		TArray<FBulkData*> Instances;
-		int32 NumRequested = 0;
+		struct FRequest
+		{
+			const FBulkData* BulkData	= nullptr;
+			uint64 Offset				= 0;
+			uint64 Size					= MAX_uint64;
+		};
+
+		TArray<FRequest> Requests;
 	};
+
+	/** Returns a request builder that dispatches one or more I/O requests in a single batch. */
+	static FBatchBuilder NewBatch(int32 MaxCount = -1) { return FBatchBuilder(MaxCount); }
 
 	/** Returns a request builder that reads one or more bulk data into a single I/O buffer. */
-	static FScatterGather ScatterGather();
-
-	/** Returns a request builder that reads and copies the I/O result into one or more bulk data instances. */
-	static FStreamToInstance StreamToInstance();
-
-private:
-
-	static FBulkDataRequest Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority, FBulkDataRequest::FCompletionCallback&& Callback);
-	static FBulkDataRequest FromCompletionStatus(EStatus CompletionStatus, FBulkDataRequest::FCompletionCallback&& Callback);
-
-	struct FDeleter
-	{
-		void operator()(FBase* Impl);
-	};
-
-	using FBasePtr = TUniquePtr<FBase, FDeleter>;
-
-	FBulkDataRequest(const FBulkDataRequest&) = delete;
-	FBulkDataRequest& operator=(const FBulkDataRequest&) = delete;
-
-	FBulkDataRequest(FBasePtr&& InImpl);
-
-	FBasePtr Impl;
+	static FScatterGatherBuilder ScatterGather(int32 MaxCount = -1) { return FScatterGatherBuilder(MaxCount); }
 };

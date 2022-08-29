@@ -783,17 +783,17 @@ bool FHairStrandsRestResource::InternalIsDataLoaded()
 {
 	if (BulkDataRequest.IsNone())
 	{
-		auto Builder = FBulkDataRequest::StreamToInstance();
-		Builder.Read(BulkData.Positions);
-		Builder.Read(BulkData.Attributes0);
-		Builder.Read(BulkData.Attributes1);
+		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(4);
+		Batch.Read(BulkData.Positions);
+		Batch.Read(BulkData.Attributes0);
+		Batch.Read(BulkData.Attributes1);
 
 		if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasMaterialData))
 		{
-			Builder.Read(BulkData.Materials);
+			Batch.Read(BulkData.Materials);
 		}
 
-		BulkDataRequest = Builder.Issue();
+		Batch.Issue(BulkDataRequest);
 	}
 	
 	return BulkDataRequest.IsCompleted();
@@ -801,7 +801,7 @@ bool FHairStrandsRestResource::InternalIsDataLoaded()
 
 void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	BulkDataRequest = FBulkDataRequest();
+	BulkDataRequest = FBulkDataBatchRequest();
 
 	const uint32 PointCount = BulkData.PointCount;
 
@@ -1022,12 +1022,12 @@ bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
 {
 	if (BulkDataRequest.IsNone())
 	{
-		BulkDataRequest = FBulkDataRequest::StreamToInstance()
+		FBulkDataBatchRequest::NewBatch(4)
 			.Read(BulkData.PackedClusterInfos)
 			.Read(BulkData.ClusterLODInfos)
 			.Read(BulkData.VertexToClusterIds)
 			.Read(BulkData.ClusterVertexIds)
-			.Issue();
+			.Issue(BulkDataRequest);
 	}
 
 	return BulkDataRequest.IsCompleted();
@@ -1035,7 +1035,7 @@ bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
 
 void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	BulkDataRequest = FBulkDataRequest();
+	BulkDataRequest = FBulkDataBatchRequest();
 
 	if (GHairStrandsBulkData_Validation > 0)
 	{
@@ -1055,7 +1055,7 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 	ClusterLODInfoBuffer.Release();
 	ClusterVertexIdBuffer.Release();
 	VertexToClusterIdBuffer.Release();
-	BulkDataRequest = FBulkDataRequest();
+	BulkDataRequest = FBulkDataBatchRequest();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1091,9 +1091,9 @@ bool FHairStrandsRestRootResource::InternalIsDataLoaded()
 
 	if (BulkDataRequest.IsNone())
 	{
-		BulkDataRequest = FBulkDataRequest::StreamToInstance()
+		FBulkDataBatchRequest::NewBatch(1)
 			.Read(BulkData.VertexToCurveIndexBuffer)
-			.Issue();
+			.Issue(BulkDataRequest);
 	}
 
 	return BulkDataRequest.IsCompleted();
@@ -1106,34 +1106,34 @@ bool FHairStrandsRestRootResource::InternalIsLODDataLoaded(int32 LODIndex)
 	check(LODs.Num() == BulkData.MeshProjectionLODs.Num());
 	if (LODIndex >= 0 && LODIndex < LODs.Num())
 	{
-		FBulkDataRequest& LODRequest = LODRequests[LODIndex];
+		FBulkDataBatchRequest& LODRequest = LODRequests[LODIndex];
 		if (LODRequest.IsNone())
 		{
-			auto NewRequest = FBulkDataRequest::StreamToInstance();
+			FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(9);
 			FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
 			const bool bHasValidCPUData = CPUData.RootBarycentricBuffer.GetBulkDataSize() > 0;
 			if (bHasValidCPUData)
 			{
-				NewRequest.Read(CPUData.RootBarycentricBuffer);
-				NewRequest.Read(CPUData.RootToUniqueTriangleIndexBuffer);
-				NewRequest.Read(CPUData.UniqueTriangleIndexBuffer);
+				Batch.Read(CPUData.RootBarycentricBuffer);
+				Batch.Read(CPUData.RootToUniqueTriangleIndexBuffer);
+				Batch.Read(CPUData.UniqueTriangleIndexBuffer);
 
-				NewRequest.Read(CPUData.RestUniqueTrianglePosition0Buffer);
-				NewRequest.Read(CPUData.RestUniqueTrianglePosition1Buffer);
-				NewRequest.Read(CPUData.RestUniqueTrianglePosition2Buffer);
+				Batch.Read(CPUData.RestUniqueTrianglePosition0Buffer);
+				Batch.Read(CPUData.RestUniqueTrianglePosition1Buffer);
+				Batch.Read(CPUData.RestUniqueTrianglePosition2Buffer);
 			}
 			
 			const bool bHasValidCPUWeights = CPUData.MeshSampleIndicesBuffer.GetBulkDataSize() > 0;
 			if (bHasValidCPUWeights)
 			{
-				NewRequest.Read(CPUData.MeshInterpolationWeightsBuffer);
-				NewRequest.Read(CPUData.MeshSampleIndicesBuffer);
-				NewRequest.Read(CPUData.RestSamplePositionsBuffer);
+				Batch.Read(CPUData.MeshInterpolationWeightsBuffer);
+				Batch.Read(CPUData.MeshSampleIndicesBuffer);
+				Batch.Read(CPUData.RestSamplePositionsBuffer);
 			}
 			
 			if (bHasValidCPUData || bHasValidCPUWeights)
 			{
-				LODRequest = NewRequest.Issue();
+				Batch.Issue(LODRequest);
 			}
 		}
 
@@ -1173,7 +1173,7 @@ void FHairStrandsRestRootResource::InternalAllocateLOD(FRDGBuilder& GraphBuilder
 			return;
 		}
 		
-		LODRequests[LODIndex] = FBulkDataRequest();
+		LODRequests[LODIndex] = FBulkDataBatchRequest();
 
 		FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
 		const bool bHasValidCPUData = CPUData.RootBarycentricBuffer.GetBulkDataSize() > 0;
@@ -1511,18 +1511,20 @@ bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
 {
 	if (BulkDataRequest.IsNone())
 	{
-		auto NewRequest = FBulkDataRequest::StreamToInstance();
+		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(4);
 		const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
 		if (bUseSingleGuide)
 		{
-			NewRequest.Read(BulkData.Interpolation);
+			Batch.Read(BulkData.Interpolation);
 		}
 		else
 		{
-			NewRequest.Read(BulkData.Interpolation0);
-			NewRequest.Read(BulkData.Interpolation1);
+			Batch.Read(BulkData.Interpolation0);
+			Batch.Read(BulkData.Interpolation1);
 		}
-		BulkDataRequest = NewRequest.Read(BulkData.SimRootPointIndex).Issue();
+		Batch.Read(BulkData.SimRootPointIndex);
+
+		Batch.Issue(BulkDataRequest);
 	}
 
 	return BulkDataRequest.IsCompleted();
@@ -1530,6 +1532,8 @@ bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
 
 void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
+	BulkDataRequest = FBulkDataBatchRequest();
+
 	const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
 	if (bUseSingleGuide)
 	{
@@ -1549,7 +1553,7 @@ void FHairStrandsInterpolationResource::InternalRelease()
 	Interpolation0Buffer.Release();
 	Interpolation1Buffer.Release();
 	SimRootPointIndexBuffer.Release();
-	BulkDataRequest = FBulkDataRequest();
+	BulkDataRequest = FBulkDataBatchRequest();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

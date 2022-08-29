@@ -428,18 +428,19 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 	FSkeletalMeshRenderData* RenderData = Context.RenderData;
 	if (Mesh && RenderData)
 	{
-		auto ScatterGather = FBulkDataRequest::ScatterGather();
-		FBulkData::BulkDataRangeArray BulkDataArray;
+		const int32 BatchCount = CurrentFirstLODIdx - PendingFirstLODIdx;
+		FBulkDataBatchRequest::FScatterGatherBuilder Batch = FBulkDataBatchRequest::ScatterGather(BatchCount);
 		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
-			ScatterGather.Read(Context.LODResourcesView[Index]->StreamingBulkData);
+			Batch.Read(Context.LODResourcesView[Index]->StreamingBulkData);
 		}
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-		BulkDataRequest = ScatterGather.Issue(BulkData, [this](FBulkDataRequest::EStatus Status)
+		const EAsyncIOPriorityAndFlags Priority = bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low;
+		Batch.Issue(BulkData, Priority, [this](FBulkDataRequest::EStatus Status)
 		{
 			// At this point task synchronization would hold the number of pending requests.
 			TaskSynchronization.Decrement();
@@ -465,7 +466,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 			// Using TT_None ensure gets which could create a dead lock.
 			Tick(FSkeletalMeshUpdate::TT_None);
 		},
-		bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low);
+		BulkDataRequest);
 	}
 	else
 	{
@@ -481,7 +482,7 @@ void FSkeletalMeshStreamIn_IO::ClearIORequest(const FContext& Context)
 		BulkDataRequest.Wait();
 	}
 	
-	BulkDataRequest = FBulkDataRequest();
+	BulkDataRequest = FBulkDataBatchRequest();
 	BulkData = FIoBuffer();
 }
 

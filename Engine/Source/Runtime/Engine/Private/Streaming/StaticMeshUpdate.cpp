@@ -464,17 +464,19 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context)
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (Mesh && RenderData)
 	{
-		auto ScatterGather = FBulkDataRequest::ScatterGather();	
+		const int32 BatchCount = CurrentFirstLODIdx - PendingFirstLODIdx;
+		FBulkDataBatchRequest::FScatterGatherBuilder Batch = FBulkDataBatchRequest::ScatterGather(BatchCount);
 		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
-			ScatterGather.Read(Context.LODResourcesView[Index]->StreamingBulkData);
+			Batch.Read(Context.LODResourcesView[Index]->StreamingBulkData);
 		}
 		
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 		
-		BulkDataRequest = ScatterGather.Issue(BulkData, [this](FBulkDataRequest::EStatus Status)
+		const EAsyncIOPriorityAndFlags Priority = bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low;
+		Batch.Issue(BulkData, Priority, [this](FBulkDataRequest::EStatus Status)
 		{
 			TaskSynchronization.Decrement();
 
@@ -499,7 +501,7 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context)
 			// Using TT_None ensure gets which could create a dead lock.
 			Tick(FStaticMeshUpdate::TT_None);
 		},
-		bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low);
+		BulkDataRequest);
 	}
 	else
 	{
@@ -515,7 +517,7 @@ void FStaticMeshStreamIn_IO::ClearIORequest(const FContext& Context)
 		BulkDataRequest.Wait();
 	}
 	
-	BulkDataRequest = FBulkDataRequest();
+	BulkDataRequest = FBulkDataBatchRequest();
 	BulkData = FIoBuffer();
 }
 

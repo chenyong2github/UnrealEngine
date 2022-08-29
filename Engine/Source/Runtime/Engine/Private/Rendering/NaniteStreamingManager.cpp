@@ -1183,7 +1183,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 					}
 				}
 #else
-				const uint8* SrcPtr = PendingPage.MemoryPtr;
+				const uint8* SrcPtr = PendingPage.RequestBuffer.GetData();
 #endif
 
 				const uint32 FixupChunkSize = ((const FFixupChunk*)SrcPtr)->GetSize();
@@ -1248,18 +1248,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 #if WITH_EDITOR
 		Task.PendingPage->SharedBuffer.Reset();
 #else
-		if (Task.PendingPage->AsyncRequest)
-		{
-			check(Task.PendingPage->AsyncRequest->PollCompletion());	
-			delete Task.PendingPage->AsyncRequest;
-			delete Task.PendingPage->AsyncHandle;
-			Task.PendingPage->AsyncRequest = nullptr;
-			Task.PendingPage->AsyncHandle = nullptr;
-		}
-		else
-		{
-			check(Task.PendingPage->Request.Status().IsCompleted());
-		}
+		check(Task.PendingPage->Request.IsCompleted());
+		Task.PendingPage->Request.Reset();
 #endif
 	});
 
@@ -1549,15 +1539,9 @@ uint32 FStreamingManager::DetermineReadyPages()
 				break;
 			}
 #else
-			if (PendingPage.AsyncRequest)
+			if (PendingPage.Request.IsCompleted() == false)
 			{
-				if (!PendingPage.AsyncRequest->PollCompletion())
-					break;
-			}
-			else
-			{
-				if (!PendingPage.Request.Status().IsCompleted())
-					break;
+				break;
 			}
 #endif
 
@@ -1806,15 +1790,6 @@ void FStreamingManager::AsyncUpdate()
 
 	uint32 NumLegacyRequestsIssued = 0;
 
-	struct FIORequestTask
-	{
-		FByteBulkData*	BulkData;
-		FPendingPage*	PendingPage;
-		uint32			BulkOffset;
-		uint32			BulkSize;
-	};
-	TArray<FIORequestTask> RequestTasks;
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessReadback);
 	const uint32* BufferPtr = AsyncState.LatestReadbackBufferPtr;
 	const uint32 NumGPUStreamingRequests = FMath::Min(BufferPtr[0], NANITE_MAX_STREAMING_REQUESTS - 1u);	// First request is reserved for counter
@@ -1985,9 +1960,8 @@ void FStreamingManager::AsyncUpdate()
 				}
 			}
 
-			FIoBatch Batch;
-			FPendingPage* LastPendingPage = nullptr;
-				
+			FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(SelectedPages.Num());
+
 			// Register Pages
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(RegisterPages);
@@ -2057,28 +2031,9 @@ void FStreamingManager::AsyncUpdate()
 						PendingPage.State = FPendingPage::EState::Ready;
 					}
 #else
-					PendingPage.MemoryPtr = PendingPageStagingMemory.GetData() + NextPendingPageIndex * NANITE_MAX_PAGE_DISK_SIZE;
-					if (!bLegacyRequest)
-					{
-						// Use IODispatcher when available
-						LastPendingPage = &PendingPage;
-						FIoChunkId ChunkID = BulkData.CreateChunkId();
-						FIoReadOptions ReadOptions;
-						ReadOptions.SetRange(BulkData.GetBulkDataOffsetInFile() + PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
-						ReadOptions.SetTargetVa(PendingPage.MemoryPtr);
-						PendingPage.Request = Batch.Read(ChunkID, ReadOptions, IoDispatcherPriority_Low);
-					}
-					else
-					{
-						// Compatibility path without IODispatcher
-						// Perform actual requests on workers to mitigate stalls
-						FIORequestTask& Task = RequestTasks.AddDefaulted_GetRef();
-						Task.BulkData = &BulkData;
-						Task.PendingPage = &PendingPage;
-						Task.BulkOffset = PageStreamingState.BulkOffset;
-						Task.BulkSize = PageStreamingState.BulkSize;
-						NumLegacyRequestsIssued++;
-					}
+					uint8* Dst = PendingPageStagingMemory.GetData() + NextPendingPageIndex * NANITE_MAX_PAGE_DISK_SIZE;
+					PendingPage.RequestBuffer = FIoBuffer(FIoBuffer::Wrap, Dst, PageStreamingState.BulkSize);
+					Batch.Read(BulkData, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Low, PendingPage.RequestBuffer, PendingPage.Request);
 #endif
 					const float RequestSizeMB = PageStreamingState.BulkSize * (1.0f / 1048576.0f);
 					INC_FLOAT_STAT_BY(STAT_NaniteStreamingDiskIORequestMB, RequestSizeMB);
@@ -2101,38 +2056,19 @@ void FStreamingManager::AsyncUpdate()
 					RegisterStreamingPage( Page, SelectedKey );
 				}
 			}
-
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
+				(void)Batch.Issue();
+			}
 #if WITH_EDITOR
 			if (DDCRequests.Num() > 0)
 			{
 				RequestDDCData(DDCRequests);
 				DDCRequests.Empty();
 			}
-#else
-			if (LastPendingPage)
-			{
-				// Issue batch
-				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
-				Batch.Issue();
-			}
 #endif
 		}
 	}
-
-#if !WITH_EDITOR
-	// Legacy compatibility path
-	// Delete this when we can rely on IOStore always being enabled
-	if (!RequestTasks.IsEmpty())
-	{
-		ParallelFor(RequestTasks.Num(), [&RequestTasks](int32 i)
-		{
-			FIORequestTask& Task = RequestTasks[i];
-			TRACE_CPUPROFILER_EVENT_SCOPE(Nanite_RequestTask);
-			Task.PendingPage->AsyncHandle = Task.BulkData->OpenAsyncReadHandle();
-			Task.PendingPage->AsyncRequest = Task.PendingPage->AsyncHandle->ReadRequest(Task.BulkData->GetBulkDataOffsetInFile() + Task.BulkOffset, Task.BulkSize, AIOP_Normal, nullptr, Task.PendingPage->MemoryPtr);
-		});
-	}
-#endif
 
 	// Issue warning if we end up taking the legacy path
 	if (NumLegacyRequestsIssued > 0)

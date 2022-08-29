@@ -267,6 +267,30 @@ FBulkDataChunkId& FBulkDataChunkId::operator=(const FBulkDataChunkId& Other)
 	return *this;
 }
 
+bool FBulkDataChunkId::operator==(const FBulkDataChunkId& Other) const
+{
+	if (Impl.IsValid() && Other.Impl.IsValid())
+	{
+		if (const FPackageId* Id = Impl->PathOrId.TryGet<FPackageId>())
+		{
+			if (const FPackageId* OtherId = Other.Impl->PathOrId.TryGet<FPackageId>())
+			{
+				return *Id == *OtherId;
+			}
+		}
+
+		if (const FPackagePath* PackagePath = Impl->PathOrId.TryGet<FPackagePath>())
+		{
+			if (const FPackagePath* OtherPackagePath = Other.Impl->PathOrId.TryGet<FPackagePath>())
+			{
+				return *PackagePath == *OtherPackagePath;
+			}
+		}
+	}
+
+	return Impl.IsValid() == Other.Impl.IsValid();
+}
+
 FPackageId FBulkDataChunkId::GetPackageId() const
 {
 	if (Impl)

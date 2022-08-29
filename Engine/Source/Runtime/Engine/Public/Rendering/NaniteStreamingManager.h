@@ -98,13 +98,8 @@ struct FPendingPage
 	} State = EState::Pending;
 	uint32					RetryCount = 0;
 #else
-	uint8*					MemoryPtr = nullptr;
-	FIoRequest				Request;
-
-	// Legacy compatibility
-	// Delete when we can rely on IoStore
-	IAsyncReadFileHandle*	AsyncHandle = nullptr;
-	IAsyncReadRequest*		AsyncRequest = nullptr;
+	FIoBuffer				RequestBuffer;
+	FBulkDataBatchReadRequest Request;
 #endif
 
 	uint32					GPUPageIndex = INDEX_NONE;

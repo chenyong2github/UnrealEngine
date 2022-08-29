@@ -2,13 +2,19 @@
 #include "Serialization/BulkData.h"
 #include "Algo/AllOf.h"
 #include "Async/MappedFileHandle.h"
+#include "Containers/ChunkedArray.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/Timespan.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "Serialization/MemoryReader.h"
+#include "Templates/RefCounting.h"
 #include "UObject/PackageResourceManager.h"
 
 //////////////////////////////////////////////////////////////////////////////
+
+TRACE_DECLARE_INT_COUNTER(BulkDataBatchRequest_Count, TEXT("BulkData/BatchRequest/Count"));
+TRACE_DECLARE_INT_COUNTER(BulkDataBatchRequest_PendingCount, TEXT("BulkData/BatchRequest/Pending"));
 
 FBulkDataIORequest::FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle)
 	: FileHandle(InFileHandle)
@@ -772,49 +778,136 @@ void FlushAsyncLoad(FBulkData* Owner)
 
 //////////////////////////////////////////////////////////////////////////////
 
-class FBulkDataRequest::FBase
+class FBulkDataRequest::IHandle
 {
 public:
-	FBase(FCompletionCallback&& Callback)
-		: DoneEvent(EEventMode::ManualReset)
-		, CompletionCallback(MoveTemp(Callback))
+	virtual ~IHandle() = default;
+
+	virtual void AddRef() = 0;
+	virtual void Release() = 0;
+	virtual uint32 GetRefCount() const = 0;
+
+	virtual FBulkDataRequest::EStatus GetStatus() const = 0;
+	virtual bool Cancel() = 0;
+	virtual bool Wait(uint32 Milliseconds) = 0;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+class FBulkDataBatchRequest::IHandle : public FBulkDataRequest::IHandle
+{
+public:
+	virtual ~IHandle() = default;
+
+	virtual void Read(
+		const UE::BulkData::Private::FBulkMetaData& BulkMeta,
+		const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
+		const FIoReadOptions& Options,
+		EAsyncIOPriorityAndFlags Priority,
+		FIoReadCallback&& Callback,
+		FBulkDataBatchReadRequest* OutRequest) = 0; 
+
+	virtual bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) = 0;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+class FHandleBase : public FBulkDataRequest::IHandle
+{
+public:
+	FHandleBase() = default;
+	FHandleBase(FBulkDataRequest::EStatus InStatus)
+		: Status(uint32(InStatus))
+	{ }
+	
+	virtual ~FHandleBase() = default;
+
+	virtual void AddRef() override final
 	{
+		RefCount.fetch_add(1, std::memory_order_relaxed);
 	}
 
-	virtual ~FBase() = default;
-
-	virtual void Cancel()
+	virtual void Release() override final
 	{
+		if (RefCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
 	}
 
-	virtual bool Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority)
+	virtual uint32 GetRefCount() const override final
 	{
-		return true;
+		return uint32(RefCount.load(std::memory_order_relaxed));
 	}
 
-	bool Wait(uint32 Milliseconds)
+	virtual FBulkDataBatchRequest::EStatus GetStatus() const override final
+	{
+		return FBulkDataBatchRequest::EStatus(Status.load(std::memory_order_consume));
+	}
+
+	void SetStatus(FBulkDataBatchRequest::EStatus InStatus)
+	{
+		Status.store(uint32(InStatus), std::memory_order_release);
+	}
+
+	virtual bool Cancel() override
+	{
+		return false;
+	}
+
+	virtual bool Wait(uint32 Milliseconds) override
+	{
+		return false;
+	}
+
+private:
+	std::atomic<int32>	RefCount{0};
+	std::atomic<uint32> Status{0};
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+class FBatchHandleBase : public FBulkDataBatchRequest::IHandle
+{
+public:
+	FBatchHandleBase() = default;
+	virtual ~FBatchHandleBase() = default;
+
+	virtual void AddRef() override final
+	{
+		RefCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	virtual void Release() override final
+	{
+		if (RefCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+	virtual uint32 GetRefCount() const override final
+	{
+		return uint32(RefCount.load(std::memory_order_relaxed));
+	}
+
+	virtual FBulkDataBatchRequest::EStatus GetStatus() const override final
+	{
+		return FBulkDataBatchRequest::EStatus(Status.load(std::memory_order_consume));
+	}
+	
+	virtual bool Wait(uint32 Milliseconds) override final
 	{
 		return DoneEvent.Wait(Milliseconds);
 	}
 
-	inline FBulkDataRequest::EStatus GetStatus() const
+	void SetStatus(FBulkDataBatchRequest::EStatus InStatus)
 	{
-		return static_cast<FBulkDataRequest::EStatus>(Status.load(std::memory_order_consume));
-	}
-
-	void SetCompleted(FBulkDataRequest::EStatus CompletionStatus)
-	{
-		CompleteRequest(CompletionStatus);
+		Status.store(uint32(InStatus), std::memory_order_release);
 	}
 
 protected:
-
-	inline void SetStatus(FBulkDataRequest::EStatus InStatus)
-	{
-		Status.store(uint32(InStatus), std::memory_order_release); 
-	}
-
-	inline void CompleteRequest(FBulkDataRequest::EStatus CompletionStatus)
+	void CompleteBatch(FBulkDataRequest::EStatus CompletionStatus)
 	{
 		if (CompletionCallback)
 		{
@@ -825,160 +918,395 @@ protected:
 		DoneEvent.Trigger();
 	}
 
-	std::atomic<uint32>	Status;
-	UE::FLazyEvent DoneEvent;
-	FCompletionCallback CompletionCallback;
+private:
+	std::atomic<int32>	RefCount{0};
+	std::atomic<uint32> Status{0};
+	UE::FLazyEvent		DoneEvent{EEventMode::ManualReset};
+
+protected:
+	FBulkDataRequest::FCompletionCallback CompletionCallback;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
-class FBulkDataRequest::FReadChunk final : public FBulkDataRequest::FBase
+static FBulkDataRequest::EStatus GetStatusFromIoErrorCode(const EIoErrorCode ErrorCode)
+{
+	if (ErrorCode == EIoErrorCode::Unknown)
+	{
+		return FBulkDataRequest::EStatus::Pending;
+	}
+	else if (ErrorCode == EIoErrorCode::Ok)
+	{
+		return FBulkDataRequest::EStatus::Ok;
+	}
+	else if (ErrorCode == EIoErrorCode::Cancelled)
+	{
+		return FBulkDataRequest::EStatus::Cancelled;
+	}
+	else
+	{
+		return FBulkDataRequest::EStatus::Error;
+	}
+}
+
+class FChunkBatchReadRequest final : public FBulkDataRequest::IHandle 
 {
 public:
-	FReadChunk(FCompletionCallback&& Callback)
-		: FBase(MoveTemp(Callback))
+	FChunkBatchReadRequest() = default;
+	FChunkBatchReadRequest(FBulkDataBatchRequest::IHandle* InBatch, FIoRequest&& InIoHandle)
+		: Batch(InBatch)
+		, IoHandle(MoveTemp(InIoHandle))
+	{ }
+
+	virtual void AddRef() override
 	{
+		Batch->AddRef();
 	}
 
-	virtual ~FReadChunk()
-	{ 
+	virtual void Release() override
+	{
+		Batch->Release();
+	}
+
+	virtual uint32 GetRefCount() const override
+	{
+		return Batch->GetRefCount();
+	}
+
+	virtual FBulkDataRequest::EStatus GetStatus() const override
+	{
+		return GetStatusFromIoErrorCode(IoHandle.Status().GetErrorCode());
+	}
+
+	virtual bool Cancel() override
+	{
+		if (IoHandle.Status().GetErrorCode() == EIoErrorCode::Unknown)
+		{
+			IoHandle.Cancel();
+			return true;
+		}
+		return false;
+	}
+
+	virtual bool Wait(uint32 Milliseconds) override
+	{
+		checkNoEntry(); // Bulk read requests is currently not awaitable
+		return true;
+	}
+
+	FBulkDataBatchRequest::IHandle* Batch = nullptr;
+	FIoRequest IoHandle;
+};
+
+class FChunkBatchRequest final : public FBatchHandleBase
+{
+public:
+	FChunkBatchRequest(int32 BatchMaxCount)
+	{
+		if (BatchMaxCount > 0)
+		{
+			Requests.Reserve(BatchMaxCount);
+		}
+
+		TRACE_COUNTER_INCREMENT(BulkDataBatchRequest_Count);
+	}
+	
+	~FChunkBatchRequest()
+	{
 		Cancel();
 		Wait(MAX_uint32);
+		
+		TRACE_COUNTER_DECREMENT(BulkDataBatchRequest_Count);
 	}
 
-	virtual void Cancel() override
+	virtual bool Cancel() override
 	{
-		if (GetStatus() == FBulkDataRequest::EStatus::Pending)
+		if (FBulkDataRequest::EStatus::Pending == GetStatus())
 		{
-			for (FIoRequest& Request : PendingRequests)
+			for (FChunkBatchReadRequest& Request : Requests)
 			{
 				Request.Cancel();
 			}
+
+			return true;
+		}
+
+		return false;
+	}
+
+	virtual void Read(
+		const UE::BulkData::Private::FBulkMetaData& BulkMeta,
+		const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
+		const FIoReadOptions& Options,
+		EAsyncIOPriorityAndFlags Priority,
+		FIoReadCallback&& Callback,
+		FBulkDataBatchReadRequest* OutRequest) override
+	{
+		const FIoChunkId ChunkId	= CreateBulkDataIoChunkId(BulkMeta, BulkChunkId.GetPackageId());
+		const int32 IoPriority		= ConvertToIoDispatcherPriority(Priority);
+		const uint64 BulkOffset		= uint64(BulkMeta.GetOffset());
+		const uint64 BulkSize		= uint64(BulkMeta.GetSize());
+		const uint64 BytesToRead	= FMath::Min(BulkSize, Options.GetSize());
+
+		FIoRequest IoRequest = IoBatch.ReadWithCallback(
+			ChunkId,
+			FIoReadOptions(BulkOffset + Options.GetOffset(), BytesToRead, Options.GetTargetVa()),
+			IoPriority,
+			MoveTemp(Callback));
+
+		FChunkBatchReadRequest* Request = new (Requests) FChunkBatchReadRequest(this, MoveTemp(IoRequest));
+
+		if (OutRequest)
+		{
+			*OutRequest = FBulkDataBatchReadRequest(Request);
 		}
 	}
 
-	virtual bool Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority) override
+	virtual bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) override
 	{
-		check(Requests.Num() > 0);
-		
-		PendingRequests.Reserve(Requests.Num());
-
-		SetStatus(EStatus::Pending);
-
-		FIoBatch Batch = FIoDispatcher::Get().NewBatch();
-		const int32 IoDispatcherPriority = ConvertToIoDispatcherPriority(Priority);
-
-		for (FReadRequest& Request : Requests)
+		if (Requests.IsEmpty())
 		{
-			const FIoChunkId ChunkId = CreateBulkDataIoChunkId(Request.BulkMeta, Request.BulkChunkId.GetPackageId());
-			PendingRequests.Add(Batch.Read(ChunkId, FIoReadOptions(Request.Offset, Request.Size, Request.TargetVa), IoDispatcherPriority));
+			return false;
 		}
 
-		Batch.IssueWithCallback([this]()
+		TRACE_COUNTER_INCREMENT(BulkDataBatchRequest_PendingCount);
+
+		CompletionCallback = MoveTemp(Callback);
+
+		IoBatch.IssueWithCallback([this]()
 		{
 			FBulkDataRequest::EStatus BatchStatus = FBulkDataRequest::EStatus::Ok;
 
-			for (const FIoRequest& Request : PendingRequests)
+			for (auto& Request : Requests)
 			{
-				if (EIoErrorCode ErrorCode = Request.Status().GetErrorCode(); ErrorCode != EIoErrorCode::Ok)
+				if (EIoErrorCode ErrorCode = Request.IoHandle.Status().GetErrorCode(); ErrorCode != EIoErrorCode::Ok)
 				{
-					BatchStatus = ErrorCode == EIoErrorCode::Cancelled
-						? FBulkDataRequest::EStatus::Cancelled
-						: FBulkDataRequest::EStatus::Error;
-
+					BatchStatus = ErrorCode == EIoErrorCode::Cancelled ? FBulkDataRequest::EStatus::Cancelled : FBulkDataRequest::EStatus::Error;
 					break;
 				}
 			}
-			
-			PendingRequests.Empty();
-			CompleteRequest(BatchStatus);
+
+			CompleteBatch(BatchStatus);
+
+			TRACE_COUNTER_DECREMENT(BulkDataBatchRequest_PendingCount);
 		});
 
 		return true;
 	}
 
-private:
+	static constexpr int32 TargetBytesPerChunk = sizeof(FChunkBatchReadRequest) * 8;
+	using FRequests = TChunkedArray<FChunkBatchReadRequest, TargetBytesPerChunk>;
 
-	TArray<FIoRequest, TInlineAllocator<4>> PendingRequests;
+	FIoBatch	IoBatch;
+	FRequests	Requests; //TOOD: Optimize if there's only a single read request 
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
-class FBulkDataRequest::FReadFile final : public FBulkDataRequest::FBase
+class FFileSystemBatchReadRequest final : public FBulkDataRequest::IHandle 
 {
 public:
-	FReadFile(FCompletionCallback&& Callback)
-		: FBase(MoveTemp(Callback))
+	FFileSystemBatchReadRequest() = default;
+	FFileSystemBatchReadRequest(FBulkDataBatchRequest::IHandle* InBatch, FIoReadCallback&& InCallback)
+		: BatchHandle(InBatch)
+		, Callback(MoveTemp(InCallback))
+	{ }
+
+	virtual void AddRef() override
 	{
+		BatchHandle->AddRef();
 	}
 
-	virtual ~FReadFile()
-	{ 
-		Cancel();
-		Wait(MAX_uint32);
+	virtual void Release() override
+	{
+		BatchHandle->Release();
 	}
 
-	virtual void Cancel() override
+	virtual uint32 GetRefCount() const override
 	{
+		return BatchHandle->GetRefCount();
+	}
+
+	virtual FBulkDataRequest::EStatus GetStatus() const override
+	{
+		check(RequestHandle);
+		
+		if (bWasCancelled)
+		{
+			return FBulkDataRequest::EStatus::Cancelled;
+		}
+
+		return RequestHandle->PollCompletion() ? FBulkDataRequest::EStatus::Ok : FBulkDataRequest::EStatus::Pending;
+	}
+
+	virtual bool Cancel() override
+	{
+		check(RequestHandle);
+
 		if (GetStatus() == FBulkDataRequest::EStatus::Pending)
 		{
-			for (TUniquePtr<IAsyncReadRequest>& Request : PendingRequests)
-			{
-				Request->Cancel();
-			}
+			RequestHandle->Cancel();
+			return true;
+		}
+
+		return false;
+	}
+
+	virtual bool Wait(uint32 Milliseconds) override
+	{
+		checkNoEntry(); // Bulk read requests is currently not awaitable
+		return true;
+	}
+
+	FBulkDataBatchRequest::IHandle* BatchHandle = nullptr;
+	TUniquePtr<IAsyncReadRequest>	RequestHandle;
+	FIoReadCallback					Callback;
+	std::atomic<bool>				bWasCancelled{false};
+};
+
+class FFileSystemBatchRequest final : public FBatchHandleBase
+{
+	struct FRequestParams
+	{
+		FFileSystemBatchReadRequest*			Request;
+		FPackagePath							PackagePath;
+		FIoReadOptions							ReadOptions;
+		UE::BulkData::Private::FBulkMetaData	BulkMeta;
+		EAsyncIOPriorityAndFlags				Priority;
+	};
+
+public:
+	FFileSystemBatchRequest(int32 BatchMaxCount)
+	{
+		if (BatchMaxCount > 0)
+		{
+			Requests.Reserve(BatchMaxCount);
+			RequestParams.Reserve(BatchMaxCount);
 		}
 	}
 
-	virtual bool Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority) override
+	~FFileSystemBatchRequest()
 	{
-		using namespace UE::BulkData::Private;
+		Cancel();
+		Wait(MAX_uint32);
+		Requests.Empty();
+	}
 
-		check(Requests.Num() > 0);
+	virtual void Read(
+		const UE::BulkData::Private::FBulkMetaData& BulkMeta,
+		const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
+		const FIoReadOptions& Options,
+		EAsyncIOPriorityAndFlags Priority,
+		FIoReadCallback&& Callback,
+		FBulkDataBatchReadRequest* OutRequest) override
+	{
+		const uint64 BulkOffset		= uint64(BulkMeta.GetOffset());
+		const uint64 BulkSize		= uint64(BulkMeta.GetSize());
+		const uint64 BytesToRead	= FMath::Min(BulkSize, Options.GetSize());
 		
-		SetStatus(EStatus::Pending);
-		
-		PendingRequestCount = Requests.Num();
-		PendingStatus = FBulkDataRequest::EStatus::Ok;
-		
-		for (FReadRequest& Request : Requests)
+		FFileSystemBatchReadRequest* Request = new (Requests) FFileSystemBatchReadRequest(this, MoveTemp(Callback));
+
+		RequestParams.Add(FRequestParams
 		{
-			IAsyncReadFileHandle* FileHandle = OpenFile(Request.BulkMeta, Request.BulkChunkId);
+			Request,
+			BulkChunkId.GetPackagePath(),
+			FIoReadOptions(BulkOffset + Options.GetOffset(), BytesToRead, Options.GetTargetVa()),
+			BulkMeta,
+			Priority
+		});
+
+		if (OutRequest)
+		{
+			*OutRequest = FBulkDataBatchReadRequest(Request);
+		}
+	}
+
+	virtual bool Issue(FBulkDataRequest::FCompletionCallback&& Callback) override
+	{
+		if (Requests.IsEmpty())
+		{
+			return false;
+		}
+
+		CompletionCallback = MoveTemp(Callback);
+		PendingRequestCount.store(Requests.Num(), std::memory_order_relaxed);
+
+		for (FRequestParams& Params : RequestParams)
+		{
+			IAsyncReadFileHandle* FileHandle = OpenFile(Params.PackagePath, Params.BulkMeta);
 
 			if (FileHandle == nullptr)
 			{
 				return false;
 			}
 
-			FAsyncFileCallBack ReadFileCallback = [this](bool bWasCancelled, IAsyncReadRequest* ReadRequest)
-			{
-				if (bWasCancelled)
+			const bool bMemoryIsOwned = Params.ReadOptions.GetTargetVa() != nullptr;
+
+			FAsyncFileCallBack ReadFileCallback = [
+				this,
+				Request = Params.Request,
+				bMemoryIsOwned,
+				Size = Params.ReadOptions.GetSize()](bool bWasCancelled, IAsyncReadRequest* ReadRequest)
 				{
-					PendingStatus = FBulkDataRequest::EStatus::Cancelled;
-				}
+					if (Request->Callback)
+					{
+						if (bWasCancelled)
+						{
+							Request->Callback(FIoStatus(EIoErrorCode::Cancelled));
+						}
+						else
+						{
+							FIoBuffer Buffer = bMemoryIsOwned
+								? FIoBuffer(FIoBuffer::Wrap, ReadRequest->GetReadResults(), Size)
+								: FIoBuffer(FIoBuffer::AssumeOwnership, ReadRequest->GetReadResults(), Size);
+							
+							Request->Callback(Buffer);
+						}
+					}
 
-				if (1 == PendingRequestCount.fetch_sub(1))
-				{
-					CompleteRequest(PendingStatus);
-				}
-			};
+					if (bWasCancelled)
+					{
+						Request->bWasCancelled = true;
+						BatchStatus.store(uint32(FBulkDataRequest::EStatus::Cancelled), std::memory_order_release);
+					}
 
-			if (ReadFile(*FileHandle, Request.Offset, Request.Size, Priority, &ReadFileCallback, Request.TargetVa) == false)
-			{
-				SetStatus(EStatus::Error);
+					if (1 == PendingRequestCount.fetch_sub(1))
+					{
+						CompleteBatch(FBulkDataRequest::EStatus(BatchStatus.load(std::memory_order_consume)));
+					}
+				};
 
-				return false;
-			}
+			Params.Request->RequestHandle.Reset(FileHandle->ReadRequest(
+				Params.ReadOptions.GetOffset(),
+				Params.ReadOptions.GetSize(),
+				Params.Priority,
+				&ReadFileCallback,
+				reinterpret_cast<uint8*>(Params.ReadOptions.GetTargetVa())));
 		}
+		
+		RequestParams.Empty();
 
 		return true;
 	}
 
-private:
-
-	IAsyncReadFileHandle* OpenFile(const UE::BulkData::Private::FBulkMetaData& BulkMeta, const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId)
+	virtual bool Cancel() override
 	{
-		const FPackagePath Path = BulkChunkId.GetPackagePath();
+		if (GetStatus() == FBulkDataRequest::EStatus::Pending)
+		{
+			for (FFileSystemBatchReadRequest& Request : Requests)
+			{
+				Request.Cancel();
+			}
 
+			return true;
+		}
+
+		return false;
+	}
+
+private:
+	IAsyncReadFileHandle* OpenFile(const FPackagePath& Path, const UE::BulkData::Private::FBulkMetaData& BulkMeta)
+	{
 		TUniquePtr<IAsyncReadFileHandle>& FileHandle = PathToFileHandle.FindOrAdd(Path.GetPackageFName());
 
 		if (FileHandle.IsValid() == false)
@@ -1001,44 +1329,45 @@ private:
 		return FileHandle.Get();
 	}
 
-	bool ReadFile(IAsyncReadFileHandle& FileHandle, int64 Offset, int64 Size, EAsyncIOPriorityAndFlags Priority, FAsyncFileCallBack* Callback, void* Dst)
-	{
-		TUniquePtr<IAsyncReadRequest> ReadRequest(FileHandle.ReadRequest(Offset, Size, Priority, Callback, reinterpret_cast<uint8*>(Dst)));
-
-		if (ReadRequest.IsValid())
-		{
-			PendingRequests.Add(MoveTemp(ReadRequest));
-
-			return true;
-		}
-
-		return false;
-	}
-
 	using FPathToFileHandle = TMap<FName, TUniquePtr<IAsyncReadFileHandle>>;
-	using FReadRequests = TArray<TUniquePtr<IAsyncReadRequest>>;
-	
-	FPathToFileHandle PathToFileHandle;
-	FReadRequests PendingRequests;
-	FBulkDataRequest::EStatus PendingStatus;
-	std::atomic<int32> PendingRequestCount;
+	using FRequests			= TChunkedArray<FFileSystemBatchReadRequest>;
+
+	FPathToFileHandle			PathToFileHandle;
+	FRequests					Requests;
+	TArray<FRequestParams>		RequestParams;
+	std::atomic<uint32>			BatchStatus;
+	std::atomic<int32>			PendingRequestCount;
 };
 
-//////////////////////////////////////////////////////////////////////////////
-
-void FBulkDataRequest::FDeleter::operator()(FBase* InImpl)
+FBulkDataRequest::FBulkDataRequest()
 {
-	delete InImpl;
 }
 
-FBulkDataRequest::FBulkDataRequest(FBulkDataRequest::FBasePtr&& InImpl)
-	: Impl(MoveTemp(InImpl))
+FBulkDataRequest::FBulkDataRequest(FBulkDataRequest::IHandle* InHandle)
+	: Handle(InHandle)
 {
+	check(InHandle != nullptr);
+}
+
+FBulkDataRequest::~FBulkDataRequest()
+{
+}
+
+FBulkDataRequest::FBulkDataRequest(FBulkDataRequest&& Other)
+	: Handle(MoveTemp(Other.Handle))
+{
+}
+
+FBulkDataRequest& FBulkDataRequest::operator=(FBulkDataRequest&& Other)
+{
+	Handle = MoveTemp(Other.Handle);
+
+	return *this;
 }
 
 FBulkDataRequest::EStatus FBulkDataRequest::GetStatus() const
 {
-	return Impl.IsValid() ? Impl->GetStatus() : EStatus::None;
+	return Handle != nullptr ? Handle->GetStatus() : EStatus::None;
 }
 
 bool FBulkDataRequest::IsNone() const
@@ -1062,188 +1391,296 @@ bool FBulkDataRequest::IsCompleted() const
 	return Status > static_cast<uint32>(EStatus::Pending);
 }
 
-void FBulkDataRequest::Wait()
+void FBulkDataRequest::Cancel()
 {
-	check(Impl);
-	Impl->Wait(MAX_uint32);
+	check(Handle);
+	Handle->Cancel();
 }
 
-bool FBulkDataRequest::WaitFor(uint32 Milliseconds)
+void FBulkDataRequest::Reset()
 {
-	check(Impl);
-	return Impl->Wait(Milliseconds);
+	Handle.SafeRelease();
 }
 
-bool FBulkDataRequest::WaitFor(const FTimespan& WaitTime)
+int32 FBulkDataRequest::GetRefCount() const
+{
+	if (Handle)
+	{
+		return Handle->GetRefCount();
+	}
+
+	return -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+void FBulkDataBatchRequest::Wait()
+{
+	check(Handle);
+	Handle->Wait(MAX_uint32);
+}
+
+bool FBulkDataBatchRequest::WaitFor(uint32 Milliseconds)
+{
+	check(Handle);
+	return Handle->Wait(Milliseconds);
+}
+
+bool FBulkDataBatchRequest::WaitFor(const FTimespan& WaitTime)
 {
 	return WaitFor((uint32)FMath::Clamp<int64>(WaitTime.GetTicks() / ETimespan::TicksPerMillisecond, 0, MAX_uint32));
 }
 
-void FBulkDataRequest::Cancel()
+//////////////////////////////////////////////////////////////////////////////
+
+FBulkDataBatchRequest::FBuilder::FBuilder()
 {
-	check(Impl);
-	Impl->Cancel();
 }
 
-void FBulkDataRequest::FRequestBuilder::AddRequest(
-	const UE::BulkData::Private::FBulkMetaData& BulkMeta,
-	const UE::BulkData::Private::FBulkDataChunkId& BulkChunkId,
+FBulkDataBatchRequest::FBuilder::FBuilder(int32 MaxCount)
+	: BatchMax(MaxCount)
+{
+}
+
+FBulkDataBatchRequest::FBuilder::~FBuilder()
+{
+}
+
+FBulkDataBatchRequest::IHandle& FBulkDataBatchRequest::FBuilder::GetBatch(const FBulkData& BulkData)
+{
+	if (Batch.IsValid() == false)
+	{
+		check(BulkData.BulkChunkId.IsValid());
+
+		if (FPackageId PackageId = BulkData.BulkChunkId.GetPackageId(); PackageId.IsValid())
+		{
+			Batch = new FChunkBatchRequest(BatchMax);
+		}
+		else
+		{
+			Batch = new FFileSystemBatchRequest(BatchMax);
+		}
+	}
+
+	return *Batch;
+}
+
+FBulkDataRequest::EStatus FBulkDataBatchRequest::FBuilder::IssueBatch(FBulkDataBatchRequest* OutRequest, FCompletionCallback&& Callback)
+{
+	check(Batch.IsValid());
+	checkf(OutRequest != nullptr || Batch->GetRefCount() > 1, TEXT("At least one request handle needs to be used when creating a batch request"));
+
+	TRefCountPtr<FBulkDataBatchRequest::IHandle> NewBatch = MoveTemp(Batch);
+	const bool bOk = NewBatch->Issue(MoveTemp(Callback));
+
+	if (OutRequest)
+	{
+		if (bOk)
+		{
+			*OutRequest = FBulkDataBatchRequest(NewBatch.GetReference());
+		}
+		else
+		{
+			*OutRequest = FBulkDataBatchRequest(new FHandleBase(EStatus::Error));
+		}
+	}
+
+	return bOk ? EStatus::Ok : EStatus::Error;
+}
+
+FBulkDataBatchRequest::FBatchBuilder::FBatchBuilder(int32 MaxCount)
+	: FBuilder(MaxCount)
+{
+}
+
+FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read(FBulkData& BulkData, EAsyncIOPriorityAndFlags Priority)
+{
+	check(BatchMax == -1 || BatchCount < BatchMax);
+
+	if (BulkData.IsBulkDataLoaded())
+	{
+		++NumLoaded;
+		return *this;
+	}
+
+	GetBatch(BulkData).Read(
+		BulkData.BulkMeta,
+		BulkData.BulkChunkId,
+		FIoReadOptions(0, BulkData.GetBulkDataSize()),
+		Priority,
+		[BulkData = &BulkData](TIoStatusOr<FIoBuffer> Status)
+		{
+			if (Status.IsOk())
+			{
+				FIoBuffer Buffer = Status.ConsumeValueOrDie();
+				void* Data = BulkData->ReallocateData(Buffer.GetSize());
+
+				FMemoryReaderView Ar(Buffer.GetView(), true);
+				BulkData->SerializeBulkData(Ar, Data, Buffer.GetSize(), EBulkDataFlags(BulkData->GetBulkDataFlags()));
+			}
+		},
+		nullptr);
+
+	++BatchCount;
+
+	return *this;
+}
+
+FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read(
+	const FBulkData& BulkData,
 	uint64 Offset,
 	uint64 Size,
-	void* TargetVa)
+	EAsyncIOPriorityAndFlags Priority,
+	FIoBuffer& Dst)
 {
-	FReadRequest& Request = Requests.AddDefaulted_GetRef();
+	const uint64 BytesToRead = FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
 
-	Request.BulkMeta	= BulkMeta;
-	Request.BulkChunkId = BulkChunkId;
-	Request.Offset		= Offset;
-	Request.Size		= Size;
-	Request.TargetVa	= TargetVa;
+	check(BatchMax == -1 || BatchCount < BatchMax);
+	check(Dst.GetSize() == 0 || Dst.GetSize() == BytesToRead);
 
-	TotalRequestSize += Size;
-}
-
-FBulkDataRequest::FScatterGather& FBulkDataRequest::FScatterGather::Read(const FBulkData& BulkData, uint64 Offset, uint64 Size)
-{
-	const uint64 BulkOffset	= uint64(BulkData.GetBulkDataOffsetInFile());
-	const uint64 BulkSize	= uint64(BulkData.GetBulkDataSize());
-
-	AddRequest(BulkData.BulkMeta, BulkData.BulkChunkId, BulkOffset + Offset, FMath::Min(BulkSize, Size), nullptr);
-
-	return *this;
-}
-
-FBulkDataRequest FBulkDataRequest::FScatterGather::Issue(FIoBuffer& Dst, FBulkDataRequest::FCompletionCallback&& Callback, EAsyncIOPriorityAndFlags Priority)
-{
-	if (Requests.IsEmpty())
+	if (Dst.GetSize() == 0)
 	{
-		return FBulkDataRequest();
+		Dst = FIoBuffer(BytesToRead);
 	}
 
-	check(TotalRequestSize > 0);
-
-	Dst = FIoBuffer(TotalRequestSize);
-	
-	FMutableMemoryView DstView = Dst.GetMutableView();
-	for (FReadRequest& Request : Requests)
-	{
-		Request.TargetVa = DstView.GetData();
-		DstView.RightChopInline(Request.Size);
-	}
-
-	return FBulkDataRequest::Issue(Requests, Priority, MoveTemp(Callback));
-}
-
-FBulkDataRequest::FStreamToInstance& FBulkDataRequest::FStreamToInstance::Read(FBulkData& BulkData)
-{
-	if (BulkData.IsBulkDataLoaded() == false)
-	{
-		const uint64 BulkOffset	= uint64(BulkData.GetBulkDataOffsetInFile());
-		const uint64 BulkSize	= uint64(BulkData.GetBulkDataSize());
-		
-		AddRequest(BulkData.BulkMeta, BulkData.BulkChunkId, BulkOffset, BulkSize, nullptr);
-		Instances.Add(&BulkData);
-	}
-
-	NumRequested++;
-
-	return *this;
-}
-
-FBulkDataRequest FBulkDataRequest::FStreamToInstance::Issue(EAsyncIOPriorityAndFlags Priority)
-{
-	// Complete the request if all instances are already loaded 
-	if (NumRequested > 0 && Requests.IsEmpty())
-	{
-		return FBulkDataRequest::FromCompletionStatus(FBulkDataRequest::EStatus::Ok, FBulkDataRequest::FCompletionCallback());
-	}
-
-	if (Requests.IsEmpty())
-	{
-		return FBulkDataRequest();
-	}
-
-	check(TotalRequestSize > 0);
-
-	FIoBuffer Dst = FIoBuffer(TotalRequestSize);
-	FMutableMemoryView DstView = Dst.GetMutableView();
-
-	for (FReadRequest& Request : Requests)
-	{
-		Request.TargetVa = DstView.GetData();
-		DstView.RightChopInline(Request.Size);
-	}
-
-	return FBulkDataRequest::Issue(
-		Requests,
+	GetBatch(BulkData).Read(
+		BulkData.BulkMeta,
+		BulkData.BulkChunkId,
+		FIoReadOptions(Offset, Dst.GetSize(), Dst.GetData()),
 		Priority,
-		[Instances = MoveTemp(Instances), Dst = MoveTemp(Dst)](FBulkDataRequest::EStatus Status)
+		FIoReadCallback(),
+		nullptr);
+
+	++BatchCount;
+
+	return *this;
+}
+
+FBulkDataBatchRequest::FBatchBuilder& FBulkDataBatchRequest::FBatchBuilder::Read(
+	const FBulkData& BulkData,
+	uint64 Offset,
+	uint64 Size,
+	EAsyncIOPriorityAndFlags Priority,
+	FIoBuffer& Dst, 
+	FBulkDataBatchReadRequest& OutRequest)
+{
+	const uint64 BytesToRead = FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
+
+	check(BatchMax == -1 || BatchCount < BatchMax);
+	check(Dst.GetSize() == 0 || Dst.GetSize() == BytesToRead);
+
+	if (Dst.GetSize() == 0)
+	{
+		Dst = FIoBuffer(BytesToRead);
+	}
+
+	GetBatch(BulkData).Read(
+		BulkData.BulkMeta,
+		BulkData.BulkChunkId,
+		FIoReadOptions(Offset, Dst.GetSize(), Dst.GetData()),
+		Priority,
+		FIoReadCallback(),
+		&OutRequest);
+	
+	++BatchCount;
+	
+	return *this;
+}
+
+FBulkDataRequest::EStatus FBulkDataBatchRequest::FBatchBuilder::Issue(FBulkDataBatchRequest& OutRequest)
+{
+	if (NumLoaded > 0 && BatchCount == 0)
+	{
+		OutRequest = FBulkDataBatchRequest(new FHandleBase(EStatus::Ok));
+		return EStatus::Ok;
+	}
+
+	return IssueBatch(&OutRequest, FCompletionCallback());
+}
+
+FBulkDataRequest::EStatus FBulkDataBatchRequest::FBatchBuilder::Issue()
+{
+	check(NumLoaded > 0 || BatchCount > 0);
+
+	if (NumLoaded > 0 && BatchCount == 0)
+	{
+		return EStatus::Ok;	
+	}
+
+	return IssueBatch(nullptr, FCompletionCallback());
+}
+
+FBulkDataBatchRequest::FScatterGatherBuilder::FScatterGatherBuilder(int32 MaxCount)
+	: FBuilder(MaxCount)
+{
+}
+
+FBulkDataBatchRequest::FScatterGatherBuilder& FBulkDataBatchRequest::FScatterGatherBuilder::Read(const FBulkData& BulkData, uint64 Offset, uint64 Size)
+{
+	if (Requests.Num() > 0 && Offset == 0)
+	{
+		FRequest& Last = Requests.Last();
+
+		const bool bContiguous = 
+			Last.Offset + Last.Size == BulkData.GetBulkDataOffsetInFile() &&
+			Last.BulkData->GetBulkDataFlags() == BulkData.GetBulkDataFlags() &&
+			Last.BulkData->BulkChunkId == BulkData.BulkChunkId;
+
+		if (bContiguous)
 		{
-			if (FBulkDataRequest::EStatus::Ok != Status)
-			{
-				return;
-			}
+			Last.Size += FMath::Min(uint64(BulkData.GetBulkDataSize()), Size);
+		}
 
-			FMemoryReaderView Ar(Dst.GetView(), true);
-			for (FBulkData* BulkData : Instances)
-			{
-				const int64 BulkOffset	= BulkData->GetBulkDataOffsetInFile();
-				const int64 BulkSize	= BulkData->GetBulkDataSize();
-				void* Data				= BulkData->ReallocateData(BulkSize);
+		return *this;
+	}
 
-				Ar.Seek(BulkOffset);
-				BulkData->SerializeBulkData(Ar, Data, BulkSize, EBulkDataFlags(BulkData->GetBulkDataFlags()));
-			}
-		});
+	Requests.Add(FRequest
+	{
+		&BulkData,
+		Offset,
+		FMath::Min(uint64(BulkData.GetBulkDataSize()), Size)
+	});
+
+	return *this;
 }
 
-FBulkDataRequest::FScatterGather FBulkDataRequest::ScatterGather()
-{
-	return FBulkDataRequest::FScatterGather();
-}
-
-FBulkDataRequest::FStreamToInstance FBulkDataRequest::StreamToInstance()
-{
-	return FBulkDataRequest::FStreamToInstance();
-}
-
-FBulkDataRequest FBulkDataRequest::Issue(TArrayView<FReadRequest> Requests, EAsyncIOPriorityAndFlags Priority, FBulkDataRequest::FCompletionCallback&& Callback)
+FBulkDataRequest::EStatus FBulkDataBatchRequest::FScatterGatherBuilder::Issue(FIoBuffer& Dst, EAsyncIOPriorityAndFlags Priority, FCompletionCallback&& Callback, FBulkDataBatchRequest& OutRequest)
 {
 	if (Requests.IsEmpty())
 	{
-		return FBulkDataRequest();
+		check(false);
+		OutRequest = FBulkDataBatchRequest(new FHandleBase(EStatus::Error));
+		return EStatus::Error;
 	}
 
-	check(Algo::AllOf(Requests, [](const FReadRequest& Req)
-	{ 
-		return Req.BulkChunkId.IsValid() && Req.TargetVa != nullptr;
-	}));
-
-	FBasePtr NewRequest;
-
-	if (FPackageId PackageId = Requests[0].BulkChunkId.GetPackageId(); PackageId.IsValid())
+	uint64 TotalSize = 0;
+	for (const FRequest& Request : Requests)
 	{
-		NewRequest.Reset(new FBulkDataRequest::FReadChunk(MoveTemp(Callback)));
-	}
-	else
-	{
-		NewRequest.Reset(new FBulkDataRequest::FReadFile(MoveTemp(Callback)));
+		TotalSize += Request.Size;
 	}
 
-	if (NewRequest->Issue(Requests, Priority) == false)
+	if (Dst.GetSize() != TotalSize)
 	{
-		return FBulkDataRequest();
+		Dst = FIoBuffer(TotalSize);
 	}
 
-	return FBulkDataRequest(MoveTemp(NewRequest));
+	FBulkDataBatchRequest::IHandle& BatchRequest = GetBatch(*Requests[0].BulkData);
+
+	FMutableMemoryView DstView = Dst.GetMutableView();
+	for (const FRequest& Request : Requests)
+	{
+		BatchRequest.Read(
+			Request.BulkData->BulkMeta,
+			Request.BulkData->BulkChunkId,
+			FIoReadOptions(Request.Offset, Request.Size, DstView.GetData()),
+			Priority,
+			FIoReadCallback(),
+			nullptr);
+		
+		DstView.RightChopInline(Request.Size);
+	}
+
+	return IssueBatch(&OutRequest, MoveTemp(Callback));
 }
 
-FBulkDataRequest FBulkDataRequest::FromCompletionStatus(FBulkDataRequest::EStatus CompletionStatus, FBulkDataRequest::FCompletionCallback&& Callback)
-{
-	check(CompletionStatus != FBulkDataRequest::EStatus::None && CompletionStatus != FBulkDataRequest::EStatus::Pending);
-
-	FBasePtr Completed(new FBulkDataRequest::FBase(MoveTemp(Callback)));
-	Completed->SetCompleted(CompletionStatus);
-
-	return FBulkDataRequest(MoveTemp(Completed));
-}
+//////////////////////////////////////////////////////////////////////////////

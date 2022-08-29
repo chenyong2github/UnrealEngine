@@ -178,13 +178,13 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	TArray<FLOD> LODs;
 
 	/* LOD bulk data requests */
-	TArray<FBulkDataRequest> LODRequests;
+	TArray<FBulkDataBatchRequest> LODRequests;
 
 	/* Store CPU data for root info & root binding */
 	FHairStrandsRootBulkData& BulkData;
 
 	/* Bulk data request handle */
-	FBulkDataRequest BulkDataRequest;
+	FBulkDataBatchRequest BulkDataRequest;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -345,7 +345,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	FHairStrandsBulkData& BulkData;
 
 	/* Handle to bulk data request */
-	FBulkDataRequest BulkDataRequest;
+	FBulkDataBatchRequest BulkDataRequest;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;
@@ -457,7 +457,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	FHairStrandsClusterCullingBulkData& BulkData;
 
 	/* Handle to bulk data request */
-	FBulkDataRequest BulkDataRequest;
+	FBulkDataBatchRequest BulkDataRequest;
 };
 
 struct FHairStrandsInterpolationResource : public FHairCommonResource
@@ -495,7 +495,7 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	FHairStrandsInterpolationBulkData& BulkData;
 
 	/* Handle to bulk data request */
-	FBulkDataRequest BulkDataRequest;
+	FBulkDataBatchRequest BulkDataRequest;
 };
 
 #if RHI_RAYTRACING
