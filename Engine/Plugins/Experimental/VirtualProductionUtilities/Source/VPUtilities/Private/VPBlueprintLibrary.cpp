@@ -109,7 +109,11 @@ bool UVPBlueprintLibrary::JumpToBookmarkInLevelEditor(const UVPBookmark* Bookmar
 
 FGameplayTagContainer UVPBlueprintLibrary::GetVirtualProductionRole()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// We can't depend upon the VP Roles subsystem because it will introduce a circular dependency so we have to
+	// depend upon the deprecated method.
 	return GetDefault<UVPSettings>()->GetRoles();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

@@ -47,7 +47,8 @@ public class VCamCore : ModuleRules
 				"LiveLinkInterface",
 				"MediaIOCore",
 				"RemoteSession",
-				"InputCore"
+				"InputCore",
+				"VPRoles",
 				// ... add private dependencies that you statically link with here ...
 			}
 			);

@@ -26,7 +26,8 @@ public class StageDataProvider : ModuleRules
 				"StageDataCore",
 				"StageMonitorCommon",
 				"TimeManagement",
-				"VPUtilities"
+				"VPRoles",
+				"VPUtilities",
 			}
 		);
 

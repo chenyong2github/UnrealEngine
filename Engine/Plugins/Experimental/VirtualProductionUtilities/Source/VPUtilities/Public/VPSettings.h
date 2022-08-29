@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "UObject/Object.h"
-#include "Engine/DeveloperSettings.h"
 #include "VPSettings.generated.h"
 
 /**
@@ -17,26 +16,8 @@ class VPUTILITIES_API UVPSettings : public UObject
 	GENERATED_BODY()
 
 public:
-	UVPSettings();
-
-protected:
-	/**
-	 * The machine role(s) in a virtual production context.
-	 * @note The role may be override via the command line, "-VPRole=[Role.SubRole1|Role.SubRole2]"
-	 */
-	UPROPERTY(config, EditAnywhere, Category="Virtual Production")
-	FGameplayTagContainer Roles;
-
-	/**
-	 * The machine role(s) in a virtual production context read from the command line.
-	 * ie. "-VPRole=[Role.SubRole1|Role.SubRole2]"
-	 */
-	bool bIsCommandLineRolesValid;
-	UPROPERTY(transient)
-	FGameplayTagContainer CommandLineRoles;
-
-public:
-	const FGameplayTagContainer& GetRoles() const { return bIsCommandLineRolesValid ? CommandLineRoles : Roles; }
+	UE_DEPRECATED(5.1, "Use UVirtualProductionRolesSubsystem::GetCurrentVirtualProductionRoles instead.")
+	const FGameplayTagContainer& GetRoles() const;
 
 	/** Default Kit of Focal Lengths for Virtual Camera */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = "VirtualCamera|Presets")
@@ -62,6 +43,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Virtual Production")
 	bool bShowRoleInEditor;
 
+	UE_DEPRECATED(5.1, "Use UVirtualProductionRolesSubsystem::OnRolesChanged instead.")
 	/** Notify when the virtual production roles have changed. */
 	FSimpleMulticastDelegate OnRolesChanged;
 
@@ -70,16 +52,23 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category = "Virtual Production", DisplayName = "Project Name")
 	FString ShowName;
-
 #endif
+	
+protected:
+	/**
+	 * The machine role(s) in a virtual production context.
+	 * @note The role may be override via the command line, "-VPRole=[Role.SubRole1|Role.SubRole2]"
+	 */
+	UPROPERTY(config)
+	FGameplayTagContainer Roles;
 
-public:
-#if WITH_EDITOR
-	//~ UObject interface
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	//~ End UObject interface
+private:
+	/**
+	 * Roles getter set by the VP Roles module to maintain backwards compatibility.
+	 * May return the command line roles or roles enabled through the VP Roles subsystem.
+	 */
+	DECLARE_DELEGATE_RetVal(const FGameplayTagContainer&, FOnGetRoles);
+	FOnGetRoles RolesGetter;
 
-
-#endif //WITH_EDITOR
-
+	friend class UVirtualProductionRolesSubsystem;
 };

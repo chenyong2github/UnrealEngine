@@ -2,9 +2,10 @@
 
 #include "StageMonitorUtils.h"
 
-#include "Misc/App.h"
+#include "Engine/Engine.h"
 #include "StageMonitoringSettings.h"
 #include "VPSettings.h"
+#include "VPRoles/Public/VPRolesSubsystem.h"
 
 
 namespace StageMonitorUtils
@@ -19,7 +20,10 @@ namespace StageMonitorUtils
 		Descriptor.MachineName = CachedComputerName;
 		Descriptor.ProcessId = FPlatformProcess::GetCurrentProcessId();
 
-		Descriptor.RolesStringified = GetDefault<UVPSettings>()->GetRoles().ToStringSimple();
+		if (GEngine)
+		{
+			Descriptor.RolesStringified = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>()->GetActiveRolesString();
+		}
 
 		Descriptor.FriendlyName = GetDefault<UStageMonitoringSettings>()->CommandLineFriendlyName;
 		if (Descriptor.FriendlyName == NAME_None)

@@ -2,18 +2,14 @@
 
 using UnrealBuildTool;
 
-public class StageMonitorCommon : ModuleRules
+public class VPRolesEditor : ModuleRules
 {
-	public StageMonitorCommon(ReadOnlyTargetRules Target) : base(Target)
+	public VPRolesEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
-				"DeveloperSettings",
-				"StageDataCore"
 			}
 		);
 
@@ -23,8 +19,15 @@ public class StageMonitorCommon : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GameplayTags",
+				"GameplayTagsEditor",
+				"LevelEditor",
+				"Projects",
+				"Slate",
+				"SlateCore",
+				"ToolMenus",
 				"VPRoles",
 				"VPUtilities",
+				"SharedSettingsWidgets",
 			}
 		);
 	}

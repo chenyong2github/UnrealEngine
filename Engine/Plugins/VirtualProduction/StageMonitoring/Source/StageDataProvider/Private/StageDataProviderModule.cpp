@@ -2,6 +2,7 @@
 
 #include "StageDataProviderModule.h"
 
+#include "Engine/Engine.h"
 #include "Features/IModularFeatures.h"
 #include "FramePerformanceProvider.h"
 #include "GenlockWatchdog.h"
@@ -12,6 +13,7 @@
 #include "TakeRecorderStateProvider.h"
 #include "TimecodeProviderWatchdog.h"
 #include "VPSettings.h"
+#include "VPRoles/Public/VPRolesSubsystem.h"
 
 
 const FName IStageDataProviderModule::ModuleName = TEXT("StageDataProvider");
@@ -58,17 +60,18 @@ void FStageDataProviderModule::ShutdownModule()
 
 void FStageDataProviderModule::OnPostEngineInit()
 {
+	const UVirtualProductionRolesSubsystem* RolesSubsystem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>();
 	//If role enforcement is enabled, make sure we have one required to enable data provider
 	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
-	if (!Settings->ProviderSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->ProviderSettings.SupportedRoles))
+	if (!Settings->ProviderSettings.bUseRoleFiltering || RolesSubsystem->GetRolesContainer_Private().HasAny(Settings->ProviderSettings.SupportedRoles))
 	{
 		StartDataProvider();
 	}
 	else
 	{
 		UE_LOG(LogStageDataProvider, Log, TEXT("Can't start StageDataProvider. Role filtering is enabled and our roles (%s) are not accepted (%s)")
-		, *GetDefault<UVPSettings>()->GetRoles().ToStringSimple()
-		, *Settings->ProviderSettings.SupportedRoles.ToStringSimple())
+		, *RolesSubsystem->GetActiveRolesString()
+		, *Settings->ProviderSettings.SupportedRoles.ToStringSimple());
 	}
 }
 

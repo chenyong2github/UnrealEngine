@@ -159,6 +159,7 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 	ChildSlot
 	[
 		SNew(SBorder)
+		.Padding(InArgs._Padding)
 		.BorderImage(InArgs._BackgroundBrush)
 		[
 			SNew(SVerticalBox)
@@ -304,9 +305,7 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 			+SVerticalBox::Slot()
 			.MaxHeight(MaxHeight)
 			[
-				SAssignNew(TagTreeContainerWidget, SBorder)
-				.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				.Padding(FMargin(4.f))
+				SAssignNew(TagTreeContainerWidget, SBox)
 				[
 					SAssignNew(TagTreeWidget, STreeView< TSharedPtr<FGameplayTagNode> >)
 					.TreeItemsSource(&TagItems)

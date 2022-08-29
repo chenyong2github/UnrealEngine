@@ -40,6 +40,7 @@ public class VPUtilitiesEditor : ModuleRules
 				"UMGEditor",
 				"UnrealEd",
 				"VPBookmark",
+				"VPRoles",
 				"WorkspaceMenuStructure",
             }
 		);

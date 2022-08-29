@@ -2,48 +2,18 @@
 
 #include "VPSettings.h"
 
-#include "Misc/CommandLine.h"
-#include "VPUtilitiesModule.h"
-
-UVPSettings::UVPSettings()
+const FGameplayTagContainer& UVPSettings::GetRoles() const
 {
-	FString ComandlineRoles;
-	bIsCommandLineRolesValid = FParse::Value(FCommandLine::Get(), TEXT("-VPRole="), ComandlineRoles);
-
-	if (bIsCommandLineRolesValid)
+	static const FGameplayTagContainer EmptyContainer;
+	if (ensure(RolesGetter.IsBound()))
 	{
-		TArray<FString> RoleList;
-		ComandlineRoles.ParseIntoArray(RoleList, TEXT("|"), true);
-
-		for (const FString& Role : RoleList)
-		{
-			FGameplayTag Tag = FGameplayTag::RequestGameplayTag(*Role, false);
-			if (Tag.IsValid())
-			{
-				CommandLineRoles.AddTag(Tag);
-			}
-			else
-			{
-				UE_LOG(LogVPUtilities, Error, TEXT("Role %s doesn't exist."), *Role);
-			}
-		}
+		return RolesGetter.Execute();
 	}
+	
+	return EmptyContainer;
 }
 
 UVPSettings* UVPSettings::GetVPSettings()
 {
 	return GetMutableDefault<UVPSettings>();
 }
-
-#if WITH_EDITOR
-
-void UVPSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ThisClass, Roles))
-	{
-		OnRolesChanged.Broadcast();
-	}
-
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-#endif

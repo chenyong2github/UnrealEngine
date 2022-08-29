@@ -44,7 +44,8 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam( ETagFilterResult, FOnFilterTag, const TSharedPtr<FGameplayTagNode>&)
 
 	SLATE_BEGIN_ARGS( SGameplayTagWidget )
-		: _Filter()
+		: _Padding(2.f)
+		, _Filter()
 		, _NewTagName(TEXT(""))
 		, _ReadOnly( false )
 		, _TagContainerName( TEXT("") )
@@ -61,6 +62,7 @@ public:
 		, _TagTreeViewBackgroundBrush(nullptr)
 		
 	{}
+		SLATE_ATTRIBUTE( FMargin, Padding ) // Padding for the containing border.
 		SLATE_ARGUMENT( FString, Filter ) // Comma delimited string of tag root names to filter by
 		SLATE_EVENT( FOnFilterTag, OnFilterTag ) // Optional filter function called when generating the tag list
 		SLATE_ARGUMENT( FString, NewTagName ) // String that will initially populate the New Tag Name field
@@ -197,7 +199,7 @@ private:
 	TArray< TSharedPtr<FGameplayTagNode> > FilteredTagItems;
 
 	/** Container widget holding the tag tree */
-	TSharedPtr<SBorder> TagTreeContainerWidget;
+	TSharedPtr<SWidget> TagTreeContainerWidget;
 
 	/** Tree widget showing the gameplay tag library */
 	TSharedPtr< STreeView< TSharedPtr<FGameplayTagNode> > > TagTreeWidget;

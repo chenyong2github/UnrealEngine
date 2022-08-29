@@ -20,12 +20,15 @@ public class StageMonitor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"Engine",
 				"GameplayTags",
 				"Json",
 				"JsonUtilities",
 				"Serialization",
 				"StageMonitorCommon",
-				"VPUtilities"
+				"VPRoles",
+				"VPUtilities",
+				
 			}
 		);
 	}

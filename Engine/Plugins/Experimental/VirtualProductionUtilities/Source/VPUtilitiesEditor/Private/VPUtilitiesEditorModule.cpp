@@ -5,6 +5,7 @@
 #include "Framework/Docking/WorkspaceItem.h"
 #include "GameplayTagContainer.h"
 #include "Editor.h"
+#include "Engine/Engine.h"
 #include "EditorUtilitySubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "LevelEditor.h"
@@ -18,6 +19,7 @@
 #include "SGenlockProviderTab.h"
 #include "STimecodeProviderTab.h"
 #include "Textures/SlateIcon.h"
+#include "VPRolesSubsystem.h"
 #include "VPSettings.h"
 #include "VPUtilitiesEditorSettings.h"
 #include "VPUtilitiesEditorStyle.h"
@@ -125,7 +127,7 @@ void FVPUtilitiesEditorModule::RegisterSettings()
 	{
 		FLevelEditorModule::FTitleBarItem Item;
 		Item.Label = LOCTEXT("VPRolesLabel", "VP Roles: ");
-		Item.Value = MakeAttributeLambda([]() { return FText::FromString(GetMutableDefault<UVPSettings>()->GetRoles().ToStringSimple()); });
+		Item.Value = MakeAttributeLambda([]() { return FText::FromString(GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>()->GetActiveRolesString()); });
 		Item.Visibility = MakeAttributeLambda([]() { return GetMutableDefault<UVPSettings>()->bShowRoleInEditor ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed; });
 		LevelEditorModule->AddTitleBarItem(VPRoleNotificationBarIdentifier, Item);
 	}

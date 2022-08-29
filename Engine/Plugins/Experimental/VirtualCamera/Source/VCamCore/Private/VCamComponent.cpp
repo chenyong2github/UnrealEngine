@@ -32,6 +32,7 @@
 #include "EnhancedInputEditorSubsystem.h"
 
 #include "VPSettings.h"
+#include "VPRolesSubsystem.h"
 #endif
 
 
@@ -1491,7 +1492,7 @@ bool UVCamComponent::IsCameraInVPRole() const
 	// We are in a valid camera role if the user has not assigned a role or the current VPSettings role matches the
 	// assigned role.
 	//
-	return !Role.IsValid() || Settings->GetRoles().HasTag(Role);
+	return !Role.IsValid() || GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>()->HasActiveRole(Role);
 #else
 	return true;
 #endif

@@ -2,12 +2,14 @@
 
 #include "StageMonitorModule.h"
 
+#include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "StageMonitor.h"
 #include "StageMonitoringSettings.h"
 #include "StageMonitorSessionManager.h"
 #include "VPSettings.h"
+#include "VPRoles/Public/VPRolesSubsystem.h"
 
 const FName IStageMonitorModule::ModuleName = TEXT("StageMonitor");
 
@@ -42,17 +44,19 @@ void FStageMonitorModule::OnEngineLoopInitComplete()
 	StageMonitor = MakeUnique<FStageMonitor>();
 	StageMonitor->Initialize();
 
+	const UVirtualProductionRolesSubsystem* RolesSubsystem = GEngine->GetEngineSubsystem<UVirtualProductionRolesSubsystem>();
+
 	const UStageMonitoringSettings* Settings = GetDefault<UStageMonitoringSettings>();
 	if (Settings->MonitorSettings.ShouldAutoStartOnLaunch())
 	{
-		if (!Settings->MonitorSettings.bUseRoleFiltering || GetDefault<UVPSettings>()->GetRoles().HasAny(Settings->MonitorSettings.SupportedRoles))
+		if (!Settings->MonitorSettings.bUseRoleFiltering || RolesSubsystem->GetRolesContainer_Private().HasAny(Settings->MonitorSettings.SupportedRoles))
 		{
 			EnableMonitor(true);
 		}
 		else
 		{
 			UE_LOG(LogStageMonitor, Log, TEXT("Can't autostart StageMonitor. Role filtering is enabled and our roles (%s) are filtered out (%s)")
-				, *GetDefault<UVPSettings>()->GetRoles().ToStringSimple()
+				, *RolesSubsystem->GetActiveRolesString()
 				, *Settings->MonitorSettings.SupportedRoles.ToStringSimple())
 		}
 	}
