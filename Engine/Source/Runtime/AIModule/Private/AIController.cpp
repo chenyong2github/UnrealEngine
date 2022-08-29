@@ -622,7 +622,7 @@ FPathFollowingRequestResult AAIController::MoveTo(const FAIMoveRequest& MoveRequ
 
 	ensure(MoveRequest.GetNavigationFilter() || !DefaultNavigationFilterClass);
 
-	bool bCanRequestMove = !MoveRequest.IsMoveToActorRequest() || IsValid(MoveRequest.GetGoalActor());
+	bool bCanRequestMove = true;
 	bool bAlreadyAtGoal = false;
 	
 	if (!MoveRequest.IsMoveToActorRequest())

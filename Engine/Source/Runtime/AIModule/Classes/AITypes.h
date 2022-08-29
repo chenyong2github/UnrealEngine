@@ -506,14 +506,14 @@ struct AIMODULE_API FAIMoveRequest
 	FAIMoveRequest& SetUserFlags(int32 InUserFlags) { UserFlags = InUserFlags; return *this; }
 
 	/** the request should be either set up to move to a location, of go to a valid actor */
-	bool IsValid() const { return bInitialized && (!bMoveToActor || GoalActor); }
+	bool IsValid() const { return bInitialized && (!bMoveToActor || GoalActor.IsValid()); }
 
 	bool IsMoveToActorRequest() const { return bMoveToActor; }
-	AActor* GetGoalActor() const { return bMoveToActor ? GoalActor : nullptr; }
+	AActor* GetGoalActor() const { return bMoveToActor ? GoalActor.Get() : nullptr; }
 	FVector GetGoalLocation() const { return GoalLocation; }
 	/** retrieves request's requested destination location, GoalActor's location 
 	 *	or GoalLocation, depending on the request itself */
-	FVector GetDestination() const { return bMoveToActor ? (GoalActor ? GoalActor->GetActorLocation() : FAISystem::InvalidLocation) : GoalLocation; }
+	FVector GetDestination() const { return bMoveToActor ? (GoalActor.IsValid() ? GoalActor->GetActorLocation() : FAISystem::InvalidLocation) : GoalLocation; }
 
 	bool IsUsingPathfinding() const { return bUsePathfinding; }
 	bool IsUsingPartialPaths() const { return bAllowPartialPath; }
@@ -537,7 +537,7 @@ protected:
 
 	/** move goal: actor */
 	UPROPERTY()
-	TObjectPtr<AActor> GoalActor;
+	TWeakObjectPtr<AActor> GoalActor;
 
 	/** move goal: location */
 	mutable FVector GoalLocation;
