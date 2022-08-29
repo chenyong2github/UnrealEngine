@@ -348,6 +348,8 @@ namespace Horde.Build
 			});
 			services.AddGrpcReflection();
 
+			services.AddHttpClient<RpcService>();
+
 			services.AddSingleton<IAgentCollection, AgentCollection>();
 			services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
 			services.AddSingleton<IArtifactCollection, ArtifactCollection>();
