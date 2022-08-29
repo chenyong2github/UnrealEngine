@@ -23,6 +23,7 @@
 #include "NiagaraCustomVersion.h"
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
+#include "ShaderCodeLibrary.h"
 #endif
 #include "ShaderParameterMetadataBuilder.h"
 

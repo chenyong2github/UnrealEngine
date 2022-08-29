@@ -858,6 +858,10 @@ public:
 	void CookerAddReferencedObjects(FReferenceCollector& Ar);
 	void PostGarbageCollect();
 
+	/** Calculate the ShaderLibrary codedir and metadatadir */
+	void GetShaderLibraryPaths(const ITargetPlatform* TargetPlatform, FString& OutShaderCodeDir,
+		FString& OutMetaDataPath, bool bUseProjectDirForDLC=false);
+
 private:
 
 	/**
@@ -935,6 +939,12 @@ private:
 	/** Invokes the necessary FShaderCodeLibrary functions to open a named code library. */
 	void OpenShaderLibrary(FString const& Name);
     
+	/**
+	 * Finishes collection of data that should be in the named code library (e.g. load data from previous
+	 * iterative cook)
+	 */
+	void FinishPopulateShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name);
+
 	/** Invokes the necessary FShaderCodeLibrary functions to save and close a named code library. */
 	void SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name);
 

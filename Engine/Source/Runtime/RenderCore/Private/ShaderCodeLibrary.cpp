@@ -5,49 +5,49 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 =============================================================================*/
 
 #include "ShaderCodeLibrary.h"
-#include "ShaderCodeArchive.h"
-#include "Shader.h"
+
 #include "Algo/Replace.h"
+#include "Async/AsyncFileHandle.h"
+#include "Async/ParallelFor.h"
+#include "Containers/HashTable.h"
 #include "Containers/StringView.h"
-#include "Misc/SecureHash.h"
-#include "Misc/Paths.h"
-#include "Math/UnitConversion.h"
+#include "FileCache/FileCache.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformSplash.h"
+#include "Hash/CityHash.h"
+#include "Interfaces/IPluginManager.h"
+#include "Math/UnitConversion.h"
+#include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
-#include "String/ParseTokens.h"
-#include "Async/AsyncFileHandle.h"
 #include "PipelineFileCache.h"
-#include "Interfaces/IPluginManager.h"
-#include "Hash/CityHash.h"
-#include "Containers/HashTable.h"
-#include "FileCache/FileCache.h"
-#include "Misc/CoreDelegates.h"
-#include "Async/ParallelFor.h"
-
-#include "ShaderPipelineCache.h"
-#include "Misc/FileHelper.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/CommandLine.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
+#include "Shader.h"
+#include "ShaderCodeArchive.h"
+#include "ShaderPipelineCache.h"
+#include "String/ParseTokens.h"
 
 #if WITH_EDITORONLY_DATA
-#include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/IShaderFormatModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Modules/ModuleManager.h"
 #endif
 
 #if WITH_EDITOR
 #include "PipelineCacheUtilities.h"
-#include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "UObject/Object.h"
 #endif
 
 // allow introspection (e.g. dumping the contents) for easier debugging
@@ -1268,17 +1268,19 @@ struct FEditorShaderCodeArchive
 		FArchive& Ar)
 	{
 		int32 ShaderMapIndex = 0;
-		if (SerializedShaders.FindOrAddShaderMap(OtherShaders.ShaderMapHashes[OtherShaderMapIndex], ShaderMapIndex, 
-				OtherShaders.ShaderCodeToAssets.Find(OtherShaders.ShaderMapHashes[OtherShaderMapIndex])))
+		const FSHAHash& OtherShaderMapHash = OtherShaders.ShaderMapHashes[OtherShaderMapIndex];
+		const FShaderMapAssetPaths* OtherAssets = OtherShaders.ShaderCodeToAssets.Find(OtherShaderMapHash);
+		bool bIsNew = SerializedShaders.FindOrAddShaderMap(OtherShaderMapHash, ShaderMapIndex, OtherAssets);
+		if (bIsNew)
 		{
-			const FShaderMapEntry& PrevShaderMapEntry = OtherShaders.ShaderMapEntries[OtherShaderMapIndex];
+			const FShaderMapEntry& OtherEntry = OtherShaders.ShaderMapEntries[OtherShaderMapIndex];
 			FShaderMapEntry& ShaderMapEntry = SerializedShaders.ShaderMapEntries[ShaderMapIndex];
-			ShaderMapEntry.NumShaders = PrevShaderMapEntry.NumShaders;
+			ShaderMapEntry.NumShaders = OtherEntry.NumShaders;
 			ShaderMapEntry.ShaderIndicesOffset = SerializedShaders.ShaderIndices.AddZeroed(ShaderMapEntry.NumShaders);
 
 			for (uint32 i = 0; i < ShaderMapEntry.NumShaders; ++i)
 			{
-				const int32 OtherShaderIndex = OtherShaders.ShaderIndices[PrevShaderMapEntry.ShaderIndicesOffset + i];
+				const int32 OtherShaderIndex = OtherShaders.ShaderIndices[OtherEntry.ShaderIndicesOffset + i];
 				int32 ShaderIndex = 0;
 				if (SerializedShaders.FindOrAddShader(OtherShaders.ShaderHashes[OtherShaderIndex], ShaderIndex))
 				{
@@ -1345,30 +1347,6 @@ struct FEditorShaderCodeArchive
 			UE_LOG(LogShaderLibrary, Error, TEXT("Failed to open shader code library from %s"), *IntermediateFormatPath);
 		}
 		
-#if 0
-		if (bOK)
-		{
-			FString PipelinesPath = GetPipelinesArchiveFilename(MetaDataDir / TEXT("ShaderLibrarySource"), LibraryName, FormatName);
-			FArchive* PipelinesArchive = IFileManager::Get().CreateFileReader(*PipelinesPath);
-			if (PipelinesArchive)
-			{
-				uint32 ArchiveVersion = 0;
-				*PipelinesArchive << ArchiveVersion;
-				if (ArchiveVersion == GShaderPipelineArchiveVersion)
-				{
-					*PipelinesArchive << Pipelines;
-				}
-				else
-				{
-					bOK = false;
-					UE_LOG(LogShaderLibrary, Warning, TEXT("Failed to deserialize shader pipelines from %s because the archive format %u is incompatible with the current version %u"), *PipelinesPath, ArchiveVersion, GShaderPipelineArchiveVersion);
-				}
-				
-				PipelinesArchive->Close();
-				delete PipelinesArchive;
-			}
-		}
-#endif
 		return bOK;
 	}
 
@@ -1429,11 +1407,14 @@ struct FEditorShaderCodeArchive
 		}
 	}
 
-	bool Finalize(FString OutputDir, const FString& MetaOutputDir, bool bSaveOnlyAssetInfo = false, TArray<FString>* OutputFilenames = nullptr)
+	void FinishPopulate(const FString& OutputDir)
+	{
+		AddExistingShaderCodeLibrary(OutputDir);
+	}
+
+	bool SaveToDisk(const FString& OutputDir, const FString& MetaOutputDir, bool bSaveOnlyAssetInfo = false, TArray<FString>* OutputFilenames = nullptr)
 	{
 		check(LibraryName.Len() > 0);
-
-		AddExistingShaderCodeLibrary(OutputDir);
 
 		bool bSuccess = IFileManager::Get().MakeDirectory(*OutputDir, true);
 
@@ -1612,7 +1593,8 @@ struct FEditorShaderCodeArchive
 			if (bOK)
 			{
 				FString Empty;
-				bOK = OutLibrary.Finalize(OutDir, Empty);
+				OutLibrary.FinishPopulate(OutDir);
+				bOK = OutLibrary.SaveToDisk(OutDir, Empty);
 				UE_CLOG(!bOK, LogShaderLibrary, Error, TEXT("Failed to save %s shader patch library %s, %s, %s"), bNativeFormat ? TEXT("native") : TEXT(""), *FormatName.ToString(), *LibraryName, *OutDir);
 				
 				if (bOK && bNativeFormat && OutLibrary.GetFormat()->SupportsShaderArchives())
@@ -1767,9 +1749,6 @@ struct FEditorShaderStableInfo
 	{
 		check(LibraryName.Len() > 0);
 
-		TMap<uint32, FName> NameCache;
-		NameCache.Reserve(2048);
-
 		const FString ShaderIntermediateLocation = FPaths::ProjectSavedDir() / TEXT("Shaders") / FormatName.ToString();
 
 		TArray<FString> ShaderFiles;
@@ -1791,12 +1770,15 @@ struct FEditorShaderStableInfo
 		}
 	}
 
-	bool Finalize(FString OutputDir, FString& OutSCLCSVPath)
+	void FinishPopulate(FString const& OutputDir)
+	{
+		AddExistingShaderCodeLibrary(OutputDir);
+	}
+
+	bool SaveToDisk(FString const& OutputDir, FString& OutSCLCSVPath)
 	{
 		check(LibraryName.Len() > 0);
 		OutSCLCSVPath = FString();
-
-		AddExistingShaderCodeLibrary(OutputDir);
 
 		bool bSuccess = IFileManager::Get().MakeDirectory(*OutputDir, true);
 
@@ -2433,15 +2415,34 @@ public:
 		StableArchive->AddShader(StableKeyValue);
 	}
 
+	void FinishPopulateShaderCode(const FString& ShaderCodeDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats)
+	{
+		for (FName ShaderFormatName : ShaderFormats)
+		{
+			EShaderPlatform SPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
+
+			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[SPlatform];
+			if (CodeArchive)
+			{
+				CodeArchive->FinishPopulate(ShaderCodeDir);
+			}
+
+			FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[SPlatform];
+			if (StableArchive)
+			{
+				StableArchive->FinishPopulate(MetaOutputDir);
+			}
+		}
+	}
+
 	bool SaveShaderCode(const FString& ShaderCodeDir, const FString& MetaOutputDir, const TArray<FName>& ShaderFormats, TArray<FString>& OutSCLCSVPath)
 	{
 		bool bOk = ShaderFormats.Num() > 0;
 
 		FScopeLock ScopeLock(&ShaderCodeCS);
 
-		for (int32 i = 0; i < ShaderFormats.Num(); ++i)
+		for (const FName ShaderFormatName : ShaderFormats)
 		{
-			FName ShaderFormatName = ShaderFormats[i];
 			EShaderPlatform SPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 
 			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[SPlatform];
@@ -2454,7 +2455,7 @@ public:
 				{
 					// always save shaders in our format even if the platform will use native one. This is needed for iterative cooks (Launch On et al)
 					// to reload previously cooked shaders
-					bOk = CodeArchive->Finalize(ShaderCodeDir, MetaOutputDir) && bOk;
+					bOk = CodeArchive->SaveToDisk(ShaderCodeDir, MetaOutputDir) && bOk;
 
 					bool bShouldWriteInNativeFormat = bOk && bNativeFormat && CodeArchive->GetFormat()->SupportsShaderArchives();
 					if (bShouldWriteInNativeFormat)
@@ -2470,33 +2471,31 @@ public:
 				else
 				{
 					// save asset info only, for debugging
-					bOk = CodeArchive->Finalize(ShaderCodeDir, MetaOutputDir, true) && bOk;
+					bOk = CodeArchive->SaveToDisk(ShaderCodeDir, MetaOutputDir, true) && bOk;
 				}
 			}
-			// Stable shader info is not saved per-chunk (it is not needed runtime), so save it always
+			FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[SPlatform];
+			if (StableArchive)
 			{
-				FEditorShaderStableInfo* StableArchive = EditorShaderStableInfo[SPlatform];
-				if (StableArchive)
-				{
-					FString SCLCSVPath;
-					bOk &= StableArchive->Finalize(MetaOutputDir, SCLCSVPath);
-					OutSCLCSVPath.Add(SCLCSVPath);
-				}
+				// Stable shader info is not saved per-chunk (it is not needed at runtime), so save it always
+				FString SCLCSVPath;
+				bOk &= StableArchive->SaveToDisk(MetaOutputDir, SCLCSVPath);
+				OutSCLCSVPath.Add(SCLCSVPath);
 			}
 		}
 
 		return bOk;
 	}
 
-	bool SaveShaderCodeChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const TArray<FName>& ShaderFormats, const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames)
+	bool SaveShaderCodeChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const TArray<FName>& ShaderFormats,
+		const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames)
 	{
 		bool bOk = ShaderFormats.Num() > 0;
 
 		FScopeLock ScopeLock(&ShaderCodeCS);
 
-		for (int32 i = 0; i < ShaderFormats.Num(); ++i)
+		for (const FName ShaderFormatName : ShaderFormats)
 		{
-			FName ShaderFormatName = ShaderFormats[i];
 			EShaderPlatform SPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 
 			// we may get duplicate calls for the same Chunk Id because the cooker sometimes calls asset registry SaveManifests twice.
@@ -2525,7 +2524,7 @@ public:
 
 				// always save shaders in our format even if the platform will use native one. This is needed for iterative cooks (Launch On et al)
 				// to reload previously cooked shaders
-				bOk = PerChunkArchive->Finalize(SandboxDestinationPath, SandboxMetadataPath, false, &OutChunkFilenames) && bOk;
+				bOk = PerChunkArchive->SaveToDisk(SandboxDestinationPath, SandboxMetadataPath, false, &OutChunkFilenames) && bOk;
 
 				bool bShouldWriteInNativeFormat = bOk && bNativeFormat && PerChunkArchive->GetFormat()->SupportsShaderArchives();
 				if (bShouldWriteInNativeFormat)
@@ -2547,9 +2546,8 @@ public:
 	bool PackageNativeShaderLibrary(const FString& ShaderCodeDir, const TArray<FName>& ShaderFormats)
 	{
 		bool bOK = true;
-		for (int32 i = 0; i < ShaderFormats.Num(); ++i)
+		for (const FName ShaderFormatName : ShaderFormats)
 		{
-			FName ShaderFormatName = ShaderFormats[i];
 			EShaderPlatform SPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
 			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[SPlatform];
 
@@ -3034,11 +3032,11 @@ bool FShaderLibraryCooker::CreatePatchLibrary(TArray<FString> const& OldMetaData
 	return bOK;
 }
 
-bool FShaderLibraryCooker::SaveShaderLibraryWithoutChunking(const ITargetPlatform* TargetPlatform, FString const& Name, FString const& SandboxDestinationPath, FString const& SandboxMetadataPath, TArray<FString>& PlatformSCLCSVPaths, FString& OutErrorMessage)
+void FShaderLibraryCooker::FinishPopulateShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name,
+	FString const& SandboxDestinationPath, FString const& SandboxMetadataPath)
 {
-	const FString ActualName = Name;
-	const FString ShaderCodeDir = SandboxDestinationPath;
-	const FString MetaDataPath = SandboxMetadataPath;
+	const FString& ShaderCodeDir = SandboxDestinationPath;
+	const FString& MetaDataPath = SandboxMetadataPath;
 
 	checkf(FShaderLibrariesCollection::Impl != nullptr, TEXT("FShaderLibraryCooker was not initialized properly"));
 	checkf(TargetPlatform, TEXT("A valid TargetPlatform is expected"));
@@ -3048,32 +3046,57 @@ bool FShaderLibraryCooker::SaveShaderLibraryWithoutChunking(const ITargetPlatfor
 	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
 	if (ShaderFormats.Num() > 0)
 	{
-		FString TargetPlatformName = TargetPlatform->PlatformName();
-		bool bSaved = FShaderLibrariesCollection::Impl->SaveShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths);
+		FShaderLibrariesCollection::Impl->FinishPopulateShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats);
+	}
+}
 
-		if (UNLIKELY(!bSaved))
-		{
-			OutErrorMessage = FString::Printf(TEXT("Saving shared material shader code library failed for %s."), *TargetPlatformName);
-			return false;
-		}
+bool FShaderLibraryCooker::SaveShaderLibraryWithoutChunking(const ITargetPlatform* TargetPlatform, FString const& Name,
+	FString const& SandboxDestinationPath, FString const& SandboxMetadataPath, TArray<FString>& PlatformSCLCSVPaths, FString& OutErrorMessage,
+	bool& bOutHasData)
+{
+	// note that shader formats can be shared across the target platforms
+	TArray<FName> ShaderFormats;
+	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
+	if (ShaderFormats.IsEmpty())
+	{
+		bOutHasData = false;
+		return true;
+	}
+	bOutHasData = true;
+
+	const FString& ShaderCodeDir = SandboxDestinationPath;
+	const FString& MetaDataPath = SandboxMetadataPath;
+
+	checkf(FShaderLibrariesCollection::Impl != nullptr, TEXT("FShaderLibraryCooker was not initialized properly"));
+	checkf(TargetPlatform, TEXT("A valid TargetPlatform is expected"));
+
+	const bool bSaved = FShaderLibrariesCollection::Impl->SaveShaderCode(ShaderCodeDir, MetaDataPath, ShaderFormats, PlatformSCLCSVPaths);
+	if (UNLIKELY(!bSaved))
+	{
+		OutErrorMessage = FString::Printf(TEXT("Saving shared material shader code library failed for %s."),
+			*TargetPlatform->PlatformName());
+		return false;
 	}
 
 	return true;
 }
 
-bool FShaderLibraryCooker::SaveShaderLibraryChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames)
+bool FShaderLibraryCooker::SaveShaderLibraryChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform,
+	const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames, bool& bOutHasData)
 {
-	checkf(FShaderLibrariesCollection::Impl != nullptr, TEXT("FShaderLibraryCooker was not initialized properly"));
-	checkf(TargetPlatform, TEXT("A valid TargetPlatform is expected"));
-	bool bResult = true;
-
 	TArray<FName> ShaderFormats;
 	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
-	if (ShaderFormats.Num() > 0)
+	if (ShaderFormats.IsEmpty())
 	{
-		bResult = FShaderLibrariesCollection::Impl->SaveShaderCodeChunk(ChunkId, InPackagesInChunk, ShaderFormats, SandboxDestinationPath, SandboxMetadataPath, OutChunkFilenames);
+		bOutHasData = false;
+		return true;
 	}
-	return bResult;
+	bOutHasData = true;
+
+	checkf(FShaderLibrariesCollection::Impl != nullptr, TEXT("FShaderLibraryCooker was not initialized properly"));
+	checkf(TargetPlatform, TEXT("A valid TargetPlatform is expected"));
+	return FShaderLibrariesCollection::Impl->SaveShaderCodeChunk(ChunkId, InPackagesInChunk, ShaderFormats,
+		SandboxDestinationPath, SandboxMetadataPath, OutChunkFilenames);
 }
 
 #endif// WITH_EDITOR

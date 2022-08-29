@@ -31,6 +31,7 @@
 	#include "Interfaces/ITargetPlatform.h"
 	#include "NiagaraSettings.h"
 	#include "Internationalization/Regex.h"
+	#include "ShaderCodeLibrary.h"
 
 	// This is a version string that mimics the old versioning scheme. In case of merge conflicts with DDC versions,
 	// you MUST generate a new GUID and set this new version. If you want to bump this version, generate a new guid

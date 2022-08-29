@@ -20,6 +20,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Containers/StaticBitArray.h"
+#include "ShaderCodeLibrary.h"
 #include "StaticBoundShaderState.h"
 
 /** The global shader map. */

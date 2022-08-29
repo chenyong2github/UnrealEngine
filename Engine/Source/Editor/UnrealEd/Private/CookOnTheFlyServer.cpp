@@ -1090,7 +1090,8 @@ bool UCookOnTheFlyServer::IsDirectorCookByTheBook() const
 
 bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
 {
-	return IsDirectorCookByTheBook() && AllowShaderCompiling();
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+	return IsDirectorCookByTheBook() && AllowShaderCompiling() && PackagingSettings->bShareMaterialShaderCode;
 }
 
 bool UCookOnTheFlyServer::IsUsingZenStore() const
@@ -7800,8 +7801,8 @@ void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& Beg
 {
     const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-    if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
-    {
+	if (bCacheShaderLibraries)
+	{
 		FShaderLibraryCooker::InitForCooking(PackagingSettings->bSharedMaterialNativeLibraries);
         
 		bool bAllPlatformsNeedStableKeys = false;
@@ -7876,16 +7877,12 @@ void UCookOnTheFlyServer::RegisterShaderChunkDataGenerator()
 {
 	check(!IsCookWorkerMode());
 	// add shader library and PSO cache chunkers
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	FString LibraryName = GetProjectShaderLibraryName();
-	if (PackagingSettings->bShareMaterialShaderCode && IsUsingShaderCodeLibrary())
+	for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 	{
-		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
-		{
-			FAssetRegistryGenerator& RegistryGenerator = *(PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
-			RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FShaderLibraryChunkDataGenerator>(TargetPlatform));
-			RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FPipelineCacheChunkDataGenerator>(TargetPlatform, LibraryName));
-		}
+		FAssetRegistryGenerator& RegistryGenerator = *(PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
+		RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FShaderLibraryChunkDataGenerator>(*this, TargetPlatform));
+		RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FPipelineCacheChunkDataGenerator>(TargetPlatform, LibraryName));
 	}
 }
 
@@ -7902,9 +7899,8 @@ static FString GenerateShaderCodeLibraryName(FString const& Name, bool bIsIterat
 
 void UCookOnTheFlyServer::OpenGlobalShaderLibrary()
 {
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+	const bool bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+	if (bCacheShaderLibraries)
 	{
 		const TCHAR* GlobalShaderLibName = TEXT("Global");
 		FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
@@ -7916,9 +7912,8 @@ void UCookOnTheFlyServer::OpenGlobalShaderLibrary()
 
 void UCookOnTheFlyServer::OpenShaderLibrary(FString const& Name)
 {
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+	const bool bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+	if (bCacheShaderLibraries)
 	{
 		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
 
@@ -8068,16 +8063,16 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 
 void UCookOnTheFlyServer::SaveAndCloseGlobalShaderLibrary()
 {
-	const TCHAR* GlobalShaderLibName = TEXT("Global");
-	FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
-	if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+	const bool bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+	if (bCacheShaderLibraries)
 	{
+		const TCHAR* GlobalShaderLibName = TEXT("Global");
+		FString ActualName = GenerateShaderCodeLibraryName(GlobalShaderLibName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
+
 		// Save shader code map - cleaning directories is deliberately a separate loop here as we open the cache once per shader platform and we don't assume that they can't be shared across target platforms.
 		for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 		{
+			FinishPopulateShaderLibrary(TargetPlatform, GlobalShaderLibName);
 			SaveShaderLibrary(TargetPlatform, GlobalShaderLibName);
 		}
 
@@ -8085,50 +8080,60 @@ void UCookOnTheFlyServer::SaveAndCloseGlobalShaderLibrary()
 	}
 }
 
-void UCookOnTheFlyServer::SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name)
+void UCookOnTheFlyServer::GetShaderLibraryPaths(const ITargetPlatform* TargetPlatform,
+	FString& OutShaderCodeDir, FString& OutMetaDataPath, bool bUseProjectDirForDLC)
 {
-	TArray<FName> ShaderFormats;
-	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
-	if (ShaderFormats.Num() > 0)
+	// TODO: Saving ShaderChunks into the DLC directory currently does not work, so we have the bUseProjectDirForDLC arg to save to Project
+	const FString BasePath = (!IsCookingDLC() || bUseProjectDirForDLC) ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
+	OutShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
+
+	const FString RootMetaDataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
+	OutMetaDataPath = ConvertToFullSandboxPath(*RootMetaDataPath, true, *TargetPlatform->PlatformName()); 
+}
+
+void UCookOnTheFlyServer::FinishPopulateShaderLibrary(const ITargetPlatform* TargetPlatform, const FString& Name)
+{
+	FString ShaderCodeDir;
+	FString MetaDataPath;
+	GetShaderLibraryPaths(TargetPlatform, ShaderCodeDir, MetaDataPath);
+
+	FShaderLibraryCooker::FinishPopulateShaderLibrary(TargetPlatform, Name, ShaderCodeDir, MetaDataPath);
+}
+
+void UCookOnTheFlyServer::SaveShaderLibrary(const ITargetPlatform* TargetPlatform, const FString& Name)
+{
+	FString ShaderCodeDir;
+	FString MetaDataPath;
+	GetShaderLibraryPaths(TargetPlatform, ShaderCodeDir, MetaDataPath);
+
+	TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatform->PlatformName()));
+	FString ErrorString;
+	bool bHasData;
+	if (!FShaderLibraryCooker::SaveShaderLibraryWithoutChunking(TargetPlatform, Name, ShaderCodeDir, MetaDataPath,
+		PlatformSCLCSVPaths, ErrorString, bHasData))
 	{
-		FString ActualName = GenerateShaderCodeLibraryName(Name, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));
-		FString BasePath = !IsCookingDLC() ? FPaths::ProjectContentDir() : GetContentDirectoryForDLC();
-
-		FString ShaderCodeDir = ConvertToFullSandboxPath(*BasePath, true, TargetPlatform->PlatformName());
-
-		const FString RootMetaDataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
-		const FString MetaDataPathSB = ConvertToFullSandboxPath(*RootMetaDataPath, true);
-		const FString MetaDataPath = MetaDataPathSB.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
-
-		TArray<FString>& PlatformSCLCSVPaths = OutSCLCSVPaths.FindOrAdd(FName(TargetPlatform->PlatformName()));
-		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-		FString ErrorString;
-		if (!FShaderLibraryCooker::SaveShaderLibraryWithoutChunking(TargetPlatform, Name, ShaderCodeDir, MetaDataPath, PlatformSCLCSVPaths, ErrorString))
+		// This is fatal - In this case we should cancel any launch on device operation or package write but we don't want to assert and crash the editor
+		LogCookerMessage(FString::Printf(TEXT("%s"), *ErrorString), EMessageSeverity::Error);
+	}
+	else if (bHasData)
+	{
+		for (const FString& Item : PlatformSCLCSVPaths)
 		{
-			// This is fatal - In this case we should cancel any launch on device operation or package write but we don't want to assert and crash the editor
-			LogCookerMessage(FString::Printf(TEXT("%s"), *ErrorString), EMessageSeverity::Error);
-		}
-		else
-		{
-			for (const FString& Item : PlatformSCLCSVPaths)
-			{
-				UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatform->PlatformName(),
-					IFileManager::Get().FileSize(*Item));
-			}
+			UE_LOG(LogCook, Display, TEXT("Saved scl.csv %s for platform %s, %d bytes"), *Item, *TargetPlatform->PlatformName(),
+				IFileManager::Get().FileSize(*Item));
 		}
 	}
 }
 
 void UCookOnTheFlyServer::CleanShaderCodeLibraries()
 {
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+	const bool bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 
 	for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 	{
 		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
 		// If this is a full non-iterative build then clean up our temporary files
-		if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode && PlatformData->bFullBuild)
+		if (bCacheShaderLibraries && PlatformData->bFullBuild)
 		{
 			TArray<FName> ShaderFormats;
 			TargetPlatform->GetAllTargetedShaderFormats(ShaderFormats);
@@ -8169,9 +8174,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
 
-	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-	bool const bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 	FString LibraryName = GetProjectShaderLibraryName();
+	check(!LibraryName.IsEmpty());
+	const bool bCacheShaderLibraries = IsUsingShaderCodeLibrary();
 
 	{
 		// Save modified asset registry with all streaming chunk info generated during cook
@@ -8193,7 +8198,10 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 			SCOPED_BOOT_TIMING("SavingAssetRegistry");
 
 			RegisterLocalizationChunkDataGenerator();
-			RegisterShaderChunkDataGenerator();
+			if (bCacheShaderLibraries)
+			{
+				RegisterShaderChunkDataGenerator();
+			}
 
 			// if we are cooking DLC, the DevelopmentAR isn't needed - it's used when making DLC against shipping, so there's no need to make it
 			// again, as we don't make DLC against DLC (but allow an override just in case)
@@ -8274,6 +8282,11 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 					}
 				}
 				
+				if (bCacheShaderLibraries)
+				{
+					FinishPopulateShaderLibrary(TargetPlatform, LibraryName);
+				}
+
 				// Add the package hashes to the relevant AssetPackageDatas.
 				// PackageHashes are gated by requiring UPackage::WaitForAsyncFileWrites(), which is called above.
 				FCookSavePackageContext& SaveContext = FindOrCreateSaveContext(TargetPlatform);
@@ -8329,23 +8342,17 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 						Generator.WriteCookerOpenOrder(*SandboxFile);
 					}
 				}
-				// now that we have the asset registry and cooking open order, we have enough information to split the shader library
-				// into parts for each chunk and (possibly) lay out the code in accordance with the file order
-				if (bCacheShaderLibraries && PackagingSettings->bShareMaterialShaderCode)
+				if (bCacheShaderLibraries)
 				{
+					// now that we have the asset registry and cooking open order, we have enough information to split the shader library
+					// into parts for each chunk and (possibly) lay out the code in accordance with the file order
 					// Save shader code map
-					if (LibraryName.Len() > 0)
-					{
-						SaveShaderLibrary(TargetPlatform, LibraryName);
-
-						CreatePipelineCache(TargetPlatform, LibraryName);
-					}
+					SaveShaderLibrary(TargetPlatform, LibraryName);
+					CreatePipelineCache(TargetPlatform, LibraryName);
 				}
+				if (FParse::Param(FCommandLine::Get(), TEXT("fastcook")))
 				{
-					if (FParse::Param(FCommandLine::Get(), TEXT("fastcook")))
-					{
-						FFileHelper::SaveStringToFile(FString(), *(GetSandboxDirectory(PlatformNameString) / TEXT("fastcook.txt")));
-					}
+					FFileHelper::SaveStringToFile(FString(), *(GetSandboxDirectory(PlatformNameString) / TEXT("fastcook.txt")));
 				}
 				if (IsCreatingReleaseVersion())
 				{

@@ -1,28 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShaderCodeArchive.h"
+
+#include "Async/ParallelFor.h"
+#include "Compression/OodleDataCompression.h"
+#include "Misc/FileHelper.h"
+#include "Misc/MemStack.h"
+#include "Misc/ScopeRWLock.h"
+#include "Policies/PrettyJsonPrintPolicy.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
+#include "RenderUtils.h"
+#include "RHIShaderFormatDefinitions.inl"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/MemoryReader.h"
 #include "ShaderCodeLibrary.h"
 #include "Stats/Stats.h"
-#include "ProfilingDebugging/LoadTimeTracker.h"
-#include "Misc/ScopeRWLock.h"
-#include "Misc/MemStack.h"
-#include "Policies/PrettyJsonPrintPolicy.h"
-#include "Serialization/JsonSerializer.h"
-#include "Misc/FileHelper.h"
-#include "Serialization/MemoryReader.h"
-#include "Compression/OodleDataCompression.h"
+
 #if WITH_EDITOR
 #include "Misc/StringBuilder.h"
 #include "Templates/Greater.h"
 #endif
-#include "RenderUtils.h"
-#include "RHIShaderFormatDefinitions.inl"
-#include "Async/ParallelFor.h"
 
 #if UE_SCA_VISUALIZE_SHADER_USAGE
-#include "Modules/ModuleManager.h"
-#include "IImageWrapperModule.h"
 #include "IImageWrapper.h"
+#include "IImageWrapperModule.h"
+#include "Modules/ModuleManager.h"
 #endif // UE_SCA_VISUALIZE_SHADER_USAGE
 
 
@@ -92,40 +94,21 @@ bool FSerializedShaderArchive::FindOrAddShaderMap(const FSHAHash& Hash, int32& O
 {
 	const uint32 Key = GetTypeHash(Hash);
 	int32 Index = FindShaderMapWithKey(Hash, Key);
-	bool bAdded = false;
-	if (Index == INDEX_NONE)
+	bool bAdded = Index == INDEX_NONE;
+	if (bAdded)
 	{
 		Index = ShaderMapHashes.Add(Hash);
 		ShaderMapEntries.AddDefaulted();
 		check(ShaderMapEntries.Num() == ShaderMapHashes.Num());
 		ShaderMapHashTable.Add(Key, Index);
-#if WITH_EDITOR
-		if (AssociatedAssets && AssociatedAssets->Num() > 0)
-		{
-			ShaderCodeToAssets.Add(Hash, *AssociatedAssets);
-		}
-#endif
-		bAdded = true;
 	}
-	else
+#if WITH_EDITOR
+	if (AssociatedAssets && AssociatedAssets->Num())
 	{
-#if WITH_EDITOR
-		// check if we need to replace or merge assets
-		if (AssociatedAssets && AssociatedAssets->Num())
-		{
-			FShaderMapAssetPaths* PrevAssets = ShaderCodeToAssets.Find(Hash);
-			if (PrevAssets)
-			{
-				int PrevAssetsNum = PrevAssets->Num();
-				PrevAssets->Append(*AssociatedAssets);
-			}
-			else
-			{
-				ShaderCodeToAssets.Add(Hash, *AssociatedAssets);
-			}
-		}
-#endif
+		ShaderCodeToAssets.FindOrAdd(Hash).Append(*AssociatedAssets);
 	}
+#endif
+
 
 	OutIndex = Index;
 	return bAdded;
@@ -152,19 +135,17 @@ int32 FSerializedShaderArchive::FindShader(const FSHAHash& Hash) const
 bool FSerializedShaderArchive::FindOrAddShader(const FSHAHash& Hash, int32& OutIndex)
 {
 	const uint32 Key = GetTypeHash(Hash);
-	int32 Index = FindShaderWithKey(Hash, Key);
-	bool bAdded = false;
-	if (Index == INDEX_NONE)
+	OutIndex = FindShaderWithKey(Hash, Key);
+	if (OutIndex == INDEX_NONE)
 	{
-		Index = ShaderHashes.Add(Hash);
+		OutIndex = ShaderHashes.Add(Hash);
 		ShaderEntries.AddDefaulted();
 		check(ShaderEntries.Num() == ShaderHashes.Num());
-		ShaderHashTable.Add(Key, Index);
-		bAdded = true;
+		ShaderHashTable.Add(Key, OutIndex);
+		return true;
 	}
 
-	OutIndex = Index;
-	return bAdded;
+	return false;
 }
 
 #if UE_SCA_VISUALIZE_SHADER_USAGE
@@ -345,6 +326,7 @@ void FSerializedShaderArchive::Finalize()
 		}
 	}
 
+	constexpr int32 MaxByteGapAllowedInAPreload = 1024;
 	PreloadEntries.Empty();
 	for (FShaderMapEntry& ShaderMapEntry : ShaderMapEntries)
 	{
@@ -368,7 +350,7 @@ void FSerializedShaderArchive::Finalize()
 			const int64 Gap = PreloadEntry.Offset - CurrentPreloadEntry.Offset - CurrentPreloadEntry.Size;
 			checkf(Gap >= 0, TEXT("Overlapping preload entries, [%lld-%lld), [%lld-%lld)"),
 				CurrentPreloadEntry.Offset, CurrentPreloadEntry.Offset + CurrentPreloadEntry.Size, PreloadEntry.Offset, PreloadEntry.Offset + PreloadEntry.Size);
-			if (Gap > 1024)
+			if (Gap > MaxByteGapAllowedInAPreload)
 			{
 				++ShaderMapEntry.NumPreloadEntries;
 				PreloadEntries.Add(CurrentPreloadEntry);

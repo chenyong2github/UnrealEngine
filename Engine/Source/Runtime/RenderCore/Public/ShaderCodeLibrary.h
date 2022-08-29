@@ -14,7 +14,6 @@
 #include "Containers/SparseArray.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
@@ -291,6 +290,10 @@ struct RENDERCORE_API FShaderLibraryCooker
 	// At cook time, add the human readable key value information
 	static void AddShaderStableKeyValue(EShaderPlatform ShaderPlatform, FStableShaderKeyAndValue& StableKeyValue);
 
+	/** Finishes collection of data that should be in the named code library. This includes loading data from a previous iterative cook. */
+	static void FinishPopulateShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name, FString const& SandboxDestinationPath,
+		FString const& SandboxMetadataPath);
+
 	/**
 	 * Saves collected shader code to a single file per shader platform
 	 * When chunking is enabled, this call will not write the shader code, only the SCL.CSV file with the stable shader info.
@@ -301,9 +304,11 @@ struct RENDERCORE_API FShaderLibraryCooker
 	 * @param SandboxMetadataPath path for the metadata (not a part of the build itself, but produced together with the build)
 	 * @param PlatformSCLCSVPaths path where to put the information about the shader hashes
 	 * @param OutErrorMessage used to return the details of the failure (if failed)
+	 * @param bOutHasData Reports whether any files were written to PlatformSCLCSVPaths
 	 * @return true if successful
 	 */
-	static bool SaveShaderLibraryWithoutChunking(const ITargetPlatform* TargetPlatform, FString const& Name, FString const& SandboxDestinationPath, FString const& SandboxMetadataPath, TArray<FString>& PlatformSCLCSVPaths, FString& OutErrorMessage);
+	static bool SaveShaderLibraryWithoutChunking(const ITargetPlatform* TargetPlatform, FString const& Name, FString const& SandboxDestinationPath,
+		FString const& SandboxMetadataPath, TArray<FString>& PlatformSCLCSVPaths, FString& OutErrorMessage, bool& bOutHasData);
 
 	/** 
 	 * Saves a single chunk of the collected shader code (per shader platform). Does not save SCL.CSV info.
@@ -315,9 +320,11 @@ struct RENDERCORE_API FShaderLibraryCooker
 	 * @param TargetPlatform target platform
 	 * @param SandboxDestinationPath where to put the .ushaderbytecode file(s)
 	 * @param OutChunkFilenames array where the function will append the full paths of the written files
+	 * @param bOutHasData Reports whether any files were written to OutChunkFilenames
 	 * @return true if successful
 	 */
-	static bool SaveShaderLibraryChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform, const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames);
+	static bool SaveShaderLibraryChunk(int32 ChunkId, const TSet<FName>& InPackagesInChunk, const ITargetPlatform* TargetPlatform,
+		const FString& SandboxDestinationPath, const FString& SandboxMetadataPath, TArray<FString>& OutChunkFilenames, bool& bOutHasData);
 
 	// Dump collected stats for each shader platform
 	static void DumpShaderCodeStats();

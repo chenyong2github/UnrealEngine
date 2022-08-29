@@ -37,7 +37,6 @@
 #include "Serialization/ArchiveProxy.h"
 #include "Serialization/MemoryImage.h"
 #include "Serialization/MemoryLayout.h"
-#include "ShaderCodeLibrary.h" // TODO - move to cpp
 #include "ShaderCore.h"
 #include "ShaderParameterMetadata.h"
 #include "ShaderParameters.h"
@@ -77,6 +76,7 @@ class FShaderType;
 class FVertexFactoryType;
 struct FShaderCompiledShaderInitializerType;
 struct FShaderCompilerOutput;
+using FShaderMapAssetPaths = TSet<FName>; // Copied from ShaderCodeLibrary.h
 
 UE_DEPRECATED(4.26, "FShadereCompiledShaderInitializerType is deprecated. Use FShaderCompiledShaderInitializerType.")
 typedef FShaderCompiledShaderInitializerType FShadereCompiledShaderInitializerType;
@@ -505,6 +505,7 @@ public:
 
 	RENDERCORE_API void ToString(FStringBuilderBase& OutString) const;
 
+	/** A hash describing the total contents of *this. Constructed from the contents of ShaderHashes during Finalize. */
 	FSHAHash ResourceHash;
 	TArray<FSHAHash> ShaderHashes;
 	TArray<FShaderEntry> ShaderEntries;

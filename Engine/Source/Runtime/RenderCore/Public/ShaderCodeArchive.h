@@ -81,7 +81,8 @@ public:
 	/** An array of all shaders descriptors, deduplicated */
 	TArray<FShaderCodeEntry> ShaderEntries;
 
-	/** An array of preload entries*/
+	/** An array of entries for the bytes of shadercode that need to be preloaded for a shadermap.
+	  * Each shadermap has a range in this array, beginning of which is stored in FShaderMapEntry.FirstPreloadIndex. */
 	TArray<FFileCachePreloadEntry> PreloadEntries;
 
 	/** Flat array of shaders referenced by all shadermaps. Each shadermap has a range in this array, beginning of which is
