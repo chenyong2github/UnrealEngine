@@ -115,78 +115,74 @@ bool UStateTree::Link()
 	// This data will be used to allocate runtime instance on all StateTree users.
 	ResetLinked();
 
-	// Do not try to link empty trees any further.
-	if (States.Num() == 0 || Nodes.Num() == 0)
+	if (States.Num() > 0 && Nodes.Num() > 0)
 	{
-		bIsLinked = true;
-		return true;
-	}
-
-	if (!DefaultInstanceData.IsValid())
-	{
-		UE_LOG(LogStateTree, Error, TEXT("%s: StartTree does not have instance data. Please recompile the StateTree asset."), *GetName());
-		return false;
-	}
-	
-	// Update property bag structs before resolving binding.
-	const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
-	const TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
-
-	if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
-	{
-		SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();
-	}
-	
-	for (const FCompactStateTreeState& State : States)
-	{
-		if (State.Type == EStateTreeStateType::Subtree)
+		if (!DefaultInstanceData.IsValid())
 		{
-			if (State.ParameterInstanceIndex.IsValid() == false
-				|| State.ParameterDataViewIndex.IsValid() == false)
-			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
-				return false;
-			}
-
-			// Subtree is a bind source, update bag struct.
-			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
-			FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
-			Desc.Struct = Params.Parameters.GetPropertyBagStruct();
+			UE_LOG(LogStateTree, Error, TEXT("%s: StartTree does not have instance data. Please recompile the StateTree asset."), *GetName());
+			return false;
 		}
-		else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
+		
+		// Update property bag structs before resolving binding.
+		const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
+		const TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
+
+		if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
 		{
-			const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
-
-			if (State.ParameterInstanceIndex.IsValid() == false
-				|| LinkedState.ParameterInstanceIndex.IsValid() == false)
+			SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();
+		}
+		
+		for (const FCompactStateTreeState& State : States)
+		{
+			if (State.Type == EStateTreeStateType::Subtree)
 			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
-				return false;
+				if (State.ParameterInstanceIndex.IsValid() == false
+					|| State.ParameterDataViewIndex.IsValid() == false)
+				{
+					UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
+					return false;
+				}
+
+				// Subtree is a bind source, update bag struct.
+				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+				FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
+				Desc.Struct = Params.Parameters.GetPropertyBagStruct();
 			}
-
-			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
-
-			// Check that the bag in linked state matches.
-			const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
-
-			if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
+			else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
 			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: The parameters on state '%s' does not match the linked state parameters in state '%s'. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString(), *LinkedState.Name.ToString());
-				return false;
-			}
+				const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
 
-			if (Params.BindingsBatch.IsValid())
-			{
-				FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
-				Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+				if (State.ParameterInstanceIndex.IsValid() == false
+					|| LinkedState.ParameterInstanceIndex.IsValid() == false)
+				{
+					UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
+					return false;
+				}
+
+				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+
+				// Check that the bag in linked state matches.
+				const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+
+				if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
+				{
+					UE_LOG(LogStateTree, Error, TEXT("%s: The parameters on state '%s' does not match the linked state parameters in state '%s'. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString(), *LinkedState.Name.ToString());
+					return false;
+				}
+
+				if (Params.BindingsBatch.IsValid())
+				{
+					FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
+					Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+				}
 			}
 		}
-	}
-	
-	// Resolves property paths used by bindings a store property pointers
-	if (!PropertyBindings.ResolvePaths())
-	{
-		return false;
+		
+		// Resolves property paths used by bindings a store property pointers
+		if (!PropertyBindings.ResolvePaths())
+		{
+			return false;
+		}
 	}
 
 	// Resolves nodes references to other StateTree data

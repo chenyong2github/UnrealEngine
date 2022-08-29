@@ -24,7 +24,7 @@ void FStateTreeReferenceDetails::CustomizeHeader(const TSharedRef<IPropertyHandl
 	// Associated StateTree asset might have been recompiled after the StateTreeReference was loaded.
 	SyncParameters();
 
-	const TSharedPtr<IPropertyHandle> StateTreeProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeReference, StateTree));
+	const TSharedPtr<IPropertyHandle> StateTreeProperty = StructPropertyHandle->GetChildHandle(FName(TEXT("StateTree")));
 	check(StateTreeProperty.IsValid());
 
 	InHeaderRow
@@ -51,12 +51,14 @@ void FStateTreeReferenceDetails::CustomizeHeader(const TSharedRef<IPropertyHandl
 			TArray<void*> RawData;
 			StructPropertyHandle->AccessRawData(RawData);
 
-			const TSharedPtr<IPropertyHandle> ParametersProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeReference, Parameters));
+			const TSharedPtr<IPropertyHandle> ParametersProperty = StructPropertyHandle->GetChildHandle(FName(TEXT("Parameters")));
 
 			if (ParametersProperty.IsValid() && !RawData.IsEmpty())
 			{
-				const FStateTreeReference* StateTreeReference = static_cast<FStateTreeReference*>(RawData[0]);
+				FStateTreeReference* StateTreeReference = static_cast<FStateTreeReference*>(RawData[0]);
 				check(StateTreeReference);
+
+				const UStateTree* StateTreeAsset = StateTreeReference->GetStateTree();
 				
 				FInstancedPropertyBag NewValue;
 				bool bSetNewValue = true;
@@ -68,15 +70,15 @@ void FStateTreeReferenceDetails::CustomizeHeader(const TSharedRef<IPropertyHandl
 					// When only one element is selected we can migrate the Parameters in case we are able to preserve some matching parameters
 					if (bSetNewValue)
 					{
-						StateTreeReference->SyncParameters(NewValue);
+						StateTreeReference->SyncParametersToMatchStateTree(NewValue);
 					}
 				}
-				else if (StateTreeReference->StateTree)
+				else if (StateTreeAsset)
 				{
 					// In case where multiple elements are selected we use the default parameters from the StateTree since
 					// the property handle will set value on all elements at once. In this scenario we can't "migrate" parameters since
 					// they might be associated to different StateTree so the resulting parameters would have been different for each element. 
-					NewValue = StateTreeReference->StateTree->GetDefaultParameters();
+					NewValue = StateTreeAsset->GetDefaultParameters();
 				}
 
 				// Set new value through property handle to propagate changes to loaded instances
@@ -105,7 +107,7 @@ void FStateTreeReferenceDetails::CustomizeChildren(const TSharedRef<IPropertyHan
 		const TSharedRef<IPropertyHandle> ChildPropertyHandle = InStructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
 
 		// Skip StateTree that was used for the Header row
-		if (ChildPropertyHandle->GetProperty()->GetFName() != (GET_MEMBER_NAME_CHECKED(FStateTreeReference, StateTree)))
+		if (ChildPropertyHandle->GetProperty()->GetFName() != FName(TEXT("StateTree")))
 		{
 			InChildrenBuilder.AddProperty(ChildPropertyHandle);
 		}
@@ -131,8 +133,10 @@ void FStateTreeReferenceDetails::SyncParameters(const UStateTree* StateTreeToSyn
 	{
 		if (FStateTreeReference* StateTreeReference = static_cast<FStateTreeReference*>(RawData[i]))
 		{
-			if (StateTreeReference->StateTree
-				&& (StateTreeToSync == nullptr || StateTreeReference->StateTree == StateTreeToSync) 
+			const UStateTree* StateTreeAsset = StateTreeReference->GetStateTree();
+
+			if (StateTreeAsset
+				&& (StateTreeToSync == nullptr || StateTreeAsset == StateTreeToSync) 
 				&& StateTreeReference->RequiresParametersSync())
 			{
 				StateTreeReference->SyncParameters();

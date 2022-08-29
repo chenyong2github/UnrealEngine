@@ -13,7 +13,7 @@
 bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObjectBehaviorDefinition& Definition)
 {
 	const FStateTreeReference& StateTreeReference = Definition.StateTreeReference;
-	const UStateTree* StateTree = StateTreeReference.StateTree;
+	const UStateTree* StateTree = StateTreeReference.GetStateTree();
 
 	if (!IsValid())
 	{
@@ -48,7 +48,7 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 		return false;
 	}
 
-	StateTreeContext.SetParameters(StateTreeReference.Parameters);
+	StateTreeContext.SetParameters(StateTreeReference.GetParameters());
 	StateTreeContext.Start();
 	return true;
 }

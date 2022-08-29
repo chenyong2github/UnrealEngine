@@ -22,6 +22,7 @@ public:
 	// BEGIN UActorComponent overrides
 	virtual void InitializeComponent() override;
 	virtual void UninitializeComponent() override;
+	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	// END UActorComponent overrides
 
@@ -54,7 +55,7 @@ protected:
 	virtual void PostLoad() override;
 #endif
 	
-	bool SetContextRequirements();
+	bool SetContextRequirements(bool bLogErrors = false);
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.1, "This property has been deprecated. Use StateTreeReference instead.")
@@ -64,6 +65,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = AI, meta=(Schema="/Script/GameplayStateTreeModule.StateTreeComponentSchema"))
 	FStateTreeReference StateTreeRef;
+
+	/** If true, the StateTree logic is started on being play. Otherwise StartLogic() needs to be called. */
+	UPROPERTY(EditAnywhere, Category = AI)
+	bool bStartLogicAutomatically = true;
 
 	UPROPERTY(Transient)
 	FStateTreeExecutionContext StateTreeContext;

@@ -96,6 +96,9 @@ public:
 	/** @return true if the tree asset can be used at runtime. */
 	bool IsReadyToRun() const;
 
+	/** @return schema that was used to compile the StateTree. */
+	const UStateTreeSchema* GetSchema() const { return Schema; }
+
 #if WITH_EDITOR
 	/** Resets the compiled data to empty. */
 	void ResetCompiled();

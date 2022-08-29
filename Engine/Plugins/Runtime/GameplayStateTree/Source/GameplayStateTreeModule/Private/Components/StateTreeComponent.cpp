@@ -6,7 +6,9 @@
 #include "VisualLogger/VisualLogger.h"
 #include "StateTree.h"
 #include "StateTreeEvaluatorBase.h"
+#include "Conditions/StateTreeCommonConditions.h"
 #include "AIController.h"
+#include "Components/StateTreeComponentSchema.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/World.h"
@@ -27,13 +29,13 @@ UStateTreeComponent::UStateTreeComponent(const FObjectInitializer& ObjectInitial
 
 void UStateTreeComponent::InitializeComponent()
 {
-	if (StateTreeRef.StateTree == nullptr)
+	if (!StateTreeRef.IsValid())
 	{
 		STATETREE_LOG(Error, TEXT("%s: StateTree asset is not set, cannot initialize."), ANSI_TO_TCHAR(__FUNCTION__));
 		return;
 	}
 
-	if (!StateTreeContext.Init(*GetOwner(), *StateTreeRef.StateTree, EStateTreeStorage::Internal))
+	if (!StateTreeContext.Init(*GetOwner(), *StateTreeRef.GetStateTree(), EStateTreeStorage::Internal))
 	{
 		STATETREE_LOG(Error, TEXT("%s: Failed to init StateTreeContext."), ANSI_TO_TCHAR(__FUNCTION__));
 	}
@@ -47,7 +49,7 @@ void UStateTreeComponent::PostLoad()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (StateTree_DEPRECATED != nullptr)
 	{
-		StateTreeRef.StateTree = StateTree_DEPRECATED;
+		StateTreeRef.SetStateTree(StateTree_DEPRECATED);
 		StateTreeRef.SyncParameters();
 		StateTree_DEPRECATED = nullptr;
 	}
@@ -59,7 +61,7 @@ void UStateTreeComponent::UninitializeComponent()
 {
 }
 
-bool UStateTreeComponent::SetContextRequirements()
+bool UStateTreeComponent::SetContextRequirements(bool bLogErrors)
 {
 	if (!StateTreeContext.IsValid())
 	{
@@ -104,7 +106,65 @@ bool UStateTreeComponent::SetContextRequirements()
 		}
 	}
 
-	return StateTreeContext.AreExternalDataViewsValid();
+	// Make sure the actor matches one required.
+	AActor* ContextActor = nullptr;
+	const UStateTreeComponentSchema* Schema = Cast<UStateTreeComponentSchema>(StateTreeContext.GetStateTree()->GetSchema());
+	if (Schema)
+	{
+		if (AAIController* OwnerController = (AIOwner != nullptr) ? AIOwner.Get() : Cast<AAIController>(GetOwner()))
+		{
+			if (OwnerController && OwnerController->IsA(Schema->GetContextActorClass()))
+			{
+				ContextActor = OwnerController;
+			}
+		}
+		if (ContextActor == nullptr)
+		{
+			if (AActor* OwnerActor = (AIOwner != nullptr) ? AIOwner->GetPawn() : GetOwner())
+			{
+				if (OwnerActor && OwnerActor->IsA(Schema->GetContextActorClass()))
+				{
+					ContextActor = OwnerActor;
+				}
+			}
+		}
+		if (ContextActor == nullptr && bLogErrors)
+		{
+			STATETREE_LOG(Error, TEXT("%s: Could not find context actor of type %s. StateTree will not update."), ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Schema->GetContextActorClass()));
+		}
+	}
+	else if (bLogErrors)
+	{
+		STATETREE_LOG(Error, TEXT("%s: Expected StateTree asset to contain StateTreeComponentSchema. StateTree will not update."), ANSI_TO_TCHAR(__FUNCTION__));
+	}
+	
+	const FName ActorName(TEXT("Actor"));
+	for (const FStateTreeExternalDataDesc& ItemDesc : StateTreeContext.GetNamedExternalDataDescs())
+	{
+		if (ItemDesc.Name == ActorName)
+		{
+			StateTreeContext.SetExternalData(ItemDesc.Handle, FStateTreeDataView(ContextActor));
+		}
+	}
+
+	bool bResult = StateTreeContext.AreExternalDataViewsValid();
+
+	if (!bResult && bLogErrors)
+	{
+		STATETREE_LOG(Error, TEXT("%s: Missing external data requirements. StateTree will not update."), ANSI_TO_TCHAR(__FUNCTION__));
+	}
+	
+	return bResult;
+}
+
+void UStateTreeComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	if (AIOwner == nullptr && bStartLogicAutomatically)
+	{
+		StartLogic();
+	}
 }
 
 void UStateTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -128,7 +188,7 @@ void UStateTreeComponent::StartLogic()
 
 	if (SetContextRequirements())
 	{
-		StateTreeContext.SetParameters(StateTreeRef.Parameters);
+		StateTreeContext.SetParameters(StateTreeRef.GetParameters());
 
 		StateTreeContext.Start();
 		bIsRunning = true;
@@ -141,7 +201,7 @@ void UStateTreeComponent::RestartLogic()
 
 	if (SetContextRequirements())
 	{
-		StateTreeContext.SetParameters(StateTreeRef.Parameters);
+		StateTreeContext.SetParameters(StateTreeRef.GetParameters());
 
 		StateTreeContext.Start();
 		bIsRunning = true;

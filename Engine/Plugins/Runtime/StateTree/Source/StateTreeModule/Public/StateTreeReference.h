@@ -15,27 +15,54 @@ struct STATETREEMODULE_API FStateTreeReference
 {
 	GENERATED_BODY()
 
-	FStateTreeReference();
-	~FStateTreeReference();
+	/** @return true if the reference is set. */
+	bool IsValid() const
+	{
+		return StateTree != nullptr;
+	}
 	
-	UPROPERTY(EditAnywhere, Category = "")
-	TObjectPtr<UStateTree> StateTree = nullptr;
+	/** Sets the StateTree asset and referenced parameters. */
+	void SetStateTree(UStateTree* NewStateTree)
+	{
+		StateTree = NewStateTree;
+		SyncParameters();
+	}
 
-	UPROPERTY(EditAnywhere, Category = "", meta = (FixedLayout))
-	FInstancedPropertyBag Parameters;
+	/** @return const pointer to the referenced StateTree asset. */
+	const UStateTree* GetStateTree() const
+	{
+		return StateTree;
+	}
 
-#if WITH_EDITOR
-	void PostSerialize(const FArchive& Ar);
+	/** @return pointer to the referenced StateTree asset. */
+	UStateTree* GetMutableStateTree()
+	{
+		return StateTree;
+	}
+
+	/** @return reference to the parameters for the referenced StateTree asset. */
+	const FInstancedPropertyBag& GetParameters() const
+	{
+		ConditionallySyncParameters();
+		return Parameters;
+	}
+
+	/** @return reference to the parameters for the referenced StateTree asset. */
+	FInstancedPropertyBag& GetMutableParameters()
+	{
+		ConditionallySyncParameters();
+		return Parameters;
+	}
 
 	/**
 	 * Enforce self parameters to be compatible with those exposed by the selected StateTree asset.
 	 */
-	void SyncParameters() { SyncParameters(Parameters); }
+	void SyncParameters() { SyncParametersToMatchStateTree(Parameters); }
 
 	/**
 	 * Sync provided parameters to be compatible with those exposed by the selected StateTree asset.
 	 */
-	void SyncParameters(FInstancedPropertyBag& ParametersToSync) const;
+	void SyncParametersToMatchStateTree(FInstancedPropertyBag& ParametersToSync) const;
 
 	/**
 	 * Indicates if current parameters are compatible with those available in the selected StateTree asset.
@@ -43,18 +70,13 @@ struct STATETREEMODULE_API FStateTreeReference
 	 */
 	bool RequiresParametersSync() const;
 
-private:
-	FDelegateHandle PIEHandle;
-#endif
-};
+	/** Sync parameters to match the asset if required. */
+	void ConditionallySyncParameters() const;
+	
+protected:
+	UPROPERTY(EditAnywhere, Category = "")
+	TObjectPtr<UStateTree> StateTree = nullptr;
 
-#if WITH_EDITORONLY_DATA
-template<>
-struct TStructOpsTypeTraits<FStateTreeReference> : public TStructOpsTypeTraitsBase2<FStateTreeReference>
-{
-	enum
-	{
-		WithPostSerialize = true,
-	};
+	UPROPERTY(EditAnywhere, Category = "", meta = (FixedLayout))
+	FInstancedPropertyBag Parameters;
 };
-#endif
