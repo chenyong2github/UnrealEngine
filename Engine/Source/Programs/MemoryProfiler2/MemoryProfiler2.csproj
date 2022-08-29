@@ -9,6 +9,7 @@
     <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
     <PackageId />
     <AssemblyName></AssemblyName>
+    <Configurations>Debug;Release;Development</Configurations>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "/>
