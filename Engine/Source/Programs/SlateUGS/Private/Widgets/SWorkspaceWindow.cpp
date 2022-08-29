@@ -245,14 +245,14 @@ FReply SWorkspaceWindow::OnBrowseClicked()
 			OutOpenFilenames
 		);
 
-		FString Path = OutOpenFilenames[0];
-		if (FPaths::IsRelative(Path))
-		{
-			Path = FPaths::ConvertRelativePathToFull(Path);
-		}
-
 		if (!OutOpenFilenames.IsEmpty())
 		{
+			FString Path = OutOpenFilenames[0];
+			if (FPaths::IsRelative(Path))
+			{
+				Path = FPaths::ConvertRelativePathToFull(Path);
+			}
+
 			LocalFileText->SetText(FText::FromString(Path));
 		}
 	}
