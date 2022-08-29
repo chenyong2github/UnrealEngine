@@ -47,9 +47,6 @@ struct FVelocityRendering
 	/** Returns true if the velocity can be output in the BasePass. */
 	static bool BasePassCanOutputVelocity(EShaderPlatform ShaderPlatform);
 
-	/** Returns true if the velocity can be output in the BasePass. Only valid for the current platform. */
-	static bool BasePassCanOutputVelocity(ERHIFeatureLevel::Type FeatureLevel);
-
 	/** Returns true if the velocity pass is using parallel dispatch. */
 	static bool IsParallelVelocity(EShaderPlatform ShaderPlatform);
 

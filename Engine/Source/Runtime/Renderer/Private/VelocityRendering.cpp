@@ -407,12 +407,6 @@ bool FVelocityRendering::BasePassCanOutputVelocity(EShaderPlatform ShaderPlatfor
 	return IsUsingBasePassVelocity(ShaderPlatform);
 }
 
-bool FVelocityRendering::BasePassCanOutputVelocity(ERHIFeatureLevel::Type FeatureLevel)
-{
-	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
-	return BasePassCanOutputVelocity(ShaderPlatform);
-}
-
 bool FVelocityRendering::IsParallelVelocity(EShaderPlatform ShaderPlatform)
 {
 	return GRHICommandList.UseParallelAlgorithms() && CVarParallelVelocity.GetValueOnRenderThread()
