@@ -1792,7 +1792,7 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 static bool GWarningTimeOutHasBeenDisplayedGC = false;
 
 static bool GEnableTimeoutOnPendingDestroyedObjectGC = true;
-#if UE_BUILD_SHIPPING
+#if UE_BUILD_SHIPPING || USING_ADDRESS_SANITISER
 static FAutoConsoleVariableRef CVarGCEnableTimeoutOnPendingDestroyedObjectInShipping(
 	TEXT("gc.EnableTimeoutOnPendingDestroyedObjectInShipping"),
 	GEnableTimeoutOnPendingDestroyedObjectGC,
