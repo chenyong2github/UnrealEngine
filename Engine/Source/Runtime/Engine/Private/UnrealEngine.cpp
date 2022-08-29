@@ -5721,6 +5721,8 @@ bool UEngine::HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 #endif // WITH_PROFILEGPU
 
 #if WITH_DUMPGPU
+ENGINE_API uint32 GDumpGPU_FrameNumber = INDEX_NONE;
+
 bool UEngine::HandleDumpGPUCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	if (!FApp::CanEverRender())
@@ -5729,6 +5731,8 @@ bool UEngine::HandleDumpGPUCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 
 	check(IsInGameThread());
+	GDumpGPU_FrameNumber = GFrameNumber;
+
 	TArray<FString> Args;
 	FString ResourceDumpDirectory = FRDGBuilder::BeginResourceDump(Cmd);
 
