@@ -2,7 +2,6 @@
 
 #include "VolumetricLightmap.h"
 #include "VolumetricLightmapVoxelization.h"
-#include "ScenePrivate.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "LightmapRayTracing.h"
 #include "PathTracingLightParameters.inl"

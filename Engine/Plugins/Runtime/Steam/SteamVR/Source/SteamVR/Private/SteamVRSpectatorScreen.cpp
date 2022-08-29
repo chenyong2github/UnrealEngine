@@ -8,7 +8,6 @@
 #include "SteamVRHMD.h"
 
 #include "RendererPrivate.h"
-#include "ScenePrivate.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"

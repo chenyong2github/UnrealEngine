@@ -8,7 +8,6 @@
 #include "Misc/EngineVersion.h"
 #include "HardwareInfo.h"
 #include "RendererPrivate.h"
-#include "ScenePrivate.h"
 #include "Slate/SceneViewport.h"
 #include "PostProcess/PostProcessHMD.h"
 #include "SteamVRFunctionLibrary.h"

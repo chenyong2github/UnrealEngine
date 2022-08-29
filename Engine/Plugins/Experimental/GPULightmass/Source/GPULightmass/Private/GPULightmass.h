@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ScenePrivate.h"
 #include "VolumetricLightmap.h"
 #include "GPULightmassModule.h"
 #include "GPULightmassSettings.h"

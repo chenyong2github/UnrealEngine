@@ -29,10 +29,11 @@
 #include "ARSystem.h"
 #include "IHandTracker.h"
 #include "PixelShaderUtils.h"
-#include "ScenePrivate.h"
 #include "GeneralProjectSettings.h"
 #include "Epic_openxr.h"
 #include "HDRHelper.h"
+#include "Shader.h"
+#include "ScreenRendering.h"
 
 #if WITH_EDITOR
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
