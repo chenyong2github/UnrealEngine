@@ -1961,7 +1961,8 @@ void FStreamingManager::AsyncUpdate()
 			}
 
 			FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(SelectedPages.Num());
-
+			FPendingPage* LastPendingPage = nullptr;
+				
 			// Register Pages
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(RegisterPages);
@@ -2031,6 +2032,7 @@ void FStreamingManager::AsyncUpdate()
 						PendingPage.State = FPendingPage::EState::Ready;
 					}
 #else
+					LastPendingPage = &PendingPage;
 					uint8* Dst = PendingPageStagingMemory.GetData() + NextPendingPageIndex * NANITE_MAX_PAGE_DISK_SIZE;
 					PendingPage.RequestBuffer = FIoBuffer(FIoBuffer::Wrap, Dst, PageStreamingState.BulkSize);
 					Batch.Read(BulkData, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Low, PendingPage.RequestBuffer, PendingPage.Request);
@@ -2056,15 +2058,19 @@ void FStreamingManager::AsyncUpdate()
 					RegisterStreamingPage( Page, SelectedKey );
 				}
 			}
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
-				(void)Batch.Issue();
-			}
+
 #if WITH_EDITOR
 			if (DDCRequests.Num() > 0)
 			{
 				RequestDDCData(DDCRequests);
 				DDCRequests.Empty();
+			}
+#else
+			if (LastPendingPage)
+			{
+				// Issue batch
+				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
+				(void)Batch.Issue();
 			}
 #endif
 		}
