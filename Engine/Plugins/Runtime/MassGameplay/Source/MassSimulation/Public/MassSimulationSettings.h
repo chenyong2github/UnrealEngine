@@ -5,7 +5,7 @@
 #include "MassSettings.h"
 #include "MassSimulationSettings.generated.h"
 
-#define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassSimulationSettings>()->a)
+#define GET_MASSSIMULATION_CONFIG_VALUE(a) (GetMutableDefault<UMassSimulationSettings>()->a)
 
 /**
  * Implements the settings for MassSimulation

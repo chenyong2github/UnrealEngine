@@ -335,8 +335,8 @@ void UMassRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 		AgentSystem->GetOnMassAgentComponentEntityDetaching().AddUObject(this, &UMassRepresentationSubsystem::OnMassAgentComponentEntityDetaching);
 	}
 
-	RetryMovedDistanceSq = FMath::Square(GET_MASS_CONFIG_VALUE(DesiredActorFailedSpawningRetryMoveDistance));
-	RetryTimeInterval = GET_MASS_CONFIG_VALUE(DesiredActorFailedSpawningRetryTimeInterval);
+	RetryMovedDistanceSq = FMath::Square(GET_MASSSIMULATION_CONFIG_VALUE(DesiredActorFailedSpawningRetryMoveDistance));
+	RetryTimeInterval = GET_MASSSIMULATION_CONFIG_VALUE(DesiredActorFailedSpawningRetryTimeInterval);
 }
 
 void UMassRepresentationSubsystem::Deinitialize()

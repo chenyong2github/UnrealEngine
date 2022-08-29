@@ -137,7 +137,7 @@ void UMassSimulationSubsystem::OnProcessingPhaseStarted(const float DeltaSeconds
 				check(EntityManager);
 				if (UE::MassSimulation::bDoEntityCompaction)
 				{
-					EntityManager->DoEntityCompaction(GET_MASS_CONFIG_VALUE(DesiredEntityCompactionTimeSlicePerTick));
+					EntityManager->DoEntityCompaction(GET_MASSSIMULATION_CONFIG_VALUE(DesiredEntityCompactionTimeSlicePerTick));
 				}
 			}
 			break;

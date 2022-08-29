@@ -375,7 +375,7 @@ void UMassActorSpawnerSubsystem::OnPrePhysicsPhaseStarted(const float DeltaSecon
 	// 
 	// Note: MassRepresentationProcessor relies on actor spawns being processed before it runs so it can confirm the
 	// spawn and clean up the previous representation  
-	ProcessPendingSpawningRequest(GET_MASS_CONFIG_VALUE(DesiredActorSpawningTimeSlicePerTick));
+	ProcessPendingSpawningRequest(GET_MASSSIMULATION_CONFIG_VALUE(DesiredActorSpawningTimeSlicePerTick));
 
 	CSV_CUSTOM_STAT(MassActors, NumSpawned, NumActorSpawned, ECsvCustomStatOp::Accumulate);
 	CSV_CUSTOM_STAT(MassActors, NumPooled, NumActorPooled, ECsvCustomStatOp::Accumulate);
@@ -388,7 +388,7 @@ void UMassActorSpawnerSubsystem::OnPrePhysicsPhaseFinished(const float DeltaSeco
 	// Note: MassRepresentationProcessor relies on actor destruction processing after it runs so it can clean up
 	// unwanted actor representations that it has replaced for this frame. It also relies on this running before physics
 	// so unwanted representations don't interfere with new physics enabled actors 
-	ProcessPendingDestruction(GET_MASS_CONFIG_VALUE(DesiredActorDestructionTimeSlicePerTick));
+	ProcessPendingDestruction(GET_MASSSIMULATION_CONFIG_VALUE(DesiredActorDestructionTimeSlicePerTick));
 }
 
 void UMassActorSpawnerSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
