@@ -543,13 +543,16 @@ TArray<FOverlappingSections> FSectionModel::GetEasingSegments()
 
 FCachedChannelModels::FCachedChannelModels(TSharedPtr<FSectionModel> InSection)
 {
-	for (TSharedPtr<FChannelModel> ChannelModel : InSection->GetDescendantsOfType<FChannelModel>())
+	if (InSection)
 	{
-		if (TSharedPtr<IKeyArea> KeyArea = ChannelModel->GetKeyArea())
+		for (TSharedPtr<FChannelModel> ChannelModel : InSection->GetDescendantsOfType<FChannelModel>())
 		{
-			const FName ChannelName = KeyArea->GetName();
-			const FMovieSceneChannelHandle ChannelHandle = KeyArea->GetChannel();
-			ChannelsByName.Add(ChannelName, FCachedChannelModel{ ChannelHandle, ChannelModel });
+			if (TSharedPtr<IKeyArea> KeyArea = ChannelModel->GetKeyArea())
+			{
+				const FName ChannelName = KeyArea->GetName();
+				const FMovieSceneChannelHandle ChannelHandle = KeyArea->GetChannel();
+				ChannelsByName.Add(ChannelName, FCachedChannelModel{ ChannelHandle, ChannelModel });
+			}
 		}
 	}
 }

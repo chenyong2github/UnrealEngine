@@ -708,8 +708,13 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 
 	bool IsChannelKeyable[9];
 	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
+	TWeakPtr<FMovieSceneChannelProxy> WeakSectionProxy = Section->GetChannelProxy().AsWeak();
 	for (int32 Index = 0; Index < sizeof(IsChannelKeyable); ++Index)
 	{
+		if (ChannelHandles[Index] == FMovieSceneChannelHandle())
+		{
+			ChannelHandles[Index] = FMovieSceneChannelHandle(WeakSectionProxy, FMovieSceneDoubleChannel::StaticStruct()->GetFName(), Index);
+		}
 		IsChannelKeyable[Index] = (ChannelHandles[Index].GetChannelTypeName() == DoubleChannelTypeName);
 	}
 
