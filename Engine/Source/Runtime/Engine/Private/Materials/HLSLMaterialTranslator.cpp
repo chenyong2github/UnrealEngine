@@ -11070,6 +11070,18 @@ int32 FHLSLMaterialTranslator::StrataCompilePreview(int32 StrataDataCodeChunk)
 	return PreviewCodeChunk;
 }
 
+bool FHLSLMaterialTranslator::StrataSkipsOpacityEvaluation()
+{
+	return !IsTranslucentBlendMode(Material->GetStrataBlendMode())
+		&& Material->GetShadingModels().CountShadingModels() == 1
+		&& !Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater)
+		&& !Material->GetShadingModels().HasShadingModel(MSM_Subsurface)
+		&& !Material->GetShadingModels().HasShadingModel(MSM_SubsurfaceProfile)
+		&& !Material->GetShadingModels().HasShadingModel(MSM_PreintegratedSkin)
+		&& !Material->GetShadingModels().HasShadingModel(MSM_TwoSidedFoliage)
+		&& !Material->GetShadingModels().HasShadingModel(MSM_PreintegratedSkin);
+}
+
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)
 {
 	if (UV == INDEX_NONE)

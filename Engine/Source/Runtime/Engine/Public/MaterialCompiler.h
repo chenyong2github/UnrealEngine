@@ -610,6 +610,11 @@ public:
 	virtual int32 StrataMetalnessToDiffuseAlbedoF0(int32 BaseColor, int32 Specular, int32 Metallic, int32 OutputIndex) = 0;
 	virtual int32 StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex) = 0;
 	virtual int32 StrataCompilePreview(int32 StrataDataCodeChunk) = 0;
+
+	/**
+	 * This is dedicated to skip evaluating any opacity input when a material instance toggles the translucent blend mode to opaque.
+	 */
+	virtual bool StrataSkipsOpacityEvaluation() = 0;
 	
 	/**
 	 * Register an operator of the tree representation the Strata material and its topology.
@@ -1268,6 +1273,11 @@ public:
 	virtual int32 StrataCompilePreview(int32 StrataDataCodeChunk) override
 	{
 		return Compiler->StrataCompilePreview(StrataDataCodeChunk);
+	}
+
+	virtual bool StrataSkipsOpacityEvaluation() override
+	{
+		return Compiler->StrataSkipsOpacityEvaluation();
 	}
 
 	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override

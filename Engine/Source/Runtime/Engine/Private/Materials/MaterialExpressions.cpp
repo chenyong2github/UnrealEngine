@@ -21796,7 +21796,20 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 	FStrataOperator& StrataOperator = Compiler->StrataCompilationGetOperator(this);
 	StrataOperator.BSDFRegisteredSharedLocalBasis = NewRegisteredSharedLocalBasis;
 
-	const bool bHasDynamicShadingModels = ConvertedStrataMaterialInfo.CountShadingModels() > 1;
+	int32 ShadingModelCount = ConvertedStrataMaterialInfo.CountShadingModels();
+	int32 OpacityCodeChunk = INDEX_NONE;
+	if (!Compiler->StrataSkipsOpacityEvaluation())
+	{
+		// We evaluate opacity only for shading models and blending mode requiring it.
+		// For instance, a translucent shader reading depth for soft fading should no evaluate opacity when an instance forces an opaque mode.
+		OpacityCodeChunk = CompileWithDefaultFloat1(Compiler, Opacity, 1.0f);
+	}
+	else
+	{
+		OpacityCodeChunk = Compiler->Constant(1.0f);
+	}
+
+	const bool bHasDynamicShadingModels = ShadingModelCount > 1;
 	// We probably need to do something along these line as well :::
 	int32 OutputCodeChunk = Compiler->StrataConversionFromLegacy(
 		bHasDynamicShadingModels,
@@ -21815,7 +21828,7 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		CompileWithDefaultFloat1(Compiler, ClearCoatRoughness, 0.1f),
 		// Misc
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat1(Compiler, Opacity, 1.0f),
+		OpacityCodeChunk,
 		CompileWithDefaultFloat3(Compiler, TransmittanceColor, 0.5f, 0.5f, 0.5f),
 		// Water
 		CompileWithDefaultFloat3(Compiler, WaterScatteringCoefficients, 0.0f, 0.0f, 0.0f),
