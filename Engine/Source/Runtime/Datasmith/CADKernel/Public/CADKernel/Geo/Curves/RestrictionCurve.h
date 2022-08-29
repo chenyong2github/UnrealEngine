@@ -11,11 +11,6 @@
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"
-#include "CADKernel/Utils/IndexOfCoordinateFinder.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

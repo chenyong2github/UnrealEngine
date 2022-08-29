@@ -6,11 +6,7 @@
 #include "CADKernel/Core/OrientedEntity.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
 #include "Serialization/Archive.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UnrealTemplate.h"
 
 #ifdef CADKERNEL_DEV
 #include "Toolkit/Core/InfoEntity.h"

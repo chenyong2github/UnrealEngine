@@ -9,8 +9,10 @@
 #include "TUniqueTechSoftObj.h"
 
 #include "HAL/FileManager.h"
+#ifndef CADKERNEL_DEV
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
+#endif
 #include "Templates/UnrealTemplate.h"
 
 namespace CADLibrary
@@ -524,6 +526,7 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 
 	if (Type == kA3DTypeRiBrepModel)
 	{
+#ifndef CADKERNEL_DEV
 		FString FilePath = CADFileData.GetBodyCachePath(Body.MeshActorUId);
 		if (!FilePath.IsEmpty())
 		{
@@ -546,9 +549,9 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 			TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonString);
 
 			FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
-
 			TechSoftUtils::SaveBodiesToPrcFile(&Representation, 1, FilePath, JsonString);
 		}
+#endif
 	}
 }
 

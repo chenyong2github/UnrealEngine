@@ -947,7 +947,7 @@ void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
 	TArray<FPoint>& Loop3D = FaceLoops3D.Emplace_GetRef();
 	Loop3D.Reserve(LoopNodeCount);
 
-	TArray<FVector>& LoopNormals = NormalsOfFaceLoops.Emplace_GetRef();
+	TArray<FVector3f>& LoopNormals = NormalsOfFaceLoops.Emplace_GetRef();
 	LoopNormals.Reserve(LoopNodeCount);
 
 	TArray<int32>& LoopIds = NodeIdsOfFaceLoops.Emplace_GetRef();

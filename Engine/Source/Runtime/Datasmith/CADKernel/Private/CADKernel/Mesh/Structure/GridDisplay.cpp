@@ -344,7 +344,7 @@ void FGrid::DisplayGridNormal() const
 		for (int32 Index = 0; Index < CuttingSize; ++Index)
 		{
 			F3DDebugSegment GraphicSegment(Index);
-			FVector Normal = Normals[Index];
+			FVector3f Normal = Normals[Index];
 			Normal.Normalize();
 			Normal *= NormalLength;
 			DrawSegment(Points3D[Index], Points3D[Index] + Normal, EVisuProperty::GreenCurve);
@@ -356,12 +356,12 @@ void FGrid::DisplayGridNormal() const
 		for (int32 LoopIndex = 0; LoopIndex < FaceLoops3D.Num(); ++LoopIndex)
 		{
 			const TArray<FPoint>& LoopPoints = FaceLoops3D[LoopIndex];
-			const TArray<FVector>& LoopNormals = NormalsOfFaceLoops[LoopIndex];
+			const TArray<FVector3f>& LoopNormals = NormalsOfFaceLoops[LoopIndex];
 
 			for (int32 Index = 0; Index < LoopPoints.Num(); ++Index)
 			{
 				F3DDebugSegment GraphicSegment(Index);
-				FVector Normal = LoopNormals[Index];
+				FVector3f Normal = LoopNormals[Index];
 				Normal.Normalize();
 				Normal *= NormalLength;
 				DrawSegment(LoopPoints[Index], LoopPoints[Index] + Normal, EVisuProperty::YellowCurve);

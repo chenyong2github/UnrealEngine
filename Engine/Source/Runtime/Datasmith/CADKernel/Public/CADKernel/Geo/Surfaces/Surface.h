@@ -203,7 +203,7 @@ namespace CADKernel
 		virtual void EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals = false) const;
 		void EvaluateGrid(FGrid& Grid) const;
 
-		virtual void EvaluateNormals(const TArray<FPoint2D>& Points2D, TArray<FVector>& Normals) const;
+		virtual void EvaluateNormals(const TArray<FPoint2D>& Points2D, TArray<FVector3f>& Normals) const;
 
 		virtual FVector EvaluateNormal(const FPoint2D& InPoint2D) const
 		{

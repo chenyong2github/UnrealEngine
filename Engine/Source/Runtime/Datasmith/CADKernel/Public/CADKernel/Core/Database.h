@@ -3,14 +3,7 @@
 
 #include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Entity.h"
-#include "CADKernel/Core/Types.h"
-#include "Containers/Array.h"
 #include "Containers/Queue.h"
-#include "Containers/Set.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/TypeHash.h"
 
 namespace CADKernel
 {

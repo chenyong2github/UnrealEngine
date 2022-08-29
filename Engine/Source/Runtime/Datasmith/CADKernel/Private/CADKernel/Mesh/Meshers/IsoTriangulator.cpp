@@ -2396,7 +2396,10 @@ void FIsoTriangulator::TriangulateOverCycle(const EGridSpace Space)
 			Cycle.Empty();
 			CycleOrientation.Empty();
 			bool bLeftSide = true;
-			FindCycle(Segment, bLeftSide, Cycle, CycleOrientation);
+			if (!FindCycle(Segment, bLeftSide, Cycle, CycleOrientation))
+			{
+				continue;
+			}
 #ifdef FIND_CYCLE
 			if (Grid.GetFace()->GetId() == FaceToDebug)
 			{
@@ -2414,7 +2417,10 @@ void FIsoTriangulator::TriangulateOverCycle(const EGridSpace Space)
 			Cycle.Empty();
 			CycleOrientation.Empty();
 			bool bLeftSide = false;
-			FindCycle(Segment, bLeftSide, Cycle, CycleOrientation);
+			if(!FindCycle(Segment, bLeftSide, Cycle, CycleOrientation))
+			{
+				continue;
+			}
 #ifdef FIND_CYCLE
 			if (Grid.GetFace()->GetId() == FaceToDebug)
 			{
@@ -2442,7 +2448,7 @@ static int32 CycleId = -1;
 static int32 CycleIndex = 0;
 #endif
 
-void FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation)
+bool FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation)
 {
 
 #ifdef DEBUG_FIND_CYCLE
@@ -2529,7 +2535,10 @@ void FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArra
 				Wait();
 			}
 #endif
-			ensureCADKernel(!Segment->HasCycleOnLeft());
+			if (Segment->HasCycleOnLeft())
+			{
+				return false;
+			}
 			Segment->SetHaveCycleOnLeft();
 			Node = &Segment->GetSecondNode();
 			CycleOrientation.Add(true);
@@ -2553,7 +2562,10 @@ void FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArra
 				Wait();
 			}
 #endif
-			ensureCADKernel(!Segment->HasCycleOnRight());
+			if (Segment->HasCycleOnRight())
+			{
+				return false;
+			}
 			Segment->SetHaveCycleOnRight();
 			Node = &Segment->GetFirstNode();
 			CycleOrientation.Add(false);
@@ -2578,6 +2590,7 @@ void FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArra
 		Close3DDebugSession();
 	}
 #endif
+	return true;
 }
 
 //#define DEBUG_FIND_NEXTSEGMENT

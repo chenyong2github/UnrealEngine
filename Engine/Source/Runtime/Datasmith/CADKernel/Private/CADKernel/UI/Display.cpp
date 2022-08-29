@@ -1084,7 +1084,7 @@ void DisplayMesh(const FFaceMesh& Mesh)
 	if (FSystem::Get().GetVisu()->GetParameters()->bDisplayNormals)
 	{
 		double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
-		const TArray<FVector>& Normals = Mesh.Normals;
+		const TArray<FVector3f>& Normals = Mesh.Normals;
 		for (int32 Index = 0; Index < VertexIndices.Num(); ++Index)
 		{
 			const FPoint** PointPtr = NodeIdToCoordinates.Find(VertexIndices[Index]);
@@ -1094,7 +1094,7 @@ void DisplayMesh(const FFaceMesh& Mesh)
 			}
 
 			F3DDebugSegment GraphicSegment(Index);
-			FVector Normal = Normals[Index];
+			FVector3f Normal = Normals[Index];
 			Normal.Normalize();
 			Normal *= NormalLength;
 			DrawSegment(**PointPtr, **PointPtr + Normal, EVisuProperty::EdgeMesh);

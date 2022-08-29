@@ -3,11 +3,11 @@
 
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/MathConst.h"
-#include "HAL/PlatformMath.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Serialization/Archive.h"
-#include "Templates/TypeHash.h"
+//#include "HAL/PlatformMath.h"
+//#include "Math/UnrealMathSSE.h"
+//#include "Math/Vector.h"
+//#include "Serialization/Archive.h"
+//#include "Templates/TypeHash.h"
 
 // this will eventually be reconciled with what the Geometry team is using.
 namespace CADKernel
@@ -94,6 +94,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return FPoint(X + Point.X, Y + Point.Y, Z + Point.Z);
 	}
 
+	FPoint operator+(const FVector3f& Point) const
+	{
+		return FPoint(X + Point.X, Y + Point.Y, Z + Point.Z);
+	}
+
 	FPoint operator-(const FPoint& Point) const
 	{
 		return FPoint(X - Point.X, Y - Point.Y, Z - Point.Z);
@@ -141,6 +146,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FPoint& operator+=(const FVector& Point)
+	{
+		X += Point.X;
+		Y += Point.Y;
+		Z += Point.Z;
+		return *this;
+	}
+
+	FPoint& operator+=(const FVector3f& Point)
 	{
 		X += Point.X;
 		Y += Point.Y;
@@ -205,9 +218,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return (Compare < 0);
 	}
 
-	operator FVector()
+	operator FVector() const
 	{
 		return FVector(X, Y, Z);
+	}
+
+	operator FVector3f() const 
+	{
+		return FVector3f((float) X, (float)Y, (float)Z);
 	}
 
 	void SetMin(const FPoint& Point)

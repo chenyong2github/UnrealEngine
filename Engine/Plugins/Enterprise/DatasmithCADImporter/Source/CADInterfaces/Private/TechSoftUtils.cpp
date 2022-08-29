@@ -9,10 +9,10 @@
 
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "Math/Color.h"
-#include "Serialization/JsonSerializer.h"
-#include "Serialization/JsonWriter.h"
 
 #ifndef CADKERNEL_DEV
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonWriter.h"
 #include "TechSoftInterfaceUtils.inl"
 #endif
 
@@ -298,8 +298,10 @@ void RestoreMaterials(const TSharedPtr<FJsonObject>& DefaultValues, FBodyMesh& B
 	FMaterialUId DefaultColorName = 0;
 	FMaterialUId DefaultMaterialName = 0;
 
+#ifndef CADKERNEL_DEV
 	DefaultValues->TryGetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorName);
 	DefaultValues->TryGetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialName);
+#endif
 
 	BodyMesh.MaterialSet.Empty();
 	BodyMesh.ColorSet.Empty();

@@ -104,7 +104,7 @@ void FSurface::EvaluatePoints(FSurfacicPolyline& Polyline) const
 		{
 			Polyline.Normals.Emplace(Point.GradientU ^ Point.GradientV);
 		}
-		for (FVector Normal : Polyline.Normals)
+		for (FVector3f Normal : Polyline.Normals)
 		{
 			Normal.Normalize();
 		}
@@ -143,13 +143,13 @@ void FSurface::EvaluatePoints(const TArray<FCurvePoint2D>& InPoints2D, FSurfacic
 		Polyline.Normals.Emplace(Point.GradientU ^ Point.GradientV);
 	}
 
-	for (FVector& Normal : Polyline.Normals)
+	for (FVector3f& Normal : Polyline.Normals)
 	{
 		Normal.Normalize();
 	}
 }
 
-void FSurface::EvaluateNormals(const TArray<FPoint2D>& InPoints2D, TArray<FVector>& Normals) const
+void FSurface::EvaluateNormals(const TArray<FPoint2D>& InPoints2D, TArray<FVector3f>& Normals) const
 {
 	int32 DerivativeOrder = 1;
 	TArray<FSurfacicPoint> Points3D;
@@ -162,7 +162,7 @@ void FSurface::EvaluateNormals(const TArray<FPoint2D>& InPoints2D, TArray<FVecto
 		Normals.Emplace(Point.GradientU ^ Point.GradientV);
 	}
 
-	for (FVector& Normal : Normals)
+	for (FVector3f& Normal : Normals)
 	{
 		Normal.Normalize();
 	}
@@ -189,7 +189,8 @@ void FSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSa
 	{
 		for (FSurfacicPoint Point : Point3D)
 		{
-			OutPoints.Normals.Emplace(Point.GradientU ^ Point.GradientV);
+			const FPoint Normal = Point.GradientU ^ Point.GradientV;
+			OutPoints.Normals.Emplace(Normal);
 		}
 		OutPoints.NormalizeNormals();
 	}

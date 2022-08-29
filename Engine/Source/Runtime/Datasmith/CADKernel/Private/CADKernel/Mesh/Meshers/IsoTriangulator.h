@@ -291,8 +291,9 @@ public:
 
 	/**
 	 * Find in the network a minimal cycle stating from a segment
+	 * @return false if the new cycle crosses a segement already used
 	 */
-	void FindCycle(FIsoSegment* StartSegment, bool bLeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation);
+	bool FindCycle(FIsoSegment* StartSegment, bool bLeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation);
 
 	/**
 	 * Generate the "Delaunay" tessellation of the cycle.

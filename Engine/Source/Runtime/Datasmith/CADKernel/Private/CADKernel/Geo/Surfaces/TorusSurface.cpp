@@ -122,8 +122,8 @@ void FTorusSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfa
 
 	if (bComputeNormals)
 	{
-		FVector Center = Matrix.Column(3);
-		for (FVector& Normal : OutPoints.Normals)
+		FVector3f Center = Matrix.Column(3);
+		for (FVector3f& Normal : OutPoints.Normals)
 		{
 			 Normal = Matrix.MultiplyVector(Normal);
 		}

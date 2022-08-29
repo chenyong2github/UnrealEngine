@@ -3,9 +3,9 @@
 
 #include "CADKernel/Core/Parameter.h"
 #include "CADKernel/Core/Types.h"
-#include "Containers/Map.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
+//#include "Containers/Map.h"
+//#include "Containers/UnrealString.h"
+//#include "HAL/Platform.h"
 #include "Serialization/Archive.h"
 
 class FArchive;

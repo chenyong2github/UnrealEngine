@@ -4,11 +4,11 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/MathConst.h"
 #include "CADKernel/Math/Point.h"
-#include "HAL/PlatformCrt.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Serialization/Archive.h"
-#include "Templates/UnrealTemplate.h"
+//#include "HAL/PlatformCrt.h"
+//#include "Math/UnrealMathSSE.h"
+//#include "Math/Vector.h"
+//#include "Serialization/Archive.h"
+//#include "Templates/UnrealTemplate.h"
 
 namespace CADKernel
 {
@@ -105,6 +105,15 @@ namespace CADKernel
 				InVector.X * Get(0, 0) + InVector.Y * Get(0, 1) + InVector.Z * Get(0, 2),
 				InVector.X * Get(1, 0) + InVector.Y * Get(1, 1) + InVector.Z * Get(1, 2),
 				InVector.X * Get(2, 0) + InVector.Y * Get(2, 1) + InVector.Z * Get(2, 2)
+			);
+		}
+
+		FVector3f MultiplyVector(const FVector3f& InVector) const
+		{
+			return FVector3f(
+				(float) (InVector.X * Get(0, 0) + InVector.Y * Get(0, 1) + InVector.Z * Get(0, 2)),
+				(float) (InVector.X * Get(1, 0) + InVector.Y * Get(1, 1) + InVector.Z * Get(1, 2)),
+				(float) (InVector.X * Get(2, 0) + InVector.Y * Get(2, 1) + InVector.Z * Get(2, 2))
 			);
 		}
 

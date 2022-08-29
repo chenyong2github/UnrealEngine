@@ -18,8 +18,6 @@
 #include "CADKernel/UI/Message.h"
 #include "CADKernel/Utils/Util.h"
 
-#include "Math/UnrealMathUtility.h"
-
 namespace CADKernel
 {
 
@@ -154,6 +152,8 @@ void FTopomaker::Sew()
 	MergeCoincidentEdges(BorderVertices);
 
 	MergeUnconnectedAdjacentEdges();
+
+	StitchParallelEdges(BorderVertices);
 
 #ifdef CADKERNEL_DEV
 	Report.SewDuration = FChrono::Elapse(StartJoinTime);
@@ -1130,7 +1130,7 @@ void FTopomaker::OrientShells()
 	}
 
 #ifdef CADKERNEL_DEV
- 	Report.OrientationDuration = FChrono::Elapse(StartTime);
+	Report.OrientationDuration = FChrono::Elapse(StartTime);
 	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT(""), TEXT("Orient"), Report.OrientationDuration);
 #endif
 }

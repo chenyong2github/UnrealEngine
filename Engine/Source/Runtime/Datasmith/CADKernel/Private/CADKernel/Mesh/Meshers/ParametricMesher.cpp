@@ -246,9 +246,6 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face.GetOrCreateMesh(MeshModel));
 
 	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh);
-#ifdef CADKERNEL_DEV
-	MesherReport
-#endif
 
 	if (IsoTrianguler.Triangulate())
 	{

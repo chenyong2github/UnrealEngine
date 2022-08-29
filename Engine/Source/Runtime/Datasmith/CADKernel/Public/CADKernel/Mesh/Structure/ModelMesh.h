@@ -7,9 +7,9 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Mesh/Structure/Mesh.h"
 #include "Containers/Array.h"
-#include "HAL/PlatformCrt.h"
-#include "Math/UnrealMathSSE.h"
-#include "Templates/SharedPointer.h"
+//#include "HAL/PlatformCrt.h"
+//#include "Math/UnrealMathSSE.h"
+//#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

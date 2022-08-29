@@ -181,7 +181,7 @@ public:
 private:
 
 #ifdef CADKERNEL_DEV
-	void SetMesherReport(FMesherReport& MesherReport)
+	void SetMesherReport(FMesherReport& InMesherReport)
 	{
 		MesherReport = &InMesherReport;
 	}

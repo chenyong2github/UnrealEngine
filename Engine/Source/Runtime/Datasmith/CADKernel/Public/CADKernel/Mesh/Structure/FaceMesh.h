@@ -2,8 +2,8 @@
 #pragma once
 
 #include "CADKernel/Mesh/Structure/Mesh.h"
-#include "Containers/Array.h"
-#include "Containers/Map.h"
+//#include "Containers/Array.h"
+//#include "Containers/Map.h"
 #include "HAL/PlatformCrt.h"
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"

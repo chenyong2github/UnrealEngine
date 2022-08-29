@@ -211,7 +211,7 @@ public:
 	virtual void Set2DPoint(EGridSpace Space, FGrid& Grid, const FPoint2D& NewCoordinate) = 0;
 
 	virtual const FPoint& Get3DPoint(const FGrid& Grid) const = 0;
-	virtual const FVector& GetNormal(const FGrid& Grid) const = 0;
+	virtual const FVector3f& GetNormal(const FGrid& Grid) const = 0;
 
 	/**
 	 * Only for display purpose as it return a copy of the point
@@ -324,7 +324,7 @@ public:
 		return Grid.GetLoops3D()[LoopIndex][Index];
 	}
 
-	virtual const FVector& GetNormal(const FGrid& Grid) const override
+	virtual const FVector3f& GetNormal(const FGrid& Grid) const override
 	{
 		return Grid.GetLoopNormals()[LoopIndex][Index];
 	}
@@ -497,7 +497,7 @@ public:
 		return Grid.GetInner3DPoint(Index);
 	}
 
-	virtual const FVector& GetNormal(const FGrid& Grid) const override
+	virtual const FVector3f& GetNormal(const FGrid& Grid) const override
 	{
 		return Grid.GetPointNormal(Index);
 	}
