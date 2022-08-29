@@ -6,7 +6,7 @@
 
 FMovieSceneChannelHandle FMovieSceneChannelProxy::MakeHandle(FName ChannelTypeName, int32 Index)
 {
-	TWeakPtr<FMovieSceneChannelProxy> WeakProxy = TSharedPtr<FMovieSceneChannelProxy>(AsShared());
+	TWeakPtr<FMovieSceneChannelProxy> WeakProxy = AsShared();
 	return FMovieSceneChannelHandle(WeakProxy, ChannelTypeName, Index);
 }
 
@@ -45,18 +45,38 @@ FMovieSceneChannel* FMovieSceneChannelProxy::GetChannel(FName ChannelTypeName, i
 
 #if WITH_EDITOR
 
-FMovieSceneChannel* FMovieSceneChannelProxy::GetChannelBySortOrder(FName ChannelTypeName, int32 ChannelSortOrder) const
+void FMovieSceneChannelProxy::EnsureHandlesByNamePopulated() const
 {
-	if (const FMovieSceneChannelEntry* Entry = FindEntry(ChannelTypeName))
+	if (bHandlesByNamePopulated)
 	{
-		TArrayView<FMovieSceneChannel* const> Channels = Entry->GetChannels();
-		const int32 ChannelIndex = Entry->GetChannelIndexBySortOrder(ChannelSortOrder);
-		if (ChannelIndex != INDEX_NONE)
+		return;
+	}
+
+	bHandlesByNamePopulated = true;
+	HandlesByName.Empty();
+
+	TWeakPtr<FMovieSceneChannelProxy> WeakNonConstThis = const_cast<FMovieSceneChannelProxy*>(this)->AsShared();
+
+	for (const FMovieSceneChannelEntry& Entry : Entries)
+	{
+		const FName ChannelTypeName = Entry.GetChannelTypeName();
+		TArrayView<const FMovieSceneChannelMetaData> ChannelMetaDatas = Entry.GetMetaData();
+		for (int32 Index = 0; Index < ChannelMetaDatas.Num(); ++Index)
 		{
-			return Channels[ChannelIndex];
+			const FMovieSceneChannelMetaData& ChannelMetaData = ChannelMetaDatas[Index];
+			HandlesByName.Add(ChannelMetaData.Name, FMovieSceneChannelHandle(WeakNonConstThis, ChannelTypeName, Index));
 		}
 	}
-	return nullptr;
+}
+
+FMovieSceneChannelHandle FMovieSceneChannelProxy::GetChannelByName(FName ChannelName) const
+{
+	EnsureHandlesByNamePopulated();
+	if (const FMovieSceneChannelHandle* Handle = HandlesByName.Find(ChannelName))
+	{
+		return *Handle;
+	}
+	return FMovieSceneChannelHandle();
 }
 
 #endif // WITH_EDITOR

@@ -327,19 +327,19 @@ public:
 	TArrayView<const FMovieSceneChannelMetaData> GetMetaData() const;
 
 	/**
-	 * Get the channel for the specified sort index of a particular type.
+	 * Get the channel with the specified name, assuming it is of a given type
 	 *
-	 * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
+	 * @return A typed handle to the channel, or an invalid handle if no channel of that name was found, or it wasn't of the specified type
 	 */
 	template<typename ChannelType>
-	ChannelType* GetChannelBySortOrder(int32 ChannelSortOrder) const;
+	TMovieSceneChannelHandle<ChannelType> GetChannelByName(FName ChannelName) const;
 
 	/**
-	 * Get the channel for the specified sort index of a particular type.
+	 * Get the channel with the specified name
 	 *
-	 * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
+	 * @return A handle to the channel, or an invalid handle if no channel of that name was found
 	 */
-	FMovieSceneChannel* GetChannelBySortOrder(FName ChannelTypeName, int32 ChannelSortOrder) const;
+	FMovieSceneChannelHandle GetChannelByName(FName ChannelName) const;
 
 	/**
 	 * Access all the extended data for the templated channel type
@@ -349,7 +349,7 @@ public:
 	template<typename ChannelType>
 	TArrayView<const typename TMovieSceneChannelTraits<ChannelType>::ExtendedEditorDataType> GetAllExtendedEditorData() const;
 
-#endif
+#endif  // !WITH_EDITOR
 
 private:
 
@@ -358,6 +358,18 @@ private:
 
 	/** Array of channel entries, one per channel type. Should never be changed or reallocated after construction to keep pointers alive. */
 	TArray<FMovieSceneChannelEntry, TInlineAllocator<1>> Entries;
+
+#if WITH_EDITOR
+
+	/** Populate the named channel table */
+	void EnsureHandlesByNamePopulated() const;
+
+	/** Lazy-created lookup table between a channel name and a channel handle */
+	mutable TMap<FName, FMovieSceneChannelHandle> HandlesByName;
+	/** Whether the named channel table has been populated */
+	mutable bool bHandlesByNamePopulated = false;
+
+#endif // WITH_EDITOR
 };
 
 
@@ -519,10 +531,16 @@ TArrayView<const FMovieSceneChannelMetaData> FMovieSceneChannelProxy::GetMetaDat
  * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
  */
 template<typename ChannelType>
-ChannelType* FMovieSceneChannelProxy::GetChannelBySortOrder(int32 ChannelSortOrder) const
+TMovieSceneChannelHandle<ChannelType> FMovieSceneChannelProxy::GetChannelByName(FName ChannelName) const
 {
-	FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
-	return static_cast<ChannelType*>(GetChannelBySortOrder(ChannelTypeName, ChannelSortOrder));
+	const FMovieSceneChannelHandle UntypedHandle = GetChannelByName(ChannelName);
+	const FName ChannelTypeName = ChannelType::StaticStruct()->GetFName();
+	// Invalid handles will have a type name of 'None', so we will always fail this test and retrun a null typed handle
+	if (UntypedHandle.GetChannelTypeName() == ChannelTypeName)
+	{
+		return UntypedHandle.Cast<ChannelType>();
+	}
+	return TMovieSceneChannelHandle<ChannelType>();
 }
 
 

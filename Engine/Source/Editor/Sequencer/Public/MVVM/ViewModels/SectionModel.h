@@ -132,25 +132,6 @@ private:
 	TRange<FFrameNumber> LayerBarRange;
 };
 
-/**
- * Stores a snapshot of the channels contained in a section
- */
-class SEQUENCER_API FCachedChannelModels
-{
-public:
-	FCachedChannelModels(TSharedPtr<FSectionModel> InSection);
-
-	FMovieSceneChannelHandle GetChannel(FName InChannelName);
-
-private:
-	struct FCachedChannelModel
-	{
-		FMovieSceneChannelHandle Handle;
-		TWeakViewModelPtr<FChannelModel> Model;
-	};
-	TMap<FName, FCachedChannelModel> ChannelsByName;
-};
-
 struct FOverlappingSections
 {
 	/** The range for the overlap */
