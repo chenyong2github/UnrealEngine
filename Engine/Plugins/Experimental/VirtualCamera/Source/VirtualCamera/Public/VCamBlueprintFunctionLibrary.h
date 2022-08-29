@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CineCameraComponent.h"
 #include "AssetRegistry/AssetData.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/FrameRate.h"
@@ -9,6 +10,7 @@
 #include "MovieSceneObjectBindingID.h"
 #include "VCamBlueprintFunctionLibrary.generated.h"
 
+class ACineCameraActor;
 class UCineCameraComponent;
 class ULevelSequence;
 class USceneCaptureComponent2D;
@@ -140,6 +142,10 @@ public:
 	/** Returns the description of the undo action that will be performed next.*/
 	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
 	static FString GetNextUndoDescription();
+
+	/** Copies all properties from a CineCameraComponent to a CineCameraActor and ensure the root actor transform is updated so the CameraComponents end up in the same World Space position */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	static bool CopyToCineCameraActor(UCineCameraComponent* SourceCameraComponent, ACineCameraActor* TargetCameraActor);
 
 private:
 

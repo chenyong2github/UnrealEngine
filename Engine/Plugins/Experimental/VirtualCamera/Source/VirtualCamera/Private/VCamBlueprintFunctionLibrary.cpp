@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamBlueprintFunctionLibrary.h"
+
+#include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "LevelSequence.h"
 #include "VirtualCameraClipsMetaData.h"
@@ -398,6 +400,28 @@ FString UVCamBlueprintFunctionLibrary::GetNextUndoDescription()
 #endif
 
 	return "";
+}
+
+bool UVCamBlueprintFunctionLibrary::CopyToCineCameraActor(UCineCameraComponent* SourceCameraComponent, ACineCameraActor* TargetCameraActor)
+{
+	if (!(IsValid(SourceCameraComponent) && IsValid(TargetCameraActor) && IsValid(TargetCameraActor->GetCineCameraComponent())))
+	{
+		return false;
+	}
+
+	// Ensure the root actor transforms match
+	if (const USceneComponent* SourceAttachment = SourceCameraComponent->GetAttachParent())
+	{
+		TargetCameraActor->SetActorTransform(SourceAttachment->GetComponentTransform());
+	}
+
+	// Copy the properties from one CineCameraComponent to the other
+	UCineCameraComponent* TargetCameraComponent = TargetCameraActor->GetCineCameraComponent();
+	UEngine::CopyPropertiesForUnrelatedObjects(SourceCameraComponent, TargetCameraComponent);
+	
+	TargetCameraActor->UpdateComponentTransforms();
+
+	return true;
 }
 
 bool UVCamBlueprintFunctionLibrary::DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection)
