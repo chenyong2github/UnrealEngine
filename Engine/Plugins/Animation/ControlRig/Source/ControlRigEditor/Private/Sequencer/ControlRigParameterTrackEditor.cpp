@@ -2327,7 +2327,12 @@ FMovieSceneTrackEditor::FFindOrCreateTrackResult FControlRigParameterTrackEditor
 }
 
 UMovieSceneControlRigParameterTrack* FControlRigParameterTrackEditor::FindTrack(UControlRig* InControlRig)
-{	
+{
+	if (!GetSequencer().IsValid())
+	{
+		return nullptr;
+	}
+	
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
 	if (MovieScene)
 	{
