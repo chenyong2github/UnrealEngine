@@ -3707,4 +3707,6 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND(OpenMergeActor, "Merge Actors", "Opens the Merge Actor panel", EUserInterfaceActionType::Button, FInputChord());
 }
 
+PRAGMA_ENABLE_OPTIMIZATION
+
 #undef LOCTEXT_NAMESPACE
