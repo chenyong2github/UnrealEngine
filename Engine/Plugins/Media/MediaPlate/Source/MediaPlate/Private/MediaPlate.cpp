@@ -130,7 +130,19 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 		UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(Material);
 		UMaterialInterface* Result = nullptr;
 
-		if (MID != nullptr)
+		// See if we can modify this material.
+		bool bCanModify = true;
+		FMediaPlateModule* MediaPlateModule = FModuleManager::GetModulePtr<FMediaPlateModule>("MediaPlate");
+		if (MediaPlateModule != nullptr)
+		{
+			MediaPlateModule->OnMediaPlateApplyMaterial.Broadcast(Material, this, bCanModify);
+		}
+		
+		if (bCanModify == false)
+		{
+			LastMaterial = Material;
+		}
+		else if (MID != nullptr)
 		{
 			MID->SetTextureParameterValue(MediaTextureName, MediaPlateComponent->GetMediaTexture());
 

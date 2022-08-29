@@ -16,6 +16,7 @@ public class MediaSourceManager : ModuleRules
 				"Engine",
 				"MediaAssets",
 				"MediaFrameworkUtilities",
+				"MediaPlate",
 			}
 			);
 	}

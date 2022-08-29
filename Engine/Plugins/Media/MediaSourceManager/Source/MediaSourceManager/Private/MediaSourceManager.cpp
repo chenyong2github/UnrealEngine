@@ -2,7 +2,36 @@
 
 #include "MediaSourceManager.h"
 
+#include "MediaPlateModule.h"
+#include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceConstant.h"
+
 #define LOCTEXT_NAMESPACE "MediaSourceManager"
+
+UMediaSourceManager::UMediaSourceManager(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FMediaPlateModule* MediaPlateModule = FModuleManager::LoadModulePtr<FMediaPlateModule>("MediaPlate");
+		if (MediaPlateModule != nullptr)
+		{
+			MediaPlateModule->OnMediaPlateApplyMaterial.AddUObject(this,
+				&UMediaSourceManager::OnMediaPlateApplyMaterial);
+		}
+	}
+}
+
+void UMediaSourceManager::BeginDestroy()
+{
+	FMediaPlateModule* MediaPlateModule = FModuleManager::GetModulePtr<FMediaPlateModule>("MediaPlate");
+	if (MediaPlateModule != nullptr)
+	{
+		MediaPlateModule->OnMediaPlateApplyMaterial.RemoveAll(this);
+	}
+
+	Super::BeginDestroy();
+}
 
 void UMediaSourceManager::Validate()
 {
@@ -22,6 +51,20 @@ void UMediaSourceManager::Validate()
 		if (Channel != nullptr)
 		{
 			Channel->Validate();
+		}
+	}
+}
+
+void UMediaSourceManager::OnMediaPlateApplyMaterial(UMaterialInterface* Material,
+	AMediaPlate* MediaPlate, bool& bCanModify)
+{
+	// Is this material one of ours?
+	for (UMediaSourceManagerChannel* Channel : Channels)
+	{
+		if (Channel->Material.Get() == Material)
+		{
+			bCanModify = false;
+			break;
 		}
 	}
 }
