@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NameTableArchive.h"
-#include "AssetRegistryPrivate.h"
+
 #include "AssetRegistry/AssetRegistryState.h"
+#include "AssetRegistryPrivate.h"
+#include "UObject/NameTypes.h"
 
 
 class FNameTableErrorArchive : public FArchive

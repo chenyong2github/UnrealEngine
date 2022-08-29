@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PackageBuildDependencyTracker.h"
+
 #include "HAL/Platform.h"
 #include "Logging/LogMacros.h"
-#include "UObject/Package.h"
 #include "Misc/PackageAccessTrackingOps.h"
+#include "UObject/Package.h"
 
 #if UE_WITH_PACKAGE_ACCESS_TRACKING
 

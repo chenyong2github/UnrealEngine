@@ -2,12 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Algo/BinarySearch.h"
 #include "AssetRegistry/AssetData.h"
-#include "Containers/BitArray.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Containers/BitArray.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "PropertyCombinationSet.h"
 

@@ -2,6 +2,7 @@
 
 
 #include "AssetRegistry/AssetRegistryModule.h"
+
 #include "AssetRegistry.h"
 #include "AssetRegistryConsoleCommands.h"
 

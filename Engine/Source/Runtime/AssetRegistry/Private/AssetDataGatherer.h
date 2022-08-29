@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include <atomic>
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
@@ -20,8 +19,10 @@
 #include "Misc/Optional.h"
 #include "PackageDependencyData.h"
 #include "PackageReader.h"
-#include "UObject/NameTypes.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+
+#include <atomic>
 
 class FArchive;
 struct FAssetData;

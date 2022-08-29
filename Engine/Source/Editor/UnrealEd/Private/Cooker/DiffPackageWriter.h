@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/PackageWriter.h"
-#include "AssetRegistry/AssetRegistryState.h"
 
 /** A CookedPackageWriter that diffs output from the current cook with the file that was saved in the previous cook. */
 class FDiffPackageWriter : public ICookedPackageWriter

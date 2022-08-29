@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsyncIODelete.h"
-#include "CoreMinimal.h"
 
 #include "Async/Async.h"
 #include "Containers/UnrealString.h"

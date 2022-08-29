@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include <atomic>
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformTLS.h"
+
+#include <atomic>
 
 /** A Critical Section with additional function to query whether it is locked on the current thread. */
 class FCriticalSectionQueryable

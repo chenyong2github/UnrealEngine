@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Serialization/ArchiveUObject.h"
 #include "Misc/EnumClassFlags.h"
+#include "Serialization/ArchiveUObject.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/PackageFileSummary.h"
 

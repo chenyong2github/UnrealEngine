@@ -31,11 +31,11 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "ShaderCompiler.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
-#include "UObject/ObjectRedirector.h"
 
 namespace UE::Cook
 {

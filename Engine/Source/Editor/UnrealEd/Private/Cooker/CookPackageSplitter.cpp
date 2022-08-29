@@ -4,11 +4,7 @@
 
 #if WITH_EDITOR
 
-namespace UE
-{
-namespace Cook
-{
-namespace Private
+namespace UE::Cook::Private
 {
 
 static TLinkedList<FRegisteredCookPackageSplitter*>* GRegisteredCookPackageSplitterList = nullptr;
@@ -37,8 +33,6 @@ void FRegisteredCookPackageSplitter::ForEach(TFunctionRef<void(FRegisteredCookPa
 	}
 }
 
-}
-}
 }
 
 #endif

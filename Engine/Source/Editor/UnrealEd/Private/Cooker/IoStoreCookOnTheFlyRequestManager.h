@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 class IAssetRegistry;
 
-namespace UE { namespace Cook
+namespace UE::Cook
 {
 
 class ICookOnTheFlyServer;
 class ICookOnTheFlyRequestManager;
 class ICookOnTheFlyNetworkServer;
 
-TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, const IAssetRegistry* AssetRegistry, TSharedRef<ICookOnTheFlyNetworkServer> ConnectionServer);
+TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer,
+	const IAssetRegistry* AssetRegistry, TSharedRef<ICookOnTheFlyNetworkServer> ConnectionServer);
 
-}} // namespace UE::Cook
+} // namespace UE::Cook

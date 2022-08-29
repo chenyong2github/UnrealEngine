@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "CookTypes.h"
+#include "CoreTypes.h"
 #include "ShaderCompiler.h"
 
 struct FODSCRequestPayload;

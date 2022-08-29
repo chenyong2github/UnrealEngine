@@ -16,7 +16,6 @@
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Detail/Channel.h"
 #include "UObject/UnrealNames.h"
-#include "atomic"
 
 namespace UE::Cook
 {

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include <atomic>
 #include "CookTypes.h"
 #include "CookPackageSplitter.h"
 #include "Containers/Array.h"
@@ -24,6 +23,8 @@
 #include "UObject/PackageResourceManager.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+#include <atomic>
 
 class FPreloadableFile;
 class FReferenceCollector;

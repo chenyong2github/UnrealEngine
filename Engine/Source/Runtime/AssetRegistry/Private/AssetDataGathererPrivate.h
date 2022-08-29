@@ -4,12 +4,13 @@
 
 #include "AssetDataGatherer.h"
 
-#include <atomic>
 #include "Containers/Set.h"
 #include "Misc/Optional.h"
 #include "Misc/StringBuilder.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
+
+#include <atomic>
 
 namespace UE
 {

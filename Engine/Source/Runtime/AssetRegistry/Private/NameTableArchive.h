@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Serialization/Archive.h"
 
 struct FAssetData;
+struct FNameEntryId;
 
 /** 
  * Legacy name table reader replaced by FAssetRegistryReader.

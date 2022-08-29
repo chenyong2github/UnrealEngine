@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry/AssetRegistryHelpers.h"
+
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry.h"
 #include "Blueprint/BlueprintSupport.h"

@@ -8,8 +8,8 @@
 #include "AssetRegistry/AssetData.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringFwd.h"
-#include "Misc/Optional.h"
 #include "Misc/AssetRegistryInterface.h"
+#include "Misc/Optional.h"
 #include "UObject/Interface.h"
 
 #include "IAssetRegistry.generated.h"
