@@ -194,7 +194,7 @@ namespace Horde.Build.Tools
 				RedisValue value = await redis.StringGetAsync(s_indexKey);
 				if (!value.IsNullOrEmpty)
 				{
-					index = CbSerializer.Deserialize<CachedIndex>((byte[])value);
+					index = CbSerializer.Deserialize<CachedIndex>((byte[])value!);
 					if (index.Empty || index.Ids.Count > 0)
 					{
 						break;

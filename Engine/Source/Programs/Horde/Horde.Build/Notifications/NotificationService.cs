@@ -328,11 +328,11 @@ namespace Horde.Build.Notifications
 			await redis.KeyDeleteAsync(redisKey);
 
 			List<T> notifications = new List<T>();
-			foreach (byte[] data in rawNotifications)
+			foreach (byte[]? data in rawNotifications)
 			{
 				try
 				{
-					T? notification = JsonSerializer.Deserialize<T>(data);
+					T? notification = JsonSerializer.Deserialize<T>(data!);
 					if (notification == null)
 					{
 						throw new Exception("Unable to deserialize");

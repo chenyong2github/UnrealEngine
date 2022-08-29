@@ -8,6 +8,7 @@ using System.Linq;
 using System.Management;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
@@ -143,6 +144,7 @@ namespace Horde.Agent.Commands
 			otherProcess.Kill();
 		}
 
+		[SupportedOSPlatform("windows")]
 		void UpgradeWindowsService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
 			// Try to get the service associated with the passed-in process id
@@ -196,6 +198,7 @@ namespace Horde.Agent.Commands
 		/// </summary>
 		/// <param name="processId">The process id to search for</param>
 		/// <returns>The service controller corresponding to this process</returns>
+		[SupportedOSPlatform("windows")]
 		static ServiceController? GetServiceForProcess(int processId)
 		{
 			try

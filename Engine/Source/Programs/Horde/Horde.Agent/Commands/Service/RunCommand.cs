@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.OpenTracing;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Agent.Services;
@@ -20,6 +21,8 @@ using Polly;
 
 namespace Horde.Agent.Modes.Service
 {
+	using ITracer = OpenTracing.ITracer;
+
 	/// <summary>
 	/// 
 	/// </summary>
@@ -138,9 +141,9 @@ namespace Horde.Agent.Modes.Service
 			settings.ServiceVersion = version;
 			settings.LogsInjectionEnabled = true;
 
-			Tracer.Instance = new Tracer(settings);
+			Tracer.Configure(settings);
 
-			ITracer openTracer = Datadog.Trace.OpenTracing.OpenTracingTracerFactory.WrapTracer(Tracer.Instance);
+			ITracer openTracer = OpenTracingTracerFactory.WrapTracer(Tracer.Instance);
 			GlobalTracer.Register(openTracer);
 		}
 	}

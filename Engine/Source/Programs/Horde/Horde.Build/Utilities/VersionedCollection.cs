@@ -219,7 +219,7 @@ namespace Horde.Build.Utilities
 			{
 				try
 				{
-					return BsonSerializer.Deserialize<VersionedDocument<TId, TLatest>>((byte[])cacheValue);
+					return BsonSerializer.Deserialize<VersionedDocument<TId, TLatest>>((byte[])cacheValue!);
 				}
 				catch
 				{

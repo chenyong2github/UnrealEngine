@@ -11,6 +11,7 @@ using System.Management;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -1951,6 +1952,7 @@ namespace Horde.Agent.Services
 			return records;
 		}
 
+		[SupportedOSPlatform("windows")]
 		class WmiProperties
 		{
 			readonly Dictionary<string, object> _properties = new Dictionary<string, object>(StringComparer.Ordinal);
@@ -2010,6 +2012,7 @@ namespace Horde.Agent.Services
 			}
 		}
 
+		[SupportedOSPlatform("windows")]
 		static Dictionary<string, object> GetWmiProperties(ManagementObject row)
 		{
 			Dictionary<string, object> properties = new Dictionary<string, object>(StringComparer.Ordinal);

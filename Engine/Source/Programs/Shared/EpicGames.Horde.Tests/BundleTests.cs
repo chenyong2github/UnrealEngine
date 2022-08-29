@@ -117,7 +117,7 @@ namespace EpicGames.Horde.Tests
 				packets.Add(new BundlePacket(20, 40));
 				packets.Add(new BundlePacket(10, 20));
 
-				oldHeader = new BundleHeader(imports, exports, packets);
+				oldHeader = new BundleHeader(BundleCompressionFormat.LZ4, imports, exports, packets);
 			}
 
 			ByteArrayBuilder writer = new ByteArrayBuilder();
@@ -182,7 +182,7 @@ namespace EpicGames.Horde.Tests
 
 			// Should be stored inline
 			Assert.AreEqual(1, blobStore.Refs.Count);
-			Assert.AreEqual(0, blobStore.Blobs.Count);
+			Assert.AreEqual(1, blobStore.Blobs.Count);
 
 			// Check the ref
 			IBlob blob = await blobStore.ReadRefAsync(refName);
@@ -229,7 +229,7 @@ namespace EpicGames.Horde.Tests
 			await treeStore.WriteTreeAsync(refName, root);
 
 			Assert.AreEqual(1, blobStore.Refs.Count);
-			Assert.AreEqual(1, blobStore.Blobs.Count);
+			Assert.AreEqual(2, blobStore.Blobs.Count);
 		}
 
 		[TestMethod]
@@ -255,7 +255,7 @@ namespace EpicGames.Horde.Tests
 				await oldBundle.WriteTreeAsync(refName, root);
 
 				Assert.AreEqual(1, blobStore.Refs.Count);
-				Assert.AreEqual(4, blobStore.Blobs.Count);
+				Assert.AreEqual(5, blobStore.Blobs.Count);
 			}
 
 			using (ITreeStore newBundle = new BundleStore(blobStore, options))

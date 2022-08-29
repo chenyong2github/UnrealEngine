@@ -84,7 +84,7 @@ namespace EpicGames.Core
 			/// <summary>
 			/// Formatter for the inner state
 			/// </summary>
-			readonly Func<TState, Exception, string> _formatter;
+			readonly Func<TState, Exception?, string> _formatter;
 
 			/// <summary>
 			/// Constructor
@@ -92,7 +92,7 @@ namespace EpicGames.Core
 			/// <param name="indent">The indent to apply</param>
 			/// <param name="state">The inner state</param>
 			/// <param name="formatter">Formatter for the inner state</param>
-			public FormattedLogValues(string indent, TState state, Func<TState, Exception, string> formatter)
+			public FormattedLogValues(string indent, TState state, Func<TState, Exception?, string> formatter)
 			{
 				_indent = indent;
 				_state = state;
@@ -131,7 +131,7 @@ namespace EpicGames.Core
 			/// <param name="values">The object instance</param>
 			/// <param name="exception">The exception to format</param>
 			/// <returns>The formatted string</returns>
-			public static string Format(FormattedLogValues<TState> values, Exception exception)
+			public static string Format(FormattedLogValues<TState> values, Exception? exception)
 			{
 				return values._indent + values._formatter(values._state, exception);
 			}
@@ -185,7 +185,7 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
 			if (_scopes.Count > 0)
 			{

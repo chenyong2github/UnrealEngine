@@ -159,7 +159,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Tests whether a string (first argument) matches a regular expression (second argument)
 		/// </summary>
-		StrIsMatch = 0x27,
+		StrMatch = 0x27,
 
 		/// <summary>
 		/// Returns a string with all ocurrences of the second argument in the first argument replaced with the third argument

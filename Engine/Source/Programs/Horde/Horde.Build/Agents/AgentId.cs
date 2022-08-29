@@ -127,7 +127,7 @@ namespace Horde.Build.Agents
 	public sealed class AgentIdRedisConverter : IRedisConverter<AgentId>
 	{
 		/// <inheritdoc/>
-		public AgentId FromRedisValue(RedisValue value) => new AgentId((string)value);
+		public AgentId FromRedisValue(RedisValue value) => new AgentId((string)value!);
 
 		/// <inheritdoc/>
 		public RedisValue ToRedisValue(AgentId value) => value.ToString();

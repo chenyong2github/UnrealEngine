@@ -16,7 +16,7 @@ namespace EpicGames.Redis
 		/// <returns></returns>
 		public static RedisKey AsKey(this RedisValue value)
 		{
-			return (byte[])value;
+			return (byte[])value!;
 		}
 
 		/// <summary>
@@ -26,7 +26,7 @@ namespace EpicGames.Redis
 		/// <returns></returns>
 		public static RedisValue AsValue(this RedisKey key)
 		{
-			return (byte[])key;
+			return (byte[])key!;
 		}
 	}
 }

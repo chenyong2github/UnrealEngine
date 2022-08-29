@@ -28,7 +28,7 @@ namespace EpicGames.Horde.Tests
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 			await TestTreeAsync(blobStore, new BundleOptions { MaxBlobSize = 1024 * 1024 });
 
-			Assert.AreEqual(0, blobStore.Blobs.Count);
+			Assert.AreEqual(1, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
 
@@ -38,7 +38,7 @@ namespace EpicGames.Horde.Tests
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 			await TestTreeAsync(blobStore, new BundleOptions { MaxBlobSize = 1 });
 
-			Assert.AreEqual(4, blobStore.Blobs.Count);
+			Assert.AreEqual(5, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
 

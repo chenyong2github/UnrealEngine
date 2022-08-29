@@ -199,7 +199,7 @@ namespace EpicGames.BuildGraph.Expressions
 
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.StrIsMatch);
+			writer.WriteOpcode(BgOpcode.StrMatch);
 			writer.WriteExpr(Input);
 			writer.WriteExpr(Pattern);
 		}

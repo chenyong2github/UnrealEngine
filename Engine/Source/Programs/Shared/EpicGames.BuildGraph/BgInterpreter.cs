@@ -298,16 +298,16 @@ namespace EpicGames.BuildGraph
 						IEnumerable<object> rhs = (IEnumerable<object>)Evaluate(frame);
 						return String.Join(lhs, rhs);
 					}
-				case BgOpcode.StrIsMatch:
+				case BgOpcode.StrMatch:
 					{
 						string input = (string)Evaluate(frame);
-						string pattern = ReadString(frame);
+						string pattern = (string)Evaluate(frame);
 						return Regex.IsMatch(input, pattern);
 					}
 				case BgOpcode.StrReplace:
 					{
 						string input = (string)Evaluate(frame);
-						string pattern = ReadString(frame);
+						string pattern = (string)Evaluate(frame);
 						string replacement = (string)Evaluate(frame);
 						return Regex.Replace(input, pattern, replacement);
 					}
@@ -779,13 +779,13 @@ namespace EpicGames.BuildGraph
 
 						break;
 					}
-				case BgOpcode.StrIsMatch:
+				case BgOpcode.StrMatch:
 					Disassemble(frame, logger);
-					Trace(frame, "pattern", ReadString, logger);
+					Disassemble(frame, logger);
 					break;
 				case BgOpcode.StrReplace:
 					Disassemble(frame, logger);
-					Trace(frame, "pattern", ReadString, logger);
+					Disassemble(frame, logger);
 					Disassemble(frame, logger);
 					break;
 				case BgOpcode.StrOption:

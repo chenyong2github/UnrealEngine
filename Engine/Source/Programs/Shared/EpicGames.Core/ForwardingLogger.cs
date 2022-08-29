@@ -44,35 +44,18 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public IDisposable? BeginScope<TState>(TState state)
+		public IDisposable BeginScope<TState>(TState state)
 		{
-			IDisposable? disposable = null;
-
-			DisposableList? scope = null;
+			DisposableList scope = new DisposableList();
 			foreach (ILogger logger in Loggers)
 			{
 				IDisposable? next = logger.BeginScope(state);
 				if(next != null)
 				{
-					if (scope != null)
-					{
-						scope.Add(next);
-					}
-					else if (disposable != null)
-					{
-						scope = new DisposableList();
-						scope.Add(disposable);
-						scope.Add(next);
-						disposable = scope;
-					}
-					else
-					{
-						disposable = next;
-					}
+					scope.Add(next);
 				}
 			}
-
-			return disposable;
+			return scope;
 		}
 
 		/// <inheritdoc/>
@@ -89,7 +72,7 @@ namespace EpicGames.Core
 		}
 
 		/// <inheritdoc/>
-		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
 			foreach (ILogger logger in Loggers)
 			{

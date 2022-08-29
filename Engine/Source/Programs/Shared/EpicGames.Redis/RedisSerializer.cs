@@ -65,7 +65,7 @@ namespace EpicGames.Redis
 		/// <inheritdoc/>
 		public T? FromRedisValue(RedisValue value)
 		{
-			return CbSerializer.Deserialize<T>(new CbField((byte[])value));
+			return CbSerializer.Deserialize<T>(new CbField((byte[])value!));
 		}
 	}
 
@@ -84,7 +84,7 @@ namespace EpicGames.Redis
 			}
 
 			public RedisValue ToRedisValue(T value) => (string?)_typeConverter.ConvertTo(value, typeof(string));
-			public T? FromRedisValue(RedisValue value) => (T?)_typeConverter.ConvertFrom((string)value);
+			public T? FromRedisValue(RedisValue value) => (T?)_typeConverter.ConvertFrom((string)value!);
 		}
 
 		class RedisNativeConverter<T> : IRedisConverter<T>
@@ -120,8 +120,8 @@ namespace EpicGames.Redis
 				CreateNativeConverter(x => (double)x, x => x),
 				CreateNativeConverter(x => (double?)x, x => x),
 				CreateNativeConverter(x => (ReadOnlyMemory<byte>)x, x => x),
-				CreateNativeConverter(x => (byte[])x, x => x),
-				CreateNativeConverter(x => (string)x, x => x),
+				CreateNativeConverter(x => (byte[])x!, x => x),
+				CreateNativeConverter(x => (string)x!, x => x),
 			};
 			return new Dictionary<Type, object>(converters);
 		}
