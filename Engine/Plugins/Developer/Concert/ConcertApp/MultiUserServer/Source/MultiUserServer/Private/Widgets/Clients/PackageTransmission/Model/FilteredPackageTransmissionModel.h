@@ -4,12 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "IPackageTransmissionEntrySource.h"
-#include "Widgets/Clients/PackageTransmission/Filter/PackageTransmissionFilter.h"
+#include "Widgets/Clients/PackageTransmission/Filter/PackageTransmissionFilterTypes.h"
 
 namespace UE::MultiUserServer
 {
-	class FPackageTransmissionFilter;
-
 	class FFilteredPackageTransmissionModel : public IPackageTransmissionEntrySource
 	{
 	public:

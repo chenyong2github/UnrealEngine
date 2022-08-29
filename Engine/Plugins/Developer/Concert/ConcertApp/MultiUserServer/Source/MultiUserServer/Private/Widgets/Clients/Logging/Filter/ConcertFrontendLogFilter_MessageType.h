@@ -6,8 +6,10 @@
 #include "ConcertFrontendLogFilter_BaseSetSelection.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Logging/Util/MessageTypeUtils.h"
+#include "Widgets/Util/Filter/ConcertFilter.h"
+#include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
-namespace UE::MultiUserServer::Filters
+namespace UE::MultiUserServer
 {
 	/** Allows only the selected messages types */
 	class FConcertLogFilter_MessageType : public TConcertLogFilter_BaseSetSelection<FConcertLogFilter_MessageType, FName>

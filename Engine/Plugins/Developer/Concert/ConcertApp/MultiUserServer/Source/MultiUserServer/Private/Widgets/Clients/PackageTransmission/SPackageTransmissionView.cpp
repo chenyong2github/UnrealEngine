@@ -3,7 +3,7 @@
 #include "SPackageTransmissionView.h"
 
 #include "SPackageTransmissionTable.h"
-#include "Filter/FrontendPackageTransmissionFilter_TextSearch.h"
+#include "Filter/PackageTransmissionFrontendFilter_TextSearch.h"
 #include "Filter/PackageTransmissionFilter_FrontendRoot.h"
 #include "Model/FilteredPackageTransmissionModel.h"
 

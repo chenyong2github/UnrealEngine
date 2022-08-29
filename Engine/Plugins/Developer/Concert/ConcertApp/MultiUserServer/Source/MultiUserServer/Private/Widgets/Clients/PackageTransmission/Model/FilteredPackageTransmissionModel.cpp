@@ -2,7 +2,7 @@
 
 #include "FilteredPackageTransmissionModel.h"
 
-#include "Widgets/Clients/PackageTransmission/Filter/PackageTransmissionFilter.h"
+#include "Widgets/Util/Filter/ConcertFilter.h"
 
 namespace UE::MultiUserServer
 {

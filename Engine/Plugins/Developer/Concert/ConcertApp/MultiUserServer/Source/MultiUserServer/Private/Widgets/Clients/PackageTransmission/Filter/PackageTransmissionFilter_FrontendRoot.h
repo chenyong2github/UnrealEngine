@@ -3,50 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "PackageTransmissionFilter.h"
+#include "PackageTransmissionFrontendFilter_TextSearch.h"
+#include "PackageTransmissionFilterTypes.h"
+#include "Widgets/Util/Filter/ConcertRootFrontendFilter.h"
 
 class FEndpointToUserNameCache;
 class SWidget;
 
 namespace UE::MultiUserServer
 {
-	class FFrontendPackageTransmissionFilter;
-	class FFrontendPackageTransmissionFilter_TextSearch;
+	class FPackageTransmissionFrontendFilter_TextSearch;
 	class FPackageTransmissionEntryTokenizer;
 
-	/** A filter that contains multiple UI filters */
-	class FPackageTransmissionFilter_FrontendRoot : public FPackageTransmissionFilter, public TSharedFromThis<FPackageTransmissionFilter_FrontendRoot>
+	/** Root filter displayed in package transmission UI */
+	class FPackageTransmissionFilter_FrontendRoot : public TConcertFrontendRootFilter<const FPackageTransmissionEntry&, FPackageTransmissionFrontendFilter_TextSearch>
 	{
+		using Super = TConcertFrontendRootFilter<const FPackageTransmissionEntry&, FPackageTransmissionFrontendFilter_TextSearch>;
 	public:
 
 		FPackageTransmissionFilter_FrontendRoot(
 			TSharedRef<FPackageTransmissionEntryTokenizer> Tokenizer,
-			TArray<TSharedRef<FFrontendPackageTransmissionFilter>> InCustomFilters,
-			const TArray<TSharedRef<FPackageTransmissionFilter>>& NonVisualFilters = {}
-			);
-
-		/** Builds the widget view for all contained filters */
-		TSharedRef<SWidget> BuildFilterWidgets() const;
-		
-		//~ Begin IFilter Interface
-		virtual bool PassesFilter(const FPackageTransmissionEntry& InItem) const override;
-		//~ End IFilter Interface
-
-		FORCEINLINE const TSharedRef<FFrontendPackageTransmissionFilter_TextSearch>& GetTextSearchFilter() const { return TextSearchFilter; }
-
-	private:
-
-		/** The text search filter. Also in FrontendFilters. Separate variable to build search bar in new line. */
-		TSharedRef<FFrontendPackageTransmissionFilter_TextSearch> TextSearchFilter;
-
-		/** AllFilters without special filters we have as properties above, such as TextSearchFilter. */
-		TArray<TSharedRef<FFrontendPackageTransmissionFilter>> FrontendFilters;
-		
-		/** Filters that are combined using logical AND. */
-		TArray<TSharedRef<FPackageTransmissionFilter>> AllFilters;
-
-		/** Builds the widgets that go under the text */
-		TSharedRef<SWidget> BuildCustomFilterListWidget() const;
+			TArray<TSharedRef<Super::FConcertFrontendFilter>> FrontendFilters,
+			const TArray<TSharedRef<Super::FConcertFilter>>& NonVisualFilters = {}
+			)
+			: Super(MakeShared<FPackageTransmissionFrontendFilter_TextSearch>(MoveTemp(Tokenizer)), MoveTemp(FrontendFilters), NonVisualFilters)
+		{}
 	};
 
 	/** Creates a filter for the global filter log window */

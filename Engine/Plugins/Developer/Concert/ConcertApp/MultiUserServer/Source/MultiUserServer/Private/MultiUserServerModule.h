@@ -9,12 +9,11 @@
 
 #include "Modules/ModuleManager.h"
 
-class FConcertServerWindowController;
-
 namespace UE::MultiUserServer
 {
 	class FModalWindowManager;
 	class FConcertConsoleCommandExecutor;
+	class FConcertServerWindowController;
 	
 	class FConcertServerUIModule : public IMultiUserServerModule
     {

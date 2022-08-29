@@ -15,41 +15,41 @@
 namespace UE::MultiUserServer
 {
 	static constexpr uint64 GlobalLogCapacity = 5000000;
-}
-
-void FConcertClientsTabController::Init(const FConcertComponentInitParams& Params)
-{
-	LogBuffer = MakeShared<FGlobalLogSource>(UE::MultiUserServer::GlobalLogCapacity);
-	AckTracker = MakeShared<FLogAckTracker>(LogBuffer.ToSharedRef(), Params.Server->GetConcertServer());
 	
-	FGlobalTabmanager::Get()->RegisterTabSpawner(
-				ConcertServerTabs::GetClientsTabID(),
-				FOnSpawnTab::CreateRaw(this, &FConcertClientsTabController::SpawnClientsTab, Params.WindowController->GetRootWindow(), Params.Server)
-			)
-			.SetDisplayName(LOCTEXT("ClientsTabTitle", "Clients"))
-			.SetTooltipText(LOCTEXT("ClientsTooltipText", "View network statistics for connected clients.")
-		);
-	Params.MainStack->AddTab(ConcertServerTabs::GetClientsTabID(), ETabState::OpenedTab);
-}
+	void FConcertClientsTabController::Init(const FConcertComponentInitParams& Params)
+	{
+		LogBuffer = MakeShared<FGlobalLogSource>(UE::MultiUserServer::GlobalLogCapacity);
+		AckTracker = MakeShared<FLogAckTracker>(LogBuffer.ToSharedRef(), Params.Server->GetConcertServer());
+	
+		FGlobalTabmanager::Get()->RegisterTabSpawner(
+					ConcertServerTabs::GetClientsTabID(),
+					FOnSpawnTab::CreateRaw(this, &FConcertClientsTabController::SpawnClientsTab, Params.WindowController->GetRootWindow(), Params.Server)
+				)
+				.SetDisplayName(LOCTEXT("ClientsTabTitle", "Clients"))
+				.SetTooltipText(LOCTEXT("ClientsTooltipText", "View network statistics for connected clients.")
+			);
+		Params.MainStack->AddTab(ConcertServerTabs::GetClientsTabID(), ETabState::OpenedTab);
+	}
 
-void FConcertClientsTabController::ShowConnectedClients(const FGuid& SessionId) const
-{
-	FGlobalTabmanager::Get()->TryInvokeTab(ConcertServerTabs::GetClientsTabID());
-	ClientsView->ShowConnectedClients(SessionId);
-}
+	void FConcertClientsTabController::ShowConnectedClients(const FGuid& SessionId) const
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(ConcertServerTabs::GetClientsTabID());
+		ClientsView->ShowConnectedClients(SessionId);
+	}
 
-TSharedRef<SDockTab> FConcertClientsTabController::SpawnClientsTab(const FSpawnTabArgs& Args, TSharedPtr<SWindow> RootWindow, TSharedRef<IConcertSyncServer> Server)
-{
-	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		.Label(LOCTEXT("ClientsTabTitle", "Clients"))
-		.TabRole(MajorTab)
-		.CanEverClose(false);
-	DockTab->SetContent(
-		SAssignNew(ClientsView, SConcertClientsTabView, ConcertServerTabs::GetClientsTabID(), Server, LogBuffer.ToSharedRef())
-			.ConstructUnderMajorTab(DockTab)
-			.ConstructUnderWindow(RootWindow)
-		);
-	return DockTab;
+	TSharedRef<SDockTab> FConcertClientsTabController::SpawnClientsTab(const FSpawnTabArgs& Args, TSharedPtr<SWindow> RootWindow, TSharedRef<IConcertSyncServer> Server)
+	{
+		const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+			.Label(LOCTEXT("ClientsTabTitle", "Clients"))
+			.TabRole(MajorTab)
+			.CanEverClose(false);
+		DockTab->SetContent(
+			SAssignNew(ClientsView, SConcertClientsTabView, ConcertServerTabs::GetClientsTabID(), Server, LogBuffer.ToSharedRef())
+				.ConstructUnderMajorTab(DockTab)
+				.ConstructUnderWindow(RootWindow)
+			);
+		return DockTab;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

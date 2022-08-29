@@ -4,27 +4,26 @@
 
 #include "CoreMinimal.h"
 #include "Misc/IFilter.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace UE::MultiUserServer
 {
-	struct FPackageTransmissionEntry;
-
 	/** Base filter */
-	class FPackageTransmissionFilter
+	template<typename TFilterType>
+	class TConcertFilter
 		:
-		public IFilter<const FPackageTransmissionEntry&>,
-		public TSharedFromThis<FPackageTransmissionFilter>,
+		public IFilter<TFilterType>,
 		// We do not need to copy filters so let's avoid it by accident; some constructors pass this pointer to callbacks which become stale upon copying
 		public FNoncopyable
 	{
 	public:
 
 		//~ Begin IFilter Interface
-		DECLARE_DERIVED_EVENT( FFrontendFilter, IFilter<const FPackageTransmissionEntry&>::FChangedEvent, FChangedEvent );
+		DECLARE_DERIVED_EVENT( FFrontendFilter, IFilter<TFilterType>::template FChangedEvent, FChangedEvent );
 		virtual FChangedEvent& OnChanged() override { return ChangedEvent; }
 		//~ End IFilter Interface
 
-		protected:
+	protected:
 	
 		void BroadcastChangedEvent() const { ChangedEvent.Broadcast(); }
 
@@ -33,5 +32,4 @@ namespace UE::MultiUserServer
 		FChangedEvent ChangedEvent;
 	};
 }
-
 

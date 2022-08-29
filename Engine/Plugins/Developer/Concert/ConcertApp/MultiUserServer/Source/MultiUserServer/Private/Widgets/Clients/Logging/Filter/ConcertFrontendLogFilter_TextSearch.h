@@ -3,47 +3,48 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertFrontendLogFilter.h"
+#include "ConcertTransportEvents.h"
 #include "Misc/TextFilter.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Clients/Logging/ConcertLogEntry.h"
+#include "Widgets/Clients/Logging/Util/ConcertLogTokenizer.h"
+#include "Widgets/Util/Filter/ConcertFrontendFilter_TextSearch.h"
 
 class FConcertLogTokenizer;
 
-/** Allows advanced search by text. Implements Adapter pattern to wrap TTextFilter. */
-class FConcertLogFilter_TextSearch : public FConcertLogFilter
+namespace UE::MultiUserServer
 {
-public:
+	class FConcertLogFilter_TextSearch : public TConcertFilter_TextSearch<const FConcertLogEntry&>
+	{
+	public:
 
-	FConcertLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer);
+		FConcertLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer)
+			: Tokenizer(MoveTemp(Tokenizer))
+		{}
 	
-	//~ Begin FConcertLogFilter Interface
-	virtual bool PassesFilter(const FConcertLogEntry& InItem) const override { return TextFilter.PassesFilter(InItem); }
-	//~ End FConcertLogFilter Interface
+		virtual void GenerateSearchTerms(const FConcertLogEntry& InItem, TArray<FString>& OutTerms) const override
+		{
+			for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct()); PropertyIt; ++PropertyIt)
+			{
+				OutTerms.Add(Tokenizer->Tokenize(InItem.Log, **PropertyIt));
+			}
+		}
 	
-	void SetRawFilterText(const FText& InFilterText) { TextFilter.SetRawFilterText(InFilterText); }
-	
-private:
+	private:
 
-	/** Does the actual string search */
-	TTextFilter<const FConcertLogEntry&> TextFilter;
-	/** Helps in converting FConcertLog members into search terms */
-	TSharedRef<FConcertLogTokenizer> Tokenizer;
+		/** Helps in converting FConcertLog members into search terms */
+		TSharedRef<FConcertLogTokenizer> Tokenizer;
+	};
 
-	/** Parses InItem into a bunch of strings that can be searched */
-	void GenerateSearchTerms(const FConcertLogEntry& InItem, TArray<FString>& OutTerms) const;
-};
+	/** Creates a search bar */
+	class FConcertFrontendLogFilter_TextSearch : public TConcertFrontendFilter_TextSearch<FConcertLogFilter_TextSearch, const FConcertLogEntry&>
+	{
+		using Super = TConcertFrontendFilter_TextSearch<FConcertLogFilter_TextSearch, const FConcertLogEntry&>;
+	public:
 
-/** Creates a search bar */
-class FConcertFrontendLogFilter_TextSearch : public TConcertFrontendLogFilterAggregate<FConcertLogFilter_TextSearch, SSearchBox>
-{
-	using Super = TConcertFrontendLogFilterAggregate<FConcertLogFilter_TextSearch, SSearchBox>;
-public:
+		FConcertFrontendLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer)
+			: Super(MoveTemp(Tokenizer))
+		{}
+	};
+}
 
-	FConcertFrontendLogFilter_TextSearch(TSharedRef<FConcertLogTokenizer> Tokenizer);
 
-	FText GetSearchText() const { return SearchText; }
-
-private:
-
-	FText SearchText;
-};

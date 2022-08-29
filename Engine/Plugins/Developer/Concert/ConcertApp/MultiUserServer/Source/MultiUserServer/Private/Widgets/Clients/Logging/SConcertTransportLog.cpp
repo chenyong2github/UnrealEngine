@@ -23,392 +23,395 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertTransportLog"
 
-const FName SConcertTransportLog::FirstColumnId("AvatarColourColumnId");
-
-SConcertTransportLog::~SConcertTransportLog()
+namespace UE::MultiUserServer
 {
-	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().RemoveAll(this);
-	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().RemoveAll(this);
-}
-
-void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer)
-{
-	PagedLogList = MakeShared<FPagedFilteredConcertLogList>(MoveTemp(LogSource), InArgs._Filter);
-	EndpointCache = MoveTemp(InEndpointCache);
-	LogTokenizer = MoveTemp(InLogTokenizer);
-	Filter = InArgs._Filter;
+	const FName SConcertTransportLog::FirstColumnId("AvatarColourColumnId");
 	
-	ChildSlot
-	[
-		SAssignNew(EnableLoggingPromptOverlay, SOverlay)
+	SConcertTransportLog::~SConcertTransportLog()
+	{
+		ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().RemoveAll(this);
+		UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().RemoveAll(this);
+	}
 
-		+SOverlay::Slot()
+	void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource, TSharedRef<FEndpointToUserNameCache> InEndpointCache, TSharedRef<FConcertLogTokenizer> InLogTokenizer)
+	{
+		PagedLogList = MakeShared<FPagedFilteredConcertLogList>(MoveTemp(LogSource), InArgs._Filter);
+		EndpointCache = MoveTemp(InEndpointCache);
+		LogTokenizer = MoveTemp(InLogTokenizer);
+		Filter = InArgs._Filter;
+		
+		ChildSlot
 		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-			.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
-			.Padding(2)
+			SAssignNew(EnableLoggingPromptOverlay, SOverlay)
+
+			+SOverlay::Slot()
 			[
-				SNew(SVerticalBox)
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Top)
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+				.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
+				.Padding(2)
 				[
-					InArgs._Filter ? InArgs._Filter->BuildFilterWidgets() : SNullWidget::NullWidget
-				]
+					SNew(SVerticalBox)
 
-				+SVerticalBox::Slot()
-				.FillHeight(1.f)
-				.Padding(0, 5, 0, 0)
-				[
-					CreateTableView()
-				]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.VAlign(VAlign_Top)
+					[
+						InArgs._Filter ? InArgs._Filter->BuildFilterWidgets() : SNullWidget::NullWidget
+					]
 
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SConcertTransportLogFooter, PagedLogList.ToSharedRef())
-					.ExtendViewOptions(this, &SConcertTransportLog::ExtendViewOptions)
+					+SVerticalBox::Slot()
+					.FillHeight(1.f)
+					.Padding(0, 5, 0, 0)
+					[
+						CreateTableView()
+					]
+
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SConcertTransportLogFooter, PagedLogList.ToSharedRef())
+						.ExtendViewOptions(this, &SConcertTransportLog::ExtendViewOptions)
+					]
 				]
 			]
-		]
-	];
+		];
 
-	// Subscribe to events
-	PagedLogList->OnPageViewChanged().AddSP(this, &SConcertTransportLog::OnPageViewChanged);
-	
-	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().AddSP(this, &SConcertTransportLog::OnColumnVisibilitySettingsChanged);
-	UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), UMultiUserServerColumnVisibilitySettings::GetSettings()->GetTransportLogColumnVisibility());
-	
-	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().AddSP(this, &SConcertTransportLog::OnConcertLoggingEnabledChanged);
-	OnConcertLoggingEnabledChanged(ConcertTransportEvents::IsLoggingEnabled());
-}
+		// Subscribe to events
+		PagedLogList->OnPageViewChanged().AddSP(this, &SConcertTransportLog::OnPageViewChanged);
+		
+		UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().AddSP(this, &SConcertTransportLog::OnColumnVisibilitySettingsChanged);
+		UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), UMultiUserServerColumnVisibilitySettings::GetSettings()->GetTransportLogColumnVisibility());
+		
+		ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().AddSP(this, &SConcertTransportLog::OnConcertLoggingEnabledChanged);
+		OnConcertLoggingEnabledChanged(ConcertTransportEvents::IsLoggingEnabled());
+	}
 
-bool SConcertTransportLog::CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
-{
-	return PagedLogList->GetFilteredLogsWithId(MessageId).ContainsByPredicate([FilterFunc](const TSharedPtr<FConcertLogEntry>& LogEntry)
+	bool SConcertTransportLog::CanScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
 	{
-		return FilterFunc(*LogEntry);
-	});
-}
-
-void SConcertTransportLog::ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
-{
-	// Could be optimised further by having FPagedFilteredConcertLogList cache the index but it's fine - ScrollToLog is called very infrequently (when the user presses a button)
-	const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId, FilterFunc](const TSharedPtr<FConcertLogEntry>& Entry)
-	{
-		return Entry->Log.MessageId == MessageId && FilterFunc(*Entry);
-	});
-	ScrollToLog(Index);
-}
-
-TSharedRef<SWidget> SConcertTransportLog::CreateTableView()
-{
-	return SAssignNew(LogView, SListView<TSharedPtr<FConcertLogEntry>>)
-		.ListItemsSource(&PagedLogList->GetPageView())
-		.OnGenerateRow(this, &SConcertTransportLog::OnGenerateActivityRowWidget)
-		.SelectionMode(ESelectionMode::Multi)
-		.HeaderRow(CreateHeaderRow());
-}
-
-TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
-{
-	HeaderRow = SNew(SHeaderRow)
-		.OnHiddenColumnsListChanged_Lambda([this]()
+		return PagedLogList->GetFilteredLogsWithId(MessageId).ContainsByPredicate([FilterFunc](const TSharedPtr<FConcertLogEntry>& LogEntry)
 		{
-			if (!bIsUpdatingColumnVisibility)
+			return FilterFunc(*LogEntry);
+		});
+	}
+
+	void SConcertTransportLog::ScrollToLog(const FGuid& MessageId, FConcertLogEntryFilterFunc FilterFunc) const
+	{
+		// Could be optimised further by having FPagedFilteredConcertLogList cache the index but it's fine - ScrollToLog is called very infrequently (when the user presses a button)
+		const int32 Index = PagedLogList->GetFilteredLogs().IndexOfByPredicate([MessageId, FilterFunc](const TSharedPtr<FConcertLogEntry>& Entry)
+		{
+			return Entry->Log.MessageId == MessageId && FilterFunc(*Entry);
+		});
+		ScrollToLog(Index);
+	}
+
+	TSharedRef<SWidget> SConcertTransportLog::CreateTableView()
+	{
+		return SAssignNew(LogView, SListView<TSharedPtr<FConcertLogEntry>>)
+			.ListItemsSource(&PagedLogList->GetPageView())
+			.OnGenerateRow(this, &SConcertTransportLog::OnGenerateActivityRowWidget)
+			.SelectionMode(ESelectionMode::Multi)
+			.HeaderRow(CreateHeaderRow());
+	}
+
+	TSharedRef<SHeaderRow> SConcertTransportLog::CreateHeaderRow()
+	{
+		HeaderRow = SNew(SHeaderRow)
+			.OnHiddenColumnsListChanged_Lambda([this]()
 			{
-				UMultiUserServerColumnVisibilitySettings::GetSettings()->SetTransportLogColumnVisibility(
-				UE::ConcertSharedSlate::SnapshotColumnVisibilityState(HeaderRow.ToSharedRef())
-				);
+				if (!bIsUpdatingColumnVisibility)
+				{
+					UMultiUserServerColumnVisibilitySettings::GetSettings()->SetTransportLogColumnVisibility(
+					UE::ConcertSharedSlate::SnapshotColumnVisibilityState(HeaderRow.ToSharedRef())
+					);
+				}
+			})
+			// Create tiny dummy row showing avatar colour to handle the case when a user hides all columns
+			+SHeaderRow::Column(FirstColumnId)
+				.DefaultLabel(FText::GetEmpty())
+				.FixedWidth(8)
+				// Cannot be hidden
+				.ShouldGenerateWidget(true)
+				.ToolTipText(LOCTEXT("AvatarColumnToolTipText", "The colour of the avatar is affected by log"))
+			;
+		
+		ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+		{
+			const TMap<FName, FString> ColumnNameOverrides = {
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageAction), TEXT("Action") },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex), TEXT("Order Index") },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId), TEXT("Channel") },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), TEXT("Size") },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, OriginEndpointId), TEXT("Origin") },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, DestinationEndpointId), TEXT("Destination") },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLogMetadata, AckState), TEXT("Ack") }
+			};
+			const TMap<FName, float> ManuallySizeColumns = {
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, Frame), 60 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId), 280 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex), 60 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId), 60 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp), 160 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageAction), 80 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageTypeName), 200 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadTypename), 400 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageAction), 80 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), 100 },
+				{ GET_MEMBER_NAME_CHECKED(FConcertLogMetadata, AckState), 45 }
+			};
+			
+			const FString* LabelOverride = ColumnNameOverrides.Find(ColumnId);
+			const FString PropertyName = LabelOverride ? *LabelOverride : Property.GetAuthoredName();
+			SHeaderRow::FColumn::FArguments Args = SHeaderRow::FColumn::FArguments()
+				.ColumnId(ColumnId)
+				.DefaultLabel(FText::FromString(PropertyName))
+				.HAlignCell(HAlign_Center)
+				// Add option to hide
+				.OnGetMenuContent_Lambda([this, ColumnId]()
+				{
+					return UE::ConcertSharedSlate::MakeHideColumnContextMenu(HeaderRow.ToSharedRef(), ColumnId);
+				});
+			
+			if (const float* ManualSize = ManuallySizeColumns.Find(ColumnId))
+			{
+				Args.ManualWidth(*ManualSize);
 			}
-		})
-		// Create tiny dummy row showing avatar colour to handle the case when a user hides all columns
-		+SHeaderRow::Column(FirstColumnId)
-			.DefaultLabel(FText::GetEmpty())
-			.FixedWidth(8)
-			// Cannot be hidden
-			.ShouldGenerateWidget(true)
-			.ToolTipText(LOCTEXT("AvatarColumnToolTipText", "The colour of the avatar is affected by log"))
-		;
-	
-	ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+			
+			HeaderRow->AddColumn(Args);
+		});
+
+		TGuardValue<bool> DoNotSave(bIsUpdatingColumnVisibility, true);
+		RestoreDefaultColumnVisiblities();
+		
+		return HeaderRow.ToSharedRef();
+	}
+
+	TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const
 	{
-		const TMap<FName, FString> ColumnNameOverrides = {
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageAction), TEXT("Action") },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex), TEXT("Order Index") },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId), TEXT("Channel") },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), TEXT("Size") },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, OriginEndpointId), TEXT("Origin") },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, DestinationEndpointId), TEXT("Destination") },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLogMetadata, AckState), TEXT("Ack") }
-		};
-		const TMap<FName, float> ManuallySizeColumns = {
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, Frame), 60 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId), 280 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex), 60 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId), 60 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp), 160 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageAction), 80 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageTypeName), 200 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadTypename), 400 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, MessageAction), 80 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadUncompressedByteSize), 100 },
-			{ GET_MEMBER_NAME_CHECKED(FConcertLogMetadata, AckState), 45 }
-		};
+		const TOptional<FConcertClientInfo> OriginInfo = EndpointCache->GetClientInfo(Item->Log.OriginEndpointId);
+		const TOptional<FConcertClientInfo> DestinationInfo = EndpointCache->GetClientInfo(Item->Log.DestinationEndpointId);
+		const FLinearColor AvatarColor = OriginInfo.IsSet()
+			? OriginInfo->AvatarColor
+			: DestinationInfo.IsSet() ? DestinationInfo->AvatarColor : FLinearColor::Black;
 		
-		const FString* LabelOverride = ColumnNameOverrides.Find(ColumnId);
-		const FString PropertyName = LabelOverride ? *LabelOverride : Property.GetAuthoredName();
-		SHeaderRow::FColumn::FArguments Args = SHeaderRow::FColumn::FArguments()
-			.ColumnId(ColumnId)
-			.DefaultLabel(FText::FromString(PropertyName))
-			.HAlignCell(HAlign_Center)
-			// Add option to hide
-			.OnGetMenuContent_Lambda([this, ColumnId]()
-			{
-				return UE::ConcertSharedSlate::MakeHideColumnContextMenu(HeaderRow.ToSharedRef(), ColumnId);
-			});
-		
-		if (const float* ManualSize = ManuallySizeColumns.Find(ColumnId))
+		return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef())
+			.HighlightText_Lambda([this](){ return Filter.IsValid() ? Filter->GetTextSearchFilter()->GetSearchText() : FText(); })
+			.AvatarColor(AvatarColor)
+			.CanScrollToAckLog(this, &SConcertTransportLog::CanScrollToAckLog)
+			.CanScrollToAckedLog(this, &SConcertTransportLog::CanScrollToAckedLog)
+			.ScrollToAckLog(this, &SConcertTransportLog::ScrollToAckLog)
+			.ScrollToAckedLog(this, &SConcertTransportLog::ScrollToAckedLog);
+	}
+
+	void SConcertTransportLog::ForEachPropertyColumn(TFunctionRef<void(const FProperty& ColumnPropertyId, FName ColumnId)> Callback)
+	{
+		for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct()); PropertyIt; ++PropertyIt)
 		{
-			Args.ManualWidth(*ManualSize);
+			if (!PropertyIt->HasAnyPropertyFlags(CPF_Transient))
+			{
+				Callback(**PropertyIt, PropertyIt->GetFName());
+			}
 		}
-		
-		HeaderRow->AddColumn(Args);
-	});
-
-	TGuardValue<bool> DoNotSave(bIsUpdatingColumnVisibility, true);
-	RestoreDefaultColumnVisiblities();
-	
-	return HeaderRow.ToSharedRef();
-}
-
-TSharedRef<ITableRow> SConcertTransportLog::OnGenerateActivityRowWidget(TSharedPtr<FConcertLogEntry> Item, const TSharedRef<STableViewBase>& OwnerTable) const
-{
-	const TOptional<FConcertClientInfo> OriginInfo = EndpointCache->GetClientInfo(Item->Log.OriginEndpointId);
-	const TOptional<FConcertClientInfo> DestinationInfo = EndpointCache->GetClientInfo(Item->Log.DestinationEndpointId);
-	const FLinearColor AvatarColor = OriginInfo.IsSet()
-		? OriginInfo->AvatarColor
-		: DestinationInfo.IsSet() ? DestinationInfo->AvatarColor : FLinearColor::Black;
-	
-	return SNew(SConcertTransportLogRow, Item, OwnerTable, LogTokenizer.ToSharedRef())
-		.HighlightText_Lambda([this](){ return Filter.IsValid() ? Filter->GetTextSearchFilter()->GetSearchText() : FText(); })
-		.AvatarColor(AvatarColor)
-		.CanScrollToAckLog(this, &SConcertTransportLog::CanScrollToAckLog)
-		.CanScrollToAckedLog(this, &SConcertTransportLog::CanScrollToAckedLog)
-		.ScrollToAckLog(this, &SConcertTransportLog::ScrollToAckLog)
-		.ScrollToAckedLog(this, &SConcertTransportLog::ScrollToAckedLog);
-}
-
-void SConcertTransportLog::ForEachPropertyColumn(TFunctionRef<void(const FProperty& ColumnPropertyId, FName ColumnId)> Callback)
-{
-	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct()); PropertyIt; ++PropertyIt)
-	{
-		if (!PropertyIt->HasAnyPropertyFlags(CPF_Transient))
+		for (TFieldIterator<const FProperty> PropertyIt(FConcertLogMetadata::StaticStruct()); PropertyIt; ++PropertyIt)
 		{
 			Callback(**PropertyIt, PropertyIt->GetFName());
 		}
 	}
-	for (TFieldIterator<const FProperty> PropertyIt(FConcertLogMetadata::StaticStruct()); PropertyIt; ++PropertyIt)
+
+	void SConcertTransportLog::RestoreDefaultColumnVisiblities()
 	{
-		Callback(**PropertyIt, PropertyIt->GetFName());
+		ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+		{
+			const TSet<FName> HiddenByDefault = {
+				GET_MEMBER_NAME_CHECKED(FConcertLog, Frame),
+				GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId),
+				GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex),
+				GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId),
+				GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadTypename),
+				GET_MEMBER_NAME_CHECKED(FConcertLog, StringPayload)
+			};
+			HeaderRow->SetShowGeneratedColumn(ColumnId, !HiddenByDefault.Contains(ColumnId));
+		});
 	}
-}
 
-void SConcertTransportLog::RestoreDefaultColumnVisiblities()
-{
-	ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+	void SConcertTransportLog::ExtendViewOptions(FMenuBuilder& MenuBuilder)
 	{
-		const TSet<FName> HiddenByDefault = {
-			GET_MEMBER_NAME_CHECKED(FConcertLog, Frame),
-			GET_MEMBER_NAME_CHECKED(FConcertLog, MessageId),
-			GET_MEMBER_NAME_CHECKED(FConcertLog, MessageOrderIndex),
-			GET_MEMBER_NAME_CHECKED(FConcertLog, ChannelId),
-			GET_MEMBER_NAME_CHECKED(FConcertLog, CustomPayloadTypename),
-			GET_MEMBER_NAME_CHECKED(FConcertLog, StringPayload)
-		};
-		HeaderRow->SetShowGeneratedColumn(ColumnId, !HiddenByDefault.Contains(ColumnId));
-	});
-}
-
-void SConcertTransportLog::ExtendViewOptions(FMenuBuilder& MenuBuilder)
-{
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AutoScroll", "Auto Scroll"),
-		LOCTEXT("AutoScroll_Tooltip", "Automatically scroll as new logs arrive (affects last page)"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([this](){ bAutoScroll = !bAutoScroll; }),
-			FCanExecuteAction::CreateLambda([] { return true; }),
-			FIsActionChecked::CreateLambda([this] { return bAutoScroll; })),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-			LOCTEXT("DisplayTimestampInRelativeTime", "Display Relative Time"),
-			TAttribute<FText>::CreateLambda([this]()
-			{
-				const bool bIsVisible = HeaderRow->IsColumnVisible(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp));
-				return bIsVisible
-					? LOCTEXT("DisplayTimestampInRelativeTime.Tooltip.Visible", "Display the Last Modified column in relative time?")
-					: LOCTEXT("DisplayTimestampInRelativeTime.Tooltip.Hidden", "Disabled because the Timestamp column is hidden.");
-			}),
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoScroll", "Auto Scroll"),
+			LOCTEXT("AutoScroll_Tooltip", "Automatically scroll as new logs arrive (affects last page)"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SConcertTransportLog::OnFilterMenuChecked),
-				FCanExecuteAction::CreateLambda([this] { return HeaderRow->IsColumnVisible(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp)); }),
-				FIsActionChecked::CreateLambda([this] { return UConcertTransportLogSettings::GetSettings()->TimestampTimeFormat == ETimeFormat::Relative; })),
+				FExecuteAction::CreateLambda([this](){ bAutoScroll = !bAutoScroll; }),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateLambda([this] { return bAutoScroll; })),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
-	MenuBuilder.AddSeparator();
-	MenuBuilder.AddMenuEntry(
-			LOCTEXT("SelectAll", "Show all"),
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
+		MenuBuilder.AddMenuEntry(
+				LOCTEXT("DisplayTimestampInRelativeTime", "Display Relative Time"),
+				TAttribute<FText>::CreateLambda([this]()
 				{
-					ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
-					{
-						HeaderRow->SetShowGeneratedColumn(ColumnId, true);
-					});
+					const bool bIsVisible = HeaderRow->IsColumnVisible(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp));
+					return bIsVisible
+						? LOCTEXT("DisplayTimestampInRelativeTime.Tooltip.Visible", "Display the Last Modified column in relative time?")
+						: LOCTEXT("DisplayTimestampInRelativeTime.Tooltip.Hidden", "Disabled because the Timestamp column is hidden.");
 				}),
-				FCanExecuteAction::CreateLambda([] { return true; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-	MenuBuilder.AddMenuEntry(
-			LOCTEXT("HideAll", "Hide all"),
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SConcertTransportLog::OnFilterMenuChecked),
+					FCanExecuteAction::CreateLambda([this] { return HeaderRow->IsColumnVisible(GET_MEMBER_NAME_CHECKED(FConcertLog, Timestamp)); }),
+					FIsActionChecked::CreateLambda([this] { return UConcertTransportLogSettings::GetSettings()->TimestampTimeFormat == ETimeFormat::Relative; })),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+
+		MenuBuilder.AddSeparator();
+		MenuBuilder.AddMenuEntry(
+				LOCTEXT("SelectAll", "Show all"),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
 					{
-						HeaderRow->SetShowGeneratedColumn(ColumnId, false);
-					});
-				}),
-				FCanExecuteAction::CreateLambda([] { return true; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-	MenuBuilder.AddMenuEntry(
-			LOCTEXT("RestoreDefaultColumnVisibility", "Restore columns visibility"),
-			FText::GetEmpty(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &SConcertTransportLog::RestoreDefaultColumnVisiblities),
-				FCanExecuteAction::CreateLambda([] { return true; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-	MenuBuilder.AddSeparator();
-	UE::ConcertSharedSlate::AddEntriesForShowingHiddenRows(HeaderRow.ToSharedRef(), MenuBuilder);
-}
-
-void SConcertTransportLog::OnFilterMenuChecked()
-{
-	UConcertTransportLogSettings* Settings = UConcertTransportLogSettings::GetSettings();
-	
-	switch (Settings->TimestampTimeFormat)
-	{
-	case ETimeFormat::Relative:
-		Settings->TimestampTimeFormat = ETimeFormat::Absolute;
-		break;
-	case ETimeFormat::Absolute: 
-		Settings->TimestampTimeFormat = ETimeFormat::Relative;
-		break;
-	default:
-		checkNoEntry();
+						ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+						{
+							HeaderRow->SetShowGeneratedColumn(ColumnId, true);
+						});
+					}),
+					FCanExecuteAction::CreateLambda([] { return true; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		MenuBuilder.AddMenuEntry(
+				LOCTEXT("HideAll", "Hide all"),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
+					{
+						ForEachPropertyColumn([this](const FProperty& Property, FName ColumnId)
+						{
+							HeaderRow->SetShowGeneratedColumn(ColumnId, false);
+						});
+					}),
+					FCanExecuteAction::CreateLambda([] { return true; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		MenuBuilder.AddMenuEntry(
+				LOCTEXT("RestoreDefaultColumnVisibility", "Restore columns visibility"),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SConcertTransportLog::RestoreDefaultColumnVisiblities),
+					FCanExecuteAction::CreateLambda([] { return true; })),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		MenuBuilder.AddSeparator();
+		UE::ConcertSharedSlate::AddEntriesForShowingHiddenRows(HeaderRow.ToSharedRef(), MenuBuilder);
 	}
 
-	Settings->SaveConfig();
-}
-
-void SConcertTransportLog::OnPageViewChanged(const TArray<TSharedPtr<FConcertLogEntry>>&)
-{
-	LogView->RequestListRefresh();
-
-	if (bAutoScroll && PagedLogList->GetCurrentPage() == PagedLogList->GetNumPages() - 1)
+	void SConcertTransportLog::OnFilterMenuChecked()
 	{
-		LogView->ScrollToBottom();
+		UConcertTransportLogSettings* Settings = UConcertTransportLogSettings::GetSettings();
+		
+		switch (Settings->TimestampTimeFormat)
+		{
+		case ETimeFormat::Relative:
+			Settings->TimestampTimeFormat = ETimeFormat::Absolute;
+			break;
+		case ETimeFormat::Absolute: 
+			Settings->TimestampTimeFormat = ETimeFormat::Relative;
+			break;
+		default:
+			checkNoEntry();
+		}
+
+		Settings->SaveConfig();
 	}
-}
 
-void SConcertTransportLog::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
-{
-	TGuardValue<bool> GuardValue(bIsUpdatingColumnVisibility, true);
-	UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), ColumnSnapshot);
-}
-
-void SConcertTransportLog::OnConcertLoggingEnabledChanged(bool bNewEnabled)
-{
-	if (!bNewEnabled)
+	void SConcertTransportLog::OnPageViewChanged(const TArray<TSharedPtr<FConcertLogEntry>>&)
 	{
-		EnableLoggingPromptOverlay->AddSlot().AttachWidget(SAssignNew(EnableLoggingPrompt, SPromptConcertLoggingEnabled));
+		LogView->RequestListRefresh();
+
+		if (bAutoScroll && PagedLogList->GetCurrentPage() == PagedLogList->GetNumPages() - 1)
+		{
+			LogView->ScrollToBottom();
+		}
 	}
-	else if (EnableLoggingPrompt)
+
+	void SConcertTransportLog::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
 	{
-		EnableLoggingPromptOverlay->RemoveSlot(EnableLoggingPrompt.ToSharedRef());
+		TGuardValue<bool> GuardValue(bIsUpdatingColumnVisibility, true);
+		UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), ColumnSnapshot);
 	}
-}
 
-bool SConcertTransportLog::CanScrollToAckLog(const FGuid& MessageId) const
-{
-	return CanScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+	void SConcertTransportLog::OnConcertLoggingEnabledChanged(bool bNewEnabled)
 	{
-		return SharedCanScrollToAckLog(MessageId, Entry);
-	});
-}
+		if (!bNewEnabled)
+		{
+			EnableLoggingPromptOverlay->AddSlot().AttachWidget(SAssignNew(EnableLoggingPrompt, SPromptConcertLoggingEnabled));
+		}
+		else if (EnableLoggingPrompt)
+		{
+			EnableLoggingPromptOverlay->RemoveSlot(EnableLoggingPrompt.ToSharedRef());
+		}
+	}
 
-bool SConcertTransportLog::CanScrollToAckedLog(const FGuid& MessageId) const
-{
-	return CanScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+	bool SConcertTransportLog::CanScrollToAckLog(const FGuid& MessageId) const
 	{
-		return SharedCanScrollToAckedLog(MessageId, Entry);
-	});
-}
+		return CanScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+		{
+			return SharedCanScrollToAckLog(MessageId, Entry);
+		});
+	}
 
-void SConcertTransportLog::ScrollToAckLog(const FGuid& MessageId) const
-{
-	ScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+	bool SConcertTransportLog::CanScrollToAckedLog(const FGuid& MessageId) const
 	{
-		return SharedCanScrollToAckLog(MessageId, Entry);
-	});
-}
+		return CanScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+		{
+			return SharedCanScrollToAckedLog(MessageId, Entry);
+		});
+	}
 
-void SConcertTransportLog::ScrollToAckedLog(const FGuid& MessageId) const
-{
-	ScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+	void SConcertTransportLog::ScrollToAckLog(const FGuid& MessageId) const
 	{
-		return SharedCanScrollToAckedLog(MessageId, Entry);
-	});
-}
+		ScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+		{
+			return SharedCanScrollToAckLog(MessageId, Entry);
+		});
+	}
 
-bool SConcertTransportLog::SharedCanScrollToAckLog(const FGuid& MessageId, const FConcertLogEntry& Entry)
-{
-	// MessageId is shared by some logs: there is a log for receiving one one for processing for example.
-	return Entry.Log.MessageId == MessageId && Entry.Log.MessageAction == EConcertLogMessageAction::Process;
-}
-
-bool SConcertTransportLog::SharedCanScrollToAckedLog(const FGuid& MessageId, const FConcertLogEntry& Entry)
-{
-	// MessageId is shared by some logs: there is a log for receiving one one for sending for example.
-	return Entry.Log.MessageId == MessageId && Entry.Log.MessageAction == EConcertLogMessageAction::Send;
-}
-
-void SConcertTransportLog::ScrollToLog(const int32 LogIndex) const
-{
-	if (const TOptional<FPagedFilteredConcertLogList::FPageCount> PageIndex = PagedLogList->GetPageOf(LogIndex); PageIndex && PagedLogList->GetFilteredLogs().IsValidIndex(LogIndex))
+	void SConcertTransportLog::ScrollToAckedLog(const FGuid& MessageId) const
 	{
-		PagedLogList->SetPage(*PageIndex);
-		LogView->RequestNavigateToItem(PagedLogList->GetFilteredLogs()[LogIndex]);
-		LogView->SetSelection(PagedLogList->GetFilteredLogs()[LogIndex]);
+		ScrollToLog(MessageId, [MessageId](const FConcertLogEntry& Entry)
+		{
+			return SharedCanScrollToAckedLog(MessageId, Entry);
+		});
+	}
+
+	bool SConcertTransportLog::SharedCanScrollToAckLog(const FGuid& MessageId, const FConcertLogEntry& Entry)
+	{
+		// MessageId is shared by some logs: there is a log for receiving one one for processing for example.
+		return Entry.Log.MessageId == MessageId && Entry.Log.MessageAction == EConcertLogMessageAction::Process;
+	}
+
+	bool SConcertTransportLog::SharedCanScrollToAckedLog(const FGuid& MessageId, const FConcertLogEntry& Entry)
+	{
+		// MessageId is shared by some logs: there is a log for receiving one one for sending for example.
+		return Entry.Log.MessageId == MessageId && Entry.Log.MessageAction == EConcertLogMessageAction::Send;
+	}
+
+	void SConcertTransportLog::ScrollToLog(const int32 LogIndex) const
+	{
+		if (const TOptional<FPagedFilteredConcertLogList::FPageCount> PageIndex = PagedLogList->GetPageOf(LogIndex); PageIndex && PagedLogList->GetFilteredLogs().IsValidIndex(LogIndex))
+		{
+			PagedLogList->SetPage(*PageIndex);
+			LogView->RequestNavigateToItem(PagedLogList->GetFilteredLogs()[LogIndex]);
+			LogView->SetSelection(PagedLogList->GetFilteredLogs()[LogIndex]);
+		}
 	}
 }
 

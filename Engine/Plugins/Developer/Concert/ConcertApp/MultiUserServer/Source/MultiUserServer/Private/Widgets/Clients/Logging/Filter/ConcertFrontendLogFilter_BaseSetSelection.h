@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ConcertFrontendLogFilter.h"
-#include "ConcertLogFilter.h"
+
+#include "ConcertLogFilterTypes.h"
+#include "Widgets/Util/Filter/ConcertFilter.h"
+#include "Widgets/Util/Filter/ConcertFrontendFilter.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SComboButton.h"
@@ -12,7 +14,7 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.BaseSetSelection"
 
-namespace UE::MultiUserServer::Filters
+namespace UE::MultiUserServer
 {
 	/**
 	 * Helper implementation for filters that allow filter based on a finte set of items.
@@ -101,7 +103,7 @@ namespace UE::MultiUserServer::Filters
 	};
 
 	template<typename TRealFilterImpl>
-	class TConcertFrontendLogFilter_BaseSetSelection : public TConcertFrontendLogFilterAggregate<TRealFilterImpl>
+	class TConcertFrontendLogFilter_BaseSetSelection : public TConcertFrontendFilterAggregate<TRealFilterImpl, const FConcertLogEntry&>
 	{
 		using TItemType = typename TRealFilterImpl::TItemType;
 	public:

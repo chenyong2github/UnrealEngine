@@ -12,28 +12,31 @@ class STextBlock;
 template<typename T> class SSpinBox;
 struct FConcertLogEntry;
 
-/** Displays the number of pages and items. Displayed under the table view. */
-class SConcertTransportLogFooter : public SCompoundWidget
+namespace UE::MultiUserServer
 {
-public:
+	/** Displays the number of pages and items. Displayed under the table view. */
+	class SConcertTransportLogFooter : public SCompoundWidget
+	{
+	public:
 	
-	DECLARE_DELEGATE_OneParam(FExtendContextMenu, FMenuBuilder&)
+		DECLARE_DELEGATE_OneParam(FExtendContextMenu, FMenuBuilder&)
 
-	SLATE_BEGIN_ARGS(SConcertTransportLogFooter) {}
+		SLATE_BEGIN_ARGS(SConcertTransportLogFooter) {}
 		SLATE_EVENT(FExtendContextMenu, ExtendViewOptions)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedRef<FPagedFilteredConcertLogList> InPagedLogList);
 
-private:
+	private:
 
-	/** The model we'll be updating */
-	TSharedPtr<FPagedFilteredConcertLogList> PagedLogList;
+		/** The model we'll be updating */
+		TSharedPtr<FPagedFilteredConcertLogList> PagedLogList;
 
-	/** Selects the current page */
-	TSharedPtr<SSpinBox<FPagedFilteredConcertLogList::FPageCount>> CurrentPage;
-	/** Displays the number of pages */
-	TSharedPtr<STextBlock> PageCounterText;
+		/** Selects the current page */
+		TSharedPtr<SSpinBox<FPagedFilteredConcertLogList::FPageCount>> CurrentPage;
+		/** Displays the number of pages */
+		TSharedPtr<STextBlock> PageCounterText;
 
-	TSharedRef<SWidget> MakeViewOptionsMenuWidget(FExtendContextMenu ExtendViewOptions);
-};
+		TSharedRef<SWidget> MakeViewOptionsMenuWidget(FExtendContextMenu ExtendViewOptions);
+	};
+}

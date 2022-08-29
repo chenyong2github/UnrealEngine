@@ -6,7 +6,7 @@
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 #include "Widgets/Clients/Util/EndpointToUserNameCache.h"
 
-namespace UE::MultiUserServer::Filters
+namespace UE::MultiUserServer
 {
 	bool FConcertLogFilter_Client::PassesFilter(const FConcertLogEntry& InItem) const
 	{
@@ -14,4 +14,3 @@ namespace UE::MultiUserServer::Filters
 			|| AllowedClientMessagingNodeId == EndpointCache->TranslateEndpointIdToNodeId(InItem.Log.DestinationEndpointId);
 	}
 }
-

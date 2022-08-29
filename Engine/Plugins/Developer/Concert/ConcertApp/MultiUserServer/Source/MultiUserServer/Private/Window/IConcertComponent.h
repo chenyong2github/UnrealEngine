@@ -5,34 +5,38 @@
 #include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
 
-class FConcertServerWindowController;
 class IConcertSyncServer;
 
-struct FConcertComponentInitParams
+namespace UE::MultiUserServer
 {
-	/** The server being managed */
-	TSharedRef<IConcertSyncServer> Server;
+	class FConcertServerWindowController;
 
-	/** Manages the server slate application */
-	TSharedRef<FConcertServerWindowController> WindowController;
+	struct FConcertComponentInitParams
+	{
+		/** The server being managed */
+		TSharedRef<IConcertSyncServer> Server;
 
-	/** The root area of the main window layout. Add tabs to this. */
-	TSharedRef<FTabManager::FStack> MainStack;
+		/** Manages the server slate application */
+		TSharedRef<FConcertServerWindowController> WindowController;
 
-	FConcertComponentInitParams(TSharedRef<IConcertSyncServer> Server, TSharedRef<FConcertServerWindowController> WindowController, TSharedRef<FTabManager::FStack> MainStack)
-		: Server(MoveTemp(Server))
-		, WindowController(MoveTemp(WindowController))
-		, MainStack(MoveTemp(MainStack))
-	{}
-};
+		/** The root area of the main window layout. Add tabs to this. */
+		TSharedRef<FTabManager::FStack> MainStack;
 
-/** Provides the base interface for elements in the concert server UI. */
-class IConcertComponent
-{
-public:
+		FConcertComponentInitParams(TSharedRef<IConcertSyncServer> Server, TSharedRef<FConcertServerWindowController> WindowController, TSharedRef<FTabManager::FStack> MainStack)
+			: Server(MoveTemp(Server))
+			, WindowController(MoveTemp(WindowController))
+			, MainStack(MoveTemp(MainStack))
+		{}
+	};
 
-	virtual ~IConcertComponent() = default;
+	/** Provides the base interface for elements in the concert server UI. */
+	class IConcertComponent
+	{
+	public:
 
-	/** Initialises the component, e.g. registering tab spawners, etc. */
-	virtual void Init(const FConcertComponentInitParams& Params) {}
-};
+		virtual ~IConcertComponent() = default;
+
+		/** Initialises the component, e.g. registering tab spawners, etc. */
+		virtual void Init(const FConcertComponentInitParams& Params) {}
+	};
+}

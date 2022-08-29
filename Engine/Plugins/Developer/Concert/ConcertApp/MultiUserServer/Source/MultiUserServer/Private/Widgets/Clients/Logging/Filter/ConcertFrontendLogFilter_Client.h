@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/Clients/Logging/Filter/ConcertFrontendLogFilter.h"
+#include "ConcertLogFilterTypes.h"
+#include "Widgets/Util/Filter/ConcertFilter.h"
 
 class FEndpointToUserNameCache;
 
-namespace UE::MultiUserServer::Filters
+namespace UE::MultiUserServer
 {
 	/** Only allows messages from the given clients */
 	class FConcertLogFilter_Client : public FConcertLogFilter

@@ -6,7 +6,7 @@
 #include "ConcertFrontendLogFilter_BaseSetSelection.h"
 #include "Widgets/Clients/Logging/ConcertLogEntry.h"
 
-namespace UE::MultiUserServer::Filters
+namespace UE::MultiUserServer
 {
 	/** Allows only messages that have a selected ACK state */
 	class FConcertLogFilter_Ack : public TConcertLogFilter_BaseSetSelection<FConcertLogFilter_Ack, EConcertLogAckState>
