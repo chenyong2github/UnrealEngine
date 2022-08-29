@@ -55,9 +55,11 @@ void ADMXFixtureActor::PostLoad()
 {
 	Super::PostLoad();
 
-	// Backward compatibility with new UPROPERTYs
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Upgrade from deprecated MinQuality and MaxQuality to ZoomQuality and BeamQuality
 	ZoomQuality = MaxQuality;
 	BeamQuality = MinQuality;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
