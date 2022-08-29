@@ -14,7 +14,7 @@
  * may need special-case handling, for example to prevent the user from
  * selecting and deleting them. 
  */
-UCLASS(Transient)
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
 class INTERACTIVETOOLSFRAMEWORK_API AInternalToolFrameworkActor : public AActor
 {
 	GENERATED_BODY()
