@@ -8,6 +8,7 @@
 #include "Components/PanelWidget.h"
 #include "GridPanel.generated.h"
 
+class IWidgetCompilerLog;
 class SGridPanel;
 class UGridSlot;
 
@@ -53,6 +54,7 @@ public:
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
+	virtual void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;
 #endif
 
 protected:

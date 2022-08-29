@@ -92,7 +92,8 @@ public:
 
 			void SetColumnSpan(int32 ColumnSpan)
 			{
-				ColumnSpan = FMath::Max(1, ColumnSpan);
+				// clamp span to a sensible size, otherwise computing slot sizes can slow down dramatically
+				ColumnSpan = FMath::Clamp(ColumnSpan, 1, 10000);
 				if (ColumnSpan != ColumnSpanParam)
 				{
 					ColumnSpanParam = ColumnSpan;
@@ -124,7 +125,8 @@ public:
 
 			void SetRowSpan(int32 RowSpan)
 			{
-				RowSpan = FMath::Max(1, RowSpan);
+				// clamp span to a sensible size, otherwise computing slots sizes can slow down dramatically
+				RowSpan = FMath::Clamp(RowSpan, 1, 10000);
 				if (RowSpan != RowSpanParam)
 				{
 					RowSpanParam = RowSpan;

@@ -255,13 +255,9 @@ void SGridPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 
 			// Figure out the size of this slot; takes row span into account.
 			// We use the properties of partial sums arrays to achieve this.
-			// Row/column span may be an arbitrarily large value above 1, so clamp it to the array bounds.
-			const int32 LastColumnIdx = FMath::Min(CurSlot.GetColumn() + CurSlot.GetColumnSpan(), FinalColumns.Num() - 1);
-			const int32 LastRowIdx = FMath::Min(CurSlot.GetRow() + CurSlot.GetRowSpan(), FinalRows.Num() - 1);
 			const FVector2D CellSize(
-				FinalColumns[LastColumnIdx] - ThisCellOffset.X,
-				FinalRows[LastRowIdx] - ThisCellOffset.Y
-			);
+				FinalColumns[CurSlot.GetColumn() + CurSlot.GetColumnSpan()] - ThisCellOffset.X,
+				FinalRows[CurSlot.GetRow() + CurSlot.GetRowSpan()] - ThisCellOffset.Y);
 
 			// Do the standard arrangement of elements within a slot
 			// Takes care of alignment and padding.
@@ -408,15 +404,14 @@ void SGridPanel::NotifySlotChanged(const FSlot* InSlot, bool bSlotLayerChanged /
 	// We need an extra cell at the end for easily figuring out the size across any number of cells
 	// by doing Columns[End] - Columns[Start] or Rows[End] - Rows[Start].
 	// The first Columns[]/Rows[] entry will be 0.
-	// For a grid with 2 rows (index 0 and 1), we need 3 slots, thus the + 2 here.
 
-	const int32 NumColumnsRequiredForThisSlot = InSlot->GetColumn() + 2;
+	const int32 NumColumnsRequiredForThisSlot = InSlot->GetColumn() + InSlot->GetColumnSpan() + 1;
 	if (NumColumnsRequiredForThisSlot > Columns.Num())
 	{
 		Columns.AddZeroed(NumColumnsRequiredForThisSlot - Columns.Num());
 	}
 
-	const int32 NumRowsRequiredForThisSlot = InSlot->GetRow() + 2;
+	const int32 NumRowsRequiredForThisSlot = InSlot->GetRow() + InSlot->GetColumnSpan() + 1;
 	if (NumRowsRequiredForThisSlot > Rows.Num())
 	{
 		Rows.AddZeroed(NumRowsRequiredForThisSlot - Rows.Num());
@@ -447,18 +442,12 @@ void SGridPanel::ComputeDesiredCellSizes( TArray<float>& OutColumns, TArray<floa
 			const FVector2D SlotDesiredSize = CurSlot.GetWidget()->GetDesiredSize() + CurSlot.GetPadding().GetDesiredSize();
 
 			// If the slot has a (colspan, rowspan) of (1,1) it will only affect that slot.
-			// For larger spans, the slots size will be evenly distributed across all the affected slots.
-			// For spans that are past the end of the slot array, only distribute to the size to existing columns, eg.
-			// | [0] | [1] | [2] |
-			// | S=1 |   Span=5  | <- size is only distributed between columns 1 and 2, until more slots exist
-			const int32 MaxColumns = FMath::Min(CurSlot.GetColumn() + CurSlot.GetColumnSpan(), OutColumns.Num());
-			const int32 MaxRows = FMath::Min(CurSlot.GetRow() + CurSlot.GetRowSpan(), OutRows.Num());
-
-			const FVector2D SizeContribution(SlotDesiredSize.X / (MaxColumns - CurSlot.GetColumn()), SlotDesiredSize.Y / (MaxRows - CurSlot.GetRow()));
+			// For larger spans, the slot's size will be evenly distributed across all the affected slots.
+			const FVector2D SizeContribution(SlotDesiredSize.X / CurSlot.GetColumnSpan(), SlotDesiredSize.Y / CurSlot.GetRowSpan());
 
 			// Distribute the size contributions over all the columns and rows that this slot spans
-			DistributeSizeContributions(SizeContribution.X, OutColumns, CurSlot.GetColumn(), MaxColumns);
-			DistributeSizeContributions(SizeContribution.Y, OutRows, CurSlot.GetRow(), MaxRows);
+			DistributeSizeContributions(SizeContribution.X, OutColumns, CurSlot.GetColumn(), CurSlot.GetColumn() + CurSlot.GetColumnSpan());
+			DistributeSizeContributions(SizeContribution.Y, OutRows, CurSlot.GetRow(), CurSlot.GetRow() + CurSlot.GetRowSpan());
 		}
 	}
 }
