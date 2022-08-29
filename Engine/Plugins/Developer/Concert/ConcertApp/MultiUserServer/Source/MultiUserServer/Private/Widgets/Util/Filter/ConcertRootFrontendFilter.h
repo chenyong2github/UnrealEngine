@@ -93,7 +93,7 @@ namespace UE::MultiUserServer
 
 		void BroadcastOnChanged()
 		{
-			Super::template OnChanged().Broadcast();
+			Super::OnChanged().Broadcast();
 		}
 
 		/** Builds the widgets that go under the text */

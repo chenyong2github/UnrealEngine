@@ -19,11 +19,11 @@ namespace UE::MultiUserServer
 	public:
 
 		TConcertFilter_TextSearch()
-			: TextFilter(TTextFilter<TFilterType>::template FItemToStringArray::CreateRaw(this, &TConcertFilter_TextSearch<TFilterType>::GenerateSearchTerms))
+			: TextFilter(TTextFilter<TFilterType>::FItemToStringArray::CreateRaw(this, &TConcertFilter_TextSearch<TFilterType>::GenerateSearchTerms))
 		{
 			TextFilter.OnChanged().AddLambda([this]
 			{
-				Super::template OnChanged().Broadcast();
+				Super::OnChanged().Broadcast();
 			});
 		}
 	
@@ -55,12 +55,11 @@ namespace UE::MultiUserServer
 		TConcertFrontendFilter_TextSearch(TArg&&... Arg)
 			: Super(Forward<TArg>(Arg)...)
 		{
-			Super::template ChildSlot = SNew(SSearchBox)
+			Super::ChildSlot = SNew(SSearchBox)
 				.OnTextChanged_Lambda([this](const FText& NewSearchText)
 				{
 					SearchText = NewSearchText;
-					TTextSearchFilterType& Impl = Super::template Implementation;
-					Impl.SetRawFilterText(NewSearchText);
+					Super::Implementation.SetRawFilterText(NewSearchText);
 				})
 				.DelayChangeNotificationsWhileTyping(true);
 		}

@@ -51,7 +51,7 @@ namespace UE::MultiUserServer
 		{
 			Implementation.OnChanged().AddLambda([this]()
 			{
-				Super::template OnChanged().Broadcast();
+				Super::OnChanged().Broadcast();
 			});
 		}
 
