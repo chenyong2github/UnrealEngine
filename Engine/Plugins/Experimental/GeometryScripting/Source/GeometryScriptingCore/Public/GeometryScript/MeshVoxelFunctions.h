@@ -58,6 +58,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	int SurfaceSearchSteps = 3;
+
+	/** When enabled, regions of the input mesh that have open boundaries (ie "shells") are thickened by extruding them into closed solids. This may be expensive on large meshes. */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bThickenShells = false;
+
+	/** Open Shells are Thickened by offsetting vertices along their averaged vertex normals by this amount. Dimension is but clamped to twice the grid cell size. */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	double ShellThickness = 1.0;
+
 };
 
 
