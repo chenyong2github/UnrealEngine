@@ -224,6 +224,16 @@ public:
 	virtual void SetSendAnalytics(const bool bNewValue) = 0;
 
 	/**
+	* Returns if PIE should be kept open when test pass end
+	*/
+	virtual bool KeepPIEOpen() const = 0;
+
+	/**
+	* Sets if PIE should be kept open when test pass end
+	*/
+	virtual void SetKeepPIEOpen(const bool bNewValue) = 0;
+
+	/**
 	 * Filters the visible list of tests.
 	 */
 	virtual void SetFilter( TSharedPtr< AutomationFilterCollection > InFilter ) = 0;

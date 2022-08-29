@@ -1271,10 +1271,25 @@ TSharedRef< SWidget > SAutomationWindow::GenerateTestsOptionsMenuContent( )
 		];
 
 
+	TSharedRef<SWidget> KeepPIEOpenWidget =
+		SNew(SCheckBox)
+		.IsChecked(this, &SAutomationWindow::KeepPIEOpenCheckBoxChecked)
+		.OnCheckStateChanged(this, &SAutomationWindow::HandleKeepPIEOpenBoxCheckStateChanged)
+		.Padding(FMargin(4.0f, 0.0f))
+		.ToolTipText(LOCTEXT("AutomationKeepPIEOpenTip", "If checked, the PIE will be kept open at the end of the test pass"))
+		.IsEnabled(this, &SAutomationWindow::IsAutomationControllerIdle)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("AutomationKeepPIEOpenText", "Keep PIE open at the end"))
+		];
+
+
 	MenuBuilder.BeginSection("AutomationWindowRunTest", LOCTEXT("RunTestOptions", "Advanced Settings"));
 	{
 		MenuBuilder.AddWidget(NumTests, FText::GetEmpty());
 		MenuBuilder.AddWidget(SendAnalyticsWidget, FText::GetEmpty());
+		MenuBuilder.AddWidget(KeepPIEOpenWidget, FText::GetEmpty());
 	}
 	MenuBuilder.EndSection();
 
@@ -1289,6 +1304,16 @@ ECheckBoxState SAutomationWindow::IsSendAnalyticsCheckBoxChecked() const
 void SAutomationWindow::HandleSendAnalyticsBoxCheckStateChanged(ECheckBoxState CheckBoxState)
 {
 	AutomationController->SetSendAnalytics(CheckBoxState == ECheckBoxState::Checked);
+}
+
+ECheckBoxState SAutomationWindow::KeepPIEOpenCheckBoxChecked() const
+{
+	return AutomationController->KeepPIEOpen() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SAutomationWindow::HandleKeepPIEOpenBoxCheckStateChanged(ECheckBoxState CheckBoxState)
+{
+	AutomationController->SetKeepPIEOpen(CheckBoxState == ECheckBoxState::Checked);
 }
 
 TArray<FString> SAutomationWindow::SaveExpandedTestNames(TSet<TSharedPtr<IAutomationReport>> ExpandedItems)

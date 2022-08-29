@@ -163,6 +163,8 @@ FAutomationControllerManager::FAutomationControllerManager()
 	{
 		GameInstanceLostTimerSeconds = Settings->GameInstanceLostTimerSeconds;
 	}
+
+	bKeepPIEOpen = Settings->bKeepPIEOpen;
 	
 	FString DeveloperPath;
 	FParse::Value(FCommandLine::Get(), TEXT("ReportOutputPath="), ReportExportPath, false);
@@ -406,7 +408,7 @@ void FAutomationControllerManager::StopTests()
 
 	// Close play window
 #if WITH_EDITOR
-	if (GUnrealEd)
+	if (GUnrealEd && !bKeepPIEOpen)
 	{
 		GUnrealEd->RequestEndPlayMap();
 	}
@@ -533,7 +535,7 @@ void FAutomationControllerManager::ProcessAvailableTasks()
 
 					// Close play window
 					#if WITH_EDITOR
-					if (GUnrealEd)
+					if (GUnrealEd && !bKeepPIEOpen)
 					{
 						GUnrealEd->RequestEndPlayMap();
 					}

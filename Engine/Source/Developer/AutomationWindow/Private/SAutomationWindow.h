@@ -321,11 +321,17 @@ private:
 	/** Toggles filtering of tests based on error condition */
 	void OnToggleErrorFilter();
 	
-	/** Returns if analytics should be sent to the back end*/
+	/** Returns if analytics should be sent to the back end */
 	ECheckBoxState IsSendAnalyticsCheckBoxChecked() const;
 
-	/** Toggles if we are sending analytics results from the tests*/
+	/** Toggles if we are sending analytics results from the tests */
 	void HandleSendAnalyticsBoxCheckStateChanged(ECheckBoxState CheckBoxState);
+
+	/** Returns if PIE should be kept open when test pass end */
+	ECheckBoxState KeepPIEOpenCheckBoxChecked() const;
+
+	/** Toggles if PIE should be kept open when test pass end */
+	void HandleKeepPIEOpenBoxCheckStateChanged(ECheckBoxState CheckBoxState);
 
 	/** Returns if a device group is enabled */
 	ECheckBoxState IsDeviceGroupCheckBoxIsChecked(const int32 DeviceGroupFlag) const;
