@@ -709,7 +709,7 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Audio)
 	FReverbSettings DefaultReverbSettings;
 
-	/** Default interior settings used by audio volumes.												*/
+	/** Default interior settings applied to sounds that have "apply ambient volumes" set to true on their SoundClass. */
 	UPROPERTY(EditAnywhere, config, Category=Audio)
 	FInteriorSettings DefaultAmbientZoneSettings;
 
