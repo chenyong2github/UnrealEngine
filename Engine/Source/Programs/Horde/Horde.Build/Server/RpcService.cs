@@ -664,7 +664,7 @@ namespace Horde.Build.Server
 						}
 						else
 						{
-							credentials.Add(tokenConfig.EnvVar, value);
+							response.Credentials.Add(tokenConfig.EnvVar, value);
 						}
 					}
 				}
