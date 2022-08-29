@@ -1203,6 +1203,9 @@ void* FVulkanDynamicRHI::RHILockTexture2DArray(FRHITexture2DArray* TextureRHI,ui
 		checkf(!*StagingBuffer, TEXT("Can't lock the same texture twice!"));
 	}
 
+	// No locks for read allowed yet
+	check(LockMode == RLM_WriteOnly);
+
 	uint32 BufferSize = 0;
 	DestStride = 0;
 	Texture->GetMipSize(MipIndex, BufferSize);

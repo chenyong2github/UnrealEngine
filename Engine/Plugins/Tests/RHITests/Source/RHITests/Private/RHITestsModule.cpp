@@ -61,11 +61,11 @@ void FRHITestsModule::RunAllTests()
 	{
 		if (RunOnRenderThreadSynchronous(RunTests_RenderThread))
 		{
-			UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("RHI unit tested completed. All tests passed."));
+			UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("RHI unit tests completed. All tests passed."));
 		}
 		else
 		{
-			UE_LOG(LogRHIUnitTestCommandlet, Error, TEXT("RHI unit tested completed. At least one test failed."));
+			UE_LOG(LogRHIUnitTestCommandlet, Error, TEXT("RHI unit tests completed. At least one test failed."));
 		}
 	}
 }
