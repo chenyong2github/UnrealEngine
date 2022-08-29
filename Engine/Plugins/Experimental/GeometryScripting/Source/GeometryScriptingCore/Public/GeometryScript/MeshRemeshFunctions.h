@@ -111,6 +111,10 @@ public:
 	/** Maximum Number of iterations of the Remeshing Strategy to apply to the Mesh. More iterations are generally more expensive (much moreso with bUseFullRemeshPasses = true) */
 	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (UIMin = 0, ClampMin = 0))
 	int32 RemeshIterations = 20;
+
+	/** If enabled, the output mesh is automatically compacted to remove gaps in the index space. This is expensive and can be disabled by advanced users. */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bAutoCompact = true;
 };
 
 

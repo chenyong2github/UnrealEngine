@@ -130,11 +130,18 @@ UDynamicMesh* UGeometryScriptLibrary_RemeshingFunctions::ApplyUniformRemesh(
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyUniformRemesh_ComputeError", "ApplyUniformRemesh: Error computing result, returning input mesh"));
 		}
 
-		// if we discarded attributes, re-enable the standard attributes
+		// compact the input mesh if enabled
+		if (RemeshOptions.bAutoCompact)
+		{
+			EditMesh.CompactInPlace();
+		}
+
+		// if we discarded attributes, re-enable the standard attributes, and initialize with per-vertex normals
 		if (RemeshOptions.bDiscardAttributes)
 		{
 			EditMesh.EnableTriangleGroups();
 			EditMesh.EnableAttributes();
+			FMeshNormals::InitializeOverlayToPerVertexNormals(EditMesh.Attributes()->PrimaryNormals(), false);
 			EditMesh.Attributes()->EnableMaterialID();
 		}
 

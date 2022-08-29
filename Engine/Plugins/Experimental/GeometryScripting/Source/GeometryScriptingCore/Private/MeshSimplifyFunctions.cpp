@@ -40,6 +40,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSimplifyFunctions::ApplySimplifyToPlana
 		Simplifier.CollapseMode = FQEMSimplification::ESimplificationCollapseModes::AverageVertexPosition;
 		Simplifier.SimplifyToMinimalPlanar( FMath::Max(0.00001, Options.AngleThreshold) );
 
+		if (Options.bAutoCompact)
+		{
+			EditMesh.CompactInPlace();
+		}
+
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
 	return TargetMesh;
@@ -81,6 +86,11 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSimplifyFunctions::ApplySimplifyToPolyg
 		FPolygroupRemesh Simplifier(&EditMesh, Topo.Get(), ConstrainedDelaunayTriangulate<double>);
 		Simplifier.SimplificationAngleTolerance = Options.AngleThreshold;
 		Simplifier.Compute();
+
+		if (Options.bAutoCompact)
+		{
+			EditMesh.CompactInPlace();
+		}
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 
@@ -143,6 +153,11 @@ void DoSimplifyMesh(
 	else
 	{
 		Simplifier.SimplifyToVertexCount( FMath::Max(1,TargetCount) );
+	}
+
+	if (Options.bAutoCompact)
+	{
+		EditMesh.CompactInPlace();
 	}
 }
 
