@@ -204,7 +204,7 @@ namespace Metasound
 
 		const TArray<FText>& FAssetTypeActions_MetaSoundPatch::GetSubMenus() const
 		{
-			if (GetDefault<UMetasoundEditorSettings>()->bPinMetaSoundInAssetMenu)
+			if (GetDefault<UMetasoundEditorSettings>()->bPinMetaSoundPatchInAssetMenu)
 			{
 				static const TArray<FText> SubMenus;
 				return SubMenus;

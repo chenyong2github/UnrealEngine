@@ -388,7 +388,7 @@ void UMetasoundEditorGraphVertex::SetVertexAccessType(EMetasoundFrontendVertexAc
 		return;
 	}
 
-	const FScopedTransaction Transaction(LOCTEXT("SetGraphVertexType", "Set MetaSound GraphVertex Type"), bPostTransaction);
+	const FScopedTransaction Transaction(LOCTEXT("SetVertexConstructorPinState", "Set MetaSound Vertex Constructor Pin State"), bPostTransaction);
 	Graph->GetMetasoundChecked().Modify();
 	Graph->Modify();
 	Modify();
@@ -445,7 +445,8 @@ void UMetasoundEditorGraphVertex::SetVertexAccessType(EMetasoundFrontendVertexAc
 	ClassName = NewNodeHandle->GetClassMetadata().GetClassName();
 	NodeID = NewNodeHandle->GetID();
 
-	InitializeLiteral();
+	constexpr bool bUpdateLiteralPostTransaction = false;
+	UpdateFrontendDefaultLiteral(bUpdateLiteralPostTransaction);
 
 	// 6. Create new node references in the same locations as the old locations
 	// and reconnect linked pins 
