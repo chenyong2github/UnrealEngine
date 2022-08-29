@@ -4,7 +4,7 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Math/MatrixH.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TSharedPtr<FEntityGeom> FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const

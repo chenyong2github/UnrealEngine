@@ -9,7 +9,7 @@
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FCADKernelArchive;

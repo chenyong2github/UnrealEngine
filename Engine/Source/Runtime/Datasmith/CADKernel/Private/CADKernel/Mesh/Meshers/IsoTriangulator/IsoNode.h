@@ -5,7 +5,7 @@
 #include "CADKernel/Mesh/MeshEnum.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 class FGrid;
 class FIsoSegment;
@@ -86,7 +86,7 @@ public:
 		States = EIsoNodeStates::Delete;
 	}
 
-	bool IsDelete() const 
+	bool IsDelete() const
 	{
 		return (States & EIsoNodeStates::Delete) == EIsoNodeStates::Delete;
 	}
@@ -529,5 +529,5 @@ public:
 };
 
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

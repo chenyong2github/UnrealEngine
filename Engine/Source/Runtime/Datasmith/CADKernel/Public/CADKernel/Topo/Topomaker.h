@@ -7,7 +7,7 @@
 #include "CADKernel/Topo/TopomakerReport.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FModel;
@@ -145,4 +145,4 @@ private:
 
 };
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

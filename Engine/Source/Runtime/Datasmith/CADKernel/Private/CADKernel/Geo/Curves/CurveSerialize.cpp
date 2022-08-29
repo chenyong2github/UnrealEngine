@@ -13,7 +13,7 @@
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/Curves/SurfacicCurve.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TSharedPtr<FEntity> FCurve::Deserialize(FCADKernelArchive& Archive)

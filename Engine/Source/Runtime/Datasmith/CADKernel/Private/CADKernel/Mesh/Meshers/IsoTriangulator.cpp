@@ -19,7 +19,7 @@
 #include "CADKernel/UI/Display.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 const double FIsoTriangulator::GeometricToMeshingToleranceFactor = 10.;
@@ -3334,4 +3334,4 @@ void FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
 	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
 }
 
-} //namespace CADKernel
+} //namespace UE::CADKernel

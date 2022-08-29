@@ -41,7 +41,7 @@ public:
 		{
 			// the joining tolerance is set to 0.1 mm until the user can specify it
 			const double JoiningTolerance = 0.1;
-			CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance);
+			UE::CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance);
 			Topomaker.Sew();
 			Topomaker.OrientShells();
 		}
@@ -59,7 +59,7 @@ public:
 
 	virtual bool Tessellate(const CADLibrary::FMeshParameters& InMeshParameters, FMeshDescription& OutMeshDescription) override
 	{
-		CADKernel::FModel& Model = CADKernelSession.GetModel();
+		UE::CADKernel::FModel& Model = CADKernelSession.GetModel();
 		return CADLibrary::FCADKernelTools::Tessellate(Model, ImportParameters, InMeshParameters, OutMeshDescription);
 	}
 
@@ -80,7 +80,7 @@ public:
 
 protected:
 
-	CADKernel::FSession CADKernelSession;
+	UE::CADKernel::FSession CADKernelSession;
 
 	CADLibrary::FImportParameters ImportParameters;
 	double GeometricTolerance;

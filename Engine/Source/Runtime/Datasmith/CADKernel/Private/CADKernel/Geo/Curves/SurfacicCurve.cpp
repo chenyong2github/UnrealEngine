@@ -9,7 +9,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicPolyline.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FSurfacicCurve::EvaluatePoint(double InCoordinate, FCurvePoint& OutPoint, int32 InDerivativeOrder) const

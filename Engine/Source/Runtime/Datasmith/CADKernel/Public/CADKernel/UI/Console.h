@@ -5,20 +5,20 @@
 
 #include "CADKernel/UI/Message.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class CADKERNEL_API FConsole
+class CADKERNEL_API FConsole
+{
+public:
+
+	virtual ~FConsole()
 	{
-	public:
+	}
 
-		virtual ~FConsole()
-		{
-		}
+	virtual void Print(const TCHAR* Texte, EVerboseLevel VerboseLevel = EVerboseLevel::NoVerbose)
+	{}
 
-		virtual void Print(const TCHAR* Texte, EVerboseLevel VerboseLevel = EVerboseLevel::NoVerbose)
-		{}
+};
 
-	};
-
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

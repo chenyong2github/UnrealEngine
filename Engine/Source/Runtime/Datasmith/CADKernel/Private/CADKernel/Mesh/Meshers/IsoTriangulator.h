@@ -17,7 +17,7 @@
 
 //#define NEED_TO_CHECK_USEFULNESS
 //#define DEBUG_DELAUNAY
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FGrid;
@@ -472,5 +472,5 @@ inline double EquilateralCriteria(const PointType& SegmentA, const PointType& Se
 
 } // namespace FIsoTriangulatorImpl
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

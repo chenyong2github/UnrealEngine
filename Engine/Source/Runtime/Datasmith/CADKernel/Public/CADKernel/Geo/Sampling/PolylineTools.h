@@ -13,7 +13,7 @@
 #include "Algo/ForEach.h"
 #include "Algo/Reverse.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 struct FPolylineBBox
@@ -623,7 +623,7 @@ public:
 		int32 BoundaryIndices[2];
 		GetStartEndIndex(InBoundary, BoundaryIndices);
 
-		if(BoundaryIndices[1] - BoundaryIndices[0] > 0)
+		if (BoundaryIndices[1] - BoundaryIndices[0] > 0)
 		{
 			if (FMath::IsNearlyEqual(PolylineCoordinates[BoundaryIndices[0] + 1], InBoundary.Min, (double)DOUBLE_SMALL_NUMBER))
 			{
@@ -701,5 +701,5 @@ public:
 	}
 };
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

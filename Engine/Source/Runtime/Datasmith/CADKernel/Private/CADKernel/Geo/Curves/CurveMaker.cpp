@@ -13,12 +13,12 @@
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/Curves/SurfacicCurve.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TSharedPtr<FCurve> FCurve::MakeNurbsCurve(FNurbsCurveData& InNurbsData)
 {
-	return FEntity::MakeShared<CADKernel::FNURBSCurve>(InNurbsData);
+	return FEntity::MakeShared<UE::CADKernel::FNURBSCurve>(InNurbsData);
 }
 
 }

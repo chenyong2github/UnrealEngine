@@ -12,7 +12,7 @@
 
 #include "CADKernel/Mesh/Structure/Grid.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 #ifdef CADKERNEL_DEV
 FInfoEntity& FSurface::GetInfo(FInfoEntity& Info) const
@@ -207,5 +207,5 @@ void FSurface::EvaluateGrid(FGrid& Grid) const
 	Grid.GetNormals() = MoveTemp(OutPoints.Normals);
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

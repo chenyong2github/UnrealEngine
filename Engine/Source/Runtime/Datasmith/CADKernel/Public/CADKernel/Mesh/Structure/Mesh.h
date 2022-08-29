@@ -6,85 +6,85 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class FModelMesh;
-	class FNode;
-	class FTopologicalEntity;
+class FModelMesh;
+class FNode;
+class FTopologicalEntity;
 
-	class CADKERNEL_API FMesh : public FEntityGeom
+class CADKERNEL_API FMesh : public FEntityGeom
+{
+protected:
+	FModelMesh& ModelMesh;
+	FTopologicalEntity& TopologicalEntity;
+
+	int32 StartNodeId;
+	int32 LastNodeIndex;
+
+	TArray<FPoint> NodeCoordinates;
+	int32 MeshModelIndex;
+
+public:
+
+	FMesh(FModelMesh& InMeshModel, FTopologicalEntity& InTopologicalEntity)
+		: FEntityGeom()
+		, ModelMesh(InMeshModel)
+		, TopologicalEntity(InTopologicalEntity)
 	{
-	protected:
-		FModelMesh& ModelMesh;
-		FTopologicalEntity& TopologicalEntity;
+	}
 
-		int32 StartNodeId;
-		int32 LastNodeIndex;
-
-		TArray<FPoint> NodeCoordinates;
-		int32 MeshModelIndex;
-
-	public:
-
-		FMesh(FModelMesh& InMeshModel, FTopologicalEntity& InTopologicalEntity)
-			: FEntityGeom()
-			, ModelMesh(InMeshModel)
-			, TopologicalEntity(InTopologicalEntity)
-		{
-		}
-
-		virtual ~FMesh() = default;
+	virtual ~FMesh() = default;
 
 #ifdef CADKERNEL_DEV
-		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
+	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
 
-		virtual EEntity GetEntityType() const override
-		{
-			return EEntity::Mesh;
-		}
+	virtual EEntity GetEntityType() const override
+	{
+		return EEntity::Mesh;
+	}
 
-		TArray<FPoint>& GetNodeCoordinates()
-		{
-			return NodeCoordinates;
-		}
+	TArray<FPoint>& GetNodeCoordinates()
+	{
+		return NodeCoordinates;
+	}
 
-		const TArray<FPoint>& GetNodeCoordinates() const
-		{
-			return NodeCoordinates;
-		}
+	const TArray<FPoint>& GetNodeCoordinates() const
+	{
+		return NodeCoordinates;
+	}
 
-		int32 RegisterCoordinates();
+	int32 RegisterCoordinates();
 
-		const int32 GetStartVertexId() const
-		{
-			return StartNodeId;
-		}
+	const int32 GetStartVertexId() const
+	{
+		return StartNodeId;
+	}
 
-		const int32 GetLastVertexIndex() const
-		{
-			return LastNodeIndex;
-		}
+	const int32 GetLastVertexIndex() const
+	{
+		return LastNodeIndex;
+	}
 
-		const int32 GetIndexInMeshModel() const
-		{
-			return MeshModelIndex;
-		}
+	const int32 GetIndexInMeshModel() const
+	{
+		return MeshModelIndex;
+	}
 
-		FModelMesh& GetMeshModel()
-		{
-			return ModelMesh;
-		}
+	FModelMesh& GetMeshModel()
+	{
+		return ModelMesh;
+	}
 
-		const FModelMesh& GetMeshModel() const
-		{
-			return ModelMesh;
-		}
+	const FModelMesh& GetMeshModel() const
+	{
+		return ModelMesh;
+	}
 
-		const FTopologicalEntity& GetGeometricEntity() const
-		{
-			return TopologicalEntity;
-		}
-	};
+	const FTopologicalEntity& GetGeometricEntity() const
+	{
+		return TopologicalEntity;
+	}
+};
 }
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Geo/Curves/BoundedCurve.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FBoundedCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const

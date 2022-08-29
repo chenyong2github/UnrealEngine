@@ -10,7 +10,7 @@
 #include "CADKernel/Topo/TopologicalVertex.h"
 #include "CADKernel/Utils/Cache.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 typedef TTopologicalLink<FTopologicalEdge> FEdgeLink;
@@ -882,4 +882,4 @@ void GetCuttingPointCoordinates(const TArray<FCuttingPointType>& CuttingPoints, 
 };
 
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

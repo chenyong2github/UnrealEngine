@@ -8,7 +8,7 @@
 #include "CADKernel/Topo/TopologyReport.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FBody::AddShell(TSharedRef<FShell> Shell)

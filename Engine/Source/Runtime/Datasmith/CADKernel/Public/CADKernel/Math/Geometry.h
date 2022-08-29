@@ -8,7 +8,7 @@
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 enum EPolygonSide : uint8
 {
@@ -584,7 +584,7 @@ inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB
 }
 
 /**
- * @return false if the lines are parallele 
+ * @return false if the lines are parallele
  */
 inline bool FindIntersectionOfLines2D(const TSegment<FPoint2D>& LineAB, const TSegment<FPoint2D>& LineCD, FPoint2D& OutIntersectionPoint)
 {
@@ -602,7 +602,7 @@ inline bool FindIntersectionOfLines2D(const TSegment<FPoint2D>& LineAB, const TS
 	}
 
 	double OutABIntersectionCoordinate = (DC ^ AC) / ParallelCoef;
-	OutIntersectionPoint =  LineAB[0] + AB * OutABIntersectionCoordinate;
+	OutIntersectionPoint = LineAB[0] + AB * OutABIntersectionCoordinate;
 	return true;
 }
 
@@ -623,5 +623,5 @@ inline double ComputeCosinus(FVector Vector, FVector OtherVector)
 }
 
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

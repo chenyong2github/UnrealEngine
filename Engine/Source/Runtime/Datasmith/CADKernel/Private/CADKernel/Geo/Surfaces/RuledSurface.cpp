@@ -6,7 +6,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FRuledSurface::LinesNotDerivables(const FSurfacicBoundary& InBoundary, int32 InDerivativeOrder, FCoordinateGrid& OutCoordinates) const

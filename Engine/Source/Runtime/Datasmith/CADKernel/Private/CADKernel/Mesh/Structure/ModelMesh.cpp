@@ -9,7 +9,7 @@
 #include "CADKernel/Mesh/Structure/VertexMesh.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FModelMesh::AddCriterion(TSharedPtr<FCriterion>& Criterion)
@@ -145,5 +145,5 @@ int32 FModelMesh::GetTriangleCount() const
 	return TriangleCount;
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

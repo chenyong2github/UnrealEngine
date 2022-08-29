@@ -58,7 +58,7 @@ protected:
 
 	/**
 	 * If the tessellator is TechSoft, SewModel call TechSoftInterface::SewModel
-	 * If the tessellator is CADKernel, SewModel do nothing as the file is not yet parsed. In this case, the sew is done in GenerateBodyMeshes.
+	 * If the tessellator is UE::CADKernel, SewModel do nothing as the file is not yet parsed. In this case, the sew is done in GenerateBodyMeshes.
 	 */
 	virtual void SewModel();
 

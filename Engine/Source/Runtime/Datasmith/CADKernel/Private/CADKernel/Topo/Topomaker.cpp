@@ -18,7 +18,7 @@
 #include "CADKernel/UI/Message.h"
 #include "CADKernel/Utils/Util.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FTopomaker::FTopomaker(FSession& InSession, double InTolerance)

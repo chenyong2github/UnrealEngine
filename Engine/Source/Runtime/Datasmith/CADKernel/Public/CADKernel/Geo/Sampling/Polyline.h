@@ -9,7 +9,7 @@
 
 #include "Serialization/Archive.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 template<class PointType>
@@ -214,5 +214,5 @@ public:
 	}
 };
 
-} // ns CADKernel
+} // ns UE::CADKernel
 

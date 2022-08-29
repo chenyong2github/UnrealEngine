@@ -11,7 +11,7 @@
 #include "CADKernel/Mesh/Meshers/MesherReport.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 class FCriterion;
 class FGrid;
@@ -116,5 +116,5 @@ protected:
 	void GenerateEdgeElements(FTopologicalEdge& Edge);
 };
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

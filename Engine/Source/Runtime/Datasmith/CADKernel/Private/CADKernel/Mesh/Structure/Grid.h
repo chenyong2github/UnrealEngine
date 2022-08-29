@@ -14,7 +14,7 @@
 #endif
 
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 struct FCuttingPoint;

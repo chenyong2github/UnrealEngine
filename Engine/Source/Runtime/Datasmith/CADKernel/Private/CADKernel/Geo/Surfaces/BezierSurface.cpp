@@ -6,7 +6,7 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/BSpline.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FBezierSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const

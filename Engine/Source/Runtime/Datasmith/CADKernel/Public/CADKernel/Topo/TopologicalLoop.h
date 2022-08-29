@@ -10,7 +10,7 @@
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FDatabase;

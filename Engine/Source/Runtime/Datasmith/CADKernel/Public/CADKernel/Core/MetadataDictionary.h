@@ -5,7 +5,7 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/MathConst.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FMetadataDictionary

@@ -6,7 +6,7 @@
 #include "CADKernel/Geo/Curves/Curve.h"
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FTabulatedCylinderSurface::SpawnIdent(FDatabase& Database)

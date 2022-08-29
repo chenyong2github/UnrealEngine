@@ -28,7 +28,7 @@
 
 #include "Math/Plane.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 #ifdef CADKERNEL_DEV
@@ -1234,4 +1234,4 @@ void Display2D(const FTopologicalLoop& Loop)
 #endif
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

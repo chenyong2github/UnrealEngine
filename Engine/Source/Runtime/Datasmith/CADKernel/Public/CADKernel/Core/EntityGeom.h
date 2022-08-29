@@ -8,7 +8,7 @@
 
 class FString;
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class CADKERNEL_API FEntityGeom : public FEntity

@@ -8,7 +8,7 @@
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FLoopCleaner::FLoopCleaner(FIsoTriangulator& Triangulator)

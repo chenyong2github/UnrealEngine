@@ -400,7 +400,7 @@ ECADParsingResult FTechSoftFileParser::Process()
 		}
 	}
 
-	// Adapt BRep to CADKernel
+	// Adapt BRep to UE::CADKernel
 	if (AdaptBRepModel() != A3D_SUCCESS)
 	{
 		return ECADParsingResult::ProcessFailed;

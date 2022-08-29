@@ -7,7 +7,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
 #include "CADKernel/UI/Display.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FGrid::DisplayIsoNode(EGridSpace DisplaySpace, const int32 PointIndex, FIdent Ident, EVisuProperty Property) const

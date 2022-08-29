@@ -8,7 +8,7 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/UI/Message.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 double FCompositeCurve::LocalToGlobalCoordinate(int32 CurveIndex, double Coordinate) const

@@ -3,120 +3,120 @@
 
 #include "CADKernel/Core/Types.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class FProgress;
-	class FProgressBase;
+class FProgress;
+class FProgressBase;
 
-	class CADKERNEL_API FProgressManager
+class CADKERNEL_API FProgressManager
+{
+	friend class FProgress;
+
+protected:
+
+	FProgress* RootProgress;
+	FProgress* CurrentProgress;
+
+	FProgress* GetRoot() const
 	{
-		friend class FProgress;
+		return RootProgress;
+	}
 
-	protected:
+	virtual void ActivateProgressBar(bool bActive)
+	{}
 
-		FProgress* RootProgress;
-		FProgress* CurrentProgress;
+	/**
+	 * Update the progress bar
+	 */
+	virtual void Update()
+	{}
 
-		FProgress* GetRoot() const
-		{
-			return RootProgress;
-		}
+	double GetProgression() const;
 
-		virtual void ActivateProgressBar(bool bActive)
-		{}
+	/**
+	 * @return a string describing the current step hierarchy
+	 */
+	virtual FString GetCurrentStep() const;
 
-		/**
-		 * Update the progress bar 
-		 */
-		virtual void Update()
-		{}
+	virtual void SetCurrentProgress(FProgress* InProgress);
 
-		double GetProgression() const;
-
-		/**
-		 * @return a string describing the current step hierarchy 
-		 */
-		virtual FString GetCurrentStep() const;
-
-		virtual void SetCurrentProgress(FProgress* InProgress);
-
-		FProgress* GetCurrentProgress() const
-		{
-			return CurrentProgress;
-		}
-
-	public:
-		FProgressManager()
-			: RootProgress(nullptr)
-			, CurrentProgress(nullptr)
-		{}
-	};
-
-	class CADKERNEL_API FProgress
+	FProgress* GetCurrentProgress() const
 	{
-		friend class FProgressManager;
-	private:
-		FString Name;
+		return CurrentProgress;
+	}
 
-		FProgress* Parent = nullptr;
-		FProgress* UnderlyingProgress = nullptr;
+public:
+	FProgressManager()
+		: RootProgress(nullptr)
+		, CurrentProgress(nullptr)
+	{}
+};
 
-		int32 StepCount;
-		int32 Progression = 0;
+class CADKERNEL_API FProgress
+{
+	friend class FProgressManager;
+private:
+	FString Name;
 
-	public:
-		FProgress(int32 InStepCount, const FString& InStepName = FString());
+	FProgress* Parent = nullptr;
+	FProgress* UnderlyingProgress = nullptr;
 
-		FProgress(const FString& StepName = FString())
-			: FProgress(1, StepName)
+	int32 StepCount;
+	int32 Progression = 0;
+
+public:
+	FProgress(int32 InStepCount, const FString& InStepName = FString());
+
+	FProgress(const FString& StepName = FString())
+		: FProgress(1, StepName)
+	{
+	}
+
+	virtual ~FProgress();
+
+	const FString& GetName()
+	{
+		return Name;
+	}
+
+	FProgress* GetParent() const
+	{
+		return Parent;
+	}
+
+	/**
+	 * Increase the advancement of of one step
+	 */
+	void Increase(int32 StepSize = 1);
+
+protected:
+
+	bool IsRoot() const
+	{
+		return Parent == nullptr;
+	}
+
+	void AddUnderlying(FProgress* Progress)
+	{
+		UnderlyingProgress = Progress;
+	}
+
+	void UnderlyingFinished(FProgress* Progress)
+	{
+		Progression++;
+		UnderlyingProgress = nullptr;
+	}
+
+	double GetProgression() const
+	{
+		double Ratio = ((double)Progression / (double)StepCount);
+
+		if (UnderlyingProgress)
 		{
+			Ratio += UnderlyingProgress->GetProgression() / (double)StepCount;
 		}
-
-		virtual ~FProgress();
-
-		const FString& GetName()
-		{
-			return Name;
-		}
-
-		FProgress* GetParent() const
-		{
-			return Parent;
-		}
-
-		/**
-		 * Increase the advancement of of one step
-		 */
-		void Increase(int32 StepSize = 1);
-
-	protected:
-
-		bool IsRoot() const
-		{
-			return Parent == nullptr;
-		}
-
-		void AddUnderlying(FProgress* Progress)
-		{
-			UnderlyingProgress = Progress;
-		}
-
-		void UnderlyingFinished(FProgress* Progress)
-		{
-			Progression++;
-			UnderlyingProgress = nullptr;
-		}
-
-		double GetProgression() const
-		{
-			double Ratio = ((double)Progression / (double)StepCount);
-
-			if (UnderlyingProgress)
-			{
-				Ratio += UnderlyingProgress->GetProgression() / (double)StepCount;
-			}
-			return Ratio;
-		}
-	};
+		return Ratio;
+	}
+};
 }
 

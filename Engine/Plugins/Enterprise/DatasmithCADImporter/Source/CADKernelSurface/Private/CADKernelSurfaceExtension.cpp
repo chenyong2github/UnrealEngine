@@ -31,6 +31,8 @@ void UCADKernelParametricSurfaceData::Serialize(FArchive& Ar)
 
 bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const FDatasmithRetessellationOptions& RetessellateOptions)
 {
+	using namespace UE::CADKernel;
+
 	bool bSuccessfulTessellation = false;
 
 #if WITH_EDITOR
@@ -57,11 +59,11 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 		}
 
 		const double GeometricTolerance = 0.01; // mm
-		TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(GeometricTolerance);
+		TSharedRef<FSession> CADKernelSession = MakeShared<FSession>(GeometricTolerance);
 		CADKernelSession->AddDatabase(RawData);
 
-		CADKernel::FModel& CADKernelModel = CADKernelSession->GetModel();
-		TArray<TSharedPtr<CADKernel::FBody>> CADKernelBodies = CADKernelModel.GetBodies();
+		FModel& CADKernelModel = CADKernelSession->GetModel();
+		TArray<TSharedPtr<FBody>> CADKernelBodies = CADKernelModel.GetBodies();
 		if (CADKernelBodies.Num() != 1)
 		{
 			return bSuccessfulTessellation;

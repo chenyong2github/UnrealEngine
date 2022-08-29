@@ -6,7 +6,7 @@
 
 using namespace std;
 
-namespace CADKernel 
+namespace UE::CADKernel 
 { 
 
 FString FParameterValue::ToString() const

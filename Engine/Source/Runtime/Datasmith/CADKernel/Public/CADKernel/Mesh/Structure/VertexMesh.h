@@ -3,24 +3,24 @@
 
 #include "CADKernel/Mesh/Structure/Mesh.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class FModelMesh;
+class FModelMesh;
 
-	class CADKERNEL_API FVertexMesh : public FMesh
+class CADKERNEL_API FVertexMesh : public FMesh
+{
+protected:
+
+public:
+	FVertexMesh(FModelMesh& Model, FTopologicalEntity& TopologicalEntity)
+		: FMesh(Model, TopologicalEntity)
 	{
-	protected:
+	}
 
-	public:
-		FVertexMesh(FModelMesh& Model, FTopologicalEntity& TopologicalEntity)
-			: FMesh(Model, TopologicalEntity)
-		{
-		}
-
-		int32 GetMesh() const
-		{
-			return StartNodeId;
-		}
-	};
+	int32 GetMesh() const
+	{
+		return StartNodeId;
+	}
+};
 }
 

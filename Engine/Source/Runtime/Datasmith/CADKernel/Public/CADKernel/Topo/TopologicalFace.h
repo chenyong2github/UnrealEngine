@@ -16,7 +16,7 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 class FCADKernelArchive;
 class FCurve;
@@ -713,4 +713,4 @@ struct FBBoxWithNormal
 };
 
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

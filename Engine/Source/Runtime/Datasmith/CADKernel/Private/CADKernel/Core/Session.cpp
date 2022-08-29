@@ -4,7 +4,7 @@
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/UI/Message.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
@@ -97,4 +97,4 @@ void FSession::SetGeometricTolerance(double NewTolerance)
 	ensure(Database.GetModel().EntityCount() == 0);
 	GeometricTolerance = NewTolerance;
 }
-} // namespace CADKernel
+} // namespace UE::CADKernel

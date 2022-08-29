@@ -5,7 +5,7 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/UI/Message.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FTopologicalEdge;
@@ -248,4 +248,4 @@ public:
 };
 
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

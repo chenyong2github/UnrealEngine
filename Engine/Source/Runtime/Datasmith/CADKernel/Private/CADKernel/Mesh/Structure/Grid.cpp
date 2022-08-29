@@ -13,8 +13,9 @@
 
 //#define DEBUG_GRID
 //#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
-namespace CADKernel
+namespace UE::CADKernel
 {
+
 FGrid::FGrid(FTopologicalFace& InFace, FModelMesh& InMeshModel)
 	: Face(InFace)
 	, FaceTolerance(InFace.GetIsoTolerances())
@@ -198,7 +199,7 @@ void FGrid::GetPreferredUVCuttingParametersFromLoops(FCuttingGrid& CuttingParame
 	{
 		{
 			F3DDebugSession _(TEXT("Surface 2D"));
-			CADKernel::Display2D(*Face.GetCarrierSurface());
+			UE::CADKernel::Display2D(*Face.GetCarrierSurface());
 		}
 	}
 #endif

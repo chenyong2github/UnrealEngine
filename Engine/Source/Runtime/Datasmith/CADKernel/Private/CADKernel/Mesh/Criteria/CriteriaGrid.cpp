@@ -11,7 +11,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 const FPoint& FCriteriaGrid::GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FVector3f* OutNormal) const
@@ -127,7 +127,7 @@ void FCriteriaGrid::Display() const
 		{
 			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
 			{
-				CADKernel::DisplayPoint(GetPoint(UIndex, VIndex), UIndex);
+				UE::CADKernel::DisplayPoint(GetPoint(UIndex, VIndex), UIndex);
 			}
 		}
 	}
@@ -138,7 +138,7 @@ void FCriteriaGrid::Display() const
 		{
 			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU) - 1; ++UIndex)
 			{
-				CADKernel::DisplayPoint(GetIntermediateU(UIndex, VIndex), EVisuProperty::PurplePoint);
+				UE::CADKernel::DisplayPoint(GetIntermediateU(UIndex, VIndex), EVisuProperty::PurplePoint);
 			}
 		}
 	}
@@ -149,7 +149,7 @@ void FCriteriaGrid::Display() const
 		{
 			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
 			{
-				CADKernel::DisplayPoint(GetIntermediateV(UIndex, VIndex), EVisuProperty::PurplePoint);
+				UE::CADKernel::DisplayPoint(GetIntermediateV(UIndex, VIndex), EVisuProperty::PurplePoint);
 			}
 		}
 	}
@@ -160,7 +160,7 @@ void FCriteriaGrid::Display() const
 		{
 			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU) - 1; ++UIndex)
 			{
-				CADKernel::DisplayPoint(GetIntermediateUV(UIndex, VIndex), EVisuProperty::PurplePoint);
+				UE::CADKernel::DisplayPoint(GetIntermediateUV(UIndex, VIndex), EVisuProperty::PurplePoint);
 			}
 		}
 	}
@@ -169,7 +169,7 @@ void FCriteriaGrid::Display() const
 		F3DDebugSession A(TEXT("Loop 3D"));
 		for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 		{
-			CADKernel::Display(*Loop);
+			UE::CADKernel::Display(*Loop);
 		}
 	}
 
@@ -177,7 +177,7 @@ void FCriteriaGrid::Display() const
 		F3DDebugSession A(TEXT("Loop 2D"));
 		for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 		{
-			CADKernel::Display2D(*Loop);
+			UE::CADKernel::Display2D(*Loop);
 		}
 	}
 
@@ -187,7 +187,7 @@ void FCriteriaGrid::Display() const
 		{
 			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
 			{
-				CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), GetCoordinate(EIso::IsoV, VIndex)));
+				UE::CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), GetCoordinate(EIso::IsoV, VIndex)));
 			}
 		}
 	}
@@ -198,21 +198,21 @@ void FCriteriaGrid::Display() const
 		{
 			for (int32 UIndex = 1; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
 			{
-				CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1)) * 0.5, GetCoordinate(EIso::IsoV, VIndex)), EVisuProperty::PurplePoint);
+				UE::CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1)) * 0.5, GetCoordinate(EIso::IsoV, VIndex)), EVisuProperty::PurplePoint);
 			}
 		}
 		for (int32 VIndex = 1; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 		{
 			for (int32 UIndex = 0; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
 			{
-				CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1)) * 0.5), EVisuProperty::PurplePoint);
+				UE::CADKernel::DisplayPoint(FPoint2D(GetCoordinate(EIso::IsoU, UIndex), (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1)) * 0.5), EVisuProperty::PurplePoint);
 			}
 		}
 		for (int32 VIndex = 1; VIndex < GetCoordinateCount(EIso::IsoV); ++VIndex)
 		{
 			for (int32 UIndex = 1; UIndex < GetCoordinateCount(EIso::IsoU); ++UIndex)
 			{
-				CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1)) * 0.5, (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1)) * 0.5), EVisuProperty::PurplePoint);
+				UE::CADKernel::DisplayPoint(FPoint2D((GetCoordinate(EIso::IsoU, UIndex) + GetCoordinate(EIso::IsoU, UIndex - 1)) * 0.5, (GetCoordinate(EIso::IsoV, VIndex) + GetCoordinate(EIso::IsoV, VIndex - 1)) * 0.5), EVisuProperty::PurplePoint);
 			}
 		}
 	}
@@ -220,5 +220,5 @@ void FCriteriaGrid::Display() const
 	Wait();
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

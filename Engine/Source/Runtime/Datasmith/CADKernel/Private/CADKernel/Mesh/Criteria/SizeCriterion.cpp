@@ -6,7 +6,7 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FMinSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
@@ -86,4 +86,4 @@ void FMaxSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDia
 	}
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

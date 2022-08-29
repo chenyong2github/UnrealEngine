@@ -11,7 +11,7 @@
 //#define DEBUG_CURVE_SAMPLING 
 //#define CHECK_RESULT_MAKE_ISO_POLYLINE
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 template<typename PolylineType, typename PointType>
@@ -419,7 +419,7 @@ public:
 				F3DDebugSession G(FString::Printf(TEXT("Curve %d"), Step));
 				for (const FPoint& Point : Sampling.GetPoints())
 				{
-					CADKernel::DisplayPoint(Point, EVisuProperty::BluePoint, Index++);
+					UE::CADKernel::DisplayPoint(Point, EVisuProperty::BluePoint, Index++);
 				}
 
 				for (int32 Index = 0; Index < Sampling.GetPoints().Num() - 1; ++Index)
@@ -439,7 +439,7 @@ public:
 				F3DDebugSession G(FString::Printf(TEXT("Next Point Tmp %d"), Step));
 				for (const FPoint& Point : CandidatePoints.GetPoints())
 				{
-					CADKernel::DisplayPoint(Point, EVisuProperty::YellowPoint, Index++);
+					UE::CADKernel::DisplayPoint(Point, EVisuProperty::YellowPoint, Index++);
 				}
 			}
 			Wait();
@@ -500,4 +500,4 @@ public:
 #endif
 };
 
-} // ns CADKernel
+} // ns UE::CADKernel

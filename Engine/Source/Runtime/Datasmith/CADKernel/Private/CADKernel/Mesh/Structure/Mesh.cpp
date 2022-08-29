@@ -5,7 +5,7 @@
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 int32 FMesh::RegisterCoordinates()

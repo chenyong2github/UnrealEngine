@@ -19,7 +19,7 @@
 #include "CADKernel/Topo/TopologyReport.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FTopologicalFace::ComputeBoundary() const
@@ -131,8 +131,8 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 #ifdef DEBUG_GET_BBOX2
 			for (int32 Index = 0; Index < 3; ++Index)
 			{
-				CADKernel::DisplayPoint(IsoBBox.MaxPoints[Index], EVisuProperty::YellowPoint);
-				CADKernel::DisplayPoint(IsoBBox.MinPoints[Index], EVisuProperty::YellowPoint);
+				UE::CADKernel::DisplayPoint(IsoBBox.MaxPoints[Index], EVisuProperty::YellowPoint);
+				UE::CADKernel::DisplayPoint(IsoBBox.MinPoints[Index], EVisuProperty::YellowPoint);
 			}
 #endif
 
@@ -150,14 +150,14 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 		F3DDebugSession _(TEXT("BBox Face"));
 
 		FAABB AABB(BBox.Min, BBox.Max);
-		CADKernel::DisplayAABB(AABB);
+		UE::CADKernel::DisplayAABB(AABB);
 
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
-			CADKernel::DisplayPoint(BBox.MaxPoints[Index], EVisuProperty::YellowPoint);
-			CADKernel::DisplayPoint(BBox.MinPoints[Index], EVisuProperty::YellowPoint);
-			CADKernel::DisplaySegment(BBox.MaxPoints[Index], BBox.MaxPoints[Index] + BBox.MaxPointNormals[Index], 0, EVisuProperty::YellowCurve);
-			CADKernel::DisplaySegment(BBox.MinPoints[Index], BBox.MinPoints[Index] + BBox.MinPointNormals[Index], 0, EVisuProperty::YellowCurve);
+			UE::CADKernel::DisplayPoint(BBox.MaxPoints[Index], EVisuProperty::YellowPoint);
+			UE::CADKernel::DisplayPoint(BBox.MinPoints[Index], EVisuProperty::YellowPoint);
+			UE::CADKernel::DisplaySegment(BBox.MaxPoints[Index], BBox.MaxPoints[Index] + BBox.MaxPointNormals[Index], 0, EVisuProperty::YellowCurve);
+			UE::CADKernel::DisplaySegment(BBox.MinPoints[Index], BBox.MinPoints[Index] + BBox.MinPointNormals[Index], 0, EVisuProperty::YellowCurve);
 		}
 		Wait();
 	}

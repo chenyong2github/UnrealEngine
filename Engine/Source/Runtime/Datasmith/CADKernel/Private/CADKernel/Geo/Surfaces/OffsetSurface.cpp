@@ -8,7 +8,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/UI/Display.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FOffsetSurface::InitBoundary()

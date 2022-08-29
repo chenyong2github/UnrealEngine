@@ -2,7 +2,7 @@
 
 #include "CADKernel/Geo/Curves/SegmentCurve.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TSharedPtr<FEntityGeom> FSegmentCurve::ApplyMatrix(const FMatrixH& InMatrix) const

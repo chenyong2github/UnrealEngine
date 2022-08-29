@@ -17,7 +17,7 @@
 #include <signal.h>
 #endif 
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TUniquePtr<FSystem> FSystem::Instance = nullptr;

@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-namespace CADKernel::Utils
+namespace UE::CADKernel::Utils
 {
 
 inline std::string ToString(const TCHAR* WideString)

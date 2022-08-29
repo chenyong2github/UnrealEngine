@@ -19,7 +19,7 @@ class ON_BrepTrim;
 class ON_NurbsSurface;
 class ON_3dVector;
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 class FShell;
 class FSurface;
@@ -50,22 +50,22 @@ public:
 	static TSharedPtr<FOpenNurbsBRepToCADKernelConverter> GetSharedSession();
 
 private:
-	TSharedPtr<CADKernel::FTopologicalFace> AddFace(const ON_BrepFace& OpenNurbsFace);
-	TSharedPtr<CADKernel::FSurface> AddSurface(ON_NurbsSurface& Surface);
+	TSharedPtr<UE::CADKernel::FTopologicalFace> AddFace(const ON_BrepFace& OpenNurbsFace);
+	TSharedPtr<UE::CADKernel::FSurface> AddSurface(ON_NurbsSurface& Surface);
 
-	TSharedPtr<CADKernel::FTopologicalLoop> AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedPtr<CADKernel::FSurface>& CarrierSurface, const bool bIsExternal);
+	TSharedPtr<UE::CADKernel::FTopologicalLoop> AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedPtr<UE::CADKernel::FSurface>& CarrierSurface, const bool bIsExternal);
 
 	/**
 	 * Build face's links with its neighbor have to be done after the loop is finalize.
 	 * This is to avoid to link an edge with another and then to delete it...
 	 */
-	void LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, CADKernel::FTopologicalLoop& Loop);
+	void LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, UE::CADKernel::FTopologicalLoop& Loop);
 
-	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedPtr<CADKernel::FSurface>& CarrierSurface);
+	TSharedPtr<UE::CADKernel::FTopologicalEdge> AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedPtr<UE::CADKernel::FSurface>& CarrierSurface);
 
 protected:
 
-	TMap<int32, TSharedPtr<CADKernel::FTopologicalEdge>>  OpenNurbsTrimId2CADKernelEdge;
+	TMap<int32, TSharedPtr<UE::CADKernel::FTopologicalEdge>>  OpenNurbsTrimId2CADKernelEdge;
 
 };
 

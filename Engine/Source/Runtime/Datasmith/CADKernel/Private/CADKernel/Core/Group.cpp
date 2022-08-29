@@ -4,7 +4,7 @@
 
 #include "CADKernel/Core/System.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 { 
 
 const TCHAR* GroupOriginNames[] = {

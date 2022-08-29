@@ -31,11 +31,11 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 
 
-namespace
+namespace OpenNurbsBRepConverterTool
 {
 	enum EAxis { U, V };
 
-	void FillPerAxisInfo(EAxis Axis, ON_NurbsSurface& OpenNurbsSurface, CADKernel::FNurbsSurfaceHomogeneousData& OutNurbsInfo)
+	void FillPerAxisInfo(EAxis Axis, ON_NurbsSurface& OpenNurbsSurface, UE::CADKernel::FNurbsSurfaceHomogeneousData& OutNurbsInfo)
 	{
 		int32& Degree = Axis == EAxis::U ? OutNurbsInfo.UDegree : OutNurbsInfo.VDegree;
 		Degree = OpenNurbsSurface.Order(Axis) - 1;
@@ -65,11 +65,11 @@ namespace
 	}
 }
 
-TSharedPtr<CADKernel::FSurface> FOpenNurbsBRepToCADKernelConverter::AddSurface(ON_NurbsSurface& OpenNurbsSurface)
+TSharedPtr<UE::CADKernel::FSurface> FOpenNurbsBRepToCADKernelConverter::AddSurface(ON_NurbsSurface& OpenNurbsSurface)
 {
-	CADKernel::FNurbsSurfaceHomogeneousData NurbsData;
-	FillPerAxisInfo(U, OpenNurbsSurface, NurbsData);
-	FillPerAxisInfo(V, OpenNurbsSurface, NurbsData);
+	UE::CADKernel::FNurbsSurfaceHomogeneousData NurbsData;
+	OpenNurbsBRepConverterTool::FillPerAxisInfo(OpenNurbsBRepConverterTool::U, OpenNurbsSurface, NurbsData);
+	OpenNurbsBRepConverterTool::FillPerAxisInfo(OpenNurbsBRepConverterTool::V, OpenNurbsSurface, NurbsData);
 
 	{
 		int32 ControlVertexDimension = OpenNurbsSurface.CVSize();
@@ -98,12 +98,12 @@ TSharedPtr<CADKernel::FSurface> FOpenNurbsBRepToCADKernelConverter::AddSurface(O
 		}
 	}
 
-	return CADKernel::FSurface::MakeNurbsSurface(GeometricTolerance, NurbsData);
+	return UE::CADKernel::FSurface::MakeNurbsSurface(GeometricTolerance, NurbsData);
 }
 
-TSharedPtr<CADKernel::FTopologicalLoop> FOpenNurbsBRepToCADKernelConverter::AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedPtr<CADKernel::FSurface> & CarrierSurface, const bool bIsExternal)
+TSharedPtr<UE::CADKernel::FTopologicalLoop> FOpenNurbsBRepToCADKernelConverter::AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedPtr<UE::CADKernel::FSurface> & CarrierSurface, const bool bIsExternal)
 {
-	using namespace CADKernel;
+	using namespace UE::CADKernel;
 
 	if (!OpenNurbsLoop.IsValid())
 	{
@@ -115,7 +115,7 @@ TSharedPtr<CADKernel::FTopologicalLoop> FOpenNurbsBRepToCADKernelConverter::AddL
 
 	int32 EdgeCount = OpenNurbsLoop.TrimCount();
 	TArray<TSharedPtr<FTopologicalEdge>> Edges;
-	TArray<CADKernel::EOrientation> Directions;
+	TArray<UE::CADKernel::EOrientation> Directions;
 
 	Edges.Reserve(EdgeCount);
 	Directions.Reserve(EdgeCount);
@@ -128,7 +128,7 @@ TSharedPtr<CADKernel::FTopologicalLoop> FOpenNurbsBRepToCADKernelConverter::AddL
 		if (Edge.IsValid())
 		{
 			Edges.Add(Edge);
-			Directions.Emplace(CADKernel::EOrientation::Front);
+			Directions.Emplace(UE::CADKernel::EOrientation::Front);
 		}
 	}
 
@@ -140,7 +140,7 @@ TSharedPtr<CADKernel::FTopologicalLoop> FOpenNurbsBRepToCADKernelConverter::AddL
 	return FTopologicalLoop::Make(Edges, Directions, bIsExternal, GeometricTolerance);
 }
 
-void FOpenNurbsBRepToCADKernelConverter::LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, CADKernel::FTopologicalLoop& Loop)
+void FOpenNurbsBRepToCADKernelConverter::LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, UE::CADKernel::FTopologicalLoop& Loop)
 {
 	int32 EdgeCount = OpenNurbsLoop.TrimCount();
 	for (int32 Index = 0; Index < EdgeCount; ++Index)
@@ -152,7 +152,7 @@ void FOpenNurbsBRepToCADKernelConverter::LinkEdgesLoop(const ON_BrepLoop& OpenNu
 			continue;
 		}
 
-		TSharedPtr<CADKernel::FTopologicalEdge>* Edge = OpenNurbsTrimId2CADKernelEdge.Find(OpenNurbsTrim.m_trim_index);
+		TSharedPtr<UE::CADKernel::FTopologicalEdge>* Edge = OpenNurbsTrimId2CADKernelEdge.Find(OpenNurbsTrim.m_trim_index);
 		if (!Edge || !Edge->IsValid() || (*Edge)->IsDeleted() || (*Edge)->IsDegenerated())
 		{
 			continue;
@@ -166,7 +166,7 @@ void FOpenNurbsBRepToCADKernelConverter::LinkEdgesLoop(const ON_BrepLoop& OpenNu
 				continue;
 			}
 
-			TSharedPtr<CADKernel::FTopologicalEdge>* TwinEdge = OpenNurbsTrimId2CADKernelEdge.Find(LinkedEdgeId);
+			TSharedPtr<UE::CADKernel::FTopologicalEdge>* TwinEdge = OpenNurbsTrimId2CADKernelEdge.Find(LinkedEdgeId);
 			if (TwinEdge != nullptr && TwinEdge->IsValid() && !(*TwinEdge)->IsDeleted() && !(*TwinEdge)->IsDegenerated())
 			{
 				(*Edge)->Link(**TwinEdge, SquareTolerance);
@@ -176,9 +176,9 @@ void FOpenNurbsBRepToCADKernelConverter::LinkEdgesLoop(const ON_BrepLoop& OpenNu
 	}
 }
 
-TSharedPtr<CADKernel::FTopologicalEdge> FOpenNurbsBRepToCADKernelConverter::AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedPtr<CADKernel::FSurface>& CarrierSurface)
+TSharedPtr<UE::CADKernel::FTopologicalEdge> FOpenNurbsBRepToCADKernelConverter::AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedPtr<UE::CADKernel::FSurface>& CarrierSurface)
 {
-	using namespace CADKernel;
+	using namespace UE::CADKernel;
 
 	ON_BrepEdge* OpenNurbsEdge = OpenNurbsTrim.Edge();
 	if (OpenNurbsEdge == nullptr)
@@ -255,9 +255,9 @@ TSharedPtr<CADKernel::FTopologicalEdge> FOpenNurbsBRepToCADKernelConverter::AddE
 	return Edge;
 }
 
-TSharedPtr<CADKernel::FTopologicalFace> FOpenNurbsBRepToCADKernelConverter::AddFace(const ON_BrepFace& OpenNurbsFace)
+TSharedPtr<UE::CADKernel::FTopologicalFace> FOpenNurbsBRepToCADKernelConverter::AddFace(const ON_BrepFace& OpenNurbsFace)
 {
-	using namespace CADKernel;
+	using namespace UE::CADKernel;
 
 	ON_NurbsSurface OpenNurbsSurface;
 	OpenNurbsFace.NurbsSurface(&OpenNurbsSurface);
@@ -265,7 +265,7 @@ TSharedPtr<CADKernel::FTopologicalFace> FOpenNurbsBRepToCADKernelConverter::AddF
 	TSharedPtr<FSurface> Surface = AddSurface(OpenNurbsSurface);
 	if (!Surface.IsValid())
 	{
-		return TSharedPtr<CADKernel::FTopologicalFace>();
+		return TSharedPtr<FTopologicalFace>();
 	}
 
 	TSharedRef<FTopologicalFace> Face = FEntity::MakeShared<FTopologicalFace>(Surface);
@@ -296,7 +296,7 @@ TSharedPtr<CADKernel::FTopologicalFace> FOpenNurbsBRepToCADKernelConverter::AddF
 
 bool FOpenNurbsBRepToCADKernelConverter::AddBRep(ON_Brep& BRep, const ON_3dVector& Offset)
 {
-	using namespace CADKernel;
+	using namespace UE::CADKernel;
 
 	OpenNurbsTrimId2CADKernelEdge.Empty();
 
@@ -316,7 +316,7 @@ bool FOpenNurbsBRepToCADKernelConverter::AddBRep(ON_Brep& BRep, const ON_3dVecto
 		TSharedPtr<FTopologicalFace> Face = AddFace(OpenNurbsFace);
 		if (Face.IsValid())
 		{
-			Shell->Add(Face.ToSharedRef(), CADKernel::EOrientation::Front);
+			Shell->Add(Face.ToSharedRef(), UE::CADKernel::EOrientation::Front);
 		}
 	}
 

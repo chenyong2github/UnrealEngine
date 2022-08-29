@@ -5,7 +5,7 @@
 #include "CADKernel/Math/MathConst.h"
 
 // this will eventually be reconciled with what the Geometry team is using.
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FPoint2D;
@@ -23,7 +23,7 @@ public:
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		double XYZ[3];
+			double XYZ[3];
 	};
 
 public:
@@ -57,16 +57,16 @@ public:
 
 	constexpr double& operator[](int32 Index)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZ[Index];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XYZ[Index];
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr double operator[](int32 Index) const
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZ[Index];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XYZ[Index];
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	bool operator==(const FPoint& Point) const
@@ -218,9 +218,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return FVector(X, Y, Z);
 	}
 
-	operator FVector3f() const 
+	operator FVector3f() const
 	{
-		return FVector3f((float) X, (float)Y, (float)Z);
+		return FVector3f((float)X, (float)Y, (float)Z);
 	}
 
 	void SetMin(const FPoint& Point)
@@ -361,7 +361,7 @@ public:
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		double XYZW[4];
+			double XYZW[4];
 	};
 
 public:
@@ -396,16 +396,16 @@ public:
 
 	constexpr double& operator[](int32 Index)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZW[Index];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XYZW[Index];
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr double operator[](int32 Index) const
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZW[Index];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XYZW[Index];
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FPointH operator+(const FPointH& Point) const
@@ -686,7 +686,7 @@ public:
 		};
 
 		UE_DEPRECATED(all, "For internal use only")
-		float XYZ[3];
+			float XYZ[3];
 	};
 
 	/** A zero point (0,0,0)*/
@@ -710,16 +710,16 @@ public:
 
 	constexpr float& operator[](int32 Index)
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZ[Index];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XYZ[Index];
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	constexpr float operator[](int32 Index) const
 	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return XYZ[Index];
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XYZ[Index];
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FFPoint& operator=(const FPoint& Point)
@@ -746,17 +746,17 @@ inline FPoint2D operator*(double s, const FPoint2D& Point)
 
 }
 
-inline uint32 GetTypeHash(const CADKernel::FPoint& Point)
+inline uint32 GetTypeHash(const UE::CADKernel::FPoint& Point)
 {
 	return HashCombine(GetTypeHash(Point.X), HashCombine(GetTypeHash(Point.Y), GetTypeHash(Point.Z)));
 }
 
-inline uint32 GetTypeHash(const CADKernel::FPoint2D& Point)
+inline uint32 GetTypeHash(const UE::CADKernel::FPoint2D& Point)
 {
 	return HashCombine(GetTypeHash(Point.U), GetTypeHash(Point.V));
 }
 
-inline uint32 GetTypeHash(const CADKernel::FPointH& Point)
+inline uint32 GetTypeHash(const UE::CADKernel::FPointH& Point)
 {
 	return HashCombine(GetTypeHash(Point.X), HashCombine(GetTypeHash(Point.Y), HashCombine(GetTypeHash(Point.Z), GetTypeHash(Point.W))));
 }

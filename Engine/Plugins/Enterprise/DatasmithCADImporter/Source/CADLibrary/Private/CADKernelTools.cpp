@@ -46,7 +46,7 @@ namespace CADLibrary
 		}
 	};
 
-	static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
+	static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
 	{
 		TArray<FVector3f> VertexArray;
 		ModelMesh->GetNodeCoordinates(VertexArray);
@@ -92,9 +92,9 @@ namespace CADLibrary
 		}
 	}
 
-	bool FillMesh(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
+	bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
 	{
-		using namespace CADKernel;
+		using namespace UE::CADKernel;
 
 		const int32 UVChannel = 0;
 		const int32 TriangleCount = 3;
@@ -257,7 +257,7 @@ namespace CADLibrary
 		return true;
 	}
 
-	static bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, const TSharedRef<CADKernel::FModelMesh>& InModelMesh, FMeshDescription& MeshDescription)
+	static bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& InModelMesh, FMeshDescription& MeshDescription)
 	{
 		int32 VertexCount = InModelMesh->GetVertexCount();
 		int32 TriangleCount = InModelMesh->GetTriangleCount();
@@ -278,9 +278,9 @@ namespace CADLibrary
 		return MeshDescription.Polygons().Num() > 0;
 	}
 
-	bool FCADKernelTools::Tessellate(CADKernel::FTopologicalShapeEntity& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
+	bool FCADKernelTools::Tessellate(UE::CADKernel::FTopologicalShapeEntity& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
 	{
-		using namespace CADKernel;
+		using namespace UE::CADKernel;
 
 		// Tessellate the model
 		TSharedRef<FModelMesh> CADKernelModelMesh = FEntity::MakeShared<FModelMesh>();
@@ -295,7 +295,7 @@ namespace CADLibrary
 	}
 
 
-	uint32 FCADKernelTools::GetFaceTessellation(CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial)
+	uint32 FCADKernelTools::GetFaceTessellation(UE::CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial)
 	{
 		// Something wrong happened, either an error or no data to collect
 		if (FaceMesh.TrianglesVerticesIndex.Num() == 0)
@@ -305,7 +305,7 @@ namespace CADLibrary
 
 		FTessellationData& Tessellation = OutBodyMesh.Faces.Emplace_GetRef();
 
-		const CADKernel::FTopologicalFace& TopologicalFace = (const CADKernel::FTopologicalFace&) FaceMesh.GetGeometricEntity();
+		const UE::CADKernel::FTopologicalFace& TopologicalFace = (const UE::CADKernel::FTopologicalFace&) FaceMesh.GetGeometricEntity();
 		Tessellation.PatchId = TopologicalFace.GetPatchId();
 
 		Tessellation.PositionIndices = MoveTemp(FaceMesh.VerticesGlobalIndex);
@@ -329,7 +329,7 @@ namespace CADLibrary
 		return Tessellation.VertexIndices.Num() / 3;
 	}
 
-	void GetDisplayDataIds(const CADKernel::FTopologicalShapeEntity& ShapeEntity, FObjectDisplayDataId& DisplayDataId)
+	void GetDisplayDataIds(const UE::CADKernel::FTopologicalShapeEntity& ShapeEntity, FObjectDisplayDataId& DisplayDataId)
 	{
 		if (ShapeEntity.GetColorId() != 0)
 		{
@@ -341,7 +341,7 @@ namespace CADLibrary
 		}
 	}
 
-	void FCADKernelTools::GetBodyTessellation(const CADKernel::FModelMesh& ModelMesh, const CADKernel::FBody& Body, FBodyMesh& OutBodyMesh)
+	void FCADKernelTools::GetBodyTessellation(const UE::CADKernel::FModelMesh& ModelMesh, const UE::CADKernel::FBody& Body, FBodyMesh& OutBodyMesh)
 	{
 		ModelMesh.GetNodeCoordinates(OutBodyMesh.VertexArray);
 
@@ -363,7 +363,7 @@ namespace CADLibrary
 		BodyMaterial.DefaultMaterialUId = BodyMaterial.MaterialUId != 0 ? BodyMaterial.MaterialUId : BodyMaterial.ColorUId;
 
 		// Loop through the face of bodies and collect all tessellation data
-		for (const TSharedPtr<CADKernel::FShell>& Shell : Body.GetShells())
+		for (const TSharedPtr<UE::CADKernel::FShell>& Shell : Body.GetShells())
 		{
 			if (!Shell.IsValid())
 			{
@@ -373,7 +373,7 @@ namespace CADLibrary
 			FObjectDisplayDataId ShellMaterial = BodyMaterial;
 			GetDisplayDataIds(*Shell, ShellMaterial);
 
-			for (const CADKernel::FOrientedFace& Face : Shell->GetFaces())
+			for (const UE::CADKernel::FOrientedFace& Face : Shell->GetFaces())
 			{
 				if (!Face.Entity.IsValid())
 				{
@@ -394,31 +394,31 @@ namespace CADLibrary
 		}
 	}
 
-	void FCADKernelTools::DefineMeshCriteria(CADKernel::FModelMesh& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance)
+	void FCADKernelTools::DefineMeshCriteria(UE::CADKernel::FModelMesh& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance)
 	{
 		{
-			TSharedPtr<CADKernel::FCriterion> CurvatureCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::CADCurvature);
+			TSharedPtr<UE::CADKernel::FCriterion> CurvatureCriterion = UE::CADKernel::FCriterion::CreateCriterion(UE::CADKernel::ECriterion::CADCurvature);
 			MeshModel.AddCriterion(CurvatureCriterion);
 
-			TSharedPtr<CADKernel::FCriterion> MinSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MinSize, 2. * GeometricTolerance);
+			TSharedPtr<UE::CADKernel::FCriterion> MinSizeCriterion = UE::CADKernel::FCriterion::CreateCriterion(UE::CADKernel::ECriterion::MinSize, 2. * GeometricTolerance);
 			MeshModel.AddCriterion(MinSizeCriterion);
 		}
 
 		if (ImportParameters.GetMaxEdgeLength() > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.GetMaxEdgeLength());
+			TSharedPtr<UE::CADKernel::FCriterion> MaxSizeCriterion = UE::CADKernel::FCriterion::CreateCriterion(UE::CADKernel::ECriterion::MaxSize, ImportParameters.GetMaxEdgeLength());
 			MeshModel.AddCriterion(MaxSizeCriterion);
 		}
 
 		if (ImportParameters.GetChordTolerance() > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, ImportParameters.GetChordTolerance());
+			TSharedPtr<UE::CADKernel::FCriterion> ChordCriterion = UE::CADKernel::FCriterion::CreateCriterion(UE::CADKernel::ECriterion::Sag, ImportParameters.GetChordTolerance());
 			MeshModel.AddCriterion(ChordCriterion);
 		}
 
 		if (ImportParameters.GetMaxNormalAngle() > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> MaxNormalAngleCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Angle, ImportParameters.GetMaxNormalAngle());
+			TSharedPtr<UE::CADKernel::FCriterion> MaxNormalAngleCriterion = UE::CADKernel::FCriterion::CreateCriterion(UE::CADKernel::ECriterion::Angle, ImportParameters.GetMaxNormalAngle());
 			MeshModel.AddCriterion(MaxNormalAngleCriterion);
 		}
 	}

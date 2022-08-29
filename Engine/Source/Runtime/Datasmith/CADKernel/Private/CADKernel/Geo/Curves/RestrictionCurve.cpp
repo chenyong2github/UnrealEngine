@@ -2,7 +2,7 @@
 
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FRestrictionCurve::ExtendTo(const FPoint2D& Point)

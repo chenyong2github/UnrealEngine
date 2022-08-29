@@ -10,7 +10,7 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/UI/Display.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FIdent FEdgeSegment::LastId = 0;

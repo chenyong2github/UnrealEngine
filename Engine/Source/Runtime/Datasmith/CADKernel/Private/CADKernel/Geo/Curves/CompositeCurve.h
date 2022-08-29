@@ -4,90 +4,90 @@
 #include "CADKernel/Core/OrientedEntity.h"
 #include "CADKernel/Geo/Curves/Curve.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	struct FCurvePoint;
+struct FCurvePoint;
 
-	class CADKERNEL_API FOrientedCurve : public TOrientedEntity<FCurve>
+class CADKERNEL_API FOrientedCurve : public TOrientedEntity<FCurve>
+{
+public:
+	FOrientedCurve(TSharedPtr<FCurve>& InEntity, EOrientation InDirection)
+		: TOrientedEntity(InEntity, InDirection)
 	{
-	public:
-		FOrientedCurve(TSharedPtr<FCurve>& InEntity, EOrientation InDirection)
-			: TOrientedEntity(InEntity, InDirection)
-		{
-		}
+	}
 
-		FOrientedCurve(const FOrientedCurve& OrientiredEntity)
-			: TOrientedEntity(OrientiredEntity)
-		{
-		}
-
-		FOrientedCurve()
-			: TOrientedEntity()
-		{
-		}
-	};
-
-	class CADKERNEL_API FCompositeCurve : public FCurve
+	FOrientedCurve(const FOrientedCurve& OrientiredEntity)
+		: TOrientedEntity(OrientiredEntity)
 	{
-		friend class FEntity;
+	}
 
-	protected:
-		TArray<FOrientedCurve> Curves;
-		TArray<double> Coordinates;
+	FOrientedCurve()
+		: TOrientedEntity()
+	{
+	}
+};
 
-		FCompositeCurve(const TArray<TSharedPtr<FCurve>>& Curves, bool bDoInversions = false);
+class CADKERNEL_API FCompositeCurve : public FCurve
+{
+	friend class FEntity;
 
-		FCompositeCurve() = default;
+protected:
+	TArray<FOrientedCurve> Curves;
+	TArray<double> Coordinates;
 
-	public:
+	FCompositeCurve(const TArray<TSharedPtr<FCurve>>& Curves, bool bDoInversions = false);
 
-		virtual void Serialize(FCADKernelArchive& Ar) override
+	FCompositeCurve() = default;
+
+public:
+
+	virtual void Serialize(FCADKernelArchive& Ar) override
+	{
+		FCurve::Serialize(Ar);
+		SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) Curves);
+		Ar.Serialize(Coordinates);
+	}
+
+	virtual void SpawnIdent(FDatabase& Database) override
+	{
+		if (!FEntity::SetId(Database))
 		{
-			FCurve::Serialize(Ar);
-			SerializeIdents(Ar, (TArray<TOrientedEntity<FEntity>>&) Curves);
-			Ar.Serialize(Coordinates);
+			return;
 		}
 
-		virtual void SpawnIdent(FDatabase& Database) override
-		{
-			if (!FEntity::SetId(Database))
-			{
-				return;
-			}
+		SpawnIdentOnEntities((TArray<TOrientedEntity<FEntity>>&) Curves, Database);
+	}
 
-			SpawnIdentOnEntities((TArray<TOrientedEntity<FEntity>>&) Curves, Database);
-		}
-
-		virtual void ResetMarkersRecursively() override
-		{
-			ResetMarkers();
-			ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) Curves);
-		}
+	virtual void ResetMarkersRecursively() override
+	{
+		ResetMarkers();
+		ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) Curves);
+	}
 
 #ifdef CADKERNEL_DEV
-		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
+	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
 
-		virtual ECurve GetCurveType() const override
-		{
-			return ECurve::Composite;
-		}
+	virtual ECurve GetCurveType() const override
+	{
+		return ECurve::Composite;
+	}
 
-		virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
+	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override;
 
-		virtual TSharedPtr<FCurve> GetCurve(int32 Index) const 
-		{
-			return Curves[Index].Entity;
-		}
+	virtual TSharedPtr<FCurve> GetCurve(int32 Index) const
+	{
+		return Curves[Index].Entity;
+	}
 
-		virtual void EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder = 0) const override;
-		virtual void Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder = 0) const override;
+	virtual void EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder = 0) const override;
+	virtual void Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder = 0) const override;
 
-		virtual void FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const override;
+	virtual void FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const override;
 
-		double LocalToGlobalCoordinate(int32 CurveIndex, double LocalCoordinate) const;
-		double GlobalToLocalCoordinate(int32 CurveIndex, double GlobalCoordinate) const;
-	};
+	double LocalToGlobalCoordinate(int32 CurveIndex, double LocalCoordinate) const;
+	double GlobalToLocalCoordinate(int32 CurveIndex, double GlobalCoordinate) const;
+};
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

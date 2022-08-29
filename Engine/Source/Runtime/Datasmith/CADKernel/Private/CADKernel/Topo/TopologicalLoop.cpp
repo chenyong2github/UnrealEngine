@@ -14,7 +14,7 @@
 #include "CADKernel/UI/Message.h"
 #include "CADKernel/Utils/Util.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTopologicalEdge>>& InEdges, const TArray<EOrientation>& InEdgeDirections, const bool bIsExternalLoop, double GeometricTolerance)

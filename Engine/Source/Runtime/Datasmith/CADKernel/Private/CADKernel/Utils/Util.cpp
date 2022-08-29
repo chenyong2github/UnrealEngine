@@ -2,7 +2,7 @@
 
 #include "CADKernel/Utils/Util.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 }
 

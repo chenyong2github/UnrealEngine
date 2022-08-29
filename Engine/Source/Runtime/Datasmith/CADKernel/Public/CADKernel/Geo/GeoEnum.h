@@ -3,7 +3,7 @@
 
 #include "CADKernel/Core/Types.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 enum class ECurve : uint8

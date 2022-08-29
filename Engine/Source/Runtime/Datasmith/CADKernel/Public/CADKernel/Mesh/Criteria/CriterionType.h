@@ -3,16 +3,16 @@
 
 #include "CADKernel/Core/Types.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	enum class ECriterion : uint8
-	{
-		Size = 0,
-		MaxSize = 1,
-		MinSize = 2,
-		Angle = 3,
-		Sag = 4,
-		CADCurvature = 5,
-		None = 255
-	} ;
-} // namespace CADKernel
+enum class ECriterion : uint8
+{
+	Size = 0,
+	MaxSize = 1,
+	MinSize = 2,
+	Angle = 3,
+	Sag = 4,
+	CADCurvature = 5,
+	None = 255
+};
+} // namespace UE::CADKernel

@@ -6,7 +6,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/Math/Boundary.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FConeSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const

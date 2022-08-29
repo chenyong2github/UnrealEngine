@@ -6,7 +6,7 @@
 #include "CADKernel/Mesh/Structure/VertexMesh.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 #ifdef CADKERNEL_DEV
@@ -227,4 +227,4 @@ FInfoEntity& FVertexLink::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

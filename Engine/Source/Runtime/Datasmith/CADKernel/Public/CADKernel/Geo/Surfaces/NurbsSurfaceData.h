@@ -4,7 +4,7 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 struct FNurbsSurfaceHomogeneousData

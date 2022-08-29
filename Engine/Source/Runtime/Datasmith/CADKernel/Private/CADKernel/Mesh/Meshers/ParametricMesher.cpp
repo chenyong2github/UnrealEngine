@@ -22,7 +22,7 @@
 
 //#define DEBUG_MESH_EDGE
 //#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FParametricMesher::FParametricMesher(FModelMesh& InMeshModel)
@@ -467,7 +467,7 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 	DebugIntersectEdgeIsos(Face, SurfaceTabV, EIso::IsoV);
 	{
 		F3DDebugSession _(FString::Printf(TEXT("Edge 2D %d"), InEdge.GetId()));
-		CADKernel::Display2D(InEdge);
+		UE::CADKernel::Display2D(InEdge);
 	}
 #endif
 
@@ -702,21 +702,21 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 				F3DDebugSession G(TEXT("U From Iso"));
 				for (const FCuttingPoint& CuttingU : ImposedIsoCuttingPoints)
 				{
-					CADKernel::DisplayPoint(FPoint2D(CuttingU.Coordinate, 0.0));
+					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU.Coordinate, 0.0));
 				}
 			}
 			{
 				F3DDebugSession G(TEXT("U From Criteria"));
 				for (double CuttingU : CuttingPoints2)
 				{
-					CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.05), EVisuProperty::NonManifoldEdge);
+					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.05), EVisuProperty::NonManifoldEdge);
 				}
 			}
 			{
 				F3DDebugSession G(TEXT("U Final (Criteria & Iso)"));
 				for (double CuttingU : CuttingPoints)
 				{
-					CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.1), EVisuProperty::PurplePoint);
+					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.1), EVisuProperty::PurplePoint);
 				}
 			}
 			//Wait();

@@ -4,17 +4,17 @@
 #include "CADKernel/Core/Parameters.h"
 
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class CADKERNEL_API FKernelParameters : public FParameters
-	{
-	public:
-		FParameter GeometricalTolerance;
+class CADKERNEL_API FKernelParameters : public FParameters
+{
+public:
+	FParameter GeometricalTolerance;
 
-		FKernelParameters()
-			: FParameters(3)
-			, GeometricalTolerance(TEXT("GeometricalTolerance"), 0.02, *this)
-		{}
-	};
-} // namespace CADKernel
+	FKernelParameters()
+		: FParameters(3)
+		, GeometricalTolerance(TEXT("GeometricalTolerance"), 0.02, *this)
+	{}
+};
+} // namespace UE::CADKernel
 

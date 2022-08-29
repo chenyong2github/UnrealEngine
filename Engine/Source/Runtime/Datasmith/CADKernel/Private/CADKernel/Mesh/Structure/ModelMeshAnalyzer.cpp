@@ -13,7 +13,7 @@
 
 #include "Templates/UnrealTemplate.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FModelMeshAnalyzer::BuildMesh()
@@ -212,8 +212,8 @@ bool FModelMeshAnalyzer::CheckOrientation() const
 
 FPoint Analyzer::FTriangle::ComputeNormal(const TArray<FPoint>& NodeCoordinates) const
 {
-	return CADKernel::FTriangle(NodeCoordinates[Vertices[0]], NodeCoordinates[Vertices[1]], NodeCoordinates[Vertices[2]]).ComputeNormal();
+	return UE::CADKernel::FTriangle(NodeCoordinates[Vertices[0]], NodeCoordinates[Vertices[1]], NodeCoordinates[Vertices[2]]).ComputeNormal();
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

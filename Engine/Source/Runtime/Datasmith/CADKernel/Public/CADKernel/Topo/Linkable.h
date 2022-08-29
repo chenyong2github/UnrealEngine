@@ -5,7 +5,7 @@
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalLink.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FModelMesh;
@@ -175,5 +175,5 @@ protected:
 	}
 };
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

@@ -5,7 +5,7 @@
 #include "CADKernel/Geo/Sampling/PolylineTools.h"
 #include "CADKernel/Math/BSpline.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FBezierCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
@@ -68,5 +68,5 @@ void FBezierCurve::ExtendTo(const FPoint& Point)
 	PolylineTools::ExtendTo(Poles, Point);
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

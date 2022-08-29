@@ -20,7 +20,7 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 	const TCHAR* FEntity::TypesNames[] = 
 	{
@@ -377,4 +377,4 @@ namespace CADKernel
 		return Database.bForceSpawning || false;
 	}
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

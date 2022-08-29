@@ -5,7 +5,7 @@
 #include "CADKernel/Utils/ArrayUtils.h"
 #include "CADKernel/Utils/IndexOfCoordinateFinder.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FCompositeSurface::FCompositeSurface(const double InToleranceGeometric, int32 USurfaceNum, int32 VSurfaceNum, const TArray<double>& UCoordinates, const TArray<double>& VCoordinates, const TArray<TSharedPtr<FSurface>>& InSurfaces)

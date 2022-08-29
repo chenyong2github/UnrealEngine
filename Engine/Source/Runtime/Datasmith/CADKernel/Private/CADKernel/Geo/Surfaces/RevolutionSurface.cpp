@@ -7,7 +7,7 @@
 
 #include <math.h>
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FRevolutionSurface::FRevolutionSurface(const double InToleranceGeometric, TSharedRef<FSegmentCurve> InAxe, TSharedRef<FCurve> InGeneratrix, double InMinAngle, double InMaxAngle)

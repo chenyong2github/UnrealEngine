@@ -5,7 +5,7 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 struct FSurfacicSampling
@@ -61,4 +61,4 @@ struct FSurfacicSampling
 	}
 };
 
-} // ns CADKernel
+} // ns UE::CADKernel

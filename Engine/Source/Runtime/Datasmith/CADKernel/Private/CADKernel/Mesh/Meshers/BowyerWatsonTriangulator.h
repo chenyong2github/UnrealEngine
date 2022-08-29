@@ -9,7 +9,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FBowyerWatsonTriangulator

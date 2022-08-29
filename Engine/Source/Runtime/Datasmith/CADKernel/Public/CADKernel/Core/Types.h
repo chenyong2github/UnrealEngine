@@ -18,31 +18,31 @@
 
 typedef uint32 FIdent;
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	enum class EValue : uint8
-	{
-		Entity,
-		OrientedEntity,
-		Point,
-		Matrix,
-		Integer,
-		Double,
-		String,
-		Boolean,
-		Tuple,
-		List,
-		Array
-	};
+enum class EValue : uint8
+{
+	Entity,
+	OrientedEntity,
+	Point,
+	Matrix,
+	Integer,
+	Double,
+	String,
+	Boolean,
+	Tuple,
+	List,
+	Array
+};
 
-	enum EVerboseLevel : uint8
-	{
-		NoVerbose = 0,
-		Spy,
-		Log,
-		Debug
-	};
-} // namespace CADKernel
+enum EVerboseLevel : uint8
+{
+	NoVerbose = 0,
+	Spy,
+	Log,
+	Debug
+};
+} // namespace UE::CADKernel
 
 #ifdef DO_ENSURE_CADKERNEL
 #define ensureCADKernel(InExpression) ensure(InExpression)

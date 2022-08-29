@@ -9,59 +9,59 @@
 
 #define DEBUG_FACTORY
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	const int32 MaxSize = 256;
+const int32 MaxSize = 256;
 
-	template<class ElementType>
-	class TFactory
-	{
-	protected:
-		TDoubleLinkedList<TArray<ElementType>> StackOfEntitySet;
-		TArray<ElementType*> FreeEntityStack;
+template<class ElementType>
+class TFactory
+{
+protected:
+	TDoubleLinkedList<TArray<ElementType>> StackOfEntitySet;
+	TArray<ElementType*> FreeEntityStack;
 #ifdef DEBUG_FACTORY
-		int32 AllocatedElementNum = 0;
-		int32 UsedElementNum = 0;
-		int32 AvailableElementNum = 0;
+	int32 AllocatedElementNum = 0;
+	int32 UsedElementNum = 0;
+	int32 AvailableElementNum = 0;
 #endif
 
-	private:
-		void FillFreeEntityStack()
+private:
+	void FillFreeEntityStack()
+	{
+		StackOfEntitySet.AddHead(TArray<ElementType>());
+		TArray<ElementType>& EntityPool = StackOfEntitySet.GetHead()->GetValue();
+		EntityPool.SetNum(MaxSize);
+		for (ElementType& Entity : EntityPool)
 		{
-			StackOfEntitySet.AddHead(TArray<ElementType>());
-			TArray<ElementType>& EntityPool = StackOfEntitySet.GetHead()->GetValue();
-			EntityPool.SetNum(MaxSize);
-			for (ElementType& Entity : EntityPool)
-			{
-				FreeEntityStack.Add(&Entity);
-			}
-			AllocatedElementNum += MaxSize;
+			FreeEntityStack.Add(&Entity);
 		}
+		AllocatedElementNum += MaxSize;
+	}
 
-	public:
-		TFactory()
-		{
-			FreeEntityStack.Reserve(MaxSize);
-		}
+public:
+	TFactory()
+	{
+		FreeEntityStack.Reserve(MaxSize);
+	}
 
-		void DeleteEntity(ElementType* Entity)
-		{
- 			Entity->Clean();
-			FreeEntityStack.Add(Entity);
-			UsedElementNum--;
-			ensureCADKernel(UsedElementNum + FreeEntityStack.Num() == AllocatedElementNum);
-		}
+	void DeleteEntity(ElementType* Entity)
+	{
+		Entity->Clean();
+		FreeEntityStack.Add(Entity);
+		UsedElementNum--;
+		ensureCADKernel(UsedElementNum + FreeEntityStack.Num() == AllocatedElementNum);
+	}
 
-		ElementType& New()
+	ElementType& New()
+	{
+		ensureCADKernel(UsedElementNum + FreeEntityStack.Num() == AllocatedElementNum);
+		if (FreeEntityStack.IsEmpty())
 		{
-			ensureCADKernel(UsedElementNum + FreeEntityStack.Num() == AllocatedElementNum);
-			if (FreeEntityStack.IsEmpty())
-			{
-				FillFreeEntityStack();
-			}
-			UsedElementNum++;
-			return *FreeEntityStack.Pop(false);
+			FillFreeEntityStack();
 		}
-	};
-} // namespace CADKernel
+		UsedElementNum++;
+		return *FreeEntityStack.Pop(false);
+	}
+};
+} // namespace UE::CADKernel
 

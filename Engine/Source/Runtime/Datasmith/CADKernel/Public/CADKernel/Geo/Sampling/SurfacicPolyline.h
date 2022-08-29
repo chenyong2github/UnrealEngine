@@ -17,7 +17,7 @@
 
 #include "Serialization/Archive.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FCurve;
@@ -433,4 +433,4 @@ public:
 
 };
 
-} // ns CADKernel
+} // ns UE::CADKernel

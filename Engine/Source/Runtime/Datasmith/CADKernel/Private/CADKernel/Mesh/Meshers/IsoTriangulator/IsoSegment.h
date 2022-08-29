@@ -5,7 +5,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/UI/Display.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 enum class ESegmentType : uint8
@@ -372,5 +372,5 @@ inline FIsoSegment* FIsoNode::GetSegmentConnectedTo(const FIsoNode* Node) const
 	return nullptr;
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

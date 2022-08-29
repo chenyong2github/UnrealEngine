@@ -8,7 +8,7 @@
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Utils/Util.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 { 
 
 const FIsoSegment* FIntersectionSegmentTool::DoesIntersect(const FIsoSegment& Segment) const
@@ -166,4 +166,4 @@ FSegment4IntersectionTools::FSegment4IntersectionTools(const FGrid& Grid, const 
 	AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

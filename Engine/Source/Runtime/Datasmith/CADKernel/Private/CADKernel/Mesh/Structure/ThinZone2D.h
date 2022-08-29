@@ -16,7 +16,7 @@
 //#define DEBUG_REMOVABLE
 //#define DEBUG_BEST_VERTEX
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 	class FTopologicalLoop;
 	class FTopologicalEdge;

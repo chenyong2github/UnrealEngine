@@ -10,7 +10,7 @@
 #include "Algo/ForEach.h"
 #include "Algo/Reverse.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 { 
 
 FNURBSCurve::FNURBSCurve(int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
@@ -200,4 +200,4 @@ void FNURBSCurve::Invert()
 	Finalize();
 }
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

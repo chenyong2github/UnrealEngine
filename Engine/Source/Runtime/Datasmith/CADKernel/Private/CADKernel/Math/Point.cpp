@@ -5,7 +5,7 @@
 #include "CADKernel/Utils/Util.h"
 #include "CADKernel/Math/MatrixH.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 const FPoint FPoint::ZeroPoint(0.,0.,0.);

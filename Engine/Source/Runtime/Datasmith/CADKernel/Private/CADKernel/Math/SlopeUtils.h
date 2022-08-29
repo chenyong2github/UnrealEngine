@@ -6,7 +6,7 @@
 #include "CADKernel/Math/Point.h"
 #include "Algo/AllOf.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 namespace Slope
@@ -380,4 +380,4 @@ inline FPoint2D SlopeToVector(const double Slope)
 	return Vector;
 }
 
-} // namespace CADKernel	
+} // namespace UE::CADKernel	

@@ -6,7 +6,7 @@
 
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FModelMesh;

@@ -3,61 +3,61 @@
 
 #include "CADKernel/Mesh/Criteria/Criterion.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
-	class FSagCriterion : public FCriterion
+class FSagCriterion : public FCriterion
+{
+	friend class FEntity;
+
+protected:
+	double MaxSag;
+
+	FSagCriterion(double InSag = 0.2)
+		: MaxSag(InSag)
 	{
-		friend class FEntity;
-		
-	protected:
-		double MaxSag;
+	}
 
-		FSagCriterion(double InSag = 0.2)
-			: MaxSag(InSag)
-		{
-		}
+public:
 
-	public:
+	void Serialize(FCADKernelArchive& Ar)
+	{
+		FCriterion::Serialize(Ar);
+		Ar << MaxSag;
+	}
 
-		void Serialize(FCADKernelArchive& Ar)
-		{
-			FCriterion::Serialize(Ar);
-			Ar << MaxSag;
-		}
+	virtual double Value() const override
+	{
+		return MaxSag;
+	}
 
-		virtual double Value() const override
-		{
-			return MaxSag;
-		}
+	static double DefaultValue()
+	{
+		return 0.2;
+	}
 
-		static double DefaultValue()
-		{
-			return 0.2;
-		}
-
-		virtual ECriterion GetCriterionType() const override
-		{
-			return ECriterion::Sag;
-		}
+	virtual ECriterion GetCriterionType() const override
+	{
+		return ECriterion::Sag;
+	}
 
 
-	protected:
+protected:
 
-		/**
-		 * Sag & Angle criterion.pdf
-		 * https://docs.google.com/presentation/d/1bUnrRFWCW3sDn9ngb9ftfQS-2JxNJaUZlh783hZMMEw/edit?usp=sharing
-		*/
-		virtual double ComputeDeltaU(double ChordLength, double DeltaU, double Sag) const override
-		{
-			return sqrt(MaxSag / Sag) * DeltaU;
-		}
+	/**
+	 * Sag & Angle criterion.pdf
+	 * https://docs.google.com/presentation/d/1bUnrRFWCW3sDn9ngb9ftfQS-2JxNJaUZlh783hZMMEw/edit?usp=sharing
+	*/
+	virtual double ComputeDeltaU(double ChordLength, double DeltaU, double Sag) const override
+	{
+		return sqrt(MaxSag / Sag) * DeltaU;
+	}
 
-		virtual bool IsAppliedBetweenBreaks() const override
-		{
-			return true;
-		}
-	};
+	virtual bool IsAppliedBetweenBreaks() const override
+	{
+		return true;
+	}
+};
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

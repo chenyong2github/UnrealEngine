@@ -9,7 +9,7 @@
 
 class FString;
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 class FAABB2D;
@@ -226,7 +226,7 @@ void DisplayOrientedPolyline(const TArray<TPoint>& Points, EVisuProperty Propert
 	Open3DDebugSegment(0);
 	for (int32 Index = 1; Index < Points.Num(); ++Index)
 	{
-		DisplaySegment(Points[Index-1], Points[Index], Index, Property, true);
+		DisplaySegment(Points[Index - 1], Points[Index], Index, Property, true);
 	}
 	Close3DDebugSegment();
 }
@@ -266,5 +266,5 @@ void DrawSegmentOrientation(const TPoint& Point1, const TPoint& Point2, EVisuPro
 CADKERNEL_API void DrawIsoCurves(const FTopologicalFace& Face);
 
 
-} // namespace CADKernel
+} // namespace UE::CADKernel
 

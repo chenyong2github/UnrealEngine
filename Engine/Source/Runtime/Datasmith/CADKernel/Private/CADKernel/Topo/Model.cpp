@@ -11,7 +11,7 @@
 #include "CADKernel/Topo/TopologyReport.h"
 #endif
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FModel::AddEntity(TSharedRef<FTopologicalEntity> Entity)

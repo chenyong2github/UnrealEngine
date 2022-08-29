@@ -6,94 +6,94 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class FTopologicalFace;
-	class FCriterion;
+class FTopologicalFace;
+class FCriterion;
 
-	class FCriteriaGrid
+class FCriteriaGrid
+{
+protected:
+	FTopologicalFace& Face;
+
+	const FCoordinateGrid& CoordinateGrid;
+	int32 TrueUcoorindateCount;
+	FSurfacicSampling Grid;
+
+	int32 GetIndex(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV) const
 	{
-	protected:
-		FTopologicalFace& Face;
-
-		const FCoordinateGrid& CoordinateGrid;
-		int32 TrueUcoorindateCount; 
-		FSurfacicSampling Grid;
-
-		int32 GetIndex(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV) const
+		int32 TrueUIndex = UIndex * 2;
+		int32 TrueVIndex = VIndex * 2;
+		if (bIsInternalU)
 		{
-			int32 TrueUIndex = UIndex * 2;
-			int32 TrueVIndex = VIndex * 2;
-			if (bIsInternalU)
-			{
-				++TrueUIndex;
-			}
-			if (bIsInternalV)
-			{
-				++TrueVIndex;
-			}
-			return TrueVIndex * TrueUcoorindateCount + TrueUIndex;
+			++TrueUIndex;
 		}
-
-		const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInterU, bool bIsInterV, FVector3f* normal = nullptr) const;
-		void Init();
-
-	public:
-		FCriteriaGrid(FTopologicalFace& Surface);
-
-		FTopologicalFace& GetSurface()
+		if (bIsInternalV)
 		{
-			return Face;
+			++TrueVIndex;
 		}
+		return TrueVIndex * TrueUcoorindateCount + TrueUIndex;
+	}
 
-		void ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& GetCriteria) const;
+	const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInterU, bool bIsInterV, FVector3f* normal = nullptr) const;
+	void Init();
 
-		double GetCoordinate(EIso Iso, int32 ind) const
-		{
-			return CoordinateGrid[Iso][ind];
-		}
+public:
+	FCriteriaGrid(FTopologicalFace& Surface);
 
-		constexpr const TArray<double>& GetCoordinates(EIso Iso) const
-		{
-			return CoordinateGrid[Iso];
-		}
+	FTopologicalFace& GetSurface()
+	{
+		return Face;
+	}
 
-		int32 GetCoordinateCount(EIso Iso) const
-		{
-			return CoordinateGrid.IsoCount(Iso);
-		}
+	void ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& GetCriteria) const;
 
-		const TArray<FPoint>& GetGridPoints() const
-		{
-			return Grid.Points3D;
-		}
+	double GetCoordinate(EIso Iso, int32 ind) const
+	{
+		return CoordinateGrid[Iso][ind];
+	}
 
-		const TArray<FVector3f>& GetGridNormals() const
-		{
-			return Grid.Normals;
-		}
+	constexpr const TArray<double>& GetCoordinates(EIso Iso) const
+	{
+		return CoordinateGrid[Iso];
+	}
 
-		const FPoint& GetPoint(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-		{
-			return GetPoint(iU, iV, false, false, normal);
-		}
+	int32 GetCoordinateCount(EIso Iso) const
+	{
+		return CoordinateGrid.IsoCount(Iso);
+	}
 
-		const FPoint& GetIntermediateU(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-		{
-			return GetPoint(iU, iV, true, false, normal);
-		}
+	const TArray<FPoint>& GetGridPoints() const
+	{
+		return Grid.Points3D;
+	}
 
-		const FPoint& GetIntermediateV(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-		{
-			return GetPoint(iU, iV, false, true, normal);
-		}
+	const TArray<FVector3f>& GetGridNormals() const
+	{
+		return Grid.Normals;
+	}
 
-		const FPoint& GetIntermediateUV(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-		{
-			return GetPoint(iU, iV, true, true, normal);
-		}
+	const FPoint& GetPoint(int32 iU, int32 iV, FVector3f* normal = nullptr) const
+	{
+		return GetPoint(iU, iV, false, false, normal);
+	}
 
-		void Display() const;
-	};
+	const FPoint& GetIntermediateU(int32 iU, int32 iV, FVector3f* normal = nullptr) const
+	{
+		return GetPoint(iU, iV, true, false, normal);
+	}
+
+	const FPoint& GetIntermediateV(int32 iU, int32 iV, FVector3f* normal = nullptr) const
+	{
+		return GetPoint(iU, iV, false, true, normal);
+	}
+
+	const FPoint& GetIntermediateUV(int32 iU, int32 iV, FVector3f* normal = nullptr) const
+	{
+		return GetPoint(iU, iV, true, true, normal);
+	}
+
+	void Display() const;
+};
 }
 

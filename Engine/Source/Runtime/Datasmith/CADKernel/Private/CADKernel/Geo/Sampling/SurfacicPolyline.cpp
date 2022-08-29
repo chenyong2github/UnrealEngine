@@ -10,7 +10,7 @@
 #include "CADKernel/Geo/Sampling/PolylineTools.h"
 #include "CADKernel/Math/SlopeUtils.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FSurfacicPolyline::FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> Curve2D, const double InTolerance)
@@ -211,4 +211,4 @@ void FSurfacicPolyline::ComputeIntersectionsWithIsos(const FLinearBoundary& InBo
 	}
 }
 
-} //namespace CADKernel
+} //namespace UE::CADKernel

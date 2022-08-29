@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Topo/TopologicalEntity.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 #ifdef CADKERNEL_DEV

@@ -18,7 +18,7 @@
 
 static const int32 DataBaseInitialSize = 10000;
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 FDatabase::FDatabase()

@@ -9,221 +9,221 @@
 #include "CADKernel/Topo/Linkable.h"
 #include "CADKernel/Topo/TopologicalLink.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class FDatabase;
-	class FModelMesh;
-	class FTopologicalEdge;
-	class FVertexMesh;
+class FDatabase;
+class FModelMesh;
+class FTopologicalEdge;
+class FVertexMesh;
 
-	class CADKERNEL_API FTopologicalVertex : public TLinkable<FTopologicalVertex, FVertexLink>
+class CADKERNEL_API FTopologicalVertex : public TLinkable<FTopologicalVertex, FVertexLink>
+{
+	friend class FEntity;
+	friend class FVertexLink;
+
+protected:
+
+	TArray<FTopologicalEdge*> ConnectedEdges;
+	FPoint Coordinates;
+	TSharedPtr<FVertexMesh> Mesh;
+
+	FTopologicalVertex(const FPoint& InCoordinates)
+		: Coordinates(InCoordinates)
 	{
-		friend class FEntity;
-		friend class FVertexLink;
+	}
 
-	protected:
+	FTopologicalVertex() = default;
 
-		TArray<FTopologicalEdge*> ConnectedEdges;
-		FPoint Coordinates;
-		TSharedPtr<FVertexMesh> Mesh;
+public:
 
-		FTopologicalVertex(const FPoint& InCoordinates)
-			: Coordinates(InCoordinates)
+	static TSharedRef<FTopologicalVertex> Make(const FPoint& InCoordinate)
+	{
+		TSharedRef<FTopologicalVertex> Vertex = FEntity::MakeShared<FTopologicalVertex>(InCoordinate);
+		Vertex->Finalize();
+		return Vertex;
+	}
+
+	virtual void Serialize(FCADKernelArchive& Ar) override
+	{
+		if (Ar.IsSaving())
 		{
+			ensureCADKernel(ConnectedEdges.Num());
 		}
 
-		FTopologicalVertex() = default;
+		TLinkable<FTopologicalVertex, FVertexLink>::Serialize(Ar);
+		Ar.Serialize(Coordinates);
+		SerializeIdents(Ar, ConnectedEdges);
+	}
 
-	public:
+	virtual void SpawnIdent(FDatabase& Database) override;
 
-		static TSharedRef<FTopologicalVertex> Make(const FPoint& InCoordinate)
-		{
-			TSharedRef<FTopologicalVertex> Vertex = FEntity::MakeShared<FTopologicalVertex>(InCoordinate);
-			Vertex->Finalize();
-			return Vertex;
-		}
-
-		virtual void Serialize(FCADKernelArchive& Ar) override
-		{
-			if(Ar.IsSaving())
-			{
-				ensureCADKernel(ConnectedEdges.Num());
-			}
-
-			TLinkable<FTopologicalVertex, FVertexLink>::Serialize(Ar);
-			Ar.Serialize(Coordinates);
-			SerializeIdents(Ar, ConnectedEdges);
-		}
-
-		virtual void SpawnIdent(FDatabase& Database) override;
-
-		virtual void ResetMarkersRecursively() override
-		{
-			ResetMarkers();
-		}
+	virtual void ResetMarkersRecursively() override
+	{
+		ResetMarkers();
+	}
 
 
 #ifdef CADKERNEL_DEV
-		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
+	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
 
-		virtual EEntity GetEntityType() const override
+	virtual EEntity GetEntityType() const override
+	{
+		return EEntity::TopologicalVertex;
+	}
+
+	/**
+	 * @return the 3d coordinate of the barycenter of the twin vertices
+	 */
+	inline const FPoint& GetBarycenter() const
+	{
+		if (TopologicalLink.IsValid() && TopologicalLink->GetTwinEntityNum() > 1)
 		{
-			return EEntity::TopologicalVertex;
+			return TopologicalLink->GetBarycenter();
 		}
+		return Coordinates;
+	}
 
-		/**
-		 * @return the 3d coordinate of the barycenter of the twin vertices
-		 */
-		inline const FPoint& GetBarycenter() const
+	/**
+	 * @return the 3d coordinates of the vertex (prefere GetBarycenter())
+	 */
+	const FPoint& GetCoordinates() const
+	{
+		return Coordinates;
+	}
+
+	void SetCoordinates(const FPoint& NewCoordinates)
+	{
+		if (GetLink()->GetTwinEntityNum() > 1)
 		{
-			if (TopologicalLink.IsValid() && TopologicalLink->GetTwinEntityNum() > 1)
-			{
-				return TopologicalLink->GetBarycenter();
-			}
-			return Coordinates;
+			// Update barycenter
+			FPoint BaryCenter = GetLink()->GetBarycenter() * (double)GetLink()->GetTwinEntityNum();
+			BaryCenter -= Coordinates;
+			BaryCenter += NewCoordinates;
+			BaryCenter /= (double)GetLink()->GetTwinEntityNum();
+			GetLink()->SetBarycenter(BaryCenter);
 		}
-
-		/**
-		 * @return the 3d coordinates of the vertex (prefere GetBarycenter())
-		 */
-		const FPoint& GetCoordinates() const
+		else
 		{
-			return Coordinates;
+			GetLink()->SetBarycenter(NewCoordinates);
 		}
+		Coordinates = NewCoordinates;
+	}
 
-		void SetCoordinates(const FPoint& NewCoordinates)
+	double Distance(const FTopologicalVertex& OtherVertex) const
+	{
+		return Coordinates.Distance(OtherVertex.Coordinates);
+	}
+
+	double SquareDistance(const FTopologicalVertex& OtherVertex) const
+	{
+		return Coordinates.SquareDistance(OtherVertex.Coordinates);
+	}
+
+	double SquareDistance(const FPoint& Point) const
+	{
+		return Coordinates.SquareDistance(Point);
+	}
+
+	TSharedRef<FVertexMesh> GetOrCreateMesh(FModelMesh& MeshModel);
+
+	const TSharedRef<FVertexMesh> GetMesh() const
+	{
+		if (!IsActiveEntity())
 		{
-			if (GetLink()->GetTwinEntityNum() > 1)
-			{
-				// Update barycenter
-				FPoint BaryCenter = GetLink()->GetBarycenter() * (double)GetLink()->GetTwinEntityNum();
-				BaryCenter -= Coordinates;
-				BaryCenter += NewCoordinates;
-				BaryCenter /= (double)GetLink()->GetTwinEntityNum();
-				GetLink()->SetBarycenter(BaryCenter);
-			}
-			else
-			{
-				GetLink()->SetBarycenter(NewCoordinates);
-			}
-			Coordinates = NewCoordinates;
+			return GetLinkActiveEntity()->GetMesh();
 		}
+		return Mesh.ToSharedRef();
+	}
 
-		double Distance(const FTopologicalVertex& OtherVertex) const
+	void Link(FTopologicalVertex& InEntity);
+
+	void UnlinkTo(FTopologicalVertex& Entity);
+
+	virtual void RemoveFromLink() override
+	{
+		if (TopologicalLink.IsValid())
 		{
-			return Coordinates.Distance(OtherVertex.Coordinates);
+			TopologicalLink->RemoveEntity(*this);
+			TopologicalLink->ComputeBarycenter();
+			TopologicalLink.Reset();
 		}
+	}
 
-		double SquareDistance(const FTopologicalVertex& OtherVertex) const
-		{
-			return Coordinates.SquareDistance(OtherVertex.Coordinates);
-		}
-
-		double SquareDistance(const FPoint& Point) const
-		{
-			return Coordinates.SquareDistance(Point);
-		}
-
-		TSharedRef<FVertexMesh> GetOrCreateMesh(FModelMesh& MeshModel);
-
-		const TSharedRef<FVertexMesh> GetMesh() const
-		{
-			if (!IsActiveEntity())
-			{
-				return GetLinkActiveEntity()->GetMesh();
-			}
-			return Mesh.ToSharedRef();
-		}
-
-		void Link(FTopologicalVertex& InEntity);
-
-		void UnlinkTo(FTopologicalVertex& Entity);
-
-		virtual void RemoveFromLink() override
+	void DeleteIfIsolated()
+	{
+		if (ConnectedEdges.Num() == 0)
 		{
 			if (TopologicalLink.IsValid())
 			{
 				TopologicalLink->RemoveEntity(*this);
-				TopologicalLink->ComputeBarycenter();
+				if (!TopologicalLink->IsDeleted())
+				{
+					TopologicalLink->ComputeBarycenter();
+				}
 				TopologicalLink.Reset();
 			}
+			SetDeleted();
 		}
+	}
 
-		void DeleteIfIsolated()
+	bool IsBorderVertex();
+
+	void AddConnectedEdge(FTopologicalEdge& Edge);
+	void RemoveConnectedEdge(FTopologicalEdge& Edge);
+
+	/**
+	 * Mandatory: to browse all the connected edges, you have to browse the connected edges of all the twin vertices
+	 * for (TWeakPtr<FTopologicalVertex> TwinVertex : Vertex->GetTwinsEntities())
+	 * {
+	 *    for (TWeakPtr<FTopologicalEdge> ConnectedEdge : TwinVertex.Pin()->GetDirectConnectedEdges())
+	 *    {
+	 *       ...
+	 *    }
+	 *  }
+	 */
+	const TArray<FTopologicalEdge*>& GetDirectConnectedEdges() const
+	{
+		return ConnectedEdges;
+	}
+
+	void GetConnectedEdges(TArray<FTopologicalEdge*>& OutConnectedEdges) const
+	{
+		if (!TopologicalLink.IsValid())
 		{
-			if (ConnectedEdges.Num() == 0)
-			{
-				if (TopologicalLink.IsValid())
-				{
-					TopologicalLink->RemoveEntity(*this);
-					if(!TopologicalLink->IsDeleted())
-					{
-						TopologicalLink->ComputeBarycenter();
-					}
-					TopologicalLink.Reset();
-				}
-				SetDeleted();
-			}
+			OutConnectedEdges = ConnectedEdges;
 		}
-
-		bool IsBorderVertex();
-
-		void AddConnectedEdge(FTopologicalEdge& Edge);
-		void RemoveConnectedEdge(FTopologicalEdge& Edge);
-
-		/**
-		 * Mandatory: to browse all the connected edges, you have to browse the connected edges of all the twin vertices
-		 * for (TWeakPtr<FTopologicalVertex> TwinVertex : Vertex->GetTwinsEntities())
-		 * {
-		 *    for (TWeakPtr<FTopologicalEdge> ConnectedEdge : TwinVertex.Pin()->GetDirectConnectedEdges())
-		 *    {
-		 *       ...
-		 *    }
-		 *  }
-		 */
-		const TArray<FTopologicalEdge*>& GetDirectConnectedEdges() const 
+		else
 		{
-			return ConnectedEdges;
+			OutConnectedEdges.Reserve(100);
+			for (const FTopologicalVertex* Vertex : GetLink()->GetTwinEntities())
+			{
+				OutConnectedEdges.Append(Vertex->ConnectedEdges);
+			}
 		}
+	}
 
-		void GetConnectedEdges(TArray<FTopologicalEdge*>& OutConnectedEdges) const
+	const int32 ConnectedEdgeCount()
+	{
+		if (!TopologicalLink.IsValid())
 		{
-			if (!TopologicalLink.IsValid())
-			{
-				OutConnectedEdges = ConnectedEdges;
-			}
-			else
-			{
-				OutConnectedEdges.Reserve(100);
-				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinEntities())
-				{
-					OutConnectedEdges.Append(Vertex->ConnectedEdges);
-				}
-			}
+			return ConnectedEdges.Num();
 		}
-
-		const int32 ConnectedEdgeCount()
+		else
 		{
-			if (!TopologicalLink.IsValid())
+			int32 Count = 0;
+			for (const FTopologicalVertex* Vertex : GetLink()->GetTwinEntities())
 			{
-				return ConnectedEdges.Num();
+				Count += Vertex->ConnectedEdges.Num();
 			}
-			else
-			{
-				int32 Count = 0;
-				for (const FTopologicalVertex* Vertex : GetLink()->GetTwinEntities())
-				{
-					Count += Vertex->ConnectedEdges.Num();
-				}
-				return Count;
-			}
+			return Count;
 		}
+	}
 
-		/**
-		 * 
-		 */
-		void GetConnectedEdges(const FTopologicalVertex& OtherVertex, TArray<FTopologicalEdge*>& Edges) const;
-	};
+	/**
+	 *
+	 */
+	void GetConnectedEdges(const FTopologicalVertex& OtherVertex, TArray<FTopologicalEdge*>& Edges) const;
+};
 
-} // namespace CADKernel
+} // namespace UE::CADKernel

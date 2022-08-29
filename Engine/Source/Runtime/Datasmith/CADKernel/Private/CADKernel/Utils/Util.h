@@ -6,34 +6,34 @@
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Utils/IndexOfCoordinateFinder.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	namespace Utils
+namespace Utils
+{
+template<typename SRC, typename DST>
+inline void TSharedPtrArrayConversion(const TArray<TSharedPtr<SRC>>& Source, TArray<TSharedPtr<DST>>& Destination)
+{
+	Destination.Reserve(Destination.Num() + Source.Num());
+	for (const TSharedPtr<SRC>& SourceItem : Source)
 	{
-		template<typename SRC, typename DST>
-		inline void TSharedPtrArrayConversion(const TArray<TSharedPtr<SRC>>& Source, TArray<TSharedPtr<DST>>& Destination)
-		{
-			Destination.Reserve(Destination.Num() + Source.Num());
-			for (const TSharedPtr<SRC>& SourceItem : Source)
-			{
-				Destination.Add(StaticCastSharedPtr<DST>(SourceItem));
-			}
-		}
+		Destination.Add(StaticCastSharedPtr<DST>(SourceItem));
+	}
+}
 
-		template<typename SRC, typename DST>
-		inline void TSharedPtrArrayConversionChecked(const TArray<TSharedPtr<SRC>>& Source, TArray<TSharedPtr<DST>>& Destination)
+template<typename SRC, typename DST>
+inline void TSharedPtrArrayConversionChecked(const TArray<TSharedPtr<SRC>>& Source, TArray<TSharedPtr<DST>>& Destination)
+{
+	Destination.Reserve(Destination.Num() + Source.Num());
+	for (const TSharedPtr<SRC>& SourceItem : Source)
+	{
+		TSharedPtr<DST> ConvertedPtr = StaticCastSharedPtr<DST>(SourceItem);
+		if (!ConvertedPtr.IsValid())
 		{
-			Destination.Reserve(Destination.Num() + Source.Num());
-			for (const TSharedPtr<SRC>& SourceItem : Source)
-			{
-				TSharedPtr<DST> ConvertedPtr = StaticCastSharedPtr<DST>(SourceItem);
-				if (!ConvertedPtr.IsValid())
-				{
-					continue;
-				}
-				Destination.Add(ConvertedPtr);
-			}
-
+			continue;
 		}
-	};
+		Destination.Add(ConvertedPtr);
+	}
+
+}
+};
 }

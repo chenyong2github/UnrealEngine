@@ -3,80 +3,77 @@
 
 #include "CADKernel/Core/Parameter.h"
 #include "CADKernel/Core/Types.h"
-//#include "Containers/Map.h"
-//#include "Containers/UnrealString.h"
-//#include "HAL/Platform.h"
 #include "Serialization/Archive.h"
 
 class FArchive;
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	class FDatabaseFile;
+class FDatabaseFile;
 
-	class CADKERNEL_API FParameters
+class CADKERNEL_API FParameters
+{
+	friend FParameter;
+protected:
+
+	void Add(FParameter& NewParameter)
 	{
-		friend FParameter; 
-	protected:
-
-		void Add(FParameter& NewParameter)
+		FParameter** Parameter = Map.Find(NewParameter.GetName());
+		if (Parameter)
 		{
-			FParameter** Parameter = Map.Find(NewParameter.GetName());
-			if (Parameter)
-			{
-				(*Parameter)->SetValue(NewParameter.GetValue());
-			}
-			else
-			{
-				Map.Add(NewParameter.GetName(), &NewParameter);
-			}
+			(*Parameter)->SetValue(NewParameter.GetValue());
 		}
-
-		TMap<FString, FParameter*> Map;
-
-	public:
-		FParameters(int32 ParametersNum = 3)
+		else
 		{
-			Map.Reserve(ParametersNum);
+			Map.Add(NewParameter.GetName(), &NewParameter);
 		}
+	}
 
-		FParameters& operator=(const FParameters& Other)
+	TMap<FString, FParameter*> Map;
+
+public:
+	FParameters(int32 ParametersNum = 3)
+	{
+		Map.Reserve(ParametersNum);
+	}
+
+	FParameters& operator=(const FParameters& Other)
+	{
+		for (const TPair<FString, FParameter*>& Parameter : Other.Map)
 		{
-			for (const TPair<FString, FParameter*>& Parameter : Other.Map)
-			{
-				Map.Add(Parameter.Key, Parameter.Value);
-			}
-			return *this;
+			Map.Add(Parameter.Key, Parameter.Value);
 		}
+		return *this;
+	}
 
-		virtual ~FParameters() = default;
+	virtual ~FParameters() = default;
 
-		FParameter* GetByName(const FString& Name)
-		{
-			FParameter** Parameter = Map.Find(Name);
-			return (Parameter != nullptr) ? *Parameter : nullptr;
-		}
+	FParameter* GetByName(const FString& Name)
+	{
+		FParameter** Parameter = Map.Find(Name);
+		return (Parameter != nullptr) ? *Parameter : nullptr;
+	}
 
-		void SetFromString(const FString& ParameterStr);
+	void SetFromString(const FString& ParameterStr);
 
-		FString ToString(bool bOnlyChanged = false) const;
+	FString ToString(bool bOnlyChanged = false) const;
 
-		void PrintParameterList();
+	void PrintParameterList();
 
-		int32 Count()
-		{
-			return Map.Num();
-		}
+	int32 Count()
+	{
+		return Map.Num();
+	}
 
-		const TMap<FString, FParameter*>& GetMap() const 
-		{
-			return Map;
-		}
+	const TMap<FString, FParameter*>& GetMap() const
+	{
+		return Map;
+	}
 
-		friend FArchive& operator<<(FArchive& Ar, FParameters& Database)
-		{
-			return Ar;
-		}
+	friend FArchive& operator<<(FArchive& Ar, FParameters& Database)
+	{
+		return Ar;
+	}
 
-	};
-} 
+};
+}

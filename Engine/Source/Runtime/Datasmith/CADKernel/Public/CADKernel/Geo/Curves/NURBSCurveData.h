@@ -4,18 +4,18 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
-	struct FNurbsCurveData
-	{
-		bool bIsRational;
-		int32 Dimension = 0;
+struct FNurbsCurveData
+{
+	bool bIsRational;
+	int32 Dimension = 0;
 
-		int32 Degree = 0;
-		TArray<double> NodalVector;
+	int32 Degree = 0;
+	TArray<double> NodalVector;
 
-		TArray<double> Weights;
-		TArray<FPoint> Poles;
-	};
-} // namespace CADKernel
+	TArray<double> Weights;
+	TArray<FPoint> Poles;
+};
+} // namespace UE::CADKernel
 

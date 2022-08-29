@@ -5,7 +5,7 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Aabb.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 TSharedPtr<FEntityGeom> FNURBSSurface::ApplyMatrix(const FMatrixH& InMatrix) const

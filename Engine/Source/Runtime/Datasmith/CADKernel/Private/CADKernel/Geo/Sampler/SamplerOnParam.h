@@ -14,7 +14,7 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 template<typename PolylineType, typename PointType>
@@ -100,13 +100,13 @@ protected:
 				int32 Index = 0;
 				F3DDebugSession G(FString::Printf(TEXT("CheckChord %f %d"), MaxChord, FirstIndex));
 
-				CADKernel::Display(APoint, EVisuProperty::BluePoint);
-				CADKernel::Display(BPoint, EVisuProperty::BluePoint);
+				UE::CADKernel::Display(APoint, EVisuProperty::BluePoint);
+				UE::CADKernel::Display(BPoint, EVisuProperty::BluePoint);
 
 				for (int32 Index = FirstIndex; Index < EndIndex; ++Index)
 				{
 					const FPoint& Middle = CandidatePoints.GetPoints()[Index];
-					CADKernel::Display(Middle, EVisuProperty::YellowPoint);
+					UE::CADKernel::Display(Middle, EVisuProperty::YellowPoint);
 				}
 
 				DisplaySegment(APoint, BPoint, 0, EVisuProperty::BlueCurve);
@@ -420,4 +420,4 @@ protected:
 
 };
 
-} // ns CADKernel
+} // ns UE::CADKernel

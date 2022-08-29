@@ -4,14 +4,16 @@
 
 #ifdef USE_TECHSOFT_SDK
 
-#include "CADFileReport.h"
-
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/MatrixH.h"
 
 #include "TechSoftInterface.h"
 
-namespace CADKernel
+#ifdef CADKERNEL_DEV
+#include "CADFileReport.h"
+#endif
+
+namespace UE::CADKernel
 {
 
 class FBody;
@@ -58,10 +60,10 @@ public:
 
 	void SetCoef(const double InUScale, const double InUOffset, const double InVScale, const double InVOffset)
 	{
-		Scale[CADKernel::EIso::IsoU] = InUScale;
-		Scale[CADKernel::EIso::IsoV] = InVScale;
-		Offset[CADKernel::EIso::IsoU] = InUOffset;
-		Offset[CADKernel::EIso::IsoV] = InVOffset;
+		Scale[UE::CADKernel::EIso::IsoU] = InUScale;
+		Scale[UE::CADKernel::EIso::IsoV] = InVScale;
+		Offset[UE::CADKernel::EIso::IsoU] = InUOffset;
+		Offset[UE::CADKernel::EIso::IsoV] = InVOffset;
 		SetNeedApply();
 	}
 
@@ -87,7 +89,7 @@ public:
 
 	void SetNeedApply()
 	{
-		if (!FMath::IsNearlyEqual(Scale[CADKernel::EIso::IsoU], 1.) || !FMath::IsNearlyEqual(Scale[CADKernel::EIso::IsoV], 1.) || !FMath::IsNearlyEqual(Offset[CADKernel::EIso::IsoU], 0.) || !FMath::IsNearlyEqual(Offset[CADKernel::EIso::IsoV], 0.))
+		if (!FMath::IsNearlyEqual(Scale[UE::CADKernel::EIso::IsoU], 1.) || !FMath::IsNearlyEqual(Scale[UE::CADKernel::EIso::IsoV], 1.) || !FMath::IsNearlyEqual(Offset[UE::CADKernel::EIso::IsoU], 0.) || !FMath::IsNearlyEqual(Offset[UE::CADKernel::EIso::IsoV], 0.))
 		{
 			bNeedApply = true;
 		}
@@ -103,25 +105,25 @@ public:
 		{
 			Swap(InUScale, InVScale);
 		}
-		Scale[CADKernel::EIso::IsoU] *= InUScale;
-		Scale[CADKernel::EIso::IsoV] *= InVScale;
-		Offset[CADKernel::EIso::IsoU] *= InUScale;
-		Offset[CADKernel::EIso::IsoV] *= InVScale;
+		Scale[UE::CADKernel::EIso::IsoU] *= InUScale;
+		Scale[UE::CADKernel::EIso::IsoV] *= InVScale;
+		Offset[UE::CADKernel::EIso::IsoU] *= InUScale;
+		Offset[UE::CADKernel::EIso::IsoV] *= InVScale;
 		SetNeedApply();
 	}
 
-	void Process(TArray<CADKernel::FPoint>& Poles) const
+	void Process(TArray<UE::CADKernel::FPoint>& Poles) const
 	{
 		if(bNeedApply)
 		{
-			for (CADKernel::FPoint& Point : Poles)
+			for (UE::CADKernel::FPoint& Point : Poles)
 			{
 				Apply(Point);
 			}
 		}
 		if (bSwapUV)
 		{
-			for (CADKernel::FPoint& Point : Poles)
+			for (UE::CADKernel::FPoint& Point : Poles)
 			{
 				GetSwapUV(Point);
 			}
@@ -139,20 +141,20 @@ public:
 		SetNeedApply();
 	}
 
-	void Apply(CADKernel::FPoint2D& Point) const
+	void Apply(UE::CADKernel::FPoint2D& Point) const
 	{
-		Point.U = Scale[CADKernel::EIso::IsoU] * Point.U + Offset[CADKernel::EIso::IsoU];
-		Point.V = Scale[CADKernel::EIso::IsoV] * Point.V + Offset[CADKernel::EIso::IsoV];
+		Point.U = Scale[UE::CADKernel::EIso::IsoU] * Point.U + Offset[UE::CADKernel::EIso::IsoU];
+		Point.V = Scale[UE::CADKernel::EIso::IsoV] * Point.V + Offset[UE::CADKernel::EIso::IsoV];
 	}
 
 private:
-	void Apply(CADKernel::FPoint& Point) const
+	void Apply(UE::CADKernel::FPoint& Point) const
 	{
-		Point.X = Scale[CADKernel::EIso::IsoU] * Point.X + Offset[CADKernel::EIso::IsoU];
-		Point.Y = Scale[CADKernel::EIso::IsoV] * Point.Y + Offset[CADKernel::EIso::IsoV];
+		Point.X = Scale[UE::CADKernel::EIso::IsoU] * Point.X + Offset[UE::CADKernel::EIso::IsoU];
+		Point.Y = Scale[UE::CADKernel::EIso::IsoV] * Point.Y + Offset[UE::CADKernel::EIso::IsoV];
 	}
 
-	void GetSwapUV(CADKernel::FPoint& Point) const
+	void GetSwapUV(UE::CADKernel::FPoint& Point) const
 	{
 		Swap(Point.X, Point.Y);
 	}
@@ -165,85 +167,84 @@ class FTechSoftBridge
 private:
 	FTechSoftFileParser& Parser;
 
-	CADKernel::FSession& Session;
-	CADKernel::FModel& Model;
-	CADKernel::FCADFileReport& Report;
+	UE::CADKernel::FSession& Session;
+	UE::CADKernel::FModel& Model;
 
 	const double GeometricTolerance;
 	const double SquareGeometricTolerance;
 	const double SquareJoiningVertexTolerance;
 
-	TMap<const A3DEntity*, CADKernel::FBody*> TechSoftToCADKernel;
-	TMap<CADKernel::FBody*, const A3DEntity*> CADKernelToTechSoft;
-	TMap<const A3DTopoCoEdge*, TSharedPtr<CADKernel::FTopologicalEdge>> A3DEdgeToEdge;
+	TMap<const A3DEntity*, UE::CADKernel::FBody*> TechSoftToCADKernel;
+	TMap<UE::CADKernel::FBody*, const A3DEntity*> CADKernelToTechSoft;
+	TMap<const A3DTopoCoEdge*, TSharedPtr<UE::CADKernel::FTopologicalEdge>> A3DEdgeToEdge;
 
 	double BodyScale = 1;
 
 public:
-	FTechSoftBridge(FTechSoftFileParser& InParser, CADKernel::FSession& InSession, CADKernel::FCADFileReport& InReport);
-	CADKernel::FBody* AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FString, FString> MetaData, const double InBodyScale);
-	CADKernel::FBody* GetBody(A3DRiBrepModel* A3DBRepModel);
-	const A3DRiBrepModel* GetA3DBody(CADKernel::FBody* BRepModel);
+	FTechSoftBridge(FTechSoftFileParser& InParser, UE::CADKernel::FSession& InSession);
+	UE::CADKernel::FBody* AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FString, FString> MetaData, const double InBodyScale);
+	UE::CADKernel::FBody* GetBody(A3DRiBrepModel* A3DBRepModel);
+	const A3DRiBrepModel* GetA3DBody(UE::CADKernel::FBody* BRepModel);
 
 private:
 
-	void TraverseBrepData(const A3DTopoBrepData* A3DBrepData, TSharedRef<CADKernel::FBody>& Body);
+	void TraverseBrepData(const A3DTopoBrepData* A3DBrepData, TSharedRef<UE::CADKernel::FBody>& Body);
 
-	void TraverseConnex(const A3DTopoConnex* A3DConnex, TSharedRef<CADKernel::FBody>& Body);
-	void TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<CADKernel::FBody>& Body);
-	void AddFace(const A3DTopoFace* A3DFace, CADKernel::EOrientation Orientation, TSharedRef<CADKernel::FShell>& Body, uint32 Index);
+	void TraverseConnex(const A3DTopoConnex* A3DConnex, TSharedRef<UE::CADKernel::FBody>& Body);
+	void TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<UE::CADKernel::FBody>& Body);
+	void AddFace(const A3DTopoFace* A3DFace, UE::CADKernel::EOrientation Orientation, TSharedRef<UE::CADKernel::FShell>& Body, uint32 Index);
 
-	TSharedPtr<CADKernel::FTopologicalLoop> AddLoop(const A3DTopoLoop* A3DLoop, const TSharedRef<CADKernel::FSurface>& Surface, const TechSoftUtils::FUVReparameterization& UVReparameterization, const bool bIsExternalLoop);
-	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const A3DTopoCoEdge* A3DCoedge, const TSharedRef<CADKernel::FSurface>& Surface, const TechSoftUtils::FUVReparameterization& UVReparameterization, CADKernel::EOrientation& OutOrientation);
+	TSharedPtr<UE::CADKernel::FTopologicalLoop> AddLoop(const A3DTopoLoop* A3DLoop, const TSharedRef<UE::CADKernel::FSurface>& Surface, const TechSoftUtils::FUVReparameterization& UVReparameterization, const bool bIsExternalLoop);
+	TSharedPtr<UE::CADKernel::FTopologicalEdge> AddEdge(const A3DTopoCoEdge* A3DCoedge, const TSharedRef<UE::CADKernel::FSurface>& Surface, const TechSoftUtils::FUVReparameterization& UVReparameterization, UE::CADKernel::EOrientation& OutOrientation);
 
-	TSharedPtr<CADKernel::FSurface> AddSurface(const A3DSurfBase* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddConeSurface(const A3DSurfCone* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddCylinderSurface(const A3DSurfCylinder* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddLinearTransfoSurface(const A3DSurfBase* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddNurbsSurface(const A3DSurfNurbs* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddOffsetSurface(const A3DSurfOffset* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddPlaneSurface(const A3DSurfPlane* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddRevolutionSurface(const A3DSurfRevolution* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddRuledSurface(const A3DSurfRuled* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddSphereSurface(const A3DSurfSphere* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddTorusSurface(const A3DSurfTorus* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddSurface(const A3DSurfBase* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddConeSurface(const A3DSurfCone* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddCylinderSurface(const A3DSurfCylinder* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddLinearTransfoSurface(const A3DSurfBase* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddNurbsSurface(const A3DSurfNurbs* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddOffsetSurface(const A3DSurfOffset* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddPlaneSurface(const A3DSurfPlane* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddRevolutionSurface(const A3DSurfRevolution* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddRuledSurface(const A3DSurfRuled* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddSphereSurface(const A3DSurfSphere* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddTorusSurface(const A3DSurfTorus* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
 
-	TSharedPtr<CADKernel::FSurface> AddBlend01Surface(const A3DSurfBlend01* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddBlend02Surface(const A3DSurfBlend02* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddBlend03Surface(const A3DSurfBlend03* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddCylindricalSurface(const A3DSurfCylindrical* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddPipeSurface(const A3DSurfPipe* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddExtrusionSurface(const A3DSurfExtrusion* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddSurfaceFromCurves(const A3DSurfFromCurves* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddTransformSurface(const A3DSurfTransform* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddBlend01Surface(const A3DSurfBlend01* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddBlend02Surface(const A3DSurfBlend02* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddBlend03Surface(const A3DSurfBlend03* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddCylindricalSurface(const A3DSurfCylindrical* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddPipeSurface(const A3DSurfPipe* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddExtrusionSurface(const A3DSurfExtrusion* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddSurfaceFromCurves(const A3DSurfFromCurves* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddTransformSurface(const A3DSurfTransform* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
 
-	TSharedPtr<CADKernel::FSurface> AddSurfaceAsNurbs(const A3DSurfBase* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> AddSurfaceNurbs(const A3DSurfNurbsData& A3DNurbsData, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddSurfaceAsNurbs(const A3DSurfBase* A3DSurface, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
+	TSharedPtr<UE::CADKernel::FSurface> AddSurfaceNurbs(const A3DSurfNurbsData& A3DNurbsData, TechSoftUtils::FUVReparameterization& OutUVReparameterization);
 
-	TSharedPtr<CADKernel::FRestrictionCurve> AddRestrictionCurve(const A3DCrvBase* A3DCurve, const TSharedRef<CADKernel::FSurface>& Surface);
+	TSharedPtr<UE::CADKernel::FRestrictionCurve> AddRestrictionCurve(const A3DCrvBase* A3DCurve, const TSharedRef<UE::CADKernel::FSurface>& Surface);
 
-	TSharedPtr<CADKernel::FCurve> AddCurve(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurve(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	TSharedPtr<CADKernel::FCurve> AddCurveCircle(const A3DCrvCircle* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveComposite(const A3DCrvComposite* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveEllipse(const A3DCrvEllipse* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveHelix(const A3DCrvHelix* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveHyperbola(const A3DCrvHyperbola* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveLine(const A3DCrvLine* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveNurbs(const A3DCrvNurbs* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveParabola(const A3DCrvParabola* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurvePolyLine(const A3DCrvPolyLine* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveCircle(const A3DCrvCircle* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveComposite(const A3DCrvComposite* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveEllipse(const A3DCrvEllipse* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveHelix(const A3DCrvHelix* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveHyperbola(const A3DCrvHyperbola* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveLine(const A3DCrvLine* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveNurbs(const A3DCrvNurbs* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveParabola(const A3DCrvParabola* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurvePolyLine(const A3DCrvPolyLine* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	TSharedPtr<CADKernel::FCurve> AddCurveBlend02Boundary(const A3DCrvBlend02Boundary* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveEquation(const A3DCrvEquation* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveIntersection(const A3DCrvIntersection* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveOffset(const A3DCrvOffset* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveOnSurf(const A3DCrvOnSurf* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
-	TSharedPtr<CADKernel::FCurve> AddCurveTransform(const A3DCrvTransform* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveBlend02Boundary(const A3DCrvBlend02Boundary* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveEquation(const A3DCrvEquation* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveIntersection(const A3DCrvIntersection* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveOffset(const A3DCrvOffset* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveOnSurf(const A3DCrvOnSurf* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveTransform(const A3DCrvTransform* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	TSharedPtr<CADKernel::FCurve> AddCurveAsNurbs(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
+	TSharedPtr<UE::CADKernel::FCurve> AddCurveAsNurbs(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	void AddMetadata(FArchiveCADObject& EntityData, CADKernel::FTopologicalShapeEntity& Entity);
+	void AddMetadata(FArchiveCADObject& EntityData, UE::CADKernel::FTopologicalShapeEntity& Entity);
 };
 }
 

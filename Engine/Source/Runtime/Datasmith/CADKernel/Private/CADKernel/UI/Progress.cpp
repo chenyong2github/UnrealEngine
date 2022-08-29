@@ -5,7 +5,7 @@
 #include "CADKernel/Utils/Util.h"
 #include "CADKernel/Core/System.h"
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 
 void FProgressManager::SetCurrentProgress(FProgress* InNewCurrent)

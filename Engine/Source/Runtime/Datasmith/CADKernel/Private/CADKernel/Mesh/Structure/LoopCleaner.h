@@ -13,7 +13,7 @@
 #endif
 
 
-namespace CADKernel
+namespace UE::CADKernel
 {
 class FGrid;
 class FIsoSegment;
