@@ -372,6 +372,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 private:
 
 	friend UContextualAnimSceneInstance;
+	friend struct FContextualAnimSceneBindings;
 
 	FContextualAnimSceneBindingContext Context;
 
@@ -429,6 +430,14 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 
 	void CalculateAnimSetPivots(TArray<FContextualAnimSetPivot>& OutScenePivots) const;
 	bool CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, FContextualAnimSetPivot& OutScenePivot) const;
+
+	const FContextualAnimTrack& GetAnimTrackFromBinding(const FContextualAnimSceneBinding& Binding) const;
+	const FName& GetRoleFromBinding(const FContextualAnimSceneBinding& Binding) const;
+	FTransform GetAlignmentTransformFromBinding(const FContextualAnimSceneBinding& Binding, const FName& TrackName, float Time) const;
+	const FContextualAnimIKTargetDefContainer& GetIKTargetDefContainerFromBinding(const FContextualAnimSceneBinding& Binding) const;
+	FTransform GetIKTargetTransformFromBinding(const FContextualAnimSceneBinding& Binding, const FName& TrackName, float Time) const;
+
+	bool IsValid() const;
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 

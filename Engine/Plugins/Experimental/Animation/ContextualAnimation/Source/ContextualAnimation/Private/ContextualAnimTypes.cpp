@@ -380,6 +380,42 @@ bool FContextualAnimSceneBinding::NetSerialize(FArchive& Ar, class UPackageMap* 
 // FContextualAnimSceneBindings
 ///////////////////////////////////////////////////////////////////////
 
+bool FContextualAnimSceneBindings::IsValid() const
+{
+	const UContextualAnimSceneAsset* SceneAsset = GetSceneAsset();
+	return SceneAsset && SceneAsset->HasValidData() && Num() > 0;
+}
+
+const FContextualAnimTrack& FContextualAnimSceneBindings::GetAnimTrackFromBinding(const FContextualAnimSceneBinding& Binding) const
+{
+	if (const FContextualAnimTrack* AnimTrack = GetSceneAsset()->GetAnimTrack(Binding.SectionIdx, Binding.AnimSetIdx, Binding.AnimTrackIdx))
+	{
+		return *AnimTrack;
+	}
+
+	return FContextualAnimTrack::EmptyTrack;
+}
+
+const FContextualAnimIKTargetDefContainer& FContextualAnimSceneBindings::GetIKTargetDefContainerFromBinding(const FContextualAnimSceneBinding& Binding) const
+{
+	return GetSceneAsset()->GetIKTargetDefsForRoleInSection(GetSectionIdx(), GetRoleFromBinding(Binding));
+}
+
+FTransform FContextualAnimSceneBindings::GetIKTargetTransformFromBinding(const FContextualAnimSceneBinding& Binding, const FName& TrackName, float Time) const
+{
+	return GetSceneAsset()->GetIKTargetTransform(Binding.SectionIdx, Binding.AnimSetIdx, Binding.AnimTrackIdx, TrackName, Time);
+}
+
+FTransform FContextualAnimSceneBindings::GetAlignmentTransformFromBinding(const FContextualAnimSceneBinding& Binding, const FName& TrackName, float Time) const
+{
+	return GetSceneAsset()->GetAlignmentTransform(Binding.SectionIdx, Binding.AnimSetIdx, Binding.AnimTrackIdx, TrackName, Time);
+}
+
+const FName& FContextualAnimSceneBindings::GetRoleFromBinding(const FContextualAnimSceneBinding& Binding) const
+{
+	return GetAnimTrackFromBinding(Binding).Role;
+}
+
 bool FContextualAnimSceneBindings::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	bOutSuccess = SafeNetSerializeTArray_WithNetSerialize<10>(Ar, Data, Map);

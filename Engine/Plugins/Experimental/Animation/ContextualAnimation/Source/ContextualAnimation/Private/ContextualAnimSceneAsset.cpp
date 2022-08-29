@@ -664,6 +664,26 @@ const TArray<FContextualAnimSetPivotDefinition>& UContextualAnimSceneAsset::GetA
 	return Sections.IsValidIndex(SectionIdx) ? Sections[SectionIdx].GetAnimSetPivotDefinitions() : EmptyDefs;
 }
 
+FTransform UContextualAnimSceneAsset::GetIKTargetTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& TrackName, float Time) const
+{
+	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
+	{
+		return AnimTrack->IKTargetData.ExtractTransformAtTime(TrackName, Time);
+	}
+
+	return FTransform::Identity;
+}
+
+FTransform UContextualAnimSceneAsset::GetAlignmentTransform(int32 SectionIdx, int32 AnimSetIdx, int32 AnimTrackIdx, const FName& TrackName, float Time) const
+{
+	if (const FContextualAnimTrack* AnimTrack = GetAnimTrack(SectionIdx, AnimSetIdx, AnimTrackIdx))
+	{
+		return AnimTrack->AlignmentData.ExtractTransformAtTime(TrackName, Time);
+	}
+
+	return FTransform::Identity;
+}
+
 static FContextualAnimPoint GetContextualAnimPoint(const FContextualAnimTrack& AnimTrack, const FTransform& ToWorldTransform, int32 SampleRate, EContextualAnimPointType Type)
 {
 	check(SampleRate > 0);

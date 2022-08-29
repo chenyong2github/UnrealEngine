@@ -395,25 +395,28 @@ void UContextualAnimUtilities::BP_SceneBindings_CalculateAnimSetPivots(const FCo
 
 void UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBindings(const FContextualAnimSceneBindings& Bindings)
 {
-	const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset();
-	if(ensureAlways(SceneAsset))
+	if(!Bindings.IsValid())
 	{
-		const int32 SectionIdx = Bindings.GetSectionIdx();
-		for (const FContextualAnimSetPivotDefinition& PivotDef : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBindings Failed. Reason: Invalid Bindings. SceneAsset: %s"), *GetNameSafe(Bindings.GetSceneAsset()));
+		return;
+	}
+
+	const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset();
+	const int32 SectionIdx = Bindings.GetSectionIdx();
+	for (const FContextualAnimSetPivotDefinition& PivotDef : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
+	{
+		FContextualAnimSetPivot ScenePivot;
+		if (Bindings.CalculateAnimSetPivot(PivotDef, ScenePivot))
 		{
-			FContextualAnimSetPivot ScenePivot;
-			if (Bindings.CalculateAnimSetPivot(PivotDef, ScenePivot))
+			for (const FContextualAnimSceneBinding& Binding : Bindings)
 			{
-				for (const FContextualAnimSceneBinding& Binding : Bindings)
+				if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
 				{
-					if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
-					{
-						//@TODO: Cache this
-						const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(PivotDef.Name);
-						const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(PivotDef.Name, Time);
-						const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot.Transform);
-						MotionWarpComp->AddOrUpdateWarpTargetFromTransform(PivotDef.Name, WarpTarget);
-					}
+					//@TODO: Cache this
+					const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(PivotDef.Name);
+					const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(PivotDef.Name, Time);
+					const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot.Transform);
+					MotionWarpComp->AddOrUpdateWarpTargetFromTransform(PivotDef.Name, WarpTarget);
 				}
 			}
 		}
@@ -445,4 +448,42 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 	}
 
 	return Result;
+}
+
+const UAnimSequenceBase* UContextualAnimUtilities::BP_SceneBinding_GetAnimationFromBinding(const FContextualAnimSceneBindings& Bindings, const FContextualAnimSceneBinding& Binding)
+{
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::BP_SceneBinding_GetAnimationFromBinding Failed. Reason: Invalid Bindings. SceneAsset: %s"), *GetNameSafe(Bindings.GetSceneAsset()));
+		return nullptr;
+	}
+
+	return Bindings.GetAnimTrackFromBinding(Binding).Animation;
+}
+
+FName UContextualAnimUtilities::BP_SceneBinding_GetRoleFromBinding(const FContextualAnimSceneBindings& Bindings, const FContextualAnimSceneBinding& Binding)
+{
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::BP_SceneBinding_GetRoleFromBinding Failed. Reason: Invalid Bindings. SceneAsset: %s"), *GetNameSafe(Bindings.GetSceneAsset()));
+		return NAME_None;
+	}
+
+	return Bindings.GetAnimTrackFromBinding(Binding).Role;
+}
+
+FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformFromBinding(const FContextualAnimSceneBindings& Bindings, const FContextualAnimSceneBinding& Binding, const FContextualAnimSetPivot& Pivot)
+{
+	if (!Bindings.IsValid())
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformFromBinding Failed. Reason: Invalid Bindings. SceneAsset: %s"), *GetNameSafe(Bindings.GetSceneAsset()));
+		return FTransform::Identity;
+	}
+
+	const FContextualAnimTrack& AnimTrack = Bindings.GetAnimTrackFromBinding(Binding);
+
+	float StartTime, EndTime;
+	AnimTrack.GetStartAndEndTimeForWarpSection(Pivot.Name, StartTime, EndTime);
+
+	return AnimTrack.GetAlignmentTransformAtTime(EndTime) * Pivot.Transform;
 }
