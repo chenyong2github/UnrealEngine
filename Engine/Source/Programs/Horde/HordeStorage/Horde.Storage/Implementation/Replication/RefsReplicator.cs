@@ -510,6 +510,12 @@ namespace Horde.Storage.Implementation
                 _logger.Warning("Failed to resolve references for object {Blob} in {Namespace}. Skipping replication", objectToReplicate, ns);
                 return;
             }
+            if (referencesResponse.StatusCode == HttpStatusCode.NotFound)
+            {
+                // objects that do not exist can not be replicated so we skip them
+                _logger.Warning("Failed to resolve references for object {Blob} in {Namespace}. Got not found with message \"{Message}\". Skipping replication.", objectToReplicate, ns, referencesResponse.ReasonPhrase);
+                return;
+            }
             referencesResponse.EnsureSuccessStatusCode();
 
             ResolvedReferencesResult? refs = JsonConvert.DeserializeObject<ResolvedReferencesResult>(body);
