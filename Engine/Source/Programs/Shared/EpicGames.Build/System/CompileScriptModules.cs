@@ -10,6 +10,7 @@ using System.Text.Json;
 using Microsoft.Build.Shared;
 using EpicGames.MsBuild;
 using Microsoft.Extensions.Logging;
+using System.Runtime.CompilerServices;
 
 namespace UnrealBuildBase
 {
@@ -262,6 +263,7 @@ namespace UnrealBuildBase
 		/// If it is placed in the caller directly, then when the caller is invoked, the assembly will be loaded resulting
 		/// in the possible Microsoft.Build.Framework load issue later on is this method isn't invoked.
 		/// </summary>
+		[MethodImpl(MethodImplOptions.NoInlining)]
 		static Dictionary<FileReference, CsProjBuildRecordEntry> Build(HashSet<FileReference> FoundProjects,
 			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories,
 			List<string>? DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
