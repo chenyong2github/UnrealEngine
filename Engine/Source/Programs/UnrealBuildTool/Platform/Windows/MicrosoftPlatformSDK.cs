@@ -592,7 +592,12 @@ namespace UnrealBuildTool
 
 			if (ToolChain?.Error != null)
 			{
-				throw new BuildException(ToolChain.Error);
+				if (!IgnoreToolchainErrors)
+				{
+					throw new BuildException(ToolChain.Error);
+				}
+				// If errors are ignored, log the warning instead
+				Log.TraceWarningOnce(ToolChain.Error);
 			}
 
 			return ToolChain;
@@ -893,7 +898,7 @@ namespace UnrealBuildTool
 			VersionNumberRange? Banned = BannedVisualCppVersions.FirstOrDefault(x => x.Contains(Version));
 			if (Banned != null)
 			{
-				Error = $"UnrealBuildTool has banned the MSVC {Banned} toolchains due to compiler issues. Please install a different toolchain such as {PreferredVisualCppVersions.Select(x => x.Min).Max()} from the Visual Studio installer.";
+				Error = $"UnrealBuildTool has banned the MSVC {Banned} toolchains due to compiler issues. Please install a different toolchain such as {PreferredVisualCppVersions.Select(x => x.Min).Max()} by opening the generated solution and installing recommended components or from the Visual Studio installer.";
 			}
 
 			Logger.LogDebug("Found Visual Studio toolchain: {ToolChainDir} (Family={Family}, FamilyRank={FamilyRank}, Version={Version}, Is64Bit={Is64Bit}, Preview={Preview}, Architecture={Arch}, Error={Error}, Redist={RedistDir})", ToolChainDir, Family, FamilyRank, Version, Is64Bit, bPreview, WindowsArchitecture.x64.ToString(), Error != null, RedistDir);

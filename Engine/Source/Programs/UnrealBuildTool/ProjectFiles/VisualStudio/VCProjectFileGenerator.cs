@@ -133,6 +133,9 @@ namespace UnrealBuildTool
 			{
 				BuildToolOverride = "-2022";
 			}
+
+			// Allow generating the solution even if the only installed toolchain is banned.			
+			MicrosoftPlatformSDK.IgnoreToolchainErrors = true;
 		}
 
 		public override string[] GetTargetArguments(string[] Arguments)

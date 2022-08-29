@@ -86,7 +86,9 @@ namespace UnrealBuildTool
 		{
 			"Microsoft.VisualStudio.Workload.NativeCrossPlat",
 			"Microsoft.VisualStudio.Component.VC.14.32.17.2.ARM64",
-			"Microsoft.VisualStudio.Component.VC.14.32.17.2.x86.x64"
+			"Microsoft.VisualStudio.Component.VC.14.32.17.2.x86.x64",
+			"Microsoft.Net.Component.4.5.TargetingPack",
+			"Microsoft.Net.Component.4.6.2.TargetingPack",
 		};
 
 		/// <summary>
@@ -131,5 +133,12 @@ namespace UnrealBuildTool
 			MinVersion = PreferredWindowsSdkVersions.Min()?.ToString();
 			MaxVersion = null;
 		}
+
+		/// <summary>
+		/// Whether toolchain errors should be ignored. Enable to ignore banned toolchains when generating projects,
+		/// as components such as the recommended toolchain can be installed by opening the generated solution via the .vsconfig file.
+		/// If enabled the error will be downgraded to a warning.
+		/// </summary>
+		public static bool IgnoreToolchainErrors = false;
 	}
 }
