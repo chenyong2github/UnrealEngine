@@ -26,12 +26,6 @@ protected:
 	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
 	virtual void ConfigureQueries() override;
 
-	/**
-	 * Initialize the processor 
-	 * @param Owner of the Processor
-	 */
-	virtual void Initialize(UObject& Owner) override;
-
 	/** 
 	 * Execution method for this processor 
 	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
@@ -57,12 +51,6 @@ protected:
 	 * @param Context of the execution from the entity sub system
 	 */
 	void UpdateRepresentation(FMassExecutionContext& Context);
-
-	/** Caching ptr to our associated world */
-	UPROPERTY(Transient)
-	TObjectPtr<UWorld> World;
-
-	TSharedPtr<FMassEntityManager> EntityManager;
 
 	FMassEntityQuery EntityQuery;
 };

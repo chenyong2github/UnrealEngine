@@ -309,7 +309,7 @@ public:
 	/**
 	 * Creates and initializes a FMassExecutionContext instance.
 	 */
-	FMassExecutionContext CreateExecutionContext(const float DeltaSeconds) const;
+	FMassExecutionContext CreateExecutionContext(const float DeltaSeconds);
 
 	FScopedProcessing NewProcessingScope() { return FScopedProcessing(ProcessingScopeCount); }
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }

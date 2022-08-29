@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "MassRepresentationActorManagement.h"
 #include "MassEntityUtils.h"
+#include "MassExecutionContext.h"
 
 
 namespace UE::MassRepresentation
@@ -41,15 +42,6 @@ void UMassRepresentationProcessor::ConfigureQueries()
 	EntityQuery.AddSubsystemRequirement<UMassActorSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
-void UMassRepresentationProcessor::Initialize(UObject& Owner)
-{
-	Super::Initialize(Owner);
-
-	World = Owner.GetWorld();
-	check(World);
-	EntityManager = UE::Mass::Utils::GetEntityManagerChecked(*World).AsShared();
-}
-
 void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& Context)
 {
 	UMassRepresentationSubsystem* RepresentationSubsystem = Context.GetMutableSharedFragment<FMassRepresentationSubsystemSharedFragment>().RepresentationSubsystem;
@@ -60,8 +52,7 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 
 	UMassActorSubsystem* MassActorSubsystem = Context.GetMutableSubsystem<UMassActorSubsystem>(RepresentationSubsystem->GetWorld());
 
-	check(EntityManager);
-	FMassEntityManager& CachedEntityManager = *EntityManager.Get();
+	FMassEntityManager& CachedEntityManager = Context.GetEntityManagerChecked();
 
 	const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 	const TArrayView<FMassRepresentationFragment> RepresentationList = Context.GetMutableFragmentView<FMassRepresentationFragment>();
@@ -228,10 +219,10 @@ void UMassRepresentationProcessor::UpdateRepresentation(FMassExecutionContext& C
 	}
 }
 
-void UMassRepresentationProcessor::Execute(FMassEntityManager& InEntitySubsystem, FMassExecutionContext& Context)
+void UMassRepresentationProcessor::Execute(FMassEntityManager& InEntityManager, FMassExecutionContext& Context)
 {
 	// Update entities representation
-	EntityQuery.ForEachEntityChunk(InEntitySubsystem, Context, [this](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(InEntityManager, Context, [this](FMassExecutionContext& Context)
 	{
 		UpdateRepresentation(Context);
 	});

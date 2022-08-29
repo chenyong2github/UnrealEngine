@@ -52,6 +52,8 @@ private:
 	int32 ChunkSerialModificationNumber = -1;
 	FMassTagBitSet CurrentArchetypesTagBitSet;
 
+	TSharedPtr<FMassEntityManager> EntityManager;
+
 #if WITH_MASSENTITY_DEBUG
 	FString DebugExecutionDescription;
 #endif
@@ -71,16 +73,19 @@ private:
 	friend FMassEntityQuery;
 
 public:
-	explicit FMassExecutionContext(const float InDeltaTimeSeconds, const bool bInFlushDeferredCommands = true)
+	explicit FMassExecutionContext(const TSharedPtr<FMassEntityManager>& InEntityManager, const float InDeltaTimeSeconds, const bool bInFlushDeferredCommands = true)
 		: DeltaTimeSeconds(InDeltaTimeSeconds)
+		, EntityManager(InEntityManager)
 		, bFlushDeferredCommands(bInFlushDeferredCommands)
 	{
 		Subsystems.AddZeroed(FMassExternalSubsystemBitSet::GetMaxNum());
 	}
 
 	FMassExecutionContext()
-		: FMassExecutionContext(/*InDeltaTimeSeconds=*/0.f)
+		: FMassExecutionContext(nullptr, /*InDeltaTimeSeconds=*/0.f)
 	{}
+
+	FMassEntityManager& GetEntityManagerChecked() { check(EntityManager); return *EntityManager.Get(); }
 
 #if WITH_MASSENTITY_DEBUG
 	const FString& DebugGetExecutionDesc() const { return DebugExecutionDescription; }
@@ -333,7 +338,7 @@ public:
 		return FragmentType != nullptr && FragmentType == TFragment::StaticStruct();
 	}
 
-	void FlushDeferred(FMassEntityManager& EntityManager) const;
+	void FlushDeferred();
 
 	void ClearExecutionData();
 	void SetCurrentArchetypesTagBitSet(const FMassTagBitSet& BitSet)

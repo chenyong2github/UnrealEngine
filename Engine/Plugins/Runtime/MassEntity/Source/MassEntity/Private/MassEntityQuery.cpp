@@ -228,7 +228,7 @@ void FMassEntityQuery::ForEachEntityChunk(FMassEntityManager& EntityManager, FMa
 #endif
 
 	ExecutionContext.ClearExecutionData();
-	ExecutionContext.FlushDeferred(EntityManager);
+	ExecutionContext.FlushDeferred();
 }
 
 int32 FMassEntityQuery::GetNumMatchingEntities(FMassEntityManager& InEntityManager)

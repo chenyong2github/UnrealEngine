@@ -4,11 +4,12 @@
 #include "MassArchetypeData.h"
 
 
-void FMassExecutionContext::FlushDeferred(FMassEntityManager& EntityManager) const
+void FMassExecutionContext::FlushDeferred()
 {
 	if (bFlushDeferredCommands && DeferredCommandBuffer)
 	{
-		EntityManager.FlushCommands(DeferredCommandBuffer);
+		check(EntityManager);
+		EntityManager->FlushCommands(DeferredCommandBuffer);
 	}
 }
 

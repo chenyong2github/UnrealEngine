@@ -84,7 +84,7 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunProcessorsView")
 
-	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(ProcessingContext.EntityManager, ProcessingContext.DeltaSeconds);
 	if (EntityCollection)
 	{
 		ExecutionContext.SetEntityCollection(*EntityCollection);
@@ -120,7 +120,7 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 		ensure(!EntityManager.Defer().IsFlushing());
 		ensure(!ExecutionContext.Defer().IsFlushing());
 		ExecutionContext.Defer().MoveAppend(EntityManager.Defer());
-		ExecutionContext.FlushDeferred(*ProcessingContext.EntityManager);
+		ExecutionContext.FlushDeferred();
 	}
 	// else make sure we don't just lose the commands. Append to the command buffer requested via
 	// ProcessingContext.CommandBuffer or to the default EntityManager's command buffer.
@@ -139,9 +139,8 @@ void RunProcessorsView(TArrayView<UMassProcessor*> Processors, FMassProcessingCo
 
 struct FMassExecutorDoneTask
 {
-	FMassExecutorDoneTask(const FMassExecutionContext& InExecutionContext, const TSharedPtr<FMassEntityManager>& InEntityManager, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
+	FMassExecutorDoneTask(const FMassExecutionContext& InExecutionContext, TFunction<void()> InOnDoneNotification, const FString& InDebugName)
 		: ExecutionContext(InExecutionContext)
-		, EntityManager(InEntityManager)
 		, OnDoneNotification(InOnDoneNotification)
 		, DebugName(InDebugName)
 	{
@@ -157,8 +156,7 @@ struct FMassExecutorDoneTask
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_STR("Flush Deferred Commands Parallel");
 
-		check(EntityManager);
-		FMassEntityManager& EntityManagerRef = *EntityManager.Get();
+		FMassEntityManager& EntityManagerRef = ExecutionContext.GetEntityManagerChecked();
 
 		if (&ExecutionContext.Defer() != &EntityManagerRef.Defer())
 		{
@@ -167,13 +165,12 @@ struct FMassExecutorDoneTask
 
 		UE_LOG(LogMass, Verbose, TEXT("MassExecutor %s tasks DONE"), *DebugName);
 		ExecutionContext.SetFlushDeferredCommands(true);
-		ExecutionContext.FlushDeferred(EntityManagerRef);
+		ExecutionContext.FlushDeferred();
 
 		OnDoneNotification();
 	}
 private:
 	FMassExecutionContext ExecutionContext;
-	TSharedPtr<FMassEntityManager> EntityManager;
 	TFunction<void()> OnDoneNotification;
 	FString DebugName;
 };
@@ -191,7 +188,7 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("MassExecutor RunParallel")
 
 	// not going through FMassEntityManager::CreateExecutionContext on purpose - we do need a separate command buffer
-	FMassExecutionContext ExecutionContext(ProcessingContext.DeltaSeconds);
+	FMassExecutionContext ExecutionContext(ProcessingContext.EntityManager, ProcessingContext.DeltaSeconds);
 	TSharedPtr<FMassCommandBuffer> CommandBuffer = ProcessingContext.CommandBuffer
 		? ProcessingContext.CommandBuffer : MakeShareable(new FMassCommandBuffer());
 	ExecutionContext.SetDeferredCommandBuffer(CommandBuffer);
@@ -209,7 +206,7 @@ FGraphEventRef TriggerParallelTasks(UMassProcessor& Processor, FMassProcessingCo
 	{
 		const FGraphEventArray Prerequisites = { CompletionEvent };
 		CompletionEvent = TGraphTask<FMassExecutorDoneTask>::CreateTask(&Prerequisites)
-			.ConstructAndDispatchWhenReady(ExecutionContext, ProcessingContext.EntityManager, OnDoneNotification, Processor.GetName());
+			.ConstructAndDispatchWhenReady(ExecutionContext, OnDoneNotification, Processor.GetName());
 	}
 
 	return CompletionEvent;

@@ -1314,9 +1314,9 @@ void FMassEntityManager::GetValidArchetypes(const FMassEntityQuery& Query, TArra
 	}
 }
 
-FMassExecutionContext FMassEntityManager::CreateExecutionContext(const float DeltaSeconds) const
+FMassExecutionContext FMassEntityManager::CreateExecutionContext(const float DeltaSeconds)
 {
-	FMassExecutionContext ExecutionContext(DeltaSeconds);
+	FMassExecutionContext ExecutionContext(AsShared(), DeltaSeconds);
 	ExecutionContext.SetDeferredCommandBuffer(DeferredCommandBuffer);
 	return MoveTemp(ExecutionContext);
 }
