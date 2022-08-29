@@ -174,9 +174,23 @@ void FKismetVariableDragDropAction::HoverTargetChanged()
 				Schema->ConvertPropertyToPinType(VariableProperty, VariablePinType);
 				const bool bTypeMatch = Schema->ArePinTypesCompatible(VariablePinType, PinUnderCursor->PinType) || bIsExecPin;
 
+				FName DummyName;
+				UClass* DummyClass;
+				UK2Node* DummyNode;
+				const bool bCanAutoConvert = Schema->FindSpecializedConversionNode(VariablePinType, PinUnderCursor, false, /* out */ DummyNode);
+				bool bCanAutocast = false;
+				if (PinUnderCursor->Direction == EGPD_Output)
+				{
+					bCanAutocast = Schema->SearchForAutocastFunction(PinUnderCursor->PinType, VariablePinType, /*out*/ DummyName, DummyClass);
+				}
+				else
+				{
+					bCanAutocast = Schema->SearchForAutocastFunction(VariablePinType, PinUnderCursor->PinType, /*out*/ DummyName, DummyClass);
+				}
+				
 				Args.Add(TEXT("PinUnderCursor"), FText::FromName(PinUnderCursor->PinName));
 
-				if (bTypeMatch && bCanWriteIfNeeded)
+				if ((bTypeMatch  || bCanAutocast || bCanAutoConvert) && bCanWriteIfNeeded)
 				{
 					SetFeedbackMessageOK(bIsRead ?
 						FText::Format(LOCTEXT("MakeThisEqualThat_PinEqualVariableName", "Make {PinUnderCursor} = {VariableName}"), Args) :
@@ -284,8 +298,22 @@ FReply FKismetVariableDragDropAction::DroppedOnPin(FVector2D ScreenPosition, FVe
 					FEdGraphPinType VariablePinType;
 					Schema->ConvertPropertyToPinType(VariableProperty, VariablePinType);
 					const bool bTypeMatch = Schema->ArePinTypesCompatible(VariablePinType, TargetPin->PinType) || bIsExecPin;
-
-					if (bTypeMatch && bCanWriteIfNeeded)
+					
+					FName DummyName;
+					UClass* DummyClass;
+					UK2Node* DummyNode;
+					const bool bCanAutoConvert = Schema->FindSpecializedConversionNode(VariablePinType, TargetPin, false, /* out */ DummyNode);
+					bool bCanAutocast = false;
+					if (TargetPin->Direction == EGPD_Output)
+					{
+						bCanAutocast = Schema->SearchForAutocastFunction(TargetPin->PinType, VariablePinType, /*out*/ DummyName, DummyClass);
+					}
+					else
+					{
+						bCanAutocast = Schema->SearchForAutocastFunction(VariablePinType, TargetPin->PinType, /*out*/ DummyName, DummyClass);
+					}
+					
+					if ((bTypeMatch || bCanAutocast || bCanAutoConvert) && bCanWriteIfNeeded)
 					{
 						FEdGraphSchemaAction_K2NewNode Action;
 
