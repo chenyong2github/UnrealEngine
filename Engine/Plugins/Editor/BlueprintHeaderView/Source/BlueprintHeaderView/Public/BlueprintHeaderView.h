@@ -8,6 +8,7 @@
 #include "Styling/SlateTypes.h"
 
 class FExtender;
+class FSlateStyleSet;
 
 class FBlueprintHeaderViewModule : public IModuleInterface
 {
@@ -34,6 +35,9 @@ public:
 
 	/** TableRow style for the Header View Output */
 	static FTableRowStyle HeaderViewTableRowStyle;
+
+	/** Style set for the header view */
+	static TSharedPtr<FSlateStyleSet> HeaderViewStyleSet;
 
 private: 
 	/** Handle to our delegate so we can remove it at module shutdown */
