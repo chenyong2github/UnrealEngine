@@ -70,6 +70,8 @@ void FPixelCaptureCapturerRHI::CheckComplete()
 	{
 		TSharedRef<FPixelCaptureCapturerRHI> ThisRHIRef = StaticCastSharedRef<FPixelCaptureCapturerRHI>(AsShared());
 		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [ThisRHIRef]() {
+			// we want to check quickly but we dont want to spam new tasks. at some point you're just making more work.
+			FPlatformProcess::Sleep(0.0001f);
 			ThisRHIRef->CheckComplete();
 		});
 	}
