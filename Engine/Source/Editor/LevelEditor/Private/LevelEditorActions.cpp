@@ -441,7 +441,7 @@ void FLevelEditorActionCallbacks::Save()
 {
 	// If the world is a template, go through the save current as path as it handles loading all external actors properly
 	UWorld* World = GetWorld();
-	if (FPackageName::IsTempPackage(World->GetPackage()->GetName()))
+	if (FPackageName::IsTempPackage(World->GetPackage()->GetName()) && CanSaveCurrentAs())
 	{
 		SaveCurrentAs();
 	}
@@ -3706,7 +3706,5 @@ void FLevelEditorCommands::RegisterCommands()
 
 	UI_COMMAND(OpenMergeActor, "Merge Actors", "Opens the Merge Actor panel", EUserInterfaceActionType::Button, FInputChord());
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
