@@ -106,9 +106,10 @@ void APCGPartitionActor::PostRegisterAllComponents()
 #endif // WITH_EDITOR
 		) && ensure(PCGGridSize > 0))
 	{
-		UPCGSubsystem* Subsystem = GetSubsystem();
-		check(Subsystem);
-		Subsystem->RegisterPartitionActor(this, /*bDoComponentMapping*/ bIsRuntimeOrPIE);
+		if (UPCGSubsystem* Subsystem = GetSubsystem())
+		{
+			Subsystem->RegisterPartitionActor(this, /*bDoComponentMapping*/ bIsRuntimeOrPIE);
+		}
 	}
 }
 
@@ -137,10 +138,10 @@ void APCGPartitionActor::BeginPlay()
 
 void APCGPartitionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UPCGSubsystem* Subsystem = GetSubsystem();
-	check(Subsystem);
-
-	Subsystem->UnregisterPartitionActor(this);
+	if (UPCGSubsystem* Subsystem = GetSubsystem())
+	{
+		Subsystem->UnregisterPartitionActor(this);
+	}
 
 	Super::EndPlay(EndPlayReason);
 }
