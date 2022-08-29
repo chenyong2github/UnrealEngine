@@ -3,6 +3,8 @@
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/ActorDescContainer.h"
+#include "WorldPartition/WorldPartition.h"
+
 
 #if WITH_EDITOR
 /**
@@ -21,6 +23,11 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionImplBase::GetActorDesc(UAct
 UActorDescContainer* FWorldPartitionImplBase::GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc)
 {
 	return ActorDesc ? ActorDesc->Get()->GetContainer() : nullptr;
+}
+
+UActorDescContainer* FWorldPartitionImplBase::GetActorDescContainer(FActorDescContainerCollection* ContainerCollection, const FGuid& ActorGuid)
+{
+	return ContainerCollection ? ContainerCollection->GetActorDescContainer(ActorGuid) : nullptr;
 }
 
 bool FWorldPartitionImplBase::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
@@ -71,7 +78,7 @@ void FWorldPartitionLoadingContext::FImmediate::RegisterActor(FWorldPartitionAct
 		UActorDescContainer* Container = ActorDesc->GetContainer();
 		check(Container);
 
-		const FTransform& ContainerTransform = Container->GetInstanceTransform();
+		const FTransform& ContainerTransform = Container->GetTypedOuter<UWorldPartition>()->GetInstanceTransform();
 		const FTransform* ContainerTransformPtr = ContainerTransform.Equals(FTransform::Identity) ? nullptr : &ContainerTransform;
 
 		Actor->GetLevel()->AddLoadedActor(Actor, ContainerTransformPtr);
@@ -86,7 +93,7 @@ void FWorldPartitionLoadingContext::FImmediate::UnregisterActor(FWorldPartitionA
 		UActorDescContainer* Container = ActorDesc->GetContainer();
 		check(Container);
 
-		const FTransform& ContainerTransform = Container->GetInstanceTransform();
+		const FTransform& ContainerTransform = Container->GetTypedOuter<UWorldPartition>()->GetInstanceTransform();
 		const FTransform* ContainerTransformPtr = ContainerTransform.Equals(FTransform::Identity) ? nullptr : &ContainerTransform;
 
 		Actor->GetLevel()->RemoveLoadedActor(Actor, ContainerTransformPtr);
@@ -106,7 +113,7 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 	{
 		for (auto& [Container, ContainerOp] : LocalContainerOps)
 		{
-			const FTransform& ContainerTransform = Container->GetInstanceTransform();
+			const FTransform& ContainerTransform = Container->GetTypedOuter<UWorldPartition>()->GetInstanceTransform();
 			const FTransform* ContainerTransformPtr = ContainerTransform.Equals(FTransform::Identity) ? nullptr : &ContainerTransform;
 
 			auto CreateActorList = [](TArray<AActor*>& ActorList, const TSet<FWorldPartitionActorDesc*>& SourceList) -> ULevel*

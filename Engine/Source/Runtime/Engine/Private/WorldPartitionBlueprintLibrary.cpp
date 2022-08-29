@@ -66,6 +66,18 @@ void UWorldPartitionBlueprintLibrary::OnWorldPartitionUninitialized(UWorldPartit
 	}
 }
 
+bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UWorldPartition* WorldPartiton, TArray<FActorDesc>& OutActorDescs)
+{
+	bool bResult = true;
+
+	WorldPartiton->ForEachActorDescContainer([&](const UActorDescContainer* ActorDescContainer)
+	{
+		bResult &= GetActorDescs(ActorDescContainer, FTransform::Identity, OutActorDescs);
+	});
+	
+	return bResult;
+}
+
 bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UActorDescContainer* InContainer, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs)
 {
 	bool bResult = true;
@@ -96,52 +108,54 @@ bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UActorDescContainer* I
 	return bResult;
 }
 
+bool UWorldPartitionBlueprintLibrary::HandleIntersectingActorDesc(const FWorldPartitionActorDesc* ActorDesc, const FBox& InBox, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs)
+{
+	bool bResult = true;
+	const UActorDescContainer* SubContainer;
+	EContainerClusterMode SubClusterMode;
+	FTransform SubTransform;
+
+	if (ActorDesc->IsContainerInstance())
+	{
+		if (ActorDesc->GetContainerInstance(SubContainer, SubTransform, SubClusterMode))
+		{
+			bResult &= GetIntersectingActorDescs(SubContainer, InBox, SubTransform * InTransform, OutActorDescs);
+		}
+		else
+		{
+			bResult = false;
+		}
+	}
+	else
+	{
+		OutActorDescs.Emplace(*ActorDesc, InTransform);
+	}
+
+	return bResult;
+}
+
+bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(UWorldPartition* WorldPartition, const FBox& InBox, TArray<FActorDesc>& OutActorDescs)
+{
+	bool bResult = true;
+
+	FWorldPartitionHelpers::ForEachIntersectingActorDesc(WorldPartition, InBox, [&bResult, &InBox, &OutActorDescs](const FWorldPartitionActorDesc* ActorDesc)
+	{
+		bResult &= HandleIntersectingActorDesc(ActorDesc, InBox, FTransform::Identity, OutActorDescs);
+		return true;
+	});
+
+	return bResult;
+}
+
 bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const UActorDescContainer* InContainer, const FBox& InBox, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs)
 {
 	bool bResult = true;
 
-	auto HandleActorDesc = [&InBox, &InTransform, &OutActorDescs](const FWorldPartitionActorDesc* ActorDesc)
+	for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
 	{
-		bool bResult = true;
-		const UActorDescContainer* SubContainer;
-		EContainerClusterMode SubClusterMode;
-		FTransform SubTransform;
-
-		if (ActorDesc->IsContainerInstance())
+		if (ActorDescIt->GetBounds().Intersect(InBox))
 		{
-			if (ActorDesc->GetContainerInstance(SubContainer, SubTransform, SubClusterMode))
-			{
-				bResult &= GetIntersectingActorDescs(SubContainer, InBox, SubTransform * InTransform, OutActorDescs);
-			}
-			else
-			{
-				bResult = false;
-			}
-		}
-		else
-		{
-			OutActorDescs.Emplace(*ActorDesc, InTransform);
-		}
-
-		return bResult;
-	};
-
-	if (const UWorldPartition* WorldPartition = Cast<UWorldPartition>(InContainer))
-	{
-		FWorldPartitionHelpers::ForEachIntersectingActorDesc(const_cast<UWorldPartition*>(WorldPartition), InBox, [&bResult, &InBox, &InTransform, &OutActorDescs, &HandleActorDesc](const FWorldPartitionActorDesc* ActorDesc)
-		{
-			bResult &= HandleActorDesc(ActorDesc);
-			return true;
-		});
-	}
-	else
-	{
-		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
-		{
-			if (ActorDescIt->GetBounds().Intersect(InBox))
-			{
-				bResult &= HandleActorDesc(*ActorDescIt);
-			}
+			bResult &= HandleIntersectingActorDesc(*ActorDescIt, InBox, InTransform, OutActorDescs);
 		}
 	}
 
@@ -206,7 +220,7 @@ bool UWorldPartitionBlueprintLibrary::GetActorDescs(TArray<FActorDesc>& OutActor
 #if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
-		return GetActorDescs(WorldPartition, FTransform::Identity, OutActorDescs);
+		return GetActorDescs(WorldPartition, OutActorDescs);
 	}
 #endif
 	return false;
@@ -217,7 +231,7 @@ bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const FBox& InBo
 #if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
-		return GetIntersectingActorDescs(WorldPartition, InBox, FTransform::Identity, OutActorDescs);
+		return GetIntersectingActorDescs(WorldPartition, InBox, OutActorDescs);
 	}
 #endif
 	return false;

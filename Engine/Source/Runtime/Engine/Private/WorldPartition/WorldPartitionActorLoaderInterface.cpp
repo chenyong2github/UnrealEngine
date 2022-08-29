@@ -96,11 +96,23 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::IsLoaded() const
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RegisterDelegates()
 {
 	FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged);
+	check(World->GetWorldPartition() != nullptr);
+	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+	{
+		WorldPartition->OnActorDescContainerRegistered.AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter::OnActorDescContainerInitialize);
+		WorldPartition->OnActorDescContainerUnregistered.AddRaw(this, &IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter::OnActorDescContainerUninitialize);
+	}
 }
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::UnregisterDelegates()
 {
 	FDataLayersEditorBroadcast::Get().OnActorDataLayersEditorLoadingStateChanged().RemoveAll(this);
+	check(World->GetWorldPartition() != nullptr);
+	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+	{
+		WorldPartition->OnActorDescContainerRegistered.RemoveAll(this);
+		WorldPartition->OnActorDescContainerUnregistered.RemoveAll(this);
+	}
 }
 
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassActorDescFilter(const FWorldPartitionHandle& Actor) const
@@ -212,6 +224,41 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 				}
 			}
 		}
+	}
+}
+
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDescContainerInitialize(UActorDescContainer* Container)
+{
+	RefreshLoadedState();
+}
+
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDescContainerUninitialize(UActorDescContainer* Container)
+{
+	// @todo_ow :
+	// If the container is removed before broadcasting its uninitialize event we could simply call RefreshLoadedState(), but it would break call symetry
+	TArray<FWorldPartitionHandle> ActorsToUnload;
+	for(UActorDescContainer::TConstIterator<> It(Container); It; ++It)
+	{
+		if( ActorReferences.Find(It->GetGuid()))
+		{
+			ActorsToUnload.Emplace(Container, It->GetGuid());
+		}
+	}
+	
+	if (ActorsToUnload.Num())
+	{
+		FWorldPartitionLoadingContext::FDeferred LoadingContext;
+	
+		FScopedSlowTask SlowTask(ActorsToUnload.Num(), LOCTEXT("ActorsUnoading", "Unloading actors..."));
+		SlowTask.MakeDialogDelayed(1.0f);
+	
+		for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
+		{
+			RemoveReferenceToActor(ActorToUnload);
+			SlowTask.EnterProgressFrame(1);
+		}
+	
+		PostLoadedStateChanged(0, ActorsToUnload.Num());
 	}
 }
 

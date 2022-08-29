@@ -2,6 +2,7 @@
 
 #include "WorldPartition/WorldPartitionFoliageBuilder.h"
 
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "PackageSourceControlHelper.h"
@@ -41,6 +42,15 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	else if (NewGridSize == 0)
 	{
 		UE_LOG(LogWorldPartitionFoliageBuilder, Error, TEXT("Foliage Grid Size is invalid %d. Please specify NewGridSize parameter."), NewGridSize);
+		return false;
+	}
+
+	if (WorldPartition->GetActorDescContainerCount() > 1)
+	{ 
+		// @todo_ow: This commandlet is currently unsupported for worldpartitions having multiple containers.
+		// ForEachActorWithLoading below loops on all actors of all containers of a WorldPartition and saves new actors.
+		// The new actors are saved within the main container WorldPartition container. Newly saved actors coming from different actor desc container should be saved in the right container. 
+		UE_LOG(LogWorldPartitionFoliageBuilder, Error, TEXT("FoliageBuilder Commandlet is unsupported on WorldPartition using more than 1 ExternalActor Folder."));
 		return false;
 	}
 

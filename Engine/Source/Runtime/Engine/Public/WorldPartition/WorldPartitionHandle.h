@@ -8,6 +8,7 @@
 
 #if WITH_EDITOR
 class UActorDescContainer;
+class FActorDescContainerCollection;
 class FWorldPartitionActorDesc;
 struct FWorldPartitionHandleImpl;
 struct FWorldPartitionReferenceImpl;
@@ -96,10 +97,25 @@ public:
 		}
 	}
 
-	FORCEINLINE TWorldPartitionHandle(UActorDescContainer* Container, const FGuid& ActorGuid)
-		: Container(Container)
-		, ActorDesc(Impl::GetActorDesc(Container, ActorGuid))
+	FORCEINLINE TWorldPartitionHandle(UActorDescContainer* InContainer, const FGuid& ActorGuid)
+		: Container(InContainer)
+		, ActorDesc(Impl::GetActorDesc(InContainer, ActorGuid))
 	{
+		if (IsValid())
+		{
+			IncRefCount();
+		}
+	}
+
+	FORCEINLINE TWorldPartitionHandle(FActorDescContainerCollection* ContainerCollection, const FGuid& ActorGuid)
+		: Container(Impl::GetActorDescContainer(ContainerCollection, ActorGuid))
+		, ActorDesc(nullptr)
+	{
+		if (Container != nullptr)
+		{
+			ActorDesc = Impl::GetActorDesc(Container.Get(), ActorGuid);
+		}
+
 		if (IsValid())
 		{
 			IncRefCount();
@@ -306,6 +322,7 @@ struct ENGINE_API FWorldPartitionImplBase
 {
 	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid);
 	static UActorDescContainer* GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc);
+	static UActorDescContainer* GetActorDescContainer(FActorDescContainerCollection* ContainerCollection, const FGuid& ActorGuid);
 	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
 };
 

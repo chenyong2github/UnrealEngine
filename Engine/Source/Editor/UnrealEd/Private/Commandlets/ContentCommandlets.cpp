@@ -48,6 +48,7 @@
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"
 #include "CommandletSourceControlUtils.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "LevelInstance/LevelInstanceInterface.h"

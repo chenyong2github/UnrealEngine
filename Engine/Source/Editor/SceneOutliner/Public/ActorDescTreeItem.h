@@ -6,8 +6,9 @@
 #include "Widgets/SWidget.h"
 #include "ActorBaseTreeItem.h"
 #include "UObject/ObjectKey.h"
-#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 
+class UActorDescContainer;
 class FWorldPartitionActorDesc;
 class UToolMenu;
 
@@ -40,6 +41,9 @@ public:
 	/** Construct this item from an actor desc */
 	FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container);
 
+	/** Construct this item from an actor desc */
+	FActorDescTreeItem(const FGuid& InActorGuid, FActorDescContainerCollection* ContainerCollection);
+
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	virtual bool IsValid() const override { return ActorDescHandle.Get() != nullptr; }
 	virtual FSceneOutlinerTreeItemID GetID() const override;
@@ -66,5 +70,6 @@ protected:
 
 private:
 	void CopyActorFilePathtoClipboard() const;
+	void Initialize();
 	FGuid ActorGuid;
 };

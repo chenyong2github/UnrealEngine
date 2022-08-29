@@ -176,7 +176,7 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		if (World != nullptr)
 		{
 			// World is Loaded reuse the ActorDescContainer of the World
-			ActorDescContainer = World->GetWorldPartition();
+			ActorDescContainer = World->GetWorldPartition()->GetActorDescContainer();
 		}
 		else
 		{

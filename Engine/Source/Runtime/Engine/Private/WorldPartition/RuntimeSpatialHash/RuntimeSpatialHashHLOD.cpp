@@ -12,6 +12,7 @@
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 
 #include "UObject/GCObjectScopeGuard.h"
@@ -87,7 +88,7 @@ static void DeletePackage(UWorldPartition* WorldPartition, FWorldPartitionActorD
 	if (ActorDesc->IsLoaded())
 	{
 		DeletePackage(ActorDesc->GetActor()->GetPackage(), SourceControlHelper);
-		WorldPartition->OnPackageDeleted(ActorDesc->GetActor()->GetPackage());
+		WorldPartition->GetActorDescContainer()->OnPackageDeleted(ActorDesc->GetActor()->GetPackage());
 	}
 	else
 	{
@@ -260,7 +261,7 @@ static TMap<UHLODLayer*, int32> GatherHLODLayers(UWorldPartition* WorldPartition
 	// Gather up all HLODLayers referenced by the actors, along with the HLOD level at which it was used
 	TMap<UHLODLayer*, int32> HLODLayersLevel;
 
-	for (FActorDescList::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+	for (FActorDescList::TIterator<> ActorDescIterator(WorldPartition->GetActorDescContainer()); ActorDescIterator; ++ActorDescIterator)
 	{
 		const FWorldPartitionActorDesc& ActorDesc = **ActorDescIterator;
 		if (!ActorDesc.GetActorNativeClass()->IsChildOf<AWorldPartitionHLOD>())
@@ -420,7 +421,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	TSet<FWorldPartitionHandle> InvalidHLODActors;
 
-	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition->GetActorDescContainer()); HLODIterator; ++HLODIterator)
 	{
 		uint64 CellHash = HLODIterator->GetCellHash();
 

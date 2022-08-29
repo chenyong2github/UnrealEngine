@@ -41,6 +41,9 @@ public:
 		virtual TOptional<FString> GetLabel() const { return TOptional<FString>(); }
 		virtual TOptional<FColor> GetColor() const { return TOptional<FColor>(); }
 
+		void OnActorDescContainerInitialize(UActorDescContainer* Container);
+		void OnActorDescContainerUninitialize(UActorDescContainer* Container);
+
 	protected:
 		// Private interface
 		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const =0;

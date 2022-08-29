@@ -13,7 +13,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionHandle.h"
-#include "WorldPartition/ActorDescContainer.h"
+#include "WorldPartition/ActorDescContainerCollection.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
@@ -25,6 +25,7 @@
 #include "WorldPartition.generated.h"
 
 class FWorldPartitionActorDesc;
+class UActorDescContainer;
 class UWorldPartitionEditorHash;
 class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
@@ -74,7 +75,7 @@ public:
 #endif
 
 UCLASS(AutoExpandCategories=(WorldPartition))
-class ENGINE_API UWorldPartition final : public UActorDescContainer
+class ENGINE_API UWorldPartition final : public UObject, public FActorDescContainerCollection
 {
 	GENERATED_UCLASS_BODY()
 
@@ -84,6 +85,7 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 	friend class FWorldPartitionEditorModule;
 	friend class FWorldPartitionDetails;
 	friend class FUnrealEdMisc;
+	friend class UActorDescContainer;
 
 public:
 #if WITH_EDITOR
@@ -122,23 +124,25 @@ private:
 	void OnBeginPlay();
 	void OnEndPlay();
 
-	//~ Begin UActorDescContainer Interface
-	virtual void OnWorldRenamed() override;
+	// WorldDeletegates Events
+	void OnWorldRenamed(UWorld* RenamedWorld);
 
-	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc) override;
-	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc) override;
-	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) override;
-	virtual void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc) override;
+	// ActorDescContainer Events
+	void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
+	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
+	void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc);
+	void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc);
 
-	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext) const override;
+	bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext) const;
 #endif
 
 public:
-	virtual const FTransform& GetInstanceTransform() const override;
+	const FTransform& GetInstanceTransform() const;
 	//~ End UActorDescContainer Interface
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual UWorld* GetWorld() const override;
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
@@ -148,6 +152,7 @@ public:
 
 	// Streaming generation
 	bool GenerateStreaming(TArray<FString>* OutPackagesToGenerate = nullptr);
+	bool GenerateContainerStreaming(const UActorDescContainer* ActorDescContainer, TArray<FString>* OutPackagesToGenerate = nullptr);
 	void FlushStreaming();
 
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
@@ -175,6 +180,13 @@ public:
 
 	void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FActorDescContainerRegistrationDelegate, UActorDescContainer*);
+	FActorDescContainerRegistrationDelegate OnActorDescContainerRegistered;
+	FActorDescContainerRegistrationDelegate OnActorDescContainerUnregistered;
+	UActorDescContainer* RegisterActorDescContainer(const FName& ContainerPackage);
+	bool UnregisterActorDescContainer(UActorDescContainer* Container);
+	void UninitializeActorDescContainers();
+
 	// Actors pinning
 	void PinActors(const TArray<FGuid>& ActorGuids);
 	void UnpinActors(const TArray<FGuid>& ActorGuids);
@@ -193,7 +205,7 @@ public:
 
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
-	virtual void Uninitialize() override;
+	void Uninitialize();
 
 	bool CanStream() const;
 	bool IsMainWorldPartition() const;
@@ -254,9 +266,16 @@ private:
 #endif
 
 public:
+	UActorDescContainer* GetActorDescContainer() const { return ActorDescContainer; }
+
+	UPROPERTY()
+	TObjectPtr<UActorDescContainer> ActorDescContainer;
+
 	UPROPERTY()
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UWorld> World;
 private:
 #if WITH_EDITOR
 	bool bForceGarbageCollection;
@@ -298,6 +317,8 @@ private:
 #if WITH_EDITOR
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
+	void HashActorDescContainer(UActorDescContainer* ActorDescContainer);
+	void UnhashActorDescContainer(UActorDescContainer* ActorDescContainer);
 
 public:
 	// Editor loader adapters management

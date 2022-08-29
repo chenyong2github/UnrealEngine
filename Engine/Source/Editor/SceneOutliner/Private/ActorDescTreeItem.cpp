@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorDescTreeItem.h"
+#include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -119,8 +120,11 @@ private:
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("ActorLabel"), FText::FromString(TreeItem->GetDisplayString()));
-
-				if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDesc->GetContainer()); WorldPartition->IsActorPinned(ActorDesc->GetGuid()))
+				
+				UActorDescContainer* ActorDescContainer = ActorDesc->GetContainer();
+				UWorld* World = ActorDescContainer != nullptr ? ActorDescContainer->GetWorld() : nullptr;
+				UWorldPartition* WorldPartition = World != nullptr ? World->GetWorldPartition() : nullptr;
+				if (WorldPartition && WorldPartition->IsActorPinned(ActorDesc->GetGuid()))
 				{
 					Args.Add(TEXT("UnloadState"), LOCTEXT("UnloadedDataLayer", "(Unloaded DataLayer)"));
 				}
@@ -234,7 +238,20 @@ FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescConta
 	, ActorDescHandle(Container, InActorGuid)
 	, ActorGuid(InActorGuid)
 {
-	ID = FSceneOutlinerTreeItemID(InActorGuid);
+	Initialize();
+}
+
+FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, FActorDescContainerCollection* ContainerCollection)
+	: IActorBaseTreeItem(Type)
+	, ActorDescHandle(ContainerCollection, InActorGuid)
+	, ActorGuid(InActorGuid)
+{
+	Initialize();
+}
+
+void FActorDescTreeItem::Initialize()
+{
+	ID = FSceneOutlinerTreeItemID(ActorGuid);
 
 	if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescHandle.Get())
 	{
@@ -304,7 +321,7 @@ bool FActorDescTreeItem::GetPinnedState() const
 {
 	if (ActorDescHandle.IsValid())
 	{
-		UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDescHandle->GetContainer());
+		UWorldPartition* WorldPartition = ActorDescHandle->GetContainer()->GetWorld()->GetWorldPartition();
 		return WorldPartition ? WorldPartition->IsActorPinned(GetGuid()) : false;
 	}
 	return false;

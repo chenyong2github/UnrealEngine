@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "GameFramework/Actor.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "ActorDescContainer.generated.h"
@@ -19,27 +18,31 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 
 public:
 	void Initialize(UWorld* World, FName InPackageName);
-	virtual void Uninitialize();
+	void Uninitialize();
 	
 	virtual UWorld* GetWorld() const override;
 
 #if WITH_EDITOR
-	virtual void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
-	virtual void OnPackageDeleted(UPackage* Package);
-	virtual void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
+	bool IsInitialized() const { return bContainerInitialized; }
+
+	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
+	void OnPackageDeleted(UPackage* Package);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
+	void SetContainerPackage(const FName& InContainerPackageName) { ContainerPackageName = InContainerPackageName;	}
+	
+	bool IsMainPartitionContainer() const;
+
+	FString GetExternalActorPath() const;
 
 	/** Removes an actor desc without the need to load a package */
-	virtual void RemoveActor(const FGuid& ActorGuid);
+	bool RemoveActor(const FGuid& ActorGuid);
 
 	void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
 
-	/** Instancing support */
-	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext) const { return false; }
+	bool IsActorDescHandled(const AActor* Actor) const;
 #endif
-
-	virtual const FTransform& GetInstanceTransform() const { return FTransform::Identity; }
 
 #if WITH_EDITOR
 public:
@@ -67,14 +70,10 @@ protected:
 	virtual void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc) override;
 	//~ End FActorDescList Interface
 
-	// Events
-	void OnWorldRenamed(UWorld* RenamedWorld);
-	virtual void OnWorldRenamed();
-
-	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
-	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
-	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) {}
-	virtual void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc) {}
+	void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
+	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
+	void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc);
+	void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc);
 
 	bool ShouldHandleActorEvent(const AActor* Actor);
 

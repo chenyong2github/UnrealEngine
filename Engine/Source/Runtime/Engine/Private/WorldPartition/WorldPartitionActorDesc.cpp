@@ -15,6 +15,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -496,7 +497,10 @@ AActor* FWorldPartitionActorDesc::Load() const
 		const FLinkerInstancingContext* InstancingContext = nullptr;
 		if (Container)
 		{
-			Container->GetInstancingContext(InstancingContext);
+			if (UWorldPartition* WorldPartition = Container->GetTypedOuter<UWorldPartition>())
+			{
+				WorldPartition->GetInstancingContext(InstancingContext);
+			}
 		}
 
 		UPackage* Package = nullptr;

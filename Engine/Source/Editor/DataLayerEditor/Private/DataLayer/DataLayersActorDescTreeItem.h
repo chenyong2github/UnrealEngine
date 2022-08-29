@@ -6,6 +6,7 @@
 #include "SceneOutlinerFwd.h"
 #include "ActorDescTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/ActorDescContainerCollection.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -18,6 +19,12 @@ struct FDataLayerActorDescTreeItemData
 	FDataLayerActorDescTreeItemData(const FGuid& InActorGuid, UActorDescContainer* InContainer, UDataLayerInstance* InDataLayer)
 		: ActorGuid(InActorGuid)
 		, Container(InContainer)
+		, DataLayer(InDataLayer)
+	{}
+
+	FDataLayerActorDescTreeItemData(const FGuid& InActorGuid, FActorDescContainerCollection* InContainerCollection, UDataLayerInstance* InDataLayer)
+		: ActorGuid(InActorGuid)
+		, Container(InContainerCollection->GetActorDescContainer(InActorGuid))
 		, DataLayer(InDataLayer)
 	{}
 	

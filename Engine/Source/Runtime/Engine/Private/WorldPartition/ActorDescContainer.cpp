@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
@@ -33,17 +34,16 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 	
 	if (!ContainerPackageName.IsNone())
 	{
-		const FString LevelPathStr = ContainerPackageName.ToString();
-		const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
+		const FString ContainerExternalActorsPath = GetExternalActorPath();
 
 		// Do a synchronous scan of the level external actors path.			
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.ScanPathsSynchronous({ LevelExternalActorsPath }, /*bForceRescan*/false, /*bIgnoreDenyListScanFilters*/false);
+		AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/false);
 
 		FARFilter Filter;
 		Filter.bRecursivePaths = true;
 		Filter.bIncludeOnlyOnDiskAssets = true;
-		Filter.PackagePaths.Add(*LevelExternalActorsPath);
+		Filter.PackagePaths.Add(*ContainerExternalActorsPath);
 
 		AssetRegistry.GetAssets(Filter, Assets);
 	}
@@ -104,6 +104,22 @@ void UActorDescContainer::BeginDestroy()
 }
 
 #if WITH_EDITOR
+FString UActorDescContainer::GetExternalActorPath() const
+{
+	return ULevel::GetExternalActorsPath(ContainerPackageName.ToString());
+}
+
+bool UActorDescContainer::IsActorDescHandled(const AActor* Actor) const
+{
+	FString ActorPackageName = Actor->GetPackage()->GetName();
+	return ActorPackageName.StartsWith(GetExternalActorPath());
+}
+
+bool UActorDescContainer::IsMainPartitionContainer() const
+{
+	return GetWorld() != nullptr && GetWorld()->GetWorldPartition()->GetActorDescContainer() == this;
+}
+
 void UActorDescContainer::AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc)
 {
 	FActorDescList::AddActorDescriptor(ActorDesc);
@@ -116,24 +132,16 @@ void UActorDescContainer::RemoveActorDescriptor(FWorldPartitionActorDesc* ActorD
 	FActorDescList::RemoveActorDescriptor(ActorDesc);
 }
 
-
-void UActorDescContainer::OnWorldRenamed(UWorld* RenamedWorld)
-{
-	if (GetWorld() == RenamedWorld)
-	{
-		OnWorldRenamed();
-	}
-}
-
-void UActorDescContainer::OnWorldRenamed()
-{
-	// Update container package
-	ContainerPackageName = GetWorld()->GetPackage()->GetFName();
-}
-
 bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
 {
-	return Actor && Actor->IsMainPackageActor() && (Actor->GetLevel() != nullptr) && (Actor->GetLevel()->GetPackage()->GetFName() == ContainerPackageName);
+	if (Actor != nullptr)
+	{
+		bool bHandlesActor = GetActorDesc(Actor->GetActorGuid()) != nullptr || IsActorDescHandled(Actor);
+		return bHandlesActor && Actor->IsMainPackageActor() && (Actor->GetLevel() != nullptr);
+		
+	}
+	
+	return false;
 }
 
 void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
@@ -189,14 +197,17 @@ void UActorDescContainer::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldT
 	}
 }
 
-void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
+bool UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 {
 	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(ActorGuid))
 	{
 		OnActorDescRemoved(ExistingActorDesc->Get());
 		RemoveActorDescriptor(ExistingActorDesc->Get());
 		ExistingActorDesc->Reset();
+		return true;
 	}
+
+	return false;
 }
 
 void UActorDescContainer::LoadAllActors(TArray<FWorldPartitionReference>& OutReferences)
@@ -222,7 +233,6 @@ void UActorDescContainer::RegisterEditorDelegates()
 {
 	if (ShouldRegisterDelegates())
 	{
-		FWorldDelegates::OnPostWorldRename.AddUObject(this, &UActorDescContainer::OnWorldRenamed);
 		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
 		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
 		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UActorDescContainer::OnObjectsReplaced);
@@ -233,7 +243,6 @@ void UActorDescContainer::UnregisterEditorDelegates()
 {
 	if (ShouldRegisterDelegates())
 	{
-		FWorldDelegates::OnPostWorldRename.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
@@ -243,10 +252,36 @@ void UActorDescContainer::UnregisterEditorDelegates()
 void UActorDescContainer::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 {
 	OnActorDescAddedEvent.Broadcast(NewActorDesc);
+
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	{
+		WorldPartition->OnActorDescAdded(NewActorDesc);
+	}
 }
 
 void UActorDescContainer::OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc)
 {
 	OnActorDescRemovedEvent.Broadcast(ActorDesc);
+
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	{
+		WorldPartition->OnActorDescRemoved(ActorDesc);
+	}
+}
+
+void UActorDescContainer::OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc)
+{
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	{
+		WorldPartition->OnActorDescUpdating(ActorDesc);
+	}
+}
+
+void UActorDescContainer::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc)
+{
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	{
+		WorldPartition->OnActorDescUpdated(ActorDesc);
+	}
 }
 #endif
