@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "SubobjectData.h"
 #include "ModuleDescriptor.h"
@@ -11,6 +12,8 @@
 
 class UActorComponent;
 class FScopedTransaction;
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewSubobjectAdded, const FSubobjectData&);
 
 /** Options when adding a new subobject */
 USTRUCT(BlueprintType, Category = "SubobjectDataSubsystem")
@@ -113,6 +116,14 @@ public:
 	* @param OutArray		Array to populate (will be emptied first)
 	*/
 	void GatherSubobjectData(UObject* Context, TArray<FSubobjectDataHandle>& OutArray);
+
+	////////////////////////////////////////////
+	// System events
+	
+	/** Delegate invoked when a new subobject is successfully added */
+	FOnNewSubobjectAdded& OnNewSubobjectAdded() { return OnNewSubobjectAdded_Delegate; };
+
+	////////////////////////////////////////////
 
 	/**
 	* Gather all subobjects that the given Blueprint context has. Populates an array of
@@ -410,6 +421,8 @@ private:
 	FSubobjectDataHandle FindParentForNewSubobject(const UObject* NewSubobject, const FSubobjectDataHandle& SelectedParent);
 	
 	FSubobjectFactoryManager* FactoryManager = nullptr;
+
+	FOnNewSubobjectAdded OnNewSubobjectAdded_Delegate;
 	
 public:
 	FSubobjectFactoryManager* GetSubobjectFactoryManager() const { return FactoryManager; }

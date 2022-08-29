@@ -1425,6 +1425,9 @@ protected:
 
 	/** Filter used to compose multiple pin type filters together */
 	TSharedPtr<class IPinTypeSelectorFilter> CompositePinTypeSelectorFilter;
+
+	/** Pending set of namespaces to be auto-imported on the next tick */
+	TSet<FString> DeferredNamespaceImports;
 	
 	FOnSetPinVisibility OnSetPinVisibility;
 

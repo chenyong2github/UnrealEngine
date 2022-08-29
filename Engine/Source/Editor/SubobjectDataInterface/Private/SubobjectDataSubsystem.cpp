@@ -1073,6 +1073,12 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 			}
 		}
 	}
+
+	// If the new handle is valid, broadcast to any listeners that a new subobject was added.
+	if (const FSubobjectData* NewData = NewDataHandle.GetData())
+	{
+		OnNewSubobjectAdded_Delegate.Broadcast(*NewData);
+	}
 	
 	return NewDataHandle;
 }

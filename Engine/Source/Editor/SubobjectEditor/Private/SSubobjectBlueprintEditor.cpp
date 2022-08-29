@@ -44,7 +44,6 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 	OnSelectionUpdated = InArgs._OnSelectionUpdated;
 	OnItemDoubleClicked = InArgs._OnItemDoubleClicked;
 	OnHighlightPropertyInDetailsView = InArgs._OnHighlightPropertyInDetailsView;
-	OnNewSubobjectAdded = InArgs._OnNewSubobjectAdded;
 	AllowEditing = InArgs._AllowEditing;
 	HideComponentClassCombo = InArgs._HideComponentClassCombo;
 	bAllowTreeUpdates = true;
@@ -526,17 +525,7 @@ FSubobjectDataHandle SSubobjectBlueprintEditor::AddNewSubobject(const FSubobject
     USubobjectDataSubsystem* System = USubobjectDataSubsystem::Get();
     check(System);
 	
-	FSubobjectDataHandle NewHandle = System->AddNewSubobject(Params,OutFailReason);
-
-	if (NewHandle.IsValid())
-	{
-		if (const FSubobjectData* NewSubobjectData = NewHandle.GetData())
-		{
-			OnNewSubobjectAdded.ExecuteIfBound(*NewSubobjectData);
-		}
-	}
-	
-    return NewHandle;	
+	return System->AddNewSubobject(Params, OutFailReason);
 }
 
 void SSubobjectBlueprintEditor::PopulateContextMenuImpl(UToolMenu* InMenu, TArray<FSubobjectEditorTreeNodePtrType>& InSelectedItems, bool bIsChildActorSubtreeNodeSelected)

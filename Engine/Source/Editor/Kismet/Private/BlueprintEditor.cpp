@@ -917,9 +917,9 @@ UEdGraphNode* FBlueprintEditor::GetSingleSelectedNode() const
 	return (SelectedNodes.Num() == 1) ? Cast<UEdGraphNode>(*SelectedNodes.CreateConstIterator()) : nullptr;
 }
 
-void FBlueprintEditor::AnalyticsTrackNodeEvent( UBlueprint* Blueprint, UEdGraphNode *GraphNode, bool bNodeDelete ) const
+void FBlueprintEditor::AnalyticsTrackNodeEvent(UBlueprint* Blueprint, UEdGraphNode *GraphNode, bool bNodeDelete) const
 {
-	if( Blueprint && GraphNode && FEngineAnalytics::IsAvailable() )
+	if(Blueprint && GraphNode && FEngineAnalytics::IsAvailable())
 	{
 		// we'd like to see if this was happening in normal blueprint editor or persona 
 		const FString EditorName = Cast<UAnimBlueprint>(Blueprint) != nullptr ? TEXT("Persona") : TEXT("BlueprintEditor");
@@ -927,39 +927,39 @@ void FBlueprintEditor::AnalyticsTrackNodeEvent( UBlueprint* Blueprint, UEdGraphN
 		// Build Node Details
 		const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 		FString ProjectID = ProjectSettings.ProjectID.ToString();
-		TArray< FAnalyticsEventAttribute > NodeAttributes;
-		NodeAttributes.Add( FAnalyticsEventAttribute( TEXT( "ProjectId" ), ProjectID ) );
-		NodeAttributes.Add( FAnalyticsEventAttribute( TEXT( "BlueprintId" ), Blueprint->GetBlueprintGuid().ToString() ) );
-		TArray< TKeyValuePair<FString, FString> > Attributes;
+		TArray<FAnalyticsEventAttribute> NodeAttributes;
+		NodeAttributes.Add(FAnalyticsEventAttribute(TEXT("ProjectId"), ProjectID));
+		NodeAttributes.Add(FAnalyticsEventAttribute(TEXT("BlueprintId"), Blueprint->GetBlueprintGuid().ToString()));
+		TArray<TKeyValuePair<FString, FString>> Attributes;
 
-		if( UK2Node* K2Node = Cast<UK2Node>( GraphNode ))
+		if (UK2Node* K2Node = Cast<UK2Node>(GraphNode))
 		{
-			K2Node->GetNodeAttributes( Attributes );
+			K2Node->GetNodeAttributes(Attributes);
 		}
-		else if( UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>( GraphNode ))
+		else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(GraphNode))
 		{
-			Attributes.Add( TKeyValuePair<FString, FString>( TEXT( "Type" ), TEXT( "Comment" ) ));
-			Attributes.Add( TKeyValuePair<FString, FString>( TEXT( "Class" ), CommentNode->GetClass()->GetName() ));
-			Attributes.Add( TKeyValuePair<FString, FString>( TEXT( "Name" ), CommentNode->GetName() ));
+			Attributes.Add(TKeyValuePair<FString, FString>(TEXT("Type"), TEXT("Comment")));
+			Attributes.Add(TKeyValuePair<FString, FString>(TEXT("Class"), CommentNode->GetClass()->GetName()));
+			Attributes.Add(TKeyValuePair<FString, FString>(TEXT("Name"), CommentNode->GetName()));
 		}
-		if( Attributes.Num() > 0 )
+		if (Attributes.Num() > 0)
 		{
 			// Build Node Attributes
 			for (const TKeyValuePair<FString, FString>& Attribute : Attributes)
 			{
-				NodeAttributes.Add( FAnalyticsEventAttribute( Attribute.Key, Attribute.Value ));
+				NodeAttributes.Add(FAnalyticsEventAttribute(Attribute.Key, Attribute.Value));
 			}
 			// Send Analytics event 
-			FString EventType = bNodeDelete ?	FString::Printf(TEXT( "Editor.Usage.%s.NodeDeleted" ), *EditorName) :
-												FString::Printf(TEXT( "Editor.Usage.%s.NodeCreated" ), *EditorName);
-			FEngineAnalytics::GetProvider().RecordEvent( EventType, NodeAttributes );
+			FString EventType = bNodeDelete ?	FString::Printf(TEXT("Editor.Usage.%s.NodeDeleted"), *EditorName) :
+												FString::Printf(TEXT("Editor.Usage.%s.NodeCreated"), *EditorName);
+			FEngineAnalytics::GetProvider().RecordEvent(EventType, NodeAttributes);
 		}
 	}
 }
 
-void FBlueprintEditor::AnalyticsTrackCompileEvent( UBlueprint* Blueprint, int32 NumErrors, int32 NumWarnings ) const
+void FBlueprintEditor::AnalyticsTrackCompileEvent(UBlueprint* Blueprint, int32 NumErrors, int32 NumWarnings) const
 {
-	if(Blueprint && FEngineAnalytics::IsAvailable())
+	if (Blueprint && FEngineAnalytics::IsAvailable())
 	{
 		// we'd like to see if this was happening in normal blueprint editor or persona 
 		const FString EditorName = Cast<UAnimBlueprint>(Blueprint) != nullptr ? TEXT("Persona") : TEXT("BlueprintEditor");
@@ -969,10 +969,10 @@ void FBlueprintEditor::AnalyticsTrackCompileEvent( UBlueprint* Blueprint, int32 
 		FString ProjectID = ProjectSettings.ProjectID.ToString();
 
 		const bool bSuccess = NumErrors == 0;
-		TArray< FAnalyticsEventAttribute > Attributes;
+		TArray<FAnalyticsEventAttribute> Attributes;
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("ProjectId"), ProjectID));
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("BlueprintId"), Blueprint->GetBlueprintGuid().ToString()));
-		Attributes.Add(FAnalyticsEventAttribute(TEXT("Success"), bSuccess? TEXT("True") : TEXT("False") ));
+		Attributes.Add(FAnalyticsEventAttribute(TEXT("Success"), bSuccess? TEXT("True") : TEXT("False")));
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("NumErrors"), FString::FromInt(NumErrors)));
 		Attributes.Add(FAnalyticsEventAttribute(TEXT("NumWarnings"), FString::FromInt(NumWarnings)));
 
@@ -1284,13 +1284,34 @@ void FBlueprintEditor::OnComponentDoubleClicked(TSharedPtr<FSubobjectEditorTreeN
 
 void FBlueprintEditor::OnComponentAddedToBlueprint(const FSubobjectData& NewSubobjectData)
 {
+	// Determine if we've added to a Blueprint instance that we're editing within this context.
+	bool bIsEditingEventTarget = false;
+	if (const UBlueprint* TargetBlueprint = NewSubobjectData.GetBlueprint())
+	{
+		for (UObject* EditorObject : GetEditingObjects())
+		{
+			if (EditorObject == TargetBlueprint)
+			{
+				bIsEditingEventTarget = true;
+				break;
+			}
+		}
+	}
+
+	// Only handle add events if the editor context includes its targeted Blueprint object.
+	if (!bIsEditingEventTarget)
+	{
+		return;
+	}
+
 	const UObject* NewSubobject = NewSubobjectData.GetObject();
 	check(NewSubobject);
 
-	// If necessary, auto-import the default namespace set associated with the new subobject's class.
-	FImportNamespaceExParameters Params;
-	FBlueprintNamespaceUtilities::GetDefaultImportsForObject(NewSubobject, Params.NamespacesToImport);
-	ImportNamespaceEx(Params);
+	// Get the default namespace set associated with the new subobject's class. Because we
+	// might receive multiple events within a single frame (e.g. dragging multiple component
+	// Blueprint class assets into the components tree will result in multiple notifications),
+	// we'll add these into the deferred list for now and auto-import them all on the next tick.
+	FBlueprintNamespaceUtilities::GetDefaultImportsForObject(NewSubobject->GetClass(), DeferredNamespaceImports);
 }
 
 TSharedRef<SWidget> FBlueprintEditor::CreateGraphTitleBarWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
@@ -2774,54 +2795,61 @@ FBlueprintEditor::~FBlueprintEditor()
 	UEditorEngine* Editor = (UEditorEngine*)GEngine;
 	if (Editor)
 	{
-		Editor->UnregisterForUndo( this );
+		Editor->UnregisterForUndo(this);
 	}
 
 	CloseMergeTool();
 
 	if (GetBlueprintObj())
 	{
-		GetBlueprintObj()->OnChanged().RemoveAll( this );
-		GetBlueprintObj()->OnCompiled().RemoveAll( this );
-		GetBlueprintObj()->OnSetObjectBeingDebugged().RemoveAll( this );
+		GetBlueprintObj()->OnChanged().RemoveAll(this);
+		GetBlueprintObj()->OnCompiled().RemoveAll(this);
+		GetBlueprintObj()->OnSetObjectBeingDebugged().RemoveAll(this);
 	}
 
-	FGlobalTabmanager::Get()->OnActiveTabChanged_Unsubscribe( OnActiveTabChangedDelegateHandle );
+	if (USubobjectDataSubsystem* SubobjectDataSubsystem = USubobjectDataSubsystem::Get())
+	{
+		SubobjectDataSubsystem->OnNewSubobjectAdded().RemoveAll(this);
+	}
+
+	FKismetEditorUtilities::OnBlueprintUnloaded.RemoveAll(this);
+
+	FGlobalTabmanager::Get()->OnActiveTabChanged_Unsubscribe(OnActiveTabChangedDelegateHandle);
 
 	if (FEngineAnalytics::IsAvailable())
 	{
 		const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 		FString ProjectID = ProjectSettings.ProjectID.ToString();
 
-		TArray< FAnalyticsEventAttribute > BPEditorAttribs;
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "GraphActionMenusExecuted.NonContextSensitive" ), AnalyticsStats.GraphActionMenusNonCtxtSensitiveExecCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "GraphActionMenusExecuted.ContextSensitive" ), AnalyticsStats.GraphActionMenusCtxtSensitiveExecCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "GraphActionMenusClosed" ), AnalyticsStats.GraphActionMenusCancelledCount ));
+		TArray<FAnalyticsEventAttribute> BPEditorAttribs;
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("GraphActionMenusExecuted.NonContextSensitive"), AnalyticsStats.GraphActionMenusNonCtxtSensitiveExecCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("GraphActionMenusExecuted.ContextSensitive"), AnalyticsStats.GraphActionMenusCtxtSensitiveExecCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("GraphActionMenusClosed"), AnalyticsStats.GraphActionMenusCancelledCount));
 
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "MyBlueprintDragPlacedNodesCreated" ), AnalyticsStats.MyBlueprintNodeDragPlacementCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "BlueprintPaletteDragPlacedNodesCreated" ), AnalyticsStats.PaletteNodeDragPlacementCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "GraphContextNodesCreated" ), AnalyticsStats.NodeGraphContextCreateCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "GraphPinContextNodesCreated" ), AnalyticsStats.NodePinContextCreateCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "KeymapNodesCreated" ), AnalyticsStats.NodeKeymapCreateCount ));
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "PastedNodesCreated" ), AnalyticsStats.NodePasteCreateCount ));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("MyBlueprintDragPlacedNodesCreated"), AnalyticsStats.MyBlueprintNodeDragPlacementCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("BlueprintPaletteDragPlacedNodesCreated"), AnalyticsStats.PaletteNodeDragPlacementCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("GraphContextNodesCreated" ), AnalyticsStats.NodeGraphContextCreateCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("GraphPinContextNodesCreated" ), AnalyticsStats.NodePinContextCreateCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("KeymapNodesCreated"), AnalyticsStats.NodeKeymapCreateCount));
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("PastedNodesCreated"), AnalyticsStats.NodePasteCreateCount));
 
-		BPEditorAttribs.Add( FAnalyticsEventAttribute( FString( "ProjectId" ), ProjectID ) );
-		FEngineAnalytics::GetProvider().RecordEvent( FString( "Editor.Usage.BlueprintEditorSummary" ), BPEditorAttribs );
+		BPEditorAttribs.Add(FAnalyticsEventAttribute(TEXT("ProjectId"), ProjectID));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.BlueprintEditorSummary"), BPEditorAttribs);
 
 		for (auto Iter = AnalyticsStats.GraphDisallowedPinConnections.CreateConstIterator(); Iter; ++Iter)
 		{
-			TArray< FAnalyticsEventAttribute > BPEditorPinConnectAttribs;
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "FromPin.Category" ), Iter->PinTypeCategoryA ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "FromPin.IsArray" ), Iter->bPinIsArrayA ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "FromPin.IsReference" ), Iter->bPinIsReferenceA ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "FromPin.IsWeakPointer" ), Iter->bPinIsWeakPointerA ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "ToPin.Category" ), Iter->PinTypeCategoryB ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "ToPin.IsArray" ), Iter->bPinIsArrayB ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "ToPin.IsReference" ), Iter->bPinIsReferenceB ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "ToPin.IsWeakPointer" ), Iter->bPinIsWeakPointerB ));
-			BPEditorPinConnectAttribs.Add( FAnalyticsEventAttribute( FString( "ProjectId" ), ProjectID ) );
+			TArray<FAnalyticsEventAttribute> BPEditorPinConnectAttribs;
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("FromPin.Category"), Iter->PinTypeCategoryA));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("FromPin.IsArray"), Iter->bPinIsArrayA));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("FromPin.IsReference"), Iter->bPinIsReferenceA));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("FromPin.IsWeakPointer"), Iter->bPinIsWeakPointerA));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("ToPin.Category"), Iter->PinTypeCategoryB));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("ToPin.IsArray"), Iter->bPinIsArrayB));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("ToPin.IsReference"), Iter->bPinIsReferenceB));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("ToPin.IsWeakPointer"), Iter->bPinIsWeakPointerB));
+			BPEditorPinConnectAttribs.Add(FAnalyticsEventAttribute(TEXT("ProjectId"), ProjectID));
 
-			FEngineAnalytics::GetProvider().RecordEvent( FString( "Editor.Usage.BPDisallowedPinConnection" ), BPEditorPinConnectAttribs );
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.BPDisallowedPinConnection"), BPEditorPinConnectAttribs);
 		}
 	}
 
@@ -2920,11 +2948,15 @@ void FBlueprintEditor::CreateSubobjectEditors()
 		.AllowEditing(this, &FBlueprintEditor::InEditingMode)
 		.OnSelectionUpdated(this, &FBlueprintEditor::OnSelectionUpdated)
 		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked)
-		.OnNewSubobjectAdded(this, &FBlueprintEditor::OnComponentAddedToBlueprint)
 		.SubobjectClassListFilters(ClassFilters);
 	
 	SubobjectViewport = SAssignNew(SubobjectViewport, SSCSEditorViewport)
 		.BlueprintEditor(SharedThis(this));
+
+	if (USubobjectDataSubsystem* SubobjectDataSubsystem = USubobjectDataSubsystem::Get())
+	{
+		SubobjectDataSubsystem->OnNewSubobjectAdded().AddSP(this, &FBlueprintEditor::OnComponentAddedToBlueprint);
+	}
 }
 
 void FBlueprintEditor::OnLogTokenClicked(const TSharedRef<IMessageToken>& Token)
@@ -7403,7 +7435,7 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 			{
 				for (const UStruct* ExternalDependency : ExternalDependencies)
 				{
-					FBlueprintNamespaceUtilities::GetDefaultImportsForObject(ExternalDependency, NamespacesToImport);
+					FBlueprintNamespaceUtilities::GetDefaultImportsForObject(ExternalDependency, DeferredNamespaceImports);
 				}
 			}
 
@@ -7439,15 +7471,6 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 			}
 			// Log new node created to analytics
 			AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, false);
-		}
-
-		// Auto-import any namespace dependencies.
-		const bool bShouldAutoImportNamespaceDependencies = GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures;
-		if (bShouldAutoImportNamespaceDependencies && NamespacesToImport.Num() > 0)
-		{
-			FImportNamespaceExParameters Params;
-			Params.NamespacesToImport = MoveTemp(NamespacesToImport);
-			ImportNamespaceEx(Params);
 		}
 	}
 
@@ -9000,6 +9023,19 @@ void FBlueprintEditor::Tick(float DeltaTime)
 		IAssetEditorInstance* EditorInst = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(GetBlueprintObj(), /*bFocusIfOpen =*/false);
 		check(EditorInst != nullptr);
 		EditorInst->CloseWindow();
+	}
+	else
+	{
+		// Auto-import any namespaces we've collected as a result of compound events that may have occurred within this frame.
+		if (!DeferredNamespaceImports.IsEmpty())
+		{
+			FImportNamespaceExParameters Params;
+			Params.NamespacesToImport = MoveTemp(DeferredNamespaceImports);
+			ImportNamespaceEx(Params);
+
+			// Assert that this was reset by the move above.
+			check(DeferredNamespaceImports.IsEmpty());
+		}
 	}
 }
 TStatId FBlueprintEditor::GetStatId() const
