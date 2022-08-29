@@ -70,7 +70,7 @@ bool FMacPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResults, b
 		Size = sizeof(int64);
 		if (sysctlbyname("hw.cpufrequency", &CPUSpeed, &Size, NULL, 0) == 0)
 		{
-			OutResults.CPUClockGHz = 0.000000001 * CPUSpeed;
+			OutResults.CPUClockGHz = (float)(0.000000001 * CPUSpeed);
 		}
 		else
 		{

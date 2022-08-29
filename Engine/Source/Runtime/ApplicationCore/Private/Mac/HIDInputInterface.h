@@ -45,8 +45,8 @@ private:
 	{
 		IOHIDElementRef ElementRef;
 		IOHIDElementType Type;
-		uint16 UsagePage;
-		uint16 Usage;
+		uint32 UsagePage;
+		uint32 Usage;
 		int32 MinValue;
 		int32 MaxValue;
 	};

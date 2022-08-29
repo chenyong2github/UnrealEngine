@@ -28,8 +28,8 @@ FMacCursor::FMacCursor()
 :	bIsVisible(true)
 ,	bUseHighPrecisionMode(false)
 ,	CursorTypeOverride(-1)
-,	CurrentPosition(FVector2D::ZeroVector)
-,	MouseWarpDelta(FVector2D::ZeroVector)
+,	CurrentPosition(0, 0)
+,	MouseWarpDelta(0, 0)
 ,	bIsPositionInitialised(false)
 ,	bShouldIgnoreLocking(false)
 ,	HIDInterface(0)
@@ -287,27 +287,34 @@ void* FMacCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, 
 	return CursorHandle;
 }
 
-FVector2D FMacCursor::GetPosition() const
+FIntVector2 FMacCursor::GetIntPosition() const
 {
-	FVector2D CurrentPos = CurrentPosition;
-	if (!bIsPositionInitialised)
+	if (bIsPositionInitialised)
 	{
-		SCOPED_AUTORELEASE_POOL;
-		NSPoint CursorPos = [NSEvent mouseLocation];
-		CurrentPos = FMacApplication::ConvertCocoaPositionToSlate(CursorPos.x, CursorPos.y);
+		return CurrentPosition;
 	}
 
-	return CurrentPos;
+	SCOPED_AUTORELEASE_POOL;
+	NSPoint CursorPos = [NSEvent mouseLocation];
+	FVector2D CurrentPos = FMacApplication::ConvertCocoaPositionToSlate(CursorPos.x, CursorPos.y);
+	return FIntVector2(FMath::TruncToInt(CurrentPos.X), FMath::TruncToInt(CurrentPos.Y));
+}
+
+FVector2D FMacCursor::GetPosition() const
+{
+	FIntVector2 CurrentPos = GetIntPosition();
+	return FVector2D(CurrentPos.X, CurrentPos.Y);
 }
 
 void FMacCursor::SetPosition(const int32 X, const int32 Y)
 {
-	FVector2D NewPos(X, Y);
+	FIntVector2 NewPos(X, Y);
 	UpdateCursorClipping(NewPos);
 
-	MouseWarpDelta += (NewPos - CurrentPosition);
+	MouseWarpDelta.X += NewPos.X - CurrentPosition.X;
+	MouseWarpDelta.Y += NewPos.Y - CurrentPosition.Y;
 
-	if (!bIsPositionInitialised || FIntVector(NewPos.X, NewPos.Y, 0) != FIntVector(CurrentPosition.X, CurrentPosition.Y, 0))
+	if (!bIsPositionInitialised || NewPos != CurrentPosition)
 	{
 		if (!bUseHighPrecisionMode || (CurrentCursor && bIsVisible) || !bIsPositionInitialised)
 		{
@@ -371,8 +378,8 @@ void FMacCursor::Lock(const RECT* const Bounds)
 
 	MacApplication->OnCursorLock();
 
-	bIsPositionInitialised = false; // Force GetPosition() to update its cached position in case the cursor was warped by another app while we were in high precision mode
-	FVector2D Position = GetPosition();
+	bIsPositionInitialised = false; // Force GetIntPosition() to update its cached position in case the cursor was warped by another app while we were in high precision mode
+	FIntVector2 Position = GetIntPosition();
 	if (UpdateCursorClipping(Position))
 	{
 		SetPosition(Position.X, Position.Y);
@@ -380,15 +387,15 @@ void FMacCursor::Lock(const RECT* const Bounds)
 	}
 }
 
-bool FMacCursor::UpdateCursorClipping(FVector2D& CursorPosition)
+bool FMacCursor::UpdateCursorClipping(FIntVector2& CursorPosition)
 {
 	bool bAdjusted = false;
 
 	if (CursorClipRect.Area() > 0)
 	{
-		FVector2D PositionOnScreen(CursorPosition);
+		FIntVector2 PositionOnScreen(CursorPosition);
 		FIntRect ClipRect(CursorClipRect);
-		FVector2D ScreenOrigin(FVector2D::ZeroVector);
+		FIntVector2 ScreenOrigin(0, 0);
 
 		if (PositionOnScreen.X < ClipRect.Min.X)
 		{
@@ -414,7 +421,8 @@ bool FMacCursor::UpdateCursorClipping(FVector2D& CursorPosition)
 
 		if (bAdjusted)
 		{
-			CursorPosition = PositionOnScreen + ScreenOrigin;
+			CursorPosition.X = PositionOnScreen.X + ScreenOrigin.X;
+			CursorPosition.Y = PositionOnScreen.Y + ScreenOrigin.Y;
 		}
 	}
 
@@ -460,7 +468,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void FMacCursor::UpdateCurrentPosition(const FVector2D &Position)
+void FMacCursor::UpdateCurrentPosition(const FIntVector2& Position)
 {
 	CurrentPosition = Position;
 	bIsPositionInitialised = true;
@@ -486,15 +494,15 @@ void FMacCursor::WarpCursor(const int32 X, const int32 Y)
 		CGAssociateMouseAndMouseCursorPosition(true);
 	}
 
-	UpdateCurrentPosition(FVector2D(X, Y));
+	UpdateCurrentPosition(FIntVector2(X, Y));
 
 	MacApplication->IgnoreMouseMoveDelta();
 }
 
-FVector2D FMacCursor::GetMouseWarpDelta()
+FIntVector2 FMacCursor::GetMouseWarpDelta()
 {
-	FVector2D Result = (!bUseHighPrecisionMode || (CurrentCursor && bIsVisible)) ? MouseWarpDelta : FVector2D::ZeroVector;
-	MouseWarpDelta = FVector2D::ZeroVector;
+	FIntVector2 Result = (!bUseHighPrecisionMode || (CurrentCursor && bIsVisible)) ? MouseWarpDelta : FIntVector2(0, 0);
+	MouseWarpDelta = FIntVector2(0, 0);
 	return Result;
 }
 
@@ -541,7 +549,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// On disable put the cursor where the user would expect it
 		if (!bEnable && (!CurrentCursor || !bIsVisible))
 		{
-			FVector2D Position = GetPosition();
+			FIntVector2 Position = GetIntPosition();
 			UpdateCursorClipping(Position);
 			WarpCursor(Position.X, Position.Y);
 		}

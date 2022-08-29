@@ -4,6 +4,7 @@
 
 #include "GenericPlatform/ICursor.h"
 #include "Math/IntRect.h"
+#include "Math/IntVector.h"
 
 @class FCocoaWindow;
 
@@ -39,15 +40,17 @@ public:
 
 public:
 
-	bool UpdateCursorClipping(FVector2D& CursorPosition);
+	bool UpdateCursorClipping(FIntVector2& CursorPosition);
 
 	void WarpCursor(const int32 X, const int32 Y);
 
-	FVector2D GetMouseWarpDelta();
+	FIntVector2 GetIntPosition() const;
+
+	FIntVector2 GetMouseWarpDelta();
 
 	void SetHighPrecisionMouseMode(const bool bEnable);
 
-	void UpdateCurrentPosition(const FVector2D& Position);
+	void UpdateCurrentPosition(const FIntVector2& Position);
 
 	void UpdateVisibility();
 
@@ -69,8 +72,8 @@ private:
 	NSCursor* CurrentCursor;
 	int32 CursorTypeOverride;
 
-	FVector2D CurrentPosition;
-	FVector2D MouseWarpDelta;
+	FIntVector2 CurrentPosition;
+	FIntVector2 MouseWarpDelta;
 	bool bIsPositionInitialised;
 	bool bShouldIgnoreLocking;
 

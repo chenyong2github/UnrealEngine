@@ -337,7 +337,7 @@ bool FDesktopPlatformMac::OpenFontDialog(const void* ParentWindowHandle, FString
 				FPlatformString::CFStringToTCHAR((CFStringRef)[Font fontName], FontName);
 
 				OutFontName = FontName;
-				OutHeight = [Font pointSize];
+				OutHeight = (float)[Font pointSize];
 
 				auto FontFlags = EFontImportFlags::None;
 
@@ -376,7 +376,7 @@ bool FDesktopPlatformMac::FileDialogShared(bool bSave, const void* ParentWindowH
 				NSOpenPanel* OpenPanel = (NSOpenPanel*)Panel;
 				[OpenPanel setCanChooseFiles: true];
 				[OpenPanel setCanChooseDirectories: false];
-				[OpenPanel setAllowsMultipleSelection: Flags & EFileDialogFlags::Multiple];
+				[OpenPanel setAllowsMultipleSelection: (Flags & EFileDialogFlags::Multiple) != 0];
 			}
 
 			[Panel setCanCreateDirectories: bSave];

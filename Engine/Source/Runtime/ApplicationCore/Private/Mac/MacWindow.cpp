@@ -44,10 +44,10 @@ void FMacWindow::Initialize( FMacApplication* const Application, const TSharedRe
 	const int32 SizeX = FMath::Max(FMath::CeilToInt( Definition->WidthDesiredOnScreen ), 1);
 	const int32 SizeY = FMath::Max(FMath::CeilToInt( Definition->HeightDesiredOnScreen ), 1);
 
-	PositionX = Definition->XDesiredPositionOnScreen;
-	PositionY = Definition->YDesiredPositionOnScreen >= TargetScreen->VisibleFramePixels.origin.y ? Definition->YDesiredPositionOnScreen : TargetScreen->VisibleFramePixels.origin.y;
+	PositionX = FMath::TruncToInt(Definition->XDesiredPositionOnScreen);
+	PositionY = FMath::TruncToInt(Definition->YDesiredPositionOnScreen >= TargetScreen->VisibleFramePixels.origin.y ? Definition->YDesiredPositionOnScreen : TargetScreen->VisibleFramePixels.origin.y);
 
-	const float ScreenDPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? TargetScreen->Screen.backingScaleFactor : 1.0f;
+	const double ScreenDPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? TargetScreen->Screen.backingScaleFactor : 1.0;
 	const FVector2D CocoaPosition = FMacApplication::ConvertSlatePositionToCocoa(PositionX, PositionY);
 	const NSRect ViewRect = NSMakeRect(CocoaPosition.X, CocoaPosition.Y - (SizeY / ScreenDPIScaleFactor) + 1, SizeX / ScreenDPIScaleFactor, SizeY / ScreenDPIScaleFactor);
 
@@ -236,11 +236,11 @@ bool FMacWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Hei
 	bool const bIsFullscreen = (GetWindowMode() == EWindowMode::Fullscreen);
 	const NSRect Frame = WindowHandle.screen.frame;
 	const FVector2D SlatePosition = FMacApplication::ConvertCocoaPositionToSlate(Frame.origin.x, Frame.origin.y - Frame.size.height + 1.0f);
-	X = SlatePosition.X;
-	Y = SlatePosition.Y;
-	const float DPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? WindowHandle.screen.backingScaleFactor : 1.0f;
-	Width = Frame.size.width * DPIScaleFactor;
-	Height = Frame.size.height * DPIScaleFactor;
+	X = FMath::TruncToInt(SlatePosition.X);
+	Y = FMath::TruncToInt(SlatePosition.Y);
+	const double DPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? WindowHandle.screen.backingScaleFactor : 1.0;
+	Width = FMath::TruncToInt(Frame.size.width * DPIScaleFactor);
+	Height = FMath::TruncToInt(Frame.size.height * DPIScaleFactor);
 	return true;
 }
 
@@ -384,7 +384,7 @@ void FMacWindow::SetWindowMode(EWindowMode::Type NewWindowMode)
 {
 	if(WindowHandle)
 	{
-		ApplySizeAndModeChanges(PositionX, PositionY, WindowHandle.contentView.frame.size.width, WindowHandle.contentView.frame.size.height, NewWindowMode);
+		ApplySizeAndModeChanges(PositionX, PositionY, FMath::TruncToInt(WindowHandle.contentView.frame.size.width), FMath::TruncToInt(WindowHandle.contentView.frame.size.height), NewWindowMode);
 	}
 }
 
@@ -420,12 +420,12 @@ bool FMacWindow::GetRestoredDimensions(int32& X, int32& Y, int32& Width, int32& 
 
 		const FVector2D SlatePosition = FMacApplication::ConvertCocoaPositionToSlate(Frame.origin.x, Frame.origin.y);
 
-		const float DPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? WindowHandle.backingScaleFactor : 1.0f;
-		Width = Frame.size.width * DPIScaleFactor;
-		Height = Frame.size.height * DPIScaleFactor;
+		const double DPIScaleFactor = FPlatformApplicationMisc::IsHighDPIModeEnabled() ? WindowHandle.backingScaleFactor : 1.0;
+		Width = FMath::TruncToInt(Frame.size.width * DPIScaleFactor);
+		Height = FMath::TruncToInt(Frame.size.height * DPIScaleFactor);
 
-		X = SlatePosition.X;
-		Y = SlatePosition.Y - Height + 1;
+		X = FMath::TruncToInt(SlatePosition.X);
+		Y = FMath::TruncToInt(SlatePosition.Y - Height + 1);
 
 		return true;
 	}
@@ -533,7 +533,7 @@ bool FMacWindow::IsRegularWindow() const
 
 float FMacWindow::GetDPIScaleFactor() const
 {
-	return FPlatformApplicationMisc::IsHighDPIModeEnabled() ? WindowHandle.backingScaleFactor : 1.0f;
+	return FPlatformApplicationMisc::IsHighDPIModeEnabled() ? (float)WindowHandle.backingScaleFactor : 1.0f;
 }
 
 void FMacWindow::SetNativeWindowButtonsVisibility(bool bVisible)
@@ -610,7 +610,7 @@ void FMacWindow::ApplySizeAndModeChanges(int32 X, int32 Y, int32 Width, int32 He
 			CGError Error = CGAcquireDisplayFadeReservation(kCGMaxDisplayReservationInterval, &FadeReservationToken);
 			if (Error == kCGErrorSuccess)
 			{
-				CGDisplayFade(FadeReservationToken, 0.3, kCGDisplayBlendNormal, kCGDisplayBlendSolidColor, 0, 0, 0, true);
+				CGDisplayFade(FadeReservationToken, 0.3f, kCGDisplayBlendNormal, kCGDisplayBlendSolidColor, 0, 0, 0, true);
 			}
 		}, UnrealResizeEventMode, true);
 	}

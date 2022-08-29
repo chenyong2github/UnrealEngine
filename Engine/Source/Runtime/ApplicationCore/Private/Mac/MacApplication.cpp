@@ -422,10 +422,10 @@ FPlatformRect FMacApplication::GetWorkArea(const FPlatformRect& CurrentWindow) c
 	const NSRect VisibleFrame = Screen->VisibleFramePixels;
 
 	FPlatformRect WorkArea;
-	WorkArea.Left = VisibleFrame.origin.x;
-	WorkArea.Top = VisibleFrame.origin.y;
-	WorkArea.Right = WorkArea.Left + VisibleFrame.size.width;
-	WorkArea.Bottom = WorkArea.Top + VisibleFrame.size.height;
+	WorkArea.Left = FMath::TruncToInt(VisibleFrame.origin.x);
+	WorkArea.Top = FMath::TruncToInt(VisibleFrame.origin.y);
+	WorkArea.Right = WorkArea.Left + FMath::TruncToInt(VisibleFrame.size.width);
+	WorkArea.Bottom = WorkArea.Top + FMath::TruncToInt(VisibleFrame.size.height);
 
 	return WorkArea;
 }
@@ -814,9 +814,9 @@ void FMacApplication::ProcessEvent(const FDeferredMacEvent& Event)
 		{
 			// MouseMoved events are suspended during drag and drop operations, so we need to update the cursor position here
 			NSPoint CursorPos = [NSEvent mouseLocation];
-			FVector2D NewPosition = ConvertCocoaPositionToSlate(CursorPos.x, CursorPos.y);
+			FVector2D FloatPosition = ConvertCocoaPositionToSlate(CursorPos.x, CursorPos.y);
+			FIntVector2 NewPosition(FMath::TruncToInt(FloatPosition.X), FMath::TruncToInt(FloatPosition.Y));
 			FMacCursor* MacCursor = (FMacCursor*)Cursor.Get();
-			const FVector2D MouseDelta = NewPosition - MacCursor->GetPosition();
 			if (MacCursor->UpdateCursorClipping(NewPosition))
 			{
 				MacCursor->SetPosition(NewPosition.X, NewPosition.Y);
@@ -907,7 +907,7 @@ void FMacApplication::ProcessMouseMovedEvent(const FDeferredMacEvent& Event, TSh
 	if (bUsingHighPrecisionMouseInput)
 	{
 		// Get the mouse position
-		FVector2D HighPrecisionMousePos = MacCursor->GetPosition();
+		FIntVector2 HighPrecisionMousePos = MacCursor->GetIntPosition();
 
 		// Find the visible frame of the screen the cursor is currently on.
 		FMacScreenRef Screen = FindScreenBySlatePosition(HighPrecisionMousePos.X, HighPrecisionMousePos.Y);
@@ -916,15 +916,17 @@ void FMacApplication::ProcessMouseMovedEvent(const FDeferredMacEvent& Event, TSh
 		// Under OS X we disassociate the cursor and mouse position during hi-precision mouse input.
 		// The game snaps the mouse cursor back to the starting point when this is disabled, which
 		// accumulates mouse delta that we want to ignore.
-		const FVector2D AccumDelta = MacCursor->GetMouseWarpDelta();
+		const FIntVector2 AccumDelta = MacCursor->GetMouseWarpDelta();
 
 		// Account for warping delta's
-		FVector2D Delta = FVector2D(Event.Delta.X, Event.Delta.Y);
-		const FVector2D WarpDelta(FMath::Abs(AccumDelta.X)<FMath::Abs(Delta.X) ? AccumDelta.X : Delta.X, FMath::Abs(AccumDelta.Y)<FMath::Abs(Delta.Y) ? AccumDelta.Y : Delta.Y);
-		Delta -= WarpDelta;
+		FIntVector2 Delta(FMath::TruncToInt(Event.Delta.X), FMath::TruncToInt(Event.Delta.Y));
+		const FIntVector2 WarpDelta(FMath::Abs(AccumDelta.X)<FMath::Abs(Delta.X) ? AccumDelta.X : Delta.X, FMath::Abs(AccumDelta.Y)<FMath::Abs(Delta.Y) ? AccumDelta.Y : Delta.Y);
+		Delta.X -= WarpDelta.X;
+		Delta.Y -= WarpDelta.Y;
 
 		// Update to latest position
-		HighPrecisionMousePos += Delta;
+		HighPrecisionMousePos.X += Delta.X;
+		HighPrecisionMousePos.Y += Delta.Y;
 
 		// Clip to lock rect
 		MacCursor->UpdateCursorClipping(HighPrecisionMousePos);
@@ -939,8 +941,8 @@ void FMacApplication::ProcessMouseMovedEvent(const FDeferredMacEvent& Event, TSh
 				VisibleFrame.origin.y += 5;
 				VisibleFrame.size.height -= 10;
 			}
-			int32 ClampedPosX = FMath::Clamp((int32)HighPrecisionMousePos.X, (int32)VisibleFrame.origin.x, (int32)(VisibleFrame.origin.x + VisibleFrame.size.width)-1);
-			int32 ClampedPosY = FMath::Clamp((int32)HighPrecisionMousePos.Y, (int32)VisibleFrame.origin.y, (int32)(VisibleFrame.origin.y + VisibleFrame.size.height)-1);
+			int32 ClampedPosX = FMath::Clamp(HighPrecisionMousePos.X, (int32)VisibleFrame.origin.x, (int32)(VisibleFrame.origin.x + VisibleFrame.size.width)-1);
+			int32 ClampedPosY = FMath::Clamp(HighPrecisionMousePos.Y, (int32)VisibleFrame.origin.y, (int32)(VisibleFrame.origin.y + VisibleFrame.size.height)-1);
 			MacCursor->SetPosition(ClampedPosX, ClampedPosY);
 		}
 		else
@@ -954,8 +956,10 @@ void FMacApplication::ProcessMouseMovedEvent(const FDeferredMacEvent& Event, TSh
 	else
 	{
 		NSPoint CursorPos = [NSEvent mouseLocation];
-		FVector2D NewPosition = ConvertCocoaPositionToSlate(CursorPos.x, CursorPos.y);
-		const FVector2D MouseDelta = NewPosition - MacCursor->GetPosition();
+		FVector2D FloatPosition = ConvertCocoaPositionToSlate(CursorPos.x, CursorPos.y);
+		FIntVector2 NewPosition(FMath::TruncToInt(FloatPosition.X), FMath::TruncToInt(FloatPosition.Y));
+		const FIntVector2 OldPosition = MacCursor->GetIntPosition();
+		const FIntVector2 MouseDelta(NewPosition.X - OldPosition.X, NewPosition.Y - OldPosition.Y);
 		if (MacCursor->UpdateCursorClipping(NewPosition))
 		{
 			MacCursor->SetPosition(NewPosition.X, NewPosition.Y);
@@ -971,8 +975,8 @@ void FMacApplication::ProcessMouseMovedEvent(const FDeferredMacEvent& Event, TSh
 			// its position based on mouse move delta
 			if (DraggedWindow && DraggedWindow == EventWindow->GetWindowHandle())
 			{
-				const int32 X = FMath::TruncToInt(EventWindow->PositionX + MouseDelta.X);
-				const int32 Y = FMath::TruncToInt(EventWindow->PositionY + MouseDelta.Y);
+				const int32 X = EventWindow->PositionX + MouseDelta.X;
+				const int32 Y = EventWindow->PositionY + MouseDelta.Y;
 				MessageHandler->OnMovedWindow(EventWindow.ToSharedRef(), X, Y);
 				EventWindow->PositionX = X;
 				EventWindow->PositionY = Y;
@@ -1094,8 +1098,7 @@ void FMacApplication::ProcessMouseUpEvent(const FDeferredMacEvent& Event, TShare
 
 void FMacApplication::ProcessScrollWheelEvent(const FDeferredMacEvent& Event, TSharedPtr<FMacWindow> EventWindow)
 {
-	const float DeltaX = (Event.ModifierFlags & NSEventModifierFlagShift) ? Event.Delta.Y : Event.Delta.X;
-	const float DeltaY = (Event.ModifierFlags & NSEventModifierFlagShift) ? Event.Delta.X : Event.Delta.Y;
+	const float DeltaY = (Event.ModifierFlags & NSEventModifierFlagShift) ? (float)Event.Delta.X : (float)Event.Delta.Y;
 
 	NSEventPhase Phase = Event.Phase;
 
@@ -1189,14 +1192,14 @@ void FMacApplication::OnWindowDidMove(TSharedRef<FMacWindow> Window)
 	NSRect WindowFrame = [Window->GetWindowHandle() frame];
 	NSRect OpenGLFrame = [Window->GetWindowHandle() openGLFrame];
 
-	const float X = WindowFrame.origin.x;
-	const float Y = WindowFrame.origin.y + ([Window->GetWindowHandle() windowMode] == EWindowMode::Fullscreen ? WindowFrame.size.height : OpenGLFrame.size.height);
+	const double X = WindowFrame.origin.x;
+	const double Y = WindowFrame.origin.y + ([Window->GetWindowHandle() windowMode] == EWindowMode::Fullscreen ? WindowFrame.size.height : OpenGLFrame.size.height);
 
 	FVector2D SlatePosition = ConvertCocoaPositionToSlate(X, Y);
 
-	MessageHandler->OnMovedWindow(Window, SlatePosition.X, SlatePosition.Y);
-	Window->PositionX = SlatePosition.X;
-	Window->PositionY = SlatePosition.Y;
+	MessageHandler->OnMovedWindow(Window, FMath::TruncToInt(SlatePosition.X), FMath::TruncToInt(SlatePosition.Y));
+	Window->PositionX = FMath::TruncToInt(SlatePosition.X);
+	Window->PositionY = FMath::TruncToInt(SlatePosition.Y);
 }
 
 void FMacApplication::OnWindowWillResize(TSharedRef<FMacWindow> Window)
@@ -1215,8 +1218,8 @@ void FMacApplication::OnWindowDidResize(TSharedRef<FMacWindow> Window, bool bRes
 	OnWindowDidMove(Window);
 
 	// default is no override
-	uint32 Width = [Window->GetWindowHandle() openGLFrame].size.width * Window->GetDPIScaleFactor();
-	uint32 Height = [Window->GetWindowHandle() openGLFrame].size.height * Window->GetDPIScaleFactor();
+	uint32 Width = FMath::TruncToInt([Window->GetWindowHandle() openGLFrame].size.width * Window->GetDPIScaleFactor());
+	uint32 Height = FMath::TruncToInt([Window->GetWindowHandle() openGLFrame].size.height * Window->GetDPIScaleFactor());
 
 	if (Window->GetWindowHandle().TargetWindowMode == EWindowMode::WindowedFullscreen)
 	{
@@ -1801,8 +1804,8 @@ void FMacApplication::UpdateScreensArray()
 	for (int32 Index = 0; Index < SortedScreens.Num(); ++Index)
 	{
 		FMacScreenRef& CurScreen = SortedScreens[Index];
-		const float DPIScaleFactor = bUseHighDPIMode ? CurScreen->Screen.backingScaleFactor : 1.0f;
-		if (DPIScaleFactor != 1.0f)
+		const double DPIScaleFactor = bUseHighDPIMode ? CurScreen->Screen.backingScaleFactor : 1.0;
+		if (DPIScaleFactor != 1.0)
 		{
 			CurScreen->FramePixels.size.width = CurScreen->Frame.size.width * DPIScaleFactor;
 			CurScreen->FramePixels.size.height = CurScreen->Frame.size.height * DPIScaleFactor;
@@ -1812,8 +1815,8 @@ void FMacApplication::UpdateScreensArray()
 			for (int32 OtherIndex = Index + 1; OtherIndex < SortedScreens.Num(); ++OtherIndex)
 			{
 				FMacScreenRef& OtherScreen = SortedScreens[OtherIndex];
-				const float DiffFrame = (OtherScreen->Frame.origin.x - CurScreen->Frame.origin.x) * DPIScaleFactor;
-				const float DiffVisibleFrame = (OtherScreen->VisibleFrame.origin.x - CurScreen->VisibleFrame.origin.x) * DPIScaleFactor;
+				const double DiffFrame = (OtherScreen->Frame.origin.x - CurScreen->Frame.origin.x) * DPIScaleFactor;
+				const double DiffVisibleFrame = (OtherScreen->VisibleFrame.origin.x - CurScreen->VisibleFrame.origin.x) * DPIScaleFactor;
 				OtherScreen->FramePixels.origin.x = CurScreen->FramePixels.origin.x + DiffFrame;
 				OtherScreen->VisibleFramePixels.origin.x = CurScreen->VisibleFramePixels.origin.x + DiffVisibleFrame;
 			}
@@ -1825,14 +1828,14 @@ void FMacApplication::UpdateScreensArray()
 	for (int32 Index = 0; Index < SortedScreens.Num(); ++Index)
 	{
 		FMacScreenRef& CurScreen = SortedScreens[Index];
-		const float DPIScaleFactor = bUseHighDPIMode ? CurScreen->Screen.backingScaleFactor : 1.0f;
-		if (DPIScaleFactor != 1.0f)
+		const double DPIScaleFactor = bUseHighDPIMode ? CurScreen->Screen.backingScaleFactor : 1.0;
+		if (DPIScaleFactor != 1.0)
 		{
 			for (int32 OtherIndex = Index + 1; OtherIndex < SortedScreens.Num(); ++OtherIndex)
 			{
 				FMacScreenRef& OtherScreen = SortedScreens[OtherIndex];
-				const float DiffFrame = (OtherScreen->Frame.origin.y - CurScreen->Frame.origin.y) * DPIScaleFactor;
-				const float DiffVisibleFrame = (OtherScreen->VisibleFrame.origin.y - CurScreen->VisibleFrame.origin.y) * DPIScaleFactor;
+				const double DiffFrame = (OtherScreen->Frame.origin.y - CurScreen->Frame.origin.y) * DPIScaleFactor;
+				const double DiffVisibleFrame = (OtherScreen->VisibleFrame.origin.y - CurScreen->VisibleFrame.origin.y) * DPIScaleFactor;
 				OtherScreen->FramePixels.origin.y = CurScreen->FramePixels.origin.y + DiffFrame;
 				OtherScreen->VisibleFramePixels.origin.y = CurScreen->VisibleFramePixels.origin.y + DiffVisibleFrame;
 			}
@@ -1876,10 +1879,10 @@ float FMacApplication::GetPrimaryScreenBackingScaleFactor()
 {
 	FScopeLock Lock(&GAllScreensMutex);
 	const bool bUseHighDPIMode = FPlatformApplicationMisc::IsHighDPIModeEnabled();
-	return bUseHighDPIMode ? GAllScreens[0]->Screen.backingScaleFactor : 1.0f;
+	return bUseHighDPIMode ? (float)GAllScreens[0]->Screen.backingScaleFactor : 1.0f;
 }
 
-FMacScreenRef FMacApplication::FindScreenBySlatePosition(float X, float Y)
+FMacScreenRef FMacApplication::FindScreenBySlatePosition(double X, double Y)
 {
 	NSPoint Point = NSMakePoint(X, Y);
 
@@ -1898,7 +1901,7 @@ FMacScreenRef FMacApplication::FindScreenBySlatePosition(float X, float Y)
 	return TargetScreen;
 }
 
-FMacScreenRef FMacApplication::FindScreenByCocoaPosition(float X, float Y)
+FMacScreenRef FMacApplication::FindScreenByCocoaPosition(double X, double Y)
 {
 	NSPoint Point = NSMakePoint(X, Y);
 
@@ -1917,29 +1920,29 @@ FMacScreenRef FMacApplication::FindScreenByCocoaPosition(float X, float Y)
 	return TargetScreen;
 }
 
-FVector2D FMacApplication::ConvertSlatePositionToCocoa(float X, float Y)
+FVector2D FMacApplication::ConvertSlatePositionToCocoa(double X, double Y)
 {
 	FMacScreenRef Screen = FindScreenBySlatePosition(X, Y);
 	const bool bUseHighDPIMode = FPlatformApplicationMisc::IsHighDPIModeEnabled();
-	const float DPIScaleFactor = bUseHighDPIMode ? Screen->Screen.backingScaleFactor : 1.0f;
+	const double DPIScaleFactor = bUseHighDPIMode ? Screen->Screen.backingScaleFactor : 1.0;
 	const FVector2D OffsetOnScreen = FVector2D(X - Screen->FramePixels.origin.x, Screen->FramePixels.origin.y + Screen->FramePixels.size.height - Y) / DPIScaleFactor;
 	return FVector2D(Screen->Screen.frame.origin.x + OffsetOnScreen.X, Screen->Screen.frame.origin.y + OffsetOnScreen.Y);
 }
 
-FVector2D FMacApplication::ConvertCocoaPositionToSlate(float X, float Y)
+FVector2D FMacApplication::ConvertCocoaPositionToSlate(double X, double Y)
 {
 	FMacScreenRef Screen = FindScreenByCocoaPosition(X, Y);
 	const bool bUseHighDPIMode = FPlatformApplicationMisc::IsHighDPIModeEnabled();
-	const float DPIScaleFactor = bUseHighDPIMode ? Screen->Screen.backingScaleFactor : 1.0f;
+	const double DPIScaleFactor = bUseHighDPIMode ? Screen->Screen.backingScaleFactor : 1.0;
 	const FVector2D OffsetOnScreen = FVector2D(X - Screen->Screen.frame.origin.x, Screen->Screen.frame.origin.y + Screen->Screen.frame.size.height - Y) * DPIScaleFactor;
 	return FVector2D(Screen->FramePixels.origin.x + OffsetOnScreen.X, Screen->FramePixels.origin.y + OffsetOnScreen.Y);
 }
 
-CGPoint FMacApplication::ConvertSlatePositionToCGPoint(float X, float Y)
+CGPoint FMacApplication::ConvertSlatePositionToCGPoint(double X, double Y)
 {
 	FMacScreenRef Screen = FindScreenBySlatePosition(X, Y);
 	const bool bUseHighDPIMode = FPlatformApplicationMisc::IsHighDPIModeEnabled();
-	const float DPIScaleFactor = bUseHighDPIMode ? Screen->Screen.backingScaleFactor : 1.0f;
+	const double DPIScaleFactor = bUseHighDPIMode ? Screen->Screen.backingScaleFactor : 1.0;
 	const FVector2D OffsetOnScreen = FVector2D(X - Screen->FramePixels.origin.x, Y - Screen->FramePixels.origin.y) / DPIScaleFactor;
 	return CGPointMake(Screen->Frame.origin.x + OffsetOnScreen.X, Screen->Frame.origin.y + OffsetOnScreen.Y);
 }
@@ -1947,8 +1950,8 @@ CGPoint FMacApplication::ConvertSlatePositionToCGPoint(float X, float Y)
 EWindowZone::Type FMacApplication::GetCurrentWindowZone(const TSharedRef<FMacWindow>& Window) const
 {
 	const FVector2D CursorPos = ((FMacCursor*)Cursor.Get())->GetPosition();
-	const int32 LocalMouseX = CursorPos.X - Window->PositionX;
-	const int32 LocalMouseY = CursorPos.Y - Window->PositionY;
+	const int32 LocalMouseX = FMath::TruncToInt(CursorPos.X - Window->PositionX);
+	const int32 LocalMouseY = FMath::TruncToInt(CursorPos.Y - Window->PositionY);
 	return MessageHandler->GetWindowZoneForPoint(Window, LocalMouseX, LocalMouseY);
 }
 
@@ -2087,7 +2090,7 @@ unichar FMacApplication::TranslateKeyCodeToUniCode(uint32 KeyCode, uint32 Modifi
 					UniCharCount BufferLength = 256;
 					uint32 DeadKeyState = 0;
 
-					OSStatus Status = UCKeyTranslate(KeyboardLayout, KeyCode, kUCKeyActionDown, ((Modifier) >> 8) & 0xFF, LMGetKbdType(), kUCKeyTranslateNoDeadKeysMask, &DeadKeyState, BufferLength, &BufferLength, Buffer);
+					OSStatus Status = UCKeyTranslate(KeyboardLayout, (uint16)KeyCode, kUCKeyActionDown, (uint16)(((Modifier) >> 8) & 0xFF), LMGetKbdType(), kUCKeyTranslateNoDeadKeysMask, &DeadKeyState, BufferLength, &BufferLength, Buffer);
 					if (Status == noErr)
 					{
 						return Buffer[0];
@@ -2123,7 +2126,7 @@ TCHAR FMacApplication::TranslateCharCode(TCHAR CharCode, uint32 KeyCode) const
 					uint32 DeadKeyState = 0;
 
 					// To ensure we get a latin character, we pretend that command modifier key is pressed
-					OSStatus Status = UCKeyTranslate(KeyboardLayout, KeyCode, kUCKeyActionDown, cmdKey >> 8, LMGetKbdType(), kUCKeyTranslateNoDeadKeysMask, &DeadKeyState, BufferLength, &BufferLength, Buffer);
+					OSStatus Status = UCKeyTranslate(KeyboardLayout, (uint16)KeyCode, kUCKeyActionDown, cmdKey >> 8, LMGetKbdType(), kUCKeyTranslateNoDeadKeysMask, &DeadKeyState, BufferLength, &BufferLength, Buffer);
 					if (Status == noErr)
 					{
 						CharCode = Buffer[0];
@@ -2221,8 +2224,8 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 	const NSRect VisibleFrame = PrimaryScreen->VisibleFramePixels;
 
 	// Total screen size of the primary monitor
-	OutDisplayMetrics.PrimaryDisplayWidth = ScreenFrame.size.width;
-	OutDisplayMetrics.PrimaryDisplayHeight = ScreenFrame.size.height;
+	OutDisplayMetrics.PrimaryDisplayWidth = FMath::TruncToInt(ScreenFrame.size.width);
+	OutDisplayMetrics.PrimaryDisplayHeight = FMath::TruncToInt(ScreenFrame.size.height);
 
 	OutDisplayMetrics.MonitorInfo.Empty();
 
@@ -2266,8 +2269,20 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 		
 			CFRelease(ArrDisplay);
 
-			Info.DisplayRect = FPlatformRect(Screen->FramePixels.origin.x, Screen->FramePixels.origin.y, Screen->FramePixels.origin.x + Screen->FramePixels.size.width, Screen->FramePixels.origin.y + Screen->FramePixels.size.height);
-			Info.WorkArea = FPlatformRect(Screen->VisibleFramePixels.origin.x, Screen->VisibleFramePixels.origin.y, Screen->VisibleFramePixels.origin.x + Screen->VisibleFramePixels.size.width, Screen->VisibleFramePixels.origin.y + Screen->VisibleFramePixels.size.height);
+			Info.DisplayRect = FPlatformRect
+			(
+				FMath::TruncToInt(Screen->FramePixels.origin.x),
+				FMath::TruncToInt(Screen->FramePixels.origin.y),
+				FMath::TruncToInt(Screen->FramePixels.origin.x + Screen->FramePixels.size.width),
+				FMath::TruncToInt(Screen->FramePixels.origin.y + Screen->FramePixels.size.height)
+			);
+			Info.WorkArea = FPlatformRect
+			(
+				FMath::TruncToInt(Screen->VisibleFramePixels.origin.x),
+				FMath::TruncToInt(Screen->VisibleFramePixels.origin.y),
+				FMath::TruncToInt(Screen->VisibleFramePixels.origin.x + Screen->VisibleFramePixels.size.width),
+				FMath::TruncToInt(Screen->VisibleFramePixels.origin.y + Screen->VisibleFramePixels.size.height)
+			);
 			Info.bIsPrimary = Screen->Screen == [NSScreen mainScreen];
 
 			// dpi computations
@@ -2318,16 +2333,16 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 	}
 
 	// Virtual desktop area
-	OutDisplayMetrics.VirtualDisplayRect.Left = WholeWorkspace.origin.x;
-	OutDisplayMetrics.VirtualDisplayRect.Top = FMath::Min(WholeWorkspace.origin.y, 0.0);
-	OutDisplayMetrics.VirtualDisplayRect.Right = WholeWorkspace.origin.x + WholeWorkspace.size.width;
-	OutDisplayMetrics.VirtualDisplayRect.Bottom = WholeWorkspace.size.height + OutDisplayMetrics.VirtualDisplayRect.Top;
+	OutDisplayMetrics.VirtualDisplayRect.Left = FMath::TruncToInt(WholeWorkspace.origin.x);
+	OutDisplayMetrics.VirtualDisplayRect.Top = FMath::TruncToInt(FMath::Min(WholeWorkspace.origin.y, 0.0));
+	OutDisplayMetrics.VirtualDisplayRect.Right = FMath::TruncToInt(WholeWorkspace.origin.x + WholeWorkspace.size.width);
+	OutDisplayMetrics.VirtualDisplayRect.Bottom = FMath::TruncToInt(WholeWorkspace.size.height + OutDisplayMetrics.VirtualDisplayRect.Top);
 
 	// Get the screen rect of the primary monitor, excluding taskbar etc.
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left = VisibleFrame.origin.x;
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top = VisibleFrame.origin.y;
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right = VisibleFrame.origin.x + VisibleFrame.size.width;
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top + VisibleFrame.size.height;
+	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left = FMath::TruncToInt(VisibleFrame.origin.x);
+	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top = FMath::TruncToInt(VisibleFrame.origin.y);
+	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right = FMath::TruncToInt(VisibleFrame.origin.x + VisibleFrame.size.width);
+	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom = FMath::TruncToInt(OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top + VisibleFrame.size.height);
 
 	// Apply the debug safe zones
 	OutDisplayMetrics.ApplyDefaultSafeZones();

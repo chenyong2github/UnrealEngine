@@ -249,15 +249,15 @@ public:
 
 	static void UpdateScreensArray();
 
-	static FMacScreenRef FindScreenBySlatePosition(float X, float Y);
+	static FMacScreenRef FindScreenBySlatePosition(double X, double Y);
 
-	static FMacScreenRef FindScreenByCocoaPosition(float X, float Y);
+	static FMacScreenRef FindScreenByCocoaPosition(double X, double Y);
 
-	static FVector2D ConvertSlatePositionToCocoa(float X, float Y);
+	static FVector2D ConvertSlatePositionToCocoa(double X, double Y);
 
-	static FVector2D ConvertCocoaPositionToSlate(float X, float Y);
+	static FVector2D ConvertCocoaPositionToSlate(double X, double Y);
 
-	static CGPoint ConvertSlatePositionToCGPoint(float X, float Y);
+	static CGPoint ConvertSlatePositionToCGPoint(double X, double Y);
 
 	static FVector2D CalculateScreenOrigin(NSScreen* Screen);
 

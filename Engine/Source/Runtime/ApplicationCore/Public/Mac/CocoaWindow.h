@@ -19,7 +19,7 @@
 	bool bDisplayReconfiguring;
 	bool bRenderInitialized;
 	bool bIsBeingOrderedFront;
-	float Opacity;
+	CGFloat Opacity;
 @public
 	bool bAcceptsInput;
 	bool bZoomed;

@@ -487,7 +487,7 @@
 		}
 
 		NSScreen* PrimaryScreen = [[self window] screen];
-		const float PrimaryScreenHeight = [PrimaryScreen visibleFrame].size.height;
+		const CGFloat PrimaryScreenHeight = [PrimaryScreen visibleFrame].size.height;
 		Position.Y = -(Position.Y - PrimaryScreenHeight + 1);
 
 		NSRect GlyphBox = {{Position.X,Position.Y},{Size.X,Size.Y}};

@@ -352,7 +352,7 @@ void FAppleControllerInterface::HandleInputInternal(const FGamepadKeyNames::Type
 {
     const double CurrentTime = FPlatformTime::Seconds();
     const float InitialRepeatDelay = 0.2f;
-    const float RepeatDelay = 0.1;
+    const float RepeatDelay = 0.1f;
     GCController* Cont = Controllers[ControllerIndex].Controller;
     
 	IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
@@ -390,7 +390,7 @@ void FAppleControllerInterface::HandleVirtualButtonGamepad(const FGamepadKeyName
     GCExtendedGamepad *ExtendedPreviousGamepad = Controllers[ControllerIndex].PreviousExtendedGamepad;;
 
     // Send controller events any time we are passed the given input threshold similarly to PC/Console (see: XInputInterface.cpp)
-    const float RepeatDeadzone = 0.24;
+    const float RepeatDeadzone = 0.24f;
     
     bool bWasNegativePressed = false;
     bool bNegativePressed = false;
@@ -512,7 +512,7 @@ void FAppleControllerInterface::HandleAnalogGamepad(const FGamepadKeyNames::Type
 	DeviceMapper.RemapControllerIdToPlatformUserAndDevice(Controllers[ControllerIndex].PlayerIndex, OUT UserId, OUT DeviceId);
     
     // Send controller events any time we are passed the given input threshold similarly to PC/Console (see: XInputInterface.cpp)
-    const float RepeatDeadzone = 0.24;
+    const float RepeatDeadzone = 0.24f;
     bool bWasPositivePressed = false;
     bool bPositivePressed = false;
     bool bWasNegativePressed = false;
