@@ -38,10 +38,27 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 		None = 0,
 		Folder, // Usually an Outliner folder
 		ContainerObject, // Usually an actor that contains a matching subobject or is the attach parent of a matching actor
+		MatchingContainerObject, // An Actor that is a matching object and contains matching subobjects 
 		MatchingObject // The object that has the properties we wish to affect
 	};
 
 	~FObjectMixerEditorListRow();
+
+	bool operator==(const TSharedPtr<FObjectMixerEditorListRow>& Other) const
+	{
+		const UObject* ThisObject = GetObject();
+		const UObject* ThatObject = Other->GetObject();
+
+		const bool bAreObjectsEqual = ThisObject == ThatObject;
+
+		// If both are null, they're folders. Check display names.
+		if (bAreObjectsEqual && !ThisObject)
+		{
+			return GetDisplayNameOverride().EqualTo(Other->GetDisplayNameOverride());
+		}
+		
+		return bAreObjectsEqual;
+	}
 
 	void FlushReferences();
 	
@@ -69,6 +86,9 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	bool IsObjectRefInSelectedCollections() const;
 
 	[[nodiscard]] EObjectMixerEditorListRowType GetRowType() const;
+	void SetRowType(EObjectMixerEditorListRowType InNewRowType);
+
+	[[nodiscard]] bool IsHybridRow() const;
 
 	[[nodiscard]] int32 GetSortOrder() const;
 	void SetSortOrder(const int32 InNewOrder);
@@ -113,7 +133,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	[[nodiscard]] FText GetDisplayName();
 
-	[[nodiscard]] const FText& GetDisplayNameOverride()
+	[[nodiscard]] const FText& GetDisplayNameOverride() const
 	{
 		return DisplayNameOverride;
 	}

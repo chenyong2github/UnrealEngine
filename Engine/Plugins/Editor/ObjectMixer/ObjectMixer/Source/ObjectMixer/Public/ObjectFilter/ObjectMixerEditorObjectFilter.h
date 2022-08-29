@@ -24,17 +24,15 @@ enum class EObjectMixerInheritanceInclusionOptions : uint8
 UENUM(BlueprintType)
 enum class EObjectMixerTreeViewMode : uint8
 {
-	Flat, // Show all matching objects in a flat list without any hierarchy
-	Folder, // Display objects in a folder hierarchy but without Object->SubObject hierarchy
-	ObjectSubObject, // Display objects as SubObjects of BaseObjects (usually actors) without considering folder hierarchy
-	FolderObjectSubObject // Display objects in a full hierarchy (folder->BaseObject->SubObject)
+	NoFolders, // Show all matching objects in a flat list without any hierarchy
+	Folders // Display objects in a folder hierarchy but without Object->SubObject hierarchy
 };
 
 /**
  * Native class for filtering object types to Object Mixer.
  * Native C++ classes should inherit directly from this class.
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable) 
 class OBJECTMIXEREDITOR_API UObjectMixerObjectFilter : public UObject
 {
 	GENERATED_BODY()
@@ -192,7 +190,7 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
 	FText GetRowDisplayName(
-		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject) const override;
+		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::Folders) const override;
 	
 	FText GetRowDisplayName_Implementation(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
 	{
@@ -207,7 +205,7 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
 	bool GetRowEditorVisibility(
-		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject) const override;
+		UObject* InObject, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::Folders) const override;
 
 	bool GetRowEditorVisibility_Implementation(UObject* InObject, EObjectMixerTreeViewMode InViewMode) const
 	{
@@ -222,7 +220,7 @@ public:
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Object Mixer")
 	void OnSetRowEditorVisibility(
-		UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject) const override;
+		UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode = EObjectMixerTreeViewMode::Folders) const override;
 
 	void OnSetRowEditorVisibility_Implementation(UObject* InObject, bool bNewIsVisible, EObjectMixerTreeViewMode InViewMode) const
 	{

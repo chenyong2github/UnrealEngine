@@ -24,7 +24,6 @@
 #include "Editor/UnrealEdEngine.h"
 #include "PlacementMode/Public/IPlacementModeModule.h"
 #include "Styling/StyleColors.h"
-#include "UObject/UObjectIterator.h"
 #include "Views/Widgets/ObjectMixerEditorListMenuContext.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -937,6 +936,126 @@ void SObjectMixerEditorList::BuildPerformanceCacheAndGenerateHeaderIfNeeded()
 	}
 }
 
+bool DoesWorldObjectHaveAcceptableClass(const UObject* Object, const TSet<UClass*>& ObjectClassesToFilterCache)
+{
+	for (UClass* Class : ObjectClassesToFilterCache)
+	{
+		if (Object->IsA(Class))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void CreateOuterRowsForTopLevelRow(
+	UObject* InObject,
+	FObjectMixerEditorListRowPtr& TopLevelRow,
+	const TSet<UObject*>& AllMatchingObjects,
+	TMap<UObject*, FObjectMixerEditorListRowPtr>& ObjectsWithRowCreated,
+	const TSharedRef<SObjectMixerEditorList>& InListView)
+{
+	if (InObject)
+	{
+		if (InObject->IsA(ULevel::StaticClass()) ||
+			InObject->IsA(UWorld::StaticClass()) ||
+			InObject->IsA(UPackage::StaticClass()))
+		{
+			return;
+		}
+
+		FObjectMixerEditorListRowPtr OuterRow = nullptr;
+			
+		if (const FObjectMixerEditorListRowPtr* Match = ObjectsWithRowCreated.Find(InObject))
+		{
+			OuterRow = *Match;
+		}
+		else
+		{				
+			OuterRow = MakeShared<FObjectMixerEditorListRow>(
+				InObject,
+				FObjectMixerEditorListRow::MatchingObject,
+				InListView);
+				
+			check(OuterRow.IsValid());
+			ObjectsWithRowCreated.Add(InObject, OuterRow);
+		}
+
+		if (TopLevelRow.IsValid())
+		{
+			OuterRow->AddToChildRows(TopLevelRow);
+				
+			const bool bMatchingContainer = AllMatchingObjects.Contains(InObject);
+				
+			OuterRow->SetRowType(
+				bMatchingContainer ?
+				FObjectMixerEditorListRow::MatchingContainerObject :
+				FObjectMixerEditorListRow::ContainerObject
+			);
+		}
+		TopLevelRow = OuterRow;
+			
+		UObject* Outer = InObject->GetOuter();
+
+		if (!Outer)
+		{
+			if (const AActor* AsActor = Cast<AActor>(InObject))
+			{
+				Outer = AsActor->GetAttachParentActor();
+			}
+		}
+
+		// Recurse with Outer object
+		if (Outer)
+		{
+			CreateOuterRowsForTopLevelRow(
+			   Outer, TopLevelRow, AllMatchingObjects,
+			   ObjectsWithRowCreated, InListView
+		   );
+		}
+	}
+}
+
+void CreateFolderRowsForTopLevelRow(
+	FObjectMixerEditorListRowPtr& TopLevelRow,
+	TMap<FName, FObjectMixerEditorListRowPtr>& FolderMap,
+	const TSharedRef<SObjectMixerEditorList>& InListView)
+{
+	if (const TObjectPtr<AActor> AsActor = Cast<AActor>(TopLevelRow->GetObject()))
+	{
+		FFolder BaseActorFolder = AsActor->GetFolder();
+
+		while (!BaseActorFolder.IsNone())
+		{
+			TSharedPtr<FObjectMixerEditorListRow> FolderRow;
+			
+			if (const FObjectMixerEditorListRowPtr* Match = FolderMap.Find(BaseActorFolder.GetPath()))
+			{
+				FolderRow = *Match;
+			}
+			else
+			{
+				FolderRow =
+					MakeShared<FObjectMixerEditorListRow>(
+						nullptr, FObjectMixerEditorListRow::Folder, InListView,
+						FText::FromName(BaseActorFolder.GetLeafName()));
+
+				FolderMap.Add(BaseActorFolder.GetPath(), FolderRow.ToSharedRef());
+			}
+
+			if (FolderRow)
+			{
+				FolderRow->AddToChildRows(TopLevelRow);
+									
+				TopLevelRow = FolderRow.ToSharedRef();
+			}
+
+			BaseActorFolder = BaseActorFolder.GetParent();
+		}
+	}
+}
+
 void SObjectMixerEditorList::GenerateTreeView()
 {
 	check(ListModelPtr.IsValid());
@@ -954,163 +1073,40 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	check(GEditor);
 	const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-
-	// Find valid matching objects
-	TArray<UObject*> MatchingObjects;
-	for (TObjectIterator<UObject> ObjectIterator; ObjectIterator; ++ObjectIterator)
+	
+	TSet<UObject*> AllMatchingObjects;
+	ForEachObjectWithOuter(EditorWorld,
+		[this, &AllMatchingObjects](UObject* Object)
 	{
-		if (UObject* Object = *ObjectIterator; IsValid(Object))
+		if (DoesWorldObjectHaveAcceptableClass(Object, ObjectClassesToFilterCache))
 		{
-			if (UWorld* ObjectWorld = Object->GetWorld(); ObjectWorld == EditorWorld)
-			{
-				bool bIsAcceptableClass = false;
-
-				for (UClass* Class : ObjectClassesToFilterCache)
-				{
-					if (Object->IsA(Class))
-					{
-						bIsAcceptableClass = true;
-						break;
-					}
-				}
-
-				if (bIsAcceptableClass)
-				{
-					MatchingObjects.Add(Object);
-				}
-			}
+			AllMatchingObjects.Add(Object);
 		}
-	}
+	});
 
-	// A quick lookup for objects that already exist in the list.
-	// Helpful to avoid double-generating rows when considering parent->child hierarchy.
-	TMap<UObject*, TSharedRef<FObjectMixerEditorListRow>> CreatedObjectMap;
-	TMap<FName, TSharedRef<FObjectMixerEditorListRow>> FolderMap;
-	for (UObject* Object : MatchingObjects)
+	TMap<UObject*, FObjectMixerEditorListRowPtr> ObjectsWithRowCreated;
+	TMap<FName, FObjectMixerEditorListRowPtr> FolderMap;
+	for (UObject* Object : AllMatchingObjects)
 	{
-		if (!CreatedObjectMap.Contains(Object)) // Ensure we don't double-generate container objects
+		FObjectMixerEditorListRowPtr TopLevelRow = nullptr;
+
+		UObject* NextOuter = Object;
+
+		CreateOuterRowsForTopLevelRow(
+			NextOuter, TopLevelRow, AllMatchingObjects,
+			ObjectsWithRowCreated, SharedThis(this)
+		);
+		
+		// Now consider folder hierarchy for the top level row's object if desired
+		if (GetTreeViewMode() == EObjectMixerTreeViewMode::Folders)
 		{
-			TSharedRef<FObjectMixerEditorListRow> TopLevelRow = MakeShared<FObjectMixerEditorListRow>(
-				Object, FObjectMixerEditorListRow::MatchingObject, SharedThis(this));
-
-			CreatedObjectMap.Add(Object, TopLevelRow);
-
-			// If the view is not in flat mode, we need to consider the hierarchy of outliner folders/attach parents as desired
-			if (GetTreeViewMode() != EObjectMixerTreeViewMode::Flat)
-			{
-				AActor* BaseActor = Cast<AActor>(Object);
-				
-				if (!BaseActor)
-				{
-					if (Object->IsA(UActorComponent::StaticClass()))
-					{
-						BaseActor = Object->GetTypedOuter<AActor>();
-
-						// If it's not flat or folder view mode, we need to find or create the container object for the actor that owns the matching component
-						if (GetTreeViewMode() != EObjectMixerTreeViewMode::Folder)
-						{
-							TSharedPtr<FObjectMixerEditorListRow> OwningActorRow;
-
-							if (BaseActor)
-							{
-								if (const TSharedRef<FObjectMixerEditorListRow>* Match = CreatedObjectMap.Find(BaseActor))
-								{
-									OwningActorRow = *Match;
-								}
-								else
-								{
-									OwningActorRow = MakeShared<FObjectMixerEditorListRow>(
-										BaseActor, FObjectMixerEditorListRow::ContainerObject, SharedThis(this));
-
-									CreatedObjectMap.Add(BaseActor, OwningActorRow.ToSharedRef());
-								}
-
-								if (OwningActorRow)
-								{
-									OwningActorRow->AddToChildRows(TopLevelRow);
-													
-									TopLevelRow = OwningActorRow.ToSharedRef();
-								}
-							}
-						}
-					}
-				}
-
-				if (BaseActor)
-				{
-					while (AActor* AttachParent = BaseActor->GetAttachParentActor())
-					{
-						// Make a row for each attach parent up the chain until we reach the top if not in flat/folder mode
-						if (GetTreeViewMode() != EObjectMixerTreeViewMode::Folder)
-						{
-							TSharedPtr<FObjectMixerEditorListRow> OwningActorRow;
-
-							if (const TSharedRef<FObjectMixerEditorListRow>* Match = CreatedObjectMap.Find(AttachParent))
-							{
-								OwningActorRow = *Match;
-							}
-							else
-							{
-								OwningActorRow = MakeShared<FObjectMixerEditorListRow>(
-									AttachParent, FObjectMixerEditorListRow::ContainerObject, SharedThis(this));
-
-								CreatedObjectMap.Add(AttachParent, OwningActorRow.ToSharedRef());
-							}
-
-							if (OwningActorRow)
-							{
-								OwningActorRow->AddToChildRows(TopLevelRow);
-												
-								TopLevelRow = OwningActorRow.ToSharedRef();
-							}
-						}
-
-						BaseActor = AttachParent;
-					}
-
-					// Now consider folder hierarchy for the base actor if desired
-					if (GetTreeViewMode() == EObjectMixerTreeViewMode::Folder ||
-						GetTreeViewMode() == EObjectMixerTreeViewMode::FolderObjectSubObject)
-					{
-						if (BaseActor)
-						{
-							FFolder BaseActorFolder = BaseActor->GetFolder();
-
-							while (!BaseActorFolder.IsNone())
-							{
-								TSharedPtr<FObjectMixerEditorListRow> FolderRow;
-							
-								if (const TSharedRef<FObjectMixerEditorListRow>* Match = FolderMap.Find(BaseActorFolder.GetPath()))
-								{
-									FolderRow = *Match;
-								}
-								else
-								{
-									FolderRow =
-										MakeShared<FObjectMixerEditorListRow>(
-											nullptr, FObjectMixerEditorListRow::Folder, SharedThis(this),
-											FText::FromName(BaseActorFolder.GetLeafName()));
-
-									FolderMap.Add(BaseActorFolder.GetPath(), FolderRow.ToSharedRef());
-								}
-
-								if (FolderRow)
-								{
-									FolderRow->AddToChildRows(TopLevelRow);
-													
-									TopLevelRow = FolderRow.ToSharedRef();
-								}
-
-								BaseActorFolder = BaseActorFolder.GetParent();
-							}
-						}
-					}
-				}
-			}
-
-			TreeViewRootObjects.AddUnique(TopLevelRow);
+			CreateFolderRowsForTopLevelRow(TopLevelRow, FolderMap, SharedThis(this));
 		}
+
+		TreeViewRootObjects.AddUnique(TopLevelRow);
 	}
+	
+	ObjectsWithRowCreated.Empty();
 
 	TreeViewRootObjects.StableSort(SortByTypeThenName);
 
@@ -1183,12 +1179,15 @@ void SObjectMixerEditorList::OnGetRowChildren(FObjectMixerEditorListRowPtr Row, 
 {
 	if (Row.IsValid())
 	{
-		OutChildren = Row->GetChildRows();
-
-		if (Row->GetShouldExpandAllChildren())
+		if (!Row->IsHybridRow())
 		{
-			SetChildExpansionRecursively(Row, true);
-			Row->SetShouldExpandAllChildren(false);
+			OutChildren = Row->GetChildRows();
+
+			if (Row->GetShouldExpandAllChildren())
+			{
+				SetChildExpansionRecursively(Row, true);
+				Row->SetShouldExpandAllChildren(false);
+			}
 		}
 	}
 }

@@ -92,6 +92,17 @@ FObjectMixerEditorListRow::EObjectMixerEditorListRowType FObjectMixerEditorListR
 	return RowType;
 }
 
+void FObjectMixerEditorListRow::SetRowType(EObjectMixerEditorListRowType InNewRowType)
+{
+	RowType = InNewRowType;
+}
+
+bool FObjectMixerEditorListRow::IsHybridRow() const
+{
+	return GetRowType() == FObjectMixerEditorListRow::ContainerObject &&
+			GetChildCount() == 1 && GetChildRows()[0]->GetChildCount() == 0;
+}
+
 int32 FObjectMixerEditorListRow::GetSortOrder() const
 {
 	return SortOrder;

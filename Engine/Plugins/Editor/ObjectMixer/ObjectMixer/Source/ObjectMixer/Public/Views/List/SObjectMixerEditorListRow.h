@@ -62,6 +62,9 @@ private:
 
 	/** The offset applied to text widgets so that the text aligns with the column header text */
 	float TextBlockLeftPadding = 3.0f;
-	
+
+	/** Hybrid Rows are a combination of an actor and a single child subobject */
+	bool bIsHybridRow = false;
+
 	bool bIsHovered = false;
 };

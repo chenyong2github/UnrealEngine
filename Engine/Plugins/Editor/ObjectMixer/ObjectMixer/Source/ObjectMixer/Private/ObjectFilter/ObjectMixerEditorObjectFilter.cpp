@@ -9,7 +9,7 @@ FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, EObjectMixe
 {
 	if (IsValid(InObject))
 	{
-		if (InViewMode == EObjectMixerTreeViewMode::Flat || InViewMode == EObjectMixerTreeViewMode::Folder)
+		if (InViewMode == EObjectMixerTreeViewMode::NoFolders || InViewMode == EObjectMixerTreeViewMode::Folders)
 		{
 			if (const AActor* Outer = InObject->GetTypedOuter<AActor>())
 			{

@@ -184,7 +184,7 @@ private:
 	/**
 	 * Determines the style of the tree (flat list or hierarchy)
 	 */
-	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::FolderObjectSubObject;
+	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::Folders;
 
 	TWeakPtr<FObjectMixerEditorListRow> SoloRow = nullptr;
 
