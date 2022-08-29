@@ -12,6 +12,7 @@ using Horde.Build.Jobs.Schedules;
 using Horde.Build.Users;
 using Horde.Build.Utilities;
 using HordeCommon;
+using Horde.Build.Issues;
 
 namespace Horde.Build.Streams
 {
