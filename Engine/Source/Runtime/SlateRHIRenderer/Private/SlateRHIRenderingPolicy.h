@@ -30,7 +30,6 @@ struct FSlateRenderingParams
 	FVector2f ViewOffset;
 	FGameTime Time;
 	TRefCountPtr<IPooledRenderTarget> UITarget;
-	TRefCountPtr<IPooledRenderTarget> UITargetMask;
 	EDisplayColorGamut HDRDisplayColorGamut;
 	bool bWireFrame;
 	bool bIsHDR;

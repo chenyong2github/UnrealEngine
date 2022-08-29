@@ -17,9 +17,9 @@ FSlatePostProcessResource::~FSlatePostProcessResource()
 
 }
 
-void FSlatePostProcessResource::Update(const FIntPoint& NewSize, const FTextureRHIRef& SourceTexture)
+void FSlatePostProcessResource::Update(const FIntPoint& NewSize, EPixelFormat RequestedPixelFormat)
 {
-	if(NewSize.X > RenderTargetSize.X || NewSize.Y > RenderTargetSize.Y || RenderTargetSize == FIntPoint::ZeroValue || RenderTargets.Num() == 0 || PixelFormat != SourceTexture->GetDesc().Format)
+	if(NewSize.X > RenderTargetSize.X || NewSize.Y > RenderTargetSize.Y || RenderTargetSize == FIntPoint::ZeroValue || RenderTargets.Num() == 0 || PixelFormat != RequestedPixelFormat)
 	{
 		if(!IsInitialized())
 		{
@@ -27,18 +27,18 @@ void FSlatePostProcessResource::Update(const FIntPoint& NewSize, const FTextureR
 		}
 
 		FIntPoint NewMaxSize(FMath::Max(NewSize.X, RenderTargetSize.X), FMath::Max(NewSize.Y, RenderTargetSize.Y));
-		ResizeTargets(NewMaxSize, SourceTexture);
+		ResizeTargets(NewMaxSize, RequestedPixelFormat);
 	}
 }
 
-void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize, const FTextureRHIRef& SourceTexture)
+void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize, EPixelFormat RequestedPixelFormat)
 {
 	check(IsInRenderingThread());
 
 	RenderTargets.Empty();
 
 	RenderTargetSize = NewSize;
-	PixelFormat = SourceTexture->GetDesc().Format;
+	PixelFormat = RequestedPixelFormat;
 	if (RenderTargetSize.X > 0 && RenderTargetSize.Y > 0)
 	{
 		for (int32 TexIndex = 0; TexIndex < RenderTargetCount; ++TexIndex)

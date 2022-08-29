@@ -264,7 +264,7 @@ static bool UpdateScissorRect(
 	uint32& MaskingID,
 	FSlateBackBuffer& BackBuffer,
 	const FSlateRenderBatch& RenderBatch, 
-	FTexture2DRHIRef& ColorTarget,
+	FRHIRenderPassInfo& RPInfo,
 	FTexture2DRHIRef& DepthStencilTarget,
 	const FSlateClippingState*& LastClippingState,
 	const FVector2f ViewTranslation2D, 
@@ -296,7 +296,6 @@ static bool UpdateScissorRect(
 					bDidRestartRenderpass = true;
 					ERenderTargetActions StencilAction = IsMemorylessTexture(DepthStencilTarget) ? ERenderTargetActions::DontLoad_DontStore : ERenderTargetActions::Load_Store;
 
-					FRHIRenderPassInfo RPInfo(ColorTarget, ERenderTargetActions::Load_Store);
 					RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::DontLoad_DontStore, StencilAction);
 					RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthStencilTarget;
 					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
@@ -388,7 +387,6 @@ static bool UpdateScissorRect(
 						StencilAction = bClearStencil ? ERenderTargetActions::Clear_DontStore : ERenderTargetActions::DontLoad_DontStore;
 					}
 
-					FRHIRenderPassInfo RPInfo(ColorTarget, ERenderTargetActions::Load_Store);
 					RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::DontLoad_DontStore, StencilAction);
 					RPInfo.DepthStencilRenderTarget.DepthStencilTarget = DepthStencilTarget;
 					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
@@ -406,7 +404,7 @@ static bool UpdateScissorRect(
 				{
 					FGraphicsPipelineStateInitializer WriteMaskPSOInit;
 					RHICmdList.ApplyCachedRenderTargets(WriteMaskPSOInit);
-					WriteMaskPSOInit.BlendState = TStaticBlendStateWriteMask<CW_NONE>::GetRHI();
+					WriteMaskPSOInit.BlendState = TStaticBlendStateWriteMask<CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE, CW_NONE>::GetRHI();
 					WriteMaskPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 					WriteMaskPSOInit.DepthStencilState =
 						TStaticDepthStencilState<
@@ -532,6 +530,45 @@ static bool UpdateScissorRect(
 	}
 
 	return bDidRestartRenderpass;
+}
+
+static bool UpdateScissorRect(
+	FRHICommandList& RHICmdList,
+#if STATS
+	int32& ScissorClips,
+	int32& StencilClips,
+#endif
+	uint32& StencilRef,
+	uint32& MaskingID,
+	FSlateBackBuffer& BackBuffer,
+	const FSlateRenderBatch& RenderBatch,
+	FTexture2DRHIRef& ColorTarget,
+	FTexture2DRHIRef& DepthStencilTarget,
+	const FSlateClippingState*& LastClippingState,
+	const FVector2f ViewTranslation2D,
+	FGraphicsPipelineStateInitializer& InGraphicsPSOInit,
+	FSlateStencilClipVertexBuffer& StencilVertexBuffer,
+	const FMatrix& ViewProjection,
+	bool bForceStateChange)
+{
+	FRHIRenderPassInfo RPInfo(ColorTarget, ERenderTargetActions::Load_Store);
+	return UpdateScissorRect(RHICmdList,
+#if STATS
+		ScissorClips,
+		StencilClips,
+#endif
+		StencilRef,
+		MaskingID,
+		BackBuffer,
+		RenderBatch,
+		RPInfo,
+		DepthStencilTarget,
+		LastClippingState,
+		ViewTranslation2D,
+		InGraphicsPSOInit,
+		StencilVertexBuffer,
+		ViewProjection,
+		bForceStateChange);
 }
 
 void FSlateRHIRenderingPolicy::DrawElements(
@@ -1164,10 +1201,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				RectParams.SourceTextureSize = PostProcessTexture->GetSizeXY();
 				RectParams.CornerRadius = ShaderParams.PixelParams3;
 				RectParams.UITarget = Params.UITarget;
-				RectParams.UITargetMask = Params.UITargetMask;
 				RectParams.HDRDisplayColorGamut = Params.HDRDisplayColorGamut;
 
-				RectParams.RestoreStateFunc = [&](FRHICommandListImmediate&InRHICmdList, FGraphicsPipelineStateInitializer& InGraphicsPSOInit) {
+				RectParams.RestoreStateFunc = [&](FRHICommandListImmediate&InRHICmdList, FGraphicsPipelineStateInitializer& InGraphicsPSOInit, FRHIRenderPassInfo& RPInfo) {
 					return UpdateScissorRect(
 						InRHICmdList,
 #if STATS
@@ -1178,7 +1214,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						MaskingID,
 						BackBuffer,
 						RenderBatch,
-						ColorTarget,
+						RPInfo,
 						DepthStencilTarget,
 						LastClippingState,
 						ViewTranslation2D,

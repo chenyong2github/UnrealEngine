@@ -394,7 +394,14 @@ private:
 	LAYOUT_FIELD(FShaderParameter, UVBounds);
 };
 
-template<bool bOutputToUITarget>
+enum class ESlatePostProcessUpsamplePSPermutation
+{
+	SDR = 0,
+	HDR_SCRGB,
+	HDR_PQ10,
+};
+
+template<ESlatePostProcessUpsamplePSPermutation SlatePostProcessUpsamplePSPermutation>
 class FSlatePostProcessUpsamplePS : public FSlateElementPS
 {
 	DECLARE_SHADER_TYPE(FSlatePostProcessUpsamplePS, Global);
@@ -421,7 +428,8 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		// Set defines based on what this shader will be used for
-		OutEnvironment.SetDefine(TEXT("OUTPUT_TO_UI_TARGET"), (uint32)(bOutputToUITarget ? 1 : 0));
+		OutEnvironment.SetDefine(TEXT("OUTPUT_TO_UI_TARGET"), (uint32)(SlatePostProcessUpsamplePSPermutation != ESlatePostProcessUpsamplePSPermutation::SDR ? 1 : 0));
+		OutEnvironment.SetDefine(TEXT("SCRGB_ENCODING"), SlatePostProcessUpsamplePSPermutation == ESlatePostProcessUpsamplePSPermutation::HDR_SCRGB);
 		FSlateElementPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
