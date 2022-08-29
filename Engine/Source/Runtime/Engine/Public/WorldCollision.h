@@ -284,6 +284,8 @@ struct AsyncTraceData : FNoncopyable
 	 */
 	bool					bAsyncAllowed; 
 
+	bool					bAsyncTasksCompleted;
+
 	/**  Thread completion event for batch **/
 	FGraphEventArray		AsyncTraceCompletionEvent;
 
@@ -291,6 +293,7 @@ struct AsyncTraceData : FNoncopyable
 		: NumQueuedTraceData(0)
 		, NumQueuedOverlapData(0)
 		, bAsyncAllowed(false)
+		, bAsyncTasksCompleted(false)
 	{}
 };
 

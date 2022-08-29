@@ -457,6 +457,10 @@ bool UWorld::QueryTraceData(const FTraceHandle& Handle, FTraceDatum& OutData)
 	}
 
 	AsyncTraceData& DataBuffer = AsyncTraceState.GetBufferForPreviousFrame();
+	if (!DataBuffer.bAsyncTasksCompleted)
+	{
+		return false;
+	}
 	if (auto* Data = FBufferIndexPair(Handle._Data.Index).DatumLookup(DataBuffer.TraceData))
 	{
 		OutData = *Data;
@@ -474,6 +478,10 @@ bool UWorld::QueryOverlapData(const FTraceHandle& Handle, FOverlapDatum& OutData
 	}
 
 	AsyncTraceData& DataBuffer = AsyncTraceState.GetBufferForPreviousFrame();
+	if (!DataBuffer.bAsyncTasksCompleted)
+	{
+		return false;
+	}
 	if (auto* Data = FBufferIndexPair(Handle._Data.Index).DatumLookup(DataBuffer.OverlapData))
 	{
 		OutData = *Data;
@@ -506,6 +514,7 @@ void UWorld::ResetAsyncTrace()
 
 	// Wait for thread
 	WaitForAllAsyncTraceTasks();
+	DataBufferExecuted.bAsyncTasksCompleted = true;
 
 	// do run delegates before starting next round
 	for (int32 Idx = 0; Idx != DataBufferExecuted.NumQueuedTraceData; ++Idx)
@@ -538,6 +547,7 @@ void UWorld::FinishAsyncTrace()
 	NewAsyncBuffer.bAsyncAllowed = true;
 	NewAsyncBuffer.NumQueuedTraceData = 0;
 	NewAsyncBuffer.NumQueuedOverlapData = 0;
+	NewAsyncBuffer.bAsyncTasksCompleted = false;
 
 }
 
