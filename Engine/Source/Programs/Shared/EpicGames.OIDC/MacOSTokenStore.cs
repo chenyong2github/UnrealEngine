@@ -75,9 +75,14 @@ namespace EpicGames.OIDC
 				return null; // not found
 			}
 
+			if (p.ExitCode == 36)
+			{
+				return null; // not found
+			}
+
 			if (p.ExitCode != 0)
 			{
-				throw new Exception("Unhandled exitcode {p.ExitCode} when interacting with keychain");
+				throw new Exception($"Unhandled exitcode {p.ExitCode} when interacting with keychain");
 			}
 
 			return sb.ToString();
