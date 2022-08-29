@@ -148,6 +148,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.WorldBounds(Proxy->GetBounds())
 		.LocalBounds(Proxy->GetLocalBounds())
 		.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+		//.ObjectDrawDistance(FVector2f(Proxy->GetMinDrawDistance(), Proxy->GetMaxDrawDistance())) // TODO
 		.CustomPrimitiveData(Proxy->GetCustomPrimitiveData())
 		.LightingChannelMask(Proxy->GetLightingChannelMask())
 		.LightmapDataIndex(Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset())
@@ -183,10 +184,10 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
 		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor());
 
-	FVector2f CameraDistanceCullRange;
-	if (Proxy->GetCameraDistanceCullRange(CameraDistanceCullRange))
+	FVector2f InstanceDrawDistanceMinMax;
+	if (Proxy->GetInstanceDrawDistanceMinMax(InstanceDrawDistanceMinMax))
 	{
-		Builder.CameraDistanceCull(CameraDistanceCullRange);
+		Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
 	}
 
 	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
@@ -277,10 +278,10 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[30].Z = PrimitiveUniformShaderParameters.LevelColor.Z;
 	Data[30].W = FMath::AsFloat(uint32(PrimitiveUniformShaderParameters.PersistentPrimitiveIndex));
 
-	Data[31].X = PrimitiveUniformShaderParameters.CameraDistanceCullMinMaxSquared.X;
-	Data[31].Y = PrimitiveUniformShaderParameters.CameraDistanceCullMinMaxSquared.Y;
-	Data[31].Z = 0.0f;
-	Data[31].W = 0.0f;
+	Data[31].X = PrimitiveUniformShaderParameters.ObjectDrawDistanceMinMaxSquared.X;
+	Data[31].Y = PrimitiveUniformShaderParameters.ObjectDrawDistanceMinMaxSquared.Y;
+	Data[31].Z = PrimitiveUniformShaderParameters.InstanceDrawDistanceMinMaxSquared.X;
+	Data[31].W = PrimitiveUniformShaderParameters.InstanceDrawDistanceMinMaxSquared.Y;
 
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
 	const int32 CustomPrimitiveDataStartIndex = 32;

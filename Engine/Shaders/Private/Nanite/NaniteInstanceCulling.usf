@@ -284,7 +284,6 @@ void InstanceCull(
 			// Depth clipping should only be disabled with orthographic projections
 			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
 			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
-			const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
 
 #if DEBUG_FLAGS
 			const bool bSkipBoxCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
@@ -303,9 +302,7 @@ void InstanceCull(
 
 			// HACK: Don't distance cull shadows for now because we don't have the main view's camera location to do it properly
 			const bool bSkipCamPerPrimDistanceCull = bDebugSkipCamPerPrimDistanceCull || bIsShadowPass;
-
-			float InstanceRadius = length(InstanceData.LocalBoundsExtent * InstanceData.NonUniformScale.xyz);
-			CameraDistanceCull(PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bUseViewRangeDistanceCull, NaniteView.RangeBasedCullingDistance + InstanceRadius, bIsVisible);
+			DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bIsVisible);
 
 			FFrustumCullData Cull;
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -536,7 +533,6 @@ void InstanceCullVSM(
 	}
 
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
-	float InstanceRadius = length(InstanceData.LocalBoundsExtent * InstanceData.NonUniformScale.xyz);
 
 	// Loop over each of the views
 	uint NumCompactedPrimaryViews = CompactedViewsAllocation[0];
@@ -554,8 +550,7 @@ void InstanceCullVSM(
 			const bool bIsOrtho = IsOrthoProjection(NaniteView.ViewToClip);
 			FFrustumCullData Cull = BoxCullFrustum( InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum );
 
-			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);
-			const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
+			const bool bViewHZB = ((NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0);			
 			
 			for (uint MipViewInfoIndex = 0; MipViewInfoIndex < ViewInfo.NumValidViews; ++MipViewInfoIndex)
 			{
@@ -573,8 +568,7 @@ void InstanceCullVSM(
 				// TODO: Distance culling for VSM is complicated because of page invalidations and because the pre-view translation
 				// is not the same as the main view's camera. This will need some work to be able to support properly if we need to
 				const bool bSkipCamPerPrimDistanceCull = /*bDebugSkipCamPerPrimDistanceCull || */ true;
-
-				CameraDistanceCull(PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bUseViewRangeDistanceCull, NaniteView.RangeBasedCullingDistance + InstanceRadius, bVisible);
+				DrawDistanceCull(NaniteView, PrimitiveData, InstanceData, DynamicData, bSkipCamPerPrimDistanceCull, bVisible);
 
 				BRANCH
 				if( bVisible && !Cull.bCrossesNearPlane )

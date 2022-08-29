@@ -1505,17 +1505,16 @@ void FSceneProxy::OnTransformChanged()
 	}
 }
 
-bool FSceneProxy::GetCameraDistanceCullRange(FVector2f& OutCullRange) const
+bool FSceneProxy::GetInstanceDrawDistanceMinMax(FVector2f& OutDistanceMinMax) const
 {
 	if (EndCullDistance > 0)
 	{
-		OutCullRange = FVector2f(0.0f, float(EndCullDistance));
-		OutCullRange *= GetCachedScalabilityCVars().ViewDistanceScale;
+		OutDistanceMinMax = FVector2f(0.0f, float(EndCullDistance));
 		return true;
 	}
 	else
 	{
-		OutCullRange = FVector2f(0.0f);
+		OutDistanceMinMax = FVector2f(0.0f);
 		return false;
 	}
 }

@@ -276,7 +276,7 @@ public:
 		ImposterIndex = Resources->ImposterIndex;
 	}
 
-	virtual bool GetCameraDistanceCullRange(FVector2f& OutCullRange) const override;
+	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
 
 	const UStaticMesh* GetStaticMesh() const
 	{

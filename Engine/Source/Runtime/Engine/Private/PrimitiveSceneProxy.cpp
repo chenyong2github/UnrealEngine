@@ -492,6 +492,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.LocalBounds(LocalBounds)
 				.InstanceLocalBounds(GetInstanceLocalBounds(0))
 				.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
+				//.ObjectDrawDistance(FVector2f(GetMinDrawDistance(), GetMaxDrawDistance())) // TODO
 				.ReceivesDecals(bReceivesDecals)
 				.ShouldCacheShadow(ShouldCacheShadow())
 				.OutputVelocity(bOutputVelocity)
@@ -512,10 +513,10 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.InstancePayloadDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
 				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0);				
 
-		FVector2f CameraDistanceCullRange;
-		if (GetCameraDistanceCullRange(CameraDistanceCullRange))
+		FVector2f InstanceDrawDistanceMinMax;
+		if (GetInstanceDrawDistanceMinMax(InstanceDrawDistanceMinMax))
 		{
-			Builder.CameraDistanceCull(CameraDistanceCullRange);
+			Builder.InstanceDrawDistance(InstanceDrawDistanceMinMax);
 		}
 
 		FPrimitiveUniformShaderParameters PrimitiveParams = Builder.Build();

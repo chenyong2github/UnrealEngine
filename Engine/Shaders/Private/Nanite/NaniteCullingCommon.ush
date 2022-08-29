@@ -61,24 +61,53 @@ void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteV
 	}
 }
 
-void CameraDistanceCull(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bSkipCamPerPrimDistanceCull,
-	bool bUseViewRangeDistanceCull, float RangeBasedCullingDistance, inout bool bVisible)
+void DrawDistanceCull(
+	FNaniteView NaniteView,
+	FPrimitiveSceneData PrimitiveData,
+	FInstanceSceneData InstanceData,
+	FInstanceDynamicData DynamicData,
+	bool bSkipCamPerPrimDistanceCull,
+	inout bool bVisible)
 {
+	// Check to cull the entire primitive based on distance from the center of the primitive bounds to the view point
+	// TODO: This check is currently happening per instance (not per primitive) and it would be nice if we could reduce its frequency
+	BRANCH
+	if (bVisible && !bSkipCamPerPrimDistanceCull)
+	{
+		// TODO: This needs to be from a different reference point for view-dependent shadows
+		const float3 PrimitiveOffset = LWCToFloat(LWCSubtract(PrimitiveData.ObjectWorldPosition, NaniteView.WorldCameraOrigin));
+		const float PrimitiveDistSq = dot(PrimitiveOffset, PrimitiveOffset);
+		const float MinDistanceSq = PrimitiveData.ObjectDrawDistanceMinMaxSquared.x;
+		const float MaxDistanceSq = PrimitiveData.ObjectDrawDistanceMinMaxSquared.y;
+
+		bVisible = PrimitiveDistSq >= MinDistanceSq && PrimitiveDistSq <= MaxDistanceSq;
+	}
+
 	BRANCH
 	if (bVisible)
 	{
-		float3 TranslatedWorldCenter = mul(float4(InstanceData.LocalBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
-		float CameraDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
+		const float3 TranslatedWorldCenter = mul(float4(InstanceData.LocalBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
+		const float InstanceDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
 
+		// Check to cull the instance based on its distance from the main view's location (per-primitive setting)
 		BRANCH
-		if (!bSkipCamPerPrimDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL) != 0)
+		if (!bSkipCamPerPrimDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL) != 0u)
 		{
-			bVisible = CameraDistSq >= PrimitiveData.CameraDistanceCullMinMaxSquared.x && CameraDistSq <= PrimitiveData.CameraDistanceCullMinMaxSquared.y;
+			const float MinDistanceSq = PrimitiveData.InstanceDrawDistanceMinMaxSquared.x;
+			const float MaxDistanceSq = PrimitiveData.InstanceDrawDistanceMinMaxSquared.y;
+
+			// TODO: This needs to be from a different reference point for view-dependent shadows
+			bVisible = InstanceDistSq >= MinDistanceSq && InstanceDistSq <= MaxDistanceSq;
 		}
+
+		// Check to cull the instances based on its distance from the view's camera (per-view setting)
 		BRANCH
-		if (bVisible && bUseViewRangeDistanceCull)
+		if (bVisible && (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u)
 		{
-			bVisible = CameraDistSq <= Square(RangeBasedCullingDistance);
+			const float InstanceRadius = length(InstanceData.LocalBoundsExtent * InstanceData.NonUniformScale.xyz);
+			const float MaxDistanceSq = Square(NaniteView.RangeBasedCullingDistance + InstanceRadius);
+			
+			bVisible = InstanceDistSq <= MaxDistanceSq;
 		}
 	}
 }
