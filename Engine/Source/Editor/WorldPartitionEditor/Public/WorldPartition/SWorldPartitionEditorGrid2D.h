@@ -38,11 +38,13 @@ public:
 protected:
 	void Construct(const FArguments& InArgs);
 
-	virtual void CreateRegionFromSelection();
-	virtual void LoadSelectedRegions();
-	virtual void UnloadSelectedRegions();
-	virtual void ConvertSelectedRegionsToActors();
+	void CreateRegionFromSelection();
+	void LoadSelectedRegions();
+	void UnloadSelectedRegions();
+	void ConvertSelectedRegionsToActors();
 	void MoveCameraHere();
+
+	virtual int32 GetSelectionSnap() const;
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -63,7 +65,7 @@ protected:
 	virtual FReply FocusSelection();
 
 	void UpdateTransform() const;
-	void UpdateSelectionBox();
+	void UpdateSelectionBox(bool bSnap);
 	void ClearSelection();
 
 	const TSharedRef<FUICommandList> CommandList;
@@ -98,6 +100,7 @@ protected:
 	FVector2D SelectionStart;
 	FVector2D SelectionEnd;
 	FBox SelectBox;
+	FBox SelectBoxGridSnapped;
 	FSlateFontInfo SmallLayoutFont;
 	float TotalMouseDelta;
 

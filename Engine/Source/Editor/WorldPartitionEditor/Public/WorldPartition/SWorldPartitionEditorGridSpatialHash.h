@@ -16,7 +16,8 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	int32 PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;
+	virtual int32 GetSelectionSnap() const override;
+	virtual int32 PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const override;
 
 private:
 	void UpdateWorldMiniMapDetails();

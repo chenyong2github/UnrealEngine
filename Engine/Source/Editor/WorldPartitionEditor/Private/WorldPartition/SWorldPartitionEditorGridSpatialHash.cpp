@@ -72,12 +72,11 @@ void SWorldPartitionEditorGridSpatialHash::UpdateWorldMiniMapDetails()
 	}
 }
 
-int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+int32 SWorldPartitionEditorGridSpatialHash::GetSelectionSnap() const
 {
 	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
 	
-	// Found the best cell size depending on the current zoom
-	int64 EffectiveCellSize = EditorSpatialHash->CellSize;
+	int32 EffectiveCellSize = EditorSpatialHash->CellSize;
 	for (const UWorldPartitionEditorSpatialHash::FCellNodeHashLevel& HashLevel : EditorSpatialHash->HashLevels)
 	{
 		const FVector2D CellScreenSize = WorldToScreen.TransformVector(FVector2D(EffectiveCellSize, EffectiveCellSize));
@@ -88,6 +87,16 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 
 		EffectiveCellSize *= 2;
 	}
+
+	return EffectiveCellSize;
+}
+
+int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
+{
+	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
+	
+	// Found the best cell size depending on the current zoom
+	const int64 EffectiveCellSize = GetSelectionSnap();
 	
 	// Compute visible rect
 	const FBox2D ViewRect(FVector2D(ForceInitToZero), AllottedGeometry.GetLocalSize());
