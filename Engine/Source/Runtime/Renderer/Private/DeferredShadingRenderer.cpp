@@ -2058,8 +2058,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
 			Scene->RefreshRayTracingMeshCommandCache();
 		}
-
-		Scene->UpdateRayTracedLights();
 	}
 #endif
 
@@ -3676,6 +3674,9 @@ bool HasRayTracedOverlay(const FSceneViewFamily& ViewFamily)
 
 void FDeferredShadingSceneRenderer::InitializeRayTracingFlags_RenderThread()
 {
+	// The result of this call is used by AnyRayTracingPassEnabled to decide if we have any RT shadows enabled
+	Scene->UpdateRayTracedLights();
+
 	// This function may be called twice -- once in CreateSceneRenderers and again in Render.  We deliberately skip the logic
 	// if the flag is already set, because CreateSceneRenderers fills in the correct value for "bShouldUpdateRayTracingScene"
 	// in that case, and we don't want to overwrite it.

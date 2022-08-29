@@ -704,9 +704,8 @@ void FScene::UpdateRayTracedLights()
 	}
 
 	// We currently don't need a full list of RT lights, only whether there are any RT lights at all.
-	for (auto LightIt = Lights.CreateConstIterator(); LightIt; ++LightIt)
+	for (const FLightSceneInfoCompact& LightSceneInfoCompact : Lights)
 	{
-		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		if (ShouldRenderRayTracingShadowsForLight(LightSceneInfoCompact))
 		{
 			bHasRayTracedLights = true;
