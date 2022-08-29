@@ -39,6 +39,7 @@ TConstArrayView<FStateTreeExternalDataDesc> UStateTreeComponentSchema::GetNamedE
 	return MakeArrayView(&ContextActorDataDesc, 1);
 }
 
+#if WITH_EDITOR
 void UStateTreeComponentSchema::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -54,3 +55,4 @@ void UStateTreeComponentSchema::PostEditChangeChainProperty(FPropertyChangedChai
 		}
 	}
 }
+#endif
