@@ -32,6 +32,9 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
+	/** Set selected files */
+	void SetSelectedFiles(const TArray<FString>& Filenames);
+
 private:
 	// Holds the list/state of selected and expanded items in the changelist views and file views.
 	struct FExpandedAndSelectionStates
@@ -168,6 +171,9 @@ private:
 
 	bool bShouldRefresh = false;
 	bool bSourceControlAvailable = false;
+
+	/** Files to select after refresh */
+	TArray<FString> FilesToSelect;
 
 	void StartRefreshStatus();
 	void TickRefreshStatus(double InDeltaTime);

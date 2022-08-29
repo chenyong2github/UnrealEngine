@@ -31,6 +31,7 @@ private:
 	void ExecuteSCCCheckOut();
 	void ExecuteSCCCheckIn();
 	void ExecuteSCCHistory();
+	void ExecuteSCCShowInChangelist();
 
 	TArray<FSceneOutlinerTreeItemPtr> SelectedItems;
 

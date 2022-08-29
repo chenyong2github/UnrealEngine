@@ -738,6 +738,12 @@ void SSourceControlChangelistsWidget::OnRefresh()
 	ChangelistTreeView->RequestTreeRefresh();
 	UncontrolledChangelistTreeView->RequestTreeRefresh();
 	FileTreeView->RequestTreeRefresh();
+
+	if (FilesToSelect.Num() > 0)
+	{
+		TArray<FString> LocalFilesToSelect(MoveTemp(FilesToSelect));
+		SetSelectedFiles(LocalFilesToSelect);
+	}
 }
 
 void SSourceControlChangelistsWidget::OnSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
@@ -851,6 +857,130 @@ FSourceControlChangelistPtr SSourceControlChangelistsWidget::GetChangelistFromSe
 {
 	FSourceControlChangelistStatePtr ChangelistState = GetChangelistStateFromSelection();
 	return ChangelistState ? (FSourceControlChangelistPtr)(ChangelistState->GetChangelist()) : nullptr;
+}
+
+void SSourceControlChangelistsWidget::SetSelectedFiles(const TArray<FString>& Filenames)
+{
+	if (bShouldRefresh || bIsRefreshing)
+	{
+		FilesToSelect = Filenames;
+		return;
+	}
+
+	check(Filenames.Num() > 0);
+		
+	// Finds the Changelist tree item containing this Filename if it exists.
+	auto FindChangelist = [this](const FString& Filename) -> TSharedPtr<IChangelistTreeItem>
+	{
+		for (const TSharedPtr<IChangelistTreeItem>& Item : ChangelistTreeNodes)
+		{
+			for (const TSharedPtr<IChangelistTreeItem>& ChildItem : Item->GetChildren())
+			{
+				if (ChildItem->GetTreeItemType() == IChangelistTreeItem::File)
+				{
+					const FString& ChildFilename = StaticCastSharedPtr<FFileTreeItem>(ChildItem)->FileState->GetFilename();
+					if (ChildFilename.Compare(Filename, ESearchCase::IgnoreCase) == 0)
+					{
+						return Item;
+					}
+				}
+			}
+		}
+
+		for (const TSharedPtr<IChangelistTreeItem>& Item : UncontrolledChangelistTreeNodes)
+		{
+			for (const TSharedPtr<IChangelistTreeItem>& ChildItem : Item->GetChildren())
+			{
+				if (ChildItem->GetTreeItemType() == IChangelistTreeItem::File)
+				{
+					const FString& ChildFilename = StaticCastSharedPtr<FFileTreeItem>(ChildItem)->FileState->GetFilename();
+					if (ChildFilename.Compare(Filename, ESearchCase::IgnoreCase) == 0)
+					{
+						return Item;
+					}
+				}
+				else if (ChildItem->GetTreeItemType() == IChangelistTreeItem::OfflineFile)
+				{
+					const FString& ChildFilename = StaticCastSharedPtr<FOfflineFileTreeItem>(ChildItem)->GetFilename();
+					if (ChildFilename.Compare(Filename, ESearchCase::IgnoreCase) == 0)
+					{
+						return Item;
+					}
+				}
+			}
+		}
+
+		return nullptr;
+	};
+			
+	TSharedPtr<IChangelistTreeItem> FoundChangelistTreeItem = nullptr;
+	// Find filename in Changelist, since filenames might not be in same Changelist, start from the last Filename as it might be the last selected one and give it priority
+	for (int32 Index = Filenames.Num() - 1; Index >= 0; --Index)
+	{
+		if (TSharedPtr<IChangelistTreeItem> ChangelistTreeItem = FindChangelist(Filenames[Index]))
+		{
+			FoundChangelistTreeItem = ChangelistTreeItem;
+			break;
+		}
+	}
+
+	// If we found a Changelist, select files 
+	if (FoundChangelistTreeItem)
+	{
+		// Save current Selection/Expansion state
+		FExpandedAndSelectionStates State;
+		SaveExpandedAndSelectionStates(State);
+		State.SelectedChangelistNode = nullptr;
+		State.SelectedUncontrolledChangelistNode = nullptr;
+		State.SelectedFileNodes.Empty();
+
+		// To make search faster store all filenames lower case
+		TSet<FString> FilenamesLowerCase;
+		Algo::Transform(Filenames, FilenamesLowerCase, [](const FString& Filename) { return Filename.ToLower(); });
+
+		if (FoundChangelistTreeItem->GetTreeItemType() == IChangelistTreeItem::Changelist)
+		{
+			State.SelectedChangelistNode = StaticCastSharedPtr<FChangelistTreeItem>(FoundChangelistTreeItem);
+
+			for (const TSharedPtr<IChangelistTreeItem>& ChildItem : FoundChangelistTreeItem->GetChildren())
+			{
+				if (ChildItem->GetTreeItemType() == IChangelistTreeItem::File)
+				{
+					const FString& ChildFilename = StaticCastSharedPtr<FFileTreeItem>(ChildItem)->FileState->GetFilename().ToLower();
+					if (FilenamesLowerCase.Contains(ChildFilename))
+					{
+						State.SelectedFileNodes.Add(ChildItem);
+					}
+				}
+			}
+		}
+		else if (FoundChangelistTreeItem->GetTreeItemType() == IChangelistTreeItem::UncontrolledChangelist)
+		{
+			State.SelectedUncontrolledChangelistNode = StaticCastSharedPtr<FUncontrolledChangelistTreeItem>(FoundChangelistTreeItem);
+
+			for (const TSharedPtr<IChangelistTreeItem>& ChildItem : FoundChangelistTreeItem->GetChildren())
+			{
+				if (ChildItem->GetTreeItemType() == IChangelistTreeItem::File)
+				{
+					const FString& ChildFilename = StaticCastSharedPtr<FFileTreeItem>(ChildItem)->FileState->GetFilename().ToLower();
+					if (FilenamesLowerCase.Contains(ChildFilename))
+					{
+						State.SelectedFileNodes.Add(ChildItem);
+					}
+				}
+				else if (ChildItem->GetTreeItemType() == IChangelistTreeItem::OfflineFile)
+				{
+					const FString& ChildFilename = StaticCastSharedPtr<FOfflineFileTreeItem>(ChildItem)->GetFilename().ToLower();
+					if (FilenamesLowerCase.Contains(ChildFilename))
+					{
+						State.SelectedFileNodes.Add(ChildItem);
+					}
+				}
+			}
+		}
+
+		RestoreExpandedAndSelectionStates(State);
+	}
 }
 
 TArray<FString> SSourceControlChangelistsWidget::GetSelectedFiles()

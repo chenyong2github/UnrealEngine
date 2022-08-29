@@ -37,7 +37,8 @@ public:
 
 	virtual void ShowChangelistsTab() override;
 	virtual bool CanShowChangelistsTab() const override;
-	
+	virtual void SelectFiles(const TArray<FString>& Filenames);
+
 	DECLARE_DERIVED_EVENT(FSourceControlWindowsModule, ISourceControlWindowsModule::FChangelistFileDoubleClickedEvent, FChangelistFileDoubleClickedEvent);
 	virtual FChangelistFileDoubleClickedEvent& OnChangelistFileDoubleClicked() override { return ChangelistFileDoubleClickedEvent; }
 
@@ -123,6 +124,18 @@ bool FSourceControlWindowsModule::CanShowChangelistsTab() const
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 
 	return (SourceControlModule.IsEnabled() && SourceControlModule.GetProvider().IsAvailable() && SourceControlModule.GetProvider().UsesChangelists()) || FUncontrolledChangelistsModule::Get().IsEnabled();
+}
+
+void FSourceControlWindowsModule::SelectFiles(const TArray<FString>& Filenames)
+{
+	if (Filenames.Num() > 0 && CanShowChangelistsTab())
+	{
+		ShowChangelistsTab();
+		if (TSharedPtr<SSourceControlChangelistsWidget> ChangelistsWidgetPtr = ChangelistsWidget.Pin())
+		{
+			ChangelistsWidgetPtr->SetSelectedFiles(Filenames);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

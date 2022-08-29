@@ -6,6 +6,8 @@
 #include "Misc/MessageDialog.h"
 #include "FileHelpers.h"
 #include "SourceControlWindows.h"
+#include "ISourceControlWindowsModule.h"
+#include "UncontrolledChangelistsModule.h"
 #include "AssetViewUtils.h"
 
 #define LOCTEXT_NAMESPACE "FSceneOutlinerSCCHandler"
@@ -28,7 +30,7 @@ bool FSceneOutlinerSCCHandler::AddSourceControlMenuOptions(UToolMenu* Menu, TArr
 
 	CacheCanExecuteVars();
 
-	if (ISourceControlModule::Get().IsEnabled())
+	if (ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetContextSourceControl");
 
@@ -83,8 +85,7 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 	bCanExecuteSCCCheckIn = false;
 	bCanExecuteSCCHistory = false;
 
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if ( ISourceControlModule::Get().IsEnabled() )
+	if ( ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 	{
 		for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
 		{
@@ -210,6 +211,17 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 			)
 		);
 	}
+
+	Section.AddSeparator(NAME_None);
+	Section.AddMenuEntry(
+		"SCCFindInChangelist",
+		LOCTEXT("SCCShowInChangelist", "Show in Changelist"),
+		LOCTEXT("SCCShowInChangelistTooltip", "Show the selected assets in the Changelist window."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab"),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::ExecuteSCCShowInChangelist)
+		)
+	);
 }
 
 void FSceneOutlinerSCCHandler::GetSelectedPackageNames(TArray<FString>& OutPackageNames) const
@@ -244,6 +256,14 @@ void FSceneOutlinerSCCHandler::GetSelectedPackages(TArray<UPackage*>& OutPackage
 			OutPackages.Add(Package);
 		}
 	}
+}
+
+void FSceneOutlinerSCCHandler::ExecuteSCCShowInChangelist()
+{
+	TArray<FString> PackageNames;
+	GetSelectedPackageNames(PackageNames);
+
+	ISourceControlWindowsModule::Get().SelectFiles(SourceControlHelpers::PackageFilenames(PackageNames));
 }
 
 void FSceneOutlinerSCCHandler::ExecuteSCCRefresh()

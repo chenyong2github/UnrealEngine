@@ -28,6 +28,7 @@ public class SceneOutliner : ModuleRules
 				"SourceControl",
 				"EditorConfig",
 				"SourceControlWindows",
+				"UncontrolledChangelists",
 				"EditorWidgets",
 				"ToolWidgets",
 			}

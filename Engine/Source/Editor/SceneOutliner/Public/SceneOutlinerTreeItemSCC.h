@@ -20,7 +20,7 @@ public:
 
 	FSourceControlStatePtr RefreshSourceControlState();
 
-	bool IsExternalPackage() { return ExternalPackage != nullptr; }
+	bool IsExternalPackage() { return !ExternalPackageName.IsEmpty(); }
 
 	FString GetPackageName() { return ExternalPackageName; }
 
