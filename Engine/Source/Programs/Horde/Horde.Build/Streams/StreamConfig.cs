@@ -119,6 +119,11 @@ namespace Horde.Build.Streams
 		public List<WorkflowConfig> Workflows { get; set; } = new List<WorkflowConfig>();
 
 		/// <summary>
+		/// Tokens to create for each job step
+		/// </summary>
+		public List<TokenConfig> Tokens { get; set; } = new List<TokenConfig>(); 
+
+		/// <summary>
 		/// Tries to find a template with the given id
 		/// </summary>
 		/// <param name="templateRefId"></param>
@@ -141,5 +146,35 @@ namespace Horde.Build.Streams
 			workflowConfig = Workflows.FirstOrDefault(x => x.Id == workflowId);
 			return workflowConfig != null;
 		}
+	}
+
+	/// <summary>
+	/// Configuration for allocating access tokens for each job
+	/// </summary>
+	public class TokenConfig
+	{
+		/// <summary>
+		/// URL to request tokens from
+		/// </summary>
+		[Required]
+		public Uri Url { get; set; } = null!;
+
+		/// <summary>
+		/// Client id to use to request a new token
+		/// </summary>
+		[Required]
+		public string ClientId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Client secret to request a new access token
+		/// </summary>
+		[Required]
+		public string ClientSecret { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Environment variable to set with the access token
+		/// </summary>
+		[Required]
+		public string EnvVar { get; set; } = String.Empty;
 	}
 }
