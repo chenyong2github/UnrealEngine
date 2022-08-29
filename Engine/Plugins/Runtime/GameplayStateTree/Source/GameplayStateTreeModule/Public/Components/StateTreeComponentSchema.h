@@ -3,6 +3,7 @@
 #pragma once
 
 #include "StateTreeSchema.h"
+#include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
 #include "StateTreeComponentSchema.generated.h"
 
