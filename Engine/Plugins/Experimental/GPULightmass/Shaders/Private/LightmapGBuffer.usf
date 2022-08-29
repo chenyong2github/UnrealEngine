@@ -14,6 +14,7 @@
 float4 VirtualTexturePhysicalTileCoordinateScaleAndBias;
 int2 ScratchTilePoolOffset; 
 int RenderPassIndex;
+int bMaterialTwoSided;
 
 struct FLightmapGBufferVSToPS
 {
@@ -71,7 +72,7 @@ void LightmapGBufferPS(
 	FLightmapGBufferVSToPS Input
 	OPTIONAL_IsFrontFace
 	)
-{
+{ 
 	ResolvedView = ResolveView();
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Input.FactoryInterpolants, Input.SavedWorldPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
@@ -85,7 +86,7 @@ void LightmapGBufferPS(
     OutWorldNormal *= CondMask(bIsFrontFace, 1.0f, -1.0f);
 	OutWorldNormal *= GetPrimitive_DeterminantSign(MaterialParameters.PrimitiveId);
 	// Interpolated vertex normal
-	float4 OutShadingNormal = float4(MaterialParameters.TangentToWorld[2], 0);
+	float4 OutShadingNormal = float4(MaterialParameters.TangentToWorld[2], bMaterialTwoSided);
 
 	// GBuffer Outputs
 	LightmapGBufferParams.ScratchTilePoolLayer0[ScratchTilePoolOffset + Input.Position.xy] = OutWorldPosition;

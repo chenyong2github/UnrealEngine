@@ -23,6 +23,7 @@ struct FLightmapElementData : public FMeshMaterialShaderElementData
 	FVector4f VirtualTexturePhysicalTileCoordinateScaleAndBias;
 	int32 RenderPassIndex;
 	FIntPoint ScratchTilePoolOffset;
+	int32 bMaterialTwoSided = 0;
 
 	FLightmapElementData(const FLightCacheInterface* LCI) : LCI(LCI) {}
 };
@@ -110,6 +111,7 @@ class FLightmapGBufferPS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FLightmapGBufferPS, MeshMaterial);
 
 	LAYOUT_FIELD(FShaderParameter, ScratchTilePoolOffset)
+	LAYOUT_FIELD(FShaderParameter, bMaterialTwoSided)
 public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -145,6 +147,7 @@ public:
 		: FMeshMaterialShader(Initializer)
 	{
 		ScratchTilePoolOffset.Bind(Initializer.ParameterMap, TEXT("ScratchTilePoolOffset"));
+		bMaterialTwoSided.Bind(Initializer.ParameterMap, TEXT("bMaterialTwoSided"));
 	}
 
 	void GetShaderBindings(
@@ -159,6 +162,7 @@ public:
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 		ShaderBindings.Add(ScratchTilePoolOffset, ShaderElementData.ScratchTilePoolOffset);
+		ShaderBindings.Add(bMaterialTwoSided, ShaderElementData.bMaterialTwoSided);
 	}
 };
 
@@ -186,10 +190,16 @@ public:
 	{
 		if (MeshBatch.bUseForMaterial)
 		{
+			bool bMaterialTwoSided = false;
+			if (MeshBatch.MaterialRenderProxy && MeshBatch.MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel))
+			{
+				bMaterialTwoSided = MeshBatch.MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel)->IsTwoSided();
+			}
+			
 			const FMaterialRenderProxy& DefaultProxy = *UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 			const FMaterial& DefaultMaterial = *DefaultProxy.GetMaterialNoFallback(FeatureLevel);
 
-			Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial);
+			Process(MeshBatch, BatchElementMask, StaticMeshId, bMaterialTwoSided, PrimitiveSceneProxy, DefaultProxy, DefaultMaterial);
 		}
 	}
 
@@ -198,6 +208,7 @@ private:
 		const FMeshBatch& MeshBatch,
 		uint64 BatchElementMask,
 		int32 StaticMeshId,
+		bool bMaterialTwoSided,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 		const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 		const FMaterial& RESTRICT MaterialResource)
@@ -227,6 +238,7 @@ private:
 		ShaderElementData.VirtualTexturePhysicalTileCoordinateScaleAndBias = VirtualTexturePhysicalTileCoordinateScaleAndBias;
 		ShaderElementData.RenderPassIndex = RenderPassIndex;
 		ShaderElementData.ScratchTilePoolOffset = ScratchTilePoolOffset;
+		ShaderElementData.bMaterialTwoSided = bMaterialTwoSided;
 
 		FMeshDrawCommandSortKey SortKey {};
 

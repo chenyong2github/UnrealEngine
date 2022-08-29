@@ -875,6 +875,7 @@ void LightmapPathTracingMainRG()
 
 	float3 WorldNormal = GBufferWorldNormal[TexelIndexInScratch].xyz;
 	float3 ShadingNormal = GBufferShadingNormal[TexelIndexInScratch].xyz;
+	bool bMaterialTwoSided = GBufferShadingNormal[TexelIndexInScratch].w;
 
 	float4 EncodedGBufferWorldPosition = GBufferWorldPosition[TexelIndexInScratch];
 
@@ -917,7 +918,9 @@ void LightmapPathTracingMainRG()
 			uint Seed = VirtualTextureSpacePosition.y * BatchedTiles[TileIndex].LightmapSize.x + VirtualTextureSpacePosition.x;
 					
 			float4 PrimaryRandSample = float4(-1, -1, -1, -1);
-			
+
+			// Evaluate both hemispheres for two sided materials and add the lighting up naively
+			for (int HemisphereIndex = 0; HemisphereIndex < (bMaterialTwoSided ? 2 : 1); HemisphereIndex++)
 			{
 				RandomSequence RandSequence;
 				RandomSequence_Initialize(RandSequence, Seed, EffectiveRenderPassIndex);
@@ -934,13 +937,15 @@ void LightmapPathTracingMainRG()
 			#endif
 				float LuminanceForFirstBounceRayGuiding = 0;
 				float3 SkyLightBentNormal = 0;
+
+				float3 EffectiveShadingNormal = HemisphereIndex == 0 ? ShadingNormal : -ShadingNormal;
 				
 				if (bIsValidSample)
 				{
 					PathTracingKernel(
 						BatchedTiles[TileIndex].RenderPassIndex,
 						TranslatedWorldPosition,
-						ShadingNormal,
+						EffectiveShadingNormal,
 						RandSequence,
 						SampleIndex,
 						bIsValidSample,
@@ -979,7 +984,7 @@ void LightmapPathTracingMainRG()
 						int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + PositionInBin;
 
 						{
-							float Illuminance = LuminanceForFirstBounceRayGuiding * saturate(dot(RadianceDirection, ShadingNormal));
+							float Illuminance = LuminanceForFirstBounceRayGuiding * saturate(dot(RadianceDirection, EffectiveShadingNormal));
 							// For positive floats we can cast them to uint and use atomic max directly
 							InterlockedMax(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition], asuint(max(Illuminance, 0)));
 						}
@@ -989,7 +994,7 @@ void LightmapPathTracingMainRG()
 					{
 						FL2SHAndCorrection SH = (FL2SHAndCorrection)0;
 						
-						float TangentZ = saturate(dot(RadianceDirection, ShadingNormal));
+						float TangentZ = saturate(dot(RadianceDirection, EffectiveShadingNormal));
 						SH.AddIncomingRadiance(Luminance(RadianceValue), RadianceDirection, TangentZ);
 						
 						IrradianceAndSampleCount[TexelIndexInPool].rgb += float3(RadianceValue * TangentZ / PI);
