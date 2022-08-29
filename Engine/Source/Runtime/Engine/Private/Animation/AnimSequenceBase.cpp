@@ -5,6 +5,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Animation/AnimNotifyEndDataContext.h"
 #include "Animation/AnimInstance.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -15,6 +16,7 @@
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Modules/ModuleManager.h"
+#include "MathUtil.h"
 
 #if WITH_EDITOR
 #include "IAnimationDataControllerModule.h"
@@ -415,6 +417,12 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 				{
 					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, nullptr);
 				}
+
+				const bool bHasFinished = CurrentPosition <= FMathf::Max(NotifyStartTime, 0.f);
+				if (bHasFinished)
+				{
+					NotifyContext.ActiveNotifies.Top().AddContextData<UE::Anim::FAnimNotifyEndDataContext>(true);
+				}
 			}
 		}
 	}
@@ -438,6 +446,11 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, nullptr);
 				}
 
+				const bool bHasFinished = CurrentPosition >= NotifyEndTime;
+				if (bHasFinished)
+				{
+					NotifyContext.ActiveNotifies.Top().AddContextData<UE::Anim::FAnimNotifyEndDataContext>(true);
+				}
 			}
 		}
 	}

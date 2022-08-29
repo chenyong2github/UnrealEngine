@@ -23,6 +23,7 @@ public:
 	UAnimSequenceBase* SequenceAsset;
 	FAnimNotifyEvent* NotifyEvent;
 	int32 MontageInstanceID;
+	bool bReachedEnd = false;
 
 	FBranchingPointNotifyPayload()
 		: SkelMeshComponent(nullptr)
@@ -31,11 +32,12 @@ public:
 		, MontageInstanceID(INDEX_NONE)
 	{}
 
-	FBranchingPointNotifyPayload(USkeletalMeshComponent* InSkelMeshComponent, UAnimSequenceBase* InSequenceAsset, FAnimNotifyEvent* InNotifyEvent, int32 InMontageInstanceID)
+	FBranchingPointNotifyPayload(USkeletalMeshComponent* InSkelMeshComponent, UAnimSequenceBase* InSequenceAsset, FAnimNotifyEvent* InNotifyEvent, int32 InMontageInstanceID, bool bInReachedEnd = false)
 		: SkelMeshComponent(InSkelMeshComponent)
 		, SequenceAsset(InSequenceAsset)
 		, NotifyEvent(InNotifyEvent)
 		, MontageInstanceID(InMontageInstanceID)
+		, bReachedEnd(bInReachedEnd)
 	{}
 };
 

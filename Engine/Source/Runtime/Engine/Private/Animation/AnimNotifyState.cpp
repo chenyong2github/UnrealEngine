@@ -3,6 +3,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "Animation/AnimNotifyEndDataContext.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Animation/AnimSequenceBase.h"
 
@@ -71,7 +72,12 @@ void UAnimNotifyState::BranchingPointNotifyTick(FBranchingPointNotifyPayload& Br
 
 void UAnimNotifyState::BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload)
 {
-	const FAnimNotifyEventReference EventReference;
+	FAnimNotifyEventReference EventReference;
+	if (BranchingPointPayload.bReachedEnd)
+	{
+		EventReference.AddContextData<UE::Anim::FAnimNotifyEndDataContext>(true);
+	}
+
 	NotifyEnd(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, EventReference);
 }
 

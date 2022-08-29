@@ -29,14 +29,11 @@ struct FAnimNotifyEventReference
 	{}
 
 	FAnimNotifyEventReference(const FAnimNotifyEventReference& rhs)
-		:
-		 ContextData(rhs.ContextData)
+		: ContextData(rhs.ContextData)
 		, Notify(rhs.Notify)
 		, MirrorTable(rhs.MirrorTable)
 		, NotifySource(rhs.NotifySource)
-
-	{
-	}
+	{}
 
 	FAnimNotifyEventReference(const FAnimNotifyEvent* InNotify, const UObject* InNotifySource)
 		: Notify(InNotify)
@@ -49,7 +46,8 @@ struct FAnimNotifyEventReference
 	, MirrorTable(MirrorDataTable)
     , NotifySource(InNotifySource)
 	{}
-	
+
+
 	const FAnimNotifyEvent* GetNotify() const
 	{
 		return NotifySource ? Notify : nullptr;
@@ -96,6 +94,19 @@ struct FAnimNotifyEventReference
 
 	// Pulls relevant data from the tick record
 	void GatherTickRecordData(const FAnimTickRecord& InTickRecord);
+
+	// Allows adding extra context data after GatherTickRecordData has been exectuted
+	template<typename Type, typename... TArgs>
+	void AddContextData(TArgs&&... Args)
+	{
+		static_assert(TPointerIsConvertibleFromTo<Type, const UE::Anim::IAnimNotifyEventContextDataInterface>::Value, "'Type' template parameter to MakeContextData must be derived from IAnimNotifyEventContextDataInterface");
+		if (!ContextData.IsValid())
+		{
+			ContextData = MakeShared<TArray<TUniquePtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>>();
+		}
+
+		ContextData->Add(MakeUnique<Type>(Forward<TArgs>(Args)...));
+	}
 
 private:
 	// Context data gleaned from the tick record
