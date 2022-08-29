@@ -19,6 +19,6 @@
 	}
 }
 
-TS_ICON_ID ICON "Unreal.ico"
+TS_ICON_ID ICON "icon.ico"
 
 /* vim: set noexpandtab : */
