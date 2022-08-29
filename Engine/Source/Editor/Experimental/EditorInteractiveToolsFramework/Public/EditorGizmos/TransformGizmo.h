@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseGizmos/GizmoElementHitTargets.h"
-#include "BaseGizmos/GizmoElementStateTargets.h"
 #include "BaseGizmos/GizmoViewContext.h"
+#include "BaseGizmos/StateTargets.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "EditorGizmos/TransformGizmoInterfaces.h"
 #include "InteractiveGizmo.h"
@@ -342,7 +342,7 @@ protected:
 
 	/** The state target is created internally during SetActiveTarget() */
 	UPROPERTY()
-	TObjectPtr<IGizmoStateTarget> StateTarget;
+	TObjectPtr<UGizmoObjectModifyStateTarget> StateTarget;
 
 	/**
 	 * These are used to let the translation subgizmos use raycasts into the scene to align the gizmo with scene geometry.

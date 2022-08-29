@@ -577,18 +577,8 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 		TransactionProvider = GetGizmoManager();
 	}
 	
-	/* @todo - Add state target 
-	
-	// This state target emits an explicit FChange that moves the GizmoActor root component during undo/redo.
-	// It also opens/closes the Transaction that saves/restores the target object locations.
-	if (TransactionProvider == nullptr)
-	{
-		TransactionProvider = GetGizmoManager();
-	}
-	StateTarget = UGizmoTransformChangeStateTarget::Construct(GizmoElementRoot,
-		LOCTEXT("UCombinedTransformGizmoTransaction", "Transform"), TransactionProvider, this);
-	StateTarget->DependentChangeSources.Add(MakeUnique<FTransformProxyChangeSource>(Target));
-	*/
+	StateTarget = UGizmoObjectModifyStateTarget::Construct(Target,
+		LOCTEXT("UTransformGizmoTransaction", "Transform"), TransactionProvider, this);
 
 	CameraAxisSource = NewObject<UGizmoConstantFrameAxisSource>(this);
 }
