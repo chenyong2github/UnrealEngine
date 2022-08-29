@@ -52,6 +52,9 @@ public:
 	virtual void OnMVRSetFixturePatch_Implementation(UDMXEntityFixturePatch* FixturePatch) override;
 	virtual UDMXEntityFixturePatch* OnMVRGetFixturePatch_Implementation() const override;
 	//~ End DMXMVRFixtureActorInterface interface
+	
+	// UObject interface
+	virtual void PostLoad() override;
 
 	bool HasBeenInitialized;
 	float LensRadius;
@@ -63,13 +66,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (DisplayPriority = 0))
 	TEnumAsByte<EDMXFixtureQualityLevel> QualityLevel;
 
-	// Visual quality when using smaller zoom angle (thin beam). Small value is visually better but cost more on GPU
+	// Visual quality for the light beam - small value is visually better but cost more on GPU
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (EditCondition = "QualityLevel == EDMXFixtureQualityLevel::Custom", EditConditionHides))
-	float MinQuality;
+	float BeamQuality;
 
-	// Visual quality when using bigger zoom angle (wide beam). Small value is visually better but cost more on GPU
+	// Visual quality for the light beam when zoom is wide - small value is visually better but cost more on GPU
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (EditCondition = "QualityLevel == EDMXFixtureQualityLevel::Custom", EditConditionHides))
-	float MaxQuality;
+	float ZoomQuality;
 
 	// HIERARCHY---------------------------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
@@ -145,6 +148,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool UseDynamicOcclusion;
 
+	// Disable lights rendering in the fixture to save on GPU
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
+	bool DisableLights;
+
 	// COMPONENTS ---------------------------------
 
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
@@ -186,4 +193,14 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
 	TObjectPtr<UMaterialInstanceDynamic> DynamicMaterialPointLight;
 
+	///////////////////////////////////////
+	// DEPRECATED 5.1
+public:
+	UE_DEPRECATED(5.1, "Use BeamQuality instead")
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BeamQuality instead."))
+	float MinQuality;
+
+	UE_DEPRECATED(5.1, "Use ZoomQuality instead")
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use ZoomQuality instead."))
+	float MaxQuality;
 };

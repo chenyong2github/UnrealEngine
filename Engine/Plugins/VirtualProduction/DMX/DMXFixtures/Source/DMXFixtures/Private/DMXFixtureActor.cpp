@@ -44,10 +44,23 @@ ADMXFixtureActor::ADMXFixtureActor()
 	UseDynamicOcclusion = false;
 	LensRadius = 10.0f;
 	QualityLevel = EDMXFixtureQualityLevel::HighQuality;
-	MinQuality = 1.0f;
-	MaxQuality = 1.0f;
+	ZoomQuality = 1.0f;
+	BeamQuality = 1.0f;
+	DisableLights = false;
 	HasBeenInitialized = false;
 }
+
+
+void ADMXFixtureActor::PostLoad()
+{
+	Super::PostLoad();
+
+	// Backward compatibility with new UPROPERTYs
+	ZoomQuality = MaxQuality;
+	BeamQuality = MinQuality;
+}
+
+
 
 void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const
 {
@@ -135,35 +148,38 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 
 void ADMXFixtureActor::FeedFixtureData()
 {
-	// Note: MinQuality and MaxQuality are used in conjonction with the zoom angle when zoom component is used
+	// BeamQuality and ZoomQuality modulate the "stepSize" for the raymarch beam shader
+	// lower value is visually better
 	switch (QualityLevel)
 	{
-		case(EDMXFixtureQualityLevel::LowQuality): MinQuality = 4.0f; MaxQuality = 4.0f; break;
-		case(EDMXFixtureQualityLevel::MediumQuality): MinQuality = 2.0f; MaxQuality = 2.0f; break;
-		case(EDMXFixtureQualityLevel::HighQuality): MinQuality = 1.0f; MaxQuality = 1.0f; break;
-		case(EDMXFixtureQualityLevel::UltraQuality): MinQuality = 0.33f; MaxQuality = 0.33f; break;
-	}
-
-	// Note:fallback when fixture doesnt use zoom component
-	float QualityFallback = 1.0f;
-	switch (QualityLevel)
-	{
-		case(EDMXFixtureQualityLevel::LowQuality): QualityFallback = 4.0f; break;
-		case(EDMXFixtureQualityLevel::MediumQuality): QualityFallback = 2.0f; break;
-		case(EDMXFixtureQualityLevel::HighQuality): QualityFallback = 1.0f; break;
-		case(EDMXFixtureQualityLevel::UltraQuality): QualityFallback = 0.33f; break;
+		case(EDMXFixtureQualityLevel::LowQuality): 
+			ZoomQuality = 1.0f;
+			BeamQuality = 4.0f;
+			break;
+		case(EDMXFixtureQualityLevel::MediumQuality): 
+			ZoomQuality = 1.0f;
+			BeamQuality = 2.0f;
+			break;
+		case(EDMXFixtureQualityLevel::HighQuality): 
+			ZoomQuality = 1.0f;
+			BeamQuality = 1.0f;
+			break;
+		case(EDMXFixtureQualityLevel::UltraQuality): 
+			ZoomQuality = 2.0f;
+			BeamQuality = 0.33f;
+			break;
 	}
 	
+	// Clamp values, also clamps UI
 	if (QualityLevel == EDMXFixtureQualityLevel::Custom)
 	{
-		MinQuality = FMath::Clamp(MinQuality, 0.2f, 4.0f);
-		MaxQuality = FMath::Clamp(MaxQuality, 0.2f, 4.0f);
-		QualityFallback = MaxQuality;
+		ZoomQuality = FMath::Clamp(ZoomQuality, 1.0f, 4.0f);
+		BeamQuality = FMath::Clamp(BeamQuality, 0.2f, 4.0f);
 	}
 
 	if (DynamicMaterialBeam)
 	{
-		DynamicMaterialBeam->SetScalarParameterValue("DMX Quality Level", QualityFallback);
+		DynamicMaterialBeam->SetScalarParameterValue("DMX Quality Level", BeamQuality);
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Distance", LightDistanceMax);
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
 	}
