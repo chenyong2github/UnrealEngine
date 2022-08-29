@@ -2120,7 +2120,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #endif // WITH_MGPU
 
 	// By default, limit our GPU usage to only GPUs specified in the view masks.
-	RDG_GPU_MASK_SCOPE(GraphBuilder, AllViewsGPUMask);
+	RDG_GPU_MASK_SCOPE(GraphBuilder, ViewFamily.EngineShowFlags.PathTracing ? FRHIGPUMask::All() : AllViewsGPUMask);
 
 	WaitOcclusionTests(GraphBuilder.RHICmdList);
 
@@ -2149,6 +2149,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
+
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SceneRender\t%d\t%dx%d\n"), GFrameNumberRenderThread,
+		Views[0].UnscaledViewRect.Width(),
+		Views[0].UnscaledViewRect.Height());
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Create(GraphBuilder);
 
