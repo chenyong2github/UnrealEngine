@@ -15,6 +15,7 @@ using Jupiter.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Horde.Storage.Implementation
 {

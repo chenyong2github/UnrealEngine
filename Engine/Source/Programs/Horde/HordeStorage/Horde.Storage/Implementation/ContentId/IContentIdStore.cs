@@ -4,6 +4,7 @@ using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
 using System;
 using System.Threading.Tasks;
+using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Horde.Storage.Implementation
 {

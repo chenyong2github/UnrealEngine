@@ -8,6 +8,7 @@ using Jupiter;
 using Jupiter.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Horde.Storage.Controllers
 {

@@ -10,6 +10,7 @@ using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
+using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Horde.Storage.Implementation.TransactionLog
 {

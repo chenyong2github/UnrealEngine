@@ -32,6 +32,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Serilog;
 using ContentHash = Jupiter.Implementation.ContentHash;
+using ContentId = Jupiter.Implementation.ContentId;
 using CustomMediaTypeNames = Jupiter.CustomMediaTypeNames;
 using Log = Serilog.Log;
 

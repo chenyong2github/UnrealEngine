@@ -8,6 +8,7 @@ using Cassandra.Mapping;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation;
+using ContentId = Jupiter.Implementation.ContentId;
 
 namespace Horde.Storage.Implementation
 {
