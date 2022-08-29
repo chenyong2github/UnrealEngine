@@ -3129,7 +3129,7 @@ void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo&
 				// file would have been assigned out,  so we just have to wait
 				while (!SuperClassDef->IsConstructorDeclared())
 				{
-					FPlatformProcess::Sleep(0.01);
+					FPlatformProcess::Sleep(0.01f);
 				}
 
 				bSuperClassObjectInitializerConstructorDeclared = SuperClassDef->IsObjectInitializerConstructorDeclared();

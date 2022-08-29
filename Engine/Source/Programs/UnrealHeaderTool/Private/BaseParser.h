@@ -214,7 +214,7 @@ public:
 		case ETokenType::FloatConst:
 		{
 			float Float = GetFloatValue();
-			if (Float == FMath::TruncToInt(Float))
+			if (Float == (float)FMath::TruncToInt(Float))
 			{
 				I = (int32)Float;
 				return true;
@@ -240,7 +240,7 @@ public:
 		case ETokenType::FloatConst:
 		{
 			float Float = GetFloatValue();
-			if (Float == FMath::TruncToInt(Float))
+			if (Float == (float)FMath::TruncToInt(Float))
 			{
 				I = (int32)Float;
 				return true;
