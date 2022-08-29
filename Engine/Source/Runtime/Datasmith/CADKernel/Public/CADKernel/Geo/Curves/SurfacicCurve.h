@@ -7,10 +7,6 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Math/MatrixH.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

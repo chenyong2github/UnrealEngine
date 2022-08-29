@@ -5,9 +5,6 @@
 #include "CADKernel/Core/Parameters.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
 
 namespace CADKernel
 {

@@ -9,10 +9,6 @@
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
-//#include "Containers/Array.h"
-//#include "HAL/Platform.h"
-//#include "HAL/PlatformCrt.h"
-//#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

@@ -3,6 +3,7 @@
 
 #include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Entity.h"
+#include "CADKernel/Core/Types.h"
 #include "Containers/Queue.h"
 
 namespace CADKernel

@@ -4,11 +4,6 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/MathConst.h"
 #include "CADKernel/Math/Point.h"
-//#include "HAL/PlatformCrt.h"
-//#include "Math/UnrealMathSSE.h"
-//#include "Math/Vector.h"
-//#include "Serialization/Archive.h"
-//#include "Templates/UnrealTemplate.h"
 
 namespace CADKernel
 {

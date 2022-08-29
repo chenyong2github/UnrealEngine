@@ -4,9 +4,6 @@
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Point.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

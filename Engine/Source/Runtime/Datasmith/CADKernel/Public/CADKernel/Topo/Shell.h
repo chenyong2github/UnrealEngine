@@ -10,10 +10,6 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Templates/SharedPointer.h"
-#include "Templates/UnrealTemplate.h"
 
 namespace CADKernel
 {

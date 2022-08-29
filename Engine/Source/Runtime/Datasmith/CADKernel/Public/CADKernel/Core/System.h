@@ -5,11 +5,6 @@
 #include "CADKernel/UI/Console.h"
 #include "CADKernel/UI/Progress.h"
 #include "CADKernel/UI/Visu.h"
-//#include "Containers/UnrealString.h"
-//#include "HAL/Platform.h"
-//#include "Misc/AssertionMacros.h"
-//#include "Templates/SharedPointer.h"
-//#include "Templates/UniquePtr.h"
 
 class FArchive;
 

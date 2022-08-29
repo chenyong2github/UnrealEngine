@@ -2,8 +2,6 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
 
 namespace CADKernel
 {

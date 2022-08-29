@@ -6,11 +6,6 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/UI/Visu.h"
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
-#include "Math/Plane.h"
-#include "Templates/SharedPointer.h"
 
 class FString;
 

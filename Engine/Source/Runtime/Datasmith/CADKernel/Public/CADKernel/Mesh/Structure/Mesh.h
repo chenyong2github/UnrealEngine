@@ -4,9 +4,7 @@
 #include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/EntityGeom.h"
 #include "CADKernel/Core/Types.h"
-//#include "CADKernel/Math/Point.h"
-//#include "Containers/Array.h"
-//#include "HAL/Platform.h"
+#include "CADKernel/Math/Point.h"
 
 namespace CADKernel
 {

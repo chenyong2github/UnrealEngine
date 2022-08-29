@@ -15,15 +15,6 @@
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
-//#include "CADKernel/Utils/Cache.h"
-//#include "Containers/Array.h"
-//#include "Containers/Map.h"
-//#include "Containers/UnrealString.h"
-//#include "HAL/PlatformCrt.h"
-//#include "Math/UnrealMathSSE.h"
-//#include "Math/Vector.h"
-//#include "Misc/AssertionMacros.h"
-//#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

@@ -9,19 +9,11 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Boundary.h"
-//#include "CADKernel/Math/MatrixH.h"
-//#include "CADKernel/Math/Point.h"
 #include "CADKernel/UI/Message.h"
 #include "CADKernel/Utils/Cache.h"
-//#include "Containers/Array.h"
-//#include "HAL/Platform.h"
-//#include "Misc/AssertionMacros.h"
-//#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {
-	//class FSurface;
-
 	struct FCurvePoint2D;
 	struct FCurvePoint;
 	struct FNurbsCurveData;

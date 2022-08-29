@@ -1314,7 +1314,7 @@ void FIsoTriangulator::FindCellContainingBoundaryNodes(TArray<FCell>& Cells)
 				Cells.Emplace(CellIndex, CellNodes, Grid);
 
 				CellIndex = NodeToCellIndices[Index];
-				CellNodes.Empty(LoopNodeCount);
+				CellNodes.Reset(LoopNodeCount);
 
 #ifdef DEBUG_BUILD_CELLS
 				DisplayCell(Cells.Last());

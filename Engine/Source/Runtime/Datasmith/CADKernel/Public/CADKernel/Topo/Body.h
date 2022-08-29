@@ -8,9 +8,6 @@
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalShapeEntity.h"
-//#include "Containers/Array.h"
-//#include "HAL/Platform.h"
-//#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

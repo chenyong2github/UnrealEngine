@@ -15,6 +15,8 @@
 #include "CADKernel/UI/Display.h"
 #include "CADKernel/Utils/IndexOfCoordinateFinder.h"
 
+#include "Serialization/Archive.h"
+
 namespace CADKernel
 {
 

@@ -8,10 +8,6 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Topo/Linkable.h"
 #include "CADKernel/Topo/TopologicalLink.h"
-#include "Containers/Array.h"
-#include "HAL/Platform.h"
-#include "Misc/AssertionMacros.h"
-#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

@@ -11,13 +11,6 @@
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Utils/Cache.h"
-#include "Containers/Array.h"
-#include "HAL/PlatformCrt.h"
-#include "Math/UnrealMathSSE.h"
-#include "Math/Vector.h"
-#include "Misc/AssertionMacros.h"
-#include "Serialization/Archive.h"
-#include "Templates/SharedPointer.h"
 
 namespace CADKernel
 {

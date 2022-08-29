@@ -5,10 +5,6 @@
 #include "CADKernel/Core/Database.h"
 #include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/Types.h"
-//#include "Containers/Array.h"
-//#include "HAL/Platform.h"
-//#include "HAL/PlatformCrt.h"
-//#include "Templates/SharedPointer.h"
 
 class FArchive;
 

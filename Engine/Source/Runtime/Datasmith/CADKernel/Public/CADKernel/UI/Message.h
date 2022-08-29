@@ -4,10 +4,6 @@
 #include "CADKernel/Core/Chrono.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/UI/Progress.h"
-#include "Containers/UnrealString.h"
-#include "HAL/Platform.h"
-#include "Templates/AndOrNot.h"
-#include "Templates/IsValidVariadicFunctionArg.h"
 
 namespace CADKernel
 {
