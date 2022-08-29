@@ -10,6 +10,18 @@
 #include "HeterogeneousVolumesTracingUtils.ush"
 #include "HeterogeneousVolumesLightingUtils.ush"
 
+#ifndef THREADGROUP_SIZE_1D
+#define THREADGROUP_SIZE_1D 1
+#endif // THREADGROUP_SIZE_1D
+
+#ifndef THREADGROUP_SIZE_2D
+#define THREADGROUP_SIZE_2D 1
+#endif // THREADGROUP_SIZE_2D
+
+#ifndef THREADGROUP_SIZE_3D
+#define THREADGROUP_SIZE_3D 1
+#endif // THREADGROUP_SIZE_3D
+
 // Object data
 float4x4 LocalToWorld;
 float4x4 WorldToLocal;
@@ -26,6 +38,7 @@ float ShadowStepFactor;
 
 // Ray data
 float MaxTraceDistance;
+float MaxShadowTraceDistance;
 float StepSize;
 int MaxStepCount;
 int bJitter;
@@ -98,13 +111,23 @@ float GetShadowStepFactor()
 	return ShadowStepFactor;
 }
 
+float GetMaxTraceDistance()
+{
+	return MaxTraceDistance;
+}
+
+float GetMaxShadowTraceDistance()
+{
+	return MaxShadowTraceDistance;
+}
+
 struct FVolumeSampleContext
 {
 	FMaterialPixelParameters MaterialParameters;
 	FPixelMaterialInputs PixelMaterialInputs;
 };
 
-FVolumeSampleContext CreateVolumeSampleContext(float3 LocalPosition, float3 WorldPosition)
+FVolumeSampleContext CreateVolumeSampleContext(float3 LocalPosition, float3 WorldPosition, float MipLevel)
 {
 	FVolumeSampleContext VolumeSampleContext;
 	VolumeSampleContext.MaterialParameters = MakeInitializedMaterialPixelParameters();
@@ -137,6 +160,99 @@ float3 SampleAlbedo(inout FVolumeSampleContext Context)
 
 #include "HeterogeneousVolumesRayMarchingUtils.ush"
 
+RWTexture3D<float3> RWTransmittanceVolumeTexture;
+
+[numthreads(THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D)]
+void RenderTransmittanceVolumeWithLiveShadingCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint3 DispatchThreadId : SV_DispatchThreadID
+)
+{
+	float3 VoxelIndex = DispatchThreadId;
+	if (any(DispatchThreadId > TransmittanceVolumeResolution))
+	{
+		return;
+	}
+
+	float3 VoxelJitter = 0.5;
+	if (bJitter)
+	{
+		uint3 Rand32Bits = Rand4DPCG32(uint4(VoxelIndex, View.StateFrameIndexMod8)).xyz;
+		VoxelJitter = float3(Rand32Bits) / float(uint(0xffffffff));
+	}
+	//float3 UVW = (VoxelIndex + VectorJitter) / float3(GetTransmittanceVolumeResolution());
+	float3 UVW = (VoxelIndex + 0.5) / float3(GetTransmittanceVolumeResolution());
+
+	float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
+	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
+	float3 LocalRayOrigin = UVW * GetLocalBoundsExtent() * 2.0 + LocalBoundsMin;
+	float3 WorldRayOrigin = mul(float4(LocalRayOrigin, 1.0), GetLocalToWorld()).xyz;
+
+	// Existence culling
+	float MipLevel = 0.0f;
+	FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalRayOrigin, WorldRayOrigin, MipLevel);
+	float3 Extinction = SampleExtinction(SampleContext);
+	float Epsilon = 1.0e-7;
+	if (all(Extinction < Epsilon))
+	{
+		RWTransmittanceVolumeTexture[VoxelIndex] = 0.0f;
+		return;
+	}
+
+	FDeferredLightData LightData = LoadLightData(LightType);
+	float3 L = LightData.Direction;
+	float3 ToLight = L * GetMaxShadowTraceDistance();
+	if (LightType != LIGHT_TYPE_DIRECTIONAL)
+	{
+		if (LightData.bRectLight)
+		{
+			FRect Rect = GetRect(ToLight, LightData);
+		}
+		else
+		{
+			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+		}
+	}
+	float3 WorldRayEnd = WorldRayOrigin + ToLight;
+	float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), GetWorldToLocal()).xyz;
+
+	float3 WorldRayDirection = normalize(WorldRayEnd - WorldRayOrigin);
+	float3 LocalRayDirection = LocalRayEnd - LocalRayOrigin;
+
+	float LocalRayTMin = 0.0f;
+	float LocalRayTMax = length(LocalRayDirection);
+	LocalRayDirection /= LocalRayTMax;
+
+	float RayJitter = length(VoxelJitter);
+	float StepSize = GetStepSize() * GetShadowStepFactor();
+	int bApplyEmission = 0;
+	int bApplyDirectLighting = 0;
+	int bApplyShadowTransmittance = 0;
+	FRayMarchingContext RayMarchingContext = (FRayMarchingContext)0;
+	RayMarchingContext = CreateRayMarchingContext(
+		// Local-space
+		LocalRayOrigin,
+		LocalRayDirection,
+		LocalRayTMin,
+		LocalRayTMax,
+		// World-space
+		WorldRayOrigin,
+		WorldRayDirection,
+		// Ray-step attributes
+		RayJitter,
+		StepSize,
+		MaxStepCount,
+		// Lighting
+		bApplyEmission,
+		bApplyDirectLighting,
+		bApplyShadowTransmittance
+	);
+
+	float3 Transmittance = ComputeTransmittance(RayMarchingContext);
+	RWTransmittanceVolumeTexture[VoxelIndex] = Transmittance;
+}
+
 [numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
 void RenderSingleScatteringWithLiveShadingCS(
 	uint2 GroupThreadId : SV_GroupThreadID,
@@ -162,7 +278,7 @@ void RenderSingleScatteringWithLiveShadingCS(
 #endif // HAS_INVERTED_Z_BUFFER
 
 	// Clip trace distance
-	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), MaxTraceDistance);
+	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), GetMaxTraceDistance());
 	DeviceZ = ConvertToDeviceZ(SceneDepth);
 
 	float Jitter = bJitter ? InterleavedGradientNoise(PixelCoord, View.StateFrameIndexMod8) : 0.0;

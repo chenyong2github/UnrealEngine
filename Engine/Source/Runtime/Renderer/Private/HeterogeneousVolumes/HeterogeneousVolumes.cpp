@@ -52,6 +52,13 @@ static TAutoConsoleVariable<float> CVarHeterogeneousVolumesMaxTraceDistance(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarHeterogeneousVolumesMaxShadowTraceDistance(
+	TEXT("r.HeterogeneousVolumes.MaxShadowTraceDistance"),
+	10000.0,
+	TEXT("The maximum shadow-trace distance (Default = 10000)"),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshading(
 	TEXT("r.HeterogeneousVolumes.Preshading"),
 	0,
@@ -89,7 +96,7 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesPreshadingVolumeResol
 
 static TAutoConsoleVariable<float> CVarHeterogeneousVolumesShadowStepFactor(
 	TEXT("r.HeterogeneousVolumes.ShadowStepFactor"),
-	10.0,
+	8.0,
 	TEXT("The ray-marching step-size factor for shadow rays (Default = 8.0)"),
 	ECVF_RenderThreadSafe
 );
@@ -126,6 +133,20 @@ static TAutoConsoleVariable<float> CVarHeterogeneousVolumesStepSize(
 	TEXT("r.HeterogeneousVolumes.StepSize"),
 	1.0,
 	TEXT("The ray-marching step-size (Default = 1.0)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesTransmittanceVolume(
+	TEXT("r.HeterogeneousVolumes.TransmittanceVolume"),
+	1,
+	TEXT("Enalbes transmittance volume optimized pre-pass (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesTransmittanceVolumeDownsampleFactor(
+	TEXT("r.HeterogeneousVolumes.TransmittanceVolume.DownsampleFactor"),
+	1,
+	TEXT("Determines the downsample factor, relative to the preshading volume resolution (Default = 1)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -187,6 +208,11 @@ namespace HeterogeneousVolumes
 		return CVarHeterogeneousVolumesMaxTraceDistance.GetValueOnRenderThread();
 	}
 
+	float GetMaxShadowTraceDistance()
+	{
+		return CVarHeterogeneousVolumesMaxShadowTraceDistance.GetValueOnRenderThread();
+	}
+
 	float GetStepSize()
 	{
 		return CVarHeterogeneousVolumesStepSize.GetValueOnRenderThread();
@@ -228,6 +254,11 @@ namespace HeterogeneousVolumes
 		return CVarHeterogeneousVolumesSparseVoxelPerTileCulling.GetValueOnRenderThread() != 0;
 	}
 
+	bool UseTransmittanceVolume()
+	{
+		return CVarHeterogeneousVolumesTransmittanceVolume.GetValueOnRenderThread() != 0;
+	}
+
 	bool ShouldJitter()
 	{
 		return CVarHeterogeneousVolumesJitter.GetValueOnRenderThread() != 0;
@@ -258,6 +289,14 @@ namespace HeterogeneousVolumes
 			FMath::Max(VolumeResolution.Y >> MipLevel, 1),
 			FMath::Max(VolumeResolution.Z >> MipLevel, 1)
 		);
+	}
+
+	FIntVector GetTransmittanceVolumeResolution()
+	{
+		float DownsampleFactor = CVarHeterogeneousVolumesTransmittanceVolumeDownsampleFactor.GetValueOnRenderThread();
+		FIntVector TransmittanceVolumeResolution = GetVolumeResolution() / DownsampleFactor;
+
+		return TransmittanceVolumeResolution;
 	}
 }
 
@@ -300,6 +339,19 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 
 				RDG_EVENT_SCOPE(GraphBuilder, "%s", *PrimitiveSceneProxy->GetResourceName().ToString());
 
+				// Allocate transmittance volume
+				// TODO: Allow option for scalar transmittance to conserve bandwidth
+				FIntVector TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+				uint32 NumMips = FMath::Log2(float(FMath::Min(FMath::Min(TransmittanceVolumeResolution.X, TransmittanceVolumeResolution.Y), TransmittanceVolumeResolution.Z))) + 1;
+				FRDGTextureDesc TransmittanceVolumeDesc = FRDGTextureDesc::Create3D(
+					TransmittanceVolumeResolution,
+					PF_FloatR11G11B10,
+					FClearValueBinding::Black,
+					TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling,
+					NumMips
+				);
+				FRDGTextureRef TransmittanceVolumeTexture = GraphBuilder.CreateTexture(TransmittanceVolumeDesc, TEXT("HeterogeneousVolumes.TransmittanceVolumeTexture"));
+
 				// Material baking executes a pre-shading pipeline
 				if (CVarHeterogeneousVolumesPreshading.GetValueOnRenderThread())
 				{
@@ -314,6 +366,8 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 						MaterialRenderProxy,
 						PrimitiveId,
 						LocalBoxSphereBounds,
+						// Transmittance accleration
+						TransmittanceVolumeTexture,
 						// Output
 						HeterogeneousVolumeRadiance
 					);
@@ -331,6 +385,8 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 						MaterialRenderProxy,
 						PrimitiveId,
 						LocalBoxSphereBounds,
+						// Transmittance accleration
+						TransmittanceVolumeTexture,
 						// Output
 						HeterogeneousVolumeRadiance
 					);

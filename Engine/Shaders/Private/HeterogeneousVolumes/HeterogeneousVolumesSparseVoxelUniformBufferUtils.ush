@@ -20,6 +20,16 @@ float3 GetLocalBoundsExtent()
 	return SparseVoxelUniformBuffer.LocalBoundsExtent;
 }
 
+float GetMaxTraceDistance()
+{
+	return SparseVoxelUniformBuffer.MaxTraceDistance;
+}
+
+float GetMaxShadowTraceDistance()
+{
+	return SparseVoxelUniformBuffer.MaxShadowTraceDistance;
+}
+
 float GetStepSize()
 {
 	return SparseVoxelUniformBuffer.StepSize;
@@ -48,17 +58,17 @@ FVoxelDataPacked GetVoxelDataPacked(uint VoxelIndex)
 struct FVolumeSampleContext
 {
 	float3 UVW;
-	uint MipLevel;
+	float MipLevel;
 };
 
-FVolumeSampleContext CreateVolumeSampleContext(float3 LocalPosition, float3 WorldPosition)
+FVolumeSampleContext CreateVolumeSampleContext(float3 LocalPosition, float3 WorldPosition, float MipLevel)
 {
 	float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
 	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
 
 	FVolumeSampleContext VolumeSampleContext;
 	VolumeSampleContext.UVW = (LocalPosition - LocalBoundsMin) / (LocalBoundsMax - LocalBoundsMin);
-	VolumeSampleContext.MipLevel = 0;// RayMarchingContext.MipLevel;
+	VolumeSampleContext.MipLevel = MipLevel;
 
 	return VolumeSampleContext;
 }

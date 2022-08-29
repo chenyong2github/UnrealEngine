@@ -319,13 +319,59 @@ class FHeterogeneousVolumesSparseVoxelMS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FHeterogeneousVolumesSparseVoxelMS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "SparseVoxelsMissShader", SF_RayMiss);
 
+class FRenderTransmittanceVolumeWithPreshadingRGS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRenderTransmittanceVolumeWithPreshadingRGS)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FRenderTransmittanceVolumeWithPreshadingRGS, FGlobalShader)
+
+	class FApplyShadowTransmittanceDim : SHADER_PERMUTATION_BOOL("DIM_APPLY_SHADOW_TRANSMITTANCE");
+	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		// Scene 
+		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+
+		// Lighting data
+		SHADER_PARAMETER(int, LightType)
+		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
+
+		// Sparse Volume
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSparseVoxelUniformBufferParameters, SparseVoxelUniformBuffer)
+
+		// Volume
+		SHADER_PARAMETER(int, MipLevel)
+
+		// Ray
+		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(int, MaxStepCount)
+		SHADER_PARAMETER(int, bJitter)
+
+		// Transmittance volume data
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTransmittanceVolumeParameters, TransmittanceVolume)
+
+		// Output
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWTransmittanceVolumeTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform) && DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform) &&
+			FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FRenderTransmittanceVolumeWithPreshadingRGS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "RenderTransmittanceVolumeWithPreshadingRGS", SF_RayGen);
+
 class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRenderSingleScatteringWithPreshadingRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRenderSingleScatteringWithPreshadingRGS, FGlobalShader)
 
 	class FApplyShadowTransmittanceDim : SHADER_PERMUTATION_BOOL("DIM_APPLY_SHADOW_TRANSMITTANCE");
-	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim>;
+	class FUseTransmittanceVolume : SHADER_PERMUTATION_BOOL("DIM_USE_TRANSMITTANCE_VOLUME");
+	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim, FUseTransmittanceVolume>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Scene 
@@ -344,6 +390,9 @@ class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 
 		// Volume
 		SHADER_PARAMETER(int, MipLevel)
+
+		// Transmittance volume
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTransmittanceVolumeParameters, TransmittanceVolume)
 
 		// Ray
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -438,6 +487,105 @@ FRayTracingPipelineState* BuildRayTracingPipelineState(
 	return RayTracingPipelineState;
 }
 
+void RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
+	FRDGBuilder& GraphBuilder,
+	// Scene data
+	const FScene* Scene,
+	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
+	// Light data
+	bool bApplyEmission,
+	bool bApplyDirectLighting,
+	bool bApplyShadowTransmittance,
+	uint32 LightType,
+	const FLightSceneInfo* LightSceneInfo,
+	// Object data
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	// Sparse voxel data
+	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
+	// Ray tracing data
+	FRayTracingScene& RayTracingScene,
+	// Output
+	FRDGTextureRef& TransmittanceVolumeTexture
+)
+{
+	FRenderTransmittanceVolumeWithPreshadingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTransmittanceVolumeWithPreshadingRGS::FParameters>();
+	{
+		// Scene
+		PassParameters->TLAS = RayTracingScene.GetLayerSRVChecked(ERayTracingSceneLayer::Base);
+		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+
+		// Light data
+		check(LightSceneInfo != nullptr);
+		FDeferredLightUniformStruct DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
+		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
+		PassParameters->LightType = LightType;
+
+		// Sparse Voxel data
+		PassParameters->SparseVoxelUniformBuffer = SparseVoxelUniformBuffer;
+
+		// Transmittance volume
+		PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+		//PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+
+		// Ray data
+		PassParameters->MaxTraceDistance = HeterogeneousVolumes::GetMaxTraceDistance();
+		PassParameters->MaxStepCount = HeterogeneousVolumes::GetMaxStepCount();
+		PassParameters->bJitter = HeterogeneousVolumes::ShouldJitter();
+		PassParameters->MipLevel = HeterogeneousVolumes::GetMipLevel();
+
+		// Output
+		PassParameters->RWTransmittanceVolumeTexture = GraphBuilder.CreateUAV(TransmittanceVolumeTexture);
+	}
+
+	FRenderTransmittanceVolumeWithPreshadingRGS::FPermutationDomain PermutationVector;
+	TShaderRef<FRenderTransmittanceVolumeWithPreshadingRGS> RayGenerationShader = View.ShaderMap->GetShader<FRenderTransmittanceVolumeWithPreshadingRGS>(PermutationVector);
+	FIntVector VolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+	FIntPoint DispatchResolution = FIntPoint(VolumeResolution.X, VolumeResolution.Y * VolumeResolution.Z);
+
+	FString LightName = TEXT("none");
+	if (LightSceneInfo != nullptr)
+	{
+		FSceneRenderer::GetLightNameForDrawEvent(LightSceneInfo->Proxy, LightName);
+	}
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("RenderTransmittanceVolumeWithPreshadingRGS (Light = %s) %ux%u", *LightName, DispatchResolution.X, DispatchResolution.Y),
+		PassParameters,
+		ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+		[
+			PassParameters,
+			&View,
+			&RayTracingScene,
+			RayGenerationShader,
+			DispatchResolution
+		](FRHIRayTracingCommandList& RHICmdList)
+		{
+			// Set ray-gen bindings
+			FRayTracingShaderBindingsWriter GlobalResources;
+			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+
+			// Create pipeline
+			FRayTracingPipelineState* RayTracingPipelineState = BuildRayTracingPipelineState(RHICmdList, View, RayGenerationShader.GetRayTracingShader());
+
+			// Set hit-group bindings
+			const uint32 NumBindings = 1;
+			FRayTracingLocalShaderBindings* Bindings = BuildRayTracingMaterialBindings(RHICmdList, View, PassParameters->SparseVoxelUniformBuffer->GetRHI());
+			RHICmdList.SetRayTracingHitGroups(RayTracingScene.GetRHIRayTracingSceneChecked(), RayTracingPipelineState, NumBindings, Bindings);
+			RHICmdList.SetRayTracingMissShaders(RayTracingScene.GetRHIRayTracingSceneChecked(), RayTracingPipelineState, NumBindings, Bindings);
+
+			// Dispatch
+			RHICmdList.RayTraceDispatch(
+				RayTracingPipelineState,
+				RayGenerationShader.GetRayTracingShader(),
+				RayTracingScene.GetRHIRayTracingSceneChecked(),
+				GlobalResources,
+				DispatchResolution.X, DispatchResolution.Y);
+		}
+	);
+}
+
 void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	FRDGBuilder& GraphBuilder,
 	// Scene data
@@ -456,6 +604,8 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
 	// Ray tracing data
 	FRayTracingScene& RayTracingScene,
+	// Transmittance volume
+	FRDGTextureRef TransmittanceVolumeTexture,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeTexture
 )
@@ -484,6 +634,13 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 		// Volume data
 		PassParameters->MipLevel = HeterogeneousVolumes::GetMipLevel();
 
+		// Transmittance volume
+		if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
+		{
+			PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+			PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+		}
+
 		// Ray data
 		PassParameters->MaxTraceDistance = HeterogeneousVolumes::GetMaxTraceDistance();
 		PassParameters->MaxStepCount = HeterogeneousVolumes::GetMaxStepCount();
@@ -495,6 +652,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 
 	FRenderSingleScatteringWithPreshadingRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingRGS::FApplyShadowTransmittanceDim>(bApplyShadowTransmittance);
+	PermutationVector.Set<FRenderSingleScatteringWithPreshadingRGS::FUseTransmittanceVolume>(HeterogeneousVolumes::UseTransmittanceVolume());
 	TShaderRef<FRenderSingleScatteringWithPreshadingRGS> RayGenerationShader = View.ShaderMap->GetShader<FRenderSingleScatteringWithPreshadingRGS>(PermutationVector);
 	FIntPoint DispatchResolution = View.ViewRect.Size();
 
@@ -524,43 +682,10 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 			FRayTracingPipelineState* RayTracingPipelineState = BuildRayTracingPipelineState(RHICmdList, View, RayGenerationShader.GetRayTracingShader());
 
 			// Set hit-group bindings
-#if 0
 			const uint32 NumBindings = 1;
 			FRayTracingLocalShaderBindings* Bindings = BuildRayTracingMaterialBindings(RHICmdList, View, PassParameters->SparseVoxelUniformBuffer->GetRHI());
-			const bool bCopyDataToInlineStorage = true;
-			RHICmdList.SetRayTracingHitGroups(RayTracingScene, RayTracingPipelineState, NumBindings, Bindings, bCopyDataToInlineStorage);
-#else
-			uint32 InstanceIndex = 0;
-			uint32 SegmentIndex = 0;
-			uint32 ShaderSlot = 0;
-			uint32 HitGroupIndex = 0;
-			uint32 LooseParameterDataSize = 0;
-			void* LooseParameterData = nullptr;
-			uint32 UserData = 0;
-			uint32 NumUniformBuffers = 1;
-			FRHIUniformBuffer* UniformBuffers[] = {
-				PassParameters->SparseVoxelUniformBuffer->GetRHI()
-			};
-			RHICmdList.SetRayTracingHitGroup(
-				RayTracingScene.GetRHIRayTracingSceneChecked(),
-				InstanceIndex, SegmentIndex, ShaderSlot,
-				RayTracingPipelineState, HitGroupIndex,
-				NumUniformBuffers, UniformBuffers,
-				LooseParameterDataSize, LooseParameterData,
-				UserData
-			);
-
-			uint32 ShaderIndexInPipeline = 0;
-			RHICmdList.SetRayTracingMissShader(
-				RayTracingScene.GetRHIRayTracingSceneChecked(),
-				ShaderSlot,
-				RayTracingPipelineState,
-				ShaderIndexInPipeline,
-				NumUniformBuffers,
-				UniformBuffers,
-				UserData
-			);
-#endif
+			RHICmdList.SetRayTracingHitGroups(RayTracingScene.GetRHIRayTracingSceneChecked(), RayTracingPipelineState, NumBindings, Bindings);
+			RHICmdList.SetRayTracingMissShaders(RayTracingScene.GetRHIRayTracingSceneChecked(), RayTracingPipelineState, NumBindings, Bindings);
 
 			// Dispatch
 			RHICmdList.RayTraceDispatch(

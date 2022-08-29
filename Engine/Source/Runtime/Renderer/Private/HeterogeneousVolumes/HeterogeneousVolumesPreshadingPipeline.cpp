@@ -199,6 +199,68 @@ void GenerateRayMarchingTiles(
 	);
 }
 
+class FRenderTransmittanceVolumeWithPreshadingCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRenderTransmittanceVolumeWithPreshadingCS);
+	SHADER_USE_PARAMETER_STRUCT(FRenderTransmittanceVolumeWithPreshadingCS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		// Scene data
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+
+		// Light data
+		SHADER_PARAMETER(int, LightType)
+		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLight)
+
+		// Volume structures
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSparseVoxelUniformBufferParameters, SparseVoxelUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTransmittanceVolumeParameters, TransmittanceVolume)
+
+		// Ray data
+		SHADER_PARAMETER(float, MaxShadowTraceDistance)
+		SHADER_PARAMETER(float, StepSize)
+		SHADER_PARAMETER(int, MipLevel)
+		SHADER_PARAMETER(int, MaxStepCount)
+		SHADER_PARAMETER(int, bJitter)
+
+		// Output
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWTransmittanceVolumeTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(
+		const FGlobalShaderPermutationParameters& Parameters
+	)
+	{
+		return DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(
+		const FGlobalShaderPermutationParameters& Parameters,
+		FShaderCompilerEnvironment& OutEnvironment
+	)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_2D"), GetThreadGroupSize2D());
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_3D"), GetThreadGroupSize3D());
+
+		// This shader takes a very long time to compile with FXC, so we pre-compile it with DXC first and then forward the optimized HLSL to FXC.
+		//OutEnvironment.CompilerFlags.Add(CFLAG_PrecompileWithDXC);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+
+		OutEnvironment.SetDefine(TEXT("GET_PRIMITIVE_DATA_OVERRIDE"), 1);
+	}
+
+	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize2D() * GetThreadGroupSize2D(); }
+	static int32 GetThreadGroupSize2D() { return 8; }
+	static int32 GetThreadGroupSize3D() { return 4; }
+};
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderTransmittanceVolumeWithPreshadingCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf"), TEXT("RenderTransmittanceVolumeWithPreshadingCS"), SF_Compute);
+
 class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRenderSingleScatteringWithPreshadingCS);
@@ -207,8 +269,9 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 	class FApplyShadowTransmittanceDim : SHADER_PERMUTATION_BOOL("DIM_APPLY_SHADOW_TRANSMITTANCE");
 	class FVoxelCullingDim : SHADER_PERMUTATION_BOOL("DIM_VOXEL_CULLING");
 	class FSparseVoxelTracingDim : SHADER_PERMUTATION_BOOL("DIM_SPARSE_VOXEL_TRACING");
+	class FUseTransmittanceVolume : SHADER_PERMUTATION_BOOL("DIM_USE_TRANSMITTANCE_VOLUME");
 	class FDebugDim : SHADER_PERMUTATION_BOOL("DIM_DEBUG");
-	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim, FVoxelCullingDim, FSparseVoxelTracingDim, FDebugDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FApplyShadowTransmittanceDim, FVoxelCullingDim, FSparseVoxelTracingDim, FUseTransmittanceVolume, FDebugDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Scene data
@@ -224,8 +287,9 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 		// Volume data
 		SHADER_PARAMETER(int, MipLevel)
 
-		// Sparse Volume
+		// Volume structures
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSparseVoxelUniformBufferParameters, SparseVoxelUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTransmittanceVolumeParameters, TransmittanceVolume)
 
 		// Ray data
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -274,11 +338,80 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderSingleScatteringWithPreshadingCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf"), TEXT("RenderSingleScatteringWithPreshadingCS"), SF_Compute);
 
-void RenderTransmissionWithPreshadingCompute(
-
+void RenderTransmitanceVolumeWithPreshadingCompute(
+	FRDGBuilder& GraphBuilder,
+	// Scene data
+	const FScene* Scene,
+	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
+	// Light data
+	bool bApplyEmission,
+	bool bApplyDirectLighting,
+	bool bApplyShadowTransmittance,
+	uint32 LightType,
+	const FLightSceneInfo* LightSceneInfo,
+	// Object data
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	// Sparse voxel data
+	FRDGBufferRef NumVoxelsBuffer,
+	const TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters>& SparseVoxelUniformBuffer,
+	// Ray marching tiles
+	FRDGBufferRef NumRayMarchingTilesBuffer,
+	FRDGBufferRef RayMarchingTilesBuffer,
+	FRDGBufferRef VoxelsPerTileBuffer,
+	// Output
+	FRDGTextureRef& TransmittanceVolumeTexture
 )
 {
+	FRenderTransmittanceVolumeWithPreshadingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTransmittanceVolumeWithPreshadingCS::FParameters>();
+	{
+		// Scene data
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
+		// Light data
+		check(LightSceneInfo != nullptr);
+		FDeferredLightUniformStruct DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
+		PassParameters->DeferredLight = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
+		PassParameters->LightType = LightType;
+
+		// Sparse voxel data
+		PassParameters->SparseVoxelUniformBuffer = SparseVoxelUniformBuffer;
+
+		// Transmittance volume
+		PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+		PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+
+		// Ray data
+		//PassParameters->StepSize = HeterogeneousVolumes::GetStepSize();
+		PassParameters->MaxStepCount = HeterogeneousVolumes::GetMaxStepCount();
+		PassParameters->bJitter = HeterogeneousVolumes::ShouldJitter();
+		PassParameters->MipLevel = HeterogeneousVolumes::GetMipLevel();
+
+		// Output
+		PassParameters->RWTransmittanceVolumeTexture = GraphBuilder.CreateUAV(TransmittanceVolumeTexture);
+	}
+
+	FString LightName = TEXT("none");
+	if (LightSceneInfo != nullptr)
+	{
+		FSceneRenderer::GetLightNameForDrawEvent(LightSceneInfo->Proxy, LightName);
+	}
+
+	FRenderTransmittanceVolumeWithPreshadingCS::FPermutationDomain PermutationVector;
+	TShaderRef<FRenderTransmittanceVolumeWithPreshadingCS> ComputeShader = View.ShaderMap->GetShader<FRenderTransmittanceVolumeWithPreshadingCS>(PermutationVector);
+
+	FIntVector GroupCount = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+	GroupCount.X = FMath::DivideAndRoundUp(GroupCount.X, FRenderTransmittanceVolumeWithPreshadingCS::GetThreadGroupSize3D());
+	GroupCount.Y = FMath::DivideAndRoundUp(GroupCount.Y, FRenderTransmittanceVolumeWithPreshadingCS::GetThreadGroupSize3D());
+	GroupCount.Z = FMath::DivideAndRoundUp(GroupCount.Z, FRenderTransmittanceVolumeWithPreshadingCS::GetThreadGroupSize3D());
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("RenderTransmittanceVolumeWithPreshadingCS (Light = %s)", *LightName),
+		ComputeShader,
+		PassParameters,
+		GroupCount);
 }
 
 void RenderSingleScatteringWithPreshadingCompute(
@@ -298,6 +431,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 	// Sparse voxel data
 	FRDGBufferRef NumVoxelsBuffer,
 	const TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters>& SparseVoxelUniformBuffer,
+	FRDGTextureRef TransmittanceVolumeTexture,
 	// Ray marching tiles
 	FRDGBufferRef NumRayMarchingTilesBuffer,
 	FRDGBufferRef RayMarchingTilesBuffer,
@@ -334,6 +468,13 @@ void RenderSingleScatteringWithPreshadingCompute(
 		// Sparse voxel data
 		PassParameters->SparseVoxelUniformBuffer = SparseVoxelUniformBuffer;
 
+		// Transmittance volume
+		if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
+		{
+			PassParameters->TransmittanceVolume.TransmittanceVolumeResolution = HeterogeneousVolumes::GetTransmittanceVolumeResolution();
+			PassParameters->TransmittanceVolume.TransmittanceVolumeTexture = GraphBuilder.CreateSRV(TransmittanceVolumeTexture);
+		}
+
 		// Ray data
 		PassParameters->MaxTraceDistance = HeterogeneousVolumes::GetMaxTraceDistance();
 		PassParameters->StepSize = HeterogeneousVolumes::GetStepSize();
@@ -362,6 +503,7 @@ void RenderSingleScatteringWithPreshadingCompute(
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FApplyShadowTransmittanceDim>(bApplyShadowTransmittance);
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FVoxelCullingDim>(HeterogeneousVolumes::UseSparseVoxelPerTileCulling());
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FSparseVoxelTracingDim>(HeterogeneousVolumes::UseSparseVoxelPipeline());
+	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FUseTransmittanceVolume>(HeterogeneousVolumes::UseTransmittanceVolume());
 	PermutationVector.Set<FRenderSingleScatteringWithPreshadingCS::FDebugDim>(HeterogeneousVolumes::GetDebugMode() != 0);
 	TShaderRef<FRenderSingleScatteringWithPreshadingCS> ComputeShader = View.ShaderMap->GetShader<FRenderSingleScatteringWithPreshadingCS>(PermutationVector);
 	FComputeShaderUtils::AddPass(
@@ -385,8 +527,9 @@ void RenderWithPreshadingCompute(
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	// Sparse voxel data
 	FRDGBufferRef NumVoxelsBuffer,
-	const TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters>& SparseVoxelUniformBuffer,
+	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters>& SparseVoxelUniformBuffer,
 	// Output
+	FRDGTextureRef& TransmittanceVolumeTexture,
 	FRDGTextureRef& HeterogeneousVolumeRadiance
 )
 {
@@ -450,6 +593,35 @@ void RenderWithPreshadingCompute(
 				bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
 			}
 
+			if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
+			{
+				RenderTransmitanceVolumeWithPreshadingCompute(
+					GraphBuilder,
+					// Scene
+					Scene,
+					View,
+					SceneTextures,
+					// Light
+					bApplyEmission,
+					bApplyDirectLighting,
+					bApplyShadowTransmittance,
+					LightType,
+					LightSceneInfo,
+					// Object
+					PrimitiveSceneProxy,
+					// Volume data
+					NumVoxelsBuffer,
+					// Sparse voxel data
+					SparseVoxelUniformBuffer,
+					// Ray marching tile
+					NumRayMarchingTilesBuffer,
+					RayMarchingTilesBuffer,
+					VoxelsPerTileBuffer,
+					// Output
+					TransmittanceVolumeTexture
+				);
+			}
+
 			RenderSingleScatteringWithPreshadingCompute(
 				GraphBuilder,
 				// Scene
@@ -468,6 +640,7 @@ void RenderWithPreshadingCompute(
 				NumVoxelsBuffer,
 				// Sparse voxel data
 				SparseVoxelUniformBuffer,
+				TransmittanceVolumeTexture,
 				// Ray marching tile
 				NumRayMarchingTilesBuffer,
 				RayMarchingTilesBuffer,
@@ -492,6 +665,8 @@ void RenderWithPreshadingHardwareRayTracing(
 	// Sparse voxel data
 	FRDGBufferRef NumVoxelsBuffer,
 	const TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters>& SparseVoxelUniformBuffer,
+	// Transmittance acceleration
+	FRDGTextureRef TransmittanceVolumeTexture,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeRadiance
 )
@@ -569,6 +744,31 @@ void RenderWithPreshadingHardwareRayTracing(
 				bApplyShadowTransmittance = LightSceneInfo->Proxy->CastsVolumetricShadow();
 			}
 
+			if (HeterogeneousVolumes::UseTransmittanceVolume() && bApplyShadowTransmittance)
+			{
+				RenderTransmittanceVolumeWithPreshadingHardwareRayTracing(
+					GraphBuilder,
+					// Scene data
+					Scene,
+					View,
+					SceneTextures,
+					// Light data
+					bApplyEmission,
+					bApplyDirectLighting,
+					bApplyShadowTransmittance,
+					LightType,
+					LightSceneInfo,
+					// Object data
+					PrimitiveSceneProxy,
+					// Sparse voxel
+					SparseVoxelUniformBuffer,
+					// Ray tracing data
+					Scene->HeterogeneousVolumesRayTracingScene,
+					// Transmittance volume
+					TransmittanceVolumeTexture
+				);
+			}
+
 			RenderSingleScatteringWithPreshadingHardwareRayTracing(
 				GraphBuilder,
 				// Scene data
@@ -587,6 +787,8 @@ void RenderWithPreshadingHardwareRayTracing(
 				SparseVoxelUniformBuffer,
 				// Ray tracing data
 				Scene->HeterogeneousVolumesRayTracingScene,
+				// Transmittance volume
+				TransmittanceVolumeTexture,
 				// Output
 				HeterogeneousVolumeRadiance
 			);
@@ -727,6 +929,8 @@ void RenderWithPreshading(
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
+	// Transmittance acceleration
+	FRDGTextureRef TransmittanceVolumeTexture,
 	// Output
 	FRDGTextureRef& HeterogeneousVolumeRadiance
 )
@@ -744,9 +948,9 @@ void RenderWithPreshading(
 		NumMips
 	);
 
-	FRDGTextureRef HeterogeneousVolumesExtinctionTexture = GraphBuilder.CreateTexture(BakedMaterialDesc, TEXT("HeterogeneousVolumes.ExtinctionTexture"));
-	FRDGTextureRef HeterogeneousVolumesEmissionTexture = GraphBuilder.CreateTexture(BakedMaterialDesc, TEXT("HeterogeneousVolumes.EmissionTexture"));
-	FRDGTextureRef HeterogeneousVolumesAlbedoTexture = GraphBuilder.CreateTexture(BakedMaterialDesc, TEXT("HeterogeneousVolumes.AlbedoTexture"));
+	FRDGTextureRef ExtinctionTexture = GraphBuilder.CreateTexture(BakedMaterialDesc, TEXT("HeterogeneousVolumes.ExtinctionTexture"));
+	FRDGTextureRef EmissionTexture = GraphBuilder.CreateTexture(BakedMaterialDesc, TEXT("HeterogeneousVolumes.EmissionTexture"));
+	FRDGTextureRef AlbedoTexture = GraphBuilder.CreateTexture(BakedMaterialDesc, TEXT("HeterogeneousVolumes.AlbedoTexture"));
 
 	// Preshading pipeline
 	{
@@ -768,9 +972,9 @@ void RenderWithPreshading(
 				// Volume data
 				VolumeResolution,
 				// Output
-				HeterogeneousVolumesExtinctionTexture,
-				HeterogeneousVolumesEmissionTexture,
-				HeterogeneousVolumesAlbedoTexture
+				ExtinctionTexture,
+				EmissionTexture,
+				AlbedoTexture
 			);
 		}
 
@@ -779,10 +983,10 @@ void RenderWithPreshading(
 			RDG_EVENT_SCOPE(GraphBuilder, "MIP Generation");
 			for (uint32 MipLevel = 1; MipLevel < NumMips; ++MipLevel)
 			{
-				GenerateMips3D<FGenerateMips3D>(GraphBuilder, View, HeterogeneousVolumesExtinctionTexture, MipLevel);
+				GenerateMips3D<FGenerateMips3D>(GraphBuilder, View, ExtinctionTexture, MipLevel);
 				// TODO: Reinstate once ray-marching determines appropriate MIP level to sample
-				//GenerateMips3D<FGenerateMips3D>(GraphBuilder, View, HeterogeneousVolumesEmissionTexture, MipLevel);
-				//GenerateMips3D<FGenerateMips3D>(GraphBuilder, View, HeterogeneousVolumesAlbedoTexture, MipLevel);
+				//GenerateMips3D<FGenerateMips3D>(GraphBuilder, View, EmissionTexture, MipLevel);
+				//GenerateMips3D<FGenerateMips3D>(GraphBuilder, View, AlbedoTexture, MipLevel);
 			}
 		}
 	}
@@ -800,14 +1004,14 @@ void RenderWithPreshading(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "Min Generation");
 
-			FRDGTextureDesc MinTextureDesc = HeterogeneousVolumesExtinctionTexture->Desc;
+			FRDGTextureDesc MinTextureDesc = ExtinctionTexture->Desc;
 			MinTextureDesc.Extent.X = FMath::Max(MinTextureDesc.Extent.X >> SparseMipLevel, 1);
 			MinTextureDesc.Extent.Y = FMath::Max(MinTextureDesc.Extent.Y >> SparseMipLevel, 1);
 			MinTextureDesc.Depth = FMath::Max(MinTextureDesc.Depth >> SparseMipLevel, 1);
 			MinTextureDesc.NumMips = FMath::Log2(float(FMath::Min(FMath::Min(MinTextureDesc.Extent.X, MinTextureDesc.Extent.Y), (int32)MinTextureDesc.Depth))) + 1;
 
 			MinTexture = GraphBuilder.CreateTexture(MinTextureDesc, TEXT("HeterogeneousVolumes.MinTexture"));
-			CopyTexture3D(GraphBuilder, View, HeterogeneousVolumesExtinctionTexture, SparseMipLevel, MinTexture);
+			CopyTexture3D(GraphBuilder, View, ExtinctionTexture, SparseMipLevel, MinTexture);
 			for (uint32 MipLevel = 1; MipLevel < MinTextureDesc.NumMips; ++MipLevel)
 			{
 				GenerateMips3D<FGenerateMin3D>(GraphBuilder, View, MinTexture, MipLevel);
@@ -832,10 +1036,10 @@ void RenderWithPreshading(
 
 		// Volume data
 		SparseVoxelUniformBufferParameters->VolumeResolution = VolumeResolution;
-		SparseVoxelUniformBufferParameters->ExtinctionTexture = HeterogeneousVolumesExtinctionTexture;
-		SparseVoxelUniformBufferParameters->EmissionTexture = HeterogeneousVolumesEmissionTexture;
-		SparseVoxelUniformBufferParameters->AlbedoTexture = HeterogeneousVolumesAlbedoTexture;
-		SparseVoxelUniformBufferParameters->TextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
+		SparseVoxelUniformBufferParameters->ExtinctionTexture = ExtinctionTexture;
+		SparseVoxelUniformBufferParameters->EmissionTexture = EmissionTexture;
+		SparseVoxelUniformBufferParameters->AlbedoTexture = AlbedoTexture;
+		SparseVoxelUniformBufferParameters->TextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		// Sparse voxel data
 		SparseVoxelUniformBufferParameters->NumVoxelsBuffer = GraphBuilder.CreateSRV(NumVoxelsBuffer, PF_R32_UINT);
@@ -844,6 +1048,7 @@ void RenderWithPreshading(
 
 		// Traversal hints
 		SparseVoxelUniformBufferParameters->MaxTraceDistance = HeterogeneousVolumes::GetMaxTraceDistance();
+		SparseVoxelUniformBufferParameters->MaxShadowTraceDistance = HeterogeneousVolumes::GetMaxShadowTraceDistance();
 		SparseVoxelUniformBufferParameters->StepSize = HeterogeneousVolumes::GetStepSize();
 		SparseVoxelUniformBufferParameters->ShadowStepFactor = HeterogeneousVolumes::GetShadowStepFactor();
 	}
@@ -865,6 +1070,8 @@ void RenderWithPreshading(
 			// Sparse voxel data
 			NumVoxelsBuffer,
 			SparseVoxelUniformBuffer,
+			// Transmittance acceleration
+			TransmittanceVolumeTexture,
 			// Output
 			HeterogeneousVolumeRadiance
 		);
@@ -885,6 +1092,8 @@ void RenderWithPreshading(
 			// Sparse voxel data
 			NumVoxelsBuffer,
 			SparseVoxelUniformBuffer,
+			// Transmittance acceleration
+			TransmittanceVolumeTexture,
 			// Output
 			HeterogeneousVolumeRadiance
 		);

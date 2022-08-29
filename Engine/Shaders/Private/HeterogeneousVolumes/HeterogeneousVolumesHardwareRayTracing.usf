@@ -140,7 +140,7 @@ RAY_TRACING_ENTRY_ANY_HIT(SparseVoxelsAnyHitShader,
 #else
 			float3 WorldPosition = mul(float4(ObjectPosition, 1.0), GetLocalToWorld()).xyz;
 
-			FVolumeSampleContext SampleContext = CreateVolumeSampleContext(ObjectPosition, WorldPosition);
+			FVolumeSampleContext SampleContext = CreateVolumeSampleContext(ObjectPosition, WorldPosition, MipLevel);
 			float3 Extinction = SampleExtinction(SampleContext);
 #endif
 			Transmittance *= exp(-Extinction * StepSize);
@@ -185,7 +185,6 @@ RAY_TRACING_ENTRY_MISS(SparseVoxelsMissShader,
 RaytracingAccelerationStructure TLAS;
 
 // Ray data
-float MaxTraceDistance;
 int MaxStepCount;
 int bJitter;
 
@@ -320,7 +319,7 @@ RAY_TRACING_ENTRY_RAYGEN(SparseVoxelsRayGenerationShader1)
 #endif // HAS_INVERTED_Z_BUFFER
 
 	// Clip trace distance
-	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), MaxTraceDistance);
+	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), GetMaxTraceDistance());
 	DeviceZ = ConvertToDeviceZ(SceneDepth);
 
 	float Jitter = bJitter ? InterleavedGradientNoise(PixelCoord, View.StateFrameIndexMod8) : 0.0;
@@ -388,6 +387,97 @@ float3 ComputeTransmittanceHardwareRayTracing(
 #define HARDWARE_RAY_TRACING 1
 #include "HeterogeneousVolumesRayMarchingUtils.ush"
 
+uint3 DispatchRaysToVoxelIndex(uint2 DispatchRaysIndex)
+{
+	uint3 VolumeResolution = GetTransmittanceVolumeResolution();
+	uint3 VoxelIndex = uint3(DispatchRaysIndex.x,
+		DispatchRaysIndex.y % TransmittanceVolumeResolution.y,
+		DispatchRaysIndex.y / TransmittanceVolumeResolution.y);
+	return VoxelIndex;
+}
+
+RWTexture3D<float3> RWTransmittanceVolumeTexture;
+
+RAY_TRACING_ENTRY_RAYGEN(RenderTransmittanceVolumeWithPreshadingRGS)
+{
+	uint3 VoxelIndex = DispatchRaysToVoxelIndex(DispatchRaysIndex().xy);
+	if (any(VoxelIndex >= TransmittanceVolumeResolution))
+	{
+		return;
+	}
+
+	float3 UVW = (VoxelIndex + 0.5) / float3(TransmittanceVolumeResolution);
+
+	float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
+	float3 LocalBoundsMax = GetLocalBoundsOrigin() + GetLocalBoundsExtent();
+	float3 LocalRayOrigin = UVW * GetLocalBoundsExtent() * 2.0 + LocalBoundsMin;
+	float3 WorldRayOrigin = mul(float4(LocalRayOrigin, 1.0), GetLocalToWorld()).xyz;
+
+	// Existence culling
+	float MipLevel = 0.0f;
+	FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalRayOrigin, WorldRayOrigin, MipLevel);
+	float3 Extinction = SampleExtinction(SampleContext);
+	float Epsilon = 1.0e-7;
+	if (all(Extinction < Epsilon))
+	{
+		RWTransmittanceVolumeTexture[VoxelIndex] = 0.0f;
+		return;
+	}
+
+	FDeferredLightData LightData = LoadLightData(LightType);
+	float3 L = LightData.Direction;
+	float3 ToLight = L * GetMaxShadowTraceDistance();
+	if (LightType != LIGHT_TYPE_DIRECTIONAL)
+	{
+		if (LightData.bRectLight)
+		{
+			FRect Rect = GetRect(ToLight, LightData);
+		}
+		else
+		{
+			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
+		}
+	}
+	float3 WorldRayEnd = WorldRayOrigin + ToLight;
+	float3 LocalRayEnd = mul(float4(WorldRayEnd, 1.0), GetWorldToLocal()).xyz;
+
+	float3 WorldRayDirection = normalize(WorldRayEnd - WorldRayOrigin);
+	float3 LocalRayDirection = LocalRayEnd - LocalRayOrigin;
+
+	float LocalRayTMin = 0.0f;
+	float LocalRayTMax = length(LocalRayDirection);
+	LocalRayDirection /= LocalRayTMax;
+
+	float Jitter = bJitter ? InterleavedGradientNoise(VoxelIndex.xy, VoxelIndex.z) : 0.5;
+	float StepSize = GetStepSize() * GetShadowStepFactor();
+	int bApplyEmission = 0;
+	int bApplyDirectLighting = 0;
+	int bApplyShadowTransmittance = 0;
+	FRayMarchingContext RayMarchingContext = (FRayMarchingContext)0;
+	RayMarchingContext = CreateRayMarchingContext(
+		// Local-space
+		LocalRayOrigin,
+		LocalRayDirection,
+		LocalRayTMin,
+		LocalRayTMax,
+		// World-space
+		WorldRayOrigin,
+		WorldRayDirection,
+		// Ray-step attributes
+		Jitter,
+		StepSize,
+		MaxStepCount,
+		// Lighting
+		bApplyEmission,
+		bApplyDirectLighting,
+		bApplyShadowTransmittance
+	);
+	RayMarchingContext.MipLevel = 0;
+
+	float3 Transmittance = ComputeTransmittance(RayMarchingContext);
+	RWTransmittanceVolumeTexture[VoxelIndex] = Transmittance;
+}
+
 RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 {
 	float3 Radiance = 0.0;
@@ -409,7 +499,7 @@ RAY_TRACING_ENTRY_RAYGEN(RenderSingleScatteringWithPreshadingRGS)
 #endif // HAS_INVERTED_Z_BUFFER
 
 	// Clip trace distance
-	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), MaxTraceDistance);
+	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), GetMaxTraceDistance());
 	DeviceZ = ConvertToDeviceZ(SceneDepth);
 
 	float Jitter = bJitter ? InterleavedGradientNoise(PixelCoord, View.StateFrameIndexMod8) : 0.0;

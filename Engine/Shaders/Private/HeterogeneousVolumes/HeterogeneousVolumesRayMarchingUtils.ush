@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HeterogeneousVolumesTransmittanceVolumeUtils.ush"
+
 #ifndef HARDWARE_RAY_TRACING
 #define HARDWARE_RAY_TRACING 0
 #endif // HARDWARE_RAY_TRACING
@@ -11,13 +13,18 @@ struct FRayMarchingContext
 	float3 LocalRayDirection;
 	float LocalRayTMin;
 	float LocalRayTMax;
+
 	// World-space
 	float3 WorldRayOrigin;
 	float3 WorldRayDirection;
+
 	// Ray-step attributes
 	float Jitter;
 	float StepSize;
 	uint MaxStepCount;
+
+	float MipLevel;
+
 	// Lighting
 	int bApplyEmission;
 	int bApplyDirectLighting;
@@ -43,7 +50,8 @@ FRayMarchingContext CreateRayMarchingContext(
 	int bApplyShadowTransmittance
 )
 {
-	FRayMarchingContext Context;
+	FRayMarchingContext Context = (FRayMarchingContext)0;
+
 	// Local-space
 	Context.LocalRayOrigin = LocalRayOrigin;
 	Context.LocalRayDirection = LocalRayDirection;
@@ -60,6 +68,8 @@ FRayMarchingContext CreateRayMarchingContext(
 	Context.bApplyEmission = bApplyEmission;
 	Context.bApplyDirectLighting = bApplyDirectLighting;
 	Context.bApplyShadowTransmittance = bApplyShadowTransmittance;
+
+	Context.MipLevel = 0.0f;
 
 	return Context;
 }
@@ -90,7 +100,7 @@ void RayMarchTransmittance(
 		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
 		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
 
-		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition);
+		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 		float3 Extinction = SampleExtinction(SampleContext);
 		Transmittance *= exp(-Extinction * RayMarchingContext.StepSize);
 	}
@@ -137,7 +147,7 @@ void RayMarchEmissionAbsorption(
 		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
 		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
 
-		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition);
+		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 		float3 Extinction = SampleExtinction(SampleContext);
 
 		float3 Emission = SampleEmission(SampleContext);
@@ -161,7 +171,7 @@ void RayMarchSingleScattering(
 	{
 		float3 LocalPosition = RayMarchingContext.LocalRayOrigin + RayMarchingContext.LocalRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
 		float3 WorldPosition = RayMarchingContext.WorldRayOrigin + RayMarchingContext.WorldRayDirection * (RayMarchingContext.LocalRayTMin + RayMarchingContext.StepSize * StepIndex);
-		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition);
+		FVolumeSampleContext SampleContext = CreateVolumeSampleContext(LocalPosition, WorldPosition, RayMarchingContext.MipLevel);
 
 		if (RayMarchingContext.bApplyEmission)
 		{
@@ -206,8 +216,15 @@ void RayMarchSingleScattering(
 
 					if (RayMarchingContext.bApplyShadowTransmittance)
 					{
-						// Build shadow ray and find intersection
 						float3 LocalShadowRayOrigin = mul(float4(WorldPosition, 1.0), GetWorldToLocal()).xyz;
+
+#if DIM_USE_TRANSMITTANCE_VOLUME
+						float3 LocalBoundsMin = GetLocalBoundsOrigin() - GetLocalBoundsExtent();
+						float3 TransmittanceUVW = saturate((LocalShadowRayOrigin - LocalBoundsMin) / (2.0 * GetLocalBoundsExtent()));
+						float MipLevel = 0;
+						ShadowTransmittance = SampleTransmittanceVolume(TransmittanceUVW, MipLevel);
+#else
+						// Build shadow ray and find intersection
 						float3 LocalShadowRayEnd = mul(float4(WorldPosition + ToLight, 1.0), GetWorldToLocal()).xyz;
 						float3 LocalShadowRayDirection = LocalShadowRayEnd - LocalShadowRayOrigin;
 						float LocalShadowRayTMin = 0.0;
@@ -238,6 +255,7 @@ void RayMarchSingleScattering(
 						);
 
 						ShadowTransmittance = ComputeTransmittance(ShadowRayMarchingContext);
+#endif // DIM_USE_TRANSMITTANCE_VOLUME
 					}
 
 					// Convert in-scattering to exitant radiance
