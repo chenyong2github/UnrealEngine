@@ -68,15 +68,26 @@ FOptimusEditorStyle::FOptimusEditorStyle() :
 
 	// Graph styles
 	{
-		Set( "Node.PinLabel", FTextBlockStyle(FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		FTextBlockStyle NormalText = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+		Set( "Node.PinLabel", FTextBlockStyle(NormalText)
 			.SetFont( DEFAULT_FONT( "Regular", 9 ) )
 			.SetColorAndOpacity( FLinearColor(218.0f/255.0f,218.0f/255.0f,218.0f/255.0f) )
 			.SetShadowOffset( FVector2D::ZeroVector )
 			.SetShadowColorAndOpacity( FLinearColor(0.8f,0.8f,0.8f, 0.5) )
-		);
+			);
 		Set( "Node.GroupLabel", FTextBlockStyle(GetWidgetStyle<FTextBlockStyle>("Node.PinLabel"))
 			.SetFont( DEFAULT_FONT( "Bold", 9 ) )
-		);
+			);
+
+		Set( "Node.ToolTipLabel", FTextBlockStyle(NormalText)
+			.SetFont( DEFAULT_FONT( "Bold", 9 ))
+			.SetColorAndOpacity(FLinearColor::Black)
+			);
+		Set( "Node.ToolTipContent", FTextBlockStyle(NormalText)
+			.SetFont( DEFAULT_FONT( "Regular", 9))
+			.SetColorAndOpacity(FLinearColor::Black)
+			);
+		
 		
 		const FTableViewStyle NodePinTreeViewStyle = FTableViewStyle();
 		Set("Node.PinTreeView", NodePinTreeViewStyle);		

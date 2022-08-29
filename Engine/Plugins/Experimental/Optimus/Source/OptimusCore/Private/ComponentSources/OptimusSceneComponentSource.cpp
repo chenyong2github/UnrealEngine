@@ -20,7 +20,7 @@ TSubclassOf<UActorComponent> UOptimusSceneComponentSource::GetComponentClass() c
 }
 
 
-TArray<FName> UOptimusSceneComponentSource::GetExecutionContexts() const
+TArray<FName> UOptimusSceneComponentSource::GetExecutionDomains() const
 {
 	return {};
 }

@@ -4,49 +4,26 @@
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusDeformerInstance.h"
+#include "OptimusExpressionEvaluator.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
-#include "Rendering/SkeletalMeshRenderData.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
+#include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
 
 
 const int32 UOptimusRawBufferDataInterface::ReadValueInputIndex = 1;
 const int32 UOptimusRawBufferDataInterface::WriteValueOutputIndex = 0;
 
 
-void UOptimusRawBufferDataInterface::FillProviderFromComponent(
-	const USkinnedMeshComponent* InComponent,
-	UOptimusRawBufferDataProvider* InProvider
-	) const
+const UOptimusComponentSource* UOptimusRawBufferDataInterface::GetComponentSource() const
 {
-	InProvider->ElementStride = ValueType->GetResourceElementSize();
-	InProvider->NumElementsPerInvocation.Reset();
-
-	FSkeletalMeshRenderData const* SkeletalMeshRenderData = InComponent != nullptr ? InComponent->GetSkeletalMeshRenderData() : nullptr;
-	if (SkeletalMeshRenderData == nullptr)
+	if (const UOptimusComponentSourceBinding* ComponentSourceBindingPtr = ComponentSourceBinding.Get())
 	{
-		return;
+		return ComponentSourceBindingPtr->GetComponentSource();
 	}
-	
-	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData->GetPendingFirstLOD(0);
-
-	if (DataDomain.LevelNames[0] == Optimus::DomainName::Triangle)
-	{
-		for (const FSkelMeshRenderSection& RenderSection: LodRenderData->RenderSections)
-		{
-			InProvider->NumElementsPerInvocation.Add(RenderSection.NumTriangles);
-		}
-	}
-	else
-	{
-		// TODO: For now, all other domain types default to vertex counts. 
-		for (const FSkelMeshRenderSection& RenderSection: LodRenderData->RenderSections)
-		{	
-			InProvider->NumElementsPerInvocation.Add(RenderSection.NumVertices);
-		}
-	}
+	return nullptr;
 }
 
 
@@ -59,8 +36,8 @@ TArray<FOptimusCDIPinDefinition> UOptimusRawBufferDataInterface::GetPinDefinitio
 {
 	// FIXME: Multi-level support by proxying through a data interface.
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"ValueIn", "ReadValue", DataDomain.LevelNames[0], "ReadNumValues"});
-	Defs.Add({"ValueOut", "WriteValue", DataDomain.LevelNames[0], "ReadNumValues"});
+	Defs.Add({"ValueIn", "ReadValue", DataDomain.DimensionNames[0], "ReadNumValues"});
+	Defs.Add({"ValueOut", "WriteValue", DataDomain.DimensionNames[0], "ReadNumValues"});
 	return Defs;
 }
 
@@ -158,9 +135,10 @@ UComputeDataProvider* UOptimusTransientBufferDataInterface::CreateDataProvider(
 	TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask
 	) const
 {
-	UOptimusTransientBufferDataProvider *Provider = NewObject<UOptimusTransientBufferDataProvider>();
-	FillProviderFromComponent(Cast<USkinnedMeshComponent>(InBinding), Provider);
+	UOptimusTransientBufferDataProvider *Provider = CreateProvider<UOptimusTransientBufferDataProvider>(InBinding);
+	
 	Provider->bClearBeforeUse = bClearBeforeUse;
+	
 	return Provider;
 }
 
@@ -175,15 +153,9 @@ UComputeDataProvider* UOptimusPersistentBufferDataInterface::CreateDataProvider(
 	TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask
 	) const
 {
-	UOptimusPersistentBufferDataProvider *Provider = NewObject<UOptimusPersistentBufferDataProvider>();
-
-	if (USkinnedMeshComponent* Component = Cast<USkinnedMeshComponent>(InBinding))
-	{
-		FillProviderFromComponent(Component, Provider);
-
-		Provider->SkinnedMeshComponent = Component;
-		Provider->ResourceName = ResourceName;
-	}
+	UOptimusPersistentBufferDataProvider *Provider = CreateProvider<UOptimusPersistentBufferDataProvider>(InBinding);
+	
+	Provider->ResourceName = ResourceName;
 
 	return Provider;
 }
@@ -191,20 +163,139 @@ UComputeDataProvider* UOptimusPersistentBufferDataInterface::CreateDataProvider(
 
 bool UOptimusRawBufferDataProvider::IsValid() const
 {
-	return !NumElementsPerInvocation.IsEmpty();
+	if (!Component.IsValid())
+	{
+		return false;
+	}
+	
+	const UOptimusComponentSource* ComponentSourcePtr = ComponentSource.Get();
+	if (!ComponentSourcePtr)
+	{
+		return false;
+	}
+
+	switch(DataDomain.Type)
+	{
+	case EOptimusDataDomainType::Dimensional:
+		{
+			if (DataDomain.DimensionNames.IsEmpty())
+			{
+				return false;
+			}
+			return ComponentSourcePtr->GetExecutionDomains().Contains(DataDomain.DimensionNames[0]); 
+		}
+	case EOptimusDataDomainType::Expression:
+		{
+			using namespace Optimus::Expression;
+			TMap<FName, int32> DomainNames;
+
+			for (FName DomainName: ComponentSourcePtr->GetExecutionDomains())
+			{
+				DomainNames.Add(DomainName, 0);
+			}
+
+			// Return true if there was no error. Verify returns a TOptional.
+			return !FEngine{DomainNames}.Verify(DataDomain.Expression).IsSet();
+		}
+	}
+
+	return false;
+}
+
+
+bool UOptimusRawBufferDataProvider::GetInvocationElementCounts(
+	TArray<int32>& OutInvocationElementCounts
+	) const
+{
+	const UOptimusComponentSource* ComponentSourcePtr = ComponentSource.Get();
+	if (!ComponentSourcePtr)
+	{
+		return false;
+	}
+
+	const UActorComponent* ComponentPtr = Component.Get();
+	if (!ComponentPtr)
+	{
+		return false;
+	}
+
+	switch(DataDomain.Type)
+	{
+	case EOptimusDataDomainType::Dimensional:
+		{
+			const FName ExecutionDomain = !DataDomain.DimensionNames.IsEmpty() ? DataDomain.DimensionNames[0] : NAME_None;
+			if (ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, OutInvocationElementCounts))
+			{
+				if (DataDomain.DimensionNames.Num() == 1)
+				{
+					for (int32& Count: OutInvocationElementCounts)
+					{
+						Count *= FMath::Max(1, DataDomain.Multiplier);
+					}
+				}
+				return true;
+			}
+			break;
+		}
+	case EOptimusDataDomainType::Expression:
+		{
+			TMap<FName, int32> EngineConstants;
+			TMap<FName, TArray<int32>> ElementCountsPerDomain;
+			int32 NumInvocations = 0;
+
+			for(FName ExecutionDomain: ComponentSource->GetExecutionDomains())
+			{
+				EngineConstants.Add(ExecutionDomain, 0);
+
+				TArray<int32>& ElementCounts = ElementCountsPerDomain.FindOrAdd(ExecutionDomain);
+				if (!ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, ElementCounts))
+				{
+					return false;
+				}
+
+				NumInvocations = FMath::Max(NumInvocations, ElementCounts.Num());
+			}
+			
+			using namespace Optimus::Expression;
+
+			FEngine Engine(EngineConstants);
+			TVariant<FExpressionObject, FParseError> ParseResult = Engine.Parse(DataDomain.Expression);
+			if (ParseResult.IsType<FParseError>())
+			{
+				return false;
+			}
+
+			OutInvocationElementCounts.Reset(NumInvocations);
+			for (int32 Index = 0; Index < NumInvocations; Index++)
+			{
+				for (auto& [ConstantName, Value]: EngineConstants)
+				{
+					const TArray<int32>& ElementCounts = ElementCountsPerDomain[ConstantName]; 
+					Value = ElementCounts.IsValidIndex(Index) ? ElementCounts[Index] : 1;
+				}
+				Engine.UpdateConstantValues(EngineConstants);
+				const int32 Count = Engine.Execute(ParseResult.Get<FExpressionObject>());
+				OutInvocationElementCounts.Add(Count);
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 
 FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderProxy()
 {
-	return new FOptimusTransientBufferDataProviderProxy(ElementStride, NumElementsPerInvocation, bClearBeforeUse);
+	TArray<int32> InvocationCounts;
+	GetInvocationElementCounts(InvocationCounts);
+	
+	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride, bClearBeforeUse);
 }
 
 
 bool UOptimusPersistentBufferDataProvider::IsValid() const
 {
-	UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->GetMeshDeformerInstance());
-	if (DeformerInstance == nullptr || !DeformerInstance->GetBufferPool().IsValid())
+	if (!BufferPool.IsValid())
 	{
 		return false;
 	}
@@ -215,35 +306,30 @@ bool UOptimusPersistentBufferDataProvider::IsValid() const
 
 FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRenderProxy()
 {
-	FOptimusPersistentBufferPoolPtr BufferPoolPtr;
+	TArray<int32> InvocationCounts;
+	GetInvocationElementCounts(InvocationCounts);
 	
-	UOptimusDeformerInstance const* DeformerInstance = Cast<UOptimusDeformerInstance>(SkinnedMeshComponent->GetMeshDeformerInstance());
-	if (ensure(DeformerInstance))
-	{
-		BufferPoolPtr = DeformerInstance->GetBufferPool();
-	}	
-	return new FOptimusPersistentBufferDataProviderProxy(BufferPoolPtr, ResourceName, ElementStride, NumElementsPerInvocation);
+	return new FOptimusPersistentBufferDataProviderProxy(InvocationCounts, ElementStride, BufferPool, ResourceName, LODIndex);
 }
 
 
 FOptimusTransientBufferDataProviderProxy::FOptimusTransientBufferDataProviderProxy(
+	TArray<int32> InInvocationElementCounts,
 	int32 InElementStride,
-	TArray<int32> InInvocationElementCount,
 	bool bInClearBeforeUse
-	)
-	: ElementStride(InElementStride)
-	, InvocationElementCount(InInvocationElementCount)
-	, bClearBeforeUse(bInClearBeforeUse)
+	) :
+	InvocationElementCounts(InInvocationElementCounts),
+	ElementStride(InElementStride),
+	bClearBeforeUse(bInClearBeforeUse)
 {
-	
 }
+
 
 void FOptimusTransientBufferDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 {
-	for (const int32 NumElements: InvocationElementCount)
+	for (const int32 NumElements: InvocationElementCounts)
 	{
-		// todo[CF]: Over allocating by 8x here until the logic for correct buffer size is handled.
-		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements * 8), TEXT("TransientBuffer"), ERDGBufferFlags::None));
+		Buffer.Add(GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(ElementStride, NumElements), TEXT("TransientBuffer"), ERDGBufferFlags::None));
 		BufferSRV.Add(GraphBuilder.CreateSRV(Buffer.Last()));
 		BufferUAV.Add(GraphBuilder.CreateUAV(Buffer.Last()));
 
@@ -261,12 +347,12 @@ void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup
 		return;
 	}
 
-	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCount.Num(); ++InvocationIndex)
+	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCounts.Num(); ++InvocationIndex)
 	{
 		FTransientBufferDataInterfaceParameters* Parameters =
 			reinterpret_cast<FTransientBufferDataInterfaceParameters*>(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->StartOffset = 0;
-		Parameters->BufferSize = InvocationElementCount[InvocationIndex];
+		Parameters->BufferSize = InvocationElementCounts[InvocationIndex];
 		Parameters->BufferSRV = BufferSRV[InvocationIndex];
 		Parameters->BufferUAV = BufferUAV[InvocationIndex];
 	}
@@ -275,17 +361,18 @@ void FOptimusTransientBufferDataProviderProxy::GatherDispatchData(FDispatchSetup
 
 
 FOptimusPersistentBufferDataProviderProxy::FOptimusPersistentBufferDataProviderProxy(
+	TArray<int32> InInvocationElementCounts,
+	int32 InElementStride,
 	TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 	FName InResourceName,
-	int32 InElementStride,
-	TArray<int32> InInvocationElementCount
+	int32 InLODIndex
 	) :
-	BufferPool(InBufferPool),
-	ResourceName(InResourceName),	
+	InvocationElementCounts(InInvocationElementCounts),
 	ElementStride(InElementStride),
-	InvocationElementCount(InInvocationElementCount)
+	BufferPool(InBufferPool),
+	ResourceName(InResourceName),
+	LODIndex(InLODIndex)
 {
-	
 }
 
 
@@ -293,7 +380,7 @@ void FOptimusPersistentBufferDataProviderProxy::AllocateResources(
 	FRDGBuilder& GraphBuilder
 	)
 {
-	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, ElementStride, InvocationElementCount, Buffers);
+	BufferPool->GetResourceBuffers(GraphBuilder, ResourceName, LODIndex, ElementStride, InvocationElementCounts, Buffers);
 	BufferUAVs.Reserve(Buffers.Num());
 	for (FRDGBufferRef BufferRef : Buffers)
 	{
@@ -312,18 +399,18 @@ void FOptimusPersistentBufferDataProviderProxy::GatherDispatchData(
 		return;
 	}
 
-	if (!ensure(Buffers.Num() == InvocationElementCount.Num()))
+	if (!ensure(Buffers.Num() == InvocationElementCounts.Num()))
 	{
 		return;
 	}
 	
-	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCount.Num(); ++InvocationIndex)
+	for (int32 InvocationIndex = 0; InvocationIndex < InvocationElementCounts.Num(); ++InvocationIndex)
 	{
 		FPersistentBufferDataInterfaceParameters* Parameters =
 			reinterpret_cast<FPersistentBufferDataInterfaceParameters*>(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		
 		Parameters->StartOffset = 0;
-		Parameters->BufferSize = InvocationElementCount[InvocationIndex];
+		Parameters->BufferSize = InvocationElementCounts[InvocationIndex];
 		Parameters->BufferUAV = BufferUAVs[InvocationIndex];
 	}
 

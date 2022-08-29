@@ -7,22 +7,23 @@
 #include "OptimusEditorGraphNode.h"
 #include "OptimusEditorStyle.h"
 
+#include "IOptimusNodeAdderPinProvider.h"
 #include "OptimusActionStack.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
-#include "IOptimusNodeAdderPinProvider.h"
 
 #include "Editor.h"
 #include "GraphEditorSettings.h"
+#include "OptimusComponentSource.h"
 #include "SGraphPin.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Views/STreeView.h"
-
-#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SOptimusEditorGraphNode"
@@ -35,6 +36,9 @@ static const FName NAME_Pin_Grouping("Node.Pin.Grouping");
 
 static const FName NAME_PinLabel_TextStyle("Node.PinLabel");
 static const FName NAME_GroupLabel_TextStyle("Node.GroupLabel");
+
+static const FName NAME_ToolTipLabel_TextStyle("Node.ToolTipLabel");
+static const FName NAME_ToolTipContent_TextStyle("Node.ToolTipContent");
 
 static const FSlateBrush* CachedImg_Pin_Resource_Connected = nullptr;
 static const FSlateBrush* CachedImg_Pin_Resource_Disconnected = nullptr;
@@ -139,6 +143,152 @@ class SOptimusEditorExpanderArrow : public SExpanderArrow
 
 	bool bLeftAligned;
 	bool bAlwaysVisible;
+};
+
+
+class SOptimusEditorGraphPinToolTipWidget :
+	public SCompoundWidget 
+{
+public:
+	SLATE_BEGIN_ARGS(SOptimusEditorGraphPinToolTipWidget)
+		: _ModelPin(nullptr)
+	{ }
+		SLATE_ARGUMENT(UOptimusNodePin*, ModelPin)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs)
+	{
+		ModelPinPtr = InArgs._ModelPin;
+		
+		TSharedRef<SGridPanel> GridPanel = SNew(SGridPanel)
+			.FillColumn(1, 1.0);
+
+		int32 SlotIndex = 0;
+		auto AddEntry = [GridPanel, &SlotIndex](const FText& InLabel, const TAttribute<FText>& InValue)
+		{
+			GridPanel->AddSlot(0, SlotIndex)
+			[
+				SNew(STextBlock)
+				.TextStyle(FOptimusEditorStyle::Get(), NAME_ToolTipLabel_TextStyle)
+				.Text(InLabel)
+			];
+			GridPanel->AddSlot(1, SlotIndex)
+			.Padding(5.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.TextStyle(FOptimusEditorStyle::Get(), NAME_ToolTipContent_TextStyle)
+				.Text(InValue)
+			];
+			SlotIndex++;
+		};
+
+		AddEntry(LOCTEXT("PinName", "Pin Name"), {this, &SOptimusEditorGraphPinToolTipWidget::GetPinName});
+		AddEntry(LOCTEXT("PinType", "Data Type"), {this, &SOptimusEditorGraphPinToolTipWidget::GetPinDataType});
+		AddEntry(LOCTEXT("PinDomain", "Data Domain"), {this, &SOptimusEditorGraphPinToolTipWidget::GetPinDataDomain});
+		AddEntry(LOCTEXT("PinComponentSource", "Component Source"), {this, &SOptimusEditorGraphPinToolTipWidget::GetPinComponentSource});
+
+		ChildSlot
+		[
+			GridPanel
+		];
+	}
+private:
+	FText GetPinName() const
+	{
+		if (TObjectPtr<UOptimusNodePin> ModelPin = ModelPinPtr.Get())
+		{
+			return FText::FromName(ModelPin->GetFName());
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetPinDataType() const
+	{
+		if (TObjectPtr<UOptimusNodePin> ModelPin = ModelPinPtr.Get())
+		{
+			FOptimusDataTypeRef DataType = ModelPin->GetDataType();
+			if (DataType.IsValid())
+			{
+				if (DataType->ShaderValueType.IsValid())
+				{
+					return FText::Format(LOCTEXT("ShaderTypeWithHLSL", "{0} (HLSL: {1})"), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()));
+				}
+				else
+				{
+					return DataType->DisplayName;
+				}
+			}
+			else
+			{
+				return LOCTEXT("InvalidDataType", "<Invalid>");
+			}
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetPinDataDomain() const
+	{
+		if (TObjectPtr<UOptimusNodePin> ModelPin = ModelPinPtr.Get())
+		{
+			FOptimusDataDomain DataDomain = ModelPin->GetDataDomain();
+			switch(DataDomain.Type)
+			{
+			case EOptimusDataDomainType::Dimensional:
+				if (DataDomain.IsSingleton())
+				{
+					return LOCTEXT("ValueDomain", "Value");
+				}
+				if (DataDomain.Multiplier > 1)
+				{
+					return FText::Format(LOCTEXT("DimensionalMultiplierDomain", "{0} x {1} (Dimensional)"), 
+						FText::FromString(Optimus::FormatDimensionNames(DataDomain.DimensionNames)),
+						FText::AsNumber(DataDomain.Multiplier));
+				}
+				return FText::Format(LOCTEXT("DimensionalDomain", "{0} (Dimensional)"), 
+					FText::FromString(Optimus::FormatDimensionNames(DataDomain.DimensionNames)));
+				
+			case EOptimusDataDomainType::Expression:
+				return FText::Format(LOCTEXT("ExpressionDomain", "\"{0}\" (Expression)"),
+					FText::FromString(DataDomain.Expression));
+			}
+		}
+		return FText::GetEmpty();
+	}
+
+	FText GetPinComponentSource() const
+	{
+		if (TObjectPtr<UOptimusNodePin> ModelPin = ModelPinPtr.Get())
+		{
+			TSet<UOptimusComponentSourceBinding*> ComponentSourceBindings = ModelPin->GetComponentSourceBindings();
+
+			if (ComponentSourceBindings.IsEmpty())
+			{
+				return LOCTEXT("ComponentSourceBindingsEmpty", "<None>");
+			}
+			else
+			{
+				TArray<FText> BindingNames;
+				for (UOptimusComponentSourceBinding* Binding: ComponentSourceBindings)
+				{
+					BindingNames.Add(FText::Format(LOCTEXT("ComponentBindingInfo", "{0} ({1})"),
+						FText::FromName(Binding->BindingName),
+						Binding->GetComponentSource()->GetDisplayName()));
+				}
+				BindingNames.Sort(FText::FSortPredicate());
+				
+				return FText::Join(LOCTEXT("Separator", ", "), BindingNames);
+			}
+		}
+		return FText::GetEmpty();
+	}
+	
+	TWeakObjectPtr<UOptimusNodePin> ModelPinPtr;
 };
 
 
@@ -599,18 +749,13 @@ void SOptimusEditorGraphNode::UpdatePinIcon(
 		{
 			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Grouping, CachedImg_Pin_Grouping);
 		}
+		else if (ModelPin->GetDataDomain().IsSingleton())
+		{
+			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
+		}
 		else
 		{
-			switch (ModelPin->GetStorageType())
-			{
-			case EOptimusNodePinStorageType::Resource:
-				InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Resource_Connected, CachedImg_Pin_Resource_Disconnected);
-				break;
-
-			case EOptimusNodePinStorageType::Value:
-				InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
-				break;
-			}
+			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Resource_Connected, CachedImg_Pin_Resource_Disconnected);
 		}
 	}
 	else if (OptimusEditor::IsAdderPin(EdPinObj))
@@ -805,7 +950,7 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 	const TSharedRef<STableViewBase>& OwnerTable
 	)
 {
-	const bool bIsValue = (InModelPin->GetStorageType() == EOptimusNodePinStorageType::Value && InModelPin->GetPropertyFromPin() != nullptr);
+	const bool bIsValue = (InModelPin->GetDataDomain().IsSingleton() && InModelPin->GetPropertyFromPin() != nullptr);
 	
 	const UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
 	TSharedPtr<SGraphPin> PinWidget;
@@ -820,8 +965,15 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 
 	TSharedPtr<SOptimusEditorGraphPinTreeRow> RowWidget;
 
-	SAssignNew(RowWidget, SOptimusEditorGraphPinTreeRow, OwnerTable)
-	.ToolTipText_UObject(InModelPin, &UOptimusNodePin::GetTooltipText);
+	SAssignNew(RowWidget, SOptimusEditorGraphPinTreeRow, OwnerTable);
+	if (!InModelPin->IsGroupingPin())
+	{
+		RowWidget->SetToolTip(MakePinToolTip(InModelPin));
+	}
+	else
+	{
+		RowWidget->SetToolTipText(LOCTEXT("GroupPinToolTip", "Click to open or close the pin group"));
+	}
 
 	RowWidget->SetContent(
 		SNew(SOptimusEditorGraphPinWidget, PinWidget.ToSharedRef(), bIsValue, RowWidget)
@@ -829,6 +981,20 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 	);
 	
 	return RowWidget.ToSharedRef();
+}
+
+
+TSharedPtr<IToolTip> SOptimusEditorGraphNode::MakePinToolTip(
+	UOptimusNodePin* InModelPin
+	) const
+{
+	return SNew(SToolTip)
+	.BorderImage(FCoreStyle::Get().GetBrush("ToolTip.BrightBackground"))
+	.TextMargin(11.0f)
+	[
+		SNew(SOptimusEditorGraphPinToolTipWidget)
+		.ModelPin(InModelPin)
+	];
 }
 
 

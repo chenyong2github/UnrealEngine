@@ -4,6 +4,7 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
@@ -15,15 +16,34 @@
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
 
 static FString FormatDataDomain(
-	const FOptimusMultiLevelDataDomain& InDataDomain
+	const FOptimusDataDomain& InDataDomain
 	)
 {
-	TArray<FString> Names;
-	for (FName DomainLevelName: InDataDomain.LevelNames)
+	switch(InDataDomain.Type)
 	{
-		Names.Add(DomainLevelName.ToString());
+	case EOptimusDataDomainType::Dimensional:
+		{
+			if (InDataDomain.DimensionNames.IsEmpty())
+			{
+				return TEXT("Parameter");
+			}
+			else
+			{
+				TArray<FString> Names;
+				for (FName DomainLevelName: InDataDomain.DimensionNames)
+				{
+					Names.Add(DomainLevelName.ToString());
+				}
+				return FString::Join(Names, *FString(UTF8TEXT(" › ")));
+			}
+		}
+		
+	case EOptimusDataDomainType::Expression:
+		return InDataDomain.Expression.TrimStartAndEnd();
 	}
-	return FString::Join(Names, *FString(UTF8TEXT(" › ")));
+	
+	checkNoEntry();
+	return TEXT("");
 }
 
 
@@ -129,8 +149,8 @@ FText UOptimusNodePin::GetTooltipText() const
 	{
 		return FText::GetEmpty();
 	}
-	
-	if (StorageType == EOptimusNodePinStorageType::Value)
+
+	if (DataDomain.IsSingleton())
 	{
 		if (DataType->ShaderValueType.IsValid())
 		{
@@ -444,8 +464,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 
 	// We don't allow resource -> value connections. All other combos are legit. 
 	// Value -> Resource just means the resource gets filled with the value.
-	if (OutputPin->StorageType == EOptimusNodePinStorageType::Resource &&
-		InputPin->StorageType == EOptimusNodePinStorageType::Value)
+	if (!OutputPin->DataDomain.IsSingleton() && InputPin->DataDomain.IsSingleton())
 	{
 		if (OutReason)
 		{
@@ -455,10 +474,9 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	}
 
 	// If it's resource -> resource, check that the dimensionality is the same.
-	if (OutputPin->StorageType == EOptimusNodePinStorageType::Resource &&
-		InputPin->StorageType == EOptimusNodePinStorageType::Resource)
+	if (!OutputPin->DataDomain.IsSingleton() && !InputPin->DataDomain.IsSingleton())
 	{
-		if (OutputPin->DataDomain.LevelNames != InputPin->DataDomain.LevelNames)
+		if (OutputPin->DataDomain != InputPin->DataDomain)
 		{
 			if (OutReason)
 			{
@@ -486,18 +504,40 @@ bool UOptimusNodePin::GetIsExpanded() const
 }
 
 
+void UOptimusNodePin::PostLoad()
+{
+	UObject::PostLoad();
+
+	if (!DataType.TypeName.IsNone() && DataType.TypeObject == nullptr)
+	{
+		// If the storage was marked as a value, the domain should now be a singleton.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DataDomain.BackCompFixupLevels();
+		if (StorageType_DEPRECATED == EOptimusNodePinStorageType::Value)
+		{
+			DataDomain = FOptimusDataDomain();
+		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		// Fix up data types so that the type points to the type object.
+		const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
+		FOptimusDataTypeHandle TypeHandle = Registry.FindType(DataType.TypeName);
+		if (TypeHandle.IsValid())
+		{
+			DataType.TypeObject = TypeHandle->TypeObject;
+		}
+	}
+}
+
+
 void UOptimusNodePin::InitializeWithData(
     EOptimusNodePinDirection InDirection,
-    FOptimusNodePinStorageConfig InStorageConfig,
+    FOptimusDataDomain InDataDomain,
     FOptimusDataTypeRef InDataTypeRef
 	)
 {
 	Direction = InDirection;
-	StorageType = InStorageConfig.Type;
-	if (StorageType == EOptimusNodePinStorageType::Resource)
-	{
-		DataDomain = InStorageConfig.DataDomain;
-	}
+	DataDomain = InDataDomain;
 	DataType = InDataTypeRef;
 }
 
@@ -550,7 +590,7 @@ bool UOptimusNodePin::SetDataType(FOptimusDataTypeRef InDataType)
 	}
 
 	// Make sure it's compatible with the storage type.
-	if (StorageType == EOptimusNodePinStorageType::Resource &&
+	if (!DataDomain.IsSingleton() &&
 		!EnumHasAllFlags(DataTypeHandle->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
 	{
 		return false;

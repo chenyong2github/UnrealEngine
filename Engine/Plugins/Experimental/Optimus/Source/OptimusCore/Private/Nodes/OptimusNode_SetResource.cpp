@@ -29,7 +29,7 @@ void UOptimusNode_SetResource::ConstructNode()
 		AddPinDirect(
 		    Res->ResourceName,
 		    EOptimusNodePinDirection::Input,
-			FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex}),
+			Res->DataDomain,
 		    Res->DataType);
 	}
 }

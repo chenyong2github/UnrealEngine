@@ -245,7 +245,7 @@ TOptional<FText> UOptimusNode_ComputeKernelBase::ValidateForCompile() const
 	auto VerifyPinBindings = [](TSet<UOptimusComponentSourceBinding*> &InCollectedBindings, const UOptimusNodePin* InPin)-> TOptional<FText>
 	{
 		// Component bindings only matter for resource pins.
-		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+		if (!InPin->GetDataDomain().IsSingleton())
 		{
 			const TSet<UOptimusComponentSourceBinding*> PinBindings = InPin->GetComponentSourceBindings();
 			if (PinBindings.Num() > 1)
@@ -449,9 +449,9 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 			FuncDef.ParamTypes.Emplace(ParamDef);
 
 			// For resources we need the index parameter.
-			if (InInputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
+			if (!InInputPin->GetDataDomain().IsSingleton())
 			{
-				TArray<FName> LevelNames = InInputPin->GetDataDomainLevelNames();
+				TArray<FName> LevelNames = InInputPin->GetDataDomain().DimensionNames;
 
 				for (int32 Count = 0; Count < LevelNames.Num(); Count++)
 				{
@@ -476,13 +476,13 @@ void UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
 		// Nothing connected. Get the default value (for now).
 		FString ValueStr;
 		FString OptionalParamStr;
-		if (InInputPin->GetStorageType() == EOptimusNodePinStorageType::Value)
+		if (InInputPin->GetDataDomain().IsSingleton())
 		{
 			ValueStr = GetShaderParamPinValueString(InInputPin);
 		}
 		else
 		{
-			TArray<FName> LevelNames = InInputPin->GetDataDomainLevelNames();
+			TArray<FName> LevelNames = InInputPin->GetDataDomain().DimensionNames;
 			
 			ValueStr = InInputPin->GetDataType()->ShaderValueType->GetZeroValueAsString();
 
@@ -525,7 +525,7 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 	FShaderParamTypeDefinition IndexParamDef;
 	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
 
-	TArray<FName> LevelNames = InOutputPin->GetDataDomainLevelNames();
+	TArray<FName> LevelNames = InOutputPin->GetDataDomain().DimensionNames;
 	TArray<FString> IndexNames = GetIndexNamesFromDataDomainLevels(LevelNames);
 	const FShaderValueTypeHandle ValueType = InOutputPin->GetDataType()->ShaderValueType;
 

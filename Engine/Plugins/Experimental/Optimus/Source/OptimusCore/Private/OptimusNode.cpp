@@ -374,30 +374,6 @@ void UOptimusNode::PostLoad()
 
 	// Earlier iterations didn't set this flag. 
 	SetFlags(RF_Transactional);
-
-	// FIXME: The TypeObject should probably be a TSoftObjectPtr
-	auto FixPinType = [](UOptimusNodePin* InPin)
-	{
-		InPin->ConditionalPostLoad();
-		if (!InPin->DataType.TypeName.IsNone() && InPin->DataType.TypeObject == nullptr)
-		{
-			const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
-			FOptimusDataTypeHandle TypeHandle = Registry.FindType(InPin->DataType.TypeName);
-			if (TypeHandle.IsValid())
-			{
-				InPin->DataType.TypeObject = TypeHandle->TypeObject;
-			}
-		}
-	};
-	// Make sure all pins have their types resolved. Otherwise comparison will fail when trying to connect.
-	for(UOptimusNodePin* Pin: Pins)
-	{
-		FixPinType(Pin);
-		for (UOptimusNodePin* SubPin: Pin->GetSubPinsRecursively())
-		{
-			FixPinType(SubPin);
-		}
-	}
 }
 
 
@@ -431,7 +407,7 @@ void UOptimusNode::EnableDynamicPins()
 UOptimusNodePin* UOptimusNode::AddPin(
 	FName InName,
 	EOptimusNodePinDirection InDirection,
-	FOptimusNodePinStorageConfig InStorageConfig,
+	const FOptimusDataDomain& InDataDomain,
 	FOptimusDataTypeRef InDataType,
 	UOptimusNodePin* InBeforePin,
 	UOptimusNodePin* InGroupingPin
@@ -472,7 +448,7 @@ UOptimusNodePin* UOptimusNode::AddPin(
 	}
 
 	FOptimusNodeAction_AddPin *AddPinAction = new FOptimusNodeAction_AddPin(
-		this, InName, InDirection, InStorageConfig, InDataType, InBeforePin, InGroupingPin); 
+		this, InName, InDirection, InDataDomain, InDataType, InBeforePin, InGroupingPin); 
 	if (!GetActionStack()->RunAction(AddPinAction))
 	{
 		return nullptr;
@@ -485,7 +461,7 @@ UOptimusNodePin* UOptimusNode::AddPin(
 UOptimusNodePin* UOptimusNode::AddPinDirect(
     FName InName,
     EOptimusNodePinDirection InDirection,
-    FOptimusNodePinStorageConfig InStorageConfig,
+    const FOptimusDataDomain& InDataDomain,
     FOptimusDataTypeRef InDataType,
     UOptimusNodePin* InBeforePin,
     UOptimusNodePin* InParentPin
@@ -494,10 +470,10 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
 	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
 
-	Pin->InitializeWithData(InDirection, InStorageConfig, InDataType);
+	Pin->InitializeWithData(InDirection, InDataDomain, InDataType);
 
 	// Add sub-pins, if the registered type is set to show them but only for value types.
-	if (InStorageConfig.Type == EOptimusNodePinStorageType::Value &&
+	if (InDataDomain.IsSingleton() &&
 		EnumHasAnyFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
 	{
 		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
@@ -518,14 +494,7 @@ UOptimusNodePin* UOptimusNode::AddPinDirect(
 	UOptimusNodePin* InBeforePin
 	)
 {
-	FOptimusNodePinStorageConfig StorageConfig;
-	
-	if (!InBinding.DataDomain.IsEmpty())
-	{
-		StorageConfig.Type = EOptimusNodePinStorageType::Resource;
-		StorageConfig.DataDomain = InBinding.DataDomain;
-	}
-	return AddPinDirect(InBinding.Name, InDirection, StorageConfig, InBinding.DataType, InBeforePin);
+	return AddPinDirect(InBinding.Name, InDirection, InBinding.DataDomain, InBinding.DataType, InBeforePin);
 }
 
 
@@ -818,7 +787,7 @@ bool UOptimusNode::SetPinDataTypeDirect(
 		}
 
 		// For value types, we want to show sub-pins.
-		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Value)
+		if (InPin->GetDataDomain().IsSingleton())
 		{
 			// Remove all sub-pins, if there were any.		
 			TGuardValue<bool> SuppressNotifications(bSendNotifications, false);
@@ -896,10 +865,10 @@ bool UOptimusNode::SetPinNameDirect(
 
 bool UOptimusNode::SetPinDataDomain(
 	UOptimusNodePin* InPin,
-	const TArray<FName>& InDataDomainLevelNames
+	const FOptimusDataDomain& InDataDomain
 	)
 {
-	if (!InPin || InPin->GetDataDomainLevelNames() == InDataDomainLevelNames)
+	if (!InPin || InPin->GetDataDomain() == InDataDomain)
 	{
 		return false;
 	}
@@ -909,7 +878,7 @@ bool UOptimusNode::SetPinDataDomain(
 
 	// If we're not an output pin, or if the new domain levels are non-empty, then
 	// we need to disconnect all links, because they _will_ become incompatible.
-	if (InPin->GetDirection() == EOptimusNodePinDirection::Input || !InDataDomainLevelNames.IsEmpty())
+	if (InPin->GetDirection() == EOptimusNodePinDirection::Input || !InDataDomain.IsSingleton())
 	{
 		// Make sure to disconnect all possible sub-pins.
 		constexpr bool bIncludeThisPin = true;
@@ -929,7 +898,7 @@ bool UOptimusNode::SetPinDataDomain(
 		}
 	}
 	
-	Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(InPin, InDataDomainLevelNames);
+	Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(InPin, InDataDomain);
 	
 	return GetActionStack()->RunAction(Action);
 }
@@ -937,15 +906,16 @@ bool UOptimusNode::SetPinDataDomain(
 
 bool UOptimusNode::SetPinDataDomainDirect(
 	UOptimusNodePin* InPin,
-	const TArray<FName>& InDataDomainLevelNames
+	const FOptimusDataDomain& InDataDomain
 	)
 {
-	const EOptimusNodePinStorageType OldStorageType = InPin->StorageType; 
-	InPin->StorageType = InDataDomainLevelNames.IsEmpty() ? EOptimusNodePinStorageType::Value : EOptimusNodePinStorageType::Resource;
-	InPin->DataDomain.LevelNames = InDataDomainLevelNames;
-	
-	// For value types, we want to show sub-pins.
-	if (OldStorageType != InPin->StorageType)
+	const bool bWasSingleton = InPin->GetDataDomain().IsSingleton();
+	const bool bIsSingleton = InDataDomain.IsSingleton();
+	InPin->DataDomain = InDataDomain;
+
+	// If we switched to/from singleton values, then we need to clear sub-pins or create sub-pins for the singleton value.
+	// TODO: Allow sub-pin controls on resources or just do away with sub-pins altogether?
+	if (bWasSingleton != bIsSingleton)
 	{
 		// Remove all sub-pins, if there were any.		
 		TGuardValue<bool> SuppressNotifications(bSendNotifications, false);
@@ -953,7 +923,7 @@ bool UOptimusNode::SetPinDataDomainDirect(
 		// Remove all existing pins, because we may be going from a non-empty domain to an empty one. 
 		InPin->ClearSubPins();
 
-		if (InPin->StorageType == EOptimusNodePinStorageType::Value)
+		if (bIsSingleton)
 		{
 			// Add sub-pins, if the registered type is set to show them but only for value types.
 			if (EnumHasAllFlags(InPin->DataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
@@ -1057,28 +1027,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 		return nullptr;
 	}
 
-	FOptimusNodePinStorageConfig StorageConfig{};
-#if WITH_EDITOR
-	if (InProperty->HasMetaData(PropertyMeta::Resource))
-	{
-		if (!ensure(!InParentPin))
-		{
-			UE_LOG(LogOptimusCore, Error, TEXT("Pin '%s' marked as resource cannot have sub-pins."), *InProperty->GetName());
-			return nullptr;
-		}
-
-		// Ensure that the data type for the property allows it to be used as a resource.
-		if (!EnumHasAnyFlags(DataType->UsageFlags, EOptimusDataTypeUsageFlags::Resource))
-		{
-			UE_LOG(LogOptimusCore, Error, TEXT("Pin '%s' marked as resource but data type is not compatible."), *InProperty->GetName());
-			return nullptr;
-		}
-
-		StorageConfig = FOptimusNodePinStorageConfig({Optimus::DomainName::Vertex});
-	}
-#endif
-
-	return AddPinDirect(InProperty->GetFName(), InDirection, StorageConfig, DataType, nullptr, InParentPin);
+	return AddPinDirect(InProperty->GetFName(), InDirection, {}, DataType, nullptr, InParentPin);
 }
 
 

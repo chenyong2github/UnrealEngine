@@ -42,17 +42,22 @@ public:
 	TWeakObjectPtr<UOptimusComponentSourceBinding> ComponentBinding;
 	
 	/** The data domain for this resource. */
-	UPROPERTY(EditAnywhere, Category=ResourceDescription)
-	FOptimusMultiLevelDataDomain DataDomain;
+	UPROPERTY(EditAnywhere, Category=ResourceDescription, meta=(EditCondition="ComponentBinding != nullptr", HideEditConditionToggle))
+	FOptimusDataDomain DataDomain;
 
 	UPROPERTY()
 	TObjectPtr<UOptimusPersistentBufferDataInterface> DataInterface;
-	
+
+	// UObject overrides
+	void PostLoad() override;
 #if WITH_EDITOR
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	void PreEditUndo() override;
 	void PostEditUndo() override;
 #endif
+
+	bool IsValidComponentBinding() const;
+	FOptimusDataDomain GetDataDomainFromComponentBinding() const;
 
 private:
 #if WITH_EDITORONLY_DATA

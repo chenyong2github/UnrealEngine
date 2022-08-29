@@ -642,7 +642,7 @@ bool UOptimusDeformer::SetResourceDataType(
 		return true;
 	}
 	
-	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Resource Type"));
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Resource Data Type"));
 
 	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
 	
@@ -684,6 +684,74 @@ bool UOptimusDeformer::SetResourceDataType(
 	if (InResourceDesc->DataType != InDataType)
 	{
 		Action->AddSubAction<FOptimusResourceAction_SetDataType>(InResourceDesc, InDataType);
+	}
+
+	return GetActionStack()->RunAction(Action);
+}
+
+bool UOptimusDeformer::SetResourceDataDomain(
+	UOptimusResourceDescription* InResourceDesc,
+	const FOptimusDataDomain& InDataDomain,
+	bool bInForceChange
+	)
+{
+	if (!ensure(InResourceDesc))
+	{
+		return false;
+	}
+	if (InResourceDesc->GetOuter() != Resources)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Resource not owned by this deformer."));
+		return false;
+	}
+
+	if (!bInForceChange && InDataDomain == InResourceDesc->DataDomain)
+	{
+		return true;
+	}
+	
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Resource Data Domain"));
+
+	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
+	
+	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
+	for (UOptimusNode* Node: AllResourceNodes)
+	{
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
+		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		{
+			if (ensure(ResourceNode->GetPins().Num() == 1))
+			{
+				UOptimusNodePin* Pin = ResourceNode->GetPins()[0];
+
+				// Update the pin type to match.
+				Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(ResourceNode->GetPins()[0], InDataDomain);
+
+				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
+				// show up twice).
+				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
+
+				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
+					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+					{
+						Links.Add({Pin, ConnectedPin});
+					}
+					else
+					{
+						Links.Add({ConnectedPin, Pin});
+					}
+			}
+		}	
+	}
+
+	for (auto [OutputPin, InputPin]: Links)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(OutputPin, InputPin);
+	}
+
+	if (InResourceDesc->DataDomain != InDataDomain)
+	{
+		Action->AddSubAction<FOptimusResourceAction_SetDataDomain>(InResourceDesc, InDataDomain);
 	}
 
 	return GetActionStack()->RunAction(Action);
@@ -803,16 +871,12 @@ bool UOptimusDeformer::SetResourceDataTypeDirect(
 	)
 {
 	// Do we actually own this resource?
-	int32 ResourceIndex = Resources->Descriptions.IndexOfByKey(InResourceDesc);
+	const int32 ResourceIndex = Resources->Descriptions.IndexOfByKey(InResourceDesc);
 	if (ResourceIndex == INDEX_NONE)
 	{
 		return false;
 	}
 	
-	// We succeed and notify even if setting the data type was a no-op. This is because we
-	// respond to data type change in UOptimusResourceDescription::PostEditChangeProperty. 
-	// This could probably be done better via a helper function that just updates the links, 
-	// but it'll do for now.
 	if (InResourceDesc->DataType != InDataType)
 	{
 		InResourceDesc->DataType = InDataType;
@@ -822,6 +886,30 @@ bool UOptimusDeformer::SetResourceDataTypeDirect(
 	
 	return true;
 }
+
+
+bool UOptimusDeformer::SetResourceDataDomainDirect(
+	UOptimusResourceDescription* InResourceDesc,
+	const FOptimusDataDomain& InDataDomain
+	)
+{
+	// Do we actually own this resource?
+	const int32 ResourceIndex = Resources->Descriptions.IndexOfByKey(InResourceDesc);
+	if (ResourceIndex == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	if (InResourceDesc->DataDomain != InDataDomain)
+	{
+		InResourceDesc->DataDomain = InDataDomain;
+		Notify(EOptimusGlobalNotifyType::ResourceTypeChanged, InResourceDesc);
+		(void)MarkPackageDirty();
+	}
+	
+	return true;
+}
+
 
 // === Component bindings
 UOptimusComponentSourceBinding* UOptimusDeformer::AddComponentBinding(
@@ -931,7 +1019,7 @@ bool UOptimusDeformer::RemoveComponentBinding(
 	for (UOptimusNode* Node: AllComponentSourceNodes)
 	{
 		UOptimusNode_ComponentSource* ComponentNode = Cast<UOptimusNode_ComponentSource>(Node);
-		if (ComponentNode->GetComponentSourceBinding() == InBinding)
+		if (ComponentNode->GetComponentBinding() == InBinding)
 		{
 			NodesByGraph.FindOrAdd(ComponentNode->GetOwningGraph()).Add(ComponentNode);
 		}	
@@ -1010,7 +1098,7 @@ bool UOptimusDeformer::RenameComponentBinding(
 	for (UOptimusNode* Node: AllComponentSourceNode)
 	{
 		UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
-		if (ComponentSourceNode->GetComponentSourceBinding() == InBinding)
+		if (ComponentSourceNode->GetComponentBinding() == InBinding)
 		{
 			Action->AddSubAction<FOptimusNodeAction_RenameNode>(ComponentSourceNode, FText::FromName(InNewName));
 		}	
@@ -1086,7 +1174,7 @@ bool UOptimusDeformer::SetComponentBindingSource(
 	for (UOptimusNode* Node: AllComponentSourceNode)
 	{
 		const UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
-		if (ComponentSourceNode->GetComponentSourceBinding() == InBinding)
+		if (ComponentSourceNode->GetComponentBinding() == InBinding)
 		{
 			UOptimusNodePin* ComponentSourcePin = ComponentSourceNode->GetComponentPin();
 
@@ -1434,7 +1522,12 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 	{
 		if (const IOptimusDataInterfaceProvider* DataInterfaceNode = Cast<const IOptimusDataInterfaceProvider>(ConnectedNode.Node))
 		{
-			UOptimusComputeDataInterface* DataInterface = DataInterfaceNode->GetDataInterface(this); 
+			UOptimusComputeDataInterface* DataInterface = DataInterfaceNode->GetDataInterface(this);
+			if (!DataInterface)
+			{
+				AddDiagnostic(EOptimusDiagnosticLevel::Error, LOCTEXT("NoDataInterfaceOnProvider", "No data interface object returned from node. Compilation aborted."));
+				return nullptr;
+			}
 
 			NodeDataInterfaceMap.Add(ConnectedNode.Node, DataInterface);
 		}
@@ -1443,7 +1536,7 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 			for (const UOptimusNodePin* Pin: ConnectedNode.Node->GetPins())
 			{
 				if (Pin->GetDirection() == EOptimusNodePinDirection::Output &&
-					ensure(Pin->GetStorageType() == EOptimusNodePinStorageType::Resource) &&
+					ensure(!Pin->GetDataDomain().IsSingleton()) &&
 					!LinkDataInterfaceMap.Contains(Pin))
 				{
 					for (const FOptimusRoutedNodePin& ConnectedPin: Pin->GetConnectedPinsWithRouting(ConnectedNode.TraversalContext))
@@ -1455,11 +1548,21 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 							UOptimusTransientBufferDataInterface* TransientBufferDI =
 								NewObject<UOptimusTransientBufferDataInterface>(this);
 
-							const TArray<FName> LevelNames = Pin->GetDataDomainLevelNames(); 
+							TSet<UOptimusComponentSourceBinding*> ComponentSourceBindings = Pin->GetComponentSourceBindings();
+							if (ComponentSourceBindings.Num() != 1)
+							{
+								AddDiagnostic(EOptimusDiagnosticLevel::Error,
+									FText::Format(LOCTEXT("InvalidComponentBindingOnKernelPin", "Missing or multiple component bindings on kernel-to-kernel pin ({0}). Compilation aborted."),
+										FText::FromName(Pin->GetUniqueName())),
+									ConnectedNode.Node);
+								return nullptr;
+							}
 
 							TransientBufferDI->bClearBeforeUse = true;
 							TransientBufferDI->ValueType = Pin->GetDataType()->ShaderValueType;
-							TransientBufferDI->DataDomain = LevelNames.IsEmpty() ? Optimus::DomainName::Vertex : LevelNames[0]; 
+							TransientBufferDI->DataDomain = Pin->GetDataDomain();
+							TransientBufferDI->ComponentSourceBinding = *ComponentSourceBindings.CreateConstIterator();
+							
 							LinkDataInterfaceMap.Add(Pin, TransientBufferDI);
 						}
 					}
@@ -1873,6 +1976,7 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	case EOptimusGlobalNotifyType::ResourceIndexChanged:
 	case EOptimusGlobalNotifyType::ResourceRenamed:
 	case EOptimusGlobalNotifyType::ResourceTypeChanged:
+	case EOptimusGlobalNotifyType::ResourceDomainChanged:
 		checkSlow(Cast<UOptimusResourceDescription>(InObject) != nullptr);
 		break;
 
@@ -1934,12 +2038,22 @@ void UOptimusDeformer::PostLoad()
 {
 	Super::PostLoad();
 
-	if (!Container)
-	{
-		Container = NewObject<UTestContainment>(this);
-		Container->Array.AddDefaulted();
-	}
+	// Fixup any empty array entries.
+	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
+	Variables->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusVariableDescription>& Value) { return Value == nullptr; });
 
+	// Fixup any class objects with invalid parents.
+	TArray<UObject*> Objects;
+	GetObjectsWithOuter(this, Objects, false);
+
+	for (UObject* Object : Objects)
+	{
+		if (UClass* ClassObject = Cast<UClass>(Object))
+		{
+			Optimus::RenameObject(ClassObject, nullptr, GetPackage());
+		}
+	}
+	
 	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::ReparentResourcesAndVariables)
 	{
 		// Move any resource or variable descriptor owned by this deformer to their own container.
@@ -1993,29 +2107,19 @@ void UOptimusDeformer::PostLoad()
 		{
 			if (UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node))
 			{
-				if (ComponentSourceNode->GetComponentSourceBinding()->IsPrimaryBinding())
+				if (ComponentSourceNode->GetComponentBinding()->IsPrimaryBinding())
 				{
 					ComponentSourceNode->SetDisplayName(FText::FromName(PrimaryBindingName));
 				}
 			}
 		}
 	}
-
-	// Fixup any empty array entries.
-	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
-	Variables->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusVariableDescription>& Value) { return Value == nullptr; });
-
-	// Fixup any class objects with invalid parents.
-	TArray<UObject*> Objects;
-	GetObjectsWithOuter(this, Objects, false);
-
-	for (UObject* Object : Objects)
+	// Fix any resource data domains if the component binding is valid but the domain is not. This will mostly cut links
+	// to kernels with mismatched domain info.
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::DataDomainExpansion)
 	{
-		if (UClass* ClassObject = Cast<UClass>(Object))
-		{
-			Optimus::RenameObject(ClassObject, nullptr, GetPackage());
-		}
-	}	
+		PostLoadFixupMismatchedResourceDataDomains();
+	}
 }
 
 
@@ -2104,6 +2208,23 @@ void UOptimusDeformer::PostLoadFixupMissingComponentBindingsCompat()
 }
 
 
+void UOptimusDeformer::PostLoadFixupMismatchedResourceDataDomains()
+{
+#if 0
+	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
+	
+	for (UOptimusResourceDescription* ResourceDescription: Resources->Descriptions)
+	{
+		if (ResourceDescription->IsValidComponentBinding() && ResourceDescription->DataDomain.IsSingleton())
+		{
+			
+			// SetResourceDataDomain(ResourceDescription, ResourceDescription->GetDataDomainFromComponentBinding(), true);
+		}
+	}
+#endif
+}
+
+
 UOptimusComponentSourceBinding* UOptimusDeformer::FindCompatibleBindingWithInterface(
 	const UOptimusComputeDataInterface* InDataInterface) const
 {
@@ -2189,7 +2310,7 @@ UMeshDeformerInstance* UOptimusDeformer::CreateInstance(
 	Instance->SetupFromDeformer(this);
 
 	// Make sure all the instances know when we finish compiling so they can update their local state to match.
-	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformerAndRefreshBindings);
+	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer, true);
 	ConstantValueUpdateDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetConstantValueDirect);
 	SetAllInstancesCanbeActiveDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetCanBeActive);
 

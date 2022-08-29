@@ -14,43 +14,21 @@ class UOptimusNode;
 enum class EOptimusGraphNotifyType;
 
 
+/** Specifies the storage type of the pin data */
+UENUM()
+enum class UE_DEPRECATED(5.1, "Replaced with FOptimusDataDomain") EOptimusNodePinStorageType : uint8
+{
+	Value,				/** Plain value of some type */
+	Resource			/** Resource binding of some type */
+};
+
+
 UENUM()
 enum class EOptimusNodePinDirection : uint8
 {
 	Unknown,
 	Input, 
 	Output
-};
-
-/** Specifies the storage type of the pin data */
-UENUM()
-enum class EOptimusNodePinStorageType : uint8
-{
-	Value,				/** Plain value of some type */
-	Resource			/** Resource binding of some type */
-};
-
-USTRUCT()
-struct FOptimusNodePinStorageConfig
-{
-	GENERATED_BODY()
-	
-	// Create a storage config for a value pin.
-	FOptimusNodePinStorageConfig() = default;
-	
-	// Create a storage config for a resource pin.
-	FOptimusNodePinStorageConfig(const TArray<FName>& InDataDomainLevelNames) :
-		Type(InDataDomainLevelNames.IsEmpty() ? EOptimusNodePinStorageType::Value : EOptimusNodePinStorageType::Resource),
-		DataDomain(InDataDomainLevelNames)
-	{ }
-	
-	UPROPERTY()
-	EOptimusNodePinStorageType Type = EOptimusNodePinStorageType::Value;
-
-	// The data domain for this pin. Can be one or more, for a given resource. Each domain level
-	// adds another lookup dimension to the resource.
-	UPROPERTY()
-	FOptimusMultiLevelDataDomain DataDomain;
 };
 
 
@@ -109,16 +87,9 @@ public:
 	/** Return the registered Optimus data type associated with this pin */
 	FOptimusDataTypeHandle GetDataType() const { return DataType.Resolve(); }
 
-	/** Returns the storage type for this pin, either a value or a bound resource */
-	EOptimusNodePinStorageType GetStorageType() const { return StorageType; }
-
-	/** Returns the data domain level names for this pin, if a resource pin, otherwise
-	 *  returns an empty array */
-	TArray<FName> GetDataDomainLevelNames() const
-	{
-		return StorageType == EOptimusNodePinStorageType::Resource ? DataDomain.LevelNames : TArray<FName>();
-	}
-
+	/** Returns the data domain that this pin is expected to cover */
+	const FOptimusDataDomain& GetDataDomain() const { return DataDomain; }
+	
 	/** Return all component source bindings that flow into this input pin. If the pin is an
 	 *  output pin, it always returns an empty array.
 	 */
@@ -180,14 +151,16 @@ public:
 
 	/** Returns the stored expansion state */
 	bool GetIsExpanded() const;
-	
+
+	// UObject overrides
+	void PostLoad() override;
 protected:
 	friend class UOptimusNode;
 
 	// Initialize the pin data from the given direction and property.
 	void InitializeWithData(
-		EOptimusNodePinDirection InDirection, 
-		FOptimusNodePinStorageConfig InStorageConfig,
+		EOptimusNodePinDirection InDirection,
+		FOptimusDataDomain InDataDomain,
 		FOptimusDataTypeRef InDataTypeRef
 		);
 
@@ -223,11 +196,14 @@ private:
 	UPROPERTY()
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.1, "Use DataDomain")
 	UPROPERTY()
-	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
-
+	EOptimusNodePinStorageType StorageType_DEPRECATED = EOptimusNodePinStorageType::Value;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	UPROPERTY()
-	FOptimusMultiLevelDataDomain DataDomain;
+	FOptimusDataDomain DataDomain;
 	
 	UPROPERTY()
 	FOptimusDataTypeRef DataType;

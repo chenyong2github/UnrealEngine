@@ -3,19 +3,20 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "IDetailCustomNodeBuilder.h"
 #include "IPropertyTypeCustomization.h"
 #include "OptimusDataType.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
 
 class FOptimusHLSLSyntaxHighlighter;
+class SEditableTextBox;
 class SExpandableArea;
 class SMultiLineEditableText;
 class SOptimusShaderTextDocumentTextBox;
 class SScrollBar;
 class UOptimusComponentSourceBinding;
 class UOptimusSource;
+struct FOptimusDataDomain;
 
 
 class FOptimusDataTypeRefCustomization : 
@@ -75,16 +76,16 @@ private:
 };
 
 
-class FOptimusMultiLevelDataDomainCustomization :
+class FOptimusDataDomainCustomization :
 	public IPropertyTypeCustomization
 {
 public:
-	DECLARE_EVENT_OneParam(FOptimusMultiLevelDataDomainCustomization, FOnMultiLevelDataDomainChanged, const TArray<FName>& )
+	DECLARE_EVENT_OneParam(FOptimusDataDomainCustomization, FOnDataDomainChanged, const FOptimusDataDomain& );
 	
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	FOptimusMultiLevelDataDomainCustomization();
-
+	FOptimusDataDomainCustomization();
+	
 	// IPropertyTypeCustomization overrides
 	void CustomizeHeader(
 		TSharedRef<IPropertyHandle> InPropertyHandle,
@@ -99,14 +100,53 @@ public:
 
 	void SetAllowParameters(const bool bInAllowParameters);
 
-	FOnMultiLevelDataDomainChanged OnMultiLevelDataDomainChangedDelegate; 
+	FOnDataDomainChanged OnDataDomainChangedDelegate; 
+
+	enum DomainFlags
+	{
+		DomainType			= 0x1,
+		DomainDimensions	= 0x2,
+		DomainMultiplier	= 0x4,
+		DomainExpression	= 0x8,
+
+		DomainAll			= DomainType + DomainDimensions + DomainMultiplier + DomainExpression     
+	};
 	
 private:
-	void GenerateContextNames();
+	
+	FText FormatDomainDimensionNames(
+		TSharedRef<TArray<FName>> InDimensionNames
+		) const;
+	
+	void GenerateDimensionNames(
+		const TArray<UObject*>& InOwningObjects
+		);
 
-	TArray<TSharedRef<TArray<FName>>> NestedContextNames;
+	static TOptional<FOptimusDataDomain> TryGetSingleDataDomain(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		DomainFlags InCompareFlags = DomainAll,
+		bool bInCheckMultiples = true
+		);
+
+	void SetDataDomain(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		const FOptimusDataDomain& InDataDomain,
+		DomainFlags InSetFlags = DomainAll
+		);
+
+	TSharedRef<TArray<FName>> ParameterMarker;
+	TSharedRef<TArray<FName>> ExpressionMarker;
+	TSharedPtr<SEditableTextBox> ExpressionTextBox;
+	
+	TArray<TSharedRef<TArray<FName>>> DomainDimensionNames;
 	bool bAllowParameters = false;
 };
+
+inline FOptimusDataDomainCustomization::DomainFlags operator|(FOptimusDataDomainCustomization::DomainFlags A, FOptimusDataDomainCustomization::DomainFlags B)
+{
+	return static_cast<FOptimusDataDomainCustomization::DomainFlags>(static_cast<int32>(A) | static_cast<int32>(B));
+}
+
 
 
 class FOptimusShaderTextCustomization : 
@@ -282,7 +322,8 @@ public:
 
 
 /** UI customization for UOptimusSource */
-class FOptimusSourceDetailsCustomization : public IDetailCustomization
+class FOptimusSourceDetailsCustomization :
+	public IDetailCustomization
 {
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();
@@ -329,17 +370,33 @@ private:
 };
 
 
+/** UI customization for UOptimusResourceDescription */
+class FOptimusResourceDescriptionDetailsCustomization :
+	public IDetailCustomization
+{
+public:
+	static TSharedRef<IDetailCustomization> MakeInstance();
+
+protected:
+	//~ Begin IDetailCustomization Interface.
+	void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	//~ End IDetailCustomization Interface.
+
+private:
+	TArray<UOptimusComponentSourceBinding*> ComponentBindings; 
+};
+
+
+
 /** UI customization for FOptimusDeformerInstanceComponentBinding */
 class FOptimusDeformerInstanceComponentBindingCustomization :
 	public IPropertyTypeCustomization
 {
 public:
-	virtual ~FOptimusDeformerInstanceComponentBindingCustomization() override;
-	
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
 protected:
-	FOptimusDeformerInstanceComponentBindingCustomization();
+	FOptimusDeformerInstanceComponentBindingCustomization() = default;
 
 	// -- IPropertyTypeCustomization overrides
 	void CustomizeHeader(

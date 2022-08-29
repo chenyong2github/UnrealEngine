@@ -55,24 +55,7 @@ TArray<TSubclassOf<UOptimusComputeDataInterface>> UOptimusComputeDataInterface::
 }
 
 
-TSet<FName> UOptimusComputeDataInterface::GetUniqueAllTopLevelContexts()
-{
-	TSet<FName> UniqueTopLevelContextNames;
-	for (const TSubclassOf<UOptimusComputeDataInterface> DataInterfaceClass: GetAllComputeDataInterfaceClasses())
-	{
-		UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
-		if (DataInterface)
-		{
-			for (const TArray<FName>& NestedContext: DataInterface->GetUniqueNestedContexts())
-			{
-				UniqueTopLevelContextNames.Add(NestedContext[0]);
-			}
-		}
-	}
-	return UniqueTopLevelContextNames;
-}
-
-TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueAllNestedContexts()
+TSet<TArray<FName>> UOptimusComputeDataInterface::GetUniqueDomainDimensions()
 {
 	TSet<TArray<FName>> UniqueNestedContextNames;
 	for (const TSubclassOf<UOptimusComputeDataInterface> DataInterfaceClass: GetAllComputeDataInterfaceClasses())

@@ -142,13 +142,9 @@ public:
 	/// Returns all known UOptimusComputeDataInterface-derived classes.
 	static TArray<TSubclassOf<UOptimusComputeDataInterface>> GetAllComputeDataInterfaceClasses();
 
-	/// Returns the list of all top-level contexts from all known data interfaces. These can be 
-	/// used to define driver contexts and resource contexts on a kernel.
-	static TSet<FName> GetUniqueAllTopLevelContexts();
-
 	/// Returns the list of all nested contexts from all known data interfaces. These can be 
 	/// used to define input/output pin contexts on a kernel.
-	static TSet<TArray<FName>> GetUniqueAllNestedContexts();
+	static TSet<TArray<FName>> GetUniqueDomainDimensions();
 
 	// Registers types for all known data interfaces.
 	static void RegisterAllTypes();

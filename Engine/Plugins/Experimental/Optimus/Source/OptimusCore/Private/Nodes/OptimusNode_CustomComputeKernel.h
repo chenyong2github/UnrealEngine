@@ -59,6 +59,7 @@ public:
 	TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const override { return AdditionalSources; }
 
 	// IOptimusComputeKernelProvider
+	FName GetExecutionDomain() const override { return ExecutionDomain.Name; } 
 	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override;
 	
 #if WITH_EDITOR

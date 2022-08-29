@@ -8,11 +8,6 @@
 #define LOCTEXT_NAMESPACE "OptimusSkeletalMeshComponentSource"
 
 
-FName UOptimusSkeletalMeshComponentSource::Contexts::Vertex("Vertex");
-FName UOptimusSkeletalMeshComponentSource::Contexts::Triangle("Triangle");
-FName UOptimusSkeletalMeshComponentSource::Contexts::Bone("Bone");
-
-
 TSubclassOf<UActorComponent> UOptimusSkeletalMeshComponentSource::GetComponentClass() const
 {
 	return USkeletalMeshComponent::StaticClass();
@@ -22,11 +17,6 @@ TSubclassOf<UActorComponent> UOptimusSkeletalMeshComponentSource::GetComponentCl
 FText UOptimusSkeletalMeshComponentSource::GetDisplayName() const
 {
 	return LOCTEXT("SkeletalMeshComponent", "Skeletal Mesh Component");
-}
-
-TArray<FName> UOptimusSkeletalMeshComponentSource::GetExecutionContexts() const
-{
-	return {Contexts::Vertex, Contexts::Triangle, Contexts::Bone};
 }
 
 

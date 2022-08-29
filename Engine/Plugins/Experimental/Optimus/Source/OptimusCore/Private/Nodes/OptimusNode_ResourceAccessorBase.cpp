@@ -6,6 +6,8 @@
 #include "OptimusResourceDescription.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
+#define LOCTEXT_NAMESPACE "OptimusResourceAccessorBase"
+
 
 void UOptimusNode_ResourceAccessorBase::SetResourceDescription(UOptimusResourceDescription* InResourceDesc)
 {
@@ -30,18 +32,31 @@ UOptimusResourceDescription* UOptimusNode_ResourceAccessorBase::GetResourceDescr
 }
 
 
+TOptional<FText> UOptimusNode_ResourceAccessorBase::ValidateForCompile() const
+{
+	const UOptimusResourceDescription* ResourceDescription = GetResourceDescription();
+	if (!ResourceDescription)
+	{
+		return LOCTEXT("NoDescriptor", "No resource descriptor set on this node");
+	}
+
+	if (!ResourceDescription->ComponentBinding.IsValid())
+	{
+		return FText::Format(LOCTEXT("NoComponentBinding", "No component binding set for resource '{0}'"), FText::FromName(ResourceDescription->ResourceName));
+	}
+
+	return {};
+}
+
 UOptimusComputeDataInterface* UOptimusNode_ResourceAccessorBase::GetDataInterface(
 	UObject* InOuter
 	) const
 {
+	// This should have been validated in ValidateForCompile.
 	UOptimusResourceDescription* Description = ResourceDesc.Get();
-	if (!Description)
+	if (!ensure(Description))
 	{
-		// FIXME: This should be handled as a nullptr and dealt with on the calling side.
-		UOptimusPersistentBufferDataInterface* DummyInterface = NewObject<UOptimusPersistentBufferDataInterface>(InOuter);
-		DummyInterface->ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
-		DummyInterface->DataDomain = Optimus::DomainName::Vertex;
-		return DummyInterface;
+		return nullptr;
 	}
 	
 	if (!Description->DataInterface)
@@ -52,6 +67,7 @@ UOptimusComputeDataInterface* UOptimusNode_ResourceAccessorBase::GetDataInterfac
 	Description->DataInterface->ResourceName = Description->ResourceName;
 	Description->DataInterface->ValueType = Description->DataType->ShaderValueType;
 	Description->DataInterface->DataDomain = Description->DataDomain;
+	Description->DataInterface->ComponentSourceBinding = Description->ComponentBinding;
 	
 	return Description->DataInterface;
 }
@@ -64,3 +80,5 @@ UOptimusComponentSourceBinding* UOptimusNode_ResourceAccessorBase::GetComponentB
 	}
 	return nullptr;
 }
+
+#undef LOCTEXT_NAMESPACE

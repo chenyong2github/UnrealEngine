@@ -34,6 +34,7 @@
 #include "Widgets/SOptimusEditorGraphExplorer.h"
 #include "Widgets/SOptimusShaderTextDocumentTextBox.h"
 #include "Algo/Transform.h"
+#include "OptimusCore/Private/Actions/OptimusResourceActions.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -176,7 +177,7 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 
 	RegisterPropertyCustomization(FOptimusDataTypeRef::StaticStruct()->GetFName(), &FOptimusDataTypeRefCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusExecutionDomain::StaticStruct()->GetFName(), &FOptimusExecutionDomainCustomization::MakeInstance);
-	RegisterPropertyCustomization(FOptimusMultiLevelDataDomain::StaticStruct()->GetFName(), &FOptimusMultiLevelDataDomainCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusDataDomain::StaticStruct()->GetFName(), &FOptimusDataDomainCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusShaderText::StaticStruct()->GetFName(), &FOptimusShaderTextCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBinding::StaticStruct()->GetFName(), &FOptimusParameterBindingCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBindingArray::StaticStruct()->GetFName(), &FOptimusParameterBindingArrayCustomization::MakeInstance);
@@ -195,6 +196,8 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 
 	RegisterDetailCustomization(UOptimusSource::StaticClass()->GetFName(), &FOptimusSourceDetailsCustomization::MakeInstance);
 	RegisterDetailCustomization(UOptimusComponentSourceBinding::StaticClass()->GetFName(), &FOptimusComponentSourceBindingDetailsCustomization::MakeInstance);
+	RegisterDetailCustomization(UOptimusResourceDescription::StaticClass()->GetFName(), &FOptimusResourceDescriptionDetailsCustomization::MakeInstance);
+	PropertyModule.NotifyCustomizationModuleChanged();
 }
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()
@@ -209,6 +212,7 @@ void FOptimusEditorModule::UnregisterPropertyCustomizations()
 		{
 			PropertyModule->UnregisterCustomClassLayout(ClassName);
 		}
+		PropertyModule->NotifyCustomizationModuleChanged();
 	}
 }
 

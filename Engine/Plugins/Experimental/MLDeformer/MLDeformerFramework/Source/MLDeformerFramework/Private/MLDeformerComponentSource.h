@@ -13,7 +13,7 @@ class UMLDeformerComponentSource :
 {
 	GENERATED_BODY()
 public:
-	struct Contexts
+	struct Domains
 	{
 		static FName Vertex;
 	};
@@ -22,5 +22,6 @@ public:
 	FText GetDisplayName() const override;
 	FName GetBindingName() const override { return FName("MLDeformer"); }
 	TSubclassOf<UActorComponent> GetComponentClass() const override;
-	TArray<FName> GetExecutionContexts() const override;
+	TArray<FName> GetExecutionDomains() const override;
+	bool GetComponentElementCountsForExecutionDomain(FName InDomainName, const UActorComponent* InComponent, TArray<int32>& OutElementCounts) const override;
 };

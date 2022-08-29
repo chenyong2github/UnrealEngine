@@ -14,44 +14,100 @@ namespace Optimus::DomainName
 	extern OPTIMUSCORE_API const FName Bone;
 	extern OPTIMUSCORE_API const FName UVChannel;
 	extern OPTIMUSCORE_API const FName Index0;
-	extern OPTIMUSCORE_API const FName Index1;
-	extern OPTIMUSCORE_API const FName Index2;
 }
 
-/** A struct to hold onto a multi-level data domain, as defined by compute kernels and data
-*   interfaces. A multi-level data domain is used to describe a nested levels of data domains
-*   where each element in a higher domain hold a series of elements in another domain (e.g.
-*	bone data per vertex, where there are varying number of bone elements per vertex).
+namespace Optimus
+{
+	OPTIMUSCORE_API FString FormatDimensionNames(const TArray<FName>& InNames);
+}
+
+
+UENUM()
+enum class EOptimusDataDomainType
+{
+	Dimensional = 0,	/** Dimensional, e.g. has zero or more named dimensions of lookup. Zero-dimensional data domain is a singleton, e.g. a parameter */
+	Expression = 1,		/** Expression, only a single dimension allowed for now */
+};
+
+/** A struct to specify the domain range of a resource buffer, as defined by compute kernels and data
+*   interfaces. Data domains can be multi-dimensional, expression-based, or empty. Empty domains on pins imply a single
+*   value, like a parameter. 
+*
+*   Domains come in two flavors, either as a pre-defined list with a multiplier, or as an arithmetic expression. For
+*   domains with a multiplier, the multiplier only applies to the innermost dimension (e.g. Vertex.Bone x 2, allows
+*   for two values per-bone, but not two values per-bone _and_ per-vertex)
+*
+*   The expression can take any execution domain, or none (e.g. "Vertex * 2 + 1", "Triangle * 2 + Vertex * 6", "1024").
+*   If an expression is used, the domain is one-dimensional.
+*   As of now, expression domain comparison is done on the string level, such that "Vertex * 2" and "2 * Vertex" are 
+*   not marked as compatible domains. 
 */
 USTRUCT()
-struct OPTIMUSCORE_API FOptimusMultiLevelDataDomain
+struct OPTIMUSCORE_API FOptimusDataDomain
 {
 	GENERATED_BODY()
 
-	FOptimusMultiLevelDataDomain() = default;
-	FOptimusMultiLevelDataDomain(FName InRootName) : LevelNames({InRootName}) {}
-	FOptimusMultiLevelDataDomain(TArray<FName> InLevelNames) : LevelNames(InLevelNames) {}
+	FOptimusDataDomain() = default;
+	FOptimusDataDomain(const FOptimusDataDomain&) = default;
+	
+	explicit FOptimusDataDomain(TArray<FName> InDimensionNames) :
+		DimensionNames(InDimensionNames)
+	{}
 
-	// The name of the context that this resource/kernel applies to.
-	UPROPERTY(EditAnywhere, Category = Domain)
-	TArray<FName> LevelNames{Optimus::DomainName::Vertex};
-
-	/** Returns true if the multi-level domain is empty */  
-	bool IsEmpty() const
+	explicit FOptimusDataDomain(TArray<FName> InDimensionNames, int32 InMultiplier) :
+		DimensionNames(InDimensionNames),
+		Multiplier(DimensionNames.Num() == 1 ? FMath::Max(InMultiplier, 1) : 1)
 	{
-		return LevelNames.IsEmpty();
 	}
 	
-	/** Returns true if this multi-level data domain is valid */
-	bool IsValid() const
+	FOptimusDataDomain(FString InExpression) :
+		Type(EOptimusDataDomainType::Expression),
+		Expression(MoveTemp(InExpression))
+	{}
+	
+	UPROPERTY(EditAnywhere, Category = DataDomain)
+	EOptimusDataDomainType Type = EOptimusDataDomainType::Dimensional;
+
+	// The name of the context that this resource/kernel applies to.
+	UPROPERTY(EditAnywhere, Category = DataDomain, meta=(EditCondition="DomainType==EOptimusDataDomainType::Dimensional"))
+	TArray<FName> DimensionNames;
+	
+	UPROPERTY(EditAnywhere, Category = DataDomain, meta=(ClampMin=1, UIMax=8, SupportDynamicSliderMaxValue="true", EditCondition="DomainType==EOptimusDataDomainType::Dimensional"))
+	int32 Multiplier = 1;
+
+	//  
+	UPROPERTY(EditAnywhere, Category = DataDomain, meta=(EditCondition="DomainType==EOptimusDataDomainType::Expression"))
+	FString Expression;
+
+	/** A convenience function to compute element counts from a data domain based on execution domain element counts.
+	 *  Current limitation is that it will only return values for zero- or one-dimensional domains, or expressions.
+	 *  If an expression is invalid, or the dimension counts are greater than one, and empty array is returned.
+	 *  \param InDomainCounts A map of execution domains and their element counts.   
+	 */
+	TOptional<int32> GetElementCount(TMap<FName, int32> InDomainCounts) const;
+	
+	/** Convenience function to check if this data domain is a singleton */
+	bool IsSingleton() const
 	{
-		for (FName Name: LevelNames)
-		{
-			if (Name.IsNone())
-			{
-				return false;
-			}
-		}
-		return !LevelNames.IsEmpty();
-	}
+		return Type == EOptimusDataDomainType::Dimensional && DimensionNames.IsEmpty();
+	} 
+
+	bool operator==(const FOptimusDataDomain& InOtherDomain) const;
+	bool operator!=(const FOptimusDataDomain& InOtherDomain) const { return !operator==(InOtherDomain); }
+	void PostSerialize(const FArchive& Ar);
+	void BackCompFixupLevels();
+	
+private:
+	UPROPERTY()
+	TArray<FName> LevelNames_DEPRECATED{"Vertex"};
+};
+
+template<>
+struct TStructOpsTypeTraits<FOptimusDataDomain> : public TStructOpsTypeTraitsBase2<FOptimusDataDomain>
+{
+	enum 
+	{
+		WithIdenticalViaEquality = true,
+		WithPostSerialize = true,
+	};
 };

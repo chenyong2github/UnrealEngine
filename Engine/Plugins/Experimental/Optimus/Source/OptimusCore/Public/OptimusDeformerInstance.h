@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "IOptimusComponentBindingsProvider.h"
 #include "Animation/MeshDeformerInstance.h"
 #include "ComputeFramework/ComputeGraphInstance.h"
 
@@ -31,6 +30,7 @@ public:
 	void GetResourceBuffers(
 		FRDGBuilder& GraphBuilder,
 		FName InResourceName,
+		int32 InLODIndex,
 		int32 InElementStride,
 		TArray<int32> const& InElementCounts,
 		TArray<FRDGBuffer*>& OutBuffers );
@@ -39,7 +39,7 @@ public:
 	void ReleaseResources();
 	
 private:
-	TMap<FName, TArray<FOptimusPersistentStructuredBuffer>> ResourceBuffersMap;
+	TMap<FName, TMap<int32, TArray<FOptimusPersistentStructuredBuffer>>> ResourceBuffersMap;
 };
 using FOptimusPersistentBufferPoolPtr = TSharedPtr<FOptimusPersistentBufferPool>;
 
@@ -88,8 +88,7 @@ struct FOptimusDeformerInstanceComponentBinding
 
 UCLASS(Blueprintable, BlueprintType)
 class OPTIMUSCORE_API UOptimusDeformerInstanceSettings :
-	public UMeshDeformerInstanceSettings,
-	public IOptimusComponentBindingsProvider
+	public UMeshDeformerInstanceSettings
 {
 	GENERATED_BODY()
 
@@ -103,10 +102,9 @@ public:
 		UMeshComponent* InMeshComponent
 		);
 
-	// -- IOptimusComponentBindingsProvider
-	TArray<UActorComponent*> GetBoundComponents() const override;
-	AActor* GetActor() const override;
-	UOptimusComponentSourceBinding* GetComponentBindingByName(FName InBindingName) const override;
+	TArray<UActorComponent*> GetBoundComponents() const;
+	AActor* GetActor() const;
+	UOptimusComponentSourceBinding* GetComponentBindingByName(FName InBindingName) const;
 
 #if WITH_EDITOR
 	// -- UObject

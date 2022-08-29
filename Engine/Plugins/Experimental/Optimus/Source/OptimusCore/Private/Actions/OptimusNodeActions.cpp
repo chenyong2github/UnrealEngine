@@ -218,34 +218,34 @@ bool FOptimusNodeAction_SetPinType::SetPinType(
 
 
 FOptimusNodeAction_SetPinDataDomain::FOptimusNodeAction_SetPinDataDomain(
-	UOptimusNodePin* InPin,
-	const TArray<FName>& InContextNames
+	const UOptimusNodePin* InPin,
+	const FOptimusDataDomain& InDataDomain
 	)
 {
 	if (ensure(InPin))
 	{
 		PinPath = InPin->GetPinPath();
-		NewContextNames = InContextNames;
-		OldContextNames = InPin->GetDataDomainLevelNames();
+		NewDataDomain = InDataDomain;
+		OldDataDomain = InPin->GetDataDomain();
 	}
 }
 
 
 bool FOptimusNodeAction_SetPinDataDomain::Do(IOptimusPathResolver* InRoot)
 {
-	return SetPinDataDomain(InRoot, NewContextNames);
+	return SetPinDataDomain(InRoot, NewDataDomain);
 }
 
 
 bool FOptimusNodeAction_SetPinDataDomain::Undo(IOptimusPathResolver* InRoot)
 {
-	return SetPinDataDomain(InRoot, OldContextNames);
+	return SetPinDataDomain(InRoot, OldDataDomain);
 }
 
 
 bool FOptimusNodeAction_SetPinDataDomain::SetPinDataDomain(
 	IOptimusPathResolver* InRoot,
-	const TArray<FName>& InContextNames
+	const FOptimusDataDomain& InDataDomain
 	) const
 {
 	UOptimusNodePin *Pin = InRoot->ResolvePinPath(PinPath);
@@ -255,7 +255,7 @@ bool FOptimusNodeAction_SetPinDataDomain::SetPinDataDomain(
 		return false;
 	}
 
-	return Pin->GetOwningNode()->SetPinDataDomainDirect(Pin, InContextNames);
+	return Pin->GetOwningNode()->SetPinDataDomainDirect(Pin, InDataDomain);
 }
 
 
@@ -319,7 +319,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(
 	UOptimusNode* InNode,
 	FName InName,
 	EOptimusNodePinDirection InDirection,
-	FOptimusNodePinStorageConfig InStorageConfig,
+	const FOptimusDataDomain& InDataDomain,
 	FOptimusDataTypeRef InDataType,
 	const UOptimusNodePin* InBeforePin,
 	const UOptimusNodePin* InParentPin
@@ -334,7 +334,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(
 		NodePath = InNode->GetNodePath();
 		PinName = InName;
 		Direction = InDirection;
-		StorageConfig = InStorageConfig;
+		DataDomain = InDataDomain;
 		DataType = InDataType.TypeName;
 
 		// New pins are always created in a non-expanded state.
@@ -389,14 +389,7 @@ FOptimusNodeAction_AddRemovePin::FOptimusNodeAction_AddRemovePin(UOptimusNodePin
 
 		if (!bIsGroupingPin)
 		{
-			if (InPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
-			{
-				StorageConfig = FOptimusNodePinStorageConfig(InPin->GetDataDomainLevelNames());
-			}
-			else
-			{
-				StorageConfig = FOptimusNodePinStorageConfig();
-			}
+			DataDomain = InPin->GetDataDomain();
 			DataType = InPin->GetDataType()->TypeName;
 		}
 
@@ -468,7 +461,7 @@ bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusPathResolver* InRoot)
 			return false;
 		}
 		
-		Pin = Node->AddPinDirect(PinName, Direction, StorageConfig, TypeRef, BeforePin, ParentPin);
+		Pin = Node->AddPinDirect(PinName, Direction, DataDomain, TypeRef, BeforePin, ParentPin);
 	}
 	
 	if (!Pin)

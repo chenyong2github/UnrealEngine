@@ -45,6 +45,7 @@ public:
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const override;
 
+	FName GetExecutionDomain() const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetExecutionDomain, return NAME_None; );
 	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetPrimaryGroupInputPins, return {}; );  
 
 	// -- UOptimusNode overrides

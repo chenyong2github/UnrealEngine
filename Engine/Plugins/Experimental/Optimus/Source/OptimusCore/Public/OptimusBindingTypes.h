@@ -44,7 +44,7 @@ struct FOptimusParameterBinding
 	}
 	
 	UPROPERTY(EditAnywhere, Category = Binding)
-	FOptimusMultiLevelDataDomain DataDomain;
+	FOptimusDataDomain DataDomain;
 };
 
 

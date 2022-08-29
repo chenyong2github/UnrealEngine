@@ -3,6 +3,7 @@
 #pragma once
 
 #include "OptimusAction.h"
+#include "OptimusDataDomain.h"
 
 #include "OptimusDataType.h"
 
@@ -129,4 +130,39 @@ private:
 
 	// The data type of the resource
 	FOptimusDataTypeRef OldDataType;
+};
+
+
+USTRUCT()
+struct FOptimusResourceAction_SetDataDomain : 
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusResourceAction_SetDataDomain() = default;
+
+	FOptimusResourceAction_SetDataDomain(
+		UOptimusResourceDescription* InResource,
+		const FOptimusDataDomain& InDataDomain
+		);
+
+protected:
+	bool Do(IOptimusPathResolver* InRoot) override;
+	bool Undo(IOptimusPathResolver* InRoot) override;
+
+private:
+	bool SetDataDomain(
+		IOptimusPathResolver* InRoot, 
+		const FOptimusDataDomain& InDataDomain
+		) const;
+
+	// The name of the resource to update.
+	FName ResourceName;
+
+	// The data domain of the resource
+	FOptimusDataDomain NewDataDomain;
+
+	// The data type of the resource
+	FOptimusDataDomain OldDataDomain;
 };

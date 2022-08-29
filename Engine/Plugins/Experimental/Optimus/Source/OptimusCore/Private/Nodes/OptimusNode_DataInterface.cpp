@@ -39,7 +39,7 @@ bool UOptimusNode_DataInterface::ValidateConnection(
 			return false;
 		}
 
-		const UOptimusComponentSource* ComponentSource = SourceNode->GetComponentSourceBinding()->GetComponentSource();
+		const UOptimusComponentSource* ComponentSource = SourceNode->GetComponentBinding()->GetComponentSource();
 		if (!IsComponentSourceCompatible(ComponentSource))
 		{
 			if (OutReason)
@@ -179,7 +179,7 @@ UOptimusComponentSourceBinding* UOptimusNode_DataInterface::GetComponentBinding(
 }
 
 
-void UOptimusNode_DataInterface::PostLoad()
+void UOptimusNode_DataInterface::PostLoad() 
 {
 	Super::PostLoad();
 
@@ -369,8 +369,8 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			ContextNames.Add(ContextInfo.ContextName);
 		}
 
-		const FOptimusNodePinStorageConfig StorageConfig(ContextNames);
-		AddPinDirect(InDefinition.PinName, PinDirection, StorageConfig, PinDataType);
+		const FOptimusDataDomain DataDomain{ContextNames};
+		AddPinDirect(InDefinition.PinName, PinDirection, DataDomain, PinDataType);
 	}
 	else
 	{

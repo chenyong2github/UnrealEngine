@@ -4,12 +4,26 @@
 
 #include "OptimusDeformer.h"
 #include "OptimusHelpers.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 
 UOptimusDeformer* UOptimusResourceDescription::GetOwningDeformer() const
 {
 	const UOptimusResourceContainer* Container = CastChecked<UOptimusResourceContainer>(GetOuter());
 	return Container ? CastChecked<UOptimusDeformer>(Container->GetOuter()) : nullptr;
+}
+
+
+void UOptimusResourceDescription::PostLoad()
+{
+	Super::PostLoad();
+	
+	if (DataInterface)
+	{
+		// Ensure the DI is in sync with this resource description.
+		DataInterface->DataDomain = DataDomain;
+		DataInterface->ComponentSourceBinding = ComponentBinding;
+	}
 }
 
 
@@ -47,6 +61,51 @@ void UOptimusResourceDescription::PostEditChangeProperty(
 			// type-incompatible.
 			constexpr bool bForceChange = true;
 			Deformer->SetResourceDataType(this, DataType, bForceChange);
+			if (DataInterface)
+			{
+				// TBD: The data interface should be referring back to us instead.
+				DataInterface->ValueType = DataType->ShaderValueType;
+			}
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UOptimusResourceDescription, ComponentBinding))
+	{
+		if (IsValidComponentBinding())
+		{
+			UOptimusDeformer *Deformer = GetOwningDeformer();
+			if (ensure(Deformer))
+			{
+				// Set a default domain based on the component binding that got set.
+				Deformer->SetResourceDataDomain(this, GetDataDomainFromComponentBinding());
+
+				if (DataInterface)
+				{
+					// TBD: The data interface should be referring back to us instead.
+					DataInterface->DataDomain = DataDomain;
+					DataInterface->ComponentSourceBinding = ComponentBinding;
+				}
+			}
+		}
+	}
+	else if (
+		PropertyName == GET_MEMBER_NAME_CHECKED(UOptimusResourceDescription, DataDomain) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataDomain, Type) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataDomain, DimensionNames) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FOptimusDataDomain, Expression) )
+	{
+		UOptimusDeformer *Deformer = GetOwningDeformer();
+		if (ensure(Deformer))
+		{
+			// Set the resource data domain again, so that we can remove any links that are now
+			// domain-incompatible.
+			constexpr bool bForceChange = true;
+			Deformer->SetResourceDataDomain(this, DataDomain, bForceChange);
+			
+			if (DataInterface)
+			{
+				// TBD: The data interface should be referring back to us instead.
+				DataInterface->DataDomain = DataDomain;
+			}
 		}
 	}
 }
@@ -69,6 +128,16 @@ void UOptimusResourceDescription::PostEditUndo()
 		const UOptimusDeformer *Deformer = GetOwningDeformer();
 		Deformer->Notify(EOptimusGlobalNotifyType::ResourceRenamed, this);
 	}
+}
+
+bool UOptimusResourceDescription::IsValidComponentBinding() const
+{
+	return ComponentBinding.IsValid() && !ComponentBinding->GetComponentSource()->GetExecutionDomains().IsEmpty();
+}
+
+FOptimusDataDomain UOptimusResourceDescription::GetDataDomainFromComponentBinding() const
+{
+	return FOptimusDataDomain(TArray<FName>{ComponentBinding->GetComponentSource()->GetExecutionDomains()[0]});
 }
 
 #endif

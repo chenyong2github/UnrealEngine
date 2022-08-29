@@ -72,13 +72,15 @@ public:
 	 * Return an UOptimusKernelSource object, from a compute kernel node state that implements
 	 * this interface.
 	 * @param InKernelSourceOuter The outer object that will own the new kernel source.
-	 * @param InTraversalContext
-	 * @param InNodeDataInterfaceMap
+	 * @param InTraversalContext The current context being used to traverse from the graph. Used mainly to keep track of graph nesting.
+	 * @param InNodeDataInterfaceMap Map from UOptimusNode objects to data interfaces.
 	 * @param InLinkDataInterfaceMap
 	 * @param InValueNodes
 	 * @param InGraphDataInterface
+	 * @param InGraphDataComponentBinding
 	 * @param OutInputDataBindings
 	 * @param OutOutputDataBindings
+	 * @param OutExecutionDataInterface
 	 */
 	virtual FOptimus_ComputeKernelResult CreateComputeKernel(
 		UObject* InKernelSourceOuter,
@@ -90,7 +92,10 @@ public:
 		const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
-	) const = 0;
+		) const = 0;
+
+	/** Returns the execution domain that this kernel should iterate over */
+	virtual FName GetExecutionDomain() const = 0;
 
 	/** Returns the input pins of the primary group only. Used for traversing up the graph to identify the component
 	 *  source.

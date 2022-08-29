@@ -9,6 +9,7 @@
 #include "OptimusDataType.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusComponentSource.h"
+#include "OptimusDataDomain.h"
 
 #include "Animation/MeshDeformer.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
@@ -93,43 +94,6 @@ class UOptimusResourceContainer :
 public:
 	UPROPERTY()
 	TArray<TObjectPtr<UOptimusResourceDescription>> Descriptions;
-};
-
-USTRUCT()
-struct FTestArrayItem
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, Category="Items")
-	int32 ItemA = 0;
-
-	UPROPERTY(EditAnywhere, Category="Items");
-	float ItemB = 0;
-};
-
-UCLASS(EditInlineNew)
-class UTestContainment : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category="Items", meta=(EditInline))
-	int32 ItemA = 0;
-	
-	UPROPERTY(EditAnywhere, Category="Array");
-	TArray<FTestArrayItem> Array;
-};
-
-USTRUCT()
-struct FContainerContainer
-{
-	GENERATED_BODY()
-	
-	UPROPERTY(EditAnywhere, Category = "Container")
-	FString Name;
-
-	UPROPERTY(VisibleAnywhere, Category="Container", meta=(EditInline));
-	TObjectPtr<UTestContainment> Container = nullptr;
 };
 
 
@@ -227,6 +191,12 @@ public:
 		bool bInForceChange = false
 		);
 
+	bool SetResourceDataDomain(
+		UOptimusResourceDescription* InResourceDesc,
+		const FOptimusDataDomain& InDataDomain,
+		bool bInForceChange = false
+		);
+	
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusResourceDescription*>& GetResources() const { return Resources->Descriptions; }
 
@@ -345,12 +315,6 @@ public:
 	UPROPERTY(EditAnywhere, Category=Preview)
 	TObjectPtr<USkeletalMesh> Mesh = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Category="Container", meta=(EditInline));
-	TObjectPtr<UTestContainment> Container = nullptr;
-	
-	// UPROPERTY(EditAnywhere, Category=Test, meta=(ShowOnlyInnerProperties))
-	// FContainerContainer Container;
-	
 protected:
 	friend class UOptimusComponentSourceBinding;
 	friend class UOptimusDeformerInstance;
@@ -365,6 +329,7 @@ protected:
 	friend struct FOptimusResourceAction_RemoveResource;
 	friend struct FOptimusResourceAction_RenameResource;
 	friend struct FOptimusResourceAction_SetDataType;
+	friend struct FOptimusResourceAction_SetDataDomain;
 	friend struct FOptimusVariableAction_AddVariable;
 	friend struct FOptimusVariableAction_RemoveVariable;
 	friend struct FOptimusVariableAction_RenameVariable;
@@ -393,6 +358,11 @@ protected:
 	bool SetResourceDataTypeDirect(
 		UOptimusResourceDescription* InResourceDesc,
 		FOptimusDataTypeRef InDataType
+		);
+
+	bool SetResourceDataDomainDirect(
+		UOptimusResourceDescription* InResourceDesc,
+		const FOptimusDataDomain& InDataDomain
 		);
 
 	
@@ -452,6 +422,7 @@ protected:
 	
 private:
 	void PostLoadFixupMissingComponentBindingsCompat();
+	void PostLoadFixupMismatchedResourceDataDomains();
 
 	/** Find a compatible binding with the given data interface. Returns nullptr if no such binding exists */
 	UOptimusComponentSourceBinding* FindCompatibleBindingWithInterface(

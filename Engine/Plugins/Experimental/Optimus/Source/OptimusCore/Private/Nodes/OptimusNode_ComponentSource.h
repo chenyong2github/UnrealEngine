@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IOptimusComponentBindingProvider.h"
 #include "OptimusNode.h"
 
 #include "OptimusComponentSource.h"
@@ -11,7 +12,8 @@
 
 UCLASS(Hidden)
 class UOptimusNode_ComponentSource :
-	public UOptimusNode
+	public UOptimusNode,
+	public IOptimusComponentBindingProvider
 {
 	GENERATED_BODY()
 public:
@@ -19,13 +21,14 @@ public:
 		UOptimusComponentSourceBinding* InBinding
 		);
 
-	UOptimusComponentSourceBinding *GetComponentSourceBinding() const
+	// UOptimusNode overrides
+	FName GetNodeCategory() const override;
+
+	// IOptimusComponentSourceBindingProvider implementation
+	UOptimusComponentSourceBinding *GetComponentBinding() const override
 	{
 		return Binding;
 	}
-
-	// UOptimusNode overrides
-	FName GetNodeCategory() const override;
 
 protected:
 	friend class UOptimusDeformer;

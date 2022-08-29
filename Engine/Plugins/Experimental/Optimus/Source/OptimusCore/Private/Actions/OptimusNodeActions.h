@@ -179,8 +179,8 @@ public:
 	FOptimusNodeAction_SetPinDataDomain() = default;
 
 	FOptimusNodeAction_SetPinDataDomain(
-		UOptimusNodePin *InPin,
-		const TArray<FName>& InContextNames
+		const UOptimusNodePin *InPin,
+		const FOptimusDataDomain& InDataDomain
 		);
 
 protected:
@@ -190,17 +190,17 @@ protected:
 private:
 	bool SetPinDataDomain(
 		IOptimusPathResolver* InRoot,
-		const TArray<FName>& InContextNames
+		const FOptimusDataDomain& InDataDomain
 		) const;
 	
 	// The path of the pin to set the value on
 	FString PinPath;
 
-	// The resource contexts to set
-	TArray<FName> NewContextNames;
+	// The new data domain to set
+	FOptimusDataDomain NewDataDomain;
 
-	// The old resource contexts
-	TArray<FName> OldContextNames;
+	// The old data domain
+	FOptimusDataDomain OldDataDomain;
 };
 
 USTRUCT()
@@ -245,7 +245,7 @@ struct FOptimusNodeAction_AddRemovePin :
 		UOptimusNode* InNode,
 		FName InName,
 		EOptimusNodePinDirection InDirection,
-		FOptimusNodePinStorageConfig InStorageConfig,
+		const FOptimusDataDomain& InDataDomain,
 		FOptimusDataTypeRef InDataType,
 		const UOptimusNodePin* InBeforePin = nullptr,
 		const UOptimusNodePin* InParentPin = nullptr
@@ -279,8 +279,8 @@ protected:
 	// Is it a grouping pin?
 	bool bIsGroupingPin = false;
 
-	// The storage configuration (value vs resource, etc.)
-	FOptimusNodePinStorageConfig StorageConfig;
+	// The the data domain assumed for this pin.
+	FOptimusDataDomain DataDomain;
 
 	// The data type of the pin to create
 	FName DataType = NAME_None;
@@ -321,12 +321,12 @@ struct FOptimusNodeAction_AddPin :
 		UOptimusNode* InNode,
 		FName InName,
 		EOptimusNodePinDirection InDirection,
-		FOptimusNodePinStorageConfig InStorageConfig,
+		FOptimusDataDomain InDataDomain,
 		FOptimusDataTypeRef InDataType,
 		const UOptimusNodePin* InBeforePin = nullptr,
 		const UOptimusNodePin* InParentPin = nullptr
 	) :
-		FOptimusNodeAction_AddRemovePin(InNode, InName, InDirection, InStorageConfig, InDataType, InBeforePin, InParentPin)
+		FOptimusNodeAction_AddRemovePin(InNode, InName, InDirection, InDataDomain, InDataType, InBeforePin, InParentPin)
 	{
 	}
 

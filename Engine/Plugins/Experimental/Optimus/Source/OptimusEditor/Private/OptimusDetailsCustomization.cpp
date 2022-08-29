@@ -6,7 +6,6 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
-#include "IOptimusComponentBindingsProvider.h"
 #include "IOptimusExecutionDomainProvider.h"
 #include "IOptimusParameterBindingProvider.h"
 #include "IPropertyTypeCustomization.h"
@@ -16,6 +15,7 @@
 #include "OptimusDeformer.h"
 #include "OptimusDeformerInstance.h"
 #include "OptimusEditorStyle.h"
+#include "OptimusExpressionEvaluator.h"
 #include "OptimusHLSLSyntaxHighlighter.h"
 #include "OptimusNode.h"
 #include "OptimusResourceDescription.h"
@@ -28,6 +28,7 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
@@ -37,6 +38,7 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SOptimusDataTypeSelector.h"
 #include "Widgets/SOptimusShaderTextDocumentTextBox.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -231,16 +233,30 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 	TArray<UObject*> OwningObjects;
 	InPropertyHandle->GetOuterObjects(OwningObjects);
 
-	// FIXME: Support multiple objects.
-	const IOptimusExecutionDomainProvider* ExecutionDomainProvider = Cast<IOptimusExecutionDomainProvider>(OwningObjects[0]);
-	ContextNames.Reset();
-	if (ExecutionDomainProvider)
+	TSet<FName> CollectedContextNames;
+	for (int32 Index = 0; Index < OwningObjects.Num(); Index++)
 	{
-		ContextNames = ExecutionDomainProvider->GetExecutionDomains();
+		TSet<FName> ProviderContextNames;
+		if (const IOptimusExecutionDomainProvider* ExecutionDomainProvider = Cast<IOptimusExecutionDomainProvider>(OwningObjects[Index]))
+		{
+			if (Index == 0)
+			{
+				CollectedContextNames.Append(ExecutionDomainProvider->GetExecutionDomains());
+			}
+			else
+			{
+				CollectedContextNames = CollectedContextNames.Intersect(TSet<FName>{ExecutionDomainProvider->GetExecutionDomains()});
+			}
+		}
+	}
+	ContextNames = CollectedContextNames.Array();
+	if (ContextNames.IsEmpty())
+	{
+		ContextNames.Add(NAME_None);
 	}
 	else
 	{
-		ContextNames.Add(NAME_None);
+		ContextNames.Sort(FNameLexicalLess{});
 	}
 	
 	InHeaderRow.NameContent()
@@ -281,167 +297,372 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 }
 
 
-TSharedRef<IPropertyTypeCustomization> FOptimusMultiLevelDataDomainCustomization::MakeInstance()
+TSharedRef<IPropertyTypeCustomization> FOptimusDataDomainCustomization::MakeInstance()
 {
-	return MakeShared<FOptimusMultiLevelDataDomainCustomization>();
+	return MakeShared<FOptimusDataDomainCustomization>();
+}
+
+FOptimusDataDomainCustomization::FOptimusDataDomainCustomization() :
+	ParameterMarker(MakeShared<TArray<FName>>()),
+	ExpressionMarker(MakeShared<TArray<FName>>(TArray<FName>{FName("~")}))
+{
 }
 
 
-FOptimusMultiLevelDataDomainCustomization::FOptimusMultiLevelDataDomainCustomization()
+FText FOptimusDataDomainCustomization::FormatDomainDimensionNames(
+	TSharedRef<TArray<FName>> InDimensionNames
+	) const
 {
-	GenerateContextNames();
+	if (InDimensionNames == ParameterMarker)
+	{
+		return LOCTEXT("ParameterEntry", "Parameter");
+	}
+	if (InDimensionNames == ExpressionMarker)
+	{
+		return LOCTEXT("ExpressionEntry", "Expression...");
+	}
+
+	return FText::FromString(Optimus::FormatDimensionNames(*InDimensionNames));
+	
 }
 
 
-void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
+void FOptimusDataDomainCustomization::CustomizeHeader(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
 	FDetailWidgetRow& InHeaderRow,
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	static const TArray<TSharedRef<FString>> Multipliers = {
-		MakeShared<FString>(TEXT("x1")),
-		MakeShared<FString>(TEXT("x2")),
-		MakeShared<FString>(TEXT("x3")),
-		MakeShared<FString>(TEXT("x4")),
-		MakeShared<FString>(TEXT("x8")),
-	};	
-	
-	auto FormatNames = [](const TArray<FName>& InNames) -> FText
-	{
-		if (InNames.IsEmpty())
-		{
-			return LOCTEXT("ParameterEntry", "Parameter Value");
-		}
-		
-		TArray<FText> NameParts;
-		for (FName Name: InNames)
-		{
-			NameParts.Add(FText::FromName(Name));
-		}
-		return FText::Join(FText::FromString(UTF8TEXT(" › ")), NameParts);
-	};
+	TArray<UObject*> OwningObjects;
+	InPropertyHandle->GetOuterObjects(OwningObjects);
+	GenerateDimensionNames(OwningObjects);
 
-	auto TryGetSingleValue = [InPropertyHandle](TArray<FName> &OutNames) -> bool
+	// Pre-defined list of multipliers. If required multiplier is not in this list, then the user should thunk to
+	// using expressions.
+	static TArray<TSharedRef<int32>> Multipliers;
+	if (Multipliers.IsEmpty())
 	{
-		TArray<const void *> RawDataPtrs;
-		InPropertyHandle->AccessRawData(RawDataPtrs);
-
-		bool bItemsAreAllSame = true;
-		for (const void* RawPtr: RawDataPtrs)
+		for (int32 Multiplier: {1,2,3,4,8})
 		{
-			const FOptimusMultiLevelDataDomain* DataDomain = static_cast<const FOptimusMultiLevelDataDomain*>(RawPtr);
-			// During drag & reorder, invalid binding can be created temporarily
-			if (DataDomain)
+			Multipliers.Add(MakeShared<int32>(Multiplier));
+		}
+	}
+	TSharedRef<int32> InitialMultiplierSelection = MakeShared<int32>(INDEX_NONE);
+	if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainMultiplier))
+	{
+		for (TSharedRef<int32> Multiplier: Multipliers)
+		{
+			if (DataDomain->Multiplier == *Multiplier)
 			{
-				if (OutNames.IsEmpty())
-				{
-					OutNames = DataDomain->LevelNames;
-				}
-				else if (OutNames != DataDomain->LevelNames)
-				{
-					bItemsAreAllSame = false;
-					break;
-				}
+				InitialMultiplierSelection = Multiplier;
 			}
 		}
-		return bItemsAreAllSame;
-	};
-
-	TArray<FName> CurrentValue;
-	TryGetSingleValue(CurrentValue);
-	// Broadcast for the initial value, so that outer detail customization can adjust the usage flags accordingly
-	OnMultiLevelDataDomainChangedDelegate.Broadcast(CurrentValue);
+	}
 	
+	TSharedRef<TArray<FName>> InitialDimensionSelection(MakeShared<TArray<FName>>());
+	if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainDimensions))
+	{
+		for (TSharedRef<TArray<FName>> Dimension: DomainDimensionNames)
+		{
+			if (DataDomain->DimensionNames == *Dimension)
+			{
+				InitialDimensionSelection = Dimension;
+			}
+		}
+	}
+
+	if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainAll, /*CheckMultiples=*/false))
+	{
+		// Broadcast for the initial value, so that outer detail customization can adjust the usage flags accordingly
+		OnDataDomainChangedDelegate.Broadcast(*DataDomain);
+	}
+
+	FText DimensionSelectorTooltipText;
+	if (bAllowParameters)
+	{
+		DimensionSelectorTooltipText = LOCTEXT("DimensionNamesParameterListerToolTip", "Select a data domain dimension from the list of available dimensions.\nSelect Parameter to set this as a parameter pin.\nSelect Expression... to write a custom data domain dimension expression.");
+	}
+	else
+	{
+		DimensionSelectorTooltipText = LOCTEXT("DimensionNamesListerToolTip", "Select a data domain dimension from the list of available dimensions.\nSelect Expression... to write a custom data domain dimension expression.");
+	}
+
 	InHeaderRow.NameContent()
 	[
 		InPropertyHandle->CreatePropertyNameWidget()
 	]
 	.ValueContent()
 	[
-		SNew(SComboBox<TSharedRef<TArray<FName>>>)
-			.ToolTipText(LOCTEXT("NestedContextListerToolTip", "Select a nested resource context from the list of available contexts."))
-			.OptionsSource(&NestedContextNames)
-			.IsEnabled_Lambda([InPropertyHandle]() -> bool
+		SNew(SWidgetSwitcher)
+		.WidgetIndex_Lambda([InPropertyHandle]()
+		{
+			// Show the expression box if the domain is an expression (and all match), otherwise show the dimension names combo.
+			if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainExpression))
 			{
-				return InPropertyHandle->IsEditable();
-			})
-			.OnGenerateWidget_Lambda([FormatNames](TSharedRef<TArray<FName>> InNames)
-			{
-				return SNew(STextBlock)
-					.Text(FormatNames(*InNames))
-					.Font(InNames->IsEmpty() ? IPropertyTypeCustomizationUtils::GetBoldFont() : IPropertyTypeCustomizationUtils::GetRegularFont());
-			})
-			.OnSelectionChanged_Lambda([InPropertyHandle, this](TSharedPtr<TArray<FName>> InNames, ESelectInfo::Type)
-			{
-				FScopedTransaction Transaction(LOCTEXT("SetResourceContexts", "Set Resource Contexts"));
-				// Ideally we'd like to match up the raw data with the outers, but I'm not
-				// convinced that there's always 1-to-1 relation.
-				TArray<UObject *> OuterObjects;
-				InPropertyHandle->GetOuterObjects(OuterObjects);
-				for (UObject *OuterObject: OuterObjects)
-				{
-					// Notify the object that is has been modified so that undo/redo works.
-					OuterObject->Modify();
-				}
-				
-				InPropertyHandle->NotifyPreChange();
-				TArray<void*> RawDataPtrs;
-				InPropertyHandle->AccessRawData(RawDataPtrs);
-
-				for (void* RawPtr: RawDataPtrs)
-				{
-					static_cast<FOptimusMultiLevelDataDomain*>(RawPtr)->LevelNames = *InNames; 
-				}
-
-				InPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-				OnMultiLevelDataDomainChangedDelegate.Broadcast(*InNames.Get());
-			})
+				return DataDomain->Type == EOptimusDataDomainType::Expression ? 1 : 0;
+			}
+			return 0;
+		})
+		+ SWidgetSwitcher::Slot()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(0.9)
 			[
-				SNew(STextBlock)
-				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
-				.Text_Lambda([TryGetSingleValue, FormatNames]()
+				SNew(SComboBox<TSharedRef<TArray<FName>>>)
+				.ToolTipText(DimensionSelectorTooltipText)
+				.OptionsSource(&DomainDimensionNames)
+				.InitiallySelectedItem(InitialDimensionSelection)
+				.IsEnabled_Lambda([InPropertyHandle]() -> bool
 				{
-					TArray<FName> Names;
-					if (TryGetSingleValue(Names))
+					return InPropertyHandle->IsEditable();
+				})
+				.OnGenerateWidget_Lambda([this](TSharedRef<TArray<FName>> InNames)
+				{
+					return SNew(STextBlock)
+						.Text(FormatDomainDimensionNames(InNames))
+						.Font(InNames->IsEmpty() ? IPropertyTypeCustomizationUtils::GetBoldFont() : IPropertyTypeCustomizationUtils::GetRegularFont());
+				})
+				.OnSelectionChanged_Lambda([InPropertyHandle, this](TSharedPtr<TArray<FName>> InNames, ESelectInfo::Type InSelectType)
+				{
+					// This is for the initial selection.
+					if (InSelectType == ESelectInfo::Direct)
 					{
-						return FormatNames(Names);
+						return;
+					}
+
+					FOptimusDataDomain DataDomain;
+					if (InNames == ExpressionMarker)
+					{
+						FString Expression;
+						if (TOptional<FOptimusDataDomain> DataDomainOpt = TryGetSingleDataDomain(InPropertyHandle))
+						{
+							DataDomain = *DataDomainOpt;
+							// FIXME: Should probably be a utility function.
+							if (DataDomain.IsSingleton())
+							{
+								DataDomain.Expression = "1";
+							}
+							else if (DataDomain.Multiplier > 1)
+							{
+								DataDomain.Expression = FString::Printf(TEXT("%s * %d"), *DataDomain.DimensionNames[0].ToString(), DataDomain.Multiplier);
+							}
+							else
+							{
+								DataDomain.Expression = DataDomain.DimensionNames[0].ToString();
+							}
+						}
+						else
+						{
+							DataDomain.Expression = FString();
+						}
+						DataDomain.Type = EOptimusDataDomainType::Expression;
 					}
 					else
 					{
-						return FText::FromString(TEXT("---"));
+						DataDomain.Type = EOptimusDataDomainType::Dimensional;
+						DataDomain.DimensionNames = *InNames;
+					}
+
+					SetDataDomain(InPropertyHandle, DataDomain);
+				})
+				[
+					SNew(STextBlock)
+					.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+					.Text_Lambda([InPropertyHandle, this]()
+					{
+						if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainDimensions))
+						{
+							switch(DataDomain->Type)
+							{
+							case EOptimusDataDomainType::Dimensional:
+								if (DataDomain->DimensionNames.IsEmpty())
+								{
+									return LOCTEXT("ParameterEntry", "Parameter");
+								}
+								else
+								{
+									return FText::FromString(Optimus::FormatDimensionNames(DataDomain->DimensionNames));								
+								}
+							case EOptimusDataDomainType::Expression:
+								return LOCTEXT("ExpressionEntry", "Expression...");;								
+							}
+							return FText::GetEmpty();
+						}
+						else
+						{
+							return LOCTEXT("MultipleValues", "MultipleValues");
+						}
+					})
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SComboBox<TSharedRef<int32>>)
+				.ToolTipText(LOCTEXT("MultiplierListerToolTip", "Select how many data values per entry for this dimensional resource"))
+				.OptionsSource(&Multipliers)
+				.InitiallySelectedItem(InitialMultiplierSelection)
+				.Visibility_Lambda([InPropertyHandle]() -> EVisibility
+				{
+					// Only show if we're doing dimensional values, and only if there's a single level of dimension.
+					// FIXME: Lift this restriction.
+					if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainDimensions))
+					{
+						return (DataDomain->Type != EOptimusDataDomainType::Dimensional || DataDomain->DimensionNames.Num() != 1) ? EVisibility::Collapsed : EVisibility::Visible;
+					}
+					return EVisibility::Collapsed;
+				})
+				.IsEnabled_Lambda([InPropertyHandle]() -> bool
+				{
+					return InPropertyHandle->IsEditable();
+				})
+				.OnGenerateWidget_Lambda([this](TSharedRef<int32> Multiplier)
+				{
+					return SNew(STextBlock)
+						.Text(FText::Format(LOCTEXT("MultiplyInteger", "x {0}"), FText::AsNumber(*Multiplier)))
+						.Font(IPropertyTypeCustomizationUtils::GetRegularFont());
+				})
+				.OnSelectionChanged_Lambda([InPropertyHandle, this](TSharedPtr<int32> InMultiplier, ESelectInfo::Type InSelectType)
+				{
+					// This is for the initial selection.
+					if (InSelectType == ESelectInfo::Direct)
+					{
+						return;
+					}
+
+					FOptimusDataDomain DataDomainMultiplier;
+					DataDomainMultiplier.Multiplier = *InMultiplier;
+					SetDataDomain(InPropertyHandle, DataDomainMultiplier, DomainMultiplier);
+				})
+				[
+					SNew(STextBlock)
+					.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+					.Text_Lambda([InPropertyHandle, this]()
+					{
+						if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainMultiplier))
+						{
+							return FText::Format(LOCTEXT("MultiplyInteger", "x {0}"), FText::AsNumber(DataDomain->Multiplier));
+						}
+						else
+						{
+							return LOCTEXT("MultipleMultiplyValues", "---");
+						}
+					})
+				]
+			]
+		]
+		+ SWidgetSwitcher::Slot()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(ExpressionTextBox, SEditableTextBox)
+				.IsEnabled_Lambda([InPropertyHandle]() -> bool
+				{
+					return InPropertyHandle->IsEditable();
+				})
+				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+				.HintText(LOCTEXT("ExpressionHint", "Expression..."))
+				.Text_Lambda([InPropertyHandle, this]() -> FText
+				{
+					if (TOptional<FOptimusDataDomain> DataDomain = TryGetSingleDataDomain(InPropertyHandle, DomainType|DomainExpression))
+					{
+						return FText::FromString(DataDomain->Expression);
+					}
+					return FText::GetEmpty();
+				})
+				.OnTextChanged_Lambda([this](const FText& InExpressionText)
+				{
+					using namespace Optimus::Expression;
+					
+					// Verify that the expression is correct.
+					const FString Expression = InExpressionText.ToString();
+					if (TOptional<FParseError> ParseError = FEngine().Verify(Expression))
+					{
+						ExpressionTextBox->SetError(ParseError->Message);
+					}
+					else
+					{
+						ExpressionTextBox->SetError(FString());
+					}
+				})
+				.OnTextCommitted_Lambda([InPropertyHandle, this](const FText& InExpressionText, ETextCommit::Type)
+				{
+					using namespace Optimus::Expression;
+					
+					// Only commit the text if the expression parses.
+					const FString Expression = InExpressionText.ToString();
+					if (!FEngine().Verify(Expression).IsSet())
+					{
+						const FOptimusDataDomain ExpressionDomain(Expression);
+						SetDataDomain(InPropertyHandle, ExpressionDomain, DomainType|DomainExpression);
 					}
 				})
 			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(5.0, 0.0, 0.0, 0.0)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+				.ForegroundColor(FAppStyle::GetSlateColor("DefaultForeground"))
+				.ContentPadding(FMargin(2, 2))
+				.OnClicked_Lambda([InPropertyHandle, this]() -> FReply
+				{
+					const FOptimusDataDomain DimensionalDomain;
+					SetDataDomain(InPropertyHandle, DimensionalDomain, DomainType);
+					return FReply::Handled();
+				})
+				.ToolTipText(LOCTEXT("ClearExpression", "Clear Expression"))
+				[
+					SNew(SImage)
+					.Image(FAppStyle::GetBrush(TEXT("Cross")))
+				]
+			]
+		]
 	];
 }
 
 
-void FOptimusMultiLevelDataDomainCustomization::SetAllowParameters(const bool bInAllowParameters)
+void FOptimusDataDomainCustomization::SetAllowParameters(const bool bInAllowParameters)
 {
 	if (bInAllowParameters != bAllowParameters)
 	{
 		bAllowParameters = bInAllowParameters;
-		GenerateContextNames();
+		if (bInAllowParameters)
+		{
+			DomainDimensionNames.Insert(ParameterMarker, 0);
+		}
+		else
+		{
+			DomainDimensionNames.RemoveAt(0);
+		}
 	}
 }
 
 
-void FOptimusMultiLevelDataDomainCustomization::GenerateContextNames()
+void FOptimusDataDomainCustomization::GenerateDimensionNames(
+	const TArray<UObject*>& InOwningObjects 
+	)
 {
-	NestedContextNames.Reset();
+	// FIXME: Use the owning objects to indicate best candidates.
+	DomainDimensionNames.Reset();
 
 	if (bAllowParameters)
 	{
-		// Add an empty set of names. We format it specifically above.
-		NestedContextNames.Add(MakeShared<TArray<FName>>());
+		DomainDimensionNames.Add(ParameterMarker);
 	}
 	
-	for (TArray<FName> Names: UOptimusComputeDataInterface::GetUniqueAllNestedContexts())
+	for (TArray<FName> Names: UOptimusComputeDataInterface::GetUniqueDomainDimensions())
 	{
-		NestedContextNames.Add(MakeShared<TArray<FName>>(Names));
+		DomainDimensionNames.Add(MakeShared<TArray<FName>>(Names));
 	}
-	NestedContextNames.Sort([](const TSharedRef<TArray<FName>>& A, const TSharedRef<TArray<FName>> &B)
+	DomainDimensionNames.Sort([](const TSharedRef<TArray<FName>>& A, const TSharedRef<TArray<FName>> &B)
 	{
 		// Compare up to the point that we have same number of members to compare.
 		for (int32 Index = 0; Index < FMath::Min(A->Num(), B->Num()); Index++)
@@ -454,6 +675,88 @@ void FOptimusMultiLevelDataDomainCustomization::GenerateContextNames()
 		// Otherwise the entry with fewer members goes first.
 		return A->Num() < B->Num();
 	});
+
+	DomainDimensionNames.Add(ExpressionMarker);
+}
+
+
+TOptional<FOptimusDataDomain> FOptimusDataDomainCustomization::TryGetSingleDataDomain(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	DomainFlags InCompareFlags,
+	bool bInCheckMultiples
+	)
+{
+	TArray<const void *> RawDataPtrs;
+	InPropertyHandle->AccessRawData(RawDataPtrs);
+
+	bool bItemsAreAllSame = false;
+	const FOptimusDataDomain* ComparatorDataDomain = nullptr;
+	for (const void* RawPtr: RawDataPtrs)
+	{
+		// During drag & reorder, invalid binding can be created temporarily
+		if (const FOptimusDataDomain* DataDomain = static_cast<const FOptimusDataDomain*>(RawPtr))
+		{
+			if (!ComparatorDataDomain)
+			{
+				ComparatorDataDomain = DataDomain;
+				bItemsAreAllSame = true;
+			}
+			else 
+			{
+				if (((InCompareFlags & DomainType) && ComparatorDataDomain->Type != DataDomain->Type) ||
+					((InCompareFlags & DomainDimensions) && ComparatorDataDomain->DimensionNames != DataDomain->DimensionNames) ||
+					((InCompareFlags & DomainMultiplier) && ComparatorDataDomain->Multiplier != DataDomain->Multiplier) ||
+					((InCompareFlags & DomainExpression) && ComparatorDataDomain->Expression != DataDomain->Expression))
+				{
+					bItemsAreAllSame = false;
+					break;
+				}
+			}
+		}
+	}
+
+	if (ComparatorDataDomain && (!bInCheckMultiples || bItemsAreAllSame))
+	{
+		return *ComparatorDataDomain;
+	}
+	
+	return {};
+}
+
+
+void FOptimusDataDomainCustomization::SetDataDomain(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	const FOptimusDataDomain& InDataDomain,
+	DomainFlags InSetFlags
+	)
+{
+	FScopedTransaction Transaction(LOCTEXT("SetDataDomains", "Set Data Domain"));
+
+	// Ideally we'd like to match up the raw data with the outers, but I'm not
+	// convinced that there's always 1-to-1 relation.
+	TArray<UObject *> OuterObjects;
+	InPropertyHandle->GetOuterObjects(OuterObjects);
+	for (UObject *OuterObject: OuterObjects)
+	{
+		// Notify the object that is has been modified so that undo/redo works.
+		OuterObject->Modify();
+	}
+				
+	InPropertyHandle->NotifyPreChange();
+	TArray<void*> RawDataPtrs;
+	InPropertyHandle->AccessRawData(RawDataPtrs);
+
+	for (void* RawPtr: RawDataPtrs)
+	{
+		FOptimusDataDomain* DstDataDomain = static_cast<FOptimusDataDomain*>(RawPtr);
+		if (InSetFlags & DomainType)		DstDataDomain->Type = InDataDomain.Type;
+		if (InSetFlags & DomainDimensions)	DstDataDomain->DimensionNames = InDataDomain.DimensionNames;
+		if (InSetFlags & DomainMultiplier)	DstDataDomain->Multiplier = InDataDomain.Multiplier;
+		if (InSetFlags & DomainExpression)	DstDataDomain->Expression = InDataDomain.Expression;
+	}
+
+	InPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+	OnDataDomainChangedDelegate.Broadcast(InDataDomain);
 }
 
 
@@ -572,11 +875,11 @@ public:
 		DataTypeRefCustomizationInstance->CustomizeHeader(DataTypeProperty.ToSharedRef(), DataTypeHeaderRow, InCustomizationUtils);
 
 		FDetailWidgetRow DataDomainHeaderRow;
-		DataDomainCustomizationInstance = FOptimusMultiLevelDataDomainCustomization::MakeInstance();
-		StaticCastSharedPtr<FOptimusMultiLevelDataDomainCustomization>(DataDomainCustomizationInstance)
-			->OnMultiLevelDataDomainChangedDelegate.AddLambda([DataTypeProperty](const TArray<FName>& InDataDomain)
+		DataDomainCustomizationInstance = FOptimusDataDomainCustomization::MakeInstance();
+		StaticCastSharedPtr<FOptimusDataDomainCustomization>(DataDomainCustomizationInstance)
+			->OnDataDomainChangedDelegate.AddLambda([DataTypeProperty](const FOptimusDataDomain& InDataDomain)
 			{
-				if (InDataDomain.IsEmpty())
+				if (InDataDomain.IsSingleton())
 				{
 					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInAnimAttribute")), TEXT("True"));
 					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInVariable")), TEXT("True"));
@@ -656,7 +959,7 @@ public:
 
 	void SetAllowParameters(const bool bInAllowParameters)
 	{
-		TSharedPtr<FOptimusMultiLevelDataDomainCustomization> DataDomainCustomization = StaticCastSharedPtr<FOptimusMultiLevelDataDomainCustomization>(DataDomainCustomizationInstance);
+		TSharedPtr<FOptimusDataDomainCustomization> DataDomainCustomization = StaticCastSharedPtr<FOptimusDataDomainCustomization>(DataDomainCustomizationInstance);
 		DataDomainCustomization->SetAllowParameters(bInAllowParameters);
 	}
 	
@@ -1078,6 +1381,7 @@ void FOptimusSourceDetailsCustomization::OnTextChanged(const FText& InValue)
 
 
 FOptimusComponentSourceBindingDetailsCustomization::FOptimusComponentSourceBindingDetailsCustomization()
+
 {
 }
 
@@ -1085,7 +1389,6 @@ TSharedRef<IDetailCustomization> FOptimusComponentSourceBindingDetailsCustomizat
 {
 	return MakeShareable(new FOptimusComponentSourceBindingDetailsCustomization);
 }
-
 void FOptimusComponentSourceBindingDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
@@ -1152,18 +1455,92 @@ void FOptimusComponentSourceBindingDetailsCustomization::ComponentSourceChanged(
 }
 
 
+TSharedRef<IDetailCustomization> FOptimusResourceDescriptionDetailsCustomization::MakeInstance()
+{
+	return MakeShareable(new FOptimusResourceDescriptionDetailsCustomization);
+}
+
+
+void FOptimusResourceDescriptionDetailsCustomization::CustomizeDetails(
+	IDetailLayoutBuilder& InDetailBuilder
+	)
+{
+	TArray<TWeakObjectPtr<UObject>> ResourceDescriptionObjects;
+	InDetailBuilder.GetObjectsBeingCustomized(ResourceDescriptionObjects);
+
+	const UOptimusResourceDescription* ResourceDescription = Cast<UOptimusResourceDescription>(ResourceDescriptionObjects[0].Get());
+	if (ResourceDescription && ResourceDescription->GetOwningDeformer())
+	{
+		ComponentBindings = ResourceDescription->GetOwningDeformer()->GetComponentBindings();
+	}
+
+	TSharedPtr<IPropertyHandle> ComponentBindingProperty = InDetailBuilder.GetProperty(GET_MEMBER_NAME_STRING_CHECKED(UOptimusResourceDescription, ComponentBinding));
+	IDetailPropertyRow* ComponentBindingRow = InDetailBuilder.EditDefaultProperty(ComponentBindingProperty);
+
+	UObject* SelectedBinding = nullptr;
+	ComponentBindingProperty->GetValue(SelectedBinding);
+
+	ComponentBindingRow->CustomWidget()
+		.NameContent()
+		[
+			ComponentBindingProperty->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		[
+			SNew(SComboBox<UOptimusComponentSourceBinding*>)
+			.OptionsSource(&ComponentBindings)
+			.InitiallySelectedItem(Cast<UOptimusComponentSourceBinding>(SelectedBinding))
+			.OnGenerateWidget_Lambda([](const UOptimusComponentSourceBinding* InBinding)
+			{
+				return SNew(STextBlock).Text(FText::FromName(InBinding->BindingName));
+			})
+			.OnSelectionChanged_Lambda([ResourceDescriptionObjects, ComponentBindingProperty](UOptimusComponentSourceBinding* InBinding, ESelectInfo::Type InInfo)
+			{
+				if (InInfo != ESelectInfo::Direct)
+				{
+					ComponentBindingProperty->NotifyPreChange();
+					for (TWeakObjectPtr<UObject> ResourceDescriptionObject: ResourceDescriptionObjects)
+					{
+						UOptimusResourceDescription* ResourceDescription = Cast<UOptimusResourceDescription>(ResourceDescriptionObject.Get());
+						if (ResourceDescription)
+						{
+							ResourceDescription->ComponentBinding = InBinding;
+						}
+					}
+					ComponentBindingProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+				}
+			})
+			[
+				SNew(STextBlock)
+				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
+				.Text_Lambda([ComponentBindingProperty]()
+				{
+					UObject* BindingObject = nullptr;
+					FPropertyAccess::Result Result = ComponentBindingProperty->GetValue(BindingObject);
+					if (Result == FPropertyAccess::MultipleValues)
+					{
+						return LOCTEXT("MultipleValues", "Multiple Values");
+					}
+					else if (UOptimusComponentSourceBinding* Binding = Cast<UOptimusComponentSourceBinding>(BindingObject))
+					{
+						return FText::FromName(Binding->BindingName);
+					}
+					else
+					{
+						return FText::GetEmpty();
+					}
+				})
+			]
+		];
+}
+
+
 TSharedRef<IPropertyTypeCustomization> FOptimusDeformerInstanceComponentBindingCustomization::MakeInstance()
 {
 	return MakeShareable(new FOptimusDeformerInstanceComponentBindingCustomization);
 }
 
-FOptimusDeformerInstanceComponentBindingCustomization::FOptimusDeformerInstanceComponentBindingCustomization()
-{
-}
 
-FOptimusDeformerInstanceComponentBindingCustomization::~FOptimusDeformerInstanceComponentBindingCustomization()
-{
-}
 
 void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	TSharedRef<IPropertyHandle> InPropertyHandle,
@@ -1183,7 +1560,7 @@ void FOptimusDeformerInstanceComponentBindingCustomization::CustomizeHeader(
 	TArray<UObject*> OuterObjects;
 	InPropertyHandle->GetOuterObjects(OuterObjects);
 
-	const IOptimusComponentBindingsProvider* BindingProvider = Cast<IOptimusComponentBindingsProvider>(OuterObjects[0]);
+	const UOptimusDeformerInstanceSettings* BindingProvider = Cast<UOptimusDeformerInstanceSettings>(OuterObjects[0]);
 	const UOptimusComponentSourceBinding* Binding = nullptr;
 
 	FComponentHandle SelectedComponentHandle;

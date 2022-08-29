@@ -15,7 +15,7 @@ class FRDGBufferUAV;
 class FOptimusPersistentBufferPool;
 class UOptimusComponentSourceBinding;
 class UOptimusRawBufferDataProvider;
-class USkinnedMeshComponent;
+class UOptimusComponentSource;
 
 UCLASS(Abstract)
 class OPTIMUSCORE_API UOptimusRawBufferDataInterface : public UOptimusComputeDataInterface
@@ -43,18 +43,32 @@ public:
 	UPROPERTY()
 	FShaderValueTypeHandle ValueType;
 
-	UPROPERTY()
-	TWeakObjectPtr<UOptimusComponentSourceBinding> ComponentBinding;
-	
 	/** The data domain this buffer covers */
 	UPROPERTY()
-	FOptimusMultiLevelDataDomain DataDomain;
+	FOptimusDataDomain DataDomain;
 
-protected:
-	void FillProviderFromComponent(const USkinnedMeshComponent* InComponent, UOptimusRawBufferDataProvider* InProvider) const;
+	/** The component source to query component domain validity and sizing */
+	UPROPERTY()
+	TWeakObjectPtr<UOptimusComponentSourceBinding> ComponentSourceBinding;
 	
-	virtual bool UseSplitBuffers() const { return true; } 
+protected:
+	virtual bool UseSplitBuffers() const { return true; }
+
+	template<typename U>
+	U* CreateProvider(TObjectPtr<UObject> InBinding) const
+	{
+		U *Provider = NewObject<U>();
+		if (UActorComponent* Component = Cast<UActorComponent>(InBinding))
+		{
+			Provider->Component = Component;
+			Provider->ComponentSource = GetComponentSource();
+			Provider->DataDomain = DataDomain;
+			Provider->ElementStride = ValueType->GetResourceElementSize();
+		}
+		return Provider;
+	}
 private:
+	const UOptimusComponentSource* GetComponentSource() const;
 	bool SupportsAtomics() const;
 };
 
@@ -108,6 +122,7 @@ protected:
 	bool UseSplitBuffers() const override { return false; } 
 };
 
+
 /** Compute Framework Data Provider for a transient buffer. */
 UCLASS(Abstract)
 class OPTIMUSCORE_API UOptimusRawBufferDataProvider : public UComputeDataProvider
@@ -119,11 +134,27 @@ public:
 	bool IsValid() const override;
 	//~ End UComputeDataProvider Interface
 
-	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
-	int32 ElementStride = 4;
+	/** Helper function to calculate the element count for each section invocation of the given skinned/skeletal mesh
+	 *  object and a data domain. Uses the execution domains to compute the information. Returns false if the
+	 *  data domain is not valid for computation.
+	 */
+	bool GetInvocationElementCounts(
+		TArray<int32>& OutInvocationElementCounts
+		) const;
 	
-	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
-	TArray<int32> NumElementsPerInvocation = {1};
+	/** The skinned mesh component that governs the sizing and LOD of this buffer */
+	UPROPERTY()
+	TWeakObjectPtr<const UActorComponent> Component = nullptr;
+
+	UPROPERTY()
+	TWeakObjectPtr<const UOptimusComponentSource> ComponentSource = nullptr;
+
+	/** The data domain this buffer covers */
+	UPROPERTY()
+	FOptimusDataDomain DataDomain;
+
+	UPROPERTY()
+	int32 ElementStride = 4;
 };
 
 
@@ -138,7 +169,7 @@ public:
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 
-	UPROPERTY(BlueprintReadWrite, Category = "Buffer")
+	UPROPERTY()
 	bool bClearBeforeUse = true;
 };
 
@@ -155,23 +186,27 @@ public:
 	FComputeDataProviderRenderProxy* GetRenderProxy() override;
 	//~ End UComputeDataProvider Interface
 
-	UPROPERTY()
-	TObjectPtr<USkinnedMeshComponent> SkinnedMeshComponent = nullptr;
+	/** The buffer pool we refer to. Set by UOptimusDeformerInstance::SetupFromDeformer after providers have been
+	 *  created
+	 */
+	TSharedPtr<FOptimusPersistentBufferPool> BufferPool;
+
+	/** LOD Index of the primary mesh */
+	int32 LODIndex = 0;
 
 	/** The resource this buffer is provider to */
 	FName ResourceName;
 };
-
 
 class FOptimusTransientBufferDataProviderProxy :
 	public FComputeDataProviderRenderProxy
 {
 public:
 	FOptimusTransientBufferDataProviderProxy(
-			int32 InElementStride,
-			TArray<int32> InInvocationElementCount,
-			bool bInClearBeforeUse
-			);
+		TArray<int32> InInvocationElementCounts,
+		int32 InElementStride,
+		bool bInClearBeforeUse
+		);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
@@ -179,8 +214,8 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	const TArray<int32> InvocationElementCounts;
 	const int32 ElementStride;
-	const TArray<int32> InvocationElementCount;
 	const bool bClearBeforeUse;
 
 	TArray<FRDGBuffer*> Buffer;
@@ -194,11 +229,12 @@ class FOptimusPersistentBufferDataProviderProxy :
 {
 public:
 	FOptimusPersistentBufferDataProviderProxy(
+		TArray<int32> InInvocationElementCounts,
+		int32 InElementStride,
 		TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 		FName InResourceName,
-		int32 InElementStride,
-		TArray<int32> InInvocationElementCount
-		);
+		int32 InLODIndex
+	);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	void AllocateResources(FRDGBuilder& GraphBuilder) override;
@@ -206,10 +242,11 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
+	const TArray<int32> InvocationElementCounts;
+	const int32 ElementStride;
 	const TSharedPtr<FOptimusPersistentBufferPool> BufferPool;
 	const FName ResourceName;
-	const int32 ElementStride;
-	const TArray<int32> InvocationElementCount;
+	const int32 LODIndex;
 
 	TArray<FRDGBuffer*> Buffers;
 	TArray<FRDGBufferUAV*> BufferUAVs;

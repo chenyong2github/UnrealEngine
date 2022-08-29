@@ -226,7 +226,7 @@ protected:
 	UOptimusNodePin* AddPin(
 		FName InName,
 		EOptimusNodePinDirection InDirection,
-		FOptimusNodePinStorageConfig InStorageConfig,
+		const FOptimusDataDomain& InDataDomain,
 		FOptimusDataTypeRef InDataType,
 		UOptimusNodePin* InBeforePin = nullptr,
 		UOptimusNodePin* InGroupingPin = nullptr
@@ -236,7 +236,7 @@ protected:
 	UOptimusNodePin* AddPinDirect(
 		FName InName,
 		EOptimusNodePinDirection InDirection,
-		FOptimusNodePinStorageConfig InStorageConfig,
+		const FOptimusDataDomain& InDataDomain,
 		FOptimusDataTypeRef InDataType,
 		UOptimusNodePin* InBeforePin = nullptr,
 		UOptimusNodePin* InParentPin = nullptr
@@ -317,12 +317,12 @@ protected:
 	/** Set the pin's resource context names. */
 	bool SetPinDataDomain(
 		UOptimusNodePin* InPin,
-		const TArray<FName>& InDataDomainLevelNames
+		const FOptimusDataDomain& InDataDomain
 		);
 
 	bool SetPinDataDomainDirect(
 		UOptimusNodePin* InPin,
-		const TArray<FName>& InDataDomainLevelNames
+		const FOptimusDataDomain& InDataDomain
 		);
 	
 	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);

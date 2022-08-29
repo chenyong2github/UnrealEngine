@@ -9,6 +9,8 @@
 #include "OptimusDeformer.h"
 #include "OptimusVariableDescription.h"
 #include "RenderGraphBuilder.h"
+#include "SkeletalRenderPublic.h"
+#include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 
 
 /** Container for a pooled buffer. */
@@ -23,13 +25,15 @@ struct FOptimusPersistentStructuredBuffer
 void FOptimusPersistentBufferPool::GetResourceBuffers(
 	FRDGBuilder& GraphBuilder,
 	FName InResourceName,
+	int32 InLODIndex,
 	int32 InElementStride,
 	TArray<int32> const& InElementCounts,
 	TArray<FRDGBufferRef>& OutBuffers)
 {
 	OutBuffers.Reset();
 
-	TArray<FOptimusPersistentStructuredBuffer>* ResourceBuffersPtr = ResourceBuffersMap.Find(InResourceName);
+	TMap<int32, TArray<FOptimusPersistentStructuredBuffer>>& LODResources = ResourceBuffersMap.FindOrAdd(InResourceName);  
+	TArray<FOptimusPersistentStructuredBuffer>* ResourceBuffersPtr = LODResources.Find(InLODIndex);
 	if (ResourceBuffersPtr == nullptr)
 	{
 		// Create pooled buffers and store.
@@ -48,7 +52,7 @@ void FOptimusPersistentBufferPool::GetResourceBuffers(
 			PersistentBuffer.PooledBuffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
 		}
 
-		ResourceBuffersMap.Add(InResourceName, MoveTemp(ResourceBuffers));
+		LODResources.Add(InLODIndex, MoveTemp(ResourceBuffers));
 	}
 	else
 	{
@@ -303,6 +307,29 @@ void UOptimusDeformerInstance::SetupFromDeformer(
 			for (int32 Index = 0; Index < InDeformer->GetComponentBindings().Num(); Index++)
 			{
 				Info.ComputeGraphInstance.CreateDataProviders(Info.ComputeGraph, Index, MeshComponent.Get());
+			}
+		}
+
+		int32 LODIndex = 0;
+		if (const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(MeshComponent))
+		{
+			// This guff should be a utility function on USkinnedMeshComponent. 
+			LODIndex = SkinnedMeshComponent->GetPredictedLODLevel();
+			
+			if (SkinnedMeshComponent->GetSkinnedAsset() && SkinnedMeshComponent->GetSkinnedAsset()->IsStreamable() && SkinnedMeshComponent->MeshObject)
+			{
+				LODIndex = FMath::Max<int32>(LODIndex, SkinnedMeshComponent->MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
+			}
+		}
+
+		for(TObjectPtr<UComputeDataProvider> DataProvider: Info.ComputeGraphInstance.GetDataProviders())
+		{
+			// Make the persistent buffer data provider aware of the buffer pool and current LOD index.
+			// TBD: Interface-based.
+			if (UOptimusPersistentBufferDataProvider* PersistentBufferProvider = Cast<UOptimusPersistentBufferDataProvider>(DataProvider))
+			{
+				PersistentBufferProvider->BufferPool = BufferPool;
+				PersistentBufferProvider->LODIndex = LODIndex;
 			}
 		}
 

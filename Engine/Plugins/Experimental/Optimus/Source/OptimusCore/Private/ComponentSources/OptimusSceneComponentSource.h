@@ -17,5 +17,5 @@ public:
 	FText GetDisplayName() const override;
 	FName GetBindingName() const override { return FName("Scene"); }
 	TSubclassOf<UActorComponent> GetComponentClass() const override;
-	TArray<FName> GetExecutionContexts() const override;
+	TArray<FName> GetExecutionDomains() const override;
 };

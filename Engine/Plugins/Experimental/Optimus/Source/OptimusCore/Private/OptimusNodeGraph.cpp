@@ -894,14 +894,7 @@ UOptimusNode* UOptimusNodeGraph::CollapseNodesToSubGraph(
 			FOptimusParameterBinding Binding;
 			Binding.Name = InputPin->GetFName();
 			Binding.DataType = InputPin->GetDataType();
-			if (InputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
-			{
-				Binding.DataDomain = InputPin->GetDataDomainLevelNames();
-			}
-			else
-			{
-				Binding.DataDomain.LevelNames.Reset();
-			}
+			Binding.DataDomain = InputPin->GetDataDomain();
 			InputBindings.Add(Binding);
 		}
 		else if (bOutputNodeInSet)
@@ -912,14 +905,7 @@ UOptimusNode* UOptimusNodeGraph::CollapseNodesToSubGraph(
 			FOptimusParameterBinding Binding;
 			Binding.Name = OutputPin->GetFName();
 			Binding.DataType = OutputPin->GetDataType();
-			if (OutputPin->GetStorageType() == EOptimusNodePinStorageType::Resource)
-			{
-				Binding.DataDomain = OutputPin->GetDataDomainLevelNames();
-			}
-			else
-			{
-				Binding.DataDomain.LevelNames.Reset();
-			}
+			Binding.DataDomain = OutputPin->GetDataDomain();
 			OutputBindings.Add(Binding);
 		}
 	}
@@ -1429,9 +1415,12 @@ TSet<UOptimusComponentSourceBinding*> UOptimusNodeGraph::GetComponentSourceBindi
 		TArray<const UOptimusNodePin*> InputPins; 
 		const UOptimusNode* Node = WorkItem.Node;
 
-		if (const UOptimusNode_ComponentSource* ComponentSource = Cast<const UOptimusNode_ComponentSource>(Node))
+		if (const IOptimusComponentBindingProvider* ComponentSourceBindingProvider = Cast<const IOptimusComponentBindingProvider>(Node))
 		{
-			Bindings.Add(ComponentSource->GetComponentSourceBinding());
+			if (UOptimusComponentSourceBinding* Binding = ComponentSourceBindingProvider->GetComponentBinding())
+			{
+				Bindings.Add(Binding);
+			}
 			continue;
 		}
 		

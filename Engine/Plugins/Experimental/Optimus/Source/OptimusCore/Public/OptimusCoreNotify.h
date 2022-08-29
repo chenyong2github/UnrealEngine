@@ -27,6 +27,7 @@ enum class EOptimusGlobalNotifyType
 	ResourceIndexChanged,			/// A resource's index has changed (Subject == UOptimusResourceDescription)
 	ResourceRenamed,				/// A resource has been renamed (Subject == UOptimusResourceDescription)
 	ResourceTypeChanged,			/// A resource's type has been changed (Subject == UOptimusResourceDescription)
+	ResourceDomainChanged,			/// A resource's domain has been changed (Subject == UOptimusResourceDescription)
 
 	VariableAdded,					/// A variable has been added (Subject == UOptimusVariableDescription)
 	VariableRemoved,				/// A variable is about to be removed (Subject == UOptimusVariableDescription)

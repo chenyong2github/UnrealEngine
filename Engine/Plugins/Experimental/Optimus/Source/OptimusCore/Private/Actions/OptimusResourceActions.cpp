@@ -223,3 +223,51 @@ bool FOptimusResourceAction_SetDataType::SetDataType(
 	
 	return Deformer && Deformer->SetResourceDataTypeDirect(Resource, InDataType);
 }
+
+
+FOptimusResourceAction_SetDataDomain::FOptimusResourceAction_SetDataDomain(
+	UOptimusResourceDescription* InResource,
+	const FOptimusDataDomain& InDataDomain
+	)
+{
+	if (ensure(InResource))
+	{
+		ResourceName = InResource->GetFName();
+		NewDataDomain = InDataDomain;
+		OldDataDomain = InResource->DataDomain;
+
+		SetTitlef(TEXT("Set Resource Data Domain"));
+	}
+}
+
+
+bool FOptimusResourceAction_SetDataDomain::Do(
+	IOptimusPathResolver* InRoot
+	)
+{
+	return SetDataDomain(InRoot, NewDataDomain);
+}
+
+
+bool FOptimusResourceAction_SetDataDomain::Undo(
+	IOptimusPathResolver* InRoot
+	)
+{
+	return SetDataDomain(InRoot, OldDataDomain);
+}
+
+
+bool FOptimusResourceAction_SetDataDomain::SetDataDomain(
+	IOptimusPathResolver* InRoot,
+	const FOptimusDataDomain& InDataDomain
+	) const
+{
+	UOptimusResourceDescription* Resource = InRoot->ResolveResource(ResourceName);
+	if (!Resource)
+	{
+		return false;
+	}
+	UOptimusDeformer* Deformer = Resource->GetOwningDeformer();
+	
+	return Deformer && Deformer->SetResourceDataDomainDirect(Resource, InDataDomain);
+}

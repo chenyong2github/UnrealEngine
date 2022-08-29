@@ -75,7 +75,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	TMap<const FProperty*, const TArray<uint8>*> PropertyValues;
 	for (const FOptimusParameterBinding& InputBinding: InInputBindings)
 	{
-		if (InputBinding.DataDomain.IsEmpty())
+		if (InputBinding.DataDomain.IsSingleton())
 		{
 			FProperty *Property = InputBinding.DataType->CreateProperty(KernelClass, InputBinding.Name);
 
@@ -193,14 +193,18 @@ void UOptimusNode_ComputeKernelFunction::ConstructNode()
 	
 	for (const FOptimusParameterBinding& Binding: NodeClass->InputBindings)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
-		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, Binding.DataDomain, Binding.DataType);
 	}
 	for (const FOptimusParameterBinding& Binding: NodeClass->OutputBindings)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
-		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, Binding.DataDomain, Binding.DataType);
 	}
+}
+
+
+FName UOptimusNode_ComputeKernelFunction::GetExecutionDomain() const
+{
+	return GetGeneratorClass()->ExecutionDomain.Name;
 }
 
 

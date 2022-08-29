@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IOptimusExecutionDomainProvider.h"
 #include "OptimusNode_ComputeKernelBase.h"
 #include "OptimusBindingTypes.h"
 
@@ -33,6 +34,9 @@ public:
 
 	UPROPERTY()
 	FName KernelName;
+
+	UPROPERTY()
+	FOptimusExecutionDomain ExecutionDomain;
 
 	UPROPERTY()
 	FIntVector GroupSize;
@@ -71,6 +75,8 @@ public:
 
 	void ConstructNode() override;
 	
+	// IOptimusComputeKernelProvider
+	FName GetExecutionDomain() const override; 
 	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override { return {}; }
 private:
 	UOptimusNode_ComputeKernelFunctionGeneratorClass *GetGeneratorClass() const;

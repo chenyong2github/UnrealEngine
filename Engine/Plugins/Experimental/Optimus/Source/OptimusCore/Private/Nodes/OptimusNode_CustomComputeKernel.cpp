@@ -141,7 +141,7 @@ bool UOptimusNode_CustomComputeKernel::CanAddPinFromPin(
 	
 	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
 	{
-		if (InSourcePin->GetStorageType() != EOptimusNodePinStorageType::Resource)
+		if (InSourcePin->GetDataDomain().IsSingleton())
 		{
 			if (OutReason)
 			{
@@ -172,14 +172,13 @@ UOptimusNodePin* UOptimusNode_CustomComputeKernel::TryAddPinFromPin(
 	FOptimusParameterBinding Binding;
 	Binding.Name = InNewPinName;
 	Binding.DataType = {InSourcePin->GetDataType()};
-	Binding.DataDomain = {InSourcePin->GetDataDomainLevelNames()};
+	Binding.DataDomain = InSourcePin->GetDataDomain();
 
 	Modify();
 	BindingArray.Add(Binding);
 	UpdatePreamble();
 	
-	const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
-	UOptimusNodePin* NewPin	= AddPinDirect(InNewPinName, NewPinDirection, StorageConfig, Binding.DataType);
+	UOptimusNodePin* NewPin	= AddPinDirect(InNewPinName, NewPinDirection, Binding.DataDomain, Binding.DataType);
 
 	return NewPin;
 }
@@ -232,7 +231,7 @@ TArray<FName> UOptimusNode_CustomComputeKernel::GetExecutionDomains() const
 
 	if (PrimaryBindings.Num() == 1)
 	{
-		return PrimaryBindings.Array()[0]->GetComponentSource()->GetExecutionContexts();
+		return PrimaryBindings.Array()[0]->GetComponentSource()->GetExecutionDomains();
 	}
 	else
 	{
@@ -421,9 +420,9 @@ void UOptimusNode_CustomComputeKernel::PropertyValueChanged(
 	{
 		auto UpdatePinDataDomain = [this](UObject* , FOptimusParameterBinding& InBinding, UOptimusNodePin* InPin)
 		{
-			if (InPin->GetDataDomainLevelNames() != InBinding.DataDomain.LevelNames)
+			if (InPin->GetDataDomain() != InBinding.DataDomain)
 			{
-				SetPinDataDomain(InPin, InBinding.DataDomain.LevelNames);
+				SetPinDataDomain(InPin, InBinding.DataDomain);
 			}
 		};
 
@@ -462,11 +461,9 @@ void UOptimusNode_CustomComputeKernel::PropertyArrayItemAdded(
 	{
 		InBinding.Name = Optimus::GetUniqueNameForScope(InGroupPin ? Cast<UObject>(InGroupPin) : this, InName);
 		InBinding.DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
+		InBinding.DataDomain = FOptimusDataDomain();
 
-		// FIXME: Get a better default. May need an "Undefined" domain for when groups don't have a component
-		// source to pick from.
-		const FOptimusNodePinStorageConfig StorageConfig({Optimus::DomainName::Vertex});			
-		AddPin(InBinding.Name, InDirection, StorageConfig, InBinding.DataType, InBeforePin, InGroupPin);
+		AddPin(InBinding.Name, InDirection, InBinding.DataDomain, InBinding.DataType, InBeforePin, InGroupPin);
 
 		UpdatePreamble();
 	};
@@ -919,7 +916,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			FOptimusParameterBinding NewBinding;
 			NewBinding.Name = OldBinding.Name;
 			NewBinding.DataType = OldBinding.DataType;
-			NewBinding.DataDomain.LevelNames.Reset();
+			NewBinding.DataDomain = FOptimusDataDomain();
 			
 			ParameterInputBindings.Add(NewBinding);
 		}
@@ -933,7 +930,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::ComponentProviderSupport)
 	{
-		ExecutionDomain.Name = UOptimusSkeletalMeshComponentSource::Contexts::Vertex;
+		ExecutionDomain.Name = UOptimusSkeletalMeshComponentSource::Domains::Vertex;
 		
 		// Check if there's an execution node connected and grab the domain from it.
 		FOptimusDataTypeHandle IntVector3Type = FOptimusDataTypeRegistry::Get().FindType(Optimus::GetTypeName(TBaseStructure<FIntVector3>::Get()));
@@ -953,10 +950,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 							{
 							default:
 							case EOptimusSkinnedMeshExecDomain::Vertex:
-								ExecutionDomain.Name = UOptimusSkinnedMeshComponentSource::Contexts::Vertex;
+								ExecutionDomain.Name = UOptimusSkinnedMeshComponentSource::Domains::Vertex;
 								break;
 							case EOptimusSkinnedMeshExecDomain::Triangle:
-								ExecutionDomain.Name = UOptimusSkinnedMeshComponentSource::Contexts::Triangle;
+								ExecutionDomain.Name = UOptimusSkinnedMeshComponentSource::Domains::Triangle;
 								break;
 							}
 						}
@@ -975,13 +972,11 @@ void UOptimusNode_CustomComputeKernel::ConstructNode()
 	// the bindings. We can assume that all naming clashes have already been dealt with.
 	for (const FOptimusParameterBinding& Binding: InputBindingArray)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
-		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, Binding.DataDomain, Binding.DataType);
 	}
 	for (const FOptimusParameterBinding& Binding: OutputBindingArray)
 	{
-		const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
-		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, Binding.DataDomain, Binding.DataType);
 	}
 
 	// FIXME: Group pins.
@@ -991,8 +986,7 @@ void UOptimusNode_CustomComputeKernel::ConstructNode()
 
 		for (const FOptimusParameterBinding& Binding: InputGroup.BindingArray)
 		{
-			const FOptimusNodePinStorageConfig StorageConfig(Binding.DataDomain.LevelNames);
-			AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType, nullptr, GroupPin);
+			AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, Binding.DataDomain, Binding.DataType, nullptr, GroupPin);
 		}
 	}
 }
@@ -1071,11 +1065,11 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	// FIXME: Lump input/output functions together into single context.
 	auto ContextsPredicate = [](const FOptimusParameterBinding& A, const FOptimusParameterBinding &B)
 	{
-		for (int32 Index = 0; Index < FMath::Min(A.DataDomain.LevelNames.Num(), B.DataDomain.LevelNames.Num()); Index++)
+		for (int32 Index = 0; Index < FMath::Min(A.DataDomain.DimensionNames.Num(), B.DataDomain.DimensionNames.Num()); Index++)
 		{
-			if (A.DataDomain.LevelNames[Index] != B.DataDomain.LevelNames[Index])
+			if (A.DataDomain.DimensionNames[Index] != B.DataDomain.DimensionNames[Index])
 			{
-				return FNameLexicalLess()(A.DataDomain.LevelNames[Index], B.DataDomain.LevelNames[Index]);
+				return FNameLexicalLess()(A.DataDomain.DimensionNames[Index], B.DataDomain.DimensionNames[Index]);
 			}
 		}
 		return false;
@@ -1093,7 +1087,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 			{
 				CountNameInfix.Append(ContextName.ToString());
 			}
-			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *CountNameInfix));
+			Declarations.Add(FString::Printf(TEXT("uint Num%s();"), *CountNameInfix));
 			SeenDataDomains.Add(InContextNames);
 		}
 	};
@@ -1102,10 +1096,10 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	{
 		for (const FOptimusParameterBinding& Binding: InBindings)
 		{
-			AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
+			AddCountFunctionIfNeeded(Binding.DataDomain.DimensionNames);
 		
 			TArray<FString> Indexes;
-			for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
+			for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.DimensionNames))
 			{
 				Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 			}
@@ -1129,10 +1123,10 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	Bindings.Sort(ContextsPredicate);
 	for (const FOptimusParameterBinding& Binding: Bindings)
 	{
-		AddCountFunctionIfNeeded(Binding.DataDomain.LevelNames);
+		AddCountFunctionIfNeeded(Binding.DataDomain.DimensionNames);
 		
 		TArray<FString> Indexes;
-		for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
+		for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.DimensionNames))
 		{
 			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
@@ -1171,7 +1165,7 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput)
 {
 	TArray<FString> Indexes;
-	for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.LevelNames))
+	for (FString IndexName: GetIndexNamesFromDataDomainLevels(Binding.DataDomain.DimensionNames))
 	{
 		Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 	}

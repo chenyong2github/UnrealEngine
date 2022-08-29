@@ -13,16 +13,16 @@ class UOptimusSkinnedMeshComponentSource :
 {
 	GENERATED_BODY()
 public:
-	struct Contexts
+	struct Domains
 	{
 		static FName Vertex;
 		static FName Triangle;
-		static FName Bone;
 	};
 	
 	// UOptimusComponentSource implementations
 	FText GetDisplayName() const override;
 	FName GetBindingName() const override { return FName("SkinnedMesh"); }
 	TSubclassOf<UActorComponent> GetComponentClass() const override;
-	TArray<FName> GetExecutionContexts() const override;
+	TArray<FName> GetExecutionDomains() const override;
+	bool GetComponentElementCountsForExecutionDomain(FName InDomainName, const UActorComponent* InComponent, TArray<int32>& OutInvocationElementCounts) const override;
 };

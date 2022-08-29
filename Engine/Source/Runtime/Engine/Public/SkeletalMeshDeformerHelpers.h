@@ -18,14 +18,14 @@ public:
 
 	/** Get direct access to bone matrix buffer SRV. */
 	ENGINE_API static FRHIShaderResourceView* GetBoneBufferForReading(
-		FSkeletalMeshObject* MeshObject,
+		FSkeletalMeshObject const* MeshObject,
 		int32 LODIndex,
 		int32 SectionIndex,
 		bool bPreviousFrame);
 
 	/** Get direct access to morph target buffer SRV. */
 	ENGINE_API static FRHIShaderResourceView* GetMorphTargetBufferForReading(
-		FSkeletalMeshObject* MeshObject,
+		FSkeletalMeshObject const* MeshObject,
 		int32 LODIndex,
 		int32 SectionIndex,
 		uint32 FrameNumber,
@@ -42,7 +42,7 @@ public:
 
 	/** Get direct access to cloth buffer SRVs. */
 	ENGINE_API static FClothBuffers GetClothBuffersForReading(
-		FSkeletalMeshObject* MeshObject,
+		FSkeletalMeshObject const* MeshObject,
 		int32 LODIndex,
 		int32 SectionIndex,
 		uint32 FrameNumber,

@@ -18,6 +18,7 @@ struct OPTIMUSCORE_API FOptimusObjectVersion
 		AddBindingsToGraph,
 		ComponentProviderSupport,
 		SetPrimaryBindingName,
+		DataDomainExpansion,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

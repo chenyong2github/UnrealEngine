@@ -5,7 +5,7 @@
 #include "SkeletalRenderGPUSkin.h"
 
 FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(
-	FSkeletalMeshObject* MeshObject,
+	FSkeletalMeshObject const* MeshObject,
 	int32 LODIndex,
 	int32 SectionIndex,
 	bool bPreviousFrame)
@@ -15,7 +15,7 @@ FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(
 		return nullptr;
 	}
 
-	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(MeshObject);
+	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(MeshObject);
 	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
 	bool bHasBoneBuffer = BaseVertexFactory != nullptr && BaseVertexFactory->GetShaderData().HasBoneBufferForReading(bPreviousFrame);
 	if (!bHasBoneBuffer)
@@ -27,7 +27,7 @@ FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(
 }
 
 FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetMorphTargetBufferForReading(
-	FSkeletalMeshObject* MeshObject,
+	FSkeletalMeshObject const* MeshObject,
 	int32 LODIndex,
 	int32 SectionIndex,
 	uint32 FrameNumber,
@@ -38,7 +38,7 @@ FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetMorphTargetBufferForRea
 		return nullptr;
 	}
 
-	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(MeshObject);
+	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(MeshObject);
 	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
 	FMorphVertexBuffer const* MorphVertexBuffer = BaseVertexFactory != nullptr ? BaseVertexFactory->GetMorphVertexBuffer(bPreviousFrame, FrameNumber) : nullptr;
 
@@ -46,7 +46,7 @@ FRHIShaderResourceView* FSkeletalMeshDeformerHelpers::GetMorphTargetBufferForRea
 }
 
 FSkeletalMeshDeformerHelpers::FClothBuffers FSkeletalMeshDeformerHelpers::GetClothBuffersForReading(
-	FSkeletalMeshObject* MeshObject,
+	FSkeletalMeshObject const* MeshObject,
 	int32 LODIndex,
 	int32 SectionIndex,
 	uint32 FrameNumber,
@@ -57,7 +57,7 @@ FSkeletalMeshDeformerHelpers::FClothBuffers FSkeletalMeshDeformerHelpers::GetClo
 		return FClothBuffers();
 	}
 
-	FSkeletalMeshObjectGPUSkin* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin*>(MeshObject);
+	FSkeletalMeshObjectGPUSkin const* MeshObjectGPU = static_cast<FSkeletalMeshObjectGPUSkin const*>(MeshObject);
 	FGPUBaseSkinVertexFactory const* BaseVertexFactory = MeshObjectGPU->GetBaseSkinVertexFactory(LODIndex, SectionIndex);
 	FGPUBaseSkinAPEXClothVertexFactory const* ClothVertexFactory = BaseVertexFactory != nullptr ? BaseVertexFactory->GetClothVertexFactory() : nullptr;
 

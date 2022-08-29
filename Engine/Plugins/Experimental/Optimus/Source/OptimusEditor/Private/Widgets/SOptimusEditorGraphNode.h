@@ -51,6 +51,7 @@ private:
 	EVisibility GetInputTreeVisibility() const;
 	EVisibility GetOutputTreeVisibility() const;
 	TSharedRef<ITableRow> MakeTableRowWidget(UOptimusNodePin* InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedPtr<IToolTip> MakePinToolTip(UOptimusNodePin* InItem) const;
 	void HandleGetChildrenForTree(UOptimusNodePin* InItem, TArray<UOptimusNodePin*>& OutChildren);
 	void HandleExpansionChanged(UOptimusNodePin* InItem, bool bExpanded);
 
