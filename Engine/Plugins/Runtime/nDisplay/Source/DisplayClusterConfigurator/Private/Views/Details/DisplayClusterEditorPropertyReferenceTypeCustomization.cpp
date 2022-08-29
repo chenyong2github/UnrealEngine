@@ -21,7 +21,7 @@ TSharedRef<IPropertyTypeCustomization> FDisplayClusterEditorPropertyReferenceTyp
 
 void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	CustomizationUtilsPtr = &CustomizationUtils;
+	PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
 
 	check(InPropertyHandle->IsValidHandle());
 	if (InPropertyHandle->HasMetaData(EditConditionPathMetadataKey))
@@ -141,18 +141,34 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 					ReferencedPropertyHandle->SetToolTipText(InPropertyHandle->GetToolTipText());
 				}
 
-				ReferencedPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged));
+				ReferencedPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged));
+				
+				const bool bHasShowOnlyInners = InPropertyHandle->HasMetaData(TEXT("ShowOnlyInnerProperties")) || InPropertyHandle->GetInstanceMetaData(TEXT("ShowOnlyInnerProperties"));
+				if (bHasShowOnlyInners)
+				{
+					// If the property referencer has the ShowOnlyInnerProperties metadata, expand the reference property and display the child properties directly
+					uint32 NumChildren;
+					ReferencedPropertyHandle->GetNumChildren(NumChildren);
 
-				IDetailPropertyRow& PropertyRow = InChildBuilder.AddProperty(ReferencedPropertyHandle.ToSharedRef());
+					for (uint32 Index = 0; Index < NumChildren; ++Index)
+					{
+						TSharedPtr<IPropertyHandle> ChildHandle = ReferencedPropertyHandle->GetChildHandle(Index);
+						InChildBuilder.AddProperty(ChildHandle.ToSharedRef());
+					}
+				}
+				else
+				{
+					IDetailPropertyRow& PropertyRow = InChildBuilder.AddProperty(ReferencedPropertyHandle.ToSharedRef());
+
+					if (EditConditionPropertyHandles.Num())
+					{
+						PropertyRow.EditCondition(CreateEditConditional(), nullptr);
+					}
+				}
 
 				// Mark the property with the "IsCustomized" flag so that any subsequent layout builders can account for the property
 				// being moved and placed here.
 				ReferencedPropertyHandle->MarkHiddenByCustomization();
-
-				if (EditConditionPropertyHandles.Num())
-				{
-					PropertyRow.EditCondition(CreateEditConditional(), nullptr);
-				}
 			}
 		}
 	}
@@ -161,9 +177,9 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 void FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged()
 {
 	// When a referenced property is changed, we have to trigger layout refresh
-	if (CustomizationUtilsPtr)
+	if (PropertyUtilities.IsValid())
 	{
-		CustomizationUtilsPtr->GetPropertyUtilities()->ForceRefresh();
+		PropertyUtilities.Pin()->ForceRefresh();
 	}
 }
 

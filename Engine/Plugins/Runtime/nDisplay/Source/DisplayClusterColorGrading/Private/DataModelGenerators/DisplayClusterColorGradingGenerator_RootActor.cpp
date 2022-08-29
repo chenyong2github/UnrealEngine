@@ -13,10 +13,14 @@
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IDetailCustomization.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "PropertyHandle.h"
+#include "PropertyPathHelpers.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -84,19 +88,23 @@ void FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings::AddDeta
 	}
 }
 
-TSharedPtr<IDetailTreeNode> FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings::FindPropertyTreeNode(const TSharedRef<IDetailTreeNode>& Node, const FName& PropertyName)
+TSharedPtr<IDetailTreeNode> FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings::FindPropertyTreeNode(const TSharedRef<IDetailTreeNode>& Node, const FCachedPropertyPath& PropertyPath)
 {
 	if (Node->GetNodeType() == EDetailNodeType::Item)
 	{
 		FName NodeName = Node->GetNodeName();
-		if (Node->GetNodeName() == PropertyName)
+		if (Node->GetNodeName() == PropertyPath.GetLastSegment().GetName())
 		{
-			return Node;
+			TSharedPtr<IPropertyHandle> FoundPropertyHandle = Node->CreatePropertyHandle();
+			FString FoundPropertyPath = FoundPropertyHandle->GeneratePathToProperty();
+
+			if (PropertyPath == FoundPropertyPath)
+			{
+				return Node;
+			}
 		}
-		else
-		{
-			return nullptr;
-		}
+		
+		return nullptr;
 	}
 	else
 	{
@@ -104,7 +112,7 @@ TSharedPtr<IDetailTreeNode> FDisplayClusterColorGradingGenerator_ColorGradingRen
 		Node->GetChildren(Children);
 		for (const TSharedRef<IDetailTreeNode>& Child : Children)
 		{
-			if (TSharedPtr<IDetailTreeNode> PropertyTreeNode = FindPropertyTreeNode(Child, PropertyName))
+			if (TSharedPtr<IDetailTreeNode> PropertyTreeNode = FindPropertyTreeNode(Child, PropertyPath))
 			{
 				return PropertyTreeNode;
 			}
@@ -114,13 +122,13 @@ TSharedPtr<IDetailTreeNode> FDisplayClusterColorGradingGenerator_ColorGradingRen
 	}
 }
 
-TSharedPtr<IPropertyHandle> FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings::FindPropertyHandle(IPropertyRowGenerator& PropertyRowGenerator, const FName& PropertyNodeName)
+TSharedPtr<IPropertyHandle> FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings::FindPropertyHandle(IPropertyRowGenerator& PropertyRowGenerator, const FCachedPropertyPath& PropertyPath)
 {
 	const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = PropertyRowGenerator.GetRootTreeNodes();
 
 	for (const TSharedRef<IDetailTreeNode>& RootNode : RootNodes)
 	{
-		if (TSharedPtr<IDetailTreeNode> PropertyTreeNode = FindPropertyTreeNode(RootNode, PropertyNodeName))
+		if (TSharedPtr<IDetailTreeNode> PropertyTreeNode = FindPropertyTreeNode(RootNode, PropertyPath))
 		{
 			return PropertyTreeNode->CreatePropertyHandle();
 		}
@@ -129,14 +137,87 @@ TSharedPtr<IPropertyHandle> FDisplayClusterColorGradingGenerator_ColorGradingRen
 	return nullptr;
 }
 
+#define CREATE_PROPERTY_PATH(RootObjectClass, PropertyPath) FCachedPropertyPath(GET_MEMBER_NAME_STRING_CHECKED(RootObjectClass, PropertyPath))
 
 TSharedRef<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGradingGenerator_RootActor::MakeInstance()
 {
 	return MakeShareable(new FDisplayClusterColorGradingGenerator_RootActor());
 }
 
+class FRootActorDetailsSectionCustomization : public IDetailCustomization
+{
+public:
+	enum EDetailsSectionType
+	{
+		Viewports,
+		InnerFrustum,
+		OCIO_AllViewports,
+		OCIO_PerViewport
+	};
+
+public:
+	FRootActorDetailsSectionCustomization(EDetailsSectionType InSectionType)
+		: SectionType(InSectionType)
+	{ }
+
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
+	{
+		TArray<FName> Categories;
+		DetailBuilder.GetCategoryNames(Categories);
+
+		for (const FName& Category : Categories)
+		{
+			DetailBuilder.HideCategory(Category);
+		}
+
+		// TransformCommon is a custom category that doesn't get returned by GetCategoryNames that also needs to be hidden
+		DetailBuilder.HideCategory(TEXT("TransformCommon"));
+
+		switch (SectionType)
+		{
+		case EDetailsSectionType::Viewports:
+			{
+				IDetailCategoryBuilder& ViewportsCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomViewportsCategory"), LOCTEXT("CustomViewportsCategoryLabel", "Viewports"));
+
+				ViewportsCategoryBuilder.AddProperty(TEXT("ViewportScreenPercentageMultiplierRef"), ADisplayClusterRootActor::StaticClass());
+				ViewportsCategoryBuilder.AddProperty(TEXT("FreezeRenderOuterViewportsRef"), ADisplayClusterRootActor::StaticClass());
+			}
+			break;
+
+		case EDetailsSectionType::InnerFrustum:
+			{
+				IDetailCategoryBuilder& InnerFrustumCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomICVFXCategory"), LOCTEXT("CustomICVFXCategoryLabel", "In-Camera VFX"));
+
+				InnerFrustumCategoryBuilder.AddProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, InnerFrustumPriority), ADisplayClusterRootActor::StaticClass());
+			}
+			break;
+
+		case EDetailsSectionType::OCIO_AllViewports:
+			{
+				IDetailCategoryBuilder& AllViewportsOCIOCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomAllViewportsOCIOCategory"), LOCTEXT("CustomAllViewportsOCIOCategoryLabel", "All Viewports"));
+
+				AllViewportsOCIOCategoryBuilder.AddProperty(TEXT("ClusterOCIOColorConfigurationRef"), ADisplayClusterRootActor::StaticClass());
+			}
+			break;
+
+		case EDetailsSectionType::OCIO_PerViewport:
+			{
+				IDetailCategoryBuilder& PerViewportOCIOCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomPerViewportOCIOCategory"), LOCTEXT("CustomPerViewportOCIOCategoryLabel", "Per-Viewport"));
+
+				PerViewportOCIOCategoryBuilder.AddProperty(TEXT("PerViewportOCIOProfilesRef"), ADisplayClusterRootActor::StaticClass());
+			}
+			break;
+		}
+	}
+
+private:
+	EDetailsSectionType SectionType;
+};
+
 void FDisplayClusterColorGradingGenerator_RootActor::GenerateDataModel(IPropertyRowGenerator& PropertyRowGenerator, FDisplayClusterColorGradingDataModel& OutColorGradingDataModel)
 {
+	RootActors.Empty();
+
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator.GetSelectedObjects();
 	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
 	{
@@ -148,7 +229,7 @@ void FDisplayClusterColorGradingGenerator_RootActor::GenerateDataModel(IProperty
 	}
 
 	// Add a color grading group for the root actor's "EntireClusterColorGrading" property
-	if (TSharedPtr<IPropertyHandle> EntireClusterColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, EntireClusterColorGrading)))
+	if (TSharedPtr<IPropertyHandle> EntireClusterColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterConfigurationData, StageSettings.EntireClusterColorGrading)))
 	{
 		FDisplayClusterColorGradingDataModel::FColorGradingGroup EntireClusterGroup = CreateColorGradingGroup(EntireClusterColorGradingHandle);
 		EntireClusterGroup.EditConditionPropertyHandle = EntireClusterColorGradingHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_EntireClusterColorGrading, bEnableEntireClusterColorGrading));
@@ -175,7 +256,7 @@ void FDisplayClusterColorGradingGenerator_RootActor::GenerateDataModel(IProperty
 	}
 
 	// Add a color grading group for each element in the root actor's "PerViewportColorGrading" array
-	if (TSharedPtr<IPropertyHandle> PerViewportColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_StageSettings, PerViewportColorGrading)))
+	if (TSharedPtr<IPropertyHandle> PerViewportColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterConfigurationData, StageSettings.PerViewportColorGrading)))
 	{
 		check(PerViewportColorGradingHandle->AsArray().IsValid());
 
@@ -247,6 +328,50 @@ void FDisplayClusterColorGradingGenerator_RootActor::GenerateDataModel(IProperty
 			.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
+
+
+	FDisplayClusterColorGradingDataModel::FDetailsSection ViewportsDetailsSection;
+	ViewportsDetailsSection.DisplayName = LOCTEXT("ViewportsDetailsSectionLabel", "Viewports");
+	ViewportsDetailsSection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+	{
+		return MakeShared<FRootActorDetailsSectionCustomization>(FRootActorDetailsSectionCustomization::EDetailsSectionType::Viewports);
+	});
+
+	OutColorGradingDataModel.DetailsSections.Add(ViewportsDetailsSection);
+
+	FDisplayClusterColorGradingDataModel::FDetailsSection InnerFrustumDetailsSection;
+	InnerFrustumDetailsSection.DisplayName = LOCTEXT("InnerFrustumDetailsSectionLabel", "Inner Frustum");
+	InnerFrustumDetailsSection.EditConditionPropertyHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterConfigurationData, StageSettings.bEnableInnerFrustums));
+	InnerFrustumDetailsSection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+	{
+		return MakeShared<FRootActorDetailsSectionCustomization>(FRootActorDetailsSectionCustomization::EDetailsSectionType::InnerFrustum);
+	});
+
+	OutColorGradingDataModel.DetailsSections.Add(InnerFrustumDetailsSection);
+
+	FDisplayClusterColorGradingDataModel::FDetailsSection OCIODetailsSection;
+	OCIODetailsSection.DisplayName = LOCTEXT("OCIODetailsSectionLabel", "OCIO");
+	OCIODetailsSection.EditConditionPropertyHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterConfigurationData, StageSettings.bUseOverallClusterOCIOConfiguration));
+
+	FDisplayClusterColorGradingDataModel::FDetailsSubsection AllViewportsOCIODetailsSubsection;
+	AllViewportsOCIODetailsSubsection.DisplayName = LOCTEXT("AllViewportsOCIOSubsectionLabel", "All Viewports");
+	AllViewportsOCIODetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+	{
+		return MakeShared<FRootActorDetailsSectionCustomization>(FRootActorDetailsSectionCustomization::EDetailsSectionType::OCIO_AllViewports);
+	});
+
+	OCIODetailsSection.Subsections.Add(AllViewportsOCIODetailsSubsection);
+
+	FDisplayClusterColorGradingDataModel::FDetailsSubsection PerViewportOCIODetailsSubsection;
+	PerViewportOCIODetailsSubsection.DisplayName = LOCTEXT("PerViewportOCIOSubsectionLabel", "Per-Viewport");
+	PerViewportOCIODetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+	{
+		return MakeShared<FRootActorDetailsSectionCustomization>(FRootActorDetailsSectionCustomization::EDetailsSectionType::OCIO_PerViewport);
+	});
+
+	OCIODetailsSection.Subsections.Add(PerViewportOCIODetailsSubsection);
+
+	OutColorGradingDataModel.DetailsSections.Add(OCIODetailsSection);
 }
 
 FReply FDisplayClusterColorGradingGenerator_RootActor::AddColorGradingGroup()
@@ -438,8 +563,118 @@ TSharedRef<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGr
 	return MakeShareable(new FDisplayClusterColorGradingGenerator_ICVFXCamera());
 }
 
+class FICVFXCameraDetailsSectionCustomization : public IDetailCustomization
+{
+public:
+	enum EDetailsSectionType
+	{
+		ICVFX,
+		Overscan,
+		Chromakey_Markers,
+		Chromakey_Custom,
+		OCIO_AllNodes,
+		OCIO_PerNode
+	};
+
+public:
+	FICVFXCameraDetailsSectionCustomization(EDetailsSectionType InSectionType)
+		: SectionType(InSectionType)
+	{ }
+
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
+	{
+		TArray<FName> Categories;
+		DetailBuilder.GetCategoryNames(Categories);
+
+		for (const FName& Category : Categories)
+		{
+			DetailBuilder.HideCategory(Category);
+		}
+
+		// TransformCommon is a custom category that doesn't get returned by GetCategoryNames that also needs to be hidden
+		DetailBuilder.HideCategory(TEXT("TransformCommon"));
+
+		switch (SectionType)
+		{
+		case EDetailsSectionType::ICVFX:
+			{
+				IDetailCategoryBuilder& ICVFXCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomICVFXCategory"), LOCTEXT("CustomICVFXCategoryLabel", "In-Camera VFX"));
+				AddProperty(DetailBuilder, ICVFXCategoryBuilder, TEXT("BufferRatioRef"));
+				AddProperty(DetailBuilder, ICVFXCategoryBuilder, TEXT("ExternalCameraActorRef"));
+				AddProperty(DetailBuilder, ICVFXCategoryBuilder, TEXT("HiddenICVFXViewportsRef"));
+
+				IDetailCategoryBuilder& SoftEdgeCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomSoftEdgeCategory"), LOCTEXT("CustomSoftEdgeCategoryLabel", "Soft Edge"));
+				AddProperty(DetailBuilder, SoftEdgeCategoryBuilder, TEXT("SoftEdgeRef"), true);
+
+				IDetailCategoryBuilder& BorderCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomBorderCategory"), LOCTEXT("CustomBorderCategoryLabel", "Border"));
+				AddProperty(DetailBuilder, BorderCategoryBuilder, TEXT("BorderRef"), true);
+			}
+			break;
+
+		case EDetailsSectionType::Overscan:
+			{
+				IDetailCategoryBuilder& OverscanCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomOverscanCategory"), LOCTEXT("CustomOverscanCategoryLabel", "Inner Frustum Overscan"));
+				AddProperty(DetailBuilder, OverscanCategoryBuilder, TEXT("CustomFrustumRef"), true);
+			}
+			break;
+
+		case EDetailsSectionType::Chromakey_Markers:
+			{
+				IDetailCategoryBuilder& ChromakeyCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomChromakeyCategory"), LOCTEXT("CustomChromakeyCategoryLabel", "Chromakey"));
+				AddProperty(DetailBuilder, ChromakeyCategoryBuilder, TEXT("ChromakeyColorRef"));
+
+				IDetailCategoryBuilder& ChromakeyMarkersCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomChromakeyMarkersCategory"), LOCTEXT("CustomChromakeyMarkersCategoryLabel", "ChromakeyMarkers"));
+				AddProperty(DetailBuilder, ChromakeyMarkersCategoryBuilder, TEXT("ChromakeyMarkersRef"), true);
+			}
+			break;
+
+		case EDetailsSectionType::Chromakey_Custom:
+			{
+				IDetailCategoryBuilder& ChromakeyCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomChromakeyCategory"), LOCTEXT("CustomChromakeyCategoryLabel", "Chromakey"));
+				AddProperty(DetailBuilder, ChromakeyCategoryBuilder, TEXT("ChromakeyColorRef"));
+
+				IDetailCategoryBuilder& ChromakeyCustomCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomChromakeyCustomCategory"), LOCTEXT("CustomChromakeyCustomCategoryLabel", "Custom Chromakey"));
+				AddProperty(DetailBuilder, ChromakeyCustomCategoryBuilder, TEXT("ChromakeyRenderTextureRef"), true);
+			}
+			break;
+
+		case EDetailsSectionType::OCIO_AllNodes:
+			{
+				IDetailCategoryBuilder& OCIOAllNodesCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomAllNodesOCIOCategory"), LOCTEXT("CustomAllNodesOCIOCategoryLabel", "All Nodes"));
+				AddProperty(DetailBuilder, OCIOAllNodesCategoryBuilder, TEXT("OCIOColorConfiguratonRef"));
+			}
+			break;
+
+		case EDetailsSectionType::OCIO_PerNode:
+			{
+				IDetailCategoryBuilder& OCIOPerNodeCategoryBuilder = DetailBuilder.EditCategory(TEXT("CustomPerNodeOCIOCategory"), LOCTEXT("CustomPerNodeOCIOCategoryLabel", "Per-Node"));
+				AddProperty(DetailBuilder, OCIOPerNodeCategoryBuilder, TEXT("PerNodeOCIOProfilesRef"));
+			}
+			break;
+		}
+	}
+
+private:
+	void AddProperty(IDetailLayoutBuilder& DetailBuilder, IDetailCategoryBuilder& Category, FName PropertyName, bool bExpandChildProperties = false)
+	{
+		TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(PropertyName, UDisplayClusterICVFXCameraComponent::StaticClass());
+
+		if (bExpandChildProperties)
+		{
+			PropertyHandle->SetInstanceMetaData(TEXT("ShowOnlyInnerProperties"), TEXT("1"));
+		}
+
+		Category.AddProperty(PropertyHandle);
+	}
+
+private:
+	EDetailsSectionType SectionType;
+};
+
 void FDisplayClusterColorGradingGenerator_ICVFXCamera::GenerateDataModel(IPropertyRowGenerator& PropertyRowGenerator, FDisplayClusterColorGradingDataModel& OutColorGradingDataModel)
 {
+	CameraComponents.Empty();
+
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator.GetSelectedObjects();
 	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedObjects)
 	{
@@ -451,7 +686,7 @@ void FDisplayClusterColorGradingGenerator_ICVFXCamera::GenerateDataModel(IProper
 	}
 
 	// Add a color grading group for the camera's "AllNodesColorGrading" property
-	if (TSharedPtr<IPropertyHandle> AllNodesColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_CameraSettings, AllNodesColorGrading)))
+	if (TSharedPtr<IPropertyHandle> AllNodesColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading)))
 	{
 		FDisplayClusterColorGradingDataModel::FColorGradingGroup AllNodesGroup = CreateColorGradingGroup(AllNodesColorGradingHandle);
 		AllNodesGroup.EditConditionPropertyHandle = AllNodesColorGradingHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_AllNodesColorGrading, bEnableInnerFrustumAllNodesColorGrading));
@@ -478,7 +713,7 @@ void FDisplayClusterColorGradingGenerator_ICVFXCamera::GenerateDataModel(IProper
 	}
 
 	// Add a color grading group for each element in the camera's "PerNodeColorGrading" array
-	if (TSharedPtr<IPropertyHandle> PerNodeColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_CameraSettings, PerNodeColorGrading)))
+	if (TSharedPtr<IPropertyHandle> PerNodeColorGradingHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGrading)))
 	{
 		check(PerNodeColorGradingHandle->AsArray().IsValid());
 
@@ -550,6 +785,84 @@ void FDisplayClusterColorGradingGenerator_ICVFXCamera::GenerateDataModel(IProper
 			.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
+
+	{
+		FDisplayClusterColorGradingDataModel::FDetailsSection InnerFrustumDetailsSection;
+		InnerFrustumDetailsSection.DisplayName = LOCTEXT("InnerFrustumDetailsSectionLabel", "Inner Frustum");
+		InnerFrustumDetailsSection.EditConditionPropertyHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable));
+
+		FDisplayClusterColorGradingDataModel::FDetailsSubsection ICVFXDetailsSubsection;
+		ICVFXDetailsSubsection.DisplayName = LOCTEXT("ICVFXSubsectionLabel", "ICVFX");
+		ICVFXDetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+		{
+			return MakeShared<FICVFXCameraDetailsSectionCustomization>(FICVFXCameraDetailsSectionCustomization::EDetailsSectionType::ICVFX);
+		});
+
+		InnerFrustumDetailsSection.Subsections.Add(ICVFXDetailsSubsection);
+
+		FDisplayClusterColorGradingDataModel::FDetailsSubsection OverscanDetailsSubsection;
+		OverscanDetailsSubsection.DisplayName = LOCTEXT("OverscanDetailsSubsectionLabel", "Overscan");
+		OverscanDetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+		{
+			return MakeShared<FICVFXCameraDetailsSectionCustomization>(FICVFXCameraDetailsSectionCustomization::EDetailsSectionType::Overscan);
+		});
+
+		InnerFrustumDetailsSection.Subsections.Add(OverscanDetailsSubsection);
+
+		OutColorGradingDataModel.DetailsSections.Add(InnerFrustumDetailsSection);
+	}
+
+	{
+		FDisplayClusterColorGradingDataModel::FDetailsSection ChromakeyDetailsSection;
+		ChromakeyDetailsSection.DisplayName = LOCTEXT("ChromakeyDetailsSectionLabel", "Chromakey");
+		ChromakeyDetailsSection.EditConditionPropertyHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.bEnable));
+
+		FDisplayClusterColorGradingDataModel::FDetailsSubsection ChromakeyMarkersDetailsSubsection;
+		ChromakeyMarkersDetailsSubsection.DisplayName = LOCTEXT("ChromakeyMarkersDetailsSubsectionLabel", "Markers");
+		ChromakeyMarkersDetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+		{
+			return MakeShared<FICVFXCameraDetailsSectionCustomization>(FICVFXCameraDetailsSectionCustomization::EDetailsSectionType::Chromakey_Markers);
+		});
+
+		ChromakeyDetailsSection.Subsections.Add(ChromakeyMarkersDetailsSubsection);
+
+		FDisplayClusterColorGradingDataModel::FDetailsSubsection ChromakeyCustomDetailsSubsection;
+		ChromakeyCustomDetailsSubsection.DisplayName = LOCTEXT("ChromakeyCustomDetailsSubsectionLabel", "Custom");
+		ChromakeyCustomDetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+		{
+			return MakeShared<FICVFXCameraDetailsSectionCustomization>(FICVFXCameraDetailsSectionCustomization::EDetailsSectionType::Chromakey_Custom);
+		});
+
+		ChromakeyDetailsSection.Subsections.Add(ChromakeyCustomDetailsSubsection);
+
+		OutColorGradingDataModel.DetailsSections.Add(ChromakeyDetailsSection);
+	}
+
+	{
+		FDisplayClusterColorGradingDataModel::FDetailsSection OCIODetailsSection;
+		OCIODetailsSection.DisplayName = LOCTEXT("OCIODetailsSectionLabel", "OCIO");
+		OCIODetailsSection.EditConditionPropertyHandle = FindPropertyHandle(PropertyRowGenerator, CREATE_PROPERTY_PATH(UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled));
+
+		FDisplayClusterColorGradingDataModel::FDetailsSubsection AllNodesOCIODetailsSubsection;
+		AllNodesOCIODetailsSubsection.DisplayName = LOCTEXT("AllNodesOCIODetailsSubsectionLabel", "All Nodes");
+		AllNodesOCIODetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+		{
+			return MakeShared<FICVFXCameraDetailsSectionCustomization>(FICVFXCameraDetailsSectionCustomization::EDetailsSectionType::OCIO_AllNodes);
+		});
+
+		OCIODetailsSection.Subsections.Add(AllNodesOCIODetailsSubsection);
+
+		FDisplayClusterColorGradingDataModel::FDetailsSubsection PerNodeOCIODetailsSubsection;
+		PerNodeOCIODetailsSubsection.DisplayName = LOCTEXT("PerNodeOCIODetailsSubsectionLabel", "Per-Node");
+		PerNodeOCIODetailsSubsection.DetailCustomizationDelegate = FOnGetDetailCustomizationInstance::CreateLambda([]
+		{
+			return MakeShared<FICVFXCameraDetailsSectionCustomization>(FICVFXCameraDetailsSectionCustomization::EDetailsSectionType::OCIO_PerNode);
+		});
+
+		OCIODetailsSection.Subsections.Add(PerNodeOCIODetailsSubsection);
+
+		OutColorGradingDataModel.DetailsSections.Add(OCIODetailsSection);
+	}
 }
 
 FReply FDisplayClusterColorGradingGenerator_ICVFXCamera::AddColorGradingGroup()

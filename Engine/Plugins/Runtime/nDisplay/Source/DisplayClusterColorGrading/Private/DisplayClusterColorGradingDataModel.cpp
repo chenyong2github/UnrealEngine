@@ -21,6 +21,7 @@ FDisplayClusterColorGradingDataModel::FDisplayClusterColorGradingDataModel()
 
 	FPropertyRowGeneratorArgs Args;
 	PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(Args);
+	PropertyRowGenerator->OnRowsRefreshed().AddRaw(this, &FDisplayClusterColorGradingDataModel::OnPropertyRowGeneratorRefreshed);
 }
 
 TArray<TWeakObjectPtr<UObject>> FDisplayClusterColorGradingDataModel::GetObjects() const
@@ -40,23 +41,6 @@ void FDisplayClusterColorGradingDataModel::SetObjects(const TArray<UObject*>& In
 	if (PropertyRowGenerator.IsValid())
 	{
 		PropertyRowGenerator->SetObjects(InObjects);
-
-		const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator->GetSelectedObjects();
-
-		if (SelectedObjects.Num() == 1)
-		{
-			TWeakObjectPtr<UObject> SelectedObject = SelectedObjects[0];
-
-			if (SelectedObject.IsValid())
-			{
-				if (TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> Generator = GetDataModelGenerator(SelectedObject->GetClass()))
-				{
-					Generator->GenerateDataModel(*PropertyRowGenerator, *this);
-				}
-			}
-		}
-
-		// TODO: Figure out what needs to be done to support multiple disparate types of objects being color graded at the same time
 	}
 
 	SelectedColorGradingGroupIndex = ColorGradingGroups.Num() ? 0 : INDEX_NONE;
@@ -85,6 +69,7 @@ void FDisplayClusterColorGradingDataModel::Reset()
 {
 	DataModelGeneratorInstances.Empty();
 	ColorGradingGroups.Empty();
+	DetailsSections.Empty();
 	SelectedColorGradingGroupIndex = INDEX_NONE;
 	SelectedColorGradingElementIndex = INDEX_NONE;
 	ColorGradingGroupToolBarWidget = nullptr;
@@ -158,6 +143,31 @@ TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGr
 	}
 
 	return nullptr;
+}
+
+void FDisplayClusterColorGradingDataModel::OnPropertyRowGeneratorRefreshed()
+{
+	ColorGradingGroups.Empty();
+	DetailsSections.Empty();
+
+	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator->GetSelectedObjects();
+
+	if (SelectedObjects.Num() == 1)
+	{
+		TWeakObjectPtr<UObject> SelectedObject = SelectedObjects[0];
+
+		if (SelectedObject.IsValid())
+		{
+			if (TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> Generator = GetDataModelGenerator(SelectedObject->GetClass()))
+			{
+				Generator->GenerateDataModel(*PropertyRowGenerator, *this);
+			}
+		}
+	}
+
+	// TODO: Figure out what needs to be done to support multiple disparate types of objects being color graded at the same time
+
+	OnDataModelGeneratedDelegate.Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

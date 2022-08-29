@@ -2,10 +2,12 @@
 
 #include "SDisplayClusterColorGradingDrawer.h"
 
+#include "DisplayClusterColorGradingStyle.h"
 #include "IDisplayClusterColorGrading.h"
 #include "IDisplayClusterColorGradingDrawerSingleton.h"
 #include "SDisplayClusterColorGradingObjectList.h"
 #include "SDisplayClusterColorGradingColorWheelPanel.h"
+#include "SDisplayClusterColorGradingDetailsPanel.h"
 
 #include "IDisplayClusterOperator.h"
 #include "IDisplayClusterOperatorViewModel.h"
@@ -73,6 +75,7 @@ SDisplayClusterColorGradingDrawer::~SDisplayClusterColorGradingDrawer()
 void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool bInIsInDrawer)
 {
 	ColorGradingDataModel = MakeShared<FDisplayClusterColorGradingDataModel>();
+	ColorGradingDataModel->OnDataModelGenerated().AddSP(this, &SDisplayClusterColorGradingDrawer::OnColorGradingDataModelGenerated);
 
 	bIsInDrawer = bInIsInDrawer;
 	OperatorViewModel = IDisplayClusterOperator::Get().GetOperatorViewModel();
@@ -116,6 +119,43 @@ void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool
 					[
 						SNew(SBox)
 						.HeightOverride(24.0f)
+						[
+							SNew(SHorizontalBox)
+
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(2, 0, 2, 0)
+							[
+								SNew(SCheckBox)
+								.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+								.ToolTipText(LOCTEXT("ColorGradingDrawerModeToolTip", "Sets the drawer to display the color grading properties of the selected items"))
+								.OnCheckStateChanged(this, &SDisplayClusterColorGradingDrawer::OnDrawerModeSelected, EDisplayClusterColorGradingDrawerMode::ColorGrading)
+								.IsChecked(this, &SDisplayClusterColorGradingDrawer::IsDrawerModeSelected, EDisplayClusterColorGradingDrawerMode::ColorGrading)
+								[
+									SNew(SImage)
+									.ColorAndOpacity(FSlateColor::UseForeground())
+									.Image(FDisplayClusterColorGradingStyle::Get().GetBrush("ColorGradingDrawer.ColorGradingMode"))
+								]
+							]
+
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(2, 0, 2, 0)
+							[
+								SNew(SCheckBox)
+								.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+								.ToolTipText(LOCTEXT("ColorGradingDrawerModeToolTip", "Sets the drawer to display the additional in-camera VFX properties of the selected items"))
+								.OnCheckStateChanged(this, &SDisplayClusterColorGradingDrawer::OnDrawerModeSelected, EDisplayClusterColorGradingDrawerMode::DetailsView)
+								.IsChecked(this, &SDisplayClusterColorGradingDrawer::IsDrawerModeSelected, EDisplayClusterColorGradingDrawerMode::DetailsView)
+								[
+									SNew(SImage)
+									.ColorAndOpacity(FSlateColor::UseForeground())
+									.Image(FAppStyle::Get().GetBrush("EditorPreferences.TabIcon"))
+								]
+							]
+						]
 					]
 				]
 
@@ -287,8 +327,22 @@ void SDisplayClusterColorGradingDrawer::Construct(const FArguments& InArgs, bool
 					SNew(SBorder)
 					.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 					.Padding(FMargin(2.0f, 2.0f, 2.0f, 0.0f))
+					.Visibility(this, &SDisplayClusterColorGradingDrawer::GetDrawerModeVisibility, EDisplayClusterColorGradingDrawerMode::ColorGrading)
 					[
 						SAssignNew(ColorWheelPanel, SDisplayClusterColorGradingColorWheelPanel)
+						.ColorGradingDataModelSource(ColorGradingDataModel)
+					]
+				]
+
+				// Slot for the details views
+				+SVerticalBox::Slot()
+				[
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+					.Padding(FMargin(2.0f, 2.0f, 2.0f, 0.0f))
+					.Visibility(this, &SDisplayClusterColorGradingDrawer::GetDrawerModeVisibility, EDisplayClusterColorGradingDrawerMode::DetailsView)
+					[
+						SAssignNew(DetailsPanel, SDisplayClusterColorGradingDetailsPanel)
 						.ColorGradingDataModelSource(ColorGradingDataModel)
 					]
 				]
@@ -309,6 +363,11 @@ void SDisplayClusterColorGradingDrawer::Refresh(bool bPreserveDrawerState)
 	if (ColorWheelPanel.IsValid())
 	{
 		ColorWheelPanel->Refresh();
+	}
+
+	if (DetailsPanel.IsValid())
+	{
+		DetailsPanel->Refresh();
 	}
 
 	if (bPreserveDrawerState)
@@ -354,10 +413,16 @@ FDisplayClusterColorGradingDrawerState SDisplayClusterColorGradingDrawer::GetDra
 
 	DrawerState.SelectedColorGradingGroup = ColorGradingDataModel->GetSelectedColorGradingGroupIndex();
 	DrawerState.SelectedColorGradingElement = ColorGradingDataModel->GetSelectedColorGradingElementIndex();
+	DrawerState.DrawerMode = CurrentDrawerMode;
 
 	if (ColorWheelPanel.IsValid())
 	{
 		ColorWheelPanel->GetDrawerState(DrawerState);
+	}
+
+	if (DetailsPanel.IsValid())
+	{
+		DetailsPanel->GetDrawerState(DrawerState);
 	}
 
 	if (LevelActorsList.IsValid())
@@ -405,6 +470,8 @@ FDisplayClusterColorGradingDrawerState SDisplayClusterColorGradingDrawer::GetDra
 
 void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColorGradingDrawerState& InDrawerState)
 {
+	CurrentDrawerMode = InDrawerState.DrawerMode;
+
 	TArray<FDisplayClusterColorGradingListItemRef> LevelItemsToSelect;
 	TArray<FDisplayClusterColorGradingListItemRef> RootActorItemsToSelect;
 	for (const TWeakObjectPtr<UObject>& SelectedObject : InDrawerState.SelectedObjects)
@@ -457,6 +524,11 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 	if (ColorWheelPanel.IsValid())
 	{
 		ColorWheelPanel->SetDrawerState(InDrawerState);
+	}
+
+	if (DetailsPanel.IsValid())
+	{
+		DetailsPanel->SetDrawerState(InDrawerState);
 	}
 }
 
@@ -681,9 +753,27 @@ void SDisplayClusterColorGradingDrawer::FillColorGradingGroupToolBar()
 	}
 }
 
+ECheckBoxState SDisplayClusterColorGradingDrawer::IsDrawerModeSelected(EDisplayClusterColorGradingDrawerMode InDrawerMode) const
+{
+	return CurrentDrawerMode == InDrawerMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+EVisibility SDisplayClusterColorGradingDrawer::GetDrawerModeVisibility(EDisplayClusterColorGradingDrawerMode InDrawerMode) const
+{
+	return CurrentDrawerMode == InDrawerMode ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SDisplayClusterColorGradingDrawer::OnDrawerModeSelected(ECheckBoxState State, EDisplayClusterColorGradingDrawerMode InDrawerMode)
+{
+	if (State == ECheckBoxState::Checked)
+	{
+		CurrentDrawerMode = InDrawerMode;
+	}
+}
+
 EVisibility SDisplayClusterColorGradingDrawer::GetColorGradingGroupToolBarVisibility() const
 {
-	if (ColorGradingDataModel->bShowColorGradingGroupToolBar)
+	if (ColorGradingDataModel->bShowColorGradingGroupToolBar && CurrentDrawerMode == EDisplayClusterColorGradingDrawerMode::ColorGrading)
 	{
 		return EVisibility::Visible;
 	}
@@ -810,6 +900,21 @@ void SDisplayClusterColorGradingDrawer::OnActiveRootActorChanged(ADisplayCluster
 	Refresh(bPreserveDrawerState);
 }
 
+void SDisplayClusterColorGradingDrawer::OnColorGradingDataModelGenerated()
+{
+	FillColorGradingGroupToolBar();
+
+	if (ColorWheelPanel.IsValid())
+	{
+		ColorWheelPanel->Refresh();
+	}
+
+	if (DetailsPanel.IsValid())
+	{
+		DetailsPanel->Refresh();
+	}
+}
+
 void SDisplayClusterColorGradingDrawer::OnListSelectionChanged(TSharedRef<SDisplayClusterColorGradingObjectList> SourceList, FDisplayClusterColorGradingListItemRef SelectedItem, ESelectInfo::Type SelectInfo)
 {
 	TArray<FDisplayClusterColorGradingListItemRef> SelectedObjects = SourceList->GetSelectedItems();
@@ -844,13 +949,6 @@ void SDisplayClusterColorGradingDrawer::OnListSelectionChanged(TSharedRef<SDispl
 	}
 
 	ColorGradingDataModel->SetObjects(ObjectsToColorGrade);
-
-	FillColorGradingGroupToolBar();
-
-	if (ColorWheelPanel.IsValid())
-	{
-		ColorWheelPanel->Refresh();
-	}
 }
 
 FReply SDisplayClusterColorGradingDrawer::DockInLayout()

@@ -13,6 +13,7 @@ class IPropertyHandle;
 class IPropertyRowGenerator;
 class FDisplayClusterColorGradingDataModel;
 class UDisplayClusterICVFXCameraComponent;
+struct FCachedPropertyPath;
 
 /** Base generator for any object that needs a color grading data model generated from an FColorGradingRenderingSettings struct */
 class FDisplayClusterColorGradingGenerator_ColorGradingRenderingSettings : public IDisplayClusterColorGradingDataModelGenerator
@@ -28,10 +29,10 @@ protected:
 	void AddDetailsViewPropertyToGroup(const TSharedPtr<IPropertyHandle>& GroupPropertyHandle, FDisplayClusterColorGradingDataModel::FColorGradingGroup& Group, FName PropertyName, const FString& CategoryOverride);
 
 	/** Recursively searches the detail tree hierarchy for a property detail tree node whose name matches the specified name */
-	TSharedPtr<IDetailTreeNode> FindPropertyTreeNode(const TSharedRef<IDetailTreeNode>& Node, const FName& PropertyName);
+	TSharedPtr<IDetailTreeNode> FindPropertyTreeNode(const TSharedRef<IDetailTreeNode>& Node, const FCachedPropertyPath& PropertyPath);
 
 	/** Finds a property handle in the specified property row generator whose name matches the specified name */
-	TSharedPtr<IPropertyHandle> FindPropertyHandle(IPropertyRowGenerator& PropertyRowGenerator, const FName& PropertyNodeName);
+	TSharedPtr<IPropertyHandle> FindPropertyHandle(IPropertyRowGenerator& PropertyRowGenerator, const FCachedPropertyPath& PropertyPath);
 };
 
 /** Color grading data model generator for an nDisplay root actor */

@@ -23,6 +23,7 @@ public class DisplayClusterColorGrading : ModuleRules
 				"InputCore",
 				"Kismet",
 				"PropertyEditor",
+				"PropertyPath",
 				"Slate",
 				"SlateCore",
 				"ToolWidgets",

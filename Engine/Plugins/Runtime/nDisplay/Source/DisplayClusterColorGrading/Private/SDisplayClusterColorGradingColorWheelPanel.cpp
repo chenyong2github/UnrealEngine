@@ -469,12 +469,15 @@ void SDisplayClusterColorGradingColorWheelPanel::FillDetailsView(const FDisplayC
 			ColorGradingGroup.DetailsViewPropertyHandles[0]->GetOuterObjects(OuterObjects);
 		}
 
-		DetailsView->RegisterInstancedCustomPropertyLayout(OuterObjects[0]->GetClass(), FOnGetDetailCustomizationInstance::CreateLambda([&ColorGradingGroup]()
+		if (OuterObjects.Num())
 		{
-			return MakeShareable(new FColorGradingDetailsCustomization(ColorGradingGroup.DetailsViewPropertyHandles));
-		}));
+			DetailsView->RegisterInstancedCustomPropertyLayout(OuterObjects[0]->GetClass(), FOnGetDetailCustomizationInstance::CreateLambda([&ColorGradingGroup]()
+			{
+				return MakeShareable(new FColorGradingDetailsCustomization(ColorGradingGroup.DetailsViewPropertyHandles));
+			}));
 
-		DetailsView->SetObjects(OuterObjects);
+			DetailsView->SetObjects(OuterObjects);
+		}
 	}
 }
 
@@ -547,15 +550,18 @@ void SDisplayClusterColorGradingColorWheelPanel::ClearColorWheels()
 
 void SDisplayClusterColorGradingColorWheelPanel::SetColorWheelOrientation(EOrientation NewOrientation)
 {
-	ColorWheelOrientation = NewOrientation;
-
-	for (const TSharedPtr<SDisplayClusterColorGradingColorWheel>& ColorWheel : ColorWheels)
+	if (ColorWheelOrientation != NewOrientation)
 	{
-		if (ColorWheel.IsValid())
+		ColorWheelOrientation = NewOrientation;
+
+		for (const TSharedPtr<SDisplayClusterColorGradingColorWheel>& ColorWheel : ColorWheels)
 		{
-			ColorWheel->SetOrientation(ColorWheelOrientation);
-		}
-	};
+			if (ColorWheel.IsValid())
+			{
+				ColorWheel->SetOrientation(ColorWheelOrientation);
+			}
+		};
+	}
 }
 
 bool SDisplayClusterColorGradingColorWheelPanel::IsColorWheelOrientationSelected(EOrientation Orientation) const

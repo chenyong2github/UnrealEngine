@@ -43,7 +43,7 @@ private:
 	bool IsEditable() const;
 
 	// Customization utils instance to trigger GUI update on referenced value changes
-	IPropertyTypeCustomizationUtils* CustomizationUtilsPtr = nullptr;
+	TWeakPtr<IPropertyUtilities> PropertyUtilities = nullptr;
 
 	TArray<FPropertyHandlePair> ReferencedPropertyHandles;
 	TArray<TSharedRef<IPropertyHandle>> EditConditionPropertyHandles;

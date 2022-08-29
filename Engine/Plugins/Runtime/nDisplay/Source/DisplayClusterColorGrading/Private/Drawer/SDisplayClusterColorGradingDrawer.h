@@ -18,6 +18,14 @@ class IDisplayClusterOperatorViewModel;
 class IPropertyRowGenerator;
 class SHorizontalBox;
 class SDisplayClusterColorGradingColorWheelPanel;
+class SDisplayClusterColorGradingDetailsPanel;
+
+/** Drawer modes that the color grading drawer can be in */
+enum EDisplayClusterColorGradingDrawerMode
+{
+	ColorGrading,
+	DetailsView
+};
 
 /** Stores the state of the drawer UI that can be reloaded in cases where the drawer or any of its elements are reloaded (such as when the drawer is reopened or docked) */
 struct FDisplayClusterColorGradingDrawerState
@@ -39,6 +47,12 @@ struct FDisplayClusterColorGradingDrawerState
 
 	/** The color display mode of the color wheels */
 	SDisplayClusterColorGradingColorWheel::EColorDisplayMode ColorDisplayMode;
+
+	/** The mode the drawer is in */
+	EDisplayClusterColorGradingDrawerMode DrawerMode;
+
+	/** Indicates which subsections were selected for each section in the details panel */
+	TArray<int32> SelectedDetailsSubsections;
 };
 
 /** Color grading drawer widget, which displays a list of color gradable items, and the color wheel panel */
@@ -96,6 +110,15 @@ private:
 	/** Fills the color grading group toolbar using the color grading data model */
 	void FillColorGradingGroupToolBar();
 
+	/** Gets whether the specified drawer mode is currently selected */
+	ECheckBoxState IsDrawerModeSelected(EDisplayClusterColorGradingDrawerMode InDrawerMode) const;
+
+	/** Gets the visibility state for the specified drawer mode */
+	EVisibility GetDrawerModeVisibility(EDisplayClusterColorGradingDrawerMode InDrawerMode) const;
+
+	/** Raised when the specified drawer mode checked state is changed */
+	void OnDrawerModeSelected(ECheckBoxState State, EDisplayClusterColorGradingDrawerMode InDrawerMode);
+
 	/** Gets the visibility state of the color grading group toolbar */
 	EVisibility GetColorGradingGroupToolBarVisibility() const;
 
@@ -119,6 +142,9 @@ private:
 
 	/** Raised when the user has changed the active root actor selected in the nDisplay operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);
+	
+	/** Raised when the color grading data model has been generated */
+	void OnColorGradingDataModelGenerated();
 
 	/** Raised when the user has selected a new item in any of the drawer's list views */
 	void OnListSelectionChanged(TSharedRef<SDisplayClusterColorGradingObjectList> SourceList, FDisplayClusterColorGradingListItemRef SelectedItem, ESelectInfo::Type SelectInfo);
@@ -134,6 +160,7 @@ private:
 	TSharedPtr<SDisplayClusterColorGradingObjectList> RootActorList;
 	TSharedPtr<SHorizontalBox> ColorGradingGroupToolBarBox;
 	TSharedPtr<SDisplayClusterColorGradingColorWheelPanel> ColorWheelPanel;
+	TSharedPtr<SDisplayClusterColorGradingDetailsPanel> DetailsPanel;
 
 	/** List of color gradable items found in the current level */
 	TArray<FDisplayClusterColorGradingListItemRef> LevelColorGradingItems;
@@ -143,6 +170,9 @@ private:
 
 	/** The color grading data model for the currently selected objects */
 	TSharedPtr<FDisplayClusterColorGradingDataModel> ColorGradingDataModel;
+
+	/** The current mode that the drawer is in */
+	EDisplayClusterColorGradingDrawerMode CurrentDrawerMode;
 
 	/** Gets whether this widget is in a drawer or docked in a tab */
 	bool bIsInDrawer = false;

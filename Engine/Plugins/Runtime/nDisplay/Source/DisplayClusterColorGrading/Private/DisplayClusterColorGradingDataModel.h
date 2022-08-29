@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PropertyEditorDelegates.h"
 
 class IPropertyHandle;
 class IPropertyRowGenerator;
@@ -85,7 +86,34 @@ public:
 		TArray<TSharedPtr<IPropertyHandle>> DetailsViewPropertyHandles;
 	};
 
-	DECLARE_MULTICAST_DELEGATE(FOnColorGradingSelectionChanged);
+	/** Stores data used to generate a details subsection, which is a selectable element in a details section that modifies which properties are displayed in the section */
+	struct FDetailsSubsection
+	{
+		/** The display name of the subsection */
+		FText DisplayName;
+
+		/** A delegate that creates the details customization for the details subsection */
+		FOnGetDetailCustomizationInstance DetailCustomizationDelegate;
+	};
+
+	/** Stores data used to generate a details section in the drawer, which displays a specific subset of properties from the selected objects */
+	struct FDetailsSection
+	{
+		/** The display name of the details section*/
+		FText DisplayName = FText::GetEmpty();
+
+		/** The handle of the property that controls the editing condition of the properties in the color grading group */
+		TSharedPtr<IPropertyHandle> EditConditionPropertyHandle = nullptr;
+
+		/** A list of selectable subsections to display in the details view */
+		TArray<FDetailsSubsection> Subsections;
+
+		/** A delegate that creates the details customization for the details section */
+		FOnGetDetailCustomizationInstance DetailCustomizationDelegate;
+	};
+
+	DECLARE_EVENT(FDisplayClusterColorGradingDataModel, FOnDataModelGenerated);
+	DECLARE_EVENT(FDisplayClusterColorGradingDataModel, FOnColorGradingSelectionChanged);
 
 public:
 	FDisplayClusterColorGradingDataModel();
@@ -114,6 +142,9 @@ public:
 	/** Sets the selected color grading group */
 	void SetSelectedColorGradingGroup(int32 InColorGradingGroupIndex);
 
+	/** Gets the delegate that is raised when the data model is generated */
+	FOnDataModelGenerated& OnDataModelGenerated() { return OnDataModelGeneratedDelegate; }
+
 	/** Gets the delegate that is raised when the selected color grading group has changed */
 	FOnColorGradingSelectionChanged& OnColorGradingGroupSelectionChanged() { return OnColorGradingGroupSelectionChangedDelegate; }
 
@@ -133,9 +164,15 @@ private:
 	/** Attempts to find an instance of a data model generator that can be used for the specified class */
 	TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> GetDataModelGenerator(const UClass* InClass);
 
+	/** Callback that is raised when the property row generator the data model is generated from has been refreshed */
+	void OnPropertyRowGeneratorRefreshed();
+
 public:
 	/** A list of color grading groups in the color grading data model */
 	TArray<FColorGradingGroup> ColorGradingGroups;
+
+	/** A list of details sections in the color grading data model */
+	TArray<FDetailsSection> DetailsSections;
 
 	/** An optional widget to append to the end of the color grading group toolbar */
 	TSharedPtr<SWidget> ColorGradingGroupToolBarWidget = nullptr;
@@ -155,6 +192,9 @@ private:
 
 	/** The currently selected color grading element */
 	int32 SelectedColorGradingElementIndex = INDEX_NONE;
+
+	/** Delegate that is raised when the data model has been generated */
+	FOnDataModelGenerated OnDataModelGeneratedDelegate;
 
 	/** Delegate that is raised when the selected color grading group has been changed */
 	FOnColorGradingSelectionChanged OnColorGradingGroupSelectionChangedDelegate;
