@@ -476,7 +476,7 @@ public:
 	bool bGrassUpdateEnabled;
 
 	UPROPERTY(Transient)
-	bool bEnableEditorLayersTick = false;
+	bool bEnableEditorLayersTick = true;
 
 	UPROPERTY()
 	TArray<FLandscapeLayer> LandscapeLayers;
