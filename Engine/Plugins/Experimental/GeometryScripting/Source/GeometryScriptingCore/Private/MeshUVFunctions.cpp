@@ -581,6 +581,12 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::AutoGeneratePatchBuilderMe
 	ApplyMeshUVEditorOperation(TargetMesh, UVSetIndex, bHasUVSet, Debug,
 		[&](FDynamicMesh3& EditMesh, FDynamicMeshUVOverlay* UVOverlay, FDynamicMeshUVEditor& UVEditor)
 	{
+		if (EditMesh.IsCompact() == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGeneratePatchBuilderMeshUVs_NonCompact", "AutoGeneratePatchBuilderMeshUVs: TargetMesh is non-Compact, PatchBuilder cannot be run. Try calling CompactMesh to update TargetMesh"));
+			return;
+		}
+
 		FPatchBasedMeshUVGenerator UVGenerator;
 
 		TUniquePtr<FPolygroupSet> PolygroupConstraint;
@@ -654,10 +660,9 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::AutoGenerateXAtlasMeshUVs(
 	{
 		if (EditMesh.IsCompact() == false)
 		{
-			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGenerateXAtlasMeshUVs_NonCompact", "AutoGenerateXAtlasMeshUVs: TargetMesh must be Compacted before running XAtlas"));
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("AutoGenerateXAtlasMeshUVs_NonCompact", "AutoGenerateXAtlasMeshUVs: TargetMesh is non-Compact, XAtlas cannot be run. Try calling CompactMesh to update TargetMesh."));
 			return;
 		}
-
 
 		const bool bFixOrientation = false;
 		//const bool bFixOrientation = true;
@@ -667,7 +672,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::AutoGenerateXAtlasMeshUVs(
 		//{
 		//	FlippedMesh.ReverseOrientation(false);
 		//}
-
 
 		int32 NumVertices = EditMesh.VertexCount();
 		TArray<FVector3f> VertexBuffer;
