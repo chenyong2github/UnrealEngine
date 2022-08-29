@@ -949,9 +949,10 @@ namespace UnrealBuildTool
 					}
 				} 
 			}
+
 			// Also check the default format for the Visual Studio project generator
 			object? ProjectFormatObject;
-			if (XmlConfig.TryGetValue(typeof(VCProjectFileGenerator), "Version", out ProjectFormatObject))
+			if (XmlConfig.TryGetValue(typeof(VCProjectFileSettings), "ProjectFileFormat", out ProjectFormatObject))
 			{
 				VCProjectFileFormat ProjectFormat = (VCProjectFileFormat)ProjectFormatObject;
 				if (ProjectFormat == VCProjectFileFormat.VisualStudio2019)
