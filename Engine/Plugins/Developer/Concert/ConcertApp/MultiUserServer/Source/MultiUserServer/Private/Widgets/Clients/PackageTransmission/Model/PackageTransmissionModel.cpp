@@ -81,9 +81,8 @@ namespace UE::MultiUserServer
 		const bool bHadBeginSendData = InTransmissionToIndex.RemoveAndCopyValue(Args.TransmissionId, Key);
 		if (ensure(bHadBeginSendData) && ensure(Entries.IsValidIndex(Key)))
 		{
-			TSharedPtr<FPackageTransmissionEntry>& Entry = Entries[Key];
-			Entry->MessageId = Args.MessageId;
-			Entry->TransmissionState = TransmissionState;
+			Entries[Key]->MessageId = Args.MessageId;
+			Entries[Key]->TransmissionState = TransmissionState;
 
 			ModifiedSinceLastTick.Add(Key);
 		}
