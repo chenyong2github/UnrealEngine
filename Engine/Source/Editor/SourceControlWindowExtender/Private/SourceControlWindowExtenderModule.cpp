@@ -300,3 +300,4 @@ void FSourceControlWindowExtenderModule::OnChangelistFileDoubleClicked(const FSt
 	}
 }
 
+#undef LOCTEXT_NAMESPACE
