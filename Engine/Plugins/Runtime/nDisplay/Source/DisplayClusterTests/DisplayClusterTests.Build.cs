@@ -21,7 +21,6 @@ public class DisplayClusterTests : ModuleRules
 			});
 
 		OptimizeCode = CodeOptimization.Never;
-		bUseUnity = false;
 		PCHUsage = PCHUsageMode.NoPCHs;
 	}
 }
