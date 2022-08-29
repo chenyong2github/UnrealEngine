@@ -80,8 +80,16 @@ const UMaterialInterface* FGizmoElementMeshRenderStateAttributes::GetMaterial(EG
 	return Material.GetMaterial();
 }
 
-FLinearColor FGizmoElementMeshRenderStateAttributes::GetVertexColor()
+FLinearColor FGizmoElementMeshRenderStateAttributes::GetVertexColor(EGizmoElementInteractionState InteractionState)
 {
+	if (InteractionState == EGizmoElementInteractionState::Hovering)
+	{
+		return HoverVertexColor.GetColor();
+	}
+	else if (InteractionState == EGizmoElementInteractionState::Interacting)
+	{
+		return InteractVertexColor.GetColor();
+	}
 	return VertexColor.GetColor();
 }
 

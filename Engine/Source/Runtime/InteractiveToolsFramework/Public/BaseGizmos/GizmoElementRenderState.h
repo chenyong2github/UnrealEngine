@@ -106,11 +106,19 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementMeshRenderStateAttributes
 	UPROPERTY()
 	FGizmoElementColorAttribute VertexColor;
 
+	// Hover mesh vertex color
+	UPROPERTY()
+	FGizmoElementColorAttribute HoverVertexColor;
+
+	// Interact mesh vertex color
+	UPROPERTY()
+	FGizmoElementColorAttribute InteractVertexColor;
+
 	// Returns the material corresponding to the input interaction state
 	const UMaterialInterface* GetMaterial(EGizmoElementInteractionState InteractionState);
 
 	// Returns mesh vertex color
-	FLinearColor GetVertexColor();
+	FLinearColor GetVertexColor(EGizmoElementInteractionState InteractionState);
 
 	// Update this mesh render state based on a child mesh render state attribute.
 	void Update(FGizmoElementMeshRenderStateAttributes& InChildAttributes);

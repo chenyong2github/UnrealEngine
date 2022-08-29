@@ -76,10 +76,10 @@ public:
 			return MeshRenderState.GetMaterial(InteractionState);
 		}
 
-		// Returns the mesh vertex color.
-		FLinearColor GetVertexColor()
+		// Returns the mesh vertex color based on the current interaction state.
+		FLinearColor GetCurrentVertexColor()
 		{
-			return MeshRenderState.GetVertexColor();
+			return MeshRenderState.GetVertexColor(InteractionState);
 		}
 
 		// Returns the line color based on the current interaction state.
@@ -119,10 +119,12 @@ public:
 	// Line trace enabled hittable element.
 	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
 
-	// Return whether the visible bit is enabled in element state.
+	// Set/get the visible bit in element state.
+	virtual void SetVisibleState(bool bVisible);
 	virtual bool GetVisibleState() const;
 
-	// Return whether the hittable bit is enabled in element state.
+	// Set/get the hittable bit in element state.
+	virtual void SetHittableState(bool bHittable);
 	virtual bool GetHittableState() const;
 
 	// Element enabled flag. Render and LineTrace only occur when bEnabled is true.
@@ -243,7 +245,7 @@ public:
 	virtual const UMaterialInterface* GetMaterial() const;
 
 	// Get mesh render state material attribute's override setting. 
-	virtual bool GetMaterialOverridesChildState() const;
+	virtual bool DoesMaterialOverrideChildState() const;
 
 	// Clear mesh render state material attribute. 
 	virtual void ClearMaterial();
@@ -257,7 +259,7 @@ public:
 	virtual const UMaterialInterface* GetHoverMaterial() const;
 
 	// Get mesh render state hover material attribute's override setting.
-	virtual bool GetHoverMaterialOverridesChildState() const;
+	virtual bool DoesHoverMaterialOverrideChildState() const;
 
 	// Clear mesh render state hover material attribute. 
 	virtual void ClearHoverMaterial();
@@ -271,7 +273,7 @@ public:
 	virtual const UMaterialInterface* GetInteractMaterial() const;
 
 	// Get mesh render state interact material attribute's override setting. 
-	virtual bool GetInteractMaterialOverridesChildState() const;
+	virtual bool DoesInteractMaterialOverrideChildState() const;
 
 	// Clear mesh render interact state material attribute. 
 	virtual void ClearInteractMaterial();
@@ -288,10 +290,44 @@ public:
 	virtual bool HasVertexColor() const;
 
 	// Get mesh render state vertex color attribute's override setting. 
-	virtual bool GetVertexColorOverridesChildState() const;
+	virtual bool DoesVertexColorOverrideChildState() const;
 
 	// Clear mesh render state vertex color attribute.
 	virtual void ClearVertexColor();
+
+	// Set mesh render state vertex color attribute. 
+	//  @param InVertexColor - vertex color to be set
+	//  @param InOverridesChildState - when true, this vertex color will override the material of all child elements.
+	virtual void SetHoverVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
+
+	// Get mesh render state vertex color attribute's value. 
+	virtual FLinearColor GetHoverVertexColor() const;
+
+	// Returns true, if mesh render state vertex color attribute has been set. 
+	virtual bool HasHoverVertexColor() const;
+
+	// Get mesh render state vertex color attribute's override setting. 
+	virtual bool DoesHoverVertexColorOverrideChildState() const;
+
+	// Clear mesh render state vertex color attribute.
+	virtual void ClearHoverVertexColor();
+
+	// Set mesh render state vertex color attribute. 
+	//  @param InVertexColor - vertex color to be set
+	//  @param InOverridesChildState - when true, this vertex color will override the material of all child elements.
+	virtual void SetInteractVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
+
+	// Get mesh render state vertex color attribute's value. 
+	virtual FLinearColor GetInteractVertexColor() const;
+
+	// Returns true, if mesh render state vertex color attribute has been set. 
+	virtual bool HasInteractVertexColor() const;
+
+	// Get mesh render state vertex color attribute's override setting. 
+	virtual bool DoesInteractVertexColorOverrideChildState() const;
+
+	// Clear mesh render state vertex color attribute.
+	virtual void ClearInteractVertexColor();
 
 protected:
 
@@ -394,7 +430,8 @@ protected:
 protected:
 
 	// Return whether element is currently visible.
-	virtual bool IsVisible(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	virtual bool IsVisible(const FSceneView* View, EGizmoElementInteractionState InCurrentInteractionState, 
+		const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Return whether element is currently hittable.
 	virtual bool IsHittable(const UGizmoViewContext* ViewContext, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
@@ -407,9 +444,6 @@ protected:
 
 	// Returns whether object is visible based on view-dependent visibility settings.
 	virtual bool GetViewDependentVisibility(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
-
-	// Returns whether element is enabled based on element's current interaction state and input view projection type.
-	virtual bool GetEnabledForCurrentState(bool bIsPerspectiveProjection) const;
 
 	// Returns whether element is enabled for given interaction state.
 	virtual bool GetEnabledForInteractionState(EGizmoElementInteractionState InInteractionState) const;

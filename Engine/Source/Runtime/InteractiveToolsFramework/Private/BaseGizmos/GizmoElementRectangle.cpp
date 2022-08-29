@@ -27,7 +27,7 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 		{
 			if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 			{
-				FColor VertexColor = CurrentRenderState.GetVertexColor().ToFColor(false);
+				FColor VertexColor = CurrentRenderState.GetCurrentVertexColor().ToFColor(false);
 				DrawRectangleMesh(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, VertexColor, WorldWidth, WorldHeight, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 			}
 		}

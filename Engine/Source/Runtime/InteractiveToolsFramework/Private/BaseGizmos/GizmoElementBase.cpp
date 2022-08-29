@@ -185,11 +185,6 @@ FQuat UGizmoElementBase::GetAlignRotBetweenCoordSpaces(FVector SourceForward, FV
 	return Result;
 }
 
-bool UGizmoElementBase::GetEnabledForCurrentState(bool bIsPerspectiveProjection) const
-{
-	return (GetEnabledForInteractionState(ElementInteractionState) && GetEnabledForViewProjection(bIsPerspectiveProjection));
-}
-
 bool UGizmoElementBase::GetEnabledForInteractionState(const EGizmoElementInteractionState InElementInteractionState) const
 {
 	if (bEnabled)
@@ -227,17 +222,20 @@ bool UGizmoElementBase::GetEnabledForViewProjection(bool bIsPerspectiveProjectio
 	return false;
 }
 
-bool UGizmoElementBase::IsVisible(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+bool UGizmoElementBase::IsVisible(const FSceneView* View, EGizmoElementInteractionState InCurrentInteractionState,
+	const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
 {
 	return (GetVisibleState() &&
-		GetEnabledForCurrentState(View->IsPerspectiveProjection()) &&
+		GetEnabledForInteractionState(InCurrentInteractionState) && 
+		GetEnabledForViewProjection(View->IsPerspectiveProjection()) &&
 		GetViewDependentVisibility(View, InLocalToWorldTransform, InLocalCenter));
 }
 
 bool UGizmoElementBase::IsHittable(const UGizmoViewContext* ViewContext, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
 {
 	return (GetHittableState() &&
-		GetEnabledForCurrentState(ViewContext->IsPerspectiveProjection()) &&
+		GetEnabledForInteractionState(EGizmoElementInteractionState::None) &&
+		GetEnabledForViewProjection(ViewContext->IsPerspectiveProjection()) &&
 		(!GetVisibleState() || GetViewDependentVisibility(ViewContext, InLocalToWorldTransform, InLocalCenter)));
 }
 
@@ -264,7 +262,7 @@ bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, con
 
 	InOutRenderState.MeshRenderState.Update(MeshRenderAttributes);
 
-	if (IsVisible(View, InOutRenderState.LocalToWorldTransform, InLocalCenter))
+	if (IsVisible(View, InOutRenderState.InteractionState, InOutRenderState.LocalToWorldTransform, InLocalCenter))
 	{
 		bOutHasAlignRot = GetViewAlignRot(View, InOutRenderState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
 		InOutRenderState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutRenderState.LocalToWorldTransform;
@@ -281,17 +279,17 @@ bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContex
 	return UpdateLineTraceState(ViewContext, InLocalCenter, InOutRenderState, bHasAlignRot, AlignQuat);
 }
 
-bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot)
+bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutLineTraceState, bool& bOutHasAlignRot, FQuat& OutAlignRot)
 {
 	check(ViewContext);
 
 	OutAlignRot = FQuat::Identity;
 	bOutHasAlignRot = false;
 
-	if (IsHittable(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter))
+	if (IsHittable(ViewContext, InOutLineTraceState.LocalToWorldTransform, InLocalCenter))
 	{
-		bOutHasAlignRot = GetViewAlignRot(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
-		InOutRenderState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutRenderState.LocalToWorldTransform;
+		bOutHasAlignRot = GetViewAlignRot(ViewContext, InOutLineTraceState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
+		InOutLineTraceState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutLineTraceState.LocalToWorldTransform;
 		return true;
 	}
 
@@ -303,9 +301,19 @@ bool UGizmoElementBase::GetVisibleState() const
 	return (static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Visible));
 }
 
+void UGizmoElementBase::SetVisibleState(bool bVisible)
+{
+	ElementState = (bVisible ? ElementState | EGizmoElementState::Visible : ElementState & (~EGizmoElementState::Visible));
+}
+
 bool UGizmoElementBase::GetHittableState() const
 {
 	return (static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Hittable));
+}
+
+void UGizmoElementBase::SetHittableState(bool bHittable)
+{
+	ElementState = (bHittable ? ElementState | EGizmoElementState::Hittable : ElementState & (~EGizmoElementState::Hittable));
 }
 
 void UGizmoElementBase::SetEnabled(bool InEnabled)
@@ -405,7 +413,7 @@ bool UGizmoElementBase::UpdatePartHittableState(bool bHittable, uint32 InPartIde
 		return false;
 	}
 
-	ElementState = (bHittable ? ElementState | EGizmoElementState::Hittable : ElementState & (~EGizmoElementState::Hittable));
+	SetHittableState(bHittable);
 	return true;
 }
 
@@ -421,7 +429,7 @@ bool UGizmoElementBase::UpdatePartVisibleState(bool bVisible, uint32 InPartIdent
 		return false;
 	}
 
-	ElementState = (bVisible ? ElementState | EGizmoElementState::Visible : ElementState & (~EGizmoElementState::Visible));
+	SetVisibleState(bVisible);
 	return true;
 }
 
@@ -547,7 +555,7 @@ const UMaterialInterface* UGizmoElementBase::GetMaterial() const
 	return MeshRenderAttributes.Material.GetMaterial();
 }
 
-bool UGizmoElementBase::GetMaterialOverridesChildState() const
+bool UGizmoElementBase::DoesMaterialOverrideChildState() const
 {
 	return MeshRenderAttributes.Material.bOverridesChildState;
 }
@@ -567,7 +575,7 @@ const UMaterialInterface* UGizmoElementBase::GetHoverMaterial() const
 	return MeshRenderAttributes.HoverMaterial.GetMaterial();
 }
 
-bool UGizmoElementBase::GetHoverMaterialOverridesChildState() const
+bool UGizmoElementBase::DoesHoverMaterialOverrideChildState() const
 {
 	return MeshRenderAttributes.HoverMaterial.bOverridesChildState;
 }
@@ -587,7 +595,7 @@ const UMaterialInterface* UGizmoElementBase::GetInteractMaterial() const
 	return MeshRenderAttributes.InteractMaterial.GetMaterial();
 }
 
-bool UGizmoElementBase::GetInteractMaterialOverridesChildState() const
+bool UGizmoElementBase::DoesInteractMaterialOverrideChildState() const
 {
 	return MeshRenderAttributes.InteractMaterial.bOverridesChildState;
 }
@@ -611,7 +619,7 @@ bool UGizmoElementBase::HasVertexColor() const
 	return MeshRenderAttributes.VertexColor.bHasValue;
 }
 
-bool UGizmoElementBase::GetVertexColorOverridesChildState() const
+bool UGizmoElementBase::DoesVertexColorOverrideChildState() const
 {
 	return MeshRenderAttributes.VertexColor.bOverridesChildState;
 }
@@ -619,5 +627,53 @@ bool UGizmoElementBase::GetVertexColorOverridesChildState() const
 void UGizmoElementBase::ClearVertexColor()
 {
 	MeshRenderAttributes.VertexColor.Reset();
+}
+
+void UGizmoElementBase::SetHoverVertexColor(FLinearColor InVertexColor, bool InOverridesChildState)
+{
+	MeshRenderAttributes.HoverVertexColor.SetColor(InVertexColor, InOverridesChildState);
+}
+
+FLinearColor UGizmoElementBase::GetHoverVertexColor() const
+{
+	return MeshRenderAttributes.HoverVertexColor.GetColor();
+}
+bool UGizmoElementBase::HasHoverVertexColor() const
+{
+	return MeshRenderAttributes.HoverVertexColor.bHasValue;
+}
+
+bool UGizmoElementBase::DoesHoverVertexColorOverrideChildState() const
+{
+	return MeshRenderAttributes.HoverVertexColor.bOverridesChildState;
+}
+
+void UGizmoElementBase::ClearHoverVertexColor()
+{
+	MeshRenderAttributes.HoverVertexColor.Reset();
+}
+
+void UGizmoElementBase::SetInteractVertexColor(FLinearColor InInteractVertexColor, bool InOverridesChildState)
+{
+	MeshRenderAttributes.InteractVertexColor.SetColor(InInteractVertexColor, InOverridesChildState);
+}
+
+FLinearColor UGizmoElementBase::GetInteractVertexColor() const
+{
+	return MeshRenderAttributes.InteractVertexColor.GetColor();
+}
+bool UGizmoElementBase::HasInteractVertexColor() const
+{
+	return MeshRenderAttributes.InteractVertexColor.bHasValue;
+}
+
+bool UGizmoElementBase::DoesInteractVertexColorOverrideChildState() const
+{
+	return MeshRenderAttributes.InteractVertexColor.bOverridesChildState;
+}
+
+void UGizmoElementBase::ClearInteractVertexColor()
+{
+	MeshRenderAttributes.InteractVertexColor.Reset();
 }
 

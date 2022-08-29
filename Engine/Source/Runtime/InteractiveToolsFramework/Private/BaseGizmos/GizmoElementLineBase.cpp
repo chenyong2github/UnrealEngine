@@ -99,7 +99,7 @@ bool UGizmoElementLineBase::HasLineColor() const
 	return LineRenderAttributes.LineColor.bHasValue;
 }
 
-bool UGizmoElementLineBase::GetLineColorOverridesChildState() const
+bool UGizmoElementLineBase::DoesLineColorOverrideChildState() const
 {
 	return LineRenderAttributes.LineColor.bOverridesChildState;
 }
@@ -123,7 +123,7 @@ bool UGizmoElementLineBase::HasHoverLineColor() const
 	return LineRenderAttributes.HoverLineColor.bHasValue;
 }
 
-bool UGizmoElementLineBase::GetHoverLineColorOverridesChildState() const
+bool UGizmoElementLineBase::DoesHoverLineColorOverrideChildState() const
 {
 	return LineRenderAttributes.HoverLineColor.bOverridesChildState;
 }
@@ -147,7 +147,7 @@ bool UGizmoElementLineBase::HasInteractLineColor() const
 	return LineRenderAttributes.InteractLineColor.bHasValue;
 }
 
-bool UGizmoElementLineBase::GetInteractLineColorOverridesChildState() const
+bool UGizmoElementLineBase::DoesInteractLineColorOverrideChildState() const
 {
 	return LineRenderAttributes.InteractLineColor.bOverridesChildState;
 }

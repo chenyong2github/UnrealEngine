@@ -59,7 +59,7 @@ public:
 	virtual bool HasLineColor() const;
 
 	// Get line render state line color attribute's override setting. 
-	virtual bool GetLineColorOverridesChildState() const;
+	virtual bool DoesLineColorOverrideChildState() const;
 
 	// Clear line render state line color attribute.
 	virtual void ClearLineColor();
@@ -76,7 +76,7 @@ public:
 	virtual bool HasHoverLineColor() const;
 
 	// Get line render state hover line color attribute's override setting.
-	virtual bool GetHoverLineColorOverridesChildState() const;
+	virtual bool DoesHoverLineColorOverrideChildState() const;
 
 	// Clear line render state hover line color attribute. 
 	virtual void ClearHoverLineColor();
@@ -93,7 +93,7 @@ public:
 	virtual bool HasInteractLineColor() const;
 
 	// Get line render state interact line color attribute's override setting. 
-	virtual bool GetInteractLineColorOverridesChildState() const;
+	virtual bool DoesInteractLineColorOverrideChildState() const;
 
 	// Clear line render state interact line color attribute.
 	virtual void ClearInteractLineColor();

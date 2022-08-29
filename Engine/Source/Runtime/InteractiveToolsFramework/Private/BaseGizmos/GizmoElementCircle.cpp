@@ -29,7 +29,7 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 		{
 			if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 			{
-				FColor VertexColor = CurrentRenderState.GetVertexColor().ToFColor(false);
+				FColor VertexColor = CurrentRenderState.GetCurrentVertexColor().ToFColor(false);
 				DrawDisc(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, VertexColor, WorldRadius, NumSides, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 			}
 		}
