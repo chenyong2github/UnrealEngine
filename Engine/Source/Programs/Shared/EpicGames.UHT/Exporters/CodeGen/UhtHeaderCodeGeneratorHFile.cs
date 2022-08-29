@@ -904,6 +904,65 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		}
 
 		/// <summary>
+		/// Type of constructor on the class regardless of explicit or generated.
+		/// </summary>
+		enum ConstructorType
+		{
+			ObjectInitializer,
+			Default,
+			ForbiddenDefault,
+		}
+
+		/// <summary>
+		/// Return the type of constructor the class will have regardless of if one has been explicitly 
+		/// declared or will be generated.
+		/// </summary>
+		/// <param name="classObj">Class in question</param>
+		/// <returns>Constructor type</returns>
+		private static ConstructorType GetConstructorType(UhtClass classObj)
+		{
+			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasConstructor))
+			{
+
+				// Assume super class has OI constructor, this may not always be true but we should always be able to check this.
+				// In any case, it will default to old behavior before we even checked this.
+				bool superClassObjectInitializerConstructorDeclared = true;
+				UhtClass? superClass = classObj.SuperClass;
+				if (superClass != null)
+				{
+					if (!superClass.HeaderFile.IsNoExportTypes)
+					{
+						superClassObjectInitializerConstructorDeclared = GetConstructorType(superClass) == ConstructorType.ObjectInitializer;
+					}
+				}
+
+				if (superClassObjectInitializerConstructorDeclared)
+				{
+					return ConstructorType.ObjectInitializer;
+				}
+				else
+				{
+					return ConstructorType.Default;
+				}
+			}
+			else
+			{
+				if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasObjectInitializerConstructor))
+				{
+					return ConstructorType.ObjectInitializer;
+				}
+				else if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDefaultConstructor))
+				{
+					return ConstructorType.Default;
+				}
+				else
+				{
+					return ConstructorType.ForbiddenDefault;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Generates private copy-constructor declaration.
 		/// </summary>
 		/// <param name="builder">Output builder</param>
@@ -915,36 +974,16 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasConstructor))
 			{
 				builder.Append("\t/** Standard constructor, called after all reflected properties have been initialized */ \\\r\n");
-
-				// Assume super class has OI constructor, this may not always be true but we should always be able to check 
-				// In any case, it will default to old behavior before we even checked 
-				bool superClassObjectInitializerConstructorDeclared = true;
-				UhtClass? superClass = classObj.SuperClass;
-				if (superClass != null)
+				switch (GetConstructorType(classObj))
 				{
-					if (!superClass.HeaderFile.IsNoExportTypes)
-					{
-						superClassObjectInitializerConstructorDeclared = superClass.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasObjectInitializerConstructor);
-					}
-				}
+					case ConstructorType.ObjectInitializer:
+						builder.Append('\t').Append(api).Append(classObj.SourceName).Append("(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { }; \\\r\n");
+						break;
 
-				if (superClassObjectInitializerConstructorDeclared)
-				{
-					builder.Append('\t').Append(api).Append(classObj.SourceName).Append("(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { }; \\\r\n");
-					//ETSTODO - Modification of class
-					classObj.ClassExportFlags |= UhtClassExportFlags.HasObjectInitializerConstructor;
+					case ConstructorType.Default:
+						builder.Append('\t').Append(api).Append(classObj.SourceName).Append("() { }; \\\r\n");
+						break;
 				}
-				else
-				{
-					builder.Append('\t').Append(api).Append(classObj.SourceName).Append("() { }; \\\r\n");
-					//ETSTODO - Modification of class
-					classObj.ClassExportFlags |= UhtClassExportFlags.HasDefaultConstructor;
-				}
-
-				// The original code would mark this true at this point.  However,
-				// we are no longer allowed to modify the data.
-				//ETSTODO - Modification of class
-				classObj.ClassExportFlags |= UhtClassExportFlags.HasConstructor;
 			}
 			AppendCopyConstructorDefinition(builder, classObj, api);
 			return builder;
@@ -958,31 +997,36 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <returns>Output builder</returns>
 		private static StringBuilder AppendDefaultConstructorCallDefinition(StringBuilder builder, UhtClass classObj)
 		{
-			if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasObjectInitializerConstructor))
+			switch (GetConstructorType(classObj))
 			{
-				if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
-				{
-					builder.Append("\tDEFINE_ABSTRACT_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
-				}
-				else
-				{
-					builder.Append("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
-				}
-			}
-			else if (classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDefaultConstructor))
-			{
-				if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
-				{
-					builder.Append("\tDEFINE_ABSTRACT_DEFAULT_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
-				}
-				else
-				{
-					builder.Append("\tDEFINE_DEFAULT_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
-				}
-			}
-			else
-			{
-				builder.Append("\tDEFINE_FORBIDDEN_DEFAULT_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
+				case ConstructorType.ObjectInitializer:
+					if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
+					{
+						builder.Append("\tDEFINE_ABSTRACT_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
+					}
+					else
+					{
+						builder.Append("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
+					}
+					break;
+
+				case ConstructorType.Default:
+					if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Abstract))
+					{
+						builder.Append("\tDEFINE_ABSTRACT_DEFAULT_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
+					}
+					else
+					{
+						builder.Append("\tDEFINE_DEFAULT_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
+					}
+					break;
+
+				case ConstructorType.ForbiddenDefault:
+					builder.Append("\tDEFINE_FORBIDDEN_DEFAULT_CONSTRUCTOR_CALL(").Append(classObj.SourceName).Append(") \\\r\n");
+					break;
+
+				default:
+					throw new UhtIceException("Unexpected constructor type");
 			}
 			return builder;
 		}
