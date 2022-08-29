@@ -1120,6 +1120,15 @@ struct CONTROLRIG_API FRigControlSettings
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
 	bool bGroupWithParentControl;
 
+	/**
+	 * Deprecated properties.
+	 */
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage = "Use animation_type instead."))
+	bool bAnimatable_DEPRECATED;
+	
+	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage = "Use animation_type or shape_visible instead."))
+	bool bShapeEnabled_DEPRECATED;
+	
 	/** Applies the limits expressed by these settings to a value */
 	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const
 	{

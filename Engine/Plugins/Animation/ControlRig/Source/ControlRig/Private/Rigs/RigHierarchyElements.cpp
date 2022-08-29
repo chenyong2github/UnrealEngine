@@ -800,8 +800,8 @@ void FRigControlSettings::Load(FArchive& Ar)
 	bool bLimitTranslation_DEPRECATED = false;
 	bool bLimitRotation_DEPRECATED = false;
 	bool bLimitScale_DEPRECATED = false;
-	bool bAnimatable_DEPRECATED = false;
-	bool bShapeEnabled_DEPRECATED = false;
+	bool bAnimatableDeprecated = false;
+	bool bShapeEnabledDeprecated = false;
 
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::ControlAnimationType)
 	{
@@ -813,7 +813,7 @@ void FRigControlSettings::Load(FArchive& Ar)
 	Ar << bIsCurve;
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlAnimationType)
 	{
-		Ar << bAnimatable_DEPRECATED;
+		Ar << bAnimatableDeprecated;
 	}
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::PerChannelLimits)
 	{
@@ -843,8 +843,8 @@ void FRigControlSettings::Load(FArchive& Ar)
 	
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlAnimationType)
 	{
-		Ar << bShapeEnabled_DEPRECATED;
-		SetAnimationTypeFromDeprecatedData(bAnimatable_DEPRECATED, bShapeEnabled_DEPRECATED);
+		Ar << bShapeEnabledDeprecated;
+		SetAnimationTypeFromDeprecatedData(bAnimatableDeprecated, bShapeEnabledDeprecated);
 		AnimationTypeName = AnimationTypeEnum->GetNameByValue((int64)AnimationType);
 	}
 	
