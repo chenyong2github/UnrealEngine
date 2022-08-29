@@ -157,6 +157,8 @@ namespace Horde.Build.Tests
 			services.Configure<ServerSettings>(ConfigureSettings);
 			services.AddSingleton<IConfiguration>(config);
 
+			services.AddHttpClient<RpcService>();
+
 			services.AddLogging(builder => builder.AddConsole());
 			services.AddSingleton<IMemoryCache>(sp => new MemoryCache(new MemoryCacheOptions { }));
 
