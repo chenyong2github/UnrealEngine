@@ -125,12 +125,12 @@ float GetMaskFromDepthInAlpha(float Alpha)
 FStrataSubsurfaceData LoadStrataSSSData(float2 UV)
 {
 	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
-	return StrataLoadSubsurfaceData(Strata.SSSTexture, PixelPos);
+	return StrataLoadSubsurfaceData(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos);
 }
 FStrataSubsurfaceHeader LoadStrataSSSHeader(float2 UV)
 {
 	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy;
-	return StrataLoadSubsurfaceHeader(Strata.SSSTexture, PixelPos);
+	return StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, PixelPos);
 }
 #endif
 

@@ -22,8 +22,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
 	SHADER_PARAMETER(int32,  SliceStoringDebugStrataTree)
+	SHADER_PARAMETER(int32, FirstSliceStoringStrataSSSDataWithoutMRT)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAVWithoutRTs)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, SSSTextureUAV)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OpaqueRoughRefractionTextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -47,6 +47,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
 	SHADER_PARAMETER(int32,  SliceStoringDebugStrataTree)
+	SHADER_PARAMETER(int32,  FirstSliceStoringStrataSSSData)
 	SHADER_PARAMETER(uint32, TileSize)
 	SHADER_PARAMETER(uint32, TileSizeLog2)
 	SHADER_PARAMETER(FIntPoint, TileCount)
@@ -55,7 +56,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER(FIntPoint, OverflowTileOffset)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, MaterialTextureArray)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerTexture)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, SSSTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, OpaqueRoughRefractionTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFOffsetTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFTileTexture)
@@ -80,7 +80,10 @@ struct FStrataSceneData
 	uint32 MaxBytesPerPixel;
 	bool bRoughDiffuse;
 	int32 PeelLayersAboveDepth;
+
 	int32 SliceStoringDebugStrataTree;
+	int32 FirstSliceStoringStrataSSSDataWithoutMRT;
+	int32 FirstSliceStoringStrataSSSData;
 
 	// Resources allocated and updated each frame
 
@@ -90,11 +93,9 @@ struct FStrataSceneData
 	FRDGTextureSRVRef MaterialTextureArraySRV = nullptr;
 
 	FRDGTextureRef TopLayerTexture = nullptr;
-	FRDGTextureRef SSSTexture = nullptr;
 	FRDGTextureRef OpaqueRoughRefractionTexture = nullptr;
 
 	FRDGTextureUAVRef TopLayerTextureUAV = nullptr;
-	FRDGTextureUAVRef SSSTextureUAV = nullptr;
 	FRDGTextureUAVRef OpaqueRoughRefractionTextureUAV = nullptr;
 
 	FRDGTextureRef BSDFOffsetTexture = nullptr;

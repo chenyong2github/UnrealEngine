@@ -723,7 +723,7 @@ void DistanceFieldShadowingCS(
 
 #if !FORWARD_SHADING && DF_SHADOW_QUALITY > 1 && !SHADING_PATH_MOBILE
 		#if STRATA_ENABLED
-			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, ScreenPosition);
+			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, ScreenPosition);
 			BRANCH
 			if (StrataSubSurfaceHeaderGetIsValid(SSSHeader))
 			{

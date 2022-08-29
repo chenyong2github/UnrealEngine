@@ -1681,10 +1681,10 @@ void FPixelShaderInOut_MainPS(
 		BRANCH
 		if(StrataSubSurfaceHeaderGetIsValid(SSSData.Header))
 		{
-			StrataStruct.SSSTextureUAV[uint3(PixelPos, 0)] = SSSData.Header.Bytes;
+			StrataStoreSubsurfaceHeader(StrataStruct.MaterialTextureArrayUAVWithoutRTs, StrataStruct.FirstSliceStoringStrataSSSDataWithoutMRT, PixelPos, SSSData.Header.Bytes);
 			if (StrataSubSurfaceHeaderHasExtras(SSSData.Header))
 			{
-				StrataStruct.SSSTextureUAV[uint3(PixelPos, 1)] = SSSData.Extras.Bytes;
+				StrataStoreSubsurfaceExtras(StrataStruct.MaterialTextureArrayUAVWithoutRTs, StrataStruct.FirstSliceStoringStrataSSSDataWithoutMRT, PixelPos, SSSData.Extras.Bytes);
 			}
 		}
 

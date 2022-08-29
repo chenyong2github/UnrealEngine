@@ -874,24 +874,33 @@ struct FStrataSubsurfaceData
 	FStrataSubsurfaceHeader Header;
 	FStrataSubsurfaceExtras Extras;
 };
-FStrataSubsurfaceHeader StrataLoadSubsurfaceHeader(Texture2DArray<uint> SSSTexture, uint2 PixelPos)
+FStrataSubsurfaceHeader StrataLoadSubsurfaceHeader(Texture2DArray<uint> StrataBuffer, uint FirstSliceStoringStrataSSSData, uint2 PixelPos)
 {
 	FStrataSubsurfaceHeader Header;
-	Header.Bytes = SSSTexture.Load(uint4(PixelPos, 0, 0));
+	Header.Bytes = StrataBuffer.Load(uint4(PixelPos, FirstSliceStoringStrataSSSData + 0, 0));
 	return Header;
 }
-FStrataSubsurfaceExtras StrataLoadSubsurfaceExtras(Texture2DArray<uint> SSSTexture, uint2 PixelPos)
+FStrataSubsurfaceExtras StrataLoadSubsurfaceExtras(Texture2DArray<uint> StrataBuffer, uint FirstSliceStoringStrataSSSData, uint2 PixelPos)
 {
 	FStrataSubsurfaceExtras Extras;
-	Extras.Bytes = SSSTexture.Load(uint4(PixelPos, 1, 0));
+	Extras.Bytes = StrataBuffer.Load(uint4(PixelPos, FirstSliceStoringStrataSSSData + 1, 0));
 	return Extras;
 }
-FStrataSubsurfaceData StrataLoadSubsurfaceData(Texture2DArray<uint> SSSTexture, uint2 PixelPos)
+FStrataSubsurfaceData StrataLoadSubsurfaceData(Texture2DArray<uint> StrataBuffer, uint FirstSliceStoringStrataSSSData, uint2 PixelPos)
 {
 	FStrataSubsurfaceData SSSData;
-	SSSData.Header = StrataLoadSubsurfaceHeader(SSSTexture, PixelPos);
-	SSSData.Extras = StrataLoadSubsurfaceExtras(SSSTexture, PixelPos);
+	SSSData.Header = StrataLoadSubsurfaceHeader(StrataBuffer, FirstSliceStoringStrataSSSData, PixelPos);
+	SSSData.Extras = StrataLoadSubsurfaceExtras(StrataBuffer, FirstSliceStoringStrataSSSData, PixelPos);
 	return SSSData;
+}
+
+void StrataStoreSubsurfaceHeader(RWTexture2DArray<uint> StrataBuffer, uint FirstSliceStoringStrataSSSData, uint2 PixelPos, uint HeaderBytes)
+{
+	StrataBuffer[uint3(PixelPos, FirstSliceStoringStrataSSSData + 0)] = HeaderBytes;
+}
+void StrataStoreSubsurfaceExtras(RWTexture2DArray<uint> StrataBuffer, uint FirstSliceStoringStrataSSSData, uint2 PixelPos, uint ExtraBytes)
+{
+	StrataBuffer[uint3(PixelPos, FirstSliceStoringStrataSSSData + 1)] = ExtraBytes;
 }
 
 uint StrataSubsurfaceProfileIdTo8bits(float In)
@@ -3487,11 +3496,9 @@ uint PackStrataHeader(uint InBSDFCount, FStrataPixelHeader InHeader)
 
 // Unpack only strata header
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
-FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, FStrataTopLayerDataContainer InStrataTopLayerTexture)
+FStrataPixelHeader UnpackStrataHeaderIn(uint PackedHeader, inout FStrataAddressing StrataAddressing, FStrataTopLayerDataContainer InStrataTopLayerTexture)
 {
 	FStrataPixelHeader Out = InitialiseStrataPixelHeader();
-
-	uint PackedHeader = StrataLoadUint1(StrataBuffer, StrataAddressing);
 	Out.State		= HEADER_GETCOMMONSTATES(PackedHeader);	// Unpack state and AO data at the same time 
 	Out.BSDFCount   = HEADER_GETBSDFCOUNT(PackedHeader);
 
@@ -3504,7 +3511,6 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 		Out.BSDFCount = IsStrataMaterial(Out) ? 1 : 0; 
 
 	  #if STRATA_DEFERRED_SHADING
-		Out.StrataBuffer = StrataBuffer;
 		Out.SharedLocalBasesTypes_PackedHeader = PackedHeader;
 		Out.SharedLocalBasesIndexOffset = 0; // Unused
 
@@ -3519,7 +3525,6 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 		uint SharedLocalBasesTypes = HEADER_GETSHAREDLOCALBASESTYPE(PackedHeader);
 
 	#if STRATA_DEFERRED_SHADING
-		Out.StrataBuffer = StrataBuffer;
 		Out.SharedLocalBasesTypes_PackedHeader = SharedLocalBasesTypes;
 		Out.PackedTopLayerData = 0;
 
@@ -3534,6 +3539,18 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 	#endif
 	}
 	#endif // STRATA_COMPLEXPATH
+
+	return Out;
+}
+
+FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, FStrataTopLayerDataContainer InStrataTopLayerTexture)
+{
+	uint PackedHeader = StrataLoadUint1(StrataBuffer, StrataAddressing);
+	FStrataPixelHeader Out = UnpackStrataHeaderIn(PackedHeader, StrataAddressing, InStrataTopLayerTexture);
+
+#if STRATA_DEFERRED_SHADING
+	Out.StrataBuffer = StrataBuffer;
+#endif
 
 	return Out;
 }
