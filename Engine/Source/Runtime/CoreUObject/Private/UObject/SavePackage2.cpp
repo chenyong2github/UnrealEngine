@@ -893,6 +893,8 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 		SaveContext.GetLinker()->bUpdatingLoadedPath = SaveContext.IsUpdatingLoadedPath();
 		SaveContext.GetLinker()->bProceduralSave = SaveContext.IsProceduralSave();
 
+		SaveContext.GetLinker()->bRehydratePayloads = SaveContext.ShouldRehydratePayloads();
+		
 		if (UE::FPackageTrailer::IsEnabled())
 		{
 			// The package trailer is not supported for text based assets yet

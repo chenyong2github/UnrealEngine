@@ -618,6 +618,11 @@ public:
 		return bIsFixupStandaloneFlags;
 	}
 
+	bool ShouldRehydratePayloads() const
+	{
+		return (SaveArgs.SaveFlags & ESaveFlags::SAVE_RehydratePayloads) != 0;
+	}
+
 	FUObjectSerializeContext* GetSerializeContext() const
 	{
 		return SerializeContext;

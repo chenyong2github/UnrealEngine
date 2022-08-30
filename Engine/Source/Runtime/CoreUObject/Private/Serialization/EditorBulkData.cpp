@@ -2080,10 +2080,16 @@ FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar
 			{
 				EnumRemoveFlags(UpdatedFlags, EFlags::HasPayloadSidecarFile);
 
-				// Remove the virtualization flag if we are rehydrating packages on save unless
-				// referencing the payload data is allowed, in which case we can continue to save
-				// as virtualized.
-				if (LinkerSave != nullptr && !bKeepFileDataByReference && CVarShouldRehydrateOnSave.GetValueOnAnyThread())
+				// Check to see if we need to rehydrate the payload on save, this is true if
+				// a) We are saving to a package (LinkerSave is not null)
+				// b) Either the save package call we made with the  ESaveFlags::SAVE_RehydratePayloads flag set OR
+				// the cvar Serialization.RehydrateOnSave is true
+				// c) We are not saving a reference to a different domain. If we are saving a reference then the goal
+				// is to avoid including the payload in the current target domain if possible, rehydrating for this
+				// domain would prevent this.
+				if ( LinkerSave != nullptr && 
+					(LinkerSave->bRehydratePayloads || CVarShouldRehydrateOnSave.GetValueOnAnyThread()) &&
+					!bKeepFileDataByReference)
 				{
 					EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
 				}

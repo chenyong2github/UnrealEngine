@@ -123,6 +123,9 @@ public:
 	 * This is used e.g. to decide whether to update the in-memory file offsets for BulkData.
 	 */
 	bool bUpdatingLoadedPath = false;
+
+	/** When set to true, payloads that are currently virtualized should be downloaded and stored locally with the package */
+	bool bRehydratePayloads = false;
 	
 	struct FSidecarStorageInfo
 	{
