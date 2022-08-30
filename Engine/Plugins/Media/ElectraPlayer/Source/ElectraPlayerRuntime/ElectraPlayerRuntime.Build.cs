@@ -23,7 +23,8 @@ namespace UnrealBuildTool.Rules
 					"ElectraHTTPStream",
 					"ElectraCDM",
 					"ElectraSubtitles",
-					"XmlParser"
+					"XmlParser",
+					"SoundTouchZ"
 				});
 			if (Target.bCompileAgainstEngine)
 			{
