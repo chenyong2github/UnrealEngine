@@ -181,6 +181,20 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 		CreateDataLayerTreeItems(CurrentLevel);
 	}
 
+	// Create Tree items for WorldDataLayers(WDL) which are part of the current world (not subworld) but are not the ULevel::AWorldDataLayers.
+	// The only way to create data layer instances for in these WDL is to right-click on the WDL tree item and select create new.
+	// We cannot rely on creating the WDL tree item only if it has DataLayerInstance (::FindOrCreateParentItem), as it prevents to initially create a new instance.
+	DataLayerSubsystem->ForEachWorldDataLayer([this, &OutItems](AWorldDataLayers* WorldDataLayers)
+	{
+		if (!WorldDataLayers->IsSubWorldDataLayers() && !WorldDataLayers->IsTheMainWorldDataLayers())
+		{
+			FSceneOutlinerTreeItemPtr WorldDataLayerItem = Mode->CreateItemFor<FWorldDataLayersTreeItem>(WorldDataLayers, true);
+			OutItems.Add(WorldDataLayerItem);
+		}
+
+		return true;
+	});
+
 	if (bShowDataLayerActors)
 	{
 		for (AActor* Actor : FActorRange(GetOwningWorld()))
