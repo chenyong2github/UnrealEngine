@@ -2474,6 +2474,9 @@ bool FPakWriterContext::Flush()
 	check(!bFlushed);
 	bFlushed = true;
 
+	CompressionQueueEntryAddedEvent->Trigger();
+	WriteQueueEntryAddedEvent->Trigger();
+
 	const uint32 RequiredPatchPadding = CmdLineParameters.PatchFilePadAlign;
 
 	for (TUniquePtr<FOutputPakFile>& OutputPakFile : OutputPakFiles)
@@ -2646,6 +2649,7 @@ bool FPakWriterContext::Flush()
 
 	WriterThread.Wait();
 	CompressionThread.Wait();
+	UE_LOG(LogPakFile, Display, TEXT("Writer and Compression Threads exited."));
 
 	if (TotalFilesWithPoorForcedCompression > 0)
 	{
