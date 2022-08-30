@@ -48,7 +48,7 @@ class FSectionModel;
  * Model for a single channel inside a section.
  * For instance, this represents the "Location.X" channel of a single transform section.
  */
-class FChannelModel
+class SEQUENCER_API FChannelModel
 	: public FViewModel
 	, public FLinkedOutlinerExtension
 	, public FGeometryExtensionShim

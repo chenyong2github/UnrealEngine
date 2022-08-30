@@ -190,6 +190,33 @@ struct TSequencerChannelInterfaceCommon : ISequencerChannelInterface
 	}
 
 	/**
+	 * Create a new channel model for this type of channel
+	 *
+	 * @param InChannelHandle    The channel handle to create a model for
+	 * @param InChannelName      The identifying name of this channel
+	 * @return (Optional) A new model to be added to a curve editor
+	 */
+	virtual TSharedPtr<UE::Sequencer::FChannelModel> CreateChannelModel_Raw(const FMovieSceneChannelHandle& InChannelHandle, FName InChannelName) const override
+	{
+		using namespace Sequencer;
+		return CreateChannelModel(InChannelHandle.Cast<ChannelType>(), InChannelName);
+	}
+
+	/**
+	 * Create a new channel view for this type of channel
+	 *
+	 * @param InChannelHandle    The channel handle to create a model for
+	 * @param InWeakModel        The model that is creating the view. Should not be Pinned persistently.
+	 * @param Parameters         View construction parameters
+	 * @return (Optional) A new model to be added to a curve editor
+	 */
+	virtual TSharedPtr<UE::Sequencer::STrackAreaLaneView> CreateChannelView_Raw(const FMovieSceneChannelHandle& InChannelHandle, TWeakPtr<UE::Sequencer::FChannelModel> InWeakModel, const UE::Sequencer::FCreateTrackLaneViewParams& Parameters) const override
+	{
+		using namespace Sequencer;
+		return CreateChannelView(InChannelHandle.Cast<ChannelType>(), InWeakModel, Parameters);
+	}
+
+	/**
 	 * Create an editor on the sequencer node tree
 	 *
 	 * @param Channel               The channel to check

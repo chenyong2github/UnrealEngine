@@ -226,5 +226,14 @@ struct TPerlinNoiseChannelInterface : ISequencerChannelInterface
 
 		return LayerId + 1;
 	}
+
+	virtual TSharedPtr<UE::Sequencer::FChannelModel> CreateChannelModel_Raw(const FMovieSceneChannelHandle& InChannelHandle, FName InChannelName) const override
+	{
+		return nullptr;
+	}
+	virtual TSharedPtr<UE::Sequencer::STrackAreaLaneView> CreateChannelView_Raw(const FMovieSceneChannelHandle& InChannelHandle, TWeakPtr<UE::Sequencer::FChannelModel> InWeakModel, const UE::Sequencer::FCreateTrackLaneViewParams& Parameters) const override
+	{
+		return nullptr;
+	}
 };
 

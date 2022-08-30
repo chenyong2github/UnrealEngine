@@ -20,6 +20,9 @@
 #include "SequencerSectionPainter.h"
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
+#include "ISequencerChannelInterface.h"
+#include "ISequencerModule.h"
+#include "Modules/ModuleManager.h"
 
 struct FMovieSceneChannel;
 
@@ -53,6 +56,8 @@ struct FGroupData
 
 void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuilder )
 {
+	using namespace UE::Sequencer;
+
 	UMovieSceneSection* Section = GetSectionObject();
 	if (!Section)
 	{
@@ -96,9 +101,22 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 		return;
 	}
 
-	auto ChannelFactory = [this](FName InChannelName, const FMovieSceneChannelHandle& InChannel)
+
+	ISequencerModule* SequencerModule = &FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+
+	auto ChannelFactory = [this, SequencerModule](FName InChannelName, const FMovieSceneChannelHandle& InChannel)
 	{
-		return this->ConstructChannelModel(InChannelName, InChannel);
+		TSharedPtr<FChannelModel> ChannelModel = this->ConstructChannelModel(InChannelName, InChannel);
+		if (!ChannelModel)
+		{
+			ISequencerChannelInterface* EditorInterface = SequencerModule->FindChannelEditorInterface(InChannel.GetChannelTypeName());
+			if (EditorInterface)
+			{
+				ChannelModel = EditorInterface->CreateChannelModel_Raw(InChannel, InChannelName);
+			}
+		}
+
+		return ChannelModel;
 	};
 
 	// Collapse single channels to the top level track node if allowed

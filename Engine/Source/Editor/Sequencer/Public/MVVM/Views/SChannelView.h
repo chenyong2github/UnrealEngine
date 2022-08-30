@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "MVVM/Extensions/ITrackLaneExtension.h"
 #include "MVVM/Views/KeyRenderer.h"
+#include "MVVM/Views/STrackAreaLaneView.h"
 #include "MVVM/ViewModelPtr.h"
 
 #include "Templates/SharedPointer.h"
@@ -69,15 +70,15 @@ struct FChannelViewKeyCachedState
  * Widget for displaying a channel within a section
  */
 class SEQUENCER_API SChannelView
-	: public SCompoundWidget
-	, public ITrackLaneWidget
+	: public STrackAreaLaneView
 {
 public:
 	SLATE_BEGIN_ARGS(SChannelView){}
 		SLATE_ATTRIBUTE(FLinearColor, KeyBarColor)
+		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FViewModelPtr& InViewModel, TSharedPtr<FTimeToPixel> InTimeToPixel, TSharedPtr<FTrackAreaViewModel> TrackArea);
+	void Construct(const FArguments& InArgs, const FViewModelPtr& InViewModel, TSharedPtr<STrackAreaView> InTrackAreaView);
 
 	/*~ SWidget */
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
@@ -87,11 +88,7 @@ public:
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 
-	/*~ ITrackLaneWidget */
-	virtual TSharedRef<const SWidget> AsWidget() const;
-	virtual FTrackLaneScreenAlignment GetAlignment(const FTimeToPixel& InTimeToPixel, const FGeometry& InParentGeometry) const;
-
-private:
+protected:
 
 	int32 DrawLane(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const;
 
@@ -103,12 +100,8 @@ private:
 
 	TSharedPtr<FSequencer> LegacyGetSequencer() const;
 
-private:
+protected:
 
-	FWeakViewModelPtr WeakModel;
-	TWeakPtr<STrackLane> WeakTrackLane;
-	TWeakPtr<FTrackAreaViewModel> WeakTrackArea;
-	TSharedPtr<FTimeToPixel> TrackAreaTimeToPixel;
 	FKeyRenderer KeyRenderer;
 	mutable TOptional<FChannelViewKeyCachedState> KeyRendererCache;
 

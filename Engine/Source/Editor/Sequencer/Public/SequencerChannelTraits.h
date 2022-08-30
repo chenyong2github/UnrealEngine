@@ -74,6 +74,14 @@ struct FSequencerChannelPaintArgs
 	bool bParentEnabled = true;
 };
 
+namespace UE::Sequencer
+{
+	class FChannelModel;
+	class STrackAreaLaneView;
+
+	struct FCreateTrackLaneViewParams;
+}
+
 /**
  * Stub/default implementations for ISequencerChannelInterface functions.
  * Custom behaviour should be implemented by overloading the relevant function with the necessary channel/data types.
@@ -405,6 +413,30 @@ namespace Sequencer
 	 */
 	SEQUENCER_API TUniquePtr<FCurveModel> CreateCurveEditorModel(const FMovieSceneChannelHandle& ChannelHandle, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer);
 
+	/**
+	 * Create a new channel model for this type of channel
+	 *
+	 * @param InChannelHandle    The channel handle to create a model for
+	 * @param InChannelName      The identifying name of this channel
+	 * @return (Optional) A new model to be used as part of the Sequencer MVVM framework
+	 */
+	inline TSharedPtr<UE::Sequencer::FChannelModel> CreateChannelModel(const FMovieSceneChannelHandle& InChannelHandle, FName InChannelName)
+	{
+		return nullptr;
+	}
+
+	/**
+	 * Create a new channel view for this type of channel
+	 *
+	 * @param InChannelHandle    The channel handle to create a model for
+	 * @param InWeakModel        The model that is creating the view. Should not be Pinned persistently.
+	 * @param Parameters         View construction parameters
+	 * @return (Optional) A new view to be shown on the track area
+	 */
+	inline TSharedPtr<UE::Sequencer::STrackAreaLaneView> CreateChannelView(const FMovieSceneChannelHandle& InChannelHandle, TWeakPtr<UE::Sequencer::FChannelModel> InWeakModel, const UE::Sequencer::FCreateTrackLaneViewParams& Parameters)
+	{
+		return nullptr;
+	}	
 
 	/**
 	 * Whether this channel should draw a curve on its editor UI

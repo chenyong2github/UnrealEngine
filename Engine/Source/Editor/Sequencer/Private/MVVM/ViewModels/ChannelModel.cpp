@@ -22,6 +22,7 @@
 #include "MVVM/Views/SOutlinerView.h"
 #include "MVVM/Views/SOutlinerItemViewBase.h"
 #include "MVVM/Views/SSequencerKeyNavigationButtons.h"
+#include "MVVM/Views/STrackLane.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
 #include "Modules/ModuleManager.h"
@@ -108,7 +109,17 @@ FOutlinerSizing FChannelModel::GetDesiredSizing() const
 
 TSharedPtr<ITrackLaneWidget> FChannelModel::CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams)
 {
-	return SNew(SChannelView, SharedThis(this), InParams.TimeToPixel, InParams.Editor->GetTrackArea())
+	ISequencerChannelInterface* EditorInterface = KeyArea->FindChannelEditorInterface();
+	if (EditorInterface)
+	{
+		TSharedPtr<STrackAreaLaneView> CustomWidget = EditorInterface->CreateChannelView_Raw(KeyArea->GetChannel(), SharedThis(this), InParams);
+		if (CustomWidget)
+		{
+			return CustomWidget;
+		}
+	}
+
+	return SNew(SChannelView, SharedThis(this), InParams.OwningTrackLane->GetTrackAreaView())
 		.KeyBarColor(this, &FChannelModel::GetKeyBarColor);
 }
 

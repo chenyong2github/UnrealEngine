@@ -25,6 +25,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "MVVM/Views/STrackLane.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 
 class SWidget;
 
@@ -61,7 +63,7 @@ FOutlinerSizing FCategoryModel::GetDesiredSizing() const
 
 TSharedPtr<ITrackLaneWidget> FCategoryModel::CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams)
 {
-	return SNew(SChannelView, SharedThis(this), InParams.TimeToPixel, InParams.Editor->GetTrackArea())
+	return SNew(SChannelView, SharedThis(this), InParams.OwningTrackLane->GetTrackAreaView())
 		.KeyBarColor(this, &FCategoryModel::GetKeyBarColor);
 }
 

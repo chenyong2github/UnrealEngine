@@ -5,6 +5,7 @@
 #include "MVVM/ViewModels/SectionModel.h"
 #include "MVVM/ViewModels/SequenceModel.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "MVVM/Views/STrackAreaView.h"
 
 #include "IKeyArea.h"
 #include "Sequencer.h"
@@ -212,11 +213,14 @@ EViewDependentCacheFlags FChannelViewKeyCachedState::CompareTo(const FChannelVie
 	return Flags;
 }
 
-void SChannelView::Construct(const FArguments& InArgs, const FViewModelPtr& InViewModel, TSharedPtr<FTimeToPixel> InTimeToPixel, TSharedPtr<FTrackAreaViewModel> TrackArea)
+void SChannelView::Construct(const FArguments& InArgs, const FViewModelPtr& InViewModel, TSharedPtr<STrackAreaView> InTrackAreaView)
 {
-	WeakModel = InViewModel;
-	WeakTrackArea = TrackArea;
-	TrackAreaTimeToPixel = InTimeToPixel;
+	STrackAreaLaneView::Construct(
+		STrackAreaLaneView::FArguments()
+		[
+			InArgs._Content.Widget
+		]
+		, InViewModel, InTrackAreaView);
 
 	KeyBarColor = InArgs._KeyBarColor;
 
@@ -225,7 +229,8 @@ void SChannelView::Construct(const FArguments& InArgs, const FViewModelPtr& InVi
 
 FReply SChannelView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	TViewModelPtr<FTrackAreaViewModel> TrackArea = WeakTrackArea.Pin();
+	TSharedPtr<STrackAreaView>      TrackAreaView = WeakTrackAreaView.Pin();
+	TSharedPtr<FTrackAreaViewModel> TrackArea     = TrackAreaView ? TrackAreaView->GetViewModel() : nullptr;
 	if (!TrackArea)
 	{
 		return FReply::Unhandled();
@@ -269,7 +274,8 @@ FReply SChannelView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoint
 
 FReply SChannelView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	TViewModelPtr<FTrackAreaViewModel> TrackArea = WeakTrackArea.Pin();
+	TSharedPtr<STrackAreaView>      TrackAreaView = WeakTrackAreaView.Pin();
+	TSharedPtr<FTrackAreaViewModel> TrackArea     = TrackAreaView ? TrackAreaView->GetViewModel() : nullptr;
 	if (!TrackArea)
 	{
 		return FReply::Unhandled();
@@ -313,11 +319,7 @@ FReply SChannelView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEven
 				TRange<FFrameNumber> SectionRange = Section->GetRange();
 
 				// Make the time <-> pixel converter relative to the section range rather than the view range
-				FTimeToPixel RelativeTimeToPixel = *TrackAreaTimeToPixel;
-				if (SectionRange.GetLowerBound().IsClosed())
-				{
-					RelativeTimeToPixel = TrackAreaTimeToPixel->RelativeTo(SectionRange.GetLowerBoundValue());
-				}
+				FTimeToPixel RelativeTimeToPixel = GetRelativeTimeToPixel();
 
 				TArray<FKeyRenderer::FKeysForModel> LeadingKeys, TrailingKeys;
 				if (KeyRenderer.HitTestKeyBar(RelativeTimeToPixel.PixelToFrame(MousePixel.X), LeadingKeys, TrailingKeys))
@@ -368,7 +370,8 @@ void SChannelView::OnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	SCompoundWidget::OnMouseLeave(MouseEvent);
 
-	TViewModelPtr<FTrackAreaViewModel> TrackArea = WeakTrackArea.Pin();
+	TSharedPtr<STrackAreaView>      TrackAreaView = WeakTrackAreaView.Pin();
+	TSharedPtr<FTrackAreaViewModel> TrackArea     = TrackAreaView ? TrackAreaView->GetViewModel() : nullptr;
 	if (TrackArea)
 	{
 		TrackArea->SetHotspot(nullptr);
@@ -417,24 +420,19 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 
 	const bool bIncludeThis = true;
 
-	TViewModelPtr<FTrackAreaViewModel> TrackArea = WeakTrackArea.Pin();
-	TViewModelPtr<FSectionModel>  Section  = Model->FindAncestorOfType<FSectionModel>(bIncludeThis);
-	TViewModelPtr<FSequenceModel> Sequence = Model->FindAncestorOfType<FSequenceModel>();
+	TSharedPtr<STrackAreaView>      TrackAreaView = WeakTrackAreaView.Pin();
+	TSharedPtr<FTrackAreaViewModel> TrackArea     = TrackAreaView ? TrackAreaView->GetViewModel() : nullptr;
+	TViewModelPtr<FSectionModel>    Section       = Model->FindAncestorOfType<FSectionModel>(bIncludeThis);
+	TViewModelPtr<FSequenceModel>   Sequence      = Model->FindAncestorOfType<FSequenceModel>();
 
-	UMovieSceneSection* SectionObject = Section->GetSection();
+	UMovieSceneSection* SectionObject = Section ? Section->GetSection() : nullptr;
 	if (!Section || !Sequence || !SectionObject || !TrackArea)
 	{
 		return LayerId;
 	}
 
-	TRange<FFrameNumber> SectionRange = Section->GetRange();
-
 	// Make the time <-> pixel converter relative to the section range rather than the view range
-	FTimeToPixel RelativeTimeToPixel = *TrackAreaTimeToPixel;
-	if (SectionRange.GetLowerBound().IsClosed())
-	{
-		RelativeTimeToPixel = TrackAreaTimeToPixel->RelativeTo(SectionRange.GetLowerBoundValue());
-	}
+	FTimeToPixel RelativeTimeToPixel = GetRelativeTimeToPixel();
 
 	FVector2D TopLeft = AllottedGeometry.AbsoluteToLocal(MyCullingRect.GetTopLeft());
 	FVector2D BottomRight = AllottedGeometry.AbsoluteToLocal(MyCullingRect.GetBottomRight());
@@ -575,24 +573,6 @@ int32 SChannelView::DrawLane(const FPaintArgs& Args, const FGeometry& AllottedGe
 	return LayerId;
 }
 
-TSharedRef<const SWidget> SChannelView::AsWidget() const
-{
-	return AsShared();
-}
-
-FTrackLaneScreenAlignment SChannelView::GetAlignment(const FTimeToPixel& InTimeToPixel, const FGeometry& InParentGeometry) const
-{
-	TSharedPtr<ITrackLaneExtension> TrackLaneExtension = WeakModel.ImplicitPin();
-	if (TrackLaneExtension)
-	{
-		FTrackLaneVirtualAlignment VirtualAlignment = TrackLaneExtension->ArrangeVirtualTrackLaneView();
-		FTrackLaneScreenAlignment  ScreenAlignment  = VirtualAlignment.ToScreen(InTimeToPixel, InParentGeometry);
-
-		return ScreenAlignment;
-	}
-	return FTrackLaneScreenAlignment();
-}
-
 TViewModelPtr<FSectionModel> SChannelView::GetSection() const
 {
 	FViewModelPtr Model = WeakModel.Pin();
@@ -640,25 +620,15 @@ void SChannelView::GetKeysUnderMouse(const FVector2D& MousePosition, const FGeom
 void SChannelView::GetKeysAtPixelX(float LocalMousePixelX, TArray<FSequencerSelectedKey>& OutKeys) const
 {
 	TViewModelPtr<FSectionModel> Section = GetSection();
-	if (!Section)
-	{
-		return;
-	}
+	UMovieSceneSection* SectionObject = Section ? Section->GetSection() : nullptr;
 
-	UMovieSceneSection* SectionObject = Section->GetSection();
 	if (!SectionObject)
 	{
 		return;
 	}
 
-	TRange<FFrameNumber> SectionRange = Section->GetRange();
-
 	// Make the time <-> pixel converter relative to the section range rather than the view range
-	FTimeToPixel RelativeTimeToPixel = *TrackAreaTimeToPixel;
-	if (SectionRange.GetLowerBound().IsClosed())
-	{
-		RelativeTimeToPixel = TrackAreaTimeToPixel->RelativeTo(SectionRange.GetLowerBoundValue());
-	}
+	FTimeToPixel RelativeTimeToPixel = GetRelativeTimeToPixel();
 
 	TArray<FKeyRenderer::FKeysForModel> Results;
 	KeyRenderer.HitTestKeys(RelativeTimeToPixel.PixelToFrame(LocalMousePixelX), Results);
@@ -685,14 +655,7 @@ void SChannelView::CreateKeysUnderMouse(const FVector2D& MousePosition, const FG
 		return;
 	}
 
-	TRange<FFrameNumber> SectionRange = Section->GetRange();
-
-	// Make the time <-> pixel converter relative to the section range rather than the view range
-	FTimeToPixel RelativeTimeToPixel = *TrackAreaTimeToPixel;
-	if (SectionRange.GetLowerBound().IsClosed())
-	{
-		RelativeTimeToPixel = TrackAreaTimeToPixel->RelativeTo(SectionRange.GetLowerBoundValue());
-	}
+	FTimeToPixel RelativeTimeToPixel = GetRelativeTimeToPixel();
 
 	// If the pressed key exists, offset the new key and look for it in the newly laid out key areas
 	if (InPressedKeys.Num())

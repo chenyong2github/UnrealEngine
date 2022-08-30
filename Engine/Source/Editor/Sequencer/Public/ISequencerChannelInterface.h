@@ -28,6 +28,13 @@ class FMovieSceneClipboardBuilder;
 class FMovieSceneClipboardKeyTrack;
 class FTrackInstancePropertyBindings;
 
+namespace UE::Sequencer
+{
+	class FChannelModel;
+	class STrackAreaLaneView;
+	struct FCreateTrackLaneViewParams;
+}
+
 /** Utility struct representing a number of selected keys on a single channel */
 struct FExtendKeyMenuParams
 {
@@ -165,6 +172,25 @@ struct ISequencerChannelInterface
 	 * @return (Optional) A new model to be added to a curve editor
 	 */
 	virtual TUniquePtr<FCurveModel> CreateCurveEditorModel_Raw(const FMovieSceneChannelHandle& Channel, UMovieSceneSection* OwningSection, TSharedRef<ISequencer> InSequencer) const = 0;
+
+	/**
+	 * Create a new channel model for this type of channel
+	 *
+	 * @param InChannelHandle    The channel handle to create a model for
+	 * @param InChannelName      The identifying name of this channel
+	 * @return (Optional) A new model to be added to a curve editor
+	 */
+	virtual TSharedPtr<UE::Sequencer::FChannelModel> CreateChannelModel_Raw(const FMovieSceneChannelHandle& InChannelHandle, FName InChannelName) const = 0;
+
+	/**
+	 * Create a new channel view for this type of channel
+	 *
+	 * @param InChannelHandle    The channel handle to create a model for
+	 * @param InWeakModel        The model that is creating the view. Should not be Pinned persistently.
+	 * @param Parameters         View construction parameters
+	 * @return (Optional) A new model to be added to a curve editor
+	 */
+	virtual TSharedPtr<UE::Sequencer::STrackAreaLaneView> CreateChannelView_Raw(const FMovieSceneChannelHandle& InChannelHandle, TWeakPtr<UE::Sequencer::FChannelModel> InWeakModel, const UE::Sequencer::FCreateTrackLaneViewParams& Parameters) const = 0;
 
 	/**
 	 * Draw additional content in addition to keys for a particular channel
