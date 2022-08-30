@@ -251,10 +251,9 @@ void URemeshMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Proper
 
 void URemeshMeshTool::UpdateVisualization()
 {
-	FComponentMaterialSet MaterialSet;
 	if (BasicProperties->bShowGroupColors)
 	{
-		MaterialSet.Materials = {ToolSetupUtil::GetSelectionMaterial(GetToolManager())};
+		Preview->OverrideMaterial = ToolSetupUtil::GetSelectionMaterial(GetToolManager());
 		Preview->PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
 		{
 			return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
@@ -263,11 +262,9 @@ void URemeshMeshTool::UpdateVisualization()
 	}
 	else
 	{
-		MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
+		Preview->OverrideMaterial = nullptr;
 		Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
-	Preview->ConfigureMaterials(MaterialSet.Materials,
-								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 }
 
 bool URemeshMeshTool::CanAccept() const

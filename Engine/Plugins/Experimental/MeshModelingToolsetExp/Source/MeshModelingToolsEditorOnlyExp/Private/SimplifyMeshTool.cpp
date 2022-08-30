@@ -240,10 +240,9 @@ void USimplifyMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 
 void USimplifyMeshTool::UpdateVisualization()
 {
-	FComponentMaterialSet MaterialSet;
 	if (SimplifyProperties->bShowGroupColors)
 	{
-		MaterialSet.Materials = {ToolSetupUtil::GetSelectionMaterial(GetToolManager())};
+		Preview->OverrideMaterial = ToolSetupUtil::GetSelectionMaterial(GetToolManager());
 		Preview->PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
 		{
 			return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
@@ -252,12 +251,11 @@ void USimplifyMeshTool::UpdateVisualization()
 	}
 	else
 	{
-		MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
+		Preview->OverrideMaterial = nullptr;
 		Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
-	Preview->ConfigureMaterials(MaterialSet.Materials,
-								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 }
+
 
 
 
