@@ -214,6 +214,5 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Newline(Context);
 		}
 	}
-#endif
 }
 #endif
