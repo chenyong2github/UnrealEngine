@@ -183,7 +183,7 @@ struct FExamplePolymorphicStructC : public FExamplePolymorphicArrayItem
 	bool SomeBool;
 
 	UPROPERTY()
-	UObject* SomeObjectRef;
+	TObjectPtr<UObject> SomeObjectRef = nullptr;
 
 	/** Returns the serialization data, must always be overridden */
 	virtual UScriptStruct* GetScriptStruct() const override

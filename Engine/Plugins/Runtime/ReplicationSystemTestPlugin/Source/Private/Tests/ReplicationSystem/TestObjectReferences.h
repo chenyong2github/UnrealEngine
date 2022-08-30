@@ -17,7 +17,7 @@ struct FTestObjectReferences_TestStructWithRef
 	GENERATED_BODY();
 
 	UPROPERTY()
-	UObject* ObjectRef;
+	TObjectPtr<UObject> ObjectRef;
 
 	UPROPERTY()
 	int32 IntValue;
@@ -31,7 +31,7 @@ struct FTestObjectReferences_TestStructWithRefCArray
 	GENERATED_BODY();
 
 	UPROPERTY()
-	UObject* Ref_CArray[ArrayElementCount];
+	TObjectPtr<UObject> Ref_CArray[ArrayElementCount];
 };
 
 USTRUCT()
@@ -40,7 +40,7 @@ struct FTestObjectReferences_TestStructWithRefTArray
 	GENERATED_BODY();
 
 	UPROPERTY()
-	TArray<UObject*> Ref_TArray;
+	TArray<TObjectPtr<UObject>> Ref_TArray;
 };
 
 USTRUCT()
@@ -49,10 +49,10 @@ struct FTestObjectReferences_TestObjectRefFastArrayItem : public FFastArraySeria
 	GENERATED_BODY();
 
 	UPROPERTY()
-	UObject* ObjectRef;
+	TObjectPtr<UObject> ObjectRef;
 
 	UPROPERTY()
-	TArray<UObject*> Ref_TArray;
+	TArray<TObjectPtr<UObject>> Ref_TArray;
 };
 
 USTRUCT()
@@ -114,7 +114,7 @@ public:
 	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 
 	UPROPERTY(Transient, Replicated)
-	UObject* ObjectRef;
+	TObjectPtr<UObject> ObjectRef;
 
 	UPROPERTY(Transient, Replicated)
 	FTestObjectReferences_TestStructWithRef StructWithRef;
@@ -126,10 +126,10 @@ public:
 	FTestObjectReferences_TestStructWithRefTArray StructWithRefTArray;
 
 	UPROPERTY(Transient, Replicated)
-	UObject* Ref_CArray[ArrayElementCount];
+	TObjectPtr<UObject> Ref_CArray[ArrayElementCount];
 
 	UPROPERTY(Transient, Replicated)
-	TArray<UObject*> Ref_TArray;
+	TArray<TObjectPtr<UObject>> Ref_TArray;
 
 	UPROPERTY(Transient, Replicated)
 	FTestObjectReferences_TestStructWithRef StructWithRef_CArray[ArrayElementCount];
@@ -161,10 +161,10 @@ public:
 	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 
 	UPROPERTY(Transient, Replicated)
-	UObject* ObjectRef;
+	TObjectPtr<UObject> ObjectRef;
 
 	// Used to store subobject created before we start replication
 	UPROPERTY(Transient)
-	UObject* CreatedSubObjectRef;
+	TObjectPtr<UObject> CreatedSubObjectRef;
 };
 

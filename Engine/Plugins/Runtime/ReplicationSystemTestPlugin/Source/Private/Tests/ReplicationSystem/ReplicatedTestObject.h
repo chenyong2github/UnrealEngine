@@ -108,7 +108,7 @@ public:
 	int32 IntA;
 
 	UPROPERTY(Transient, Replicated)
-	UObject* RawObjectPtrRef;
+	TObjectPtr<UObject> RawObjectPtrRef;
 
 	UPROPERTY(Transient, Replicated)
 	TWeakObjectPtr<UObject> WeakObjectPtrObjectRef;
@@ -338,7 +338,7 @@ public:
 	int8 IntC;
 
 	UPROPERTY(Transient, Replicated)
-	UObject* RawObjectPtrRef;
+	TObjectPtr<UObject> RawObjectPtrRef;
 
 	UPROPERTY(Transient, Replicated)
 	TWeakObjectPtr<UObject> WeakObjectPtrObjectRef;
@@ -364,7 +364,7 @@ public:
 	int32 IntA;
 
 	UPROPERTY(Transient, Replicated)
-	UObject* OtherSubObject;
+	TObjectPtr<UObject> OtherSubObject;
 
 	uint32 LastRepOrderCounter = 0U;
 

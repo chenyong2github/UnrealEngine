@@ -809,7 +809,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestExternalSubOb
 
 	// Verify that we could resolve the subobject ref and that we got the expected reference
 	UE_NET_ASSERT_TRUE(ClientObject->ObjectRef != nullptr);
-	UE_NET_ASSERT_EQ(ClientObject->ObjectRef, (UObject*)ClientExternalSubObject);
+	UE_NET_ASSERT_EQ(ClientObject->ObjectRef, TObjectPtr<UObject>(ClientExternalSubObject));
 }
 
 // Test partial resolve of references in array
@@ -1208,7 +1208,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	// Verify that object can be resolved
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Disable replication for ServerReferenceObjectA
 	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
@@ -1227,7 +1227,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	Server->PostSendUpdate();
 
 	// Verify that object can no longer be resolved
-	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, nullptr);
+	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Enable replication for ServerReferenceObjectA
 	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
@@ -1242,7 +1242,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	Client->PostSendUpdate();
 
 	// Verify that we can now resolve the referenced object again
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 }
 
 // Replicate an object with a reference to another object, in two different changemasks, which is later filtered out and then replicated again.
@@ -1275,8 +1275,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	UE_NET_ASSERT_TRUE(ClientObject != nullptr);
 
 	// Verify that object can be resolved
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef_CArray[0].ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef_CArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Disable replication for ServerReferenceObjectA
 	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
@@ -1296,8 +1296,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	Server->PostSendUpdate();
 
 	// Verify that object can no longer be resolved
-	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, nullptr);
-	UE_NET_ASSERT_EQ(ClientObject->StructWithRef_CArray[0].ObjectRef, nullptr);
+	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_EQ(ClientObject->StructWithRef_CArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Enable replication for ServerReferenceObjectA
 	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
@@ -1312,8 +1312,8 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovedRefere
 	Client->PostSendUpdate();
 
 	// Verify that we can now resolve the referenced object again
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef_CArray[0].ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef_CArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
 }
 
 // Replicate an object with references to multiple objects, in a single changemask, which are later filtered out and then replicated again.
@@ -1359,10 +1359,10 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovingRefer
 	auto& ClientTArray = ClientObject->StructWithRef_TArray;
 
 	// Verify that objects can be resolved
-	UE_NET_ASSERT_NE(ClientTArray[0].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[1].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[2].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[3].ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientTArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[1].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[2].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[3].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Disable replication for ServerReferenceObjectA, B and D.
 	Server->ReplicationSystem->AddToGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
@@ -1394,10 +1394,10 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovingRefer
 	Client->PostSendUpdate();
 
 	// Verify that objects A, B and D can no longer be resolved, while C still can be resolved.
-	UE_NET_ASSERT_EQ(ClientTArray[0].ObjectRef, nullptr);
-	UE_NET_ASSERT_EQ(ClientTArray[1].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[2].ObjectRef, nullptr);
-	UE_NET_ASSERT_EQ(ClientTArray[3].ObjectRef, nullptr);
+	UE_NET_ASSERT_EQ(ClientTArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_EQ(ClientTArray[1].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[2].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_EQ(ClientTArray[3].ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Enable replication for ServerReferenceObjectA, B and D.
 	Server->ReplicationSystem->RemoveFromGroup(NotReplicatedNetObjectGroupHandle, ServerReferencedObjectA->NetHandle);
@@ -1414,10 +1414,10 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestRemovingRefer
 	Client->PostSendUpdate();
 
 	// Verify that we can now resolve all the referenced objects again
-	UE_NET_ASSERT_NE(ClientTArray[0].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[1].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[2].ObjectRef, nullptr);
-	UE_NET_ASSERT_NE(ClientTArray[3].ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientTArray[0].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[1].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[2].ObjectRef, TObjectPtr<UObject>(nullptr));
+	UE_NET_ASSERT_NE(ClientTArray[3].ObjectRef, TObjectPtr<UObject>(nullptr));
 }
 
 // Replicate an object with reference to an object which is later torn off.
@@ -1449,7 +1449,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffDoesIn
 	UE_NET_ASSERT_NE(ClientObject, nullptr);
 
 	// Verify that object can be resolved
-	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, nullptr);
+	UE_NET_ASSERT_NE(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 
 	// Tear off ServerReferenceObjectA
 	Server->ReplicationBridge->EndReplication(ServerReferencedObjectA, EEndReplicationFlags::TearOff);
@@ -1476,7 +1476,7 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestTearOffDoesIn
 	Client->PostSendUpdate();
 
 	// Verify that object cannot be resolved
-	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, nullptr);
+	UE_NET_ASSERT_EQ(ClientObject->StructWithRef.ObjectRef, TObjectPtr<UObject>(nullptr));
 }
 
 }

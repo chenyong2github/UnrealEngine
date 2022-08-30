@@ -362,7 +362,7 @@ struct FTestReplicationStateDescriptor_TestStructWithRef
 	GENERATED_BODY();
 
 	UPROPERTY()
-	UObject* ObjectRef;
+	TObjectPtr<UObject> ObjectRef;
 };
 
 USTRUCT()
@@ -376,7 +376,7 @@ struct FTestReplicationStateDescriptor_TestStructWithRefCArray
 	GENERATED_BODY();
 
 	UPROPERTY()
-	UObject* ObjectRef[ArrayElementCount];
+	TObjectPtr<UObject> ObjectRef[ArrayElementCount];
 };
 
 USTRUCT()
@@ -385,7 +385,7 @@ struct FTestReplicationStateDescriptor_TestStructWithRefTArray
 	GENERATED_BODY();
 
 	UPROPERTY()
-	TArray<UObject*> ObjectRef;
+	TArray<TObjectPtr<UObject>> ObjectRef;
 };
 
 UCLASS()
@@ -397,7 +397,7 @@ public:
 	UTestReplicationStateDescriptor_TestClassWithRef() : UObject() {}
 
 	UPROPERTY(Transient, Replicated)
-	UObject* ObjectRef;
+	TObjectPtr<UObject> ObjectRef;
 };
 
 UCLASS()
@@ -449,7 +449,7 @@ public:
 	UTestReplicationStateDescriptor_TestClassWithRefInCArray() : UObject() {}
 
 	UPROPERTY(Transient, Replicated)
-	UObject* ObjectRef[ArrayElementCount];
+	TObjectPtr<UObject> ObjectRef[ArrayElementCount];
 };
 
 UCLASS()
@@ -461,7 +461,7 @@ public:
 	UTestReplicationStateDescriptor_TestClassWithRefInTArray() : UObject() {}
 
 	UPROPERTY(Transient, Replicated)
-	TArray<UObject*> ObjectRefInArray;
+	TArray<TObjectPtr<UObject>> ObjectRefInArray;
 };
 
 UCLASS()

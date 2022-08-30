@@ -26,7 +26,7 @@ struct FTestFastArrayReplicationState_FastArrayItem : public FFastArraySerialize
 	int32 RepInt32;
 
 	UPROPERTY()
-	UObject* ObjectRef = nullptr;
+	TObjectPtr<UObject> ObjectRef = nullptr;
 
 	// Callbacks
 	void PostReplicatedAdd(const struct FTestFastArrayReplicationState_FastArraySerializer& InArraySerializer);
