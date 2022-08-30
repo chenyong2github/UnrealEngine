@@ -537,7 +537,8 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 				for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
 				{
-					if ((bHideVisualizationComponents && PrimComp->IsVisualizationComponent()) || bActorHideInGame || PrimComp->bHiddenInGame)
+					if ((bHideVisualizationComponents && PrimComp->IsVisualizationComponent()) 
+						|| ((bActorHideInGame || PrimComp->bHiddenInGame) && !PrimComp->bCastHiddenShadow))
 					{
 						OutPrimitives.Add(PrimComp->ComponentId);
 					}
