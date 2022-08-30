@@ -6,6 +6,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformMemory.h"
 #include "HAL/PlatformProcess.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
 #include "Logging/MessageLog.h"
 #include "MessageLog/Public/MessageLogModule.h"
 #include "Misc/CString.h"
@@ -515,6 +517,10 @@ bool FInsightsManager::Tick(float DeltaTime)
 			UpdateAppTitle();
 		}
 	}
+
+	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+	ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+	SourceCodeAccessor.Tick(DeltaTime);
 
 	CheckMemoryUsage();
 #endif // !WITH_EDITOR
