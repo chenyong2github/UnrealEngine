@@ -49,7 +49,7 @@ public:
 	virtual UMediaSource* CreateMediaSource(const FMediaIOConfiguration& InConfiguration,
 		UObject* Outer) const override;
 
-	virtual FText ToText(const FMediaIOConfiguration& InConfiguration) const override;
+	virtual FText ToText(const FMediaIOConfiguration& InConfiguration, bool bInIsAutoDetected = false) const override;
 	virtual FText ToText(const FMediaIOConnection& InConnection) const override;
 	virtual FText ToText(const FMediaIOOutputConfiguration& InConfiguration) const override;
 

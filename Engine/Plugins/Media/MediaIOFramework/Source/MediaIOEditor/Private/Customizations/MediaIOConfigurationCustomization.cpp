@@ -35,7 +35,10 @@ TAttribute<FText> FMediaIOConfigurationCustomization::GetContentText()
 	IMediaIOCoreDeviceProvider* DeviceProviderPtr = IMediaIOCoreModule::Get().GetDeviceProvider(DeviceProviderName);
 	if (DeviceProviderPtr)
 	{
-		return MakeAttributeLambda([=] { return DeviceProviderPtr->ToText(*Value); });
+		return MakeAttributeLambda([this, DeviceProviderPtr, Value]
+			{ 
+				return DeviceProviderPtr->ToText(*Value, IsAutoDetected()); 
+			});
 	}
 	return FText::GetEmpty();
 }
@@ -59,7 +62,7 @@ TSharedRef<SWidget> FMediaIOConfigurationCustomization::HandleSourceComboButtonM
 		SelectedConfiguration.bIsInput = bIsInput;
 	}
 
-	bEnforceFormat = !IsAutoDetected();
+	bAutoDetectFormat = IsAutoDetected();
 
 	TArray<FMediaIOConfiguration> MediaConfigurations = bIsInput ? DeviceProviderPtr->GetConfigurations(true, false) : DeviceProviderPtr->GetConfigurations(false, true);
 	if (MediaConfigurations.Num() == 0)
@@ -77,7 +80,7 @@ TSharedRef<SWidget> FMediaIOConfigurationCustomization::HandleSourceComboButtonM
 		return false;
 	};
 
-	TSharedRef<SWidget> EnforceWidget = SNullWidget::NullWidget;
+	TSharedRef<SWidget> AutoCheckbox = SNullWidget::NullWidget;
 
 	if (bIsInput)
 	{
@@ -106,32 +109,32 @@ TSharedRef<SWidget> FMediaIOConfigurationCustomization::HandleSourceComboButtonM
 
 		if (bSupportsAutoDetect)
 		{
-			EnforceWidget = SNew(SHorizontalBox)
+			AutoCheckbox = SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.Padding(4.f)
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(NSLOCTEXT("MediaPlayerEditor", "EnforceLabel", "Enforce format"))
+					.Text(NSLOCTEXT("MediaPlayerEditor", "AutoLabel", "Auto"))
 				]
 			+ SHorizontalBox::Slot()
 				.Padding(4.f)
 				.AutoWidth()
 				[
 					SNew(SCheckBox)
-					.ToolTipText(NSLOCTEXT("MediaPlayerEditor", "EnforceTooltip", "Enforce a specific configuration. (Note that this disables format autodetection)"))
-					.IsChecked(this, &FMediaIOConfigurationCustomization::GetEnforceCheckboxState)
-					.OnCheckStateChanged(this, &FMediaIOConfigurationCustomization::SetEnforceCheckboxState)
+					.ToolTipText(NSLOCTEXT("MediaPlayerEditor", "AutoToolTip", "Automatically detect the video format of the signal coming through this input. When disabled, the format will be enforced and the source will error out if the format differs from the expected one."))
+					.IsChecked(this, &FMediaIOConfigurationCustomization::GetAutoCheckboxState)
+					.OnCheckStateChanged(this, &FMediaIOConfigurationCustomization::SetAutoCheckboxState)
 				];
 		}		
 
 	}
 
-	auto GetExtensions = [EnforceWidget](TArray<TSharedRef<SWidget>>& OutWidgets)
+	auto GetExtensions = [AutoCheckbox](TArray<TSharedRef<SWidget>>& OutWidgets)
 	{
-		if (EnforceWidget != SNullWidget::NullWidget)
+		if (AutoCheckbox != SNullWidget::NullWidget)
 		{
-			OutWidgets.Add(EnforceWidget);
+			OutWidgets.Add(AutoCheckbox);
 		}
 	};
 
@@ -185,7 +188,7 @@ FReply FMediaIOConfigurationCustomization::OnButtonClicked()
 {
 	AssignValue(SelectedConfiguration);
 	// Make sure to overwrite what was in the config since the auto value is determined by the timecode provider and not the generated configs.
-	SetIsAutoDetected(!bEnforceFormat);
+	SetIsAutoDetected(bAutoDetectFormat);
 
 	TSharedPtr<SWidget> SharedPermutationSelector = PermutationSelector.Pin();
 	if (SharedPermutationSelector.IsValid())
@@ -197,19 +200,19 @@ FReply FMediaIOConfigurationCustomization::OnButtonClicked()
 	return FReply::Handled();
 }
 
-ECheckBoxState FMediaIOConfigurationCustomization::GetEnforceCheckboxState() const
+ECheckBoxState FMediaIOConfigurationCustomization::GetAutoCheckboxState() const
 {
-	return bEnforceFormat ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bAutoDetectFormat ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void FMediaIOConfigurationCustomization::SetEnforceCheckboxState(ECheckBoxState CheckboxState)
+void FMediaIOConfigurationCustomization::SetAutoCheckboxState(ECheckBoxState CheckboxState)
 {
-	bEnforceFormat = CheckboxState == ECheckBoxState::Checked;
+	bAutoDetectFormat = CheckboxState == ECheckBoxState::Checked;
 }
 
 bool FMediaIOConfigurationCustomization::ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOConfiguration>& UniquePermutationsForThisColumn) const
 {
-	return bEnforceFormat;
+	return !bAutoDetectFormat;
 }
 
 bool FMediaIOConfigurationCustomization::IsAutoDetected() const

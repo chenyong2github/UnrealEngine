@@ -29,8 +29,16 @@ FText IMediaIOCoreDeviceProvider::GetTransportName(EMediaIOTransportType InLinkT
 	return Transport;
 }
 
-FText IMediaIOCoreDeviceProvider::ToText(const FMediaIOConfiguration& InConfiguration) const
+FText IMediaIOCoreDeviceProvider::ToText(const FMediaIOConfiguration& InConfiguration, bool bInIsAutoDetected) const
 {
+	if (bInIsAutoDetected)
+	{
+		return FText::Format(LOCTEXT("FMediaIOConfigurationToText", "{0} - {1} [device{2}/auto]")
+				, InConfiguration.bIsInput ? LOCTEXT("In", "In") : LOCTEXT("Out", "Out")
+				, FText::FromName(InConfiguration.MediaConnection.Device.DeviceName)
+				, FText::AsNumber(InConfiguration.MediaConnection.Device.DeviceIdentifier)
+				);
+	}
 	if (InConfiguration.IsValid())
 	{
 		return FText::Format(LOCTEXT("FMediaIOConfigurationToText", "{0} - {1} [device{2}/{3}{4}/{5}]")

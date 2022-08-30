@@ -20,8 +20,8 @@ private:
 
 	void OnSelectionChanged(FMediaIOVideoTimecodeConfiguration SelectedItem);
 	FReply OnButtonClicked();
-	ECheckBoxState GetEnforceCheckboxState() const;
-	void SetEnforceCheckboxState(ECheckBoxState CheckboxState);
+	ECheckBoxState GetAutoCheckboxState() const;
+	void SetAutoCheckboxState(ECheckBoxState CheckboxState);
 	bool ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOVideoTimecodeConfiguration>& UniquePermutationsForThisColumn) const;
 	bool IsAutoDetected() const;
 	void SetIsAutoDetected(bool Value);
@@ -29,5 +29,5 @@ private:
 private:
 	TWeakPtr<SWidget> PermutationSelector;
 	FMediaIOVideoTimecodeConfiguration SelectedConfiguration;
-	bool bEnforceFormat = false;
+	bool bAutoDetectFormat = false;
 };

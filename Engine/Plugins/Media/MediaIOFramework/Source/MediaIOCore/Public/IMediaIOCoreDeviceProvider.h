@@ -30,7 +30,7 @@ public:
 	virtual UMediaSource* CreateMediaSource(const FMediaIOConfiguration& InConfiguration,
 		UObject* Outer) const { return nullptr; }
 
-	virtual FText ToText(const FMediaIOConfiguration& InConfiguration) const;
+	virtual FText ToText(const FMediaIOConfiguration& InConfiguration, bool bInIsAutoDetected = false) const;
 	virtual FText ToText(const FMediaIOConnection& InConnection) const;
 	virtual FText ToText(const FMediaIODevice& InDevice) const;
 	virtual FText ToText(const FMediaIOMode& InMode) const;

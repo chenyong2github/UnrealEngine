@@ -3,7 +3,6 @@
 #pragma once
 
 #include "TimeSynchronizableMediaSource.h"
-
 #include "MediaIOCoreDefinitions.h"
 
 #include "AjaMediaSource.generated.h"

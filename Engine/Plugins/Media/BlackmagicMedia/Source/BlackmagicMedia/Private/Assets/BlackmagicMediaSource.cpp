@@ -3,6 +3,7 @@
 #include "BlackmagicMediaSource.h"
 
 #include "Blackmagic.h"
+#include "BlackmagicDeviceProvider.h"
 #include "BlackmagicMediaPrivate.h"
 #include "IBlackmagicMediaModule.h"
 
@@ -20,6 +21,15 @@ UBlackmagicMediaSource::UBlackmagicMediaSource()
 	, bEncodeTimecodeInTexel(false)
 {
 	MediaConfiguration.bIsInput = true;
+	if (!MediaConfiguration.IsValid())
+	{
+		const FBlackmagicDeviceProvider DeviceProvider;
+		const TArray<FMediaIOConfiguration> Configurations = DeviceProvider.GetConfigurations();
+		if (Configurations.Num())
+		{
+			MediaConfiguration = Configurations[0];
+		}
+	}
 }
 
 /*

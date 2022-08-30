@@ -3,10 +3,9 @@
 #include "AjaMediaSource.h"
 
 #include "Aja.h"
+#include "AjaDeviceProvider.h"
 #include "AjaMediaPrivate.h"
-
 #include "MediaIOCorePlayerBase.h"
-#include "UObject/EnterpriseObjectVersion.h"
 
 UAjaMediaSource::UAjaMediaSource()
 	: bCaptureWithAutoCirculating(true)
@@ -23,6 +22,12 @@ UAjaMediaSource::UAjaMediaSource()
 	, bEncodeTimecodeInTexel(false)
 {
 	MediaConfiguration.bIsInput = true;
+	const FAjaDeviceProvider DeviceProvider;
+	const TArray<FMediaIOConfiguration> Configurations = DeviceProvider.GetConfigurations();
+	if (Configurations.Num())
+	{
+		MediaConfiguration = Configurations[0];
+	}
 }
 
 /*

@@ -7,7 +7,6 @@
 #include "AjaTimecodeProvider.h"
 
 #include "Customizations/AjaMediaTimecodeReferenceCustomization.h"
-#include "Customizations/AjaMediaSourceDetailsCustomization.h"
 
 #include "Brushes/SlateImageBrush.h"
 #include "Interfaces/IPluginManager.h"
@@ -56,7 +55,6 @@ private:
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomPropertyTypeLayout(FAjaMediaTimecodeReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAjaMediaTimecodeReferenceCustomization::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout(UAjaMediaSource::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FAjaMediaSourceDetailsCustomization::MakeInstance));
 		
 	}
 

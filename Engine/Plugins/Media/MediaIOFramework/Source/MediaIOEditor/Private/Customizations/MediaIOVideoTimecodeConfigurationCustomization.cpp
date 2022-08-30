@@ -89,7 +89,7 @@ TSharedRef<SWidget> FMediaIOVideoTimecodeConfigurationCustomization::HandleSourc
 		}
 	}
 
-	bEnforceFormat = !IsAutoDetected();
+	bAutoDetectFormat = IsAutoDetected();
 
 	TArray<FMediaIOVideoTimecodeConfiguration> MediaConfigurations;
 	if (IMediaIOCoreDeviceProvider* DeviceProvider = IMediaIOCoreModule::Get().GetDeviceProvider(DeviceProviderName))
@@ -112,27 +112,27 @@ TSharedRef<SWidget> FMediaIOVideoTimecodeConfigurationCustomization::HandleSourc
 		return false;
 	};
 
-	TSharedRef<SWidget> EnforceWidget = SNew(SHorizontalBox)
+	TSharedRef<SWidget> AutoCheckbox = SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.Padding(4.f)
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("EnforceLabel", "Enforce format"))
+			.Text(LOCTEXT("AutoLabel", "Auto"))
 		]
 	+ SHorizontalBox::Slot()
 		.Padding(4.f)
 		.AutoWidth()
 		[
 			SNew(SCheckBox)
-			.ToolTipText(LOCTEXT("EnforceTooltip", "Enforce a specific configuration. (Note that this disables format autodetection)"))
-			.IsChecked(this, &FMediaIOVideoTimecodeConfigurationCustomization::GetEnforceCheckboxState)
-			.OnCheckStateChanged(this, &FMediaIOVideoTimecodeConfigurationCustomization::SetEnforceCheckboxState)
+			.ToolTipText(LOCTEXT("AutoTooltip", "Automatically detect the video format of the timecode signal coming through this input. When disabled, the format will be enforced and the source will error out if the format differs from the expected one."))
+			.IsChecked(this, &FMediaIOVideoTimecodeConfigurationCustomization::GetAutoCheckboxState)
+			.OnCheckStateChanged(this, &FMediaIOVideoTimecodeConfigurationCustomization::SetAutoCheckboxState)
 		];
 
-	auto GetExtensions = [EnforceWidget](TArray<TSharedRef<SWidget>>& OutWidgets)
+	auto GetExtensions = [AutoCheckbox](TArray<TSharedRef<SWidget>>& OutWidgets)
 	{
-		OutWidgets.Add(EnforceWidget);
+		OutWidgets.Add(AutoCheckbox);
 	};
 
 	using TSelection = SMediaPermutationsSelector<FMediaIOVideoTimecodeConfiguration, MediaIOVideoTimecodeConfigurationCustomization::FMediaTimecodePermutationsSelectorBuilder>;
@@ -191,7 +191,7 @@ FReply FMediaIOVideoTimecodeConfigurationCustomization::OnButtonClicked()
 {
 	AssignValue(SelectedConfiguration);
 	// Make sure to overwrite what was in the config since the auto value is determined by the timecode provider and not the generated configs.
-	SetIsAutoDetected(!bEnforceFormat);
+	SetIsAutoDetected(bAutoDetectFormat);
 
 	TSharedPtr<SWidget> SharedPermutationSelector = PermutationSelector.Pin();
 	if (SharedPermutationSelector.IsValid())
@@ -203,19 +203,19 @@ FReply FMediaIOVideoTimecodeConfigurationCustomization::OnButtonClicked()
 	return FReply::Handled();
 }
 
-ECheckBoxState FMediaIOVideoTimecodeConfigurationCustomization::GetEnforceCheckboxState() const
+ECheckBoxState FMediaIOVideoTimecodeConfigurationCustomization::GetAutoCheckboxState() const
 {
-	return bEnforceFormat ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return bAutoDetectFormat ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-void FMediaIOVideoTimecodeConfigurationCustomization::SetEnforceCheckboxState(ECheckBoxState CheckboxState)
+void FMediaIOVideoTimecodeConfigurationCustomization::SetAutoCheckboxState(ECheckBoxState CheckboxState)
 {
-	bEnforceFormat = CheckboxState == ECheckBoxState::Checked;
+	bAutoDetectFormat = CheckboxState == ECheckBoxState::Checked;
 }
 
 bool FMediaIOVideoTimecodeConfigurationCustomization::ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOVideoTimecodeConfiguration>& UniquePermutationsForThisColumn) const
 {
-	return bEnforceFormat;
+	return !bAutoDetectFormat;
 }
 
 bool FMediaIOVideoTimecodeConfigurationCustomization::IsAutoDetected() const
