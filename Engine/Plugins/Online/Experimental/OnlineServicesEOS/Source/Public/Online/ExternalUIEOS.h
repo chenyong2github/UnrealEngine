@@ -33,7 +33,6 @@ public:
 	virtual TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> ShowFriendsUI(FExternalUIShowFriendsUI::Params&& Params) override;
 
 protected:
-	using Super::LoadConfig;
 	/** Handle to EOS UI */
 	EOS_HUI UIHandle;
 	/** Config */

@@ -26,7 +26,7 @@ void FUserFileOSSAdapter::PostInitialize()
 void FUserFileOSSAdapter::UpdateConfig()
 {
 	Super::UpdateConfig();
-	Super::LoadConfig(Config);
+	LoadConfig(Config);
 }
 
 TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileOSSAdapter::EnumerateFiles(FUserFileEnumerateFiles::Params&& InParams)

@@ -33,7 +33,7 @@ void FUserFileEOSGS::Initialize()
 void FUserFileEOSGS::UpdateConfig()
 {
 	Super::UpdateConfig();
-	Super::LoadConfig(Config);
+	LoadConfig(Config);
 }
 
 TOnlineAsyncOpHandle<FUserFileEnumerateFiles> FUserFileEOSGS::EnumerateFiles(FUserFileEnumerateFiles::Params&& InParams)

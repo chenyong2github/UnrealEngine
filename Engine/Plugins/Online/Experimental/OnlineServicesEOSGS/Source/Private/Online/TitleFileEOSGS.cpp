@@ -30,7 +30,7 @@ void FTitleFileEOSGS::Initialize()
 void FTitleFileEOSGS::UpdateConfig()
 {
 	Super::UpdateConfig();
-	Super::LoadConfig(Config);
+	LoadConfig(Config);
 }
 
 TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(FTitleFileEnumerateFiles::Params&& InParams)
