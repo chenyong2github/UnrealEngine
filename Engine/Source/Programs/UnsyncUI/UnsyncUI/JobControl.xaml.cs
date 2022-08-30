@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -145,7 +146,7 @@ namespace UnsyncUI
 		public Command CopyLogClicked { get; }
 		public Command SaveLogClicked { get; }
 
-		private TaskCompletionSource startTcs = new TaskCompletionSource();
+		private TaskCompletionSource<bool> startTcs = new TaskCompletionSource<bool>();
         private CancellationTokenSource cts = new CancellationTokenSource();
         public bool IsCancelled => cts.IsCancellationRequested;
 		public bool Succeeded { get; private set; }
@@ -182,7 +183,10 @@ namespace UnsyncUI
             Proxy = proxy;
 			DFS = dfs;
 			AdditionalArgs = additionalArgs;
-			IncludeFilter = build.Include?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+			IncludeFilter = build.Include?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+				.Select(Entry => Entry.Trim())
+				.Where(Entry => Entry.Length > 0)
+				.ToArray();
 			Exclusions = exclusions;
 			Succeeded = false;
 
@@ -242,7 +246,7 @@ namespace UnsyncUI
 			}
 		}
 
-        public void StartJob() => startTcs.TrySetResult();
+        public void StartJob() => startTcs.TrySetResult(true);
 
 		public void CancelJob()
 		{

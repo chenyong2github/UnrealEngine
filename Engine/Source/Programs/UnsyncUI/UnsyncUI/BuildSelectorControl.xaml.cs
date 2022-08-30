@@ -89,7 +89,7 @@ namespace UnsyncUI
 		public string Flavor { get; }
 		public string Description { get; }
 		public string FullPath { get; }
-		public string DestPathRelative { get; init; }
+		public string DestPathRelative { get; }
 		public string Include { get;  }
 
 		public string Name => Build == null
