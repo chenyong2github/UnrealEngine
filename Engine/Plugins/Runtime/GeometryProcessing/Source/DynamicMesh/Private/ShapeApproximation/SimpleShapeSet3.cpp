@@ -537,7 +537,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const FTr
 	for (const FConvexShape3d& ConvexShape : OtherShapeSet.Convexes)
 	{
 		Convexes.Add(ConvexShape);
-		MeshTransforms::ApplyTransform(Convexes.Last().Mesh, Transform);
+		MeshTransforms::ApplyTransform(Convexes.Last().Mesh, Transform, true);
 	}
 
 	LevelSets.Reserve(LevelSets.Num() + OtherShapeSet.LevelSets.Num());
@@ -576,7 +576,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TAr
 		Convexes.Add(ConvexShape);
 		for (const FTransform3d& XForm : TransformSequence)
 		{
-			MeshTransforms::ApplyTransform(Convexes.Last().Mesh, XForm);
+			MeshTransforms::ApplyTransform(Convexes.Last().Mesh, XForm, true);
 		}
 	}
 
@@ -653,7 +653,7 @@ void FSimpleShapeSet3d::ApplyTransform(const FTransform3d& Transform)
 
 	for (FConvexShape3d& ConvexShape : Convexes)
 	{
-		MeshTransforms::ApplyTransform(ConvexShape.Mesh, Transform);
+		MeshTransforms::ApplyTransform(ConvexShape.Mesh, Transform, true);
 	}
 
 	for (FLevelSetShape3d& LevelSetShape : LevelSets)

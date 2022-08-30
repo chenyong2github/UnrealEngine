@@ -548,9 +548,9 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 	if (InputMeshSettings->bProjectionInWorldSpace && bIsBakeToSelf == false)
 	{
 		const FTransformSRT3d DetailToWorld = UE::ToolTarget::GetLocalToWorldTransform(DetailTarget);
-		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
+		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld, true);
 		const FTransformSRT3d WorldToBase = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
-		MeshTransforms::ApplyTransformInverse(*DetailMesh, WorldToBase);
+		MeshTransforms::ApplyTransformInverse(*DetailMesh, WorldToBase, true);
 	}
 
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();

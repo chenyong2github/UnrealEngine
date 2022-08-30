@@ -616,8 +616,8 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 		if (Settings->bUseWorldSpace)
 		{
 			FTransformSRT3d ToWorld(UE::ToolTarget::GetLocalToWorldTransform(Targets[k]));
-			MeshTransforms::ApplyTransform(SourceMesh, ToWorld);
-			MeshTransforms::ApplyTransformInverse(SourceMesh, TargetTransform);
+			MeshTransforms::ApplyTransform(SourceMesh, ToWorld, true);
+			MeshTransforms::ApplyTransformInverse(SourceMesh, TargetTransform, true);
 		}
 		SourceMesh.DiscardAttributes();
 		InputMeshes[k] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(MoveTemp(SourceMesh));

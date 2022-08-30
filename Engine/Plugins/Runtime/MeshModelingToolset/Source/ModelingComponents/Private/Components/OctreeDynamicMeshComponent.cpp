@@ -79,11 +79,11 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, 
 {
 	if (bInvert)
 	{
-		MeshTransforms::ApplyTransformInverse(*GetMesh(), Transform);
+		MeshTransforms::ApplyTransformInverse(*GetMesh(), Transform, true);
 	}
 	else
 	{
-		MeshTransforms::ApplyTransform(*GetMesh(), Transform);
+		MeshTransforms::ApplyTransform(*GetMesh(), Transform, true);
 	}
 
 	if (GetCurrentSceneProxy() != nullptr)

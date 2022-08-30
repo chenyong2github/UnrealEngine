@@ -394,7 +394,7 @@ void UPolyEditExtrudeActivity::ReinitializeExtrudeHeightMechanic()
 	// the extrude measurement line.
 	ExtrudeHitTargetMesh = *PatchMesh;
 	MeshTransforms::ApplyTransform(ExtrudeHitTargetMesh, 
-		(FTransform3d)ActivityContext->Preview->PreviewMesh->GetTransform());
+		(FTransform3d)ActivityContext->Preview->PreviewMesh->GetTransform(), true);
 
 	double Length = 99999.0;
 	FVector3d ExtrudeDirection = GetExtrudeDirection();

@@ -224,11 +224,7 @@ bool FMeshBoolean::Compute()
 		FTransformSRT3d CenteredTransform = Transforms[MeshIdx];
 		CenteredTransform.SetTranslation(ScaleFactor*(CenteredTransform.GetTranslation() - CombinedAABB.Center()));
 		CenteredTransform.SetScale(ScaleFactor*CenteredTransform.GetScale());
-		MeshTransforms::ApplyTransform(*CutMesh[MeshIdx], CenteredTransform);
-		if (CenteredTransform.GetDeterminant() < 0)
-		{
-			CutMesh[MeshIdx]->ReverseOrientation(false);
-		}
+		MeshTransforms::ApplyTransform(*CutMesh[MeshIdx], CenteredTransform, true);
 	}
 	ResultTransform = FTransformSRT3d(CombinedAABB.Center());
 	ResultTransform.SetScale(FVector3d::One() * (1.0 / ScaleFactor));

@@ -633,7 +633,7 @@ void UBakeRenderCaptureTool::Setup()
 		TargetMeshTangents->CopyTriVertexTangents(Mesh);
 		
 		// FMeshSceneAdapter operates in world space, so ensure our mesh transformed to world.
-		MeshTransforms::ApplyTransform(TargetMesh, BaseToWorld);
+		MeshTransforms::ApplyTransform(TargetMesh, BaseToWorld, true);
 		TargetSpatial.SetMesh(&TargetMesh, true);
 	});
 

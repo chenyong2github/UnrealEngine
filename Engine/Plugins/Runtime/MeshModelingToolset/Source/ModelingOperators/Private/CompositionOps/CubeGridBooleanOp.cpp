@@ -548,7 +548,7 @@ void FCubeGridBooleanOp::CalculateResult(FProgressCancel* Progress)
 		FVector3d Center = ResultMesh->GetBounds().Center();
 		ResultTransform = FTransformSRT3d(Center);
 	}
-	MeshTransforms::ApplyTransformInverse(*ResultMesh, InputTransform);
+	MeshTransforms::ApplyTransformInverse(*ResultMesh, InputTransform, true);
 
 	// TODO: Is it worth trying to fix holes like BooleanMeshesOp tries to?
 

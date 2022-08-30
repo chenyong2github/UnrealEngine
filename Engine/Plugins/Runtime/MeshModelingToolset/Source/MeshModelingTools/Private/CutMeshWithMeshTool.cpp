@@ -353,8 +353,8 @@ void UCutMeshWithMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 		{
 			if (OpResult.Mesh->TriangleCount() > 0)
 			{
-				MeshTransforms::ApplyTransform(*OpResult.Mesh, OpResult.Transform);
-				MeshTransforms::ApplyTransformInverse(*OpResult.Mesh, TargetToWorld);
+				MeshTransforms::ApplyTransform(*OpResult.Mesh, OpResult.Transform, true);
+				MeshTransforms::ApplyTransformInverse(*OpResult.Mesh, TargetToWorld, true);
 				UE::ToolTarget::CommitMeshDescriptionUpdateViaDynamicMesh(Targets[0], *OpResult.Mesh, true);
 				Cast<IMaterialProvider>(Targets[0])->CommitMaterialSetUpdate(MaterialSet, true);
 			}
@@ -364,8 +364,8 @@ void UCutMeshWithMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 		// create intersection asset
 		if ( IntersectionMesh.TriangleCount() > 0)
 		{
-			MeshTransforms::ApplyTransform(IntersectionMesh, OpResult.Transform);
-			MeshTransforms::ApplyTransformInverse(IntersectionMesh, TargetToWorld);
+			MeshTransforms::ApplyTransform(IntersectionMesh, OpResult.Transform, true);
+			MeshTransforms::ApplyTransformInverse(IntersectionMesh, TargetToWorld, true);
 			FTransform3d NewTransform = TargetToWorld;
 
 			FString CurName = UE::Modeling::GetComponentAssetBaseName(UE::ToolTarget::GetTargetComponent(Targets[0]));

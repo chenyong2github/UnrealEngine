@@ -44,11 +44,7 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			continue;
 		}
 		
-		if (Transforms[MeshIdx].GetDeterminant() < 0)
-		{
-			TransformedMeshes[MeshIdx].ReverseOrientation(false);
-		}
-		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransformSRT3d)Transforms[MeshIdx]);
+		MeshTransforms::ApplyTransform(TransformedMeshes[MeshIdx], (FTransformSRT3d)Transforms[MeshIdx], true);
 
 		if (bVoxWrap)
 		{

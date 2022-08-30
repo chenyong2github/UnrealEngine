@@ -28,7 +28,7 @@ void UPolyEditPreviewMesh::InitializeExtrudeType(
 	if (bHaveMeshTransform)
 	{
 		MeshTransform = *MeshTransformIn;
-		MeshTransforms::ApplyTransform(EditPatch, MeshTransform);
+		MeshTransforms::ApplyTransform(EditPatch, MeshTransform, true);
 	}
 	//FMeshNormals::QuickComputeVertexNormals(EditPatch);
 
@@ -99,7 +99,7 @@ void UPolyEditPreviewMesh::InitializeExtrudeType(FDynamicMesh3&& BaseMesh,
 	if (bHaveMeshTransform)
 	{
 		MeshTransform = *MeshTransformIn;
-		MeshTransforms::ApplyTransform(InitialEditPatch, MeshTransform);
+		MeshTransforms::ApplyTransform(InitialEditPatch, MeshTransform, true);
 	}
 
 	// save copy of initial patch
@@ -254,7 +254,7 @@ void UPolyEditPreviewMesh::InitializeInsetType(const FDynamicMesh3* SourceMesh, 
 	if (bHaveMeshTransform)
 	{
 		MeshTransform = *MeshTransformIn;
-		MeshTransforms::ApplyTransform(EditPatch, MeshTransform);
+		MeshTransforms::ApplyTransform(EditPatch, MeshTransform, true);
 	}
 
 	// save copy of initial patch
@@ -310,7 +310,7 @@ void UPolyEditPreviewMesh::InitializeStaticType(const FDynamicMesh3* SourceMesh,
 	if (bHaveMeshTransform)
 	{
 		MeshTransform = *MeshTransformIn;
-		MeshTransforms::ApplyTransform(EditPatch, MeshTransform);
+		MeshTransforms::ApplyTransform(EditPatch, MeshTransform, true);
 	}
 
 	// save copy of initial patch

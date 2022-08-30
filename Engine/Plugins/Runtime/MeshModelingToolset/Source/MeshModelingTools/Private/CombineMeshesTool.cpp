@@ -397,16 +397,8 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			if (ComponentIdx != SkipIndex)
 			{
 				FTransform3d ComponentToWorld = (FTransform3d)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
-				MeshTransforms::ApplyTransform(ComponentDMesh, ComponentToWorld);
-				if (ComponentToWorld.GetDeterminant() < 0)
-				{
-					ComponentDMesh.ReverseOrientation(true);
-				}
-				MeshTransforms::ApplyTransformInverse(ComponentDMesh, TargetToWorld);
-				if (TargetToWorld.GetDeterminant() < 0)
-				{
-					ComponentDMesh.ReverseOrientation(true);
-				}
+				MeshTransforms::ApplyTransform(ComponentDMesh, ComponentToWorld, true);
+				MeshTransforms::ApplyTransformInverse(ComponentDMesh, TargetToWorld, true);
 				Transforms[0] = ComponentToWorld;
 				if (TargetToWorld.GetRotation().IsIdentity() || TargetToWorld.GetScale3D().IsUniform())
 				{
