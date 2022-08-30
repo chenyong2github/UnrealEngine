@@ -101,6 +101,10 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 	{
 		MaybeResizeEditor(RootWindow);
 
+		// We don't want to show tooltips in render off screen as they're currently broken
+		bool bIsRenderingOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
+		FSlateApplication::Get().SetAllowTooltips(!bIsRenderingOffScreen);
+
 		if(UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
 		{
 			StartStreaming();
