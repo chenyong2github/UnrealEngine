@@ -22,6 +22,11 @@ public:
 	{
 	}
 
+	virtual bool CanDelete() const override
+	{
+		return !IsDefault();
+	}
+
 	bool operator==(const FPerforceSourceControlChangelist& InOther) const
 	{
 		return ChangelistNumber == InOther.ChangelistNumber;

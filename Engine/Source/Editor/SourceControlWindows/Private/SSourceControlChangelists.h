@@ -89,13 +89,18 @@ private:
 	/** Returns list of currently selected shelved files */
 	TArray<FString> GetSelectedShelvedFiles();
 
+	/** Intercept Enter and Delete key presses to Submit or Delete the selected changelist (if conditions are met) */
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
 	/** Changelist operations */
 	void OnNewChangelist();
 	void OnDeleteChangelist();
 	bool CanDeleteChangelist();
+	bool CanDeleteChangelist(FText* OutFailureMessage);
 	void OnEditChangelist();
 	void OnSubmitChangelist();
 	bool CanSubmitChangelist();
+	bool CanSubmitChangelist(FText* OutFailureMessage);
 	void OnValidateChangelist();
 	bool CanValidateChangelist();
 

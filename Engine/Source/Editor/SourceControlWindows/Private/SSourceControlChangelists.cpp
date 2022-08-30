@@ -1158,6 +1158,43 @@ void SSourceControlChangelistsWidget::OnEndSourceControlOperation(const TSharedR
 	RefreshStatus = FText::GetEmpty(); // TODO: Should have a queue to stack async operations going on to correctly display concurrent async operations.
 }
 
+FReply SSourceControlChangelistsWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	FText FailureMessage;
+	if (InKeyEvent.GetKey() == EKeys::Enter)
+	{
+		// Submit the currently selected changelist (if any, and if conditions are met)
+		if (CanSubmitChangelist(&FailureMessage))
+		{
+			OnSubmitChangelist();
+		}
+		else
+		{
+			FText Title(LOCTEXT("Cannot_Submit_Changelist_From_Key_Title", "Cannot Submit Changelist"));
+			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, &Title);
+		}
+
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Delete)
+	{
+		// Delete the currently selected changelist (if any, and if conditions are met)
+		if (CanDeleteChangelist(&FailureMessage))
+		{
+			OnDeleteChangelist();
+		}
+		else
+		{
+			FText Title(LOCTEXT("Cannot_Delete_Changelist_From_Key_Title", "Cannot Delete Changelist"));
+			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, &Title);
+		}
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
 void SSourceControlChangelistsWidget::OnNewChangelist()
 {
 	FText ChangelistDescription;
@@ -1213,8 +1250,38 @@ void SSourceControlChangelistsWidget::OnDeleteChangelist()
 
 bool SSourceControlChangelistsWidget::CanDeleteChangelist()
 {
-	FSourceControlChangelistStatePtr Changelist = GetCurrentChangelistState();
-	return Changelist != nullptr && Changelist->GetFilesStates().Num() == 0 && Changelist->GetShelvedFilesStates().Num() == 0;
+	return CanDeleteChangelist(/*OutFailureMessage*/nullptr);
+}
+
+bool SSourceControlChangelistsWidget::CanDeleteChangelist(FText* OutFailureMessage)
+{
+	FSourceControlChangelistStatePtr ChangelistState = GetCurrentChangelistState();
+
+	if (ChangelistState == nullptr)
+	{
+		if (OutFailureMessage)
+		{
+			*OutFailureMessage = LOCTEXT("Cannot_Delete_No_Changelist", "No changelist selected.");
+		}
+		return false;
+	}
+	else if (!ChangelistState->GetChangelist()->CanDelete()) // Check if this changelist is deletable (ex. P4 default one is not deletable).
+	{
+		if (OutFailureMessage)
+		{
+			*OutFailureMessage = LOCTEXT("Cannot_Delete_Changelist_Not_Deletable", "The selected changelist cannot be deleted.");
+		}
+		return false;
+	}
+	else if (ChangelistState->GetFilesStates().Num() > 0 || ChangelistState->GetShelvedFilesStates().Num() > 0)
+	{
+		if (OutFailureMessage)
+		{
+			*OutFailureMessage = LOCTEXT("Cannot_Delete_Changelist_Not_Empty", "The changelist is not empty.");
+		}
+		return false;
+	}
+	return true;
 }
 
 void SSourceControlChangelistsWidget::OnEditChangelist()
@@ -1662,8 +1729,39 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 
 bool SSourceControlChangelistsWidget::CanSubmitChangelist()
 {
+	return CanSubmitChangelist(/*OutFailureMessage*/nullptr);
+}
+
+bool SSourceControlChangelistsWidget::CanSubmitChangelist(FText* OutFailureMessage)
+{
 	FSourceControlChangelistStatePtr Changelist = GetCurrentChangelistState();
-	return Changelist != nullptr && Changelist->GetFilesStates().Num() > 0 && Changelist->GetShelvedFilesStates().Num() == 0;
+
+	if (Changelist == nullptr)
+	{
+		if (OutFailureMessage)
+		{
+			*OutFailureMessage = LOCTEXT("Cannot_Submit_Changelist_No_Selection", "No changelist selected.");
+		}
+		return false;
+	}
+	else if (Changelist->GetFilesStates().Num() <= 0)
+	{
+		if (OutFailureMessage)
+		{
+			*OutFailureMessage = LOCTEXT("Cannot_Submit_Changelist_No_Files", "The changelist doesn't contain any files to submit.");
+		}
+		return false;
+	}
+	else if (Changelist->GetShelvedFilesStates().Num() > 0)
+	{
+		if (OutFailureMessage)
+		{
+			*OutFailureMessage = LOCTEXT("Cannot_Submit_Changelist_Has_Shelved_Files", "The changelist contains shelved files.");
+		}
+		return false;
+	}
+
+	return true;
 }
 
 void SSourceControlChangelistsWidget::OnValidateChangelist()
@@ -2090,6 +2188,7 @@ TSharedRef<SChangelistTree> SSourceControlChangelistsWidget::CreateChangelistTre
 		.OnGenerateRow(this, &SSourceControlChangelistsWidget::OnGenerateRow)
 		.OnGetChildren(this, &SSourceControlChangelistsWidget::OnGetChangelistChildren)
 		.SelectionMode(ESelectionMode::Single)
+		.OnMouseButtonDoubleClick(this, &SSourceControlChangelistsWidget::OnItemDoubleClicked)
 		.OnContextMenuOpening(this, &SSourceControlChangelistsWidget::OnOpenContextMenu)
 		.OnSelectionChanged(this, &SSourceControlChangelistsWidget::OnChangelistSelectionChanged);
 }
@@ -2727,6 +2826,20 @@ void SSourceControlChangelistsWidget::OnItemDoubleClicked(TSharedPtr<IChangelist
 	{
 		const FString& Filename = StaticCastSharedPtr<FFileTreeItem>(Item)->FileState->GetFilename();
 		ISourceControlWindowsModule::Get().OnChangelistFileDoubleClicked().Broadcast(Filename);
+	}
+	else if (Item->GetTreeItemType() == IChangelistTreeItem::Changelist)
+	{
+		// Submit the currently selected changelists if conditions are met.
+		FText FailureMessage;
+		if (CanSubmitChangelist(&FailureMessage))
+		{
+			OnSubmitChangelist();
+		}
+		else
+		{
+			FText Title(LOCTEXT("Cannot_Submit_Changelist_Title", "Cannot Submit Changelist"));
+			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, &Title);
+		}
 	}
 }
 

@@ -18,5 +18,11 @@ public:
 	/**
 	 * Virtual destructor
 	 */
-	virtual ~ISourceControlChangelist() {}
+	virtual ~ISourceControlChangelist() = default;
+
+	/**
+	 * Returns true if the changelist is deletable. Some special changelist might not be deletable like the
+	 * default Perforce changelist.
+	 */
+	virtual bool CanDelete() const { return true; }
 };
