@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-D3D12RootSignatureDefinitions.h: D3D12 utilities for Root signatures.
-=============================================================================*/
-
 #pragma once
+
+#include "RayTracingBuiltInResources.h"
+
+enum class ED3D12RootSignatureFlags
+{
+	None = 0,
+	AllowMeshShaders = 1 << 0,
+	InputAssembler = 1 << 1,
+	BindlessResources = 1 << 2,
+	BindlessSamplers = 1 << 3,
+};
+ENUM_CLASS_FLAGS(ED3D12RootSignatureFlags)
 
 namespace D3D12ShaderUtils
 {
@@ -17,7 +25,7 @@ namespace D3D12ShaderUtils
 		const D3D12_DESCRIPTOR_RANGE_FLAGS SamplerDescriptorRangeFlags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
 	}
 
-	enum class ERootSignatureType
+	enum class ERootSignatureRangeType
 	{
 		CBV,
 		SRV,
@@ -25,321 +33,379 @@ namespace D3D12ShaderUtils
 		Sampler,
 	};
 
+	enum class ERootSignatureVisibility
+	{
+		Vertex,
+		Pixel,
+		Geometry,
+		Mesh,
+		Amplification,
+		All
+	};
+
+	inline D3D12_DESCRIPTOR_RANGE_TYPE GetD3D12DescriptorRangeType(ERootSignatureRangeType Type)
+	{
+		switch (Type)
+		{
+		case ERootSignatureRangeType::SRV:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		case ERootSignatureRangeType::UAV:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+		case ERootSignatureRangeType::Sampler:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+		default:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		}
+	}
+
+	inline D3D12_DESCRIPTOR_RANGE_FLAGS GetD3D12DescriptorRangeFlags(ERootSignatureRangeType Type)
+	{
+		switch (Type)
+		{
+		case ERootSignatureRangeType::SRV:
+			return D3D12ShaderUtils::StaticRootSignatureConstants::SRVDescriptorRangeFlags;
+		case ERootSignatureRangeType::CBV:
+			return D3D12ShaderUtils::StaticRootSignatureConstants::CBVDescriptorRangeFlags;
+		case ERootSignatureRangeType::UAV:
+			return D3D12ShaderUtils::StaticRootSignatureConstants::UAVDescriptorRangeFlags;
+		case ERootSignatureRangeType::Sampler:
+			return D3D12ShaderUtils::StaticRootSignatureConstants::SamplerDescriptorRangeFlags;
+		default:
+			return D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+		}
+	}
+
+	inline D3D12_SHADER_VISIBILITY GetD3D12ShaderVisibility(ERootSignatureVisibility Visibility)
+	{
+		switch (Visibility)
+		{
+		case ERootSignatureVisibility::Vertex:
+			return D3D12_SHADER_VISIBILITY_VERTEX;
+		case ERootSignatureVisibility::Pixel:
+			return D3D12_SHADER_VISIBILITY_PIXEL;
+		case ERootSignatureVisibility::Geometry:
+			return D3D12_SHADER_VISIBILITY_GEOMETRY;
+#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
+		case ERootSignatureVisibility::Mesh:
+			return D3D12_SHADER_VISIBILITY_MESH;
+		case ERootSignatureVisibility::Amplification:
+			return D3D12_SHADER_VISIBILITY_AMPLIFICATION;
+#endif
+		default:
+			return D3D12_SHADER_VISIBILITY_ALL;
+		}
+	}
+
+	inline const TCHAR* GetVisibilityFlag(ERootSignatureVisibility Visibility)
+	{
+		switch (Visibility)
+		{
+		case ERootSignatureVisibility::Vertex:
+			return TEXT("SHADER_VISIBILITY_VERTEX");
+		case ERootSignatureVisibility::Geometry:
+			return TEXT("SHADER_VISIBILITY_GEOMETRY");
+		case ERootSignatureVisibility::Pixel:
+			return TEXT("SHADER_VISIBILITY_PIXEL");
+#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
+		case ERootSignatureVisibility::Mesh:
+			return TEXT("SHADER_VISIBILITY_MESH");
+		case ERootSignatureVisibility::Amplification:
+			return TEXT("SHADER_VISIBILITY_AMPLIFICATION");
+#endif
+		default:
+			return TEXT("SHADER_VISIBILITY_ALL");
+		}
+	};
+
+	inline const TCHAR* GetTypePrefix(ERootSignatureRangeType Type)
+	{
+		switch (Type)
+		{
+		case ERootSignatureRangeType::SRV:
+			return TEXT("SRV(t");
+		case ERootSignatureRangeType::UAV:
+			return TEXT("UAV(u");
+		case ERootSignatureRangeType::Sampler:
+			return TEXT("Sampler(s");
+		default:
+			return TEXT("CBV(b");
+		}
+	}
+
+	inline const TCHAR* GetFlagName(D3D12_ROOT_SIGNATURE_FLAGS Flag)
+	{
+		switch (Flag)
+		{
+		case D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT:
+			return TEXT("ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT");
+		case D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS:
+			return TEXT("DENY_VERTEX_SHADER_ROOT_ACCESS");
+		case D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS:
+			return TEXT("DENY_GEOMETRY_SHADER_ROOT_ACCESS");
+		case D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS:
+			return TEXT("DENY_PIXEL_SHADER_ROOT_ACCESS");
+		case D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT:
+			return TEXT("ALLOW_STREAM_OUTPUT");
+
+#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
+		case D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS:
+			return TEXT("DENY_AMPLIFICATION_SHADER_ROOT_ACCESS");
+		case D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS:
+			return TEXT("DENY_MESH_SHADER_ROOT_ACCESS");
+#endif
+
+		case D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED:
+			return TEXT("CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED");
+		case D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED:
+			return TEXT("SAMPLER_HEAP_DIRECTLY_INDEXED");
+
+		default:
+			break;
+		}
+
+		return TEXT("");
+	};
+
 	// Simple base class to help write out a root signature (subclass to generate either to a binary struct or a #define)
 	struct FRootSignatureCreator
 	{
+		ED3D12RootSignatureFlags Flags = ED3D12RootSignatureFlags::None;
+
 		virtual ~FRootSignatureCreator() { }
 
-		virtual FRootSignatureCreator& Reset() = 0;
-		virtual FRootSignatureCreator& AddRootFlag(D3D12_ROOT_SIGNATURE_FLAGS Flag) = 0;
-		virtual FRootSignatureCreator& AddTable(EShaderFrequency Stage, ERootSignatureType Type, int32 NumDescriptors/*, bool bAppend*/) = 0;
+		virtual void AddRootFlag(D3D12_ROOT_SIGNATURE_FLAGS Flag) = 0;
+		virtual void AddTable(ERootSignatureVisibility Visibility, ERootSignatureRangeType Type, int32 NumDescriptors, D3D12_DESCRIPTOR_RANGE_FLAGS FlagsOverride = D3D12_DESCRIPTOR_RANGE_FLAG_NONE) = 0;
 
-		inline D3D12_DESCRIPTOR_RANGE_TYPE GetD3D12DescriptorRangeType(ERootSignatureType Type)
+		void SetFlags(ED3D12RootSignatureFlags InFlags)
 		{
-			switch (Type)
+			Flags = InFlags;
+
+			if (EnumHasAnyFlags(InFlags, ED3D12RootSignatureFlags::InputAssembler))
 			{
-			case ERootSignatureType::SRV:
-				return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-			case ERootSignatureType::UAV:
-				return D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-			case ERootSignatureType::Sampler:
-				return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-			default:
-				return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+				AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+			}
+
+			if (EnumHasAnyFlags(InFlags, ED3D12RootSignatureFlags::BindlessResources))
+			{
+				AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
+			}
+
+			if (EnumHasAnyFlags(InFlags, ED3D12RootSignatureFlags::BindlessSamplers))
+			{
+				AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED);
 			}
 		}
 
-		inline D3D12_DESCRIPTOR_RANGE_FLAGS GetD3D12DescriptorRangeFlags(ERootSignatureType Type)
+		inline bool ShouldSkipType(ERootSignatureRangeType Type)
 		{
-			switch (Type)
+			if (Type == ERootSignatureRangeType::SRV || Type == ERootSignatureRangeType::UAV)
 			{
-			case ERootSignatureType::SRV:
-				return D3D12ShaderUtils::StaticRootSignatureConstants::SRVDescriptorRangeFlags;
-			case ERootSignatureType::CBV:
-				return D3D12ShaderUtils::StaticRootSignatureConstants::CBVDescriptorRangeFlags;
-			case ERootSignatureType::UAV:
-				return D3D12ShaderUtils::StaticRootSignatureConstants::UAVDescriptorRangeFlags;
-			case ERootSignatureType::Sampler:
-				return D3D12ShaderUtils::StaticRootSignatureConstants::SamplerDescriptorRangeFlags;
-			default:
-				return D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+				return EnumHasAnyFlags(Flags, ED3D12RootSignatureFlags::BindlessResources);
 			}
+
+			if (Type == ERootSignatureRangeType::Sampler)
+			{
+				return EnumHasAnyFlags(Flags, ED3D12RootSignatureFlags::BindlessSamplers);
+			}
+
+			return false;
 		}
-
-		inline D3D12_SHADER_VISIBILITY GetD3D12ShaderVisibility(EShaderFrequency Stage)
-		{
-			switch (Stage)
-			{
-			case SF_Vertex:
-				return D3D12_SHADER_VISIBILITY_VERTEX;
-			case SF_Pixel:
-				return D3D12_SHADER_VISIBILITY_PIXEL;
-			case SF_Geometry:
-				return D3D12_SHADER_VISIBILITY_GEOMETRY;
-			default:
-				return D3D12_SHADER_VISIBILITY_ALL;
-			}
-		}
-
-		inline const TCHAR* GetVisibilityFlag(EShaderFrequency Stage)
-		{
-			switch (Stage)
-			{
-			case SF_Vertex:
-				return TEXT("SHADER_VISIBILITY_VERTEX");
-			case SF_Geometry:
-				return TEXT("SHADER_VISIBILITY_GEOMETRY");
-			case SF_Pixel:
-				return TEXT("SHADER_VISIBILITY_PIXEL");
-			case SF_Mesh:
-				return TEXT("SHADER_VISIBILITY_MESH");
-			case SF_Amplification:
-				return TEXT("SHADER_VISIBILITY_AMPLIFICATION");
-			default:
-				return TEXT("SHADER_VISIBILITY_ALL");
-			}
-		};
-
-		inline const TCHAR* GetTypePrefix(ERootSignatureType Type)
-		{
-			switch (Type)
-			{
-			case ERootSignatureType::SRV:
-				return TEXT("SRV(t");
-			case ERootSignatureType::UAV:
-				return TEXT("UAV(u");
-			case ERootSignatureType::Sampler:
-				return TEXT("Sampler(s");
-			default:
-				return TEXT("CBV(b");
-			}
-		}
-
-		inline const TCHAR* GetFlagName(D3D12_ROOT_SIGNATURE_FLAGS Flag)
-		{
-			switch (Flag)
-			{
-			case D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT:
-				return TEXT("ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT");
-			case D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS:
-				return TEXT("DENY_VERTEX_SHADER_ROOT_ACCESS");
-			case D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS:
-				return TEXT("DENY_GEOMETRY_SHADER_ROOT_ACCESS");
-			case D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS:
-				return TEXT("DENY_PIXEL_SHADER_ROOT_ACCESS");
-			case D3D12_ROOT_SIGNATURE_FLAG_ALLOW_STREAM_OUTPUT:
-				return TEXT("ALLOW_STREAM_OUTPUT");
-
-#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
-			case D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS:
-				return TEXT("DENY_AMPLIFICATION_SHADER_ROOT_ACCESS");
-			case D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS:
-				return TEXT("DENY_MESH_SHADER_ROOT_ACCESS");
-#endif
-
-			case D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED:
-				return TEXT("CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED");
-			case D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED:
-				return TEXT("SAMPLER_HEAP_DIRECTLY_INDEXED");
-
-			default:
-				break;
-			}
-
-			return TEXT("");
-		};
 	};
-
-	// Fat/Static Gfx Root Signature
-	inline void CreateGfxRootSignature(FRootSignatureCreator& Creator, bool bAllowMeshShaders)
-	{
-		// Ensure the creator starts in a clean state (in cases of creator reuse, etc.).
-		Creator
-			.Reset()
-			.AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)
-			.AddTable(SF_Pixel, ERootSignatureType::SRV, MAX_SRVS)
-			.AddTable(SF_Pixel, ERootSignatureType::CBV, MAX_CBS)
-			.AddTable(SF_Pixel, ERootSignatureType::Sampler, MAX_SAMPLERS)
-			.AddTable(SF_Vertex, ERootSignatureType::SRV, MAX_SRVS)
-			.AddTable(SF_Vertex, ERootSignatureType::CBV, MAX_CBS)
-			.AddTable(SF_Vertex, ERootSignatureType::Sampler, MAX_SAMPLERS)
-			.AddTable(SF_Geometry, ERootSignatureType::SRV, MAX_SRVS)
-			.AddTable(SF_Geometry, ERootSignatureType::CBV, MAX_CBS)
-			.AddTable(SF_Geometry, ERootSignatureType::Sampler, MAX_SAMPLERS);
-		if (bAllowMeshShaders)
-		{
-			Creator
-				.AddTable(SF_Mesh, ERootSignatureType::SRV, MAX_SRVS)
-				.AddTable(SF_Mesh, ERootSignatureType::CBV, MAX_CBS)
-				.AddTable(SF_Mesh, ERootSignatureType::Sampler, MAX_SAMPLERS)
-				.AddTable(SF_Amplification, ERootSignatureType::SRV, MAX_SRVS)
-				.AddTable(SF_Amplification, ERootSignatureType::CBV, MAX_CBS)
-				.AddTable(SF_Amplification, ERootSignatureType::Sampler, MAX_SAMPLERS);
-		}
-		Creator.AddTable(SF_NumFrequencies, ERootSignatureType::UAV, MAX_UAVS);
-	}
-
-	// Fat/Static Compute Root Signature
-	inline void CreateComputeRootSignature(FRootSignatureCreator& Creator)
-	{
-		// Ensure the creator starts in a clean state (in cases of creator reuse, etc.).
-		Creator
-			.Reset()
-			.AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_NONE)
-			.AddTable(SF_NumFrequencies, ERootSignatureType::SRV, MAX_SRVS)
-			.AddTable(SF_NumFrequencies, ERootSignatureType::CBV, MAX_CBS)
-			.AddTable(SF_NumFrequencies, ERootSignatureType::Sampler, MAX_SAMPLERS)
-			.AddTable(SF_NumFrequencies, ERootSignatureType::UAV, MAX_UAVS);
-	}
 
 	struct FBinaryRootSignatureCreator : public FRootSignatureCreator
 	{
-		TArray<D3D12_DESCRIPTOR_RANGE1> DescriptorRanges;
-		TArray<D3D12_ROOT_PARAMETER1> Parameters;
-		TMap<uint32, uint32> ParameterToRangeMap;
+		D3D12_ROOT_SIGNATURE_FLAGS RootFlags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+		uint32 RegisterSpace = 0;
+		TArray<CD3DX12_DESCRIPTOR_RANGE1> DescriptorRanges;
+		TArray<CD3DX12_ROOT_PARAMETER1> Parameters;
+		CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC RootDesc;
 
-		D3D12_ROOT_SIGNATURE_FLAGS Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
-
-		FRootSignatureCreator& Reset() override
+		struct FPendingTable
 		{
-			DescriptorRanges.Empty();
-			Parameters.Empty();
-			ParameterToRangeMap.Empty();
-			Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
-			return *this;
+			ERootSignatureVisibility Visibility;
+			ERootSignatureRangeType Type;
+			int32 NumDescriptors;
+			D3D12_DESCRIPTOR_RANGE_FLAGS FlagsOverride;
+		};
+		TArray<FPendingTable> PendingTables;
+
+		void SetRegisterSpace(uint32 InSpace)
+		{
+			RegisterSpace = InSpace;
 		}
 
-		FRootSignatureCreator& AddRootFlag(D3D12_ROOT_SIGNATURE_FLAGS Flag) override
+		void AddRootFlag(D3D12_ROOT_SIGNATURE_FLAGS RootFlag) override
 		{
-			Flags |= Flag;
-			return *this;
+			RootFlags |= RootFlag;
 		}
 
-		FRootSignatureCreator& AddTable(EShaderFrequency Stage, ERootSignatureType Type, int32 NumDescriptors) override
+		void AddShaderResourceViewParameter(uint32 Register, uint32 Space)
 		{
-			int32 ParameterIndex = Parameters.AddZeroed();
-			int32 RangeIndex = DescriptorRanges.AddZeroed();
-
-			D3D12_ROOT_PARAMETER1& Parameter = Parameters[ParameterIndex];
-			D3D12_DESCRIPTOR_RANGE1& Range = DescriptorRanges[ParameterIndex];
-
-			Parameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			Parameter.DescriptorTable.NumDescriptorRanges = 1;
-
-			// Pointer will be filled in last
-			//Parameter.DescriptorTable.pDescriptorRanges = &DescriptorRanges[0];
-			ParameterToRangeMap.Add(ParameterIndex, RangeIndex);
-
-			Range.RangeType = GetD3D12DescriptorRangeType(Type);
-			Range.NumDescriptors = NumDescriptors;
-			Range.Flags = GetD3D12DescriptorRangeFlags(Type);
-			//Range.OffsetInDescriptorsFromTableStart = UINT32_MAX;
-			Parameter.ShaderVisibility =  GetD3D12ShaderVisibility(Stage);
-
-			return *this;
+			CD3DX12_ROOT_PARAMETER1& Parameter = Parameters.AddZeroed_GetRef();
+			Parameter.InitAsShaderResourceView(Register, Space);
 		}
 
-		void Compile(EShaderFrequency Freq)
+		void AddConstantsParameter(uint32 Num32BitValues, uint32 Register, uint32 Space)
 		{
-			if (Freq < SF_NumGraphicsFrequencies)
+			CD3DX12_ROOT_PARAMETER1& Parameter = Parameters.AddZeroed_GetRef();
+			Parameter.InitAsConstants(Num32BitValues, Register, Space);
+		}
+
+		void AddTable(ERootSignatureVisibility Visibility, ERootSignatureRangeType Type, int32 NumDescriptors, D3D12_DESCRIPTOR_RANGE_FLAGS FlagsOverride = D3D12_DESCRIPTOR_RANGE_FLAG_NONE) override
+		{
+			if (!ShouldSkipType(Type))
 			{
-				bool bAllowMeshShaders = false;
-#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
-				bAllowMeshShaders = true;
+				const FPendingTable NewTable{ Visibility, Type, NumDescriptors, FlagsOverride };
+				PendingTables.Emplace(NewTable);
+			}
+		}
+
+		const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& Finalize()
+		{
+#if !defined(D3D12RHI_TOOLS_RAYTRACING_SHADERS_UNSUPPORTED)
+			if (RootFlags & D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE)
+			{
+				// if set, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE should be the only flag set
+				RootFlags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
+			}
 #endif
-				D3D12ShaderUtils::CreateGfxRootSignature(*this, bAllowMeshShaders);
-			}
-			else //if (Freq == SF_Compute)
+
+			DescriptorRanges.SetNum(PendingTables.Num());
+
+			for (int32 Index = 0; Index < PendingTables.Num(); Index++)
 			{
-				D3D12ShaderUtils::CreateComputeRootSignature(*this);
+				const FPendingTable& PendingTable = PendingTables[Index];
+
+				const D3D12_DESCRIPTOR_RANGE_FLAGS RangeFlags = PendingTable.FlagsOverride ? PendingTable.FlagsOverride : GetD3D12DescriptorRangeFlags(PendingTable.Type);
+
+				DescriptorRanges[Index].Init(GetD3D12DescriptorRangeType(PendingTable.Type), PendingTable.NumDescriptors, 0, RegisterSpace, RangeFlags);
+
+				CD3DX12_ROOT_PARAMETER1& Parameter = Parameters.AddZeroed_GetRef();
+				Parameter.InitAsDescriptorTable(1, &DescriptorRanges[Index], GetD3D12ShaderVisibility(PendingTable.Visibility));
 			}
 
-			// Patch pointers
-			for (auto& Pair : ParameterToRangeMap)
-			{
-				Parameters[Pair.Key].DescriptorTable.pDescriptorRanges = &DescriptorRanges[Pair.Value];
-			}
+			RootDesc.Init_1_1(Parameters.Num(), Parameters.GetData(), 0, nullptr, RootFlags);
+
+			return RootDesc;
 		}
 	};
 
 	/* Root signature generator for DXC */
 	struct FTextRootSignatureCreator : public FRootSignatureCreator
 	{
-		FRootSignatureCreator& AddRootFlag(D3D12_ROOT_SIGNATURE_FLAGS InFlag) override
+		void AddRootFlag(D3D12_ROOT_SIGNATURE_FLAGS InFlag) override
 		{
-			if (Flags.Len() > 0)
+			if (RootFlags.Len() > 0)
 			{
-				Flags += "|";
+				RootFlags += "|";
 			}
-			Flags += GetFlagName(InFlag);
-			return *this;
+			RootFlags += GetFlagName(InFlag);
 		}
 
-		FRootSignatureCreator& AddTable(EShaderFrequency InStage, ERootSignatureType Type, int32 NumDescriptors) override
+		void AddTable(ERootSignatureVisibility Visibility, ERootSignatureRangeType Type, int32 NumDescriptors, D3D12_DESCRIPTOR_RANGE_FLAGS FlagsOverride = D3D12_DESCRIPTOR_RANGE_FLAG_NONE) override
 		{
-			FString Line = FString::Printf(TEXT("DescriptorTable(visibility=%s, %s0, numDescriptors=%d%s"/*, flags = DESCRIPTORS_VOLATILE*/"))"),
-				GetVisibilityFlag(InStage), GetTypePrefix(Type), NumDescriptors,
-				TEXT("")
-			);
-			if (Table.Len() > 0)
+			if (!ShouldSkipType(Type))
 			{
-				Table += ",";
+				FString Line = FString::Printf(TEXT("DescriptorTable(visibility=%s, %s0, numDescriptors=%d%s"/*, flags = DESCRIPTORS_VOLATILE*/"))"),
+					GetVisibilityFlag(Visibility), GetTypePrefix(Type), NumDescriptors,
+					TEXT("")
+				);
+				if (Table.Len() > 0)
+				{
+					Table += ",";
+				}
+				Table += Line;
 			}
-			Table += Line;
-			return *this;
 		}
 
-		FRootSignatureCreator& Reset() override
+		FString GenerateString() const
 		{
-			Flags.Empty();
-			Table.Empty();
-			return *this;
-		}
-
-		FString CreateAndGenerateString(EShaderFrequency Freq, bool bBindlessResources, bool bBindlessSamplers)
-		{
-			if (Freq < SF_NumGraphicsFrequencies)
-			{
-				bool bAllowMeshShaders = false;
-#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
-				bAllowMeshShaders = true;
-#endif
-				D3D12ShaderUtils::CreateGfxRootSignature(*this, bAllowMeshShaders);
-			}
-			else //if (Freq == SF_Compute)
-			{
-				D3D12ShaderUtils::CreateComputeRootSignature(*this);
-			}
-
-			if (bBindlessResources)
-			{
-				AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
-			}
-
-			if (bBindlessSamplers)
-			{
-				AddRootFlag(D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED);
-			}
-
-			//FString String = FString::Printf(TEXT("#define TheRootSignature \"RootFlags(%s),%s\"\n[RootSignature(TheRootSignature)\n"),
 			FString String = FString::Printf(TEXT("\"RootFlags(%s),%s\""),
-				Flags.Len() == 0 ? TEXT("0") : *Flags,
+				RootFlags.Len() == 0 ? TEXT("0") : *RootFlags,
 				*Table);
 			return String;
 		}
 
-		FString Flags;
+		FString RootFlags;
 		FString Table;
 	};
 
-	inline FString GenerateRootSignatureString(EShaderFrequency InFrequency, bool bBindlessResources = false, bool bBindlessSamplers = false)
+	inline void AddAllStandardTablesForVisibility(FRootSignatureCreator& Creator, ERootSignatureVisibility Visibility)
 	{
-		if (InFrequency < SF_NumStandardFrequencies)
+		Creator.AddTable(Visibility, ERootSignatureRangeType::SRV, MAX_SRVS);
+		Creator.AddTable(Visibility, ERootSignatureRangeType::CBV, MAX_CBS);
+		Creator.AddTable(Visibility, ERootSignatureRangeType::Sampler, MAX_SAMPLERS);
+	}
+
+	// Fat/Static Gfx Root Signature
+	inline void CreateGfxRootSignature(FRootSignatureCreator& Creator, ED3D12RootSignatureFlags InFlags)
+	{
+		// Ensure the creator starts in a clean state (in cases of creator reuse, etc.).
+		Creator.SetFlags(InFlags | ED3D12RootSignatureFlags::InputAssembler);
+
+		AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::Pixel);
+		AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::Vertex);
+		AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::Geometry);
+
+#if !defined(D3D12RHI_TOOLS_MESH_SHADERS_UNSUPPORTED)
+		if (EnumHasAnyFlags(InFlags, ED3D12RootSignatureFlags::AllowMeshShaders))
 		{
-			FTextRootSignatureCreator Creator;
-			return Creator.CreateAndGenerateString(InFrequency, bBindlessResources, bBindlessSamplers);
+			AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::Mesh);
+			AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::Amplification);
+		}
+#endif
+
+		Creator.AddTable(ERootSignatureVisibility::All, ERootSignatureRangeType::UAV, MAX_UAVS);
+	}
+
+	// Fat/Static Compute Root Signature
+	inline void CreateComputeRootSignature(FRootSignatureCreator& Creator, ED3D12RootSignatureFlags InFlags)
+	{
+		// Ensure the creator starts in a clean state (in cases of creator reuse, etc.).
+		Creator.SetFlags(InFlags);
+		AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::All);
+		Creator.AddTable(ERootSignatureVisibility::All, ERootSignatureRangeType::UAV, MAX_UAVS);
+	}
+
+#if !defined(D3D12RHI_TOOLS_RAYTRACING_SHADERS_UNSUPPORTED)
+	inline void CreateRayTracingSignature(FBinaryRootSignatureCreator& Creator, bool bLocalRootSignature, D3D12_ROOT_SIGNATURE_FLAGS BaseRootFlags, ED3D12RootSignatureFlags InFlags)
+	{
+		Creator.SetFlags(InFlags);
+		Creator.AddRootFlag(BaseRootFlags);
+		Creator.SetRegisterSpace(bLocalRootSignature ? RAY_TRACING_REGISTER_SPACE_LOCAL : RAY_TRACING_REGISTER_SPACE_GLOBAL);
+
+		if (bLocalRootSignature)
+		{
+			Creator.AddShaderResourceViewParameter(RAY_TRACING_SYSTEM_INDEXBUFFER_REGISTER, RAY_TRACING_REGISTER_SPACE_SYSTEM);
+			Creator.AddShaderResourceViewParameter(RAY_TRACING_SYSTEM_VERTEXBUFFER_REGISTER, RAY_TRACING_REGISTER_SPACE_SYSTEM);
+
+			uint32 NumConstants = 4; // sizeof(FHitGroupSystemRootConstants) / sizeof(uint32);
+			Creator.AddConstantsParameter(NumConstants, RAY_TRACING_SYSTEM_ROOTCONSTANT_REGISTER, RAY_TRACING_REGISTER_SPACE_SYSTEM);
 		}
 
-		return TEXT("");
+		AddAllStandardTablesForVisibility(Creator, ERootSignatureVisibility::All);
+
+		Creator.AddTable(ERootSignatureVisibility::All, ERootSignatureRangeType::UAV, MAX_UAVS, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE | D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE);
+	}
+#endif //!defined(D3D12RHI_TOOLS_RAYTRACING_SHADERS_UNSUPPORTED)
+
+	inline FString GenerateRootSignatureString(EShaderFrequency InFrequency, ED3D12RootSignatureFlags InFlags)
+	{
+		FTextRootSignatureCreator Creator;
+
+		if (InFrequency < SF_NumGraphicsFrequencies)
+		{
+			D3D12ShaderUtils::CreateGfxRootSignature(Creator, InFlags);
+		}
+		else if (InFrequency == SF_Compute)
+		{
+			D3D12ShaderUtils::CreateComputeRootSignature(Creator, InFlags);
+		}
+		else
+		{
+			return TEXT("");
+		}
+
+		return Creator.GenerateString();
 	}
 }

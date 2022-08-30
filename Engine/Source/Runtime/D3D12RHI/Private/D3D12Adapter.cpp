@@ -1221,19 +1221,37 @@ void FD3D12Adapter::InitializeDevices()
 #endif
 
 #if USE_STATIC_ROOT_SIGNATURE
-		const bool bBindlessResourcesGraphics = (BindlessResourcesConfig == ERHIBindlessConfiguration::AllShaders);
-		const bool bBindlessSamplersGraphics = (BindlessSamplersConfig == ERHIBindlessConfiguration::AllShaders);
+		ED3D12RootSignatureFlags GraphicsFlags{};
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		EnumAddFlags(GraphicsFlags, ED3D12RootSignatureFlags::AllowMeshShaders);
+#endif
+		if (BindlessResourcesConfig == ERHIBindlessConfiguration::AllShaders)
+		{
+			EnumAddFlags(GraphicsFlags, ED3D12RootSignatureFlags::BindlessResources);
+		}
+		if (BindlessSamplersConfig == ERHIBindlessConfiguration::AllShaders)
+		{
+			EnumAddFlags(GraphicsFlags, ED3D12RootSignatureFlags::BindlessSamplers);
+		}
 
-		const bool bBindlessResourcesRayTracing = (BindlessResourcesConfig != ERHIBindlessConfiguration::Disabled);
-		const bool bBindlessSamplersRayTracing = (BindlessSamplersConfig != ERHIBindlessConfiguration::Disabled);
+		StaticGraphicsRootSignature.InitStaticGraphicsRootSignature(GraphicsFlags);
+		StaticComputeRootSignature.InitStaticComputeRootSignatureDesc(GraphicsFlags);
 
-		StaticGraphicsRootSignature.InitStaticGraphicsRootSignature(bBindlessResourcesGraphics, bBindlessSamplersGraphics);
-		StaticComputeRootSignature.InitStaticComputeRootSignatureDesc(bBindlessResourcesGraphics, bBindlessSamplersGraphics);
 #if D3D12_RHI_RAYTRACING
-		StaticRayTracingGlobalRootSignature.InitStaticRayTracingGlobalRootSignatureDesc(bBindlessResourcesRayTracing, bBindlessSamplersRayTracing);
+		ED3D12RootSignatureFlags RayTracingFlags{};
+		if (BindlessResourcesConfig != ERHIBindlessConfiguration::Disabled)
+		{
+			EnumAddFlags(RayTracingFlags, ED3D12RootSignatureFlags::BindlessResources);
+		}
+		if (BindlessSamplersConfig != ERHIBindlessConfiguration::Disabled)
+		{
+			EnumAddFlags(RayTracingFlags, ED3D12RootSignatureFlags::BindlessSamplers);
+		}
+
+		StaticRayTracingGlobalRootSignature.InitStaticRayTracingGlobalRootSignatureDesc(RayTracingFlags);
 		StaticRayTracingLocalRootSignature.InitStaticRayTracingLocalRootSignatureDesc();
 #endif
-#endif
+#endif // USE_STATIC_ROOT_SIGNATURE
 	}
 }
 

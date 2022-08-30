@@ -4,6 +4,8 @@
 	D3D12RootSignature.h: D3D12 Root Signatures
 =============================================================================*/
 
+#include "D3D12RootSignatureDefinitions.h"
+
 // Root parameter keys grouped by visibility.
 enum ERootParameterKeys
 {
@@ -81,25 +83,16 @@ public:
 	{
 		Init(InQBSS);
 	}
-	explicit FD3D12RootSignature(FD3D12Adapter* InParent, const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& InDesc, uint32 BindingSpace = 0)
-		: FD3D12AdapterChild(InParent)
-	{
-		Init(InDesc, BindingSpace);
-	}
-	explicit FD3D12RootSignature(FD3D12Adapter* InParent, ID3DBlob* const InBlob, uint32 BindingSpace = 0)
-		: FD3D12AdapterChild(InParent)
-	{
-		Init(InBlob, BindingSpace);
-	}
 
 	void Init(const FD3D12QuantizedBoundShaderState& InQBSS);
 	void Init(const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& InDesc, uint32 BindingSpace = 0);
-	void Init(ID3DBlob* const InBlob, uint32 BindingSpace = 0);
 
-	void InitStaticGraphicsRootSignature(bool bBindlessResources, bool bBindlessSamplers);
-	void InitStaticComputeRootSignatureDesc(bool bBindlessResources, bool bBindlessSamplers);
-	void InitStaticRayTracingGlobalRootSignatureDesc(bool bBindlessResources, bool bBindlessSamplers);
+	void InitStaticGraphicsRootSignature(ED3D12RootSignatureFlags InFlags);
+	void InitStaticComputeRootSignatureDesc(ED3D12RootSignatureFlags InFlags);
+#if D3D12_RHI_RAYTRACING
+	void InitStaticRayTracingGlobalRootSignatureDesc(ED3D12RootSignatureFlags InFlags);
 	void InitStaticRayTracingLocalRootSignatureDesc();
+#endif
 
 	ID3D12RootSignature* GetRootSignature() const { return RootSignature.GetReference(); }
 	ID3DBlob* GetRootSignatureBlob() const { return RootSignatureBlob.GetReference(); }
