@@ -885,6 +885,29 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void XoreaxErrorMatcher2()
+		{
+			string[] lines =
+			{
+				@"--------------------Build Cache summary----------------------------------------",
+				@"Build Tasks: 8042",
+				@"Build Cache Efficiency: 0% (0 tasks)",
+				@"New cache size: 17 GB",
+				@"Updated 352 items (20 GB)",
+				@"WARNING: 389 items (19.4 GB) removed from the cache due to reaching the cache size limit",
+				@"",
+				@"1 build system warning(s):",
+				@"   - Build Cache performance hit",
+				@"",
+				@"Took 2515.0181741s to run xgConsole.exe, ExitCode=0",
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			Assert.AreEqual(1, logEvents.Count);
+			CheckEventGroup(logEvents, 5, 1, LogLevel.Information, KnownLogEvents.Systemic_Xge_CacheLimit);
+		}
+
+		[TestMethod]
 		public void UhtErrorMatcher()
 		{
 			string[] lines =

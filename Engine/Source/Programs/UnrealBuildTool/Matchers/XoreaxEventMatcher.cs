@@ -15,8 +15,16 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_buildSystemWarning = new Regex(@"^\s*--------------------Build System Warning[- ]");
 		static readonly Regex s_buildSystemWarningNext = new Regex(@"^(\s*)([^ ].*):");
 
+		static readonly Regex s_cacheWarning = new Regex(@"^\s*WARNING: \d+ items \([^\)]*\) removed from the cache due to reaching the cache size limit");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
+			if (cursor.IsMatch(s_cacheWarning))
+			{
+				LogEventBuilder builder = new LogEventBuilder(cursor);
+				return builder.ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_Xge_CacheLimit);
+			}
+
 			if (cursor.IsMatch(s_buildService))
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);

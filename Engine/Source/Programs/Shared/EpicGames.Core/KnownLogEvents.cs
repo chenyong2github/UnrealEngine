@@ -186,6 +186,11 @@ namespace EpicGames.Core
 		public static EventId Systemic_Xge_BuildFailed { get; } = new EventId(713);
 
 		/// <summary>
+		/// Cache size reached
+		/// </summary>
+		public static EventId Systemic_Xge_CacheLimit { get; } = new EventId(714);
+
+		/// <summary>
 		/// DDC is slow
 		/// </summary>
 		public static EventId Systemic_SlowDDC { get; } = new EventId(720);
