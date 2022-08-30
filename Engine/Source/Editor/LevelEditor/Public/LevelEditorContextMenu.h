@@ -17,7 +17,7 @@ struct FToolMenuSection;
 /**
  * Context menu construction class 
  */
-class FLevelEditorContextMenu
+class LEVELEDITOR_API FLevelEditorContextMenu
 {
 
 public:
@@ -69,8 +69,6 @@ public:
 
 	/* Returns a user-readable tooltip describing the menu to display */
 	static FText GetContextMenuToolTip(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet);
-
-private:
 
 	static void RegisterComponentContextMenu();
 	static void RegisterActorContextMenu();

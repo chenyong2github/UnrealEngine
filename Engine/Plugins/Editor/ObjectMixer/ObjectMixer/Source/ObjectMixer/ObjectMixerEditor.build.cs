@@ -33,6 +33,7 @@ public class ObjectMixerEditor : ModuleRules
 				"EditorWidgets",
 				"InputCore",
 				"Kismet",
+				"LevelEditor",
 				"Projects",
 				"SceneOutliner",
 				"Slate",
@@ -40,6 +41,7 @@ public class ObjectMixerEditor : ModuleRules
 				"ToolMenus", 
 				"ToolWidgets",
 				"TypedElementFramework",
+				"TypedElementRuntime",
 				"UnrealEd",
 				"WorkspaceMenuStructure"
 			}

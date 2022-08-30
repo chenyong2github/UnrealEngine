@@ -24,7 +24,7 @@ public:
 
 	static TSharedPtr<SWidget> CreateContextMenu(const FObjectMixerEditorListMenuContextData InData);
 	static TSharedPtr<SWidget> BuildContextMenu(const FObjectMixerEditorListMenuContextData& InData);
-	static void RegisterContextMenu();
+	static void RegisterObjectMixerContextMenu();
 
 	FObjectMixerEditorListMenuContextData Data;
 	
@@ -32,13 +32,11 @@ public:
 
 private:
 
-	static void OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType, UObjectMixerEditorListMenuContext* Context);
-	static void OnTextChanged(const FText& InText, UObjectMixerEditorListMenuContext* Context);
+	static void OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType, const FObjectMixerEditorListMenuContextData ContextData);
+	static void OnTextChanged(const FText& InText, const FObjectMixerEditorListMenuContextData ContextData);
 	
-	static void OnClickCollectionMenuEntry(const FName Key, UObjectMixerEditorListMenuContext* Context);
-	static void AddObjectsToCollection(const FName Key, UObjectMixerEditorListMenuContext* Context);
-	static void RemoveObjectsFromCollection(const FName Key, UObjectMixerEditorListMenuContext* Context);
-	static bool AreAllObjectsInCollection(const FName Key, UObjectMixerEditorListMenuContext* Context);
-
-	TSharedPtr<class SEditableTextBox> EditableText;
+	static void OnClickCollectionMenuEntry(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);
+	static void AddObjectsToCollection(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);
+	static void RemoveObjectsFromCollection(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);
+	static bool AreAllObjectsInCollection(const FName Key, const FObjectMixerEditorListMenuContextData ContextData);
 };
