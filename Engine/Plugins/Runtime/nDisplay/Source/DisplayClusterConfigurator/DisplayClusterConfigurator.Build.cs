@@ -37,7 +37,6 @@ public class DisplayClusterConfigurator : ModuleRules
 				"MediaAssets",
 				"MessageLog",
 				"PinnedCommandList",
-				"PlacementMode",
 				"Projects",
 				"PropertyEditor",
 				"Serialization",
@@ -49,7 +48,6 @@ public class DisplayClusterConfigurator : ModuleRules
 				"SubobjectEditor",
 				"SubobjectDataInterface",
 				"ToolWidgets",
-				"VPUtilitiesEditor",
 				"ProceduralMeshComponent",
 			});
 	}

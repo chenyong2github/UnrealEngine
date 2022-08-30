@@ -40,12 +40,6 @@ private:
 	void RegisterSectionMappings();
 	void UnregisterSectionMappings();
 
-	/** Register items to show up in the Place Actors panel. */
-	void RegisterPlacementModeItems();
-	
-	/** Unregister items in Place Actors panel */
-	void UnregisterPlacementModeItems();
-
 	static TSharedPtr<FKismetCompilerContext> GetCompilerForDisplayClusterBP(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions);
 
 private:
@@ -55,7 +49,6 @@ private:
 	FDisplayClusterConfiguratorKismetCompiler  BlueprintCompiler;
 	TArray<FName> RegisteredClassLayoutNames;
 	TArray<FName> RegisteredPropertyLayoutNames;
-	TArray<TOptional<FPlacementModeID>> PlaceActors;
 	FDelegateHandle FilesLoadedHandle;
 	FDelegateHandle PostEngineInitHandle;
 
