@@ -36,6 +36,8 @@ IMPLEMENT_MODULE(FGroomEditor, HairStrandsEditor);
 
 #define LOCTEXT_NAMESPACE "GroomEditor"
 
+LLM_DEFINE_TAG(GroomEditor);
+
 FName FGroomEditor::GroomEditorAppIdentifier(TEXT("GroomEditor"));
 
 
@@ -71,6 +73,8 @@ void SaveAsset(UObject* Object)
 
 void FGroomEditor::StartupModule()
 {
+	LLM_SCOPE_BYTAG(GroomEditor)
+
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShared<FGroomActions>();
 	TSharedRef<IAssetTypeActions> BindingAssetActions = MakeShared<FGroomBindingActions>();

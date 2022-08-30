@@ -7,6 +7,7 @@
 #include "GeometryCacheMeshData.h"
 #include "GroomAsset.h"
 #include "GroomBindingBuilder.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITORONLY_DATA
@@ -15,6 +16,8 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "GroomComponent.h"
 #endif
+
+LLM_DECLARE_TAG(Groom);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -90,7 +93,7 @@ void UGroomBindingAsset::Serialize(FArchive& Ar)
 
 void UGroomBindingAsset::InitResource()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	// Ensure we are releasing binding resources before reallocating them
 	ReleaseResource();
@@ -259,7 +262,7 @@ void UGroomBindingAsset::InvalidateBinding()
 
 void UGroomBindingAsset::PostLoad()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	Super::PostLoad();
 

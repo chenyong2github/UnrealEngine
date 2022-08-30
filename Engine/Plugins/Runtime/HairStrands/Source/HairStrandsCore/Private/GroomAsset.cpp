@@ -12,6 +12,7 @@
 #include "RenderingThread.h"
 #include "Engine/AssetUserData.h"
 #include "HairStrandsVertexFactory.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Serialization/LargeMemoryReader.h"
@@ -32,7 +33,6 @@
 #include "GroomBindingAsset.h"
 #include "GroomDeformerBuilder.h"
 
-
 #if WITH_EDITOR
 #include "Interfaces/ITargetPlatform.h"
 #include "PlatformInfo.h"
@@ -42,6 +42,8 @@
 #include "DerivedDataCacheInterface.h"
 #include "EditorFramework/AssetImportData.h"
 #endif
+
+LLM_DEFINE_TAG(Groom);
 
 #define LOCTEXT_NAMESPACE "GroomAsset"
 
@@ -821,7 +823,7 @@ inline void InternalReleaseResource(T*& Resource)
 #if WITH_EDITOR
 void UGroomAsset::UpdateResource()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	uint32 AllChangeType = 0;
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
@@ -892,7 +894,7 @@ void UGroomAsset::UpdateResource()
 
 void UGroomAsset::InitResources()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	InitGuideResources();
 	InitStrandsResources();
@@ -1035,7 +1037,7 @@ bool ConvertMaterial(TArray<T>& Groups, TArray<FHairGroupsMaterial>& HairGroupsM
 
 void UGroomAsset::PostLoad()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	Super::PostLoad();
 
@@ -2519,7 +2521,7 @@ inline FString GetLODName(const UGroomAsset* Asset, uint32 LODIndex)
 
 bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || HairGroupsCards.Num() == 0 || !CanRebuildFromDescription())
 	{
@@ -3104,7 +3106,7 @@ static void InitCardsTextureResources(UGroomAsset* GroomAsset)
 
 void UGroomAsset::InitCardsResources()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || HairGroupsCards.Num() == 0)
 	{
@@ -3167,7 +3169,7 @@ void UGroomAsset::InitCardsResources()
 
 void UGroomAsset::InitMeshesResources()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Meshes))
 	{
@@ -3562,7 +3564,7 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		return;
 	}
 
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	if (DescIndex >= uint32(HairGroupsCards.Num()))
 		return;

@@ -13,6 +13,7 @@
 #include "HairStrandsVertexFactory.h"
 #include "RayTracingInstance.h"
 #include "RayTracingDefinitions.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HairStrandsInterface.h"
 #include "UObject/UObjectIterator.h"
 #include "GlobalShader.h"
@@ -34,6 +35,8 @@
 #include "GroomPluginSettings.h"
 #include "Async/ParallelFor.h"
 #include "PrimitiveSceneInfo.h"
+
+LLM_DECLARE_TAG(Groom);
 
 static int32 GHairEnableAdaptiveSubsteps = 0;  
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
@@ -2344,7 +2347,7 @@ static EGroomGeometryType GetEffectiveGeometryType(EGroomGeometryType Type, bool
 
 void UGroomComponent::InitResources(bool bIsBindingReloading)
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	ReleaseResources();
 	bInitSimulation = true;
@@ -3042,7 +3045,7 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 
 void UGroomComponent::PostLoad()
 {
-	LLM_SCOPE(ELLMTag::Meshes) // This should be a Groom LLM tag, but there is no LLM tag bit left
+	LLM_SCOPE_BYTAG(Groom);
 
 	Super::PostLoad();
 

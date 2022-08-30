@@ -6,10 +6,13 @@
 #include "Modules/ModuleManager.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyle.h"
+#include "HAL/LowLevelMemTracker.h"
 
 #define HAIRSTRANDSEDITOR_MODULE_NAME TEXT("HairStrandsEditor")
 
 class IGroomTranslator;
+
+LLM_DECLARE_TAG_API(GroomEditor, HAIRSTRANDSEDITOR_API);
 
 /** Implements the HairStrands module  */
 class HAIRSTRANDSEDITOR_API FGroomEditor : public IModuleInterface
@@ -28,6 +31,7 @@ public:
 
 	static inline FGroomEditor& Get()
 	{
+		LLM_SCOPE_BYTAG(GroomEditor);
 		return FModuleManager::LoadModuleChecked<FGroomEditor>(HAIRSTRANDSEDITOR_MODULE_NAME);
 	}
 
