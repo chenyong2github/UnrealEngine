@@ -87,6 +87,7 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, Size(0)
 	, CachedNextSampleTime(FTimespan::MinValue())
 	, TextureNumMips(1)
+	, MipMapBias(0.0f)
 {
 	NeverStream = true;
 	SRGB = true;
@@ -532,4 +533,15 @@ float UMediaTexture::GetCurrentAspectRatio() const
 MediaTextureOrientation UMediaTexture::GetCurrentOrientation() const
 {
 	return CurrentOrientation;
+}
+
+float UMediaTexture::GetMipMapBias() const
+{
+	// Clamped to the legal DirectX range.
+	return FMath::Clamp(MipMapBias, -16.0f, 15.99f);
+}
+
+void UMediaTexture::SetMipMapBias(float InMipMapBias)
+{
+	MipMapBias = InMipMapBias;
 }

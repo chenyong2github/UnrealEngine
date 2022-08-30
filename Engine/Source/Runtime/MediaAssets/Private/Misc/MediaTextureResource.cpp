@@ -271,6 +271,7 @@ FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& 
 	, bEnableGenMips(InEnableGenMips)
 	, CurrentNumMips(InEnableGenMips ? InNumMips : 1)
 	, CurrentSamplerFilter(ESamplerFilter_Num)
+	, CurrentMipMapBias(-1)
 	, PriorSamples(FPriorSamples::Create())
 {
 #if PLATFORM_ANDROID
@@ -589,17 +590,20 @@ uint32 FMediaTextureResource::GetSizeY() const
 void FMediaTextureResource::SetupSampler()
 {
 	ESamplerFilter OwnerFilter = (CurrentNumMips > 1 || Owner.NewStyleOutput) ? (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(&Owner) : SF_Bilinear;
+	float OwnerMipMapBias = Owner.GetMipMapBias();
 
-	if (CurrentSamplerFilter != OwnerFilter)
+	if (CurrentSamplerFilter != OwnerFilter || !FMath::IsNearlyEqual(CurrentMipMapBias, OwnerMipMapBias))
 	{
 		CurrentSamplerFilter = OwnerFilter;
+		CurrentMipMapBias = OwnerMipMapBias;
 
 		// create the sampler state
 		FSamplerStateInitializerRHI SamplerStateInitializer(
 			CurrentSamplerFilter,
 			(Owner.AddressX == TA_Wrap) ? AM_Wrap : ((Owner.AddressX == TA_Clamp) ? AM_Clamp : AM_Mirror),
 			(Owner.AddressY == TA_Wrap) ? AM_Wrap : ((Owner.AddressY == TA_Clamp) ? AM_Clamp : AM_Mirror),
-			AM_Wrap
+			AM_Wrap,
+			CurrentMipMapBias
 		);
 
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);

@@ -222,6 +222,9 @@ private:
 	/** Current texture sampler filter value */
 	ESamplerFilter CurrentSamplerFilter;
 
+	/** Current texture sampler mip bias. */
+	float CurrentMipMapBias;
+
 	/** The current media player facade to get video samples from. */
 	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacadePtr;
 

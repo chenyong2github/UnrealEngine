@@ -196,6 +196,20 @@ public:
 	 */
 	MediaTextureOrientation GetCurrentOrientation() const;
 
+	/**
+	 * Get the texture's mip-map bias, clamped to a legal range.
+	 * @return Mip-map bias value
+	 */
+	float GetMipMapBias() const;
+
+	/**
+	 * Set texture's mip-map bias, for use by the texture resource sampler.
+	 * Note: UpdateResource() should be called afterwards and the material should be notified.
+	 *
+	 * @param InMipMapBias Bias value.
+	 */
+	void SetMipMapBias(float InMipMapBias);
+
 public:
 
 	//~ UTexture interface.
@@ -297,4 +311,7 @@ private:
 
 	/** Number of mips in the actual output texture */
 	int32 TextureNumMips;
+
+	/** Mip-map bias used by the media texture resource sampler. */
+	float MipMapBias;
 };
