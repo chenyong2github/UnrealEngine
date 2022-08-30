@@ -5,6 +5,7 @@
 #include "Containers/ChunkedArray.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/Timespan.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Serialization/MemoryReader.h"
