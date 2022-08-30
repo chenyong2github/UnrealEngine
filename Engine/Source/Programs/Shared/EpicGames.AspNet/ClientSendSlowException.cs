@@ -31,7 +31,7 @@ namespace EpicGames.AspNet
 
 	public class ClientSendSlowException : Exception
 	{
-		public ClientSendSlowException(Exception? innerException) : base("Client was sending data to slow", innerException)
+		public ClientSendSlowException(Exception? innerException) : base("Client was sending data to slowly", innerException)
 		{
 		}
 	}

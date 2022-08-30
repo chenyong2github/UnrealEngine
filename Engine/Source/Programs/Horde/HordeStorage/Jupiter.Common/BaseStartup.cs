@@ -59,6 +59,7 @@ namespace Jupiter
             CbConvertersAspNet.AddAspnetConverters();
 
             services.AddServerTiming();
+            services.AddSuppressExceptionsMiddleware();
 
             // aws specific settings
             services.AddOptions<AWSCredentialsSettings>().Bind(Configuration.GetSection("AWSCredentials")).ValidateDataAnnotations();
