@@ -808,11 +808,10 @@ public:
 public:
 	const uint8* GetResourceData() const;
 
+#if WITH_EDITORONLY_DATA
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
-
 	UE::Serialization::FEditorBulkData RawData;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Instanced, Category = "Transformations")
 	TArray<TObjectPtr<class UWaveformTransformationBase>> Transformations;
 #endif
