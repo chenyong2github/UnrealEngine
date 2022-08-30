@@ -341,7 +341,7 @@ void FNiagaraAsyncCompileTask::OptimizeByteCode()
 
 		FVectorVMOptimizeContext OptimizeContext;
 		FMemory::Memzero(&OptimizeContext, sizeof(OptimizeContext));
-		OptimizeVectorVMScript(ByteCode, ExeData->ByteCode.GetLength(), ExtFnTable.GetData(), ExtFnTable.Num(), &OptimizeContext, VVMOptFlag_OmitStats);
+		OptimizeVectorVMScript(ByteCode, ExeData->ByteCode.GetLength(), ExtFnTable.GetData(), ExtFnTable.Num(), &OptimizeContext, VVMFlag_OptOmitStats);
 
 		// freeze the OptimizeContext
 		FreezeVectorVMOptimizeContext(OptimizeContext, ExeData->ExperimentalContextData);

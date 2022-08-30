@@ -33,7 +33,7 @@ PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 template<typename T, typename BASE_TYPE>
 struct alignas(alignof(T)) VectorRegisterWrapper
 {
-	FORCEINLINE VectorRegisterWrapper() {}
+	FORCEINLINE VectorRegisterWrapper() = default;
 	FORCEINLINE constexpr VectorRegisterWrapper(T vec) : m_vec(vec) {}
 
 	FORCEINLINE operator T&() { return m_vec; }
@@ -3020,12 +3020,13 @@ FORCEINLINE VectorRegister4Int VectorFloatToInt(const VectorRegister4Double& A)
 #define VectorIntSet1(F)                            vdupq_n_s32(F)
 #define VectorSetZero()                             vdupq_n_s32(0)
 #define VectorSet1(F)                               vdupq_n_f32(F)
-#define VectorCastIntToFloat(Vec)                   vreinterpretq_f32_s32(Vec)
-#define VectorCastFloatToInt(Vec)					vreinterpretq_s32_f32(Vec)
+#define VectorCastIntToFloat(Vec)                   ((VectorRegister4f)vreinterpretq_f32_s32(Vec))
+#define VectorCastFloatToInt(Vec)					((VectorRegister4i)vreinterpretq_s32_f32(Vec))
 #define VectorShiftLeftImm(Vec, ImmAmt)             vshlq_n_s32(Vec, ImmAmt)
 #define VectorShiftRightImmArithmetic(Vec, ImmAmt)  vshrq_n_s32(Vec, ImmAmt)
 #define VectorShiftRightImmLogical(Vec, ImmAmt)     vshrq_n_u32(Vec, ImmAmt)
 #define VectorRound(Vec)							vreinterpretq_f32_s32(vcvtnq_s32_f32(Vec))
+
 
 inline VectorRegister4i VectorIntExpandLow16To32(VectorRegister4i V) {
 	int16x4x2_t res = vzip_s16(vget_low_u16(V), vdup_n_u16(0));

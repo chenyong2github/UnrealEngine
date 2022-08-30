@@ -210,6 +210,9 @@ FNiagaraVariable INiagaraModule::Translator_CallID;
 void INiagaraModule::StartupModule()
 {
 	VectorVM::Init();
+#if VECTORVM_SUPPORTS_EXPERIMENTAL
+	InitVectorVM();
+#endif
 	FNiagaraTypeDefinition::Init();
 	FNiagaraRenderViewDataManager::Init();
 

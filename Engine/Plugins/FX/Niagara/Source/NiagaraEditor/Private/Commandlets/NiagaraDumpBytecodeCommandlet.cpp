@@ -265,7 +265,7 @@ void UNiagaraDumpByteCodeCommandlet::DumpByteCode(const UNiagaraScript* Script, 
 		MetaData.AttributeCount += Var.GetType().GetSize() / 4;
 	}
 
-	const static UEnum* VmOpEnum = StaticEnum<EVectorVMOp>();
+	//const static UEnum* VmOpEnum = StaticEnum<EVectorVMOp>();
 
 	if (Script)
 	{
@@ -305,7 +305,8 @@ void UNiagaraDumpByteCodeCommandlet::DumpByteCode(const UNiagaraScript* Script, 
 					FString LinePrefix = CurrentLine.Left(OpStartIndex);
 					FString LineSuffix = CurrentLine.RightChop(OpEndIndex);
 
-					CurrentLine = LinePrefix + TEXT(":") + *VmOpEnum->GetNameStringByValue(OpIndexValue) + LineSuffix;
+					
+					CurrentLine = LinePrefix + TEXT(":") + VectorVM::GetOpName((EVectorVMOp)OpIndexValue) + LineSuffix;
 				}
 			}
 			OutputStream->Log(CurrentLine);

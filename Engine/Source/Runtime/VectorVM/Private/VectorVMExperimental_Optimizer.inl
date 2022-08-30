@@ -113,17 +113,6 @@ Outputs can write either a copy_to_output, output_batch or a regular output inst
 
 #define VVM_OPT_MAX_REGS_PER_INS 256 //this is absurdly high, but still only 512 bytes on the stack
 
-struct VVMOptRAIIPtrToFree
-{ //automatically frees memory when they go out of scope
-	VVMOptRAIIPtrToFree(FVectorVMOptimizeContext *Ctx, void *Ptr) : Ctx(Ctx), Ptr(Ptr) { }
-	~VVMOptRAIIPtrToFree()
-	{
-		Ctx->Init.FreeFn(Ptr, __FILE__, __LINE__);
-	}
-	FVectorVMOptimizeContext *Ctx;
-	void *Ptr;
-};
-
 struct FVectorVMOptimizeInsRegUsage
 {
 	uint16  RegIndices[VVM_OPT_MAX_REGS_PER_INS]; //Index into FVectorVMOptimizeContext::RegisterUsageBuffer.  Output follows input
@@ -136,38 +125,42 @@ static void VectorVMFreeOptimizerIntermediateData(FVectorVMOptimizeContext *OptC
 	if (OptContext->Init.FreeFn)
 	{
 		OptContext->Init.FreeFn(OptContext->Intermediate.Instructions           , __FILE__, __LINE__);
+		OptContext->Init.FreeFn(OptContext->Intermediate.RegisterUsageType      , __FILE__, __LINE__);
 		OptContext->Init.FreeFn(OptContext->Intermediate.RegisterUsageBuffer    , __FILE__, __LINE__);
 		OptContext->Init.FreeFn(OptContext->Intermediate.SSARegisterUsageBuffer , __FILE__, __LINE__);
-		OptContext->Init.FreeFn(OptContext->Intermediate.InputRegisterFuseBuffer, __FILE__, __LINE__);
 		FMemory::Memset(&OptContext->Intermediate, 0, sizeof(OptContext->Intermediate));
 	}
 	else 
 	{
 		check(OptContext->Intermediate.Instructions            == nullptr);
+		check(OptContext->Intermediate.RegisterUsageType       == nullptr);
 		check(OptContext->Intermediate.RegisterUsageBuffer     == nullptr);
 		check(OptContext->Intermediate.SSARegisterUsageBuffer  == nullptr);
-		check(OptContext->Intermediate.InputRegisterFuseBuffer == nullptr);
 	}
 }
 
 void FreezeVectorVMOptimizeContext(const FVectorVMOptimizeContext& Context, TArray<uint8>& ContextData)
 {
 	const uint32 BytecodeSize = Context.NumBytecodeBytes + 16;
-	const uint32 ConstRemapSize = Context.NumConstsAlloced * sizeof(uint16);
+	const uint32 ConstRemapSize = Context.NumConstsRemapped * sizeof(uint16);
+	const uint32 InputRemapSize = Context.NumInputsRemapped * sizeof(uint16);
+	const uint32 InputDataSetOffsetsSize = Context.NumInputDataSets * 8 * sizeof(uint16);
 	const uint32 ExtFnSize = Context.NumExtFns * sizeof(FVectorVMExtFunctionData);
 
-	const uint32 BytecodeOffset = Align(sizeof(FVectorVMOptimizeContext), 16);
-	const uint32 ConstRemap0Offset = Align(BytecodeOffset + BytecodeSize, 16);
-	const uint32 ConstRemap1Offset = Align(ConstRemap0Offset + ConstRemapSize, 16);
-	const uint32 ExtFnOffset = Align(ConstRemap1Offset + ConstRemapSize, 16);
-	const uint32 TotalSize = Align(ExtFnOffset + ExtFnSize, 16);
+	const size_t BytecodeOffset = Align(sizeof(FVectorVMOptimizeContext), 16);
+	const size_t ConstRemapOffset = Align(BytecodeOffset + BytecodeSize, 16);
+	const size_t InputRemapOffset = Align(ConstRemapOffset + ConstRemapSize, 16);
+	const size_t InputDataSetOffsetsOffset = Align(InputRemapOffset + InputRemapSize, 16);
+	const size_t ExtFnOffset = Align(InputDataSetOffsetsOffset + InputDataSetOffsetsSize, 16);
+	const size_t TotalSize = Align(ExtFnOffset + ExtFnSize, 16);
 
 	ContextData.SetNumZeroed(TotalSize);
 	uint8* DestData = ContextData.GetData();
 	FMemory::Memcpy(DestData, &Context, sizeof(Context));
-	FMemory::Memcpy(DestData + BytecodeOffset, Context.OutputBytecode, BytecodeSize);
-	FMemory::Memcpy(DestData + ConstRemap0Offset, Context.ConstRemap[0], ConstRemapSize);
-	FMemory::Memcpy(DestData + ConstRemap1Offset, Context.ConstRemap[1], ConstRemapSize);
+	FMemory::Memcpy(DestData + BytecodeOffset, Context.OutputBytecode, Context.NumBytecodeBytes);
+	FMemory::Memcpy(DestData + ConstRemapOffset, Context.ConstRemap[1], ConstRemapSize);
+	FMemory::Memcpy(DestData + InputRemapOffset, Context.InputRemapTable, InputRemapSize);
+	FMemory::Memcpy(DestData + InputDataSetOffsetsOffset, Context.InputDataSetOffsets, InputDataSetOffsetsSize);
 	FMemory::Memcpy(DestData + ExtFnOffset, Context.ExtFnTable, ExtFnSize);
 
 	// we want to clear out the pointers to any callbacks
@@ -194,19 +187,25 @@ void ReinterpretVectorVMOptimizeContextData(TConstArrayView<uint8> ContextData, 
 	const FVectorVMOptimizeContext& SrcContext = *reinterpret_cast<const FVectorVMOptimizeContext*>(SrcData);
 
 	const uint32 BytecodeSize = SrcContext.NumBytecodeBytes + 16;
-	const uint32 ConstRemapSize = SrcContext.NumConstsAlloced * sizeof(uint16);
+	const uint32 ConstRemapSize = SrcContext.NumConstsRemapped * sizeof(uint16);
+	const uint32 InputRemapSize = SrcContext.NumInputsRemapped * sizeof(uint16);
+	const uint32 InputDataSetOffsetsSize = SrcContext.NumInputDataSets * 8 * sizeof(uint16);
 	const uint32 ExtFnSize = SrcContext.NumExtFns * sizeof(FVectorVMExtFunctionData);
 
-	const uint32 BytecodeOffset = Align(sizeof(FVectorVMOptimizeContext), 16);
-	const uint32 ConstRemap0Offset = Align(BytecodeOffset + BytecodeSize, 16);
-	const uint32 ConstRemap1Offset = Align(ConstRemap0Offset + ConstRemapSize, 16);
-	const uint32 ExtFnOffset = Align(ConstRemap1Offset + ConstRemapSize, 16);
-	const uint32 TotalSize = Align(ExtFnOffset + ExtFnSize, 16);
+	const size_t BytecodeOffset = Align(sizeof(FVectorVMOptimizeContext), 16);
+	const size_t ConstRemapOffset = Align(BytecodeOffset + BytecodeSize, 16);
+	const size_t InputRemapOffset = Align(ConstRemapOffset + ConstRemapSize, 16);
+	const size_t InputDataSetOffsetsOffset = Align(InputRemapOffset + InputRemapSize, 16);
+	const size_t ExtFnOffset = Align(InputDataSetOffsetsOffset + InputDataSetOffsetsSize, 16);
+	const size_t TotalSize = Align(ExtFnOffset + ExtFnSize, 16);
 
 	FMemory::Memcpy(&Context, SrcData, sizeof(Context));
 	Context.OutputBytecode = const_cast<uint8*>(reinterpret_cast<const uint8*>(SrcData + BytecodeOffset));
-	Context.ConstRemap[0] = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + ConstRemap0Offset));
-	Context.ConstRemap[1] = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + ConstRemap1Offset));
+	Context.NumConstsAlloced = Context.NumConstsRemapped;
+	Context.ConstRemap[0] = NULL;
+	Context.ConstRemap[1] = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + ConstRemapOffset));
+	Context.InputRemapTable = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + InputRemapOffset));
+	Context.InputDataSetOffsets = const_cast<uint16*>(reinterpret_cast<const uint16*>(SrcData + InputDataSetOffsetsOffset));
 	Context.ExtFnTable = const_cast<FVectorVMExtFunctionData*>(reinterpret_cast<const FVectorVMExtFunctionData*>(SrcData + ExtFnOffset));
 	Context.Init.ReallocFn = VectorVMFrozenRealloc;
 	Context.Init.FreeFn = VectorVMFrozenFree;
@@ -216,8 +215,9 @@ void ReinterpretVectorVMOptimizeContextData(TConstArrayView<uint8> ContextData, 
 void FreeVectorVMOptimizeContext(FVectorVMOptimizeContext *OptContext)
 {
 	//save init data
-	VectorVMReallocFn *ReallocFn = OptContext->Init.ReallocFn;
-	VectorVMFreeFn    *FreeFn    = OptContext->Init.FreeFn;
+	VectorVMReallocFn *ReallocFn  = OptContext->Init.ReallocFn;
+	VectorVMFreeFn    *FreeFn     = OptContext->Init.FreeFn;
+	const char *       ScriptName = OptContext->Init.ScriptName;
 	//save error data
 	uint32 ErrorFlags                              = OptContext->Error.Flags;
 	uint32 ErrorLine                               = OptContext->Error.Line;
@@ -228,6 +228,8 @@ void FreeVectorVMOptimizeContext(FVectorVMOptimizeContext *OptContext)
 		FreeFn(OptContext->OutputBytecode, __FILE__, __LINE__);
 		FreeFn(OptContext->ConstRemap[0] , __FILE__, __LINE__);
 		FreeFn(OptContext->ConstRemap[1] , __FILE__, __LINE__);
+		FreeFn(OptContext->InputRemapTable, __FILE__, __LINE__);
+		FreeFn(OptContext->InputDataSetOffsets, __FILE__, __LINE__);
 		FreeFn(OptContext->ExtFnTable    , __FILE__, __LINE__);
 	}
 	else
@@ -235,6 +237,8 @@ void FreeVectorVMOptimizeContext(FVectorVMOptimizeContext *OptContext)
 		check(OptContext->OutputBytecode == nullptr);
 		check(OptContext->ConstRemap[0]  == nullptr);
 		check(OptContext->ConstRemap[1]  == nullptr);
+		check(OptContext->InputRemapTable == nullptr);
+		check(OptContext->InputDataSetOffsets== nullptr);
 		check(OptContext->ExtFnTable     == nullptr);
 	}
 	VectorVMFreeOptimizerIntermediateData(OptContext);
@@ -242,6 +246,7 @@ void FreeVectorVMOptimizeContext(FVectorVMOptimizeContext *OptContext)
 	//restore init data
 	OptContext->Init.ReallocFn   = ReallocFn;
 	OptContext->Init.FreeFn      = FreeFn;
+	OptContext->Init.ScriptName  = ScriptName;
 	//restore error data
 	OptContext->Error.Flags      = ErrorFlags;
 	OptContext->Error.Line       = ErrorLine;
@@ -271,9 +276,11 @@ static uint32 VectorVMOptimizerSetError_(FVectorVMOptimizeContext *OptContext, u
 
 static uint16 VectorVMOptimizeRemapConst(FVectorVMOptimizeContext *OptContext, uint16 ConstIdx)
 {
+	check((ConstIdx & 3) == 0);
+	ConstIdx >>= 2; //original VM uses byte indices, we use 32 bit indices
 	if (ConstIdx >= OptContext->NumConstsAlloced)
 	{
-		uint16 NumConstsToAlloc = (ConstIdx + 1 + 63) & ~63;
+		uint16 NumConstsToAlloc = (ConstIdx + 1 + 511) & ~511;
 		uint16 *ConstRemap0 = (uint16 *)OptContext->Init.ReallocFn(OptContext->ConstRemap[0], sizeof(uint16) * NumConstsToAlloc, __FILE__, __LINE__);
 		if (ConstRemap0 == nullptr)
 		{
@@ -312,67 +319,33 @@ static uint16 VectorVMOptimizeRemapConst(FVectorVMOptimizeContext *OptContext, u
 static int GetRegistersUsedForInstruction(FVectorVMOptimizeContext *OptContext, FVectorVMOptimizeInstruction *Ins, FVectorVMOptimizeInsRegUsage *OutRegUsage) {
 	OutRegUsage->NumInputRegisters  = 0;
 	OutRegUsage->NumOutputRegisters = 0;
+
 	switch (Ins->OpCat)
 	{
 	case EVectorVMOpCategory::Input:
-		if (Ins->Input.FirstInsInsertIdx != -1)
+		//if (Ins->Input.FirstInsInsertIdx != -1)
 		{
 			OutRegUsage->RegIndices[OutRegUsage->NumOutputRegisters++] = Ins->Input.DstRegPtrOffset;
 		}
 		break;
 	case EVectorVMOpCategory::Output:
-		if (!(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset] & 0x8000))
-		{
-			OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->Output.RegPtrOffset;
-		}
-		if (Ins->OpCode != EVectorVMOp::copy_to_output)
-		{
-			if (!(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset + 1] & 0x8000))
-			{
-				OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->Output.RegPtrOffset + 1;
-			}
-		}
+		OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->Output.RegPtrOffset;
+		OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->Output.RegPtrOffset + 1;
 		break;
 	case EVectorVMOpCategory::Op:
-		if (Ins->Op.InputFuseBits == 0) //all inputs are regular registers
-		{
-			{ //Input registers
-				int InputCount = 0;
-				for (int i = 0; i < Ins->Op.NumInputs; ++i) {
-					if (!(OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + i] & 0x8000)) {
-						OutRegUsage->RegIndices[InputCount++] = Ins->Op.RegPtrOffset + i;
-					}
-				}
-				OutRegUsage->NumInputRegisters = InputCount;
+		{ //Input registers
+			int InputCount = 0;
+			for (int i = 0; i < Ins->Op.NumInputs; ++i) {
+				OutRegUsage->RegIndices[InputCount++] = Ins->Op.RegPtrOffset + i;
 			}
-			{ //Output registers
-				int OutputCount = 0;
-				for (int i = 0; i < Ins->Op.NumOutputs; ++i) {
-					OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters + i] = Ins->Op.RegPtrOffset + Ins->Op.NumInputs + i;
-				}
-				OutRegUsage->NumOutputRegisters = Ins->Op.NumOutputs;
-			}
+			OutRegUsage->NumInputRegisters = InputCount;
 		}
-		else //at least one of the inputs should be from a dataset, not a register
-		{ 
-			check(Ins->Op.NumInputs > 0);
-			check(Ins->Op.NumInputs <= 3);
-			{ //Input registers
-				int InputCount = 0;
-				for (int i = 0; i < Ins->Op.NumInputs; ++i) {
-					if ((!(Ins->Op.InputFuseBits & (1 << i))) && !(OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + i] & 0x8000)) {
-						OutRegUsage->RegIndices[InputCount] = Ins->Op.RegPtrOffset + i;
-						++InputCount;
-					}
-				}
-				OutRegUsage->NumInputRegisters = InputCount;
+		{ //Output registers
+			int OutputCount = 0;
+			for (int i = 0; i < Ins->Op.NumOutputs; ++i) {
+				OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters + i] = Ins->Op.RegPtrOffset + Ins->Op.NumInputs + i;
 			}
-			{ //Output Registers
-				for (int i = 0; i < Ins->Op.NumOutputs; ++i) {
-					OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters + i] = Ins->Op.RegPtrOffset + Ins->Op.NumInputs + i;
-				}
-				OutRegUsage->NumOutputRegisters = Ins->Op.NumOutputs;
-			}
+			OutRegUsage->NumOutputRegisters = Ins->Op.NumOutputs;
 		}
 		break;
 	case EVectorVMOpCategory::ExtFnCall:
@@ -380,10 +353,7 @@ static int GetRegistersUsedForInstruction(FVectorVMOptimizeContext *OptContext, 
 		//if this check fails (*EXTREMELY* unlikely), just increase VVM_OPT_MAX_REGS_PER_INS
 		for (int i = 0; i < Ins->ExtFnCall.NumInputs; ++i)
 		{
-			if ((OptContext->Intermediate.RegisterUsageBuffer[Ins->ExtFnCall.RegPtrOffset + i] & 0x8000) == 0)
-			{
-				OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->ExtFnCall.RegPtrOffset + i;
-			}
+			OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->ExtFnCall.RegPtrOffset + i;
 		}
 		for (int i = 0; i < Ins->ExtFnCall.NumOutputs; ++i)
 		{
@@ -392,17 +362,8 @@ static int GetRegistersUsedForInstruction(FVectorVMOptimizeContext *OptContext, 
 		OutRegUsage->NumOutputRegisters = Ins->ExtFnCall.NumOutputs;
 		break;
 	case EVectorVMOpCategory::IndexGen:
-		if (!(OptContext->Intermediate.RegisterUsageBuffer[Ins->IndexGen.RegPtrOffset + 0] & 0x8000))
-		{
-			OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->IndexGen.RegPtrOffset + 0;
-		}
+		OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters++] = Ins->IndexGen.RegPtrOffset + 0;
 		OutRegUsage->RegIndices[OutRegUsage->NumInputRegisters + OutRegUsage->NumOutputRegisters++] = Ins->IndexGen.RegPtrOffset + 1;
-		break;
-	case EVectorVMOpCategory::ExecIndex:
-		if (!(OptContext->Intermediate.RegisterUsageBuffer[Ins->IndexGen.RegPtrOffset + 0] & 0x8000))
-		{
-			OutRegUsage->RegIndices[OutRegUsage->NumOutputRegisters++] = Ins->ExecIndex.RegPtrOffset;
-		}
 		break;
 	case EVectorVMOpCategory::RWBuffer:
 		OutRegUsage->RegIndices[0] = Ins->RWBuffer.RegPtrOffset + 0;
@@ -422,8 +383,6 @@ static int GetRegistersUsedForInstruction(FVectorVMOptimizeContext *OptContext, 
 		break;
 	case EVectorVMOpCategory::Stat:
 		break;
-	case EVectorVMOpCategory::Fused:
-		check(false); //we don't write an intermediate representation of a fused instruction, so this shouldn't be possible
 	}
 	check(OutRegUsage->NumInputRegisters + OutRegUsage->NumOutputRegisters < VVM_OPT_MAX_REGS_PER_INS);
 	return OutRegUsage->NumInputRegisters + OutRegUsage->NumOutputRegisters;
@@ -503,151 +462,10 @@ static int GetInstructionDependencyChain(FVectorVMOptimizeContext *OptContext, i
 	return NumInstructions;
 }
 
-static EVectorVMOpCategory GetOpCategoryFromOp(EVectorVMOp op)
-{
-	switch (op)
-	{
-		case EVectorVMOp::done:                         return EVectorVMOpCategory::Other;
-		case EVectorVMOp::add:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::sub:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::mul:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::div:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::mad:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::lerp:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::rcp:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::rsq:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::sqrt:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::neg:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::abs:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::exp:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::exp2:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::log:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::log2:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::sin:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cos:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::tan:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::asin:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::acos:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::atan:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::atan2:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::ceil:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::floor:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::fmod:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::frac:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::trunc:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::clamp:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::min:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::max:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::pow:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::round:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::sign:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::step:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::random:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::noise:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmplt:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmple:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpgt:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpge:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpeq:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpneq:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::select:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::addi:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::subi:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::muli:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::divi:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::clampi:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::mini:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::maxi:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::absi:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::negi:                         return EVectorVMOpCategory::Op;
-		case EVectorVMOp::signi:                        return EVectorVMOpCategory::Op;
-		case EVectorVMOp::randomi:                      return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmplti:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmplei:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpgti:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpgei:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpeqi:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::cmpneqi:                      return EVectorVMOpCategory::Op;
-		case EVectorVMOp::bit_and:                      return EVectorVMOpCategory::Op;
-		case EVectorVMOp::bit_or:                       return EVectorVMOpCategory::Op;
-		case EVectorVMOp::bit_xor:                      return EVectorVMOpCategory::Op;
-		case EVectorVMOp::bit_not:                      return EVectorVMOpCategory::Op;
-		case EVectorVMOp::bit_lshift:                   return EVectorVMOpCategory::Op;
-		case EVectorVMOp::bit_rshift:                   return EVectorVMOpCategory::Op;
-		case EVectorVMOp::logic_and:                    return EVectorVMOpCategory::Op;
-		case EVectorVMOp::logic_or:                     return EVectorVMOpCategory::Op;
-		case EVectorVMOp::logic_xor:                    return EVectorVMOpCategory::Op;
-		case EVectorVMOp::logic_not:                    return EVectorVMOpCategory::Op;
-		case EVectorVMOp::f2i:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::i2f:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::f2b:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::b2f:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::i2b:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::b2i:                          return EVectorVMOpCategory::Op;
-		case EVectorVMOp::inputdata_float:              return EVectorVMOpCategory::Input;
-		case EVectorVMOp::inputdata_int32:              return EVectorVMOpCategory::Input;
-		case EVectorVMOp::inputdata_half:               return EVectorVMOpCategory::Input;
-		case EVectorVMOp::inputdata_noadvance_float:    return EVectorVMOpCategory::Input;
-		case EVectorVMOp::inputdata_noadvance_int32:    return EVectorVMOpCategory::Input;
-		case EVectorVMOp::inputdata_noadvance_half:     return EVectorVMOpCategory::Input;
-		case EVectorVMOp::outputdata_float:             return EVectorVMOpCategory::Output;
-		case EVectorVMOp::outputdata_int32:             return EVectorVMOpCategory::Output;
-		case EVectorVMOp::outputdata_half:              return EVectorVMOpCategory::Output;
-		case EVectorVMOp::acquireindex:                 return EVectorVMOpCategory::IndexGen;
-		case EVectorVMOp::external_func_call:           return EVectorVMOpCategory::ExtFnCall;
-		case EVectorVMOp::exec_index:                   return EVectorVMOpCategory::ExecIndex;
-		case EVectorVMOp::noise2D:                      return EVectorVMOpCategory::Other;
-		case EVectorVMOp::noise3D:                      return EVectorVMOpCategory::Other;
-		case EVectorVMOp::enter_stat_scope:             return EVectorVMOpCategory::Stat;
-		case EVectorVMOp::exit_stat_scope:              return EVectorVMOpCategory::Stat;
-		case EVectorVMOp::update_id:                    return EVectorVMOpCategory::RWBuffer;
-		case EVectorVMOp::acquire_id:                   return EVectorVMOpCategory::RWBuffer;
-		case EVectorVMOp::fused_input1_1:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input2_1:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input2_2:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input2_3:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_1:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_2:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_4:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_3:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_5:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_6:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::fused_input3_7:               return EVectorVMOpCategory::Fused;
-		case EVectorVMOp::copy_to_output:               return EVectorVMOpCategory::Output;
-		case EVectorVMOp::output_batch2:                return EVectorVMOpCategory::Output;
-		case EVectorVMOp::output_batch3:                return EVectorVMOpCategory::Output;
-		case EVectorVMOp::output_batch4:                return EVectorVMOpCategory::Output;
-		case EVectorVMOp::output_batch7:                return EVectorVMOpCategory::Output;
-		case EVectorVMOp::output_batch8:                return EVectorVMOpCategory::Output;
-		default:                          check(false); return EVectorVMOpCategory::Other;
-	}
-}
-
-inline uint64 VVMCopyToOutputInsGetSortKey(FVectorVMOptimizeInstruction *Instructions, FVectorVMOptimizeInstruction *OutputIns)
-{
-	check(OutputIns->OpCat == EVectorVMOpCategory::Output);
-	check(OutputIns->Output.CopyFromInputInsIdx != -1);
-	check(OutputIns->Output.DataSetIdx < (1 << 14));                                                // max 14 bits for DataSet Index (In reality this number is < 5... ie 3 bits)
-	FVectorVMOptimizeInstruction *InputIns = Instructions + OutputIns->Output.CopyFromInputInsIdx;																					
-	check(InputIns->OpCat == EVectorVMOpCategory::Input);
-	check(InputIns->Input.DataSetIdx < (1 << 14));	                                                // max 14 bits for DataSet Index (In reality this number is < 5... ie 3 bits)
-	uint8 InputRegType  = (uint8)InputIns->OpCode - (uint8)EVectorVMOp::inputdata_float;
-	uint8 OutputRegType = (uint8)OutputIns->OpCode - (uint8)EVectorVMOp::outputdata_float;
-	check(InputRegType == OutputRegType);                                                           // input and output reg type should match, so we only use 1 bit
-	check(OutputRegType == 1 || OutputRegType == 0);									            // if they ever don't match (WHY?!) then we can change this to use 2 bits 
-	uint64 key = ((uint64)(OutputRegType & 1)          << 63ULL) +                                  // 63    - Float/Int flag
-	             ((uint64)OutputIns->Output.DataSetIdx << 49ULL) +                                  // 49-62 - Output Data Set Index
-	             ((uint64)InputIns->Input.DataSetIdx   << 35ULL) +                                  // 35-49 - Input Data Set Index
-	             ((uint64)InputIns->Input.InputIdx     << 16ULL) +                                  // 16-31 - Input Src
-	             ((uint64)OutputIns->Output.DstRegIdx)           ;                                  // 0-15  - Output Dest
-	return key;
-}
-
 inline uint64 VVMOutputInsGetSortKey(uint16 *SSARegisters, FVectorVMOptimizeInstruction *OutputIns)
 {
 	check(OutputIns->OpCat == EVectorVMOpCategory::Output);
 	check(OutputIns->Output.DataSetIdx < (1 << 14));                                                // max 14 bits for DataSet Index (In reality this number is < 5... ie 3 bits)
-	check(OutputIns->Output.CopyFromInputInsIdx == -1);
 	check((int)OutputIns->OpCode >= (int)EVectorVMOp::outputdata_float);
 	uint64 key = (((uint64)OutputIns->OpCode - (uint64)EVectorVMOp::outputdata_float) << 62ULL) +
 		         ((uint64)OutputIns->Output.DataSetIdx                                << 48ULL) +
@@ -656,51 +474,124 @@ inline uint64 VVMOutputInsGetSortKey(uint16 *SSARegisters, FVectorVMOptimizeInst
 	return key;
 }
 
+static FVectorVMOptimizeInstruction *VVMPushNewInstruction(FVectorVMOptimizeContext *OptContext, EVectorVMOp OpCode, uint32 *NumInstructionsAlloced)
+{
+	if (OptContext->Intermediate.NumInstructions >= *NumInstructionsAlloced)
+	{
+		if (*NumInstructionsAlloced == 0)
+			*NumInstructionsAlloced = 16384;
+		else
+			*NumInstructionsAlloced <<= 1;
+		FVectorVMOptimizeInstruction *NewInstructions = (FVectorVMOptimizeInstruction *)OptContext->Init.ReallocFn(OptContext->Intermediate.Instructions, sizeof(FVectorVMOptimizeInstruction) * *NumInstructionsAlloced, __FILE__, __LINE__);
+		if (NewInstructions == nullptr)
+		{
+			if (OptContext->Intermediate.Instructions)
+			{
+				FMemory::Free(OptContext->Intermediate.Instructions);
+				OptContext->Intermediate.Instructions = nullptr;
+			}
+			return nullptr;
+		}
+		FMemory::Memset(NewInstructions + OptContext->Intermediate.NumInstructions, 0, sizeof(FVectorVMOptimizeInstruction) * (*NumInstructionsAlloced - OptContext->Intermediate.NumInstructions));
+		OptContext->Intermediate.Instructions = NewInstructions;
+	}
+	FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + OptContext->Intermediate.NumInstructions;
+	Ins->Index        = OptContext->Intermediate.NumInstructions++;
+	Ins->OpCode       = OpCode;
+	Ins->OpCat        = VVM_OP_CATEGORIES[(int)OpCode];
+	Ins->InsMergedIdx = -1;
+	return Ins;
+}
+
+#define VVM_RT_TEMPREG		0
+#define VVM_RT_CONST		1
+#define VVM_RT_INPUT		2
+#define VVM_RT_INVALID		255
+
+#		define VVMRegDupeCheck(RegIdx0, RegIdx1)   (Ins1SSA[RegIdx0]    == Ins1SSA[RegIdx1]    && Ins1Type[RegIdx0]    == Ins1Type[RegIdx1])
+
+static inline bool RegDupeCheck(FVectorVMOptimizeContext *OptContext, FVectorVMOptimizeInstruction *Ins0, int Ins0OutputRegIdx, FVectorVMOptimizeInstruction *Ins1, int FirstRegIdx, int LastRegIdx) {
+	uint16 Ins0OutputSSA = OptContext->Intermediate.SSARegisterUsageBuffer[Ins0->Op.RegPtrOffset + Ins0OutputRegIdx];
+
+	uint16 *SSA = OptContext->Intermediate.SSARegisterUsageBuffer + Ins1->Op.RegPtrOffset;
+	uint8 *Type = OptContext->Intermediate.RegisterUsageType + Ins1->Op.RegPtrOffset;
+
+	for (int i = FirstRegIdx; i < LastRegIdx; ++i)
+	{
+		if (SSA[i] == Ins0OutputSSA && Type[i] == VVM_RT_TEMPREG)
+		{
+			for (int j = i + 1; j <= LastRegIdx; ++j)
+			{
+				if (SSA[i] == SSA[j] && Type[i] == Type[j])
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+#pragma warning(disable:4883)
 VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InBytecodeLen, FVectorVMExtFunctionData *ExtFnIOData, int NumExtFns, FVectorVMOptimizeContext *OptContext, uint32 Flags)
 {
-#define AllocRegisterUse(NumRegistersToAlloc)	if (OptContext->Intermediate.NumRegistersUsed + (NumRegistersToAlloc) >= NumRegisterUsageAlloced)                                                                               \
-												{                                                                                                                                                                               \
-													if (NumRegisterUsageAlloced == 0)                                                                                                                                           \
-													{                                                                                                                                                                           \
-														NumRegisterUsageAlloced = 32;                                                                                                                                           \
-													}                                                                                                                                                                           \
-													else                                                                                                                                                                        \
-													{                                                                                                                                                                           \
-														NumRegisterUsageAlloced <<= 1;                                                                                                                                          \
-													}                                                                                                                                                                           \
-													uint16 *NewRegisters = (uint16 *)OptContext->Init.ReallocFn(OptContext->Intermediate.RegisterUsageBuffer, sizeof(uint16) * NumRegisterUsageAlloced, __FILE__, __LINE__);    \
-													if (NewRegisters == nullptr)                                                                                                                                                \
-													{                                                                                                                                                                           \
-														return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_RegisterUsage | VVMOptErr_Fatal);                                                        \
-													}                                                                                                                                                                           \
-													else                                                                                                                                                                        \
-													{                                                                                                                                                                           \
-														OptContext->Intermediate.RegisterUsageBuffer = NewRegisters;                                                                                                            \
-													}                                                                                                                                                                           \
-												}
+#define VVMAllocRegisterUse(NumRegistersToAlloc, AllocSSA)	if (OptContext->Intermediate.NumRegistersUsed + (NumRegistersToAlloc) >= NumRegisterUsageAlloced)                                                                               \
+															{                                                                                                                                                                               \
+																if (NumRegisterUsageAlloced == 0)                                                                                                                                           \
+																{                                                                                                                                                                           \
+																	NumRegisterUsageAlloced = 512;                                                                                                                                          \
+																}                                                                                                                                                                           \
+																else                                                                                                                                                                        \
+																{                                                                                                                                                                           \
+																	NumRegisterUsageAlloced <<= 1;                                                                                                                                          \
+																}                                                                                                                                                                           \
+																uint16 *NewRegisters = (uint16 *)OptContext->Init.ReallocFn(OptContext->Intermediate.RegisterUsageBuffer, sizeof(uint16) * NumRegisterUsageAlloced, __FILE__, __LINE__);    \
+																uint8  *NewRegType    = (uint8  *)OptContext->Init.ReallocFn(OptContext->Intermediate.RegisterUsageType  , sizeof(uint8 ) * NumRegisterUsageAlloced, __FILE__, __LINE__);   \
+																uint16 *NewSSA        = NULL;                                                                                                                                               \
+																if (AllocSSA) {                                                                                                                                                             \
+																	NewSSA           = (uint16 *)OptContext->Init.ReallocFn(OptContext->Intermediate.SSARegisterUsageBuffer, sizeof(uint16) * NumRegisterUsageAlloced, __FILE__, __LINE__); \
+																}                                                                                                                                                                           \
+																if (NewRegisters == nullptr || NewRegType == nullptr || (AllocSSA && NewSSA == nullptr))                                                                                    \
+																{                                                                                                                                                                           \
+																	return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_RegisterUsage | VVMOptErr_Fatal);                                                        \
+																}                                                                                                                                                                           \
+																else                                                                                                                                                                        \
+																{                                                                                                                                                                           \
+																	OptContext->Intermediate.RegisterUsageBuffer = NewRegisters;                                                                                                            \
+																	OptContext->Intermediate.RegisterUsageType   = NewRegType;                                                                                                              \
+                                                                    if (AllocSSA) {	                                                                	                                                                	                \
+																		OptContext->Intermediate.SSARegisterUsageBuffer = NewSSA;	                                                                	                                    \
+																	}	                                                                	                                                                	                            \
+																}                                                                                                                                                                           \
+															}
+#define VVMPushRegUsage(RegIdx, Type)	VVMAllocRegisterUse(1, false)                                                                                    \
+										if ((Type) == VVM_RT_CONST) {																					 \
+												uint16 RemappedIdx = VectorVMOptimizeRemapConst(OptContext, (RegIdx));                                   \
+												if (OptContext->Error.Flags & VVMOptErr_Fatal)                                                           \
+												{                                                                                                        \
+													return OptContext->Error.Flags;                                                                      \
+												}                                                                                                        \
+												OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = RemappedIdx;   \
+										} else {																										 \
+											OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = (RegIdx);          \
+										}																												 \
+										OptContext->Intermediate.RegisterUsageType  [OptContext->Intermediate.NumRegistersUsed] = (Type);                \
+										++OptContext->Intermediate.NumRegistersUsed;
 
-#define VVMOptimizeWriteRegIndex(OpIpVecIdx, io)	AllocRegisterUse(1);                                                                                                    \
-													if (*OpPtrIn & (1 << OpIpVecIdx))                                                                                       \
+#define VVMOptimizeDecodeRegIdx(OpIpVecIdx, IOFlag)	if (*OpPtrIn & (1 << OpIpVecIdx))                                                                                       \
 													{                                                                                                                       \
-														check((VecIndices[OpIpVecIdx] & 3) == 0);                                                                           \
-														uint16 Idx = (VecIndices[OpIpVecIdx] >> 2);                                                                         \
-														uint16 RemappedIdx = VectorVMOptimizeRemapConst(OptContext, Idx) | 0x8000;                                          \
-														if (OptContext->Error.Flags & VVMOptErr_Fatal)                                                                      \
-														{                                                                                                                   \
-															return OptContext->Error.Flags;                                                                                 \
-														}                                                                                                                   \
 														if (Instruction->Op.NumInputs == 0 && Instruction->Op.NumOutputs == 0)                                              \
 														{                                                                                                                   \
 															Instruction->Op.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;                                       \
 														}                                                                                                                   \
 														++Instruction->Op.NumInputs;                                                                                        \
-														OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = RemappedIdx;              \
+                                                        VVMPushRegUsage(VecIndices[OpIpVecIdx], VVM_RT_CONST);                                                              \
 													} else {                                                                                                                \
 														if (Instruction->Op.NumInputs == 0 && Instruction->Op.NumOutputs == 0)                                              \
 														{                                                                                                                   \
 															Instruction->Op.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;                                       \
 														}                                                                                                                   \
-														if (io)                                                                                                             \
+														if (IOFlag)                                                                                                         \
 														{                                                                                                                   \
 															++Instruction->Op.NumOutputs;                                                                                   \
 														}                                                                                                                   \
@@ -708,25 +599,24 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 														{                                                                                                                   \
 															++Instruction->Op.NumInputs;                                                                                    \
 														}                                                                                                                   \
-														OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = VecIndices[OpIpVecIdx];   \
+                                                        VVMPushRegUsage(VecIndices[OpIpVecIdx], VVM_RT_TEMPREG);                                                            \
 													}                                                                                                                       \
-													++OptContext->Intermediate.NumRegistersUsed;                                                                            \
 													OptContext->Intermediate.NumBytecodeBytes += 2;
 
 
-#define VVMOptimizeVecIns1							VVMOptimizeWriteRegIndex(0, 0);		\
-													VVMOptimizeWriteRegIndex(1, 1);		\
+#define VVMOptimizeVecIns1							VVMOptimizeDecodeRegIdx(0, 0);		\
+													VVMOptimizeDecodeRegIdx(1, 1);		\
 													OpPtrIn += 5;
 
-#define VVMOptimizeVecIns2							VVMOptimizeWriteRegIndex(0, 0);		\
-													VVMOptimizeWriteRegIndex(1, 0);		\
-													VVMOptimizeWriteRegIndex(2, 1);		\
+#define VVMOptimizeVecIns2							VVMOptimizeDecodeRegIdx(0, 0);		\
+													VVMOptimizeDecodeRegIdx(1, 0);		\
+													VVMOptimizeDecodeRegIdx(2, 1);		\
 													OpPtrIn += 7;
 
-#define VVMOptimizeVecIns3							VVMOptimizeWriteRegIndex(0, 0);		\
-													VVMOptimizeWriteRegIndex(1, 0);		\
-													VVMOptimizeWriteRegIndex(2, 0);		\
-													VVMOptimizeWriteRegIndex(3, 1);		\
+#define VVMOptimizeVecIns3							VVMOptimizeDecodeRegIdx(0, 0);		\
+													VVMOptimizeDecodeRegIdx(1, 0);		\
+													VVMOptimizeDecodeRegIdx(2, 0);		\
+													VVMOptimizeDecodeRegIdx(3, 1);		\
 													OpPtrIn += 9;
 	FreeVectorVMOptimizeContext(OptContext);
 	if (InBytecode == nullptr || InBytecodeLen <= 1)
@@ -748,12 +638,13 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 	{
 		OptContext->Init.FreeFn = VVMDefaultFree;
 	}
+	OptContext->Flags              = Flags;
 	OptContext->MaxExtFnUsed       = -1;
 
 	uint32 NumInstructionsAlloced  = 0;
 	uint32 NumBytecodeBytesAlloced = 0;
 	uint32 NumRegisterUsageAlloced = 0;
-	int32  MaxRWBufferUsed         = -1;
+	int32  MaxDataSetIdx           = 0;
 
 	const uint8 *OpPtrIn = InBytecode;
 	const uint8 *OpPtrInEnd = InBytecode + InBytecodeLen;
@@ -761,36 +652,17 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 	//Step 1: Create Intermediate representation of all Instructions
 	while (OpPtrIn < OpPtrInEnd)
 	{
-		//alloc new instruction
-		check(OptContext->Intermediate.NumInstructions <= NumInstructionsAlloced);
-		if (OptContext->Intermediate.NumInstructions >= NumInstructionsAlloced)
-		{
-			if (NumInstructionsAlloced == 0)
-			{
-				NumInstructionsAlloced = 16;
-			}
-			else
-			{
-				NumInstructionsAlloced <<= 1;
-			}
-			FVectorVMOptimizeInstruction *NewInstructions = (FVectorVMOptimizeInstruction *)OptContext->Init.ReallocFn(OptContext->Intermediate.Instructions, sizeof(FVectorVMOptimizeInstruction) * NumInstructionsAlloced, __FILE__, __LINE__);
-			if (NewInstructions == nullptr)
-			{
-				return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_Instructions | VVMOptErr_Fatal);
-			}
-			FMemory::Memset(NewInstructions + OptContext->Intermediate.NumInstructions, 0, sizeof(FVectorVMOptimizeInstruction) * (NumInstructionsAlloced - OptContext->Intermediate.NumInstructions));
-			OptContext->Intermediate.Instructions = NewInstructions;
-		}
-		uint16 *VecIndices	= (uint16 *)(OpPtrIn + 2);
-		EVectorVMOp op		= (EVectorVMOp)*OpPtrIn;
+		uint16 *VecIndices = (uint16 *)(OpPtrIn + 2);
+		EVectorVMOp OpCode = (EVectorVMOp)*OpPtrIn;
 
-		FVectorVMOptimizeInstruction *Instruction = OptContext->Intermediate.Instructions + OptContext->Intermediate.NumInstructions;
-		Instruction->Index                   = OptContext->Intermediate.NumInstructions++;
-		Instruction->OpCode                  = op;
-		Instruction->OpCat                   = GetOpCategoryFromOp(op);
+		FVectorVMOptimizeInstruction *Instruction = VVMPushNewInstruction(OptContext, OpCode, &NumInstructionsAlloced);
+		if (Instruction == nullptr) {
+			return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_Instructions | VVMOptErr_Fatal);
+		}
 		Instruction->PtrOffsetInOrigBytecode = (uint32)(OpPtrIn - InBytecode);
 		OpPtrIn++;
-		switch (op)
+
+		switch (OpCode)
 		{
 			case EVectorVMOp::done:                                                                 break;
 			case EVectorVMOp::add:                                  VVMOptimizeVecIns2;             break;
@@ -880,15 +752,20 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 				uint16 InputRegIdx	= *(uint16 *)(OpPtrIn + 2);
 				uint16 DstRegIdx	= *(uint16 *)(OpPtrIn + 4);
 				
-				AllocRegisterUse(1);
+				if (DataSetIdx > MaxDataSetIdx) {
+					MaxDataSetIdx = DataSetIdx;
+				}
+
+				VVMAllocRegisterUse(1, false);
 				Instruction->Input.DataSetIdx                                                           = DataSetIdx;
 				Instruction->Input.InputIdx                                                             = InputRegIdx;
 				Instruction->Input.DstRegPtrOffset                                                      = OptContext->Intermediate.NumRegistersUsed;
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = DstRegIdx;
-				Instruction->Input.FuseCount                                                            = 0;
-				Instruction->Input.FirstInsInsertIdx                                                    = Instruction->Index;
+				VVMPushRegUsage(DstRegIdx, VVM_RT_TEMPREG);
+				if (OpCode == EVectorVMOp::inputdata_noadvance_float || OpCode == EVectorVMOp::inputdata_noadvance_int32 || OpCode == EVectorVMOp::inputdata_noadvance_half)
+				{
+					++OptContext->NumNoAdvanceInputs;
+				}
 
-				++OptContext->Intermediate.NumRegistersUsed;
 				OpPtrIn += 6;
 			}
 			break;
@@ -903,51 +780,33 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 				uint16 DstRegIdx    = VecIndices[3];
 				check(DataSetIdx < 0xFF);
 				OptContext->NumOutputDataSets = VVM_MAX(OptContext->NumOutputDataSets, (uint32)(DataSetIdx + 1));
-				if (OpType != 0)
-				{
-					SrcReg = VectorVMOptimizeRemapConst(OptContext, SrcReg >> 2) | 0x8000;
-					if (OptContext->Error.Flags & VVMOptErr_Fatal)
-					{
-						return OptContext->Error.Flags;
-					}
+				if (DataSetIdx > MaxDataSetIdx) {
+					MaxDataSetIdx = DataSetIdx;
 				}
 
-				AllocRegisterUse(2)
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 0] = DstIdxRegIdx;
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 1] = SrcReg;
 				Instruction->Output.DataSetIdx          = DataSetIdx;
 				Instruction->Output.RegPtrOffset        = OptContext->Intermediate.NumRegistersUsed;
 				Instruction->Output.DstRegIdx           = DstRegIdx;
-				Instruction->Output.CopyFromInputInsIdx = -1;
-				OptContext->Intermediate.NumRegistersUsed += 2;
+				VVMPushRegUsage(DstIdxRegIdx, VVM_RT_TEMPREG);
+				VVMPushRegUsage(SrcReg, OpType == 0 ? VVM_RT_TEMPREG : VVM_RT_CONST)
 				OpPtrIn += 9;
 			}
 			break;
 			case EVectorVMOp::acquireindex:
 			{
-				uint8 OpType       = *OpPtrIn & 1;							//0: reg, 1: const4
-				uint16 IncMask     = 0;
-				uint16 DataSetIdx  = VecIndices[0];
-				uint16 OutputReg   = VecIndices[2];
-				uint16 InputRegIdx = 0;
-				if (OpType == 0) { //input register
-					InputRegIdx = VecIndices[1];
-					IncMask = 0xFFFF;
-				} else if (OpType == 1) { //input constant
-					uint16 RemappedIdx = VectorVMOptimizeRemapConst(OptContext, VecIndices[1] >> 2);
-					if (OptContext->Error.Flags & VVMOptErr_Fatal) {
-						return OptContext->Error.Flags;
-					}
-					InputRegIdx = (1 << 15) + RemappedIdx;
+				uint8 OpType        = *OpPtrIn & 1;							//0: reg, 1: const4
+				uint16 DataSetIdx   = VecIndices[0];
+				uint16 OutputReg    = VecIndices[2];
+				uint16 InputRegIdx  = VecIndices[1];
+				uint8  InputRegType = VVM_RT_TEMPREG;
+				if (DataSetIdx > MaxDataSetIdx) {
+					MaxDataSetIdx = DataSetIdx;
 				}
 
-				AllocRegisterUse(3);
 				Instruction->IndexGen.DataSetIdx   = DataSetIdx;
 				Instruction->IndexGen.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 0] = InputRegIdx;
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 1] = OutputReg;
-				//OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 2] = 0xFFFF;
-				OptContext->Intermediate.NumRegistersUsed += 2;
+				VVMPushRegUsage(InputRegIdx, OpType == 0 ? VVM_RT_TEMPREG : VVM_RT_CONST);
+				VVMPushRegUsage(OutputReg, VVM_RT_TEMPREG);
 				OpPtrIn += 7;
 			}
 			break;
@@ -961,38 +820,30 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 				Instruction->ExtFnCall.NumInputs    = ExtFnIOData[ExtFnIdx].NumInputs;
 				Instruction->ExtFnCall.NumOutputs   = ExtFnIOData[ExtFnIdx].NumOutputs;
 				
-				AllocRegisterUse(ExtFnIOData[ExtFnIdx].NumInputs + ExtFnIOData[ExtFnIdx].NumOutputs);
+				VVMAllocRegisterUse(ExtFnIOData[ExtFnIdx].NumInputs + ExtFnIOData[ExtFnIdx].NumOutputs, false);
 				for (int i = 0; i < ExtFnIOData[ExtFnIdx].NumInputs; ++i)
 				{
 					if (VecIndices[i] == 0xFFFF)
-					{ //invalid, just write it out
-						OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = 0xFFFF;
+					{
+						VVMPushRegUsage(0xFFFF, VVM_RT_INVALID);
 					}
 					else
 					{
-						if (VecIndices[i] & 0x8000) //register: high bit means input is a register.. the complete opposite behavior of everywhere else.
+						if (VecIndices[i] & 0x8000) //register: high bit means input is a register in the original bytecode
 						{ 
-							uint16 TempRegIdx = VecIndices[i] & 0x7FFF;
-							OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = TempRegIdx;
+							VVMPushRegUsage(VecIndices[i] & 0x7FFF, VVM_RT_TEMPREG);
 						}
 						else //constant
-						{ 
-							uint16 RemappedIdx = VectorVMOptimizeRemapConst(OptContext, (VecIndices[i] & 0x7FFF) >> 2) | 0x8000; //set the constant flag
-							if (OptContext->Error.Flags & VVMOptErr_Fatal)
-							{
-								return OptContext->Error.Flags;																								\
-							}
-							OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = RemappedIdx;
+						{
+							VVMPushRegUsage(VecIndices[i], VVM_RT_CONST);
 						}
 					}
-					++OptContext->Intermediate.NumRegistersUsed;
 				}
 				for (int i = 0; i < ExtFnIOData[ExtFnIdx].NumOutputs; ++i)
 				{
 					int Idx = ExtFnIOData[ExtFnIdx].NumInputs + i;
 					check((VecIndices[Idx] & 0x8000) == 0 || VecIndices[Idx] == 0xFFFF); //can't output to a const... 0xFFFF is invalid
-					OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = VecIndices[Idx];
-					++OptContext->Intermediate.NumRegistersUsed;
+					VVMPushRegUsage(VecIndices[Idx], VVM_RT_TEMPREG);
 				}
 				OptContext->MaxExtFnUsed      = VVM_MAX(OptContext->MaxExtFnUsed, ExtFnIdx);
 				OptContext->MaxExtFnRegisters = VVM_MAX(OptContext->MaxExtFnRegisters, (uint32)(ExtFnIOData[ExtFnIdx].NumInputs + ExtFnIOData[ExtFnIdx].NumOutputs));
@@ -1000,10 +851,10 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			}
 			break;
 			case EVectorVMOp::exec_index:
-				AllocRegisterUse(1);
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed] = *OpPtrIn;
-				Instruction->ExecIndex.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;
-				++OptContext->Intermediate.NumRegistersUsed;
+				Instruction->Op.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;
+				Instruction->Op.NumInputs    = 0;
+				Instruction->Op.NumOutputs   = 1;
+				VVMPushRegUsage(*OpPtrIn, VVM_RT_TEMPREG);
 				OpPtrIn += 2;
 				break;
 			case EVectorVMOp::noise2D:                              check(false);               break;
@@ -1017,14 +868,15 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 				uint16 DataSetIdx = ((uint16 *)OpPtrIn)[0];
 				uint16 IDIdxReg = ((uint16 *)OpPtrIn)[1];
 				uint16 IDTagReg = ((uint16 *)OpPtrIn)[2];
-				
-				AllocRegisterUse(2);
+
+				if (DataSetIdx > MaxDataSetIdx) {
+					MaxDataSetIdx = DataSetIdx;
+				}
+			
 				Instruction->RWBuffer.DataSetIdx   = DataSetIdx;
 				Instruction->RWBuffer.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 0] = IDIdxReg;
-				OptContext->Intermediate.RegisterUsageBuffer[OptContext->Intermediate.NumRegistersUsed + 1] = IDTagReg;
-				OptContext->Intermediate.NumRegistersUsed += 2;
-				MaxRWBufferUsed = VVM_MAX(MaxRWBufferUsed, DataSetIdx);
+				VVMPushRegUsage(IDIdxReg, VVM_RT_TEMPREG);
+				VVMPushRegUsage(IDTagReg, VVM_RT_TEMPREG);
 				OpPtrIn += 6;
 			} break;
 			default:												check(false);			     break;
@@ -1081,34 +933,22 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		}
 	}
 	
-	{ //Step 4: Setup additional buffers
-		{ //setup SSA register buffer
-			OptContext->Intermediate.SSARegisterUsageBuffer = (uint16 *)OptContext->Init.ReallocFn(nullptr, sizeof(uint16) * OptContext->Intermediate.NumRegistersUsed, __FILE__, __LINE__); //upper bound, it can't possibly take more than this
-			if (OptContext->Intermediate.SSARegisterUsageBuffer == nullptr)
-			{
-				return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_InputFuseBuffer | VVMOptErr_Fatal);
-			}
-			FMemory::Memcpy(OptContext->Intermediate.SSARegisterUsageBuffer, OptContext->Intermediate.RegisterUsageBuffer, sizeof(uint16) * OptContext->Intermediate.NumRegistersUsed);
-		}
-
-		{ //Setup input fuse buffer
-			OptContext->Intermediate.InputRegisterFuseBuffer = (int32 *)OptContext->Init.ReallocFn(nullptr, sizeof(int32) * OptContext->Intermediate.NumRegistersUsed, __FILE__, __LINE__);
-			if (OptContext->Intermediate.InputRegisterFuseBuffer == nullptr)
-			{
-				return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_InputFuseBuffer | VVMOptErr_Fatal);
-			}
-			for (uint32 i = 0; i < OptContext->Intermediate.NumRegistersUsed; ++i)
-			{
-				OptContext->Intermediate.InputRegisterFuseBuffer[i] = -1;
-			}
+	{ //Step 4: Setup SSA register buffer
+		OptContext->Intermediate.SSARegisterUsageBuffer = (uint16 *)OptContext->Init.ReallocFn(nullptr, sizeof(uint16) * NumRegisterUsageAlloced, __FILE__, __LINE__); //alloc as many are as allocated, not used because we can inject instructions later
+		if (OptContext->Intermediate.SSARegisterUsageBuffer == nullptr)
+		{
+			return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_InputFuseBuffer | VVMOptErr_Fatal);
 		}
 	}
+
 
 	uint16 NumSSARegistersUsed = 0;
 	bool Step6_InstructionsRemovedRun = false;
 
 	{ //Step 5: SSA-like renaming of temp registers
 	Step5_SSA:
+		FMemory::Memcpy(OptContext->Intermediate.SSARegisterUsageBuffer, OptContext->Intermediate.RegisterUsageBuffer, sizeof(uint16) * OptContext->Intermediate.NumRegistersUsed);
+
 		NumSSARegistersUsed = 0;
 		FVectorVMOptimizeInsRegUsage InputInsRegUse;
 		FVectorVMOptimizeInsRegUsage OutputInsRegUse;
@@ -1118,12 +958,13 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		{
 			FVectorVMOptimizeInstruction *OutputIns = OptContext->Intermediate.Instructions + OutputInsIdx;
 			GetRegistersUsedForInstruction(OptContext, OutputIns, &OutputInsRegUse);
-
 			//loop over each instruction's output
 			for (int j = 0; j < OutputInsRegUse.NumOutputRegisters; ++j)
 			{
-				uint16 OutReg = OptContext->Intermediate.RegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]];
-				if (OutReg != 0xFFFF) {
+				uint16 RegIdx  = OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j];
+				uint16 OutReg  = OptContext->Intermediate.RegisterUsageBuffer[RegIdx];
+				uint8  RegType = OptContext->Intermediate.RegisterUsageType[RegIdx];
+				if (OutReg != 0xFFFF && RegType == VVM_RT_TEMPREG) {
 					OptContext->Intermediate.SSARegisterUsageBuffer[OutputInsRegUse.RegIndices[OutputInsRegUse.NumInputRegisters + j]] = SSARegCount;
 					int LastUsedAsInputInsIdx = -1;
 					//check each instruction's output with the input of every instruction that follows it
@@ -1152,34 +993,24 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 							{
 								if (InputIns->OpCat == EVectorVMOpCategory::Output)
 								{
-									if (InputIns->OpCode != EVectorVMOp::copy_to_output)
+									if (OutputIns->OpCode == EVectorVMOp::acquireindex)
 									{
-										if (OutputIns->OpCode == EVectorVMOp::acquireindex)
+										if (j == ii)
 										{
-											if (j == ii)
-											{
-												//We're only comparing acquireindex's output 0 with the output instructions input 0
-												//or acquireindex's output 1 with the output instructions input 1.
-												//This is because acquireindex's output 0 is the actual index that the output will write to
-												//acquireindex's output 1 is the previous VM's acquireindex's output... this means that if
-												//the output instruction is writing the generated index, it needs to write the *PREVIOUS VM's*
-												//output, since somewhere else in the engine is expecting it... however if the output instruction
-												//is using it as the index to write, we use the new VM since it's optimized for writing.
-												check(j == 0);
-												//if this assert hits it means that the output of the acquireindex is being written to a buffer...
-												//on Dec 6, 2021 I asked about this in the #niagara-cpuvm-optimizations channel on slack and
-												//at the time there was no way to hook up nodes to create this output... I was also informed
-												//it was unlikly that this would ever be possible... so if this assert triggered either this feature
-												//was added, or there's a bug.  It *COULD* work just fine, it's just never been tested.
-												OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset + j] = SSARegCount;
-												LastUsedAsInputInsIdx = InputInsIdx;
-											}
-										}
-										else
-										{
-											OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset + 1] = SSARegCount;
+											check(j == 0);
+											//if this assert hits it means that the output of the acquireindex is being written to a buffer...
+											//on Dec 6, 2021 I asked about this in the #niagara-cpuvm-optimizations channel on slack and
+											//at the time there was no way to hook up nodes to create this output... I was also informed
+											//it was unlikly that this would ever be possible... so if this assert triggered either this feature
+											//was added, or there's a bug.
+											OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset + j] = SSARegCount;
 											LastUsedAsInputInsIdx = InputInsIdx;
 										}
+									}
+									else
+									{
+										OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Output.RegPtrOffset + 1] = SSARegCount;
+										LastUsedAsInputInsIdx = InputInsIdx;
 									}
 								}
 								else
@@ -1209,9 +1040,8 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		if (SSARegCount >= 0xFFFF) {
 			return VectorVMOptimizerSetError(OptContext, VVMOptErr_SSARemap | VVMOptErr_Overflow);
 		}
-		NumSSARegistersUsed = SSARegCount + 1;
+		NumSSARegistersUsed = SSARegCount;
 	}
-
 
 	if (1 && !Step6_InstructionsRemovedRun) { //Step 6: remove instructions where outputs are never used 
 		int NumRemovedInstructions = 0;
@@ -1237,10 +1067,13 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 							GetRegistersUsedForInstruction(OptContext, OptContext->Intermediate.Instructions + j, &RegUsage2);
 							for (int k = 0; k < RegUsage2.NumInputRegisters; ++k)
 							{
-								uint16 RegIdx2 = OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage2.RegIndices[k]];
-								if (RegIdx == RegIdx2)
+								if (OptContext->Intermediate.RegisterUsageType[RegUsage2.RegIndices[k]] == VVM_RT_TEMPREG)
 								{
-									goto InstructionRequired;
+									uint16 RegIdx2 = OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage2.RegIndices[k]];
+									if (RegIdx == RegIdx2)
+									{
+										goto InstructionRequired;
+									}
 								}
 							}
 						}
@@ -1250,7 +1083,8 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 						++NumRemovedInstructionsThisTime;
 						++NumRemovedInstructions;
 						--OptContext->Intermediate.NumInstructions;
-						--i;
+						//--i;
+						i = 0;
 					}
 					InstructionRequired: ;
 				}
@@ -1270,148 +1104,90 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 	}
 
 	int OnePastLastInputIdx = -1;
-	{ //Step 7: Input Fusing
-		//gather all input instructions can be fused
+	{ //Step 7: change temp registers that come directly from inputs to the input index
+		FVectorVMOptimizeInsRegUsage RegUsage;
 		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 		{
 			FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + i;
-			if (InputIns->OpCode == EVectorVMOp::inputdata_float || InputIns->OpCode == EVectorVMOp::inputdata_int32) //half and no advance ops can't fuse
-			{ 
-				OnePastLastInputIdx = i + 1;
-				bool InputOpCanFuse = true;
-				InputIns->Input.FirstInsInsertIdx = -1;
-				for (uint32 j = i + 1; j < OptContext->Intermediate.NumInstructions; ++j)
-				{
-					FVectorVMOptimizeInstruction *Ins_j = OptContext->Intermediate.Instructions + j;
-					switch (Ins_j->OpCat)
-					{
-						case EVectorVMOpCategory::Input: //make sure there isn't an instruction that overwrites this input.  If this happens then this is a useless input
-							if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->Input.DstRegPtrOffset])
-							{
-								//check(false);
-								//This shouldn't happen.  I left the check() in for a while and it never fired.  I could probably remove this code, but maybe it'll help in debugging later
-								//I don't expect this check() will ever hit, but if something's going screwy with the input fusing maybe the compiler is generating 2 inputs that overwrite
-								//each other and that's causing an issue somewhere down the line, try uncommenting this check() and maybe it'll fire and give some insight... like I said
-								//though, I've never seen this check hit.
-							}
-							break;
-						case EVectorVMOpCategory::Output:
-							if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->Output.RegPtrOffset + 1])
-							{
-								if (Ins_j->OpCode != EVectorVMOp::outputdata_half) {
-									++InputIns->Input.FuseCount;
-									check(InputIns->Index == i); //make sure the instruction is in its correct place.  Instructions could have moved, but this should have been corrected above.
-									Ins_j->Output.CopyFromInputInsIdx = i;
-								}
-							}
-							break;
-						case EVectorVMOpCategory::Op: {
-							uint16 *Registers = OptContext->Intermediate.SSARegisterUsageBuffer + Ins_j->Op.RegPtrOffset;
-							//check to see if this matches an input
-							int NumInputsToCheck = Ins_j->Op.NumInputs;
-							if (NumInputsToCheck > 3)
-							{
-								NumInputsToCheck = 3;
-							}
-							for (int k = 0; k < NumInputsToCheck; ++k)
-							{
-								if (Registers[k] == OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset])
-								{
-									//This input and operation are fusable
-									OptContext->Intermediate.InputRegisterFuseBuffer[Ins_j->Op.RegPtrOffset + k] = i;
-									Ins_j->Op.InputFuseBits |= (1 << k);
-									++InputIns->Input.FuseCount;
-								}
-							}
-							if (Ins_j->Op.NumInputs > 3) //we can only fuse the first 3 inputs, after that we need to have an explicit input instruction
-							{
-								for (int k = 3; k < Ins_j->Op.NumInputs; ++k)
-								{
-									if (Registers[k] == OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset])
-									{
-										InputIns->Input.FirstInsInsertIdx = InputIns->Input.FirstInsInsertIdx == -1 ? ((int)j - 1) : VVM_MIN(InputIns->Input.FirstInsInsertIdx, (int)j - 1);
-									}
-								}
-							}
-							for (int k = 0; k < Ins_j->Op.NumOutputs; ++k)
-							{
-								if (Registers[Ins_j->Op.NumInputs + k] == OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset])
-								{
-									//this register is used as an output... therefore it's no longer a canditate for input fusing and we need to stop checking
-									InputOpCanFuse = false;
-								}
-							}
-						}	break;
-						case EVectorVMOpCategory::ExtFnCall: 
-							//we don't allow input op fusing on external functions (yet? may be worth doing maybe? we'd have to change the FVectorVMExternalFunctionContext::DecodeNextRegister function to check for fused inputs)
-							//we do however need to check to see if the function uses the potential register as an output... in this case we need to stop because we can no longer fuse the input
-							//as the register the input copies to is no longer valid
-							for (int k = 0; k < Ins_j->ExtFnCall.NumInputs; ++k)
-							{
-								if (OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->Op.RegPtrOffset + k] == OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset])
-								{
-									InputIns->Input.FirstInsInsertIdx = InputIns->Input.FirstInsInsertIdx == -1 ? ((int)j - 1) : VVM_MIN(InputIns->Input.FirstInsInsertIdx, (int)j - 1);
-								}
-							}
-							for (int k = 0; k < Ins_j->ExtFnCall.NumOutputs; ++k)
-							{
-								if (OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->Op.RegPtrOffset + Ins_j->ExtFnCall.NumInputs + k] == OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset])
-								{
-									InputOpCanFuse = false;
-									break;
-								}
-							}
-							break;
-						case EVectorVMOpCategory::IndexGen: //can't fuse to index gen
-							if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->IndexGen.RegPtrOffset])
-							{
-								InputIns->Input.FirstInsInsertIdx = InputIns->Input.FirstInsInsertIdx == -1 ? ((int)j - 1) : VVM_MIN(InputIns->Input.FirstInsInsertIdx, (int)j - 1);
-							} 
-							else if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->IndexGen.RegPtrOffset + 1])
-							{
-								InputOpCanFuse = false;
-							}
-							break;
-						case EVectorVMOpCategory::ExecIndex:
-							if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->ExecIndex.RegPtrOffset])
-							{
-								InputOpCanFuse = false; //exec_index is output only, so this register is being overwritten.
-							}
-							break;
-						case EVectorVMOpCategory::RWBuffer:
-							if (Ins_j->OpCode == EVectorVMOp::update_id) //update_id is input only, acquire_id is output only
-							{
-								if (OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->RWBuffer.RegPtrOffset + 0] ||
-									OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins_j->RWBuffer.RegPtrOffset + 1])
-								{
-									InputIns->Input.FirstInsInsertIdx = InputIns->Input.FirstInsInsertIdx == -1 ? ((int)j - 1) : VVM_MIN(InputIns->Input.FirstInsInsertIdx, (int)j - 1); //no fusing inputs to update_id... for no particular reason.  It's just more complicated and not really necessary.  If we find it's useful I can add it
-								}
-							}
-							break;
-						case EVectorVMOpCategory::Stat:
-							break;
-						case EVectorVMOpCategory::Other:
-							if (!(Ins_j->OpCode == EVectorVMOp::done || Ins_j->OpCode == EVectorVMOp::noise2D || Ins_j->OpCode == EVectorVMOp::noise3D)) {
-								return VectorVMOptimizerSetError(OptContext, VVMOptErr_Instructions);
-							}
-							break;
-					}
-					if (!InputOpCanFuse)
-					{
+			if (InputIns->OpCat != EVectorVMOpCategory::Input)
+			{
+				continue;
+			}
+			OnePastLastInputIdx = i + 1;
+			uint16 InputSSARegIdx = OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset];
+
+			for (uint32 j = i + 1; j < OptContext->Intermediate.NumInstructions; ++j)
+			{
+				FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + j;
+				switch (Ins->OpCat) {
+					case EVectorVMOpCategory::Input: //intentional fallthrough
+					case EVectorVMOpCategory::Other: //intentional fallthrough
+					case EVectorVMOpCategory::Stat:
 						break;
-					}
+					case EVectorVMOpCategory::Output:
+						if (OptContext->Intermediate.RegisterUsageType[Ins->Output.RegPtrOffset + 1] == VVM_RT_TEMPREG && 
+							OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins->Output.RegPtrOffset + 1])
+						{
+							check(InputIns->Index == i); //make sure the instruction is in its correct place.  Instructions could have moved, but this should have been corrected above.
+							OptContext->Intermediate.SSARegisterUsageBuffer[Ins->Output.RegPtrOffset + 1] = InputIns->Index;
+							OptContext->Intermediate.RegisterUsageType[Ins->Output.RegPtrOffset + 1]      = VVM_RT_INPUT;
+						}
+					break;
+					default:
+					{
+						int NumRegs = GetRegistersUsedForInstruction(OptContext, Ins, &RegUsage);
+						for (int k = 0; k < RegUsage.NumInputRegisters; ++k) {
+							uint16 RegPtrOffset = RegUsage.RegIndices[k];
+							uint16 SSAIdx       = OptContext->Intermediate.SSARegisterUsageBuffer[RegPtrOffset];
+							if (SSAIdx == InputSSARegIdx && OptContext->Intermediate.RegisterUsageType[RegPtrOffset] == VVM_RT_TEMPREG)
+							{
+								if (InputIns->OpCode == EVectorVMOp::inputdata_half || InputIns->OpCode == EVectorVMOp::inputdata_noadvance_half) {
+									//this instruction is coming directly from a half instruction, so inject a half_to_float instruction here, set the correct registers and SSA registers
+									FVectorVMOptimizeInstruction *NewIns = VVMPushNewInstruction(OptContext, EVectorVMOp::half_to_float, &NumInstructionsAlloced);
+									if (NewIns == nullptr) {
+										return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_Instructions | VVMOptErr_Fatal);
+									}
+									NewIns->Op.RegPtrOffset = OptContext->Intermediate.NumRegistersUsed;
+									NewIns->Op.NumInputs    = 1;
+									NewIns->Op.NumOutputs   = 1;
+
+									uint32 PrevNumRegistersAlloced = NumRegisterUsageAlloced;
+
+									VVMPushRegUsage(InputIns->Index, VVM_RT_INPUT);
+									VVMPushRegUsage(OptContext->Intermediate.RegisterUsageType[RegPtrOffset], VVM_RT_TEMPREG);
+									if (NumRegisterUsageAlloced > PrevNumRegistersAlloced) {
+										OptContext->Intermediate.SSARegisterUsageBuffer = (uint16 *)OptContext->Init.ReallocFn(OptContext->Intermediate.SSARegisterUsageBuffer, sizeof(uint16) * NumRegisterUsageAlloced, __FILE__, __LINE__);
+										if (OptContext->Intermediate.SSARegisterUsageBuffer == nullptr) {
+											return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_Instructions | VVMOptErr_Fatal);
+										}
+									}
+									OptContext->Intermediate.SSARegisterUsageBuffer[NewIns->Op.RegPtrOffset]     = InputIns->Index;
+									OptContext->Intermediate.SSARegisterUsageBuffer[NewIns->Op.RegPtrOffset + 1] = OptContext->Intermediate.SSARegisterUsageBuffer[RegPtrOffset];
+
+									FVectorVMOptimizeInstruction TempIns = *NewIns;
+
+									//move the instruction into the correct place
+									FMemory::Memmove(Ins + 1, Ins, sizeof(FVectorVMOptimizeInstruction) * (OptContext->Intermediate.NumInstructions - j));
+									*Ins = TempIns;
+									++j;
+								} else {
+									OptContext->Intermediate.SSARegisterUsageBuffer[RegPtrOffset] = InputIns->Index;
+									OptContext->Intermediate.RegisterUsageType[RegPtrOffset]      = VVM_RT_INPUT;
+								}
+							}
+						}
+					} break;
 				}
 			}
 		}
-		//skip the stat instructions after the inputs
-		if (OnePastLastInputIdx == -1)
-		{
+		if (OnePastLastInputIdx == -1) {
 			OnePastLastInputIdx = 0;
 		}
 		while (OnePastLastInputIdx != -1 && OptContext->Intermediate.NumInstructions != 0 && (uint32)OnePastLastInputIdx < OptContext->Intermediate.NumInstructions - 1 && OptContext->Intermediate.Instructions[OnePastLastInputIdx].OpCat == EVectorVMOpCategory::Stat)
 		{
 			++OnePastLastInputIdx;
 		}
+
 	}
 	 
 	if (1) { //instruction re-ordering
@@ -1420,8 +1196,6 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		{
 			return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_InstructionReOrder | VVMOptErr_Fatal);
 		}
-		VVMOptRAIIPtrToFree RegStackRAII(OptContext, RegToCheckStack);
-
 		int *InstructionIdxStack = RegToCheckStack + OptContext->Intermediate.NumRegistersUsed;
 		int LowestInstructionIdxForAcquireIdx = OnePastLastInputIdx; //acquire index instructions will be sorted by whichever comes first in the IR... possibly worth checking if re-ordering is more efficient
 
@@ -1463,53 +1237,11 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			//in this situation the output data will not match between two datasets.. ie: instance0 in dataset0 will not be correlated to instance0 in dataset1.  If they were running single threaded that wouldn't happen.
 		}
 
-		if (1) { //Step 10: Find all update_id instructions and re-order them to be just after their inputs
-			FVectorVMOptimizeInsRegUsage RegUsage;
-			for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
-			{
-				FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
-				if (Ins->OpCode == EVectorVMOp::update_id)
-				{
-					uint32 InsertionIdx = 0xFFFFFFFF;
-					GetRegistersUsedForInstruction(OptContext, Ins, &RegUsage);
-					check(RegUsage.NumInputRegisters == 2);
-					uint16 UpdateIdxReg[2] = { OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage.RegIndices[0]], OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage.RegIndices[1]] };
-					for (uint32 j = 0; j < i; ++j)
-					{
-						if (OptContext->Intermediate.Instructions[j].OpCode == EVectorVMOp::acquire_id && OptContext->Intermediate.Instructions[j].RWBuffer.DataSetIdx == Ins->RWBuffer.DataSetIdx)
-						{
-							InsertionIdx = j + 1; //update_id must come after the acquire_id for the same DataSet
-						}
-						else
-						{
-							GetRegistersUsedForInstruction(OptContext, OptContext->Intermediate.Instructions + j, &RegUsage);
-							for (int k = 0; k < RegUsage.NumOutputRegisters; ++k)
-							{
-								uint16 RegIdx = OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage.RegIndices[RegUsage.NumInputRegisters + k]];
-								if (RegIdx == UpdateIdxReg[0] || RegIdx == UpdateIdxReg[1])
-								{
-									InsertionIdx = j + 1;
-								}
-							}
-						}
-					}
-					if (InsertionIdx != 0xFFFFFFFF && InsertionIdx + 2 < i)
-					{
-						 FVectorVMOptimizeInstruction TempIns = OptContext->Intermediate.Instructions[i];
-						 FMemory::Memmove(OptContext->Intermediate.Instructions + InsertionIdx + 1,
-							 OptContext->Intermediate.Instructions + InsertionIdx,
-							 sizeof(FVectorVMOptimizeInstruction) * (i - InsertionIdx));
-						 OptContext->Intermediate.Instructions[InsertionIdx] = TempIns;
-					}
-				}
-			}
-		}
-
 		if (1) { //Step 11: re-order the outputs to be done as early as possible: after the SSA's register's last usage
 			for (uint32 OutputInsIdx = 0; OutputInsIdx < OptContext->Intermediate.NumInstructions; ++OutputInsIdx)
 			{
 				FVectorVMOptimizeInstruction *OutputIns = OptContext->Intermediate.Instructions + OutputInsIdx;
-				if (OutputIns->OpCat == EVectorVMOpCategory::Output && OutputIns->Output.CopyFromInputInsIdx == -1)
+				if (OutputIns->OpCat == EVectorVMOpCategory::Output)
 				{
 					uint32 OutputInsertionIdx = 0xFFFFFFFF;
 					bool FoundAcquireIndex = false;
@@ -1520,7 +1252,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 						FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
 						FVectorVMOptimizeInsRegUsage RegUsage;
 						int NumRegisters = GetRegistersUsedForInstruction(OptContext, Ins, &RegUsage);
-						if (((Ins->OpCat == EVectorVMOpCategory::Input && Ins->Input.FirstInsInsertIdx != -1) || Ins->OpCat != EVectorVMOpCategory::Input) && Ins->OpCat != EVectorVMOpCategory::Output) {
+						{ //if (((Ins->OpCat == EVectorVMOpCategory::Input && Ins->Input.FirstInsInsertIdx != -1) || Ins->OpCat != EVectorVMOpCategory::Input) && Ins->OpCat != EVectorVMOpCategory::Output) {
 							for (int j = 0; j < RegUsage.NumOutputRegisters; ++j)
 							{
 								if (OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage.RegIndices[RegUsage.NumInputRegisters + j]] == IdxReg)
@@ -1598,182 +1330,20 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 				}
 			}
 		}
-		if (1)
-		{ //Step 13: re-order all inputs to directly before they're used
-			FVectorVMOptimizeInsRegUsage RegUsage;
-			for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
-			{
-				FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + i;
-				if (InputIns->OpCat == EVectorVMOpCategory::Input)
-				{
-					uint16 InputReg = OptContext->Intermediate.SSARegisterUsageBuffer[InputIns->Input.DstRegPtrOffset];
-					if (InputIns->Input.FirstInsInsertIdx != -1)
-					{
-						for (uint32 j = i + 1; j < OptContext->Intermediate.NumInstructions; ++j)
-						{
-							bool MoveInputHere = false;
 
-							FVectorVMOptimizeInstruction *OpIns = OptContext->Intermediate.Instructions + j;
-							if (OpIns->OpCat == EVectorVMOpCategory::Output && OpIns->Output.CopyFromInputInsIdx == i)
-							{
-								MoveInputHere = true;
-							}
-							else
-							{
-								GetRegistersUsedForInstruction(OptContext, OpIns, &RegUsage);
-								for (int k = 0; k < RegUsage.NumInputRegisters; ++k)
-								{
-									if (OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage.RegIndices[k]] == InputReg)
-									{
-										MoveInputHere = true;
-										break;
-									}
-								}
-							}
-
-							if (MoveInputHere)
-							{
-								if (j > i + 1)
-								{
-									int NewInputIndex = j - 1;
-									FVectorVMOptimizeInstruction TempIns = *InputIns;
-									FMemory::Memmove(InputIns, InputIns + 1, sizeof(FVectorVMOptimizeInstruction) * (j - i - 1));
-									OptContext->Intermediate.Instructions[NewInputIndex] = TempIns;
-									bool ReorderingInputs = true;
-									//if we're only moving this instruction before inputs then we'll get into an infinite loop just re-ordering
-									//inputs around each other.  Check for that and skip all these if that's the case
-									check(i < j);
-									for (uint32 k = i; k < j; ++k)
-									{
-										if (OptContext->Intermediate.Instructions[k].OpCat != EVectorVMOpCategory::Input)
-										{
-											ReorderingInputs = false;
-										}
-									}
-									if (!ReorderingInputs)
-									{
-										--i;
-									}
-								}
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	{ //Step 14: if we re-ordered inputs, the CopyFromInputInsIdx on output instructions could be wrong.  Go fix those
-		for (uint32 OutputInsIdx = 0; OutputInsIdx < OptContext->Intermediate.NumInstructions; ++OutputInsIdx)
-		{
-			FVectorVMOptimizeInstruction *OutputIns = OptContext->Intermediate.Instructions + OutputInsIdx;
-			if (OutputIns->OpCat == EVectorVMOpCategory::Output && OutputIns->Output.CopyFromInputInsIdx != -1)
-			{
-				check(OutputIns->OpCode != EVectorVMOp::outputdata_half);
-				FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + OutputIns->Output.CopyFromInputInsIdx;
-				if (InputIns->Index != OutputIns->Output.CopyFromInputInsIdx)
-				{
-					for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i) {
-						FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
-						if (Ins->Index == OutputIns->Output.CopyFromInputInsIdx) {
-							check(Ins->OpCat == EVectorVMOpCategory::Input);
-							check(Ins->OpCode != EVectorVMOp::inputdata_half);
-							uint8 InputRegType  = (uint8)Ins->OpCode - (uint8)EVectorVMOp::inputdata_float;
-							uint8 OutputRegType = (uint8)OutputIns->OpCode - (uint8)EVectorVMOp::outputdata_float;
-							check(InputRegType == OutputRegType);
-							OutputIns->Output.CopyFromInputInsIdx = (int)i;
-							break;
-						}
-					}
-				}
-			}
-		}
+		OptContext->Init.FreeFn(RegToCheckStack, __FILE__, __LINE__);
 	}
 
-
-
-	{ //Step 15: make sure all the copy-to-output instructions are grouped together
-		int FirstCopyFromInputInsIdx = -1;
-		int LastCopyFromInputInsIdx = -1;
-		//when the copy-to-output instructions get written to the bytecode they'll get grouped into as few instructions as possible
-		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
-		{
-			if (OptContext->Intermediate.Instructions[i].OpCat == EVectorVMOpCategory::Output && OptContext->Intermediate.Instructions[i].Output.CopyFromInputInsIdx != -1)
-			{
-				if (FirstCopyFromInputInsIdx == -1)
-				{
-					FirstCopyFromInputInsIdx = i;
-				}
-				LastCopyFromInputInsIdx = i;
-			}
-		}
-		//if there's a gap, move the non-copy-to-output instruction to before the copies
-		if (FirstCopyFromInputInsIdx < LastCopyFromInputInsIdx - 1)
-		{
-			for (int i = FirstCopyFromInputInsIdx; i < LastCopyFromInputInsIdx; ++i)
-			{
-				FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
-				if (Ins->OpCat != EVectorVMOpCategory::Output || Ins->Output.CopyFromInputInsIdx == -1)
-				{
-					FVectorVMOptimizeInstruction TempIns = *Ins;
-					FMemory::Memmove(OptContext->Intermediate.Instructions + FirstCopyFromInputInsIdx + 1, OptContext->Intermediate.Instructions + FirstCopyFromInputInsIdx, sizeof(FVectorVMOptimizeInstruction) * (i - FirstCopyFromInputInsIdx));
-					OptContext->Intermediate.Instructions[FirstCopyFromInputInsIdx] = TempIns;
-
-					// if the moved instruction was an input we need to find all subsequent output ops and correct
-					// their CopyFromInputInsIdx (as necessary)
-					if (TempIns.OpCat == EVectorVMOpCategory::Input)
-					{
-						for (uint32 j = FirstCopyFromInputInsIdx + 1; j < OptContext->Intermediate.NumInstructions; ++j)
-						{
-							FVectorVMOptimizeInstruction* DownstreamIns = OptContext->Intermediate.Instructions + j;
-							if (DownstreamIns->OpCat == EVectorVMOpCategory::Output && DownstreamIns->Output.CopyFromInputInsIdx == i)
-							{
-								DownstreamIns->Output.CopyFromInputInsIdx = FirstCopyFromInputInsIdx;
-							}
-						}
-					}
-
-					++FirstCopyFromInputInsIdx;
-				}
-			}
-		}
-
-		const int32 NumCopyInstructions = LastCopyFromInputInsIdx - FirstCopyFromInputInsIdx + 1;
-		if (NumCopyInstructions > 1)
-		{  // small list, very stupid bubble sort
-			bool sorted = false;
-			while (!sorted)
-			{
-				sorted = true;
-				for (int i = 0; i < NumCopyInstructions - 1; ++i)
-				{
-					FVectorVMOptimizeInstruction *Ins0 = OptContext->Intermediate.Instructions + FirstCopyFromInputInsIdx + i;
-					FVectorVMOptimizeInstruction *Ins1 = Ins0 + 1;
-					uint64 Key0 = VVMCopyToOutputInsGetSortKey(OptContext->Intermediate.Instructions, Ins0);
-					uint64 Key1 = VVMCopyToOutputInsGetSortKey(OptContext->Intermediate.Instructions, Ins1);
-
-					if (Key1 < Key0)
-					{
-						FVectorVMOptimizeInstruction Temp = *Ins0;
-						*Ins0 = *Ins1;
-						*Ins1 = Temp;
-						sorted = false;
-					}
-				}
-			}
-		}
-	}
-
-	{ //Step 16: group and sort all regular output instructions
+	{ //Step 16: group and sort all output instructions
 		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 		{
 			FVectorVMOptimizeInstruction *InsStart = OptContext->Intermediate.Instructions + i;
-			if (InsStart->OpCat == EVectorVMOpCategory::Output && InsStart->Output.CopyFromInputInsIdx == -1)
+			if (InsStart->OpCat == EVectorVMOpCategory::Output)
 			{
 				for (uint32 j = i + 1; j < OptContext->Intermediate.NumInstructions; ++j)
 				{
 					FVectorVMOptimizeInstruction *InsEnd = OptContext->Intermediate.Instructions + j;
-					if (InsEnd->OpCat != EVectorVMOpCategory::Output || InsEnd->Output.CopyFromInputInsIdx != -1)
+					if (InsEnd->OpCat != EVectorVMOpCategory::Output)
 					{
 						if (j - i > 1)
 						{
@@ -1810,33 +1380,959 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		}
 	}
 
-
-	{ //Step 17: correct the register fuse buffer and output copy input indices to make sure the instruction indices match re-ordered inputs
-		int32 *TempInputRegisterFuseBuffer = (int32 *)OptContext->Init.ReallocFn(nullptr, sizeof(int32) * OptContext->Intermediate.NumRegistersUsed, __FILE__, __LINE__);
-		if (TempInputRegisterFuseBuffer == nullptr)
+	bool ChangedMergedIns = false;
+	if (1)
+	{ //Step whatever: figure out which instructions can be fused
+		struct FFusableOp
 		{
-			return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_InputFuseBuffer | VVMOptErr_Fatal);
-		}
-		VVMOptRAIIPtrToFree RegStackRAII(OptContext, TempInputRegisterFuseBuffer);
-		FMemory::Memcpy(TempInputRegisterFuseBuffer, OptContext->Intermediate.InputRegisterFuseBuffer, sizeof(int32) * OptContext->Intermediate.NumRegistersUsed);
+			uint32		InsIdx0;
+			uint32		InsIdx1;
+			int         Type;
+		};
+		TArray<FFusableOp> FusableOps;
 
-		for (uint32 InputInsIdx = 0; InputInsIdx < OptContext->Intermediate.NumInstructions; ++InputInsIdx)
+		FVectorVMOptimizeInsRegUsage InsRegUse;
+		FVectorVMOptimizeInsRegUsage InsRegUse2;
+		FVectorVMOptimizeInsRegUsage InsRegUse3;
+		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 		{
-			FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + InputInsIdx;
-			if (InputIns->OpCat == EVectorVMOpCategory::Input && InputIns->Index != InputInsIdx) //only worry about instructions that are not in their original place
+			FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
+			GetRegistersUsedForInstruction(OptContext, Ins, &InsRegUse);
+
+			int InsFuseIdx = -1;
+			if (Ins->OpCode == EVectorVMOp::exec_index)
 			{
-				//fixup register fuse buffer
-				for (uint32 i = 0; i < OptContext->Intermediate.NumRegistersUsed; ++i)
+				//check to see if exec index can fuse to specific ops
+				uint16 ExecSSARegIdx = OptContext->Intermediate.SSARegisterUsageBuffer[Ins->Op.RegPtrOffset];
+				for (uint32 j = i + 1; j < OptContext->Intermediate.NumInstructions; ++j)
 				{
-					if (TempInputRegisterFuseBuffer[i] == InputIns->Index)
+					FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + j;
+					GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
+					for (int k = 0; k < InsRegUse2.NumInputRegisters; ++k)
 					{
-						OptContext->Intermediate.InputRegisterFuseBuffer[i] = InputInsIdx;
+						uint16 InputSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]];
+						if (InputSSAReg == ExecSSARegIdx)
+						{
+							if (Ins2->OpCode == EVectorVMOp::i2f || Ins2->OpCode == EVectorVMOp::addi)
+							{
+								if (InsFuseIdx == -1)
+								{
+									InsFuseIdx = (int)j;
+									break;
+								}
+								else
+								{
+									InsFuseIdx = -1;
+									goto ExecIdxCannotFuse;
+								}
+							}
+							else
+							{
+								InsFuseIdx = -1;
+								goto ExecIdxCannotFuse;
+							}
+						}
+					}
+				}
+				if (InsFuseIdx != -1)
+				{
+					FFusableOp FusableOp;
+					FusableOp.InsIdx0 = i;
+					FusableOp.InsIdx1 = InsFuseIdx;
+					FusableOp.Type    = 0;
+					FusableOps.Add(FusableOp);
+				}
+				ExecIdxCannotFuse: ;
+			}
+			else if (Ins->OpCat == EVectorVMOpCategory::Op)
+			{
+				{ //look for ops with the same inputs
+					FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + 1;
+					if (Ins2->OpCat == EVectorVMOpCategory::Op)
+					{
+						GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
+						if (InsRegUse.NumInputRegisters == InsRegUse2.NumInputRegisters)
+						{
+							for (int k = 0; k < InsRegUse.NumInputRegisters; ++k)
+							{
+								if (OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[k]] != OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]])
+								{
+									InsFuseIdx = -1;
+									goto SameInputOpCannotFuse;
+								}
+							}
+							InsFuseIdx = i + 1;
+							break;
+						}
+					}
+				}
+				if (InsFuseIdx != -1) //-V547
+				{
+					FFusableOp FusableOp;
+					FusableOp.InsIdx0 = InsFuseIdx;
+					FusableOp.InsIdx1 = i;
+					FusableOp.Type    = -1;
+					FusableOps.Add(FusableOp);
+					continue;
+				}
+				SameInputOpCannotFuse:
+				//loop for ops where the output of one is the input of another
+				for (uint32 j = i + 1; j < OptContext->Intermediate.NumInstructions; ++j)
+				{
+					FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + j;
+					if (Ins2->OpCat == EVectorVMOpCategory::Op)
+					{
+						GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
+						if (InsRegUse2.NumInputRegisters < 4)
+						{
+							bool InputRegMatches[4] = { };
+							int RegMatchCount = 0;
+							for (int k = 0; k < InsRegUse.NumOutputRegisters; ++k)
+							{
+								uint16 OutSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[InsRegUse.NumInputRegisters + k]];
+								if (OptContext->Intermediate.RegisterUsageType[InsRegUse.RegIndices[InsRegUse.NumInputRegisters + k]] == VVM_RT_TEMPREG)
+								{
+									for (int ii = 0; ii < InsRegUse2.NumInputRegisters; ++ii)
+									{
+										if (OptContext->Intermediate.RegisterUsageType[InsRegUse2.RegIndices[ii]] == VVM_RT_TEMPREG)
+										{
+											uint16 InSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[ii]];
+											if (OutSSAReg == InSSAReg)
+											{
+												InputRegMatches[ii] = true;
+												if (RegMatchCount == 0)
+												{
+													RegMatchCount = (1 << ii);
+												}
+												else
+												{
+													//could be something like mul(a, a), and we can't merge
+													//with the previous instruction since the two inputs
+													//are the same and need to be computed.  This case is very
+													//rare so there's no reason to create a specific instruction
+													//to deal with it.
+													goto CannotMergeInstructions;
+												}
+											}
+										}
+									}
+								}
+							}
+							if (RegMatchCount > 0)
+							{
+								bool CanMergeInstructions = true;
+								//first check to make sure the output of the first instruction isn't used elsewhere
+								for (uint32 k = j + 1; k < OptContext->Intermediate.NumInstructions; ++k)
+								{
+									FVectorVMOptimizeInstruction *Ins3 = OptContext->Intermediate.Instructions + k;
+									GetRegistersUsedForInstruction(OptContext, Ins3, &InsRegUse3);
+									for (int ii = 0; ii < InsRegUse.NumOutputRegisters; ++ii)
+									{
+										uint16 OutSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[InsRegUse.NumInputRegisters + ii]];
+										for (int jj = 0; jj < InsRegUse3.NumInputRegisters; ++jj)
+										{
+											uint16 InSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse3.RegIndices[jj]];
+											//these instruction may be technically mergable, but there's no reason to do it given
+											//the output of the first instruction is used again.
+											if (OutSSAReg == InSSAReg)
+											{
+												CanMergeInstructions = false;
+												goto CannotMergeInstructions;
+											}
+										}
+									}
+								}
+								if (j == i + 1)
+								{
+									//easy mode, the instructions follow each other so they can be merged
+								}
+								else
+								{
+									//if the instructions in between the two we're trying to merge require the first one as 
+									//input, or if the second instruction requires one of the in-between instructions as 
+									//input then we cannot merge these instructions
+									FVectorVMOptimizeInsRegUsage InsRegUse_InBetween;
+									for (uint32 k = i + 1; k < j; ++k)
+									{
+										FVectorVMOptimizeInstruction *Ins_InBetween = OptContext->Intermediate.Instructions + k;
+										GetRegistersUsedForInstruction(OptContext, Ins_InBetween, &InsRegUse_InBetween);
+
+										//check to see if the output from the first instruction is needed for this in-between instruction
+										for (int oi = 0; oi < InsRegUse.NumOutputRegisters; ++oi)
+										{
+											uint16 OutSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[InsRegUse.NumInputRegisters + oi]];
+											for (int ii = 0; ii < InsRegUse_InBetween.NumInputRegisters; ++ii)
+											{
+												uint16 InSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse_InBetween.RegIndices[ii]];
+												if (OutSSAReg == InSSAReg)
+												{
+													CanMergeInstructions = false;
+													goto CannotMergeInstructions;
+												}
+											}
+										}
+										
+										//if we're still good, check to see if the output from this in-between instruction is needed
+										//as an input for the second instruction we want to merge.
+										if (CanMergeInstructions)
+										{
+											for (int oi = 0; oi < InsRegUse_InBetween.NumOutputRegisters; ++oi)
+											{
+												uint16 OutSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse_InBetween.RegIndices[InsRegUse_InBetween.NumInputRegisters + oi]];
+												for (int ii = 0; ii < InsRegUse2.NumInputRegisters; ++ii)
+												{
+													uint16 InSSAReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[ii]];
+													if (OutSSAReg == InSSAReg)
+													{
+														CanMergeInstructions = false;
+														goto CannotMergeInstructions;
+													}
+												}
+											}
+										}
+									}
+								}
+								if (CanMergeInstructions)
+								{
+									FFusableOp FusableOp;
+									FusableOp.InsIdx0 = i;
+									FusableOp.InsIdx1 = j;
+									FusableOp.Type    = RegMatchCount;
+									FusableOps.Add(FusableOp);
+								}
+							}
+							CannotMergeInstructions: ;
+						}
 					}
 				}
 			}
+		}
+
+		//these are the most common pairs of instructions as per Fortnite data
+#		define VVMCreateNewRegVars(NumNewRegs)	VVMAllocRegisterUse((NumNewRegs), true);                                                                                \
+												uint16 *Ins0Regs       = OptContext->Intermediate.RegisterUsageBuffer + Ins0->Op.RegPtrOffset;                        \
+												uint16 *Ins1Regs       = OptContext->Intermediate.RegisterUsageBuffer + Ins1->Op.RegPtrOffset;                        \
+												uint16 *NewRegs        = OptContext->Intermediate.RegisterUsageBuffer + OptContext->Intermediate.NumRegistersUsed;    \
+												uint16 *Ins0SSA        = OptContext->Intermediate.SSARegisterUsageBuffer + Ins0->Op.RegPtrOffset;                     \
+												uint16 *Ins1SSA        = OptContext->Intermediate.SSARegisterUsageBuffer + Ins1->Op.RegPtrOffset;                     \
+												uint16 *NewSSA         = OptContext->Intermediate.SSARegisterUsageBuffer + OptContext->Intermediate.NumRegistersUsed; \
+												uint8 *Ins0Type        = OptContext->Intermediate.RegisterUsageType + Ins0->Op.RegPtrOffset;                          \
+												uint8 *Ins1Type        = OptContext->Intermediate.RegisterUsageType + Ins1->Op.RegPtrOffset;                          \
+												uint8 *NewType         = OptContext->Intermediate.RegisterUsageType + OptContext->Intermediate.NumRegistersUsed;      \
+												uint16 NewRegPtrOffset = OptContext->Intermediate.NumRegistersUsed;                                                   \
+												OptContext->Intermediate.NumRegistersUsed += (NumNewRegs);
+#		define VVMSetRegsFrom0(NewIdx, OrigIdx)  NewSSA[NewIdx] = Ins0SSA[OrigIdx];   \
+												 NewRegs[NewIdx] = Ins0Regs[OrigIdx]; \
+												 NewType[NewIdx] = Ins0Type[OrigIdx];
+#		define VVMSetRegsFrom1(NewIdx, OrigIdx)  NewSSA[NewIdx] = Ins1SSA[OrigIdx];   \
+												 NewRegs[NewIdx] = Ins1Regs[OrigIdx]; \
+												 NewType[NewIdx] = Ins1Type[OrigIdx];
+#		define VVMRegMatch(Ins0RegIdx, Ins1RegIdx) (Ins0SSA[Ins0RegIdx] == Ins1SSA[Ins1RegIdx] && Ins0Type[Ins0RegIdx] == Ins1Type[Ins1RegIdx])
+
+
+#		define VVMSetMergedIns(NewIns, NumInputs_, NumOutputs_)	Ins0->InsMergedIdx    = FusableOps[i].InsIdx1;   \
+																Ins1->Op.NumInputs    = NumInputs_;              \
+																Ins1->Op.NumOutputs   = NumOutputs_;             \
+																Ins1->OpCode          = NewIns;                  \
+																Ins1->Op.RegPtrOffset = NewRegPtrOffset;
+		for (int i = 0; i < FusableOps.Num(); ++i)
+		{
+			FVectorVMOptimizeInstruction *Ins0 = OptContext->Intermediate.Instructions + FusableOps[i].InsIdx0;
+			FVectorVMOptimizeInstruction *Ins1 = OptContext->Intermediate.Instructions + FusableOps[i].InsIdx1;
+			if (Ins0->InsMergedIdx != -1 || Ins1->InsMergedIdx != -1)
+			{
+				continue; //instruction already merged
+			}
+			if (FusableOps[i].Type == 0)
+			{
+				if (Ins0->OpCode == EVectorVMOp::exec_index && Ins1->OpCode == EVectorVMOp::i2f)
+				{
+					for (uint32 j = FusableOps[i].InsIdx0 + 1; j < OptContext->Intermediate.NumInstructions; ++j)
+					{
+						if (j != FusableOps[i].InsIdx1)
+						{
+							FVectorVMOptimizeInstruction *OtherIns = OptContext->Intermediate.Instructions + j;
+							FVectorVMOptimizeInsRegUsage RegUsage;
+							GetRegistersUsedForInstruction(OptContext, OtherIns, &RegUsage);
+							for (int k = 0; k < RegUsage.NumInputRegisters; ++k)
+							{
+								uint16 SSA = OptContext->Intermediate.SSARegisterUsageBuffer[RegUsage.RegIndices[k]];
+								check(SSA != OptContext->Intermediate.SSARegisterUsageBuffer[Ins0->Op.RegPtrOffset]);
+							}
+						}
+					}
+					VVMCreateNewRegVars(1);
+					VVMSetRegsFrom1(0, 1);
+					VVMSetMergedIns(EVectorVMOp::exec_indexf, 0, 1);
+				}
+				else if (Ins0->OpCode == EVectorVMOp::exec_index && Ins1->OpCode == EVectorVMOp::addi)
+				{
+					VVMCreateNewRegVars(2);
+					if (!(VVMRegMatch(1, 0) && VVMRegMatch(1, 1)))
+					{
+						if (VVMRegMatch(0, 0))
+						{
+							VVMSetRegsFrom1(0, 1);
+						}
+						else
+						{
+							VVMSetRegsFrom1(0, 0);
+						}
+						VVMSetRegsFrom1(1, 2);
+						VVMSetMergedIns(EVectorVMOp::exec_index_addi, 1, 1);
+					}
+				}
+			}
+			else if (FusableOps[i].Type == 1 && Ins1->OpCode == EVectorVMOp::select)
+			{
+				EVectorVMOp NewOpCode = EVectorVMOp::done;
+				bool ReverseInputs    = false;
+				switch (Ins0->OpCode)
+				{
+					case EVectorVMOp::cmplt:    NewOpCode = EVectorVMOp::cmplt_select;                             break;
+					case EVectorVMOp::cmple:    NewOpCode = EVectorVMOp::cmple_select;                             break;
+					case EVectorVMOp::cmpgt:    NewOpCode = EVectorVMOp::cmplt_select;      ReverseInputs = true;  break;
+					case EVectorVMOp::cmpge:    NewOpCode = EVectorVMOp::cmple_select;      ReverseInputs = true;  break;
+					case EVectorVMOp::cmpeq:    NewOpCode = EVectorVMOp::cmpeq_select;                             break;
+					case EVectorVMOp::cmpneq:   NewOpCode = EVectorVMOp::cmpeq_select;      ReverseInputs = true;  break;
+					case EVectorVMOp::cmplti:   NewOpCode = EVectorVMOp::cmplti_select;                            break;
+					case EVectorVMOp::cmplei:   NewOpCode = EVectorVMOp::cmplei_select;                            break;
+					case EVectorVMOp::cmpgti:   NewOpCode = EVectorVMOp::cmplti_select;     ReverseInputs = true;  break;
+					case EVectorVMOp::cmpgei:   NewOpCode = EVectorVMOp::cmplei_select;     ReverseInputs = true;  break;
+					case EVectorVMOp::cmpeqi:   NewOpCode = EVectorVMOp::cmpeqi_select;                            break;
+					case EVectorVMOp::cmpneqi:  NewOpCode = EVectorVMOp::cmpeqi_select;     ReverseInputs = true;  break;
+				}
+				if (NewOpCode != EVectorVMOp::done)
+				{
+					VVMCreateNewRegVars(5);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					if (ReverseInputs)
+					{
+						VVMSetRegsFrom1(2, 2);
+						VVMSetRegsFrom1(3, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(2, 1);
+						VVMSetRegsFrom1(3, 2);
+					}
+					VVMSetRegsFrom1(4, 3);
+					VVMSetMergedIns(NewOpCode, 4, 1);
+				}
+			}
+			else if (FusableOps[i].Type >= 1 && (Ins1->OpCode == EVectorVMOp::logic_and || Ins1->OpCode == EVectorVMOp::logic_or))
+			{
+				EVectorVMOp NewOpCode = EVectorVMOp::done;
+				switch (Ins0->OpCode)
+				{
+					case EVectorVMOp::cmplt:    NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmplt_logic_and  : EVectorVMOp::cmplt_logic_or );     break;
+					case EVectorVMOp::cmple:    NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmple_logic_and  : EVectorVMOp::cmple_logic_or );     break;
+					case EVectorVMOp::cmpgt:    NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpgt_logic_and  : EVectorVMOp::cmpgt_logic_or );     break;
+					case EVectorVMOp::cmpge:    NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpge_logic_and  : EVectorVMOp::cmpge_logic_or );     break;
+					case EVectorVMOp::cmpeq:    NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpeq_logic_and  : EVectorVMOp::cmpeq_logic_or );     break;
+					case EVectorVMOp::cmpneq:   NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpne_logic_and  : EVectorVMOp::cmpne_logic_or );     break;
+					case EVectorVMOp::cmplti:   NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmplti_logic_and : EVectorVMOp::cmplti_logic_or);     break;
+					case EVectorVMOp::cmplei:   NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmplei_logic_and : EVectorVMOp::cmplei_logic_or);     break;
+					case EVectorVMOp::cmpgti:   NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpgti_logic_and : EVectorVMOp::cmpgti_logic_or);     break;
+					case EVectorVMOp::cmpgei:   NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpgei_logic_and : EVectorVMOp::cmpgei_logic_or);     break;
+					case EVectorVMOp::cmpeqi:   NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpeqi_logic_and : EVectorVMOp::cmpeqi_logic_or);     break;
+					case EVectorVMOp::cmpneqi:  NewOpCode = (Ins1->OpCode == EVectorVMOp::logic_and ? EVectorVMOp::cmpnei_logic_and : EVectorVMOp::cmpnei_logic_or);     break;
+				}
+				if (NewOpCode != EVectorVMOp::done)
+				{
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					if (VVMRegMatch(2, 0))
+					{
+						VVMSetRegsFrom1(2, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(2, 0);
+					}
+					VVMSetRegsFrom1(3, 2);
+					VVMSetMergedIns(NewOpCode, 3, 1);
+				}
+			}
+			else if (FusableOps[i].Type >= 1 && Ins0->OpCode == EVectorVMOp::mad)
+			{
+				EVectorVMOp NewOpCode = EVectorVMOp::done;
+				switch (Ins1->OpCode)
+				{
+					case EVectorVMOp::mad:
+					{
+						if (!RegDupeCheck(OptContext, Ins0, 3, Ins1, 0, 3))
+						{
+							VVMCreateNewRegVars(6);
+							VVMSetRegsFrom0(0, 0);
+							VVMSetRegsFrom0(1, 1);
+							VVMSetRegsFrom0(2, 2);
+							if (VVMRegMatch(3, 2))
+							{
+								//mad0 is the add in mad1
+								NewOpCode = EVectorVMOp::mad_mad0;
+								VVMSetRegsFrom1(3, 0);
+								VVMSetRegsFrom1(4, 1);
+							}
+							else
+							{
+								//mad0 is a mul in mad1
+								NewOpCode = EVectorVMOp::mad_mad1;
+								if (VVMRegMatch(3, 0))
+								{
+									VVMSetRegsFrom1(3, 1);
+								}
+								else
+								{
+									VVMSetRegsFrom1(3, 0);
+								}
+								VVMSetRegsFrom1(4, 2);
+							}
+							VVMSetRegsFrom1(5, 3);
+							if (NewOpCode != EVectorVMOp::done) //-V547
+							{
+								VVMSetMergedIns(NewOpCode, 5, 1);
+							}
+						}
+					}
+					break;
+					case EVectorVMOp::add:
+						NewOpCode = EVectorVMOp::mad_add;
+						goto vvm_mad_add_sub_mul;
+					case EVectorVMOp::mul:
+						NewOpCode = EVectorVMOp::mad_mul;
+						goto vvm_mad_add_sub_mul;
+					case EVectorVMOp::sub:
+						NewOpCode = EVectorVMOp::mad_sub0;
+						vvm_mad_add_sub_mul:
+						{
+							VVMCreateNewRegVars(5);
+							VVMSetRegsFrom0(0, 0);
+							VVMSetRegsFrom0(1, 1);
+							VVMSetRegsFrom0(2, 2);
+							if (VVMRegMatch(3, 0))
+							{
+								VVMSetRegsFrom1(3, 1);
+							}
+							else
+							{
+								if (NewOpCode == EVectorVMOp::mad_sub0)
+								{
+									NewOpCode = EVectorVMOp::mad_sub1;
+								}
+								VVMSetRegsFrom1(3, 0);
+							}
+							VVMSetRegsFrom1(4, 2);	
+							VVMSetMergedIns(NewOpCode, 4, 1);
+						}
+					break;
+					case EVectorVMOp::sqrt:
+					{
+						VVMCreateNewRegVars(4);
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom0(1, 1);
+						VVMSetRegsFrom0(2, 2);
+						VVMSetRegsFrom1(3, 1);
+						VVMSetMergedIns(EVectorVMOp::mad_sqrt, 3, 1);
+					}
+					break;
+				}
+			} else if (Ins0->OpCode == EVectorVMOp::mul)
+			{
+				if (FusableOps[i].Type >= 1)
+				{
+					EVectorVMOp NewOpCode = EVectorVMOp::done;
+					switch (Ins1->OpCode)
+					{
+						case EVectorVMOp::mad:
+						{
+							VVMCreateNewRegVars(5);
+							VVMSetRegsFrom0(0, 0);
+							VVMSetRegsFrom0(1, 1);
+							if (VVMRegMatch(2, 0))
+							{
+								NewOpCode = EVectorVMOp::mul_mad0;
+								VVMSetRegsFrom1(2, 1);
+								VVMSetRegsFrom1(3, 2);
+							}
+							else if (VVMRegMatch(2, 1))
+							{
+								NewOpCode = EVectorVMOp::mul_mad0;
+								VVMSetRegsFrom1(2, 0);
+								VVMSetRegsFrom1(3, 2);
+							}
+							else if (VVMRegMatch(2, 2))
+							{
+								NewOpCode = EVectorVMOp::mul_mad1;
+								VVMSetRegsFrom1(2, 0);
+								VVMSetRegsFrom1(3, 1);
+							}
+							VVMSetRegsFrom1(4, 3);
+							if (NewOpCode != EVectorVMOp::done)
+							{
+								VVMSetMergedIns(NewOpCode, 4, 1);
+							}
+						} break;
+						case EVectorVMOp::add:
+							NewOpCode = EVectorVMOp::mul_add;
+							goto vvm_mul_add_sub_mul_max;
+						case EVectorVMOp::sub:
+							NewOpCode = EVectorVMOp::mul_sub0;
+							goto vvm_mul_add_sub_mul_max;
+						case EVectorVMOp::mul:
+							NewOpCode = EVectorVMOp::mul_mul;
+							goto vvm_mul_add_sub_mul_max;
+						case EVectorVMOp::max:
+							NewOpCode = EVectorVMOp::mul_max;
+							vvm_mul_add_sub_mul_max:
+							if (NewOpCode != EVectorVMOp::done && !RegDupeCheck(OptContext, Ins0, 2, Ins1, 0, 1))
+							{
+								VVMCreateNewRegVars(4);
+								VVMSetRegsFrom0(0, 0);
+								VVMSetRegsFrom0(1, 1);
+								if (VVMRegMatch(2, 0))
+								{
+									VVMSetRegsFrom1(2, 1);
+								}
+								else
+								{
+									VVMSetRegsFrom1(2, 0);
+									if (NewOpCode == EVectorVMOp::mul_sub0)
+									{
+										NewOpCode = EVectorVMOp::mul_sub1;
+									}
+								}
+								VVMSetRegsFrom1(3, 2);
+								VVMSetMergedIns(NewOpCode, 3, 1);
+							}
+							break;
+					}
+				}
+				else if (FusableOps[i].Type == -1 && Ins1->OpCode == EVectorVMOp::mul)
+				{
+					//two muls using the same inputs, output
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					VVMSetRegsFrom0(2, 2);
+					VVMSetRegsFrom1(3, 2);
+					VVMSetMergedIns(EVectorVMOp::mul_2x, 2, 2);
+				}
+			}
+			else if (FusableOps[i].Type >= 1 && Ins0->OpCode == EVectorVMOp::add)
+			{
+				if (Ins1->OpCode == EVectorVMOp::mad)
+				{
+					//we only have a fused op if the output from the add is the input to the add op, if the op of ins0 is the mul operand from ins1, fuck it, it's not statistically relevant
+					if (OptContext->Intermediate.SSARegisterUsageBuffer[Ins0->Op.RegPtrOffset + 2] ==
+						OptContext->Intermediate.SSARegisterUsageBuffer[Ins1->Op.RegPtrOffset + 2])
+					{
+						VVMCreateNewRegVars(5);
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom0(1, 1);
+						VVMSetRegsFrom1(2, 0);
+						VVMSetRegsFrom1(3, 1);
+						VVMSetRegsFrom1(4, 3);
+						VVMSetMergedIns(EVectorVMOp::add_mad1, 4, 1);
+					}
+				}
+				else if (Ins1->OpCode == EVectorVMOp::add)
+				{
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					if (VVMRegMatch(2, 0))
+					{
+						VVMSetRegsFrom1(2, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(2, 0);
+					}
+					VVMSetRegsFrom1(3, 2);
+					VVMSetMergedIns(EVectorVMOp::add_add, 3, 1);
+				}
+			}
+			else if (FusableOps[i].Type >= 1 && Ins0->OpCode == EVectorVMOp::sub)
+			{
+				if (Ins1->OpCode == EVectorVMOp::cmplt && FusableOps[i].Type == 2)
+				{
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					VVMSetRegsFrom1(2, 0);
+					VVMSetRegsFrom1(3, 2);
+					VVMSetMergedIns(EVectorVMOp::sub_cmplt1, 3, 1);
+				}
+				else if (Ins1->OpCode == EVectorVMOp::neg)
+				{
+					VVMCreateNewRegVars(3);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					VVMSetRegsFrom1(2, 1);
+					VVMSetMergedIns(EVectorVMOp::sub_neg, 2, 1);
+				}
+				else if (Ins1->OpCode == EVectorVMOp::mul)
+				{
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					if (VVMRegMatch(2, 0))
+					{
+						VVMSetRegsFrom1(2, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(2, 0);
+					}
+					VVMSetRegsFrom1(3, 2);
+					VVMSetMergedIns(EVectorVMOp::sub_mul, 3, 1);
+				}
+			} else if (Ins0->OpCode == EVectorVMOp::div && FusableOps[i].Type == 1) {
+				switch (Ins1->OpCode) {
+					case EVectorVMOp::mad:
+					{
+						VVMCreateNewRegVars(5);
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom0(1, 1);
+						if (VVMRegMatch(2, 0)) {
+							VVMSetRegsFrom1(2, 1);
+						} else {
+							VVMSetRegsFrom1(2, 0);
+						}
+						VVMSetRegsFrom1(3, 2);
+						VVMSetRegsFrom1(4, 3);
+						VVMSetMergedIns(EVectorVMOp::div_mad0, 4, 1);
+					}
+					break;
+					case EVectorVMOp::f2i:
+					{
+						VVMCreateNewRegVars(3);
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom0(1, 1);
+						VVMSetRegsFrom1(2, 1);
+						VVMSetMergedIns(EVectorVMOp::div_f2i, 2, 1);
+					}
+					break;
+					case EVectorVMOp::mul:
+					{
+						VVMCreateNewRegVars(4);
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom0(1, 1);
+						if (VVMRegMatch(2, 0))
+						{
+							VVMSetRegsFrom1(2, 1);
+						}
+						else
+						{
+							VVMSetRegsFrom1(2, 0);
+						}
+						VVMSetRegsFrom1(3, 2);
+						VVMSetMergedIns(EVectorVMOp::div_mul, 3, 1);
+					}
+					break;
+					default: break;
+				}
+			}
+			else if (Ins0->OpCode == EVectorVMOp::muli && Ins1->OpCode == EVectorVMOp::addi)
+			{
+				VVMCreateNewRegVars(4);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				if (VVMRegMatch(2, 0))
+				{
+					VVMSetRegsFrom1(2, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(2, 0);
+				}
+				VVMSetRegsFrom1(3, 2);
+				VVMSetMergedIns(EVectorVMOp::muli_addi, 3, 1);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::addi && (Ins1->OpCode == EVectorVMOp::bit_rshift || Ins1->OpCode == EVectorVMOp::muli))
+			{
+				EVectorVMOp NewOpCode = Ins1->OpCode == EVectorVMOp::bit_rshift ? EVectorVMOp::addi_bit_rshift : EVectorVMOp::addi_muli;
+				VVMCreateNewRegVars(4);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				if (VVMRegMatch(2, 0))
+				{
+					VVMSetRegsFrom1(2, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(2, 0);
+				}
+				VVMSetRegsFrom1(3, 2);
+				VVMSetMergedIns(NewOpCode, 3, 1);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::b2i && Ins1->OpCode == EVectorVMOp::b2i && FusableOps[i].Type == -1)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				VVMSetRegsFrom1(2, 1);
+				VVMSetMergedIns(EVectorVMOp::b2i_2x, 1, 2);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::i2f && FusableOps[i].Type >= 1)
+			{
+				if (Ins1->OpCode == EVectorVMOp::div)
+				{
+					EVectorVMOp NewOpCode;
+					VVMCreateNewRegVars(3);
+					VVMSetRegsFrom0(0, 0);
+					if (VVMRegMatch(1, 0))
+					{
+						VVMSetRegsFrom1(1, 1);
+						NewOpCode = EVectorVMOp::i2f_div0;
+					}
+					else
+					{
+						VVMSetRegsFrom1(1, 0);
+						NewOpCode = EVectorVMOp::i2f_div1;
+					}
+					VVMSetRegsFrom1(2, 2);
+					VVMSetMergedIns(NewOpCode, 2, 1);
+				}
+				else if (Ins1->OpCode == EVectorVMOp::mul)
+				{
+					VVMCreateNewRegVars(3);
+					VVMSetRegsFrom0(0, 0);
+					if (VVMRegMatch(1, 0))
+					{
+						VVMSetRegsFrom1(1, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(1, 0);
+					}
+					VVMSetRegsFrom1(2, 2);
+					VVMSetMergedIns(EVectorVMOp::i2f_mul, 2, 1);
+				}
+				else if (Ins1->OpCode == EVectorVMOp::mad)
+				{
+					EVectorVMOp NewOpCode = EVectorVMOp::i2f_mad0;
+					VVMCreateNewRegVars(4);
+					if (VVMRegMatch(1, 0))
+					{
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom1(1, 1);
+						VVMSetRegsFrom1(2, 2);
+					}
+					else if (VVMRegMatch(1, 1))
+					{
+						VVMSetRegsFrom0(0, 0);
+						VVMSetRegsFrom1(1, 0);
+						VVMSetRegsFrom1(2, 2);
+					}
+					else
+					{
+						NewOpCode = EVectorVMOp::i2f_mad1;
+						VVMSetRegsFrom1(0, 0);
+						VVMSetRegsFrom1(1, 1);
+						VVMSetRegsFrom0(2, 0);
+					}
+					VVMSetRegsFrom1(3, 3);
+					VVMSetMergedIns(NewOpCode, 3, 1);
+				}
+			}
+			else if (Ins0->OpCode == EVectorVMOp::f2i && FusableOps[i].Type >= 1)
+			{
+				if (Ins1->OpCode == EVectorVMOp::select && FusableOps[i].Type == 2)
+				{
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom1(0, 0); //mask
+					VVMSetRegsFrom0(1, 0);
+					VVMSetRegsFrom1(2, 2);
+					VVMSetRegsFrom1(3, 3);
+					VVMSetMergedIns(EVectorVMOp::f2i_select1, 3, 1);
+				}
+				else if (Ins1->OpCode == EVectorVMOp::maxi)
+				{
+					VVMCreateNewRegVars(3);
+					VVMSetRegsFrom0(0, 0);
+					if (VVMRegMatch(1, 0))
+					{
+						VVMSetRegsFrom1(1, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(1, 0);
+					}
+					VVMSetRegsFrom1(2, 2);
+					VVMSetMergedIns(EVectorVMOp::f2i_maxi, 2, 1);
+				}
+				else if (Ins1->OpCode == EVectorVMOp::addi)
+				{
+					VVMCreateNewRegVars(3);
+					VVMSetRegsFrom0(0, 0);
+					if (VVMRegMatch(1, 0))
+					{
+						VVMSetRegsFrom1(1, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(1, 0);
+					}
+					VVMSetRegsFrom1(2, 2);
+					VVMSetMergedIns(EVectorVMOp::f2i_addi, 2, 1);
+				}
+			}
+			else if (Ins0->OpCode == EVectorVMOp::bit_and && Ins1->OpCode == EVectorVMOp::i2f)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				VVMSetRegsFrom1(2, 1);
+				VVMSetMergedIns(EVectorVMOp::bit_and_i2f, 2, 1);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::random && Ins1->OpCode == EVectorVMOp::random && FusableOps[i].Type == -1)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				VVMSetRegsFrom1(2, 1);
+				VVMSetMergedIns(EVectorVMOp::random_2x, 1, 2);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::select && Ins1->OpCode == EVectorVMOp::mul)
+			{
+				VVMCreateNewRegVars(5);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				VVMSetRegsFrom0(2, 2);
+				
+				if (VVMRegMatch(3, 0))
+				{
+					VVMSetRegsFrom1(3, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(3, 0);
+				}
+				VVMSetRegsFrom1(4, 2);
+				VVMSetMergedIns(EVectorVMOp::select_mul, 4, 1);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::select && Ins1->OpCode == EVectorVMOp::add)
+			{
+				VVMCreateNewRegVars(5);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				VVMSetRegsFrom0(2, 2);
+				if (VVMRegMatch(3, 0))
+				{
+					VVMSetRegsFrom1(3, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(3, 0);
+				}
+				VVMSetRegsFrom1(4, 2);
+				VVMSetMergedIns(EVectorVMOp::select_add, 4, 1);
+			}
+			else if (((Ins0->OpCode == EVectorVMOp::cos && Ins1->OpCode == EVectorVMOp::sin) || (Ins0->OpCode == EVectorVMOp::sin && Ins1->OpCode == EVectorVMOp::cos)) && FusableOps[i].Type == -1)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				if (Ins0->OpCode == EVectorVMOp::sin)
+				{
+					VVMSetRegsFrom0(1, 1);
+					VVMSetRegsFrom1(2, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(1, 1);
+					VVMSetRegsFrom0(2, 1);
+				}
+				VVMSetMergedIns(EVectorVMOp::sin_cos, 1, 2);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::neg && Ins1->OpCode == EVectorVMOp::cmplt && FusableOps[i].Type >= 1)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				if (FusableOps[i].Type == 1)
+				{
+					VVMSetRegsFrom1(1, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(1, 0);
+				}
+				VVMSetRegsFrom1(2, 2);
+				VVMSetMergedIns(EVectorVMOp::neg_cmplt, 2, 1);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::random && Ins1->OpCode == EVectorVMOp::add && FusableOps[i].Type >= 1)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				if (FusableOps[i].Type == 1)
+				{
+					VVMSetRegsFrom1(1, 1);
+				}
+				else
+				{
+					VVMSetRegsFrom1(1, 0);
+				}
+				VVMSetRegsFrom1(2, 2);
+				VVMSetMergedIns(EVectorVMOp::random_add, 2, 1);
+			}
+			else if (Ins0->OpCode == EVectorVMOp::max && Ins1->OpCode == EVectorVMOp::f2i && FusableOps[i].Type == 1)
+			{
+				VVMCreateNewRegVars(3);
+				VVMSetRegsFrom0(0, 0);
+				VVMSetRegsFrom0(1, 1);
+				VVMSetRegsFrom1(2, 1);
+				VVMSetMergedIns(EVectorVMOp::max_f2i, 2, 1);
+			}
+			else
+			{
+				//the common 2 instruction 3 op merges
+				EVectorVMOp NewOpCode = EVectorVMOp::done;
+				if (Ins0->OpCode == EVectorVMOp::bit_rshift && Ins1->OpCode == EVectorVMOp::bit_and)
+				{
+					NewOpCode = EVectorVMOp::bit_rshift_bit_and;
+				}
+				else if (Ins0->OpCode == EVectorVMOp::fmod && Ins1->OpCode == EVectorVMOp::add)
+				{
+					NewOpCode = EVectorVMOp::fmod_add;
+				}
+				else if (Ins0->OpCode == EVectorVMOp::bit_or && Ins1->OpCode == EVectorVMOp::muli)
+				{
+					NewOpCode = EVectorVMOp::bit_or_muli;
+				}
+				else if (Ins0->OpCode == EVectorVMOp::bit_lshift && Ins1->OpCode == EVectorVMOp::bit_or)
+				{
+					NewOpCode = EVectorVMOp::bit_lshift_bit_or;
+				}
+				if (NewOpCode != EVectorVMOp::done)
+				{
+					VVMCreateNewRegVars(4);
+					VVMSetRegsFrom0(0, 0);
+					VVMSetRegsFrom0(1, 1);
+					if (VVMRegMatch(2, 0))
+					{
+						VVMSetRegsFrom1(2, 1);
+					}
+					else
+					{
+						VVMSetRegsFrom1(2, 0);
+					}
+					VVMSetRegsFrom1(3, 2);
+					VVMSetMergedIns(NewOpCode, 3, 1);
+				}
+			}
 		}	
+
+#		undef VVMCreateNewRegVars
+#		undef VVMSetRegsFrom0
+#		undef VVMSetRegsFrom1
+#		undef VVMRegMatch
+#		undef VVMSetMergedIns
 	}
 
+	
 	{ //Step 18: use the SSA registers to compute the minimized registers required and write them back into the register usage buffer
 		int MaxLiveRegisters = 0;
 		uint16 *SSAUseMap = (uint16 *)OptContext->Init.ReallocFn(nullptr, sizeof(uint16) * NumSSARegistersUsed, __FILE__, __LINE__);
@@ -1844,7 +2340,7 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		{
 			return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_SSARemap | VVMOptErr_Fatal);
 		}
-		VVMOptRAIIPtrToFree RegStackRAII(OptContext, SSAUseMap);
+		
 		FMemory::Memset(SSAUseMap, 0xFF, sizeof(uint16) * NumSSARegistersUsed);
 
 		FVectorVMOptimizeInsRegUsage InsRegUse;
@@ -1852,38 +2348,66 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 		{
 			FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
-			GetRegistersUsedForInstruction(OptContext, Ins, &InsRegUse);
-
+			if (Ins->OpCat == EVectorVMOpCategory::Input || Ins->InsMergedIdx != -1) {
+				continue;
+			}
+			int NumRegistersUsedForThisInstruction = GetRegistersUsedForInstruction(OptContext, Ins, &InsRegUse);
+			if (NumRegistersUsedForThisInstruction == 0) {
+				continue;
+			}
 			//check to see if any of the inputs are ever used again
 			for (int j = 0; j < InsRegUse.NumInputRegisters; ++j)
 			{
-				bool SSARegStillLive = false;
 				uint16 SSAInputReg = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[j]];
-				//we need to check this instruction too, because if its output aliases with its input we can't mark it as unused
-				//first check if the input and output alias, if they do, the SSA register is still active
-				//next check the instructions after this one
-				for (uint32 i2 = i + 1; i2 < OptContext->Intermediate.NumInstructions; ++i2)
+				uint8 RegType      = OptContext->Intermediate.RegisterUsageType[InsRegUse.RegIndices[j]];
+				if (RegType == VVM_RT_TEMPREG)
 				{
-					FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + i2;
-					int NumRegisters = GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
-					for (int k = 0; k < NumRegisters; ++k)
-					{
-						if (OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]] == SSAInputReg)
-						{
-							SSARegStillLive = true;
-							break;
-						}
-					}
-				}
-				if (!SSARegStillLive)
-				{
-					//register is no longer required, so mark it as free to use
-					for (int k = 0; k < NumSSARegistersUsed; ++k)
+					//check to see if the SSA Reg is currently valid, if so, update it
+					for (uint16 k = 0; k < NumSSARegistersUsed; ++k)
 					{
 						if (SSAUseMap[k] == SSAInputReg)
 						{
-							SSAUseMap[k] = 0xFFFF;
+							OptContext->Intermediate.RegisterUsageBuffer[InsRegUse.RegIndices[j]] = k;
 							break;
+						}
+					}
+
+					bool SSARegStillLive = false;
+					//we need to check this instruction too, because if its output aliases with its input we can't mark it as unused
+					//first check if the input and output alias, if they do, the SSA register is still active
+					for (int k = j + 1; k < InsRegUse.NumInputRegisters + InsRegUse.NumOutputRegisters; ++k) {
+						if (SSAInputReg == OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[k]] &&
+							RegType     == OptContext->Intermediate.RegisterUsageType[InsRegUse.RegIndices[k]])
+						{
+							SSARegStillLive = true;
+							goto DoneCheckingIfRegIsAlive;
+						}
+					}
+					//next check the instructions after this one
+					for (uint32 i2 = i + 1; i2 < OptContext->Intermediate.NumInstructions; ++i2)
+					{
+						FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + i2;
+						int NumRegisters = GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
+						for (int k = 0; k < NumRegisters; ++k)
+						{
+							if (OptContext->Intermediate.RegisterUsageType[InsRegUse2.RegIndices[k]] == VVM_RT_TEMPREG && OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]] == SSAInputReg)
+							{
+								SSARegStillLive = true;
+								goto DoneCheckingIfRegIsAlive;
+							}
+						}
+					}
+					DoneCheckingIfRegIsAlive:
+					if (!SSARegStillLive)
+					{
+						//register is no longer required, so mark it as free to use
+						for (int k = 0; k < NumSSARegistersUsed; ++k)
+						{
+							if (SSAUseMap[k] == SSAInputReg)
+							{
+								SSAUseMap[k] = 0xFFFF;
+								break;
+							}
 						}
 					}
 				}
@@ -1891,11 +2415,16 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 
 			for (int j = 0; j < InsRegUse.NumOutputRegisters; ++j)
 			{
-				uint16 SSARegIdx = OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse.RegIndices[InsRegUse.NumInputRegisters + j]];
 				uint16 OutputRegIdx = InsRegUse.RegIndices[InsRegUse.NumInputRegisters + j];
-				if (SSARegIdx == 0xFFFF) { //"invalid" flag for external functions
+				uint16 SSARegIdx = OptContext->Intermediate.SSARegisterUsageBuffer[OutputRegIdx];
+				check(OptContext->Intermediate.RegisterUsageType[OutputRegIdx] == VVM_RT_TEMPREG);
+
+				if (SSARegIdx == 0xFFFF) //"invalid" flag for external functions
+				{ 
 					OptContext->Intermediate.RegisterUsageBuffer[OutputRegIdx] = 0xFFFF;
-				} else {
+				}
+				else
+				{
 					uint16 MinimizedRegIdx = 0xFFFF;
 					for (uint16 k = 0; k < NumSSARegistersUsed; ++k)
 					{
@@ -1909,19 +2438,36 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 					if (MinimizedRegIdx == 0xFFFF) {
 						return VectorVMOptimizerSetError(OptContext, VVMOptErr_RegisterUsage);
 					}
-				
 					OptContext->Intermediate.RegisterUsageBuffer[OutputRegIdx] = MinimizedRegIdx;
-
-					//change all future instructions to use minimized register index
-					for (uint32 i2 = i + 1; i2 < OptContext->Intermediate.NumInstructions; ++i2)
+					
 					{
-						FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + i2;
-						GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
-						for (int k = 0; k < InsRegUse2.NumInputRegisters; ++k)
+						//check to see if this output register is still required.  Some instructions like external_func_call cannot be removed
+						//even if their output is unnecessary because they could have external side effects outside the VM, so we need to check
+						//to see if this register is required anymore
+						bool OutputRegisterStillRequired = false;
+						for (uint32 i2 = i + 1; i2 < OptContext->Intermediate.NumInstructions; ++i2)
 						{
-							if (OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]] == OptContext->Intermediate.SSARegisterUsageBuffer[OutputRegIdx])
+							FVectorVMOptimizeInstruction *Ins2 = OptContext->Intermediate.Instructions + i2;
+							GetRegistersUsedForInstruction(OptContext, Ins2, &InsRegUse2);
+							for (int k = 0; k < InsRegUse2.NumInputRegisters; ++k)
 							{
-								OptContext->Intermediate.RegisterUsageBuffer[InsRegUse2.RegIndices[k]] = MinimizedRegIdx;
+								if (OptContext->Intermediate.SSARegisterUsageBuffer[InsRegUse2.RegIndices[k]] == OptContext->Intermediate.SSARegisterUsageBuffer[OutputRegIdx] &&
+									OptContext->Intermediate.RegisterUsageType[InsRegUse2.RegIndices[k]] == VVM_RT_TEMPREG)
+								{
+									OutputRegisterStillRequired = true;
+									goto DoneCheckingOutputInstructions;
+								}
+							}
+						}
+						DoneCheckingOutputInstructions:
+						if (!OutputRegisterStillRequired) {
+							for (uint16 k = 0; k < NumSSARegistersUsed; ++k)
+							{
+								if (SSAUseMap[k] == SSARegIdx)
+								{
+									SSAUseMap[k] = 0xFFFF;
+									break;
+								}
 							}
 						}
 					}
@@ -1941,57 +2487,223 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			}
 		}
 		OptContext->NumTempRegisters = (uint32)MaxLiveRegisters;
+
+		OptContext->Init.FreeFn(SSAUseMap, __FILE__, __LINE__);
 	}
 
-	{ //Step 19: write the final optimized bytecode
+	struct InputReg {
+		FVectorVMOptimizeInstruction *InputIns;   //this is safe to keep as a pointer because no re-ordering happens after this
+		static int SortInputReg_Fn(const void *a, const void *b) {
+			InputReg *R0 = (InputReg *)a;
+			InputReg *R1 = (InputReg *)b;
+				
+			uint32 InputType0 = (uint32)R0->InputIns->OpCode - (uint32)EVectorVMOp::inputdata_float;
+			uint32 InputType1 = (uint32)R1->InputIns->OpCode - (uint32)EVectorVMOp::inputdata_float;
+
+			check(R0->InputIns->Input.DataSetIdx < 255);
+			check(R1->InputIns->Input.DataSetIdx < 255);
+			check(InputType0 < 16);
+			check(InputType1 < 16);
+
+			uint32 V0 = ((uint32)R0->InputIns->Input.DataSetIdx << 24) | (InputType0 << 20) | ((uint32)R0->InputIns->Input.InputIdx);
+			uint32 V1 = ((uint32)R1->InputIns->Input.DataSetIdx << 24) | (InputType1 << 20) | ((uint32)R1->InputIns->Input.InputIdx);
+			check(V0 < (1 << 30)); //There shouldn't be that many DataSets, so we can do a signed compare
+			check(V1 < (1 << 30));
+			return (int)V0 - (int)V1;
+		}
+	};
+
+	InputReg *InputRegs = nullptr;
+	int NumInputRegisters = 0;
+	{ //Step 19: generate input remap table
+		int NumInputRegistersAlloced = 256;
+		
+		InputRegs = (InputReg *)OptContext->Init.ReallocFn(NULL, sizeof(InputReg) * NumInputRegistersAlloced, __FILE__, __LINE__);
+		
+		//Gather up all the input registers used
+		int MaxInputIdx = 0;
+		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
+		{
+			FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
+			if (Ins->OpCat == EVectorVMOpCategory::Input)
+			{
+				int FoundInputIdx = -1;
+				for (int j = 0; j < NumInputRegisters; ++j) {
+					if (Ins->OpCode           == InputRegs[j].InputIns->OpCode           &&
+						Ins->Input.DataSetIdx == InputRegs[j].InputIns->Input.DataSetIdx && 
+						Ins->Input.InputIdx   == InputRegs[j].InputIns->Input.InputIdx) {
+						FoundInputIdx = j;
+						break;
+					}
+				}
+				if (FoundInputIdx == -1) {
+					if (NumInputRegisters >= NumInputRegistersAlloced) {
+						NumInputRegistersAlloced <<= 1;
+						InputRegs = (InputReg *)OptContext->Init.ReallocFn(InputRegs, sizeof(InputReg) * NumInputRegistersAlloced, __FILE__, __LINE__);
+					}
+					check(NumInputRegisters < (int)NumInstructionsAlloced);
+					InputReg *Reg = InputRegs + NumInputRegisters;
+					Reg->InputIns   = Ins;
+					++NumInputRegisters;
+
+					if (Ins->Index > MaxInputIdx) {
+						MaxInputIdx = Ins->Index;
+					}
+				}
+			}
+		}
+		
+		if (NumInputRegisters > 0) {
+			qsort(InputRegs, NumInputRegisters, sizeof(InputReg), InputReg::SortInputReg_Fn);
+			
+			//sort them by type data set index and count how many input DataSets there are
+			int MaxInputDataSet = 0;
+			for (int i = 0; i < NumInputRegisters; ++i) {
+				if (InputRegs[i].InputIns->Input.DataSetIdx > MaxInputDataSet) {
+					MaxInputDataSet = InputRegs[i].InputIns->Input.DataSetIdx;
+				}
+			}
+			check(MaxInputDataSet < 0xFFFE);
+
+			uint16 *SSAInputMap = (uint16 *)OptContext->Init.ReallocFn(NULL, sizeof(uint16) * (MaxInputIdx + 1), __FILE__, __LINE__);	
+			OptContext->NumInputDataSets    = (uint16)MaxInputDataSet + 1;
+			OptContext->InputDataSetOffsets = (uint16 *)OptContext->Init.ReallocFn(NULL, sizeof(uint16) * OptContext->NumInputDataSets * 8, __FILE__, __LINE__);
+			//indices in OptContext->InputDataSetOffsets are:
+			//DataSetIdx * 8 + 0: float
+			//DataSetIdx * 8 + 1: int
+			//DataSetIdx * 8 + 2: half
+			//DataSetIdx * 8 + 3: no advance float
+			//DataSetIdx * 8 + 4: no advance int
+			//DataSetIdx * 8 + 5: no advance half
+			//DataSetIdx * 8 + 6: no advance half count
+			//DataSetIdx * 8 + 7: total no advance inputs
+			//to get the number of input mapping for a given DataSetIndex and instruction type (EVectorVMOp::inputdata*), it's:
+			//	OptContext->InputDataSetOffsets[DataSetIndex * 8 + InstructionType + 1] - OptContext->InputDataSetOffsets[DataSetIndex * 8 + InstructionType]
+
+			EVectorVMOp PrevInputOpcode = EVectorVMOp::inputdata_float;
+			int PrevInputDataSet        = 0;
+			OptContext->InputDataSetOffsets[0] = 0;
+			for (uint16 i = 0; i < NumInputRegisters; ++i) {
+				FVectorVMOptimizeInstruction *InputIns = InputRegs[i].InputIns;
+				check(InputIns->Index <= MaxInputIdx);
+				SSAInputMap[InputIns->Index] = i;
+				if (InputIns->Input.DataSetIdx != PrevInputDataSet) {
+					//fill out the missing offsets when there's no inputs for a particular type on the previous DataSet
+					for (int j = 0; j <= (int)EVectorVMOp::inputdata_noadvance_half - (int)PrevInputOpcode; ++j) {
+						OptContext->InputDataSetOffsets[(PrevInputDataSet << 3) + j + (int)PrevInputOpcode - (int)EVectorVMOp::inputdata_float + 1] = i;
+					}
+					//fill out any in-between DataSets that are empty
+					for (int j = PrevInputDataSet + 1; j < InputIns->Input.DataSetIdx; ++j) {
+						for (int k = 0; k < 8; ++k) {
+							OptContext->InputDataSetOffsets[(j << 3) + k] = i;
+						}
+					}
+					//fill out the missing offsets when there's no inputs for a type in this DataSet
+					for (int j = 0; j <= (int)InputIns->OpCode - (int)EVectorVMOp::inputdata_float; ++j) {
+						OptContext->InputDataSetOffsets[(InputIns->Input.DataSetIdx << 3) + j] = i;
+					}
+					PrevInputOpcode  = InputIns->OpCode;
+					PrevInputDataSet = InputIns->Input.DataSetIdx;
+				} else if (InputIns->OpCode != PrevInputOpcode) {
+					for (int j = (int)PrevInputOpcode + 1; j <= (int)InputIns->OpCode; ++j) {
+						OptContext->InputDataSetOffsets[(InputIns->Input.DataSetIdx << 3) + j - (int)EVectorVMOp::inputdata_float] = i;
+					}
+					PrevInputOpcode  = InputIns->OpCode;
+					PrevInputDataSet = InputIns->Input.DataSetIdx;
+				}
+			}
+			//fill out the missing data in the last DataSet
+			for (int j = 0; j <= (int)EVectorVMOp::inputdata_noadvance_half - (int)PrevInputOpcode; ++j) {
+				OptContext->InputDataSetOffsets[(PrevInputDataSet << 3) + j + (int)PrevInputOpcode - (int)EVectorVMOp::inputdata_float + 1] = NumInputRegisters;
+			}
+			for (int i = 0; i < OptContext->NumInputDataSets; ++i) {
+				//fill out the noadvance counts for each dataset
+				OptContext->InputDataSetOffsets[(i << 3) + 7] = OptContext->InputDataSetOffsets[(i << 3) + 6] - OptContext->InputDataSetOffsets[(i << 3) + 3];
+			}
+
+			//generate the input remap table
+			OptContext->InputRemapTable = (uint16 *)OptContext->Init.ReallocFn(NULL, sizeof(uint16) * NumInputRegisters, __FILE__, __LINE__);
+			for (uint16 i = 0; i < NumInputRegisters; ++i) {
+				OptContext->InputRemapTable[i] = InputRegs[i].InputIns->Input.InputIdx;
+			}
+			OptContext->NumInputsRemapped = NumInputRegisters;
+
+			//fix up the Register Usage buffer's input registers to reference the new remapped indices
+			for (uint32 i = 0; i < OptContext->Intermediate.NumRegistersUsed; ++i) {
+				if (OptContext->Intermediate.RegisterUsageType[i] == VVM_RT_INPUT) {
+					OptContext->Intermediate.RegisterUsageBuffer[i] = SSAInputMap[OptContext->Intermediate.SSARegisterUsageBuffer[i]];
+				}
+			}
+
+			OptContext->Init.FreeFn(SSAInputMap, __FILE__, __LINE__);
+		} else {
+			OptContext->NumInputDataSets          = 0;
+			OptContext->InputDataSetOffsets       = NULL;
+			OptContext->NumInputsRemapped         = 0;
+		}
+	}
+
+	{ //Step 20: write the final optimized bytecode
 		//this goes over the instruction list twice.  The first time to figure out how many bytes are required for the bytecode, the second to write the bytecode.
-		uint8 *OptimizedBytecode = nullptr;
+		uint8 *OptimizedBytecode = nullptr;		
 		int NumOptimizedBytesRequired = 0;
 		int NumOptimizedBytesWritten = 0;
-#		define VVMOptWriteByte(b)   if (OptimizedBytecode)                                                  \
-									{                                                                       \
-										check(NumOptimizedBytesWritten <= NumOptimizedBytesRequired - 1);   \
-                                        OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)b;           \
-                                    }                                                                       \
-									else                                                                    \
-									{                                                                       \
-                                        ++NumOptimizedBytesRequired;                                        \
-                                    }
-#		define VVMOptWriteU16(b)    if (OptimizedBytecode)                                                  \
-									{                                                                       \
-										check(NumOptimizedBytesWritten <= NumOptimizedBytesRequired - 2);   \
-                                        OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)(b & 0xFF);  \
-										OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)(b >> 8);    \
-									}                                                                       \
-									else                                                                    \
-									{                                                                       \
-										NumOptimizedBytesRequired += 2;                                     \
-									}
+
+#		define VVMOptWriteOpCode(Opcode)	if (OptimizedBytecode) {                                                \
+													check(NumOptimizedBytesWritten <= NumOptimizedBytesRequired);   \
+													OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)Opcode;  \
+												} else {                                                            \
+													++NumOptimizedBytesRequired;                                    \
+												}
+#		define VVMOptWriteIdx(Idx)			if (OptimizedBytecode) {                                                    \
+												OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)((Idx) & 0xFF);  \
+												OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)((Idx) >> 8);    \
+												} else { NumOptimizedBytesRequired += 2; }
+
+#		define VVMOptWriteByte(b)			if (OptimizedBytecode) {                                         \
+												OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)(b);  \
+											} else { ++NumOptimizedBytesRequired; }
+
+#		define VVMOptWriteReg(Idx)														\
+		if (OptimizedBytecode) {														\
+			uint16 Reg = OptContext->Intermediate.RegisterUsageBuffer[Idx];				\
+			uint8 Type = OptContext->Intermediate.RegisterUsageType[Idx];				\
+			if (Reg == 0xFFFF || Type == VVM_RT_INVALID) { /* invalid reg */			\
+				OptimizedBytecode[NumOptimizedBytesWritten++] = 0xFF;					\
+				OptimizedBytecode[NumOptimizedBytesWritten++] = 0xFF;					\
+			} else {																	\
+				if (Type == VVM_RT_CONST) {												\
+					Reg += OptContext->NumTempRegisters;								\
+				} else if (Type == VVM_RT_INPUT) {										\
+					Reg += OptContext->NumTempRegisters + OptContext->NumConstsRemapped;\
+				}																		\
+				OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)((Reg) & 0xFF);  \
+				OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)((Reg) >> 8);    \
+			}																			\
+		} else {																		\
+			NumOptimizedBytesRequired += 2;									            \
+		}
+
 		WriteOptimizedBytecode:
 		for (uint32 i = 0; i < OptContext->Intermediate.NumInstructions; ++i)
 		{
 			FVectorVMOptimizeInstruction *Ins = OptContext->Intermediate.Instructions + i;
+			if (Ins->InsMergedIdx != -1) {
+				continue; //this instruction is merged with another and is no longer needed
+			}
 			if (OptimizedBytecode)
 			{
 				Ins->PtrOffsetInOptimizedBytecode = (uint32)NumOptimizedBytesWritten;
+				if (Ins->OpCode == EVectorVMOp::random || Ins->OpCode == EVectorVMOp::randomi) {
+					OptContext->Flags |= VVMFlag_HasRandInstruction;
+				}
 			}
 			switch (Ins->OpCat)
 			{
 				case EVectorVMOpCategory::Input:
-					if (Ins->Input.FirstInsInsertIdx != -1)
-					{
-						VVMOptWriteByte(Ins->OpCode);
-						VVMOptWriteU16(Ins->Input.DataSetIdx);
-						VVMOptWriteU16(Ins->Input.InputIdx);
-						VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Input.DstRegPtrOffset]);
-					}
-					else
-					{
-						Ins->PtrOffsetInOptimizedBytecode = -1;
-					}
+					Ins->PtrOffsetInOptimizedBytecode = -1;
 					break;
 				case EVectorVMOpCategory::Output:
-					if (Ins->Output.CopyFromInputInsIdx == -1)
 					{
 						int NumOutputInstructions = 1;
 						//figure out how we can batch these
@@ -1999,7 +2711,6 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 						{
 							FVectorVMOptimizeInstruction *NextIns = OptContext->Intermediate.Instructions + j;
 							if (NextIns->OpCode == Ins->OpCode                                                                                                                              &&
-								NextIns->Output.CopyFromInputInsIdx == -1                                                                                                                   &&
 								NextIns->Output.DataSetIdx == Ins->Output.DataSetIdx                                                                                                        &&
 								OptContext->Intermediate.SSARegisterUsageBuffer[NextIns->Output.RegPtrOffset] == OptContext->Intermediate.SSARegisterUsageBuffer[Ins->Output.RegPtrOffset])
 							{
@@ -2014,343 +2725,132 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 								break;
 							}
 						}
-						const int TotalNumOutputInstructions = NumOutputInstructions;
-						//batched instructions have slightly weird bytcode because all the extra data required for the instruction come after the registers, (DataSet index, float/int flag)
-						//This is so decoding can be done 4-at-a-time using the standard decoding method in the VM Exec().  The index register is different for all output_batch instructions
-						//so it can be most efficiently decoded
-						//output_batch4/8 puts the index at the very end and must be decoded separately.  It's guaranteed not to be constant so it can be decoded very efficiently
-						//output_batch3/7 and output_batch2 put the index first so it's automatically decoded correctly
-						while (NumOutputInstructions > 0)
-						{
-							int StartNumOutputInstructions = NumOutputInstructions;
-							if (NumOutputInstructions >= 8 && (OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset] & 0x8000) == 0)
-							{
-								VVMOptWriteByte((uint8)EVectorVMOp::output_batch8);
-								for (int j = 0; j < 8; ++j)
-								{
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins[j].Output.RegPtrOffset + 1]);  //bytes 0-15: input indices
-								}
-								for (int j = 0; j < 8; ++j)
-								{
-									VVMOptWriteU16(Ins[j].Output.DstRegIdx);                                                       //bytes 16-31: output indices
-								}
-								VVMOptWriteU16(Ins->Output.DataSetIdx);                                                            //bytes 32-33. DataSet index
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);            //bytes 34-35: index reg
-								VVMOptWriteByte((uint8)Ins->OpCode - (uint8)EVectorVMOp::outputdata_float);                        //byte  36: float/int
-								NumOutputInstructions -= 8;
-							}
-							else if (NumOutputInstructions >= 7)
-							{
-								VVMOptWriteByte((uint8)EVectorVMOp::output_batch7);
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);            //bytes 0-1: index reg
-								for (int j = 0; j < 3; ++j)
-								{
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins[j].Output.RegPtrOffset + 1]);  //bytes 2-7: input indices
-								}
-								VVMOptWriteU16(Ins->Output.DataSetIdx);                                                            //bytes 8-9. DataSet index
-								for (int j = 0; j < 4; ++j)
-								{
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins[j + 3].Output.RegPtrOffset + 1]);  //bytes 10-17: input indices
-								}
-								for (int j = 0; j < 7; ++j)
-								{
-									VVMOptWriteU16(Ins[j].Output.DstRegIdx);                                                       //bytes 18-31: output indices
-								}
-								VVMOptWriteByte((uint8)Ins->OpCode - (uint8)EVectorVMOp::outputdata_float);                        //byte  32: float/int
-								NumOutputInstructions -= 7;
-							}
-							else if (NumOutputInstructions >= 4 && (OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset] & 0x8000) == 0)
-							{
-								VVMOptWriteByte((uint8)EVectorVMOp::output_batch4);
-								for (int j = 0; j < 4; ++j)
-								{
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins[j].Output.RegPtrOffset + 1]);  //bytes 0-7: input indices
-								}
-								for (int j = 0; j < 4; ++j)
-								{
-									VVMOptWriteU16(Ins[j].Output.DstRegIdx);                                                       //bytes 8-15: output indices
-								}
-								VVMOptWriteU16(Ins->Output.DataSetIdx);                                                            //bytes 16-17. DataSet index
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);            //bytes 18-19: index reg
-								VVMOptWriteByte((uint8)Ins->OpCode - (uint8)EVectorVMOp::outputdata_float);                        //byte  20: float/int
-								NumOutputInstructions -= 4;
-							}
-							else if (NumOutputInstructions >= 3)
-							{
-								VVMOptWriteByte((uint8)EVectorVMOp::output_batch3);
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);            //bytes 0-1: index reg
-								for (int j = 0; j < 3; ++j)
-								{
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins[j].Output.RegPtrOffset + 1]);  //bytes 2-7: input indices
-								}
-								VVMOptWriteU16(Ins->Output.DataSetIdx);                                                            //bytes 8-9. DataSet index
-								for (int j = 0; j < 3; ++j)
-								{
-									VVMOptWriteU16(Ins[j].Output.DstRegIdx);                                                       //bytes 10-15: output indices
-								}
-								VVMOptWriteByte((uint8)Ins->OpCode - (uint8)EVectorVMOp::outputdata_float);                        //byte  16: float/int
-								NumOutputInstructions -= 3;
-							}
-							else if (NumOutputInstructions >= 2)
-							{
-								VVMOptWriteByte((uint8)EVectorVMOp::output_batch2);
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);            //bytes 0-1: index reg
-								for (int j = 0; j < 2; ++j)
-								{
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins[j].Output.RegPtrOffset + 1]);  //bytes 2-5: input indices
-								}
-								VVMOptWriteU16(Ins->Output.DataSetIdx);                                                            //bytes 6-9. DataSet index
-								for (int j = 0; j < 2; ++j)
-								{
-									VVMOptWriteU16(Ins[j].Output.DstRegIdx);                                                       //bytes 10-11: output indices
-								}
-								VVMOptWriteByte((uint8)Ins->OpCode - (uint8)EVectorVMOp::outputdata_float);                        //byte  12: float/int
-								NumOutputInstructions -= 2;
-							}
-							else
-							{
-								check(NumOutputInstructions == 1);
-								VVMOptWriteByte(Ins->OpCode);
-								VVMOptWriteU16(Ins->Output.DataSetIdx);                                                      //0: DataSet index
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);      //1: index reg
-								VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset + 1]);  //2: input reg
-								VVMOptWriteU16(Ins->Output.DstRegIdx);
-								--NumOutputInstructions;
-							}
-							int NumOutputsConsumed = StartNumOutputInstructions - NumOutputInstructions;
-							Ins += NumOutputsConsumed;
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteByte(NumOutputInstructions);              //0: Num Output Loops
+						VVMOptWriteByte(Ins->Output.DataSetIdx);             //1: DataSet index
+						VVMOptWriteReg(Ins->Output.RegPtrOffset);            //2: Index Reg
+						for (int j = 0; j < NumOutputInstructions; ++j) {
+							VVMOptWriteReg(Ins[j].Output.RegPtrOffset + 1);  //3; Input  Src
 						}
-						i += TotalNumOutputInstructions - 1;
-						check(NumOutputInstructions == 0);
-					}
-					else
-					{ //copy_to_output, bypass the temp registers entirely
-						FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + Ins->Output.CopyFromInputInsIdx;
-						uint8 InputRegType  = (uint8)InputIns->OpCode - (uint8)EVectorVMOp::inputdata_float;
-						uint8 OutputRegType = (uint8)Ins->OpCode      - (uint8)EVectorVMOp::outputdata_float;
-						check(InputRegType == OutputRegType);
-						VVMOptWriteByte(EVectorVMOp::copy_to_output);
-						VVMOptWriteU16(Ins->Output.DataSetIdx);
-						VVMOptWriteU16(InputIns->Input.DataSetIdx);
-						VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Output.RegPtrOffset]);
-						VVMOptWriteByte(InputRegType);
-						uint8 *CountPtr;
-						uint8 TempCount;
-						if (OptimizedBytecode)
-						{
-							CountPtr = OptimizedBytecode + NumOptimizedBytesWritten++;
+						for (int j = 0; j < NumOutputInstructions; ++j) {
+							VVMOptWriteIdx(Ins[j].Output.DstRegIdx);         //4: Output Dst
 						}
-						else
-						{
-							CountPtr = &TempCount;
-							++NumOptimizedBytesRequired;
-						}
-						*CountPtr = 1;
-					
-						VVMOptWriteU16(Ins->Output.DstRegIdx);
-						VVMOptWriteU16(InputIns->Input.InputIdx);
-					
-						//merge all the subsequent copy_to_output instructions that share the same output data set, input data set and register type (output ops should be sorted above)
-						while (i < OptContext->Intermediate.NumInstructions - 1 && *CountPtr < 0xFF)
-						{
-							FVectorVMOptimizeInstruction *NextIns = OptContext->Intermediate.Instructions + i + *CountPtr;
-							if (NextIns->OpCat == EVectorVMOpCategory::Output && NextIns->Output.CopyFromInputInsIdx != -1)
-							{
-								FVectorVMOptimizeInstruction *NextInputIns = OptContext->Intermediate.Instructions + NextIns->Output.CopyFromInputInsIdx;
-								uint8 NextInputRegType                     = (uint8)NextInputIns->OpCode - (uint8)EVectorVMOp::inputdata_float;
-								uint8 NextOutputRegType                    = (uint8)NextIns->OpCode - (uint8)EVectorVMOp::outputdata_float;
-								check(NextInputRegType == NextOutputRegType);
-								check(NextOutputRegType == 0 || NextOutputRegType == 1);
-								if (NextIns->Output.DataSetIdx     == Ins->Output.DataSetIdx     &&
-									NextInputIns->Input.DataSetIdx == InputIns->Input.DataSetIdx &&
-									NextOutputRegType              == OutputRegType)
-								{
-									VVMOptWriteU16(NextIns->Output.DstRegIdx);
-									VVMOptWriteU16(NextInputIns->Input.InputIdx);
-									++*CountPtr;
-								}
-								else
-								{
-									break;
-								}
-							}
-							else
-							{
-								break;
-							}
-						}
-						i += *CountPtr - 1; //skip the copy-to-output instructions we merged into this one
+						i += NumOutputInstructions - 1;
 					}
 				break;
 				case EVectorVMOpCategory::Op:
-					if (Ins->Op.InputFuseBits == 0)
-					{ //all inputs are regular registers, write the operation as normal
-						VVMOptWriteByte(Ins->OpCode);
-						for (int j = 0; j < Ins->Op.NumInputs + Ins->Op.NumOutputs; ++j) {
-							check(OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + j] != 0xFFFF);
-							VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + j]);
-						}
-					}
-					else
-					{ //at least one of the inputs should be from a dataset, not a register
-						check(Ins->Op.NumInputs > 0);
-						check(Ins->Op.NumInputs <= 3);
-						EVectorVMOp StartOp[] = { EVectorVMOp::fused_input1_1, EVectorVMOp::fused_input2_1, EVectorVMOp::fused_input3_1 };
-						EVectorVMOp FusedOp = (EVectorVMOp)((uint8)StartOp[Ins->Op.NumInputs - 1] - 1 + Ins->Op.InputFuseBits);
-						if (FusedOp == EVectorVMOp::fused_input3_4) //the bit pattern doesn't match for these two ops only due to making the decoder more efficient so do that here
-						{ 
-							FusedOp = EVectorVMOp::fused_input3_3;
-						}
-						else if (FusedOp == EVectorVMOp::fused_input3_3)
-						{
-							FusedOp = EVectorVMOp::fused_input3_4;
-						}
-						VVMOptWriteByte(FusedOp);
-						{ //write all the inputs as normal so they get decoded correctly in the universal decoder
-							for (int j = 0; j < Ins->Op.NumInputs + Ins->Op.NumOutputs; ++j)
-							{
-								if (Ins->Op.InputFuseBits & (1 << j))
-								{
-									int InputInsIdx = OptContext->Intermediate.InputRegisterFuseBuffer[Ins->Op.RegPtrOffset + j];
-									check(InputInsIdx != -1);
-									FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + InputInsIdx;
-									VVMOptWriteU16(InputIns->Input.InputIdx);
+					VVMOptWriteOpCode(Ins->OpCode);
+					for (int j = 0; j < Ins->Op.NumInputs + Ins->Op.NumOutputs; ++j) {
+						uint16 Idx = Ins->Op.RegPtrOffset + j;
+						check(OptContext->Intermediate.RegisterUsageBuffer[Idx] != 0xFFFF);
+						uint16 Reg = OptContext->Intermediate.RegisterUsageBuffer[Idx];
+						uint8 Type = OptContext->Intermediate.RegisterUsageType[Idx];
+
+						if (OptimizedBytecode) {
+							if (Reg == 0xFFFF || Type == VVM_RT_INVALID) { /* invalid reg */
+								OptimizedBytecode[NumOptimizedBytesWritten++] = 0xFF;
+								OptimizedBytecode[NumOptimizedBytesWritten++] = 0xFF;
+							} else {
+								if (Type == VVM_RT_CONST) {
+									Reg += OptContext->NumTempRegisters;
+								} else if (Type == VVM_RT_INPUT) {
+									Reg += OptContext->NumTempRegisters + OptContext->NumConstsRemapped;
 								}
-								else
-								{
-									check(OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + j] != 0xFFFF);
-									VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + j]);
-								}
+								OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)((Reg) & 0xFF);
+								OptimizedBytecode[NumOptimizedBytesWritten++] = (uint8)((Reg) >> 8);
 							}
-						}
-						{ //write the real op next, independent of how many more bytes we need to read
-							VVMOptWriteByte(Ins->OpCode);
-							for (uint16 j = 0; j < Ins->Op.NumInputs; ++j)
-							{
-								if (Ins->Op.InputFuseBits & (1 << j))
-								{
-									int InputInsIdx = OptContext->Intermediate.InputRegisterFuseBuffer[Ins->Op.RegPtrOffset + j];
-									check(InputInsIdx != -1);
-									FVectorVMOptimizeInstruction *InputIns = OptContext->Intermediate.Instructions + InputInsIdx;
-									check(InputIns->OpCode == EVectorVMOp::inputdata_float || InputIns->OpCode == EVectorVMOp::inputdata_int32);
-									VVMOptWriteByte((uint8)InputIns->OpCode - (uint8)EVectorVMOp::inputdata_float);
-									VVMOptWriteU16(InputIns->Input.DataSetIdx);
-								}
-							}
+						} else {
+							NumOptimizedBytesRequired += 2;
 						}
 					}
 					break;
 				case EVectorVMOpCategory::IndexGen:
-					VVMOptWriteByte(Ins->OpCode);
-					VVMOptWriteU16(Ins->IndexGen.DataSetIdx);                                                     //0: DataSetIdx
-					VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->IndexGen.RegPtrOffset + 0]); //1: Input Register
-					VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->IndexGen.RegPtrOffset + 1]); //2: Write-gather Output Register
-					VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->IndexGen.RegPtrOffset + 2]); //3: Original VM Output Register (if 0xFFFF then nothing)
+					VVMOptWriteOpCode(Ins->OpCode);
+					VVMOptWriteReg(Ins->IndexGen.RegPtrOffset + 0); //1: Input Register
+					VVMOptWriteReg(Ins->IndexGen.RegPtrOffset + 1); //2: Write-gather Output Register
+					VVMOptWriteByte(Ins->IndexGen.DataSetIdx);      //0: DataSetIdx
 					break;
 				case EVectorVMOpCategory::ExtFnCall: {
-					VVMOptWriteByte(Ins->OpCode);
-					VVMOptWriteU16(Ins->ExtFnCall.ExtFnIdx);
 					uint32 NumDummyRegs = 0;
+					VVMOptWriteOpCode(Ins->OpCode);
+					VVMOptWriteIdx(Ins->ExtFnCall.ExtFnIdx);
 					for (int j = 0; j < ExtFnIOData[Ins->ExtFnCall.ExtFnIdx].NumInputs + ExtFnIOData[Ins->ExtFnCall.ExtFnIdx].NumOutputs; ++j)
 					{
-						uint16 Reg = OptContext->Intermediate.RegisterUsageBuffer[Ins->ExtFnCall.RegPtrOffset + j];
-						VVMOptWriteU16(Reg);
-						if (Reg == 0xFFFF) {
+						if (OptContext->Intermediate.RegisterUsageBuffer[Ins->Op.RegPtrOffset + j] == 0xFFFF) {
 							++NumDummyRegs;
 						}
+						VVMOptWriteReg(Ins->Op.RegPtrOffset + j);
 					}
 					if (NumDummyRegs > OptContext->NumDummyRegsReq) {
 						OptContext->NumDummyRegsReq = NumDummyRegs;
 					}
 				} break;
-				case EVectorVMOpCategory::ExecIndex: 
-					VVMOptWriteByte(Ins->OpCode);
-					VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->ExecIndex.RegPtrOffset]);
-					break;
 				case EVectorVMOpCategory::Stat:
-					if (!(Flags & VVMOptFlag_OmitStats))
-					{
-						VVMOptWriteByte(Ins->OpCode);
-						if (Ins->OpCode == EVectorVMOp::enter_stat_scope)
-						{
-							VVMOptWriteU16(Ins->Stat.ID);
-						}
-						else if (Ins->OpCode == EVectorVMOp::exit_stat_scope)
-						{
-							
-						} 
-						else
-						{
-							check(false);
-						}
-					} else {
-						Ins->PtrOffsetInOptimizedBytecode = -1;
-					}
 					break;
 				case EVectorVMOpCategory::RWBuffer:
 					check(Ins->OpCode == EVectorVMOp::update_id || Ins->OpCode == EVectorVMOp::acquire_id);
-					VVMOptWriteByte(Ins->OpCode);
-					VVMOptWriteU16(Ins->RWBuffer.DataSetIdx);
-					VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->RWBuffer.RegPtrOffset + 0]);
-					VVMOptWriteU16(OptContext->Intermediate.RegisterUsageBuffer[Ins->RWBuffer.RegPtrOffset + 1]);
+					VVMOptWriteOpCode(Ins->OpCode);
+					VVMOptWriteReg(Ins->RWBuffer.RegPtrOffset + 0);
+					VVMOptWriteReg(Ins->RWBuffer.RegPtrOffset + 1);
+					VVMOptWriteByte(Ins->RWBuffer.DataSetIdx);
 					break;
 				case EVectorVMOpCategory::Other:
-					switch (Ins->OpCode)
-					{
-						case EVectorVMOp::done:
-							check(i == OptContext->Intermediate.NumInstructions - 1);
-							break;
-						case EVectorVMOp::noise2D:
-							VVMOptWriteByte(Ins->OpCode);
-							check(false);
-							break;
-						case EVectorVMOp::noise3D:
-							VVMOptWriteByte(Ins->OpCode);
-							check(false);
-							break;
+					if (Ins->OpCode == EVectorVMOp::done) {
+						//write 8 bytes because the exec loop can read upto 6 bytes ahead.
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						VVMOptWriteOpCode(Ins->OpCode);
+						goto GotDoneInsWhileWritingByecode;
 					}
 					break;
 
 			}
 		}
+		GotDoneInsWhileWritingByecode:
 		if (OptimizedBytecode == nullptr)
 		{
 			check(NumOptimizedBytesWritten == 0);
 			if (NumOptimizedBytesRequired > 0)
 			{
-				OptimizedBytecode = (uint8 *)OptContext->Init.ReallocFn(nullptr, NumOptimizedBytesRequired + 16, __FILE__, __LINE__); //we decode 4 registers at a time so make sure to pad the allocation so no matter what we don't read past the end
+				++NumOptimizedBytesRequired;
+				OptimizedBytecode = (uint8 *)OptContext->Init.ReallocFn(nullptr, NumOptimizedBytesRequired, __FILE__, __LINE__);
 				if (OptimizedBytecode == nullptr)
 				{
 					return VectorVMOptimizerSetError(OptContext, VVMOptErr_OutOfMemory | VVMOptErr_OptimizedBytecode | VVMOptErr_Fatal);
 				}
-				else
-				{
-					goto WriteOptimizedBytecode;
-				}
+				goto WriteOptimizedBytecode;
 			}
+		} else {
+			OptimizedBytecode[NumOptimizedBytesWritten++] = 0;
 		}
 		check(NumOptimizedBytesWritten == NumOptimizedBytesRequired);
-#		undef VVMOptWriteByte
-#		undef VVMOptWriteU16
-
 		OptContext->OutputBytecode   = OptimizedBytecode;
 		OptContext->NumBytecodeBytes = NumOptimizedBytesWritten;
 	}
+	
+	OptContext->Init.FreeFn(InputRegs, __FILE__, __LINE__);
 
-	if (!(Flags & VVMOptFlag_SaveIntermediateState))
+	if (!(Flags & VVMFlag_OptSaveIntermediateState))
 	{
 		VectorVMFreeOptimizerIntermediateData(OptContext);
 	}
 
-#undef AllocBytecodeBytes
-#undef AllocRegisterUse
-#undef VVMOptimizeWriteRegIndex
-#undef VVMOptimizeWrite2
-#undef VVMOptimizeVecIns1
-#undef VVMOptimizeVecIns2
 #undef VVMOptimizeVecIns3
+#undef VVMOptimizeVecIns2
+#undef VVMOptimizeVecIns1
+#undef VVMOptimizeDecodeRegIdx
+#undef VVMPushRegUsage
+#undef VVMAllocRegisterUse
+#undef VectorVMOptimizerSetError
+
 	return 0;
 }
 
 
 #undef VectorVMOptimizerSetError
+

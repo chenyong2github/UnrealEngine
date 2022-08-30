@@ -210,6 +210,14 @@ static FAutoConsoleVariableRef CVarVVMChunkSizeInBytes(
 	ECVF_Default
 );
 
+static int32 GVVMPageSizeInKB = 64;
+static FAutoConsoleVariableRef CVarVVMPageSizeInKB(
+	TEXT("vm.PageSizeInKB"),
+	GVVMPageSizeInKB,
+	TEXT("Minimum allocation per VM instance.  There are 64 of these, so multiply GVVMPageSizeInKB * 64 * 1024 to get total number of bytes used by the VVM\n"),
+	ECVF_ReadOnly 
+);
+
 static int32 GVVMMaxThreadsPerScript = 8;
 static FAutoConsoleVariableRef CVarVVMMaxThreadsPerScript(
 	TEXT("vm.MaxThreadsPerScript"),
@@ -282,17 +290,30 @@ uint8 VectorVM::GetNumOpCodes()
 }
 
 #if WITH_EDITOR
-UEnum* g_VectorVMEnumStateObj = nullptr;
+//UEnum* g_VectorVMEnumStateObj = nullptr;
 UEnum* g_VectorVMEnumOperandObj = nullptr;
+
+#define VVM_OP_XM(n, ...) #n,
+static const char *VVM_OP_NAMES[] {
+	VVM_OP_XM_LIST
+};
+#undef VVM_OP_XM
 
 FString VectorVM::GetOpName(EVectorVMOp Op)
 {
-	check(g_VectorVMEnumStateObj);
+	//check(g_VectorVMEnumStateObj);
+	//
+	//FString OpStr = g_VectorVMEnumStateObj->GetNameByValue((uint8)Op).ToString();
+	//int32 LastIdx = 0;
+	//OpStr.FindLastChar(TEXT(':'), LastIdx);
+	//return OpStr.RightChop(LastIdx + 1);
 
-	FString OpStr = g_VectorVMEnumStateObj->GetNameByValue((uint8)Op).ToString();
-	int32 LastIdx = 0;
-	OpStr.FindLastChar(TEXT(':'), LastIdx);
-	return OpStr.RightChop(LastIdx + 1);
+	int OpIdx = (int)Op;
+	if (OpIdx < 0 || OpIdx >= (int)EVectorVMOp::NumOpcodes) {
+		OpIdx = 0;
+	}
+	FString OpStr(VVM_OP_NAMES[OpIdx]);
+	return OpStr;
 }
 
 FString VectorVM::GetOperandLocationName(EVectorVMOperandLocation Location)
@@ -326,7 +347,7 @@ void VectorVM::Init()
 	if (Inited == false)
 	{
 #if WITH_EDITOR
-		g_VectorVMEnumStateObj = StaticEnum<EVectorVMOp>();
+		//g_VectorVMEnumStateObj = StaticEnum<EVectorVMOp>();
 		g_VectorVMEnumOperandObj = StaticEnum<EVectorVMOperandLocation>();
 #endif
 
