@@ -101,7 +101,7 @@ public:
 	static constexpr float RotateArcballSphereRadius = 70.0f;
 	static constexpr float RotateAxisOuterRadius = 73.0f;
 	static constexpr float RotateAxisInnerRadius = 1.25f;
-	static constexpr int32 RotateAxisOuterSegments = 64;
+	static constexpr int32 RotateAxisNumSegments = 64;
 	static constexpr int32 RotateAxisInnerSlices = 8;
 	static constexpr float RotateOuterCircleRadius = 73.0f;
 	static constexpr float RotateScreenSpaceRadius = 83.0f;
@@ -389,7 +389,7 @@ protected:
 	virtual UGizmoElementArrow* MakeScaleAxis(ETransformGizmoPartIdentifier InPartId, const FVector& InAxisDir, const FVector& InSideDir, UMaterialInterface* InMaterial);
 
 	/** Construct rotate axis handle */
-	virtual UGizmoElementTorus* MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1,
+	virtual UGizmoElementTorus* MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& TorusAxis0, const FVector& TorusAxis1,
 		UMaterialInterface* InMaterial, UMaterialInterface* InCurrentMaterial);
 
 	/** Construct uniform scale handle */
@@ -439,7 +439,7 @@ protected:
 	/** Handle click press for translate Z axis */
 	virtual void OnClickPressTranslateZAxis(const FInputDeviceRay& PressPos);
 
-	/** Handle click press for translate and scale X axes */
+	/** Handle click press for translate axes */
 	virtual void OnClickPressAxis(const FInputDeviceRay& PressPos);
 
 	/** Handle click drag for translate axes */

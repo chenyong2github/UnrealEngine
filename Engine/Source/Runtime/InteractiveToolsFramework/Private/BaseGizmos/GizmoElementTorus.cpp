@@ -17,14 +17,28 @@ void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 	{
 		if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 		{
+			const FVector WorldCenter = CurrentRenderState.LocalToWorldTransform.GetLocation();
+			const FVector WorldAxis0 = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Axis0);
+			const FVector Normal = Axis0 ^ Axis1; 
+			const FVector WorldNormal = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Normal);
+
+			bool bPartial = IsPartial(RenderAPI->GetSceneView(), WorldCenter, WorldNormal);
+			FVector BeginAxis = bPartial ? Axis0.RotateAngleAxis(PartialStartAngle, Normal).GetSafeNormal() : Axis0;
+
+			const double PartialAngle = PartialEndAngle - PartialStartAngle;			
+			if (PartialAngle <= 0.0)
+			{
+				return;
+			}
+
 			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
 			FVector TorusSideAxis = Normal ^ BeginAxis;
 			TorusSideAxis.Normalize();
 
 			DrawTorus(PDI, CurrentRenderState.LocalToWorldTransform.ToMatrixWithScale(), 
-				BeginAxis, TorusSideAxis, OuterRadius, InnerRadius, OuterSegments, InnerSlices,  
-				UseMaterial->GetRenderProxy(), SDPG_Foreground, bPartial, Angle, bEndCaps);
+				BeginAxis, TorusSideAxis, Radius, InnerRadius, NumSegments, NumInnerSlices,  
+				UseMaterial->GetRenderProxy(), SDPG_Foreground, bPartial, PartialAngle, bEndCaps);
 		}
 	}
 }
@@ -45,31 +59,39 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 	if (bHittableViewDependent)
 	{
 		const double PixelHitThresholdAdjust = CurrentLineTraceState.PixelToWorldScale * PixelHitDistanceThreshold;
-		const double WorldOuterRadius = OuterRadius * CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X;
+		const double WorldOuterRadius = Radius * CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X;
 		const double WorldInnerRadius = InnerRadius * CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X;
-		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
-		const FVector WorldNormal = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Normal);
-		const FVector WorldBeginAxis = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(BeginAxis);
+		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.GetLocation();
+		const FVector WorldAxis0 = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Axis0);
+		const FVector WorldAxis1 = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Axis1);
+		const FVector WorldNormal = WorldAxis0 ^ WorldAxis1;
 		double HitDepth = -1.0;
 
-		const FVector ViewToTorusCenter = 
-			ViewContext->IsPerspectiveProjection() ? (WorldCenter - ViewContext->ViewLocation).GetSafeNormal() : ViewContext->GetViewDirection();
+		bool bPartial = IsPartial(ViewContext, WorldCenter, WorldNormal);
 
-		// Determine if the ray direction is at a glancing angle by using a minimum cos angle based on the
-		// angle between the vector from torus center to ring center and the vector from torus center to ring edge.
-		double MinCosAngle = 
-			FMath::Max(InnerRadius * 1.5 / FMath::Sqrt(OuterRadius * OuterRadius + InnerRadius * InnerRadius), 
-				DefaultViewDependentPlanarMinCosAngleTol);
+		FVector WorldBeginAxis;
+		const double PartialAngle = PartialEndAngle - PartialStartAngle;
+		if (bPartial)
+		{
+			if (PartialAngle <= 0)
+			{
+				return FInputRayHit();
+			}
 
-		bool bAtGlancingAngle = FMath::Abs(FVector::DotProduct(WorldNormal, ViewToTorusCenter)) <= MinCosAngle;
+			WorldBeginAxis = WorldAxis0.RotateAngleAxis(PartialStartAngle, WorldNormal).GetSafeNormal();
+		}
+		else
+		{
+			WorldBeginAxis = WorldAxis0;
+		}
 
-		if (bAtGlancingAngle)
+		if (IsGlancingAngle(ViewContext, WorldCenter, WorldNormal))
 		{
 			// If the torus lies at a glancing angle, the ray-torus intersection is performed against cylinders approximating
 			// the shape of the torus.
 			static constexpr int NumFullTorusCylinders = 16;
 			static constexpr double AngleDelta = UE_DOUBLE_TWO_PI / static_cast<double>(NumFullTorusCylinders);
-			const int NumCylinders = bPartial ? FMath::CeilToInt(NumFullTorusCylinders * Angle / UE_DOUBLE_TWO_PI) : NumFullTorusCylinders;
+			const int NumCylinders = bPartial ? FMath::CeilToInt(NumFullTorusCylinders * PartialAngle / UE_DOUBLE_TWO_PI) : NumFullTorusCylinders;
 
 			const FVector ViewDirection = ViewContext->GetViewDirection();
 			FVector VectorA = WorldBeginAxis; 
@@ -94,7 +116,7 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 
 				if (i == NumCylinders - 1)
 				{
-					CylinderHeight = bPartial ? FMath::Fmod(Angle, AngleDelta) * CylinderHeight : CylinderHeight;
+					CylinderHeight = bPartial ? FMath::Fmod(PartialAngle, AngleDelta) * CylinderHeight : CylinderHeight;
 				}
 
 				const FVector CylinderDirection = (VectorB - VectorA).GetSafeNormal();
@@ -145,6 +167,7 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 				return FInputRayHit();
 			}
 
+			// Handle partial torus
 			if (bPartial)
 			{
 				// Compute projected angle
@@ -153,10 +176,10 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 
 				if (HitAngle < 0)
 				{
-					HitAngle = UE_DOUBLE_TWO_PI - HitAngle;
+					HitAngle = UE_DOUBLE_TWO_PI + HitAngle;
 				}
 
-				if (HitAngle > Angle)
+				if (HitAngle > PartialAngle)
 				{
 					return FInputRayHit();
 				}
@@ -178,96 +201,47 @@ FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext,
 	return FInputRayHit();
 }
 
-void UGizmoElementTorus::SetCenter(const FVector& InCenter)
+bool UGizmoElementTorus::IsGlancingAngle(const UGizmoViewContext* View, const FVector& InWorldCenter, const FVector& InWorldNormal)
 {
-	Center = InCenter;
+	check(View);
+	FVector ViewToCircleBaseCenter;
+	if (View->IsPerspectiveProjection())
+	{
+		ViewToCircleBaseCenter = (InWorldCenter - View->ViewLocation).GetSafeNormal();
+	}
+	else
+	{
+		ViewToCircleBaseCenter = View->GetViewDirection();
+	}
+
+	// Determine if the ray direction is at a glancing angle by using a minimum cos angle based on the
+	// angle between the vector from arc center to ring center and the vector from arc center to ring edge.
+	double MinCosAngle =
+		FMath::Max(InnerRadius * 1.5 / FMath::Sqrt(Radius * Radius + InnerRadius * InnerRadius),
+			DefaultViewDependentPlanarMinCosAngleTol);
+
+	double DotP = FMath::Abs(FVector::DotProduct(InWorldNormal, ViewToCircleBaseCenter));
+	return (DotP <= MinCosAngle);
 }
 
-FVector UGizmoElementTorus::GetCenter() const
-{
-	return Center;
-}
-
-void UGizmoElementTorus::SetNormal(const FVector& InNormal)
-{
-	Normal = InNormal;
-	Normal.Normalize();
-}
-
-FVector UGizmoElementTorus::GetNormal() const
-{
-	return Normal;
-}
-
-void UGizmoElementTorus::SetBeginAxis(const FVector& InBeginAxis)
-{
-	BeginAxis = InBeginAxis;
-	BeginAxis.Normalize();
-}
-
-FVector UGizmoElementTorus::GetBeginAxis() const
-{
-	return BeginAxis;
-}
-
-void UGizmoElementTorus::SetOuterRadius(float InOuterRadius)
-{
-	OuterRadius = InOuterRadius;
-}
-
-float UGizmoElementTorus::GetOuterRadius() const
-{
-	return OuterRadius;
-}
-
-void UGizmoElementTorus::SetInnerRadius(float InInnerRadius)
+void UGizmoElementTorus::SetInnerRadius(double InInnerRadius)
 {
 	InnerRadius = InInnerRadius;
 }
 
-float UGizmoElementTorus::GetInnerRadius() const
+double UGizmoElementTorus::GetInnerRadius() const
 {
 	return InnerRadius;
 }
 
-void UGizmoElementTorus::SetOuterSegments(int32 InOuterSegments)
+void UGizmoElementTorus::SetNumInnerSlices(int32 InNumInnerSlices)
 {
-	OuterSegments = InOuterSegments;
+	NumInnerSlices = InNumInnerSlices;
 }
 
-int32 UGizmoElementTorus::GetOuterSegments() const
+int32 UGizmoElementTorus::GetNumInnerSlices() const
 {
-	return OuterSegments;
-}
-
-void UGizmoElementTorus::SetInnerSlices(int32 InInnerSlices)
-{
-	InnerSlices = InInnerSlices;
-}
-
-int32 UGizmoElementTorus::GetInnerSlices() const
-{
-	return InnerSlices;
-}
-
-void UGizmoElementTorus::SetPartial(bool InPartial)
-{
-	bPartial = InPartial;
-}
-
-bool UGizmoElementTorus::GetPartial() const
-{
-	return bPartial;
-}
-
-void UGizmoElementTorus::SetAngle(float InAngle)
-{
-	Angle = InAngle;
-}
-
-float UGizmoElementTorus::GetAngle() const
-{
-	return Angle;
+	return NumInnerSlices;
 }
 
 void UGizmoElementTorus::SetEndCaps(bool InEndCaps)

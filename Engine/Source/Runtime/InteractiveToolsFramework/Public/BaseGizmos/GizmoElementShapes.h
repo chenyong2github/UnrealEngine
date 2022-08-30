@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BaseGizmos/GizmoElementArc.h"
 #include "BaseGizmos/GizmoElementArrow.h"
 #include "BaseGizmos/GizmoElementBox.h"
 #include "BaseGizmos/GizmoElementCone.h"

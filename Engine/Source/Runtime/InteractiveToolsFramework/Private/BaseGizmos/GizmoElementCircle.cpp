@@ -17,11 +17,8 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 	{
 		const float WorldRadius = Radius * CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
 		const FVector WorldCenter = CurrentRenderState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
-		FVector WorldUpAxis, WorldSideAxis;
-		const FVector WorldNormal = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Normal);
-		GizmoMath::MakeNormalPlaneBasis(WorldNormal, WorldUpAxis, WorldSideAxis);
-		WorldUpAxis.Normalize();
-		WorldSideAxis.Normalize();
+		const FVector WorldAxis0 = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Axis0);
+		const FVector WorldAxis1 = CurrentRenderState.LocalToWorldTransform.TransformVectorNoScale(Axis1);
 
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 
@@ -30,7 +27,7 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 			if (const UMaterialInterface* UseMaterial = CurrentRenderState.GetCurrentMaterial())
 			{
 				FColor VertexColor = CurrentRenderState.GetCurrentVertexColor().ToFColor(false);
-				DrawDisc(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, VertexColor, WorldRadius, NumSides, UseMaterial->GetRenderProxy(), SDPG_Foreground);
+				DrawDisc(PDI, WorldCenter, WorldAxis0, WorldAxis1, VertexColor, WorldRadius, NumSegments, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 			}
 		}
 
@@ -41,7 +38,7 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 			check(View);
 			float CurrentLineThickness = GetCurrentLineThickness(View->IsPerspectiveProjection(), View->FOV);
 
-			DrawCircle(PDI, WorldCenter, WorldUpAxis, WorldSideAxis, CurrentRenderState.GetCurrentLineColor(), WorldRadius, NumSides, SDPG_Foreground, CurrentLineThickness, 0.0, bScreenSpaceLine);
+			DrawCircle(PDI, WorldCenter, WorldAxis0, WorldAxis1, CurrentRenderState.GetCurrentLineColor(), WorldRadius, NumSegments, SDPG_Foreground, CurrentLineThickness, 0.0, bScreenSpaceLine);
 		}
 	}
 }
@@ -53,8 +50,10 @@ FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext
 
 	if (bHittableViewDependent)
 	{
-		const FVector WorldNormal = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Normal);
-		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.GetLocation();
+		const FVector WorldAxis0 = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Axis0);
+		const FVector WorldAxis1 = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Axis1);
+		const FVector WorldNormal = WorldAxis0 ^ WorldAxis1;
 		const double PixelHitThresholdAdjust = CurrentLineTraceState.PixelToWorldScale * PixelHitDistanceThreshold;
 		double WorldRadius = CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X * Radius;
 
@@ -109,47 +108,6 @@ FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext
 		}
 	}
 	return FInputRayHit();
-}
-
-void UGizmoElementCircle::SetCenter(FVector InCenter)
-{
-	Center = InCenter;
-}
-
-FVector UGizmoElementCircle::GetCenter() const
-{
-	return Center;
-}
-
-void UGizmoElementCircle::SetNormal(FVector InNormal)
-{
-	Normal = InNormal;
-	Normal.Normalize();
-}
-
-FVector UGizmoElementCircle::GetNormal() const
-{
-	return Normal;
-}
-
-void UGizmoElementCircle::SetRadius(float InRadius)
-{
-	Radius = InRadius;
-}
-
-float UGizmoElementCircle::GetRadius() const
-{
-	return Radius;
-}
-
-void UGizmoElementCircle::SetNumSides(int InNumSides)
-{
-	NumSides = InNumSides;
-}
-
-int UGizmoElementCircle::GetNumSides() const
-{
-	return NumSides;
 }
 
 void UGizmoElementCircle::SetDrawMesh(bool InDrawMesh)

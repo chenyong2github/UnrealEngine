@@ -399,19 +399,19 @@ void UTransformGizmo::EnableRotate(EAxisList::Type InAxisListToDraw)
 
 	if (bEnableX && RotateXAxisElement == nullptr)
 	{
-		RotateXAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateXAxis, XAxis, YAxis, ZAxis, AxisMaterialX, CurrentAxisMaterial);
+		RotateXAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateXAxis, YAxis, ZAxis, AxisMaterialX, CurrentAxisMaterial);
 		GizmoElementRoot->Add(RotateXAxisElement);
 	}
 
 	if (bEnableY && RotateYAxisElement == nullptr)
 	{
-		RotateYAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateYAxis, YAxis, ZAxis, XAxis, AxisMaterialY, CurrentAxisMaterial);
+		RotateYAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateYAxis, ZAxis, XAxis, AxisMaterialY, CurrentAxisMaterial);
 		GizmoElementRoot->Add(RotateYAxisElement);
 	}
 
 	if (bEnableZ && RotateZAxisElement == nullptr)
 	{
-		RotateZAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateZAxis, ZAxis, XAxis, YAxis, AxisMaterialZ, CurrentAxisMaterial);
+		RotateZAxisElement = MakeRotateAxis(ETransformGizmoPartIdentifier::RotateZAxis, XAxis, YAxis, AxisMaterialZ, CurrentAxisMaterial);
 		GizmoElementRoot->Add(RotateZAxisElement);
 	}
 
@@ -696,23 +696,25 @@ UGizmoElementRectangle* UTransformGizmo::MakeTranslateScreenSpaceHandle()
 	return RectangleElement;
 }
 
-UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& Normal, const FVector& TorusAxis0, const FVector& TorusAxis1,
+UGizmoElementTorus* UTransformGizmo::MakeRotateAxis(ETransformGizmoPartIdentifier InPartId, const FVector& TorusAxis0, const FVector& TorusAxis1,
 	UMaterialInterface* InMaterial, UMaterialInterface* InCurrentMaterial)
 {
 	UGizmoElementTorus* RotateAxisElement = NewObject<UGizmoElementTorus>();
 	RotateAxisElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	RotateAxisElement->SetCenter(FVector::ZeroVector);
-	RotateAxisElement->SetOuterRadius(UTransformGizmo::RotateAxisOuterRadius);
-	RotateAxisElement->SetOuterSegments(UTransformGizmo::RotateAxisOuterSegments);
+	RotateAxisElement->SetRadius(UTransformGizmo::RotateAxisOuterRadius);
+	RotateAxisElement->SetNumSegments(UTransformGizmo::RotateAxisNumSegments);
 	RotateAxisElement->SetInnerRadius(UTransformGizmo::RotateAxisInnerRadius);
-	RotateAxisElement->SetInnerSlices(UTransformGizmo::RotateAxisInnerSlices);
-	RotateAxisElement->SetNormal(Normal);
-	RotateAxisElement->SetBeginAxis(TorusAxis0);
-	RotateAxisElement->SetPartial(true);
-	RotateAxisElement->SetAngle(PI);
-	RotateAxisElement->SetViewDependentAxis(Normal);
+	RotateAxisElement->SetNumInnerSlices(UTransformGizmo::RotateAxisInnerSlices);
+	RotateAxisElement->SetAxis0(TorusAxis0);
+	RotateAxisElement->SetAxis1(TorusAxis1);
+	const FVector TorusNormal = RotateAxisElement->GetAxis0() ^ RotateAxisElement->GetAxis1();
+	RotateAxisElement->SetPartialType(EGizmoElementPartialType::PartialViewDependent);
+	RotateAxisElement->SetPartialStartAngle(0.0f);
+	RotateAxisElement->SetPartialEndAngle(UE_PI);
+	RotateAxisElement->SetViewDependentAxis(TorusNormal);
 	RotateAxisElement->SetViewAlignType(EGizmoElementViewAlignType::Axial);
-	RotateAxisElement->SetViewAlignAxis(Normal);
+	RotateAxisElement->SetViewAlignAxis(TorusNormal);
 	RotateAxisElement->SetViewAlignNormal(TorusAxis1);
 	RotateAxisElement->SetMaterial(InMaterial);
 	return RotateAxisElement;
@@ -724,7 +726,8 @@ UGizmoElementCircle* UTransformGizmo::MakeRotateCircleHandle(ETransformGizmoPart
 	CircleElement->SetPartIdentifier(static_cast<uint32>(InPartId));
 	CircleElement->SetCenter(FVector::ZeroVector);
 	CircleElement->SetRadius(InRadius);
-	CircleElement->SetNormal(-FVector::ForwardVector);
+	CircleElement->SetAxis0(FVector::UpVector);
+	CircleElement->SetAxis1(-FVector::RightVector);
 	CircleElement->SetLineColor(InColor);
 	CircleElement->SetViewAlignType(EGizmoElementViewAlignType::PointOnly);
 	CircleElement->SetViewAlignNormal(-FVector::ForwardVector);
