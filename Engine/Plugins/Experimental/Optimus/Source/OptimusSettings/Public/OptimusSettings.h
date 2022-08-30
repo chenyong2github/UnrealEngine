@@ -6,6 +6,10 @@
 #include "Engine/DeveloperSettings.h"
 #include "OptimusSettings.generated.h"
 
+
+class UMeshDeformer;
+
+
 UENUM()
 enum class EOptimusDefaultDeformerMode : uint8
 {
