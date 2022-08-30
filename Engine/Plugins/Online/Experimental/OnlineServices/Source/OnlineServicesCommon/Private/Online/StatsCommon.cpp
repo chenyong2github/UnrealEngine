@@ -88,7 +88,7 @@ FStatsCommon::FStatsCommon(FOnlineServicesCommon& InServices)
 {
 }
 
-void FStatsCommon::LoadConfig()
+void FStatsCommon::UpdateConfig()
 {
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Stats");
 

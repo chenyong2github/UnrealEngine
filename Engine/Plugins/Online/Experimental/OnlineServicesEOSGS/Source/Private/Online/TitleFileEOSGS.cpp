@@ -27,9 +27,9 @@ void FTitleFileEOSGS::Initialize()
 	check(TitleStorageHandle);
 }
 
-void FTitleFileEOSGS::LoadConfig()
+void FTitleFileEOSGS::UpdateConfig()
 {
-	Super::LoadConfig();
+	Super::UpdateConfig();
 	Super::LoadConfig(Config);
 }
 

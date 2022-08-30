@@ -23,9 +23,9 @@ void FUserFileOSSAdapter::PostInitialize()
 	check(UserCloudInterface);
 }
 
-void FUserFileOSSAdapter::LoadConfig()
+void FUserFileOSSAdapter::UpdateConfig()
 {
-	Super::LoadConfig();
+	Super::UpdateConfig();
 	Super::LoadConfig(Config);
 }
 

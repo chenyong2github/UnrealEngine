@@ -34,10 +34,10 @@ public:
 	{
 		Services.RegisterExecHandler(InterfaceName, MakeUnique<TOnlineComponentExecHandler<TOnlineComponent<ComponentType>>>(this));
 		RegisterCommands();
-		LoadConfig();
+		UpdateConfig();
 	}
 	virtual void PostInitialize() override {}
-	virtual void LoadConfig() override {}
+	virtual void UpdateConfig() override {}
 	virtual void Tick(float DeltaSeconds) override {}
 	virtual void PreShutdown() override {}
 	virtual void Shutdown() override {}

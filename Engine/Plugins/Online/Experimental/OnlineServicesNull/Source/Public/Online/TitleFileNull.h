@@ -17,7 +17,7 @@ public:
 	FTitleFileNull(FOnlineServicesNull& InOwningSubsystem);
 
 	// IOnlineComponent
-	virtual void LoadConfig() override;
+	virtual void UpdateConfig() override;
 
 	// ITitleFile
 	virtual TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> EnumerateFiles(FTitleFileEnumerateFiles::Params&& Params) override;

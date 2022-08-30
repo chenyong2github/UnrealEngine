@@ -30,9 +30,9 @@ void FUserFileEOSGS::Initialize()
 	check(PlayerDataStorageHandle);
 }
 
-void FUserFileEOSGS::LoadConfig()
+void FUserFileEOSGS::UpdateConfig()
 {
-	Super::LoadConfig();
+	Super::UpdateConfig();
 	Super::LoadConfig(Config);
 }
 

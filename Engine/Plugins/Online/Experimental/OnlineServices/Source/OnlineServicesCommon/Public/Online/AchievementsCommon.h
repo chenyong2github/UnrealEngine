@@ -34,7 +34,7 @@ public:
 	// TOnlineComponent
 	virtual void Initialize() override;
 	virtual void Shutdown() override;
-	virtual void LoadConfig() override;
+	virtual void UpdateConfig() override;
 	virtual void RegisterCommands() override;
 
 	// IAchievements

@@ -39,7 +39,7 @@ public:
 
 	// IOnlineComponent
 	virtual void Initialize() override;
-	virtual void LoadConfig() override;
+	virtual void UpdateConfig() override;
 
 	// ITitleFile
 	virtual TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> EnumerateFiles(FTitleFileEnumerateFiles::Params&& Params) override;

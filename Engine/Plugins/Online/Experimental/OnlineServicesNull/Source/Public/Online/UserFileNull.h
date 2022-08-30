@@ -17,7 +17,7 @@ public:
 	FUserFileNull(FOnlineServicesNull& InOwningSubsystem);
 
 	// IOnlineComponent
-	virtual void LoadConfig() override;
+	virtual void UpdateConfig() override;
 
 	// IUserFile
 	virtual TOnlineAsyncOpHandle<FUserFileEnumerateFiles> EnumerateFiles(FUserFileEnumerateFiles::Params&& Params) override;

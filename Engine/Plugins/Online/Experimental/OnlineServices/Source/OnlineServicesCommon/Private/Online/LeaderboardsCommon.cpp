@@ -78,9 +78,9 @@ void FLeaderboardsCommon::Initialize()
 	StatEventHandle = Services.Get<IStats>()->OnStatsUpdated().Add([this](const FStatsUpdated& StatsUpdated) { WriteLeaderboardsByStats(StatsUpdated); });
 }
 
-void FLeaderboardsCommon::LoadConfig()
+void FLeaderboardsCommon::UpdateConfig()
 {
-	Super::LoadConfig();
+	Super::UpdateConfig();
 
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Leaderboards");
 	GConfig->GetBool(ConfigSection, TEXT("LeaderboardDef_IsTitleManaged"), bIsTitleManaged, GEngineIni);

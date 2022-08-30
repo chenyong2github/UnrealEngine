@@ -80,9 +80,9 @@ public:
 	virtual void PostInitialize();
 
 	/**
-	 * Calls LoadConfig on all the components
+	 * Calls UpdateConfig on all the components
 	 */
-	virtual void LoadConfig();
+	virtual void UpdateConfig();
 
 	/**
 	 * Calls Tick on all the components

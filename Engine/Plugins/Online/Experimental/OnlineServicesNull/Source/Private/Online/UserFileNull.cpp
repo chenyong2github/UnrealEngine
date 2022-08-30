@@ -15,7 +15,7 @@ FUserFileNull::FUserFileNull(FOnlineServicesNull& InOwningSubsystem)
 {
 }
 
-void FUserFileNull::LoadConfig()
+void FUserFileNull::UpdateConfig()
 {
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.UserFile");
 

@@ -29,9 +29,9 @@ void FExternalUIEOS::Initialize()
 	check(UIHandle != nullptr);
 }
 
-void FExternalUIEOS::LoadConfig()
+void FExternalUIEOS::UpdateConfig()
 {
-	Super::LoadConfig();
+	Super::UpdateConfig();
 	LoadConfig(Config);
 }
 

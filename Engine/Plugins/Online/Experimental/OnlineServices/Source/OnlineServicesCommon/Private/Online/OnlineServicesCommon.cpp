@@ -140,9 +140,9 @@ void FOnlineServicesCommon::PostInitialize()
 	Components.Visit(&IOnlineComponent::PostInitialize);
 }
 
-void FOnlineServicesCommon::LoadConfig()
+void FOnlineServicesCommon::UpdateConfig()
 {
-	Components.Visit(&IOnlineComponent::LoadConfig);
+	Components.Visit(&IOnlineComponent::UpdateConfig);
 }
 
 bool FOnlineServicesCommon::Tick(float DeltaSeconds)

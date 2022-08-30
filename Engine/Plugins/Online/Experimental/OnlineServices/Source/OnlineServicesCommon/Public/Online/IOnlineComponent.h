@@ -16,7 +16,7 @@ public:
 	// Called after all components have been initialized
 	virtual void PostInitialize() = 0;
 	// Called whenever we need to reload data from config
-	virtual void LoadConfig() = 0;
+	virtual void UpdateConfig() = 0;
 	// Called every Tick
 	virtual void Tick(float DeltaSeconds) = 0;
 	// Called before any component has been shutdown

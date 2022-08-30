@@ -71,7 +71,7 @@ public:
 	FStatsCommon(FOnlineServicesCommon& InServices);
 
 	// TOnlineComponent
-	virtual void LoadConfig() override;
+	virtual void UpdateConfig() override;
 	virtual void RegisterCommands() override;
 
 	// IStats

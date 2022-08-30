@@ -33,9 +33,9 @@ void FAchievementsCommon::Shutdown()
 	TOnlineComponent<IAchievements>::Shutdown();
 }
 
-void FAchievementsCommon::LoadConfig()
+void FAchievementsCommon::UpdateConfig()
 {
-	TOnlineComponent<IAchievements>::LoadConfig();
+	TOnlineComponent<IAchievements>::UpdateConfig();
 
 	const TCHAR* ConfigSection = TEXT("OnlineServices.AchievementUnlockRules");
 	GConfig->GetBool(ConfigSection, TEXT("AchievementDef_IsTitleManaged"), bIsTitleManaged, GEngineIni);

@@ -15,7 +15,7 @@ FTitleFileNull::FTitleFileNull(FOnlineServicesNull& InOwningSubsystem)
 {
 }
 
-void FTitleFileNull::LoadConfig()
+void FTitleFileNull::UpdateConfig()
 {
 	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.TitleFile");
 
