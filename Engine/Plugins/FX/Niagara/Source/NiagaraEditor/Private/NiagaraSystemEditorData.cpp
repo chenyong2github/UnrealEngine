@@ -371,7 +371,7 @@ UNiagaraScriptVariable* UNiagaraSystemEditorData::FindOrAddUserScriptVariable(FN
 			FNiagaraVariableMetaData MetaData;
 			NewScriptVariable->Init(UserParameter, MetaData);
 			UserParameterMetaData.Add(NewScriptVariable);
-			ExistingScriptVariable = &NewScriptVariable;
+			return NewScriptVariable;
 		}
 		
 		return *ExistingScriptVariable;
@@ -386,11 +386,6 @@ UNiagaraScriptVariable* UNiagaraSystemEditorData::FindUserScriptVariable(FGuid U
 		{
 			return ScriptVariable->Metadata.GetVariableGuid() == UserParameterGuid;
 		});
-
-	if(ExistingScriptVariable == nullptr)
-	{
-		return nullptr;
-	}
 
 	return *ExistingScriptVariable;
 }
