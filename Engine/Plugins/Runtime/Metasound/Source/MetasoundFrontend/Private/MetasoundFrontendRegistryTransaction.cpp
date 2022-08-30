@@ -10,7 +10,7 @@ namespace Metasound
 		int32 MetaSoundFrontendDiscardStreamedRegistryTransactionsCVar = 1;
 
 		FAutoConsoleVariableRef CVarMetaSoundFrontendDiscardStreamedRegistryTransactions(
-			TEXT("au.MetaSounds.Frontend.DiscardStreamedRegistryTransactions"),
+			TEXT("au.MetaSound.Frontend.DiscardStreamedRegistryTransactions"),
 			MetaSoundFrontendDiscardStreamedRegistryTransactionsCVar,
 			TEXT("If enabled, MetaSound registry transactions are discarded after they have been streamed.\n")
 			TEXT("0: Disabled, !0: Enabled (default)"),

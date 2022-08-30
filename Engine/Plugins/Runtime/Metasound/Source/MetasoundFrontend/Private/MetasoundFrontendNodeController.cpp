@@ -17,9 +17,9 @@
 
 static int32 MetaSoundAutoUpdateNativeClassesOfEqualVersionCVar = 1;
 FAutoConsoleVariableRef CVarMetaSoundAutoUpdateNativeClass(
-	TEXT("au.MetaSounds.AutoUpdate.NativeClassesOfEqualVersion"),
+	TEXT("au.MetaSound.AutoUpdate.NativeClassesOfEqualVersion"),
 	MetaSoundAutoUpdateNativeClassesOfEqualVersionCVar,
-	TEXT("If true, node references to native class that share a version number will attempt to auto-update if the interface is different, which results in slower graph load times.\n")
+	TEXT("If true, node references to native classes that share a version number will attempt to auto-update if the interface is different, which results in slower graph load times.\n")
 	TEXT("0: Don't auto-update native classes of the same version with interface discrepancies, !0: Auto-update native classes of the same version with interface discrepancies (default)"),
 	ECVF_Default);
 

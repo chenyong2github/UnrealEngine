@@ -54,7 +54,7 @@ DEFINE_LOG_CATEGORY(LogMetasoundEditor);
 
 static int32 MetaSoundEditorAsyncRegistrationEnabledCVar = 1;
 FAutoConsoleVariableRef CVarMetaSoundEditorAsyncRegistrationEnabled(
-	TEXT("au.MetaSounds.Editor.AsyncRegistrationEnabled"),
+	TEXT("au.MetaSound.Editor.AsyncRegistrationEnabled"),
 	MetaSoundEditorAsyncRegistrationEnabledCVar,
 	TEXT("Enable registering all MetaSound asset classes asyncronously on editor load.\n")
 	TEXT("0: Disabled, !0: Enabled (default)"),

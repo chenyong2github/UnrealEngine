@@ -50,9 +50,9 @@
 
 static int32 EnableAllVersionsMetaSoundNodeClassCreationCVar = 0;
 FAutoConsoleVariableRef CVarEnableAllVersionsMetaSoundNodeClassCreation(
-	TEXT("au.Debug.Editor.MetaSounds.EnableAllVersionsNodeClassCreation"),
+	TEXT("au.MetaSound.EnableAllVersionsNodeClassCreation"),
 	EnableAllVersionsMetaSoundNodeClassCreationCVar,
-	TEXT("Enable creating nodes major versions of deprecated MetaSound classes in the Editor.\n")
+	TEXT("Enable creating nodes for major versions of deprecated MetaSound classes in the Editor.\n")
 	TEXT("0: Disabled (default), !0: Enabled"),
 	ECVF_Default);
 

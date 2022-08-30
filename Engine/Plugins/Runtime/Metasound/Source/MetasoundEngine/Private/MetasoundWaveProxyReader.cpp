@@ -22,7 +22,7 @@
 
 static int32 GMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable = 0;
 FAutoConsoleVariableRef CVarMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable(
-	TEXT("au.MetaSounds.WavePlayer.SimulateSeek"),
+	TEXT("au.MetaSound.WavePlayer.SimulateSeek"),
 	GMetaSoundWaveProxyReaderSimulateSeekOnNonSeekable ,
 	TEXT("If true, SoundWaves which are not of a seekable format will simulate seek calls by reading and discarding samples.\n")
 	TEXT("0: Do not simulate seek, !0: Simulate seek"),

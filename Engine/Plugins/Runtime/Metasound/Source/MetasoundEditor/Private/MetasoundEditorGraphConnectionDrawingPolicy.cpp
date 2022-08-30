@@ -55,21 +55,21 @@ namespace Metasound
 			}
 
 			FAutoConsoleVariableRef CVarMetaSoundEditorAudioConnectSpeed(
-				TEXT("au.MetaSounds.Editor.EnvelopeConnection.Speed"),
+				TEXT("au.MetaSound.Editor.EnvelopeConnection.Speed"),
 				DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar,
 				TEXT("Speed of lines drawn in audio connections in the MetaSoundEditor.\n")
 				TEXT("Default: 1.0f"),
 				ECVF_Default);
 
 			FAutoConsoleVariableRef CVarMetaSoundEditorAudioConnectSpacing(
-				TEXT("au.MetaSounds.Editor.EnvelopeConnection.Spacing"),
+				TEXT("au.MetaSound.Editor.EnvelopeConnection.Spacing"),
 				DrawingPolicyPrivate::EnvelopeConnectionSpacingCVar,
 				TEXT("Spacing of lines drawn in audio connections in the MetaSoundEditor.\n")
 				TEXT("Default: 3.0f"),
 				ECVF_Default);
 
 			FAutoConsoleVariableRef CVarEnvelopeConnectionMaxPointsPerConnection(
-				TEXT("au.MetaSounds.Editor.EnvelopeConnection.MaxPointsPerConnection"),
+				TEXT("au.MetaSound.Editor.EnvelopeConnection.MaxPointsPerConnection"),
 				DrawingPolicyPrivate::EnvelopeConnectionMaxPointsPerConnection,
 				TEXT("Max number of draw points per connection for animated connections.\n")
 				TEXT("Default: 1024"),
