@@ -383,6 +383,11 @@ public:
 		return TPlatformProperties::RequiresCookedData();
 	}
 
+	virtual bool RequiresOriginalReleaseVersionForPatch() const override
+	{
+		return TPlatformProperties::RequiresOriginalReleaseVersionForPatch();
+	}
+
 	virtual bool HasSecurePackageFormat() const override
 	{
 		return TPlatformProperties::HasSecurePackageFormat();

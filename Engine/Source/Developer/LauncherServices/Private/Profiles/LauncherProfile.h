@@ -51,6 +51,7 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_ADDEDMAKEBINARYCONFIG = 30,
 	LAUNCHERSERVICES_ADDEDREFERENCECONTAINERS = 31,
 	LAUNCHERSERVICES_REMOVEDNUMCOOKERSTOSPAWN = 32,
+	LAUNCHERSERVICES_ADDEDORIGINALRELEASEVERSION = 33,
 	//ADD NEW STUFF HERE
 
 
@@ -530,6 +531,16 @@ public:
 	virtual void SetBasedOnReleaseVersionName(const FString& InBasedOnReleaseVersionName) override
 	{
 		BasedOnReleaseVersionName = InBasedOnReleaseVersionName;
+	}
+
+	virtual FString GetOriginalReleaseVersionName() const override
+	{
+		return OriginalReleaseVersionName; 
+	}
+
+	virtual void SetOriginalReleaseVersionName(const FString& InOriginalReleaseVersionName) override
+	{
+		OriginalReleaseVersionName = InOriginalReleaseVersionName;
 	}
 
 	virtual FString GetReferenceContainerGlobalFileName() const override
@@ -1048,6 +1059,10 @@ public:
 			Archive << ReferenceContainerGlobalFileName;
 			Archive << ReferenceContainerCryptoKeysFileName;
 		}
+		if (Version >= LAUNCHERSERVICES_ADDEDORIGINALRELEASEVERSION)
+		{
+			Archive << OriginalReleaseVersionName;
+		}
 
 		else if(Archive.IsLoading())
 		{
@@ -1180,6 +1195,7 @@ public:
 		Writer.WriteValue("BasedOnReleaseVersionName", BasedOnReleaseVersionName);
 		Writer.WriteValue("ReferenceContainerGlobalFileName", ReferenceContainerGlobalFileName);
 		Writer.WriteValue("ReferenceContainerCryptoKeysFileName", ReferenceContainerCryptoKeysFileName);
+		Writer.WriteValue("OriginalReleaseVersionName", OriginalReleaseVersionName);
 		Writer.WriteValue("CreateDLC", CreateDLC);
 		Writer.WriteValue("DLCName", DLCName);
 		Writer.WriteValue("GenerateChunks", bGenerateChunks);
@@ -1397,6 +1413,11 @@ public:
 					{
 						Writer.WriteValue("basedonreleaseversion", GetBasedOnReleaseVersionName());
 						Writer.WriteValue("stagebasereleasepaks", ShouldStageBaseReleasePaks());
+					}
+
+					if (GetOriginalReleaseVersionName().IsEmpty() == false)
+					{
+						Writer.WriteValue("originalreleaseversion", GetOriginalReleaseVersionName());
 					}
 				}
 
@@ -1832,6 +1853,16 @@ public:
 			ReferenceContainerCryptoKeysFileName.Empty();
 			ReferenceContainerGlobalFileName.Empty();
 		}
+
+		if (Version >= LAUNCHERSERVICES_ADDEDORIGINALRELEASEVERSION)
+		{
+			OriginalReleaseVersionName = Object.GetStringField("OriginalReleaseVersionName");
+		}
+		else
+		{
+			OriginalReleaseVersionName.Empty();
+		}
+
 
 		CreateDLC = Object.GetBoolField("CreateDLC");
 		DLCName = Object.GetStringField("DLCName");
@@ -2899,6 +2930,9 @@ private:
 
 	// name of the release version to base this dlc / patch on
 	FString BasedOnReleaseVersionName;
+
+	// name of the original release version
+	FString OriginalReleaseVersionName;
 
 	// This build generate a patch based on some source content seealso PatchSourceContentPath
 	bool GeneratePatch;

@@ -170,6 +170,10 @@ private:
 	void HandleBasedOnReleaseVersionNameCommitted(const FText& NewText, ETextCommit::Type CommitType);
 	FText HandleBasedOnReleaseVersionNameTextBlockText() const;
 
+	void HandleOriginalReleaseVersionNameCommitted(const FText& NewText, ETextCommit::Type CommitType);
+	FText HandleOriginalReleaseVersionNameTextBlockText() const;
+	EVisibility HandleOriginalReleaseVersionVisibility() const;
+
 	//////////////////////////////////////////////////////////////////////////
 	// patch generation related functions
 	// Callback for check state changes of the 'GeneratePatch' check box.

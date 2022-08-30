@@ -302,4 +302,11 @@ struct FGenericPlatformProperties
 	{
 		return nullptr;
 	}
+	 
+	// Whether the platform requires an original release version to make a patch
+	static FORCEINLINE bool RequiresOriginalReleaseVersionForPatch()
+	{
+		return false;
+	}
+
 };

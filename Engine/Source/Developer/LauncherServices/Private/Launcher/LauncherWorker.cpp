@@ -707,6 +707,12 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 						UATCommand += TEXT(" -stagebasereleasepaks");
 					}
 				}
+
+				if (InProfile->GetOriginalReleaseVersionName().IsEmpty() == false)
+				{
+					UATCommand += TEXT(" -originalreleaseversion=");
+					UATCommand += InProfile->GetOriginalReleaseVersionName();
+				}
 			}
 
 			if (InProfile->IsGeneratingChunks())

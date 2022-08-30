@@ -395,6 +395,14 @@ public:
 	virtual bool RequiresCookedData() const = 0;
 
 	/**
+	 * Checks whether this platform requires the originally released version (in addition to the 
+	 * previously released version) to create a patch
+	 *
+	 * @return true if this platform requires the originally released version, false otherwise.
+	 */
+	virtual bool RequiresOriginalReleaseVersionForPatch() const = 0;
+
+	/**
 	* Checks whether this platform has a secure shippable package format, and therefore doesn't need any encryption or signing support
 	*
 	* @return true if this platform requires cooked data, false otherwise.

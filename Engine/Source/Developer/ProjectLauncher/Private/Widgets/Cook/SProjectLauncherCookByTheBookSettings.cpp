@@ -438,6 +438,35 @@ TSharedRef<SWidget> SProjectLauncherCookByTheBookSettings::MakeComplexWidget()
 									]
 							]
 
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0f, 8.0f, 0.0f, 0.0f)
+							[
+								SNew(SProjectLauncherFormLabel)
+									.ToolTipText(LOCTEXT("OriginalReleaseVersionTextBoxToolTip", "The original release version which this DLC / Patch / Next release is based on."))
+									.LabelText(LOCTEXT("OriginalReleaseVersionTextBoxLabel", "Original release version of this application."))
+									.Visibility(this, &SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionVisibility)
+							]
+
+						+ SVerticalBox::Slot()
+							.AutoHeight()
+							.Padding(0.0, 4.0, 0.0, 0.0)
+							[
+								SNew(SHorizontalBox)
+
+								+ SHorizontalBox::Slot()
+									.FillWidth(1.0)
+									.Padding(0.0, 0.0, 0.0, 3.0)
+									[
+										// original release version text box
+										SNew(SEditableTextBox)
+											.ToolTipText(LOCTEXT("OriginalReleaseVersionTextBoxTooltip", "The original release version"))
+											.Text(this, &SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionNameTextBlockText)
+											.OnTextCommitted(this, &SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionNameCommitted)
+											.Visibility(this, &SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionVisibility)
+									]
+							]
+
 						// end create release version
 						//////////////////////////////////////////////////////////////////////////
 
@@ -1811,6 +1840,56 @@ void SProjectLauncherCookByTheBookSettings::HandleBasedOnReleaseVersionNameCommi
 		SelectedProfile->SetBasedOnReleaseVersionName(NewText.ToString());
 	}
 
+}
+
+
+FText SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionNameTextBlockText() const
+{
+	const ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+
+	FText result;
+
+	if (SelectedProfile.IsValid())
+	{
+		result = FText::FromString(SelectedProfile->GetOriginalReleaseVersionName());
+	}
+
+	return result;
+}
+
+
+void SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionNameCommitted(const FText& NewText, ETextCommit::Type CommitType)
+{
+	ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+
+	if (SelectedProfile.IsValid())
+	{
+		SelectedProfile->SetOriginalReleaseVersionName(NewText.ToString());
+	}
+}
+
+
+EVisibility SProjectLauncherCookByTheBookSettings::HandleOriginalReleaseVersionVisibility() const
+{
+	const ILauncherProfilePtr SelectedProfile = Model->GetSelectedProfile();
+	const TArray<FString>& SelectedCookedPlatformNames = SelectedProfile->GetCookedPlatforms();
+	const TArray<ITargetPlatform*>& Platforms = GetTargetPlatformManager()->GetTargetPlatforms();
+
+	for (const FString& SelectedCookedPlatform : SelectedCookedPlatformNames)
+	{
+		for (const ITargetPlatform* Platform : Platforms)
+		{
+			if (SelectedCookedPlatform == Platform->PlatformName())
+			{
+				if (Platform->RequiresOriginalReleaseVersionForPatch())
+				{
+					return EVisibility::Visible;
+				}
+			}
+		}
+	}
+
+	return EVisibility::Collapsed;
 }
 
 
