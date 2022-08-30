@@ -12,5 +12,7 @@ public class BackgroundHTTPFileHash : ModuleRules
                 "Core",
             }
         );
+
+        UnsafeTypeCastWarningLevel = WarningLevel.Error;
     }
 }

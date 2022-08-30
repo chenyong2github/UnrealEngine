@@ -64,6 +64,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PublicDefinitions.Add("LOAD_PLUGINS_FOR_TARGET_PLATFORMS=0");
 			}
+
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		}
 	}
 }

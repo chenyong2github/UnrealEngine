@@ -17,5 +17,7 @@ public class Sockets : ModuleRules
 			});
 
 		PublicDefinitions.Add("SOCKETS_PACKAGE=1");
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

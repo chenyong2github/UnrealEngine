@@ -10,7 +10,9 @@ public class TraceLog : ModuleRules
 	{
 		bRequiresImplementModule = false;
 		PublicIncludePathModuleNames.Add("Core");
-    }
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+	}
 
 	// used by platform extension derived classes. probably should become a project setting at some point!
 	protected void EnableTraceByDefault(ReadOnlyTargetRules Target)

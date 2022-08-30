@@ -11,5 +11,7 @@ public class Zen : ModuleRules
 		PrivateIncludePathModuleNames.Add("DesktopPlatform");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

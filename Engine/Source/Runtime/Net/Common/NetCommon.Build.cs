@@ -14,5 +14,7 @@ public class NetCommon : ModuleRules
 				"Core"
 			}
 		);
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }

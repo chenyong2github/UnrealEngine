@@ -37,5 +37,7 @@ public class DesktopPlatform : ModuleRules
 
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "SDL2");
 		}
+
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}
 }
