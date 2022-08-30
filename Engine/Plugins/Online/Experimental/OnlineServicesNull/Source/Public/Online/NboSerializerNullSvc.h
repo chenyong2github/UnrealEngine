@@ -44,17 +44,6 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMembe
 	}
 }
 
-inline void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FRegisteredPlayersMap& RegisteredPlayersMap)
-{
-	Packet << RegisteredPlayersMap.Num();
-
-	for (const TPair<FAccountId, FRegisteredPlayer>& Entry : RegisteredPlayersMap)
-	{
-		SerializeToBuffer(Packet, Entry.Key);
-		NboSerializerCommonSvc::SerializeToBuffer(Packet, Entry.Value);
-	}
-}
-
 inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const TMap<FLobbyAttributeId, FLobbyVariant>& Map)
 {
 	Ar << Map.Num();
@@ -101,23 +90,6 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMembers
 		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
 
 		SessionMembersMap.Emplace(Key, Value);
-	}
-}
-
-inline void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FRegisteredPlayersMap& RegisteredPlayersMap)
-{
-	int32 NumEntries = 0;
-	Packet >> NumEntries;
-
-	for (int32 Index = 0; Index < NumEntries; ++Index)
-	{
-		FAccountId Key;
-		SerializeFromBuffer(Packet, Key);
-
-		FRegisteredPlayer Value;
-		NboSerializerCommonSvc::SerializeFromBuffer(Packet, Value);
-
-		RegisteredPlayersMap.Emplace(Key, Value);
 	}
 }
 

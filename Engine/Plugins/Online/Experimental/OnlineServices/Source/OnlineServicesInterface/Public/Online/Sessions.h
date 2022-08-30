@@ -63,18 +63,6 @@ enum class ESessionJoinPolicy : uint8
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionJoinPolicy Value);
 ONLINESERVICESINTERFACE_API void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr);
 
-/** A player registered with the session, whether they are in it or not */
-struct FRegisteredPlayer
-{
-	/* Whether a slot was reserved for this player upon registration */
-	bool bHasReservedSlot = false;
-
-	/* Whether the player is currently in the session */
-	bool bIsInSession = false;
-};
-
-using FRegisteredPlayersMap = TMap<FAccountId, FRegisteredPlayer>;
-
 struct FSessionSettingsUpdate
 {
 	/** Set with an updated value if the SchemaName field will be changed in the update operation */
@@ -97,8 +85,6 @@ struct FSessionSettingsUpdate
 	TOptional<bool> bAllowNewMembers;
 	/** Set with an updated value if the bAllowSanctionedPlayers field will be changed in the update operation */
 	TOptional<bool> bAllowSanctionedPlayers;
-	/** Set with an updated value if the bAllowUnregisteredPlayers field will be changed in the update operation */
-	TOptional<bool> bAllowUnregisteredPlayers;
 	/** Set with an updated value if the bAntiCheatProtected field will be changed in the update operation */
 	TOptional<bool> bAntiCheatProtected;
 	/** Set with an updated value if the bPresenceEnabled field will be changed in the update operation */
@@ -113,11 +99,6 @@ struct FSessionSettingsUpdate
 	FSessionMemberUpdatesMap UpdatedSessionMembers;
 	/** Id handles for session members to be removed in the update operation*/
 	TArray<FAccountId> RemovedSessionMembers;
-
-	/** Updated values for registered players to change in the update operation*/
-	FRegisteredPlayersMap UpdatedRegisteredPlayers;
-	/** Id handles for registered players to be removed in the update operation*/
-	TArray<FAccountId> RemovedRegisteredPlayers;
 
 	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
 };
@@ -151,14 +132,11 @@ struct ONLINESERVICESINTERFACE_API FSessionSettings
 	/* Whether the session is configured to run as a dedicated server. Only available in some platforms. False by default */
 	bool bIsDedicatedServerSession = false;
 
-	/* Whether players (registered or not) are accepted as new members in the session. Can vary depending on various factors, like the number of free slots available, or Join-In-Progress preferences when the session has started. True by default */
+	/* Whether players are accepted as new members in the session. Can vary depending on various factors, like the number of free slots available, or Join-In-Progress preferences when the session has started. True by default */
 	bool bAllowNewMembers = true;
 
 	/* Whether this session will allow sanctioned players to join it. True by default */
 	bool bAllowSanctionedPlayers = true;
-
-	/* Whether this session will allow unregistered players to join it. True by default */
-	bool bAllowUnregisteredPlayers = true;
 
 	/*Whether this is a secure session protected by anti-cheat services. False by default */
 	bool bAntiCheatProtected = false;
@@ -171,9 +149,6 @@ struct ONLINESERVICESINTERFACE_API FSessionSettings
  
  	/* Map of session member ids to their corresponding user-defined settings */
  	FSessionMembersMap SessionMembers;
- 
- 	/* Map of registered players for this session. Can only be altered via RegisterPlayers and UnregisterPlayers */
- 	FRegisteredPlayersMap RegisteredPlayers;
 
 	FSessionSettings& operator+=(const FSessionSettingsUpdate& UpdatedValue);
 };
@@ -468,9 +443,6 @@ struct FAddSessionMember
 
 		/** Information for the session member to be added to the session. Any player that joins the session becomes a new member in doing so */
 		FSessionMember NewSessionMember;
-
-		/** Whether or not the new session members should also be added to the list of registered players. True by default*/
-		bool bRegisterPlayers = true;
 	};
 
 	struct Result
@@ -490,9 +462,6 @@ struct FRemoveSessionMember
 
 		/* Local name for the session */
 		FName SessionName;
-
-		/** Whether or not the session members should also be removed from the list of registered players. True by default*/
-		bool bUnregisterPlayers = true;
 	};
 
 	struct Result
@@ -551,54 +520,6 @@ struct FRejectSessionInvite
 
 		/* The id handle for the invite to be rejected */
 		FSessionInviteId SessionInviteId;
-	};
-
-	struct Result
-	{
-	};
-};
-
-struct FRegisterPlayers
-{
-	static constexpr TCHAR Name[] = TEXT("RegisterPlayers");
-
-	struct Params
-	{
-		/* The local user agent */
-		FAccountId LocalAccountId;
-
-		/* The local name for the session. */
-		FName SessionName;
-
-		/* Array of users which will be registered */
-		TArray<FAccountId> TargetUsers;
-
-		/* Whether a slot should be saved for the registered players */
-		bool bReserveSlot;
-	};
-
-	struct Result
-	{
-	};
-};
-
-struct FUnregisterPlayers
-{
-	static constexpr TCHAR Name[] = TEXT("UnregisterPlayers");
-
-	struct Params
-	{
-		/* The local user agent */
-		FAccountId LocalAccountId;
-
-		/* The local name for the session. */
-		FName SessionName;
-
-		/* Array of users which will be unregistered */
-		TArray<FAccountId> TargetUsers;
-
-		/* Whether unregistered players should be removed from the session, if they are in it */
-		bool bRemoveUnregisteredPlayers;
 	};
 
 	struct Result
@@ -771,7 +692,6 @@ public:
 	 * Adds a set of new session members to the named session
 	 * Session member information passed will be saved in the session settings
 	 * Number of open slots in the session will decrease accordingly
-	 * If indicated, players will also be registered in the session
 	 * 
 	 * @params Parameters for the AddSessionMember call
 	 * @return
@@ -782,7 +702,6 @@ public:
 	 * Removes a set of session member from the named session
 	 * Session member information for them will be removed from session settings
 	 * Number of open slots in the session will increase accordingly
-	 * If indicated, players will also be unregistered from the session
 	 *
 	 * @params Parameters for the RemoveSessionMember call
 	 * @return
@@ -812,24 +731,6 @@ public:
 	 * @return
 	 */
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) = 0;
-
-	/**
-	 * Registers given players in the named session
-	 * If indicated, and if any are available, a slot in the session will be reserved for them
-	 *
-	 * @param Parameters for the RegisterPlayers call
-	 * @return
-	 */
-	virtual TOnlineAsyncOpHandle<FRegisterPlayers> RegisterPlayers(FRegisterPlayers::Params&& Params) = 0;
-
-	/**
-	 * Unregisters given players from the named session.
-	 * If indicated, and if they are members of it, players will also be removed from the session
-	 *
-	 * @param Parameters for the UnregisterPlayers call
-	 * @return
-	 */
-	virtual TOnlineAsyncOpHandle<FUnregisterPlayers> UnregisterPlayers(FUnregisterPlayers::Params&& Params) = 0;
 
 	/* Events */
 
@@ -897,11 +798,6 @@ BEGIN_ONLINE_STRUCT_META(FSessionMemberUpdate)
 	ONLINE_STRUCT_FIELD(FSessionMemberUpdate, RemovedMemberSettings)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FRegisteredPlayer)
-	ONLINE_STRUCT_FIELD(FRegisteredPlayer, bHasReservedSlot),
-	ONLINE_STRUCT_FIELD(FRegisteredPlayer, bIsInSession)
-END_ONLINE_STRUCT_META()
-
 BEGIN_ONLINE_STRUCT_META(FSessionSettings)
 	ONLINE_STRUCT_FIELD(FSessionSettings, SchemaName),
 	ONLINE_STRUCT_FIELD(FSessionSettings, NumMaxPublicConnections),
@@ -914,12 +810,10 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettings)
 	ONLINE_STRUCT_FIELD(FSessionSettings, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowNewMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowSanctionedPlayers),
-	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowUnregisteredPlayers),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAntiCheatProtected),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bPresenceEnabled),
 	ONLINE_STRUCT_FIELD(FSessionSettings, CustomSettings),
-	ONLINE_STRUCT_FIELD(FSessionSettings, SessionMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettings, RegisteredPlayers)
+	ONLINE_STRUCT_FIELD(FSessionSettings, SessionMembers)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
@@ -933,15 +827,12 @@ BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowNewMembers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowSanctionedPlayers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowUnregisteredPlayers),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAntiCheatProtected),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bPresenceEnabled),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedCustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedCustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedSessionMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedSessionMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedRegisteredPlayers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedRegisteredPlayers)
+	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedSessionMembers)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionInvite)
@@ -1064,8 +955,7 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FAddSessionMember::Params)
 	ONLINE_STRUCT_FIELD(FAddSessionMember::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FAddSessionMember::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FAddSessionMember::Params, NewSessionMember),
-	ONLINE_STRUCT_FIELD(FAddSessionMember::Params, bRegisterPlayers)
+	ONLINE_STRUCT_FIELD(FAddSessionMember::Params, NewSessionMember)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FAddSessionMember::Result)
@@ -1073,8 +963,7 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRemoveSessionMember::Params)
 	ONLINE_STRUCT_FIELD(FRemoveSessionMember::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FRemoveSessionMember::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FRemoveSessionMember::Params, bUnregisterPlayers)
+	ONLINE_STRUCT_FIELD(FRemoveSessionMember::Params, SessionName)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRemoveSessionMember::Result)
@@ -1103,26 +992,6 @@ BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Result)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FRegisterPlayers::Params)
-	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, TargetUsers),
-	ONLINE_STRUCT_FIELD(FRegisterPlayers::Params, bReserveSlot)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FRegisterPlayers::Result)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FUnregisterPlayers::Params)
-	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, TargetUsers),
-	ONLINE_STRUCT_FIELD(FUnregisterPlayers::Params, bRemoveUnregisteredPlayers)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FUnregisterPlayers::Result)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

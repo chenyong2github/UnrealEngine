@@ -54,7 +54,6 @@ FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsUpdate& Upd
 	COPY_TOPTIONAL_VALUE_IF_SET(bIsDedicatedServerSession)
 	COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
 	COPY_TOPTIONAL_VALUE_IF_SET(bAllowSanctionedPlayers)
-	COPY_TOPTIONAL_VALUE_IF_SET(bAllowUnregisteredPlayers)
 	COPY_TOPTIONAL_VALUE_IF_SET(bAntiCheatProtected)
 	COPY_TOPTIONAL_VALUE_IF_SET(bPresenceEnabled)
 		
@@ -64,13 +63,6 @@ FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsUpdate& Upd
 	}
 
 	CustomSettings.Append(UpdatedSettings.UpdatedCustomSettings);
-
-	for (const FAccountId& Key : UpdatedSettings.RemovedRegisteredPlayers)
-	{
-		RegisteredPlayers.Remove(Key);
-	}
-
-	RegisteredPlayers.Append(UpdatedSettings.UpdatedRegisteredPlayers);
 
 	for (const FAccountId& Key : UpdatedSettings.RemovedSessionMembers)
 	{
@@ -134,7 +126,6 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 	MOVE_TOPTIONAL_IF_SET(bIsDedicatedServerSession)
 	MOVE_TOPTIONAL_IF_SET(bAllowNewMembers)
 	MOVE_TOPTIONAL_IF_SET(bAllowSanctionedPlayers)
-	MOVE_TOPTIONAL_IF_SET(bAllowUnregisteredPlayers)
 	MOVE_TOPTIONAL_IF_SET(bAntiCheatProtected)
 	MOVE_TOPTIONAL_IF_SET(bPresenceEnabled)
 
@@ -166,20 +157,6 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 		// If an update removes a member that had previously been modified, we'll keep the latest change
 		UpdatedSessionMembers.Remove(Key);
 		RemovedSessionMembers.AddUnique(MoveTemp(Key));
-	}
-
-	for (const TPair<FAccountId, FRegisteredPlayer>& UpdatedRegisteredPlayer : UpdatedValue.UpdatedRegisteredPlayers)
-	{
-		// If an update adds a modification to a registered player that had previously been marked for removal, we'll keep the latest change
-		RemovedRegisteredPlayers.Remove(UpdatedRegisteredPlayer.Key);
-	}
-	UpdatedRegisteredPlayers.Append(MoveTemp(UpdatedValue.UpdatedRegisteredPlayers));
-
-	for (FAccountId& Key : UpdatedValue.RemovedRegisteredPlayers)
-	{
-		// If an update removes a registered player that had previously been modified, we'll keep the latest change
-		UpdatedRegisteredPlayers.Remove(Key);
-		RemovedRegisteredPlayers.AddUnique(MoveTemp(Key));
 	}
 
 	return *this;

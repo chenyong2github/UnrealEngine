@@ -11,12 +11,6 @@ namespace NboSerializerCommonSvc {
 
 /** SerializeToBuffer methods */
 
-void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FRegisteredPlayer& RegisteredPlayer)
-{
-	Packet << RegisteredPlayer.bHasReservedSlot;
-	Packet << RegisteredPlayer.bIsInSession;
-}
-
 void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSchemaVariant& Data)
 {
 	Packet << (uint8)Data.VariantType;
@@ -73,7 +67,6 @@ void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionSettings& Se
 {
 	Packet << SessionSettings.bAllowNewMembers;
 	Packet << SessionSettings.bAllowSanctionedPlayers;
-	Packet << SessionSettings.bAllowUnregisteredPlayers;
 	Packet << SessionSettings.bAntiCheatProtected;
 	Packet << SessionSettings.bIsDedicatedServerSession;
 	Packet << SessionSettings.bIsLANSession;
@@ -99,16 +92,6 @@ void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionCommon& Sess
 }
 
 /** SerializeFromBuffer methods */
-
-void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FRegisteredPlayer& RegisteredPlayer)
-{
-	uint8 Read = 0;
-
-	Packet >> Read;
-	RegisteredPlayer.bHasReservedSlot = !!Read;
-	Packet >> Read;
-	RegisteredPlayer.bIsInSession = !!Read;
-}
 
 void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSchemaVariant& Data)
 {
@@ -189,8 +172,6 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionSettings& Sess
 	SessionSettings.bAllowNewMembers = !!Read;
 	Packet >> Read;
 	SessionSettings.bAllowSanctionedPlayers = !!Read;
-	Packet >> Read;
-	SessionSettings.bAllowUnregisteredPlayers = !!Read;
 	Packet >> Read;
 	SessionSettings.bAntiCheatProtected = !!Read;
 	Packet >> Read;

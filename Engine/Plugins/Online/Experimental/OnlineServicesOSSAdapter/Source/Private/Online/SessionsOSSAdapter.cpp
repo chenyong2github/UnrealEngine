@@ -1117,20 +1117,6 @@ TOnlineAsyncOpHandle<FSendSessionInvite> FSessionsOSSAdapter::SendSessionInvite(
 	return Op->GetHandle();
 }
 
-TOnlineAsyncOpHandle<FRegisterPlayers> FSessionsOSSAdapter::RegisterPlayers(FRegisterPlayers::Params&& Params)
-{
-	TOnlineAsyncOpRef<FRegisterPlayers> Op = GetOp<FRegisterPlayers>(MoveTemp(Params));
-	Op->SetError(Errors::NotImplemented());
-	return Op->GetHandle();
-}
-
-TOnlineAsyncOpHandle<FUnregisterPlayers> FSessionsOSSAdapter::UnregisterPlayers(FUnregisterPlayers::Params&& Params)
-{
-	TOnlineAsyncOpRef<FUnregisterPlayers> Op = GetOp<FUnregisterPlayers>(MoveTemp(Params));
-	Op->SetError(Errors::NotImplemented());
-	return Op->GetHandle();
-}
-
 TOnlineResult<FGetResolvedConnectString> FSessionsOSSAdapter::GetResolvedConnectString(const FGetResolvedConnectString::Params& Params)
 {
 	if (Params.SessionId.IsValid())
@@ -1173,7 +1159,6 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1Settings(const FSessionSettin
 	Result.bAllowJoinViaPresence = InSessionSettings.bAllowNewMembers;
 	Result.bAllowJoinViaPresenceFriendsOnly = InSessionSettings.bAllowNewMembers;
 	Result.Settings.Add(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS, InSessionSettings.bAllowSanctionedPlayers);
-	Result.Settings.Add(OSS_ADAPTER_SESSIONS_ALLOW_UNREGISTERED_PLAYERS, InSessionSettings.bAllowUnregisteredPlayers);
 	Result.bAntiCheatProtected = InSessionSettings.bAntiCheatProtected;
 	Result.bIsDedicated = InSessionSettings.bIsDedicatedServerSession;
 	Result.bIsLANMatch = InSessionSettings.bIsLANSession;
@@ -1215,7 +1200,6 @@ FOnlineSessionSettings FSessionsOSSAdapter::BuildV1Settings(const FSessionSettin
 void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSession* InSession, FSessionSettings& OutSettings) const
 {
 	InSession->SessionSettings.Settings.FindChecked(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS).Data.GetValue(OutSettings.bAllowSanctionedPlayers);
-	InSession->SessionSettings.Settings.FindChecked(OSS_ADAPTER_SESSIONS_ALLOW_UNREGISTERED_PLAYERS).Data.GetValue(OutSettings.bAllowUnregisteredPlayers);
 	OutSettings.bAntiCheatProtected = InSession->SessionSettings.bAntiCheatProtected;
 	OutSettings.bPresenceEnabled = InSession->SessionSettings.bUsesPresence;
 	OutSettings.bIsDedicatedServerSession = InSession->SessionSettings.bIsDedicated;
@@ -1258,9 +1242,10 @@ void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1NamedSession(const FNamedO
 
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
+	// We'll add all the Registered users as SessionMembers with empty data for now
 	for (const FUniqueNetIdRef& RegisteredPlayer : InSession->RegisteredPlayers)
 	{
-		OutSettings.RegisteredPlayers.Add(ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(RegisteredPlayer));
+		OutSettings.SessionMembers.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(RegisteredPlayer));
 	}
 }
 
@@ -1275,14 +1260,14 @@ TSharedRef<FSessionCommon> FSessionsOSSAdapter::BuildV2Session(const FOnlineSess
 
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-	Session->SessionId = GetSessionIdRegistry().FindOrAddHandle(InSession->SessionInfo->GetSessionId().AsShared());
-	WriteV2SessionSettingsFromV1Session(InSession, Session->SessionSettings);
-
 	if (const FNamedOnlineSession* NamedInSession = static_cast<const FNamedOnlineSession*>(InSession))
 	{
 		Session->OwnerAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(NamedInSession->LocalOwnerId->AsShared());
 		WriteV2SessionSettingsFromV1NamedSession(NamedInSession, Session->SessionSettings);
 	}
+
+	Session->SessionId = GetSessionIdRegistry().FindOrAddHandle(InSession->SessionInfo->GetSessionId().AsShared());
+	WriteV2SessionSettingsFromV1Session(InSession, Session->SessionSettings);
 
 	return Session;
 }

@@ -103,7 +103,7 @@ struct FUpdateSessionJoinabilityImpl
 		/** Name for the session, needed to start or end it */
 		FName SessionName;
 
-		/** Whether players (registered or not) are accepted as new members in the session. */
+		/** Whether players are accepted as new members in the session. */
 		bool bAllowNewMembers;
 	};
 

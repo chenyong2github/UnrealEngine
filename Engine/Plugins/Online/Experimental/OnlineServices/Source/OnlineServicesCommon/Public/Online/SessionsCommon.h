@@ -215,8 +215,6 @@ public:
 	virtual TOnlineAsyncOpHandle<FSendSessionInvite> SendSessionInvite(FSendSessionInvite::Params&& Params) override;
 	virtual TOnlineResult<FGetSessionInvites> GetSessionInvites(FGetSessionInvites::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FRejectSessionInvite> RejectSessionInvite(FRejectSessionInvite::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FRegisterPlayers> RegisterPlayers(FRegisterPlayers::Params&& Params) override;
-	virtual TOnlineAsyncOpHandle<FUnregisterPlayers> UnregisterPlayers(FUnregisterPlayers::Params&& Params) override;
 
 	virtual TOnlineEvent<void(const FSessionJoined&)> OnSessionJoined() override;
 	virtual TOnlineEvent<void(const FSessionLeft&)> OnSessionLeft() override;
@@ -238,9 +236,6 @@ protected:
 
 	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
 	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
-
-	TOnlineResult<FRegisterPlayers> RegisterPlayersImpl(const FRegisterPlayers::Params& Params);
-	TOnlineResult<FUnregisterPlayers> UnregisterPlayersImpl(const FUnregisterPlayers::Params& Params);
 
 	FOnlineError CheckCreateSessionParams(const FCreateSession::Params& Params);
 	FOnlineError CheckCreateSessionState(const FCreateSession::Params& Params);
@@ -265,10 +260,6 @@ protected:
 	FOnlineError CheckSendSessionInviteState(const FSendSessionInvite::Params& Params);
 
 	FOnlineError CheckRejectSessionInviteState(const FRejectSessionInvite::Params& Params);
-
-	FOnlineError CheckRegisterPlayersState(const FRegisterPlayers::Params& Params);
-
-	FOnlineError CheckUnregisterPlayersState(const FUnregisterPlayers::Params& Params);
 
 private:
 	TOptional<FOnlineError> CheckSessionExistsByName(const FAccountId& LocalAccountId, const FName& SessionName);

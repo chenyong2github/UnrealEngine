@@ -84,62 +84,30 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 				// We parse a single attribute
 				FString Key(Attribute->Data->Key);
 
-				// If the Key contains the ':' character, it will be a user related entry, either a Session Member setting, or Registered Player information
+				// If the Key contains the ':' character, it will be a Session Member setting
 				if (Key.Contains(TEXT(":")))
 				{
 					TArray<FString> KeyComponents;
 					Key.ParseIntoArray(KeyComponents, TEXT(":"));
 
-					// If the first element is the Registered Players key, we will process the entry as Registered Player information
-					if (KeyComponents[0] == EOSGS_REGISTERED_PLAYERS.ToString())
-					{
-						// We retrieve the registered player id
-						const FString& PlayerIdStr = KeyComponents[1];
-						const EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
-						const FAccountId& AccountId = FindAccountId(ProductUserId);
+					// We retrieve the member id
+					FString PlayerIdStr = KeyComponents[0];
+					EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
+					FAccountId AccountId = FindAccountId(ProductUserId);
 
-						// This constructor should only be used by BuildSessionFromDetailsHandle, after all user ids in the session have been resolved
-						check(AccountId.IsValid());
+					FSessionMember& SessionMember = SessionSettings.SessionMembers.FindOrAdd(AccountId);
 
-						FRegisteredPlayer& RegisteredPlayer = SessionSettings.RegisteredPlayers.FindOrAdd(AccountId);
-						
-						FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
-						const TPair<FSchemaAttributeId, FSchemaVariant>& CustomSettingData = CustomSettingConverter.GetAttributeData();
-						bool bParameterValue = CustomSettingData.Value.GetBoolean();
+					// And add the corresponding custom setting
+					FSchemaAttributeId AttributeId(KeyComponents[1]);
 
-						// And set the value for the appropriate parameter
-						const FString& ParameterName = KeyComponents[2];
+					FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
+					TPair<FSchemaAttributeId, FSchemaVariant> CustomSettingData = CustomSettingConverter.GetAttributeData();
 
-						if (ParameterName == EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString())
-						{
-							RegisteredPlayer.bIsInSession = bParameterValue;
-						}
-						else if (ParameterName == EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString())
-						{
-							RegisteredPlayer.bHasReservedSlot = bParameterValue;
-						}
-					}
-					else // If not, it will be parsed as a Session Member setting
-					{
-						// We retrieve the member id
-						FString PlayerIdStr = KeyComponents[0];
-						EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
-						FAccountId AccountId = FindAccountId(ProductUserId);
+					FCustomSessionSetting CustomSessionSetting;
+					CustomSessionSetting.Visibility = FromServiceType(Attribute->AdvertisementType);
+					CustomSessionSetting.Data = CustomSettingData.Value;
 
-						FSessionMember& SessionMember = SessionSettings.SessionMembers.FindOrAdd(AccountId);
-
-						// And add the corresponding custom setting
-						FSchemaAttributeId AttributeId(KeyComponents[1]);
-
-						FSessionAttributeConverter<ESessionAttributeConversionType::FromService> CustomSettingConverter(*Attribute->Data);
-						TPair<FSchemaAttributeId, FSchemaVariant> CustomSettingData = CustomSettingConverter.GetAttributeData();
-
-						FCustomSessionSetting CustomSessionSetting;
-						CustomSessionSetting.Visibility = FromServiceType(Attribute->AdvertisementType);
-						CustomSessionSetting.Data = CustomSettingData.Value;
-
-						SessionMember.MemberSettings.Emplace(AttributeId, CustomSessionSetting);
-					}
+					SessionMember.MemberSettings.Emplace(AttributeId, CustomSessionSetting);
 				}
 				else 
 				{
@@ -150,10 +118,6 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 					if (Key == EOSGS_ALLOW_NEW_MEMBERS.ToString())
 					{
 						SessionSettings.bAllowNewMembers = CustomSettingData.Value.GetBoolean();
-					}
-					else if (Key == EOSGS_ALLOW_UNREGISTERED_PLAYERS.ToString())
-					{
-						SessionSettings.bAllowUnregisteredPlayers = CustomSettingData.Value.GetBoolean();
 					}
 					else if (Key == EOSGS_ANTI_CHEAT_PROTECTED.ToString())
 					{
@@ -629,7 +593,6 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 
 	// We won't copy bIsLANSession since it' irrelevant for EOS Sessions
 	AddAttribute(SessionModificationHandle, EOSGS_ALLOW_NEW_MEMBERS, { FSchemaVariant(SessionSettings.bAllowNewMembers), ESchemaAttributeVisibility::Public });
-	AddAttribute(SessionModificationHandle, EOSGS_ALLOW_UNREGISTERED_PLAYERS, { FSchemaVariant(SessionSettings.bAllowUnregisteredPlayers), ESchemaAttributeVisibility::Public });
 	AddAttribute(SessionModificationHandle, EOSGS_ANTI_CHEAT_PROTECTED, { FSchemaVariant(SessionSettings.bAntiCheatProtected), ESchemaAttributeVisibility::Public });
 	AddAttribute(SessionModificationHandle, EOSGS_IS_DEDICATED_SERVER_SESSION, { FSchemaVariant(SessionSettings.bIsDedicatedServerSession), ESchemaAttributeVisibility::Public });
 	AddAttribute(SessionModificationHandle, EOSGS_PRESENCE_ENABLED, { FSchemaVariant(SessionSettings.bPresenceEnabled), ESchemaAttributeVisibility::Public });
@@ -667,17 +630,6 @@ void FSessionsEOSGS::WriteCreateSessionModificationHandle(EOS_HSessionModificati
 			AddAttribute(SessionModificationHandle, Key, CustomSettingEntry.Value);
 		}		
 	}
-
-	// TODO: Should always be empty at session creation time so might not be needed
-	// Registered Players
-	for (const TPair<FAccountId, FRegisteredPlayer>& Entry : SessionSettings.RegisteredPlayers)
-	{
-		const FName& HasReservedSlotKey = FName(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
-		AddAttribute(SessionModificationHandle, HasReservedSlotKey, { FSchemaVariant(Entry.Value.bHasReservedSlot), ESchemaAttributeVisibility::Public });
-
-		const FName& IsInSessionKey = FName(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString());
-		AddAttribute(SessionModificationHandle, IsInSessionKey, { FSchemaVariant(Entry.Value.bIsInSession), ESchemaAttributeVisibility::Public });
-	}
 }
 
 void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FName& SessionName, const FSessionSettingsUpdate& NewSettings)
@@ -692,11 +644,6 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 
 		// We'll also update invite permissions for the session
 		SetInvitesAllowed(SessionModificationHandle, NewSettings.bAllowNewMembers.GetValue());
-	}
-
-	if (NewSettings.bAllowUnregisteredPlayers.IsSet())
-	{
-		AddAttribute(SessionModificationHandle, EOSGS_ALLOW_UNREGISTERED_PLAYERS, { FSchemaVariant(NewSettings.bAllowUnregisteredPlayers.GetValue()), ESchemaAttributeVisibility::Public });
 	}
 
 	if (NewSettings.bAntiCheatProtected.IsSet())
@@ -795,26 +742,6 @@ void FSessionsEOSGS::WriteUpdateSessionModificationHandle(EOS_HSessionModificati
 			const FSchemaAttributeId& Key = FSchemaAttributeId(LexToString(GetProductUserIdChecked(SessionMemberEntry.Key)) + TEXT(":") + CustomSettingEntry.Key.ToString());
 			AddAttribute(SessionModificationHandle, Key, CustomSettingEntry.Value);
 		}
-	}
-
-	// Registered Players
-	
-	for (const FAccountId& RemovedEntry : NewSettings.RemovedRegisteredPlayers)
-	{
-		const FSchemaAttributeId& HasReservedSlotKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(RemovedEntry)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
-		RemoveAttribute(SessionModificationHandle, HasReservedSlotKey);
-
-		const FSchemaAttributeId& IsInSessionKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(RemovedEntry)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString());
-		RemoveAttribute(SessionModificationHandle, IsInSessionKey);
-	}
-
-	for (const TPair<FAccountId, FRegisteredPlayer>& Entry : NewSettings.UpdatedRegisteredPlayers)
-	{
-		const FSchemaAttributeId& HasReservedSlotKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_HAS_RESERVED_SLOT.ToString());
-		AddAttribute(SessionModificationHandle, HasReservedSlotKey, { FSchemaVariant(Entry.Value.bHasReservedSlot), ESchemaAttributeVisibility::Public });
-
-		const FSchemaAttributeId& IsInSessionKey = FSchemaAttributeId(EOSGS_REGISTERED_PLAYERS.ToString() + TEXT(":") + LexToString(GetProductUserIdChecked(Entry.Key)) + TEXT(":") + EOSGS_REGISTERED_PLAYER_IS_IN_SESSION.ToString());
-		AddAttribute(SessionModificationHandle, IsInSessionKey, { FSchemaVariant(Entry.Value.bIsInSession), ESchemaAttributeVisibility::Public });
 	}
 }
 
@@ -1537,7 +1464,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 
 			SessionEvents.OnSessionJoined.Broadcast(Event);
 
-		// A successful join allows the client to server travel, after which RegisterPlayers will be called by the engine
+		// A successful join allows the client to server travel, after which AddSessionMember will be called by the engine
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -1631,7 +1558,7 @@ TResult<TArray<EOS_ProductUserId>, FOnlineError> GetProductUserIdsFromEOSGSSessi
 				{
 					TArray<FString> KeyComponents;
 					Key.ParseIntoArray(KeyComponents, TEXT(":"));
-					const FString& PlayerIdStr = KeyComponents[0] == EOSGS_REGISTERED_PLAYERS.ToString() ? KeyComponents[1] : KeyComponents[0];
+					const FString& PlayerIdStr = KeyComponents[0];
 					const EOS_ProductUserId ProductUserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*PlayerIdStr));
 					Result.AddUnique(ProductUserId);
 				}
@@ -1932,7 +1859,6 @@ void FSessionsEOSGS::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const 
 	SerializeToBuffer(Packet, Session);
 	SerializeToBuffer(Packet, Session.OwnerAccountId);
 	SerializeToBuffer(Packet, Session.SessionId);
-	SerializeToBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
 	SerializeToBuffer(Packet, Session.SessionSettings.SessionMembers);
 }
 
@@ -1944,7 +1870,6 @@ void FSessionsEOSGS::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSes
 	SerializeFromBuffer(Packet, Session);
 	SerializeFromBuffer(Packet, Session.OwnerAccountId);
 	SerializeFromBuffer(Packet, Session.SessionId);
-	SerializeFromBuffer(Packet, Session.SessionSettings.RegisteredPlayers);
 	SerializeFromBuffer(Packet, Session.SessionSettings.SessionMembers);
 }
 
