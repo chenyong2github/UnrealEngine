@@ -52,6 +52,7 @@ namespace UnrealBuildTool
 					List<UEBuildModule> NotOptimizedModules = new();
 					List<UEBuildModule> NoPCHModules = new();
 					List<UEBuildModule> PrivatePCHModules = new();
+					List<UEBuildModule> SharedPCHWithPrivateHeaderModules = new();
 
 					// Figure out all the modules referenced by this target. This includes all the modules that are referenced, not just the ones compiled into binaries.
 					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles(Logger);
@@ -80,6 +81,10 @@ namespace UnrealBuildTool
 						else if (Module.Rules.PrivatePCHHeaderFile != null && (Module.Rules.PCHUsage == ModuleRules.PCHUsageMode.NoSharedPCHs || Module.Rules.PCHUsage == ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs))
 						{
 							PrivatePCHModules.Add(Module);
+						}
+						else if (Module.Rules.PrivatePCHHeaderFile != null && Module.Rules.PCHUsage == ModuleRules.PCHUsageMode.UseSharedPCHs)
+						{
+							SharedPCHWithPrivateHeaderModules.Add(Module);
 						}
 
 						if (!Module.Rules.bUseUnity)
@@ -110,6 +115,17 @@ namespace UnrealBuildTool
 						foreach (UEBuildModule Module in NotOptimizedModules)
 						{
 							Logger.LogInformation(" {ModuleName}", Module.Name);
+						}
+					}
+
+					if (SharedPCHWithPrivateHeaderModules.Any())
+					{
+						Logger.LogInformation("Modules using a shared PCH and private PCH header:");
+						Logger.LogInformation(" Note these might not compile properly when PCHs are disabled.");
+						SharedPCHWithPrivateHeaderModules.SortBy(Module => Module.Name);
+						foreach (UEBuildModule Module in SharedPCHWithPrivateHeaderModules)
+						{
+							Logger.LogInformation("  {ModuleName}", Module.Name);
 						}
 					}
 
