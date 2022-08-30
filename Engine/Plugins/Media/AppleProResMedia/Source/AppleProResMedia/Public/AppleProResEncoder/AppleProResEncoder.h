@@ -107,7 +107,7 @@ class APPLEPRORESMEDIA_API FAppleProResEncoder
 public:
 	struct FTimecodePayload : IImagePixelDataPayload
 	{
-		int32 MasterFrameNumber;
+		int32 ReferenceFrameNumber;
 	};
 
 public:

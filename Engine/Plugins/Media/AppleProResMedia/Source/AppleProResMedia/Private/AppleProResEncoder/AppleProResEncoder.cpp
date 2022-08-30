@@ -661,7 +661,7 @@ bool FAppleProResEncoder::WriteFrame(const FImagePixelData* InPixelData)
 	if (TimecodePayload)
 	{
 		uint32 Timecode;
-		Timecode = _byteswap_ulong(TimecodePayload->MasterFrameNumber);
+		Timecode = _byteswap_ulong(TimecodePayload->ReferenceFrameNumber);
 
 		SampleSize = sizeof(Timecode);
 		Status = ProResFileWriterAddSampleBufferToTrack(

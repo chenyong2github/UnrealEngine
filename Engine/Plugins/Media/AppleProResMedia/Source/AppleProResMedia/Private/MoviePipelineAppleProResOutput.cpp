@@ -63,7 +63,7 @@ void UMoviePipelineAppleProResOutput::WriteFrame_EncodeThread(MovieRenderPipelin
 	TSharedPtr<FAppleProResEncoder::FTimecodePayload, ESPMode::ThreadSafe> ProResPayload = MakeShared<FAppleProResEncoder::FTimecodePayload, ESPMode::ThreadSafe>();
 
 	// This is the frame number on the global time, can have overlaps (between encoders) or repeats when using handle frames/slowmo.
-	ProResPayload->MasterFrameNumber = PipelinePayload->SampleState.OutputState.SourceFrameNumber;
+	ProResPayload->ReferenceFrameNumber = PipelinePayload->SampleState.OutputState.SourceFrameNumber;
 
 	// ProRes can handle quantization internally but expects sRGB to be applied to the incoming data.
 	TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(InPixelData, 16, ProResPayload, InWriter->bConvertToSrgb);
