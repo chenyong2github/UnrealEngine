@@ -31,7 +31,7 @@ namespace Jupiter.Common
                 // always suppress slow sends
                 _logger.Warning(e, "Client was sending data slowly");
             }
-            catch (OperationCanceledException e)
+            catch (TaskCanceledException e)
             {
                 // if health checks are cancelled its fine, it means it was called while it was running
                 string pathString = context.Request.Path.Value ?? "";

@@ -354,7 +354,8 @@ namespace Jupiter
             //app.UseMiddleware<DatadogTraceMiddleware>("Authorization");
             app.UseAuthorization();
 
-            app.UseMiddleware<ServerTimingMiddleware>();
+            app.UseMiddleware<SuppressExceptionMiddleware>();
+			app.UseMiddleware<ServerTimingMiddleware>();
 
             //app.UseMiddleware<DatadogTraceMiddleware>("Endpoints");
             app.UseEndpoints(endpoints =>
