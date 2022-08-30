@@ -54,7 +54,7 @@ namespace Horde.Agent.Commands.Bundles
 				return Blob.Deserialize(id, bytes);
 			}
 
-			public async Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
+			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
 			{
 				BlobId id = BlobId.Create(ServerId.Empty, hintRefName);
 				FileReference file = GetBlobFile(id);
@@ -62,7 +62,7 @@ namespace Horde.Agent.Commands.Bundles
 				_logger.LogInformation("Writing {File}", file);
 				IBlob blob = Blob.FromMemory(id, data.AsSingleSegment(), references);
 				await WriteAsync(file, Blob.Serialize(blob), cancellationToken);
-				return blob;
+				return id;
 			}
 
 			#endregion
@@ -97,11 +97,11 @@ namespace Horde.Agent.Commands.Bundles
 				return new BlobId(text.Trim());
 			}
 
-			public async Task<IBlob> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+			public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 			{
-				IBlob blob = await WriteBlobAsync(data, references, name, cancellationToken);
-				await WriteRefTargetAsync(name, blob.Id, cancellationToken);
-				return blob;
+				BlobId blobId = await WriteBlobAsync(data, references, name, cancellationToken);
+				await WriteRefTargetAsync(name, blobId, cancellationToken);
+				return blobId;
 			}
 
 			public async Task WriteRefTargetAsync(RefName name, BlobId id, CancellationToken cancellationToken = default)
@@ -152,7 +152,8 @@ namespace Horde.Agent.Commands.Bundles
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, logger, CancellationToken.None);
 
-			await writer.FlushAsync(node, CancellationToken.None);
+			await writer.WriteNodeAsync(node);
+			await writer.FlushAsync();
 			return 0;
 		}
 	}

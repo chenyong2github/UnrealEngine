@@ -612,9 +612,10 @@ namespace EpicGames.Horde.Storage.Bundles
 							output = output.Slice(blockSegment.Length);
 						}
 
-						FlushPacket(format, buffer.Memory, builder, packets);
+						FlushPacket(format, buffer.Memory.Slice(0, blockSize), builder, packets);
 					}
 				}
+				blockSegments.Clear();
 			}
 
 			static void FlushPacket(BundleCompressionFormat format, ReadOnlyMemory<byte> inputData, ByteArrayBuilder builder, List<BundlePacket> packets)
