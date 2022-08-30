@@ -10,6 +10,7 @@
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
 #include "Memory/SharedBuffer.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
@@ -62,6 +63,16 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableTGAImport(
 	GInterchangeEnableTGAImport,
 	TEXT("Whether TGA support is enabled."),
 	ECVF_Default);
+
+UInterchangeImageWrapperTranslator::UInterchangeImageWrapperTranslator()
+	: bFillPNGZeroAlpha(true)
+{
+	if (GConfig)
+	{
+		ensure(IsInGameThread()); // Reading config values isn't threadsafe
+		GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
+	}
+}
 
 TArray<FString> UInterchangeImageWrapperTranslator::GetSupportedFormats() const
 {
@@ -144,7 +155,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 	return GetTexturePayloadDataFromBuffer(SourceDataBuffer);
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer)
+TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer) const
 {
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
@@ -188,7 +199,16 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 			}
 
 			// do per-format processing to match legacy behavior :
-			if (ImageFormat == EImageFormat::TGA)
+
+			if (ImageFormat == EImageFormat::PNG)
+			{
+				if (bFillPNGZeroAlpha)
+				{
+					// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
+					UE::TextureUtilitiesCommon::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, reinterpret_cast<uint8*>(PayloadData.RawData.GetData()));
+				}
+			}
+			else if (ImageFormat == EImageFormat::TGA)
 			{
 				const FTGAFileHeader* TGA = (FTGAFileHeader*)Buffer;
 

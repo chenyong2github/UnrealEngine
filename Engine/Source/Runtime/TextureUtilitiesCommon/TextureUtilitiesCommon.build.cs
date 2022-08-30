@@ -10,12 +10,12 @@ public class TextureUtilitiesCommon : ModuleRules
 			new string[] {
 				"Core",
 				"DeveloperSettings",
+				"Engine",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"CoreUObject",
-				"Engine",
 				"ImageCore",
 				"Slate",
 				"SlateCore",

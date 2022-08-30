@@ -1018,7 +1018,8 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTextur
 	{
 		// Embedded texture -- try using ImageWrapper to decode it
 		TArray64<uint8> ImageData(GltfTexture.Source.Data, GltfTexture.Source.DataByteLength);
-		return UInterchangeImageWrapperTranslator::GetTexturePayloadDataFromBuffer(ImageData);
+		UInterchangeImageWrapperTranslator* ImageWrapperTranslator = NewObject<UInterchangeImageWrapperTranslator>(GetTransientPackage(), NAME_None);
+		return ImageWrapperTranslator->GetTexturePayloadDataFromBuffer(ImageData);
 	}
 	else
 	{

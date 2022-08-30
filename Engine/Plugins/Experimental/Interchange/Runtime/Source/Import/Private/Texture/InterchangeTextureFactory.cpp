@@ -524,10 +524,10 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return {};
 	}
 
-	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId);
+	void SetupTextureSourceDataFromBulkData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId);
 
 #if WITH_EDITOR
-	void SetupTextureSourceDataEditor(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceDataFromBulkData_Editor(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture->Source.InitWithCompressedSourceData(
 			Image.SizeX,
@@ -549,7 +549,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
-	void SetupTexture2DSourceDataEditor(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTexture2DSourceDataFromBulkData_Editor(UTexture2D* Texture2D, const FImportBlockedImage& BlockedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		if (BlockedImage.BlocksData.Num() > 1)
 		{
@@ -585,11 +585,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			Image.SizeY = Block.SizeY;
 			Image.NumMips = Block.NumMips;
 
-			SetupTextureSourceDataEditor(Texture2D, Image, MoveTemp(BufferAndId));
+			SetupTextureSourceDataFromBulkData_Editor(Texture2D, Image, MoveTemp(BufferAndId));
 		}
 	}
 
-	void SetupTextureSourceDataEditor(UTexture* Texture, const FImportSlicedImage& SlicedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceDataFromBulkData_Editor(UTexture* Texture, const FImportSlicedImage& SlicedImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture->Source.InitLayered(
 			SlicedImage.SizeX,
@@ -640,7 +640,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	void SetupTextureCubeSourceData(UTextureCube* TextureCube, FProcessedPayload& ProcessedPayload)
+	void SetupTextureCubeSourceDataFromPayload(UTextureCube* TextureCube, FProcessedPayload& ProcessedPayload)
 	{
 		if (TOptional<FImportSlicedImage>* OptionalSlicedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportSlicedImage>>())
 		{
@@ -651,7 +651,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				// Cube texture always have six slice
 				if (SlicedImage.NumSlice == 6)
 				{
-					SetupTextureSourceDataEditor(TextureCube, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
+					SetupTextureSourceDataFromBulkData_Editor(TextureCube, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
 				}
 			}
 		}
@@ -660,7 +660,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			if (OptionalImage->IsSet())
 			{
 				FImportImage& Image = OptionalImage->GetValue();
-				SetupTextureSourceData(TextureCube, Image, MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTextureSourceDataFromBulkData(TextureCube, Image, MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
@@ -668,7 +668,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			if (OptionalLightProfile->IsSet())
 			{
 				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
-				SetupTextureSourceData(TextureCube, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTextureSourceDataFromBulkData(TextureCube, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else
@@ -707,7 +707,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	void SetupTexture2DArraySourceData(UTexture2DArray* Texture2DArray, FProcessedPayload& ProcessedPayload)
+	void SetupTexture2DArraySourceDataFromPayload(UTexture2DArray* Texture2DArray, FProcessedPayload& ProcessedPayload)
 	{
 		if (TOptional<FImportSlicedImage>* OptionalSlicedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportSlicedImage>>())
 		{
@@ -715,7 +715,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			{
 				FImportSlicedImage& SlicedImage = OptionalSlicedImage->GetValue();
 
-				SetupTextureSourceData(Texture2DArray, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTextureSourceDataFromBulkData(Texture2DArray, SlicedImage, MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else if (TOptional<FImportImage>* OptionalImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportImage>>())
@@ -723,7 +723,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			if (OptionalImage->IsSet())
 			{
 				FImportImage& Image = OptionalImage->GetValue();
-				SetupTextureSourceData(Texture2DArray, Image, MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTextureSourceDataFromBulkData(Texture2DArray, Image, MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
@@ -731,7 +731,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			if (OptionalLightProfile->IsSet())
 			{
 				FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
-				SetupTextureSourceData(Texture2DArray, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTextureSourceDataFromBulkData(Texture2DArray, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else
@@ -846,7 +846,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return TasksToDo;
 	}
 #else // WITH_EDITOR
-	void SetupTexture2DSourceDataRuntime(UTexture2D* Texture2D, const FImportImage& ImportImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTexture2DSourceDataFromBulkData_Runtime(UTexture2D* Texture2D, const FImportImage& ImportImage, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 		Texture2D->SRGB = ImportImage.bSRGB;
 		ERawImageFormat::Type PixelFormatRawFormat;
@@ -1017,23 +1017,23 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	void SetupTextureSourceData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
+	void SetupTextureSourceDataFromBulkData(UTexture* Texture, const FImportImage& Image, UE::Serialization::FEditorBulkData::FSharedBufferWithID&& BufferAndId)
 	{
 #if WITH_EDITOR
-		SetupTextureSourceDataEditor(Texture, Image, MoveTemp(BufferAndId));
+		SetupTextureSourceDataFromBulkData_Editor(Texture, Image, MoveTemp(BufferAndId));
 #else
-		SetupTexture2DSourceDataRuntime(Cast<UTexture2D>(Texture), Image, MoveTemp(BufferAndId));
+		SetupTexture2DSourceDataFromBulkData_Runtime(Cast<UTexture2D>(Texture), Image, MoveTemp(BufferAndId));
 #endif
 	}
 
-	void SetupTexture2DSourceData(UTexture2D* Texture2D, FProcessedPayload& ProcessedPayload)
+	void SetupTexture2DSourceDataFromPayload(UTexture2D* Texture2D, FProcessedPayload& ProcessedPayload)
 	{
 #if WITH_EDITOR
 		if (TOptional<FImportBlockedImage>* BlockedImage = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportBlockedImage>>())
 		{
 			if (BlockedImage->IsSet())
 			{
-				SetupTexture2DSourceDataEditor(Texture2D, BlockedImage->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTexture2DSourceDataFromBulkData_Editor(Texture2D, BlockedImage->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else
@@ -1042,7 +1042,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			if (Image->IsSet())
 			{
-				SetupTextureSourceData(Texture2D, Image->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
+				SetupTextureSourceDataFromBulkData(Texture2D, Image->GetValue(), MoveTemp(ProcessedPayload.PayloadAndId));
 			}
 		}
 		else if (TOptional<FImportLightProfile>* OptionalLightProfile = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
@@ -1053,11 +1053,22 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 				if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture2D))
 				{
-					SetupTextureSourceData(TextureLightProfile, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+					SetupTextureSourceDataFromBulkData(TextureLightProfile, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+
+					if (const TOptional<FImportLightProfile>* ImportLightProfilePtr = ProcessedPayload.SettingsFromPayload.TryGet<TOptional<FImportLightProfile>>())
+					{
+						if (ImportLightProfilePtr->IsSet())
+						{
+							const UE::Interchange::FImportLightProfile& ImportLightProfile = ImportLightProfilePtr->GetValue();
+
+							TextureLightProfile->Brightness = ImportLightProfile.Brightness;
+							TextureLightProfile->TextureMultiplier = ImportLightProfile.TextureMultiplier;
+						}
+					}
 				}
 				else
 				{
-					SetupTextureSourceData(Texture2D, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
+					SetupTextureSourceDataFromBulkData(Texture2D, LightProfile, MoveTemp(ProcessedPayload.PayloadAndId));
 				}
 			}
 		}
@@ -1094,8 +1105,59 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 #endif // WITH_EDITORONLY_DATA
 	}
- }
 
+	void SetupTextureSourceDataFromPayload(UTexture* Texture, FProcessedPayload& ProcessedPayload)
+	{
+		if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
+		{
+			SetupTexture2DSourceDataFromPayload(Texture2D, ProcessedPayload);
+		}
+#if WITH_EDITOR
+		else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
+		{
+			SetupTextureCubeSourceDataFromPayload(TextureCube, ProcessedPayload);
+		}
+		else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
+		{
+			SetupTexture2DArraySourceDataFromPayload(Texture2DArray, ProcessedPayload);
+		}
+#endif // WITH_EDITOR
+		else
+		{
+			// This should never happen.
+			ensure(false);
+		}
+
+#if WITH_EDITORONLY_DATA
+		// At some point, these decisions should be left to the pipeline
+		if (!Texture->Source.IsPowerOfTwo())
+		{
+			// try to set some better default options for non-pow2 textures
+
+			// if Texture is not pow2 , change to TMGS_NoMipMaps (if it was default)
+			//   this used to be done by Texture2d.cpp ; it is now optional
+			//	 you can set it back to having mips if you want
+			if (Texture->MipGenSettings == TMGS_FromTextureGroup)
+			{
+				Texture->MipGenSettings = TMGS_NoMipmaps;
+			}
+
+			// if Texture is not multiple of 4, change TC to EditorIcon ("UserInterface2D")
+			//	if you do not do this, you might see "Texture forced to uncompressed because size is not a multiple of 4"
+			//  this needs to match the logic in Texture.cpp : GetDefaultTextureFormatName
+			const int32 SizeX = Texture->Source.GetSizeX();
+			const int32 SizeY = Texture->Source.GetSizeY();
+			if ((SizeX & 3) != 0 || (SizeY & 3) != 0)
+			{
+				if (Texture->CompressionSettings == TC_Default) // AutoDXT/BC1
+				{
+					Texture->CompressionSettings = TC_EditorIcon; // "UserInterface2D"
+				}
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+	}
+ }
 
 UClass* UInterchangeTextureFactory::GetFactoryClass() const
 {
@@ -1183,7 +1245,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UInterchangeTextureFactory::CreateAsset);
 
-	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
+	using namespace UE::Interchange::Private::InterchangeTextureFactory;
 
 	if (!Arguments.AssetNode)
 	{
@@ -1318,26 +1380,9 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 		using namespace UE::Interchange::Private::InterchangeTextureFactory;
 
 		// Setup source data
-		if (UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
-		{
-			SetupTexture2DSourceData(Texture2D, ProcessedPayload);
-		}
+		SetupTextureSourceDataFromPayload(Texture, ProcessedPayload);
+
 #if WITH_EDITOR
-		else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
-		{
-			SetupTextureCubeSourceData(TextureCube, ProcessedPayload);
-		}
-		else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Arguments.ImportedObject))
-		{
-			SetupTexture2DArraySourceData(Texture2DArray, ProcessedPayload);
-		}
-		else
-		{
-			// This should never happen.
-			ensure(false);
-		}
-
-
 		UInterchangeFactoryBaseNode* TextureFactoryNode = Arguments.FactoryNode;
 		if (!Arguments.bIsReimport)
 		{
@@ -1445,7 +1490,7 @@ void UInterchangeTextureFactory::CheckForInvalidResolutions(UE::Interchange::Pri
 
 			if (BlockedImage.BlocksData.IsEmpty())
 			{
-				AddErrorMessage(FString(), LOCTEXT("UDIMHasNoValidBlock", "All blocks where invalid. The texture won't be imported."));
+				AddErrorMessage(FString(), LOCTEXT("UDIMHasNoValidBlock", "All blocks were invalid. The texture won't be imported."));
 
 				// Remove the payload
 				InPayloadVariant.Set<FEmptyVariantState>(FEmptyVariantState());

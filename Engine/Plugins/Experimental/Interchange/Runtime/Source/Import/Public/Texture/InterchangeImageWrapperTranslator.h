@@ -20,6 +20,7 @@ class INTERCHANGEIMPORT_API UInterchangeImageWrapperTranslator : public UInterch
 {
 	GENERATED_BODY()
 public:
+	UInterchangeImageWrapperTranslator();
 
 	virtual TArray<FString> GetSupportedFormats() const override;
 
@@ -47,5 +48,8 @@ public:
 
 	/* IInterchangeTexturePayloadInterface End */
 
-	static TOptional<UE::Interchange::FImportImage> GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer);
+	TOptional<UE::Interchange::FImportImage> GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer) const;
+
+private:
+	bool bFillPNGZeroAlpha;
 };
