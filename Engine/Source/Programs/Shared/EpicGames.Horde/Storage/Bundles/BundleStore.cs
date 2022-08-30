@@ -427,12 +427,12 @@ namespace EpicGames.Horde.Storage.Bundles
 				BundleHeader header = bundle.Header;
 
 				// Write it to storage
-				IBlob blob = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), _refName, cancellationToken);
-				string cacheKey = GetBundleCacheKey(blob.Id);
+				BlobId blobId = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), _refName, cancellationToken);
+				string cacheKey = GetBundleCacheKey(blobId);
 				_owner.AddBundleToCache(cacheKey, bundle);
 
 				// Create a BundleInfo for it
-				BundleInfo bundleInfo = _context.FindOrAddBundle(blob.Id, writeNodes.Length);
+				BundleInfo bundleInfo = _context.FindOrAddBundle(blobId, writeNodes.Length);
 				for (int idx = 0; idx < writeNodes.Length; idx++)
 				{
 					bundleInfo.Exports[idx] = writeNodes[idx];
@@ -476,7 +476,7 @@ namespace EpicGames.Horde.Storage.Bundles
 
 				// Wait for other writes to finish
 				await prevWriteTask;
-				return blob.Id;
+				return blobId;
 			}
 
 			/// <summary>

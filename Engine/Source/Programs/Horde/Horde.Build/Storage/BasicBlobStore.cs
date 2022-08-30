@@ -92,14 +92,17 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
+		public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
 		{
 			BlobId id = BlobId.Create(_serverId, hintRefName);
 			string path = GetBlobPath(id);
 
-			ReadOnlyMemory<byte> memory = Blob.Serialize(data, references).AsSingleSegment();
-			await _backend.WriteBytesAsync(path, memory, cancellationToken);
-			return Blob.FromMemory(id, memory.Slice(memory.Length - (int)data.Length), references);
+			ReadOnlySequence<byte> sequence = Blob.Serialize(data, references);
+			using (ReadOnlySequenceStream stream = new ReadOnlySequenceStream(sequence))
+			{
+				await _backend.WriteAsync(path, stream, cancellationToken);
+			}
+			return id;
 		}
 
 		#endregion
@@ -150,11 +153,11 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<IBlob> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+		public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 		{
-			IBlob blob = await WriteBlobAsync(data, references, name, cancellationToken);
-			await WriteRefTargetAsync(name, blob.Id, cancellationToken);
-			return blob;
+			BlobId blobId = await WriteBlobAsync(data, references, name, cancellationToken);
+			await WriteRefTargetAsync(name, blobId, cancellationToken);
+			return blobId;
 		}
 
 		/// <inheritdoc/>

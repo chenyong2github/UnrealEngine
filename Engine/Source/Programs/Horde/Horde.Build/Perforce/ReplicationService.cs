@@ -713,7 +713,8 @@ namespace Horde.Build.Perforce
 					if (syncedSize > 0)
 					{
 						Stopwatch flushTimer = Stopwatch.StartNew();
-						await writer.FlushAsync(syncNode, cancellationToken);
+						await writer.WriteNodeAsync(syncNode, cancellationToken);
+						await writer.FlushAsync(cancellationToken);
 						flushTimer.Stop();
 						deleteIncRef = true;
 					}

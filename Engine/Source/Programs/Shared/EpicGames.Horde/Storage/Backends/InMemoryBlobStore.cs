@@ -39,14 +39,14 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
+		public Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
 		{
 			BlobId blobId = BlobId.Create(ServerId.Empty, hintRefName);
 
 			IBlob blob = Blob.FromMemory(blobId, data.ToArray(), references);
 			_blobs[blobId] = blob;
 
-			return Task.FromResult(blob);
+			return Task.FromResult(blobId);
 		}
 
 		#endregion
@@ -84,11 +84,11 @@ namespace EpicGames.Horde.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<IBlob> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
+		public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
 		{
-			IBlob blob = await WriteBlobAsync(data, references, name, cancellationToken);
-			_refs[name] = blob.Id;
-			return blob;
+			BlobId blobId = await WriteBlobAsync(data, references, name, cancellationToken);
+			_refs[name] = blobId;
+			return blobId;
 		}
 
 		/// <inheritdoc/>
