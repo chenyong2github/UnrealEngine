@@ -71,6 +71,16 @@ enum class EScrollGestureDirection : uint8
 	Natural				UMETA(DisplayName = "Natural"),
 };
 
+UENUM()
+enum class EMaterialKind : uint8
+{
+	Unknown,
+	Base,
+	Normal,
+	Specular,
+	Emissive,
+};
+
 /**
  * Implements the Level Editor's per-instance view port settings.
  */
@@ -541,6 +551,14 @@ public:
 
 	UPROPERTY(config)
 	FVector2D LastInViewportMenuLocation;
+
+	/** When dropping a texture in the viewport, create an instance of this material instead of creating a new material. Populate MaterialParamsForDroppedTextures to specify the parameter names. */
+	UPROPERTY(EditAnywhere, config, Category = Behavior)
+	TSoftObjectPtr<UMaterialInterface> MaterialForDroppedTextures;
+
+	/** When dropping a texture in the viewport, determines which material parameter to assign for each found texture type. Only relevant if MaterialForDroppedTextures is assigned. */
+	UPROPERTY(EditAnywhere, config, Category = Behavior)
+	TMap<EMaterialKind, FName> MaterialParamsForDroppedTextures;
 
 private:
 
