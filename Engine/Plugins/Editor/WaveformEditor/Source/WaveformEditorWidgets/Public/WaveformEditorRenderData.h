@@ -33,7 +33,9 @@ public:
 	const uint32 GetNumSamples() const;
 	const uint32 GetSampleRate() const;
 	const float GetOriginalWaveformDurationInSeconds() const;
+	const float GetTransformedWaveformDurationInSeconds() const;
 	const uint32 GetOriginalWaveformFrames() const;
+	const uint32 GetTransformedWaveformFrames() const;
 	const TRange<float> GetTransformedWaveformBounds() const;
 
 	/** Call this to generate the view and the info shown by the render data */
@@ -51,7 +53,9 @@ private:
 	uint32 SampleRate = 0;
 
 	float OriginalWaveformDurationInSeconds = 0.f;
+	float TransformedWaveformDurationInSeconds = 0.f;
 	uint32 OriginalWaveformFrames = 0;
+	uint32 TransformedWaveformFrames = 0;
 
 	/* The bounds of the transformed waveform in relation to the original */
 	TRange<float> TransformedWaveformBounds = TRange<float>::Inclusive(0.f, 1.f);

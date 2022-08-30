@@ -32,9 +32,19 @@ const float FWaveformEditorRenderData::GetOriginalWaveformDurationInSeconds() co
 	return OriginalWaveformDurationInSeconds;
 }
 
+const float FWaveformEditorRenderData::GetTransformedWaveformDurationInSeconds() const
+{
+	return TransformedWaveformDurationInSeconds;
+}
+
 const uint32 FWaveformEditorRenderData::GetOriginalWaveformFrames() const
 {
 	return OriginalWaveformFrames;
+}
+
+const uint32 FWaveformEditorRenderData::GetTransformedWaveformFrames() const
+{
+	return TransformedWaveformFrames;
 }
 
 const TRange<float> FWaveformEditorRenderData::GetTransformedWaveformBounds() const
@@ -51,8 +61,11 @@ void FWaveformEditorRenderData::UpdateRenderData(const uint8* InRawData, const u
 	const int16* SampleDataPtr = reinterpret_cast<const int16*>(InRawData);
 	SampleData = MakeArrayView(SampleDataPtr, NumSamples);
 
-	OriginalWaveformDurationInSeconds = NumSamples / NumChannels / SampleRate;
 	OriginalWaveformFrames = NumSamples / NumChannels;
+	OriginalWaveformDurationInSeconds = OriginalWaveformFrames / SampleRate;
+	
+	TransformedWaveformFrames = (InLastEditedSample - InFirstEditedSample) / NumChannels;
+	TransformedWaveformDurationInSeconds = TransformedWaveformFrames / SampleRate;
 
 	const float FirstEditedSampleOffset = InFirstEditedSample / (float) NumSamples;
 	const float LastEditedSampleOffset = (NumSamples - InLastEditedSample) / (float) NumSamples;	
