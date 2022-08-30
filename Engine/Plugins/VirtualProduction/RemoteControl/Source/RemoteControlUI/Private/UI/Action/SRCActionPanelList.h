@@ -25,6 +25,12 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
+#define LOCTEXT_NAMESPACE "SRCActionPanelList"
+
 /*
 * ~ SRCActionPanelList ~
 *
@@ -80,6 +86,17 @@ public:
 			RemoteControlPanel->OnEmptyActions.AddSP(this, &SRCActionPanelList::OnEmptyActions);
 		}
 
+		if (URCBehaviour* Behaviour = InBehaviourItem->GetBehaviour())
+		{
+			if (Behaviour->ActionContainer)
+			{
+				Behaviour->ActionContainer->OnActionsListModified.AddSP(this, &SRCActionPanelList::OnActionsListModified);
+			}
+		}
+	}
+
+	void OnActionsListModified()
+	{
 		Reset();
 	}
 
@@ -177,7 +194,7 @@ private:
 				{
 					if (URCBehaviour* Behaviour = Cast<URCBehaviour>(BehaviourItem->GetBehaviour()))
 					{
-						for (URCAction* Action : Behaviour->ActionContainer->Actions)
+						for (URCAction* Action : Behaviour->ActionContainer->GetActions())
 						{
 							TSharedPtr<ActionType> ActionItem = ActionType::GetModelByActionType(Action, BehaviourItem, RemoteControlPanel);
 
@@ -215,6 +232,9 @@ private:
 				if (const TSharedPtr<ActionType> SelectedAction = StaticCastSharedPtr<ActionType>(InModel))
 				{
 					// Remove Model from Data Container
+					FScopedTransaction Transaction(LOCTEXT("RemoveAction", "Remove Action"));
+					Behaviour->ActionContainer->Modify();
+
 					const int32 RemoveCount = Behaviour->ActionContainer->RemoveAction(SelectedAction->GetAction());
 
 					return RemoveCount;
@@ -365,3 +385,5 @@ private:
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
 };
+
+#undef LOCTEXT_NAMESPACE

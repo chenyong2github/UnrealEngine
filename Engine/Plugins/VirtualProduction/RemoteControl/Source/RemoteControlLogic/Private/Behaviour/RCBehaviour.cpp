@@ -30,12 +30,16 @@ void URCBehaviour::Execute()
 
 URCAction* URCBehaviour::AddAction(const TSharedRef<const FRemoteControlField> InRemoteControlField)
 {
+#if WITH_EDITOR
+	ActionContainer->Modify();
+#endif
+
 	return ActionContainer->AddAction(InRemoteControlField);
 }
 
 int32 URCBehaviour::GetNumActions() const
 {
-	return ActionContainer->Actions.Num();
+	return ActionContainer->GetActions().Num();
 }
 
 bool URCBehaviour::CanHaveActionForField(const TSharedPtr<FRemoteControlField> InRemoteControlField) const

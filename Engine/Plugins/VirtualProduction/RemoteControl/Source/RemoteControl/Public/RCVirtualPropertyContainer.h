@@ -101,9 +101,16 @@ public:
 	static FName GenerateUniquePropertyName(const FName& InPropertyName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject, const URCVirtualPropertyContainerBase* InContainer);
 
 #if WITH_EDITOR
+	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI. */
+	virtual void PostEditUndo();
+
 	/** Delegate when object changed */
 	virtual void OnModifyPropertyValue(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif
+
+	/** Returns the delegate that notifies changes to the virtual property container */
+	DECLARE_MULTICAST_DELEGATE(FOnVirtualPropertyContainerModified);
+	FOnVirtualPropertyContainerModified& OnVirtualPropertyContainerModified() { return OnVirtualPropertyContainerModifiedDelegate; }
 
 protected:
 	/** Holds bag of properties. */
@@ -118,6 +125,10 @@ public:
 	/** Pointer to Remote Control Preset */
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> PresetWeakPtr;
+
+	/** Delegate that notifies changes to the virtual property container*/
+	FOnVirtualPropertyContainerModified OnVirtualPropertyContainerModifiedDelegate;
+
 };
 
 

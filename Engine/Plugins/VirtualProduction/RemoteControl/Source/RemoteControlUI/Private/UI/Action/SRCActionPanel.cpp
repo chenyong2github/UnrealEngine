@@ -33,6 +33,10 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "SRCActionPanel"
 
 TSharedPtr<SBox> SRCActionPanel::NoneSelectedWidget = SNew(SBox)
@@ -299,15 +303,20 @@ URCAction* SRCActionPanel::AddAction(const TSharedRef<const FRemoteControlField>
 {
 	if (const TSharedPtr<FRCBehaviourModel> BehaviourItem = SelectedBehaviourItemWeakPtr.Pin())
 	{
-		URCAction* NewAction = BehaviourItem->AddAction(InRemoteControlField);
-
-		// Broadcast new Action to other panels
-		if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+		if (const URCBehaviour* Behaviour = BehaviourItem->GetBehaviour())
 		{
-			RemoteControlPanel->OnActionAdded.Broadcast(NewAction);
-		}
+			Behaviour->ActionContainer->Modify();
 
-		return NewAction;
+			URCAction* NewAction = BehaviourItem->AddAction(InRemoteControlField);
+
+			// Broadcast new Action to other panels
+			if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
+			{
+				RemoteControlPanel->OnActionAdded.Broadcast(NewAction);
+			}
+
+			return NewAction;
+		}
 	}
 
 	return nullptr;
@@ -339,6 +348,8 @@ void SRCActionPanel::OnAddActionClicked(TSharedPtr<FRemoteControlField> InRemote
 		return;
 	}
 
+	FScopedTransaction Transaction(LOCTEXT("AddAction", "Add Action"));
+
 	AddAction(InRemoteControlField.ToSharedRef());
 }
 
@@ -348,6 +359,9 @@ FReply SRCActionPanel::OnClickEmptyButton()
 	{
 		if (const URCBehaviour* Behaviour = BehaviourItem->GetBehaviour())
 		{
+			FScopedTransaction Transaction(LOCTEXT("EmptyActions", "Empty Actions"));
+			Behaviour->ActionContainer->Modify();
+
 			Behaviour->ActionContainer->EmptyActions();
 		}
 	}
@@ -372,6 +386,8 @@ FReply SRCActionPanel::OnAddAllFields()
 		if (const TSharedPtr<FRCBehaviourModel> BehaviourItem = SelectedBehaviourItemWeakPtr.Pin())
 		{
 			const TArray<TWeakPtr<FRemoteControlField>>& RemoteControlFields = Preset->GetExposedEntities<FRemoteControlField>();
+
+			FScopedTransaction Transaction(LOCTEXT("AddAllActions", "Add All Actions"));
 
 			// Enumerate the list of Exposed Entities and Functions available in this Preset for our use as Actions
 			for (const TWeakPtr<FRemoteControlField>& RemoteControlFieldWeakPtr : RemoteControlFields)

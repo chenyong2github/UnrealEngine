@@ -71,6 +71,8 @@ private:
 	/** Removes the given Behaviour UI model item from the list of UI models*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) override;
 
+	void OnBehaviourListModified();
+
 private:
 
 	/** The parent Behaviour Panel widget */

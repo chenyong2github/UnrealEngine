@@ -551,7 +551,11 @@ URCVirtualPropertyInContainer* URemoteControlPreset::AddVirtualProperty(TSubclas
 	if (NewPropertyName.IsNone())
 	{
 		NewPropertyName = URCVirtualPropertyContainerBase::GenerateUniquePropertyName(TEXT(""), InValueType, InValueTypeObject, ControllerContainer);
-	}	
+	}
+
+#if WITH_EDITOR
+	ControllerContainer->Modify();
+#endif
 
 	return ControllerContainer->AddProperty(NewPropertyName, InPropertyClass, InValueType, InValueTypeObject);
 }
@@ -560,17 +564,24 @@ bool URemoteControlPreset::RemoveVirtualProperty(const FName& InPropertyName)
 {
 	if (ensure(ControllerContainer))
 	{
+#if WITH_EDITOR
+		ControllerContainer->Modify();
+#endif
+
 		return ControllerContainer->RemoveProperty(InPropertyName);
 	}
 
 	return false;
-	
 }
 
 void URemoteControlPreset::ResetVirtualProperties()
 {
 	if (ensure(ControllerContainer))
 	{
+#if WITH_EDITOR
+		ControllerContainer->Modify();
+#endif
+
 		ControllerContainer->Reset();
 	}
 }
@@ -607,8 +618,15 @@ void URemoteControlPreset::OnModifyVirtualProperty(const FPropertyChangedEvent& 
 	{
 		ControllerContainer->OnModifyPropertyValue(PropertyChangedEvent);
 	}	
-}
+} 
 #endif
+
+FOnVirtualPropertyContainerModified& URemoteControlPreset::OnVirtualPropertyContainerModified() const
+{
+	check(ControllerContainer);
+
+	return ControllerContainer->OnVirtualPropertyContainerModified();
+}
 
 TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath, FRemoteControlPresetExposeArgs Args)
 {

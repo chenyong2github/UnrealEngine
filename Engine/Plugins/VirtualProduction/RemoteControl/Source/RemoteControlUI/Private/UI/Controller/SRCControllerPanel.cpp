@@ -21,6 +21,10 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "SRCControllerPanel"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -235,6 +239,9 @@ void SRCControllerPanel::OnAddControllerClicked(const EPropertyBagPropertyType I
 	// Add to the asset
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddController", "Add Controller"));
+		Preset->Modify();
+
 		URCVirtualPropertyInContainer* NewVirtualProperty = Preset->AddVirtualProperty(URCController::StaticClass(), InValueType, InValueTypeObject);
 
 		if (ControllerPanelList.IsValid())
@@ -261,6 +268,9 @@ FReply SRCControllerPanel::OnClickEmptyButton()
 {
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
+		FScopedTransaction Transaction(LOCTEXT("Empty Controllers", "EmptyControllers"));
+		Preset->Modify();
+
 		Preset->ResetVirtualProperties();
 	}
 

@@ -84,8 +84,7 @@ URCPropertyAction* URCActionContainer::AddPropertyAction(const TSharedRef<const 
 		NewPropertyAction->PropertySelfContainer->DuplicatePropertyWithCopy(PropertyName, InRemoteControlProperty->GetProperty(), (uint8*)ObjectRef.ContainerAdress);
 	}
 
-	// Add action to array
-	Actions.Add(NewPropertyAction);
+	AddAction(NewPropertyAction);
 	
 	return NewPropertyAction;
 }
@@ -98,10 +97,24 @@ URCFunctionAction* URCActionContainer::AddFunctionAction(const TSharedRef<const 
 	NewFunctionAction->ExposedFieldId = InRemoteControlFunction->GetId();
 	NewFunctionAction->Id = FGuid::NewGuid();
 
-	Actions.Add(NewFunctionAction);
+	AddAction(NewFunctionAction);
 	
 	return NewFunctionAction;
 }
+
+void URCActionContainer::AddAction(URCAction* NewAction)
+{
+	Actions.Add(NewAction);
+}
+
+#if WITH_EDITOR
+void URCActionContainer::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	OnActionsListModified.Broadcast();
+}
+#endif
 
 URCAction* URCActionContainer::FindActionByFieldId(const FGuid InId) const
 {

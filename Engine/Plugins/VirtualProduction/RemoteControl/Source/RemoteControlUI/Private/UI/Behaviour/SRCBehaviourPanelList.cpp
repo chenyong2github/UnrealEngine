@@ -21,6 +21,10 @@
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "RemoteControlPanelBehavioursList"
 
 namespace FRemoteControlBehaviourColumns
@@ -64,6 +68,11 @@ void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBe
 	check(RemoteControlPanel)
 	RemoteControlPanel->OnBehaviourAdded.AddSP(this, &SRCBehaviourPanelList::OnBehaviourAdded);
 	RemoteControlPanel->OnEmptyBehaviours.AddSP(this, &SRCBehaviourPanelList::OnEmptyBehaviours);
+
+	if (URCController* Controller = Cast< URCController>(InControllerItem->GetVirtualProperty()))
+	{
+		Controller->OnBehaviourListModified.AddSP(this, &SRCBehaviourPanelList::OnBehaviourListModified);
+	}
 
 	Reset();
 }
@@ -192,6 +201,9 @@ int32 SRCBehaviourPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InMo
 		{
 			if(const TSharedPtr<FRCBehaviourModel> SelectedBehaviour = StaticCastSharedPtr<FRCBehaviourModel>(InModel))
 			{
+				FScopedTransaction Transaction(LOCTEXT("RemoveBehaviour", "Remove Behaviour"));
+				Controller->Modify();
+
 				// Remove Model from Data Container
 				const int32 RemoveCount = Controller->RemoveBehaviour(SelectedBehaviour->GetBehaviour());
 
@@ -201,6 +213,11 @@ int32 SRCBehaviourPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InMo
 	}
 
 	return 0;
+}
+
+void SRCBehaviourPanelList::OnBehaviourListModified()
+{
+	Reset();
 }
 
 bool SRCBehaviourPanelList::IsListFocused() const

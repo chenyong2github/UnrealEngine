@@ -264,6 +264,9 @@ public:
 	/** Fetches a user-friendly representation of the Virtual Property's type name (i.e. Controller type), given a Property Bag type and value object (for structures)*/
 	static FName GetVirtualPropertyTypeDisplayName(const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject);
 
+	/** Updates the display index of the virtual property (transaction aware)*/
+	void SetDisplayIndex(const int32 InDisplayIndex);
+
 public:
 	/** Unique property name */
 	UPROPERTY()

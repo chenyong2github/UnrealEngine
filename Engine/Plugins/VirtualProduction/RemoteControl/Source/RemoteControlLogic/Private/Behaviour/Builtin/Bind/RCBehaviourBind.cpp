@@ -33,7 +33,7 @@ URCPropertyBindAction* URCBehaviourBind::AddPropertyBindAction(const TSharedRef<
 	BindAction->Id = FGuid::NewGuid();
 
 	// Add action to array
-	ActionContainer->Actions.Add(BindAction);
+	ActionContainer->AddAction(BindAction);
 
 	return BindAction;
 }

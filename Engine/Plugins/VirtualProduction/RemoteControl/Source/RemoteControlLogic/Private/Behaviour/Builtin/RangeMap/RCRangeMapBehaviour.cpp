@@ -126,7 +126,7 @@ bool URCRangeMapBehaviour::GetNearestActionByThreshold(TTuple<URCAction*, bool>&
 
 void URCRangeMapBehaviour::GetLerpActions(TMap<FGuid, TArray<URCAction*>>& OutNumericActionsByField)
 {
-	for (URCAction* Action : ActionContainer->Actions)
+	for (URCAction* Action : ActionContainer->GetActions())
 	{
 		TArray<URCAction*>& LerpActionArray = OutNumericActionsByField.FindOrAdd(Action->ExposedFieldId);
 		
@@ -364,7 +364,7 @@ TMap<double, URCAction*> URCRangeMapBehaviour::GetNonLerpActions()
 {
 	TMap<double, URCAction*> ActionMap;
 	
-	for (URCAction* Action : ActionContainer->Actions)
+	for (URCAction* Action : ActionContainer->GetActions())
 	{
 		
 		if (!IsSupportedActionLerpType(Action))

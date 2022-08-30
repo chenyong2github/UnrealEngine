@@ -20,6 +20,8 @@ struct FRemoteControlProperty;
 
 typedef TFunction<bool(const TSet<TObjectPtr<URCAction>>& Actions)> TRCActionUniquenessTest;
 
+DECLARE_MULTICAST_DELEGATE(FOnActionsListModified);
+
 /**
  * Container for created actions
  */
@@ -55,10 +57,17 @@ public:
 	/** Empty action set */
 	void EmptyActions();
 
-	/** Set of actions */
-	UPROPERTY()
-	TSet<TObjectPtr<URCAction>> Actions;
-	
+	/** Register a newly created Action with the Action container, provides Undo/Redo support. */
+	void AddAction(URCAction* NewAction);
+
+	/** Retrieves the actions present in this container */
+	const TSet<TObjectPtr<URCAction>>& GetActions() const { return Actions; }
+
+#if WITH_EDITOR
+	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI */
+	virtual void PostEditUndo();
+#endif
+
 	/** Set of child action container */
 	UPROPERTY()
 	TSet<TObjectPtr<URCActionContainer>> ActionContainers;
@@ -67,10 +76,17 @@ public:
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> PresetWeakPtr;
 
+	/** Delegate that notifies changes to the list of actions to a single listener*/
+	FOnActionsListModified OnActionsListModified;
+
 private:
 	/** Add remote control property action  */
 	URCPropertyAction* AddPropertyAction(const TSharedRef<const FRemoteControlProperty> InRemoteControlProperty);
 
 	/** Add remote control property function */
 	URCFunctionAction* AddFunctionAction(const TSharedRef<const FRemoteControlFunction> InRemoteControlFunction);
+
+	/** The list of Actions present in this container */
+	UPROPERTY()
+	TSet<TObjectPtr<URCAction>> Actions;
 };

@@ -648,6 +648,11 @@ FName URCVirtualPropertyBase::GetVirtualPropertyTypeDisplayName(const EPropertyB
 	return *PropertyTypeString;
 }
 
+void URCVirtualPropertyBase::SetDisplayIndex(const int32 InDisplayIndex)
+{
+	DisplayIndex = InDisplayIndex;
+}
+
 const FInstancedPropertyBag* URCVirtualPropertyInContainer::GetPropertyBagInstance() const
 {
 	if (ContainerWeakPtr.Get())

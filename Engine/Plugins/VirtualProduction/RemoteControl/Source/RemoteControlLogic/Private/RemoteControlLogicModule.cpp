@@ -29,7 +29,7 @@ private:
 		// Create a new controller for preset if that does not exists
 		if (InPreset && !InPreset->IsControllerContainerValid())
 		{
-			URCControllerContainer* ControllerContainer = NewObject<URCControllerContainer>(InPreset);
+			URCControllerContainer* ControllerContainer = NewObject<URCControllerContainer>(InPreset, NAME_None, RF_Transactional);
 			ControllerContainer->PresetWeakPtr = InPreset;
 
 			InPreset->SetControllerContainer(ControllerContainer);

@@ -21,8 +21,8 @@ struct FPropertyChangedEvent;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
 struct FRemoteControlPresetLayout;
-class FTransactionObjectEvent;
 class FRemoteControlPresetRebindingManager;
+class FTransactionObjectEvent;
 class UBlueprint;
 class URCVirtualPropertyBase;
 class URCVirtualPropertyContainerBase;
@@ -30,6 +30,8 @@ class URCVirtualPropertyInContainer;
 class URemoteControlExposeRegistry;
 class URemoteControlBinding;
 class URemoteControlPreset;
+
+DECLARE_MULTICAST_DELEGATE(FOnVirtualPropertyContainerModified);
 
 /** Arguments used to expose an entity (Actor, property, function, etc.) */
 struct REMOTECONTROL_API FRemoteControlPresetExposeArgs
@@ -656,6 +658,8 @@ public:
 	/** Called when a virtual property is modified. This call is routed to the Controller for evaluating associated Logic & Behaviours*/
 	void OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent);
 #endif
+
+	FOnVirtualPropertyContainerModified& OnVirtualPropertyContainerModified() const;
 
 private:
 	/** Holds virtual controllers properties, behaviours and actions */

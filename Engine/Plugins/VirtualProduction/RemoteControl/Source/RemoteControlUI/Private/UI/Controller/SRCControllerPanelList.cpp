@@ -21,6 +21,10 @@
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "SRCControllerPanelList"
 
 namespace UE::RCControllerPanelList
@@ -201,6 +205,9 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 		check(RemoteControlPanel)
 		RemoteControlPanel->OnControllerAdded.AddSP(this, &SRCControllerPanelList::OnControllerAdded);
 		RemoteControlPanel->OnEmptyControllers.AddSP(this, &SRCControllerPanelList::OnEmptyControllers);
+
+		Preset->OnVirtualPropertyContainerModified().AddSP(this, &SRCControllerPanelList::OnControllerContainerModified);
+
 	}
 
 	FPropertyRowGeneratorArgs Args;
@@ -318,6 +325,11 @@ void SRCControllerPanelList::OnEmptyControllers()
 	}
 }
 
+void SRCControllerPanelList::OnControllerContainerModified()
+{
+	Reset();
+}
+
 void SRCControllerPanelList::BroadcastOnItemRemoved()
 {
 	if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ControllerPanelWeakPtr.Pin()->GetRemoteControlPanel())
@@ -345,11 +357,36 @@ int32 SRCControllerPanelList::RemoveModel(const TSharedPtr<FRCLogicModeBase> InM
 		{
 			if(const TSharedPtr<FRCControllerModel> SelectedController = StaticCastSharedPtr<FRCControllerModel>(InModel))
 			{
-				// Remove Model from Data Container
-				const bool bRemoved = Preset->RemoveVirtualProperty(SelectedController->GetPropertyName());
-				if (bRemoved)
+				if(URCVirtualPropertyBase* ControllerToRemove = SelectedController->GetVirtualProperty())
 				{
-					return 1; // Remove Count
+					const int32 DisplayIndexToRemove = ControllerToRemove->DisplayIndex;
+
+					FScopedTransaction Transaction(LOCTEXT("RemoveController", "Remove Controller"));
+					Preset->Modify();
+
+					// Remove Model from Data Container
+					const bool bRemoved = Preset->RemoveVirtualProperty(SelectedController->GetPropertyName());
+					if (bRemoved)
+					{
+						// Shift all display indices higher than the deleted index down by 1
+						for (int32 ControllerIndex = 0; ControllerIndex < ControllerItems.Num(); ControllerIndex++)
+						{
+							if (ensure(ControllerItems[ControllerIndex]))
+							{
+								if (URCVirtualPropertyBase* Controller = ControllerItems[ControllerIndex]->GetVirtualProperty())
+								{
+									if (Controller->DisplayIndex > DisplayIndexToRemove)
+									{
+										Controller->Modify();
+
+										Controller->SetDisplayIndex(Controller->DisplayIndex - 1);
+									}
+								}
+							}
+						}
+
+						return 1; // Remove Count
+					}
 				}
 			}
 		}
@@ -400,9 +437,12 @@ void SRCControllerPanelList::ReorderControllerItem(TSharedRef<FRCControllerModel
 	// Update display indices
 	for (int32 i = Index; i < ControllerItems.Num(); i++)
 	{
-		if(URCVirtualPropertyBase * Controller = ControllerItems[i]->GetVirtualProperty())
+		if (ensure(ControllerItems[i]))
 		{
-			Controller->DisplayIndex = i;
+			if (URCVirtualPropertyBase* Controller = ControllerItems[i]->GetVirtualProperty())
+			{
+				Controller->SetDisplayIndex(i);
+			}
 		}
 	}
 

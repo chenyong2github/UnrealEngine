@@ -21,6 +21,10 @@
 #include "UI/Controller/RCControllerModel.h"
 #include "Widgets/Input/SComboButton.h"
 
+#if WITH_EDITOR
+#include "ScopedTransaction.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "SRCBehaviourPanel"
 
 TSharedPtr<SBox> SRCBehaviourPanel::NoneSelectedWidget = SNew(SBox)
@@ -192,6 +196,9 @@ void SRCBehaviourPanel::OnAddBehaviourClicked(UClass* InClass)
 	{
 		if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
 		{
+			FScopedTransaction Transaction(LOCTEXT("AddBehaviour", "Add Behaviour"));
+			Controller->Modify();
+
 			URCBehaviour* NewBehaviour = Controller->AddBehaviour(InClass);
 
 			if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = GetRemoteControlPanel())
@@ -208,6 +215,8 @@ FReply SRCBehaviourPanel::OnClickEmptyButton()
 	{
 		if (URCController* Controller = Cast<URCController>(ControllerItem->GetVirtualProperty()))
 		{
+			FScopedTransaction Transaction(LOCTEXT("EmptyBehaviours", "Empty Behaviours"));
+
 			Controller->EmptyBehaviours();
 		}
 	}

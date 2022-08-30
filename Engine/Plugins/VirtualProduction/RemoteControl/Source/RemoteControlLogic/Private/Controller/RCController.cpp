@@ -8,6 +8,17 @@
 #include "Behaviour/RCBehaviour.h"
 #include "Behaviour/RCBehaviourNode.h"
 
+#define LOCTEXT_NAMESPACE "RCController"
+
+#if WITH_EDITOR
+void URCController::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	OnBehaviourListModified.Broadcast();
+}
+#endif
+
 URCBehaviour* URCController::AddBehaviour(TSubclassOf<URCBehaviourNode> InBehaviourNodeClass)
 {
 	URCBehaviour* NewBehaviour = CreateBehaviour(InBehaviourNodeClass);
@@ -27,7 +38,7 @@ URCBehaviour* URCController::CreateBehaviour(TSubclassOf<URCBehaviourNode> InBeh
 {
 	const URCBehaviourNode* DefaultBehaviourNode = Cast<URCBehaviourNode>(InBehaviourNodeClass->GetDefaultObject());
 	
-	URCBehaviour* NewBehaviour = NewObject<URCBehaviour>(this, DefaultBehaviourNode->GetBehaviourClass());
+	URCBehaviour* NewBehaviour = NewObject<URCBehaviour>(this, DefaultBehaviourNode->GetBehaviourClass(), NAME_None, RF_Transactional);
 	NewBehaviour->BehaviourNodeClass = InBehaviourNodeClass;
 	NewBehaviour->Id = FGuid::NewGuid();
 	NewBehaviour->ActionContainer->PresetWeakPtr = PresetWeakPtr;
@@ -77,3 +88,5 @@ void URCController::ExecuteBehaviours()
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE /* RCController */ 

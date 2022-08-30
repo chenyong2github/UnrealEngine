@@ -15,14 +15,6 @@
 
 URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(const FName& InPropertyName, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
 {
-#if WITH_EDITOR
-	const FScopedTransaction Transaction(LOCTEXT("AddProperty", "AddP roperty"));
-
-	Modify();
-
-	MarkPackageDirty();
-#endif
-
 	const FName PropertyName = GenerateUniquePropertyName(InPropertyName, InValueType, InValueTypeObject, this);
 	Bag.AddProperty(PropertyName, InValueType, InValueTypeObject);
 
@@ -33,7 +25,7 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(cons
 	}
 	
 	// Create Property in Container
-	URCVirtualPropertyInContainer* VirtualPropertyInContainer = NewObject<URCVirtualPropertyInContainer>(this, InPropertyClass.Get());
+	URCVirtualPropertyInContainer* VirtualPropertyInContainer = NewObject<URCVirtualPropertyInContainer>(this, InPropertyClass.Get(), NAME_None, RF_Transactional);
 	VirtualPropertyInContainer->PropertyName = PropertyName;
 	VirtualPropertyInContainer->PresetWeakPtr = PresetWeakPtr;
 	VirtualPropertyInContainer->ContainerWeakPtr = this;
@@ -47,15 +39,6 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::AddProperty(cons
 
 URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicateProperty(const FName& InPropertyName, const FProperty* InSourceProperty, TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass)
 {
-#if WITH_EDITOR
-	const FScopedTransaction Transaction(LOCTEXT("DuplicateProperty", "Duplicate Property"));
-
-	Modify();
-
-	MarkPackageDirty();
-#endif
-
-
 	const FPropertyBagPropertyDesc* BagPropertyDesc = Bag.FindPropertyDescByName(InPropertyName);
 	if (ensure(!BagPropertyDesc))
 	{
@@ -99,14 +82,6 @@ URCVirtualPropertyInContainer* URCVirtualPropertyContainerBase::DuplicatePropert
 
 bool URCVirtualPropertyContainerBase::RemoveProperty(const FName& InPropertyName)
 {
-#if WITH_EDITOR
-	const FScopedTransaction Transaction(LOCTEXT("RemoveProperty", "Remove Property"));
-
-	Modify();
-
-	MarkPackageDirty();
-#endif
-
 	Bag.RemovePropertyByName(InPropertyName);
 
 	for (auto PropertiesIt = VirtualProperties.CreateIterator(); PropertiesIt; ++PropertiesIt)
@@ -126,14 +101,6 @@ bool URCVirtualPropertyContainerBase::RemoveProperty(const FName& InPropertyName
 
 void URCVirtualPropertyContainerBase::Reset()
 {
-#if WITH_EDITOR
-	const FScopedTransaction Transaction(LOCTEXT("EmptyProperties", "Empty Properties"));
-
-	Modify();
-
-	MarkPackageDirty();
-#endif
-	
 	VirtualProperties.Empty();
 
 	Bag.Reset();
@@ -227,6 +194,13 @@ FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& I
 }
 
 #if WITH_EDITOR
+void URCVirtualPropertyContainerBase::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	OnVirtualPropertyContainerModifiedDelegate.Broadcast();
+}
+
 void URCVirtualPropertyContainerBase::OnModifyPropertyValue(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FScopedTransaction Transaction(LOCTEXT("OnModifyPropertyValue", "On Modify Property Value"));

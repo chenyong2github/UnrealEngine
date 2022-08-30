@@ -107,6 +107,8 @@ private:
 	/** Responds to the removal of all Controllers. Resets UI state */
 	void OnEmptyControllers();
 
+	void OnControllerContainerModified();
+
 	/** Change listener for Controllers. Bound to the PropertyRowGenerator's delegate
 	* This is propagated to the corresponding Controller model (Virtual Property) for evaluating all associated Behaviours.
 	*/
