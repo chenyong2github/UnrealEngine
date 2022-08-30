@@ -70,6 +70,7 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 				SAssignNew(TreeViewPtr, STreeView<FObjectMixerEditorListRowPtr>)
 				.HeaderRow(HeaderRow)
 				.SelectionMode(ESelectionMode::Multi)
+				.HighlightParentNodesForSelection(true)
 				.OnContextMenuOpening_Lambda([this]()
 				{
 					TSharedPtr<SWidget> Widget;
