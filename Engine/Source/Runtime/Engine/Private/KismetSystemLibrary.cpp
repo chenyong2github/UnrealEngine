@@ -82,6 +82,11 @@ FString UKismetSystemLibrary::GetPathName(const UObject* Object)
 	return GetPathNameSafe(Object);
 }
 
+FSoftObjectPath UKismetSystemLibrary::GetSoftObjectPath(const UObject* Object)
+{
+	return FSoftObjectPath(Object);
+}
+
 FString UKismetSystemLibrary::GetSystemPath(const UObject* Object)
 {
 	if (Object && Object->IsAsset())
@@ -111,9 +116,14 @@ FString UKismetSystemLibrary::GetDisplayName(const UObject* Object)
 	return Object ? Object->GetName() : FString();
 }
 
-FString UKismetSystemLibrary::GetClassDisplayName(UClass* Class)
+FString UKismetSystemLibrary::GetClassDisplayName(const UClass* Class)
 {
 	return Class ? Class->GetName() : FString();
+}
+
+FSoftClassPath UKismetSystemLibrary::GetSoftClassPath(const UClass* Class)
+{
+	return FSoftClassPath(Class);
 }
 
 UObject* UKismetSystemLibrary::GetOuterObject(const UObject* Object)
@@ -1133,6 +1143,11 @@ TSoftObjectPtr<UObject> UKismetSystemLibrary::Conv_SoftObjPathToSoftObjRef(const
 	return TSoftObjectPtr<UObject>(SoftObjectPath);
 }
 
+FSoftObjectPath UKismetSystemLibrary::Conv_SoftObjRefToSoftObjPath(TSoftObjectPtr<UObject> SoftObjectReference)
+{
+	return SoftObjectReference.ToSoftObjectPath();
+}
+
 FSoftClassPath UKismetSystemLibrary::MakeSoftClassPath(const FString& PathString)
 {
 	FSoftClassPath SoftClassPath(PathString);
@@ -1154,6 +1169,12 @@ void UKismetSystemLibrary::BreakSoftClassPath(FSoftClassPath InSoftClassPath, FS
 TSoftClassPtr<UObject> UKismetSystemLibrary::Conv_SoftClassPathToSoftClassRef(const FSoftClassPath& SoftClassPath)
 {
 	return TSoftClassPtr<UObject>(SoftClassPath);
+}
+
+FSoftClassPath UKismetSystemLibrary::Conv_SoftObjRefToSoftClassPath(TSoftClassPtr<UObject> SoftClassReference)
+{
+	// TSoftClassPtr and FSoftClassPath are not directly compatible
+	return FSoftClassPath(SoftClassReference.ToString());
 }
 
 bool UKismetSystemLibrary::IsValidSoftObjectReference(const TSoftObjectPtr<UObject>& SoftObjectReference)
