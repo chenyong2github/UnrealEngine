@@ -10,6 +10,7 @@
 #include "Materials/Material.h"
 #include "MediaComponent.h"
 #include "MediaPlateModule.h"
+#include "MediaPlate.h"
 #include "MediaPlayer.h"
 #include "MediaPlaylist.h"
 #include "MediaSource.h"
@@ -97,6 +98,7 @@ void UMediaPlateComponent::OnRegister()
 	// Set up media texture.
 	if (MediaTexture != nullptr)
 	{
+		MediaTexture->SetMipMapBias(MipMapBias);
 		MediaTexture->SetMediaPlayer(MediaPlayer);
 		MediaTexture->UpdateResource();
 	}
@@ -296,7 +298,7 @@ void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 	// Set up object.
 	MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
 	MediaTextureTrackerObject->Object = GetOwner();
-	MediaTextureTrackerObject->MipMapLODBias = 0.0f;
+	MediaTextureTrackerObject->MipMapLODBias = MipMapBias;
 	MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
 	MediaTextureTrackerObject->MeshRange = MeshRange;
 
@@ -435,6 +437,18 @@ void UMediaPlateComponent::TickOutput()
 				// No need to tick anymore.
 				StopClockSink();
 			}
+		}
+	}
+}
+
+void UMediaPlateComponent::RestartPlayer()
+{
+	if (MediaPlayer != nullptr)
+	{
+		if (MediaPlayer->IsPlaying())
+		{
+			MediaPlayer->Close();
+			Open();
 		}
 	}
 }
@@ -617,21 +631,15 @@ void UMediaPlateComponent::OnMediaEnd()
 
 #if WITH_EDITOR
 
-void UMediaPlateComponent::OnVisibleMipsTilesCalculationsChange()
+void UMediaPlateComponent::SetVisibleMipsTilesCalculations(EMediaTextureVisibleMipsTiles InVisibleMipsTilesCalculations)
 {
+	VisibleMipsTilesCalculations = InVisibleMipsTilesCalculations;
+
 	if (MediaTextureTrackerObject != nullptr)
 	{
 		MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
 
-		// Propagate the change by restarting the player if it is currently playing.
-		if (MediaPlayer != nullptr)
-		{
-			if (MediaPlayer->IsPlaying())
-			{
-				MediaPlayer->Close();
-				Open();
-			}
-		}
+		RestartPlayer();
 	}
 }
 
@@ -674,7 +682,32 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, VisibleMipsTilesCalculations))
 	{
-		OnVisibleMipsTilesCalculationsChange();
+		if (MediaTextureTrackerObject != nullptr)
+		{
+			MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
+			
+			RestartPlayer();
+		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, MipMapBias))
+	{
+		if (MediaTextureTrackerObject != nullptr)
+		{
+			MediaTextureTrackerObject->MipMapLODBias = MipMapBias;
+
+			// Note: Media texture bias automatically updated by UMediaPlateComponent::OnRegister().
+
+			// Update material sampler with new bias
+			if (AMediaPlate* MediaPlate = GetOwner<AMediaPlate>())
+			{
+				if (UMaterialInterface* Material = MediaPlate->GetCurrentMaterial())
+				{
+					Material->PostEditChange();
+				}
+			}
+
+			RestartPlayer();
+		}
 	}
 }
 

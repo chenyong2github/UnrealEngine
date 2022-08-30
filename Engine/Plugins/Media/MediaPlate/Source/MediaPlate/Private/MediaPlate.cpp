@@ -113,13 +113,11 @@ void AMediaPlate::UseDefaultMaterial()
 
 void AMediaPlate::ApplyCurrentMaterial()
 {
-	if (StaticMeshComponent != nullptr)
+	UMaterialInterface* MaterialInterface = GetCurrentMaterial();
+	
+	if ((MaterialInterface != nullptr) && (LastMaterial != MaterialInterface))
 	{
-		UMaterialInterface* MaterialInterface = StaticMeshComponent->GetMaterial(0);
-		if ((MaterialInterface != nullptr) && (LastMaterial != MaterialInterface))
-		{
-			ApplyMaterial(MaterialInterface);
-		}
+		ApplyMaterial(MaterialInterface);
 	}
 }
 
@@ -184,6 +182,16 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 			LastMaterial = Result;
 		}
 	}
+}
+
+UMaterialInterface* AMediaPlate::GetCurrentMaterial() const
+{
+	if (StaticMeshComponent != nullptr)
+	{
+		return StaticMeshComponent->GetMaterial(0);
+	}
+
+	return nullptr;
 }
 
 void AMediaPlate::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)

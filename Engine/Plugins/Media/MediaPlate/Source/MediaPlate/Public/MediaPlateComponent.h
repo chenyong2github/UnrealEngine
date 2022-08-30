@@ -150,13 +150,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	FMediaSourceCacheSettings CacheSettings;
 
-	/**
-	 * Specify type of mesh used for visible mips and tiles calculations.
-	 * (Using the provided plane and sphere meshes only.)
-	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
-	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
-
 	/** Set the arc size in degrees used for visible mips and tiles calculations, specific to the sphere. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
 	void SetMeshRange(FVector2D InMeshRange);
@@ -200,17 +193,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlateComponent")
 	void SetLetterboxAspectRatio(float AspectRatio);
 
+#if WITH_EDITOR
+	/**
+	 * Call this to get the mip tile calculations mesh mode.
+	 */
+	EMediaTextureVisibleMipsTiles GetVisibleMipsTilesCalculations() const { return VisibleMipsTilesCalculations; }
+	/**
+	 * Call this to set the mip tile calculations mesh mode. (Note: restarts playback to apply changes.)
+	 */
+	void SetVisibleMipsTilesCalculations(EMediaTextureVisibleMipsTiles InVisibleMipsTilesCalculations);
+#endif
+
 	/**
 	 * Called from the media clock.
 	 */
 	void TickOutput();
 
-#if WITH_EDITOR
-	/** Propagate visible calculation changes to the tracker/player objects, optionally restarting playback if needed. */
-	void OnVisibleMipsTilesCalculationsChange();
-#endif
-
 private:
+	void RestartPlayer();
+
 	/** If true then only allow playback when the media plate is visible. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
 	bool bPlayOnlyWhenVisible = false;
@@ -218,6 +219,14 @@ private:
 	/** If set then loop when we reach the end. */
 	UPROPERTY(EditAnywhere, Blueprintgetter = GetLoop, BlueprintSetter = SetLoop, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
 	bool bLoop;
+
+	/** Visible mips and tiles calculation mode for the supported mesh types in MediaPlate. (Player restart on change.) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (AllowPrivateAccess = true))
+	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
+
+	/** Media texture mip map bias shared between the (image sequence) loader and the media texture sampler. (Player restart on change.) */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate", meta = (AllowPrivateAccess = true, UIMin = "-16.0", UIMax = "15.99"))
+	float MipMapBias = 0.0f;
 
 	/** If > 0, then this is the aspect ratio of our screen and 
 	 * letterboxes will be added if the media is smaller than the screen. */

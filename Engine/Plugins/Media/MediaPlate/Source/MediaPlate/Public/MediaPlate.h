@@ -43,6 +43,11 @@ public:
 	 */
 	void ApplyCurrentMaterial();
 	void ApplyMaterial(UMaterialInterface* InMaterial);
+
+	/** Get the current static mesh material, at index 0. */
+	UMaterialInterface* GetCurrentMaterial() const;
+	
+	/** Get the last material assigned to the static mesh, at index 0. */
 	UMaterialInterface* GetLastMaterial() const { return LastMaterial; }
 #endif // WITH_EDITOR
 

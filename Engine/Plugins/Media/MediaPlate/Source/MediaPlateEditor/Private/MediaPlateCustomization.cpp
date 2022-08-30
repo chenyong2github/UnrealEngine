@@ -71,7 +71,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		if (MediaPlate.IsValid())
 		{
 			MediaPlatesList.Add(MediaPlate);
-			MeshMode = MediaPlate->VisibleMipsTilesCalculations;
+			MeshMode = MediaPlate->GetVisibleMipsTilesCalculations();
 		}
 	}
 
@@ -652,8 +652,7 @@ void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
 			if (MediaPlate != nullptr)
 			{
 				// Update the setting in the media plate.
-				MediaPlate->VisibleMipsTilesCalculations = MeshMode;
-				MediaPlate->OnVisibleMipsTilesCalculationsChange();
+				MediaPlate->SetVisibleMipsTilesCalculations(MeshMode);
 
 				// Set the appropriate mesh.
 				if (MeshMode == EMediaTextureVisibleMipsTiles::Plane)

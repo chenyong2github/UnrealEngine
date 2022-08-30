@@ -185,7 +185,7 @@ private:
 class FImgMediaMipMapObjectInfo
 {
 public:
-	FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InLODBias = 0.0f);
+	FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias = 0.0f);
 	virtual ~FImgMediaMipMapObjectInfo() = default;
 
 	/**
@@ -206,8 +206,8 @@ public:
 protected:
 	/** Mesh component onto which the media is displayed. */
 	TWeakObjectPtr<class UMeshComponent> MeshComponent;
-	/** LOD bias for the mipmap level. */
-	float LODBias;
+	/** Mipmap level bias. */
+	float MipMapBias;
 };
 
 /**
@@ -223,12 +223,12 @@ public:
 	 * This object is using our img sequence.
 	 *
 	 * @param InActor Object using our img sequence.
-	 * @param LODBias Bias used for mip-level calculations (Note: must be mirrored in a material manually).
-	 * @param MeshType Plane, sphere or none mesh type for mip-tile calculations.
+	 * @param InMipMapBias Bias used for mip-level calculations.
+	 * @param InMeshMode Plane, sphere or none mesh type for mip-tile calculations.
 	 * @param MeshRange Arc size in degrees used for visible tiles calculations, specific to the sphere.
 	 */
-	void AddObject(AActor* InActor, float LODBias = 0.0f,
-		EMediaTextureVisibleMipsTiles MeshType = EMediaTextureVisibleMipsTiles::None,
+	void AddObject(AActor* InActor, float InMipMapBias = 0.0f,
+		EMediaTextureVisibleMipsTiles InMeshMode = EMediaTextureVisibleMipsTiles::None,
 		FVector2D MeshRange = FVector2D(360.0f, 180.0f));
 
 	/**

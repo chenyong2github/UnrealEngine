@@ -250,9 +250,9 @@ namespace {
 }
 
 
-FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InLODBias)
+FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias)
 	: MeshComponent(InMeshComponent)
-	, LODBias(InLODBias)
+	, MipMapBias(InMipMapBias)
 {
 
 }
@@ -308,7 +308,7 @@ namespace {
 		{
 			float DistX = FVector2D::DistSquared(TexelScreenSpace[0], TexelScreenSpace[1]);
 			float DistY = FVector2D::DistSquared(TexelScreenSpace[0], TexelScreenSpace[2]);
-			OutMipLevel = FMath::Max(0.5f * (float)FMath::Log2(1.0f / FMath::Max(DistX, DistY)), 0.0f); // ~ log2(sqrt(delta))
+			OutMipLevel = 0.5f * (float)FMath::Log2(1.0f / FMath::Max(DistX, DistY)); // ~ log2(sqrt(delta))
 		}
 
 		return bValid;
@@ -317,8 +317,8 @@ namespace {
 	class FPlaneObjectInfo : public FImgMediaMipMapObjectInfo
 	{
 	public:
-		FPlaneObjectInfo(UMeshComponent* InMeshComponent, float InLODBias = 0.0f)
-			: FImgMediaMipMapObjectInfo(InMeshComponent, InLODBias)
+		FPlaneObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias = 0.0f)
+			: FImgMediaMipMapObjectInfo(InMeshComponent, InMipMapBias)
 			, PlaneSize(FVector::ZeroVector)
 		{
 			// Get size of object.
@@ -444,7 +444,7 @@ namespace {
 
 									if (CalculateMipLevel(ViewInfo, CornersWS, CornersWS + TexelOffsetXWS, CornersWS + TexelOffsetYWS, CalculatedLevel))
 									{
-										CalculatedLevel += LODBias + ViewInfo.MaterialTextureMipBias;
+										CalculatedLevel += MipMapBias + ViewInfo.MaterialTextureMipBias;
 
 										SetCachedMipLevel(BaseLevelCorner.X, BaseLevelCorner.Y, MaxCornerX, CalculatedLevel);
 										bValidLevel = true;
@@ -546,8 +546,8 @@ namespace {
 	class FSphereObjectInfo : public FImgMediaMipMapObjectInfo
 	{
 	public:
-		FSphereObjectInfo(UMeshComponent* InMeshComponent, float InLODBias, FVector2D InMeshRange)
-			: FImgMediaMipMapObjectInfo(InMeshComponent, InLODBias)
+		FSphereObjectInfo(UMeshComponent* InMeshComponent, float InMipMapBias, FVector2D InMeshRange)
+			: FImgMediaMipMapObjectInfo(InMeshComponent, InMipMapBias)
 			, MeshRange(InMeshRange)
 		{
 		}
@@ -613,7 +613,7 @@ namespace {
 
 							if (CalculateMipLevel(ViewInfo, TileCenterWS, TexelOffXWS, TexelOffYWS, CalculatedLevel))
 							{
-								CalculatedLevel += LODBias + ViewInfo.MaterialTextureMipBias;
+								CalculatedLevel += MipMapBias + ViewInfo.MaterialTextureMipBias;
 
 								MipLevelRange[0] = FMath::Clamp((int32)CalculatedLevel, 0, MaxLevel);
 								MipLevelRange[1] = FMath::CeilToInt32(CalculatedLevel);
@@ -670,7 +670,7 @@ FImgMediaMipMapInfo::~FImgMediaMipMapInfo()
 	ClearAllObjects();
 }
 
-void FImgMediaMipMapInfo::AddObject(AActor* InActor, float LODBias, EMediaTextureVisibleMipsTiles MeshType,
+void FImgMediaMipMapInfo::AddObject(AActor* InActor, float InMipMapBias, EMediaTextureVisibleMipsTiles InMeshMode,
 	FVector2D MeshRange)
 {
 	if (InActor != nullptr)
@@ -680,16 +680,16 @@ void FImgMediaMipMapInfo::AddObject(AActor* InActor, float LODBias, EMediaTextur
 		UMeshComponent* MeshComponent = Cast<UMeshComponent>(InActor->FindComponentByClass(UMeshComponent::StaticClass()));
 		if (MeshComponent != nullptr)
 		{
-			switch (MeshType)
+			switch (InMeshMode)
 			{
 			case EMediaTextureVisibleMipsTiles::Plane:
-				Objects.Add(new FPlaneObjectInfo(MeshComponent, LODBias));
+				Objects.Add(new FPlaneObjectInfo(MeshComponent, InMipMapBias));
 				break;
 			case EMediaTextureVisibleMipsTiles::Sphere:
-				Objects.Add(new FSphereObjectInfo(MeshComponent, LODBias, MeshRange));
+				Objects.Add(new FSphereObjectInfo(MeshComponent, InMipMapBias, MeshRange));
 				break;
 			default:
-				Objects.Add(new FImgMediaMipMapObjectInfo(MeshComponent, LODBias));
+				Objects.Add(new FImgMediaMipMapObjectInfo(MeshComponent, InMipMapBias));
 				break;
 			}
 		}
