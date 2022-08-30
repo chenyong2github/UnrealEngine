@@ -449,6 +449,8 @@ void FTextureCompilingManager::PostCompilation(TArrayView<UTexture* const> InCom
 
 void FTextureCompilingManager::FinishAllCompilation()
 {
+	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Finish Texture Compilation"));
+
 	check(IsInGameThread());
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCompilingManager::FinishAllCompilation)
 

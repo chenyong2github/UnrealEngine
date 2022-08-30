@@ -35,6 +35,7 @@ bool FAnimSharingModule::CreateAnimationSharingManager(UWorld* InWorld, const UA
 {
 	if (InWorld && InWorld->IsGameWorld() && Setup && UAnimationSharingManager::AnimationSharingEnabled() && !WorldAnimSharingManagers.Contains(InWorld))
 	{
+		UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing Animation Sharing"));
 		UAnimationSharingManager* Manager = NewObject<UAnimationSharingManager>(InWorld);
 		Manager->Initialise(Setup);
 		WorldAnimSharingManagers.Add(InWorld, Manager);

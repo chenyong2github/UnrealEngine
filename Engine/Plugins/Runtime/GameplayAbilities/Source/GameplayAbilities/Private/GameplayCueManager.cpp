@@ -601,6 +601,8 @@ bool UGameplayCueManager::ShouldAsyncLoadRuntimeObjectLibraries() const
 
 void UGameplayCueManager::InitializeRuntimeObjectLibrary()
 {
+	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing GameplayCueManager Runtime Object Library"));
+
 	RuntimeGameplayCueObjectLibrary.Paths = GetAlwaysLoadedGameplayCuePaths();
 	if (RuntimeGameplayCueObjectLibrary.CueSet == nullptr)
 	{
