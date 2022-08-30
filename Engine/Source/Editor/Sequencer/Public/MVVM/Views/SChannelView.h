@@ -76,7 +76,7 @@ class SEQUENCER_API SChannelView
 	: public STrackAreaLaneView
 {
 public:
-	SLATE_BEGIN_ARGS(SChannelView){}
+	SLATE_BEGIN_ARGS(SChannelView) {}
 		SLATE_ATTRIBUTE(FLinearColor, KeyBarColor)
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()

@@ -109,6 +109,8 @@ private:
 
 	EVisibility GetTopLevelChannelGroupVisibility() const;
 
+	FLinearColor GetTopLevelKeyBarColor() const;
+
 	FMargin GetHandleOffsetPadding() const;
 
 public:
