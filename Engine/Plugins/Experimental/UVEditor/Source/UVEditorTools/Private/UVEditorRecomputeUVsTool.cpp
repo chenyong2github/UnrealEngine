@@ -61,7 +61,7 @@ void UUVEditorRecomputeUVsTool::Setup()
 	UUVToolSelectionAPI::FHighlightOptions HighlightOptions;
 	HighlightOptions.bBaseHighlightOnPreviews = true;
 	HighlightOptions.bAutoUpdateUnwrap = true;
-	UVToolSelectionAPI->SetSelectionMechanicMode(UUVToolSelectionAPI::EUVEditorSelectionMode::Triangle);
+
 	UVToolSelectionAPI->SetHighlightOptions(HighlightOptions);
 	UVToolSelectionAPI->SetHighlightVisible(true, false, true);
 
@@ -81,7 +81,7 @@ void UUVEditorRecomputeUVsTool::Setup()
 	}
 	UpdateActiveGroupLayer(false);  /* Don't update factories that don't exist yet. */
 
-	auto SetupOpFactory = [this](UUVEditorToolMeshInput& Target, TSet<int32>* Selection)
+	auto SetupOpFactory = [this](UUVEditorToolMeshInput& Target, const FUVToolSelection* Selection)
 	{
 		TObjectPtr<UUVEditorRecomputeUVsOpFactory> Factory = NewObject<UUVEditorRecomputeUVsOpFactory>();
 		Factory->TargetTransform = (FTransform3d)Target.AppliedPreview->PreviewMesh->GetTransform();
@@ -91,7 +91,8 @@ void UUVEditorRecomputeUVsTool::Setup()
 		Factory->GetSelectedUVChannel = [&Target]() { return Target.UVLayerIndex; };
 		if (Selection)
 		{
-			Factory->Selection.Emplace(*Selection);
+			Factory->Selection.Emplace(Selection->GetConvertedSelection(*Selection->Target->UnwrapCanonical,
+				                                                        UE::Geometry::FUVToolSelection::EType::Triangle).SelectedIDs);
 		}
 
 		Target.AppliedPreview->ChangeOpFactory(Factory);
@@ -113,10 +114,7 @@ void UUVEditorRecomputeUVsTool::Setup()
 		Factories.Reserve(UVToolSelectionAPI->GetSelections().Num());
 		for (FUVToolSelection Selection : UVToolSelectionAPI->GetSelections())
 		{
-			if (ensure(Selection.Type == FUVToolSelection::EType::Triangle))
-			{
-				Factories.Add(SetupOpFactory(*Selection.Target, &Selection.SelectedIDs));
-			}
+			Factories.Add(SetupOpFactory(*Selection.Target, &Selection));
 		}
 	}
 	else
