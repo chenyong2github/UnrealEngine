@@ -95,6 +95,39 @@ namespace UE::BulkData::Private
 
 //////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Triggers an ensure when trying to stream inline bulk data. This is to prevent
+ * inconsistencies between the Zen loader loading from I/O store (utoc/ucas) and the legacy EDL loader using
+ * the file system (.pak). The Zen loader currenlty does not allow reloading of inline bulk data.
+ * The trigger can be ignored by setting [Core.System]IgnoreInlineBulkDataReloadEnsures to true in the config file.
+ * Ignoring this ensure will most likely break loading of bulk data when packaging with Zen/IO store (.utoc/.ucas).
+ */
+void EnsureCanStreamBulkData(const FBulkMetaData& BulkMeta)
+{
+#if !WITH_EDITOR && !UE_KEEP_INLINE_RELOADING_CONSISTENT	
+	static struct FIgnoreInlineDataReloadEnsures
+	{
+		bool bEnabled = false;
+
+		FIgnoreInlineDataReloadEnsures()
+		{
+			FConfigFile PlatformEngineIni;
+			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
+
+			PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("IgnoreInlineBulkDataReloadEnsures"), bEnabled);
+
+			UE_LOG(LogSerialization, Display, TEXT("IgnoreInlineDataReloadEnsures: '%s'"), bEnabled ? TEXT("true") : TEXT("false"));
+		}
+	} IgnoreInlineDataReloadEnsures;
+
+	const bool bIsInlined = BulkMeta.HasAnyFlags(BULKDATA_PayloadAtEndOfFile) == false;
+	// Note that we only want the ensure to trigger if we have a valid offset (the bulkdata references data from disk)
+	ensureMsgf(!bIsInlined || BulkMeta.GetOffset() == INDEX_NONE || IgnoreInlineDataReloadEnsures.bEnabled,
+				TEXT("Attempting to stream inline BulkData! This operation is not supported by the IoDispatcher and so will eventually stop working."
+				" The calling code should be fixed to retain the inline data in memory and re-use it rather than discard it and then try to reload from disk!"));
+#endif 
+}
+
 FIoChunkId CreateBulkDataIoChunkId(const FBulkMetaData& BulkMeta, const FPackageId& PackageId)
 {
 	if (PackageId.IsValid() == false)
@@ -490,6 +523,8 @@ bool OpenReadBulkData(
 		return false;
 	}
 
+	EnsureCanStreamBulkData(BulkMeta);
+
 	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
 	{
 		const FIoChunkId ChunkId = CreateBulkDataIoChunkId(BulkMeta, PackageId);
@@ -547,6 +582,8 @@ TUniquePtr<IAsyncReadFileHandle> OpenAsyncReadBulkData(const FBulkMetaData& Bulk
 		return TUniquePtr<IAsyncReadFileHandle>();
 	}
 
+	EnsureCanStreamBulkData(BulkMeta);
+
 	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
 	{
 		return MakeUnique<FChunkReadFileHandle>(CreateBulkDataIoChunkId(BulkMeta, PackageId));
@@ -585,7 +622,9 @@ TUniquePtr<IBulkDataIORequest> CreateStreamingRequest(
 	{
 		return TUniquePtr<IBulkDataIORequest>();
 	}
-	
+
+	EnsureCanStreamBulkData(BulkMeta);
+
 	if (FPackageId PackageId = BulkChunkId.GetPackageId(); PackageId.IsValid())
 	{
 		FIoBuffer Buffer = UserSuppliedMemory ? FIoBuffer(FIoBuffer::Wrap, UserSuppliedMemory, Size) : FIoBuffer(Size);

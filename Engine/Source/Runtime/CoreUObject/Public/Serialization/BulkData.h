@@ -51,6 +51,10 @@ namespace UE { namespace Serialization { class FEditorBulkData; } }
 #define USE_BULKDATA_STREAMING_TOKEN UE_DEPRECATED_MACRO(5.0, "USE_BULKDATA_STREAMING_TOKEN now always evaluates to 0 and will be removed") 0
 #define STREAMINGTOKEN_PARAM(param) UE_DEPRECATED_MACRO(5.0, "STREAMINGTOKEN_PARAM now always evaluates to a NOP")
 
+// When set to 1 attempting to reload inline data will fail with the old loader in the same way that it fails in
+// the new loader to keep the results consistent.
+#define UE_KEEP_INLINE_RELOADING_CONSISTENT 0
+
 class IMappedFileHandle;
 class IMappedFileRegion;
 

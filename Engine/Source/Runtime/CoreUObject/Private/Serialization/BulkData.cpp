@@ -23,10 +23,6 @@
 // If set to 0 then we will pretend that optional data does not exist, useful for testing.
 #define ALLOW_OPTIONAL_DATA 1
 
-// When set to 1 attempting to reload inline data will fail with the old loader in the same way that it fails in
-// the new loader to keep the results consistent.
-#define UE_KEEP_INLINE_RELOADING_CONSISTENT 0
-
 //////////////////////////////////////////////////////////////////////////////
 
 const FIoFilenameHash FALLBACK_IO_FILENAME_HASH = INVALID_IO_FILENAME_HASH - 1;
@@ -122,31 +118,6 @@ bool StartAsyncLoad(
 
 /** Flush pending async load. */
 void FlushAsyncLoad(FBulkData* BulkData);
-
-/** 
-* Returns true if we should not trigger an ensure if we detect an inline bulkdata reload request that will not work with the 
-* IoStore system. This can be done by setting [Core.System]IgnoreInlineBulkDataReloadEnsures to true in the config file.
-* It is NOT recommended that you do this, but is provded in case of unforseen use cases.
-*/
-bool ShouldIgnoreInlineDataReloadEnsures()
-{
-	static struct FIgnoreInlineDataReloadEnsures
-	{
-		bool bEnabled = false;
-
-		FIgnoreInlineDataReloadEnsures()
-		{
-			FConfigFile PlatformEngineIni;
-			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName()));
-
-			PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("IgnoreInlineBulkDataReloadEnsures"), bEnabled);
-
-			UE_LOG(LogSerialization, Display, TEXT("IgnoreInlineDataReloadEnsures: '%s'"), bEnabled ? TEXT("true") : TEXT("false"));
-		}
-	} IgnoreInlineDataReloadEnsures;
-
-	return IgnoreInlineDataReloadEnsures.bEnabled;
-}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -780,23 +751,16 @@ bool FBulkData::IsStoredCompressedOnDisk() const
 
 bool FBulkData::CanLoadFromDisk() const
 {
-	if (BulkChunkId.IsValid())
-	{
-		return true;
-	}
-
 #if WITH_EDITOR
-	return AttachedAr != nullptr;
+	return AttachedAr != nullptr || BulkChunkId.IsValid();
 #else
-
 #if UE_KEEP_INLINE_RELOADING_CONSISTENT
 	if (IsInlined())
 	{
 		return false;
 	}
 #endif //UE_KEEP_INLINE_RELOADING_CONSISTENT
-
-	return false;
+	return BulkChunkId.IsValid();
 #endif // WITH_EDITOR
 }
 
