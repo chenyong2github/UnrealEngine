@@ -134,7 +134,7 @@ private:
 
 	TMap<EOnlineServices, FFactoryAndPriority> ServicesFactories;
 	TMap<EOnlineServices, TMap<FName, TSharedRef<IOnlineServices>>> NamedServiceInstances;
-	EOnlineServices DefaultServiceOverride;
+	EOnlineServices DefaultServiceOverride = EOnlineServices::Default;
 
 	FOnlineServicesRegistry() {}
 	~FOnlineServicesRegistry();
