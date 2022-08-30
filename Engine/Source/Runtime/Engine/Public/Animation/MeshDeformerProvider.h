@@ -22,10 +22,16 @@ public:
 	static bool IsAvailable();
 	static IMeshDeformerProvider* Get();
 
+	/** Structure for passing to GetDefaultMeshDeformer(). */
+	struct FDefaultMeshDeformerSetup
+	{
+		bool bIsUsingSkinCache = false;
+		bool bIsRequestingRecomputeTangent = false;
+	};
+
 	/** 
 	 * Returns a default mesh deformer. 
 	 * This can allow a mesh deformer plugin to automatically replace the UE fixed function animation path.
-	 * todo: Extend this to take requested features (lbs, morph, cloth etc.)
 	 */
-	virtual TSoftObjectPtr<class UMeshDeformer> GetDefaultMeshDeformer() = 0;
+	virtual TObjectPtr<class UMeshDeformer> GetDefaultMeshDeformer(FDefaultMeshDeformerSetup const& Setup) = 0;
 };

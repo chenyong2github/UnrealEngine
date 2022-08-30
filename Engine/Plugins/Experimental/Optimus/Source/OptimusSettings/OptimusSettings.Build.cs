@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
                 {
 					"Core",
 					"CoreUObject",
+					"DeveloperSettings",
 					"Engine",
 				}
 			);
