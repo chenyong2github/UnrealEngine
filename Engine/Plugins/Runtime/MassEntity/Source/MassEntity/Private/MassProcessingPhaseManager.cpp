@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MassProcessingPhase.h"
+#include "MassProcessingPhaseManager.h"
 #include "MassProcessingTypes.h"
 #include "MassDebugger.h"
 #include "MassEntitySettings.h"

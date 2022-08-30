@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "Engine/EngineBaseTypes.h"
 #include "MassProcessingTypes.h"
-#include "MassProcessingPhase.generated.h"
+#include "MassProcessingPhaseManager.generated.h"
 
 
 class UMassProcessingPhaseManager;

@@ -4,7 +4,7 @@
 
 #include "Delegates/IDelegateInstance.h"
 #include "MassProcessingTypes.h"
-#include "MassProcessingPhase.h"
+#include "MassProcessingPhaseManager.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "MassSimulationSubsystem.generated.h"
 

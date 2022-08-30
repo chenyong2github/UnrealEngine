@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntitySettings.h"
-#include "MassProcessingPhase.h"
+#include "MassProcessingPhaseManager.h"
 #include "VisualLogger/VisualLogger.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/CoreDelegates.h"

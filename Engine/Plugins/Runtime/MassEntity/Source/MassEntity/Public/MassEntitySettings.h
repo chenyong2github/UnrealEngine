@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MassSettings.h"
-#include "MassProcessingPhase.h"
+#include "MassProcessingPhaseManager.h"
 #include "MassProcessor.h"
 #include "InstancedStruct.h"
 #include "MassEntitySettings.generated.h"
