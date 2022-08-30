@@ -491,7 +491,7 @@ void FOptimusDataDomainCustomization::CustomizeHeader(
 						}
 						else
 						{
-							return LOCTEXT("MultipleValues", "MultipleValues");
+							return LOCTEXT("MultipleValues", "Multiple Values");
 						}
 					})
 				]
