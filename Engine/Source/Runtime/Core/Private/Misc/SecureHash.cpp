@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/SecureHash.h"
-#include "Misc/StringBuilder.h"
+
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 #if defined(_M_AMD64) || defined(__x86_64__)
 
 #include <immintrin.h>
 #if PLATFORM_COMPILER_CLANG
-#include <shaintrin.h>
 #include <cpuid.h>
+#include <shaintrin.h>
 #endif
 
 #define UE_PLATFORM_SHA_X86 1
@@ -646,6 +648,24 @@ FString LexToString(const FSHAHash& InHash)
 void LexFromString(FSHAHash& InHash, const TCHAR* InString)
 {
 	InHash.FromString(InString);
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FSHAHash& Hash)
+{
+	Writer.AddBinary(FMemoryView(&Hash.Hash, sizeof(Hash.Hash)));
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FSHAHash& OutHash)
+{
+	FMemoryView Bytes = Field.AsBinaryView();
+	if (Bytes.GetSize() != sizeof(OutHash.Hash))
+	{
+		OutHash = FSHAHash();
+		return false;
+	}
+	FMemory::Memcpy(OutHash.Hash, Bytes.GetData(), Bytes.GetSize());
+	return true;
 }
 
 void Freeze::IntrinsicToString(const FSHAHash& Object, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FMemoryToStringContext& OutContext)

@@ -24,6 +24,8 @@
 #include "String/HexToBytes.h"
 #include "Templates/UnrealTemplate.h"
 
+class FCbFieldView;
+class FCbWriter;
 class FMemoryImageWriter;
 class FMemoryUnfreezeContent;
 class FPointerTableBase;
@@ -279,6 +281,8 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(FSHAHash);
 
 inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }
 inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }
+CORE_API FCbWriter& operator<<(FCbWriter& Writer, const FSHAHash& Hash);
+CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FSHAHash& OutHash);
 
 class CORE_API FSHA1
 {
