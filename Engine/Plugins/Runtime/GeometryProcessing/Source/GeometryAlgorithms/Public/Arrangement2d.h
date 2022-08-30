@@ -43,12 +43,12 @@ struct FArrangement2d
 	double VertexSnapTol = 0.00001;
 
 	FArrangement2d(const FAxisAlignedBox2d& BoundsHint)
-		: PointHash(BoundsHint.MaxDim() / 64, -1)
+		: PointHash(FMath::Max(FMathd::ZeroTolerance, BoundsHint.MaxDim() / 64), -1)
 	{
 	}
 
 	FArrangement2d(double PointHashCellSize)
-		: PointHash(PointHashCellSize, -1)
+		: PointHash(FMath::Max(FMathd::ZeroTolerance, PointHashCellSize), -1)
 	{
 	}
 
