@@ -31,6 +31,10 @@
 		{
 			"Name": "MediaFrameworkUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "MediaPlate",
+			"Enabled": true
 		}
 	]
 }
