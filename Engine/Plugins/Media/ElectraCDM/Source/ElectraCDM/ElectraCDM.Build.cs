@@ -6,8 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public ElectraCDM(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = PCHUsageMode.UseSharedPCHs;
-			PrivatePCHHeaderFile = "Public/ElectraCDM.h";
+			bEnforceIWYU = false; // Disabled because of third party code
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "ElectraSubtitleDecoder.h"
 
 #include "TTMLSubtitleList.h"
+
+#include "ElectraSubtitleDecoder.h"
 #include "TTMLXMLElements.h"
-
-
 
 namespace ElectraTTMLParser
 {

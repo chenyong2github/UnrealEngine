@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "ElectraSubtitleModule.h"
+
 #include "CoreMinimal.h"
 #include "Misc/ScopeLock.h"
 
 #include "IElectraSubtitleModule.h"
-#include "ElectraSubtitleModule.h"
 #include "ElectraSubtitleDecoderFactory.h"
 
 #include "tx3g/ElectraSubtitleDecoder_TX3G.h"
