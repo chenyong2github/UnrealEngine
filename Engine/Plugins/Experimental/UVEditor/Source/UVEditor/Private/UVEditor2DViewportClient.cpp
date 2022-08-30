@@ -16,6 +16,8 @@
 #include "Engine/Canvas.h"
 #include "Math/Box.h"
 #include "MathUtil.h"
+#include "CameraController.h"
+
 
 namespace FUVEditor2DViewportClientLocals {
 
@@ -159,6 +161,11 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 
 	// Set up viewport manipulation behaviors:
 
+	FEditorCameraController* CameraControllerPtr = GetCameraController();
+	CameraController->GetConfig().MovementAccelerationRate = 0.0;
+	CameraController->GetConfig().RotationAccelerationRate = 0.0;
+	CameraController->GetConfig().FOVAccelerationRate = 0.0;
+
 	BehaviorSet = NewObject<UInputBehaviorSet>();
 
 	// We'll have the priority of our viewport manipulation behaviors be lower (i.e. higher
@@ -175,6 +182,7 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 	ZoomBehaviorTarget = MakeUnique<FUVEditor2DMouseWheelZoomBehaviorTarget>(this);
 	ZoomBehaviorTarget->SetCameraFarPlaneWorldZ(FUVEditorUXSettings::CameraFarPlaneWorldZ);
 	ZoomBehaviorTarget->SetCameraNearPlaneProportionZ(FUVEditorUXSettings::CameraNearPlaneProportionZ);
+	ZoomBehaviorTarget->SetZoomLimits(0.001, 100000);
 	UMouseWheelInputBehavior* ZoomBehavior = NewObject<UMouseWheelInputBehavior>();
 	ZoomBehavior->Initialize(ZoomBehaviorTarget.Get());
 	ZoomBehavior->SetDefaultPriority(DEFAULT_VIEWPORT_BEHAVIOR_PRIORITY);	

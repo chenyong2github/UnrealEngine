@@ -54,6 +54,7 @@ public:
 	 *  back to where you were.
 	 */
 	virtual void SetZoomAmount(double PercentZoomIn);
+	void SetZoomLimits(double ZoomInLimitIn, double ZoomOutLimitIn);
 
 	void SetCameraFarPlaneWorldZ(double CameraFarPlaneWorldZIn);
 	void SetCameraNearPlaneProportionZ(double CameraFarPlaneProportionZIn );
@@ -64,6 +65,7 @@ protected:
 	double ZoomInProportion;
 	double ZoomOutProportion;
 	double ZoomInLimit;
+	double ZoomOutLimit;
 	double CameraFarPlaneWorldZ;
 	double CameraNearPlaneProportionZ;
 };
