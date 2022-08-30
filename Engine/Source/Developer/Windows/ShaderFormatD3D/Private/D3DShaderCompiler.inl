@@ -92,12 +92,6 @@ public:
 			ExtraArguments.Add(TEXT("/Gfp"));
 		}
 
-		if (D3DCompileFlags & D3DCOMPILE_SKIP_OPTIMIZATION)
-		{
-			D3DCompileFlags &= ~D3DCOMPILE_SKIP_OPTIMIZATION;
-			ExtraArguments.Add(TEXT("/Od"));
-		}
-
 		if (D3DCompileFlags & D3DCOMPILE_SKIP_VALIDATION)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_SKIP_VALIDATION;
@@ -128,30 +122,38 @@ public:
 			ExtraArguments.Add(TEXT("/WX"));
 		}
 
-		switch (D3DCompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
+		if (D3DCompileFlags & D3DCOMPILE_SKIP_OPTIMIZATION)
 		{
-		case D3DCOMPILE_OPTIMIZATION_LEVEL0:
-			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL0;
-			ExtraArguments.Add(TEXT("/O0"));
-			break;
+			D3DCompileFlags &= ~D3DCOMPILE_SKIP_OPTIMIZATION;
+			ExtraArguments.Add(TEXT("/Od"));
+		}
+		else
+		{
+			switch (D3DCompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
+			{
+			case D3DCOMPILE_OPTIMIZATION_LEVEL0:
+				D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL0;
+				ExtraArguments.Add(TEXT("/O0"));
+				break;
 
-		case D3DCOMPILE_OPTIMIZATION_LEVEL1:
-			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL1;
-			ExtraArguments.Add(TEXT("/O1"));
-			break;
+			case D3DCOMPILE_OPTIMIZATION_LEVEL1:
+				D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL1;
+				ExtraArguments.Add(TEXT("/O1"));
+				break;
 
-		case D3DCOMPILE_OPTIMIZATION_LEVEL2:
-			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL2;
-			ExtraArguments.Add(TEXT("/O2"));
-			break;
+			case D3DCOMPILE_OPTIMIZATION_LEVEL2:
+				D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL2;
+				ExtraArguments.Add(TEXT("/O2"));
+				break;
 
-		case D3DCOMPILE_OPTIMIZATION_LEVEL3:
-			D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL3;
-			ExtraArguments.Add(TEXT("/O3"));
-			break;
+			case D3DCOMPILE_OPTIMIZATION_LEVEL3:
+				D3DCompileFlags &= ~D3DCOMPILE_OPTIMIZATION_LEVEL3;
+				ExtraArguments.Add(TEXT("/O3"));
+				break;
 
-		default:
-			break;
+			default:
+				break;
+			}
 		}
 
 		if (D3DCompileFlags & D3DCOMPILE_DEBUG)
