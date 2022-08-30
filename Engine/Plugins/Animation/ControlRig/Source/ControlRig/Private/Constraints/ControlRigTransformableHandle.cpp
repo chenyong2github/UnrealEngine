@@ -251,6 +251,7 @@ void UTransformableControlHandle::RegisterDelegates()
 		{
 			ControlRig->ControlRigBound().AddUObject(this, &UTransformableControlHandle::OnControlRigBound);
 		}
+		OnControlRigBound(ControlRig.Get());
 	}
 }
 
