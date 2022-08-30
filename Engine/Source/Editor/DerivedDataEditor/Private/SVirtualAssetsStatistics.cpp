@@ -336,7 +336,7 @@ TSharedRef<SWidget> SVirtualAssetsStatisticsDialog::GetGridPanel()
 				.ColorAndOpacity(TitleColor)
 				.Font(TitleFont)
 				.Justification(ETextJustify::Center)
-				.Text(LOCTEXT("LazyInit", "Virtual Assets are lazy initialized for this project, cannot display stats"))
+				.Text(LOCTEXT("LazyInit", "System is uninitialized until first use"))
 			];
 
 		return Panel;
