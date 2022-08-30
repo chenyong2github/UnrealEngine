@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DesktopWidgets",				
 					"EditorFramework",
+					"ImageCore",
 					"ImageWrapper",
 					"ImgMedia",
 					"InputCore",

@@ -9,7 +9,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class IDetailsView;
-class IImageWrapper;
+struct FImage;
 class SButton;
 class SNotificationItem;
 class UMediaPlayer;
@@ -64,7 +64,7 @@ private:
 	 * Tiles and mips may be generated.
 	 * This does NOT run on the game thread.
 	 *
-	 * @param InImageWrapper	ImageWrapper to read/write the image.
+	 * @param InImage			FImage of the source image.
 	 * @param InTileWidth		Desired width of tiles.
 	 * @param InTileHeight		Desired height of tiles.
 	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
@@ -73,7 +73,7 @@ private:
 	 * @param InName			Full path and name of file to write.
 	 * @param bIsCustomFormat	True to output in our custom format.
 	 */
-	void ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
+	void ProcessImageCustom(const FImage& InImage,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, 
 		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName,
 		bool bIsCustomFormat);
@@ -86,7 +86,6 @@ private:
 	 * @param RawData			Image pixel data (RGBA FFloat16).
 	 * @param Width				Width of image.
 	 * @param Height			Height of image.
-	 * @param BitDepth			Number of bits per pixel.
 	 * @param InTileWidth		Desired width of tiles.
 	 * @param InTileHeight		Desired height of tiles.
 	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
@@ -96,17 +95,9 @@ private:
 	 * @param bIsCustomFormat	True to output in our custom format.
 	 */
 	void ProcessImageCustomRawData(TArray64<uint8>& RawData,
-		int32 Width, int32 Height, int32 BitDepth,
+		int32 Width, int32 Height,
 		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
 		bool bHasAlphaChannel, const FString& InName, bool bIsCustomFormat);
-	
-	/**
-	 * Converts a buffer from 32 bit floating point to 16 bit floating point.
-	 * This will be done in place.
-	 * 
-	 * @param Buffer			Buffer to convert.
-	 */
-	void ConvertTo16Bit(TArray64<uint8>& Buffer);
 
 	/**
 	 * Removes the alpha channel from a buffer.

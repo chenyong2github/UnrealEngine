@@ -233,9 +233,7 @@ void SImgMediaProcessEXR::ProcessAllImages()
 			UE_LOG(LogImgMediaEditor, Error, TEXT("Invalid file format %s"), *Ext);
 		}
 		else
-		{
-			IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper");
-			
+		{			
 			// ImageWrapper is always returning an alpha channel for RGB, so check if we really have one.
 			bool bHasAlphaChannel = HasAlphaChannel(Ext, FPaths::Combine(SequencePath, FoundFiles[0]));
 
@@ -272,32 +270,37 @@ void SImgMediaProcessEXR::ProcessAllImages()
 				});
 				NumDone++;
 
-				TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(ImageFormat);
 				Async(EAsyncExecution::Thread, [this, SequencePath, FileName, OutPath,
-					Ext, &NumActive,
-					ImageWrapper, InTileWidth, InTileHeight,
+					Ext, &NumActive, InTileWidth, InTileHeight,
 					TileBorder, bEnableMips, bHasAlphaChannel]() mutable
 				{
 					FString FullFileName = FPaths::Combine(SequencePath, FileName);
+					FImage Image;
 
 					// Load image into buffer.
-					TArray64<uint8> InputBuffer;
-					if (!FFileHelper::LoadFileToArray(InputBuffer, *FullFileName))
 					{
-						UE_LOG(LogImgMediaEditor, Error, TEXT("Failed to load %s"), *FullFileName);
-						NumActive--;
-						return;
-					}
-					if (!ImageWrapper.IsValid() || !ImageWrapper->SetCompressed(InputBuffer.GetData(), InputBuffer.Num()))
-					{
-						UE_LOG(LogImgMediaEditor, Error, TEXT("Failed to create image wrapper for %s"), *FullFileName);
-						NumActive--;
-						return;
+						TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:LoadImage);
+						if (!FImageUtils::LoadImage(*FullFileName, Image))
+						{
+							UE_LOG(LogImgMediaEditor, Error, TEXT("Failed to load %s"), *FullFileName);
+							NumActive--;
+							return;
+						}
 					}
 
-					// Import this image.
+					// Convert to linear float16 if not already.
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:ChangeFormat);
+						Image.ChangeFormat(ERawImageFormat::RGBA16F, EGammaSpace::Linear);
+					}
+
 					FString Name = FPaths::Combine(OutPath, FileName);
-					ProcessImageCustom(ImageWrapper, InTileWidth, InTileHeight, TileBorder,
+					if (Ext != TEXT("exr"))
+					{
+						Name = FPaths::ChangeExtension(Name, TEXT("exr"));
+					}
+
+					ProcessImageCustom(Image, InTileWidth, InTileHeight, TileBorder,
 						bEnableMips, bHasAlphaChannel, Name, false /*bUseCustomFormat*/);
 
 					NumActive--;
@@ -348,7 +351,7 @@ bool SImgMediaProcessEXR::HasAlphaChannel(const FString& Ext, const FString& Fil
 	return bHasAlpha;
 }
 
-void SImgMediaProcessEXR::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
+void SImgMediaProcessEXR::ProcessImageCustom(const FImage& InImage,
 	int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
 	bool bHasAlphaChannel, const FString& InName,
 	bool bIsCustomFormat)
@@ -356,16 +359,11 @@ void SImgMediaProcessEXR::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageW
 #if IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom);
 	// Get image data.
-	ERGBFormat Format = InImageWrapper->GetFormat();
-	int32 Width = InImageWrapper->GetWidth();
-	int32 Height = InImageWrapper->GetHeight();
-	int32 BitDepth = InImageWrapper->GetBitDepth();
-	TArray64<uint8> RawData;
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:GetRaw);
-		InImageWrapper->GetRaw(Format, BitDepth, RawData);
-	}
-	ProcessImageCustomRawData(RawData, Width, Height, BitDepth,
+	int32 Width = InImage.GetWidth();
+	int32 Height = InImage.GetHeight();
+	TArray64<uint8> RawData = InImage.RawData;
+
+	ProcessImageCustomRawData(RawData, Width, Height,
 		InTileWidth, InTileHeight, InTileBorder, bInEnableMips,
 		bHasAlphaChannel, InName, bIsCustomFormat);
 #else // IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
@@ -374,7 +372,7 @@ void SImgMediaProcessEXR::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageW
 }
 
 void SImgMediaProcessEXR::ProcessImageCustomRawData(TArray64<uint8>& RawData,
-	int32 Width, int32 Height, int32 BitDepth,
+	int32 Width, int32 Height,
 	int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
 	bool bHasAlphaChannel, const FString& InName,
 	bool bIsCustomFormat)
@@ -388,22 +386,9 @@ void SImgMediaProcessEXR::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 	int32 TileWidth = InTileWidth;
 	int32 TileHeight = InTileHeight;
 	int32 BytesPerPixel = RawData.Num() / (Width * Height);
-	int32 BytesPerPixelPerChannel = BitDepth / 8;
+	int32 BytesPerPixelPerChannel = 16 / 8;
 	int32 NumChannels = BytesPerPixel / BytesPerPixelPerChannel;
 	int32 DestNumChannels = NumChannels;
-
-	// We use 16 bits only, so convert if we have 32.
-	if (BitDepth == 32)
-	{
-		ConvertTo16Bit(RawData);
-		BitDepth = 16;
-		BytesPerPixel /= 2;
-		BytesPerPixelPerChannel /= 2;
-	}
-	else if (BitDepth != 16)
-	{
-		UE_LOG(LogImgMediaEditor, Error, TEXT("Unsupported bit depth %d"), BitDepth);
-	}
 
 	// ImageWrapper always returns an alpha channel, so make sure we really have one.
 	if ((DestNumChannels == 4) && (bHasAlphaChannel == false))
@@ -672,27 +657,6 @@ void SImgMediaProcessEXR::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 #endif // IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 }
 
-
-void SImgMediaProcessEXR::ConvertTo16Bit(TArray64<uint8>& Buffer)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ConvertTo16Bit);
-
-	int32 BytesPerPixelPerChannel = 4;
-	int64 BufferSize = Buffer.Num() / BytesPerPixelPerChannel;
-	FFloat32* InBufferPtr = (FFloat32*)(Buffer.GetData());
-	FFloat16* OutBufferPtr = (FFloat16*)(Buffer.GetData());
-
-	// Loop through the buffer.
-	for (int64 Index = 0; Index < BufferSize; ++Index)
-	{
-		// Convert the data in place.
-		OutBufferPtr[Index] = InBufferPtr[Index].FloatValue;
-	}
-
-	// Don't bother shrinking as its just a waste and extra work.
-	Buffer.SetNum(BufferSize / 2, false);
-}
-
 void SImgMediaProcessEXR::RemoveAlphaChannel(TArray64<uint8>& Buffer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::RemoveAlphaChannel);
@@ -924,7 +888,6 @@ void SImgMediaProcessEXR::HandleProcessing()
 					{
 						int32 Width = RenderTarget->GetSurfaceWidth();
 						int32 Height = RenderTarget->GetSurfaceHeight();
-						int32 BitDepth = 16;
 						int32 InTileWidth = Options->bEnableTiling ? Options->TileSizeX : 0;
 						int32 InTileHeight = Options->bEnableTiling ? Options->TileSizeY : 0;
 						int32 TileBorder = 0; // Note: virtual texture support is shelved for now.
@@ -934,11 +897,11 @@ void SImgMediaProcessEXR::HandleProcessing()
 						FString FileName = FString::Printf(TEXT("image%05d.exr"), CurrentFrameIndex);
 						FString Name = FPaths::Combine(OutPath, FileName);
 
-						Async(EAsyncExecution::Thread, [this, RawData = MoveTemp(RawData), Width, Height, BitDepth,
+						Async(EAsyncExecution::Thread, [this, RawData = MoveTemp(RawData), Width, Height,
 							InTileWidth, InTileHeight, TileBorder, bEnableMips,
 							bHasAlphaChannel, Name]() mutable
 						{
-							ProcessImageCustomRawData(RawData, Width, Height, BitDepth,
+							ProcessImageCustomRawData(RawData, Width, Height,
 								InTileWidth, InTileHeight, TileBorder, bEnableMips,
 								bHasAlphaChannel, Name, false /*bUseCustomFormat*/);
 						});
