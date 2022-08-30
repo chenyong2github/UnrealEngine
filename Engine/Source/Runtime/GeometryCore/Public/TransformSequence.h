@@ -79,6 +79,19 @@ public:
 	}
 
 	/**
+	 * @return Whether the sequence will invert a shape (by negative scaling) when applied
+	 */
+	bool WillInvert() const
+	{
+		RealType Det = 1;
+		for (const TTransformSRT3<RealType>& Transform : Transforms)
+		{
+			Det *= Transform.GetDeterminant();
+		}
+		return Det < 0;
+	}
+
+	/**
 	 * Set scales of all transforms to (1,1,1)
 	 */
 	void ClearScales()

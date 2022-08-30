@@ -160,24 +160,23 @@ UDynamicMesh* UGeometryScriptLibrary_SceneUtilityFunctions::CopyCollisionMeshesF
 
 	if (bUseComplexCollision)
 	{
-		// rewrite object type if necessary
-		if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(FromObject))
-		{
-			FromObject = StaticMeshComp->GetStaticMesh();
-		}
-
 		// find the Complex Collision mesh interface
 		IInterface_CollisionDataProvider* CollisionProvider = nullptr;
-		if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(FromObject))
+		if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(FromObject))
+		{
+			LocalToWorld = StaticMeshComp->GetComponentTransform();
+			UStaticMesh* StaticMesh = StaticMeshComp->GetStaticMesh();
+			CollisionProvider = (IInterface_CollisionDataProvider*)StaticMesh;
+		}
+		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(FromObject))
 		{
 			LocalToWorld = FTransform::Identity;
 			CollisionProvider = (IInterface_CollisionDataProvider*)StaticMesh;
 		}
-		else if ( Cast<UDynamicMeshComponent>(FromObject) != nullptr )
+		else if (UPrimitiveComponent* DynamicMeshComp = Cast<UDynamicMeshComponent>(FromObject))
 		{
-			UPrimitiveComponent* AnyComponent = Cast<UPrimitiveComponent>(FromObject);
-			LocalToWorld = AnyComponent->GetComponentTransform();
-			CollisionProvider = (IInterface_CollisionDataProvider*)AnyComponent;
+			LocalToWorld = DynamicMeshComp->GetComponentTransform();
+			CollisionProvider = (IInterface_CollisionDataProvider*)DynamicMeshComp;
 		}
 
 		if (CollisionProvider == nullptr)

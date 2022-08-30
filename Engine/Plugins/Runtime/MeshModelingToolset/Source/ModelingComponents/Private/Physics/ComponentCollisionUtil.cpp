@@ -196,6 +196,8 @@ void UE::Geometry::ConvertSimpleCollisionToMeshes(
 {
 	FDynamicMeshEditor Editor(&MeshOut);
 
+	bool bTransformInverts = TransformSeqeuence.WillInvert();
+
 	for (const FKSphereElem& Sphere : AggGeom.SphereElems)
 	{
 		FSphereGenerator SphereGen;
@@ -206,6 +208,11 @@ void UE::Geometry::ConvertSimpleCollisionToMeshes(
 		FDynamicMesh3 SphereMesh(&SphereGen);
 
 		MeshTransforms::Translate(SphereMesh, FVector3d(Sphere.Center));
+
+		if (bTransformInverts)
+		{
+			SphereMesh.ReverseOrientation(false);
+		}
 
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&SphereMesh, Mappings,
@@ -228,6 +235,11 @@ void UE::Geometry::ConvertSimpleCollisionToMeshes(
 		FDynamicMesh3 BoxMesh(&BoxGen);
 
 		// transform not applied because it is just the Center/Rotation
+
+		if (bTransformInverts)
+		{
+			BoxMesh.ReverseOrientation(false);
+		}
 
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&BoxMesh, Mappings,
@@ -255,7 +267,11 @@ void UE::Geometry::ConvertSimpleCollisionToMeshes(
 		MeshTransforms::Translate(CapsuleMesh, FVector3d(0,0,-0.5*Capsule.Length) );
 
 		FTransformSRT3d Transform(Capsule.GetTransform());
-		MeshTransforms::ApplyTransform(CapsuleMesh, Transform);
+		MeshTransforms::ApplyTransform(CapsuleMesh, Transform, false);
+		if (Transform.GetDeterminant() < 0 != bTransformInverts)
+		{
+			CapsuleMesh.ReverseOrientation(false);
+		}
 
 		FMeshIndexMappings Mappings;
 		Editor.AppendMesh(&CapsuleMesh, Mappings,
@@ -276,15 +292,20 @@ void UE::Geometry::ConvertSimpleCollisionToMeshes(
 		int32 NumVertices = Convex.VertexData.Num();
 		for (int32 k = 0; k < NumVertices; ++k)
 		{
-			ConvexMesh.AppendVertex( FVector3d(Convex.VertexData[k]) );
+			ConvexMesh.AppendVertex(ElemTransform.TransformPosition(FVector3d(Convex.VertexData[k])) );
 		}
 		int32 NumTriangles = Convex.IndexData.Num() / 3;
 		for (int32 k = 0; k < NumTriangles; ++k)
 		{
 			ConvexMesh.AppendTriangle(Convex.IndexData[3*k], Convex.IndexData[3*k+1], Convex.IndexData[3*k+2]);
 		}
-
-		ConvexMesh.ReverseOrientation();
+		
+		// Note we need to reverse the orientation if no transform inverts, or if both invert,
+		// because ConvexMesh has reversed-orientation triangles normally
+		if (ElemTransform.GetDeterminant() < 0 == bTransformInverts)
+		{
+			ConvexMesh.ReverseOrientation();
+		}
 		ConvexMesh.EnableTriangleGroups(0);
 		ConvexMesh.EnableAttributes();
 		if (bInitializeConvexUVs)
@@ -333,10 +354,11 @@ bool UE::Geometry::ConvertComplexCollisionToMeshes(
 		FTriMeshCollisionData CollisionData;
 		if (CollisionProvider->GetPhysicsTriMeshData(&CollisionData, true))
 		{
+			bool bWillInvert = TransformSeqeuence.WillInvert();
 			TArray<int32> VertexIDMap;
 			for (int32 k = 0; k < CollisionData.Vertices.Num(); ++k)
 			{
-				int32 VertexID = MeshOut.AppendVertex((FVector)CollisionData.Vertices[k]);
+				int32 VertexID = MeshOut.AppendVertex(TransformSeqeuence.TransformPosition((FVector)CollisionData.Vertices[k]));
 				VertexIDMap.Add(VertexID);
 			}
 			for (const FTriIndices& TriIndices : CollisionData.Indices)
@@ -347,9 +369,9 @@ bool UE::Geometry::ConvertComplexCollisionToMeshes(
 				{
 					bFoundMeshErrorsOut = true;
 					// create new vertices for this triangle
-					int32 A = MeshOut.AppendVertex(MeshOut.GetVertex(TriIndices.v0));
-					int32 B = MeshOut.AppendVertex(MeshOut.GetVertex(TriIndices.v1));
-					int32 C = MeshOut.AppendVertex(MeshOut.GetVertex(TriIndices.v2));
+					int32 A = MeshOut.AppendVertex(TransformSeqeuence.TransformPosition(MeshOut.GetVertex(TriIndices.v0)));
+					int32 B = MeshOut.AppendVertex(TransformSeqeuence.TransformPosition(MeshOut.GetVertex(TriIndices.v1)));
+					int32 C = MeshOut.AppendVertex(TransformSeqeuence.TransformPosition(MeshOut.GetVertex(TriIndices.v2)));
 					MeshOut.AppendTriangle(FIndex3i(A,B,C));
 				}
 			}
@@ -363,7 +385,7 @@ bool UE::Geometry::ConvertComplexCollisionToMeshes(
 				Weld.Apply();
 			}
 
-			if (!CollisionData.bFlipNormals)		// collision mesh has reversed orientation
+			if (!CollisionData.bFlipNormals != bWillInvert)		// collision mesh has reversed orientation
 			{
 				MeshOut.ReverseOrientation(false);
 			}
