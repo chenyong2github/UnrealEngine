@@ -1249,6 +1249,8 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetweenSelected(bool bEnableColl
 
 
 	UpdateNoCollisionBodies();
+	
+	RefreshPhysicsAssetChange(PhysicsAsset);
 
 	BroadcastPreviewChanged();
 }
@@ -1301,6 +1303,8 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetweenSelectedAndAll(bool bEnab
 
 	UpdateNoCollisionBodies();
 
+	RefreshPhysicsAssetChange(PhysicsAsset);
+
 	BroadcastPreviewChanged();
 }
 
@@ -1346,6 +1350,8 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetween(int32 Body1Index, int32 
 		}
 
 		UpdateNoCollisionBodies();
+	
+		RefreshPhysicsAssetChange(PhysicsAsset);
 	}
 
 	BroadcastPreviewChanged();
