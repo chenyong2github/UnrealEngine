@@ -542,6 +542,22 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void ClangEventMatcher9()
+		{
+			string[] lines =
+			{
+				@"[421/1292] Compile Module.ApplicationCore.cpp",
+				@"In file included from Engine/Intermediate/Build/IOS/UnrealGame/Development/ApplicationCore/Module.ApplicationCore.cpp:14:",
+				@"Engine/Source/Runtime/ApplicationCore/Private/IOS/Accessibility/IOSAccessibilityCache.cpp:119:26: error: implicit conversion loses floating-point precision: 'CGFloat' (aka 'double') to 'const float' [-Werror,-Wimplicit-float-conversion]",
+				@"                                        const float Scale = [IOSAppDelegate GetDelegate].IOSView.contentScaleFactor;",
+				@"                                                    ~~~~~   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents, 0, 5, LogLevel.Error, KnownLogEvents.Compiler);
+		}
+
+		[TestMethod]
 		public void IOSCompileErrorMatcher()
 		{
 			string[] lines =

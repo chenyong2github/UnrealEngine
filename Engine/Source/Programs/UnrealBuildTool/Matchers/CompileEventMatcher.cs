@@ -52,7 +52,7 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_errorWarningPattern = new Regex("[Ee]rror|[Ww]arning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
 		static readonly Regex s_clangNotePattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*note:");
-		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)\^\s*~*$");
+		static readonly Regex s_clangMarkerPattern = new Regex(@"^(\s*)[\^~][\s\^~]*$");
 
 		static readonly string[] s_invalidExtensions =
 		{
