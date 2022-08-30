@@ -3,7 +3,7 @@
 #include "ConstrainedDelaunay2.h"
 #include "CompGeom/Delaunay2.h"
 #include "Async/ParallelFor.h"
-
+#include "Curve/PolygonIntersectionUtils.h"
 
 using namespace UE::Geometry;
 
@@ -276,6 +276,39 @@ namespace ConstrainedDelaunay2Internal
 			BuildTriangles(Indices);
 		}
 	}
+}
+
+template<class RealType>
+bool TConstrainedDelaunay2<RealType>::Add(const TPolygon2<RealType>& Polygon, bool bResolveSelfIntersections)
+{
+	if (!bResolveSelfIntersections)
+	{
+		Add(Polygon);
+		return true;
+	}
+	TGeneralPolygon2<RealType> GPolygon(Polygon);
+	return Add(GPolygon, bResolveSelfIntersections);
+}
+
+template<class RealType>
+bool TConstrainedDelaunay2<RealType>::Add(const TGeneralPolygon2<RealType>& GPolygon, bool bResolveSelfIntersections)
+{
+	if (!bResolveSelfIntersections)
+	{
+		Add(GPolygon);
+		return true;
+	}
+	TGeneralPolygon2<RealType> Empty;
+	TUnionPolygon2Polygon2<TGeneralPolygon2<RealType>, RealType> Union(GPolygon, Empty);
+	bool bResolveSuccess = Union.ComputeResult();
+	if (bResolveSuccess)
+	{
+		for (const TGeneralPolygon2<RealType>& ResultGPoly : Union.Result)
+		{
+			Add(ResultGPoly);
+		}
+	}
+	return bResolveSuccess;
 }
 
 
