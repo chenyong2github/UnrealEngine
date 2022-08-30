@@ -1744,13 +1744,6 @@ FActiveGameplayEffectHandle UGameplayAbility::ApplyGameplayEffectToOwner(const F
 		if (SpecHandle.IsValid())
 		{
 			SpecHandle.Data->StackCount = Stacks;
-			if (const UAbilitySystemComponent* OwnerASC = ActorInfo->AbilitySystemComponent.Get())
-			{
-				FGameplayTagContainer TargetTags;
-				OwnerASC->GetOwnedGameplayTags(TargetTags);
-				SpecHandle.Data->CapturedTargetTags.GetActorTags().AppendTags(TargetTags);
-			}
-
 			return ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, SpecHandle);
 		}
 	}

@@ -941,7 +941,7 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 	// evaluate if any active effects need to be removed by the application of this effect
 	if (bIsNetAuthority)
 	{
-		ActiveGameplayEffects.AttemptRemoveActiveEffectsOnEffectApplication(Spec, MyHandle);
+		ActiveGameplayEffects.AttemptRemoveActiveEffectsOnEffectApplication(*OurCopyOfSpec, MyHandle);
 	}
 	
 	// ------------------------------------------------------
