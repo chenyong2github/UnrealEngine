@@ -305,7 +305,7 @@ void ModifyVectorByOrientation(FVector& Vec, bool bIsRotation)
             if (bIsRotation)
             {
                 // swap and negate (as needed) roll and pitch
-                float Temp = Vec.X;
+                double Temp = Vec.X;
                 Vec.X = -Vec.Z;
                 Vec.Z = Temp;
                 Vec.Y *= -1.0f;
@@ -313,7 +313,7 @@ void ModifyVectorByOrientation(FVector& Vec, bool bIsRotation)
             else
             {
                 // swap and negate (as needed) x and y
-                float Temp = Vec.X;
+                double Temp = Vec.X;
                 Vec.X = -Vec.Y;
                 Vec.Y = Temp;
             }
@@ -323,14 +323,14 @@ void ModifyVectorByOrientation(FVector& Vec, bool bIsRotation)
             if (bIsRotation)
             {
                 // swap and negate (as needed) roll and pitch
-                float Temp = Vec.X;
+                double Temp = Vec.X;
                 Vec.X = -Vec.Z;
                 Vec.Z = -Temp;
             }
             else
             {
                 // swap and negate (as needed) x and y
-                float Temp = Vec.X;
+                double Temp = Vec.X;
                 Vec.X = Vec.Y;
                 Vec.Y = -Temp;
             }
@@ -374,7 +374,7 @@ void FIOSInputInterface::ProcessTouchesAndKeys(uint32 ControllerId, const TArray
         int32 KeyCode = InKeyInputStack[KeyIndex];
         int32 CharCode = InKeyInputStack[KeyIndex + 1];
         MessageHandler->OnKeyDown(KeyCode, CharCode, false);
-        MessageHandler->OnKeyChar(CharCode,  false);
+        MessageHandler->OnKeyChar((TCHAR)CharCode,  false);
         MessageHandler->OnKeyUp  (KeyCode, CharCode, false);
     }
 }
@@ -508,7 +508,7 @@ void FIOSInputInterface::SendControllerEvents()
     
     if ( bHaveMouse )
     {
-        MessageHandler->OnRawMouseMove(MouseDeltaX, MouseDeltaY);
+        MessageHandler->OnRawMouseMove(FMath::TruncToInt(MouseDeltaX), FMath::TruncToInt(MouseDeltaY));
         MouseDeltaX = 0.f;
         MouseDeltaY = 0.f;
         
@@ -657,8 +657,8 @@ void FIOSInputInterface::GetMovementData(FVector& Attitude, FVector& RotationRat
         FVector FinalAcceleration = -FilteredAccelerometer.GetSafeNormal();
         
         // calculate Roll/Pitch
-        float CurrentPitch = FMath::Atan2(FinalAcceleration.Y, FinalAcceleration.Z);
-        float CurrentRoll = -FMath::Atan2(FinalAcceleration.X, FinalAcceleration.Z);
+        float CurrentPitch = (float)FMath::Atan2(FinalAcceleration.Y, FinalAcceleration.Z);
+        float CurrentRoll = -(float)FMath::Atan2(FinalAcceleration.X, FinalAcceleration.Z);
         
         // if we want to calibrate, use the current values as center
         if (bIsCalibrationRequested)

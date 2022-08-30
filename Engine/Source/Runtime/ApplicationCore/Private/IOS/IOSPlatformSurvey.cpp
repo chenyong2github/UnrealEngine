@@ -23,9 +23,9 @@ bool FIOSPlatformSurvey::GetSurveyResults(FHardwareSurveyResults& OutResults, bo
 
 	// display 0 is max size
 	CGRect MainFrame = [[UIScreen mainScreen] bounds];
-	float Scale = [[UIScreen mainScreen] scale];
-	OutResults.Displays[0].CurrentModeWidth = MainFrame.size.width * Scale;
-	OutResults.Displays[0].CurrentModeHeight = MainFrame.size.height * Scale;
+	double Scale = [[UIScreen mainScreen] scale];
+	OutResults.Displays[0].CurrentModeWidth = FMath::TruncToInt(MainFrame.size.width * Scale);
+	OutResults.Displays[0].CurrentModeHeight = FMath::TruncToInt(MainFrame.size.height * Scale);
 
 	// display 1 is current size
 	FPlatformRect ScreenSize = FIOSWindow::GetScreenRect();

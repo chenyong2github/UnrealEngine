@@ -116,7 +116,7 @@ static void DumpAccessibilityStatsForwarder()
 
 					// Bounding rect
 					FBox2D Bounds = Widget->GetBounds();
-					const float Scale = [IOSAppDelegate GetDelegate].IOSView.contentScaleFactor;
+					const double Scale = [IOSAppDelegate GetDelegate].IOSView.contentScaleFactor;
 					Bounds.Min /= Scale;
 					Bounds.Max /= Scale;
 

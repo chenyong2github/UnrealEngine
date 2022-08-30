@@ -58,7 +58,7 @@ void FIOSCursor::Lock(const RECT* const Bounds)
 	FVector2D Position = GetPosition();
 	if (UpdateCursorClipping(Position))
 	{
-		SetPosition(Position.X, Position.Y);
+		SetPosition(FMath::TruncToInt(Position.X), FMath::TruncToInt(Position.Y));
 	}
 }
 

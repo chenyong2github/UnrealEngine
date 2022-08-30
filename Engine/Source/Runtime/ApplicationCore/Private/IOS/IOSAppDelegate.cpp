@@ -828,8 +828,8 @@ static IOSAppDelegate* CachedDelegate = nil;
 - (void)LoadScreenResolutionModifiers
 {
 	// cache these UI thread sensitive vars for later use
-	self.ScreenScale = [[UIScreen mainScreen] scale];
-	self.NativeScale = [[UIScreen mainScreen] nativeScale];
+	self.ScreenScale = (float)[[UIScreen mainScreen] scale];
+	self.NativeScale = (float)[[UIScreen mainScreen] nativeScale];
 
 	// need to cache the MobileContentScaleFactor for framebuffer creation.
 	static IConsoleVariable* CVarScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
@@ -991,10 +991,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
     
     CGRect MainFrame = [[UIScreen mainScreen] bounds];
     self.Window = [[UIWindow alloc] initWithFrame:MainFrame];
-    
-    // get the native scale
-    const float NativeScale = [[UIScreen mainScreen] scale];
-    
+
     [self.Window makeKeyAndVisible];
 
     FAppEntry::PreInit(self, application);
@@ -1609,7 +1606,7 @@ void HandleReceivedNotification(UNNotification* notification)
 			if(activationEvent != nullptr)
 			{
 				FString	activationEventFString(activationEvent);
-				int32	fireDate = [notification.date timeIntervalSince1970];
+				int32	fireDate = FMath::TruncToInt([notification.date timeIntervalSince1970]);
 				
 				FFunctionGraphTask::CreateAndDispatchWhenReady([activationEventFString, fireDate, AppState]()
 															   {
@@ -1666,7 +1663,7 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 		{
 			FAppEntry::gAppLaunchedWithLocalNotification = true;
 			FAppEntry::gLaunchLocalNotificationActivationEvent = FString(activationEvent);
-			FAppEntry::gLaunchLocalNotificationFireDate = [response.notification.date timeIntervalSince1970];
+			FAppEntry::gLaunchLocalNotificationFireDate = FMath::TruncToInt([response.notification.date timeIntervalSince1970]);
 		}
 	}
 	

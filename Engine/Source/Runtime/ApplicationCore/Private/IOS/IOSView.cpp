@@ -272,12 +272,12 @@ id<MTLDevice> GMetalDevice = nil;
 			if (ScreenHeight > ScreenWidth)
 			{
 				Height = RequestedResX;
-				Width = (Height * AspectRatio + 0.5f);
+				Width = FMath::TruncToInt(Height * AspectRatio + 0.5f);
 			}
 			else
 			{
 				Width = RequestedResX;
-				Height = (Width * AspectRatio + 0.5f);
+				Height = FMath::TruncToInt(Width * AspectRatio + 0.5f);
 			}
 		}
 		else if (RequestedResY > 0)
@@ -286,12 +286,12 @@ id<MTLDevice> GMetalDevice = nil;
 			if (ScreenHeight > ScreenWidth)
 			{
 				Width = RequestedResY;
-				Height = (Width * AspectRatio + 0.5f);
+				Height = FMath::TruncToInt(Width * AspectRatio + 0.5f);
 			}
 			else
 			{
 				Height = RequestedResY;
-				Width = (Height * AspectRatio + 0.5f);
+				Width = FMath::TruncToInt(Height * AspectRatio + 0.5f);
 			}
 		}
 		else
@@ -308,7 +308,7 @@ id<MTLDevice> GMetalDevice = nil;
 {
 	if (!bIsInitialized)
 	{
-		[self CalculateContentScaleFactor:self.frame.size.width ScreenHeight:self.frame.size.height];
+		[self CalculateContentScaleFactor:FMath::TruncToInt(self.frame.size.width) ScreenHeight:FMath::TruncToInt(self.frame.size.height)];
 		bIsInitialized = true;
 	}
 	return true;
@@ -427,8 +427,8 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	TouchInput TouchMessage;
 	TouchMessage.Handle = TouchIndex;
 	TouchMessage.Type = Type;
-	TouchMessage.Position = FVector2D(FMath::Min<float>(_ViewSize.width - 1, Loc.x), FMath::Min<float>(_ViewSize.height - 1, Loc.y)) * Scale;
-	TouchMessage.LastPosition = FVector2D(FMath::Min<float>(_ViewSize.width - 1, PrevLoc.x), FMath::Min<float>(_ViewSize.height - 1, PrevLoc.y)) * Scale;
+	TouchMessage.Position = FVector2D(FMath::Min<double>(_ViewSize.width - 1, Loc.x), FMath::Min<double>(_ViewSize.height - 1, Loc.y)) * Scale;
+	TouchMessage.LastPosition = FVector2D(FMath::Min<double>(_ViewSize.width - 1, PrevLoc.x), FMath::Min<double>(_ViewSize.height - 1, PrevLoc.y)) * Scale;
 	TouchMessage.Force = Type != TouchEnded ? Force : 0.0f;
 	
 	// skip moves that didn't actually move - this will help input handling to skip over the first
@@ -535,21 +535,21 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 			continue;
 		}
 
-		float Force = Touch.force;
+		double Force = Touch.force;
 		
 		// map larger values to 1..10, so 10 is a max across platforms
-		if (Force > 1.0f)
+		if (Force > 1.0)
 		{
-			Force = 10.0f * Force / Touch.maximumPossibleForce;
+			Force = 10.0 * Force / Touch.maximumPossibleForce;
 		}
 		
 		// Handle devices without force touch
-		if ((Type == TouchBegan || Type == TouchMoved) && Force == 0.f)
+		if ((Type == TouchBegan || Type == TouchMoved) && Force == 0.0)
 		{
-			Force = 1.f;
+			Force = 1.0;
 		}
 
-		[self  HandleTouchAtLoc:Loc PrevLoc:PrevLoc TouchIndex:TouchIndex Force:Force Type:Type TouchesArray:TouchesArray];
+		[self  HandleTouchAtLoc:Loc PrevLoc:PrevLoc TouchIndex:TouchIndex Force:(float)Force Type:Type TouchesArray:TouchesArray];
 	}
 
 	FIOSInputInterface::QueueTouchInput(TouchesArray);
@@ -954,10 +954,10 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	CGRect Frame = [[info objectForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
 	
 	FPlatformRect ScreenRect;
-	ScreenRect.Top = Frame.origin.y;
-	ScreenRect.Bottom = (Frame.origin.y + Frame.size.height);
-	ScreenRect.Left = Frame.origin.x;
-	ScreenRect.Right = (Frame.origin.x + Frame.size.width);
+	ScreenRect.Top = FMath::TruncToInt(Frame.origin.y);
+	ScreenRect.Bottom = FMath::TruncToInt(Frame.origin.y + Frame.size.height);
+	ScreenRect.Left = FMath::TruncToInt(Frame.origin.x);
+	ScreenRect.Right = FMath::TruncToInt(Frame.origin.x + Frame.size.width);
 	
 	[FIOSAsyncTask CreateTaskWithBlock:^bool(void){
 		[IOSAppDelegate GetDelegate].IOSApplication->OnVirtualKeyboardShown().Broadcast(ScreenRect);

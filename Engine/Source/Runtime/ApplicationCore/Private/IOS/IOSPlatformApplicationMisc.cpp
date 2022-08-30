@@ -89,7 +89,7 @@ EAppReturnType::Type MessageBoxExtImpl( EAppMsgType::Type MsgType, const TCHAR* 
 
 	while (AppDelegate.AlertResponse == -1)
 	{
-		FPlatformProcess::Sleep(.1);
+		FPlatformProcess::Sleep(0.1f);
 	}
 
 	EAppReturnType::Type Result = (EAppReturnType::Type)AppDelegate.AlertResponse;
@@ -284,16 +284,16 @@ EScreenPhysicalAccuracy FIOSPlatformApplicationMisc::ComputePhysicalScreenDensit
 
 	// If it hasn't been set, assume that the density is a multiple of the 
 	// native Content Scaling Factor.  Won't be exact, but should be close enough.
-	const float NativeScale =[[UIScreen mainScreen] scale];
-	ScreenDensity = 163 * NativeScale;
+	const double NativeScale =[[UIScreen mainScreen] scale];
+	ScreenDensity = FMath::TruncToInt(163 * NativeScale);
 
 	// look up the current scale factor
 	UIView* View = [IOSAppDelegate GetDelegate].IOSView;
-	const float ContentScaleFactor = View.contentScaleFactor;
+	const double ContentScaleFactor = View.contentScaleFactor;
 
 	if ( ContentScaleFactor != 0 )
 	{
-		ScreenDensity = ScreenDensity * ( ContentScaleFactor / NativeScale );
+		ScreenDensity = FMath::TruncToInt(ScreenDensity * (ContentScaleFactor / NativeScale));
 	}
 
 	return EScreenPhysicalAccuracy::Approximation;

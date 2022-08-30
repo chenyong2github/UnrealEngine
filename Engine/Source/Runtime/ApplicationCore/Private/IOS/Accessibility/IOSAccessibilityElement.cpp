@@ -230,9 +230,9 @@ if (!_AccessibilityChildren)
 -(id)accessibilityHitTest:(CGPoint)point
 {
 	AccessibleWidgetId FoundId = IAccessibleWidget::InvalidAccessibleWidgetId;
-	const float Scale = [IOSAppDelegate GetDelegate].IOSView.contentScaleFactor;
-	const int32 X = point.x * Scale;
-	const int32 Y = point.y * Scale;
+	const double Scale = [IOSAppDelegate GetDelegate].IOSView.contentScaleFactor;
+	const int32 X = FMath::TruncToInt(point.x * Scale);
+	const int32 Y = FMath::TruncToInt(point.y * Scale);
 	// Update the labels while we're on the game thread, since IOS is going to request them immediately.
 	FString TempLabel, TempHint, TempValue;
 	const AccessibleWidgetId TempId = self.Leaf.Id;

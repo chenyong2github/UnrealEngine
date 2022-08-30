@@ -95,7 +95,7 @@ void FIOSWindow::OnScaleFactorChanged(IConsoleVariable* CVar)
 		
 	// Force a re-layout of our views as the size has probably changed
 	CGRect Frame = [View frame];
-	[View CalculateContentScaleFactor:Frame.size.width ScreenHeight:Frame.size.height];
+	[View CalculateContentScaleFactor:FMath::TruncToInt(Frame.size.width) ScreenHeight:FMath::TruncToInt(Frame.size.height)];
 	[View layoutSubviews];
 }
 
@@ -109,7 +109,7 @@ void FIOSWindow::OnConsoleResolutionChanged(IConsoleVariable* CVar)
 		
 	// Force a re-layout of our views as the size has probably changed
 	CGRect Frame = [View frame];
-	[View CalculateContentScaleFactor:Frame.size.width ScreenHeight:Frame.size.height];
+	[View CalculateContentScaleFactor:FMath::TruncToInt(Frame.size.width) ScreenHeight:FMath::TruncToInt(Frame.size.height)];
 	[View layoutSubviews];
 }
 
@@ -125,10 +125,10 @@ FPlatformRect FIOSWindow::GetScreenRect()
 		CGRect Frame = [View frame];
 		CGFloat Scale = View.contentScaleFactor;
 		
-		ScreenRect.Top = Frame.origin.y * Scale;
-		ScreenRect.Bottom = (Frame.origin.y + View.ViewSize.height) * Scale;
-		ScreenRect.Left = Frame.origin.x * Scale;
-		ScreenRect.Right = (Frame.origin.x + View.ViewSize.width) * Scale;
+		ScreenRect.Top = FMath::TruncToInt(Frame.origin.y * Scale);
+		ScreenRect.Bottom = FMath::TruncToInt((Frame.origin.y + View.ViewSize.height) * Scale);
+		ScreenRect.Left = FMath::TruncToInt(Frame.origin.x * Scale);
+		ScreenRect.Right = FMath::TruncToInt((Frame.origin.x + View.ViewSize.width) * Scale);
 	}
 
 	return ScreenRect;
@@ -142,10 +142,10 @@ FPlatformRect FIOSWindow::GetUIWindowRect()
 	CGRect Bounds = [Window bounds];
 
 	FPlatformRect WindowRect;
-	WindowRect.Top = Bounds.origin.y;
-	WindowRect.Bottom = Bounds.origin.y + Bounds.size.height;
-	WindowRect.Left = Bounds.origin.x;
-	WindowRect.Right = Bounds.origin.x + Bounds.size.width;
+	WindowRect.Top = FMath::TruncToInt(Bounds.origin.y);
+	WindowRect.Bottom = FMath::TruncToInt(Bounds.origin.y + Bounds.size.height);
+	WindowRect.Left = FMath::TruncToInt(Bounds.origin.x);
+	WindowRect.Right = FMath::TruncToInt(Bounds.origin.x + Bounds.size.width);
 
 	return WindowRect;
 }
