@@ -69,7 +69,8 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task BasicChunkingTests()
 		{
-			ITreeWriter writer = _treeStore.CreateTreeWriter(new RefName("test"));
+			RefName refName = new RefName("test");
+			ITreeWriter writer = _treeStore.CreateTreeWriter(refName.Text);
 
 			ChunkingOptions options = new ChunkingOptions();
 			options.LeafOptions = new ChunkingOptionsForNodeType(8, 8, 8);
@@ -346,7 +347,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task CoreAppendTest()
 		{
-			ITreeWriter writer = _treeStore.CreateTreeWriter(new RefName("test"));
+			ITreeWriter writer = _treeStore.CreateTreeWriter();
 
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);
@@ -386,7 +387,7 @@ namespace EpicGames.Horde.Tests
 
 		async Task ChunkingTests(ChunkingOptions options)
 		{
-			ITreeWriter writer = _treeStore.CreateTreeWriter(new RefName("test"));
+			ITreeWriter writer = _treeStore.CreateTreeWriter();
 
 			byte[] data = new byte[4096];
 			new Random(0).NextBytes(data);
@@ -448,7 +449,7 @@ namespace EpicGames.Horde.Tests
 			using BundleStore treeStore = new BundleStore(_blobStore, options);
 
 			RefName refName = new RefName("ref");
-			ITreeWriter writer = treeStore.CreateTreeWriter(refName);
+			ITreeWriter writer = treeStore.CreateTreeWriter(refName.Text);
 
 			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 

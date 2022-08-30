@@ -47,7 +47,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			using (BundleStore store = new BundleStore(blobStore, options))
 			{
-				ITreeWriter writer = store.CreateTreeWriter(new RefName("test"));
+				ITreeWriter writer = store.CreateTreeWriter("test");
 
 				ITreeBlobRef node1 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
 				ITreeBlobRef node2 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { node1 }, CancellationToken.None);
@@ -55,8 +55,7 @@ namespace EpicGames.Horde.Tests
 				ITreeBlobRef node4 = await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<ITreeBlobRef>(), CancellationToken.None);
 
 				ITreeBlob root = TreeBlob.Create(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { node4, node3 });
-				await writer.WriteNodeAsync(root.Data, root.Refs);
-				await writer.FlushAsync();
+				await writer.WriteRefAsync(new RefName("test"), root.Data, root.Refs);
 
 				await CheckTree(root);
 			}
@@ -148,7 +147,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			using (BundleStore store = new BundleStore(blobStore, new BundleOptions()))
 			{
-				ITreeWriter writer = store.CreateTreeWriter(new RefName("test"));
+				ITreeWriter writer = store.CreateTreeWriter();
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
@@ -156,8 +155,7 @@ namespace EpicGames.Horde.Tests
 				FileEntry world = hello.AddFile("world", FileEntryFlags.None);
 				await world.AppendAsync(Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), writer, CancellationToken.None);
 
-				await writer.WriteNodeAsync(root);
-				await writer.FlushAsync();
+				await writer.WriteRefAsync(new RefName("test"), root);
 
 				await CheckFileTreeAsync(root);
 			}
@@ -190,7 +188,7 @@ namespace EpicGames.Horde.Tests
 		public async Task ChunkingTests()
 		{
 			using BundleStore store = new BundleStore(new InMemoryBlobStore(), new BundleOptions());
-			ITreeWriter writer = store.CreateTreeWriter(new RefName("test"));
+			ITreeWriter writer = store.CreateTreeWriter();
 
 			byte[] chunk = RandomNumberGenerator.GetBytes(256);
 
@@ -231,8 +229,7 @@ namespace EpicGames.Horde.Tests
 
 			using (BundleStore store = new BundleStore(blobStore, new BundleOptions()))
 			{
-				RefName refName = new RefName("test");
-				ITreeWriter writer = store.CreateTreeWriter(refName);
+				ITreeWriter writer = store.CreateTreeWriter();
 
 				ITreeWriter childWriter1 = writer.CreateChildWriter();
 				ITreeBlobRef childNode1 = await childWriter1.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 4, 5, 6 }), Array.Empty<ITreeBlobRef>());
@@ -240,8 +237,8 @@ namespace EpicGames.Horde.Tests
 				ITreeWriter childWriter2 = writer.CreateChildWriter();
 				ITreeBlobRef childNode2 = await childWriter2.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 7, 8, 9 }), Array.Empty<ITreeBlobRef>());
 
-				await writer.WriteNodeAsync(new ReadOnlySequence<byte>(new byte[] { 1, 2, 3 }), new[] { childNode1, childNode2 });
-				await writer.FlushAsync();
+				RefName refName = new RefName("test");
+				await writer.WriteRefAsync(refName, new ReadOnlySequence<byte>(new byte[] { 1, 2, 3 }), new[] { childNode1, childNode2 });
 
 				Assert.AreEqual(3, blobStore.Blobs.Count);
 				Assert.AreEqual(1, blobStore.Refs.Count);
@@ -281,7 +278,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			using (BundleStore store = new BundleStore(blobStore, new BundleOptions { MaxBlobSize = 1024 }))
 			{
-				ITreeWriter writer = store.CreateTreeWriter(new RefName("test"));
+				ITreeWriter writer = store.CreateTreeWriter();
 
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 
@@ -293,8 +290,7 @@ namespace EpicGames.Horde.Tests
 				FileEntry file = root.AddFile("test", FileEntryFlags.None);
 				await file.AppendAsync(data, options, writer, CancellationToken.None);
 
-				await writer.WriteNodeAsync(root);
-				await writer.FlushAsync();
+				await writer.WriteRefAsync(new RefName("test"), root);
 
 				await CheckLargeFileTreeAsync(root, data);
 			}

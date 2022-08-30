@@ -54,9 +54,9 @@ namespace Horde.Agent.Commands.Bundles
 				return Blob.Deserialize(id, bytes);
 			}
 
-			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
+			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
 			{
-				BlobId id = BlobId.Create(ServerId.Empty, hintRefName);
+				BlobId id = BlobId.Create(ServerId.Empty, prefix);
 				FileReference file = GetBlobFile(id);
 				DirectoryReference.CreateDirectory(file.Directory);
 				_logger.LogInformation("Writing {File}", file);
@@ -99,7 +99,7 @@ namespace Horde.Agent.Commands.Bundles
 
 			public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 			{
-				BlobId blobId = await WriteBlobAsync(data, references, name, cancellationToken);
+				BlobId blobId = await WriteBlobAsync(data, references, name.Text, cancellationToken);
 				await WriteRefTargetAsync(name, blobId, cancellationToken);
 				return blobId;
 			}
@@ -147,13 +147,12 @@ namespace Horde.Agent.Commands.Bundles
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			using ITreeStore store = CreateTreeStore(logger);
-			ITreeWriter writer = store.CreateTreeWriter(RefName);
+			ITreeWriter writer = store.CreateTreeWriter(RefName.Text);
 
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, logger, CancellationToken.None);
 
-			await writer.WriteNodeAsync(node);
-			await writer.FlushAsync();
+			await writer.WriteRefAsync(RefName, node);
 			return 0;
 		}
 	}

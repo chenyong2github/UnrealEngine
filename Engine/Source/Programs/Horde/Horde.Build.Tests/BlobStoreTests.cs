@@ -39,7 +39,7 @@ namespace Horde.Build.Tests
 	{
 		IBlobStore CreateBlobStore()
 		{
-			return new BasicBlobStore(MongoService, new TransientStorageBackend(), ServiceProvider.GetRequiredService<IMemoryCache>());
+			return new BasicBlobStore(MongoService, new TransientStorageBackend(), ServiceProvider.GetRequiredService<IMemoryCache>(), ServiceProvider.GetRequiredService<ILogger<BasicBlobStore>>());
 		}
 
 		static byte[] CreateTestData(int length, int seed)
