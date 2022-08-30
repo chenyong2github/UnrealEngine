@@ -189,7 +189,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
 	bRegisteredWithVelocityData(false),
-	bCacheShadowAsStatic(InComponent->Mobility == EComponentMobility::Movable),
+	bCacheShadowAsStatic(InComponent->Mobility != EComponentMobility::Movable),
 	LevelUpdateNotificationIndex(INDEX_NONE),
 	InstanceSceneDataOffset(INDEX_NONE),
 	NumInstanceSceneDataEntries(0),
