@@ -226,6 +226,7 @@ ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::SpawnLightCard(co
 		if (ProjectionMode == EDisplayClusterMeshProjectionType::UV)
 		{
 			NewLightCard->bIsUVLightCard = true;
+			NewLightCard->Scale /= 4;
 		}
 	}
 
