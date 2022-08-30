@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <inheritdoc/>
 		public Task<IBlob> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
 		{
-			BlobId blobId = new BlobId(Guid.NewGuid().ToString());
+			BlobId blobId = BlobId.Create(ServerId.Empty, hintRefName);
 
 			IBlob blob = Blob.FromMemory(blobId, data.ToArray(), references);
 			_blobs[blobId] = blob;

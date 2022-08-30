@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -141,15 +142,15 @@ namespace EpicGames.Horde.Storage
 	public static class TreeNodeExtensions
 	{
 		/// <summary>
-		/// Flush the tree with the given root node to storage
+		/// Writes a node to storage
 		/// </summary>
 		/// <param name="writer">Writer to output the nodes to</param>
-		/// <param name="root">Root node to serialize</param>
+		/// <param name="node">Root node to serialize</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task FlushAsync(this ITreeWriter writer, TreeNode root, CancellationToken cancellationToken = default)
+		public static async Task WriteNodeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
 		{
-			ITreeBlob rootBlob = await root.SerializeAsync(writer, cancellationToken);
-			await writer.FlushAsync(rootBlob.Data, rootBlob.Refs, cancellationToken);
+			ITreeBlob blob = await node.SerializeAsync(writer, cancellationToken);
+			await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -178,7 +179,8 @@ namespace EpicGames.Horde.Storage
 		public static async Task WriteTreeAsync(this ITreeStore store, RefName name, TreeNode root, CancellationToken cancellationToken = default)
 		{
 			ITreeWriter writer = store.CreateTreeWriter(name);
-			await writer.FlushAsync(root, cancellationToken);
+			await writer.WriteNodeAsync(root, cancellationToken);
+			await writer.FlushAsync(cancellationToken);
 		}
 	}
 }

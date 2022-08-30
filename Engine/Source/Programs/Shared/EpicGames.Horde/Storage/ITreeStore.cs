@@ -92,6 +92,13 @@ namespace EpicGames.Horde.Storage
 	public interface ITreeWriter
 	{
 		/// <summary>
+		/// Creates a new tree writer parented to this. Any nodes added to this writer can reference nodes written to any child writers, and bundle writes will 
+		/// be sequenced to allow references between them.
+		/// </summary>
+		/// <returns>New writer instance</returns>
+		ITreeWriter CreateChildWriter();
+
+		/// <summary>
 		/// Adds a new node to this tree
 		/// </summary>
 		/// <param name="data">Data for the node</param>
@@ -101,13 +108,11 @@ namespace EpicGames.Horde.Storage
 		Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Flush the tree with the given data at the root.
+		/// Flushes the current state and writes the ref, with the last written node as the tree root. Throws an exception if called for a child writer.
 		/// </summary>
-		/// <param name="data">Data for the node</param>
-		/// <param name="refs">References to other nodes</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Reference to the node that was added</returns>
-		Task FlushAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		Task<BlobId> FlushAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -175,17 +180,6 @@ namespace EpicGames.Horde.Storage
 		public static ITreeStore<T> ForType<T>(this ITreeStore store)
 		{
 			return new TypedTreeStore<T>(store);
-		}
-
-		/// <summary>
-		/// Flush the root of a tree to the store
-		/// </summary>
-		/// <param name="writer">Writer for the nodes</param>
-		/// <param name="root">Root blob</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task FlushAsync(this ITreeWriter writer, ITreeBlob root, CancellationToken cancellationToken = default)
-		{
-			return writer.FlushAsync(root.Data, root.Refs, cancellationToken);
 		}
 	}
 }

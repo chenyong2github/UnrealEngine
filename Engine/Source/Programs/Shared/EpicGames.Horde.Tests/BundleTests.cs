@@ -212,7 +212,6 @@ namespace EpicGames.Horde.Tests
 		{
 			BundleOptions options = new BundleOptions();
 			options.MaxBlobSize = 1;
-			options.MaxInlineBlobSize = 1;
 
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 			using ITreeStore treeStore = new BundleStore(blobStore, options);
@@ -237,7 +236,6 @@ namespace EpicGames.Horde.Tests
 		{
 			BundleOptions options = new BundleOptions();
 			options.MaxBlobSize = 1;
-			options.MaxInlineBlobSize = 1;
 
 			InMemoryBlobStore blobStore = new InMemoryBlobStore();
 
