@@ -1391,6 +1391,7 @@ bool UAbilitySystemComponent::TryActivateAbility(FGameplayAbilitySpecHandle Abil
 	{
 		if (bAllowRemoteActivation)
 		{
+			FScopedCanActivateAbilityLogEnabler LogEnabler;
 			if (Ability->CanActivateAbility(AbilityToActivate, ActorInfo, nullptr, nullptr, &FailureTags))
 			{
 				// No prediction key, server will assign a server-generated key
@@ -1536,6 +1537,7 @@ bool UAbilitySystemComponent::InternalTryActivateAbility(FGameplayAbilitySpecHan
 		// If we have an instanced ability, call CanActivateAbility on it.
 		// Otherwise we always do a non instanced CanActivateAbility check using the CDO of the Ability.
 		UGameplayAbility* const CanActivateAbilitySource = InstancedAbility ? InstancedAbility : Ability;
+		FScopedCanActivateAbilityLogEnabler LogEnabler;
 
 		if (!CanActivateAbilitySource->CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, &InternalTryActivateAbilityFailureTags))
 		{

@@ -21,6 +21,19 @@ class UGameplayAbility;
 class UGameplayTask;
 class UGameplayTasksComponent;
 
+struct FScopedCanActivateAbilityLogEnabler
+{
+	FScopedCanActivateAbilityLogEnabler() { ++LogEnablerCounter; }
+
+	~FScopedCanActivateAbilityLogEnabler() { --LogEnablerCounter; }
+
+	static bool IsLoggingEnabled() { return LogEnablerCounter > 0; }
+
+private:
+
+	static int32 LogEnablerCounter;
+};
+
 /**
  * UGameplayAbility
  *	

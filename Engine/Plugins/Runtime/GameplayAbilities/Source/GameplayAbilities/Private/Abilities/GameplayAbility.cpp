@@ -24,6 +24,8 @@ namespace FAbilitySystemTweaks
 	FAutoConsoleVariableRef CVarClearAbilityTimers(TEXT("AbilitySystem.ClearAbilityTimers"), FAbilitySystemTweaks::ClearAbilityTimers, TEXT("Whether to call ClearAllTimersForObject as part of EndAbility call"), ECVF_Default);
 }
 
+int32 FScopedCanActivateAbilityLogEnabler::LogEnablerCounter = 0;
+
 
 UGameplayAbility::UGameplayAbility(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -331,29 +333,45 @@ bool UGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handl
 
 	if (!AbilitySystemGlobals.ShouldIgnoreCooldowns() && !CheckCooldown(Handle, ActorInfo, OptionalRelevantTags))
 	{
+		if (FScopedCanActivateAbilityLogEnabler::IsLoggingEnabled())
+		{
+			ABILITY_VLOG(ActorInfo->OwnerActor.Get(), Verbose, TEXT("Ability could not be activated due to Cooldown: %s"), *GetName());
+		}
 		return false;
 	}
 
 	if (!AbilitySystemGlobals.ShouldIgnoreCosts() && !CheckCost(Handle, ActorInfo, OptionalRelevantTags))
 	{
+		if (FScopedCanActivateAbilityLogEnabler::IsLoggingEnabled())
+		{
+			ABILITY_VLOG(ActorInfo->OwnerActor.Get(), Verbose, TEXT("Ability could not be activated due to Cost: %s"), *GetName());
+		}
 		return false;
 	}
 
 	if (!DoesAbilitySatisfyTagRequirements(*AbilitySystemComponent, SourceTags, TargetTags, OptionalRelevantTags))
 	{	// If the ability's tags are blocked, or if it has a "Blocking" tag or is missing a "Required" tag, then it can't activate.
+		if (FScopedCanActivateAbilityLogEnabler::IsLoggingEnabled())
+		{
+			ABILITY_VLOG(ActorInfo->OwnerActor.Get(), Verbose, TEXT("Ability could not be activated due to Blocking Tags or Missing Required Tags: %s"), *GetName());
+		}
 		return false;
 	}
 
 	FGameplayAbilitySpec* Spec = AbilitySystemComponent->FindAbilitySpecFromHandle(Handle);
 	if (!Spec)
 	{
-		ABILITY_LOG(Warning, TEXT("CanActivateAbility called with invalid Handle"));
+		ABILITY_LOG(Warning, TEXT("CanActivateAbility %s failed, called with invalid Handle"), *GetName());
 		return false;
 	}
 
 	// Check if this ability's input binding is currently blocked
 	if (AbilitySystemComponent->IsAbilityInputBlocked(Spec->InputID))
 	{
+		if (FScopedCanActivateAbilityLogEnabler::IsLoggingEnabled())
+		{
+			ABILITY_VLOG(ActorInfo->OwnerActor.Get(), Verbose, TEXT("Ability could not be activated due to blocked input ID %i: %s"), Spec->InputID, *GetName());
+		}
 		return false;
 	}
 
