@@ -25,6 +25,7 @@
 #include "WidgetDrawerConfig.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "OutputLog/Public/OutputLogSettings.h"
+#include "SOneTimeIndustryQuery.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
@@ -235,10 +236,12 @@ void UStatusBarSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (MainFrameModule.IsWindowInitialized())
 	{
 		CreateAndShowNewUserTipIfNeeded(MainFrameModule.GetParentWindow(), false);
+		CreateAndShowOneTimeIndustryQueryIfNeeded(MainFrameModule.GetParentWindow(), false);
 	}
 	else
 	{
 		MainFrameModule.OnMainFrameCreationFinished().AddUObject(this, &UStatusBarSubsystem::CreateAndShowNewUserTipIfNeeded);
+		MainFrameModule.OnMainFrameCreationFinished().AddUObject(this, &UStatusBarSubsystem::CreateAndShowOneTimeIndustryQueryIfNeeded);
 	}
 
 
@@ -697,39 +700,90 @@ void UStatusBarSubsystem::CreateAndShowNewUserTipIfNeeded(TSharedPtr<SWindow> Pa
 {
 	if(!bIsNewProjectDialog)
 	{
-		const FString StoreId = TEXT("Epic Games");
-		const FString SectionName = TEXT("Unreal Engine/Editor");
-		const FString KeyName = TEXT("LaunchTipShown");
-
-		const FString FallbackIniLocation = TEXT("/Script/UnrealEd.EditorSettings");
-		const FString FallbackIniKey = TEXT("LaunchTipShownFallback");
-
-		// Its important that this new user message does not appear after the first launch so we store it in a more permanent place
-		FString CurrentState = TEXT("0");
-		if (!FPlatformMisc::GetStoredValue(StoreId, SectionName, KeyName, CurrentState))
-		{
-			// As a fallback where the registry was not readable or writable, save a flag in the editor ini. This will be less permanent as the registry but will prevent 
-			// the notification from appearing on every launch
-			GConfig->GetString(*FallbackIniLocation, *FallbackIniKey, CurrentState, GEditorSettingsIni);
-
-
-		}
+		FString CurrentState = GetNewUserTipState();
 
 		if(CurrentState != TEXT("1"))
 		{
 			SNewUserTipNotification::Show(ParentWindow);
 
+			const FString StoreId = TEXT("Epic Games");
+			const FString SectionName = TEXT("Unreal Engine/Editor");
+			const FString KeyName = TEXT("LaunchTipShown");
+
+			const FString FallbackIniLocation = TEXT("/Script/UnrealEd.EditorSettings");
+			const FString FallbackIniKey = TEXT("LaunchTipShownFallback");
 			// Write that we've shown the notification
-			if (!FPlatformMisc::SetStoredValue(StoreId, SectionName, KeyName, TEXT("1")))
-			{
-				// Use fallback
-				GConfig->SetString(*FallbackIniLocation, *FallbackIniKey, TEXT("1"), GEditorSettingsIni);
-			}
+			UStatusBarSubsystem::SetOneTimeStateWithFallback(StoreId, SectionName, KeyName, FallbackIniLocation, FallbackIniKey);
 		}
 	}
 
 	// Ignore the if the main frame gets recreated this session
 	IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
+}
+
+const FString UStatusBarSubsystem::GetNewUserTipState() const
+{
+	const FString StoreId = TEXT("Epic Games");
+	const FString SectionName = TEXT("Unreal Engine/Editor");
+	const FString KeyName = TEXT("LaunchTipShown");
+
+	const FString FallbackIniLocation = TEXT("/Script/UnrealEd.EditorSettings");
+	const FString FallbackIniKey = TEXT("LaunchTipShownFallback");
+
+	FString CurrentState = UStatusBarSubsystem::GetOneTimeStateWithFallback(StoreId, SectionName, KeyName, FallbackIniLocation, FallbackIniKey);
+	
+	return CurrentState;
+}
+
+void UStatusBarSubsystem::CreateAndShowOneTimeIndustryQueryIfNeeded(TSharedPtr<SWindow> ParentWindow, bool bIsNewProjectDialog)
+{
+	// Only show for external builds where editor analytics are on and the industry popup is not suppressed
+	if(SOneTimeIndustryQuery::ShouldShowIndustryQuery())
+	{
+		FString NewUserTipState = GetNewUserTipState();
+		if (!bIsNewProjectDialog && NewUserTipState == TEXT("1"))
+		{
+			const FString StoreId = TEXT("Epic Games");
+			const FString SectionName = TEXT("Unreal Engine/Editor");
+			const FString KeyName = TEXT("OneTimeIndustryQueryShown");
+
+			const FString FallbackIniLocation = TEXT("/Script/UnrealEd.EditorSettings");
+			const FString FallbackIniKey = TEXT("OneTimeIndustryQueryShownFallback");
+
+			FString CurrentState = UStatusBarSubsystem::GetOneTimeStateWithFallback(StoreId, SectionName, KeyName, FallbackIniLocation, FallbackIniKey);
+
+			if (CurrentState != TEXT("1"))
+			{
+				SOneTimeIndustryQuery::Show(ParentWindow);
+				SetOneTimeStateWithFallback(StoreId, SectionName, KeyName, FallbackIniLocation, FallbackIniKey);
+			}
+		}
+	}
+	// Ignore this if the main frame gets recreated this session
+	IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
+}
+
+const FString UStatusBarSubsystem::GetOneTimeStateWithFallback(const FString StoreId, const FString SectionName, const FString KeyName, const FString FallbackIniLocation, const FString FallbackIniKey)
+{
+	// Its important that this new user message does not appear after the first launch so we store it in a more permanent place
+	FString CurrentState = TEXT("0");
+	if (!FPlatformMisc::GetStoredValue(StoreId, SectionName, KeyName, CurrentState))
+	{
+		// As a fallback where the registry was not readable or writable, save a flag in the editor ini. This will be less permanent as the registry but will prevent 
+		// the notification from appearing on every launch
+		GConfig->GetString(*FallbackIniLocation, *FallbackIniKey, CurrentState, GEditorSettingsIni);
+	}
+	return CurrentState;
+}
+
+void UStatusBarSubsystem::SetOneTimeStateWithFallback(const FString StoreId, const FString SectionName, const FString KeyName, const FString FallbackIniLocation, const FString FallbackIniKey)
+{
+	// Write that we've shown the notification
+	if (!FPlatformMisc::SetStoredValue(StoreId, SectionName, KeyName, TEXT("1")))
+	{
+		// Use fallback
+		GConfig->SetString(*FallbackIniLocation, *FallbackIniKey, TEXT("1"), GEditorSettingsIni);
+	}
 }
 
 TSharedPtr<SStatusBar> UStatusBarSubsystem::GetStatusBar(FName StatusBarName) const

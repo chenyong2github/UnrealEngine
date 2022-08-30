@@ -24,6 +24,19 @@ class UAnalyticsPrivacySettings : public UObject, public IImportantToggleSetting
 	UPROPERTY(EditAnywhere, config, Category=Options)
 	bool bSendUsageData;
 
+	/** Determines whether the editor asks for your industry and sends that information to Epic Games in order to improve Unreal Engine. Your information will never be shared with 3rd parties. 
+	* As Unreal Engine is used across a range of industries, we want to make sure we are addressing the needs of those verticals. A one-time prompt will show up for a user asking if they 
+	* are using the editor for the field of: Game Development, Film & TV, Architecture, Automotive & Manufacturing, Broadcasting & Live Events, Advertising & Marketing, Simulation & Training, or Other.
+	* 
+	* If you would like to block the prompt from showing up for members of your team, but otherwise send usage data back to Epic Games, you can add the following to your BaseEditorSettings.ini:
+	* [/Script/UnrealEd.AnalyticsPrivacySettings]
+	* bSuppressIndustryPopup=True
+	* 
+	* Additionally, for users who do not wish to send this information back, simply close the pop-up and it will not be shown again.
+	*/
+	UPROPERTY(EditAnywhere, config, Category=Options)
+	bool bSuppressIndustryPopup;
+
 public:
 
 	// BEGIN IImportantToggleSettingInterface
