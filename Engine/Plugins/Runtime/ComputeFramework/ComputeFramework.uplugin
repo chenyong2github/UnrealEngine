@@ -1,8 +1,8 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "0.1",
-	"FriendlyName": "Compute Framework (Experimental)",
+	"VersionName": "0.9",
+	"FriendlyName": "Compute Framework",
 	"Description": "Support for user authored GPU compute graphs",
 	"Category": "Rendering",
 	"CreatedBy": "Epic Games, Inc.",
