@@ -855,7 +855,7 @@ public:
 		if (MoveSpace <= 0)
 			return;
 
-		int32 ThumbPos = ButtonHeight + FMath::CeilToInt(float(TopVisible * MoveSpace) / TotalScrollCount);
+		int32 ThumbPos = ButtonHeight + FMath::CeilToInt(float(TopVisible * MoveSpace) / (float)TotalScrollCount);
 
 		OutPos = ThumbPos;
 		OutHeight = ThumbHeight;
@@ -875,7 +875,7 @@ public:
 
 		int32 MoveSpace = ScrollHeight - ThumbHeight;
 
-		return FMath::FloorToInt(float(ThumbPos - ButtonHeight) * TotalScrollCount / MoveSpace);
+		return FMath::FloorToInt((float)(ThumbPos - ButtonHeight) * (float)TotalScrollCount / (float)MoveSpace);
 	}
 
 	void SetTopVisible(int32 TopVisible, bool ShouldPost)
@@ -1806,7 +1806,7 @@ public:
 				int32 ItemCount = (int)SendMessageW(LogHwnd, LB_GETCOUNT, 0, 0);
 				RECT Rect;
 				GetClientRect(LogHwnd, &Rect);
-				int32 VisibleCount = FMath::CeilToInt(float(Rect.bottom) / LogFontHeight);
+				int32 VisibleCount = FMath::CeilToInt(float(Rect.bottom) / (float)LogFontHeight);
 				int32 TopIndex = IntCastChecked<int32>(SendMessageW(LogHwnd, LB_GETTOPINDEX, 0, 0));
 				if (ItemCount - TopIndex < VisibleCount)
 				{

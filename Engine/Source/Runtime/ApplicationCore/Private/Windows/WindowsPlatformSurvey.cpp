@@ -104,7 +104,7 @@ bool FWindowsPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResult
 			NTSTATUS NTStatus = CallNtPowerInformation(ProcessorInformation, NULL, 0L, (PVOID)PowerInfo, PowerInfoSize);
 			if (NT_SUCCESS(NTStatus))
 			{
-				OutResults.CPUClockGHz = 0.001f * PowerInfo[0].MaxMhz;
+				OutResults.CPUClockGHz = 0.001f * (float)PowerInfo[0].MaxMhz;
 			}
 			else
 			{

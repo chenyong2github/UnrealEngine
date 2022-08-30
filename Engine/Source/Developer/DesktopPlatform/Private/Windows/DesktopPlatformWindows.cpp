@@ -117,7 +117,7 @@ bool FDesktopPlatformWindows::OpenFontDialog(const void* ParentWindowHandle, FSt
 	{
 		HDC DC = ::GetDC( cf.hwndOwner ); 
 		const float LogicalPixelsY = static_cast<float>(GetDeviceCaps(DC, LOGPIXELSY));
-		const int32 PixelHeight = static_cast<int32>(-lf.lfHeight * ( 72.0f / LogicalPixelsY ));	// Always target 72 DPI
+		const int32 PixelHeight = static_cast<int32>((float) - lf.lfHeight * (72.0f / LogicalPixelsY));	// Always target 72 DPI
 		auto FontFlags = EFontImportFlags::None;
 		if ( lf.lfUnderline )
 		{
