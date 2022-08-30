@@ -58,6 +58,9 @@ public:
 
 	// input mesh
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	// input polygroups, if available
+	TSharedPtr<FPolygroupSet, ESPMode::ThreadSafe> SourcePolyGroups;
+
 	// result
 	FPolygroupsGenerator Generator;
 
@@ -70,9 +73,18 @@ public:
 
 		ResultMesh->Copy(*OriginalMesh, true, true, true, true);
 	
-
 		if (Progress && Progress->Cancelled())
 		{
+			return;
+		}
+
+		if (ConversionMode == EConvertToPolygonsMode::CopyFromLayer)
+		{
+			if (!ensure(SourcePolyGroups.IsValid())) return;
+			for (int32 tid : ResultMesh->TriangleIndicesItr())
+			{
+				ResultMesh->SetTriangleGroup(tid, SourcePolyGroups->GetTriangleGroup(tid));
+			}
 			return;
 		}
 
@@ -239,15 +251,10 @@ void UConvertToPolygonsTool::Setup()
 			UpdateVisualization();
 		});
 
-		// start the compute
-		PreviewCompute->InvalidateResult();
 	}
 	
 	PreviewGeometry = NewObject<UPreviewGeometry>(this);
 	PreviewGeometry->CreateInWorld(GetTargetWorld(), MeshTransform);
-
-	// updates the triangle color visualization
-	UpdateVisualization();
 
 	Settings->WatchProperty(Settings->ConversionMode, [this](EConvertToPolygonsMode) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->bShowGroupColors, [this](bool) { UpdateVisualization(); });
@@ -263,6 +270,36 @@ void UConvertToPolygonsTool::Setup()
 	Settings->WatchProperty(Settings->bRespectUVSeams, [this](int) { OnSettingsModified(); });
 	Settings->WatchProperty(Settings->bRespectHardNormals, [this](int) { OnSettingsModified(); });
 
+	// add group layer picking property set for source groups
+	CopyFromLayerProperties = NewObject<UPolygroupLayersProperties>(this);
+	CopyFromLayerProperties->InitializeGroupLayers(OriginalDynamicMesh.Get());
+	CopyFromLayerProperties->WatchProperty(CopyFromLayerProperties->ActiveGroupLayer, [&](FName) { OnSelectedFromGroupLayerChanged(); });
+	AddToolPropertySource(CopyFromLayerProperties);
+	UpdateFromGroupLayer();
+	SetToolPropertySourceEnabled(CopyFromLayerProperties, Settings->ConversionMode == EConvertToPolygonsMode::CopyFromLayer);
+
+	// add picker for output group layer
+	OutputProperties = NewObject<UOutputPolygroupLayerProperties>(this);
+	AddToolPropertySource(OutputProperties);
+	OutputProperties->OptionsList.Reset();
+	OutputProperties->OptionsList.Add(TEXT("Default"));		// always have standard group
+	if (OriginalDynamicMesh->Attributes())
+	{
+		for (int32 k = 0; k < OriginalDynamicMesh->Attributes()->NumPolygroupLayers(); k++)
+		{
+			FName Name = OriginalDynamicMesh->Attributes()->GetPolygroupLayer(k)->GetName();
+			OutputProperties->OptionsList.Add(Name.ToString());
+		}
+	}
+	OutputProperties->OptionsList.Add(TEXT("Create New..."));
+	OutputProperties->WatchProperty(OutputProperties->GroupLayer, [&](FName NewName) { OutputProperties->bShowNewLayerName = (NewName == TEXT("Create New...")); });
+
+
+	// start the compute
+	PreviewCompute->InvalidateResult();
+
+	// updates the triangle color visualization
+	UpdateVisualization();
 
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Cluster triangles of the Mesh into PolyGroups using various strategies"),
@@ -286,7 +323,11 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.bRespectHardNormals = Settings->bRespectHardNormals;
 
 	ConvertToPolygonsOp.OriginalMesh = OriginalDynamicMesh;
-	
+	if (ActiveFromGroupSet.IsValid())
+	{
+		ConvertToPolygonsOp.SourcePolyGroups = ActiveFromGroupSet;
+	}
+
 	FTransform LocalToWorld = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 	ConvertToPolygonsOp.SetTransform(LocalToWorld);
 }
@@ -310,8 +351,51 @@ void UConvertToPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 			FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 			if (ensure(DynamicMeshResult != nullptr))
 			{
-				// todo: have not actually modified topology here, but groups-only update is not supported yet
-				UE::ToolTarget::CommitDynamicMeshUpdate(Target, *DynamicMeshResult, true);
+				if (OutputProperties->GroupLayer != TEXT("Default"))
+				{
+					// if we want to write to any layer other than default, we have to find or create it
+					FDynamicMesh3 UseResultMesh = *OriginalDynamicMesh;
+					if (UseResultMesh.HasAttributes() == false)
+					{
+						UseResultMesh.EnableAttributes();
+					}
+
+					FDynamicMeshPolygroupAttribute* UseAttribLayer = nullptr;
+					if (OutputProperties->GroupLayer == TEXT("Create New..."))
+					{
+						// append new group layer and set it's name
+						int32 TargetLayerIdx = UseResultMesh.Attributes()->NumPolygroupLayers();
+						UseResultMesh.Attributes()->SetNumPolygroupLayers(TargetLayerIdx + 1);
+						UseAttribLayer = UseResultMesh.Attributes()->GetPolygroupLayer(TargetLayerIdx);
+						FString UseUniqueName = UE::Geometry::MakeUniqueGroupLayerName(UseResultMesh, OutputProperties->NewLayerName);
+						UseAttribLayer->SetName( FName(UseUniqueName) );
+					}
+					else
+					{
+						UseAttribLayer = UE::Geometry::FindPolygroupLayerByName(UseResultMesh, OutputProperties->GroupLayer);
+					}
+
+					if (UseAttribLayer)
+					{
+						// copy the generated groups from the Op output mesh (stored in primary groups) to the target layer
+						for (int32 tid : UseResultMesh.TriangleIndicesItr())
+						{
+							UseAttribLayer->SetValue(tid, DynamicMeshResult->GetTriangleGroup(tid));
+						}
+						UE::ToolTarget::CommitDynamicMeshUpdate(Target, UseResultMesh, true);
+					}
+					else
+					{
+						// If we can't find or create the layer (which should not be possible) the tool is going to do nothing,
+						// this is the safest option at this point
+						UE_LOG(LogGeometry, Warning, TEXT("Output group layer missing?"));
+					}
+				}
+				else
+				{
+					// todo: have not actually modified topology here, but groups-only update is not supported yet
+					UE::ToolTarget::CommitDynamicMeshUpdate(Target, *DynamicMeshResult, true);
+				}
 			}
 			GetToolManager()->EndUndoTransaction();
 		}
@@ -320,6 +404,8 @@ void UConvertToPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 
 void UConvertToPolygonsTool::OnSettingsModified()
 {
+	SetToolPropertySourceEnabled(CopyFromLayerProperties, Settings->ConversionMode == EConvertToPolygonsMode::CopyFromLayer);
+
 	PreviewCompute->InvalidateResult();
 }
 
@@ -330,6 +416,26 @@ void UConvertToPolygonsTool::OnTick(float DeltaTime)
 }
 
 
+void UConvertToPolygonsTool::OnSelectedFromGroupLayerChanged()
+{
+	UpdateFromGroupLayer();
+	PreviewCompute->InvalidateResult();
+}
+
+void UConvertToPolygonsTool::UpdateFromGroupLayer()
+{
+	if (CopyFromLayerProperties->HasSelectedPolygroup() == false)
+	{
+		ActiveFromGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(OriginalDynamicMesh.Get());
+	}
+	else
+	{
+		FName SelectedName = CopyFromLayerProperties->ActiveGroupLayer;
+		FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*OriginalDynamicMesh, SelectedName);
+		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
+		ActiveFromGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(OriginalDynamicMesh.Get(), FoundAttrib);
+	}
+}
 
 
 void UConvertToPolygonsTool::UpdateVisualization()

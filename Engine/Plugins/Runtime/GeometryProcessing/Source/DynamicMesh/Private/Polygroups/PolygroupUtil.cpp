@@ -75,3 +75,48 @@ int32 UE::Geometry::ComputeGroupIDBound(const FDynamicMesh3& Mesh, const FDynami
 	}
 	return Bound;
 }
+
+
+FString UE::Geometry::MakeUniqueGroupLayerName(const FDynamicMesh3& Mesh, FString BaseName)
+{
+	if (BaseName.Len() == 0)
+	{
+		BaseName = TEXT("group");
+	}
+
+	if (Mesh.HasAttributes() == false)
+	{
+		return BaseName;
+	}
+	const FDynamicMeshAttributeSet* AttribSet = Mesh.Attributes();
+	int32 NumGroupLayers = AttribSet->NumPolygroupLayers();
+	if (NumGroupLayers == 0)
+	{
+		return BaseName;
+	}
+
+	// TODO: would be nice to detect if BaseName has a numeric suffix in either basename_0 or basename0 style
+	// and increment the number. But we should have a general utility function for that because it is so common...
+
+	FString UniqueName = BaseName;
+	int32 NumberCounter = 0;
+	while (true)
+	{
+		bool bFoundDuplicate = false;
+		for (int32 k = 0; k < NumGroupLayers; ++k)
+		{
+			if ( AttribSet->GetPolygroupLayer(k)->GetName() == FName(UniqueName) )
+			{
+				bFoundDuplicate = true;
+			}
+		}
+		if (!bFoundDuplicate)
+		{
+			return UniqueName;
+		}
+		UniqueName = FString::Printf(TEXT("%s_%d"), *BaseName, NumberCounter++);
+	}
+	ensureMsgf(false, TEXT("Failed to create unique name, returning base name"));
+	return BaseName;
+
+}

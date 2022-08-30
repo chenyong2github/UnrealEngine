@@ -38,5 +38,10 @@ DYNAMICMESH_API int32 FindPolygroupLayerIndex(const FDynamicMesh3& Mesh, const F
  */
 DYNAMICMESH_API int32 ComputeGroupIDBound(const FDynamicMesh3& Mesh, const FDynamicMeshPolygroupAttribute* Layer);
 
+/**
+* @return unique group layer name derived from BaseName by appending a numeric suffix in the form _0, _1, etc
+*/
+DYNAMICMESH_API FString MakeUniqueGroupLayerName(const FDynamicMesh3& Mesh, FString BaseName);
+
 }	// end namespace Geometry
 }	// end namespace UE

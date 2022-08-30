@@ -7,6 +7,7 @@
 #include "PreviewMesh.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
+#include "PropertySets/PolygroupLayersProperties.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
@@ -43,7 +44,9 @@ enum class EConvertToPolygonsMode
 	/** Create Polygroups based on Connected Triangles */
 	FromConnectedTris UMETA(DisplayName = "From Connected Tris"),
 	/** Create Polygroups centered on well-spaced sample points, approximating a surface Voronoi diagram */
-	FromFurthestPointSampling UMETA(DisplayName = "Furthest Point Sampling")
+	FromFurthestPointSampling UMETA(DisplayName = "Furthest Point Sampling"),
+	/** Copy from existing Polygroup Layer */
+	CopyFromLayer UMETA(DisplayName = "Copy From Layer"),
 };
 
 
@@ -101,18 +104,54 @@ public:
 
 
 	/** group filtering */
-	UPROPERTY(EditAnywhere, Category = Filtering, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "10000"))
+	UPROPERTY(EditAnywhere, Category = Filtering, meta = (UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "10000", EditCondition = "ConversionMode != EConvertToPolygonsMode::CopyFromLayer"))
 	int32 MinGroupSize = 2;
 
 
 	/** If true, normals are recomputed per-group, with hard edges at group boundaries */
-	UPROPERTY(EditAnywhere, Category = Output)
+	UPROPERTY(EditAnywhere, Category = Output, meta=(EditCondition = "ConversionMode != EConvertToPolygonsMode::CopyFromLayer") )
 	bool bCalculateNormals = false;
 	
 	/** Display each group with a different auto-generated color */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = true;
 };
+
+
+
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UOutputPolygroupLayerProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+
+	/** Select PolyGroup layer to use. */
+	UPROPERTY(EditAnywhere, Category = "Output", meta = (DisplayName = "Output Layer", GetOptions = GetGroupOptionsList, NoResetToDefault))
+	FName GroupLayer = "Default";
+
+	// Provides set of available group layers
+	UFUNCTION()
+	TArray<FString> GetGroupOptionsList() { return OptionsList; }
+
+	// internal list used to implement above
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> OptionsList;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bShowNewLayerName = false;
+
+	/** Name of the new Group Layer */
+	UPROPERTY(EditAnywhere, Category = "Output", meta = (TransientToolProperty, DisplayName = "New Layer Name",
+		EditCondition = "bShowNewLayerName", HideEditConditionToggle, NoResetToDefault))
+	FString NewLayerName = TEXT("polygroups");
+};
+
+
+
 
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UConvertToPolygonsOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
@@ -159,6 +198,13 @@ protected:
 	TObjectPtr<UConvertToPolygonsToolProperties> Settings;
 
 	UPROPERTY()
+	TObjectPtr<UPolygroupLayersProperties> CopyFromLayerProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UOutputPolygroupLayerProperties> OutputProperties = nullptr;
+
+
+	UPROPERTY()
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> PreviewCompute = nullptr;
 
 	UPROPERTY()
@@ -171,4 +217,10 @@ protected:
 	TArray<int> PolygonEdges;
 	
 	void UpdateVisualization();
+
+
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveFromGroupSet;
+	void OnSelectedFromGroupLayerChanged();
+	void UpdateFromGroupLayer();
+
 };
