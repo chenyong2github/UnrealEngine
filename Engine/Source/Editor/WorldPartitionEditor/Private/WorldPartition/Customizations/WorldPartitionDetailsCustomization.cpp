@@ -33,10 +33,11 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailBuil
 	WorldPartition = CastChecked<UWorldPartition>(ObjectsBeingCustomized[0].Get());
 	RuntimeHashClass = (WorldPartition.IsValid() && WorldPartition->RuntimeHash) ? WorldPartition->RuntimeHash->GetClass() : nullptr;
 
-	IDetailCategoryBuilder& WorldPartitionCategory = InDetailBuilder.EditCategory("WorldPartition");
+	IDetailCategoryBuilder& WorldPartitionCategory = InDetailBuilder.EditCategory("WorldPartitionSetup");
 
 	// Enable streaming checkbox
 	WorldPartitionCategory.AddCustomRow(LOCTEXT("EnableStreaming", "Enable Streaming"), false)
+		.RowTag(TEXT("EnableStreaming"))
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -54,6 +55,7 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailBuil
 
 	// Runtime hash class selector
 	WorldPartitionCategory.AddCustomRow(LOCTEXT("RuntimeHashClass", "Runtime Hash Class"), false)
+		.RowTag(TEXT("RuntimeHashClass"))
 		.NameContent()
 		[
 			SNew(STextBlock)

@@ -216,7 +216,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, bStreamingWasEnabled(true)
 	, bShouldEnableStreamingWarned(false)
 	, bShouldCheckEnableStreamingWarning(false)
-	, bSupportsStreaming(true)
 	, bCanBeUsedByLevelInstance(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
@@ -928,7 +927,7 @@ const FTransform& UWorldPartition::GetInstanceTransform() const
 #if WITH_EDITOR
 bool UWorldPartition::SupportsStreaming() const
 {
-	return bSupportsStreaming && (World ? World->GetWorldSettings()->SupportsWorldPartitionStreaming() : false);
+	return World ? World->GetWorldSettings()->SupportsWorldPartitionStreaming() : false;
 }
 
 bool UWorldPartition::IsStreamingEnabled() const
