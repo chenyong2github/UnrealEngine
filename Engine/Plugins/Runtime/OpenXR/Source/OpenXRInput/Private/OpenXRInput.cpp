@@ -131,8 +131,7 @@ FOpenXRInputPlugin::FOpenXRAction::FOpenXRAction(XrActionSet InActionSet,
 	, Type(InActionType)
 	, Name(InName)
 	, Handle(XR_NULL_HANDLE)
-	, Object()
-	, KeyMap()
+	, Object(nullptr)
 {
 	char ActionName[NAME_SIZE];
 	Name.GetPlainANSIString(ActionName);
@@ -246,7 +245,6 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 	, Instance(XR_NULL_HANDLE)
 	, ControllerActionSet()
 	, ActionSets()
-	, PluginActionSets()
 	, SubactionPaths()
 	, LegacyActions()
 	, EnhancedActions()
@@ -281,13 +279,6 @@ FOpenXRInputPlugin::FOpenXRInput::FOpenXRInput(FOpenXRHMD* HMD)
 		// Generate a list of the sub-action paths so we can query the left/right hand individually
 		SubactionPaths.Add(GetPath(Instance, "/user/hand/left"));
 		SubactionPaths.Add(GetPath(Instance, "/user/hand/right"));
-
-		// Attempt to load the default input config from the OpenXR input settings.
-		UOpenXRInputSettings* InputSettings = GetMutableDefault<UOpenXRInputSettings>();
-		if (InputSettings && InputSettings->MappableInputConfig.IsValid())
-		{
-			SetPlayerMappableInputConfig((UPlayerMappableInputConfig*)InputSettings->MappableInputConfig.TryLoad());
-		}
 	}
 }
 
@@ -386,12 +377,24 @@ bool FOpenXRInputPlugin::FOpenXRInput::BuildActions(XrSession Session)
 		}
 	}
 
+	if (!MappableInputConfig)
+	{
+		// Attempt to load the default input config from the OpenXR input settings.
+		UOpenXRInputSettings* InputSettings = GetMutableDefault<UOpenXRInputSettings>();
+		if (InputSettings && InputSettings->MappableInputConfig.IsValid())
+		{
+			SetPlayerMappableInputConfig((UPlayerMappableInputConfig*)InputSettings->MappableInputConfig.TryLoad());
+		}
+	}
+
 	if (MappableInputConfig)
 	{
 		BuildEnhancedActions(Profiles);
 	}
 	else
 	{
+		UE_LOG(LogHMD, Warning, TEXT("No UPlayerMappableInputConfig provided in the OpenXR Input project settings, action bindings will not be visible to the OpenXR runtime. Action/Axis mappings from the Input configuration are deprecated for XR in favor of Enhanced Input."));
+
 		BuildLegacyActions(Profiles);
 	}
 
@@ -467,10 +470,6 @@ bool FOpenXRInputPlugin::FOpenXRInput::BuildActions(XrSession Session)
 		AttachSet.Append(PluginAttachSet);
 	}
 
-	// Bind the plugin action sets created using the deprecated API
-	for (auto&& ActionSet : PluginActionSets)
-		AttachSet.Add(ActionSet.Handle);
-
 	TArray<XrActionSet> AttachArray = AttachSet.Array();
 	XrSessionActionSetsAttachInfo SessionActionSetsAttachInfo;
 	SessionActionSetsAttachInfo.type = XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO;
@@ -486,48 +485,28 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildLegacyActions(TMap<FString, FInterac
 {
 	// Create an engine action set for legacy actions
 	FOpenXRActionSet ActionSet(Instance, "ue", "Unreal Engine", 0);
-	auto InputSettings = GetMutableDefault<UInputSettings>();
-	if (InputSettings != nullptr)
+
+	TArray<FKey> Keys;
+	EKeys::GetAllKeys(Keys);
+	for (const FKey& Key : Keys)
 	{
-		TArray<FName> ActionNames;
-		InputSettings->GetActionNames(ActionNames);
-		for (const FName& ActionName : ActionNames)
+		// XR Keys are never blueprint-bindable
+		// 2D Axis keys are supported through paired keys
+		if (Key.IsBindableInBlueprints() || (Key.IsAnalog() && !Key.IsAxis1D()))
 		{
-			FOpenXRAction Action(ActionSet.Handle, XR_ACTION_TYPE_BOOLEAN_INPUT, ActionName, ActionName.ToString(), SubactionPaths);
-			TArray<FInputActionKeyMapping> Mappings;
-			InputSettings->GetActionMappingByName(ActionName, Mappings);
-
-			// If the developer didn't suggest any XR bindings for this action we won't expose it to the runtime
-			if (SuggestBindings(Profiles, Action, Mappings) > 0)
-			{
-				LegacyActions.Add(Action);
-			}
-			else
-			{
-				XR_ENSURE(xrDestroyAction(Action.Handle));
-			}
+			continue;
 		}
 
-		TArray<FName> AxisNames;
-		InputSettings->GetAxisNames(AxisNames);
-		for (const FName& AxisName : AxisNames)
+		XrActionType Type = Key.IsAxis1D() ? XR_ACTION_TYPE_FLOAT_INPUT : XR_ACTION_TYPE_BOOLEAN_INPUT;
+		FOpenXRAction Action(ActionSet.Handle, Type, Key.GetFName(), Key.GetDisplayName().ToString(), SubactionPaths);
+		if (SuggestBindingForKey(Profiles, Action, Key))
 		{
-			FOpenXRAction Action(ActionSet.Handle, XR_ACTION_TYPE_FLOAT_INPUT, AxisName, AxisName.ToString(), SubactionPaths);
-			TArray<FInputAxisKeyMapping> Mappings;
-			InputSettings->GetAxisMappingByName(AxisName, Mappings);
-
-			// If the developer didn't suggest any XR bindings for this action we won't expose it to the runtime
-			if (SuggestBindings(Profiles, Action, Mappings) > 0)
-			{
-				LegacyActions.Add(Action);
-			}
-			else
-			{
-				XR_ENSURE(xrDestroyAction(Action.Handle));
-			}
+			LegacyActions.Add(Action);
 		}
-
-		InputSettings->ForceRebuildKeymaps();
+		else
+		{
+			XR_ENSURE(xrDestroyAction(Action.Handle));
+		}
 	}
 
 	// Query extension plugins for actions
@@ -546,45 +525,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildLegacyActions(TMap<FString, FInterac
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 
-	for (IOpenXRExtensionPlugin* Plugin : OpenXRHMD->GetExtensionPlugins())
-	{
-		IOpenXRExtensionPlugin::FCreateActionSetFunc CreateActionSetFunc =
-			[this]
-			(const IOpenXRExtensionPlugin::FActionSetParams& Params) -> XrActionSet
-			{
-				FOpenXRActionSet ActionSet(Instance, Params.Name, Params.LocalizedName.ToString(), Params.Priority);
-				const XrActionSet ReturnHandle = ActionSet.Handle;
-				PluginActionSets.Emplace(MoveTemp(ActionSet));
-				return ReturnHandle;
-			};
-
-		IOpenXRExtensionPlugin::FCreateActionFunc CreateActionFunc =
-			[this, &Profiles, ActionSet]
-			(const IOpenXRExtensionPlugin::FActionParams& Params) -> XrAction
-			{
-				// TODO: Use Params.LocalizedName
-				const XrActionSet UseActionSet = Params.Set == XR_NULL_HANDLE ? ActionSet.Handle : Params.Set;
-				FOpenXRAction Action(UseActionSet, Params.Type, Params.Name, Params.LocalizedName.ToString(), Params.SubactionPaths);
-				const XrAction ReturnHandle = Action.Handle;
-				for (const FKey& Key : Params.SuggestedBindings)
-				{
-					SuggestBindingForKey(Profiles, Action, Key);
-				}
-				LegacyActions.Emplace(MoveTemp(Action));
-				return ReturnHandle;
-			};
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-		Plugin->AddActions(Instance, CreateActionSetFunc, CreateActionFunc);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-	}
-
-	if (!LegacyActions.IsEmpty())
-	{
-		UE_LOG(LogHMD, Warning, TEXT("Action/Axis mappings from the Input configuration are deprecated for XR in favor of Enhanced Input."));
-
-		ActionSets.Emplace(MoveTemp(ActionSet));
-	}
+	ActionSets.Emplace(MoveTemp(ActionSet));
 }
 
 void FOpenXRInputPlugin::FOpenXRInput::BuildEnhancedActions(TMap<FString, FInteractionProfile>& Profiles)
@@ -652,7 +593,6 @@ void FOpenXRInputPlugin::FOpenXRInput::DestroyActions()
 	LegacyActions.Reset();
 	EnhancedActions.Reset();
 	ActionSets.Reset();
-	PluginActionSets.Reset();
 	Controllers.Reset();
 }
 
@@ -694,10 +634,8 @@ bool FOpenXRInputPlugin::FOpenXRInput::SuggestBindingForKey(TMap<FString, FInter
 	XrPath TopLevel = GetPath(Instance, Path);
 
 	// Map this key to the correct subaction for this profile
-	// We'll use this later to trigger the correct key
+	// We'll use this later to retrieve binding modifiers
 	TPair<XrPath, XrPath> Key(Profile->Path, TopLevel);
-	Action.KeyMap.Add(Key, InFKey.GetFName());
-
 	for (UInputTrigger* Trigger : Triggers)
 	{
 		TObjectPtr<UInputTrigger> Ptr = Trigger;
@@ -799,6 +737,7 @@ void FOpenXRInputPlugin::FOpenXRInput::Tick(float DeltaTime)
 	{
 		// If the session shut down, clean up.
 		bActionsAttached = false;
+		MappableInputConfig = nullptr;
 	}
 }
 
@@ -892,52 +831,34 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 
 	XrSession Session = OpenXRHMD->GetSession();
 
-	for (XrPath Subaction : SubactionPaths)
+	IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
+	for (FOpenXRAction& Action : LegacyActions)
 	{
-		XrInteractionProfileState Profile;
-		Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;
-		Profile.next = nullptr;
-		XR_ENSURE(xrGetCurrentInteractionProfile(Session, Subaction, &Profile));
+		XrActionStateGetInfo GetInfo;
+		GetInfo.type = XR_TYPE_ACTION_STATE_GET_INFO;
+		GetInfo.next = nullptr;
+		GetInfo.subactionPath = XR_NULL_PATH;
+		GetInfo.action = Action.Handle;
 
-		TSet<FName> ActivatedActions, ActivatedAxes;
-		TPair<XrPath, XrPath> Key(Profile.interactionProfile, Subaction);
-		for (FOpenXRAction& Action : LegacyActions)
+		switch (Action.Type)
 		{
-			XrActionStateGetInfo GetInfo;
-			GetInfo.type = XR_TYPE_ACTION_STATE_GET_INFO;
-			GetInfo.next = nullptr;
-			GetInfo.subactionPath = Subaction;
-			GetInfo.action = Action.Handle;
-
-			// Find the action key and check if it has already been fired this frame.
-			FName* ActionKey = Action.KeyMap.Find(Key);
-			if (!ActionKey)
-			{
-				continue;
-			}
-
-			switch (Action.Type)
-			{
 			case XR_ACTION_TYPE_BOOLEAN_INPUT:
-			if (!ActivatedActions.Contains(*ActionKey))
 			{
 				XrActionStateBoolean State;
 				State.type = XR_TYPE_ACTION_STATE_BOOLEAN;
 				State.next = nullptr;
 				XrResult Result = xrGetActionStateBoolean(Session, &GetInfo, &State);
-				IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
 				if (XR_SUCCEEDED(Result) && State.changedSinceLastSync)
 				{
-					ActivatedActions.Add(*ActionKey);
 					if (State.isActive && State.currentState)
 					{
 						// TODO: Map input devices here if OpenXR would like to
-						MessageHandler->OnControllerButtonPressed(*ActionKey, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), /*IsRepeat =*/false);
+						MessageHandler->OnControllerButtonPressed(Action.Name, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), /*IsRepeat =*/false);
 					}
 					else
 					{
 						// TODO: Map input devices here if OpenXR would like to
-						MessageHandler->OnControllerButtonReleased(*ActionKey, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), /*IsRepeat =*/false);
+						MessageHandler->OnControllerButtonReleased(Action.Name, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), /*IsRepeat =*/false);
 					}
 
 					FXRTimedInputActionDelegate* const Delegate = OpenXRInputNamespace::GetTimedInputActionDelegate(Action.Name);
@@ -949,25 +870,22 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 			}
 			break;
 			case XR_ACTION_TYPE_FLOAT_INPUT:
-			if (!ActivatedAxes.Contains(*ActionKey))
 			{
 				XrActionStateFloat State;
 				State.type = XR_TYPE_ACTION_STATE_FLOAT;
 				State.next = nullptr;
 				XrResult Result = xrGetActionStateFloat(Session, &GetInfo, &State);
-				IPlatformInputDeviceMapper& DeviceMapper = IPlatformInputDeviceMapper::Get();
 				if (XR_SUCCEEDED(Result) && State.changedSinceLastSync)
 				{
-					ActivatedAxes.Add(*ActionKey);
 					if (State.isActive)
 					{
 						// TODO: Map input devices here if OpenXR would like to
-						MessageHandler->OnControllerAnalog(*ActionKey, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), State.currentState);
+						MessageHandler->OnControllerAnalog(Action.Name, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), State.currentState);
 					}
 					else
 					{
 						// TODO: Map input devices here if OpenXR would like to
-						MessageHandler->OnControllerAnalog(*ActionKey, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), 0.0f);
+						MessageHandler->OnControllerAnalog(Action.Name, DeviceMapper.GetPrimaryPlatformUser(), DeviceMapper.GetDefaultInputDevice(), 0.0f);
 					}
 
 					FXRTimedInputActionDelegate* const Delegate = OpenXRInputNamespace::GetTimedInputActionDelegate(Action.Name);
@@ -979,11 +897,19 @@ void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 			}
 			break;
 			default:
-				// Other action types are currently unsupported.
-				break;
-			}
+			// Other action types are currently unsupported.
+			break;
 		}
+	}
 
+	for (XrPath Subaction : SubactionPaths)
+	{
+		XrInteractionProfileState Profile;
+		Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;
+		Profile.next = nullptr;
+		XR_ENSURE(xrGetCurrentInteractionProfile(Session, Subaction, &Profile));
+
+		TPair<XrPath, XrPath> Key(Profile.interactionProfile, Subaction);
 		for (FOpenXRAction& Action : EnhancedActions)
 		{
 			const UInputAction* InputAction = Action.Object;

@@ -27,8 +27,6 @@ public:
 	virtual void OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader) override;
 	virtual void PostCreateInstance(XrInstance InInstance) override;
 	virtual void PostCreateSession(XrSession InSession) override;
-	virtual void AddActions(XrInstance InInstance, FCreateActionSetFunc CreateActionSet, FCreateActionFunc CreateAction) override;
-	virtual void GetActiveActionSetsForSync(TArray<XrActiveActionSet>& OutActiveSets) override;
 	virtual void PostSyncActions(XrSession InSession) override;
 	//~ End IOpenXRExtensionPlugin interface
 

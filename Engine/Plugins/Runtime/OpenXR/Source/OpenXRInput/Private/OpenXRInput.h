@@ -36,8 +36,8 @@ public:
 		FName			Name;
 		XrAction		Handle;
 
+		// Enhanced Input
 		TObjectPtr<const UInputAction> Object;
-		TMap<TPair<XrPath, XrPath>, FName> KeyMap;
 		TMultiMap<TPair<XrPath, XrPath>, TObjectPtr<UInputTrigger>> Triggers;
 		TMultiMap<TPair<XrPath, XrPath>, TObjectPtr<UInputModifier>> Modifiers;
 
@@ -140,7 +140,6 @@ public:
 
 		TUniquePtr<FOpenXRActionSet> ControllerActionSet;
 		TArray<FOpenXRActionSet> ActionSets;
-		TArray<FOpenXRActionSet> PluginActionSets;
 		TArray<XrPath> SubactionPaths;
 		TArray<FOpenXRAction> LegacyActions, EnhancedActions;
 		TMap<EControllerHand, FOpenXRController> Controllers;

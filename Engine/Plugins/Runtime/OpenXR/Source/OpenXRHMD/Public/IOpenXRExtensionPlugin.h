@@ -220,38 +220,8 @@ public:
 	* Add any actions provided by the plugin to Actions.
 	* This allows a plugin to 'hard code' an action so that the plugin can use it.
 	*/
-	UE_DEPRECATED(5.1, "Use the overload taking FActionParams/FActionSetParams below instead.")
+	UE_DEPRECATED(5.1, "Use Enhanced Input through IMotionController::SetPlayerMappableInputConfig instead.")
 	virtual void AddActions(XrInstance Instance, TFunction<XrAction(XrActionType InActionType, const FName& InName, const TArray<XrPath>& InSubactionPaths)> AddAction)
-	{
-	}
-
-	struct FActionSetParams
-	{
-		FName Name;
-		FText LocalizedName;
-		uint32 Priority;
-	};
-	using FCreateActionSetFunc = TFunction< XrActionSet(const FActionSetParams&) >;
-
-	struct FActionParams
-	{
-		/** If Set == XR_NULL_HANDLE, the action is added to the default action set. */
-		XrActionSet Set = XR_NULL_HANDLE;
-
-		XrActionType Type;
-		FName Name;
-		FText LocalizedName;
-		TArray<XrPath> SubactionPaths;
-		TArray<FKey> SuggestedBindings;
-	};
-	using FCreateActionFunc = TFunction< XrAction(const FActionParams&) >;
-
-	/**
-	* Create and register actions and/or action sets belonging to the plugin.
-	* This allows a plugin to create action sets to be attached to the session,
-	* and actions which participate in interaction profile binding suggestions.
-	*/
-	virtual void AddActions(XrInstance InInstance, FCreateActionSetFunc CreateActionSet, FCreateActionFunc CreateAction)
 	{
 	}
 
