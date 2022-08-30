@@ -24,7 +24,7 @@ namespace Horde.Agent.Tests
 		{
 			using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
 			{
-				builder.AddConsole(consoleLoggerOptions => consoleLoggerOptions.TimestampFormat = "[HH:mm:ss] ");
+				builder.AddSimpleConsole(consoleLoggerOptions => consoleLoggerOptions.TimestampFormat = "[HH:mm:ss] ");
 			});
 
 			_workerLogger = loggerFactory.CreateLogger<WorkerService>();
