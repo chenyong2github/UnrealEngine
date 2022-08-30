@@ -24,10 +24,6 @@
 // Private includes
 #include "Collision/PBDCollisionSolver.h"
 
-#if INTEL_ISPC
-#include "PBDCollisionConstraints.ispc.generated.h"
-#endif
-
 //PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
@@ -362,11 +358,14 @@ namespace Chaos
 
 	void FPBDCollisionConstraints::AddConstraintsToGraph(FPBDIslandManager& IslandManager)
 	{
-		for (FPBDCollisionConstraintHandle* ConstraintHandle : GetConstraints())
+		if (GetCollisionsEnabled())
 		{
-			if (ConstraintHandle->IsEnabled())
+			for (FPBDCollisionConstraintHandle* ConstraintHandle : GetConstraints())
 			{
-				IslandManager.AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				if (ConstraintHandle->IsEnabled())
+				{
+					IslandManager.AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				}
 			}
 		}
 	}
