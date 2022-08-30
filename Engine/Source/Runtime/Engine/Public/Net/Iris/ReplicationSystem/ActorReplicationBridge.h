@@ -46,10 +46,9 @@ class UActorReplicationBridge final : public UObjectReplicationBridge
 
 public:
 	ENGINE_API UActorReplicationBridge();
+	virtual ENGINE_API ~UActorReplicationBridge() override;
 
 #if UE_WITH_IRIS
-
-	ENGINE_API virtual ~UActorReplicationBridge();
 
 	ENGINE_API static UActorReplicationBridge* Create(UNetDriver* NetDriver);
 

@@ -987,4 +987,5 @@ float UActorReplicationBridge::GetMinSupportedNetUpdateFrequency() const
 }
 #else
 UActorReplicationBridge::UActorReplicationBridge() = default;
+UActorReplicationBridge::~UActorReplicationBridge() = default;
 #endif
