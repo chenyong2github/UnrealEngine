@@ -28,7 +28,7 @@
 	],
 	"Plugins": [
 		{
-			"Name": "Optimus",
+			"Name": "DeformerGraph",
 			"Enabled": true
 		},
 		{

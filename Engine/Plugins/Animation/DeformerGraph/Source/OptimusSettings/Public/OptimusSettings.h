@@ -6,9 +6,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "OptimusSettings.generated.h"
 
-
 class UMeshDeformer;
-
 
 UENUM()
 enum class EOptimusDefaultDeformerMode : uint8
@@ -21,7 +19,7 @@ enum class EOptimusDefaultDeformerMode : uint8
 	Always,
 };
 
-UCLASS(config = Optimus, defaultconfig, meta=(DisplayName="DeformerGraph"))
+UCLASS(config = DeformerGraph, defaultconfig, meta = (DisplayName = "DeformerGraph"))
 class OPTIMUSSETTINGS_API UOptimusSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()

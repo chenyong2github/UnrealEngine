@@ -1,7 +1,7 @@
 {
 	"FileVersion" : 3,
 	"Version" : 1,
-	"VersionName" : "0.1",
+	"VersionName" : "0.9",
 	"FriendlyName" : "Deformer Graph",
 	"Description" : "Editor for creating GPU mesh deformation graphs",
 	"Category" : "Animation",

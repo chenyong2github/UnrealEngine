@@ -18,7 +18,7 @@ static FDevVersionRegistration GRegisterOptimusObjectVersion(FOptimusObjectVersi
 
 void FOptimusCoreModule::StartupModule()
 {
-	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("Optimus"))->GetBaseDir(), TEXT("Shaders"));
+	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("DeformerGraph"))->GetBaseDir(), TEXT("Shaders"));
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/Optimus"), PluginShaderDir);
 
 	// Make sure all our types are known at startup.
