@@ -273,6 +273,8 @@ public:
 	virtual void AddGraphEditorPinActionsToContextMenu(FToolMenuSection& InSection) const {};
 
 protected:
+	friend class UAssetEditorToolkitMenuContext;
+
 	/**
 	 * Perform any initialization that should happen after the basic toolkit needs are created for the asset editor.
 	 * For example, if you would like to activate a mode that is not the default from a mode manager, do that here.

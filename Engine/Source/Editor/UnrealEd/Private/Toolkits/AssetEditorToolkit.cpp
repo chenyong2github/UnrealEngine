@@ -1292,5 +1292,22 @@ TSharedPtr<FExtender> FExtensibilityManager::GetAllExtenders(const TSharedRef<FU
 	}
 	return FExtender::Combine(OutExtenders);
 }
+
+TArray<UObject*> UAssetEditorToolkitMenuContext::GetEditingObjects() const
+{
+	TArray<UObject*> Result;
+	if (TSharedPtr<FAssetEditorToolkit> Pinned = Toolkit.Pin())
+	{
+		for (UObject* Object : Pinned->GetEditingObjects())
+		{
+			if (Object)
+			{
+				Result.Add(Object);
+			}
+		}
+	}
+
+	return Result;
+}
 	
 #undef LOCTEXT_NAMESPACE

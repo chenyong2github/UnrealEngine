@@ -16,5 +16,8 @@ class UNREALED_API UAssetEditorToolkitMenuContext : public UObject
 
 public:
 
+	UFUNCTION(BlueprintCallable, Category = "Tool Menus")
+	TArray<UObject*> GetEditingObjects() const;
+
 	TWeakPtr<FAssetEditorToolkit> Toolkit;
 };
