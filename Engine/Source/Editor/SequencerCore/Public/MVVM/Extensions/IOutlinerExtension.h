@@ -38,11 +38,18 @@ class IOutlinerExtension;
 enum class EOutlinerSelectionState
 {
 	None                      = 0,
-	SelectedDirectly          = 1 << 1,
-	HasSelectedKeys           = 1 << 2,
-	HasSelectedTrackAreaItems = 1 << 3,
+	SelectedDirectly          = 1 << 0,
+	HasSelectedKeys           = 1 << 1,
+	HasSelectedTrackAreaItems = 1 << 2,
 };
 ENUM_CLASS_FLAGS(EOutlinerSelectionState);
+
+enum class EOutlinerSizingFlags
+{
+	None                      = 0,
+	DynamicSizing             = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EOutlinerSizingFlags);
 
 struct SEQUENCERCORE_API FOutlinerSizing
 {
@@ -58,14 +65,37 @@ struct SEQUENCERCORE_API FOutlinerSizing
 		, PaddingBottom(UniformPadding)
 	{}
 
+	friend bool operator==(const FOutlinerSizing& A, const FOutlinerSizing& B)
+	{
+		return 
+			A.Height == B.Height && 
+			A.PaddingTop == B.PaddingTop && 
+			A.PaddingBottom == B.PaddingBottom && 
+			A.Flags == B.Flags;
+	}
+	friend bool operator!=(const FOutlinerSizing& A, const FOutlinerSizing& B)
+	{
+		return !(A == B);
+	}
+
 	float GetTotalHeight() const
 	{
 		return Height + PaddingTop + PaddingBottom;
 	}
 
+	void Accumulate(const FOutlinerSizing& Other)
+	{
+		Height        = FMath::Max(Height, Other.Height);
+		PaddingTop    = FMath::Max(PaddingTop, Other.PaddingTop);
+		PaddingBottom = FMath::Max(PaddingBottom, Other.PaddingBottom);
+		Flags |= Other.Flags;
+	}
+
 	float Height = 0.f;
 	float PaddingTop = 0.f;
 	float PaddingBottom = 0.f;
+	EOutlinerSizingFlags Flags = EOutlinerSizingFlags::None;
+
 };
 
 /** Facade class to allow SOutlinerViewRow to be passed around publicly */

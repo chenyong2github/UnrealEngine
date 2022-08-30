@@ -131,20 +131,20 @@ FOutlinerSizing FCategoryGroupModel::RecomputeSizing()
 		if (TSharedPtr<FCategoryModel> Category = WeakCategory.Pin())
 		{
 			FOutlinerSizing Desired = Category->GetDesiredSizing();
-
-			MaxSizing.Height = FMath::Max(MaxSizing.Height, Desired.Height);
-			MaxSizing.PaddingTop = FMath::Max(MaxSizing.PaddingTop, Desired.PaddingTop);
-			MaxSizing.PaddingBottom = FMath::Max(MaxSizing.PaddingBottom, Desired.PaddingBottom);
+			MaxSizing.Accumulate(Desired);
 		}
 	}
 
-	ComputedSizing = MaxSizing;
-
-	for (const TWeakViewModelPtr<FCategoryModel>& WeakCategory : Categories)
+	if (ComputedSizing != MaxSizing)
 	{
-		if (TSharedPtr<FCategoryModel> Category = WeakCategory.Pin())
+		ComputedSizing = MaxSizing;
+
+		for (const TWeakViewModelPtr<FCategoryModel>& WeakCategory : Categories)
 		{
-			Category->SetComputedSizing(MaxSizing);
+			if (TSharedPtr<FCategoryModel> Category = WeakCategory.Pin())
+			{
+				Category->SetComputedSizing(MaxSizing);
+			}
 		}
 	}
 
@@ -153,6 +153,10 @@ FOutlinerSizing FCategoryGroupModel::RecomputeSizing()
 
 FOutlinerSizing FCategoryGroupModel::GetOutlinerSizing() const
 {
+	if (EnumHasAnyFlags(ComputedSizing.Flags, EOutlinerSizingFlags::DynamicSizing))
+	{
+		const_cast<FCategoryGroupModel*>(this)->RecomputeSizing();
+	}
 	return ComputedSizing;
 }
 

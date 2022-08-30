@@ -689,20 +689,20 @@ FOutlinerSizing FChannelGroupOutlinerModel::RecomputeSizing()
 		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
 		{
 			FOutlinerSizing Desired = Channel->GetDesiredSizing();
-
-			MaxSizing.Height = FMath::Max(MaxSizing.Height, Desired.Height);
-			MaxSizing.PaddingTop = FMath::Max(MaxSizing.PaddingTop, Desired.PaddingTop);
-			MaxSizing.PaddingBottom = FMath::Max(MaxSizing.PaddingBottom, Desired.PaddingBottom);
+			MaxSizing.Accumulate(Desired);
 		}
 	}
 
-	ComputedSizing = MaxSizing;
-
-	for (TWeakViewModelPtr<FChannelModel> WeakChannel : Channels)
+	if (ComputedSizing != MaxSizing)
 	{
-		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+		ComputedSizing = MaxSizing;
+
+		for (TWeakViewModelPtr<FChannelModel> WeakChannel : Channels)
 		{
-			Channel->SetComputedSizing(MaxSizing);
+			if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+			{
+				Channel->SetComputedSizing(MaxSizing);
+			}
 		}
 	}
 
@@ -711,6 +711,10 @@ FOutlinerSizing FChannelGroupOutlinerModel::RecomputeSizing()
 
 FOutlinerSizing FChannelGroupOutlinerModel::GetOutlinerSizing() const
 {
+	if (EnumHasAnyFlags(ComputedSizing.Flags, EOutlinerSizingFlags::DynamicSizing))
+	{
+		const_cast<FChannelGroupOutlinerModel*>(this)->RecomputeSizing();
+	}
 	return ComputedSizing;
 }
 
