@@ -610,8 +610,19 @@ public:
 	FVector GetDefaultUpVector(ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return the corresponding input key at that point */
-	UFUNCTION(BlueprintCallable, Category=Spline)
+	/** This method has been deprecated because it was incorrectly returning the input key at time. To maintain the same behavior,
+	 *  replace it with GetTimeAtDistanceAlongSpline. To actually get the input key, instead call GetInputKeyValueAtDistanceAlongSpline. */
+	UFUNCTION(BlueprintCallable, Category=Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetInputKeyValueAtDistanceAlongSpline to get input key at distance or GetTimeAtDistanceAlongSpline to get time value (normalized to duration) at distance (same logic as deprecated function)."))
 	float GetInputKeyAtDistanceAlongSpline(float Distance) const;
+
+	/** Given a distance along the length of this spline, return the corresponding input key at that point 
+      * with a fractional component between the current input key and the next as a percentage. */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetInputKeyValueAtDistanceAlongSpline(float Distance) const;
+	
+	/** Given a distance along the length of this spline, return the corresponding time at that point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	float GetTimeAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return the point in space where this puts you */
 	UFUNCTION(BlueprintCallable, Category=Spline)

@@ -1148,6 +1148,23 @@ FVector USplineComponent::GetDefaultUpVector(ESplineCoordinateSpace::Type Coordi
 
 float USplineComponent::GetInputKeyAtDistanceAlongSpline(float Distance) const
 {
+	return GetTimeAtDistanceAlongSpline(Distance);
+}
+
+float USplineComponent::GetInputKeyValueAtDistanceAlongSpline(float Distance) const
+{
+	const int32 NumPoints = SplineCurves.Position.Points.Num();
+
+	if (NumPoints < 2)
+	{
+		return 0.0f;
+	}
+	
+	return SplineCurves.ReparamTable.Eval(Distance, 0.0f);
+}
+
+float USplineComponent::GetTimeAtDistanceAlongSpline(float Distance) const
+{
 	const int32 NumPoints = SplineCurves.Position.Points.Num();
 
 	if (NumPoints < 2)
@@ -1158,7 +1175,6 @@ float USplineComponent::GetInputKeyAtDistanceAlongSpline(float Distance) const
 	const float TimeMultiplier = Duration / (bClosedLoop ? NumPoints : (NumPoints - 1.0f));
 	return SplineCurves.ReparamTable.Eval(Distance, 0.0f) * TimeMultiplier;
 }
-
 
 FVector USplineComponent::GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const
 {
