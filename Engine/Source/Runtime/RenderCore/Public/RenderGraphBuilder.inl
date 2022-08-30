@@ -227,7 +227,7 @@ FRDGPassRef FRDGBuilder::AddPassInternal(
 
 	IF_RDG_ENABLE_DEBUG(ClobberPassOutputs(Pass));
 	Passes.Insert(Pass);
-	SetupPass(Pass);
+	SetupParameterPass(Pass);
 	return Pass;
 }
 
@@ -265,6 +265,7 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* Ini
 
 	UploadedBuffers.Emplace(Buffer, InitialData, InitialDataSize);
 	Buffer->bQueuedForUpload = 1;
+	Buffer->bForceNonTransient = 1;
 }
 
 inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, FRDGBufferInitialDataFreeCallback&& InitialDataFreeCallback)
@@ -278,6 +279,7 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* Ini
 
 	UploadedBuffers.Emplace(Buffer, InitialData, InitialDataSize, MoveTemp(InitialDataFreeCallback));
 	Buffer->bQueuedForUpload = 1;
+	Buffer->bForceNonTransient = 1;
 }
 
 inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferInitialDataCallback&& InitialDataCallback, FRDGBufferInitialDataSizeCallback&& InitialDataSizeCallback)
@@ -286,6 +288,7 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferIniti
 
 	UploadedBuffers.Emplace(Buffer, MoveTemp(InitialDataCallback), MoveTemp(InitialDataSizeCallback));
 	Buffer->bQueuedForUpload = 1;
+	Buffer->bForceNonTransient = 1;
 }
 
 inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferInitialDataCallback&& InitialDataCallback, FRDGBufferInitialDataSizeCallback&& InitialDataSizeCallback, FRDGBufferInitialDataFreeCallback&& InitialDataFreeCallback)
@@ -294,6 +297,7 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferIniti
 
 	UploadedBuffers.Emplace(Buffer, MoveTemp(InitialDataCallback), MoveTemp(InitialDataSizeCallback), MoveTemp(InitialDataFreeCallback));
 	Buffer->bQueuedForUpload = 1;
+	Buffer->bForceNonTransient = 1;
 }
 
 inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal, ERDGResourceExtractionFlags Flags)
@@ -308,9 +312,7 @@ inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCoun
 
 	*OutTexturePtr = nullptr;
 
-	Texture->ReferenceCount++;
 	Texture->bExtracted = true;
-	Texture->bCulled = false;
 
 	if (EnumHasAnyFlags(Flags, ERDGResourceExtractionFlags::AllowTransient))
 	{
@@ -333,9 +335,7 @@ inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPt
 
 	*OutBufferPtr = nullptr;
 
-	Buffer->ReferenceCount++;
 	Buffer->bExtracted = true;
-	Buffer->bCulled = false;
 	Buffer->bForceNonTransient = true;
 	ExtractedBuffers.Emplace(Buffer, OutBufferPtr);
 }

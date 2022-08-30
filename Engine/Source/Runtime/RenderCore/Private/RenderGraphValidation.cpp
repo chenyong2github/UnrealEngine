@@ -850,8 +850,6 @@ void FRDGUserValidation::ValidateExecuteEnd()
 	{
 		auto ValidateResourceAtExecuteEnd = [](const FRDGViewableResource* Resource)
 		{
-			check(Resource->ReferenceCount == Resource->bExtracted ? 1 : 0);
-
 			const auto& ViewableDebugData = Resource->GetViewableDebugData();
 			const bool bProducedButNeverUsed = ViewableDebugData.PassAccessCount == 1 && ViewableDebugData.FirstProducer;
 

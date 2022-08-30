@@ -31,16 +31,16 @@ FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewab
 	, bForceNonTransient(0)
 	, TransientExtractionHint(ETransientExtractionHint::None)
 	, bLastOwner(1)
-	, bCulled(!IsImmediateMode())
-	, bUsedByAsyncComputePass(0)
 	, bQueuedForUpload(0)
 	, FirstBarrier(EFirstBarrier::Split)
 	, bUAVAccessed(0)
+	, ReferenceCount(IsImmediateMode() ? 1 : 0)
 {
 	if (bSkipTracking)
 	{
 		SetExternalAccessMode(ERHIAccess::ReadOnlyExclusiveMask, ERHIPipeline::All);
 		AccessModeState.bLocked = 1;
+		AccessModeState.ActiveMode = AccessModeState.Mode;
 	}
 
 	if (bImmediateFirstBarrier)

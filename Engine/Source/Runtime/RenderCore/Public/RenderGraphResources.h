@@ -50,8 +50,8 @@ struct FRDGProducerState
 
 	FRDGProducerState() = default;
 
+	FRDGPass* Pass = nullptr;
 	ERHIAccess Access = ERHIAccess::Unknown;
-	FRDGPassHandle PassHandle;
 	FRDGViewHandle NoUAVBarrierHandle;
 };
 
@@ -286,7 +286,7 @@ public:
 
 	bool IsCulled() const
 	{
-		return bCulled;
+		return ReferenceCount == 0;
 	}
 
 	/** Whether a prior pass added to the graph produced contents for this resource. External resources are not considered produced
@@ -324,7 +324,7 @@ protected:
 
 	struct FAccessModeState
 	{
-		bool IsExternalAccess() const { return Mode == EAccessMode::External && !bQueued; }
+		bool IsExternalAccess() const { return ActiveMode == EAccessMode::External; }
 
 		FAccessModeState()
 			: Pipelines(ERHIPipeline::None)
@@ -333,11 +333,14 @@ protected:
 			, bQueued(0)
 		{}
 
-		ERHIAccess			Access			= ERHIAccess::None;
-		ERHIPipeline		Pipelines		: 2;
-		EAccessMode			Mode			: 1;
-		uint8				bLocked			: 1;
-		uint8				bQueued			: 1;
+		ERHIAccess			Access = ERHIAccess::None;
+		ERHIPipeline		Pipelines : 2;
+		EAccessMode			Mode : 1;
+		uint8				bLocked : 1;
+		uint8				bQueued : 1;
+
+		/** The actual access mode replayed on the setup pass timeline. */
+		EAccessMode ActiveMode = EAccessMode::Internal;
 
 	} AccessModeState;
 
@@ -362,12 +365,6 @@ protected:
 	/** Whether this resource is the last owner of its allocation (i.e. nothing aliases the allocation later in the execution timeline). */
 	uint8 bLastOwner : 1;
 
-	/** If true, the resource was not used by any pass not culled by the graph. */
-	uint8 bCulled : 1;
-
-	/** If true, the resource has been used on an async compute pass and may have async compute states. */
-	uint8 bUsedByAsyncComputePass : 1;
-
 	/** If true, the resource has been queued for an upload operation. */
 	uint8 bQueuedForUpload : 1;
 
@@ -384,8 +381,10 @@ protected:
 	ERHIAccess EpilogueAccess = DefaultEpilogueAccess;
 
 private:
+	static const uint16 DeallocatedReferenceCount = ~0;
+
 	/** Number of references in passes and deferred queries. */
-	uint16 ReferenceCount = 0;
+	uint16 ReferenceCount;
 
 	/** Scratch index allocated for the resource in the pass being setup. */
 	uint16 PassStateIndex = 0;
@@ -397,9 +396,6 @@ private:
 		AccessModeState.Mode = EAccessMode::External;
 		AccessModeState.Access = InReadOnlyAccess;
 		AccessModeState.Pipelines = InPipelines;
-
-		// External access resources are not always added to the pass states (unless marked as such within the graph), so marked as not culled here.
-		bCulled = 0;
 
 		EpilogueAccess = InReadOnlyAccess;
 	}
@@ -419,6 +415,7 @@ private:
 	friend FRDGBarrierBatchBegin;
 	friend FRDGResourceDumpContext;
 	friend FRDGTrace;
+	friend FRDGPass;
 };
 
 /** A render graph resource (e.g. a view) which references a single viewable resource (e.g. a texture / buffer). Provides an abstract way to access the viewable resource. */

@@ -387,17 +387,8 @@ protected:
 			/** Whether the pass is allowed to execute in parallel. */
 			uint32 bParallelExecuteAllowed : 1;
 
-			/** Whether this pass has non-RDG UAV outputs. */
-			uint32 bHasExternalOutputs : 1;
-
 			/** Whether this pass is a sentinel (prologue / epilogue) pass. */
 			uint32 bSentinel : 1;
-
-			/** Whether this pass has been culled. */
-			uint32 bCulled : 1;
-
-			/** Whether this pass does not contain parameters. */
-			uint32 bEmptyParameters : 1;
 
 			/** If set, dispatches to the RHI thread after executing this pass. */
 			uint32 bDispatchAfterExecute : 1;
@@ -422,6 +413,18 @@ protected:
 
 			/** If set, marks that a pass is executing in parallel. */
 			uint32 bParallelExecute : 1;
+
+			/** Whether this pass does not contain parameters. */
+			uint32 bEmptyParameters : 1;
+
+			/** Whether this pass has external UAVs that are not tracked by RDG. */
+			uint32 bHasExternalOutputs : 1;
+
+			/** Whether this pass has been culled. */
+			uint32 bCulled : 1;
+
+			/** Whether this pass is used for external access transitions. */
+			uint32 bExternalAccessPass : 1;
 		};
 		uint32 PacketBits2 = 0;
 	};
@@ -480,6 +483,21 @@ protected:
 	TArray<FBufferState, FRDGArrayAllocator> BufferStates;
 	TArray<FRDGViewHandle, FRDGArrayAllocator> Views;
 	TArray<FRDGUniformBufferHandle, FRDGArrayAllocator> UniformBuffers;
+
+	struct FExternalAccessOp
+	{
+		FExternalAccessOp() = default;
+
+		FExternalAccessOp(FRDGViewableResource* InResource, FRDGViewableResource::EAccessMode InMode)
+			: Resource(InResource)
+			, Mode(InMode)
+		{}
+
+		FRDGViewableResource* Resource;
+		FRDGViewableResource::EAccessMode Mode;
+	};
+
+	TArray<FExternalAccessOp, FRDGArrayAllocator> ExternalAccessOps;
 
 	/** Lists of pass parameters scheduled for begin during execution of this pass. */
 	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToBegin;

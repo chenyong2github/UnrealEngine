@@ -20,6 +20,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogRDG, Log, All);
 #define RDG_BREAKPOINT_PASS_COMPILE 2
 #define RDG_BREAKPOINT_PASS_EXECUTE 3
 
+#ifndef RDG_ENABLE_PARALLEL_TASKS
+#define RDG_ENABLE_PARALLEL_TASKS 1
+#endif
+
 #define RDG_RECURSION_COUNTER_SCOPE(Counter) Counter++; ON_SCOPE_EXIT { Counter--; }
 
 #if RDG_ENABLE_DEBUG
@@ -111,9 +115,22 @@ extern int32 GRDGMergeRenderPasses;
 extern int32 GRDGTransientAllocator;
 extern int32 GRDGTransientExtractedResources;
 extern int32 GRDGTransientIndirectArgBuffers;
+
+#if RDG_ENABLE_PARALLEL_TASKS
+
+extern int32 GRDGParallelSetup;
 extern int32 GRDGParallelExecute;
 extern int32 GRDGParallelExecutePassMin;
 extern int32 GRDGParallelExecutePassMax;
+
+#else
+
+const int32 GRDGParallelSetup = 0;
+const int32 GRDGParallelExecute = 0;
+const int32 GRDGParallelExecutePassMin = 0;
+const int32 GRDGParallelExecutePassMax = 0;
+
+#endif
 
 #if CSV_PROFILER
 extern int32 GRDGVerboseCSVStats;
@@ -122,7 +139,6 @@ const int32 GRDGVerboseCSVStats = 0;
 #endif
 
 #if STATS
-extern int32 GRDGStatPassWithParameterCount;
 extern int32 GRDGStatPassCount;
 extern int32 GRDGStatPassCullCount;
 extern int32 GRDGStatRenderPassMergeCount;
@@ -208,6 +224,23 @@ bool IsDumpingRDGResources();
 FORCEINLINE bool IsParallelExecuteEnabled()
 {
 	return GRDGParallelExecute > 0
+		&& !GRHICommandList.Bypass()
+		&& !IsImmediateMode()
+		&& !GRDGDebug
+		&& !GRDGTransitionLog
+		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
+		&& GRHISupportsMultithreadedShaderCreation
+#if WITH_DUMPGPU
+		&& !IsDumpingRDGResources()
+#endif
+		// Only run parallel RDG if we have a rendering thread.
+		&& IsInActualRenderingThread()
+		;
+}
+
+FORCEINLINE bool IsParallelSetupEnabled()
+{
+	return GRDGParallelSetup > 0
 		&& !GRHICommandList.Bypass()
 		&& !IsImmediateMode()
 		&& !GRDGDebug

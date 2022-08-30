@@ -3095,6 +3095,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 #endif // RHI_RAYTRACING
 
+	GraphBuilder.FlushSetupQueue();
+
 	if (bRenderDeferredLighting)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, RenderDeferredLighting);
@@ -3181,6 +3183,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RenderHeterogeneousVolumes(GraphBuilder, SceneTextures);
 	}
+
+	GraphBuilder.FlushSetupQueue();
 
 	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled() && !bHasHalfResCheckerboardMinMaxDepth && !bHasRayTracedOverlay)
 	{
@@ -3523,6 +3527,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		PostProcessingInputs.CustomDepthTexture = SceneTextures.CustomDepth.Depth;
 		PostProcessingInputs.SceneTextures = SceneTextures.UniformBuffer;
 
+		GraphBuilder.FlushSetupQueue();
+
 		if (ViewFamily.UseDebugViewPS())
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -3594,6 +3600,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderFinish(GraphBuilder, ViewFamilyTexture);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterFrame));
 		GraphBuilder.AddDispatchHint();
+		GraphBuilder.FlushSetupQueue();
 	}
 
 	QueueSceneTextureExtractions(GraphBuilder, SceneTextures);

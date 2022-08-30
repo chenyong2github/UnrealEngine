@@ -328,6 +328,16 @@ FAutoConsoleVariableRef CVarRDGTransientExtractedResource(
 	TEXT(" 2: force enables all external transient resources (not recommended);"),
 	ECVF_RenderThreadSafe);
 
+#if RDG_ENABLE_PARALLEL_TASKS
+
+int32 GRDGParallelSetup = 1;
+FAutoConsoleVariableRef CVarRDGParallelSetup(
+	TEXT("r.RDG.ParallelSetup"), GRDGParallelSetup,
+	TEXT("RDG will setup passes in parallel when prompted by calls to FRDGBuilder::FlushSetupQueue.")
+	TEXT(" 0: pass setup is done synchronously in AddPass;")
+	TEXT(" 1: pass setup is done asynchronously (default);"),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGParallelExecute = 1;
 FAutoConsoleVariableRef CVarRDGParallelExecute(
 	TEXT("r.RDG.ParallelExecute"), GRDGParallelExecute,
@@ -361,13 +371,6 @@ int32 GRDGParallelExecutePassMax = 32;
 FAutoConsoleVariableRef CVarRDGParallelExecutePassMax(
 	TEXT("r.RDG.ParallelExecute.PassMax"), GRDGParallelExecutePassMax,
 	TEXT("The maximum span of contiguous passes eligible for parallel execution for the span to be offloaded to a task."),
-	ECVF_RenderThreadSafe);
-
-// Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as non transient (see UE-115982)
-int32 GRDGTransientIndirectArgBuffers = 0;
-FAutoConsoleVariableRef CVarRDGIndirectArgBufferTransientAllocated(
-	TEXT("r.RDG.TransientAllocator.IndirectArgumentBuffers"), GRDGTransientIndirectArgBuffers,
-	TEXT("Whether indirect argument buffers should use transient resource allocator. Default: 0"),
 	ECVF_RenderThreadSafe);
 
 int32 GRDGParallelExecuteStress = 0;
@@ -405,6 +408,15 @@ FAutoConsoleVariableRef CVarRDGDebugParallelExecute(
 			GRDGParallelExecutePassMax = GRDGParallelExecutePassMaxHistory;
 		}
 	}),
+	ECVF_RenderThreadSafe);
+
+#endif //!RDG_ENABLE_PARALLEL_TASKS
+
+// Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as non transient (see UE-115982)
+int32 GRDGTransientIndirectArgBuffers = 0;
+FAutoConsoleVariableRef CVarRDGIndirectArgBufferTransientAllocated(
+	TEXT("r.RDG.TransientAllocator.IndirectArgumentBuffers"), GRDGTransientIndirectArgBuffers,
+	TEXT("Whether indirect argument buffers should use transient resource allocator. Default: 0"),
 	ECVF_RenderThreadSafe);
 
 #if CSV_PROFILER
@@ -514,11 +526,19 @@ void InitRenderGraph()
 		GRDGCullPasses = CullPassesValue;
 	}
 
+#if RDG_ENABLE_PARALLEL_TASKS
+	int32 ParallelSetupValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgparallelsetup="), ParallelSetupValue))
+	{
+		GRDGParallelSetup = ParallelSetupValue;
+	}
+
 	int32 ParallelExecuteValue = 0;
 	if (FParse::Value(FCommandLine::Get(), TEXT("rdgparallelexecute="), ParallelExecuteValue))
 	{
 		GRDGParallelExecute = ParallelExecuteValue;
 	}
+#endif
 
 	int32 MergeRenderPassesValue = 0;
 	if (FParse::Value(FCommandLine::Get(), TEXT("rdgmergerenderpasses="), MergeRenderPassesValue))

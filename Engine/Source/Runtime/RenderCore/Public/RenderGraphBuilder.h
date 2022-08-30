@@ -31,7 +31,7 @@
 #include "Stats/Stats2.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UnrealTemplate.h"
-#include "UObject/NameTypes.h"
+#include "Tasks/Pipe.h"
 
 /** Use the render graph builder to build up a graph of passes and then call Execute() to process them. Resource barriers
  *  and lifetimes are derived from _RDG_ parameters in the pass parameter struct provided to each AddPass call. The resulting
@@ -310,6 +310,9 @@ public:
 	/** Manually ends the current GPU event scope. */
 	void EndEventScope();
 
+	/** Flushes all queued passes to an async task to perform setup work. */
+	void FlushSetupQueue();
+
 	/** Executes the queued passes, managing setting of render targets (RHI RenderPasses), resource transitions and queued texture extraction. */
 	void Execute();
 
@@ -568,6 +571,34 @@ private:
 	/** Set of all active barrier batch begin instances; used to create transitions. */
 	FRDGTransitionCreateQueue TransitionCreateQueue;
 
+	template <typename LambdaType>
+	UE::Tasks::FTask LaunchCompileTask(const TCHAR* Name, bool bCondition, LambdaType&& Lambda);
+
+	UE::Tasks::FPipe CompilePipe;
+
+	class FPassQueue
+	{
+	public:
+		void Push(FRDGPass* Pass)
+		{
+			Queue.Push(Pass);
+		}
+
+		template <typename LambdaType>
+		void Flush(UE::Tasks::FPipe& Pipe, const TCHAR* Name, LambdaType&& Lambda);
+
+		template <typename LambdaType>
+		void Flush(const TCHAR* Name, LambdaType&& Lambda);
+
+	private:
+		TLockFreePointerListFIFO<FRDGPass, PLATFORM_CACHE_LINE_SIZE> Queue;
+		UE::Tasks::FTask LastTask;
+	};
+
+	FPassQueue SetupPassQueue;
+
+	TArray<FRDGPassHandle, FRDGArrayAllocator> CullPassStack;
+
 	/** The epilogue and prologue passes are sentinels that are used to simplify graph logic around barriers
 	 *  and traversal. The prologue pass is used exclusively for barriers before the graph executes, while the
 	 *  epilogue pass is used for resource extraction barriers--a property that also makes it the main root of
@@ -700,6 +731,7 @@ private:
 
 	bool bFlushResourcesRHI = false;
 	bool bParallelExecuteEnabled = false;
+	bool bParallelSetupEnabled = false;
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;
@@ -742,6 +774,8 @@ private:
 
 	IRHITransientResourceAllocator* TransientResourceAllocator = nullptr;
 
+	void MarkResourcesAsProduced(FRDGPass* Pass);
+
 	void Compile();
 	void Clear();
 
@@ -768,29 +802,36 @@ private:
 	void SetupParallelExecute();
 	void DispatchParallelExecute(IRHICommandContext* RHICmdContext);
 
-	void SetupBufferUploads();
-	void SubmitBufferUploads();
+	void PrepareBufferUploads();
+	FGraphEventRef SubmitBufferUploads();
 	void BeginFlushResourcesRHI();
 	void EndFlushResourcesRHI();
 
 	void FlushAccessModeQueue();
 
-	void SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline, bool bEmptyParameters);
-	FRDGPass* SetupPass(FRDGPass* Pass);
 	FRDGPass* SetupEmptyPass(FRDGPass* Pass);
+	FRDGPass* SetupParameterPass(FRDGPass* Pass);
+
+	void SetupPassInternals(FRDGPass* Pass);
+	void SetupPassResources(FRDGPass* Pass);
+	void SetupAuxiliaryPasses(FRDGPass* Pass);
+	void SetupPassDependencies(FRDGPass* Pass);
+
 	void CompilePassOps(FRDGPass* Pass);
 	void ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdListPass);
 
 	void ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
 	void ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
 
-	void CollectPassBarriers(FRDGPass* Pass, FRDGPassHandle PassHandle);
+	void CompilePassBarriers();
+	void CollectPassBarriers(FRDGPass* Pass);
+	void CreatePassBarriers(TFunctionRef<void()> PreWork);
 
-	void CreatePassBarriers(FGraphEventArray* AsyncCompileEvents);
-
-	void CreateUniformBuffers(FGraphEventArray* AsyncCompileEvents);
+	UE::Tasks::FTask CreateUniformBuffers();
 
 	void AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle);
+	void AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer);
+	void AddCullingDependency(FRDGProducerStatesByPipeline& LastProducers, const FRDGProducerState& NextState, ERHIPipeline NextPipeline);
 
 	void AddEpilogueTransition(FRDGTextureRef Texture);
 	void AddEpilogueTransition(FRDGBufferRef Buffer);
