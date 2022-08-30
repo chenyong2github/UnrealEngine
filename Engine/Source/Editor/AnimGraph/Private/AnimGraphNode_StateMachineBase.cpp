@@ -98,7 +98,7 @@ FText UAnimGraphNode_StateMachineBase::GetNodeTitle(ENodeTitleType::Type TitleTy
 {
 	if ((TitleType == ENodeTitleType::MenuTitle || TitleType == ENodeTitleType::ListView) && (EditorStateMachineGraph == nullptr))
 	{
-		return LOCTEXT("AddNewStateMachine", "Add New State Machine...");
+		return LOCTEXT("AddNewStateMachine", "State Machine");
 	}
 	else if (EditorStateMachineGraph == nullptr)
 	{
