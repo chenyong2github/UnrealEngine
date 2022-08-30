@@ -1391,18 +1391,18 @@ UActorDescContainer* UWorldPartition::RegisterActorDescContainer(const FName& Co
 		ContainerToRegister->Initialize(GetWorld(), ContainerPackage);
 		AddContainer(ContainerToRegister);
 
-		FWorldPartitionReference WDLReference;
-		for (FActorDescList::TIterator<> ActorDescIterator(ContainerToRegister); ActorDescIterator; ++ActorDescIterator)
-		{
-			if (ActorDescIterator->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
-			{
-				WDLReference = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
-				break;
-			}
-		}
-
 		if (IsInitialized() && EditorHash != nullptr)
 		{
+			FWorldPartitionReference WDLReference;
+			for (FActorDescList::TIterator<> ActorDescIterator(ContainerToRegister); ActorDescIterator; ++ActorDescIterator)
+			{
+				if (ActorDescIterator->GetActorNativeClass()->IsChildOf<AWorldDataLayers>())
+				{
+					WDLReference = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
+					break;
+				}
+			}
+
 			HashActorDescContainer(ContainerToRegister);
 		}
 
