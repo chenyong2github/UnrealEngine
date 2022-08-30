@@ -147,10 +147,23 @@ namespace EpicGames.Horde.Storage
 		/// <param name="writer">Writer to output the nodes to</param>
 		/// <param name="node">Root node to serialize</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task WriteNodeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
+		public static async Task<ITreeBlobRef> WriteNodeAsync(this ITreeWriter writer, TreeNode node, CancellationToken cancellationToken = default)
 		{
 			ITreeBlob blob = await node.SerializeAsync(writer, cancellationToken);
-			await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
+			return await writer.WriteNodeAsync(blob.Data, blob.Refs, cancellationToken);
+		}
+
+		/// <summary>
+		/// Flushes a tree to storage using the given root node
+		/// </summary>
+		/// <param name="writer">Writer to output the nodes to</param>
+		/// <param name="name">Name of the ref to write</param>
+		/// <param name="node">Root node to serialize</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async Task WriteRefAsync(this ITreeWriter writer, RefName name, TreeNode node, CancellationToken cancellationToken = default)
+		{
+			ITreeBlobRef root = await writer.WriteNodeAsync(node, cancellationToken);
+			await writer.WriteRefAsync(name, root, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -178,9 +191,8 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public static async Task WriteTreeAsync(this ITreeStore store, RefName name, TreeNode root, CancellationToken cancellationToken = default)
 		{
-			ITreeWriter writer = store.CreateTreeWriter(name);
-			await writer.WriteNodeAsync(root, cancellationToken);
-			await writer.FlushAsync(cancellationToken);
+			ITreeWriter writer = store.CreateTreeWriter(name.Text);
+			await writer.WriteRefAsync(name, root, cancellationToken);
 		}
 	}
 }

@@ -609,7 +609,8 @@ namespace Horde.Build.Perforce
 
 			RefName refName = GetRefName(stream.Id, change, filter, revisionsOnly);
 			RefName incRefName = new RefName($"{refName}-inc");
-			ITreeWriter writer = _treeStore.CreateTreeWriter(incRefName);
+			ITreeWriter directoryWriter = _treeStore.CreateTreeWriter(refName.Text);
+			ITreeWriter fileWriter = directoryWriter.CreateChildWriter();
 
 			// Get the current sync state for this change
 			ReplicationNode? syncNode = await _treeStore.TryReadTreeAsync<ReplicationNode>(incRefName, cancellationToken: cancellationToken);
@@ -645,7 +646,7 @@ namespace Horde.Build.Perforce
 					using ReadOnlyMemoryStream dataStream = new ReadOnlyMemoryStream(data);
 
 					FileEntry entry = await root.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, cancellationToken);
-					await entry.AppendAsync(dataStream, Options.Chunking, writer, cancellationToken);
+					await entry.AppendAsync(dataStream, Options.Chunking, directoryWriter, cancellationToken);
 				}
 			}
 			else
@@ -702,9 +703,6 @@ namespace Horde.Build.Perforce
 				long totalSize = directories.Sum(x => x._size);
 				_logger.LogInformation("Total sync size: {Size:n1}mb", totalSize / (1024.0 * 1024.0));
 
-				// Previously scheduled flush task
-				Task flushTask = Task.CompletedTask;
-
 				// Sync incrementally
 				long syncedSize = 0;
 				while (directories.Count > 0)
@@ -713,8 +711,7 @@ namespace Horde.Build.Perforce
 					if (syncedSize > 0)
 					{
 						Stopwatch flushTimer = Stopwatch.StartNew();
-						await writer.WriteNodeAsync(syncNode, cancellationToken);
-						await writer.FlushAsync(cancellationToken);
+						await directoryWriter.WriteRefAsync(incRefName, syncNode, cancellationToken);
 						flushTimer.Stop();
 						deleteIncRef = true;
 					}
@@ -804,7 +801,7 @@ namespace Horde.Build.Perforce
 								else if (io.Command == PerforceIoCommand.Write)
 								{
 									FileWriter file = handles[io.File];
-									await file.AppendAsync(io.Payload, Options.Chunking, writer, cancellationToken);
+									await file.AppendAsync(io.Payload, Options.Chunking, fileWriter, cancellationToken);
 								}
 								else if (io.Command == PerforceIoCommand.Close)
 								{
@@ -813,7 +810,7 @@ namespace Horde.Build.Perforce
 									{
 										if (handles.Remove(io.File, out file))
 										{
-											await file.FinishAsync(writer, cancellationToken);
+											await file.FinishAsync(fileWriter, cancellationToken);
 										}
 									}
 									finally
@@ -877,14 +874,14 @@ namespace Horde.Build.Perforce
 						directories.RemoveAt(directories.Count - 1);
 					}
 				}
-				await flushTask;
 			}
+			await directoryWriter.WriteNodeAsync(syncNode, cancellationToken);
 
 			clientInfo.Change = change;
 
 			// Return the new root object
 			_logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", refName, stream.Id, change);
-			await _treeStore.WriteTreeAsync(refName, syncNode, cancellationToken);
+			await directoryWriter.WriteRefAsync(refName, syncNode, cancellationToken);
 
 			// Delete the incremental state
 			if (deleteIncRef)

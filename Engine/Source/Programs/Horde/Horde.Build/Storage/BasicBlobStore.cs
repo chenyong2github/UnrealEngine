@@ -11,6 +11,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Build.Server;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 
@@ -60,18 +61,22 @@ namespace Horde.Build.Storage
 		readonly IStorageBackend _backend;
 		readonly IMemoryCache _cache;
 
+		readonly ILogger _logger;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The mongo service implementation</param>
 		/// <param name="backend">Backend to use for storing data</param>
 		/// <param name="cache">Cache for ref values</param>
-		public BasicBlobStore(MongoService mongoService, IStorageBackend backend, IMemoryCache cache)
+		/// <param name="logger">Logger for this instance</param>
+		public BasicBlobStore(MongoService mongoService, IStorageBackend backend, IMemoryCache cache, ILogger<BasicBlobStore> logger)
 		{
 			_refs = mongoService.GetCollection<RefDocument>("Refs");
 			_backend = backend;
 			_cache = cache;
-		}
+			_logger = logger;
+ 		}
 
 		#region Blobs
 
@@ -92,9 +97,9 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, RefName hintRefName = default, CancellationToken cancellationToken = default)
+		public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, Utf8String prefix = default, CancellationToken cancellationToken = default)
 		{
-			BlobId id = BlobId.Create(_serverId, hintRefName);
+			BlobId id = BlobId.Create(_serverId, prefix);
 			string path = GetBlobPath(id);
 
 			ReadOnlySequence<byte> sequence = Blob.Serialize(data, references);
@@ -134,7 +139,14 @@ namespace Horde.Build.Storage
 			BlobId blobId = await TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (blobId.IsValid())
 			{
-				return await ReadBlobAsync(blobId, cancellationToken);
+				try
+				{
+					return await ReadBlobAsync(blobId, cancellationToken);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "Unable to read blob {BlobId} referenced by ref {RefName}", blobId, name);
+				}
 			}
 			return null;
 		}
@@ -155,7 +167,7 @@ namespace Horde.Build.Storage
 		/// <inheritdoc/>
 		public async Task<BlobId> WriteRefAsync(RefName name, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 		{
-			BlobId blobId = await WriteBlobAsync(data, references, name, cancellationToken);
+			BlobId blobId = await WriteBlobAsync(data, references, name.Text, cancellationToken);
 			await WriteRefTargetAsync(name, blobId, cancellationToken);
 			return blobId;
 		}

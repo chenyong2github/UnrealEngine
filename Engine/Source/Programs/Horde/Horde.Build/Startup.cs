@@ -280,7 +280,7 @@ namespace Horde.Build
 		static IBlobStore CreateBlobStore(IServiceProvider sp, BlobStoreOptions options)
 		{
 			IStorageBackend backend = CreateStorageBackend(sp, options);
-			return new BasicBlobStore(sp.GetRequiredService<MongoService>(), backend, sp.GetRequiredService<IMemoryCache>());
+			return new BasicBlobStore(sp.GetRequiredService<MongoService>(), backend, sp.GetRequiredService<IMemoryCache>(), sp.GetRequiredService<ILogger<BasicBlobStore>>());
 		}
 
 		static ITreeStore CreateTreeStore(IServiceProvider sp, TreeStoreOptions options)
@@ -803,6 +803,21 @@ namespace Horde.Build
 				}
 		*/
 
+		public sealed class BlobIdBsonSerializer : SerializerBase<BlobId>
+		{
+			/// <inheritdoc/>
+			public override BlobId Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+			{
+				return new BlobId(context.Reader.ReadString());
+			}
+
+			/// <inheritdoc/>
+			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, BlobId value)
+			{
+				context.Writer.WriteString(value.ToString());
+			}
+		}
+
 		public sealed class RefIdBsonSerializer : SerializerBase<RefId>
 		{
 			/// <inheritdoc/>
@@ -846,6 +861,7 @@ namespace Horde.Build
 				ConventionRegistry.Register("Horde", conventionPack, type => true);
 
 				// Register the custom serializers
+				BsonSerializer.RegisterSerializer(new BlobIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new RefIdBsonSerializer());
 				BsonSerializer.RegisterSerializer(new RefNameBsonSerializer());
 				BsonSerializer.RegisterSerializer(new ConditionSerializer());

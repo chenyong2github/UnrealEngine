@@ -65,15 +65,18 @@ namespace EpicGames.Horde.Storage
 		/// Create a unique content id, optionally including a ref name
 		/// </summary>
 		/// <param name="serverId">The server id</param>
-		/// <param name="hintRefName">Hint for the ref containing this blob</param>
+		/// <param name="prefix">Prefix for blob names. Follows the same restrictions as for content ids.</param>
 		/// <returns>New content id</returns>
-		public static BlobId Create(ServerId serverId, RefName hintRefName = default)
+		public static BlobId Create(ServerId serverId, Utf8String prefix = default)
 		{
-			Utf8String prefix = hintRefName.Text;
 			if (prefix.Length == 0)
 			{
 				DateTime now = DateTime.UtcNow.Date;
 				prefix = $"_by_date_/{now.Year}-{now.Month:D2}/{now.Day:D2}";
+			}
+			else
+			{
+				ContentId.ValidateArgument(nameof(prefix), prefix);
 			}
 
 			byte[] buffer;

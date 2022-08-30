@@ -51,8 +51,9 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Creates a new context for reading trees.
 		/// </summary>
+		/// <param name="prefix">Prefix for blobs. See <see cref="IBlobStore.WriteBlobAsync(ReadOnlySequence{Byte}, IReadOnlyList{BlobId}, Utf8String, CancellationToken)"/></param>
 		/// <returns>New context instance</returns>
-		ITreeWriter CreateTreeWriter(RefName name);
+		ITreeWriter CreateTreeWriter(Utf8String prefix = default);
 
 		/// <summary>
 		/// Deletes a tree with the given name
@@ -108,11 +109,13 @@ namespace EpicGames.Horde.Storage
 		Task<ITreeBlobRef> WriteNodeAsync(ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Flushes the current state and writes the ref, with the last written node as the tree root. Throws an exception if called for a child writer.
+		/// Flushes the current state using a new ref name.
 		/// </summary>
-		/// <param name="cancellationToken"></param>
+		/// <param name="name">Name of the ref</param>
+		/// <param name="root">Root reference</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<BlobId> FlushAsync(CancellationToken cancellationToken = default);
+		Task WriteRefAsync(RefName name, ITreeBlobRef root, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -156,7 +159,7 @@ namespace EpicGames.Horde.Storage
 			}
 
 			/// <inheritdoc/>
-			public ITreeWriter CreateTreeWriter(RefName name) => _inner.CreateTreeWriter(name);
+			public ITreeWriter CreateTreeWriter(Utf8String prefix) => _inner.CreateTreeWriter(prefix);
 
 			/// <inheritdoc/>
 			public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken = default) => _inner.DeleteTreeAsync(name, cancellationToken);
@@ -180,6 +183,21 @@ namespace EpicGames.Horde.Storage
 		public static ITreeStore<T> ForType<T>(this ITreeStore store)
 		{
 			return new TypedTreeStore<T>(store);
+		}
+
+		/// <summary>
+		/// Writes a ref using the given root data
+		/// </summary>
+		/// <param name="writer">Writer to modify</param>
+		/// <param name="name">Name of the ref</param>
+		/// <param name="data">Data for the node</param>
+		/// <param name="refs">References to other nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Reference to the node that was added</returns>
+		public static async Task WriteRefAsync(this ITreeWriter writer, RefName name, ReadOnlySequence<byte> data, IReadOnlyList<ITreeBlobRef> refs, CancellationToken cancellationToken = default)
+		{
+			ITreeBlobRef root = await writer.WriteNodeAsync(data, refs, cancellationToken);
+			await writer.WriteRefAsync(name, root, cancellationToken);
 		}
 	}
 }

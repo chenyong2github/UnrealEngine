@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Blake3;
 using EpicGames.Core;
 using K4os.Compression.LZ4;
 using Microsoft.Extensions.Caching.Memory;
@@ -216,7 +217,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			readonly BundleStore _owner;
 			readonly BundleContext _context;
 			readonly BundleWriter? _parent;
-			readonly RefName _refName;
+			readonly Utf8String _prefix;
 
 			public readonly ConcurrentDictionary<IoHash, NodeInfo> HashToNode = new ConcurrentDictionary<IoHash, NodeInfo>(); // TODO: this needs to include some additional state from external sources.
 
@@ -224,7 +225,7 @@ namespace EpicGames.Horde.Storage.Bundles
 			readonly List<BundleWriter> _children = new List<BundleWriter>();
 
 			// Task which includes all active writes, and returns the last blob
-			Task<BlobId> _flushTask = Task.FromResult(BlobId.Empty);
+			Task<NodeInfo> _flushTask = Task.FromResult<NodeInfo>(null!);
 
 			// Nodes which have been queued to be written, but which are not yet part of any active write
 			readonly List<NodeInfo> _queueNodes = new List<NodeInfo>();
@@ -238,18 +239,18 @@ namespace EpicGames.Horde.Storage.Bundles
 			/// <summary>
 			/// Constructor
 			/// </summary>
-			public BundleWriter(BundleStore owner, BundleContext context, BundleWriter? parent, RefName refName)
+			public BundleWriter(BundleStore owner, BundleContext context, BundleWriter? parent, Utf8String prefix)
 			{
 				_owner = owner;
 				_context = context;
 				_parent = parent;
-				_refName = refName;
+				_prefix = prefix;
 			}
 
 			/// <inheritdoc/>
 			public ITreeWriter CreateChildWriter()
 			{
-				BundleWriter writer = new BundleWriter(_owner, _context, this, _refName);
+				BundleWriter writer = new BundleWriter(_owner, _context, this, _prefix);
 				lock (_lockObject)
 				{
 					_children.Add(writer);
@@ -274,19 +275,24 @@ namespace EpicGames.Horde.Storage.Bundles
 					node = HashToNode.GetOrAdd(hash, newNode);
 					if (node == newNode)
 					{
-						lock (_lockObject)
-						{
-							// Add these nodes to the queue for writing
-							AddToQueue(node);
-
-							// Update the list of nodes which are ready to be written. We need to make sure that any child writers have flushed before
-							// we can reference the blobs containing their nodes.
-							UpdateReady();
-						}
+						WriteNode(node);
 					}
 				}
 
 				return Task.FromResult<ITreeBlobRef>(node);
+			}
+
+			void WriteNode(NodeInfo node)
+			{
+				lock (_lockObject)
+				{
+					// Add these nodes to the queue for writing
+					AddToQueue(node);
+
+					// Update the list of nodes which are ready to be written. We need to make sure that any child writers have flushed before
+					// we can reference the blobs containing their nodes.
+					UpdateReady();
+				}
 			}
 
 			void AddToQueue(NodeInfo root)
@@ -372,19 +378,32 @@ namespace EpicGames.Horde.Storage.Bundles
 			}
 
 			/// <inheritdoc/>
-			public async Task<BlobId> FlushAsync(CancellationToken cancellationToken)
+			public async Task WriteRefAsync(RefName refName, ITreeBlobRef root, CancellationToken cancellationToken)
 			{
-				if (_refName == RefName.Empty)
+				if (_parent != null)
 				{
 					throw new InvalidOperationException("Flushing a child writer is not permitted.");
 				}
 
-				BlobId blobId = await FlushInternalAsync(cancellationToken);
-				await _owner._blobStore.WriteRefTargetAsync(_refName, blobId, cancellationToken);
-				return blobId;
+				// Make sure the last written node is the desired root. If not, we'll need to write it to a new blob so it can be last.
+				NodeInfo? last = await _flushTask;
+				if (last != root)
+				{
+					if (_queueNodes.Count == 0 || _queueNodes[^1] != root)
+					{
+						ITreeBlob blob = await root.GetTargetAsync(cancellationToken);
+						InMemoryNodeState state = new InMemoryNodeState(blob.Data, blob.Refs.ConvertAll(x => (NodeInfo)x));
+						WriteNode(new NodeInfo(_owner, root.Hash, state));
+					}
+					last = await FlushInternalAsync(cancellationToken);
+				}
+
+				// Write a reference to the blob containing this node
+				ImportedNodeState importedState = (ImportedNodeState)last.State;
+				await _owner._blobStore.WriteRefTargetAsync(refName, importedState.BundleInfo.BlobId, cancellationToken);
 			}
 
-			async Task<BlobId> FlushInternalAsync(CancellationToken cancellationToken)
+			async Task<NodeInfo> FlushInternalAsync(CancellationToken cancellationToken)
 			{
 				// Get all the child writers and flush them
 				BundleWriter[] children;
@@ -420,14 +439,14 @@ namespace EpicGames.Horde.Storage.Bundles
 				return await _flushTask;
 			}
 
-			async Task<BlobId> WriteNodesAsync(NodeInfo[] writeNodes, Task prevWriteTask, CancellationToken cancellationToken)
+			async Task<NodeInfo> WriteNodesAsync(NodeInfo[] writeNodes, Task prevWriteTask, CancellationToken cancellationToken)
 			{
 				// Create the bundle
 				Bundle bundle = CreateBundle(writeNodes);
 				BundleHeader header = bundle.Header;
 
 				// Write it to storage
-				BlobId blobId = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), _refName, cancellationToken);
+				BlobId blobId = await _owner._blobStore.WriteBlobAsync(bundle.AsSequence(), bundle.Header.Imports.Select(x => x.BlobId).ToList(), _prefix, cancellationToken);
 				string cacheKey = GetBundleCacheKey(blobId);
 				_owner.AddBundleToCache(cacheKey, bundle);
 
@@ -476,7 +495,7 @@ namespace EpicGames.Horde.Storage.Bundles
 
 				// Wait for other writes to finish
 				await prevWriteTask;
-				return blobId;
+				return writeNodes[^1];
 			}
 
 			/// <summary>
@@ -682,7 +701,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <inheritdoc/>
-		public ITreeWriter CreateTreeWriter(RefName name) => new BundleWriter(this, new BundleContext(), null, name);
+		public ITreeWriter CreateTreeWriter(Utf8String prefix = default) => new BundleWriter(this, new BundleContext(), null, prefix);
 
 		/// <inheritdoc/>
 		public Task DeleteTreeAsync(RefName name, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(name, cancellationToken);
