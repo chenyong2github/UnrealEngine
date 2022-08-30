@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/EditNormalsOp.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "BaseTools/SingleClickTool.h"
+#include "PropertySets/PolygroupLayersProperties.h"
+#include "Polygroups/PolygroupSet.h"
 #include "EditNormalsTool.generated.h"
 
 
@@ -148,11 +148,13 @@ public:
 protected:
 
 	UPROPERTY()
-	TObjectPtr<UEditNormalsToolProperties> BasicProperties;
+	TObjectPtr<UEditNormalsToolProperties> BasicProperties = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UEditNormalsAdvancedProperties> AdvancedProperties;
+	TObjectPtr<UEditNormalsAdvancedProperties> AdvancedProperties = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
@@ -166,4 +168,9 @@ protected:
 	void UpdateNumPreviews();
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
+
+
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
+	void OnSelectedGroupLayerChanged();
+	void UpdateActiveGroupLayer();
 };

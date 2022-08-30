@@ -103,9 +103,12 @@ void FEditNormalsOp::CalculateResult(FProgressCancel* Progress)
 		}
 		else // SplitNormalMethod == ESplitNormalMethod::FaceGroupID
 		{
-			ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([this](int VID, int TA, int TB)
+			FPolygroupSet DefaultGroups(ResultMesh.Get());
+			FPolygroupSet& UsePolygroups = (MeshPolygroups.IsValid()) ? *MeshPolygroups : DefaultGroups;
+
+			ResultMesh->Attributes()->PrimaryNormals()->CreateFromPredicate([this, &UsePolygroups](int VID, int TA, int TB)
 			{
-				return ResultMesh->GetTriangleGroup(TA) == ResultMesh->GetTriangleGroup(TB);
+				return UsePolygroups.GetTriangleGroup(TA) == UsePolygroups.GetTriangleGroup(TB);
 			}, 0);
 		}
 	}

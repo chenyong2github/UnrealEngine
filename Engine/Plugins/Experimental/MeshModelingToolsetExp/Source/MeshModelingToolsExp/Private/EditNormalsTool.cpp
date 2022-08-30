@@ -6,15 +6,12 @@
 
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
+#include "Polygroups/PolygroupUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
-#include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
-#include "Selection/SelectClickedAction.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
-
-#include "InteractiveGizmoManager.h"
 
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "Engine/StaticMesh.h"
@@ -86,7 +83,22 @@ void UEditNormalsTool::Setup()
 	// initialize the PreviewMesh+BackgroundCompute object
 	UpdateNumPreviews();
 
-	
+	// if editing normals on a single object, user can select from available polygroup layers in from-polygroup mode
+	if (Previews.Num() == 1)
+	{
+		PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
+		PolygroupLayerProperties->RestoreProperties(this, TEXT("EditNormalsTool"));
+		PolygroupLayerProperties->InitializeGroupLayers(OriginalDynamicMeshes[0].Get());
+		PolygroupLayerProperties->WatchProperty(PolygroupLayerProperties->ActiveGroupLayer, [&](FName) { OnSelectedGroupLayerChanged(); });
+		AddToolPropertySource(PolygroupLayerProperties);
+		UpdateActiveGroupLayer();
+
+		BasicProperties->WatchProperty(BasicProperties->SplitNormalMethod, [&](ESplitNormalMethod NewMethod)
+		{
+			SetToolPropertySourceEnabled(PolygroupLayerProperties, NewMethod == ESplitNormalMethod::FaceGroupID);
+		});
+		SetToolPropertySourceEnabled(PolygroupLayerProperties, BasicProperties->SplitNormalMethod == ESplitNormalMethod::FaceGroupID);
+	}
 	
 	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
@@ -145,6 +157,7 @@ void UEditNormalsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 	AdvancedProperties->SaveProperties(this);
+	PolygroupLayerProperties->SaveProperties(this, TEXT("EditNormalsTool"));
 
 	// Restore (unhide) the source meshes
 	for (int32 ComponentIdx = 0, NumTargets = Targets.Num(); ComponentIdx < NumTargets; ComponentIdx++)
@@ -176,6 +189,12 @@ TUniquePtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
 
 	const FTransform LocalToWorld = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Tool->Targets[ComponentIndex]);
 	NormalsOp->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
+
+	// use custom polygroup layer if available
+	if (ComponentIndex == 0 && Tool->OriginalDynamicMeshes.Num() == 1 && Tool->ActiveGroupSet.IsValid())
+	{
+		NormalsOp->MeshPolygroups = Tool->ActiveGroupSet;
+	};
 	
 	NormalsOp->SetTransform(LocalToWorld);
 
@@ -236,6 +255,36 @@ bool UEditNormalsTool::CanAccept() const
 	}
 	return Super::CanAccept();
 }
+
+
+void UEditNormalsTool::OnSelectedGroupLayerChanged()
+{
+	UpdateActiveGroupLayer();
+	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	{
+		Preview->InvalidateResult();
+	}
+}
+
+
+void UEditNormalsTool::UpdateActiveGroupLayer()
+{
+	// do not update if more than one mesh
+	if (OriginalDynamicMeshes.Num() > 1) return;
+
+	if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
+	{
+		ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(OriginalDynamicMeshes[0].Get());
+	}
+	else
+	{
+		FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
+		FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*OriginalDynamicMeshes[0], SelectedName);
+		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
+		ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(OriginalDynamicMeshes[0].Get(), FoundAttrib);
+	}
+}
+
 
 
 void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
+#include "Polygroups/PolygroupSet.h"
 
 #include "EditNormalsOp.generated.h"
 
@@ -48,6 +49,7 @@ public:
 
 	// inputs
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> MeshPolygroups;
 
 	bool bFixInconsistentNormals;
 	bool bInvertNormals;
