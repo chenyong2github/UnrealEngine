@@ -80,7 +80,7 @@ void SWaveformPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorRenderData> InRend
 
 void SWaveformPanel::SetUpWaveformViewerOverlay(TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomManager)
 {
-	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, InTransportCoordinator);
+	WaveformViewerOverlay = SNew(SWaveformViewerOverlay, InTransportCoordinator, WaveformTransformationsOverlay.ToSharedRef());
 	WaveformViewerOverlay->OnNewMouseDelta.BindSP(InZoomManager, &FWaveformEditorZoomController::ZoomByDelta);
 }
 

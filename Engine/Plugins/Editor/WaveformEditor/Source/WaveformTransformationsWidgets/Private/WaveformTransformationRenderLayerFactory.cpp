@@ -4,46 +4,36 @@
 
 #include "IWaveformTransformation.h"
 #include "Styling/AppStyle.h"
-#include "SWaveformTransformationDurationHighlight.h"
-#include "SWaveformTransformationRenderLayer.h"
-#include "SWaveformTransformationTrimFadeLayer.h"
 #include "WaveformEditorTransportCoordinator.h"
-#include "WaveformEditorZoomController.h"
+#include "WaveformTransformationDurationRenderer.h"
 #include "WaveformTransformationTrimFade.h"
+#include "WaveformTransformationTrimFadeRenderer.h"
 
-FWaveformTransformationRenderLayerFactory::FWaveformTransformationRenderLayerFactory(TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomController)
+FWaveformTransformationRenderLayerFactory::FWaveformTransformationRenderLayerFactory(TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, 
+	TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> InTransformationChangeNotifier)
 	: WaveformRenderData(InWaveformRenderData)
-	, TransportCoordinator(InTransportCoordinator)
-	, ZoomController(InZoomController)
+	, TransformationChangeNotifier(InTransformationChangeNotifier)
 {
 }
 
 
-TSharedPtr<SWaveformTransformationRenderLayer> FWaveformTransformationRenderLayerFactory::Create(TObjectPtr<UWaveformTransformationBase> InTransformationToRender) const
+TSharedPtr<IWaveformTransformationRenderer> FWaveformTransformationRenderLayerFactory::Create(TObjectPtr<UWaveformTransformationBase> InTransformationToRender) const
 {
-	TSharedPtr<SWaveformTransformationRenderLayer> OutWidget = nullptr;
+	TSharedPtr<IWaveformTransformationRenderer> OutRenderer = nullptr;
 	UClass* TransformationClass = InTransformationToRender->GetClass();
 
 	if (TransformationClass == UWaveformTransformationTrimFade::StaticClass())
 	{
-		TSharedPtr<SWaveformTransformationTrimFadeLayer> TrimFadeLayer = SNew(SWaveformTransformationTrimFadeLayer, Cast<UWaveformTransformationTrimFade>(InTransformationToRender), WaveformRenderData.ToSharedRef());
-		TrimFadeLayer->OnZoomLevelChanged(ZoomController->GetZoomRatio());
-		TrimFadeLayer->UpdateDisplayRange(TransportCoordinator->GetDisplayRange());
-		TransportCoordinator->OnDisplayRangeUpdated.AddSP(TrimFadeLayer.Get(), &SWaveformTransformationTrimFadeLayer::UpdateDisplayRange);
-		ZoomController->OnZoomRatioChanged.AddSP(TrimFadeLayer.Get(), &SWaveformTransformationTrimFadeLayer::OnZoomLevelChanged);
-		OutWidget = TrimFadeLayer;
+		TSharedPtr<IWaveformTransformationRenderer> TrimFadeLayer = MakeShared<FWaveformTransformationTrimFadeRenderer>(Cast<UWaveformTransformationTrimFade>(InTransformationToRender));
+		TrimFadeLayer->SetTransformationNotifier(TransformationChangeNotifier);
+		OutRenderer = TrimFadeLayer;
 	}
 
-	return OutWidget;
+	return OutRenderer;
 }
 
-TSharedPtr<SWaveformTransformationRenderLayer> FWaveformTransformationRenderLayerFactory::CreateDurationHiglightLayer() const
+TSharedPtr<IWaveformTransformationRenderer> FWaveformTransformationRenderLayerFactory::CreateDurationHiglightLayer() const
 {
-	TSharedPtr<SWaveformTransformationDurationHiglight> DurationHiglightLayer = SNew(SWaveformTransformationDurationHiglight, WaveformRenderData.ToSharedRef());
-	DurationHiglightLayer->OnZoomLevelChanged(ZoomController->GetZoomRatio());
-	DurationHiglightLayer->UpdateDisplayRange(TransportCoordinator->GetDisplayRange());
-	TransportCoordinator->OnDisplayRangeUpdated.AddSP(DurationHiglightLayer.Get(), &SWaveformTransformationDurationHiglight::UpdateDisplayRange);
-	ZoomController->OnZoomRatioChanged.AddSP(DurationHiglightLayer.Get(), &SWaveformTransformationDurationHiglight::OnZoomLevelChanged);
-
+	TSharedPtr<IWaveformTransformationRenderer> DurationHiglightLayer = MakeShared<FWaveformTransformationDurationRenderer>(WaveformRenderData.ToSharedRef());
 	return DurationHiglightLayer;
 }

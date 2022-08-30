@@ -4,13 +4,14 @@
 
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/FloatArrayMath.h"
+#include "IWaveformTransformationRenderer.h"
 #include "Sound/SoundWave.h"
-#include "SWaveformTransformationRenderLayer.h"
-#include "Widgets/SWidget.h"
 
-FWaveformTransformationsRenderManager::FWaveformTransformationsRenderManager(TObjectPtr<USoundWave> InSoundWave, TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<FWaveformEditorZoomController> InZoomController)
+FWaveformTransformationsRenderManager::FWaveformTransformationsRenderManager(TObjectPtr<USoundWave> InSoundWave, 
+	TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, 
+	TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> InPropertyChangeNotifier)
 	: SoundWaveToRender(InSoundWave)
-	, LayersFactory(MakeUnique<FWaveformTransformationRenderLayerFactory>(InWaveformRenderData, InTransportCoordinator, InZoomController))
+	, LayersFactory(MakeUnique<FWaveformTransformationRenderLayerFactory>(InWaveformRenderData, InPropertyChangeNotifier))
 {
 	GenerateLayersChain();	
 }
@@ -30,8 +31,9 @@ void FWaveformTransformationsRenderManager::GenerateLayersChain()
 			{
 				TransformationsToRender.Add(Transformation);
 				
-				TSharedPtr<SWaveformTransformationRenderLayer> TransformationUI = LayersFactory->Create(Transformation);
-				RenderLayers.Add(TransformationUI);
+				TSharedPtr<IWaveformTransformationRenderer> TransformationUI = LayersFactory->Create(Transformation);
+				FTransformationRenderLayerInfo RenderLayerInfo = FTransformationRenderLayerInfo(TransformationUI, FTransformationLayerConstraints(0.f, 1.f));
+				RenderLayers.Add(RenderLayerInfo);
 				
 			}
 		}
@@ -40,18 +42,13 @@ void FWaveformTransformationsRenderManager::GenerateLayersChain()
 
 	}
 
-	TSharedPtr<SWidget>* WidgetPtr = reinterpret_cast<TSharedPtr<SWidget>*>(RenderLayers.GetData());
-	RenderLayersWidgetView = MakeArrayView(WidgetPtr, RenderLayers.Num());
-
-	OnLayersChainGenerated.Broadcast(RenderLayersWidgetView.GetData(), RenderLayers.Num());
+	OnLayersChainGenerated.Broadcast(RenderLayers.GetData(), RenderLayers.Num());
 }
 
 void FWaveformTransformationsRenderManager::UpdateRenderElements()
 {
 	GenerateRenderDataInternal();
 }
-
-
 
 void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 {
@@ -95,14 +92,20 @@ void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 		{
 			Transformations[i]->ProcessAudio(TransformationInfo);
 
-			FirstEditedSample += TransformationInfo.StartFrameOffset;
-			LastEditedSample = TransformationInfo.NumEditedSamples == 0 ? LastEditedSample : FirstEditedSample + TransformationInfo.NumEditedSamples;
-
-			if (RenderLayers[i])
+			if (RenderLayers[i].Key)
 			{
-				FWaveformTransformationRenderLayerInfo RenderLayerInfo{ TransformationInfo.SampleRate, TransformationInfo.NumChannels, FirstEditedSample, TransformationInfo.NumEditedSamples };
-				RenderLayers[i]->SetTransformationWaveInfo(MoveTemp(RenderLayerInfo));
+				FWaveformTransformationRenderInfo RenderLayerInfo{ TransformationInfo.SampleRate, TransformationInfo.NumChannels, FirstEditedSample, LastEditedSample - FirstEditedSample };
+				RenderLayers[i].Key->SetTransformationWaveInfo(MoveTemp(RenderLayerInfo));
+
+				float LeftWidgetConstraint = FirstEditedSample / (float) NumOriginalSamples;
+				float RightWidgetConstraint = LastEditedSample / (float) NumOriginalSamples;
+
+				RenderLayers[i].Value = FTransformationLayerConstraints(LeftWidgetConstraint, RightWidgetConstraint);
+
 			}
+
+			FirstEditedSample += TransformationInfo.StartFrameOffset;
+			LastEditedSample = TransformationInfo.NumEditedSamples <= 0 ? LastEditedSample : FirstEditedSample + TransformationInfo.NumEditedSamples;
 
 			if (bChainChangesFileLength)
 			{
@@ -116,7 +119,7 @@ void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 		}
 
 		check(DurationHiglightLayer)
-		FWaveformTransformationRenderLayerInfo DurationLayerInfo{ TransformationInfo.SampleRate, TransformationInfo.NumChannels, FirstEditedSample, LastEditedSample - FirstEditedSample };
+		FWaveformTransformationRenderInfo DurationLayerInfo{ TransformationInfo.SampleRate, TransformationInfo.NumChannels, FirstEditedSample, LastEditedSample - FirstEditedSample };
 		DurationHiglightLayer->SetTransformationWaveInfo(MoveTemp(DurationLayerInfo));
 			
 		if (!bChainChangesFileLength)
@@ -142,6 +145,7 @@ void FWaveformTransformationsRenderManager::GenerateRenderDataInternal()
 	}
 
 	OnRenderDataGenerated.Broadcast(RawPCMData.GetData(), NumOriginalSamples, FirstEditedSample, LastEditedSample, SampleRate, NumChannels);
+	OnRenderElementsUpdated.Broadcast();
 }
 
 TArray<Audio::FTransformationPtr> FWaveformTransformationsRenderManager::CreateTransformations() const
@@ -168,9 +172,9 @@ const bool FWaveformTransformationsRenderManager::CanChainChangeFileLength(const
 	return bCanChainChangeFileLength;
 }
 
-TArrayView<TSharedPtr<SWidget>> FWaveformTransformationsRenderManager::GetTransformLayers() const
+TArrayView<const FTransformationRenderLayerInfo> FWaveformTransformationsRenderManager::GetTransformLayers() const
 {
-	return RenderLayersWidgetView;
+	return MakeArrayView(RenderLayers.GetData(), RenderLayers.Num());
 }
 
 void FWaveformTransformationsRenderManager::CreateDurationHighlightLayer()
@@ -180,6 +184,6 @@ void FWaveformTransformationsRenderManager::CreateDurationHighlightLayer()
 		DurationHiglightLayer = LayersFactory->CreateDurationHiglightLayer();
 	}
 
-	RenderLayers.Add(DurationHiglightLayer);
-	DurationHiglightLayer->SetTransformationWaveInfo(FWaveformTransformationRenderLayerInfo());
+	DurationHiglightLayer->SetTransformationWaveInfo(FWaveformTransformationRenderInfo());
+	RenderLayers.Emplace(DurationHiglightLayer, FTransformationLayerConstraints(0.f,1.f));
 }

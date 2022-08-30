@@ -31,6 +31,8 @@ class WAVEFORMTRANSFORMATIONS_API UWaveformTransformationTrimFade : public UWave
 {
 	GENERATED_BODY()
 
+public:
+
 	UPROPERTY(EditAnywhere, Category = "Trim", meta=(ClampMin = 0.0))
 	double StartTime = 0.0;
 

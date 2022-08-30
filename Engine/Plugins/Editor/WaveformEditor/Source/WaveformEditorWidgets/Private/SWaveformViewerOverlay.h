@@ -6,6 +6,7 @@
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "WaveformEditorSlateTypes.h"
 #include "WaveformEditorTransportCoordinator.h"
+#include "SWaveformTransformationsOverlay.h"
 #include "Widgets/SLeafWidget.h"
 
 DECLARE_DELEGATE_OneParam(FOnNewMouseDelta, const float /* new delta */)
@@ -25,10 +26,12 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator);
+	void Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay);
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
 	FOnNewMouseDelta OnNewMouseDelta;
 
@@ -39,6 +42,7 @@ private:
 	int32 DrawPlayhead(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
+	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = nullptr;
 
 	const FWaveformViewerOverlayStyle* Style = nullptr;
 

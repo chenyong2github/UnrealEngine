@@ -214,6 +214,16 @@ void FWaveformEditorTransportCoordinator::OnZoomLevelChanged(const uint8 NewLeve
 	UpdateZoomRatioAndDisplayRange(NewZoomRatio);
 }
 
+float FWaveformEditorTransportCoordinator::ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const
+{
+	return (InAbsoluteRatio - DisplayRange.GetLowerBoundValue()) / ZoomRatio;
+}
+
+float FWaveformEditorTransportCoordinator::ConvertZoomedRatioToAbsolute(const float InZoomedRatio) const
+{
+	return InZoomedRatio * ZoomRatio + DisplayRange.GetLowerBoundValue();
+}
+
 TRange<float> FWaveformEditorTransportCoordinator::GetDisplayRange() const
 {
 	return DisplayRange;

@@ -7,8 +7,7 @@
 
 class FWaveformEditorRenderData;
 class FWaveformEditorTransportCoordinator;
-class FWaveformEditorZoomController;
-class SWaveformTransformationRenderLayer;
+class IWaveformTransformationRenderer;
 class UWaveformTransformationBase;
 
 class FWaveformTransformationRenderLayerFactory
@@ -16,16 +15,15 @@ class FWaveformTransformationRenderLayerFactory
 public:
 	explicit FWaveformTransformationRenderLayerFactory(
 		TSharedRef<FWaveformEditorRenderData> InWaveformRenderData, 
-		TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, 
-		TSharedRef<FWaveformEditorZoomController> InZoomController);
+		TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> InTransformationChangeNotifier);
 
 	~FWaveformTransformationRenderLayerFactory() = default;
 
-	TSharedPtr<SWaveformTransformationRenderLayer> Create(TObjectPtr<UWaveformTransformationBase> InTransformationToRender) const;
-	TSharedPtr<SWaveformTransformationRenderLayer> CreateDurationHiglightLayer () const;
+	TSharedPtr<IWaveformTransformationRenderer> Create(TObjectPtr<UWaveformTransformationBase> InTransformationToRender) const;
+	TSharedPtr<IWaveformTransformationRenderer> CreateDurationHiglightLayer () const;
 
 private:
 	TSharedPtr<FWaveformEditorRenderData> WaveformRenderData = nullptr;
 	TSharedPtr<FWaveformEditorTransportCoordinator> TransportCoordinator = nullptr;
-	TSharedPtr<FWaveformEditorZoomController> ZoomController = nullptr;
+	TFunction<void(FPropertyChangedEvent&, FEditPropertyChain*)> TransformationChangeNotifier;
 };

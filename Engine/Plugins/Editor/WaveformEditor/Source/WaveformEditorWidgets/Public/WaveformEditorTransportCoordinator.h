@@ -42,6 +42,9 @@ public:
 	void ReceivePlayBackRatio(const float NewRatio);
 	void OnZoomLevelChanged(const uint8 NewLevel);
 
+	float ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const;
+	float ConvertZoomedRatioToAbsolute(const float InZoomedRatio) const;
+
 	TRange<float> GetDisplayRange() const;
 
 	void Stop();

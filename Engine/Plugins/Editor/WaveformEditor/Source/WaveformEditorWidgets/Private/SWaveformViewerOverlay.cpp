@@ -5,9 +5,10 @@
 #include "WaveformEditorTransportCoordinator.h"
 #include "Widgets/SLeafWidget.h"
 
-void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator)
+void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWaveformEditorTransportCoordinator> InTransportCoordinator, TSharedRef<SWaveformTransformationsOverlay> InTransformationsOverlay)
 {
 	TransportCoordinator = InTransportCoordinator;
+	TransformationsOverlay = InTransformationsOverlay;
 
 	Style = InArgs._Style;
 
@@ -20,13 +21,38 @@ void SWaveformViewerOverlay::Construct(const FArguments& InArgs, TSharedRef<FWav
 
 FReply SWaveformViewerOverlay::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	return TransportCoordinator->ReceiveMouseButtonDown(*this, MyGeometry, MouseEvent);
+	FReply InteractionReply = TransformationsOverlay->OnMouseButtonDown(MyGeometry, MouseEvent);
+
+	if (!InteractionReply.IsEventHandled())
+	{
+		InteractionReply = TransportCoordinator->ReceiveMouseButtonDown(*this, MyGeometry, MouseEvent);
+	}
+	
+	return InteractionReply;
 }
 
 FReply SWaveformViewerOverlay::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	OnNewMouseDelta.ExecuteIfBound(MouseEvent.GetWheelDelta());
-	return FReply::Handled();
+	FReply InteractionReply = TransformationsOverlay->OnMouseWheel(MyGeometry, MouseEvent);
+
+	if (!InteractionReply.IsEventHandled())
+	{
+		OnNewMouseDelta.ExecuteIfBound(MouseEvent.GetWheelDelta());
+		InteractionReply = FReply::Handled();
+	}
+
+	return InteractionReply;
+
+}
+
+FReply SWaveformViewerOverlay::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return TransformationsOverlay->OnMouseMove(MyGeometry, MouseEvent);
+}
+
+FCursorReply SWaveformViewerOverlay::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
+{
+	return TransformationsOverlay->OnCursorQuery(MyGeometry, CursorEvent);
 }
 
 int32 SWaveformViewerOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
