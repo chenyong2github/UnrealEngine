@@ -197,6 +197,10 @@ void FTechSoftFileParserCADKernelTessellator::GenerateBodyMesh(A3DRiRepresentati
 	FTechSoftBridge TechSoftBridge(*this, CADKernelSession);
 
 	FBody* CADKernelBody = TechSoftBridge.AddBody(Representation, ArchiveBody.MetaData, ArchiveBody.Unit);
+	if (CADKernelBody == nullptr)
+	{
+		return;
+	}
 
 	if (CADFileData.GetImportParameters().GetStitchingTechnique() == StitchingHeal)
 	{

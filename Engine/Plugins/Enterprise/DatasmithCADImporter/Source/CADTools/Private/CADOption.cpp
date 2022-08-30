@@ -74,7 +74,7 @@ bool FImportParameters::bGSewMeshIfNeeded = true;
 FAutoConsoleVariableRef GCADTranslatorSewMeshIfNeeded(
 	TEXT("ds.CADTranslator.SewMeshIfNeeded"),
 	FImportParameters::bGSewMeshIfNeeded,
-	TEXT("Prefrom a welding of the mesh to try to stitch mesh cracks\n\
+	TEXT("Perform a welding of the mesh to try to stitch mesh cracks\n\
 This welding is performed respecting the ds.CADTranslator.StitchingTolerance\n\
 Default value is true\n"),
 ECVF_Default);
