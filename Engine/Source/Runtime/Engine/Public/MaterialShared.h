@@ -98,8 +98,6 @@ template <class ElementType> class TLinkedList;
 // disallow debug data in shipping or on non-desktop Test
 #define ALLOW_SHADERMAP_DEBUG_DATA (!(UE_BUILD_SHIPPING || (UE_BUILD_TEST && !PLATFORM_DESKTOP)))
 
-#define MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE 1
-
 // Adds various checks to track FMaterial lifetime, may add some overhead
 #define UE_CHECK_FMATERIAL_LIFETIME PLATFORM_WINDOWS
 

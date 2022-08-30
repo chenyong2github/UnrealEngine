@@ -43,6 +43,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "EditorLevelUtils.h"
 #include "Engine/Engine.h"
+#include "Engine/RendererSettings.h"
 #include "Engine/SkinnedAsset.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
@@ -893,21 +894,22 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 		return nullptr;
 	}
 
-#if MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE
-	TArray<UTexture*> OutOpacityMaskTextures;
-	if (ImportedMaterial->GetTexturesInPropertyChain(MP_OpacityMask, OutOpacityMaskTextures, nullptr, nullptr))
+	if (GetDefault<URendererSettings>()->bEnableVirtualTextureOpacityMask == false)
 	{
-		for (UTexture* CurrentTexture : OutOpacityMaskTextures)
+		//Virtual textures are not supported in the OpacityMask slot, convert any textures back to a regular texture.
+		TArray<UTexture*> OutOpacityMaskTextures;
+		if (ImportedMaterial->GetTexturesInPropertyChain(MP_OpacityMask, OutOpacityMaskTextures, nullptr, nullptr))
 		{
-			UTexture2D* Texture2D = Cast<UTexture2D>(CurrentTexture);
-			if (Texture2D && Texture2D->VirtualTextureStreaming)
+			for (UTexture* CurrentTexture : OutOpacityMaskTextures)
 			{
-				//Virtual textures are not supported yet in the OpacityMask slot, convert the texture back to a regular texture.
-				ImportContext.AssetsContext.VirtualTexturesToConvert.Add(Texture2D);
+				UTexture2D* Texture2D = Cast<UTexture2D>(CurrentTexture);
+				if (Texture2D && Texture2D->VirtualTextureStreaming)
+				{
+					ImportContext.AssetsContext.VirtualTexturesToConvert.Add(Texture2D);
+				}
 			}
 		}
 	}
-#endif
 
 	UDatasmithAssetImportData* AssetImportData = Cast< UDatasmithAssetImportData >(ImportedMaterial->AssetImportData);
 

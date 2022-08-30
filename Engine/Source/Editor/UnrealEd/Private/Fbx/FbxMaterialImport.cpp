@@ -28,6 +28,7 @@
 #include "AssetRegistry/ARFilter.h"
 #include "Factories/MaterialImportHelpers.h"
 #include "MaterialEditingLibrary.h"
+#include "Engine/RendererSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFbxMaterialImport, Log, All);
 
@@ -288,6 +289,8 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 			int32 TextureCount = FbxProperty.GetSrcObjectCount<FbxTexture>();
 			if (TextureCount>0)
 			{
+				const bool bEnableVirtualTextureOpacityMask = GetDefault<URendererSettings>()->bEnableVirtualTextureOpacityMask;
+
 				for(int32 TextureIndex =0; TextureIndex<TextureCount; ++TextureIndex)
 				{
 					FbxFileTexture* FbxTexture = FbxProperty.GetSrcObject<FbxFileTexture>(TextureIndex);
@@ -301,9 +304,9 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 						float ScaleV = FbxTexture->GetScaleV();
 						bool bIsVirtualTexture = UnrealTexture->VirtualTextureStreaming;
 
-#if MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE
-						if (bIsVirtualTexture && MaterialProperty == FbxSurfaceMaterial::sTransparencyFactor)
+						if (bIsVirtualTexture && MaterialProperty == FbxSurfaceMaterial::sTransparencyFactor && !bEnableVirtualTextureOpacityMask)
 						{
+							//Virtual textures are not supported in the OpacityMask slot, convert any textures back to a regular texture.
 							//TODO, add a tracking of the materials created during the import so we can refresh here them if the TextureFactory actually found a existing asset instead of creating a new one.
 							if (UTexture2D* UnrealTexture2D = Cast<UTexture2D>(UnrealTexture))
 							{
@@ -318,9 +321,8 @@ bool UnFbx::FFbxImporter::CreateAndLinkExpressionForMaterialProperty(
 							bIsVirtualTexture = false;
 
 							FString TextureName = UnrealTexture->GetName();
-							UE_LOG(LogFbxMaterialImport, Warning, TEXT("Texture %s could not be imported as a Virtual Texture as they are not supported in OpacityMask property (material %s)."), *TextureName, UTF8_TO_TCHAR(FbxMaterial.GetName()));
+							UE_LOG(LogFbxMaterialImport, Warning, TEXT("Texture %s could not be imported as a Virtual Texture because the project renderer settings disable virtual textures in OpacityMask property (material %s)."), *TextureName, UTF8_TO_TCHAR(FbxMaterial.GetName()));
 						}
-#endif
 
 						// and link it to the material 
 						UMaterialExpressionTextureSample* UnrealTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);

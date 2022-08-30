@@ -17,6 +17,7 @@
 
 #include "AssetToolsModule.h"
 #include "Engine/Texture2D.h"
+#include "Engine/RendererSettings.h"
 #include "Factories/TextureFactory.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -269,7 +270,13 @@ bool FMDLImporter::DistillMaterials(const TMap<FString, UMaterial*>& MaterialsMa
 
 void FMDLImporter::ConvertUnsuportedVirtualTextures() const 
 {
-#if MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE
+	//This function only converts virtual textures connected to opacity mask.
+	//Early out if the project supports this.
+	if (GetDefault<URendererSettings>()->bEnableVirtualTextureOpacityMask)
+	{
+		return;
+	}
+
 	const TArray<UMaterialInterface*>& CreatedMaterials = MaterialFactory->GetCreatedMaterials();
 	TArray<UTexture2D*> VirtualTexturesToConvert;
 	TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
@@ -310,7 +317,6 @@ void FMDLImporter::ConvertUnsuportedVirtualTextures() const
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	AssetTools.ConvertVirtualTextures(VirtualTexturesToConvert, true, &MaterialsToRefreshAfterVirtualTextureConversion);
-#endif
 }
 
 bool FMDLImporter::ImportMaterials(UObject* ParentPackage, EObjectFlags Flags, Mdl::FMaterialCollection& Materials,

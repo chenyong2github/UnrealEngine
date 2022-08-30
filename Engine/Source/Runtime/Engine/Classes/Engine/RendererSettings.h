@@ -414,6 +414,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
 		EditCondition = "bVirtualTextures",
+		DisplayName = "Enable virtual textures for Opacity Mask",
+		ToolTip = "Relax restriction on virtual textures contributing to Opacity Mask. In some edge cases this can lead to low resolution shadow edges."))
+		uint32 bEnableVirtualTextureOpacityMask : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
+		EditCondition = "bVirtualTextures",
 		ConsoleVariable = "r.VT.TileSize", DisplayName = "Tile size",
 		ToolTip = "Size in pixels for virtual texture tiles, will be rounded to next power-of-2. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))

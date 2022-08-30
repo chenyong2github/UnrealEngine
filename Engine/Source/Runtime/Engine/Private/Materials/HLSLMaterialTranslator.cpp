@@ -6,6 +6,7 @@
 #include "VT/VirtualTextureScalability.h"
 #include "Materials/MaterialExpressionCustom.h"
 #include "MaterialRestrictiveMode.h"
+#include "Engine/RendererSettings.h"
 
 bool IsExpressionClassPermitted(const UClass* const Class)
 {
@@ -684,13 +685,10 @@ void FHLSLMaterialTranslator::ValidateVtPropertyLimits()
 			VisitExpressionsForProperty(PropertyToValidate, Visitor);
 			if (Visitor.FoundVirtualTexture)
 			{
-				// virtual texture connected to an invalid property, report the correct error
-#if MATERIAL_OPACITYMASK_DOESNT_SUPPORT_VIRTUALTEXTURE
-				if (PropertyToValidate == MP_OpacityMask)
+				if (PropertyToValidate == MP_OpacityMask && GetDefault<URendererSettings>()->bEnableVirtualTextureOpacityMask == false)
 				{
-					Errorf(TEXT("Sampling a virtual texture is currently not supported when connected to the Opacity Mask material attribute."));
+					Errorf(TEXT("Sampling a virtual texture for the Opacity Mask material attribute is disabled in the Renderer Settings."));
 				}
-#endif
 			}
 		}
 	}
