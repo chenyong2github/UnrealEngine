@@ -669,8 +669,13 @@ bool FSlateUser::SynthesizeCursorMoveIfNeeded()
 
 		FSlateApplication& SlateApp = FSlateApplication::Get();
 		
-		FInputDeviceId InputDeviceId = IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser( GetPlatformUserId() );
-		check(InputDeviceId.IsValid());
+		FInputDeviceId InputDeviceId = IPlatformInputDeviceMapper::Get().GetPrimaryInputDeviceForUser(GetPlatformUserId());
+		
+		if (!InputDeviceId.IsValid())
+		{
+			UE_LOG(LogSlate, Warning, TEXT("SynthesizeCursorMoveIfNeeded had an invalid Input Device! Falling back to the default mouse input device ID."));
+			InputDeviceId = SlateApp.GetInputDeviceIdForMouse();
+		}		
 
 		const bool bHasHardwareCursor = SlateApp.GetPlatformCursor() == Cursor;
 		const TSet<FKey> EmptySet;
