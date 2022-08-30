@@ -2595,7 +2595,7 @@ namespace EpicGames.Perforce
 		/// <returns>Response from the server</returns>
 		public static async Task<PrintRecord> PrintAsync(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			return (await TryPrintAsync(connection, outputFile, fileSpec, cancellationToken)).Data;
+			return (await TryPrintSingleInternalAsync<PrintRecord>(connection, outputFile, fileSpec, cancellationToken)).Data;
 		}
 
 		/// <summary>
@@ -2606,9 +2606,9 @@ namespace EpicGames.Perforce
 		/// <param name="fileSpec">Specification for the files to print</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public static Task<PerforceResponse<PrintRecord>> TryPrintAsync(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default)
+		public static Task<PerforceResponseList<PrintRecord>> TryPrintAsync(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default)
 		{
-			return TryPrintInternalAsync<PrintRecord>(connection, outputFile, fileSpec, cancellationToken);
+			return TryPrintInternalAsync(connection, outputFile, fileSpec, cancellationToken);
 		}
 
 		/// <summary>
@@ -2623,7 +2623,7 @@ namespace EpicGames.Perforce
 			string tempFile = Path.GetTempFileName();
 			try
 			{
-				PerforceResponse<PrintRecord<byte[]>> record = await TryPrintInternalAsync<PrintRecord<byte[]>>(connection, tempFile, fileSpec, cancellationToken);
+				PerforceResponse<PrintRecord<byte[]>> record = await TryPrintSingleInternalAsync<PrintRecord<byte[]>>(connection, tempFile, fileSpec, cancellationToken);
 				if (record.Succeeded)
 				{
 					record.Data.Contents = await File.ReadAllBytesAsync(tempFile, cancellationToken);
@@ -2648,7 +2648,7 @@ namespace EpicGames.Perforce
 			string tempFile = Path.GetTempFileName();
 			try
 			{
-				PerforceResponse<PrintRecord<string[]>> record = await TryPrintInternalAsync<PrintRecord<string[]>>(connection, tempFile, fileSpec, cancellationToken);
+				PerforceResponse<PrintRecord<string[]>> record = await TryPrintSingleInternalAsync<PrintRecord<string[]>>(connection, tempFile, fileSpec, cancellationToken);
 				if (record.Succeeded)
 				{
 					record.Data.Contents = await File.ReadAllLinesAsync(tempFile, cancellationToken);
@@ -2676,7 +2676,28 @@ namespace EpicGames.Perforce
 		/// <param name="fileSpec">Specification for the files to print</param>
 		/// <param name="cancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		static Task<PerforceResponse<T>> TryPrintInternalAsync<T>(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default) where T : class
+		static async Task<PerforceResponseList<PrintRecord>> TryPrintInternalAsync(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default)
+		{
+			// Build the argument list
+			List<string> arguments = new List<string>();
+			arguments.Add("-o");
+			arguments.Add(outputFile);
+			arguments.Add(fileSpec);
+
+			PerforceResponseList<PrintRecord> records = await CommandAsync<PrintRecord>(connection, "print", arguments, null, cancellationToken);
+			records.RemoveAll(x => x.Error != null && x.Error.Generic == PerforceGenericCode.Empty);
+			return records;
+		}
+
+		/// <summary>
+		/// Execute the 'print' command for a single file
+		/// </summary>
+		/// <param name="connection">Connection to the Perforce server</param>
+		/// <param name="outputFile">Output file to redirect output to</param>
+		/// <param name="fileSpec">Specification for the files to print</param>
+		/// <param name="cancellationToken">Token used to cancel the operation</param>
+		/// <returns>Response from the server</returns>
+		static Task<PerforceResponse<T>> TryPrintSingleInternalAsync<T>(this IPerforceConnection connection, string outputFile, string fileSpec, CancellationToken cancellationToken = default) where T : class
 		{
 			// Build the argument list
 			List<string> arguments = new List<string>();

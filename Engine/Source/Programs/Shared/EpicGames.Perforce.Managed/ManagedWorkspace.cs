@@ -860,15 +860,15 @@ namespace EpicGames.Perforce.Managed
 
 			// query the location of each file
 			List<PerforceResponse<WhereRecord>> whereResponseList = await perforce.TryWhereAsync(lastRecord.Files.Select(x => x.DepotFile).ToArray(), cancellationToken).ToListAsync(cancellationToken);
-			List<WhereRecord> whereRecords = whereResponseList.Where(x => x.Succeeded).Select(x => x.Data).ToList();
+			Dictionary<string, WhereRecord> whereRecords = whereResponseList.Where(x => x.Succeeded).Select(x => x.Data).ToDictionary(x => x.DepotFile, x => x, StringComparer.OrdinalIgnoreCase);
 
 			// parse out all the list of deleted and modified files
 			List<WhereRecord> deleteFiles = new List<WhereRecord>();
 			List<WhereRecord> writeFiles = new List<WhereRecord>();
 			foreach (DescribeFileRecord fileRecord in lastRecord.Files)
 			{
-				WhereRecord? whereRecord = whereRecords.FirstOrDefault(x => x.DepotFile.Equals(fileRecord.DepotFile, StringComparison.OrdinalIgnoreCase));
-				if (whereRecord == null)
+				WhereRecord? whereRecord = null;
+				if (whereRecords.TryGetValue(fileRecord.DepotFile, out whereRecord) == false)
 				{
 					_logger.LogInformation("Unable to get location of {File} in current workspace; ignoring.", fileRecord.DepotFile);
 					continue;
@@ -890,6 +890,11 @@ namespace EpicGames.Perforce.Managed
 					default:
 						throw new Exception($"Unknown action '{fileRecord.Action}' for shelved file {fileRecord.DepotFile}");
 				}
+			}
+
+			if (!_createdClients.TryGetValue(perforce.Settings.ClientName!, out ClientRecord? perforceClient))
+			{
+				throw new Exception($"Unknown client {perforce.Settings.ClientName}");
 			}
 
 			// Add all the files to be written to the workspace with invalid metadata. This will ensure they're removed on next clean.
@@ -915,19 +920,12 @@ namespace EpicGames.Perforce.Managed
 				}
 			}
 
-			// Add all the new files
-			foreach (WhereRecord writeFile in writeFiles)
+			// Use common paths with wild cards speed up the print operation with one call instead of many calls to print.
+			_logger.LogInformation("Writing files from shelved changelist", unshelveChangelist);
+			PerforceResponseList<PrintRecord> printResponse = await perforce.TryPrintAsync($"{perforceClient.Root}{Path.DirectorySeparatorChar}...", $"//{perforceClient.Name}/...@={unshelveChangelist}", cancellationToken);
+			if (!printResponse.Succeeded)
 			{
-				string localPath = writeFile.Path;
-				_logger.LogInformation("  Writing {LocalPath}", localPath);
-
-				Directory.CreateDirectory(Path.GetDirectoryName(localPath));
-
-				PerforceResponse printResponse = await perforce.TryPrintAsync(localPath, $"{writeFile}@={unshelveChangelist}", cancellationToken);
-				if (!printResponse.Succeeded)
-				{
-					_logger.LogWarning("Unable to print {LocalPath}: {Error}", localPath, printResponse.ToString());
-				}
+				_logger.LogWarning("Unable to print shelved changelist: {Error}", printResponse.ToString());
 			}
 
 			_logger.LogInformation("Completed in {TimeSeconds}s", $"{timer.Elapsed.TotalSeconds:0.0}");
