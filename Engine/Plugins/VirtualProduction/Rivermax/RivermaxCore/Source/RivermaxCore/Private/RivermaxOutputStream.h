@@ -56,7 +56,8 @@ namespace UE::RivermaxCore::Private
 		uint32 ChunkWait = 0;
 		uint32 CommitWaits = 0;
 		uint32 CommitRetries = 0;
-		uint64 MemoryBlockSentCounter = 0; //Global for an active capture session to track timestamp for next packet
+		uint32 CommitImmediate = 0;
+		uint64 MemoryBlockSentCounter = 0;
 	};
 
 	struct FRivermaxOutputStreamData
@@ -64,10 +65,21 @@ namespace UE::RivermaxCore::Private
 		/** Current sequence number being done */
 		uint32 SequenceNumber = 0;
 		double FrameFieldTimeIntervalNs = 0.0;
-		double StartSendTimeNs = 0.0;
-		double SendTimeNs = 0.0;
-		double InitialTimestampTick = 0.0;
+
+		/** Used to detect misalignment between chunk being sent and frame memory we are writing in */
 		bool bHasFrameFirstChunkBeenFetched = false;
+
+		/** Next alignment point based on PTP standard */
+		uint64 NextAlignmentPointNanosec = 0;
+
+		/** Next schedule time using 2110 gapped model timing and controllable offset */
+		uint64 NextScheduleTimeNanosec = 0;
+
+		/** Whether next alignment frame number is deemed valid or not to detect missed frames. */
+		bool bHasValidNextFrameNumber = false;
+		
+		/** Next alignment point frame number treated to detect missed frames */
+		uint64 NextAlignmentPointFrameNumber = 0;
 	};
 
 
@@ -102,10 +114,13 @@ namespace UE::RivermaxCore::Private
 		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
 		void BuildRTPHeader(FRTPHeader& OutHeader) const;
 		void DestroyStream();
-		void WaitForNextRound(double NextRoundTime);
+		void WaitForNextRound();
 		void GetNextChunk();
 		void SetupRTPHeaders();
 		void CommitNextChunks();
+		void PrepareNextFrame();
+		void InitializeStreamTimingSettings();
+		uint32 GetTimestampFromTime(uint64 InTimeNanosec, double InMediaClockRate) const;
 
 	private:
 		FRivermaxStreamOptions Options;
@@ -120,7 +135,6 @@ namespace UE::RivermaxCore::Private
 
 		TArray<TSharedPtr<FRivermaxOutputFrame>> AvailableFrames;
 		TArray<TSharedPtr<FRivermaxOutputFrame>> FramesToSend;
-		double LastTime = 0.0;
 
 		TUniquePtr<FRunnableThread> RivermaxThread;
 		std::atomic<bool> bIsActive;
@@ -131,6 +145,12 @@ namespace UE::RivermaxCore::Private
 
 		static constexpr double MediaClockSampleRate = 90000.0; //Required to comply with SMTPE 2110-10.The Media Clock and RTP Clock rate for streams compliant to this standard shall be 90 kHz.
 		ERivermaxStreamType StreamType = ERivermaxStreamType::VIDEO_2110_20_STREAM; //todo
+
+		/** TRoffset time calculated based on ST2110 - 21 Gapped(for now) method. This is added to next alignment point */
+		uint64 TransmitOffsetNanosec = 0;
+
+		/** Offset substracted to next alignment point (wake up) to move the start of scheduling */
+		uint64 AlignmentPointSchedulingLeadTimeNanosec = 0;
 	};
 }
 

@@ -22,8 +22,11 @@ namespace UE::RivermaxCore::Private
 		/** Whether this frame is ready to be sent */
 		bool IsReadyToBeSent() const;
 
-		/** Reset internal counters of this frame */
+		/** Reset internal counters to make it resendable */
 		void Clear();
+
+		/** Reset identifier and internal counters to make it available */
+		void Reset();
 
 		/** Index of the frame used as unique identifier */
 		uint32 FrameIndex = 0;

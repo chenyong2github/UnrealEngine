@@ -26,11 +26,16 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputFrame::Clear()
 	{
-		FrameIdentifier = InvalidIdentifier;
 		PacketCounter = 0;
 		LineNumber = 0;
 		SRDOffset = 0;
-		TimestampTicks = 0.0;
-		bIsVideoBufferReady = false;
 	}
+
+	void FRivermaxOutputFrame::Reset()
+	{
+		FrameIdentifier = InvalidIdentifier;
+		bIsVideoBufferReady = false;
+		Clear();
+	}
+
 }
