@@ -406,7 +406,6 @@ namespace UE::PixelStreaming
 		// The PixelStreamingEditorModule handles setting video input in the editor
 		if (!GIsEditor)
 		{
-			Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
 			// default to the scene viewport if we have a game engine
 			if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 			{
@@ -425,6 +424,12 @@ namespace UE::PixelStreaming
 
 		if (!SignallingServerURL.IsEmpty())
 		{
+			// The user has specified a URL on the command line meaning their intention is to start streaming immediately
+			// in that case, set up the video input for them (as long as we're not in editor)
+			if(!GIsEditor)
+			{
+				Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
+			}
 			Streamer->SetSignallingServerURL(SignallingServerURL);
 		}
 	}

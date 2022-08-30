@@ -91,7 +91,6 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 								ExtendedHandler(Ar);
 							});
 
-	Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
 	if (Streamer->GetSignallingServerURL().IsEmpty())
 	{
@@ -117,6 +116,13 @@ void FPixelStreamingEditorModule::StartStreaming()
 	if (!Streamer.IsValid())
 	{
 		return;
+	}
+
+	// The streamer doesn't currently have a video input so create one
+	TWeakPtr<FPixelStreamingVideoInput> VideoInput = Streamer->GetVideoInput();
+	if(!VideoInput.Pin())
+	{
+		Streamer->SetVideoInput(FPixelStreamingVideoInputBackBufferComposited::Create());
 	}
 
 	// Use the Pixel Streaming module's start streaming method to start all streamers
