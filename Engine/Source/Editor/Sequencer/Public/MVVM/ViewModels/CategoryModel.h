@@ -55,7 +55,7 @@ public:
 	FName GetCategoryName() const { return CategoryName; }
 
 	/** Returns the desired sizing for the track area row */
-	FOutlinerSizing GetDesiredSizing() const;
+	virtual FOutlinerSizing GetDesiredSizing() const;
 
 	/*~ ITrackLaneExtension */
 	TSharedPtr<ITrackLaneWidget> CreateTrackLaneView(const FCreateTrackLaneViewParams& InParams) override;

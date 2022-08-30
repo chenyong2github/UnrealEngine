@@ -491,7 +491,7 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 
 	KeyRenderer.Update(Params, AllottedGeometry);
 	LayerId = KeyRenderer.DrawCurve(Params, AllottedGeometry, MyCullingRect, PaintArgs, LayerId);
-	LayerId = KeyRenderer.Draw(Params, AllottedGeometry, MyCullingRect, PaintArgs, LayerId);
+	LayerId = KeyRenderer.Draw(Params, AllottedGeometry, MyCullingRect, PaintArgs, LayerId + 10);
 
 	KeyRendererCache = NewCachedState;
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Widgets/SWindow.h"
+#include "Containers/ArrayView.h"
 
 struct FKeyHandle;
 struct FTimeToPixel;
@@ -14,7 +15,7 @@ class MOVIESCENETOOLS_API MovieSceneSectionHelpers
 public:
 
 	/** Consolidate color curves for all track sections. */
-	static void ConsolidateColorCurves(TArray< TTuple<float, FLinearColor> >& OutColorKeys, const FLinearColor& DefaultColor, const TArray<FMovieSceneFloatChannel*>& ColorChannels, const FTimeToPixel& TimeConverter);
+	static void ConsolidateColorCurves(TArray< TTuple<float, FLinearColor> >& OutColorKeys, const FLinearColor& DefaultColor, TArrayView<const FMovieSceneFloatChannel* const> ColorChannels, const FTimeToPixel& TimeConverter);
 };
 
 class MOVIESCENETOOLS_API FMovieSceneKeyColorPicker

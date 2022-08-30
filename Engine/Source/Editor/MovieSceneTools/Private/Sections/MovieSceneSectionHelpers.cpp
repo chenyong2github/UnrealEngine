@@ -13,7 +13,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Engine/Engine.h"
 
-void MovieSceneSectionHelpers::ConsolidateColorCurves( TArray< TTuple<float, FLinearColor> >& OutColorKeys, const FLinearColor& DefaultColor, const TArray<FMovieSceneFloatChannel*>& ColorChannels, const FTimeToPixel& TimeConverter )
+void MovieSceneSectionHelpers::ConsolidateColorCurves( TArray< TTuple<float, FLinearColor> >& OutColorKeys, const FLinearColor& DefaultColor, TArrayView<const FMovieSceneFloatChannel* const> ColorChannels, const FTimeToPixel& TimeConverter )
 {
 	// @todo Sequencer Optimize - This could all get cached, instead of recalculating everything every OnPaint
 
