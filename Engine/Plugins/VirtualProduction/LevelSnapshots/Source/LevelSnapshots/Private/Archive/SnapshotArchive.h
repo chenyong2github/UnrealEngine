@@ -37,6 +37,8 @@ namespace UE::LevelSnapshots::Private
 		virtual UObject* ResolveObjectDependency(int32 ObjectIndex, UObject* CurrentValue) const = 0;
 		/** Called when an object dependency is saved. */
 		virtual void OnAddObjectDependency(int32 ObjectIndex, UObject* Object) const {}
+
+		virtual void FixUpReference(UObject*& Value) const;
 	
 		FWorldSnapshotData& GetSharedData() const { return SharedData;}
 		UObject* GetSerializedObject() const { return SerializedObject; }

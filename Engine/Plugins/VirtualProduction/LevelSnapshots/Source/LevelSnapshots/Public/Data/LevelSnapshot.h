@@ -123,7 +123,6 @@ private:
 	void ClearCache();
 	
 	void RecreateSnapshotWorld();
-	void ReinitializeWorld();
 	
 	/** Callback to destroy our world when editor (editor build) or play (game builds) world is destroyed. */
 	FDelegateHandle Handle;

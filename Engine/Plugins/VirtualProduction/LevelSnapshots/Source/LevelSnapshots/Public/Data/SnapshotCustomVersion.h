@@ -29,8 +29,11 @@ namespace UE::LevelSnapshots
 			/** Before this soft object references were saved by FCustomSerializationDataWriter using FObjectAndNameAsStringProxyArchive - if you moved the asset our data would get corrupted. */
 			CustomSubobjectSoftObjectPathRefactor = 5,
 
-			/** FWorldSnapshotData::SerializedReferenceMetaData was introduced. No migration needs to take place. This entry exists only for future proofing (in case something breaks). */
-			AddedSerializedReferenceMetaData = 6,
+			/**
+			 * When serializing a class archetype, we now skip properties that contain subobjects by discovering reference properties with a reference collector archive.
+			 * No migration needs to take place. This entry exists only for future proofing (in case something breaks).
+			 */
+			SkipSubobjectReferencesWhenSerializingArchetypesRefactor = 6,
 
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,

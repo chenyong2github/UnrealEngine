@@ -18,5 +18,8 @@ namespace UE::LevelSnapshots::Private
 	protected:
 	
 		FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore);
+
+		// Class archetypes do not need fixing up... they only reference assets and subobjects. Subobjects are handled entirely by the the archetype itself.
+		virtual void FixUpReference(UObject*& Value) const override {}
 	};
 }

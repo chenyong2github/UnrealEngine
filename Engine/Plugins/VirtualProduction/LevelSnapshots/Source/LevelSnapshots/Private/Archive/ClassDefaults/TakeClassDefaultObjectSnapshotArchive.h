@@ -20,16 +20,22 @@ namespace UE::LevelSnapshots::Private
 
 		static void SaveClassDefaultObject(FClassSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* SerializedObject);
 
+		//~ Begin FArchive Interface
+		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
+		//~ End FArchive Interface
+
 	protected:
 
 		//~ Begin FSnapshotArchive Interface
 		virtual UObject* ResolveObjectDependency(int32 ObjectIndex, UObject* CurrentValue) const override { checkNoEntry(); return nullptr; }
-		virtual void OnAddObjectDependency(int32 ObjectIndex, UObject* Object) const override;
+		virtual void OnAddObjectDependency(int32 ObjectIndex, UObject* Object) const override {}
 		//~ End FSnapshotArchive Interface
 		
 	private:
 	
-		FTakeClassDefaultObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InSerializedObject);
+		FTakeClassDefaultObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InSerializedObject, TSet<const FProperty*> PropertiesToSkip);
+
+		const TSet<const FProperty*> SkippedProperties;
 	};
 }
 

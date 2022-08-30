@@ -471,44 +471,6 @@ void ULevelSnapshot::RecreateSnapshotWorld()
 	EnsureWorldInitialised();
 }
 
-namespace UE::LevelSnapshots::Private
-{
-	UWorld* FindOrCreateWorld(const TArray<UWorld*>& AllWorlds, UObject* Outer, FName Name);
-}
-
-void ULevelSnapshot::ReinitializeWorld()
-{
-	using namespace UE::LevelSnapshots::Private;
-	
-	TArray<UWorld*> AllWorlds = MoveTemp(SnapshotSublevels);
-	AllWorlds.Add(RootSnapshotWorld);
-
-	const FName RootWorldName = *ExtractPathWithoutSubobjects(MapPath).GetAssetName();
-	RootSnapshotWorld = FindOrCreateWorld(AllWorlds, this, RootWorldName);
-		
-	TSet<FName> Sublevels = ExtractLevelNames(SerializedData);
-	Sublevels.Remove(RootWorldName);
-	SnapshotSublevels.Reserve(Sublevels.Num());
-	for (const FName& SublevelName : Sublevels)
-	{
-		SnapshotSublevels.Add(FindOrCreateWorld(AllWorlds, this, SublevelName));
-	}
-}
-
-namespace UE::LevelSnapshots::Private
-{
-	UWorld* FindOrCreateWorld(const TArray<UWorld*>& AllWorlds, UObject* Outer, FName Name)
-	{
-		const int32 Index = Algo::IndexOfByPredicate(AllWorlds, [Name](UWorld* World){ return World->GetFName() == Name; });
-		if (AllWorlds.IsValidIndex(Index))
-		{
-			InitializeWorld(AllWorlds[Index]);
-			return AllWorlds[Index];
-		}
-		return CreateWorld(Outer, Name);
-	}
-}
-
 #if WITH_EDITOR
 void ULevelSnapshot::ResetDiffCacheToUninitialized(TArrayView<AActor*> ModifiedActors)
 {

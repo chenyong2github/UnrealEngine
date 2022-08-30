@@ -8,7 +8,6 @@
 #include "ClassDefaultObjectSnapshotData.h"
 #include "ClassSnapshotData.h"
 #include "CustomSerializationData.h"
-#include "ObjectReferenceSnapshotMetaData.h"
 #include "SnapshotVersion.h"
 #include "SubobjectSnapshotData.h"
 #include "Templates/NonNullPointer.h"
@@ -117,15 +116,6 @@ struct LEVELSNAPSHOTS_API FWorldSnapshotData
 	 */
 	UPROPERTY()
 	TMap<int32, FCustomSerializationData> CustomSubobjectSerializationData;
-
-	/**
-	 * Key: A valid index to SerializedObjectReferences
-	 * Value: Additional info about the reference, e.g. whether it should be applied by the snapshot.
-	 * 
-	 * Added in 5.1.
-	 */
-	UPROPERTY()
-	TMap<int32, FObjectReferenceSnapshotMetaData> SerializedReferenceMetaData;
 
 	
 

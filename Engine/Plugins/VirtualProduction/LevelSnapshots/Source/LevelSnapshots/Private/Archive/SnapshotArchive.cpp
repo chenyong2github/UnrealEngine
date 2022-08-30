@@ -124,19 +124,7 @@ FArchive& UE::LevelSnapshots::Private::FSnapshotArchive::operator<<(UObject*& Va
 		}
 
 		Value = ResolveObjectDependency(ReferencedIndex, Value);
-		if (Value)
-		{
-			const ULevel* ResolvedOwningLevel = Value->GetTypedOuter<ULevel>();
-			const ULevel* SerializedObjectOwningLevel = SerializedObject->GetTypedOuter<ULevel>();
-			if (ResolvedOwningLevel && ResolvedOwningLevel != SerializedObjectOwningLevel)
-			{
-				// Example how this could happen:
-				// 1. Make actor a reference actor b
-				// 2. Move actor b from level Foo to level Bar (select actor > right-click Bar in Level tab > Move selected actors to level).
-				UE_LOG(LogLevelSnapshots, Warning, TEXT("Resolved world object %s for %s. Referencing objects from other world / levels is not permitted: Nulling reference."), *Value->GetPathName(), *SerializedObject->GetPathName());
-				Value = nullptr;
-			}
-		}
+		FixUpReference(Value);
 	}
 	else
 	{
@@ -176,6 +164,23 @@ void UE::LevelSnapshots::Private::FSnapshotArchive::Serialize(void* Data, int64 
 		}
 		FMemory::Memcpy(&ObjectData.SerializedData[DataIndex], Data, Length);
 		DataIndex = RequiredEndIndex;
+	}
+}
+
+void UE::LevelSnapshots::Private::FSnapshotArchive::FixUpReference(UObject*& Value) const
+{
+	if (IsValid(Value))
+	{
+		const ULevel* ResolvedOwningLevel = Value->GetTypedOuter<ULevel>();
+		const ULevel* SerializedObjectOwningLevel = SerializedObject->GetTypedOuter<ULevel>();
+		if (ResolvedOwningLevel && ResolvedOwningLevel != SerializedObjectOwningLevel)
+		{
+			// Example how this could happen:
+			// 1. Make actor a reference actor b
+			// 2. Move actor b from level Foo to level Bar (select actor > right-click Bar in Level tab > Move selected actors to level).
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("Resolved world object %s for %s. Referencing objects from other world / levels is not permitted: Nulling reference."), *Value->GetPathName(), *SerializedObject->GetPathName());
+			Value = nullptr;
+		}
 	}
 }
 
