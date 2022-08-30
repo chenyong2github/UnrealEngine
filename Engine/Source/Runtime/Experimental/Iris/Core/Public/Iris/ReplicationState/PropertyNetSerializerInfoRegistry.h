@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Iris/Serialization/NetSerializer.h"
+#include "Iris/Serialization/NetSerializerDelegates.h"
 #include "Templates/Casts.h"
 #include "Templates/Tuple.h"
 #include "UObject/NameTypes.h"
@@ -121,7 +122,7 @@ private:
 
 }
 
-// Only needed if we want to export PropertyNetSerializerInfo, this goes in the header if we need to export ti
+// Only needed if we want to export PropertyNetSerializerInfo, this goes in the header if we need to export it
 #define UE_NET_DECLARE_NETSERIALIZER_INFO(NetSerializerInfo) \
 const UE::Net::FPropertyNetSerializerInfo& GetPropertyNetSerializerInfo_##NetSerializerInfo();
 
@@ -152,3 +153,18 @@ UE::Net::FPropertyNetSerializerInfoRegistry::Unregister(&GetPropertyNetSerialize
 #else
 #define UE_NET_UNREGISTER_NETSERIALIZER_INFO(...) 
 #endif
+
+// Implement minimal required delegates for a NetSerializer
+#define UE_NET_IMPLEMENT_NETSERIALZIER_REGISTRY_DELEGATES(Name) \
+struct F##Name##NetSerializerRegistryDelegates : protected FNetSerializerRegistryDelegates \
+{ \
+	~F##Name##NetSerializerRegistryDelegates() { UE_NET_UNREGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name); } \
+	virtual void OnPreFreezeNetSerializerRegistry() override { UE_NET_REGISTER_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name); } \
+}; \
+static F##Name##NetSerializerRegistryDelegates Name##NetSerializerRegistryDelegates;
+
+// Utility that can be used to forward serialization of a Struct to a specific NetSerializer
+#define UE_NET_IMPLEMENT_FORWARDING_NETSERIALIZER_AND_REGISTRY_DELEGATES(Name, SerializerName) \
+	static const FName PropertyNetSerializerRegistry_NAME_##Name( PREPROCESSOR_TO_STRING(Name) ); \
+	UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name, FGameplayEffectContextNetSerializer); \
+	UE_NET_IMPLEMENT_NETSERIALZIER_REGISTRY_DELEGATES(Name)

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Serialization/GameplayAbilityRepAnimMontageNetSerializer.h"
-#include "Serialization/InternalGameplayAbilityRepAnimMontageNetSerializer.h"
 
 #if UE_WITH_IRIS
 
@@ -439,8 +438,10 @@ void FGameplayAbilityRepAnimMontageNetSerializer::FNetSerializerRegistryDelegate
 	static_assert(sizeof(FGameplayAbilityRepAnimMontage) == ExpectedSizeOfFGameplayAbilityRepAnimMontage && alignof(FGameplayAbilityRepAnimMontage) == ExpectedAlignOfFGameplayAbilityRepAnimMontage, "FGameplayAbilityRepAnimMontage layout has changed. Might need to update FGameplayAbilityRepAnimMontageNetSerializer to include new data or update the size.");
 
 	// Use helper to avoid getting hold of the FGameplayAbilityRepAnimMontageNetSerializer that we are setting up and validating.
-	const UStruct* BaseStruct = FGameplayAbilityRepAnimMontageNetSerializerSerializationHelper::StaticStruct();
-	StructNetSerializerConfigForBase.StateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(BaseStruct);
+	const UStruct* BaseStruct = FGameplayAbilityRepAnimMontage::StaticStruct();
+	FReplicationStateDescriptorBuilder::FParameters Params;
+	Params.SkipCheckForCustomNetSerializerForStruct = 1U;
+	StructNetSerializerConfigForBase.StateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(BaseStruct, Params);
 
 	const FReplicationStateDescriptor* Descriptor = StructNetSerializerConfigForBase.StateDescriptor.GetReference();
 	check(Descriptor != nullptr);

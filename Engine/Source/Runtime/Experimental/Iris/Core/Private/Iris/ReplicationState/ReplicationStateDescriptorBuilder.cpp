@@ -1743,6 +1743,17 @@ bool FPropertyReplicationStateDescriptorBuilder::IsStructWithCustomSerializer(FM
 	const FPropertyNetSerializerInfo* NetSerializerInfo = FPropertyNetSerializerInfoRegistry::FindStructSerializerInfo(InStruct->GetFName());
 	if (!NetSerializerInfo)
 	{
+		if (InStruct->GetSuperStruct())
+		{
+			const bool bSuperHasCustomNetSerializer = IsStructWithCustomSerializer(OutMemberProperty, InStruct->GetSuperStruct());
+
+			// Warn if one of our supers have a CustomNetSerializer, if that is the case user must be made aware and either declare an explicit forwarding NetSerializer
+			// or implement a custom NetSerializer
+			const bool bIsAllowedToWarn = ShouldUseIrisReplication() || FApp::IsGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
+			UE_CLOG(bSuperHasCustomNetSerializer && bIsAllowedToWarn && bWarnAboutStructsWithCustomSerialization, LogIris, Warning, TEXT("Detected derived struct %s which do not have a custom NetSerializer while Super %s has a custom NetSerializer. Silence warning by declaring an explicit forwarding serializer or implement a custom NetSerialzier for the derived struct"), ToCStr(InStruct->GetName()), ToCStr(InStruct->GetSuperStruct()->GetName()));
+
+			return bSuperHasCustomNetSerializer;
+		}
 		return false;
 	}
 
@@ -1956,6 +1967,7 @@ FReplicationStateDescriptorBuilder::FParameters::FParameters()
   IncludeSuper(1U),
   GetLifeTimeProperties(1U),
   EnableFastArrayHandling(1U),
+  SkipCheckForCustomNetSerializerForStruct(0U),
   SinglePropertyIndex(-1)
 {
 }
@@ -2006,14 +2018,14 @@ TRefCountPtr<const FReplicationStateDescriptor> FReplicationStateDescriptorBuild
 	bool bAllMembersAreReplicated = true;
 
 	// We have a special case for structs with custom serializers
-	if (FPropertyReplicationStateDescriptorBuilder::IsStructWithCustomSerializer(MemberProperty, InStruct))
+	if (!Parameters.SkipCheckForCustomNetSerializerForStruct && FPropertyReplicationStateDescriptorBuilder::IsStructWithCustomSerializer(MemberProperty, InStruct))
 	{
 		Builder.AddMemberProperty(MemberProperty);
 	}
 	else
 	{
-		const bool bIsAllowedToWarn = FApp::IsGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
-		UE_CLOG(bIsStructWithCustomSerialization && bIsAllowedToWarn && bWarnAboutStructsWithCustomSerialization, LogIris, Warning, TEXT("Generating descriptor for struct %s that has custom serialization."), ToCStr(InStruct->GetName()));
+		const bool bIsAllowedToWarn = ShouldUseIrisReplication() || FApp::IsGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
+		UE_CLOG(!Parameters.SkipCheckForCustomNetSerializerForStruct && bIsStructWithCustomSerialization && bIsAllowedToWarn && bWarnAboutStructsWithCustomSerialization, LogIris, Warning, TEXT("Generating descriptor for struct %s that has custom serialization."), ToCStr(InStruct->GetName()));
 
 		for (TFieldIterator<FProperty> It(InStruct, EFieldIteratorFlags::IncludeSuper); It; ++It)
 		{

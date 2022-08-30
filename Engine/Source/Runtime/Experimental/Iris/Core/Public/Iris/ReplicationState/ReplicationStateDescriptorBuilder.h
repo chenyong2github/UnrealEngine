@@ -31,6 +31,8 @@ public:
 		uint32 GetLifeTimeProperties : 1;
 		// If EnableFastArrayHandling is true and the struct inherits from FFastArraySerializer then special logic will be applied which allows it to be bound to a FastArrayReplicationFragment.
 		uint32 EnableFastArrayHandling : 1;
+		// In SkipCheckForCustomNetSerializer is true the descriptor will be built using the underlying representation even if a CustomNetSerializer is registered for the struct
+		uint32 SkipCheckForCustomNetSerializerForStruct : 1;
 		 // If SinglePropertyIndex != -1 we will create a state that only includes the specified property.
 		int32 SinglePropertyIndex;
 	};

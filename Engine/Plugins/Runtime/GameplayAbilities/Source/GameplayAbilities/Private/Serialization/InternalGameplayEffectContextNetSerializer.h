@@ -5,13 +5,10 @@
 #include "GameplayEffectTypes.h"
 #include "Engine/EngineTypes.h"
 #include "Templates/SharedPointer.h"
-#include "InternalGameplayEffectContextNetSerializer.generated.h"
 
 // Implementation is located in GameplayEffectContextNetSerializer.cpp
-USTRUCT()
 struct FGameplayEffectContextAccessorForNetSerializer : public FGameplayEffectContext
 {
-	GENERATED_BODY()
 
 public:
 	void CopyReplicatedFieldsFrom(const FGameplayEffectContextAccessorForNetSerializer& GE);	

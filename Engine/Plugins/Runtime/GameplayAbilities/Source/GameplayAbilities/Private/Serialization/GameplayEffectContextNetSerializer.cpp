@@ -489,7 +489,11 @@ void FGameplayEffectContextNetSerializer::FNetSerializerRegistryDelegates::OnPos
 			LowLevelFatalError(TEXT("%s Size: %d Alignment: %d"), TEXT("FGameplayEffectContext layout has changed. Need to update FGameplayEffectContextNetSerializer."), GEStruct->GetStructureSize(), GEStruct->GetMinAlignment());
 		}
 
-		StructNetSerializerConfigForGE.StateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(GEStruct);
+		// In this case we want to build a descriptor based on the struct members rather than the serializer we try to register
+		FReplicationStateDescriptorBuilder::FParameters Params;
+		Params.SkipCheckForCustomNetSerializerForStruct = true;
+
+		StructNetSerializerConfigForGE.StateDescriptor = FReplicationStateDescriptorBuilder::CreateDescriptorForStruct(GEStruct, Params);
 		const FReplicationStateDescriptor* Descriptor = StructNetSerializerConfigForGE.StateDescriptor.GetReference();
 		check(Descriptor != nullptr);
 		GEStateTraits = Descriptor->Traits;
