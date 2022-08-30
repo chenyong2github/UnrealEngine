@@ -747,7 +747,7 @@ protected:
 		Note that there might be multiple Active at the same time. This will only return the first active one it finds. **/
 	const FMontageEvaluationState* GetActiveMontageEvaluationState() const;
 
-	TMap<FName, UE::Anim::FSlotInertializationRequest>& GetSlotGroupInertializationRequestMap() { return SlotGroupInertializationRequestMap; }
+	TMap<FName, UE::Anim::FSlotInertializationRequest>& GetSlotGroupInertializationRequestMap();
 
 	/** Access montage array data */
 	TArray<FMontageEvaluationState>& GetMontageEvaluationData();
@@ -1067,7 +1067,6 @@ private:
 private:
 	/** Copy of UAnimInstance::MontageInstances data used for update & evaluation */
 	TArray<FMontageEvaluationState> MontageEvaluationData;
-	TArray<FMontageEvaluationState>* MainMontageEvaluationData;
 
 	// Inertialization request for each slot.
 	TMap<FName, UE::Anim::FSlotInertializationRequest> SlotGroupInertializationRequestMap;
@@ -1127,4 +1126,6 @@ private:
 
 	// Whether subsystems should be initialized
 	uint8 bInitializeSubsystems : 1;
+
+	uint8 bUseMainInstanceMontageEvaluationData : 1;
 };
