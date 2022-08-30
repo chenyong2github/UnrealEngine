@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ImgMediaProcessImagesOptions.h"
+#include "ImgMediaProcessEXROptions.h"
 
-UImgMediaProcessImagesOptions::UImgMediaProcessImagesOptions(const FObjectInitializer& ObjectInitializer)
+UImgMediaProcessEXROptions::UImgMediaProcessEXROptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	MipLevelTints.Add(FLinearColor::Red);

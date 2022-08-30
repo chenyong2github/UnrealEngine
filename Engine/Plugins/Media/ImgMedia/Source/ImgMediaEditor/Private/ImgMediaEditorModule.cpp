@@ -15,7 +15,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SImgMediaBandwidth.h"
 #include "Widgets/SImgMediaCache.h"
-#include "Widgets/SImgMediaProcessImages.h"
+#include "Widgets/SImgMediaProcessEXR.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
@@ -140,11 +140,11 @@ protected:
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "SequenceRecorder.TabIcon"));
 
 		// Add process images tab.
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaProcessImagesTabName,
-			FOnSpawnTab::CreateStatic(&FImgMediaEditorModule::SpawnProcessImagesTab))
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ImgMediaProcessEXRTabName,
+			FOnSpawnTab::CreateStatic(&FImgMediaEditorModule::SpawnProcessEXRTab))
 			.SetGroup(MediaBrowserGroup)
-			.SetDisplayName(LOCTEXT("ImgMediaProcessImagesTabTitle", "Process Images"))
-			.SetTooltipText(LOCTEXT("ImgMediaProcessImagesTooltipText", "Open the Process Images tab."))
+			.SetDisplayName(LOCTEXT("ImgMediaProcessImagesTabTitle", "Process EXR"))
+			.SetTooltipText(LOCTEXT("ImgMediaProcessImagesTooltipText", "Open the Process EXR tab."))
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 	}
 
@@ -152,7 +152,7 @@ protected:
 	{
 		if (FSlateApplication::IsInitialized())
 		{
-			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaProcessImagesTabName);
+			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaProcessEXRTabName);
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaCacheTabName);
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImgMediaBandwidthTabName);
 		}
@@ -176,12 +176,12 @@ protected:
 			];
 	}
 
-	static TSharedRef<SDockTab> SpawnProcessImagesTab(const FSpawnTabArgs& SpawnTabArgs)
+	static TSharedRef<SDockTab> SpawnProcessEXRTab(const FSpawnTabArgs& SpawnTabArgs)
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
 			[
-				SNew(SImgMediaProcessImages)
+				SNew(SImgMediaProcessEXR)
 			];
 	}
 
@@ -215,7 +215,7 @@ private:
 	FName CustomizedStructName;
 
 	/** Names for tabs. */
-	static FLazyName ImgMediaProcessImagesTabName;
+	static FLazyName ImgMediaProcessEXRTabName;
 
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
@@ -224,7 +224,7 @@ private:
 	TArray<TWeakPtr<FImgMediaPlayer>> MediaPlayers;
 };
 
-FLazyName FImgMediaEditorModule::ImgMediaProcessImagesTabName(TEXT("ImgMediaProcessImages"));
+FLazyName FImgMediaEditorModule::ImgMediaProcessEXRTabName(TEXT("ImgMediaProcessEXR"));
 
 IMPLEMENT_MODULE(FImgMediaEditorModule, ImgMediaEditor);
 

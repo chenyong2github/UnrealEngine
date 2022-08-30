@@ -8,16 +8,16 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "ImgMediaProcessImagesOptions.generated.h"
+#include "ImgMediaProcessEXROptions.generated.h"
 
 UCLASS(MinimalAPI)
-class UImgMediaProcessImagesOptions : public UObject
+class UImgMediaProcessEXROptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
 	/** The directory that contains the image sequence files. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
-	FFilePath SequencePath;
+	FFilePath InputPath;
 
 	/** The directory to output the processed image sequence files to. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
@@ -25,11 +25,11 @@ public:
 
 	/** If checked, then enable mip mapping. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
-	bool bEnableMipMapping;
+	bool bEnableMipMapping = true;
 
 	/** If checked, then enable tiling. */
 	UPROPERTY(EditAnywhere, Category = Tiles)
-	bool bEnableTiling;
+	bool bEnableTiling = true;
 	
 	/** Width of a tile in pixels. If 0, then do not make tiles. */
 	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (EditCondition = "bEnableTiling", ClampMin = "0.0"))

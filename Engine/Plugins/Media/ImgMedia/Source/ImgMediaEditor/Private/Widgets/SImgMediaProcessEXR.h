@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ImgMediaProcessImagesOptions.h"
+#include "ImgMediaProcessEXROptions.h"
 #include "Input/Reply.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
@@ -18,15 +18,15 @@ class UMediaTexture;
 class UTextureRenderTarget2D;
 
 /**
- * SImgMediaProcessImages provides processing of image sequences.
+ * SImgMediaProcessEXR provides processing of image sequences.
  */
-class SImgMediaProcessImages : public SCompoundWidget
+class SImgMediaProcessEXR : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SImgMediaProcessImages){}
+	SLATE_BEGIN_ARGS(SImgMediaProcessEXR){}
 	SLATE_END_ARGS()
 
-	virtual ~SImgMediaProcessImages();
+	virtual ~SImgMediaProcessEXR();
 
 	void Construct(const FArguments& InArgs);
 
@@ -176,7 +176,7 @@ private:
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;
 	/** Object that holds our options. */
-	TStrongObjectPtr<UImgMediaProcessImagesOptions> Options;
+	TStrongObjectPtr<UImgMediaProcessEXROptions> Options;
 	/** Holds the button to start processing. */
 	TSharedPtr<SButton> StartButton;
 	/** Holds the button to cancel processing. */

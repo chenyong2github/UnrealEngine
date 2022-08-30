@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/SImgMediaProcessImages.h"
+#include "Widgets/SImgMediaProcessEXR.h"
 
 #include "Async/Async.h"
 #include "Customizations/ImgMediaFilePathCustomization.h"
@@ -15,7 +15,7 @@
 #include "ImageUtils.h"
 #include "ImageWrapperHelper.h"
 #include "ImgMediaEditorModule.h"
-#include "ImgMediaProcessImagesOptions.h"
+#include "ImgMediaProcessEXROptions.h"
 #include "Math/UnrealMathUtility.h"
 #include "MediaPlayer.h"
 #include "MediaSource.h"
@@ -40,13 +40,13 @@
 
 #define LOCTEXT_NAMESPACE "ImgMediaProcessImages"
 
-SImgMediaProcessImages::~SImgMediaProcessImages()
+SImgMediaProcessEXR::~SImgMediaProcessEXR()
 {
 	CleanUp();
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SImgMediaProcessImages::Construct(const FArguments& InArgs)
+void SImgMediaProcessEXR::Construct(const FArguments& InArgs)
 {
 	// Set up widgets.
 	TSharedPtr<SBox> DetailsViewBox;
@@ -63,8 +63,9 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 			
 		// Add process images button.
 		+ SScrollBox::Slot()
-			.Padding(4.0f)
-			.HAlign(HAlign_Left)
+			.Padding(8.0f)
+			.VAlign(VAlign_Bottom)
+			.HAlign(HAlign_Right)
 			[
 				SNew(SHorizontalBox)
 
@@ -72,7 +73,9 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SAssignNew(StartButton, SButton)
-							.OnClicked(this, &SImgMediaProcessImages::OnProcessImagesClicked)
+							.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))
+							.OnClicked(this, &SImgMediaProcessEXR::OnProcessImagesClicked)
+							.ForegroundColor(FSlateColor::UseStyle())
 							.Text(LOCTEXT("StartProcessImages", "Process Images"))
 							.ToolTipText(LOCTEXT("StartProcesssImagesButtonToolTip", "Start processing images."))
 					]
@@ -81,7 +84,7 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SAssignNew(CancelButton, SButton)
-							.OnClicked(this, &SImgMediaProcessImages::OnCancelClicked)
+							.OnClicked(this, &SImgMediaProcessEXR::OnCancelClicked)
 							.Text(LOCTEXT("CancelProcessImages", "Cancel"))
 							.ToolTipText(LOCTEXT("CancelProcesssImagesButtonToolTip", "Cancel processing images."))
 					]
@@ -92,7 +95,7 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 	UpdateWidgets();
 
 	// Create object with our options.
-	Options = TStrongObjectPtr<UImgMediaProcessImagesOptions>(NewObject<UImgMediaProcessImagesOptions>(GetTransientPackage(), NAME_None));
+	Options = TStrongObjectPtr<UImgMediaProcessEXROptions>(NewObject<UImgMediaProcessEXROptions>(GetTransientPackage(), NAME_None));
 
 	// Create detail view with our options.
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -108,7 +111,7 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void SImgMediaProcessImages::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+void SImgMediaProcessEXR::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SCompoundWidget::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
@@ -118,13 +121,13 @@ void SImgMediaProcessImages::Tick(const FGeometry& AllottedGeometry, const doubl
 	}
 }
 
-void SImgMediaProcessImages::UpdateWidgets()
+void SImgMediaProcessEXR::UpdateWidgets()
 {
 	StartButton->SetEnabled(!bIsProcessing);
 	CancelButton->SetEnabled(bIsProcessing && (!bIsCancelling));
 }
 
-FReply SImgMediaProcessImages::OnProcessImagesClicked()
+FReply SImgMediaProcessEXR::OnProcessImagesClicked()
 {
 	if (bIsProcessing == false)
 	{
@@ -155,7 +158,7 @@ FReply SImgMediaProcessImages::OnProcessImagesClicked()
 			MediaTexture->AddToRoot();
 
 			// Create media source.
-			MediaSource = UMediaSource::SpawnMediaSourceForString(Options->SequencePath.FilePath, GetTransientPackage());
+			MediaSource = UMediaSource::SpawnMediaSourceForString(Options->InputPath.FilePath, GetTransientPackage());
 			if (MediaSource == nullptr)
 			{
 				return FReply::Handled();
@@ -182,7 +185,7 @@ FReply SImgMediaProcessImages::OnProcessImagesClicked()
 	return FReply::Handled();
 }
 
-FReply SImgMediaProcessImages::OnCancelClicked()
+FReply SImgMediaProcessEXR::OnCancelClicked()
 {
 	if (bIsProcessing)
 	{
@@ -193,9 +196,9 @@ FReply SImgMediaProcessImages::OnCancelClicked()
 	return FReply::Handled();
 }
 
-void SImgMediaProcessImages::ProcessAllImages()
+void SImgMediaProcessEXR::ProcessAllImages()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessAllImages);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessAllImages);
 
 	int32 InTileWidth = Options->bEnableTiling ? Options->TileSizeX : 0;
 	int32 InTileHeight = Options->bEnableTiling ? Options->TileSizeY : 0;
@@ -208,7 +211,7 @@ void SImgMediaProcessImages::ProcessAllImages()
 	PlatformFile.CreateDirectoryTree(*OutPath);
 
 	// Get source files.
-	FString SequencePath = FPaths::GetPath(Options->SequencePath.FilePath);
+	FString SequencePath = FPaths::GetPath(Options->InputPath.FilePath);
 	
 	TArray<FString> FoundFiles;
 	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
@@ -332,7 +335,7 @@ void SImgMediaProcessImages::ProcessAllImages()
 	});
 }
 
-bool SImgMediaProcessImages::HasAlphaChannel(const FString& Ext, const FString& File)
+bool SImgMediaProcessEXR::HasAlphaChannel(const FString& Ext, const FString& File)
 {
 	bool bHasAlpha = true;
 	// We just support EXR at the moment.
@@ -345,13 +348,13 @@ bool SImgMediaProcessImages::HasAlphaChannel(const FString& Ext, const FString& 
 	return bHasAlpha;
 }
 
-void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
+void SImgMediaProcessEXR::ProcessImageCustom(TSharedPtr<IImageWrapper>& InImageWrapper,
 	int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
 	bool bHasAlphaChannel, const FString& InName,
 	bool bIsCustomFormat)
 {
 #if IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessImageCustom);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom);
 	// Get image data.
 	ERGBFormat Format = InImageWrapper->GetFormat();
 	int32 Width = InImageWrapper->GetWidth();
@@ -359,7 +362,7 @@ void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InIma
 	int32 BitDepth = InImageWrapper->GetBitDepth();
 	TArray64<uint8> RawData;
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessImageCustom:GetRaw);
+		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:GetRaw);
 		InImageWrapper->GetRaw(Format, BitDepth, RawData);
 	}
 	ProcessImageCustomRawData(RawData, Width, Height, BitDepth,
@@ -370,14 +373,14 @@ void SImgMediaProcessImages::ProcessImageCustom(TSharedPtr<IImageWrapper>& InIma
 #endif // IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
 }
 
-void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
+void SImgMediaProcessEXR::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 	int32 Width, int32 Height, int32 BitDepth,
 	int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
 	bool bHasAlphaChannel, const FString& InName,
 	bool bIsCustomFormat)
 {
 #if IMGMEDIAEDITOR_EXR_SUPPORTED_PLATFORM
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessImageCustomRawData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustomRawData);
 	int32 DestWidth = Width;
 	int32 DestHeight = Height;
 	int32 NumTilesX = InTileWidth > 0 ? (Width + InTileWidth - 1) / InTileWidth : 1;
@@ -491,7 +494,7 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 	int32 CurrentMipBufferIndex = 0;
 
 	// Loop over each mip level.
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessImageCustom:CreateMips);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:CreateMips);
 	int32 NumMips = OutFile.GetNumberOfMipLevels();
 	int32 MipSourceWidth = Width;
 	int32 MipSourceHeight = Height;
@@ -515,7 +518,7 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 		// Generate mip data.
 		if (MipLevel != 0)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessImageCustom:GenerateMipData);
+			TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:GenerateMipData);
 			int32 SourceStrideX = NumChannels;
 			int32 SourceStrideY = LastMipWidth * NumChannels;
 			for (int32 PixelY = 0; PixelY < MipHeight; ++PixelY)
@@ -605,7 +608,7 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 		}
 
 		// Write to EXR.
-		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessImageCustom:WriteEXR);
+		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ProcessImageCustom:WriteEXR);
 		if (bIsCustomFormat)
 		{
 			Stride.Y = MipWidth * BytesPerPixel;
@@ -670,9 +673,9 @@ void SImgMediaProcessImages::ProcessImageCustomRawData(TArray64<uint8>& RawData,
 }
 
 
-void SImgMediaProcessImages::ConvertTo16Bit(TArray64<uint8>& Buffer)
+void SImgMediaProcessEXR::ConvertTo16Bit(TArray64<uint8>& Buffer)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ConvertTo16Bit);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::ConvertTo16Bit);
 
 	int32 BytesPerPixelPerChannel = 4;
 	int64 BufferSize = Buffer.Num() / BytesPerPixelPerChannel;
@@ -690,9 +693,9 @@ void SImgMediaProcessImages::ConvertTo16Bit(TArray64<uint8>& Buffer)
 	Buffer.SetNum(BufferSize / 2, false);
 }
 
-void SImgMediaProcessImages::RemoveAlphaChannel(TArray64<uint8>& Buffer)
+void SImgMediaProcessEXR::RemoveAlphaChannel(TArray64<uint8>& Buffer)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::RemoveAlphaChannel);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::RemoveAlphaChannel);
 
 	int32 BytesPerPixelPerChannel = 2;
 	int64 BufferSize = Buffer.Num() / BytesPerPixelPerChannel;
@@ -715,10 +718,10 @@ void SImgMediaProcessImages::RemoveAlphaChannel(TArray64<uint8>& Buffer)
 	Buffer.SetNum((BufferSize * 3) / 4, false);
 }
 
-void SImgMediaProcessImages::TintData(uint8* SourceData, TArray64<uint8>& DestArray,
+void SImgMediaProcessEXR::TintData(uint8* SourceData, TArray64<uint8>& DestArray,
 	int32 InMipLevel, int32 InWidth, int32 InHeight, int32 InNumChannels)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::TintData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::TintData);
 
 	// Get tint colour.
 	FLinearColor TintColor = FLinearColor::White;
@@ -752,13 +755,13 @@ void SImgMediaProcessImages::TintData(uint8* SourceData, TArray64<uint8>& DestAr
 	}
 }
 
-void SImgMediaProcessImages::TileData(uint8* SourceData, TArray64<uint8>& DestArray,
+void SImgMediaProcessEXR::TileData(uint8* SourceData, TArray64<uint8>& DestArray,
 	int32 SourceWidth, int32 SourceHeight, int32 DestWidth, int32 DestHeight,
 	int32 NumTilesX, int32 NumTilesY,
 	int32 TileWidth, int32 TileHeight, int32 InTileBorder,
 	int32 BytesPerPixel)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::TileData);
+	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::TileData);
 
 	// We don't support tile borders larger than a tile size,
 	// but this shuld not happen in practice.
@@ -864,12 +867,12 @@ void SImgMediaProcessImages::TileData(uint8* SourceData, TArray64<uint8>& DestAr
 	}
 }
 
-void SImgMediaProcessImages::HandleProcessing()
+void SImgMediaProcessEXR::HandleProcessing()
 {
 	// Are we processing?
 	if (bIsProcessing)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::HandleProcessing);
+		TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessEXR::HandleProcessing);
 		// We did not cancel yet?
 		bool bShouldExit = false;
 		if ((MediaPlayer != nullptr) && (bIsCancelling == false))
@@ -993,7 +996,7 @@ void SImgMediaProcessImages::HandleProcessing()
 	}
 }
 
-void SImgMediaProcessImages::CreateRenderTarget()
+void SImgMediaProcessEXR::CreateRenderTarget()
 {
 	FIntPoint VideoDim = MediaPlayer->GetVideoTrackDimensions(INDEX_NONE, INDEX_NONE);
 	if (VideoDim.X > 0)
@@ -1009,7 +1012,7 @@ void SImgMediaProcessImages::CreateRenderTarget()
 	}
 }
 
-void SImgMediaProcessImages::DrawTextureToRenderTarget()
+void SImgMediaProcessEXR::DrawTextureToRenderTarget()
 {
 	UWorld* World = nullptr;
 	World = GEditor->GetEditorWorldContext().World();
@@ -1041,7 +1044,7 @@ void SImgMediaProcessImages::DrawTextureToRenderTarget()
 	}
 }
 
-void SImgMediaProcessImages::CleanUp()
+void SImgMediaProcessEXR::CleanUp()
 {
 	if (MediaPlayer != nullptr)
 	{
