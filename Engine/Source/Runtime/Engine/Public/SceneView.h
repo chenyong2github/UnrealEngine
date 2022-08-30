@@ -19,6 +19,7 @@
 #include "RendererInterface.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "DynamicRenderScaling.h"
+#include "Math/MirrorMatrix.h"
 
 class FSceneView;
 class FSceneViewFamily;

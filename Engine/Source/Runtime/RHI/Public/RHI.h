@@ -12,6 +12,10 @@
 #include "RHIDefinitions.h"
 #include "Containers/StaticArray.h"
 #include "Containers/StringFwd.h"
+#include "Math/IntRect.h"
+#include "Math/PerspectiveMatrix.h"
+#include "Math/ScaleMatrix.h"
+#include "Math/TranslationMatrix.h"
 
 #ifndef RHI_COMMAND_LIST_DEBUG_TRACES
 #define RHI_COMMAND_LIST_DEBUG_TRACES 0

@@ -7,6 +7,7 @@
 #include "StaticMeshVertexData.h"
 #include "PackedNormal.h"
 #include "Components.h"
+#include "Math/Vector2DHalf.h"
 
 class FStaticMeshVertexDataInterface;
 

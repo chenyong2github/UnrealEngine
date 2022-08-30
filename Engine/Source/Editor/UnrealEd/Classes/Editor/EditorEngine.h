@@ -66,6 +66,7 @@ class USoundNode;
 class UTextureRenderTarget2D;
 class UTransactor;
 class FTransactionObjectEvent;
+struct FEdge;
 struct FTransactionContext;
 struct FEditorTransactionDeltaContext;
 struct FTypedElementHandle;

@@ -16,6 +16,7 @@
 #include "SceneView.h"
 #include "PrimitiveUniformShaderParameters.h"
 #include "DrawDebugHelpers.h"
+#include "Math/CapsuleShape.h"
 
 class FLightSceneInfo;
 class FLightSceneProxy;

@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/ThreadSingleton.h"
+#include "Internationalization/Text.h"
 #include "Stats/Stats.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/CoreMisc.h"
