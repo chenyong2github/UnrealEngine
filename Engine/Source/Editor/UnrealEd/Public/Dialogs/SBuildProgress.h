@@ -44,6 +44,8 @@ public:
 		BUILDTYPE_HLODs,
 		/** Minimap is being built */
 		BUILDTYPE_Minimap,
+		/** Landscape Spline Meshes are being built */
+		BUILDTYPE_LandscapeSplineMeshes,
 		/** Texture streaming data is being built */
 		BUILDTYPE_TextureStreaming, 
 		/** Virtual texture data is being built */

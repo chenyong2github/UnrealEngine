@@ -30,6 +30,7 @@ class UControlPointMeshComponent : public UStaticMeshComponent
 	{
 		return Super::ShouldRenderSelected() || bSelected;
 	}
+	virtual bool IsEditorOnly() const override;
 #endif
 	virtual float GetVirtualTextureMainPassMaxDrawDistance() const override { return VirtualTextureMainPassMaxDrawDistance; }
 	//End UPrimitiveComponent Interface

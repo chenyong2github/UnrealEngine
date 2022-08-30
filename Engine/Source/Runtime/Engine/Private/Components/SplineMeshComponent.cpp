@@ -21,6 +21,7 @@
 #if WITH_EDITOR
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
+#include "LandscapeSplineActor.h"
 #endif // WITH_EDITOR
 
 int32 GNoRecreateSplineMeshProxy = 1;
@@ -547,6 +548,23 @@ void USplineMeshComponent::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
+bool USplineMeshComponent::IsEditorOnly() const
+{
+	if (Super::IsEditorOnly())
+	{
+		return true;
+	}
+
+	// If Landscape uses generated LandscapeSplineMeshesActors, SplineMeshComponents is removed from cooked build  
+	ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(GetOwner());
+	if (SplineActor && SplineActor->HasGeneratedLandscapeSplineMeshesActors())
+	{
+		return true;
+	}
+
+	return false;
+}
+
 bool USplineMeshComponent::Modify(bool bAlwaysMarkDirty)
 {
 	bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);

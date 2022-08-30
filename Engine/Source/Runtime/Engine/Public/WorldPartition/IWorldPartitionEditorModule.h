@@ -17,7 +17,10 @@ public:
 
 	virtual bool ConvertMap(const FString& InLongPackageName) = 0;
 
-	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, const FString& InLongPackageName) = 0;
+	UE_DEPRECATED(5.1, "Use RunBuilder with UWorld* instead.")
+	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, const FString& InLongPackageName) { return false; }
+
+	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* InWorld) = 0;
 
 	virtual int32 GetPlacementGridSize() const = 0;
 	virtual int32 GetInstancedFoliageGridSize() const = 0;

@@ -79,7 +79,7 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	// - Unload the Existing IFA and all the new IFAs
 	// - Repeat for next Existing IFA
 	FWorldPartitionHelpers::FForEachActorWithLoadingParams ForEachActorWithLoadingParams;
-	ForEachActorWithLoadingParams.ActorClass = AInstancedFoliageActor::StaticClass();
+	ForEachActorWithLoadingParams.ActorClasses = { AInstancedFoliageActor::StaticClass() };
 
 	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, [this, World, WorldPartition, ActorPartitionSubsystem, &SCCHelper, &NewActors, &NumInstances, &NumInstancesProcessed, &ExistingActors](const FWorldPartitionActorDesc* ActorDesc)
 	{

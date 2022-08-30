@@ -54,7 +54,7 @@ public:
 	/**
 	 * Run a world partition builder for the current map. Will display a dialog to specify options for the generation.
 	 */
-	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> WorldPartitionBuilder, const FString& InLongPackageName) override;
+	virtual bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> WorldPartitionBuilder, UWorld* InWorld) override;
 
 	/** Return the world added event. */
 	virtual FWorldPartitionCreated& OnWorldPartitionCreated() override { return WorldPartitionCreatedEvent; }
@@ -80,6 +80,7 @@ private:
 
 	bool BuildHLODs(const FString& InMapToProcess);
 	bool BuildMinimap(const FString& InMapToProcess);
+	bool BuildLandscapeSplineMeshes(UWorld* InWorld);
 
 private:
 	void RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled, FString& OutCommandletOutput);

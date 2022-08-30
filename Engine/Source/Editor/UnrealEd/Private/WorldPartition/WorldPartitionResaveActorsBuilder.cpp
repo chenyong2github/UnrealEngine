@@ -280,7 +280,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 		FWorldPartitionHelpers::FForEachActorWithLoadingParams ForEachActorWithLoadingParams;
 
-		ForEachActorWithLoadingParams.ActorClass = ActorClass;
+		ForEachActorWithLoadingParams.ActorClasses = { ActorClass };
 
 		ForEachActorWithLoadingParams.FilterActorDesc = [this](const FWorldPartitionActorDesc* ActorDesc) -> bool
 		{

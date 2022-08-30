@@ -93,7 +93,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	KillZDamageType = ConstructorStatics.DmgType_Environmental_Object.Object;
 
 #if WITH_EDITORONLY_DATA
-	InstancedFoliageGridSize = DefaultPlacementGridSize = 25600;
+	InstancedFoliageGridSize = DefaultPlacementGridSize = LandscapeSplineMeshesGridSize = 25600;
 	NavigationDataChunkGridSize = 102400;
 	NavigationDataBuilderLoadingCellSize = 102400 * 4;
 	bIncludeGridSizeInNameForFoliageActors = false;
@@ -681,7 +681,8 @@ bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 		}
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bEnableWorldComposition ) ||
 				 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bForceNoPrecomputedLighting ) ||
-				 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bPrecomputeVisibility))
+				 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bPrecomputeVisibility) ||
+				 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, LandscapeSplineMeshesGridSize))
 		{
 			return !IsPartitionedWorld();
 		}

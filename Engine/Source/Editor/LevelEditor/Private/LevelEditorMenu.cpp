@@ -611,6 +611,7 @@ void FLevelEditorMenu::RegisterBuildMenu()
 				FToolMenuSection& Section = InMenu->AddSection("LevelEditorWorldPartition", LOCTEXT("WorldPartitionHeading", "World Partition"));
 				Section.AddMenuEntry(FLevelEditorCommands::Get().BuildHLODs);
 				Section.AddMenuEntry(FLevelEditorCommands::Get().BuildMinimap);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().BuildLandscapeSplineMeshes);
 			}
 		}));
 	}

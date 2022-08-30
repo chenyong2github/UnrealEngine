@@ -601,6 +601,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Foliage)
 	uint32 InstancedFoliageGridSize;
 
+	UPROPERTY(EditAnywhere, Category = Landscape)
+	uint32 LandscapeSplineMeshesGridSize;
+
 	/** Size of the grid for navigation data chunk actors */
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	uint32 NavigationDataChunkGridSize;

@@ -34,6 +34,8 @@ struct FBuildOptions
 	UNREALED_API static const FName BuildHierarchicalLOD;
 	/** Build minimap */
 	UNREALED_API static const FName BuildMinimap;
+	/** Build landscape spline meshes */
+	UNREALED_API static const FName BuildLandscapeSplineMeshes;
 	/** Build texture streaming */
 	UNREALED_API static const FName BuildTextureStreaming;
 	/** Build virtual textures */
@@ -278,6 +280,13 @@ private:
 	 * @param	BuildSettings	Build settings that will be used for the editor build
 	 */
 	static void TriggerMinimapBuilder(UWorld* InWorld, FName Id);
+
+	/**
+	 * Trigger LandscapeSplineMeshes builder to (re)generate landscape spline meshes actors
+	 *
+	 * @param	InWorld			WorldContext
+	 */
+	static void TriggerLandscapeSplineMeshesBuilder(UWorld* InWorld);
 
 	/** Intentionally hide constructors, etc. to prevent instantiation */
 	FEditorBuildUtils();

@@ -4,6 +4,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHLODsBuilder.h"
 #include "WorldPartition/WorldPartitionMiniMapBuilder.h"
+#include "WorldPartition/WorldPartitionLandscapeSplineMeshesBuilder.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/HLOD/HLODLayerAssetTypeActions.h"
 #include "WorldPartition/SWorldPartitionEditor.h"
@@ -451,18 +452,23 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 	return false;
 }
 
-bool FWorldPartitionEditorModule::RunBuilder(TSubclassOf<UWorldPartitionBuilder> InWorldPartitionBuilder, const FString& InLongPackageName)
+bool FWorldPartitionEditorModule::RunBuilder(TSubclassOf<UWorldPartitionBuilder> InWorldPartitionBuilder, UWorld* InWorld)
 {
 	// Ideally this should be improved to automatically register all builders & present their options in a consistent way...
 
 	if (InWorldPartitionBuilder == UWorldPartitionHLODsBuilder::StaticClass())
 	{
-		return BuildHLODs(InLongPackageName);
+		return BuildHLODs(InWorld->GetPackage()->GetName());
 	}
 	
 	if (InWorldPartitionBuilder == UWorldPartitionMiniMapBuilder::StaticClass())
 	{
-		return BuildMinimap(InLongPackageName);
+		return BuildMinimap(InWorld->GetPackage()->GetName());
+	}
+
+	if (InWorldPartitionBuilder == UWorldPartitionLandscapeSplineMeshesBuilder::StaticClass())
+	{
+		return BuildLandscapeSplineMeshes(InWorld);
 	}
 
 	return false;
@@ -556,6 +562,16 @@ bool FWorldPartitionEditorModule::BuildMinimap(const FString& InMapToProcess)
 	}
 
 	return bSuccess;
+}
+
+bool FWorldPartitionEditorModule::BuildLandscapeSplineMeshes(UWorld* InWorld)
+{
+	if (!UWorldPartitionLandscapeSplineMeshesBuilder::RunOnInitializedWorld(InWorld))
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("LandscapeSplineMeshesBuildFailed", "Landscape Spline Meshes build failed! See log for details."));
+		return false;
+	}
+	return true;
 }
 
 void FWorldPartitionEditorModule::OnMapChanged(uint32 MapFlags)

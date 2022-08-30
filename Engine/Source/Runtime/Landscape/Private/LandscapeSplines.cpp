@@ -43,6 +43,7 @@
 #include "Landscape.h"
 #include "LandscapeLayerInfoObject.h"
 #include "LandscapeInfoMap.h"
+#include "LandscapeSplineActor.h"
 #endif
 
 IMPLEMENT_HIT_PROXY(HLandscapeSplineProxy, HHitProxy);
@@ -1534,6 +1535,25 @@ UControlPointMeshComponent::UControlPointMeshComponent(const FObjectInitializer&
 	bSelected = false;
 #endif
 }
+
+#if WITH_EDITOR
+bool UControlPointMeshComponent::IsEditorOnly() const
+{
+	if (Super::IsEditorOnly())
+	{
+		return true;
+	}
+
+	// If Landscape uses generated LandscapeSplineMeshesActors, ControlPointMeshComponents is removed from cooked build  
+	ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(GetOwner());
+	if (SplineActor && SplineActor->HasGeneratedLandscapeSplineMeshesActors())
+	{
+		return true;
+	}
+
+	return false;
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // SPLINE CONTROL POINT

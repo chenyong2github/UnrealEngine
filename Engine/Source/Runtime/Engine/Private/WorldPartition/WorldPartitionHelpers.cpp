@@ -4,6 +4,7 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
+#include "Algo/AnyOf.h"
 
 #include "Commandlets/Commandlet.h"
 
@@ -92,13 +93,13 @@ namespace WorldPartitionHelpers
 FWorldPartitionHelpers::FForEachActorWithLoadingParams::FForEachActorWithLoadingParams()
 	: bGCPerActor(false)
 	, bKeepReferences(false)
-	, ActorClass(AActor::StaticClass())
+	, ActorClasses({ AActor::StaticClass() })
 {}
 
 void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func, TFunctionRef<void()> OnReleasingActorReferences, bool bGCPerActor)
 {
 	FForEachActorWithLoadingParams Params;
-	Params.ActorClass = ActorClass;
+	Params.ActorClasses = { ActorClass };
 	Params.OnPreGarbageCollect = [&OnReleasingActorReferences]() { OnReleasingActorReferences(); };
 	ForEachActorWithLoading(WorldPartition, Func, Params);
 }
@@ -134,13 +135,14 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 
 	for (FActorDescContainerCollection::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
-		if (IsActorDescClassCompatibleWith(*ActorDescIterator, Params.ActorClass))
+		const FWorldPartitionActorDesc* ActorDesc = *ActorDescIterator;
+		if (Algo::AnyOf(Params.ActorClasses, [ActorDesc](UClass* ActorClass) { return IsActorDescClassCompatibleWith(ActorDesc, ActorClass); }))
 		{
-			if (!Params.FilterActorDesc || Params.FilterActorDesc(*ActorDescIterator))
+			if (!Params.FilterActorDesc || Params.FilterActorDesc(ActorDesc))
 			{
-				WorldPartitionHelpers::LoadReferences(WorldPartition, ActorDescIterator->GetGuid(), Result.ActorReferences);
+				WorldPartitionHelpers::LoadReferences(WorldPartition, ActorDesc->GetGuid(), Result.ActorReferences);
 
-				FWorldPartitionReference ActorReference(WorldPartition, ActorDescIterator->GetGuid());
+				FWorldPartitionReference ActorReference(WorldPartition, ActorDesc->GetGuid());
 				if (!Func(ActorReference.Get()))
 				{
 					break;

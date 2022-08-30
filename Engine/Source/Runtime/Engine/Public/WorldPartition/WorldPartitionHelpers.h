@@ -42,8 +42,8 @@ public:
 		/* Prevent clearing of actor references. */
 		bool bKeepReferences;
 
-		/* The class used to filter actors loading. */
-		TSubclassOf<AActor> ActorClass;
+		/* The classes used to filter actors loading. */
+		TArray<TSubclassOf<AActor>> ActorClasses;
 
 		/* Custom filter function used to filter actors loading. */
 		TUniqueFunction<bool(const FWorldPartitionActorDesc*)> FilterActorDesc;

@@ -79,6 +79,7 @@ public:
 	TSharedPtr< FUICommandInfo > BuildPathsOnly;
 	TSharedPtr< FUICommandInfo > BuildHLODs;
 	TSharedPtr< FUICommandInfo > BuildMinimap;
+	TSharedPtr< FUICommandInfo > BuildLandscapeSplineMeshes;
 	TSharedPtr< FUICommandInfo > BuildTextureStreamingOnly;
 	TSharedPtr< FUICommandInfo > BuildVirtualTextureOnly;
 	TSharedPtr< FUICommandInfo > BuildAllLandscape;
@@ -752,6 +753,7 @@ public:
 	static void BuildPathsOnly_Execute();
 	static void BuildHLODs_Execute();
 	static void BuildMinimap_Execute();
+	static void BuildLandscapeSplineMeshes_Execute();
 	static void BuildTextureStreamingOnly_Execute();
 	static void BuildVirtualTextureOnly_Execute();
 	static void BuildAllLandscape_Execute();

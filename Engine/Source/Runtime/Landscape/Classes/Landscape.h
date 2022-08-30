@@ -353,6 +353,9 @@ public:
 	void UpdateProxyLayersWeightmapUsage();
 	void ValidateProxyLayersWeightmapUsage() const;
 
+	LANDSCAPE_API void SetUseGeneratedLandscapeSplineMeshesActors(bool bInEnabled);
+	LANDSCAPE_API bool GetUseGeneratedLandscapeSplineMeshesActors() const;
+
 protected:
 	FName GenerateUniqueLayerName(FName InName = NAME_None) const;
 
@@ -458,6 +461,13 @@ public:
 
 	UPROPERTY(EditAnywhere, Category=Landscape)
 	bool bCanHaveLayersContent = false;
+
+	/*
+	 * If true, WorldPartitionLandscapeSplineMeshesBuilder is responsible of generating partitioned actors of type ALandscapeSplineMeshesActor that will contain all landscape spline/controlpoints static meshes. 
+	 * Source components will be editor only and hidden in game for PIE.
+	 */
+	UPROPERTY()
+	bool bUseGeneratedLandscapeSplineMeshesActors = false;
 
 	DECLARE_EVENT(ALandscape, FLandscapeBlueprintBrushChangedDelegate);
 	FLandscapeBlueprintBrushChangedDelegate& OnBlueprintBrushChangedDelegate() { return LandscapeBlueprintBrushChangedDelegate; }

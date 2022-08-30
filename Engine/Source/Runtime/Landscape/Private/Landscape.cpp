@@ -2755,6 +2755,20 @@ bool ALandscape::IsNaniteEnabled() const
 	return bEnableNanite;
 }
 
+void ALandscape::SetUseGeneratedLandscapeSplineMeshesActors(bool bInEnabled)
+{
+	if (bUseGeneratedLandscapeSplineMeshesActors != bInEnabled)
+	{
+		Modify();
+		bUseGeneratedLandscapeSplineMeshesActors = bInEnabled;
+	}
+}
+
+bool ALandscape::GetUseGeneratedLandscapeSplineMeshesActors() const
+{
+	return bUseGeneratedLandscapeSplineMeshesActors;
+}
+
 void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLevel)
 {
 	FlushGrassComponents();
