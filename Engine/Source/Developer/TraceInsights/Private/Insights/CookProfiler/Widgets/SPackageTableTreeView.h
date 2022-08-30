@@ -18,14 +18,6 @@ namespace Insights
 
 class SPackageTableTreeView : public STableTreeView
 {
-private:
-	struct FColumnConfig
-	{
-		const FName& ColumnId;
-		bool bIsVisible;
-		float Width;
-	};
-
 public:
 	/** Default constructor. */
 	SPackageTableTreeView();
@@ -82,8 +74,9 @@ protected:
 	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
-	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
 	void AddCommmands();
+
+	virtual void InitAvailableViewPresets() override;
 
 private:
 	bool bDataLoaded = false;

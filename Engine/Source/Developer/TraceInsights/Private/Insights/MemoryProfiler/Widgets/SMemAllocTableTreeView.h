@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "TraceServices/Model/AllocationsProvider.h"
-#include "Widgets/Input/SComboBox.h"
 
 // Insights
 #include "Insights/Common/Stopwatch.h"
@@ -21,25 +20,6 @@ class FMemoryRuleSpec;
 
 class SMemAllocTableTreeView : public STableTreeView
 {
-private:
-	struct FColumnConfig
-	{
-		FName ColumnId;
-		bool bIsVisible;
-		float Width;
-	};
-
-	class IViewPreset
-	{
-	public:
-		virtual FText GetName() const = 0;
-		virtual FText GetToolTip() const = 0;
-		virtual FName GetSortColumn() const = 0;
-		virtual EColumnSortMode::Type GetSortMode() const = 0;
-		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const = 0;
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const = 0;
-	};
-
 public:
 	/** Default constructor. */
 	SMemAllocTableTreeView();
@@ -137,14 +117,6 @@ private:
 	ECheckBoxState CallstackGroupingByFunction_IsChecked() const;
 
 	void InitAvailableViewPresets();
-	const TArray<TSharedRef<IViewPreset>>* GetAvailableViewPresets() const { return &AvailableViewPresets; }
-	FReply OnApplyViewPreset(const IViewPreset* InPreset);
-	void ApplyViewPreset(const IViewPreset& InPreset);
-	void ApplyColumnConfig(const TArrayView<FColumnConfig>& InTableConfig);
-	void ViewPreset_OnSelectionChanged(TSharedPtr<IViewPreset> InPreset, ESelectInfo::Type SelectInfo);
-	TSharedRef<SWidget> ViewPreset_OnGenerateWidget(TSharedRef<IViewPreset> InPreset);
-	FText ViewPreset_GetSelectedText() const;
-	FText ViewPreset_GetSelectedToolTipText() const;
 	void PopulateLLMTagSuggestionList(const FString& Text, TArray<FString>& OutSuggestions);
 
 private:
@@ -159,9 +131,6 @@ private:
 	FStopwatch QueryStopwatch;
 	bool bHasPendingQueryReset = false;
 	bool bIsCallstackGroupingByFunction = true;
-	TArray<TSharedRef<IViewPreset>> AvailableViewPresets;
-	TSharedPtr<IViewPreset> SelectedViewPreset;
-	TSharedPtr<SComboBox<TSharedRef<IViewPreset>>> PresetComboBox;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

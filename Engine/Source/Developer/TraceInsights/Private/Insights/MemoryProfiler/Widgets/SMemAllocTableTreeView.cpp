@@ -54,7 +54,6 @@ const int SMemAllocTableTreeView::LLMFilterIndex = 0x0000FFFFE;
 SMemAllocTableTreeView::SMemAllocTableTreeView()
 {
 	bRunInAsyncMode = true;
-	InitAvailableViewPresets();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -560,7 +559,7 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 			SNew(SBox)
 			.MinDesiredWidth(150)
 			[
-				SAssignNew(PresetComboBox, SComboBox<TSharedRef<IViewPreset>>)
+				SAssignNew(PresetComboBox, SComboBox<TSharedRef<ITableTreeViewPreset>>)
 				.ToolTipText(this, &SMemAllocTableTreeView::ViewPreset_GetSelectedToolTipText)
 				.OptionsSource(GetAvailableViewPresets())
 				.OnSelectionChanged(this, &SMemAllocTableTreeView::ViewPreset_OnSelectionChanged)
@@ -572,7 +571,7 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 			]
 		];
 
-	//for (const TSharedRef<IViewPreset>& ViewPreset : AvailableViewPresets)
+	//for (const TSharedRef<ITableTreeViewPreset>& ViewPreset : AvailableViewPresets)
 	//{
 	//	Box->AddSlot()
 	//		.AutoWidth()
@@ -581,7 +580,7 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 	//			SNew(SButton)
 	//			.Text(ViewPreset->GetName())
 	//			.ToolTipText(ViewPreset->GetToolTip())
-	//			.OnClicked(this, &SMemAllocTableTreeView::OnApplyViewPreset, (const IViewPreset*)&ViewPreset.Get())
+	//			.OnClicked(this, &SMemAllocTableTreeView::OnApplyViewPreset, (const ITableTreeViewPreset*)&ViewPreset.Get())
 	//		];
 	//}
 
@@ -603,7 +602,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Default View
 
-	class FDefaultViewPreset : public IViewPreset
+	class FDefaultViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -629,7 +628,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
 			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),               true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,         true, 100.0f });
@@ -644,7 +643,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Detailed View
 
-	class FDetailedViewPreset : public IViewPreset
+	class FDetailedViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -670,7 +669,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
 			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),                 true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::StartEventIndexColumnId, true, 100.0f });
@@ -694,7 +693,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Heap Breakdown View
 
-	class FHeapViewPreset : public IViewPreset
+	class FHeapViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -730,7 +729,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*HeapGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 400.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
@@ -744,7 +743,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Size Breakdown View
 
-	class FSizeViewPreset : public IViewPreset
+	class FSizeViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -780,7 +779,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*SizeGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,  true, 120.0f });
@@ -795,7 +794,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Tag Breakdown View
 
-	class FTagViewPreset : public IViewPreset
+	class FTagViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -831,7 +830,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*TagGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
@@ -844,7 +843,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Asset Breakdown View
 
-	class FAssetViewPreset : public IViewPreset
+	class FAssetViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -881,7 +880,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*AssetGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
@@ -895,7 +894,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Class Name Breakdown View
 
-	class FClassNameViewPreset : public IViewPreset
+	class FClassNameViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -943,7 +942,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*AssetGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
@@ -957,7 +956,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// (Inverted) Callstack Breakdown View
 
-	class FCallstackViewPreset : public IViewPreset
+	class FCallstackViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		FCallstackViewPreset(bool bIsInverted)
@@ -1004,7 +1003,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*CallstackGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 400.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
@@ -1022,7 +1021,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Address (4K Page) Breakdown View
 
-	class FPageViewPreset : public IViewPreset
+	class FPageViewPreset : public ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
@@ -1059,7 +1058,7 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 				InOutCurrentGroupings.Add(*MemoryPageGrouping);
 			}
 		}
-		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
 			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,  true, 120.0f });
@@ -1074,94 +1073,6 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 
 	SelectedViewPreset = AvailableViewPresets[0];
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemAllocTableTreeView::OnApplyViewPreset(const IViewPreset* InPreset)
-{
-	ApplyViewPreset(*InPreset);
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemAllocTableTreeView::ApplyViewPreset(const IViewPreset& InPreset)
-{
-	ColumnBeingSorted = InPreset.GetSortColumn();
-	ColumnSortMode = InPreset.GetSortMode();
-	UpdateCurrentSortingByColumn();
-
-	PreChangeGroupings();
-	InPreset.SetCurrentGroupings(AvailableGroupings, CurrentGroupings);
-	PostChangeGroupings();
-
-	TArray<FColumnConfig> ColumnConfigSet;
-	InPreset.GetColumnConfigSet(ColumnConfigSet);
-	ApplyColumnConfig(ColumnConfigSet);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemAllocTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& InColumnConfigSet)
-{
-	// TODO: Reorder columns as in the config set.
-	// Currenly we only apply visibility and column width.
-	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
-	{
-		FTableColumn& Column = ColumnRef.Get();
-		const FName ColumnId = Column.GetId();
-		const FColumnConfig* ConfigPtr = InColumnConfigSet.FindByPredicate([ColumnId](const FColumnConfig& Config) { return ColumnId == Config.ColumnId; });
-		if (ConfigPtr && ConfigPtr->bIsVisible)
-		{
-			ShowColumn(Column);
-			if (ConfigPtr->Width > 0.0f)
-			{
-				TreeViewHeaderRow->SetColumnWidth(ColumnId, ConfigPtr->Width);
-			}
-		}
-		else
-		{
-			HideColumn(Column);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemAllocTableTreeView::ViewPreset_OnSelectionChanged(TSharedPtr<IViewPreset> InPreset, ESelectInfo::Type SelectInfo)
-{
-	SelectedViewPreset = InPreset;
-	if (InPreset.IsValid())
-	{
-		ApplyViewPreset(*InPreset);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedRef<SWidget> SMemAllocTableTreeView::ViewPreset_OnGenerateWidget(TSharedRef<IViewPreset> InPreset)
-{
-	return SNew(STextBlock)
-		.Text(InPreset->GetName())
-		.ToolTipText(InPreset->GetToolTip())
-		.Margin(2.0f);
-}
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SMemAllocTableTreeView::ViewPreset_GetSelectedText() const
-{
-	return SelectedViewPreset ? SelectedViewPreset->GetName() : LOCTEXT("Custom_ToolTip", "Custom");
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SMemAllocTableTreeView::ViewPreset_GetSelectedToolTipText() const
-{
-	return SelectedViewPreset ? SelectedViewPreset->GetToolTip() : LOCTEXT("CustomPreset_ToolTip", "Custom Preset");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

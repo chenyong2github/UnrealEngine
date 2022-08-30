@@ -8,6 +8,7 @@
 #include "Misc/TextFilter.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Navigation/SBreadcrumbTrail.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWidget.h"
@@ -61,6 +62,24 @@ enum class EAsyncOperationType : uint32
 };
 
 ENUM_CLASS_FLAGS(EAsyncOperationType);
+
+struct FTableColumnConfig
+{
+	FName ColumnId;
+	bool bIsVisible;
+	float Width;
+};
+
+class ITableTreeViewPreset
+{
+public:
+	virtual FText GetName() const = 0;
+	virtual FText GetToolTip() const = 0;
+	virtual FName GetSortColumn() const = 0;
+	virtual EColumnSortMode::Type GetSortMode() const = 0;
+	virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const = 0;
+	virtual void GetColumnConfigSet(TArray<FTableColumnConfig>& InOutConfigSet) const = 0;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -422,6 +441,16 @@ protected:
 
 	FText GetTreeViewBannerText() const { return TreeViewBannerText; }
 
+	virtual void InitAvailableViewPresets() {};
+	const TArray<TSharedRef<ITableTreeViewPreset>>* GetAvailableViewPresets() const { return &AvailableViewPresets; }
+	FReply OnApplyViewPreset(const ITableTreeViewPreset* InPreset);
+	void ApplyViewPreset(const ITableTreeViewPreset& InPreset);
+	void ApplyColumnConfig(const TArrayView<FTableColumnConfig>& InTableConfig);
+	void ViewPreset_OnSelectionChanged(TSharedPtr<ITableTreeViewPreset> InPreset, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> ViewPreset_OnGenerateWidget(TSharedRef<ITableTreeViewPreset> InPreset);
+	FText ViewPreset_GetSelectedText() const;
+	FText ViewPreset_GetSelectedToolTipText() const;
+
 protected:
 	/** Table view model. */
 	TSharedPtr<Insights::FTable> Table;
@@ -543,6 +572,10 @@ protected:
 	double StatsEndTime;
 
 	FText TreeViewBannerText;
+
+	TArray<TSharedRef<ITableTreeViewPreset>> AvailableViewPresets;
+	TSharedPtr<ITableTreeViewPreset> SelectedViewPreset;
+	TSharedPtr<SComboBox<TSharedRef<ITableTreeViewPreset>>> PresetComboBox;
 
 	static constexpr int32 MAX_NUMBER_OF_NODES_TO_EXPAND = 1000 * 1000;
 	static constexpr int32 MAX_DEPTH_TO_EXPAND = 100;

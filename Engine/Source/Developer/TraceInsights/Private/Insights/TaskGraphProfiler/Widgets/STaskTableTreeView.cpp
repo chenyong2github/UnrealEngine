@@ -307,34 +307,6 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STaskTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset)
-{
-	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
-	{
-		FTableColumn& Column = ColumnRef.Get();
-		for (const FColumnConfig& Config : Preset)
-		{
-			if (Column.GetId() == Config.ColumnId)
-			{
-				if (Config.bIsVisible)
-				{
-					ShowColumn(Column);
-					if (Config.Width > 0.0f)
-					{
-						TreeViewHeaderRow->SetColumnWidth(Column.GetId(), Config.Width);
-					}
-				}
-				else
-				{
-					HideColumn(Column);
-				}
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STaskTableTreeView::InternalCreateGroupings()
 {
 	STableTreeView::InternalCreateGroupings();

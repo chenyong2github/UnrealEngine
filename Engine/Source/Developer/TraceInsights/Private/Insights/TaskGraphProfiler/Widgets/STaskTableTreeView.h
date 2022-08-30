@@ -91,7 +91,6 @@ protected:
 	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
-	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
 	void AddCommmands();
 
 	const TArray<TSharedPtr<ETimestampOptions>>* GetAvailableTimestampOptions();

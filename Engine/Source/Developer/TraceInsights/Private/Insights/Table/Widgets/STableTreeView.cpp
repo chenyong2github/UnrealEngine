@@ -177,6 +177,8 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	check(InTablePtr.IsValid());
 	Table = InTablePtr;
 
+	InitAvailableViewPresets();
+
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
@@ -3548,6 +3550,94 @@ void STableTreeView::ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray
 			ExportToFileRec(Node, InNodes, bInExportCollapsed, InExportLeafs, Callback);
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STableTreeView::OnApplyViewPreset(const ITableTreeViewPreset* InPreset)
+{
+	ApplyViewPreset(*InPreset);
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ApplyViewPreset(const ITableTreeViewPreset& InPreset)
+{
+	ColumnBeingSorted = InPreset.GetSortColumn();
+	ColumnSortMode = InPreset.GetSortMode();
+	UpdateCurrentSortingByColumn();
+
+	PreChangeGroupings();
+	InPreset.SetCurrentGroupings(AvailableGroupings, CurrentGroupings);
+	PostChangeGroupings();
+
+	TArray<FTableColumnConfig > ColumnConfigSet;
+	InPreset.GetColumnConfigSet(ColumnConfigSet);
+	ApplyColumnConfig(ColumnConfigSet);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ApplyColumnConfig(const TArrayView<FTableColumnConfig >& InColumnConfigSet)
+{
+	// TODO: Reorder columns as in the config set.
+	// Currenly we only apply visibility and column width.
+	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
+	{
+		FTableColumn& Column = ColumnRef.Get();
+		const FName ColumnId = Column.GetId();
+		const FTableColumnConfig* ConfigPtr = InColumnConfigSet.FindByPredicate([ColumnId](const FTableColumnConfig& Config) { return ColumnId == Config.ColumnId; });
+		if (ConfigPtr && ConfigPtr->bIsVisible)
+		{
+			ShowColumn(Column);
+			if (ConfigPtr->Width > 0.0f)
+			{
+				TreeViewHeaderRow->SetColumnWidth(ColumnId, ConfigPtr->Width);
+			}
+		}
+		else
+		{
+			HideColumn(Column);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::ViewPreset_OnSelectionChanged(TSharedPtr<ITableTreeViewPreset> InPreset, ESelectInfo::Type SelectInfo)
+{
+	SelectedViewPreset = InPreset;
+	if (InPreset.IsValid())
+	{
+		ApplyViewPreset(*InPreset);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> STableTreeView::ViewPreset_OnGenerateWidget(TSharedRef<ITableTreeViewPreset> InPreset)
+{
+	return SNew(STextBlock)
+		.Text(InPreset->GetName())
+		.ToolTipText(InPreset->GetToolTip())
+		.Margin(2.0f);
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeView::ViewPreset_GetSelectedText() const
+{
+	return SelectedViewPreset ? SelectedViewPreset->GetName() : LOCTEXT("Custom_ToolTip", "Custom");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STableTreeView::ViewPreset_GetSelectedToolTipText() const
+{
+	return SelectedViewPreset ? SelectedViewPreset->GetToolTip() : LOCTEXT("CustomPreset_ToolTip", "Custom Preset");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
