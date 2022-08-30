@@ -48,53 +48,43 @@ TArray<FSequencerSelectedKey> KeyRendererResultToSelectedKeys(TArrayView<const F
 /** Key renderer interface for defining selection and hover states. Should be removed in favor of SequencerCore knowing about selection in the future */
 struct FSequencerKeyRendererInterface : IKeyRendererInterface
 {
-	UMovieSceneSection* SectionObject;
-	const TSet<FSequencerSelectedKey>* SelectedKeys;
-	const TMap<FSequencerSelectedKey, ESelectionPreviewState>* SelectionPreview;
-	TArrayView<const FSequencerSelectedKey> HoveredKeys;
+	const TSet<FKeyHandle>* SelectedKeys;
+	const TMap<FKeyHandle, ESelectionPreviewState>* SelectionPreview;
+	const TSet<FKeyHandle>* HoveredKeys;
 
-	FSequencerKeyRendererInterface(UMovieSceneSection* InSectionObject, FSequencer* Sequencer, TSharedPtr<ITrackAreaHotspot> Hotspot)
+	FSequencerKeyRendererInterface(FSequencer* Sequencer, TSharedPtr<ITrackAreaHotspot> Hotspot)
 	{
-		SectionObject    = InSectionObject;
-		SelectedKeys     = &Sequencer->GetSelection().GetSelectedKeys();
-		SelectionPreview = &Sequencer->GetSelectionPreview().GetDefinedKeyStates();
-		if (TSharedPtr<FKeyHotspot> KeyHotspot = HotspotCast<FKeyHotspot>(Hotspot))
-		{
-			HoveredKeys = KeyHotspot->Keys;
-		}
+		TSharedPtr<FKeyHotspot> KeyHotspot = HotspotCast<FKeyHotspot>(Hotspot);
+
+		SelectedKeys     = &Sequencer->GetSelection().GetRawSelectedKeys();
+		SelectionPreview = &Sequencer->GetSelectionPreview().GetRawDefinedKeyStates();
+		HoveredKeys      = KeyHotspot ? &KeyHotspot->RawKeys : nullptr;
 	}
 
-	bool HasAnySelectedKeys() const
+	bool HasAnySelectedKeys() const override
 	{
 		return SelectedKeys->Num() != 0;
 	}
-	bool HasAnyPreviewSelectedKeys() const
+	bool HasAnyPreviewSelectedKeys() const override
 	{
 		return SelectionPreview->Num() != 0;
 	}
-	bool HasAnyHoveredKeys() const
+	bool HasAnyHoveredKeys() const override
 	{
-		return HoveredKeys.Num() != 0;
+		return HoveredKeys && HoveredKeys->Num() != 0;
 	}
 
-	bool IsKeySelected(const TViewModelPtr<IKeyExtension>& InOwner, FKeyHandle InKey) const
+	bool IsKeySelected(const TViewModelPtr<IKeyExtension>& InOwner, FKeyHandle InKey) const override
 	{
-		TSharedPtr<FChannelModel> Channel = InOwner.ImplicitCast();
-		FSequencerSelectedKey SelectedKey(*SectionObject, Channel, InKey);
-		return SelectedKeys->Contains(SelectedKey);
+		return SelectedKeys->Contains(InKey);
 	}
-	bool IsKeyHovered(const TViewModelPtr<IKeyExtension>& InOwner, FKeyHandle InKey) const
+	bool IsKeyHovered(const TViewModelPtr<IKeyExtension>& InOwner, FKeyHandle InKey) const override
 	{
-		TSharedPtr<FChannelModel> Channel = InOwner.ImplicitCast();
-		FSequencerSelectedKey SelectedKey(*SectionObject, Channel, InKey);
-		return HoveredKeys.Contains(SelectedKey);
+		return HoveredKeys ? HoveredKeys->Contains(InKey) : false;
 	}
-	EKeySelectionPreviewState GetPreviewSelectionState(const TViewModelPtr<IKeyExtension>& InOwner, FKeyHandle InKey) const
+	EKeySelectionPreviewState GetPreviewSelectionState(const TViewModelPtr<IKeyExtension>& InOwner, FKeyHandle InKey) const override
 	{
-		TSharedPtr<FChannelModel> Channel = InOwner.ImplicitCast();
-		FSequencerSelectedKey SelectedKey(*SectionObject, Channel, InKey);
-
-		if (const ESelectionPreviewState* State = SelectionPreview->Find(SelectedKey))
+		if (const ESelectionPreviewState* State = SelectionPreview->Find(InKey))
 		{
 			switch(*State)
 			{
@@ -119,6 +109,7 @@ FChannelViewKeyCachedState::FChannelViewKeyCachedState()
 	, bShowCurve(false)
 	, bShowKeyBars(true)
 	, bCollapseChildren(false)
+	, bIsChannelHovered(false)
 {}
 
 FChannelViewKeyCachedState::FChannelViewKeyCachedState(TRange<FFrameTime> InVisibleRange, TSharedPtr<ITrackAreaHotspot> Hotspot, FViewModelPtr Model, FSequencer* Sequencer)
@@ -139,6 +130,7 @@ FChannelViewKeyCachedState::FChannelViewKeyCachedState(TRange<FFrameTime> InVisi
 	bShowCurve = Channel && Channel->GetKeyArea()->ShouldShowCurve();
 	bShowKeyBars = Sequencer->GetSequencerSettings()->GetShowKeyBars();
 	bCollapseChildren = Outliner && Outliner->GetLinkedOutlinerItem() && Outliner->GetLinkedOutlinerItem()->IsExpanded() == false;
+	bIsChannelHovered = false;
 	if (!Hotspot || Hotspot->CastThis<FKeyHotspot>() || Hotspot->CastThis<FKeyBarHotspot>())
 	{
 		WeakHotspot = Hotspot;
@@ -150,19 +142,22 @@ EViewDependentCacheFlags FChannelViewKeyCachedState::CompareTo(const FChannelVie
 {
 	EViewDependentCacheFlags Flags = EViewDependentCacheFlags::None;
 
-	// Check if either hotspot expired
-	if ( (WeakHotspot.Pin() == nullptr && RawHotspotDoNotUse != nullptr) ||
-		 (Other.WeakHotspot.Pin() == nullptr && Other.RawHotspotDoNotUse != nullptr) )
+	if (bIsChannelHovered || bIsChannelHovered != Other.bIsChannelHovered)
 	{
-		Flags |= EViewDependentCacheFlags::KeyStateChanged;
-	}
+		// Check if either hotspot expired
+		if ( (WeakHotspot.Pin() == nullptr && RawHotspotDoNotUse != nullptr) ||
+			 (Other.WeakHotspot.Pin() == nullptr && Other.RawHotspotDoNotUse != nullptr) )
+		{
+			Flags |= EViewDependentCacheFlags::KeyStateChanged;
+		}
 
-	// Check if the hotspot has changed (this is necessary because theoretically both hotspots
-	// could still be _alive_ but Other.WeakHotspot is the active one)
-	if (WeakHotspot != Other.WeakHotspot)
-	{
-		// Hotspot has changed - maybe we (un)hovered some keys or a key bar
-		Flags |= EViewDependentCacheFlags::KeyStateChanged;
+		// Check if the hotspot has changed (this is necessary because theoretically both hotspots
+		// could still be _alive_ but Other.WeakHotspot is the active one)
+		if (WeakHotspot != Other.WeakHotspot)
+		{
+			// Hotspot has changed - maybe we (un)hovered some keys or a key bar
+			Flags |= EViewDependentCacheFlags::KeyStateChanged;
+		}
 	}
 
 	if (ValidPlayRangeMin != Other.ValidPlayRangeMin || ValidPlayRangeMax != Other.ValidPlayRangeMax)
@@ -236,7 +231,7 @@ FReply SChannelView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoint
 		return FReply::Unhandled();
 	}
 
-	TArrayView<const FSequencerSelectedKey> HoveredKeys;
+	TSet<FSequencerSelectedKey> HoveredKeys;
 
 	// The hovered key is defined from the sequencer hotspot
 	if (TSharedPtr<FKeyHotspot> KeyHotspot = HotspotCast<FKeyHotspot>(TrackArea->GetHotspot()))
@@ -275,13 +270,15 @@ FReply SChannelView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoint
 FReply SChannelView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	TSharedPtr<STrackAreaView>      TrackAreaView = WeakTrackAreaView.Pin();
+	TViewModelPtr<FSectionModel>    Section       = GetSection();
 	TSharedPtr<FTrackAreaViewModel> TrackArea     = TrackAreaView ? TrackAreaView->GetViewModel() : nullptr;
-	if (!TrackArea)
+	if (!TrackArea || !Section)
 	{
 		return FReply::Unhandled();
 	}
 
 	TSharedPtr<FSequencer> Sequencer = LegacyGetSequencer();
+	
 
 	// Don't fiddle with hotspots if there is an active drag
 	const ISequencerEditTool* EditTool = TrackArea->GetEditTool();
@@ -291,51 +288,78 @@ FReply SChannelView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEven
 	}
 
 	// Checked for hovered key
-	TArray<FSequencerSelectedKey> KeysUnderMouse;
-	GetKeysUnderMouse(MouseEvent.GetScreenSpacePosition(), MyGeometry, KeysUnderMouse);
-	if (KeysUnderMouse.Num())
+	TSharedPtr<FKeyHotspot>    KeyHotspot    = HotspotCast<FKeyHotspot>(TrackArea->GetHotspot());
+	TSharedPtr<FKeyBarHotspot> KeyBarHotspot = HotspotCast<FKeyBarHotspot>(TrackArea->GetHotspot());
+	
+	const FTimeToPixel RelativeTimeToPixel = GetRelativeTimeToPixel();
+	const FVector2D    MousePixel          = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+	const float        HalfHeightPx        = MyGeometry.GetLocalSize().Y*.5f;
+
+
+	// Perform validation of existing hotspots, and hittesting of new ones if necessary.
+	// WARNING: This code will early-return once it has found a valid hotspot, so no 
+	//          code should be added after here if it must always run
+	if (KeyRendererCache.IsSet())
 	{
-		TSharedPtr<FKeyHotspot> KeyHotspot = HotspotCast<FKeyHotspot>(TrackArea->GetHotspot());
-		if (!KeyHotspot || KeyHotspot->Keys != KeysUnderMouse)
+		if (KeyHotspot)
 		{
-			TrackArea->SetHotspot(MakeShared<FKeyHotspot>(MoveTemp(KeysUnderMouse), Sequencer));
-		}
+			const FFrameTime KeyTime       = KeyHotspot->GetTime().Get(0);
+			const FVector2D  HalfKeySizePx = KeyRendererCache->KeySizePx * .5f;
+			const float      KeyPixel      = RelativeTimeToPixel.FrameToPixel(KeyTime);
 
-		return FReply::Handled();
-	}
-
-	{
-		TViewModelPtr<FSectionModel> Section = GetSection();
-		if (Section)
-		{
-			const float HalfHeightPx = MyGeometry.GetLocalSize().Y*.5f;
-			const FVector2D MousePixel = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-
-			// Keys always render in the middle of the geometry so do a quick vertical test first
-			// We actually hittest a larger vertical area than the bars render to make it easier for user
-			// to hit key bars
-			if (FMath::Abs(MousePixel.Y - HalfHeightPx) <= 4.f)
+			if (FMath::Abs(MousePixel.Y - HalfHeightPx) <= HalfKeySizePx.Y &&
+				FMath::Abs(MousePixel.X - KeyPixel) <= HalfKeySizePx.X)
 			{
-				TRange<FFrameNumber> SectionRange = Section->GetRange();
-
-				// Make the time <-> pixel converter relative to the section range rather than the view range
-				FTimeToPixel RelativeTimeToPixel = GetRelativeTimeToPixel();
-
-				TArray<FKeyRenderer::FKeysForModel> LeadingKeys, TrailingKeys;
-				if (KeyRenderer.HitTestKeyBar(RelativeTimeToPixel.PixelToFrame(MousePixel.X), LeadingKeys, TrailingKeys))
-				{
-					UMovieSceneSection* SectionObject = Section->GetSection();
-					TrackArea->SetHotspot(MakeShared<FKeyBarHotspot>(
-						KeyRendererResultToSelectedKeys(LeadingKeys, SectionObject),
-						KeyRendererResultToSelectedKeys(TrailingKeys, SectionObject),
-						Sequencer)
-					);
-					return FReply::Handled();
-				}
+				// Key hotspot is still valid
+				return FReply::Handled();
+			}
+		}
+		else if (KeyBarHotspot)
+		{
+			if (FMath::Abs(MousePixel.Y - HalfHeightPx) <= 4.f &&
+				KeyBarHotspot->Range.Contains(RelativeTimeToPixel.PixelToFrame(MousePixel.X)))
+			{
+				// Keybar hotspot is still valid
+				return FReply::Handled();
 			}
 		}
 	}
 
+	TArray<FSequencerSelectedKey> KeysUnderMouse;
+	GetKeysUnderMouse(MouseEvent.GetScreenSpacePosition(), MyGeometry, KeysUnderMouse);
+
+	// If we are hovering over a new key, set that as the hotspot
+	if (KeysUnderMouse.Num())
+	{
+		TrackArea->SetHotspot(MakeShared<FKeyHotspot>(MoveTemp(KeysUnderMouse), Sequencer));
+		return FReply::Handled();
+	}
+
+	// Keys always render in the middle of the geometry so do a quick vertical test first
+	// We actually hittest a larger vertical area than the bars render to make it easier for user
+	// to hit key bars
+	if (FMath::Abs(MousePixel.Y - HalfHeightPx) <= 4.f)
+	{
+		FKeyRenderer::FKeyBar KeyBar;
+		if (KeyRenderer.HitTestKeyBar(RelativeTimeToPixel.PixelToFrame(MousePixel.X), KeyBar))
+		{
+			UMovieSceneSection* SectionObject = Section->GetSection();
+			TrackArea->SetHotspot(MakeShared<FKeyBarHotspot>(
+				KeyBar.Range,
+				KeyRendererResultToSelectedKeys(KeyBar.LeadingKeys, SectionObject),
+				KeyRendererResultToSelectedKeys(KeyBar.TrailingKeys, SectionObject),
+				Sequencer)
+			);
+
+			return FReply::Handled();
+		}
+	}
+
+	// Otherwise reset the hotspot if it is no longer valid
+	if (KeyHotspot || KeyBarHotspot)
+	{
+		TrackArea->SetHotspot(nullptr);
+	}
 	return FReply::Unhandled();
 }
 
@@ -457,8 +481,9 @@ int32 SChannelView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeo
 		LayerId = Channel->CustomPaint(ChannelPaintArgs, LayerId);
 	}
 
-	FSequencerKeyRendererInterface KeyRenderInterface(SectionObject, Sequencer.Get(), TrackArea->GetHotspot());
+	FSequencerKeyRendererInterface KeyRenderInterface(Sequencer.Get(), TrackArea->GetHotspot());
 	FChannelViewKeyCachedState NewCachedState(VisibleRange, TrackArea->GetHotspot(), Model, Sequencer.Get());
+	NewCachedState.bIsChannelHovered = IsHovered();
 
 	FKeyBatchParameters Params(RelativeTimeToPixel);
 	Params.CacheState = KeyRendererCache.IsSet() ? NewCachedState.CompareTo(KeyRendererCache.GetValue()) : EViewDependentCacheFlags::All;
@@ -635,7 +660,7 @@ void SChannelView::GetKeysAtPixelX(float LocalMousePixelX, TArray<FSequencerSele
 	OutKeys = KeyRendererResultToSelectedKeys(Results, SectionObject);
 }
 
-void SChannelView::CreateKeysUnderMouse(const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArrayView<const FSequencerSelectedKey> InPressedKeys, TArray<FSequencerSelectedKey>& OutKeys)
+void SChannelView::CreateKeysUnderMouse(const FVector2D& MousePosition, const FGeometry& AllottedGeometry, const TSet<FSequencerSelectedKey>& InPressedKeys, TArray<FSequencerSelectedKey>& OutKeys)
 {
 	FViewModelPtr Model = WeakModel.Pin();
 	TViewModelPtr<FSectionModel> Section = GetSection();

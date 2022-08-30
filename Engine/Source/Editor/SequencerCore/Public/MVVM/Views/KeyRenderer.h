@@ -165,6 +165,18 @@ struct SEQUENCERCORE_API FKeyRenderer
 		TArray<FKeyHandle> Keys;
 	};
 
+	struct FKeyBar
+	{
+		TRange<FFrameTime> Range = TRange<FFrameTime>::Empty();
+		TArray<FKeysForModel> LeadingKeys;
+		TArray<FKeysForModel> TrailingKeys;
+
+		bool IsValid() const
+		{
+			return !Range.IsEmpty();
+		}
+	};
+
 	/**
 	 * Initialize this renderer with a generic model
 	 */
@@ -193,7 +205,7 @@ struct SEQUENCERCORE_API FKeyRenderer
 	/**
 	 * Retrieve keys at the specified position
 	 */
-	bool HitTestKeyBar(const FFrameTime& Time, TArray<FKeysForModel>& LeadingKeys, TArray<FKeysForModel>& TrailingKeys) const;
+	bool HitTestKeyBar(const FFrameTime& Time, FKeyBar& OutKeyBar) const;
 
 	/**
 	 * Returns true if this renderer has a curve, false otherwise
@@ -228,6 +240,14 @@ private:
 		 * @param Params    The batch parameters
 		 */
 		void CacheViewDependentData(const FKeyBatchParameters& Params);
+
+		/**
+		 * Return the size of this key draw information
+		 */
+		int32 Num() const
+		{
+			return FramesInRange.Num();
+		}
 
 	public:
 
@@ -275,7 +295,7 @@ private:
 
 
 	/** Cached parameters for drawing a single key */
-	struct FKeyBar
+	struct FCachedKeyBar
 	{
 		/** The tick range that this key occupies (significant when this FKey represents multiple overlapping keys) */
 		FFrameTime StartTime, EndTime;
@@ -316,7 +336,7 @@ private:
 	mutable TArray<FKey> PrecomputedKeys;
 
 	/** Computed final draw info for key bars */
-	mutable TArray<FKeyBar> PrecomputedKeyBars;
+	mutable TArray<FCachedKeyBar> PrecomputedKeyBars;
 
 	/** Computed final draw curve info */
 	mutable TArray<TTuple<double, double>> PrecomputedCurve;

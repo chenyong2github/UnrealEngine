@@ -56,6 +56,9 @@ struct FChannelViewKeyCachedState
 	/** Whether to gather keys for all children and collapse them into this renderer (normally only true when an item is collapsed) */
 	bool bCollapseChildren;
 
+	/** Whether this channel is hovered */
+	bool bIsChannelHovered;
+
 	/** Default constructor for SWidget construction - not to be used under other circumstances */
 	FChannelViewKeyCachedState();
 
@@ -92,7 +95,7 @@ protected:
 
 	int32 DrawLane(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const;
 
-	void CreateKeysUnderMouse(const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArrayView<const FSequencerSelectedKey> InPressedKeys, TArray<FSequencerSelectedKey>& OutKeys);
+	void CreateKeysUnderMouse(const FVector2D& MousePosition, const FGeometry& AllottedGeometry, const TSet<FSequencerSelectedKey>& InPressedKeys, TArray<FSequencerSelectedKey>& OutKeys);
 	void GetKeysUnderMouse(const FVector2D& MousePosition, const FGeometry& AllottedGeometry, TArray<FSequencerSelectedKey>& OutKeys) const;
 	void GetKeysAtPixelX(float LocalMousePixelX, TArray<FSequencerSelectedKey>& OutKeys) const;
 

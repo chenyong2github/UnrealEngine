@@ -185,8 +185,13 @@ public:
 	}
 
 private:
+
+	/** Relocate key handles and indices proceeding the specified index by shifting them forwards or backwards */
+	void RelocateKeyHandles(int32 StartAtIndex, int32 DeltaIndex);
+
+private:
 	/** Array of optional key handles that reside in corresponding indices for an externally owned serial data structure */
-	TArray<TOptional<FKeyHandle>> KeyHandles;
+	TSparseArray<FKeyHandle> KeyHandles;
 
 	/** Map of which key handles go to which indices. Indices may point to incorrect indices. Check against entry in KeyHandles array to verify. */
 	TMap<FKeyHandle, int32> KeyHandlesToIndices;

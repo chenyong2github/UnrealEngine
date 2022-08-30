@@ -359,6 +359,14 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			return;
 		}
 
+		TSharedPtr<STrackLane> TrackLane = SectionWidget.WeakOwningTrackLane.Pin();
+		if (!TrackLane)
+		{
+			return;
+		}
+
+		const float LaneHeight = TrackLane->GetDesiredSize().X;
+
 		TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
 
 		UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/MovieScene.EMovieSceneBlendType"), true);
@@ -376,15 +384,17 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			FontInfo.Size = FMath::Max(FMath::FloorToInt(FontInfo.Size - 6.f), 11);
 		}
 
-		FVector2D TextOffset = SectionModel->GetRange() == TRange<FFrameNumber>::All() ? FVector2D(0.f, -1.f) : FVector2D(1.f, -1.f);
-		FVector2D BottomLeft = SectionGeometry.AbsoluteToLocal(SectionClippingRect.GetBottomLeft()) + TextOffset;
+		const float FontHeight = GetFontHeight();
+
+		FVector2D TextOffset = SectionModel->GetRange() == TRange<FFrameNumber>::All() ? FVector2D(0.f, LaneHeight - FontHeight - 1.f) : FVector2D(1.f, LaneHeight - FontHeight - 1.f);
+		FVector2D TextPosition = SectionGeometry.AbsoluteToLocal(SectionClippingRect.GetTopLeft()) + TextOffset;
 
 		FSlateDrawElement::MakeText(
 			DrawElements,
 			LayerId,
 			SectionGeometry.MakeChild(
-				FVector2D(SectionGeometry.Size.X, GetFontHeight()),
-				FSlateLayoutTransform(BottomLeft - FVector2D(0.f, GetFontHeight()+1.f))
+				FVector2D(SectionGeometry.Size.X, FontHeight),
+				FSlateLayoutTransform(TextPosition)
 			).ToPaintGeometry(),
 			DisplayText,
 			FontInfo,
@@ -851,7 +861,7 @@ void SSequencerSection::Construct( const FArguments& InArgs, TSharedPtr<FSequenc
 
 		+ SOverlay::Slot()
 		[
-			SNew(SChannelView, InSectionModel, OwningTrackLane->GetTimeToPixel(), OwningTrackLane->GetTrackAreaView()->GetViewModel())
+			SNew(SChannelView, InSectionModel, OwningTrackLane->GetTrackAreaView())
 			.Visibility(this, &SSequencerSection::GetTopLevelChannelGroupVisibility)
 		]
 	];
@@ -1269,12 +1279,18 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	LayerId = SectionInterface->OnPaintSection(Painter);
 
 	FLinearColor SelectionColor = FAppStyle::GetSlateColor(SequencerSectionConstants::SelectionColorName).GetColor(FWidgetStyle());
-	DrawSectionHandles(AllottedGeometry, OutDrawElements, LayerId, DrawEffects, SelectionColor, Hotspot);
 
 	LayerId = SCompoundWidget::OnPaint( Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bEnabled );
 
+	// We paint section handles after channels so they draw on top, but we allow some leeway for channels to paint on a higher layer than they
+	// reported. This enables us to still draw and interact with keys that overlap section handles, even if we drew the handles chronologically later
+	DrawSectionHandles(AllottedGeometry, OutDrawElements, LayerId, DrawEffects, SelectionColor, Hotspot);
+
 	Painter.LayerId = LayerId;
 	PaintEasingHandles( Painter, SelectionColor, Hotspot );
+
+	// Artificially increase the layer now to ensure that we are now painting above keys now
+	LayerId += 10;
 
 	// --------------------------------------------
 	// Draw section selection tint
@@ -1801,7 +1817,13 @@ bool SSequencerSection::IsSectionHighlighted(UMovieSceneSection* InSection, TSha
 
 	if (FKeyHotspot* KeyHotspot = Hotspot->CastThis<FKeyHotspot>())
 	{
-		return KeyHotspot->Keys.ContainsByPredicate([InSection](const FSequencerSelectedKey& Key){ return Key.Section == InSection; });
+		for (const FSequencerSelectedKey& Key : KeyHotspot->Keys)
+		{
+			if (Key.Section == InSection)
+			{
+				return true;
+			}
+		}
 	}
 	else if (FSectionEasingAreaHotspot* EasingAreaHotspot = Hotspot->CastThis<FSectionEasingAreaHotspot>())
 	{

@@ -58,6 +58,11 @@ const TSet<FSequencerSelectedKey>& FSequencerSelection::GetSelectedKeys() const
 	return SelectedKeys;
 }
 
+const TSet<FKeyHandle>& FSequencerSelection::GetRawSelectedKeys() const
+{
+	return RawSelectedKeys;
+}
+
 TSet<TWeakObjectPtr<UMovieSceneSection>> FSequencerSelection::GetSelectedSections() const
 {
 	using namespace UE::Sequencer;
@@ -259,6 +264,7 @@ void FSequencerSelection::AddToSelection(const FSequencerSelectedKey& Key)
 	++SerialNumber;
 
 	SelectedKeys.Add(Key);
+	RawSelectedKeys.Add(Key.KeyHandle);
 
 	if (TViewModelPtr<IOutlinerExtension> OutlinerItem = Key.WeakChannel.Pin()->GetLinkedOutlinerItem())
 	{
@@ -377,6 +383,7 @@ void FSequencerSelection::RemoveFromSelection(const FSequencerSelectedKey& Key)
 	++SerialNumber;
 
 	SelectedKeys.Remove(Key);
+	RawSelectedKeys.Remove(Key.KeyHandle);
 
 	if (TViewModelPtr<IOutlinerExtension> OutlinerItem = Key.WeakChannel.Pin()->GetLinkedOutlinerItem())
 	{
@@ -506,6 +513,7 @@ void FSequencerSelection::EmptySelectedKeys()
 		}
 	}
 	SelectedKeys.Empty();
+	RawSelectedKeys.Empty();
 
 	if ( IsBroadcasting() )
 	{
@@ -709,6 +717,7 @@ void FSequencerSelection::RevalidateSelection()
 	{
 		if (!It->Section || !It->WeakChannel.Pin().Get())
 		{
+			RawSelectedKeys.Remove(It->KeyHandle);
 			It.RemoveCurrent();
 		}
 	}

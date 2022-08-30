@@ -11,6 +11,9 @@
 #include "CurveModel.h"
 #include "CurveEditor.h"
 
+#include "Async/ParallelFor.h"
+#include "Algo/Accumulate.h"
+
 namespace UE::Sequencer
 {
 
@@ -91,18 +94,20 @@ void FKeyRenderer::HitTestKeys(const FFrameTime& Time, TArray<FKeysForModel>& Ou
 	}
 }
 
-bool FKeyRenderer::HitTestKeyBar(const FFrameTime& Time, TArray<FKeysForModel>& OutLeadingKeys, TArray<FKeysForModel>& OutTrailingKeys) const
+bool FKeyRenderer::HitTestKeyBar(const FFrameTime& Time, FKeyBar& OutKeyBar) const
 {
 	const FFrameTime HalfKeyWidth = KeyWidthInFrames * .5f;
 
 	// Hit test the actual structure used for drawing key bars to ensure we are 100% accurate
 	// PrecomputedKeyBars is an array sorted by time, so we can binary search it to find the hit area
-	const int32 HitIndex = Algo::LowerBoundBy(PrecomputedKeyBars, Time, &FKeyBar::EndTime);
+	const int32 HitIndex = Algo::LowerBoundBy(PrecomputedKeyBars, Time, &FCachedKeyBar::EndTime);
 	if (HitIndex >= PrecomputedKeyBars.Num() || PrecomputedKeyBars[HitIndex].StartTime > Time)
 	{
 		// No hit - we ran off the end of the drawn keys, or didn't hit a bar
 		return false;
 	}
+
+ 	OutKeyBar.Range = TRange<FFrameTime>::Inclusive(PrecomputedKeyBars[HitIndex].StartTime+HalfKeyWidth, PrecomputedKeyBars[HitIndex].EndTime-HalfKeyWidth);
 
 	// Generate leading keys array
 	{
@@ -126,7 +131,7 @@ bool FKeyRenderer::HitTestKeyBar(const FFrameTime& Time, TArray<FKeysForModel>& 
 					Keys.Keys[Index] = Entry.CachedKeys->KeyHandles[FrameStart + Index];
 				}
 
-				OutLeadingKeys.Emplace(MoveTemp(Keys));
+				OutKeyBar.LeadingKeys.Emplace(MoveTemp(Keys));
 			}
 		}
 	}
@@ -153,7 +158,7 @@ bool FKeyRenderer::HitTestKeyBar(const FFrameTime& Time, TArray<FKeysForModel>& 
 					Keys.Keys[Index] = Entry.CachedKeys->KeyHandles[FrameStart + Index];
 				}
 
-				OutTrailingKeys.Emplace(MoveTemp(Keys));
+				OutKeyBar.TrailingKeys.Emplace(MoveTemp(Keys));
 			}
 		}
 	}
@@ -236,12 +241,14 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 	const bool bHasAnySelectionPreview = Params.ClientInterface && Params.ClientInterface->HasAnyPreviewSelectedKeys();
 	const bool bHasAnyHoveredKeys      = Params.ClientInterface && Params.ClientInterface->HasAnyHoveredKeys();
 
+	const int32 NumFramesInRange = Algo::Accumulate(KeyDrawInfo, 0, [](int32 Current, const FCachedKeyDrawInformation& In) { return Current + In.Num(); });
+
 	// ------------------------------------------------------------------------------
 	// Update view-dependent data for each draw info
-	for (FCachedKeyDrawInformation& Info : KeyDrawInfo)
-	{
-		Info.CacheViewDependentData(Params);
-	}
+	const bool bForceSingleThread = NumFramesInRange <= 50000;
+	ParallelFor(KeyDrawInfo.Num(), [this, &Params](int32 Index){
+		this->KeyDrawInfo[Index].CacheViewDependentData(Params);
+	}, bForceSingleThread);
 
 	// ------------------------------------------------------------------------------
 	// If the data has changed, or key state has changed, or the view has been zoomed
@@ -355,6 +362,8 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 		int32 TotalNumKeys = 0;
 		int32 NumOverlaps = 0;
 
+		static int32 MaxNumKeysToConsider = 500;
+
 		// Determine the ranges of keys considered to reside at this position
 		for (int32 DrawIndex = 0; DrawIndex < KeyDrawInfo.Num(); ++DrawIndex)
 		{
@@ -395,18 +404,18 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 				// Avoid creating FSequencerSelectedKeys unless absolutely necessary
 				FKeyHandle ThisKeyHandle = Info.HandlesInRange[Info.NextUnhandledIndex];
 
-				if (bHasAnySelection && Params.ClientInterface->IsKeySelected(KeyExtension, ThisKeyHandle))
+				if (bHasAnySelection && NumSelected < MaxNumKeysToConsider && Params.ClientInterface->IsKeySelected(KeyExtension, ThisKeyHandle))
 				{
 					++NumSelected;
 				}
-				if (bHasAnySelectionPreview)
+				if (bHasAnySelectionPreview && NumPreviewSelected < MaxNumKeysToConsider && NumPreviewNotSelected < MaxNumKeysToConsider)
 				{
 					EKeySelectionPreviewState SelectionState = Params.ClientInterface->GetPreviewSelectionState(KeyExtension, ThisKeyHandle);
 
 					NumPreviewSelected    += int32(SelectionState == EKeySelectionPreviewState::Selected);
 					NumPreviewNotSelected += int32(SelectionState == EKeySelectionPreviewState::NotSelected);
 				}
-				if (bHasAnyHoveredKeys && Params.ClientInterface->IsKeyHovered(KeyExtension, ThisKeyHandle))
+				if (bHasAnyHoveredKeys && NumHovered < MaxNumKeysToConsider && Params.ClientInterface->IsKeyHovered(KeyExtension, ThisKeyHandle))
 				{
 					++NumHovered;
 				}
@@ -438,15 +447,15 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 		}
 
 		// Determine the key color based on its selection/hover states
-		if (NumPreviewSelected == TotalNumKeys)
+		if (NumPreviewSelected == FMath::Min(TotalNumKeys, MaxNumKeysToConsider))
 		{
 			NewKey.Flags |= EKeyRenderingFlags::PreviewSelected;
 		}
-		else if (NumPreviewNotSelected == TotalNumKeys)
+		else if (NumPreviewNotSelected == FMath::Min(TotalNumKeys, MaxNumKeysToConsider))
 		{
 			NewKey.Flags |= EKeyRenderingFlags::PreviewNotSelected;
 		}
-		else if (NumSelected == TotalNumKeys)
+		else if (NumSelected == FMath::Min(TotalNumKeys, MaxNumKeysToConsider))
 		{
 			NewKey.Flags |= EKeyRenderingFlags::Selected;
 		}
@@ -454,7 +463,7 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 		{
 			NewKey.Flags |= EKeyRenderingFlags::AnySelected;
 		}
-		else if (NumHovered == TotalNumKeys)
+		else if (NumHovered == FMath::Min(TotalNumKeys, MaxNumKeysToConsider))
 		{
 			NewKey.Flags |= EKeyRenderingFlags::Hovered;
 		}
@@ -513,7 +522,7 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 		{
 			if (LeadingKey && TrailingKey)
 			{
-				PrecomputedKeyBars.Add(FKeyBar{ LeadingKey->Time, TrailingKey->Time, EKeyBarRenderingFlags::None });
+				PrecomputedKeyBars.Add(FCachedKeyBar{ LeadingKey->Time, TrailingKey->Time, EKeyBarRenderingFlags::None });
 			}
 		}
 		else
@@ -521,7 +530,7 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 			if (LeadingKey && LeadingKeyParams->ConnectionStyle != EKeyConnectionStyle::None &&
 				Params.TimeToPixel.FrameDeltaToPixel(PrecomputedKeys[0].FinalKeyPosition - LeadingKey->Time) > Params.KeySizePx.X)
 			{
-				PrecomputedKeyBars.Add(FKeyBar{ LeadingKey->Time, PrecomputedKeys[0].FinalKeyPosition, EKeyBarRenderingFlags::None, LeadingKeyParams->ConnectionStyle });
+				PrecomputedKeyBars.Add(FCachedKeyBar{ LeadingKey->Time, PrecomputedKeys[0].FinalKeyPosition, EKeyBarRenderingFlags::None, LeadingKeyParams->ConnectionStyle });
 			}
 
 			for (int32 Index = 0; Index < PrecomputedKeys.Num()-1; ++Index)
@@ -531,14 +540,14 @@ void FKeyRenderer::UpdateViewDependentData(const FKeyBatchParameters& Params, co
 				if (ThisKey.Params.ConnectionStyle != EKeyConnectionStyle::None &&
 					Params.TimeToPixel.FrameDeltaToPixel(NextKey.FinalKeyPosition - ThisKey.FinalKeyPosition) > Params.KeySizePx.X)
 				{
-					PrecomputedKeyBars.Add(FKeyBar{ ThisKey.FinalKeyPosition, NextKey.FinalKeyPosition, EKeyBarRenderingFlags::None, ThisKey.Params.ConnectionStyle });
+					PrecomputedKeyBars.Add(FCachedKeyBar{ ThisKey.FinalKeyPosition, NextKey.FinalKeyPosition, EKeyBarRenderingFlags::None, ThisKey.Params.ConnectionStyle });
 				}
 			}
 
 			if (TrailingKey && PrecomputedKeys.Last().Params.ConnectionStyle != EKeyConnectionStyle::None &&
 				Params.TimeToPixel.FrameDeltaToPixel(TrailingKey->Time - PrecomputedKeys.Last().FinalKeyPosition) > Params.KeySizePx.X)
 			{
-				PrecomputedKeyBars.Add(FKeyBar{ PrecomputedKeys.Last().FinalKeyPosition, TrailingKey->Time, EKeyBarRenderingFlags::None, PrecomputedKeys.Last().Params.ConnectionStyle });
+				PrecomputedKeyBars.Add(FCachedKeyBar{ PrecomputedKeys.Last().FinalKeyPosition, TrailingKey->Time, EKeyBarRenderingFlags::None, PrecomputedKeys.Last().Params.ConnectionStyle });
 			}
 		}
 	}
@@ -649,7 +658,7 @@ int32 FKeyRenderer::Draw(const FKeyBatchParameters& Params, const FGeometry& All
 
 		static float KeyBarHeight = 2.f;
 		const float KeyBarTop = AllottedGeometry.GetLocalSize().Y * .5f - KeyBarHeight*.5f;
-		for (const FKeyBar& KeyBar : PrecomputedKeyBars)
+		for (const FCachedKeyBar& KeyBar : PrecomputedKeyBars)
 		{
 			const float StartPx = Params.TimeToPixel.FrameToPixel(KeyBar.StartTime);
 			const float EndPx = Params.TimeToPixel.FrameToPixel(KeyBar.EndTime);
@@ -874,36 +883,56 @@ void FKeyRenderer::FCachedKeyDrawInformation::CacheViewDependentData(const FKeyB
 			const int32 PreserveEnd   = Algo::UpperBound(OldFramesInRange, FramesInRange.Last());
 
 			const int32 PreserveNum   = PreserveEnd - PreserveStart;
+
 			if (PreserveNum > 0)
 			{
-				TArray<FKeyDrawParams> NewDrawParams;
-
-				const int32 HeadNum = Algo::LowerBound(FramesInRange, OldFramesInRange[PreserveStart]);
-				if (HeadNum > 0)
-				{
-					NewDrawParams.SetNum(HeadNum);
-					KeyExtension->DrawKeys(HandlesInRange.Slice(0, HeadNum), NewDrawParams);
-				}
-
-				NewDrawParams.Append(DrawParams.GetData() + PreserveStart, PreserveNum);
-
+				const int32 HeadNum   = Algo::LowerBound(FramesInRange, OldFramesInRange[PreserveStart]);
 				const int32 TailStart = Algo::LowerBound(FramesInRange, OldFramesInRange[PreserveEnd-1]);
-				const int32 TailNum = FramesInRange.Num() - TailStart;
+				const int32 TailNum   = FramesInRange.Num() - TailStart;
 
-				if (TailNum > 0)
+				if (HeadNum == 0 && TailNum == 0)
 				{
-					NewDrawParams.SetNum(FramesInRange.Num());
-					KeyExtension->DrawKeys(HandlesInRange.Slice(TailStart, TailNum), TArrayView<FKeyDrawParams>(NewDrawParams).Slice(TailStart, TailNum));
+					// If we're preserving everything, just set the flag to avoid reallocating the whole array
+					bDrawnKeys = true;
 				}
+				else
+				{
+					const int32 HeadPreserveDiff = HeadNum - PreserveStart;
 
-				DrawParams = MoveTemp(NewDrawParams);
-				bDrawnKeys = true;
+					// Insert elements at the front of the array if we need to (this probably means we scrolled to the right to reveal new leading keys)
+					if (HeadPreserveDiff > 0)
+					{
+						DrawParams.InsertUninitialized(0, HeadPreserveDiff);
+					}
+					// Remove elements at the front of the array if we need to (this probably means we scrolled to the left and hid leading keys)
+					else if (HeadPreserveDiff < 0)
+					{
+						DrawParams.RemoveAt(0, -HeadPreserveDiff, false);
+					}
+
+					// Draw newly revealed keys at the start
+					if (HeadNum > 0)
+					{
+						KeyExtension->DrawKeys(HandlesInRange.Slice(0, HeadNum), TArrayView<FKeyDrawParams>(DrawParams).Slice(0, HeadNum));
+					}
+
+					// Expand or contract the array to the final size
+					DrawParams.SetNum(FramesInRange.Num(), false);
+
+					// Draw newly revealed keys at the end
+					if (TailNum > 0)
+					{
+						KeyExtension->DrawKeys(HandlesInRange.Slice(TailStart, TailNum), TArrayView<FKeyDrawParams>(DrawParams).Slice(TailStart, TailNum));
+					}
+
+					bDrawnKeys = true;
+				}
 			}
 		}
 
 		if (!bDrawnKeys)
 		{
-			DrawParams.SetNum(FramesInRange.Num());
+			DrawParams.SetNum(FramesInRange.Num(), false);
 
 			if (FramesInRange.Num())
 			{
@@ -913,6 +942,12 @@ void FKeyRenderer::FCachedKeyDrawInformation::CacheViewDependentData(const FKeyB
 		}
 
 		check(DrawParams.Num() == FramesInRange.Num() && FramesInRange.Num() == HandlesInRange.Num());
+
+		// Shrink the draw params if we have excess slack
+		if (DrawParams.GetSlack() > DrawParams.Num() / 3)
+		{
+			DrawParams.Shrink();
+		}
 	}
 
 	// Always reset the pointers to the current key that needs processing

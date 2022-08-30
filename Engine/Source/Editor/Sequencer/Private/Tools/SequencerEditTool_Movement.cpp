@@ -181,16 +181,20 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 		{
 			if (KeyHotspot)
 			{
-				TArrayView<const FSequencerSelectedKey> HoveredKeys = KeyHotspot->Keys;
+				const TSet<FSequencerSelectedKey>& HoveredKeys = KeyHotspot->Keys;
 
-				auto AnyUnselectedKey = [&Selection](const FSequencerSelectedKey& InKey)
-				{
-					return !Selection.IsSelected(InKey);
-				};
-
-				if (HoveredKeys.ContainsByPredicate(AnyUnselectedKey))
+				bool bUniqueDrag = false;
+				for (const FSequencerSelectedKey& Key : HoveredKeys)
 				{
 					// If any are not selected, we'll treat this as a unique drag
+					if (!Selection.IsSelected(Key))
+					{
+						bUniqueDrag = true;
+					}
+				};
+
+				if (bUniqueDrag)
+				{
 					Selection.EmptySelectedKeys();
 					Selection.EmptySelectedTrackAreaItems();
 					for (const FSequencerSelectedKey& Key : HoveredKeys)
@@ -236,16 +240,20 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 		// Moving key(s)?
 		else if (KeyHotspot)
 		{
-			TArrayView<const FSequencerSelectedKey> HoveredKeys = KeyHotspot->Keys;
+			const TSet<FSequencerSelectedKey>& HoveredKeys = KeyHotspot->Keys;
 
-			auto AnyUnselectedKey = [&Selection](const FSequencerSelectedKey& InKey)
-			{
-				return !Selection.IsSelected(InKey);
-			};
-
-			if (HoveredKeys.ContainsByPredicate(AnyUnselectedKey))
+			bool bUniqueDrag = false;
+			for (const FSequencerSelectedKey& Key : HoveredKeys)
 			{
 				// If any are not selected, we'll treat this as a unique drag
+				if (!Selection.IsSelected(Key))
+				{
+					bUniqueDrag = true;
+				}
+			};
+
+			if (bUniqueDrag)
+			{
 				Selection.EmptySelectedKeys();
 				Selection.EmptySelectedTrackAreaItems();
 				for (const FSequencerSelectedKey& Key : HoveredKeys)

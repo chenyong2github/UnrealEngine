@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/Views/STrackAreaLaneView.h"
+#include "MVVM/Views/STrackAreaView.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "TimeToPixel.h"
 
 
 namespace UE::Sequencer

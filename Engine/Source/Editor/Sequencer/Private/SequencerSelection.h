@@ -41,6 +41,9 @@ public:
 	/** Gets a set of the selected keys. */
 	const TSet<FSequencerSelectedKey>& GetSelectedKeys() const;
 
+	/** Gets a set of the selected keys. */
+	const TSet<FKeyHandle>& GetRawSelectedKeys() const;
+
 	/** Gets a set of the selected sections */
 	TSet<TWeakObjectPtr<UMovieSceneSection>> GetSelectedSections() const;
 
@@ -199,6 +202,8 @@ private:
 	TSharedPtr<FViewModel> RootModel;
 
 	TSet<FSequencerSelectedKey> SelectedKeys;
+	/** Selected keys added directly by FKeyHandle, derived from SelectedKeys on mutation */
+	TSet<FKeyHandle> RawSelectedKeys;
 	TSet<TWeakPtr<FViewModel>> SelectedTrackAreaItems;
 	TSet<TWeakPtr<FViewModel>> SelectedOutlinerItems;
 	mutable TSet<TWeakPtr<FViewModel>> NodesWithSelectedKeysOrSections;

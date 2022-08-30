@@ -27,7 +27,7 @@ struct FSelectionPreviewVisitor final
 {
 	FSelectionPreviewVisitor(FSequencerSelectionPreview& InSelectionPreview, FSequencerSelection& InSelection, ESelectionPreviewState InSetStateTo, bool bInPinned)
 		: SelectionPreview(InSelectionPreview)
-		, ExistingSelection(InSelection)
+		, ExistingSelection(InSelection.GetRawSelectedKeys())
 		, SetStateTo(InSetStateTo)
 		, bPinned(bInPinned)
 	{}
@@ -42,12 +42,10 @@ struct FSelectionPreviewVisitor final
 			return;
 		}
 
-		FSequencerSelectedKey Key(*Section, TSharedPtr<FChannelModel>(Channel), KeyHandle);
-
 		// Under default behavior keys have priority, so if a key is changing selection state then we remove any sections from the selection. The user can bypass this
 		// by holding down the control key which will allow selecting both keys and sections.
 		bool bKeySelectionHasPriority = !FSlateApplication::Get().GetModifierKeys().IsControlDown();
-		bool bKeyIsSelected = ExistingSelection.IsSelected(Key);
+		bool bKeyIsSelected = ExistingSelection.Contains(KeyHandle);
 
 		if (bKeySelectionHasPriority && 
 			((bKeyIsSelected && SetStateTo == ESelectionPreviewState::NotSelected) ||
@@ -57,6 +55,7 @@ struct FSelectionPreviewVisitor final
 			SelectionPreview.EmptyDefinedModelStates();
 		}
 
+		FSequencerSelectedKey Key(*Section, TSharedPtr<FChannelModel>(Channel), KeyHandle);
 		SelectionPreview.SetSelectionState(Key, SetStateTo);
 	}
 
@@ -84,7 +83,7 @@ struct FSelectionPreviewVisitor final
 private:
 
 	FSequencerSelectionPreview& SelectionPreview;
-	FSequencerSelection& ExistingSelection;
+	const TSet<FKeyHandle>& ExistingSelection;
 	ESelectionPreviewState SetStateTo;
 	bool bPinned;
 };

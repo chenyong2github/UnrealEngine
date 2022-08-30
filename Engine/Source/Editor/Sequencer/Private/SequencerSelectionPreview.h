@@ -5,6 +5,7 @@
 #include "Containers/Map.h"
 #include "HAL/Platform.h"
 #include "Misc/Optional.h"
+#include "Curves/KeyHandle.h"
 #include "SequencerSelectedKey.h"
 #include "Templates/SharedPointer.h"
 
@@ -26,18 +27,20 @@ public:
 
 	/** Access the defined key states */
 	const TMap<FSequencerSelectedKey, ESelectionPreviewState>& GetDefinedKeyStates() const { return DefinedKeyStates; }
+	const TMap<FKeyHandle, ESelectionPreviewState>& GetRawDefinedKeyStates() const { return RawDefinedKeyStates; }
 
 	/** Access the defined model states */
 	const TMap<TWeakPtr<UE::Sequencer::FViewModel>, ESelectionPreviewState>& GetDefinedModelStates() const { return DefinedModelStates; }
 
 	/** Adds a key to the selection */
-	void SetSelectionState(FSequencerSelectedKey Key, ESelectionPreviewState InState);
+	void SetSelectionState(const FSequencerSelectedKey& Key, ESelectionPreviewState InState);
 
 	/** Adds a model to the selection */
 	void SetSelectionState(TWeakPtr<UE::Sequencer::FViewModel> InModel, ESelectionPreviewState InState);
 
 	/** Returns the selection state for the the specified key. */
 	ESelectionPreviewState GetSelectionState(const FSequencerSelectedKey& Key) const;
+	ESelectionPreviewState GetSelectionState(FKeyHandle Key) const;
 
 	/** Returns the selection state for the the specified model. */
 	ESelectionPreviewState GetSelectionState(TWeakPtr<UE::Sequencer::FViewModel> InModel) const;
@@ -57,6 +60,8 @@ public:
 private:
 
 	TMap<FSequencerSelectedKey, ESelectionPreviewState> DefinedKeyStates;
+	TMap<FKeyHandle, ESelectionPreviewState> RawDefinedKeyStates;
+
 	TMap<TWeakPtr<UE::Sequencer::FViewModel>, ESelectionPreviewState> DefinedModelStates;
 
 	/** Cached hash of this whole selection preview state. */

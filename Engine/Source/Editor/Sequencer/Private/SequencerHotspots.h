@@ -63,10 +63,7 @@ struct FKeyHotspot
 {
 	UE_SEQUENCER_DECLARE_CASTABLE(FKeyHotspot, ITrackAreaHotspot, IMouseHandlerHotspot);
 
-	FKeyHotspot(TArray<FSequencerSelectedKey> InKeys, TWeakPtr<FSequencer> InWeakSequencer)
-		: Keys(MoveTemp(InKeys))
-		, WeakSequencer(InWeakSequencer)
-	{ }
+	SEQUENCER_API FKeyHotspot(const TArray<FSequencerSelectedKey>& InKeys, TWeakPtr<FSequencer> InWeakSequencer);
 
 	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
@@ -75,7 +72,8 @@ struct FKeyHotspot
 	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
 
 	/** The keys that are part of this hotspot */
-	TArray<FSequencerSelectedKey> Keys;
+	TSet<FSequencerSelectedKey> Keys;
+	TSet<FKeyHandle> RawKeys;
 	TWeakPtr<FSequencer> WeakSequencer;
 };
 
@@ -86,10 +84,11 @@ struct FKeyBarHotspot
 {
 	UE_SEQUENCER_DECLARE_CASTABLE(FKeyBarHotspot, ITrackAreaHotspot);
 
-	FKeyBarHotspot(TArray<FSequencerSelectedKey>&& InLeadingKeys, TArray<FSequencerSelectedKey>&& InTrailingKeys, TWeakPtr<FSequencer> InWeakSequencer)
+	FKeyBarHotspot(const TRange<FFrameTime>& InRange, TArray<FSequencerSelectedKey>&& InLeadingKeys, TArray<FSequencerSelectedKey>&& InTrailingKeys, TWeakPtr<FSequencer> InWeakSequencer)
 		: LeadingKeys(MoveTemp(InLeadingKeys))
 		, TrailingKeys(MoveTemp(InTrailingKeys))
 		, WeakSequencer(InWeakSequencer)
+		, Range(InRange)
 	{ }
 
 	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
@@ -101,6 +100,7 @@ struct FKeyBarHotspot
 	TArray<FSequencerSelectedKey> LeadingKeys;
 	TArray<FSequencerSelectedKey> TrailingKeys;
 	TWeakPtr<FSequencer> WeakSequencer;
+	TRange<FFrameTime> Range;
 };
 
 /** A hotspot representing a section */

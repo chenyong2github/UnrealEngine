@@ -147,15 +147,27 @@ void FHotspotSelectionManager::SelectModelExclusive(TSharedPtr<FViewModel> InMod
 	}
 }
 
+FKeyHotspot::FKeyHotspot(const TArray<FSequencerSelectedKey>& InKeys, TWeakPtr<FSequencer> InWeakSequencer)
+	: Keys(InKeys)
+	, WeakSequencer(InWeakSequencer)
+{ 
+	RawKeys.Reserve(Keys.Num());
+	for (const FSequencerSelectedKey& Key : InKeys)
+	{
+		RawKeys.Add(Key.KeyHandle);
+	}
+}
+
 void FKeyHotspot::HandleMouseSelection(FHotspotSelectionManager& SelectionManager)
 {
+	TArray<FSequencerSelectedKey> KeysArray = Keys.Array();
 	if (SelectionManager.MouseEvent->GetEffectingButton() == EKeys::RightMouseButton)
 	{
-		SelectionManager.SelectKeysExclusive(Keys);
+		SelectionManager.SelectKeysExclusive(KeysArray);
 	}
 	else
 	{
-		SelectionManager.ToggleKeys(Keys);
+		SelectionManager.ToggleKeys(KeysArray);
 	}
 }
 
@@ -168,11 +180,12 @@ TOptional<FFrameNumber> FKeyHotspot::GetTime() const
 {
 	FFrameNumber Time = 0;
 
-	if (Keys.Num())
+	for (const FSequencerSelectedKey& Key : Keys)
 	{
-		TArrayView<const FSequencerSelectedKey> FirstKey(&Keys[0], 1);
+		TArrayView<const FSequencerSelectedKey> FirstKey(&Key, 1);
 		TArrayView<FFrameNumber> FirstKeyTime(&Time, 1);
 		GetKeyTimes(FirstKey, FirstKeyTime);
+		break;
 	}
 
 	return Time;
