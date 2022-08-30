@@ -1316,7 +1316,8 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		const FGPUScenePrimitiveCollector::FPrimitiveData& PrimData = PrimitiveData[ItemIndex];		
 		FPrimitiveUniformShaderParameters Tmp = *PrimData.ShaderParams;
 		Tmp.InstanceSceneDataOffset = InstanceIDStartOffset + PrimData.LocalInstanceSceneDataOffset;
-		Tmp.NumInstanceSceneDataEntries = PrimData.NumInstances;			
+		Tmp.NumInstanceSceneDataEntries = PrimData.NumInstances;
+		Tmp.Flags &= ~(PRIMITIVE_SCENE_DATA_FLAG_SHOULD_CACHE_SHADOW);	// Dyanmic primtives are never cached as static for shadows
 		if (PrimitiveData[ItemIndex].LocalPayloadDataOffset != INDEX_NONE)
 		{
 			Tmp.InstancePayloadDataOffset = PayloadStartOffset + PrimData.LocalPayloadDataOffset;

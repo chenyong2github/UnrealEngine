@@ -189,6 +189,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
 	bRegisteredWithVelocityData(false),
+	bCacheShadowAsStatic(InComponent->Mobility == EComponentMobility::Movable),
 	LevelUpdateNotificationIndex(INDEX_NONE),
 	InstanceSceneDataOffset(INDEX_NONE),
 	NumInstanceSceneDataEntries(0),
@@ -2114,4 +2115,13 @@ FString FPrimitiveSceneInfo::GetFullnameForDebuggingOnly() const
 		return ComponentForDebuggingOnly->GetFullGroupName(false);
 	}
 	return FString(TEXT("Unknown Object"));
+}
+
+void FPrimitiveSceneInfo::SetCacheShadowAsStatic(bool bStatic)
+{
+	if (bCacheShadowAsStatic != bStatic)
+	{
+		bCacheShadowAsStatic = bStatic;
+		RequestGPUSceneUpdate(EPrimitiveDirtyState::ChangedOther);
+	}
 }

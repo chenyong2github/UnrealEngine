@@ -162,7 +162,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
 		.UseSingleSampleShadowFromStationaryLights(Proxy->UseSingleSampleShadowFromStationaryLights())
 		.ReceivesDecals(Proxy->ReceivesDecals())
-		.ShouldCacheShadow(Proxy->ShouldCacheShadow())
+		.CacheShadowAsStatic(PrimitiveSceneInfo->ShouldCacheShadowAsStatic())
 		.OutputVelocity(bOutputVelocity)
 		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset())
 		.CastContactShadow(Proxy->CastsContactShadow())

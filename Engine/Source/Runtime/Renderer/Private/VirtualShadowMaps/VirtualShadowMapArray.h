@@ -117,6 +117,14 @@ struct FVirtualShadowMapHZBMetadata
 	uint32		  TargetLayerIndex = INDEX_NONE;
 };
 
+// Scene data buffers sized and imported into the graph builder
+// Persistent, not ping-ponged
+struct FVirtualShadowMapSceneData
+{
+	FRDGBufferRef InvalidatingInstancesBuffer;
+	int32 NumInvalidatingInstanceSlots = -1;
+};
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, NumFullShadowMaps)
 	SHADER_PARAMETER(uint32, NumSinglePageShadowMaps)
@@ -322,12 +330,9 @@ public:
 	// TODO: make transient - Buffer that stores flags marking each page that received dynamic geo.
 	FRDGBufferRef DynamicCasterPageFlagsRDG = nullptr;
 
-	// Buffer that stores flags marking each instance that needs to be invalidated the subsequent frame (handled by the cache manager).
-	// This covers things like WPO or GPU-side updates, and any other case where we determine an instance needs to invalidate its footprint. 
-	// Buffer of uints, organized as as follows: InvalidatingInstancesRDG[0] == count, InvalidatingInstancesRDG[1+MaxInstanceCount:1+MaxInstanceCount+MaxInstanceCount/32] == flags, 
-	// InvalidatingInstancesRDG[1:MaxInstanceCount] == growing compact array of instances that need invaldation
-	FRDGBufferRef InvalidatingInstancesRDG = nullptr;
-	int32 NumInvalidatingInstanceSlots = 0;
+	// References to scene data imported into the graph builder for this frame
+	// NOTE: The underlying data is owned by FVirtualShadowMapCacheManager.
+	FVirtualShadowMapSceneData SceneData;
 	
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.

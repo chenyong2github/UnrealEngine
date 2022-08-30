@@ -59,8 +59,9 @@ void PrintUnits(inout FShaderPrintContext Context, uint Value)
 void PrintStats()
 {
 	const bool bShowAll                = ShowStatsValue == 1;
-	const bool bShowPhysicalPages      = bShowAll || ShowStatsValue == 2;
-	const bool bShowNonNaniteInstances = bShowAll || ShowStatsValue == 3;
+	// Work around potential compiler bug...
+	const bool bShowPhysicalPages      = (ShowStatsValue == 1) || ShowStatsValue == 2;
+	const bool bShowNonNaniteInstances = (ShowStatsValue == 1) || ShowStatsValue == 3;
 
 	float TopMargin = 0.05f;
 	float HeadlineX = 0.47f;

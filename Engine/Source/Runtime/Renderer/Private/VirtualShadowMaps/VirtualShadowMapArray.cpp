@@ -416,6 +416,9 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 		TRefCountPtr<IPooledRenderTarget> PhysicalPagePool = CacheManager->SetPhysicalPoolSize(GraphBuilder, GetPhysicalPoolSize(), PoolArraySize);
 		PhysicalPagePoolRDG = GraphBuilder.RegisterExternalTexture(PhysicalPagePool);
 		UniformParameters.PhysicalPagePool = PhysicalPagePoolRDG;
+
+		// Initialize the instance invalidation buffer and primitive cache flags
+		SceneData = CacheManager->InitializeSceneDataForFrame(GraphBuilder);
 	}
 	else
 	{
@@ -1243,14 +1246,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DirtyPageFlagsRDG), 0);
 	CumulativeDirtyPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), GetMaxPhysicalPages()), TEXT("Shadow.Virtual.CumulativeDirtyPageFlags"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CumulativeDirtyPageFlagsRDG), 0);
-		
-	// Record the number of instances the buffer has capactiy for, should anything change (it shouldn't!)
-	NumInvalidatingInstanceSlots = Scene.GPUScene.GetNumInstances();
-	// Allocate space for counter, worst case ID storage, and flags.
-	int32 InstanceInvalidationBufferSize = 1 + NumInvalidatingInstanceSlots + FMath::DivideAndRoundUp(NumInvalidatingInstanceSlots, 32);
-	InvalidatingInstancesRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), InstanceInvalidationBufferSize), TEXT("Shadow.Virtual.InvalidatingInstances"));
-	// Clear to zero, technically only need to clear first Scene.GPUScene.GetNumInstances()  + 1 uints
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(InvalidatingInstancesRDG), 0);
 
 	const uint32 NumPageRects = ShadowMaps.Num() * FVirtualShadowMap::MaxMipLevels;
 	const uint32 NumPageRectsToAllocate = FMath::RoundUpToPowerOfTwo(NumPageRects);
@@ -2197,8 +2192,8 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 
 		PassParameters->VisibleInstancesOut = GraphBuilder.CreateUAV(VisibleInstancesRdg);
 		PassParameters->VisibleInstanceCountBufferOut = GraphBuilder.CreateUAV(VisibleInstanceWriteOffsetRDG);
-		PassParameters->OutInvalidatingInstances = GraphBuilder.CreateUAV(VirtualShadowMapArray->InvalidatingInstancesRDG);
-		PassParameters->NumInvalidatingInstanceSlots = VirtualShadowMapArray->NumInvalidatingInstanceSlots;
+		PassParameters->OutInvalidatingInstances = GraphBuilder.CreateUAV(VirtualShadowMapArray->SceneData.InvalidatingInstancesBuffer);
+		PassParameters->NumInvalidatingInstanceSlots = VirtualShadowMapArray->SceneData.NumInvalidatingInstanceSlots;
 		PassParameters->HZBShaderParameters = HZBShaderParameters;
 
 		bool bGenerateStats = VirtualShadowMapArray->StatsBufferRDG != nullptr;

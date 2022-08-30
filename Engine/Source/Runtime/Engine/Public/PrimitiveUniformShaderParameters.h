@@ -110,7 +110,7 @@ public:
 		bReceivesDecals								= false;
 		bUseSingleSampleShadowFromStationaryLights	= false;
 		bUseVolumetricLightmap						= false;
-		bShouldCacheShadow							= false;
+		bCacheShadowAsStatic						= false;
 		bOutputVelocity								= false;
 		bHasCapsuleRepresentation					= false;
 		bHasPreSkinnedLocalBounds					= false;
@@ -167,7 +167,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastShadow);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseSingleSampleShadowFromStationaryLights);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseVolumetricLightmap);
-	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ShouldCacheShadow);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CacheShadowAsStatic);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			OutputVelocity);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			EvaluateWorldPositionOffset);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			VisibleInGame);
@@ -397,7 +397,7 @@ public:
 		Parameters.Flags |= bHasCapsuleRepresentation ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION : 0u;
 		Parameters.Flags |= bUseSingleSampleShadowFromStationaryLights ? PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL : 0u;
 		Parameters.Flags |= (bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights) ? PRIMITIVE_SCENE_DATA_FLAG_USE_VOLUMETRIC_LM_SHADOW_SL : 0u;
-		Parameters.Flags |= bShouldCacheShadow ? PRIMITIVE_SCENE_DATA_FLAG_SHOULD_CACHE_SHADOW : 0u;
+		Parameters.Flags |= bCacheShadowAsStatic ? PRIMITIVE_SCENE_DATA_FLAG_SHOULD_CACHE_SHADOW : 0u;
 		Parameters.Flags |= bOutputVelocity ? PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY : 0u;
 		Parameters.Flags |= bEvaluateWorldPositionOffset ? PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET : 0u;
 		Parameters.Flags |= (Parameters.LocalToRelativeWorld.RotDeterminant() < 0.0f) ? PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
@@ -438,7 +438,7 @@ private:
 	uint32 bReceivesDecals : 1;
 	uint32 bUseSingleSampleShadowFromStationaryLights : 1;
 	uint32 bUseVolumetricLightmap : 1;
-	uint32 bShouldCacheShadow : 1;
+	uint32 bCacheShadowAsStatic : 1;
 	uint32 bOutputVelocity : 1;
 	uint32 bEvaluateWorldPositionOffset : 1;
 	uint32 bCastShadow : 1;

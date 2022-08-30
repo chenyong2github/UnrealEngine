@@ -2785,6 +2785,8 @@ public:
 	TBitArray<> PrimitivesNeedingStaticMeshUpdate;
 	TSet<FPrimitiveSceneInfo*> PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck;
 
+	TArray<int32> PersistentPrimitiveIdToIndexMap;
+
 	struct FTypeOffsetTableEntry
 	{
 		FTypeOffsetTableEntry(SIZE_T InPrimitiveSceneProxyType, uint32 InOffset) : PrimitiveSceneProxyType(InPrimitiveSceneProxyType), Offset(InOffset) {}
@@ -3442,6 +3444,15 @@ public:
 	 * Only changes during UpdateAllPrimitiveSceneInfos.
 	 */
 	inline int32 GetMaxPersistentPrimitiveIndex() const { return PersistentPrimitiveIdAllocator.GetMaxSize(); }
+
+	FORCEINLINE int32 GetPrimitiveIndex(const FPersistentPrimitiveIndex& PersistentPrimitiveIndex) const
+	{ 
+		if (PersistentPrimitiveIndex.Index < PersistentPrimitiveIdToIndexMap.Num())
+		{
+			return PersistentPrimitiveIdToIndexMap[PersistentPrimitiveIndex.Index];
+		}
+		return INDEX_NONE;
+	}
 
 	bool GetForceNoPrecomputedLighting() const
 	{

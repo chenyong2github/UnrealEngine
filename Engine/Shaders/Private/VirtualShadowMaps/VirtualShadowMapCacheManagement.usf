@@ -31,7 +31,23 @@ uint bDrawBounds;
 #if INPUT_KIND == INPUT_KIND_GPU_INSTANCES
 StructuredBuffer<uint> InvalidatingInstances;
 uint NumInvalidatingInstanceSlots;
-#endif
+
+// Flags buffer (one bit per PersistentPrimitiveIndex) to track statically cached primitives that are invalidating
+// Currently we use GPU messaging to send these primitives back for the CPU to handle as desired
+// in future frames, but this flags buffer ensures we only send one message per prim.
+RWStructuredBuffer<uint> OutStaticInvalidatingPrimitives;
+
+void RecordStaticPrimitiveInvalidation(uint PersistentPrimitiveIndex)
+{
+	{
+		uint PrimitiveIdWordOffset = PersistentPrimitiveIndex / 32U;
+		uint PrimitiveIdWordMask = 1U << (PersistentPrimitiveIndex % 32U);
+		
+		uint PreviousWordMask = 0U;
+		InterlockedOr(OutStaticInvalidatingPrimitives[PrimitiveIdWordOffset], PrimitiveIdWordMask, PreviousWordMask);
+	}
+}
+#endif		// INPUT_KIND == INPUT_KIND_GPU_INSTANCES
 
 struct FInstanceInvalidationPayload
 {
@@ -111,9 +127,8 @@ void VirtualSmInvalidateInstancePagesCS(
 		}
 
 
-		// TODO: Clean up hardcoded flag field test.
 		bool bCastShadows = InstanceSceneData.ValidInstance 
-			&& (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & 1U) != 0U;
+			&& (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0U;
 #if ENABLE_DEBUG_MODE
 		uint PageInvalidationCount = 0U;
 #endif
@@ -121,6 +136,8 @@ void VirtualSmInvalidateInstancePagesCS(
 		// TODO: test the flag on the instance instead once it is updated correctly InstanceSceneData.CastShadows
 		if (bCastShadows)
 		{
+			bool bAnyStaticPagesInvalidated = false;
+
 			for (uint VirtualShadowMapId = FirstVirtualShadowMapId; VirtualShadowMapId < EndVirtualShadowMapId; ++VirtualShadowMapId)
 			{
 				// 1. Load cached projection data
@@ -146,9 +163,9 @@ void VirtualSmInvalidateInstancePagesCS(
 					}
 				}
 
-				// TODO: This is slightly messy, but should be ok for the moment
-				bool bInvalidateStaticPage = bForceInvalidateStaticPage ||  ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
+				bool bInvalidateStaticPage = bForceInvalidateStaticPage || ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
 				uint InvalidationFlags = bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
+				bAnyStaticPagesInvalidated = bAnyStaticPagesInvalidated || bInvalidateStaticPage;
 
 				// Go back to clip space
 				float4x4 UVToClip;
@@ -222,6 +239,15 @@ void VirtualSmInvalidateInstancePagesCS(
 					}
 				}
 			}
+
+#if INPUT_KIND == INPUT_KIND_GPU_INSTANCES
+			// For GPU instance invalidations of static pages, we signal this back to the CPU in case it wants to
+			// transition this primitive to dynamic (i.e. due to WPO, etc).
+			if (bAnyStaticPagesInvalidated)
+			{
+				RecordStaticPrimitiveInvalidation(GetPrimitiveData(InstanceSceneData.PrimitiveId).PersistentPrimitiveIndex);
+			}
+#endif
 		}
 #if ENABLE_DEBUG_MODE
 		if (bDrawBounds && PageInvalidationCount > 0U)

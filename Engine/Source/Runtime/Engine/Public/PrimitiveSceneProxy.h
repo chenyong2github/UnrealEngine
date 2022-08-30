@@ -582,11 +582,6 @@ public:
 		return Mobility == EComponentMobility::Movable || !bGoodCandidateForCachedShadowmap; 
 	}
 
-	inline bool ShouldCacheShadow() const
-	{
-		return !IsMovable() && !bIsBeingMovedByEditor;
-	}
-
 	inline ELightmapType GetLightmapType() const { return LightmapType; }
 	inline bool IsStatic() const { return Mobility == EComponentMobility::Static; }
 	inline bool IsSelectable() const { return bSelectable; }

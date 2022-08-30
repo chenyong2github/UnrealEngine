@@ -598,6 +598,13 @@ public:
 	/** Return primitive fullname (for debugging only). */
 	FString GetFullnameForDebuggingOnly() const;
 
+	FORCEINLINE bool ShouldCacheShadowAsStatic() const
+	{
+		return bCacheShadowAsStatic;
+	}
+
+	void SetCacheShadowAsStatic(bool bStatic);
+
 private:
 
 	/** Let FScene have direct access to the Id. */
@@ -635,6 +642,9 @@ private:
 
 	/** True if the primitive registered with velocity data and needs to remove itself when being removed from the scene. */
 	bool bRegisteredWithVelocityData : 1;
+
+	/** True if the primitive should be treated as static for the purpose of caching shadows */
+	bool bCacheShadowAsStatic : 1;
 
 	/** Index into the scene's PrimitivesNeedingLevelUpdateNotification array for this primitive scene info level. */
 	int32 LevelUpdateNotificationIndex;

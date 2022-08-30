@@ -5087,19 +5087,19 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector InvalidatingPrimitiveCollector(CacheManager);
 
 		// All removed primitives must invalidate their footprints in the VSM before leaving
-		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
+		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
 		{
-			InvalidatingPrimitiveCollector.Add(PrimitiveSceneInfo);
+			InvalidatingPrimitiveCollector.Removed(PrimitiveSceneInfo);
 		}
 		// All updated instances must also before moving or re-allocating (TODO: filter out only those actually updated)
 		for (const auto& Instance : UpdatedInstances)
 		{
-			InvalidatingPrimitiveCollector.Add(Instance.Key->GetPrimitiveSceneInfo());
+			InvalidatingPrimitiveCollector.UpdatedInstances(Instance.Key->GetPrimitiveSceneInfo());
 		}
 		// As must all primitive updates, 
 		for (const auto& Transform : UpdatedTransforms)
 		{
-			InvalidatingPrimitiveCollector.Add(Transform.Key->GetPrimitiveSceneInfo());
+			InvalidatingPrimitiveCollector.UpdatedTransform(Transform.Key->GetPrimitiveSceneInfo());
 		}
 
 		CacheManager->ProcessRemovedOrUpdatedPrimitives(GraphBuilder, GPUScene, InvalidatingPrimitiveCollector);
@@ -5189,6 +5189,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 						{
 							checkfSlow(DestIndex > SourceIndex, TEXT("Corrupted Prefix Sum [%d, %d]"), DestIndex, SourceIndex);
 							Primitives[DestIndex]->PackedIndex = SourceIndex;
+							// Update (the dynamic/compacted) primitive ID for the swapped primitive (not moved), no need to do the other one since it is being removed.
+							FPersistentPrimitiveIndex MovedPersisitentIndex = Primitives[DestIndex]->PersistentIndex;
+							PersistentPrimitiveIdToIndexMap[MovedPersisitentIndex.Index] = SourceIndex;
+
 							Primitives[SourceIndex]->PackedIndex = DestIndex;
 
 							TArraySwapElements(Primitives, DestIndex, SourceIndex);
@@ -5346,7 +5350,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 					}
 				}
 
-				PersistentPrimitiveIdAllocator.Free(PrimitiveSceneInfo->PersistentIndex.Index);
+				const int32 PersistentIndex = PrimitiveSceneInfo->PersistentIndex.Index;
+				PersistentPrimitiveIdAllocator.Free(PersistentIndex);
+				PersistentPrimitiveIdToIndexMap[PersistentIndex] = INDEX_NONE;
 			}
 
 			for (TMap<int32, TArray<FCachedShadowMapData>>::TIterator CachedShadowMapIt(CachedShadowMaps); CachedShadowMapIt; ++CachedShadowMapIt)
@@ -5465,7 +5471,14 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				const int32 SourceIndex = PrimitiveSceneProxies.Num() - 1;
 				PrimitiveSceneInfo->PackedIndex = SourceIndex;
 				checkSlow(PrimitiveSceneInfo->PersistentIndex.Index == INDEX_NONE);
-				PrimitiveSceneInfo->PersistentIndex = FPersistentPrimitiveIndex{ PersistentPrimitiveIdAllocator.Allocate() };
+				FPersistentPrimitiveIndex PersistentPrimitiveIndex{ PersistentPrimitiveIdAllocator.Allocate() };
+				PrimitiveSceneInfo->PersistentIndex = PersistentPrimitiveIndex;
+				// Ensure map is large enough
+				if (PersistentPrimitiveIndex.Index >= PersistentPrimitiveIdToIndexMap.Num())
+				{
+					PersistentPrimitiveIdToIndexMap.SetNumUninitialized(PersistentPrimitiveIndex.Index + 1);
+				}
+				PersistentPrimitiveIdToIndexMap[PersistentPrimitiveIndex.Index] = SourceIndex;
 
 				GPUScene.AddPrimitiveToUpdate(SourceIndex, EPrimitiveDirtyState::AddedMask);
 			}
@@ -5529,6 +5542,15 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							Primitives[DestIndex]->PackedIndex = SourceIndex;
 							Primitives[SourceIndex]->PackedIndex = DestIndex;
 
+							// Update (the dynamic/compacted) primitive ID for the swapped primitives
+							{
+								FPersistentPrimitiveIndex PersisitentIndex = Primitives[DestIndex]->PersistentIndex;
+								PersistentPrimitiveIdToIndexMap[PersisitentIndex.Index] = SourceIndex;
+							}
+							{
+								FPersistentPrimitiveIndex PersisitentIndex = Primitives[SourceIndex]->PersistentIndex;
+								PersistentPrimitiveIdToIndexMap[PersisitentIndex.Index] = DestIndex;
+							}
 							TArraySwapElements(Primitives, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveTransforms, DestIndex, SourceIndex);
 							TArraySwapElements(PrimitiveSceneProxies, DestIndex, SourceIndex);
@@ -5954,6 +5976,14 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 	UpdatedOcclusionBoundsSlacks.Empty();
 	DistanceFieldSceneDataUpdates.Empty();
 	AddedPrimitiveSceneInfos.Empty();
+
+	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : Primitives)
+	{
+		check(PrimitiveSceneInfo->PackedIndex != INDEX_NONE);
+		check(PrimitiveSceneInfo->PackedIndex < Primitives.Num());
+		check(PrimitiveSceneInfo->PersistentIndex.Index != INDEX_NONE);
+		check(PersistentPrimitiveIdToIndexMap[PrimitiveSceneInfo->PersistentIndex.Index] == PrimitiveSceneInfo->PackedIndex);
+	}
 }
 
 void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo, bool bAsyncCreateLPIs)
