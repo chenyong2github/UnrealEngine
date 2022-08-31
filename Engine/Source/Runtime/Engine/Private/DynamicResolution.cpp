@@ -1033,6 +1033,17 @@ public:
 		return Proxy->Heuristic.GetResolutionFractionUpperBounds();
 	}
 
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBoundBudgetValue() const override
+	{
+		DynamicRenderScaling::TMap<float> MaxResolutionFractions;
+		for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+		{
+			const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+			MaxResolutionFractions[Budget] = Budget.GetSettings().MaxResolutionFraction;
+		}
+		return MaxResolutionFractions;
+	}
+
 	virtual void ProcessEvent(EDynamicResolutionStateEvent Event) override
 	{
 		check(IsInGameThread());

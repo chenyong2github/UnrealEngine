@@ -59,6 +59,12 @@ protected:
 	/** Returns the max resolution resolution fraction. */
 	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const = 0;
 
+	/** Returns the max resolution resolution fraction as specified in the budget (this can differ from the upper bound if the upper bound is dynamic)*/
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBoundBudgetValue() const
+	{
+		return GetResolutionFractionsUpperBound();
+	}
+
 	/** Enables/Disables dynamic resolution. This is only called by GEngine automatically. */
 	virtual void SetEnabled(bool bEnable) = 0;
 
