@@ -667,6 +667,8 @@ void TraceVoxels(
 			}
 			#endif
 
+			float TraceHitDistanceForSkyLeaking = TraceHitDistance;
+
 			if (TraceResult.Transparency <= .5f)
 			{
 				// Self intersection from grazing angle traces causes noise that can't be removed by the spatial filter
@@ -676,6 +678,8 @@ void TraceVoxels(
 				#else
 					TraceHitDistance = TraceDistance;
 				#endif
+
+				TraceHitDistanceForSkyLeaking = TraceResult.OpaqueHitDistance;
 				bHit = true;
 			}
 
@@ -688,6 +692,7 @@ void TraceVoxels(
 				{
 					// We don't store depth of Radiance Cache hits
 					TraceHitDistance = MaxTraceDistance;
+					TraceHitDistanceForSkyLeaking = MaxTraceDistance;
 				}
 
 				SampleRadianceCacheAndApply(Coverage, WorldPosition, RayWorldDirection, ConeHalfAngle, TraceResult.Lighting, TraceResult.Transparency);
@@ -698,6 +703,7 @@ void TraceVoxels(
 				if (TraceResult.Transparency > .5f)
 				{
 					TraceHitDistance = MaxTraceDistance;
+					TraceHitDistanceForSkyLeaking = MaxTraceDistance;
 				}
 
 				ApplySkylightToTraceResult(RayWorldDirection, TraceResult);
@@ -708,7 +714,7 @@ void TraceVoxels(
 				}
 			}
 
-			TraceResult.Lighting += GetSkylightLeaking(RayWorldDirection, TraceHitDistance);
+			TraceResult.Lighting += GetSkylightLeaking(RayWorldDirection, TraceHitDistanceForSkyLeaking);
 
 			TraceResult.Lighting *= View.PreExposure;
 
