@@ -1528,6 +1528,7 @@ bool UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 			{
 				bSuccess = VM->Initialize(LocalMemory, AdditionalArguments);
 			}
+			bRequiresConstructionEvent = true;
 		}
 		else
 		{
