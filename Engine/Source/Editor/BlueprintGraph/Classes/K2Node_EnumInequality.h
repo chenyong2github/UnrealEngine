@@ -3,9 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node_EnumEquality.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_EnumInequality.generated.h"
+
+class FName;
+class UClass;
+class UObject;
 
 UCLASS(MinimalAPI, meta=(Keywords = "!="))
 class UK2Node_EnumInequality : public UK2Node_EnumEquality

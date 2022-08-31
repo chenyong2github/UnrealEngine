@@ -1,12 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldDataLayersTreeItem.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+
+#include "Containers/EnumAsByte.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 #include "ISceneOutliner.h"
-#include "WorldTreeItem.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "SceneOutlinerPublicTypes.h"
+#include "SlotBase.h"
+#include "Styling/SlateColor.h"
 #include "Styling/SlateIconFinder.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldTreeItem.h"
+
+class SWidget;
+template <typename ItemType> class STableRow;
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

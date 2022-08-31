@@ -32,6 +32,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/ObjectVersion.h"
+#include "UObject/TopLevelAssetPath.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 

@@ -1,15 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LODLevelItem.h"
-#include "Engine/World.h"
-#include "Engine/LODActor.h"
-#include "Modules/ModuleManager.h"
-#include "IHierarchicalLODUtilities.h"
-#include "HierarchicalLODUtilitiesModule.h"
-#include "Engine/Selection.h"
-#include "ToolMenus.h"
-#include "HLODOutliner.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Engine/LODActor.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
+#include "Framework/Commands/UIAction.h"
+#include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
+#include "HLODOutliner.h"
+#include "HierarchicalLODType.h"
+#include "HierarchicalLODUtilitiesModule.h"
+#include "IHierarchicalLODUtilities.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Modules/ModuleManager.h"
+#include "Selection.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "LODLevelItem"
 

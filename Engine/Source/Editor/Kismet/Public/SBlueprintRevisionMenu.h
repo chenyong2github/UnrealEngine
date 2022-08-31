@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "ISourceControlOperation.h"
+#include "ISourceControlProvider.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "SourceControlOperations.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "ISourceControlProvider.h"
-#include "SourceControlOperations.h"
 
+class FUpdateStatus;
 class SVerticalBox;
 class UBlueprint;
 struct FRevisionInfo;

@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "IDetailCustomization.h"
-#include "Types/SlateEnums.h" // for ETextCommit, ESelectInfo
+#include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h" // for ETextCommit, ESelectInfo
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
-class IPropertyHandle;
 class IDetailPropertyRow;
+class IPropertyHandle;
 class ITableRow;
 class STableViewBase;
-class IPropertyHandle;
+class UObject;
 
 class FMotionControllerDetails : public IDetailCustomization
 {

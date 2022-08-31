@@ -2,16 +2,46 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SceneOutlinerFwd.h"
-#include "ISceneOutlinerMode.h"
-#include "DataLayerTreeItem.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "DataLayerDragDropOp.h"
+#include "Delegates/Delegate.h"
+#include "Folder.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
+#include "ISceneOutlinerMode.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "SSceneOutliner.h"
+#include "SceneOutlinerDragDrop.h"
+#include "SceneOutlinerFwd.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class UDataLayerEditorSubsystem;
-class SDataLayerBrowser;
-class UWorld;
+class AActor;
 class AWorldDataLayers;
+class FDragDropEvent;
+class FDragDropOperation;
+class FMenuBuilder;
+class FSceneOutlinerFilter;
+class ISceneOutlinerHierarchy;
+class SDataLayerBrowser;
+class SWidget;
+class UDataLayerAsset;
+class UDataLayerEditorSubsystem;
+class UDataLayerInstance;
+class UObject;
+class UToolMenu;
+class UWorld;
+struct FKeyEvent;
+struct FPointerEvent;
 
 struct FDataLayerModeParams
 {

@@ -4,8 +4,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "UObject/Interface.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_AddPinInterface.generated.h"
+
+class UObject;
 
 UINTERFACE(meta=(CannotImplementInterfaceInBlueprint))
 class BLUEPRINTGRAPH_API UK2Node_AddPinInterface : public UInterface

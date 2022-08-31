@@ -2,17 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/UnrealType.h"
-#include "BlueprintNodeSignature.h"
-#include "K2Node_Event.h"
 #include "BlueprintEventNodeSpawner.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSignature.h"
+#include "CoreMinimal.h"
+#include "K2Node_Event.h"
+#include "Math/Vector2D.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/FieldPath.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
 #include "BlueprintBoundEventNodeSpawner.generated.h"
 
+class FMulticastDelegateProperty;
+class UBlueprint;
 class UEdGraph;
+class UEdGraphNode;
+class UK2Node_Event;
+class UObject;
 
 /**
  * Takes care of spawning UK2Node_Event nodes. Acts as the "action" portion of

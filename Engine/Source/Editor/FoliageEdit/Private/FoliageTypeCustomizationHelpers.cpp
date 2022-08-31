@@ -1,14 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageTypeCustomizationHelpers.h"
-#include "UObject/UnrealType.h"
-#include "PhysicsEngine/BodyInstance.h"
+
 #include "Components/PrimitiveComponent.h"
-#include "PropertyHandle.h"
-#include "IDetailPropertyRow.h"
-#include "DetailLayoutBuilder.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "FoliageType.h"
+#include "HAL/Platform.h"
+#include "IDetailPropertyRow.h"
+#include "Misc/AssertionMacros.h"
+#include "PhysicsEngine/BodyInstance.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/UnrealType.h"
 
 void FFoliageTypeCustomizationHelpers::ModifyFoliagePropertyRow(IDetailPropertyRow* PropertyRow, const TAttribute<EVisibility>& InVisibility, const TAttribute<bool>& InEnabled)
 {

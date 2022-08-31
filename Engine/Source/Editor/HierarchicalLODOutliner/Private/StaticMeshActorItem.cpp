@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshActorItem.h"
-#include "GameFramework/Actor.h"
-#include "Textures/SlateIcon.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/UIAction.h"
-#include "ToolMenus.h"
+#include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
 #include "HLODOutliner.h"
+#include "HierarchicalLODType.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "StaticMeshActorItem"
 

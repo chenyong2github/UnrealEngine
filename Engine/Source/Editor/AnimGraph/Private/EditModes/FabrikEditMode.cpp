@@ -1,9 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditModes/FabrikEditMode.h"
+
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_Fabrik.h"
-#include "IPersonaPreviewScene.h"
+#include "Animation/AnimTypes.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "BoneControllers/AnimNode_Fabrik.h"
+#include "Containers/EnumAsByte.h"
+#include "IPersonaPreviewScene.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Templates/Casts.h"
+
+class USkeletalMeshComponent;
+struct FBoneSocketTarget;
 
 void FFabrikEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)
 {

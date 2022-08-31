@@ -1,10 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Manipulator.h"
-#include "ViewportInteractor.h"
+
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Materials/MaterialInstance.h" 
+#include "Engine/EngineTypes.h"
 #include "Engine/StaticMesh.h"
+#include "HAL/Platform.h"
+#include "Materials/Material.h"
+#include "Math/Transform.h"
+#include "Misc/AssertionMacros.h"
 #include "UObject/ConstructorHelpers.h"
+
+class UActorComponent;
+class UViewportInteractor;
+struct FHitResult;
 
 AManipulator::AManipulator()
 	: Super()

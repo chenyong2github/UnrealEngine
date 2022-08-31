@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "BodyInstanceCustomization.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class UObject;
 
 class FBodySetupDetails : public IDetailCustomization
 {

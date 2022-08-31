@@ -11,7 +11,6 @@
 #include "ContentBrowserLog.h"
 #include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "ICollectionManager.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"

@@ -2,24 +2,40 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/ARFilter.h"
-#include "FrontendFilterBase.h"
-#include "FrontendFilters.h"
+#include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Filters/CustomTextFilters.h"
+#include "Filters/FilterBase.h"
 #include "Filters/SAssetFilterBar.h"
+#include "Filters/SBasicFilterBar.h"
+#include "FrontendFilters.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IContentBrowserSingleton.h"
+#include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FFrontendFilter;
+class SWidget;
+class UClass;
 class UToolMenu;
-struct FToolMenuSection;
-class SFilter;
-class SWrapBox;
+struct FContentBrowserItem;
+struct FCustomTextFilterState;
+struct FFilterBarSettings;
+struct FGeometry;
+struct FPointerEvent;
+
 enum class ECheckBoxState : uint8;
-class FFilterListCustomTextFilter;
-class FFrontendFilter_Text;
 
 /**
  * A list of filters currently applied to an asset view.

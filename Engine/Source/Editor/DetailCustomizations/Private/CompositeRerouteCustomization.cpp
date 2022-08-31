@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositeRerouteCustomization.h"
-#include "PropertyCustomizationHelpers.h"
-#include "DetailLayoutBuilder.h"
+
+#include "DetailWidgetRow.h"
+#include "HAL/PlatformCrt.h"
 #include "Materials/MaterialExpressionPinBase.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "CompositeRerouteDetails"
 

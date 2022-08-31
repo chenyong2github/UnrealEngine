@@ -7,9 +7,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundAttenuationFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCLASS(hidecategories=Object, MinimalAPI)
 class USoundAttenuationFactory : public UFactory

@@ -2,31 +2,50 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "EdMode.h"
+#include "Engine/EngineBaseTypes.h"
+#include "HAL/PlatformCrt.h"
 #include "InputCoreTypes.h"
 #include "InstancedFoliage.h"
+#include "Internationalization/Text.h"
+#include "Math/Axis.h"
+#include "Math/Box.h"
+#include "Math/Color.h"
+#include "Math/Rotator.h"
+#include "Math/Sphere.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 #include "UnrealWidgetFwd.h"
-#include "EdMode.h"
 #include "Widgets/Views/SHeaderRow.h"
 
+class AActor;
 class AInstancedFoliageActor;
 class FCanvas;
 class FEditorViewportClient;
+class FName;
 class FPrimitiveDrawInterface;
+class FReferenceCollector;
 class FSceneView;
 class FUICommandList;
 class FViewport;
+class HHitProxy;
+class UClass;
 class UFoliageType;
 class ULandscapeComponent;
+class ULevel;
+class UObject;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
-struct FViewportClick;
-
-//
-// Forward declarations.
-//
-class UStaticMesh;
+class UWorld;
 struct FAssetData;
+struct FHitResult;
+struct FViewportClick;
+template <typename FuncType> class TFunctionRef;
 
 /** View modes supported by the foliage palette */
 namespace EFoliagePaletteViewMode

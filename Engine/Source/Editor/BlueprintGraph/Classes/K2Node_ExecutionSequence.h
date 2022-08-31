@@ -3,16 +3,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
 #include "K2Node_AddPinInterface.h"
-#include "EdGraph/EdGraphPin.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "K2Node_ExecutionSequence.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UObject;
 
 UCLASS(MinimalAPI, meta = (Keywords = "sequence"))
 class UK2Node_ExecutionSequence : public UK2Node, public IK2Node_AddPinInterface

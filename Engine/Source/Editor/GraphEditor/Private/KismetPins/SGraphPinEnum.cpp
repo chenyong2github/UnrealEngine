@@ -20,6 +20,7 @@
 #include "Styling/AppStyle.h"
 #include "Templates/Casts.h"
 #include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 #include "Types/SlateStructs.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"

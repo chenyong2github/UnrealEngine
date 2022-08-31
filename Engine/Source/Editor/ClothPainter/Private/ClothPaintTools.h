@@ -3,7 +3,32 @@
 #pragma once
 
 #include "ClothPaintToolBase.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Engine/EngineBaseTypes.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Math/Matrix.h"
+#include "MeshPaintHelpers.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ClothPaintTools.generated.h"
+
+class FClothPainter;
+class FEditorViewportClient;
+class FMeshPaintParameters;
+class FPrimitiveDrawInterface;
+class FSceneView;
+class FUICommandList;
+class FViewport;
+class IDetailsView;
+class IMeshPaintGeometryAdapter;
+class UClothPainterSettings;
+class USkeletalMeshComponent;
 
 /** Unique settings for the Brush tool */
 UCLASS()

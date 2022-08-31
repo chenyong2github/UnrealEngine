@@ -2,30 +2,59 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Queue.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "Engine/Blueprint.h"
-#include "Types/WidgetActiveTimerDelegate.h"
+#include "Delegates/Delegate.h"
 #include "Dom/JsonObject.h"
+#include "Engine/Blueprint.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
-#include "SlateFwd.h"
+#include "HAL/ThreadSafeCounter.h"
 #include "Input/Reply.h"
-#include "TickableEditorObject.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Containers/Queue.h"
+#include "SlateFwd.h"
+#include "Stats/Stats2.h"
+#include "Templates/Atomic.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "TickableEditorObject.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FArchive;
+class SDockTab;
+class SWidget;
+class UBlueprint;
+class UClass;
+class UObject;
+struct FTopLevelAssetPath;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFindInBlueprint, Warning, All);
 
 /** CSV stats profiling category */
 CSV_DECLARE_CATEGORY_EXTERN(FindInBlueprint);
 
-struct FAssetData;
 class FFindInBlueprintsResult;
 class FImaginaryBlueprint;
 class FImaginaryFiBData;
 class FSpawnTabArgs;
 class SFindInBlueprints;
+struct FAssetData;
 
 // Shared pointers to cached imaginary data (must be declared as thread-safe).
 typedef TWeakPtr<FImaginaryFiBData, ESPMode::ThreadSafe> FImaginaryFiBDataWeakPtr;

@@ -11,7 +11,6 @@
 #include "GameFramework/Actor.h"
 #include "GenericPlatform/ICursor.h"
 #include "GraphEditorSettings.h"
-#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"

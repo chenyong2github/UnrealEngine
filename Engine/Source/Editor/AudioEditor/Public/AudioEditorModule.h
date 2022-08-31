@@ -2,24 +2,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "ISoundClassEditor.h"
-#include "ISoundSubmixEditor.h"
 #include "ISoundCueEditor.h"
+#include "ISoundSubmixEditor.h"
+#include "Logging/LogMacros.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/NameTypes.h"
 
-
+class FAssetEditorToolkit;
+class FExtensibilityManager;
+class ISoundCueEditor;
+class IToolkitHost;
 // Forward Declarations
 class UDialogueWave;
+class UPackage;
 class USoundClass;
 class USoundCue;
 class USoundEffectPreset;
-class USoundSubmixBase;
 class USoundNode;
+class USoundSubmixBase;
 class USoundWave;
 class UWidgetBlueprint;
-
 struct FDialogueContextMapping;
 
 AUDIOEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioEditor, Log, All);

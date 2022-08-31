@@ -2,11 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "IPropertyTypeCustomization.h"
 #include "SkeletalMeshReductionSettings.h"
+#include "Templates/SharedPointer.h"
 
-class IDetailLayoutBuilder;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
 class IPropertyHandle;
 struct EVisibility;
 

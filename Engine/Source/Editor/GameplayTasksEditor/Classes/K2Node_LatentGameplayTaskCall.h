@@ -2,18 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "K2Node_BaseAsyncTask.h"
 #include "GameplayTask.h"
+#include "HAL/PlatformCrt.h"
+#include "K2Node_BaseAsyncTask.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "K2Node_LatentGameplayTaskCall.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FName;
+class UClass;
 class UEdGraph;
 class UEdGraphPin;
 class UEdGraphSchema;
 class UEdGraphSchema_K2;
+class UGameplayTask;
+class UObject;
 
 UCLASS()
 class GAMEPLAYTASKSEDITOR_API UK2Node_LatentGameplayTaskCall : public UK2Node_BaseAsyncTask

@@ -2,17 +2,39 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EditorSubsystem.h"
-#include "Misc/StringBuilder.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "Containers/SortedMap.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "ContentBrowserItem.h"
-#include "ContentBrowserDataFilter.h"
 #include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDataFilter.h"
+#include "ContentBrowserItem.h"
+#include "ContentBrowserItemData.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EditorSubsystem.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/StringBuilder.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ContentBrowserDataSubsystem.generated.h"
 
+class FSubsystemCollectionBase;
+class FText;
+class UContentBrowserDataSource;
+class UObject;
+struct FAssetData;
 struct FContentBrowserItemPath;
+struct FFrame;
+template <typename FuncType> class TFunctionRef;
 
 UENUM(BlueprintType)
 enum class EContentBrowserPathType : uint8

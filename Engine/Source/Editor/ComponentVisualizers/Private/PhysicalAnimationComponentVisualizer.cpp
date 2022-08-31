@@ -2,7 +2,9 @@
 
 #include "PhysicalAnimationComponentVisualizer.h"
 
+#include "Components/ActorComponent.h"
 #include "PhysicsEngine/PhysicalAnimationComponent.h"
+#include "Templates/Casts.h"
 
 void FPhysicsAnimationComponentVisualizer::DrawVisualization( const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI )
 {

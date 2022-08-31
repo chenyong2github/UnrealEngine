@@ -3,23 +3,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "GraphEditor.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
 #include "Layout/Margin.h"
 #include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/SExpanderArrow.h"
 #include "Widgets/Layout/SBorder.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "GraphEditor.h"
+#include "Widgets/Views/SExpanderArrow.h"
 
 class FBlueprintEditor;
 class SBlueprintContextTargetMenu;
 class SEditableTextBox;
 class SGraphActionMenu;
+class SWidget;
 class UEdGraph;
+class UEdGraphPin;
 struct FBlueprintActionContext;
 struct FCustomExpanderData;
+struct FEdGraphSchemaAction;
+struct FGraphActionListBuilderBase;
 
 /*******************************************************************************
 * SBlueprintActionMenu

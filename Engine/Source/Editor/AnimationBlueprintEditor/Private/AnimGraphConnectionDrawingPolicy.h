@@ -2,12 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "BlueprintConnectionDrawingPolicy.h"
 #include "AnimationPins/SGraphPinPose.h"
+#include "BlueprintConnectionDrawingPolicy.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
+class FArrangedWidget;
+class FSlateRect;
 class FSlateWindowElementList;
+class SWidget;
 class UEdGraph;
+class UEdGraphPin;
+struct FConnectionParams;
+struct FLinearColor;
 
 /////////////////////////////////////////////////////
 // FAnimGraphConnectionDrawingPolicy

@@ -6,14 +6,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Delegates/Delegate.h"
+#include "Engine/World.h"
+#include "Math/UnrealMathSSE.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "GlobalEditorUtilityBase.generated.h"
 
 class AActor;
 class UEditorPerProjectUserSettings;
+struct FFrame;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FForEachActorIteratorSignature, class AActor*, Actor, int32, Index );
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams( FForEachAssetIteratorSignature, class UObject*, Asset, int32, Index );

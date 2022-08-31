@@ -16,6 +16,7 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/Class.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"

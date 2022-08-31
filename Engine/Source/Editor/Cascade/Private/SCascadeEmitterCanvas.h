@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
 #include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FCascade;
 class FCascadeEmitterCanvasClient;
 class FSceneViewport;
+class SDockTab;
 class SScrollBar;
 class SViewport;
 

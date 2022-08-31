@@ -6,6 +6,7 @@
 #include "CoreFwd.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/UObjectGlobals.h"
 

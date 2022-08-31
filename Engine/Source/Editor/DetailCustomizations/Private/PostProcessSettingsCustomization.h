@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
+class SWidget;
+class UClass;
+class UPackage;
 
 /**
  * Implements a details view customization for the FPostProcessSettings structure.

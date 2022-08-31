@@ -2,15 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/SWidget.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
 #include "Customizations/MathStructCustomizations.h"
+#include "Delegates/Delegate.h"
+#include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Rotator.h"
+#include "Math/Vector.h"
+#include "Misc/Optional.h"
+#include "PropertyHandle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SWidget.h"
 
 class FDetailWidgetRow;
+class IPropertyHandle;
+class IPropertyTypeCustomization;
+class IPropertyTypeCustomizationUtils;
 class IPropertyUtilities;
+class SWidget;
 
 /** 
  * Helper class used to track the dirty state of a proxy value

@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SceneOutlinerFwd.h"
-#include "ISceneOutliner.h"
-#include "ISceneOutlinerColumn.h"
-#include "Widgets/Views/SHeaderRow.h"
 #include "SceneOutlinerGutter.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class ISceneOutliner;
+class SWidget;
 template<typename ItemType> class STableRow;
+
 class FDataLayerOutlinerIsVisibleColumn : public FSceneOutlinerGutter
 {
 public:

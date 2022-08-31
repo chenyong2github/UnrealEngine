@@ -2,24 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Map.h"
+#include "Debugging/SKismetDebugTreeView.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Debugging/SKismetDebugTreeView.h"
 
-class FDebugLineItem;
-class FTraceStackParentItem;
-class UBlueprint;
-class UBlueprintGeneratedClass;
-class FBreakpointParentItem;
-
-class SSearchBox;
 class SComboButton;
-class SCheckBox;
+class SHorizontalBox;
+class SSearchBox;
+class SWidget;
+class UBlueprint;
+class UClass;
+class UObject;
+struct FGeometry;
 
 //////////////////////////////////////////////////////////////////////////
 // SKismetDebuggingView

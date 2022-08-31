@@ -3,16 +3,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GetDataTableRow.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
 class UDataTable;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+class UScriptStruct;
+struct FLinearColor;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_GetDataTableRow : public UK2Node

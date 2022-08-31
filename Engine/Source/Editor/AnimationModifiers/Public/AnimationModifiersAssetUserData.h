@@ -14,6 +14,7 @@
 class FArchive;
 class UAnimationModifier;
 class UObject;
+template <typename T> struct TObjectPtr;
 
 /** Asset user data which can be added to a USkeleton or UAnimSequence to keep track of Animation Modifiers */
 UCLASS()

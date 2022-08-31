@@ -2,31 +2,39 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "GraphEditor.h"
-#include "BehaviorTreeGraphNode_CompositeDecorator.h"
-#include "Misc/NotifyHook.h"
-#include "Toolkits/IToolkitHost.h"
-#include "IBehaviorTreeEditor.h"
 #include "AIGraphEditor.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/IDelegateInstance.h"
+#include "GraphEditor.h"
+#include "HAL/PlatformMath.h"
+#include "IBehaviorTreeEditor.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/NotifyHook.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class FBehaviorTreeDebugger;
-class FBehaviorTreeEditorToolbar;
 class FDocumentTabFactory;
 class FDocumentTracker;
 class FObjectPostSaveContext;
+class FProperty;
 class IDetailsView;
-class SBehaviorTreeBlackboardEditor;
-class SBehaviorTreeBlackboardView;
-class SFindInBT;
+class SWidget;
 class UBehaviorTree;
 class UBehaviorTreeComponent;
 class UBlackboardData;
+class UClass;
 class UEdGraph;
+class UEdGraphNode;
+class UObject;
+class UPackage;
 struct FBlackboardEntry;
-struct Rect;
+struct FPropertyChangedEvent;
 
 class FBehaviorTreeEditor : public IBehaviorTreeEditor, public FAIGraphEditor, public FNotifyHook
 {

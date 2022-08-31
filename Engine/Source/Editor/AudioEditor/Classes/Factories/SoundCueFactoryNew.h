@@ -6,16 +6,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "SoundCueFactoryNew.generated.h"
 
-class USoundCue;
-class USoundWave;
-class USoundNode;
+class FFeedbackContext;
+class UClass;
 class UDialogueWave;
+class UObject;
+class USoundCue;
+class USoundNode;
 class USoundNodeRandom;
+class USoundWave;
 
 UCLASS(hidecategories=Object, MinimalAPI)
 class USoundCueFactoryNew : public UFactory

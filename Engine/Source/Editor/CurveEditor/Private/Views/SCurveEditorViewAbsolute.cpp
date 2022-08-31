@@ -9,7 +9,6 @@
 #include "Misc/Attribute.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/ISlateStyle.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"

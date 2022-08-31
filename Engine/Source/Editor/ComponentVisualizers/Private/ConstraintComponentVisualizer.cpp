@@ -2,8 +2,20 @@
 
 #include "ConstraintComponentVisualizer.h"
 
-#include "SceneManagement.h"
+#include "Chaos/ChaosEngineInterface.h"
+#include "Components/ActorComponent.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Box.h"
+#include "Math/Color.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
 
 static const FColor	JointFrame1Color(255,0,0);
 static const FColor JointFrame2Color(0,0,255);

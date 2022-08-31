@@ -3,13 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_ConstructObjectFromClass.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GenericCreateObject.generated.h"
 
-class UEdGraph;
 class FKismetCompilerContext;
+class UEdGraph;
 class UK2Node_CallFunction;
+class UObject;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_GenericCreateObject : public UK2Node_ConstructObjectFromClass

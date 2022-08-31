@@ -1,14 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PrimitiveComponentDetails.h"
-#include "Components/SceneComponent.h"
-#include "Components/PrimitiveComponent.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailGroup.h"
-#include "DetailCategoryBuilder.h"
-#include "ObjectEditorUtils.h"
-#include "EditorCategoryUtils.h"
+
+#include "BodyInstanceCustomization.h"
 #include "ComponentMaterialCategory.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/SceneComponent.h"
+#include "Containers/UnrealString.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "EditorCategoryUtils.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailGroup.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "ObjectEditorUtils.h"
+#include "PropertyHandle.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "PrimitiveComponentDetails"
 

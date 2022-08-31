@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DistanceDatumStructCustomization.h"
-#include "UObject/UnrealType.h"
-#include "IDetailChildrenBuilder.h"
+
+#include "Containers/Array.h"
 #include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
 #include "Sound/SoundNodeDistanceCrossFade.h"
 #include "Sound/SoundNodeParamCrossFade.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "DistanceDatumStructCustomization"
 

@@ -2,17 +2,26 @@
 
 #pragma once
 
-#include "Toolkits/AssetEditorToolkit.h"
-#include "SModifierListview.h"
+#include "Containers/Array.h"
 #include "EditorUndoClient.h"
+#include "Input/Reply.h"
+#include "SModifierListview.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class IAssetEditorInstance;
 class IDetailsView;
-class UAnimSequence;
-class USkeleton;
-class UAnimationModifiersAssetUserData;
-class UAnimationModifier;
-class UBlueprint;
 class SMenuAnchor;
+class UAnimSequence;
+class UAnimationModifier;
+class UAnimationModifiersAssetUserData;
+class UBlueprint;
+class UClass;
+class UObject;
+class USkeleton;
+struct FGeometry;
 
 class ANIMATIONMODIFIERS_API SAnimationModifiersTab : public SCompoundWidget, public FEditorUndoClient
 {

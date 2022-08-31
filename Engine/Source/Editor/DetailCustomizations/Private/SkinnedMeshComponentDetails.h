@@ -2,17 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "IDetailCustomization.h"
-#include "SNameComboBox.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "PropertyHandle.h"
 
 class FDetailWidgetRow;
+class FName;
+class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class SNameComboBox;
 class UPhysicsAsset;
 class USkinnedMeshComponent;
-class IDetailCategoryBuilder;
 
 class FSkinnedMeshComponentDetails : public IDetailCustomization
 {

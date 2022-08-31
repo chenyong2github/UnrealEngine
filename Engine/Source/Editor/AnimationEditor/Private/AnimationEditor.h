@@ -2,29 +2,38 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Widgets/SWidget.h"
-#include "UObject/GCObject.h"
-#include "Toolkits/IToolkitHost.h"
-#include "IAnimationEditor.h"
-#include "TickableEditorObject.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "IAnimationEditor.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "Tickable.h"
+#include "TickableEditorObject.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
 
-struct FAssetData;
+class FExtender;
 class FMenuBuilder;
+class FReferenceCollector;
+class IAnimSequenceCurveEditor;
 class IAnimationSequenceBrowser;
-class IDetailsView;
-class IPersonaToolkit;
-class IPersonaViewport;
-class ISkeletonTree;
-class UAnimationAsset;
-class USkeletalMeshComponent;
+class ISkeletonTreeItem;
+class ITimeSliderController;
+class SDockTab;
+class SWidget;
 class UAnimSequence;
 class UAnimSequenceBase;
-class ISkeletonTreeItem;
-class IAnimSequenceCurveEditor;
-struct FRichCurve;
+class UAnimationAsset;
+class UObject;
+class USkeletalMeshComponent;
+struct FAssetData;
 struct FToolMenuContext;
 
 namespace AnimationEditorModes

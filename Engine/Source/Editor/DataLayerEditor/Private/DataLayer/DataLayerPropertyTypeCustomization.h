@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "PropertyEditorModule.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "PropertyEditorModule.h"
+#include "Templates/SharedPointer.h"
 
-struct EVisibility;
-class FReply;
-class SWidget;
-class FDragDropOperation;
 class FDataLayerDragDropOp;
+class FDetailWidgetRow;
+class FDragDropEvent;
+class FDragDropOperation;
+class FReply;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
+class SWidget;
 class UDataLayerInstance;
-struct FSlateColor;
+struct EVisibility;
+struct FGeometry;
 struct FSlateBrush;
+struct FSlateColor;
 
 struct FDataLayerPropertyTypeCustomization : public IPropertyTypeCustomization
 {

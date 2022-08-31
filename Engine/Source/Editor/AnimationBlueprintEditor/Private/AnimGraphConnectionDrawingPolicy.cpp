@@ -1,15 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphConnectionDrawingPolicy.h"
+
+#include "AnimGraphAttributes.h"
+#include "AnimGraphNode_Base.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimationGraphSchema.h"
-#include "AnimGraphNode_Base.h"
-#include "AnimGraphAttributes.h"
-#include "Algo/Sort.h"
 #include "AnimationPins/SGraphPinPose.h"
+#include "ConnectionDrawingPolicy.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/Blueprint.h"
 #include "K2Node_Knot.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Math/Color.h"
+#include "Math/Range.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SGraphPin.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+
+class FArrangedWidget;
+class FSlateRect;
+class SWidget;
 
 /////////////////////////////////////////////////////
 // FAnimGraphConnectionDrawingPolicy

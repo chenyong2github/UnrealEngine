@@ -2,18 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "CoreTypes.h"
 #include "Templates/UniquePtr.h"
-#include "Containers/ArrayView.h"
-#include "Containers/Array.h"
 #include "UObject/NameTypes.h"
 #include "UObject/TopLevelAssetPath.h"
 
-struct FAssetData;
-
+class FText;
 class UBlueprint;
-class UObject;
 class UClass;
+class UObject;
+struct FAssetData;
 
 /**
  * Interface used to define how to interact with a blueprint within an asset

@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SNodePanel.h"
 #include "AnimationNodes/SAnimationGraphNode.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SVerticalBox;
 class UAnimGraphNode_Base;
+struct FGraphInformationPopupInfo;
+struct FNodeInfoContext;
 
 class SGraphNodeSequencePlayer : public SAnimationGraphNode
 {

@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDelegates.h"
+#include "IContentBrowserSingleton.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "IContentBrowserSingleton.h"
 
 class SPathView;
+class SWidget;
+struct FContentBrowserItem;
 
 /**
  * A sources view designed for path picking

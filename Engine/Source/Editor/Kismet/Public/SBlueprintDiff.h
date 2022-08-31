@@ -1,26 +1,53 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWindow.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Textures/SlateIcon.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/SListView.h"
-#include "GraphEditor.h"
-#include "DiffUtils.h"
-#include "DiffResults.h"
-#include "SKismetInspector.h"
+#include "Delegates/Delegate.h"
 #include "Developer/AssetTools/Public/IAssetTypeActions.h"
+#include "DiffResults.h"
+#include "DiffUtils.h"
+#include "GraphEditor.h"
+#include "HAL/Platform.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SKismetInspector.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
 
+class FBlueprintDifferenceTreeEntry;
 class FSpawnTabArgs;
 class FTabManager;
+class FText;
+class FUICommandList;
 class IDiffControl;
+class SBox;
 class SMyBlueprint;
+class SOverlay;
+class SSplitter;
+class SWidget;
+class SWindow;
+class UBlueprint;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+class UObject;
 struct FGraphToDiff;
+template <typename ItemType> class SListView;
+
 enum class EAssetEditorCloseReason : uint8;
 
 /** Individual Diff item shown in the list of diffs */

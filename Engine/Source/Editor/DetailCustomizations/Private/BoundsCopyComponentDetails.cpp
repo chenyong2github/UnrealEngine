@@ -18,7 +18,6 @@
 #include "SlotBase.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/Casts.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"

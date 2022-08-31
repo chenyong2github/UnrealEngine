@@ -1,19 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SVerbChoiceDialog.h"
+
+#include "Containers/UnrealString.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "HAL/PlatformMisc.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/BasicLayoutWidgetSlot.h"
+#include "Layout/Children.h"
+#include "Layout/Margin.h"
+#include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWindow.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Styling/AppStyle.h"
-#include "Editor.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "HAL/PlatformApplicationMisc.h"
+
+struct FGeometry;
 
 int32 SVerbChoiceDialog::ShowModal(const FText& InTitle, const FText& InText, const TArray<FText>& InButtons)
 {

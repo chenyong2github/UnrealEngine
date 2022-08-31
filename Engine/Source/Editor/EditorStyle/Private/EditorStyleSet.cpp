@@ -2,7 +2,6 @@
 
 #include "EditorStyleSet.h"
 
-#include "HAL/PlatformCrt.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 

@@ -2,10 +2,18 @@
 
 #pragma once
 
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Misc/CoreMiscDefines.h"
+#include "UObject/SoftObjectPath.h"
 
-struct FAssetData;
+class FProperty;
 class UBlueprint;
+class UObject;
+class UStruct;
+struct FAssetData;
 
 /** Default namespace type for objects/assets if one is not explicitly assigned. */
 enum class EDefaultBlueprintNamespaceType

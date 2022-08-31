@@ -3,9 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CallMaterialParameterCollectionFunction.generated.h"
+
+class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_CallMaterialParameterCollectionFunction : public UK2Node_CallFunction

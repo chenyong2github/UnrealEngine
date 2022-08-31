@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "K2Node.h"
+#include "UObject/NameTypes.h"
 
-class UEdGraphPin;
+class FProperty;
 class UAnimGraphNode_CustomProperty;
+class UClass;
+class UEdGraphPin;
 
 struct FCustomPropertyOptionalPinManager : public FOptionalPinManager
 {

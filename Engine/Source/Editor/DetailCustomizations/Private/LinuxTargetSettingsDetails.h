@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "ShaderFormatsPropertyDetails.h"
+#include "Internationalization/Text.h"
+#include "Styling/SlateColor.h"
 #include "TargetPlatformAudioCustomization.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
+class FShaderFormatsPropertyDetails;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class SWidget;
+
 enum class ECheckBoxState : uint8;
 
 /**

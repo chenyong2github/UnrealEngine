@@ -2,14 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Toolkits/IToolkitHost.h"
+#include "Containers/UnrealString.h"
 #include "ICurveAssetEditor.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 
 class FCurveEditor;
-class UCurveBase;
+class FExtender;
+class FSpawnTabArgs;
 class SCurveEditorPanel;
+class SDockTab;
+class SWidget;
+class UCurveBase;
 
 class FCurveAssetEditor :  public ICurveAssetEditor
 {

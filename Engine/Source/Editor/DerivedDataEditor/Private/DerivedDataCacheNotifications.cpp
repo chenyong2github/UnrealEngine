@@ -5,7 +5,6 @@
 #include "CoreGlobals.h"
 #include "Delegates/Delegate.h"
 #include "DerivedDataCacheInterface.h"
-#include "HAL/PlatformCrt.h"
 #include "Logging/LogMacros.h"
 #include "Misc/CoreMisc.h"
 

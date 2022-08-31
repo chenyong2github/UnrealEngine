@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SlateSoundCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "PropertyHandle.h"
-#include "Sound/SoundBase.h"
+
+#include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "Sound/SlateSound.h"
+#include "Sound/SoundBase.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class IDetailChildrenBuilder;
 
 TSharedRef<IPropertyTypeCustomization> FSlateSoundStructCustomization::MakeInstance() 
 {

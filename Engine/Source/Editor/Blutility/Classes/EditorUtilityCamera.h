@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Camera/CameraActor.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "EditorUtilityCamera.generated.h"

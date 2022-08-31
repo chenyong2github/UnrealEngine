@@ -2,15 +2,26 @@
 
 #pragma once
 
-#include "InputState.h"
-#include "UnrealWidgetFwd.h"
-#include "Elements/Framework/TypedElementListFwd.h"
-#include "Elements/Framework/TypedElementInterfaceCustomization.h"
-#include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Containers/ArrayView.h"
 #include "Elements/Framework/TypedElementAssetEditorToolkitHostMixin.h"
+#include "Elements/Framework/TypedElementInterfaceCustomization.h"
+#include "Elements/Framework/TypedElementListFwd.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "InputState.h"
+#include "Math/Axis.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UnrealWidgetFwd.h"
+
 #include "TypedElementViewportInteraction.generated.h"
 
 class UTypedElementSelectionSet;
+struct FInputDeviceState;
+struct FTypedElementHandle;
 
 enum class ETypedElementViewportInteractionGizmoManipulationType : uint8
 {

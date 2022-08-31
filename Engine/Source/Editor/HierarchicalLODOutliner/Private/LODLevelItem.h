@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "TreeItemID.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HLODOutlinerDragDrop.h"
 #include "ITreeItem.h"
+#include "Templates/SharedPointer.h"
+#include "TreeItemID.h"
 
+class SWidget;
 class UToolMenu;
 
 namespace HLODOutliner
 {
+class SHLODOutliner;
+
 	/** Helper class to manage moving abritrary data onto an actor */
 	struct FLODLevelDropTarget : IDropTarget
 	{

@@ -2,12 +2,14 @@
 #pragma once
 
 #include "ClassTemplateEditorSubsystem.h"
-#include "Components/SynthComponent.h"
-#include "CoreMinimal.h"
-#include "Sound/SoundEffectSource.h"
-#include "Sound/SoundEffectSubmix.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "SoundClassTemplates.generated.h"
+
+class UObject;
 
 
 UCLASS()

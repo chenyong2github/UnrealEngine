@@ -2,19 +2,34 @@
 
 #pragma once
 
-#include "Widgets/SWindow.h"
-#include "UObject/Object.h"
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
+#include "Components/SplineComponent.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Layout/WidgetPath.h"
+#include "Misc/EnumClassFlags.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "SplineComponentVisualizer.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Templates/SharedPointer.h"
-#include "Misc/EnumClassFlags.h"
-#include "SplineComponentVisualizer.h"
+#include "Widgets/SWindow.h"
 
 #include "SplineGeneratorPanel.generated.h"
+
+class FSplineComponentVisualizer;
+class IDetailsView;
+class SWindow;
+struct FFocusEvent;
+struct FGeometry;
 
 
 UENUM()

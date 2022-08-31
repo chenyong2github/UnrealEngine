@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeEditorModes.h"
-#include "BehaviorTreeEditorTabs.h"
+
+#include "BehaviorTreeEditor.h"
 #include "BehaviorTreeEditorTabFactories.h"
+#include "BehaviorTreeEditorTabs.h"
 #include "BehaviorTreeEditorToolbar.h"
+#include "Framework/Docking/TabManager.h"
+#include "Misc/AssertionMacros.h"
+#include "Types/SlateEnums.h"
 
 /////////////////////////////////////////////////////
 // FBehaviorTreeEditorApplicationMode

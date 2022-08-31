@@ -3,6 +3,12 @@
 #pragma once
 
 #include "AnimNodeEditMode.h"
+#include "Math/MathFwd.h"
+#include "UnrealWidgetFwd.h"
+
+class FPrimitiveDrawInterface;
+class FSceneView;
+class FViewport;
 
 class FCCDIKEditMode : public FAnimNodeEditMode
 {

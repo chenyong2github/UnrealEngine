@@ -3,19 +3,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_BaseAsyncTask.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
+class FMulticastDelegateProperty;
+class UClass;
 class UEdGraph;
 class UEdGraphPin;
 class UEdGraphSchema_K2;
+class UFunction;
+class UK2Node_CallFunction;
 class UK2Node_CustomEvent;
 class UK2Node_TemporaryVariable;
-class UK2Node_CallFunction;
+class UObject;
 
 /** struct to remap pins for Async Tasks.
  * a single K2 node is shared by many proxy classes.

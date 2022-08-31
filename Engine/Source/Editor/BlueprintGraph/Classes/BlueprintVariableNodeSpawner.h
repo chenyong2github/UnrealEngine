@@ -2,21 +2,33 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/UnrealType.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Engine/Blueprint.h"
 #include "BlueprintActionFilter.h"
+#include "BlueprintFieldNodeSpawner.h"
+#include "BlueprintNodeBinder.h"
 #include "BlueprintNodeSignature.h"
 #include "BlueprintNodeSpawner.h"
-#include "BlueprintFieldNodeSpawner.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/Blueprint.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector2D.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
 #include "BlueprintVariableNodeSpawner.generated.h"
 
+class FProperty;
+class UClass;
 class UEdGraph;
+class UEdGraphNode;
 class UK2Node_Variable;
+class UObject;
+struct FBlueprintActionContext;
 
 /**
  * Takes care of spawning variable getter/setter nodes. Serves as the "action"

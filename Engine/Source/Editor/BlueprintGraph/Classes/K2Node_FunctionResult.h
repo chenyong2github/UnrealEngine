@@ -3,13 +3,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node_FunctionTerminator.h"
+#include "KismetCompilerMisc.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_FunctionResult.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
+class UEdGraph;
+class UEdGraphPin;
+class UObject;
+struct FEdGraphPinType;
+struct FUserPinInfo;
 
 UCLASS(MinimalAPI)
 class UK2Node_FunctionResult : public UK2Node_FunctionTerminator

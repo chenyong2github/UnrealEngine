@@ -1,18 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HierarchicalSimplificationCustomizations.h"
+
+#include "Containers/Map.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "DetailWidgetRow.h"
 #include "GameFramework/WorldSettings.h"
 #include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
 #include "IDetailPropertyRow.h"
-#include "PropertyRestriction.h"
-#include "MeshUtilities.h"
-
-#include "Modules/ModuleManager.h"
-#include "IMeshReductionManagerModule.h"
 #include "IGeometryProcessingInterfacesModule.h"
-#include "GeometryProcessingInterfaces/ApproximateActors.h"
+#include "IMeshReductionInterfaces.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyHandle.h"
+#include "PropertyRestriction.h"
+#include "Templates/ChooseClass.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "HierarchicalSimplificationCustomizations"
 

@@ -2,15 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Animation/CurveSequence.h"
 #include "Framework/Commands/Commands.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FUICommandInfo;
 class FUICommandList;
+class SNotificationItem;
+class SWidget;
+struct FSlateBrush;
 
 class FDerivedDataStatusBarMenuCommands : public TCommands<FDerivedDataStatusBarMenuCommands>
 {

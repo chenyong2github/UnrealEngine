@@ -2,20 +2,38 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
-#include "IDetailChildrenBuilder.h"
-#include "Materials/Material.h"
-#include "Materials/MaterialLayersFunctions.h"
-
-class UMaterialExpressionVectorParameter;
-class UMaterialInterface;
+#include "Input/Reply.h"
+#include "MaterialTypes.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
+#include "PropertyEditorModule.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FDetailWidgetRow;
-class SWidget;
-class SColorBlock;
-
+class FText;
+class IDetailChildrenBuilder;
+class IDetailGroup;
+class IPropertyHandle;
 class IPropertyHandleArray;
+class IPropertyUtilities;
+class SColorBlock;
+class SWidget;
+class SWindow;
+class UMaterial;
+class UMaterialInterface;
+class UObject;
+class UPrimitiveComponent;
+struct FGeometry;
+struct FPointerEvent;
+struct FPropertyChangedEvent;
 
 class FCustomPrimitiveDataCustomization : public IPropertyTypeCustomization
 {

@@ -2,20 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/DragAndDrop.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "Editor/HierarchicalLODOutliner/Private/HierarchicalLODType.h"
+#include "HAL/Platform.h"
+#include "Input/DragAndDrop.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class AActor;
 class FActorDragDropOp;
 class SWidget;
+class UWorld;
 struct FSlateBrush;
+
 enum class EClusterGenerationError : uint32;
 
 namespace HLODOutliner
 {
 	struct ITreeItem;
+
 	typedef TSharedPtr<ITreeItem> FTreeItemPtr;
 
 	/** Consilidated drag/drop information parsed for the HLOD outliner */

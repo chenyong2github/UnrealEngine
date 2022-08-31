@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Features/IModularFeatures.h"
-
 #include "HordeExecutor.h"
+#include "Logging/LogMacros.h"
+#include "Modules/ModuleInterface.h"
 
 HORDEEXECUTOR_API DECLARE_LOG_CATEGORY_EXTERN(LogHordeExecutor, Display, All);
 

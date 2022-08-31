@@ -4,16 +4,26 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
 #include "K2Node_EventNodeInterface.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_InputTouch.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
 class UEdGraph;
 class UEdGraphPin;
+class UEnum;
+class UObject;
+struct FEdGraphSchemaAction;
 
 UCLASS(MinimalAPI)
 class UK2Node_InputTouch : public UK2Node, public IK2Node_EventNodeInterface

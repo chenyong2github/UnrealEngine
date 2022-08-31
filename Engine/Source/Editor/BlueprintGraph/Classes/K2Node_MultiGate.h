@@ -2,14 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node_ExecutionSequence.h"
+#include "Math/Color.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_MultiGate.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UClass;
 class UEdGraph;
 class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_MultiGate : public UK2Node_ExecutionSequence

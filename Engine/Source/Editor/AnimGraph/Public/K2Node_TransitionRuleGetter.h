@@ -3,9 +3,15 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_TransitionRuleGetter.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
@@ -15,6 +21,7 @@ class UAnimGraphNode_Base;
 class UAnimStateNode;
 class UEdGraphPin;
 class UEdGraphSchema;
+class UObject;
 
 UENUM()
 namespace ETransitionGetter

@@ -1,12 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationNodes/SGraphNodeLinkedLayer.h"
+
 #include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_LinkedAnimGraph.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "BlueprintEditorModule.h"
+#include "Delegates/Delegate.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Engine/Blueprint.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "SLevelOfDetailBranchNode.h"
-#include "Widgets/Layout/SSpacer.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/UnrealNames.h"
+
+class USkeletalMeshComponent;
 
 void SGraphNodeLinkedLayer::Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 {

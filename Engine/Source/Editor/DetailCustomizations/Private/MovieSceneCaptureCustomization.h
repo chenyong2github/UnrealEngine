@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
 class IPropertyUtilities;
+class UObject;
 struct FPropertyChangedEvent;
 
 class FMovieSceneCaptureCustomization : public IDetailCustomization

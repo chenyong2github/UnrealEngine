@@ -1,13 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCSDiff.h"
-#include "Widgets/Layout/SSplitter.h"
+
+#include "Components/ActorComponent.h"
+#include "Delegates/Delegate.h"
+#include "Engine/Blueprint.h"
+#include "Engine/SimpleConstructionScript.h"
 #include "GameFramework/Actor.h"
-#include "SKismetInspector.h"
-#include "SSubobjectEditor.h"
-#include "SSubobjectBlueprintEditor.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
 #include "IDetailsView.h"
+#include "Internationalization/Text.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyPath.h"
+#include "SKismetInspector.h"
+#include "SSubobjectBlueprintEditor.h"
+#include "SSubobjectEditor.h"
+#include "SlotBase.h"
+#include "SubobjectData.h"
+#include "SubobjectDataHandle.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSplitter.h"
+
+class SWidget;
 
 FSCSDiff::FSCSDiff(const UBlueprint* InBlueprint)
 {

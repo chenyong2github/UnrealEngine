@@ -2,12 +2,16 @@
 
 
 #include "GraphEditorModule.h"
-#include "Modules/ModuleManager.h"
 
 #include "GraphEditorActions.h"
+#include "Modules/ModuleManager.h"
 #include "SGraphEditorImpl.h"
-
 #include "ToolMenus.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FUICommandList;
+class SWidget;
+struct FDiffSingleResult;
 
 IMPLEMENT_MODULE(FGraphEditorModule, GraphEditor);
 

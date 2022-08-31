@@ -4,13 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Blueprint.h" // for FBPVariableDescription
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_MakeVariable.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FKismetCompilerContext;
+class FProperty;
 class UEdGraphPin;
+class UFunction;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_MakeVariable : public UK2Node

@@ -2,23 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SNodePanel.h"
+#include "Containers/Array.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "SGraphNode.h"
-#include "SGraphPin.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class SGraphPin;
 class SToolTip;
 class UAnimStateConduitNode;
 class UAnimStateNodeBase;
-
-//
-// Forward declarations.
-//
-class UAnimStateNodeBase;
-class UAnimStateConduitNode;
-class UAnimStateEntryNode;
+class UEdGraphNode;
+struct FGeometry;
+struct FGraphInformationPopupInfo;
+struct FNodeInfoContext;
+struct FPointerEvent;
+struct FSlateBrush;
 
 class SGraphNodeAnimState : public SGraphNode
 {

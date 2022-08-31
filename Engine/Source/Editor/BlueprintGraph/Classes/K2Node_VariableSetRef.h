@@ -3,13 +3,23 @@
 
 #pragma once
 
+#include "BlueprintActionFilter.h"
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "K2Node.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_VariableSetRef.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_VariableSetRef : public UK2Node

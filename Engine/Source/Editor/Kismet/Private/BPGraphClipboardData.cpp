@@ -1,15 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BPGraphClipboardData.h"
+
+#include "BlueprintEditor.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraphSchema_K2.h"
+#include "EdGraphUtilities.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "K2Node_CallFunction.h"
+#include "K2Node_EditablePinBase.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_Tunnel.h"
-#include "EdGraph/EdGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "EdGraphUtilities.h"
 #include "Kismet2/Kismet2NameValidators.h"
-#include "BlueprintEditor.h"
-#include "K2Node_CallFunction.h"
+#include "Misc/AssertionMacros.h"
 #include "SFixupSelfContextDlg.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/Script.h"
+#include "UObject/UnrealNames.h"
+
+class UObject;
 
 FBPGraphClipboardData::FBPGraphClipboardData()
 	: GraphType(GT_MAX)

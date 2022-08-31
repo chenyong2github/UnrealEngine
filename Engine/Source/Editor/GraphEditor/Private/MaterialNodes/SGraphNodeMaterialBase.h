@@ -2,20 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SOverlay.h"
-#include "SGraphNode.h"
-#include "SGraphPin.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "Rendering/RenderingCommon.h"
+#include "SGraphNode.h"
+#include "SNodePanel.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateShaderResource.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FMaterialRenderProxy;
-class FPreviewElement;
 class FRHICommandListImmediate;
+class FSlateRect;
+class FWidgetStyle;
+class SGraphPin;
+class SOverlay;
 class SVerticalBox;
+class SWidget;
 class UMaterialGraphNode;
+struct FGeometry;
+struct FSlateBrush;
 
 typedef TSharedPtr<class FPreviewElement, ESPMode::ThreadSafe> FThreadSafePreviewPtr;
 

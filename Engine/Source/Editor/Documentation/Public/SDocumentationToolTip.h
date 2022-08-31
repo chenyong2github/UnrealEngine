@@ -1,18 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
 #include "Misc/Attribute.h"
 #include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Layout/Margin.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Styling/SlateTypes.h"
 
 class IDocumentationPage;
 class SBox;
 class SVerticalBox;
+class SWidget;
+struct FGeometry;
 
 class DOCUMENTATION_API SDocumentationToolTip : public SCompoundWidget
 {

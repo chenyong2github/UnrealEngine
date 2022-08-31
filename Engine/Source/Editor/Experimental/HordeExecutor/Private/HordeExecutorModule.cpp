@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HordeExecutorModule.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
-#include "Modules/ModuleManager.h"
-#include "ISettingsModule.h"
+
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Features/IModularFeatures.h"
+#include "HAL/Platform.h"
 #include "HordeExecutorSettings.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
 
 IMPLEMENT_MODULE(UE::RemoteExecution::FHordeExecutorModule, HordeExecutor);
 

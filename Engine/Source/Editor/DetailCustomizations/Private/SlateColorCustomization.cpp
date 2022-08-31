@@ -16,7 +16,6 @@
 #include "Misc/Optional.h"
 #include "PropertyHandle.h"
 #include "SlotBase.h"
-#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"

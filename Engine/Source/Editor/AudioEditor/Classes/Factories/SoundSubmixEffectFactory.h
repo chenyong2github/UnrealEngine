@@ -2,9 +2,19 @@
 
 #pragma once
 
-#include "Sound/SoundEffectSubmix.h"
 #include "Factories/Factory.h"
+#include "Sound/SoundEffectSubmix.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundSubmixEffectFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
+class USoundEffectSubmixPreset;
 
 UCLASS(MinimalAPI, hidecategories=Object)
 class USoundSubmixEffectFactory : public UFactory

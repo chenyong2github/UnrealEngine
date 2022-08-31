@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AnimNodeEditMode.h"
-#include "BoneControllers/AnimNode_Constraint.h"
+#include "UnrealWidgetFwd.h"
 
 class FConstraintEditMode : public FAnimNodeEditMode
 {

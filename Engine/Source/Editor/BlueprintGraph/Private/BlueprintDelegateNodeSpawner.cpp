@@ -1,12 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintDelegateNodeSpawner.h"
+
+#include "BlueprintNodeSpawner.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Editor/EditorEngine.h"
+#include "EditorCategoryUtils.h"
+#include "Internationalization/Text.h"
+#include "K2Node_BaseMCDelegate.h"
 #include "K2Node_Variable.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Settings/EditorStyleSettings.h"
-#include "Editor/EditorEngine.h"
+#include "Misc/AssertionMacros.h"
 #include "ObjectEditorUtils.h"
-#include "EditorCategoryUtils.h"
+#include "Settings/EditorStyleSettings.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealType.h"
+
+class UBlueprint;
+class UObject;
+struct FLinearColor;
 
 #define LOCTEXT_NAMESPACE "BlueprintDelegateNodeSpawner"
 

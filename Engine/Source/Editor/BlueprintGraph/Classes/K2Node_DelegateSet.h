@@ -3,14 +3,26 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_DelegateSet.generated.h"
 
 class UEdGraph;
+class UEdGraphPin;
+class UFunction;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_DelegateSet : public UK2Node

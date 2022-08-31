@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboButton.h"
 
 class SGraphTitleBarAddNewBookmark : public SComboButton

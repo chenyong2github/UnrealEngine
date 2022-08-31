@@ -1,13 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorInteractiveGizmoSelectionBuilder.h"
+
 #include "BaseGizmos/TransformProxy.h"
+#include "Containers/Array.h"
 #include "ContextObjectStore.h"
+#include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
-#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "InteractiveToolManager.h"
+#include "Templates/SharedPointer.h"
+#include "ToolContextInterfaces.h"
 #include "Tools/AssetEditorContextInterface.h"
+
+class USceneComponent;
 
 UTransformProxy* FEditorGizmoSelectionBuilderHelper::CreateTransformProxyForSelection(const FToolBuilderState& SceneState)
 {

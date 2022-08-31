@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Framework/SlateDelegates.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Internationalization/Text.h"
 #include "KismetPins/SGraphPinObject.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
+class UEdGraphPin;
+class UScriptStruct;
 
 /////////////////////////////////////////////////////
 // SGraphPinStruct

@@ -1,17 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialShadingModelCustomization.h"
-#include "IPropertyUtilities.h"
-#include "PropertyRestriction.h"
-#include "Engine/EngineTypes.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailCategoryBuilder.h"
+
+#include "Containers/Array.h"
 #include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
-#include "PropertyCustomizationHelpers.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "MaterialEditor/MaterialEditorInstanceConstant.h"
 #include "Materials/Material.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "PropertyRestriction.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ReflectedTypeAccessors.h"
 
 TSharedRef<IPropertyTypeCustomization> FMaterialShadingModelCustomization::MakeInstance() 
 {

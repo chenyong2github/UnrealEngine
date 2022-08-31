@@ -2,14 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
 #include "InputCoreTypes.h"
+#include "Math/Color.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 #include "UnrealClient.h"
 
 class FCanvas;
+class FCurveEdInterface;
 class FCurveEditorSharedData;
+class HHitProxy;
 class SCurveEditorViewport;
 class SDistributionCurveEditor;
+class SWindow;
 struct FCurveEdEntry;
 
 /*-----------------------------------------------------------------------------

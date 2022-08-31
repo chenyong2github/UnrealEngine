@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayerTreeItem.h"
+
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "ISceneOutlinerTreeItem.h"
-#include "SceneOutlinerStandaloneTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "SDataLayerTreeLabel.h"
-#include "Editor.h"
+#include "SceneOutlinerStandaloneTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class ISceneOutliner;
+class SWidget;
+template <typename ItemType> class STableRow;
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

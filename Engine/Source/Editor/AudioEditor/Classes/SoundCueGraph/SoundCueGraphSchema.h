@@ -2,14 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundCueGraphSchema.generated.h"
 
+class FString;
+class UClass;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+class UObject;
 class USoundNode;
+struct FAssetData;
+struct FEdGraphPinType;
 
 /** Action to add a node to the graph */
 USTRUCT()

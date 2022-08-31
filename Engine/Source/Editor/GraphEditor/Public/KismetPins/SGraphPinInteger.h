@@ -2,12 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
 #include "KismetPins/SGraphPinNum.h"
 #include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 

@@ -2,34 +2,35 @@
 
 #include "SClothPaintTab.h"
 
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "ClassViewerModule.h"
-#include "ClassViewerFilter.h"
-#include "PropertyEditorModule.h"
-#include "IDetailsView.h"
-#include "Dialogs/Dialogs.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/STextBlock.h"
-
-
-#include "ClothPaintingModule.h"
 #include "ClothPainter.h"
-#include "ClothingPaintEditMode.h"
-
-#include "IPersonaPreviewScene.h"
-#include "Animation/DebugSkelMeshComponent.h"
-
-#include "AssetEditorModeManager.h"
-
-#include "ISkeletalMeshEditor.h"
-#include "SClothPaintWidget.h"
-#include "IPersonaToolkit.h"
-#include "SClothAssetSelector.h"
+#include "ClothPaintingModule.h"
 #include "ClothingAsset.h"
+#include "ClothingPaintEditMode.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "DetailsViewArgs.h"
+#include "EditorModeManager.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailsView.h"
+#include "IPersonaToolkit.h"
+#include "ISkeletalMeshEditor.h"
+#include "Layout/Children.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
+#include "SClothAssetSelector.h"
+#include "SClothPaintWidget.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "ComponentReregisterContext.h"
+
+class UObject;
+struct FGeometry;
 
 #define LOCTEXT_NAMESPACE "SClothPaintTab"
 

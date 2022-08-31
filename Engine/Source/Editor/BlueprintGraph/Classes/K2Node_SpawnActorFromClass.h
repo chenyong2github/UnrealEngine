@@ -3,16 +3,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "K2Node.h"
-#include "K2Node_GenericCreateObject.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "K2Node_ConstructObjectFromClass.h"
+#include "K2Node_GenericCreateObject.h"
+#include "KismetCompilerMisc.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_SpawnActorFromClass.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
+class UClass;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+struct FLinearColor;
+template <typename KeyType, typename ValueType> struct TKeyValuePair;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_SpawnActorFromClass : public UK2Node_ConstructObjectFromClass

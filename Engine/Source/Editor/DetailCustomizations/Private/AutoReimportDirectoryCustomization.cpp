@@ -26,7 +26,6 @@
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "SlotBase.h"
 #include "Styling/SlateTypes.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateStructs.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

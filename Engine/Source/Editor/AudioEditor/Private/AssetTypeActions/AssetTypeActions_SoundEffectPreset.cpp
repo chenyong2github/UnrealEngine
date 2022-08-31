@@ -1,14 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundEffectPreset.h"
+
 #include "Audio/AudioWidgetSubsystem.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "Audio/SoundEffectPresetWidgetInterface.h"
+#include "Blueprint/UserWidget.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "Editors/SoundEffectPresetEditor.h"
-#include "HAL/IConsoleManager.h"
-#include "Settings/EditorLoadingSavingSettings.h"
-#include "Toolkits/IToolkitHost.h"
-#include "Toolkits/SimpleAssetEditor.h"
+#include "Engine/Engine.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+
+class UWorld;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

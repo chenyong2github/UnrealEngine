@@ -1,16 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FrameRateCustomization.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IPropertyTypeCustomization.h"
+#include "IPropertyUtilities.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/FrameRate.h"
+#include "Misc/Optional.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/UnrealType.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SFrameRatePicker.h"
-#include "IPropertyUtilities.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
-#include "IDetailChildrenBuilder.h"
-#include "Misc/FrameRate.h"
-#include "Editor.h"
+
+class IDetailChildrenBuilder;
 
 
 #define LOCTEXT_NAMESPACE "FrameRateCustomization"

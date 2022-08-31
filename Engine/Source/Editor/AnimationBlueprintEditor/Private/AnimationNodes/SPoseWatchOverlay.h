@@ -2,14 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Input/SButton.h"
+#include "Input/Reply.h"
+#include "Math/Vector2D.h"
+#include "Styling/SlateColor.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class UAnimBlueprint;
 class UEdGraphNode;
-struct FOverlayWidgetInfo;
-class UAnimGraphNode_Base;
+struct FSlateBrush;
 
 class SPoseWatchOverlay : public SCompoundWidget
 {

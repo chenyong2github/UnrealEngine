@@ -1,17 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_AudioBus.h"
-#include "Misc/PackageName.h"
-#include "AssetRegistry/AssetData.h"
-#include "Styling/AppStyle.h"
-#include "Factories/AudioBusFactory.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "PropertyCustomizationHelpers.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Images/SImage.h"
-#include "AudioEditorModule.h"
+
+#include "Sound/AudioBus.h"
+
+class UClass;
 
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

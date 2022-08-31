@@ -3,15 +3,32 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "Elements/Framework/TypedElementHandle.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Delegates/Delegate.h"
 #include "EditorSubsystem.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Math/Transform.h"
+#include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #include "PlacementSubsystem.generated.h"
 
-class UAssetFactoryInterface;
-class UInstancedPlacemenClientSettings;
+class FSubsystemCollectionBase;
 class IAssetFactoryInterface;
+class UAssetFactoryInterface;
+class UClass;
+class UInstancedPlacemenClientSettings;
+class ULevel;
+class UObject;
+struct FTypedElementHandle;
 
 USTRUCT()
 struct EDITORFRAMEWORK_API FAssetPlacementInfo

@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Input/Reply.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
 
-class AReflectionCapture;
 class IDetailLayoutBuilder;
 
 class FReflectionCaptureDetails : public IDetailCustomization

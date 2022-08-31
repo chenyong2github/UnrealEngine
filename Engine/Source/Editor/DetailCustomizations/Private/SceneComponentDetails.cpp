@@ -32,6 +32,7 @@
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/ReflectedTypeAccessors.h"
 #include "UObject/UnrealNames.h"

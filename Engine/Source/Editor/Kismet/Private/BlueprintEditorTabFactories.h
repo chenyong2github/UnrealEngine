@@ -2,22 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Engine/TimelineTemplate.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
-#include "Widgets/SWidget.h"
-#include "Engine/Engine.h"
-#include "EngineGlobals.h"
-
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
-#include "EdGraph/EdGraph.h"
-#include "GraphEditor.h"
-#include "BlueprintEditor.h"
-#include "EdGraph/EdGraphSchema.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Engine/TimelineTemplate.h"
+
+class SDockTab;
+class SGraphEditor;
+class SWidget;
+class UBlueprint;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 

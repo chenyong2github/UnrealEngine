@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StereoLayerComponentVisualizer.h"
-#include "SceneManagement.h"
 
+#include "Components/ActorComponent.h"
 #include "Components/StereoLayerComponent.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
 
 
 void FStereoLayerComponentVisualizer::DrawVisualization( const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI )

@@ -13,7 +13,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
-#include "Templates/TypeHash.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
 

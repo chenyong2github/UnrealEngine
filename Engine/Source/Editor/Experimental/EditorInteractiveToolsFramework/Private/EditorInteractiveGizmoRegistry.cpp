@@ -12,6 +12,7 @@
 #include "Templates/Tuple.h"
 #include "Trace/Detail/Channel.h"
 #include "UObject/Class.h"
+#include "UObject/ObjectPtr.h"
 
 
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoRegistry"

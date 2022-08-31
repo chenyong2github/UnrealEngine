@@ -1,8 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProceduralFoliageComponentVisualizer.h"
-#include "ProceduralFoliageSpawner.h"
+
+#include "Components/ActorComponent.h"
+#include "Engine/EngineTypes.h"
+#include "Math/Box.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "ProceduralFoliageComponent.h"
+#include "ProceduralFoliageSpawner.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
 
 
 static const FColor& ProcTileColor = FColor::Yellow;

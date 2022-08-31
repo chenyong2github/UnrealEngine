@@ -1,8 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PointLightComponentVisualizer.h"
-#include "SceneManagement.h"
+
+#include "Components/ActorComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Containers/ContainersFwd.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/Texture.h"
+#include "Engine/TextureDefines.h"
+#include "Engine/TextureLightProfile.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Float16.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "SceneManagement.h"
+#include "SceneView.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectPtr.h"
 
 
 

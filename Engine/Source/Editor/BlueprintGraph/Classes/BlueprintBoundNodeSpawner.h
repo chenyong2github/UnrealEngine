@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
-#include "EdGraph/EdGraphNode.h"
-#include "BlueprintNodeSignature.h"
 #include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSignature.h"
 #include "BlueprintNodeSpawner.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Math/Vector2D.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintBoundNodeSpawner.generated.h"
 
 class UBlueprint;
 class UEdGraph;
+class UEdGraphNode;
+class UObject;
 
 /**
  * Takes care of spawning various bound nodes. Acts as the 

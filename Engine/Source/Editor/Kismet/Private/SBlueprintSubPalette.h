@@ -2,19 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateBrush.h"
+#include "Containers/Array.h"
 #include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SBoxPanel.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
 #include "SGraphPalette.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FBlueprintEditor;
 class FMenuBuilder;
 class FUICommandList;
+class SVerticalBox;
+class SWidget;
 class UBlueprint;
+class UObject;
+struct FCreateWidgetForActionData;
+struct FEdGraphSchemaAction;
+struct FPointerEvent;
+struct FSlateBrush;
 
 /*******************************************************************************
 * SBlueprintSubPalette

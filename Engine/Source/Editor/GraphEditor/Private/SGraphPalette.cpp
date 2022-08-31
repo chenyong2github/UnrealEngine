@@ -11,7 +11,6 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "EditorWidgetsModule.h"
 #include "GraphEditorDragDropAction.h"
-#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMath.h"
 #include "IDocumentation.h"
 #include "Input/DragAndDrop.h"

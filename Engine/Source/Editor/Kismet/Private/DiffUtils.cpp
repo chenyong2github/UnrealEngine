@@ -27,6 +27,7 @@
 #include "UObject/Class.h"
 #include "UObject/Field.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"

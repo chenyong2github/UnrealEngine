@@ -1,13 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditModes/PoseDriverEditMode.h"
-#include "SceneManagement.h"
-#include "AnimNodes/AnimNode_PoseDriver.h"
+
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_PoseDriver.h"
-#include "IPersonaPreviewScene.h"
+#include "AnimNodes/AnimNode_PoseDriver.h"
+#include "Animation/AnimInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "CanvasItem.h"
-#include "CanvasTypes.h"
+#include "BoneContainer.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "Engine/EngineTypes.h"
+#include "GenericPlatform/ICursor.h"
+#include "HitProxies.h"
+#include "IPersonaPreviewScene.h"
+#include "Math/Color.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/TranslationMatrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "RBF/RBFSolver.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+
+class FSceneView;
+class FViewport;
+struct FViewportClick;
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
 

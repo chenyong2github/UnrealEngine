@@ -2,17 +2,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Engine/Blueprint.h"
-#include "Kismet2/Breakpoint.h"
-#include "Kismet2/WatchedPin.h"
 #include "Engine/DeveloperSettings.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/Breakpoint.h"
 #include "Kismet2/KismetDebugUtilities.h"
+#include "Kismet2/WatchedPin.h"
 #include "Misc/NamePermissionList.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "BlueprintEditorSettings.generated.h"
+
+class UObject;
+struct FAssetData;
+struct FBPEditorBookmarkNode;
+struct FEditedDocumentInfo;
+struct FGuid;
 
 UENUM()
 enum ESaveOnCompile

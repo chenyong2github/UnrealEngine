@@ -2,13 +2,21 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "CoreMinimal.h" // for DLLEXPORT (KISMET_API)
-
+#include "CoreTypes.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
 
+class FCompilerResultsLog;
+class FProperty;
+class FString;
 class UBlueprint;
 class UBlueprintCompilerExtension;
-class FCompilerResultsLog;
+class UClass;
+struct FCompilerNativizationOptions;
+struct FUObjectSerializeContext;
 
 struct FBPCompileRequest
 {

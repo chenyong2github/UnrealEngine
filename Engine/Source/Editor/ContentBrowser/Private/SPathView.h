@@ -2,31 +2,55 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "AssetRegistry/AssetData.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Misc/TextFilter.h"
 #include "AssetViewUtils.h"
-#include "IContentBrowserSingleton.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserDataFilter.h"
 #include "ContentBrowserDelegates.h"
-#include "Delegates/DelegateCombinations.h"
-#include "SFilterList.h"
-#include "ContentBrowserPluginFilters.h"
+#include "ContentBrowserItem.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IContentBrowserSingleton.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Misc/TextFilter.h"
 #include "PathViewTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
 
-class FSourcesSearch;
-struct FHistoryData;
-class FTreeItem;
-class FContentBrowserSingleton;
+class FContentBrowserItemData;
+class FContentBrowserItemDataUpdate;
+class FContentBrowserPluginFilter;
 class FPathPermissionList;
+class FSourcesSearch;
+class ITableRow;
+class SWidget;
 class UToolMenu;
+struct FAssetData;
+struct FGeometry;
+struct FHistoryData;
+struct FPointerEvent;
 
 typedef TTextFilter< const FString& > FolderTextFilter;
 

@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Filters/CustomClassFilterData.h"
-#include "Filters/SBasicFilterBar.h"
 
+#include "AssetRegistry/ARFilter.h"
 #include "IAssetTypeActions.h"
-#include "AssetTypeCategories.h"
-#include "AssetToolsModule.h"
-#include "UObject/Object.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 
 void FCustomClassFilterData::AddCategory(TSharedPtr<FFilterCategory> InCategory)
 {

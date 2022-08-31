@@ -2,18 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "UnrealWidgetFwd.h"
-#include "IAnimNodeEditMode.h"
+#include "Animation/AnimTypes.h"
 #include "BonePose.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "IAnimNodeEditMode.h"
+#include "IPersonaPreviewScene.h"
+#include "InputCoreTypes.h"
+#include "Math/Matrix.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Math/Sphere.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/NameTypes.h"
+#include "UnrealWidgetFwd.h"
 
 class FCanvas;
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
+class FSceneView;
+class FText;
+class FViewport;
+class HHitProxy;
+class UAnimGraphNode_Base;
 class USkeletalMeshComponent;
-struct FViewportClick;
+struct FAnimNode_Base;
 struct FBoneSocketTarget;
+struct FCompactHeapPose;
+struct FViewportClick;
+template <class PoseType> struct FCSPose;
 
 /** Base implementation for anim node edit modes */
 class ANIMGRAPH_API FAnimNodeEditMode : public IAnimNodeEditMode

@@ -2,29 +2,51 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/Class.h"
-#include "UObject/SoftObjectPath.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "AssetRegistry/AssetData.h"
-#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "EdGraphSchema_K2.generated.h"
 
 class AActor;
+class FKismetCompilerContext;
 class FMenuBuilder;
-class UToolMenu;
-struct FToolMenuSection;
+class FProperty;
 class UBlueprint;
-class UK2Node;
-struct FTypesDatabase;
-class UEnum;
 class UClass;
+class UEnum;
+class UK2Node;
 class UScriptStruct;
+class UToolMenu;
+struct FAssetData;
+struct FToolMenuSection;
+struct FTypesDatabase;
+template <typename T> struct TObjectPtr;
 
 /** Reference to an structure (only used in 'docked' palette) */
 USTRUCT()

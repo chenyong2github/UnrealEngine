@@ -4,6 +4,7 @@
 
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EditorConfigBase.generated.h"
 

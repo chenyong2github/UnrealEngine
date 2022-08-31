@@ -2,17 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Templates/SubclassOf.h"
-#include "Components/ActorComponent.h"
-#include "BlueprintNodeSignature.h"
 #include "BlueprintActionFilter.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSignature.h"
 #include "BlueprintNodeSpawner.h"
+#include "Components/ActorComponent.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Math/Vector2D.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintComponentNodeSpawner.generated.h"
 
+class UActorComponent;
 class UEdGraph;
+class UEdGraphNode;
+class UObject;
 
 /**
  * Takes care of spawning UK2Node_AddComponent nodes. Acts as the "action" 

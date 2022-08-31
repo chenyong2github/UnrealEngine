@@ -1,17 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayerOutlinerDeleteButtonColumn.h"
-#include "Widgets/Layout/SSpacer.h"
+
+#include "Containers/Array.h"
+#include "DataLayer/DataLayerEditorSubsystem.h"
+#include "DataLayerActorTreeItem.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "SceneOutlinerPublicTypes.h"
+#include "Styling/AppStyle.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STreeView.h"
-#include "Widgets/Images/SImage.h"
-#include "DataLayerActorTreeItem.h"
-#include "DataLayer/DataLayerEditorSubsystem.h"
-#include "SceneOutlinerPublicTypes.h"
-#include "ScopedTransaction.h"
-#include "Styling/AppStyle.h"
-#include "Editor.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+
+class AActor;
+class SWidget;
+template <typename ItemType> class STableRow;
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

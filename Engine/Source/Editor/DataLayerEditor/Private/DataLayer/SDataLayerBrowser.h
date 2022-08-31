@@ -1,20 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DataLayer/DataLayerAction.h"
-#include "InputCoreTypes.h"
-#include "Styling/SlateColor.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Set.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-class ISceneOutliner;
-class SButton;
-class SVerticalBox;
 class SBorder;
+class SButton;
 class SMultiLineEditableTextBox;
+class SVerticalBox;
 class UDataLayerInstance;
 
 //////////////////////////////////////////////////////////////////////////

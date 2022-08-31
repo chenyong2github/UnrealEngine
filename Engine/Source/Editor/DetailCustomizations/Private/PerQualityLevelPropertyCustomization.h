@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
+#include "Containers/Array.h"
 #include "IPropertyTypeCustomization.h"
-#include "PerQualityLevelProperties.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
-class FDetailWidgetDecl;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
+class IPropertyUtilities;
+class SWidget;
 
 /**
 * Implements a details panel customization for the FPerQualityLevel structures.

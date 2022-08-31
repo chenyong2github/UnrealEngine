@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
 
 class FBaseAttenuationSettingsCustomization : public IPropertyTypeCustomization
 {

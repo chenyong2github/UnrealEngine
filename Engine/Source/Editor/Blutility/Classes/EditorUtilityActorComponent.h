@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "EditorUtilityActorComponent.generated.h"

@@ -1,9 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditModes/LookAtEditMode.h"
+
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_LookAt.h"
-#include "IPersonaPreviewScene.h"
+#include "Animation/AnimTypes.h"
+#include "Animation/BoneSocketReference.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "BoneControllers/AnimNode_LookAt.h"
+#include "IPersonaPreviewScene.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+
+class USkeletalMeshComponent;
 
 void FLookAtEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)
 {

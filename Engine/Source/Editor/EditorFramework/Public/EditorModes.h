@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
 #include "MaterialShared.h"
+#include "Math/Color.h"
 #include "SceneManagement.h"
 #include "Tools/Modes.h"
 

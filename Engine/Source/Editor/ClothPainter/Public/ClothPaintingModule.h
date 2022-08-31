@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Internationalization/Text.h"
 #include "Modules/ModuleInterface.h"
-
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
 class FApplicationMode;
-class UEditorExperimentalSettings;
+class FExtender;
+class FUICommandList;
 class ISkeletalMeshEditor;
 class SClothPaintTab;
+class UEditorExperimentalSettings;
 
 CLOTHPAINTER_API extern const FName PaintModeID;
 

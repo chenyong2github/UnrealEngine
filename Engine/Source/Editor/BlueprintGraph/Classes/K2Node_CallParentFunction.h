@@ -4,9 +4,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node_CallFunction.h"
+#include "Math/Color.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CallParentFunction.generated.h"
+
+class UFunction;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_CallParentFunction : public UK2Node_CallFunction

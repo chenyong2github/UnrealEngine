@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
+#include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "IAssetTypeActions.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-struct FAssetData;
+class SWidget;
+class UClass;
+class UObject;
 class USoundBase;
+struct FAssetData;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class AUDIOEDITOR_API FAssetTypeActions_SoundBase : public FAssetTypeActions_Base

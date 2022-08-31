@@ -21,6 +21,7 @@
 #include "UObject/Class.h"
 #include "UObject/Field.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/Script.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"

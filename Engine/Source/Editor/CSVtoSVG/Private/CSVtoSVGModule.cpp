@@ -9,6 +9,7 @@
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformProcess.h"
 #include "Internationalization/Internationalization.h"
 #include "Logging/LogCategory.h"

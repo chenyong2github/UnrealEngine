@@ -2,15 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "IStructureDetailsView.h"
+#include "Templates/SharedPointer.h"
 
-struct FAssetData;
 class FDetailWidgetRow;
+class FStructOnScope;
 class IDetailChildrenBuilder;
 class IPropertyHandle;
 class IPropertyUtilities;
+class IStructureDetailsView;
+struct FAssetData;
 
 class FMovieSceneEventParametersCustomization : public IPropertyTypeCustomization
 {

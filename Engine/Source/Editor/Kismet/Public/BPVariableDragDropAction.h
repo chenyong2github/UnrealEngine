@@ -2,17 +2,30 @@
 
 #pragma once
 
+#include "BlueprintEditor.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
+#include "Engine/Blueprint.h"
+#include "GraphEditorDragDropAction.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
-#include "Engine/Blueprint.h"
-#include "BlueprintEditor.h"
-#include "GraphEditorDragDropAction.h"
+#include "Math/Vector2D.h"
 #include "MyBlueprintItemDragDropAction.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class UBlueprint;
 class UEdGraph;
+class UEdGraphNode;
+struct FEdGraphSchemaAction;
+struct FSlateBrush;
+struct FSlateColor;
 
 /** DragDropAction class for dropping a Variable onto a graph */
 class KISMET_API FKismetVariableDragDropAction : public FMyBlueprintItemDragDropAction

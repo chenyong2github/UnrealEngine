@@ -5,7 +5,6 @@
 #include "Containers/Array.h"
 #include "Delegates/Delegate.h"
 #include "DetailsViewArgs.h"
-#include "HAL/PlatformCrt.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "Internationalization/Internationalization.h"

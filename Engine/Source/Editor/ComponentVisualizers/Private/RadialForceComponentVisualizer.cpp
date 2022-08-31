@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RadialForceComponentVisualizer.h"
-#include "SceneManagement.h"
+
+#include "Components/ActorComponent.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
 #include "PhysicsEngine/RadialForceComponent.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
 
 
 

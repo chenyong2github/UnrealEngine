@@ -1,14 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_CommutativeAssociativeBinaryOperator.h"
-#include "Framework/Commands/UIAction.h"
-#include "ToolMenus.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraphSchema_K2.h"
+#include "Framework/Commands/UIAction.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-
-#include "ScopedTransaction.h"
-
+#include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiler.h"
+#include "Misc/AssertionMacros.h"
+#include "ScopedTransaction.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Script.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "CommutativeAssociativeBinaryOperatorNode"
 

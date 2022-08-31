@@ -1,15 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SObjectNameEditableTextBox.h"
+
+#include "ActorEditorUtils.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Application/SlateApplication.h"
+#include "IObjectNameEditSink.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
 #include "ObjectNameEditSinkRegistry.h"
 #include "Rendering/DrawElements.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Styling/AppStyle.h"
-#include "GameFramework/Actor.h"
+#include "Rendering/RenderingCommon.h"
 #include "ScopedTransaction.h"
-#include "ActorEditorUtils.h"
-#include "Editor/EditorEngine.h"
+#include "Styling/AppStyle.h"
+#include "Styling/WidgetStyle.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/Object.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+
+class FSlateRect;
+struct FSlateBrush;
 
 const float SObjectNameEditableTextBox::HighlightRectLeftOffset = 0.0f;
 const float SObjectNameEditableTextBox::HighlightRectRightOffset = 0.0f;

@@ -18,7 +18,6 @@
 #include "SlotBase.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/DialogueWave.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"

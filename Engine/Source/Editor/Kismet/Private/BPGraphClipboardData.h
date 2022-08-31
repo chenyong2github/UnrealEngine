@@ -2,13 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdGraph/EdGraphPin.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Engine/Blueprint.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "BPGraphClipboardData.generated.h"
 
-struct FBPVariableDescription;
 class FBlueprintEditor;
+class UEdGraph;
 
 /** A helper struct for copying a Blueprint Function to the clipboard */
 USTRUCT()

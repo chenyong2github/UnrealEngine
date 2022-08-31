@@ -3,13 +3,25 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
+#include "CoreTypes.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SubclassOf.h"
 #include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "K2Node_Switch.generated.h"
+
+class UObject;
 
 UCLASS(abstract)
 class BLUEPRINTGRAPH_API UK2Node_Switch : public UK2Node

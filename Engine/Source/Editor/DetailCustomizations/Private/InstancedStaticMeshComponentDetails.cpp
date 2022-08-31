@@ -1,16 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstancedStaticMeshComponentDetails.h"
+
 #include "Components/InstancedStaticMeshComponent.h"
-#include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
+#include "Containers/Array.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Engine/StaticMesh.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "InstancedStaticMeshComponentDetails"
 

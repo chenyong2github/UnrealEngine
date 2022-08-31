@@ -3,21 +3,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
+#include "Delegates/Delegate.h"
+#include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
+#include "Framework/Text/SlateHyperlinkRun.h"
+#include "IStructureDetailsView.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
+#include "SlateFwd.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakFieldPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/Text/SlateHyperlinkRun.h"
-#include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
-#include "IStructureDetailsView.h"
-#include "UObject/WeakFieldPtr.h"
+#include "Widgets/SWidget.h"
 
 class FBlueprintEditor;
+class FProperty;
+class FStructOnScope;
 class IDetailsView;
 class SBorder;
+class SDockTab;
 class SMyBlueprint;
+class SWidget;
+class UObject;
+struct FGeometry;
+struct FPropertyChangedEvent;
 
 typedef TSet<class UObject*> FInspectorSelectionSet;
 

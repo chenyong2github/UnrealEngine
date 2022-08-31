@@ -2,23 +2,42 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AddToProjectConfig.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "GameProjectUtils.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Serialization/Archive.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
 
 class IClassViewerFilter;
-class SClassViewer;
+class ITableRow;
 class SEditableTextBox;
+class STableViewBase;
+class SWidget;
+class SWindow;
 class SWizard;
+class UClass;
+struct FGeometry;
+struct FKeyEvent;
+struct FModuleContextInfo;
 struct FParentClassItem;
 
 enum class EClassDomain : uint8 { Blueprint, Native };

@@ -2,17 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "IDetailCustomization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-struct FAssetData;
+class FDelegateHandle;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SComboButton;
+class SWidget;
+class UClass;
+class UObject;
 class USkeleton;
+struct FAssetData;
 
 class DETAILCUSTOMIZATIONS_API FSkeletalMeshComponentDetails : public IDetailCustomization
 {

@@ -3,8 +3,15 @@
 #pragma once
 
 #include "Engine/DeveloperSettings.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AudioEditorSettings.generated.h"
+
+class UObject;
+struct FPropertyChangedEvent;
 
 UCLASS(config = EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Audio"))
 class AUDIOEDITOR_API UAudioEditorSettings : public UDeveloperSettings

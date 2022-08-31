@@ -3,14 +3,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
+#include "BlueprintActionFilter.h"
 #include "BlueprintNodeSignature.h"
-#include "K2Node.h"
-#include "Textures/SlateIcon.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_DynamicCast.generated.h"
+
+class FString;
+class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_DynamicCast : public UK2Node

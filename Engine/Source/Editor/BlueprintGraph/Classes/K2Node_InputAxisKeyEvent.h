@@ -2,18 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "InputCoreTypes.h"
-#include "Textures/SlateIcon.h"
 #include "BlueprintNodeSignature.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
 #include "K2Node_Event.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_InputAxisKeyEvent.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
+class UClass;
 class UDynamicBlueprintBinding;
 class UEdGraph;
+class UObject;
+struct FLinearColor;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_InputAxisKeyEvent : public UK2Node_Event

@@ -3,13 +3,20 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/EngineBaseTypes.h"
+#include "HAL/Platform.h"
 #include "K2Node_Event.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_InputActionEvent.generated.h"
 
+class UClass;
 class UDynamicBlueprintBinding;
+class UObject;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_InputActionEvent : public UK2Node_Event

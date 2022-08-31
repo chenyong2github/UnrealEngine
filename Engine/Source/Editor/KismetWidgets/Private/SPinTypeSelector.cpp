@@ -11,7 +11,6 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/SlateDelegates.h"
 #include "Framework/Views/ITypedTableView.h"
-#include "HAL/PlatformMath.h"
 #include "IDocumentation.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"

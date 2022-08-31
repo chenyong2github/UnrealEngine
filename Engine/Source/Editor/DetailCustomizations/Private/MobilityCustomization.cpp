@@ -14,7 +14,6 @@
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
-#include "Templates/TypeHash.h"
 #include "Templates/UnrealTemplate.h"
 #include "Types/SlateEnums.h"
 #include "UObject/UnrealNames.h"

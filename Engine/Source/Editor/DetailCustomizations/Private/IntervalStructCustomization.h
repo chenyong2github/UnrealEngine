@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Misc/Optional.h"
 #include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;

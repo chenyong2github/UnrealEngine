@@ -7,7 +7,6 @@
 #include "Features/IModularFeatures.h"
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/UICommandInfo.h"
-#include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/SubclassOf.h"

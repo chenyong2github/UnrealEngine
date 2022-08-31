@@ -3,17 +3,22 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Elements/Framework/TypedElementHandle.h"
-#include "UObject/Interface.h"
-
 #include "Instances/InstancedPlacementClientInfo.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AssetFactoryInterface.generated.h"
 
 class IAssetFactoryInterface;
-struct FPlacementOptions;
-struct FAssetPlacementInfo;
 class UInstancedPlacemenClientSettings;
+class UObject;
+struct FAssetPlacementInfo;
+struct FPlacementOptions;
+struct FTypedElementHandle;
 
 UINTERFACE(MinimalAPI)
 class UAssetFactoryInterface : public UInterface

@@ -2,29 +2,55 @@
 
 #pragma once
 
+#include "Animation/CurveSequence.h"
+#include "BlueprintUtilities.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/Guid.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Layout/Geometry.h"
+#include "GraphEditAction.h"
+#include "GraphEditor.h"
+#include "GraphSplineOverlapResult.h"
+#include "HAL/PlatformMath.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Animation/CurveSequence.h"
-#include "UObject/GCObject.h"
-#include "GraphEditor.h"
-#include "SNodePanel.h"
+#include "Layout/Clipping.h"
+#include "Layout/Geometry.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
 #include "SGraphNode.h"
-#include "GraphEditAction.h"
 #include "SGraphPin.h"
-#include "GraphSplineOverlapResult.h"
+#include "SNodePanel.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/GCObject.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
 
 class FActiveTimerHandle;
+class FArrangedChildren;
+class FDragDropEvent;
+class FPaintArgs;
+class FReferenceCollector;
+class FSlateRect;
 class FSlateWindowElementList;
-class IToolTip;
+class FText;
+class FWidgetStyle;
 class IMenu;
+class IToolTip;
+class SGraphNode;
+class SWidget;
 class UEdGraph;
+class UEdGraphNode;
+class UObject;
+struct FAssetData;
+struct FDiffSingleResult;
+struct FEdGraphEditAction;
+struct FGuid;
 
 DECLARE_DELEGATE( FOnUpdateGraphPanel )
 

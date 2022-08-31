@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayer/DataLayerPropertyTypeCustomizationHelper.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
+
 #include "DataLayerMode.h"
+#include "Delegates/Delegate.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

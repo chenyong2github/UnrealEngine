@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/EditorTransformGizmoSource.h"
+
+#include "Editor.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 
 EGizmoTransformMode FEditorTransformGizmoUtil::GetGizmoMode(UE::Widget::EWidgetMode InWidgetMode)
 {

@@ -3,12 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_Copy.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
 class UEdGraphPin;
+class UObject;
 struct FEdGraphPinType;
 
 UCLASS(MinimalAPI, meta=(Keywords = "Duplicate"))

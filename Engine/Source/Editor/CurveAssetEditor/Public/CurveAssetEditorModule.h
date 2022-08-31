@@ -3,11 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "ICurveAssetEditor.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+#include "Toolkits/IToolkitHost.h"
 
+class FName;
+class ICurveAssetEditor;
 class UCurveBase;
 
 /** DataTable Editor module */

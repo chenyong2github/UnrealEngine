@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
+#include "Containers/Array.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
 
 class FDetailWidgetRow;
+class FString;
 class IDetailChildrenBuilder;
 class IPropertyHandle;
+class SWidget;
 
 /**
 * Implements a details panel customization for FFloatRange structures.

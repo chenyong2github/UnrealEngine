@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CustomPropertyOptionalPinManager.h"
-#include "Kismet2/BlueprintEditorUtils.h"
+
 #include "AnimGraphNode_CustomProperty.h"
 #include "AnimationGraphSchema.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
 
 FCustomPropertyOptionalPinManager::FCustomPropertyOptionalPinManager(UAnimGraphNode_CustomProperty* InCustomPropertyNode, TArray<UEdGraphPin*>* InOldPins)
 	: CustomPropertyNode(InCustomPropertyNode)

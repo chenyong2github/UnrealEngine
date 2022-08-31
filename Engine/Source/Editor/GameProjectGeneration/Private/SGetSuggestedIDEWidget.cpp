@@ -7,6 +7,7 @@
 #include "EngineAnalytics.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformProcess.h"
 #include "IAnalyticsProviderET.h"
 #include "Internationalization/Internationalization.h"

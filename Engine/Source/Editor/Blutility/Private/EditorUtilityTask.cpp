@@ -1,11 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityTask.h"
-#include "EditorUtilitySubsystem.h"
+
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
 #include "Editor.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Editor/EditorEngine.h"
 #include "EditorUtilityCommon.h"
+#include "EditorUtilitySubsystem.h"
+#include "Engine/Engine.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/AsyncTaskNotification.h"
+#include "Misc/Attribute.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectBaseUtility.h"
 
 //////////////////////////////////////////////////////////////////////
 

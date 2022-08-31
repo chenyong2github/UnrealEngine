@@ -1,15 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MarginCustomization.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Editor.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
+
+#include "Delegates/Delegate.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Math/NumericLimits.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Attribute.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/NumericTypeInterface.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 TSharedRef<IPropertyTypeCustomization> FMarginStructCustomization::MakeInstance() 
 {

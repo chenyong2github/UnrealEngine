@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_SoundMix.h"
+
 #include "Sound/SoundMix.h"
+
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

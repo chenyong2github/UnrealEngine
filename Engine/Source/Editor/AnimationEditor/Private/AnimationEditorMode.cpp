@@ -1,12 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationEditorMode.h"
-#include "Modules/ModuleManager.h"
-#include "PersonaModule.h"
+
 #include "AnimationEditor.h"
-#include "ISkeletonTree.h"
-#include "ISkeletonEditorModule.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Docking/LayoutExtender.h"
+#include "Framework/Docking/TabManager.h"
+#include "HAL/Platform.h"
 #include "IPersonaToolkit.h"
+#include "ISkeletonEditorModule.h"
+#include "ISkeletonTree.h"
+#include "Modules/ModuleManager.h"
+#include "PersonaDelegates.h"
+#include "PersonaModule.h"
+#include "Types/SlateEnums.h"
+#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
 FAnimationEditorMode::FAnimationEditorMode(TSharedRef<FWorkflowCentricApplication> InHostingApp, TSharedRef<ISkeletonTree> InSkeletonTree)
 	: FApplicationMode(AnimationEditorModes::AnimationEditorMode)

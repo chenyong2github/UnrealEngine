@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphSchema.h"
 #include "BlueprintActionFilter.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
 
+class UClass;
 class UK2Node;
+struct FBlueprintActionContext;
 struct FBlueprintActionMenuBuilder;
+struct FEdGraphSchemaAction;
 
 UENUM()
 namespace EContextTargetFlags

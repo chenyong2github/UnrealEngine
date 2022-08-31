@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/DragAndDrop.h"
+#include "Containers/ArrayView.h"
 #include "Templates/SharedPointer.h"
 
+class FDragDropEvent;
+class FDragDropOperation;
 class SWidget;
 struct FContentBrowserItem;
 

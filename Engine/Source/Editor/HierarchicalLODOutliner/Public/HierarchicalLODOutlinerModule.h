@@ -3,10 +3,11 @@
 #pragma once 
 
 #include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class SWidget;
-
 namespace HLODOutliner { class SHLODOutliner; };
 
 /**

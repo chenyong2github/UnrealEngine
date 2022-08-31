@@ -2,16 +2,37 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Engine/HitResult.h"
 #include "IMeshPainter.h"
-
-#include "MeshPaintTypes.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Math/UnrealMathSSE.h"
 #include "MeshPaintHelpers.h"
+#include "MeshPaintTypes.h"
+#include "Templates/SharedPointer.h"
 
+class AActor;
+class FEditorViewportClient;
+class FPrimitiveDrawInterface;
+class FReferenceCollector;
+class FSceneView;
+class FUICommandList;
+class FViewport;
+class IMeshPaintGeometryAdapter;
 class SClothPaintWidget;
 class UClothPainterSettings;
-class UPaintBrushSettings;
 class UClothingAssetCommon;
 class UDebugSkelMeshComponent;
+class UMeshComponent;
+class UMeshPaintSettings;
+class UPaintBrushSettings;
+class USkeletalMesh;
+
 enum class EPaintableClothProperty;
 class FClothPaintToolBase;
 

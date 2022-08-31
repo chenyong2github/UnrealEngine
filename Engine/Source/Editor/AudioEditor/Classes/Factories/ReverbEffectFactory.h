@@ -7,9 +7,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ReverbEffectFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCLASS(MinimalAPI, hidecategories=Object)
 class UReverbEffectFactory : public UFactory

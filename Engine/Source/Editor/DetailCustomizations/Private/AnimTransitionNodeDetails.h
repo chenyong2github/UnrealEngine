@@ -2,18 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Containers/UnrealString.h"
 #include "Framework/SlateDelegates.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FText;
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
+class STextEntryPopup;
+class SWidget;
 class UAnimStateTransitionNode;
 class UBlendProfile;
 class UEdGraph;

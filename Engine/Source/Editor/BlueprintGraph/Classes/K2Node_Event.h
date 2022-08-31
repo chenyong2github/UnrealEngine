@@ -3,19 +3,36 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "Textures/SlateIcon.h"
-#include "Engine/MemberReference.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node_EditablePinBase.h"
 #include "K2Node_EventNodeInterface.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_Event.generated.h"
 
+class FArchive;
 class FKismetCompilerContext;
 class FNodeHandlingFunctor;
 class UEdGraph;
+class UEdGraphPin;
+class UFunction;
+class UObject;
+struct FEdGraphSchemaAction;
+template <typename KeyType, typename ValueType> struct TKeyValuePair;
 
 UCLASS(MinimalAPI)
 class UK2Node_Event : public UK2Node_EditablePinBase, public IK2Node_EventNodeInterface

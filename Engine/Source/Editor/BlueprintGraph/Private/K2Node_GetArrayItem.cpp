@@ -2,26 +2,55 @@
 
 
 #include "K2Node_GetArrayItem.h"
-#include "Engine/Blueprint.h"
-#include "EdGraphSchema_K2.h"
-#include "BlueprintActionDatabaseRegistrar.h"
-#include "EdGraphUtilities.h"
+
 #include "BPTerminal.h"
+#include "BlueprintActionDatabaseRegistrar.h"
+#include "BlueprintActionFilter.h"
 #include "BlueprintCompiledStatement.h"
-#include "KismetCompiledFunctionContext.h"
-#include "KismetCompilerMisc.h"
 #include "BlueprintNodeSpawner.h"
-#include "KismetCompiler.h" // for FKismetCompilerContext
+#include "Containers/EnumAsByte.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "EdGraphUtilities.h"
+#include "Engine/Blueprint.h"
+#include "Engine/MemberReference.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
 #include "K2Node_CallArrayFunction.h"
+#include "K2Node_CallFunction.h"
 #include "Kismet/KismetArrayLibrary.h" // for Array_Get()
+#include "Kismet2/BlueprintEditorUtils.h" // for MarkBlueprintAsModified()
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompiledFunctionContext.h"
+#include "KismetCompiler.h" // for FKismetCompilerContext
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
 #include "SPinTypeSelector.h"
 #include "ScopedTransaction.h"
-#include "ToolMenus.h" // for UToolMenu
-#include "BlueprintActionFilter.h"
-#include "Widgets/Notifications/SNotificationList.h" // for FNotificationInfo
-#include "Framework/Notifications/NotificationManager.h"
-#include "Kismet2/BlueprintEditorUtils.h" // for MarkBlueprintAsModified()
 #include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Notifications/SNotificationList.h" // for FNotificationInfo
+
+class SWidget;
+struct FLinearColor;
 
 
 #define LOCTEXT_NAMESPACE "GetArrayItem"

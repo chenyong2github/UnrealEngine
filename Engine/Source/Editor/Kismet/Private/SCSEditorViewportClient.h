@@ -2,17 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
+#include "Engine/EngineBaseTypes.h"
+#include "InputCoreTypes.h"
+#include "Math/Axis.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
+#include "UnrealWidgetFwd.h"
 
-class FBlueprintEditor;
+class AActor;
 class FCanvas;
 class FPreviewScene;
+class FPrimitiveDrawInterface;
+class FSceneView;
 class FScopedTransaction;
+class FText;
+class FViewport;
 class SSCSEditorViewport;
 class UStaticMeshComponent;
+struct FInputKeyEventArgs;
 
 /**
  * An editor viewport client subclass for the SCS editor viewport.

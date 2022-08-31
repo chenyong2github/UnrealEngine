@@ -28,6 +28,7 @@
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/Script.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"

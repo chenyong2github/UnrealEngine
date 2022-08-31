@@ -3,14 +3,26 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
 #include "K2Node_StructMemberGet.h"
+#include "Math/Color.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_BreakStruct.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
+class FObjectPreSaveContext;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+class UScriptStruct;
 
 UCLASS(MinimalAPI)
 class UK2Node_BreakStruct : public UK2Node_StructMemberGet

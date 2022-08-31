@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletalMeshLODSettingsDetails.h"
-#include "PropertyHandle.h"
+
+#include "Containers/Array.h"
 #include "DetailLayoutBuilder.h"
-#include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
 #include "Engine/SkeletalMeshLODSettings.h"
+#include "HAL/PlatformMath.h"
 #include "IMeshReductionManagerModule.h"
+#include "Misc/AssertionMacros.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "UObject/NameTypes.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshLODSettingsDetails"
 

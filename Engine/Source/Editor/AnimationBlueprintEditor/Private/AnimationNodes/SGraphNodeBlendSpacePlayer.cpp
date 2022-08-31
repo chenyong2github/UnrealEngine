@@ -1,12 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationNodes/SGraphNodeBlendSpacePlayer.h"
-#include "SBlendSpacePreview.h"
+
 #include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_BlendSpacePlayer.h"
+#include "AnimNodes/AnimNode_BlendSpacePlayer.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimationAsset.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Engine/Blueprint.h"
+#include "GenericPlatform/ICursor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SBlendSpacePreview.h"
 #include "SLevelOfDetailBranchNode.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/UnrealNames.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/SBoxPanel.h"
+
+class UObject;
 
 void SGraphNodeBlendSpacePlayer::Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 {

@@ -1,18 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
-#include "Input/Reply.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 class FEdModeFoliage;
-class SFoliagePalette;
+class FToolBarBuilder;
+class SWidget;
 class UFoliageType;
 struct FFoliageMeshUIInfo;
+template <typename FuncType> class TFunctionRef;
+
 enum class ECheckBoxState : uint8;
 namespace EFoliageSingleInstantiationPlacementMode {
 	enum class Type;

@@ -2,17 +2,31 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
 #include "MathStructCustomizations.h"
+#include "Misc/Optional.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/SWidget.h"
 
 class FDetailWidgetRow;
-class SColorPicker;
+class IPropertyHandle;
+class IPropertyTypeCustomization;
+class IPropertyTypeCustomizationUtils;
 class SBorder;
+class SColorPicker;
+class SWidget;
+class SWindow;
+struct FGeometry;
+struct FPointerEvent;
 
 /**
  * Base class for color struct customization (FColor,FLinearColor).

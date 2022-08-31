@@ -7,12 +7,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "ThumbnailRendering/DefaultSizedThumbnailRenderer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "FoliageType_ISMThumbnailRenderer.generated.h"
 
 class FCanvas;
 class FRenderTarget;
+class UObject;
 
 UCLASS(CustomConstructor, Config=Editor)
 class UFoliageType_ISMThumbnailRenderer : public UDefaultSizedThumbnailRenderer

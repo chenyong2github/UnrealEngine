@@ -1,10 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationBlueprintTemplateEditorMode.h"
+
+#include "Animation/AnimBlueprint.h"
+#include "AnimationBlueprintEditor.h"
+#include "BlueprintEditor.h"
 #include "BlueprintEditorTabs.h"
+#include "Framework/Docking/LayoutExtender.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Modules/ModuleManager.h"
 #include "PersonaModule.h"
 #include "SBlueprintEditorToolbar.h"
-#include "ToolMenus.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+
+class UToolMenu;
 
 FAnimationBlueprintTemplateEditorMode::FAnimationBlueprintTemplateEditorMode(const TSharedRef<FAnimationBlueprintEditor>& InAnimationBlueprintEditor)
 	: FBlueprintEditorApplicationMode(InAnimationBlueprintEditor, FAnimationBlueprintEditorModes::AnimationBlueprintTemplateEditorMode, FAnimationBlueprintEditorModes::GetLocalizedMode)

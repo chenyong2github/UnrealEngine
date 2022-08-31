@@ -11,6 +11,7 @@
 #include "Templates/SharedPointer.h"
 #include "Tools/UEdMode.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 

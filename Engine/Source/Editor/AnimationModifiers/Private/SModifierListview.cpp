@@ -1,11 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SModifierListview.h"
+
+#include "AnimationModifier.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/Attribute.h"
 #include "SModifierItemRow.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/UnrealNames.h"
+
+class FUICommandList;
+class ITableRow;
+class STableViewBase;
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "SModifierListview"
 

@@ -2,11 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformMath.h"
 #include "SNodePanel.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
 
 class UBlueprint;
+class UEdGraphNode;
+class UEdGraphPin;
 
 // Context used to aid debugging displays for nodes
 struct FKismetNodeInfoContext : public FNodeInfoContext

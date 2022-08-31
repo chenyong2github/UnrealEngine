@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_DeadClass.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_DeadClass : public UK2Node

@@ -2,11 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ConnectionDrawingPolicy.h"
+#include "Containers/Map.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
 
+class FSlateRect;
 class FSlateWindowElementList;
 class UEdGraph;
+class UEdGraphPin;
 class UMaterialGraph;
 class UMaterialGraphSchema;
 

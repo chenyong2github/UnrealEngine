@@ -1,19 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlutilityLevelEditorExtensions.h"
-#include "Modules/ModuleManager.h"
-#include "Misc/PackageName.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
+
 #include "ActorActionUtility.h"
-#include "EditorUtilityBlueprint.h"
-#include "LevelEditor.h"
-#include "BlueprintEditorModule.h"
+#include "AssetRegistry/AssetData.h"
 #include "BlutilityMenuExtensions.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "EditorUtilityBlueprint.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectIterator.h"
+
+class FUICommandList;
 
 #define LOCTEXT_NAMESPACE "BlutilityLevelEditorExtensions"
 

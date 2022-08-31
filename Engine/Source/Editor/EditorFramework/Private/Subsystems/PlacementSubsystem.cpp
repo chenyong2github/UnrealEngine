@@ -2,15 +2,17 @@
 
 #include "Subsystems/PlacementSubsystem.h"
 
+#include "Containers/Map.h"
+#include "Elements/Framework/TypedElementHandle.h"
 #include "Factories/AssetFactoryInterface.h"
-
-#include "Elements/Interfaces/TypedElementObjectInterface.h"
-#include "Elements/Framework/TypedElementRegistry.h"
-#include "Elements/Framework/TypedElementSelectionSet.h"
-
-#include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/PlatformCrt.h"
 #include "Misc/CoreDelegates.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 #include "UObject/UObjectIterator.h"
+
+class FSubsystemCollectionBase;
 
 void UPlacementSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {

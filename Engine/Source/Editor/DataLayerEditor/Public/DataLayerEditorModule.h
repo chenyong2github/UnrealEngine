@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Templates/SharedPointer.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 
+class AActor;
+class FExtender;
+class FUICommandList;
+class SWidget;
 class UDataLayerInstance;
 
 /**

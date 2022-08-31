@@ -9,7 +9,6 @@
 #include "HAL/Platform.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/Attribute.h"
-#include "Templates/TypeHash.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
 

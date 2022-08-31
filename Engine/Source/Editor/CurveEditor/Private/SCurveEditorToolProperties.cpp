@@ -6,7 +6,6 @@
 #include "CurveEditor.h"
 #include "Delegates/Delegate.h"
 #include "DetailsViewArgs.h"
-#include "HAL/PlatformCrt.h"
 #include "IStructureDetailsView.h"
 #include "Layout/Children.h"
 #include "Modules/ModuleManager.h"

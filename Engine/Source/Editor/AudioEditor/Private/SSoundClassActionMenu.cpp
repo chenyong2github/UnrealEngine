@@ -18,7 +18,6 @@
 #include "SoundClassGraph/SoundClassGraphSchema.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
-#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"

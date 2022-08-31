@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Framework/Commands/UIAction.h"
-#include "Templates/SharedPointer.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "UObject/NameTypes.h"
 
-class FMenuBuilder;
+class FString;
 class UToolMenu;
 
 class FNewAssetOrClassContextMenu

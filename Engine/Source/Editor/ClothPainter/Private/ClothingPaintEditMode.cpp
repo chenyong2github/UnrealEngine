@@ -1,21 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothingPaintEditMode.h"
-#include "IPersonaPreviewScene.h"
-#include "AssetEditorModeManager.h"
-#include "EngineUtils.h"
 
 #include "Animation/DebugSkelMeshComponent.h"
-
-#include "ClothPainter.h"
-#include "ComponentReregisterContext.h"
-#include "ClothingAssetBase.h"
-#include "ComponentRecreateRenderStateContext.h"
-#include "IPersonaToolkit.h"
-#include "ClothingAsset.h"
-#include "EditorViewportClient.h"
+#include "AssetEditorModeManager.h"
 #include "AssetViewerSettings.h"
+#include "ClothPainter.h"
+#include "ClothingAsset.h"
+#include "ClothingAssetBase.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Containers/Array.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "Editor/EditorPerProjectUserSettings.h"
+#include "EditorViewportClient.h"
+#include "Engine/SkeletalMesh.h"
+#include "IPersonaPreviewScene.h"
+#include "IPersonaToolkit.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Misc/Guid.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectIterator.h"
 
 FClothingPaintEditMode::FClothingPaintEditMode()
 {

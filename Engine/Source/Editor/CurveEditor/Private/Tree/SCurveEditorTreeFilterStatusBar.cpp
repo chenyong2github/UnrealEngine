@@ -8,7 +8,6 @@
 #include "CurveEditorTypes.h"
 #include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
 #include "Layout/Children.h"

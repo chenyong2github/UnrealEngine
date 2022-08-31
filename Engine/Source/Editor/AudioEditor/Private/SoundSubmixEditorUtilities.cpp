@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundSubmixEditorUtilities.h"
-#include "AudioEditorModule.h"
-#include "SoundSubmixEditorUtilities.h"
-#include "Toolkits/ToolkitManager.h"
-#include "SoundSubmixGraph/SoundSubmixGraph.h"
+
+#include "EdGraph/EdGraph.h"
+#include "ISoundSubmixEditor.h"
+#include "Misc/AssertionMacros.h"
 #include "Sound/SoundSubmix.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/ToolkitManager.h"
+
+class IToolkit;
 
 void FSoundSubmixEditorUtilities::CreateSoundSubmix(const UEdGraph* Graph, UEdGraphPin* FromPin, const FVector2D Location, const FString& Name)
 {

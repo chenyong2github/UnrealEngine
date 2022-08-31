@@ -2,13 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Serialization/Archive.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/SWidget.h"
 
-struct FAssetData;
 class IPropertyHandle;
+class SWidget;
+struct FAssetData;
+struct FSlateFontInfo;
 
 /** Customize the appearance of an FSlateFontInfo */
 class DETAILCUSTOMIZATIONS_API FSlateFontInfoStructCustomization : public IPropertyTypeCustomization

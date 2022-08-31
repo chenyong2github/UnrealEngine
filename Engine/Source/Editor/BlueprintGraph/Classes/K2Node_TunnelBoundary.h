@@ -3,12 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_TunnelBoundary.generated.h"
 
 class FKismetCompilerContext;
 class UK2Node_Tunnel;
+class UObject;
 
 UENUM()
 enum class ETunnelBoundaryType : uint8

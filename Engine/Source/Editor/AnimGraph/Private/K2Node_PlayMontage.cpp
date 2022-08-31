@@ -1,7 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_PlayMontage.h"
+
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 #include "PlayMontageCallbackProxy.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 

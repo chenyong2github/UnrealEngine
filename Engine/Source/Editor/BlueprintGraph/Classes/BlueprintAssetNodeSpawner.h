@@ -2,16 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
+#include "AssetRegistry/AssetData.h"
 #include "BlueprintNodeSignature.h"
 #include "BlueprintNodeSpawner.h"
-#include "AssetRegistry/AssetData.h"
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintAssetNodeSpawner.generated.h"
 
 class UEdGraph;
+class UEdGraphNode;
+class UObject;
 
 /**
  * Takes care of spawning various asset related nodes (nodes associated with 

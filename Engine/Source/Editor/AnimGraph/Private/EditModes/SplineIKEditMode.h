@@ -3,12 +3,20 @@
 #pragma once
 
 #include "AnimNodeEditMode.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/NameTypes.h"
+#include "UnrealWidgetFwd.h"
 
-struct FPropertyChangedEvent;
-struct FAnimNode_SplineIK;
+class FEditorViewportClient;
+class FPrimitiveDrawInterface;
+class FSceneView;
+class FViewport;
+class HHitProxy;
 class UAnimGraphNode_SplineIK;
-class ATargetPoint;
-class USplineComponent;
+struct FAnimNode_SplineIK;
+struct FViewportClick;
 
 class FSplineIKEditMode : public FAnimNodeEditMode
 {

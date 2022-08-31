@@ -2,21 +2,22 @@
 
 #pragma once
 
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/SWindow.h"
-#include "Widgets/Input/SButton.h"
-
-#include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-class SButton;
-class SComboButton;
-class SModifierListView;
-class SMenuAnchor;
-class UAnimationModifier;
-class UAnimSequence;
 class IDetailsView;
-
+class SMenuAnchor;
+class SModifierListView;
+class SWindow;
+class UAnimSequence;
+class UAnimationModifier;
+class UClass;
+struct FGeometry;
+struct FKeyEvent;
 struct FModifierListviewItem;
 
 /** UI slate widget allowing the user to add Animation Modifier(s) to a selection of Animation Sequences */

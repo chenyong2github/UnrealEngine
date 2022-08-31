@@ -1,18 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_BehaviorTree.h"
-#include "Framework/Application/SlateApplication.h"
-#include "BehaviorTreeEditorModule.h"
-
-#include "BehaviorTree/BlackboardData.h"
-#include "BehaviorTree/BehaviorTree.h"
-#include "IBehaviorTreeEditor.h"
-#include "BehaviorTreeEditor.h"
-
-#include "SBehaviorTreeDiff.h"
 
 #include "AIModule.h"
+#include "AssetToolsModule.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardData.h"
+#include "BehaviorTreeEditor.h"
+#include "BehaviorTreeEditorModule.h"
+#include "Containers/UnrealString.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/PlatformMath.h"
+#include "IAssetTools.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "SBehaviorTreeDiff.h"
+#include "Settings/EditorLoadingSavingSettings.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Templates/Casts.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWindow.h"
+
+class IBehaviorTreeEditor;
+class IToolkitHost;
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

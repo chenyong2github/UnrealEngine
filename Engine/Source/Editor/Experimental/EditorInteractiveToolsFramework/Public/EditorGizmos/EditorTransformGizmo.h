@@ -4,7 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "EditorGizmos/TransformGizmo.h"
+#include "Math/MathFwd.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorTransformGizmo.generated.h"
+
+class UObject;
 
 /**
  * UEditorTransformGizmo handles Editor-specific functionality for the TransformGizmo,

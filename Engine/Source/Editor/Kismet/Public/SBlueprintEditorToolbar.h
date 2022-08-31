@@ -3,20 +3,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Widgets/SWidget.h"
-#include "Textures/SlateIcon.h"
-#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "SourceControlOperations.h"
+#include "Styling/AppStyle.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/SWidget.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
 
 class FBlueprintEditor;
 class FExtender;
 class FMenuBuilder;
 class FToolBarBuilder;
+class FUICommandInfo;
+class SWidget;
+class UBlueprintEditorToolMenuContext;
 class UToolMenu;
 struct FToolMenuContext;
-class UBlueprintEditorToolMenuContext;
 
 /**
  * Kismet menu

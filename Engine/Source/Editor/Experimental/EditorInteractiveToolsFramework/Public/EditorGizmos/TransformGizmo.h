@@ -2,24 +2,40 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseGizmos/GizmoElementHitTargets.h"
 #include "BaseGizmos/GizmoViewContext.h"
 #include "BaseGizmos/StateTargets.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "Containers/EnumAsByte.h"
+#include "CoreMinimal.h"
 #include "EditorGizmos/TransformGizmoInterfaces.h"
+#include "InputState.h"
 #include "InteractiveGizmo.h"
-#include "InteractiveToolObjects.h"
 #include "InteractiveToolChange.h"
+#include "InteractiveToolObjects.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Quat.h"
+#include "Math/Ray.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Templates/Function.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "TransformGizmo.generated.h"
 
-class UInteractiveGizmoManager;
 class IGizmoAxisSource;
-class IGizmoTransformSource;
 class IGizmoStateTarget;
+class IGizmoTransformSource;
+class IToolContextTransactionProvider;
+class IToolsContextRenderAPI;
 class UClickDragInputBehavior;
 class UGizmoConstantFrameAxisSource;
 class UGizmoElementArrow;
@@ -29,9 +45,15 @@ class UGizmoElementCircle;
 class UGizmoElementCone;
 class UGizmoElementCylinder;
 class UGizmoElementGroup;
+class UGizmoElementHitMultiTarget;
 class UGizmoElementRectangle;
 class UGizmoElementRoot;
 class UGizmoElementTorus;
+class UInteractiveGizmoManager;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class UObject;
+class UTransformProxy;
 
 //
 // Interface for the Transform gizmo.

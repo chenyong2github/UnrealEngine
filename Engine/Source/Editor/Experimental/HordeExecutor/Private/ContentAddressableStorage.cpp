@@ -6,6 +6,7 @@
 #include "CoreGlobals.h"
 #include "Delegates/Delegate.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PThreadCriticalSection.h"
 #include "HordeMessages.h"
 #include "HttpModule.h"
 #include "IO/IoHash.h"

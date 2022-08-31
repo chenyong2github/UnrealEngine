@@ -6,6 +6,7 @@
 #include "Filters/CurveEditorFilterBase.h"
 #include "Misc/FrameRate.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "CurveEditorReduceFilter.generated.h"

@@ -2,17 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "ContentBrowserItem.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "ContentBrowserDataMenuContexts.h"
+#include "ContentBrowserItem.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "SourcesData.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
-class UToolMenu;
 class FUICommandList;
 class SAssetView;
-class SWindow;
+class SWidget;
+class UClass;
+class UToolMenu;
 
 enum class ECheckBoxState : uint8;
 enum class EContentBrowserViewContext : uint8;

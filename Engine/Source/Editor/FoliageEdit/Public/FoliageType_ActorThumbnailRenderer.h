@@ -7,13 +7,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/Platform.h"
 #include "ThumbnailRendering/BlueprintThumbnailRenderer.h"
-#include "FoliageType_ActorThumbnailRenderer.generated.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
+#include "FoliageType_ActorThumbnailRenderer.generated.h"
 
 class FCanvas;
 class FRenderTarget;
+class UObject;
 
 UCLASS(CustomConstructor, Config = Editor)
 class UFoliageType_ActorThumbnailRenderer : public UBlueprintThumbnailRenderer

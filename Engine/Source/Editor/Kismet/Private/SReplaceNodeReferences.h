@@ -2,24 +2,40 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Delegates/Delegate.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "FindInBlueprintManager.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
 #include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
-#include "BlueprintEditor.h"
-#include "FindInBlueprints.h"
 
-class FImaginaryFiBData;
+class FBlueprintEditor;
+class FProperty;
+class ITableRow;
 class SComboButton;
 class SFindInBlueprints;
+class SWidget;
+class SWindow;
+class UBlueprint;
+class UClass;
 struct FMemberReference;
+struct FSlateBrush;
 
 class FTargetReplaceReferences
 {

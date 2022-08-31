@@ -2,21 +2,27 @@
 
 
 #include "K2Node_MakeSet.h"
-#include "EdGraph/EdGraphPin.h"
-#include "Engine/Blueprint.h"
-#include "Framework/Commands/UIAction.h"
-#include "ToolMenus.h"
-#include "EdGraphSchema_K2.h"
-#include "EdGraph/EdGraphNodeUtils.h"
-#include "Kismet2/BlueprintEditorUtils.h"
 
-#include "ScopedTransaction.h"
-#include "EdGraphUtilities.h"
-#include "KismetCompiledFunctionContext.h"
-#include "KismetCompilerMisc.h"
-#include "BlueprintNodeSpawner.h"
+#include "BlueprintCompiledStatement.h"
+#include "Containers/EnumAsByte.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNodeUtils.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
 #include "EditorCategoryUtils.h"
-#include "BlueprintActionDatabaseRegistrar.h"
+#include "Framework/Commands/UIAction.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+
+class FKismetCompilerContext;
+struct FLinearColor;
 
 namespace MakeSetLiterals
 {

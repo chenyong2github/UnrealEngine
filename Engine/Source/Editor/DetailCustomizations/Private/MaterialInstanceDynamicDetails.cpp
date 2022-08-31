@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialInstanceDynamicDetails.h"
-#include "MaterialShared.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
+
 #include "DetailCategoryBuilder.h"
-#include "PropertyCustomizationHelpers.h"
-#include "Widgets/Input/SComboBox.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailPropertyRow.h"
 #include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInterface.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
+#include "UObject/Class.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
 
 TSharedRef<IDetailCustomization> FMaterialInstanceDynamicDetails::MakeInstance()
 {

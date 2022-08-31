@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectNameEditSinkRegistry.h"
+
+#include "Containers/UnrealString.h"
 #include "Editor/EditorEngine.h"
-#include "Templates/SharedPointer.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
+#include "IObjectNameEditSink.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 
 #define LOCTEXT_NAMESPACE "EditorWidgets"
 

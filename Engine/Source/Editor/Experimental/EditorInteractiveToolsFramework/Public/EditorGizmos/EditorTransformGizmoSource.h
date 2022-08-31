@@ -4,11 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "EditorGizmos/TransformGizmoInterfaces.h"
+#include "Math/Axis.h"
+#include "ToolContextInterfaces.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+#include "UnrealWidgetFwd.h"
+
 #include "EditorTransformGizmoSource.generated.h"
 
+class FEditorModeTools;
 class FEditorViewportClient;
 class FSceneView;
-class FEditorModeTools;
 
 namespace FEditorTransformGizmoUtil
 {

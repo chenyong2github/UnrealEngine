@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "GameFramework/Actor.h"
+#include "Misc/EnumClassFlags.h"
+
+class AActor;
+class UClass;
 
 //////////////////////////////////////////////////////////////////////////
 // FCreateBlueprintFromActorDialog

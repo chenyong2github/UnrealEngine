@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EditorUtilityBlueprint.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions/AssetTypeActions_Blueprint.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UClass;
+class UObject;
 
 
 class FAssetTypeActions_EditorUtilityBlueprint : public FAssetTypeActions_Blueprint

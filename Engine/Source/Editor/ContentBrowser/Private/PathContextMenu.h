@@ -2,12 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
+#include "Containers/Array.h"
 #include "ContentBrowserItem.h"
+#include "ContentBrowserItemData.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
 
 class FExtender;
-class FMenuBuilder;
+class FString;
 class SWidget;
 class SWindow;
 class UToolMenu;

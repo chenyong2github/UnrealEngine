@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "EdGraph/EdGraphSchema.h"
 #include "BlueprintNodeSignature.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintPaletteFavorites.generated.h"
 
 class UBlueprintNodeSpawner;
 struct FBlueprintActionInfo;
+struct FEdGraphSchemaAction;
 
 /*******************************************************************************
 * FFavoritedPaletteItem

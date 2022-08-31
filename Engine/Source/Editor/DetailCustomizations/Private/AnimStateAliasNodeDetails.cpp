@@ -22,7 +22,6 @@
 #include "ScopedTransaction.h"
 #include "SlotBase.h"
 #include "Templates/Casts.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"

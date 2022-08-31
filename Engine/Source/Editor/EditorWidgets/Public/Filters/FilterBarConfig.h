@@ -2,12 +2,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "EditorConfigBase.h"
-#include "Filters/SCustomTextFilterDialog.h"
+#include "Filters/CustomTextFilters.h"
 #include "Filters/SBasicFilterBar.h"
+#include "Filters/SCustomTextFilterDialog.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "FilterBarConfig.generated.h"
+
+class FName;
+class FString;
+class UObject;
 
 USTRUCT()
 struct FCustomTextFilterState

@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
 #include "GameFramework/WorldSettings.h"
+#include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
 #include "OverrideResetToDefault.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
+class IPropertyHandle;
 
 class FHierarchicalSimplificationCustomizations : public IPropertyTypeCustomization, public TOverrideResetToDefaultWithStaticUStruct<FHierarchicalSimplification>
 {

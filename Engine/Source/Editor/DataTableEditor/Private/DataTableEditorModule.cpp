@@ -1,11 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataTableEditorModule.h"
-#include "Modules/ModuleManager.h"
-#include "IDataTableEditor.h"
-#include "DataTableEditor.h"
+
 #include "CompositeDataTableEditor.h"
+#include "DataTableEditor.h"
 #include "Engine/CompositeDataTable.h"
+#include "Engine/DataTable.h"
+#include "HAL/Platform.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+
+class IToolkitHost;
 
 IMPLEMENT_MODULE( FDataTableEditorModule, DataTableEditor );
 

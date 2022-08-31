@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/EditorTransformProxy.h"
-#include "EditorViewportClient.h"
+
+#include "Editor.h"
 #include "EditorModeManager.h"
+#include "EditorViewportClient.h"
+#include "Math/Matrix.h"
+#include "Math/Quat.h"
+#include "Math/Vector.h"
 
 
 #define LOCTEXT_NAMESPACE "UEditorTransformProxy"

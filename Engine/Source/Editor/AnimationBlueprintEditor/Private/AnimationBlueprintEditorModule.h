@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "Containers/Array.h"
 #include "IAnimationBlueprintEditorModule.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
 
+class FExtensibilityManager;
 struct FAnimationGraphNodeFactory;
-struct FAnimationGraphPinFactory;
 struct FAnimationGraphPinConnectionFactory;
+struct FAnimationGraphPinFactory;
 
 /**
  * Animation Blueprint Editor module allows editing of Animation Blueprints

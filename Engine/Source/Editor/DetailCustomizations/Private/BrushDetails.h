@@ -2,16 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class ABrush;
 class IDetailLayoutBuilder;
-class SHorizontalBox;
 class IPropertyHandle;
-class IDetailLayoutBuilder;
 class IPropertyUtilities;
+class SHorizontalBox;
+class SWidget;
+class UClass;
 
 class FBrushDetails : public IDetailCustomization
 {

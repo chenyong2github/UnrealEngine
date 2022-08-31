@@ -2,13 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
-#include "Sound/SoundSourceBus.h"
 #include "AssetTypeActions/AssetTypeActions_SoundBase.h"
+#include "Containers/Array.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
 
-class FMenuBuilder;
-class USoundSourceBus;
+class UClass;
+struct FAssetData;
 
 class FAssetTypeActions_SoundSourceBus : public FAssetTypeActions_SoundBase
 {

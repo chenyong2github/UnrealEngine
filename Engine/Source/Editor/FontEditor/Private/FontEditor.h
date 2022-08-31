@@ -2,21 +2,34 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/GCObject.h"
-#include "Toolkits/IToolkitHost.h"
-#include "IFontEditor.h"
-#include "Misc/NotifyHook.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "EditorUndoClient.h"
+#include "Framework/Docking/TabManager.h"
+#include "HAL/Platform.h"
+#include "IFontEditor.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/NotifyHook.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
 
-class IDetailsView;
+class FReferenceCollector;
 class SCompositeFontEditor;
+class SDockTab;
 class SEditableTextBox;
 class SFontEditorViewport;
+class SVerticalBox;
 class UFont;
 class UTextureExporterTGA;
 class UTextureFactory;
 struct FPropertyChangedEvent;
+
 enum class EFontCacheType : uint8;
 
 /*-----------------------------------------------------------------------------

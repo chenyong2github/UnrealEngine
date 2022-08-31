@@ -20,7 +20,6 @@
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
-#include "Templates/TypeHash.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

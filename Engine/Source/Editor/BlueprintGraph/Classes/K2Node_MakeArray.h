@@ -3,11 +3,20 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node_MakeContainer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_MakeArray.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class UEdGraphPin;
+class UObject;
+struct FLinearColor;
 
 UCLASS(MinimalAPI)
 class UK2Node_MakeArray : public UK2Node_MakeContainer

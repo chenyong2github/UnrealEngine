@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Curves/CurveOwnerInterface.h"
+#include "Curves/RichCurve.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class UAnimGraphNode_Trail;
-class SCurveEditor;
+class UObject;
 
 class FAnimTrailNodeDetails : public IDetailCustomization
 {

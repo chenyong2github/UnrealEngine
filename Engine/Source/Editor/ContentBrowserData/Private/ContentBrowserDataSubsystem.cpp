@@ -1,20 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserDataSubsystem.h"
+
+#include "Containers/StringView.h"
+#include "Containers/Ticker.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserItemPath.h"
-#include "IContentBrowserDataModule.h"
-#include "Containers/Ticker.h"
-#include "Misc/PackageName.h"
-#include "Misc/Paths.h"
-#include "Misc/PathViews.h"
-#include "Features/IModularFeatures.h"
-#include "Stats/Stats.h"
-#include "UObject/UObjectThreadContext.h"
-#include "Settings/ContentBrowserSettings.h"
-#include "Interfaces/IPluginManager.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Editor.h"
+#include "Features/IModularFeatures.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/IConsoleManager.h"
+#include "IContentBrowserDataModule.h"
+#include "Interfaces/IPluginManager.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/PackageName.h"
+#include "Misc/PathViews.h"
+#include "Misc/StringBuilder.h"
+#include "PluginDescriptor.h"
+#include "Settings/ContentBrowserSettings.h"
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Templates/Function.h"
+#include "Templates/Less.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Class.h"
+#include "UObject/GarbageCollection.h"
+#include "UObject/UObjectThreadContext.h"
+
+class FSubsystemCollectionBase;
+class UObject;
+struct FAssetData;
 
 DEFINE_LOG_CATEGORY_STATIC(LogContentBrowserDataSubsystem, Log, All);
 

@@ -2,19 +2,27 @@
 
 
 #include "EditorInteractiveGizmoManager.h"
+
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorInteractiveGizmoConditionalBuilder.h"
 #include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "EditorInteractiveGizmoSubsystem.h"
-#include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "HAL/IConsoleManager.h"
-#include "LevelEditor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "InputRouter.h"
 #include "InteractiveGizmo.h"
-#include "InteractiveToolChange.h"
-#include "InteractiveToolsContext.h"
-#include "Selection.h"
+#include "InteractiveGizmoBuilder.h"
+#include "Misc/AssertionMacros.h"
+#include "SceneView.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
 #include "ToolContextInterfaces.h"
+
+class FCanvas;
 
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoManager"
 

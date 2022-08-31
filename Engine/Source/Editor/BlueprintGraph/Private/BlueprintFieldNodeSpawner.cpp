@@ -5,7 +5,6 @@
 #include "EdGraph/EdGraphNode.h"
 #include "K2Node.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"

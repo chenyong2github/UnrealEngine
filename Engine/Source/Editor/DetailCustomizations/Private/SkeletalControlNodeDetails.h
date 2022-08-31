@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailCategoryBuilder;
 class IDetailChildrenBuilder;
 class IPropertyHandle;
+
 enum class ECheckBoxState : uint8;
 
 /////////////////////////////////////////////////////

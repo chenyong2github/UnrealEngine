@@ -2,18 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "BlueprintUtilities.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Navigation/SBreadcrumbTrail.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FBlueprintEditor;
-class UEdGraph;
-struct FSlateBrush;
 class SFunctionEditor;
 class SScrollBox;
+class SWidget;
+class UEdGraph;
+class UObject;
+struct FSlateBrush;
 
 //////////////////////////////////////////////////////////////////////////
 // SGraphTitleBar

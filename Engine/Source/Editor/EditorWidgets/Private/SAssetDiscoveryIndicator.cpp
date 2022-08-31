@@ -14,7 +14,6 @@
 #include "Modules/ModuleManager.h"
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"

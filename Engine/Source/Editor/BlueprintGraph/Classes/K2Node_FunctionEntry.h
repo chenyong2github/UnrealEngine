@@ -2,14 +2,35 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "K2Node_FunctionTerminator.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Engine/Blueprint.h"
+#include "Internationalization/Text.h"
+#include "K2Node_EditablePinBase.h"
+#include "K2Node_FunctionTerminator.h"
+#include "KismetCompilerMisc.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/Script.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_FunctionEntry.generated.h"
 
+class FArchive;
+class FObjectPreSaveContext;
+class FStructOnScope;
+class UBlueprint;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+class UStruct;
+struct FBPVariableDescription;
+struct FEdGraphPinType;
 
 UCLASS(MinimalAPI)
 class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator

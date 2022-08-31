@@ -4,13 +4,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_ConvertAsset.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
+class UClass;
 class UEdGraph;
 class UEdGraphPin;
+class UObject;
 
 /** This node converts between hard and soft references, for both objects and classes. The name is historical from when they were called asset IDs */
 UCLASS(MinimalAPI)

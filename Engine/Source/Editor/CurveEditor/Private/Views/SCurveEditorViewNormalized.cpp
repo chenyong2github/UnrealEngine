@@ -25,7 +25,6 @@
 #include "Styling/ISlateStyle.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/Tuple.h"
-#include "Templates/TypeHash.h"
 #include "Templates/UniquePtr.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

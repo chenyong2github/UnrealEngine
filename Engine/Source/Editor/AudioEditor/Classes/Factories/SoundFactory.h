@@ -6,12 +6,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "HAL/Platform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
 #include "SoundFactory.generated.h"
 
-
+class FFeedbackContext;
+class UClass;
+class UObject;
 class USoundWave;
 
 UCLASS(MinimalAPI, hidecategories=Object)

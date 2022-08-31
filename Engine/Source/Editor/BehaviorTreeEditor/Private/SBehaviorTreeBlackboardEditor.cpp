@@ -35,6 +35,7 @@
 #include "Types/SlateStructs.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealNames.h"

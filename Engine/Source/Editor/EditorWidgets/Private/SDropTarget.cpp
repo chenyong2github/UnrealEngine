@@ -3,7 +3,6 @@
 #include "SDropTarget.h"
 
 #include "Framework/Application/SlateApplication.h"
-#include "HAL/Platform.h"
 #include "Layout/Children.h"
 #include "Layout/Clipping.h"
 #include "Layout/Geometry.h"

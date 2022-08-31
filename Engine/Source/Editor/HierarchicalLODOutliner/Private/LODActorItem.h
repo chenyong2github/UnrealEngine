@@ -1,18 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
-#include "TreeItemID.h"
-#include "UnrealClient.h"
-#include "Engine/LODActor.h"
+#include "Containers/UnrealString.h"
 #include "Editor/HierarchicalLODOutliner/Private/ITreeItem.h"
+#include "Engine/LODActor.h"
+#include "HLODOutlinerDragDrop.h"
+#include "Internationalization/Text.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "TreeItemID.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class SWidget;
 class UToolMenu;
 
 namespace HLODOutliner
 {
+class SHLODOutliner;
+
 	/** Helper class to manage moving arbitrary data onto an actor */
 	struct FLODActorDropTarget : IDropTarget
 	{

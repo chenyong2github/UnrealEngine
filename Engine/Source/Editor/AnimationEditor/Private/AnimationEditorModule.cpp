@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Toolkits/AssetEditorToolkit.h"
-#include "IAnimationEditor.h"
-#include "IAnimationEditorModule.h"
 #include "AnimationEditor.h"
+#include "Containers/Array.h"
+#include "IAnimationEditorModule.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+
+class IAnimationEditor;
+class IToolkitHost;
+class UAnimationAsset;
 
 class FAnimationEditorModule : public IAnimationEditorModule
 {

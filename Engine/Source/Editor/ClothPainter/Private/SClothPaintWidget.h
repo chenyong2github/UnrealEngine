@@ -2,16 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Input/SComboBox.h"
 
-class IDetailsView;
 class FClothPainter;
-class UClothingAssetCommon;
+class IDetailsView;
 class UClothPainterSettings;
-struct FPointWeightMap;
+class UObject;
 
 class SClothPaintWidget : public SCompoundWidget
 {

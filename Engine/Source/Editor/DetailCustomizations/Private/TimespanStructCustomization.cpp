@@ -13,7 +13,6 @@
 #include "PropertyHandle.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
-#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

@@ -4,6 +4,7 @@
 
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
+#include "UObject/ObjectMacros.h"
 
 class UObject;
 struct FRealCurve;

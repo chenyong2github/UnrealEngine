@@ -1,9 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageTypeFactory.h"
-#include "AssetTypeCategories.h"
-#include "FoliageType_InstancedStaticMesh.h"
+
 #include "FoliageType_Actor.h"
+#include "FoliageType_InstancedStaticMesh.h"
+#include "Internationalization/Internationalization.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "FoliageTypeFactory"
 

@@ -2,15 +2,31 @@
 
 #pragma once
 
-#include "Customizations/MathStructCustomizations.h"
-#include "IDetailCustomNodeBuilder.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "EditorUndoClient.h"
-#include "Widgets/Input/SNumericEntryBox.h"
+#include "HAL/Platform.h"
+#include "IDetailCustomNodeBuilder.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Vector4.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
+class FDetailWidgetRow;
 class FVector4StructCustomization;
-class SColorGradingPicker;
-class FColorGradingVectorCustomization;
+class IDetailChildrenBuilder;
 class IDetailGroup;
+class IPropertyHandle;
+class IPropertyTypeCustomizationUtils;
+class SColorGradingPicker;
+class SWidget;
+template <typename NumericType> class SNumericEntryBox;
+
 enum class EColorGradingModes;
 
 struct FColorGradingMinMaxSliderValue

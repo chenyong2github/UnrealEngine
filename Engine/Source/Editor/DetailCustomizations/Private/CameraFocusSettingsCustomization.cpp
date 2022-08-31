@@ -1,18 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraFocusSettingsCustomization.h"
-#include "Misc/Attribute.h"
-#include "Templates/Casts.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "Widgets/SBoxPanel.h"
-#include "DetailWidgetRow.h"
-#include "PropertyHandle.h"
-#include "IDetailPropertyRow.h"
-#include "IDetailChildrenBuilder.h"
-#include "PropertyCustomizationHelpers.h"
+
+#include "Camera/CameraComponent.h"
 #include "CineCameraComponent.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "DetailWidgetRow.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "SceneDepthPickerMode.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "CameraFocusSettingsCustomization"
 

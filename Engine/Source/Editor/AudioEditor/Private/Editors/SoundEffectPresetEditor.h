@@ -1,33 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "Audio/AudioWidgetSubsystem.h"
-#include "Blueprint/UserWidget.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "EditorUndoClient.h"
-#include "Engine/DeveloperSettings.h"
-#include "Framework/Docking/TabManager.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "Math/Color.h"
 #include "Misc/NotifyHook.h"
-#include "Sound/SoundEffectPreset.h"
+#include "Templates/SharedPointer.h"
 #include "Toolkits/AssetEditorToolkit.h"
-#include "Toolkits/IToolkitHost.h"
-#include "UObject/GCObject.h"
-#include "UObject/ObjectMacros.h"
-#include "Widgets/SWidget.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/StrongObjectPtr.h"
 
-
-// Forward Declarations
-class FCurveEditor;
+class FEditPropertyChain;
+class FProperty;
+class FSpawnTabArgs;
+class FTabManager;
+class IDetailsView;
 class IToolkitHost;
-class SCurveEditorPanel;
-class SSoundEffectEditorPreviewViewport;
-class UClass;
-class UCurveBase;
+class SDockTab;
 class USoundEffectPreset;
-class UWidgetBlueprint;
+class UUserWidget;
+struct FPropertyChangedEvent;
 
 
 class FSoundEffectPresetEditor : public FAssetEditorToolkit, public FNotifyHook, public FEditorUndoClient

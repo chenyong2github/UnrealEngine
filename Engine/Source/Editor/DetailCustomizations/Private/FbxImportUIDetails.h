@@ -2,14 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Types/SlateEnums.h"
-#include "IDetailCustomization.h"
-#include "Factories/FbxImportUI.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "EditorUndoClient.h"
+#include "Factories/FbxImportUI.h"
+#include "HAL/Platform.h"
+#include "IDetailCustomization.h"
 #include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FString;
+class FText;
 class IDetailLayoutBuilder;
 class IDetailPropertyRow;
 class IPropertyHandle;

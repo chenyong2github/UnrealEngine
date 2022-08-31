@@ -1,12 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_Blackboard.h"
-#include "BehaviorTreeEditorModule.h"
-
-#include "BehaviorTree/BlackboardData.h"
-
 
 #include "AIModule.h"
+#include "BehaviorTree/BlackboardData.h"
+#include "BehaviorTreeEditorModule.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/Casts.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
+
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

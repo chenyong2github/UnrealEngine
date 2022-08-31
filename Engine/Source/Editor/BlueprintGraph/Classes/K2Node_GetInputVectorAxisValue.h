@@ -3,13 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
 #include "K2Node_GetInputAxisKeyValue.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GetInputVectorAxisValue.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UClass;
 class UDynamicBlueprintBinding;
+class UObject;
 
 UCLASS(MinimalAPI, meta=(Keywords = "Get"))
 class UK2Node_GetInputVectorAxisValue : public UK2Node_GetInputAxisKeyValue

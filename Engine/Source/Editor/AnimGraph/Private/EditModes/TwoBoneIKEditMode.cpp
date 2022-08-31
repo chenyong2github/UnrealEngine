@@ -1,10 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditModes/TwoBoneIKEditMode.h"
-#include "SceneManagement.h"
-#include "EngineUtils.h"
-#include "IPersonaPreviewScene.h"
+
+#include "AnimGraphNode_Base.h"
+#include "AnimGraphNode_TwoBoneIK.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "BoneContainer.h"
+#include "BoneControllers/AnimNode_TwoBoneIK.h"
+#include "BonePose.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Containers/EnumAsByte.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/SkeletalMesh.h"
+#include "GenericPlatform/ICursor.h"
+#include "HitProxies.h"
+#include "IPersonaPreviewScene.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+
+class FSceneView;
+class FViewport;
+class USkeleton;
+struct FAnimNode_Base;
+struct FPropertyChangedEvent;
 
 struct HTwoBoneIKProxy : public HHitProxy
 {

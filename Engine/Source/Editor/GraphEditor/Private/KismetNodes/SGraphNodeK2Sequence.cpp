@@ -6,7 +6,6 @@
 #include "EdGraph/EdGraphNode.h"
 #include "GenericPlatform/ICursor.h"
 #include "GraphEditorSettings.h"
-#include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node.h"
 #include "K2Node_AddPinInterface.h"

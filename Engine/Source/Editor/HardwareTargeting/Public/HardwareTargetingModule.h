@@ -2,14 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Modules/ModuleInterface.h"
+#include "Delegates/Delegate.h"
 #include "HardwareTargetingSettings.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class SWidget;
+class UObject;
 
 DECLARE_DELEGATE_OneParam(FOnHardwareClassChanged, EHardwareClass)
 DECLARE_DELEGATE_OneParam(FOnGraphicsPresetChanged, EGraphicsPreset)

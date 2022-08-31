@@ -2,12 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "Components/ActorComponent.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Logging/LogMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintEditorLibrary.generated.h"
+
+class FProperty;
+class UBlueprint;
+class UClass;
+class UEdGraph;
+class UObject;
+struct FFrame;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintEditorLib, Warning, All);
 

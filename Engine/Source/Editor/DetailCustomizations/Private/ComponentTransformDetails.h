@@ -2,22 +2,36 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "Framework/Commands/UIAction.h"
-#include "IDetailCustomNodeBuilder.h"
-#include "Widgets/Input/NumericTypeInterface.h"
 #include "AssetSelection.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Commands/UIAction.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailCustomNodeBuilder.h"
+#include "Internationalization/Text.h"
+#include "Math/Axis.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Input/NumericTypeInterface.h"
 
 class FDetailWidgetRow;
 class FMenuBuilder;
 class FNotifyHook;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
-class IDetailCategoryBuilder;
 class IPropertyHandle;
+class SWidget;
+class UObject;
+struct FSlateBrush;
 
 namespace ETransformField
 {

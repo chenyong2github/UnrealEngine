@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
 #include "SGraphPin.h"
+#include "Styling/SlateColor.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UEdGraphPin;
 
 class GRAPHEDITOR_API SGraphPinMaterialInput : public SGraphPin
 {

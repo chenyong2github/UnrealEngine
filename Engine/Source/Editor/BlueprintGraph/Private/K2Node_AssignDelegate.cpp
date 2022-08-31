@@ -1,13 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "K2Node_AssignDelegate.h"
+
+#include "Containers/Array.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
-#include "K2Node_CustomEvent.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "Settings/EditorStyleSettings.h"
 #include "Editor/EditorEngine.h"
-#include "ObjectEditorUtils.h"
 #include "EditorCategoryUtils.h"
+#include "Internationalization/Internationalization.h"
+#include "K2Node_CustomEvent.h"
+#include "K2Node_Event.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "ObjectEditorUtils.h"
+#include "Settings/EditorStyleSettings.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealType.h"
+
+class UBlueprint;
 
 #define LOCTEXT_NAMESPACE "K2Node_AssignDelegate"
 

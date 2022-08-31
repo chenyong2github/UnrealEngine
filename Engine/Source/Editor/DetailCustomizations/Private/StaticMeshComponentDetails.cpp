@@ -1,15 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshComponentDetails.h"
+
 #include "Components/StaticMeshComponent.h"
-#include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
-#include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Engine/StaticMesh.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/BasicLayoutWidgetSlot.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/ObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "StaticMeshComponentDetails"
 

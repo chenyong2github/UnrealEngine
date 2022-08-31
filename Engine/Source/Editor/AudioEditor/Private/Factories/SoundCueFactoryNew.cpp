@@ -1,15 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundCueFactoryNew.h"
-#include "Sound/SoundNodeWavePlayer.h"
-#include "Sound/SoundNodeAttenuation.h"
-#include "Sound/SoundNodeRandom.h"
-#include "Sound/SoundNodeModulator.h"
+
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/PlatformCrt.h"
+#include "Sound/DialogueTypes.h"
+#include "Sound/DialogueWave.h"
+#include "Sound/SoundCue.h"
 #include "Sound/SoundNodeDialoguePlayer.h"
+#include "Sound/SoundNodeRandom.h"
+#include "Sound/SoundNodeWavePlayer.h"
+#include "Sound/SoundWave.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
-#include "Sound/SoundCue.h"
-#include "Sound/DialogueWave.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+
+class FFeedbackContext;
+class UClass;
 
 USoundCueFactoryNew::USoundCueFactoryNew(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

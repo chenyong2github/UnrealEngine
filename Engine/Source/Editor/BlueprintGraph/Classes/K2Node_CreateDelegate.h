@@ -1,16 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Misc/Guid.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CreateDelegate.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
 class UBlueprint;
+class UClass;
 class UEdGraph;
 class UEdGraphPin;
+class UFunction;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_CreateDelegate : public UK2Node

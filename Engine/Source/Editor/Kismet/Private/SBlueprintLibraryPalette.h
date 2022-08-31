@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Styling/SlateBrush.h"
-#include "Widgets/SBoxPanel.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
 #include "SBlueprintSubPalette.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FBlueprintEditor;
 class FMenuBuilder;
 class FUICommandList;
 class SComboButton;
+class SVerticalBox;
+class SWidget;
+class UClass;
+struct FGraphActionListBuilderBase;
+struct FSlateBrush;
 
 /*******************************************************************************
 * SBlueprintLibraryPalette

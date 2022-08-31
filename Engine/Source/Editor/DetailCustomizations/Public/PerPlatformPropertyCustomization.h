@@ -1,14 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
-#include "IPropertyTypeCustomization.h"
-#include "PerPlatformProperties.h"
+#include "Delegates/Delegate.h"
+#include "Framework/SlateDelegates.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "PerPlatformProperties.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UnrealClient.h"
+#include "Widgets/SWidget.h"
 
 class FDetailWidgetDecl;
+class FDetailWidgetRow;
+class FMenuBuilder;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
+class IPropertyUtilities;
+class SWidget;
 
 typedef typename TSlateDelegates<FName>::FOnGenerateWidget FOnGenerateWidget;
 

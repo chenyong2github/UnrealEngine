@@ -2,17 +2,34 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/NamePermissionList.h"
 #include "Stats/Stats.h"
+#include "Stats/Stats2.h"
+#include "Tickable.h"
+#include "TickableEditorObject.h"
+#include "UObject/GCObject.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectKey.h"
-#include "UObject/GCObject.h"
-#include "TickableEditorObject.h"
-#include "Misc/NamePermissionList.h"
+#include "UObject/TopLevelAssetPath.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FReferenceCollector;
 class UBlueprint;
 class UBlueprintNodeSpawner;
+class UClass;
+class UEnum;
+class UField;
+class UFunction;
+class UObject;
+class UScriptStruct;
 struct FEdGraphPinType;
 
 /**

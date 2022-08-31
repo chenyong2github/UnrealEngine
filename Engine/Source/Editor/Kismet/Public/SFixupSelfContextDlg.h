@@ -2,19 +2,31 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Input/STextComboBox.h"
 #include "K2Node_CallFunction.h"
+#include "Layout/Visibility.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/STextComboBox.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
 
 class FBlueprintEditor;
+class FString;
+class ITableRow;
+class STableViewBase;
+class STextComboBox;
+class SWidget;
+class SWindow;
+class UBlueprint;
+class UK2Node_CallFunction;
 
 struct FFixupSelfContextItem
 {

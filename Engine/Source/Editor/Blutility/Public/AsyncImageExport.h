@@ -2,16 +2,26 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
+#include "Delegates/Delegate.h"
 #include "EditorUtilityTask.h"
-#include "Templates/UniquePtr.h"
+#include "Kismet/BlueprintAsyncActionBase.h"
+#include "Math/UnrealMathSSE.h"
 #include "Templates/SubclassOf.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AsyncImageExport.generated.h"
 
+class UObject;
+class UTexture;
 class UTextureRenderTarget2D;
+struct FColor;
+struct FFrame;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnExportImageAsyncComplete, bool, bSuccess);
 

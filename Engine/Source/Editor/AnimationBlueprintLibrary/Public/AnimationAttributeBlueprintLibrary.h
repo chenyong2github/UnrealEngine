@@ -2,11 +2,24 @@
 
 #pragma once
 
-#include "Kismet/BlueprintFunctionLibrary.h"
-#include "Animation/BuiltInAttributeTypes.h"
 #include "Animation/AnimData/IAnimationDataController.h"
+#include "Animation/BuiltInAttributeTypes.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AnimationAttributeBlueprintLibrary.generated.h"
+
+class FArrayProperty;
+class IAnimationDataController;
+class UAnimDataModel;
+class UObject;
+class UScriptStruct;
+struct FAnimationAttributeIdentifier;
+struct FFrame;
 
 UCLASS(meta=(ScriptName="AnimationAttributeLibrary"))
 class ANIMATIONBLUEPRINTLIBRARY_API UAnimationAttributeBlueprintLibrary : public UBlueprintFunctionLibrary

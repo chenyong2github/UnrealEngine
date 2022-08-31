@@ -9,6 +9,7 @@
 #include "Misc/AssertionMacros.h"
 #include "StructMemberNodeHandlers.h"
 #include "UObject/Class.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"

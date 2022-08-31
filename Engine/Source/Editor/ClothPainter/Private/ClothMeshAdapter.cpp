@@ -2,14 +2,33 @@
 
 #include "ClothMeshAdapter.h"
 
-#include "ClothingAssetBase.h"
-#include "ClothingAsset.h"
-
-#include "MeshPaintTypes.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "ClothingSimulation.h"
+#include "ClothLODData.h"
+#include "ClothPhysicalMeshData.h"
+#include "ClothingAsset.h"
+#include "ClothingAssetBase.h"
+#include "Components/MeshComponent.h"
+#include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Containers/Set.h"
+#include "Engine/HitResult.h"
+#include "Engine/NetSerialization.h"
+#include "Engine/SkeletalMesh.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/Plane.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "Serialization/StructuredArchiveAdapters.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-#include "ComponentReregisterContext.h"
+class IMeshPaintGeometryAdapter;
+class UTexture;
 
 TSharedPtr<IMeshPaintGeometryAdapter> FClothMeshPaintAdapterFactory::Construct(UMeshComponent* InComponent, int32 InPaintingMeshLODIndex) const
 {

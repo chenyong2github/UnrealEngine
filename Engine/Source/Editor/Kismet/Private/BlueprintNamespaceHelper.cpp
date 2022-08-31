@@ -1,18 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNamespaceHelper.h"
-#include "Engine/Blueprint.h"
-#include "BlueprintEditor.h"
+
 #include "BlueprintEditorSettings.h"
-#include "Toolkits/ToolkitManager.h"
-#include "EdGraph/EdGraphPin.h"
-#include "EdGraphSchema_K2.h"
-#include "SPinTypeSelector.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Text/STextBlock.h"
-#include "ClassViewerFilter.h"
 #include "BlueprintNamespacePathTree.h"
 #include "BlueprintNamespaceUtilities.h"
+#include "ClassViewerFilter.h"
+#include "Containers/Set.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "SPinTypeSelector.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FClassViewerInitializationOptions;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "BlueprintNamespaceHelper"
 

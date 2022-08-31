@@ -2,13 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "AIGraphNode.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BehaviorTreeGraphNode.generated.h"
 
 class UEdGraph;
 class UEdGraphSchema;
+class UObject;
+template <typename T> struct TObjectPtr;
 
 UCLASS()
 class UBehaviorTreeGraphNode : public UAIGraphNode

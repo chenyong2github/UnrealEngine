@@ -2,14 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealWidgetFwd.h"
 #include "AnimNodeEditMode.h"
-#include "AnimGraphNode_TwoBoneIK.h"
+#include "Animation/AnimTypes.h"
+#include "Animation/BoneSocketReference.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Math/MathFwd.h"
+#include "UnrealWidgetFwd.h"
 
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
-class USkeletalMeshComponent;
+class FSceneView;
+class FViewport;
+class HHitProxy;
+class UAnimGraphNode_TwoBoneIK;
+struct FColor;
+struct FPropertyChangedEvent;
 struct FViewportClick;
 
 class FTwoBoneIKEditMode : public FAnimNodeEditMode

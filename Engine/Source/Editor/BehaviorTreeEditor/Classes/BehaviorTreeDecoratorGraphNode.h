@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphNode.h"
 #include "BehaviorTree/BTCompositeNode.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BehaviorTreeDecoratorGraphNode.generated.h"
 
+class UEdGraphPin;
 class UEdGraphSchema;
+class UObject;
 
 UCLASS()
 class UBehaviorTreeDecoratorGraphNode : public UEdGraphNode

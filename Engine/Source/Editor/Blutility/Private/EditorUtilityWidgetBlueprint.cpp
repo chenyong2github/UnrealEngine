@@ -1,14 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityWidgetBlueprint.h"
-#include "WidgetBlueprint.h"
-#include "Editor.h"
-#include "EditorUtilityWidget.h"
-#include "IBlutilityModule.h"
-#include "Modules/ModuleManager.h"
-#include "LevelEditor.h"
+
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "CoreGlobals.h"
+#include "Delegates/Delegate.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorUtilityWidget.h"
+#include "Engine/Blueprint.h"
+#include "Engine/Engine.h"
+#include "Framework/Docking/TabManager.h"
+#include "IBlutilityModule.h"
+#include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "Types/SlateEnums.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealNames.h"
+#include "UnrealEdMisc.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+
+class SWidget;
+class UClass;
+class UWorld;
 
 
 

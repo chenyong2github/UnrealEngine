@@ -18,7 +18,6 @@
 #include "PropertyHandle.h"
 #include "SlotBase.h"
 #include "Styling/SlateTypes.h"
-#include "Templates/TypeHash.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"

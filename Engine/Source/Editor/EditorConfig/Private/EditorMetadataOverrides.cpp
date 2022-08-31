@@ -2,10 +2,15 @@
 
 #include "EditorMetadataOverrides.h"
 
+#include "Containers/StringView.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorConfig.h"
 #include "EditorConfigSubsystem.h"
-#include "Misc/StringBuilder.h"
-#include "UObject/UnrealType.h"
+#include "Misc/AssertionMacros.h"
+#include "Subsystems/SubsystemCollection.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
 
 UEditorMetadataOverrides::UEditorMetadataOverrides()
 {

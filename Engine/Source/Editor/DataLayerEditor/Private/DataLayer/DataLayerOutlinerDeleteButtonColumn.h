@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SceneOutlinerFwd.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerColumn.h"
+#include "SceneOutlinerFwd.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/Views/SHeaderRow.h"
+
+class SWidget;
+template <typename ItemType> class STableRow;
 
 class FDataLayerOutlinerDeleteButtonColumn : public ISceneOutlinerColumn
 {

@@ -23,9 +23,11 @@
 #include "Styling/AppStyle.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
 
 class FCurveEditor;
 

@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+
+class IPropertyHandle;
 
 class FNavAgentSelectorCustomization : public IPropertyTypeCustomization
 {

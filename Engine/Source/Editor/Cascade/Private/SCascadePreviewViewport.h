@@ -2,16 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "EditorViewportClient.h"
+#include "Delegates/IDelegateInstance.h"
 #include "SEditorViewport.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FCascade;
 class FCascadeEdPreviewViewportClient;
+class FEditorViewportClient;
 class FSceneViewport;
+class SDockTab;
+class SOverlay;
 class SViewport;
+class SWidget;
+struct FGeometry;
 
 /*-----------------------------------------------------------------------------
    SCascadeViewport

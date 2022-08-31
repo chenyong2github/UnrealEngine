@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "EdMode.h"
-#include "IPersonaEditMode.h"
 #include "IMeshPaintMode.h"
+#include "Templates/SharedPointer.h"
 
-class IPersonaToolkit;
 class FClothPainter;
+class IPersonaToolkit;
 
 class FClothingPaintEditMode : public IMeshPaintEdMode
 {

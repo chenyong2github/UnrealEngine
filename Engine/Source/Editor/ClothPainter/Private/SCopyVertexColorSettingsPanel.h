@@ -3,8 +3,12 @@
 #pragma once
 
 #include "CopyVertexColorToClothParams.h"
-#include "Widgets/SCompoundWidget.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class UClothingAssetCommon;
 struct FPointWeightMap;

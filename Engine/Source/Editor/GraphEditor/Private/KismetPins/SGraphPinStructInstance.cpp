@@ -8,7 +8,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
-#include "HAL/PlatformCrt.h"
 #include "IStructureDetailsView.h"
 #include "Internationalization/Internationalization.h"
 #include "Layout/Margin.h"

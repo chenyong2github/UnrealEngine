@@ -2,15 +2,37 @@
 
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
 
-#include "AudioDeviceManager.h"
 #include "Audio/AudioWidgetSubsystem.h"
+#include "Audio/SoundSubmixWidgetInterface.h"
+#include "Blueprint/UserWidget.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Engine/Engine.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixDefaultColorPalette.h"
 #include "SoundSubmixEditor.h"
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
+#include "Styling/AppStyle.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Widgets/Input/SSlider.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+class UWorld;
 
 
 #define LOCTEXT_NAMESPACE "SoundSubmixGraphNode"

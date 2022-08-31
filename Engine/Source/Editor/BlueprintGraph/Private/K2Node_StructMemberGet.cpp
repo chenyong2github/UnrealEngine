@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "HAL/Platform.h"
 #include "Internationalization/Internationalization.h"
+#include "K2Node.h"
 #include "Misc/AssertionMacros.h"
 #include "StructMemberNodeHandlers.h"
 #include "UObject/Class.h"

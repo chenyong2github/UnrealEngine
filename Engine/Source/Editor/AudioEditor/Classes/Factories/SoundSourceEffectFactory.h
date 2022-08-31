@@ -2,9 +2,19 @@
 
 #pragma once
 
-#include "Sound/SoundEffectSource.h"
 #include "Factories/Factory.h"
+#include "Sound/SoundEffectSource.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundSourceEffectFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
+class USoundEffectSourcePreset;
 
 UCLASS(MinimalAPI, hidecategories=Object)
 class USoundSourceEffectFactory : public UFactory

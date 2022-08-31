@@ -3,11 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Kismet/BlueprintAsyncActionBase.h"
 #include "EditorUtilityTask.h"
+#include "Kismet/BlueprintAsyncActionBase.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AsyncRegisterAndExecuteTask.generated.h"
+
+class UObject;
+struct FFrame;
 
 UCLASS(MinimalAPI)
 class UAsyncRegisterAndExecuteTask : public UBlueprintAsyncActionBase

@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
 
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;

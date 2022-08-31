@@ -2,16 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateBrush.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "BlueprintEditor.h"
 #include "BlueprintActionFilter.h"
+#include "BlueprintEditor.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Styling/SlateBrush.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "BlueprintDragDropMenuItem.generated.h"
 
+class FDragDropOperation;
+class FReferenceCollector;
+class FText;
 class UBlueprintNodeSpawner;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+struct FBlueprintActionContext;
+struct FSlateBrush;
+struct FSlateColor;
 
 /**
  * At certain times we want a single menu entry that represents a set of 

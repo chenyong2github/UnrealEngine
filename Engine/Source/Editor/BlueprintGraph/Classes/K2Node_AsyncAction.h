@@ -3,11 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_BaseAsyncTask.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_AsyncAction.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UObject;
 
 /** !!! The proxy object should have RF_StrongRefOnFrame flag. !!! */
 

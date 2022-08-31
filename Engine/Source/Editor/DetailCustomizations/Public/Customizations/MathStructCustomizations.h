@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
 #include "PropertyHandle.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SWidget.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;
+class SWidget;
+struct FSlateBrush;
 
 /**
  * Base class for math struct customization (e.g, vector, rotator, color)                                                              

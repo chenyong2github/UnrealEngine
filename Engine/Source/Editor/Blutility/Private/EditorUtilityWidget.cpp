@@ -1,18 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityWidget.h"
-#include "Modules/ModuleManager.h"
-#include "Misc/PackageName.h"
-#include "GameFramework/Actor.h"
-#include "Editor/EditorPerProjectUserSettings.h"
-#include "AssetRegistry/AssetData.h"
-#include "Engine/Selection.h"
-#include "Editor.h"
+
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
 #include "ScopedTransaction.h"
-#include "IAssetTools.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "AssetToolsModule.h"
+#include "UObject/Script.h"
 
 /////////////////////////////////////////////////////
 #define LOCTEXT_NAMESPACE "EditorUtility"

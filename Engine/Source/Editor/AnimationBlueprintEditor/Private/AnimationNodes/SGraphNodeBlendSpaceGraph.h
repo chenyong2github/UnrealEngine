@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
 #include "KismetNodes/SGraphNodeK2Composite.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-class UEdGraph;
-class UAnimGraphNode_BlendSpaceGraphBase;
 class SPoseWatchOverlay;
+class SToolTip;
+class SWidget;
+class UEdGraph;
+struct FOverlayWidgetInfo;
 
 class SGraphNodeBlendSpaceGraph : public SGraphNodeK2Composite
 {

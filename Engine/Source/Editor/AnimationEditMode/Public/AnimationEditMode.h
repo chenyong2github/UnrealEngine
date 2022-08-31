@@ -2,13 +2,20 @@
 
 #pragma once
 
+#include "AnimationEditContext.h"
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "EdMode.h"
-#include "AnimationEditContext.h"
+#include "Math/Sphere.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AnimationEditMode.generated.h"
 
 class FAnimationEditMode;
+class FText;
 
 /**
  *	A compatibility context object to support IPersonaEditMode-based code. It simply calls into a different

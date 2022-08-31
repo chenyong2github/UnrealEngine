@@ -1,13 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SplineIKEditMode.h"
-#include "IPersonaPreviewScene.h"
+
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_SplineIK.h"
-#include "Engine/StaticMeshActor.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "SceneManagement.h"
+#include "BoneControllers/AnimNode_SplineIK.h"
+#include "Components/SplineComponent.h"
+#include "Engine/Engine.h"
+#include "Engine/EngineTypes.h"
+#include "GenericPlatform/ICursor.h"
+#include "HitProxies.h"
+#include "IPersonaPreviewScene.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Math/Color.h"
+#include "Math/IntRect.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/TransformVectorized.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
+#include "SceneManagement.h"
+#include "SceneView.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
+
+class FEditorViewportClient;
+class FMaterialRenderProxy;
+class FViewport;
+struct FAnimNode_Base;
+struct FViewportClick;
 
 FSplineIKEditMode::FSplineIKEditMode()
 	: SplineIKRuntimeNode(nullptr)

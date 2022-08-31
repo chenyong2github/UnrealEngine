@@ -2,18 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "AssetThumbnail.h"
-#include "Widgets/SCompoundWidget.h"
-#include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
+class FAssetThumbnail;
+class FAssetThumbnailPool;
+class FDragDropEvent;
+class IPropertyHandle;
 class SComboButton;
 class SErrorHint;
+class SWidget;
+class UClass;
 class UDialogueVoice;
+class UObject;
+struct FAssetData;
+struct FGeometry;
 
 class SDialogueVoicePropertyEditor : public SCompoundWidget
 {

@@ -2,11 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "K2Node_EditablePinBase.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "K2Node_EditablePinBase.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_Tunnel.generated.h"
+
+class FArchive;
+class FCompilerResultsLog;
+class UBlueprint;
+class UEdGraph;
+class UEdGraphPin;
+class UObject;
+struct FEdGraphPinType;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_Tunnel : public UK2Node_EditablePinBase

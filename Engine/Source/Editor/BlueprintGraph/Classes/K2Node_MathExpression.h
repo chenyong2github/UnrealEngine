@@ -2,15 +2,25 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Kismet2/CompilerResultsLog.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Internationalization/Text.h"
 #include "K2Node_Composite.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "KismetCompilerMisc.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_MathExpression.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
 class INameValidatorInterface;
+class UObject;
+struct FEdGraphPinType;
 
 /**
 * This node type acts like a collapsed node, a single node that represents

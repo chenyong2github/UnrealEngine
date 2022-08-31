@@ -2,28 +2,50 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Widgets/SCompoundWidget.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetTagItemTypes.h"
 #include "CollectionManagerTypes.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
-#include "Misc/TextFilter.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "Editor/ContentBrowser/Private/CollectionViewTypes.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Misc/TextFilter.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateConstants.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
 
 class FCollectionAssetManagement;
-class FCollectionContextMenu;
-class FCollectionDragDropOp;
+class FDragDropEvent;
+class FMenuBuilder;
+class FName;
+class FSlateRect;
 class FSourcesSearch;
 class FUICommandList;
+class ITableRow;
 class SHorizontalBox;
+class SWidget;
+struct FGeometry;
 struct FHistoryData;
+struct FKeyEvent;
+struct FPointerEvent;
+struct FSlateBrush;
 
 /**
  * The list view of collections.

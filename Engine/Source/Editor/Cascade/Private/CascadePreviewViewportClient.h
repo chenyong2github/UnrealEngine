@@ -2,16 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "PreviewScene.h"
 #include "EditorViewportClient.h"
+#include "InputCoreTypes.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "PreviewScene.h"
+#include "Templates/SharedPointer.h"
 #include "Utils.h"
 
 class FCanvas;
 class FCascade;
+class FEditorCommonDrawHelper;
+class FPrimitiveDrawInterface;
+class FReferenceCollector;
+class FSceneInterface;
+class FSceneView;
+class FViewport;
 class SCascadePreviewViewport;
 class UStaticMeshComponent;
+struct FInputKeyEventArgs;
 
 /*-----------------------------------------------------------------------------
    FCascadeViewportClient

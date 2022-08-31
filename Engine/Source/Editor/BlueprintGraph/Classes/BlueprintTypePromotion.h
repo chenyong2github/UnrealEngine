@@ -2,12 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdGraphSchema_K2.h"
 #include "BlueprintActionDatabase.h"
-#include "BlueprintFunctionNodeSpawner.h"
-#include "HAL/IConsoleManager.h"
 #include "BlueprintEditorSettings.h"
+#include "BlueprintFunctionNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraphSchema_K2.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectGlobals.h"
+
+class FText;
+class UBlueprintFunctionNodeSpawner;
+class UFunction;
 
 /** 
 * Contains behavior needed to handle type promotion in blueprints. 

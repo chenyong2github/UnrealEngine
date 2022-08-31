@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "Animation/BlendSpace.h"
-#include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "WorkflowOrientedApp/WorkflowTabFactory.h"
 
 class FAnimationBlueprintEditor;
+class FText;
+class SDockTab;
+class SWidget;
+struct FSlateBrush;
 
 struct FBlendSpaceDocumentTabFactory : public FDocumentTabFactory
 {

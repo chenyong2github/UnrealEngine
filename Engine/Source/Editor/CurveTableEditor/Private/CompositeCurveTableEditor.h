@@ -3,6 +3,14 @@
 #pragma once
 
 #include "CurveTableEditor.h"
+#include "Framework/Docking/TabManager.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/NameTypes.h"
+
+class SDockTab;
+class UCurveTable;
 
 
 /** Viewer/editor for a CurveTable */

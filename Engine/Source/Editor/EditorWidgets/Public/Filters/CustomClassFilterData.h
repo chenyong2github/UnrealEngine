@@ -1,12 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Math/Color.h"
 #include "AssetRegistry/ARFilter.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/TopLevelAssetPath.h"
 
+class FFilterCategory;
 class IAssetTypeActions;
 class UClass;
-class FFilterCategory;
+struct FARFilter;
 
 /** Helper Class that can be used to provide custom class filters to the Filter Widget
  *  Using this for Type Filters ensures that the type filters get OR'd together

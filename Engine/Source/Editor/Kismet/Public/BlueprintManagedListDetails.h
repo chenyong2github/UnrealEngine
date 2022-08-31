@@ -2,11 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
 class SWidget;
 
 /** Blueprint managed list details */

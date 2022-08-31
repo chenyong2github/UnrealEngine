@@ -3,14 +3,14 @@
 #pragma once
 
 #include "IDetailCustomization.h"
-#include "IPropertyTypeCustomization.h"
-#include "IDetailRootObjectCustomization.h"
-#include "Widgets/Views/SListView.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
-class FClothPainter;
-class UClothingAssetCommon;
-class UClothPainterSettings;
 class FClothPaintToolBase;
+class FClothPainter;
+class IDetailLayoutBuilder;
+class SWidget;
 
 class FClothPaintSettingsCustomization : public IDetailCustomization
 {

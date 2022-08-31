@@ -2,15 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Containers/Array.h"
 #include "Curves/CurveOwnerInterface.h"
-#include "IDetailChildrenBuilder.h"
+#include "Curves/RichCurve.h"
+#include "IPropertyTypeCustomization.h"
+#include "Input/Reply.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 class SCurveEditor;
+class SWindow;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
 struct FRuntimeVectorCurve;
 
 /**

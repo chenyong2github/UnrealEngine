@@ -2,14 +2,21 @@
 
 #pragma once
 
-#include "UObject/Object.h"
+#include "CoreTypes.h"
 #include "Features/IModularFeature.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "ClothingAssetExporter.generated.h"
 
+class UClass;
 class UClothingAssetBase;
 class UClothingAssetExporter;
+template <typename FuncType> class TFunctionRef;
 
 /** A modular interface to provide ways to export clothing assets. */
 class CLOTHPAINTER_API IClothingAssetExporterClassProvider : public IModularFeature

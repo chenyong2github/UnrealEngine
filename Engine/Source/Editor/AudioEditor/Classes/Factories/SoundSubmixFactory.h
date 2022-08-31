@@ -6,7 +6,15 @@
 
 #pragma once
 #include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundSubmixFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCLASS(hidecategories=Object)
 class AUDIOEDITOR_API USoundSubmixFactory : public UFactory

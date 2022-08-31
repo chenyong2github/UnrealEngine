@@ -2,15 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Delegates/IDelegateInstance.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GetClassDefaults.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FName;
+class FProperty;
 class UBlueprint;
+class UClass;
 class UEdGraph;
 class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_GetClassDefaults : public UK2Node

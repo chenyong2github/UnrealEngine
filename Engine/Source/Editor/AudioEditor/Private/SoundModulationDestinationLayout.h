@@ -1,18 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "IDetailChildrenBuilder.h"
-#include "IDetailPropertyRow.h"
 #include "IPropertyTypeCustomization.h"
-#include "Layout/Visibility.h"
-#include "Misc/Attribute.h"
-#include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
 
-
-// Forward Declarations
-struct FSoundModulationDestinationSettings;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 
 class FSoundModulationDestinationLayoutCustomization : public IPropertyTypeCustomization
 {

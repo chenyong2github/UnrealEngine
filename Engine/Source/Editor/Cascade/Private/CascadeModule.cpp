@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CascadeModule.h"
+
+#include "Cascade.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Modules/ModuleManager.h"
 #include "ParticleHelper.h"
+#include "Particles/ParticleSystem.h"
 #include "Particles/ParticleSystemComponent.h"
-#include "ICascade.h"
-#include "Cascade.h"
+
+class IToolkitHost;
 
 const FName CascadeAppIdentifier = FName(TEXT("CascadeApp"));
-
-class FCascade;
 
 /*-----------------------------------------------------------------------------
    FCascadeModule

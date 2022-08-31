@@ -39,7 +39,6 @@
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateColor.h"
-#include "Templates/TypeHash.h"
 #include "Textures/SlateIcon.h"
 #include "Types/SlateEnums.h"
 #include "UObject/Class.h"

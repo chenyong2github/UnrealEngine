@@ -3,13 +3,16 @@
 #pragma once
 
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "Templates/SharedPointer.h"
+#include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/Commands/Commands.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class FEditorViewportClient;
+class FMenuBuilder;
+class FUICommandInfo;
+class FUICommandList;
 
 class COMMONMENUEXTENSIONS_API FBufferVisualizationMenuCommands : public TCommands<FBufferVisualizationMenuCommands>
 {

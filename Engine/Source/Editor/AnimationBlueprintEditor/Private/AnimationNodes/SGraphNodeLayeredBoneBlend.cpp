@@ -2,8 +2,18 @@
 
 
 #include "AnimationNodes/SGraphNodeLayeredBoneBlend.h"
+
 #include "AnimGraphNode_LayeredBoneBlend.h"
+#include "GenericPlatform/ICursor.h"
 #include "GraphEditorSettings.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Optional.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 /////////////////////////////////////////////////////
 // SGraphNodeLayeredBoneBlend

@@ -2,14 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
-#include "EditorSubsystem.h"
-#include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "EditorInteractiveGizmoRegistry.h"
+#include "EditorInteractiveGizmoSelectionBuilder.h"
+#include "EditorSubsystem.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorInteractiveGizmoSubsystem.generated.h"
 
 class FSubsystemCollectionBase;
+class UInteractiveGizmoBuilder;
+class UObject;
+struct FToolBuilderState;
 
 /**
  * The InteractiveGizmoSubsystem provides methods for registering and unregistering 

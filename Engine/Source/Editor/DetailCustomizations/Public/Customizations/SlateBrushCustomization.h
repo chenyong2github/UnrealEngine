@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
+#include "Math/Vector2D.h"
 #include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
 
+class IPropertyHandle;
 class SErrorText;
 
 class DETAILCUSTOMIZATIONS_API FSlateBrushStructCustomization : public IPropertyTypeCustomization

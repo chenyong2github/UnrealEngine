@@ -6,15 +6,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/ScriptMacros.h"
 #include "Blueprint/UserWidget.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorUtilityWidget.generated.h"
 
 class AActor;
 class UEditorPerProjectUserSettings;
+class UObject;
 
 UCLASS(Abstract, meta = (ShowWorldContextPin), config = Editor)
 class BLUTILITY_API UEditorUtilityWidget : public UUserWidget

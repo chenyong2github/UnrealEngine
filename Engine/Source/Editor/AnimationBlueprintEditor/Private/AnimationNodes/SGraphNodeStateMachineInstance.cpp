@@ -1,14 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationNodes/SGraphNodeStateMachineInstance.h"
+
 #include "AnimationNodes/SAnimationGraphNode.h"
-#include "AnimationStateMachineGraph.h"
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_StateMachineBase.h"
-#include "Engine/PoseWatch.h"
-#include "AnimationEditorUtils.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Images/SImage.h"
+#include "AnimationStateMachineGraph.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
+#include "SNodePanel.h"
 #include "SPoseWatchOverlay.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "SGraphNodeStateMachineInstance"
 

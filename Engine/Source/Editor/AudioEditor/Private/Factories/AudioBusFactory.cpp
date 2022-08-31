@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/AudioBusFactory.h"
+
 #include "Sound/AudioBus.h"
-#include "AudioDeviceManager.h"
-#include "Engine/Engine.h"
-#include "Sound/AudioSettings.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UAudioBusFactory::UAudioBusFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

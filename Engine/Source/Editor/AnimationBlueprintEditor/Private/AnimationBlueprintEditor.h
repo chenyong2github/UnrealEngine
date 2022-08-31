@@ -2,26 +2,47 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
-#include "Widgets/SWidget.h"
-#include "Toolkits/IToolkitHost.h"
-#include "GraphEditor.h"
 #include "BlueprintEditor.h"
-#include "IAnimationBlueprintEditor.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "GraphEditor.h"
+#include "HAL/Platform.h"
+#include "IAnimationBlueprintEditor.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class UAnimationBlueprintEditorOptions;
-class IPersonaToolkit;
+class FExtender;
+class FReferenceCollector;
+class FUICommandList;
+class IAnimationSequenceBrowser;
 class IPersonaViewport;
-class ISkeletonTree;
-class UAnimBlueprint;
-class UAnimGraphNode_Base;
-class UEdGraph;
-class USkeletalMesh;
 class ISkeletonTreeItem;
+class SDockTab;
+class SWidget;
+class UAnimBlueprint;
+class UAnimInstance;
+class UAnimationBlueprintEditorOptions;
 class UAnimationBlueprintEditorSettings;
-
+class UBlueprint;
+class UEdGraph;
+class UObject;
+class USkeletalMesh;
+class USkeletalMeshComponent;
 struct FToolMenuContext;
 
 struct FAnimationBlueprintEditorModes

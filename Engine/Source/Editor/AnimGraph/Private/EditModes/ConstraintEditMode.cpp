@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstraintEditMode.h"
+
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_Constraint.h"
-#include "IPersonaPreviewScene.h"
+#include "BoneControllers/AnimNode_Constraint.h"
+#include "Templates/Casts.h"
 
 FConstraintEditMode::FConstraintEditMode()
 {

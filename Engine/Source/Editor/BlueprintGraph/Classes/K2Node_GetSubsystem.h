@@ -2,11 +2,30 @@
 
 #pragma once
 
+#include "BlueprintActionFilter.h"
+#include "Containers/Array.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GetSubsystem.generated.h"
 
-class USubsystem;
+class FArchive;
+class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
+class FString;
+class UClass;
+class UEdGraph;
+class UEdGraphPin;
+class UObject;
+class USubsystem;
+template <typename KeyType, typename ValueType> struct TKeyValuePair;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_GetSubsystem : public UK2Node

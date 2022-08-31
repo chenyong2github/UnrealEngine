@@ -2,16 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "Types/SlateEnums.h"
+#include "Internationalization/Text.h"
 #include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SEditableTextBox;
-class UAssetViewerSettings;
 class SSettingsEditorCheckoutNotice;
+class UAssetViewerSettings;
 
 class FAssetViewerSettingsCustomization : public IDetailCustomization
 {

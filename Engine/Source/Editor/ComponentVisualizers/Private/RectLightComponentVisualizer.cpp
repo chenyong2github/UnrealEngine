@@ -1,8 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RectLightComponentVisualizer.h"
-#include "SceneManagement.h"
+
+#include "Components/ActorComponent.h"
 #include "Components/RectLightComponent.h"
+#include "Engine/EngineTypes.h"
+#include "Math/Box.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "SceneManagement.h"
+#include "SceneView.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
 
 
 void FRectLightComponentVisualizer::DrawVisualization( const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI )

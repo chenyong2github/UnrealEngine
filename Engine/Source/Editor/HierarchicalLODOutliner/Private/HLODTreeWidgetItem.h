@@ -2,19 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Layout/Geometry.h"
-#include "Input/DragAndDrop.h"
+#include "Containers/BitArray.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
+
+class FDragDropEvent;
+class STableViewBase;
+class SWidget;
+class UWorld;
+struct FGeometry;
 
 namespace HLODOutliner
 {
 	struct ITreeItem;
+
 	typedef TSharedPtr<ITreeItem> FTreeItemPtr;
 	class SHLODOutliner;
 

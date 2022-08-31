@@ -6,15 +6,30 @@
 
 #pragma once
 
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EditorUtilityWidget.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "WidgetBlueprint.h"
 #include "Widgets/Docking/SDockTab.h"
+
 #include "EditorUtilityWidgetBlueprint.generated.h"
 
+class FSpawnTabArgs;
+class SDockTab;
+class SWidget;
 class UBlueprint;
+class UClass;
 class UEditorUtilityWidget;
+class UObject;
+class UWorld;
+
 enum class EAssetEditorCloseReason : uint8;
 enum class EMapChangeType : uint8;
 

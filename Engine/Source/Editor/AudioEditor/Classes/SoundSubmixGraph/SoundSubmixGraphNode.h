@@ -2,22 +2,34 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "AudioDevice.h"
 #include "Audio/AudioWidgetSubsystem.h"
+#include "AudioDevice.h"
 #include "Blueprint/UserWidget.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphNode.h"
-#include "SGraphNode.h"
-#include "Sound/SoundSubmix.h"
+#include "CoreMinimal.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/MultithreadedPatching.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "SGraphNode.h"
+#include "Sound/SoundSubmix.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
 #include "SoundSubmixGraphNode.generated.h"
 
-
+class SWidget;
+class UEdGraphPin;
+class UEdGraphSchema;
+class UObject;
 // Forward Declarations
 class USoundSubmixBase;
+class UUserWidget;
 
 
 

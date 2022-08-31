@@ -2,15 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraph.h"
 #include "BlueprintNodeSignature.h"
-#include "K2Node.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_TemporaryVariable.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UEdGraph;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_TemporaryVariable : public UK2Node

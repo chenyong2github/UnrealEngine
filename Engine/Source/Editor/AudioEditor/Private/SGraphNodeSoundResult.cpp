@@ -3,7 +3,6 @@
 #include "SGraphNodeSoundResult.h"
 
 #include "GenericPlatform/ICursor.h"
-#include "HAL/PlatformCrt.h"
 #include "Layout/Margin.h"
 #include "Misc/Attribute.h"
 #include "Misc/Optional.h"

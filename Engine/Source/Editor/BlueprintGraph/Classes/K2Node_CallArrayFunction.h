@@ -3,10 +3,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "HAL/PlatformCrt.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CallArrayFunction.generated.h"
+
+class FProperty;
+class UEdGraph;
+class UEdGraphPin;
+class UFunction;
+class UObject;
 
 struct FArrayPropertyPinCombo
 {

@@ -20,6 +20,7 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UnrealType.h"
 
 UEdGraphNode* FKCPushModelHelpers::ConstructMarkDirtyNodeForProperty(FKismetFunctionContext& Context, FProperty* RepProperty, UEdGraphPin* PropertyObjectPin)

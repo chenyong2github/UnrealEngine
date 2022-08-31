@@ -1,13 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/KismetNodeInfoContext.h"
-#include "Engine/Engine.h"
-#include "EngineGlobals.h"
-#include "Engine/BlueprintGeneratedClass.h"
+
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/Engine.h"
+#include "Engine/LatentActionManager.h"
+#include "Engine/World.h"
+#include "HAL/PlatformCrt.h"
 #include "K2Node_CallFunction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/UnrealType.h"
+
+class UEdGraphNode;
 
 //////////////////////////////////////////////////////////////////////////
 // FKismetNodeInfoContext

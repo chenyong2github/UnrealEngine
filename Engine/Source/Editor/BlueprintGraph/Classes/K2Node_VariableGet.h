@@ -3,15 +3,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UnrealType.h"
-#include "Engine/Blueprint.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Engine/Blueprint.h"
+#include "Internationalization/Text.h"
 #include "K2Node_Variable.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
 #include "K2Node_VariableGet.generated.h"
 
+class FArchive;
+class FProperty;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+struct FBPVariableDescription;
+struct FEdGraphPinType;
 
 UCLASS()
 class BLUEPRINTGRAPH_API UK2Node_VariableGet : public UK2Node_Variable

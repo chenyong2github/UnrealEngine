@@ -6,10 +6,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Containers/UnrealString.h"
 #include "Factories/Factory.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "FoliageTypeFactory.generated.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UCLASS()
 class UFoliageType_InstancedStaticMeshFactory : public UFactory

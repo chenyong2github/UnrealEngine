@@ -1,10 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_SoundSubmix.h"
+
 #include "AudioEditorModule.h"
+#include "Containers/Set.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "IAudioEndpoint.h"
+#include "ISoundfieldEndpoint.h"
+#include "ISoundfieldFormat.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixEditor.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Templates/Casts.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
+
+class IToolkitHost;
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

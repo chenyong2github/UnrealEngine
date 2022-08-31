@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
 #include "PersonaDelegates.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-class UBlendSpace;
 class UAnimGraphNode_Base;
+class UBlendSpace;
 
 class SBlendSpacePreview : public SCompoundWidget
 {

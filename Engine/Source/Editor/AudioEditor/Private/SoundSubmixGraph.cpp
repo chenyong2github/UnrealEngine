@@ -1,14 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SoundSubmixGraph/SoundSubmixGraph.h"
 
-#include "GraphEditor.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "GraphEditor.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/AssertionMacros.h"
 #include "Sound/SoundSubmix.h"
 #include "SoundSubmixGraph/SoundSubmixGraphNode.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
 #include "TimerManager.h"
 #include "UObject/Package.h"
+
+class UObject;
 
 
 USoundSubmixGraph::USoundSubmixGraph(const FObjectInitializer& ObjectInitializer)

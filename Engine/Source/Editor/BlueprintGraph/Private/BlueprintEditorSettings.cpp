@@ -1,17 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintEditorSettings.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Editor/EditorPerProjectUserSettings.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "BlueprintActionDatabase.h"
-#include "FindInBlueprintManager.h"
-#include "BlueprintTypePromotion.h"
-#include "Modules/ModuleManager.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "BlueprintActionDatabase.h"
 #include "BlueprintEditorModule.h"
 #include "BlueprintNamespaceHelper.h"
 #include "BlueprintNamespaceUtilities.h"
+#include "BlueprintTypePromotion.h"
+#include "CoreGlobals.h"
+#include "EdGraphSchema_K2.h"
+#include "Editor/EditorPerProjectUserSettings.h"
+#include "Engine/Blueprint.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleManager.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
+#include "initializer_list"
 
 UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

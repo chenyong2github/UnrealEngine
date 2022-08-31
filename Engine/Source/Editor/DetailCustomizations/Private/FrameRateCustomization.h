@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 struct FFrameRate;
 
 class FFrameRateCustomization : public IPropertyTypeCustomization

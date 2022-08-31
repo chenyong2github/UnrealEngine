@@ -2,11 +2,16 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/SoftObjectPath.h"
 
 class IClassViewerFilter;
 class IPinTypeSelectorFilter;
 class UBlueprint;
+class UObject;
 struct FAssetData;
 struct FBlueprintNamespacePathTree;
 

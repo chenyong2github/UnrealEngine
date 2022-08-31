@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
 #include "Layout/Visibility.h"
+#include "Math/Axis.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class IDetailLayoutBuilder;
 class IDetailPropertyRow;

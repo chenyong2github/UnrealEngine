@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Layout/Visibility.h"
+#include "Math/Axis.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class FEdModeFoliage;
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
 class IDetailPropertyRow;
 class IPropertyHandle;
+
 enum class ECheckBoxState : uint8;
 template< typename ObjectType > class TAttribute;
 

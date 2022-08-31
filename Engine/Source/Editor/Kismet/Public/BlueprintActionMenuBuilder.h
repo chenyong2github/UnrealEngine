@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 class FBlueprintActionFilter;
 class FBlueprintEditor;
@@ -11,11 +15,11 @@ class FBlueprintEditor;
 namespace FBlueprintActionMenuBuilderImpl
 {
 	// internal type, forward declared to hide implementation details
-	struct FMenuSectionDefinition; 
+	struct FMenuSectionDefinition;
 };
 class  FBlueprintActionFilter;
-struct FBlueprintActionContext;
 class  FBlueprintEditor;
+struct FBlueprintActionContext;
 
 /**
  * Responsible for constructing a list of viable blueprint actions. Runs the 

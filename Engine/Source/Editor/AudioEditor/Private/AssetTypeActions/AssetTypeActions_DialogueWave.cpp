@@ -1,14 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_DialogueWave.h"
-#include "Misc/PackageName.h"
-#include "ToolMenus.h"
-#include "Editor.h"
-#include "Styling/AppStyle.h"
-#include "Factories/SoundCueFactoryNew.h"
-#include "Sound/SoundCue.h"
-#include "IContentBrowserSingleton.h"
+
+#include "AssetToolsModule.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserModule.h"
+#include "Delegates/Delegate.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Factories/SoundCueFactoryNew.h"
+#include "Framework/Commands/UIAction.h"
+#include "HAL/PlatformCrt.h"
+#include "IAssetTools.h"
+#include "IContentBrowserSingleton.h"
+#include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
+#include "Sound/SoundCue.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenuSection.h"
+#include "Toolkits/IToolkit.h"
+#include "Toolkits/SimpleAssetEditor.h"
+#include "UObject/Object.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+
+#include <utility>
+
+class IToolkitHost;
+class USoundBase;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

@@ -1,11 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeEditorTabFactories.h"
-#include "Engine/Blueprint.h"
-#include "Styling/AppStyle.h"
-#include "BehaviorTreeEditorTabs.h"
+
 #include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTreeEditor.h"
+#include "BehaviorTreeEditorTabs.h"
+#include "Containers/Array.h"
+#include "Engine/Blueprint.h"
+#include "GraphEditor.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/Docking/SDockTab.h"
+
+class SWidget;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditorFactories"
 

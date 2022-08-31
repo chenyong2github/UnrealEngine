@@ -2,23 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetViewUtils.h"
-#include "Widgets/SWidget.h"
-#include "Framework/SlateDelegates.h"
-#include "AssetRegistry/AssetData.h"
 #include "CollectionManagerTypes.h"
-#include "Interfaces/IPluginManager.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FPathPermissionList;
+class FSlateRect;
 class SAssetView;
 class SPathView;
-
-class FNamePermissionList;
-class FPathPermissionList;
-
+class SWidget;
 struct FARFilter;
-struct FContentBrowserItem;
+struct FAssetData;
 struct FContentBrowserDataFilter;
+struct FContentBrowserItem;
 
 namespace ContentBrowserUtils
 {

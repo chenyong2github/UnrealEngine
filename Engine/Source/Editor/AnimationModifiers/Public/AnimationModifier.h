@@ -2,14 +2,31 @@
 
 #pragma once
 
-#include "Animation/AnimEnums.h"
 #include "Animation/AnimCurveTypes.h"
-#include "Misc/MessageDialog.h"
+#include "Animation/AnimEnums.h"
 #include "AnimationBlueprintLibrary.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/Optional.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AnimationModifier.generated.h"
 
+class FArchive;
+class FName;
+class UAnimSequence;
+class UClass;
 class USkeleton;
+struct FFrame;
+struct FObjectKey;
 
 UCLASS(Blueprintable, Experimental, config = Editor, defaultconfig)
 class ANIMATIONMODIFIERS_API UAnimationModifier : public UObject

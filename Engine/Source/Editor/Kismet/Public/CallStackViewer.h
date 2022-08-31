@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/SCompoundWidget.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 

@@ -2,22 +2,43 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphNode.h"
-#include "UObject/LinkerLoad.h"
 #include "BlueprintNodeSignature.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/LinkerLoad.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node.generated.h"
 
 class AActor;
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
+class FKismetCompilerContext;
+class FProperty;
 class UActorComponent;
 class UBlueprint;
+class UClass;
 class UDynamicBlueprintBinding;
 class UEdGraph;
 class UEdGraphPin;
 class UEdGraphSchema;
+class UFunction;
+class UK2Node;
+class UStruct;
 struct FMemberReference;
+template <typename KeyType, typename ValueType> struct TKeyValuePair;
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnUserDefinedPinRenamed, UK2Node*, FName, FName);
 

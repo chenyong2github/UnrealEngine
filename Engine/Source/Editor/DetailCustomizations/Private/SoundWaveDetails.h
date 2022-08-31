@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Layout/Visibility.h"
 #include "Input/Reply.h"
-#include "PropertyHandle.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
 
 class IDetailLayoutBuilder;
+class IPropertyHandle;
 class USoundWave;
 
 class FSoundWaveDetails : public IDetailCustomization

@@ -8,7 +8,6 @@
 #include "Containers/StringFwd.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Views/ITypedTableView.h"
-#include "HAL/Platform.h"
 #include "Internationalization/Internationalization.h"
 #include "Layout/Children.h"
 #include "Layout/Margin.h"

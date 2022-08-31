@@ -2,19 +2,33 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserDelegates.h"
+#include "HAL/Platform.h"
+#include "IAssetTypeActions.h"
+#include "IContentBrowserSingleton.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetRegistry/AssetData.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserVirtualPathTree.h"
 
-class SEditableTextBox;
-class STextBlock;
-class SPathPicker;
+class FMenuBuilder;
+class FUICommandList;
 class SAssetPicker;
+class SEditableTextBox;
+class SPathPicker;
+class STextBlock;
+class SWidget;
+struct FAssetData;
+struct FGeometry;
+struct FKeyEvent;
+struct FTopLevelAssetPath;
 
 enum class EOpenedContextMenuWidget : uint8
 {

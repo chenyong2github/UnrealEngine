@@ -3,13 +3,19 @@
 
 #pragma once
 
+#include "Containers/EnumAsByte.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Engine/EngineBaseTypes.h"
+#include "HAL/Platform.h"
 #include "K2Node_Event.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_InputTouchEvent.generated.h"
 
+class UClass;
 class UDynamicBlueprintBinding;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_InputTouchEvent : public UK2Node_Event

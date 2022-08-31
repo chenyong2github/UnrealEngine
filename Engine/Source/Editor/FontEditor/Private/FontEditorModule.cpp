@@ -1,13 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FontEditorModule.h"
-#include "Modules/ModuleManager.h"
+
+#include "Delegates/Delegate.h"
 #include "Engine/Font.h"
 #include "Engine/FontFace.h"
-#include "IFontEditor.h"
 #include "FontEditor.h"
 #include "FontFaceDetailsCustomization.h"
+#include "HAL/Platform.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectBase.h"
+
+class IToolkitHost;
 
 const FName FontEditorAppIdentifier = FName(TEXT("FontEditorApp"));
 

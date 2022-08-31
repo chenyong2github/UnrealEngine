@@ -11,7 +11,6 @@
 #include "Internationalization/Internationalization.h"
 #include "Misc/AssertionMacros.h"
 #include "Styling/CoreStyle.h"
-#include "Templates/TypeHash.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"

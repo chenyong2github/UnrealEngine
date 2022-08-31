@@ -2,20 +2,47 @@
 
 #pragma once
 
-#include "Kismet/BlueprintFunctionLibrary.h"
-#include "Animation/AnimEnums.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimEnums.h"
 #include "Animation/AnimMetaData.h"
+#include "Animation/AnimTypes.h"
+#include "Animation/SmartName.h"
 #include "AnimationGraph.h"
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Delegates/Delegate.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Math/Color.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
 
 #include "AnimationBlueprintLibrary.generated.h"
 
+class UAnimBlueprint;
+class UAnimBoneCompressionSettings;
+class UAnimCompress;
+class UAnimCurveCompressionSettings;
+class UAnimGraphNode_Base;
+class UAnimMetaData;
+class UAnimMontage;
+class UAnimNotify;
+class UAnimNotifyState;
+class UAnimSequence;
+class UAnimSequenceBase;
+class UAnimationAsset;
+class UAnimationGraph;
+class UObject;
+class USkeletalMesh;
+class USkeleton;
+struct FFrame;
 struct FQualifiedFrameTime;
 struct FRawAnimSequenceTrack;
-class UAnimCompress;
-class USkeleton;
-class UAnimBoneCompressionSettings;
-class UAnimCurveCompressionSettings;
 
 UENUM()
 enum class ESmartNameContainerType : uint8

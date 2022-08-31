@@ -4,9 +4,22 @@
 
 #include "ClothingAsset.h"
 #include "ClothingAssetFactoryInterface.h"
+#include "Containers/UnrealString.h"
 #include "GPUSkinPublicDefs.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
 #include "ClothingAssetFactory.generated.h"
+
+class UClothingAssetBase;
+class UObject;
+class USkeletalMesh;
+struct FClothLODDataCommon;
+struct FSkeletalMeshClothBuildParams;
 
 
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingAssetFactory, Log, All);

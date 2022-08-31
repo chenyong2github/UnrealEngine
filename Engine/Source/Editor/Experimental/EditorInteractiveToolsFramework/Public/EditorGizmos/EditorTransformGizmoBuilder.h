@@ -2,12 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "CoreMinimal.h"
 #include "EditorInteractiveGizmoSelectionBuilder.h"
+#include "InteractiveGizmoBuilder.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorTransformGizmoBuilder.generated.h"
 
 class UInteractiveGizmo;
+class UObject;
+struct FToolBuilderState;
 
 UCLASS()
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public UInteractiveGizmoBuilder, public IEditorInteractiveGizmoSelectionBuilder

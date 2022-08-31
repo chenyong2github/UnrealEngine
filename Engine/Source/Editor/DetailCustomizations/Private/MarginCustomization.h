@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Input/NumericTypeInterface.h"
-#include "UnrealClient.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
+class IPropertyHandle;
 class SEditableTextBox;
+class SWidget;
+template <typename NumericType> struct INumericTypeInterface;
 
 class FMarginStructCustomization : public IPropertyTypeCustomization
 {

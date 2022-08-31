@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "RemoteExecutionSettings"
 #include "UObject/Object.h"
-#include "RemoteExecutionSettings.generated.h"
+#include "UObject/UObjectGlobals.h"
 
 UCLASS(config = EditorSettings)
 class URemoteExecutionSettings : public UObject

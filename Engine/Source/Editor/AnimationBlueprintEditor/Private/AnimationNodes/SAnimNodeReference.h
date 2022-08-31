@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "KismetNodes/SGraphNodeK2Var.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FText;
+class SGraphPin;
+class SWidget;
+class UEdGraphPin;
 class UK2Node_AnimNodeReference;
+struct FMargin;
 
 class SAnimNodeReference : public SGraphNodeK2Var
 {

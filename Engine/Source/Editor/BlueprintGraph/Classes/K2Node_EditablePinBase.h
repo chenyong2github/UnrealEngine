@@ -2,11 +2,30 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_EditablePinBase.generated.h"
+
+class FArchive;
+class FFeedbackContext;
+class FOutputDevice;
+class UFunction;
+class UObject;
 
 USTRUCT()
 struct FUserPinInfo

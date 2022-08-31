@@ -3,16 +3,29 @@
 
 #pragma once
 
+#include "BlueprintCompiledStatement.h"
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraphNode.h"
 #include "K2Node.h"
 #include "K2Node_AddPinInterface.h"
 #include "KismetCompilerMisc.h"
+#include "Misc/AssertionMacros.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "K2Node_MakeContainer.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FKismetCompilerContext;
+class FString;
 class UEdGraphPin;
+class UObject;
+struct FKismetFunctionContext;
 
 class FKCHandler_MakeContainer : public FNodeHandlingFunctor
 {

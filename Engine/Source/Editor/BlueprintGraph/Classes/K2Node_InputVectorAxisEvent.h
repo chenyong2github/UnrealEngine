@@ -3,12 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node_InputAxisKeyEvent.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_InputVectorAxisEvent.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
+class UClass;
 class UDynamicBlueprintBinding;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_InputVectorAxisEvent : public UK2Node_InputAxisKeyEvent

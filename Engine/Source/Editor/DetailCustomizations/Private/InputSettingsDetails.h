@@ -2,17 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Margin.h"
-#include "PropertyHandle.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IDetailCustomization.h"
+#include "Layout/Margin.h"
 #include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
 
 class FDetailWidgetRow;
+class FText;
 class IDetailChildrenBuilder;
 class IDetailGroup;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
 
 namespace InputSettingsDetails
 {

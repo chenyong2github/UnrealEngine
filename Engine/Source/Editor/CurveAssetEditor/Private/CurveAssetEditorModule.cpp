@@ -1,9 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CurveAssetEditorModule.h"
-#include "Modules/ModuleManager.h"
+
 #include "CurveAssetEditor.h"
 #include "CurveEditorCommands.h"
+#include "HAL/Platform.h"
+#include "Modules/ModuleManager.h"
+#include "UObject/NameTypes.h"
+
+class ICurveAssetEditor;
+class IToolkitHost;
 //#include "Toolkits/ToolkitManager.h"
 
 IMPLEMENT_MODULE( FCurveAssetEditorModule, CurveAssetEditor );

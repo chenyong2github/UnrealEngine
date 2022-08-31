@@ -2,19 +2,34 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Input/Reply.h"
-#include "Widgets/Views/STableRow.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/Application/MenuStack.h"
-#include "Framework/Application/SlateApplication.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/UnrealString.h"
 #include "DataTableEditorUtils.h"
+#include "Delegates/IDelegateInstance.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "HAL/Platform.h"
+#include "Input/DragAndDrop.h"
+#include "Input/Reply.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STableRow.h"
 
 class FDataTableEditor;
-class SInlineEditableTextBlock;
 class SDataTableListViewRow;
+class SInlineEditableTextBlock;
+class STableViewBase;
+class SWidget;
+struct FGeometry;
+struct FKeyEvent;
+struct FPointerEvent;
+struct FSlateBrush;
 
 class SDataTableRowHandle: public SCompoundWidget
 {

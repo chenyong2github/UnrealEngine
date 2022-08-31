@@ -5,6 +5,7 @@
 
 #include "BlueprintActionFilter.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "K2Node_EditorPropertyAccess.generated.h"

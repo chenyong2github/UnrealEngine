@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceBurnInOptionsCustomization.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
+
+#include "Delegates/Delegate.h"
 #include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
+#include "Layout/Visibility.h"
 #include "LevelSequenceActor.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
+
+class UObject;
 
 void AddPropertiesRecursive(TSharedRef<IPropertyHandle> Property, IDetailChildrenBuilder& ChildBuilder)
 {

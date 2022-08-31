@@ -2,12 +2,20 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "SoundCueGraph/SoundCueGraphNode_Base.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundCueGraphNode.generated.h"
 
 class UEdGraphPin;
+class UObject;
 class USoundNode;
 
 UCLASS(MinimalAPI)

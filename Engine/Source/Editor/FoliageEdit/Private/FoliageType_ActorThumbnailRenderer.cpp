@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageType_ActorThumbnailRenderer.h"
+
 #include "FoliageType_Actor.h"
-#include "ShowFlags.h"
-#include "SceneView.h"
-#include "Misc/App.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
 
 bool UFoliageType_ActorThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {

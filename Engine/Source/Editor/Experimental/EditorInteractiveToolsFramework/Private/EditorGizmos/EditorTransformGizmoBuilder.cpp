@@ -1,12 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/EditorTransformGizmoBuilder.h"
+
+#include "BaseGizmos/GizmoElementGroup.h"
+#include "BaseGizmos/GizmoElementHitTargets.h"
+#include "BaseGizmos/GizmoViewContext.h"
+#include "ContextObjectStore.h"
 #include "EditorGizmos/EditorTransformGizmo.h"
 #include "EditorGizmos/EditorTransformGizmoSource.h"
 #include "EditorGizmos/EditorTransformProxy.h"
-#include "BaseGizmos/GizmoElementGroup.h"
-#include "BaseGizmos/GizmoViewContext.h"
-#include "ContextObjectStore.h"
+#include "EditorGizmos/TransformGizmo.h"
+#include "EditorGizmos/TransformGizmoInterfaces.h"
+#include "InteractiveGizmo.h"
+#include "InteractiveGizmoManager.h"
+#include "Templates/Casts.h"
+#include "ToolContextInterfaces.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ScriptInterface.h"
 
 UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {

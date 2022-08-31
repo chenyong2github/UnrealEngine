@@ -31,6 +31,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Class.h"
 #include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"

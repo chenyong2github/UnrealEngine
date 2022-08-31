@@ -1,13 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SCascadePreviewViewport.h"
-#include "CascadeParticleSystemComponent.h"
+
 #include "Cascade.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Slate/SceneViewport.h"
+#include "CascadeParticleSystemComponent.h"
 #include "CascadePreviewViewportClient.h"
+#include "Containers/EnumAsByte.h"
+#include "Delegates/Delegate.h"
+#include "Editor/EditorEngine.h"
+#include "EditorViewportClient.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/UnrealMathSSE.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "PreviewScene.h"
+#include "RHIDefinitions.h"
 #include "SCascadePreviewToolbar.h"
+#include "Slate/SceneViewport.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SOverlay.h"
+
+class SWidget;
+struct FGeometry;
 
 
 

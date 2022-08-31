@@ -2,17 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Stats/Stats.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
-#include "BehaviorTreeGraphNode_Root.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
 #include "Tickable.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class AActor;
 class APawn;
 class FBehaviorTreeEditor;
 class UBehaviorTree;
+class UBehaviorTreeGraphNode;
 class UBlackboardData;
+class UObject;
 
 class FBehaviorTreeDebugger : public FTickableGameObject
 {

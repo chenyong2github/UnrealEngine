@@ -1,18 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeSpawnActorFromClass.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBox.h"
-#include "Engine/Brush.h"
-#include "Editor.h"
+
+#include "AssetRegistry/AssetData.h"
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
+#include "Engine/Brush.h"
+#include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
 #include "K2Node_SpawnActorFromClass.h"
 #include "KismetPins/SGraphPinClass.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 #include "NodeFactory.h"
-#include "ClassViewerModule.h"
-#include "ClassViewerFilter.h"
-#include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateStructs.h"
+#include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+
+class SGraphPin;
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "SGraphPinActorBasedClass"
 

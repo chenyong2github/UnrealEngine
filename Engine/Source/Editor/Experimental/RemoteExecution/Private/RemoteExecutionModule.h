@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "IRemoteExecutionModule.h"
 #include "DefaultRemoteExecutor.h"
+#include "IRemoteExecutionModule.h"
+#include "Logging/LogMacros.h"
+#include "UObject/NameTypes.h"
+
+class IModularFeature;
+namespace UE::RemoteExecution { class IRemoteExecutor; }
 
 REMOTEEXECUTION_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteExecution, Display, All);
 

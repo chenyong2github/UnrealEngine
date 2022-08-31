@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DecalComponentVisualizer.h"
-#include "SceneManagement.h"
+
+#include "Components/ActorComponent.h"
 #include "Components/DecalComponent.h"
+#include "Engine/EngineTypes.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Matrix.h"
+#include "Math/Transform.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
 
 
 

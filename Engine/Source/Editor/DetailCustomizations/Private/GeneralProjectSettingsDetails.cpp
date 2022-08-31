@@ -18,7 +18,6 @@
 #include "SExternalImageReference.h"
 #include "SlotBase.h"
 #include "SourceControlOperations.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"

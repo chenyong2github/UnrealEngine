@@ -2,23 +2,36 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
+#include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDelegates.h"
+#include "HAL/Platform.h"
+#include "IAssetTypeActions.h"
 #include "IContentBrowserSingleton.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "SourcesData.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FFrontendFilter_ShowOtherDevelopers;
 class FFrontendFilter_Text;
 class FUICommandList;
 class SAssetSearchBox;
 class SAssetView;
-class SFilterList;
 class SComboButton;
+class SFilterList;
+class SWidget;
+struct FAssetData;
+struct FContentBrowserItem;
+struct FGeometry;
+struct FKeyEvent;
+
 enum class ECheckBoxState : uint8;
 
 /**

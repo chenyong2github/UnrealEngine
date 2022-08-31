@@ -2,19 +2,35 @@
 
 #pragma once
 
-#include "EditorSubsystem.h"
-
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "Templates/SubclassOf.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/Queue.h"
+#include "Containers/Set.h"
 #include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EditorSubsystem.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EditorUtilitySubsystem.generated.h"
 
+class FOutputDevice;
+class FSubsystemCollectionBase;
+class IConsoleObject;
 class SWindow;
-class UEditorUtilityWidget;
+class UClass;
 class UEditorUtilityTask;
+class UEditorUtilityWidget;
+class UEditorUtilityWidgetBlueprint;
+class UWorld;
+struct FFrame;
+struct FSoftObjectPath;
 
 /** Delegate for a PIE event exposed via Editor Utility (begin, end, pause/resume, etc) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEditorUtilityPIEEvent, const bool, bIsSimulating);

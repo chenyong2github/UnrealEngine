@@ -5,9 +5,16 @@
 #include "CoreMinimal.h"
 #include "EditorInteractiveGizmoConditionalBuilder.h"
 #include "ToolContextInterfaces.h"
+#include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorInteractiveGizmoSelectionBuilder.generated.h"
 
+class UInteractiveGizmo;
+class UObject;
 class UTransformProxy;
+struct FToolBuilderState;
 
 class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorGizmoSelectionBuilderHelper
 {

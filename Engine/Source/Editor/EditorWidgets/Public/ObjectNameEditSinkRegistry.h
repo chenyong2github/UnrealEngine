@@ -2,10 +2,15 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "IObjectNameEditSink.h"
+#include "Templates/SharedPointer.h"
+
+class UClass;
 
 namespace UE::EditorWidgets
 {
+class IObjectNameEditSink;
 
 class EDITORWIDGETS_API FObjectNameEditSinkRegistry
 {

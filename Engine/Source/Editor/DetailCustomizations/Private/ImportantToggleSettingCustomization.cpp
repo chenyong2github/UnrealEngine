@@ -20,7 +20,6 @@
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/Casts.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"

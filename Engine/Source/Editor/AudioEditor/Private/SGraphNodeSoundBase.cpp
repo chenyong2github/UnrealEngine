@@ -4,7 +4,6 @@
 
 #include "GenericPlatform/ICursor.h"
 #include "GraphEditorSettings.h"
-#include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "Layout/Margin.h"
 #include "Misc/Optional.h"

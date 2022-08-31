@@ -17,6 +17,7 @@
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 

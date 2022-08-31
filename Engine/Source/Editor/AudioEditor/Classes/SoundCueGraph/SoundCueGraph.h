@@ -3,9 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraph.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundCueGraph.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class USoundCueGraph : public UEdGraph

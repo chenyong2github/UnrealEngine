@@ -1,21 +1,51 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationStateNodes/SGraphNodeAnimState.h"
-#include "AnimStateNodeBase.h"
+
 #include "AnimStateConduitNode.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/SToolTip.h"
-#include "Animation/AnimInstance.h"
+#include "AnimStateNodeBase.h"
 #include "Animation/AnimBlueprint.h"
-#include "SGraphPreviewer.h"
-#include "Kismet2/BlueprintEditorUtils.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimInstance.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Engine/Blueprint.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/PlatformCrt.h"
 #include "IDocumentation.h"
-#include "AnimationStateMachineGraph.h"
-#include "Animation/AnimNode_StateMachine.h"
-#include "AnimGraphNode_StateMachineBase.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Layout/Margin.h"
+#include "Layout/Visibility.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
 #include "SGraphPanel.h"
+#include "SGraphPin.h"
+#include "SGraphPreviewer.h"
+#include "SNodePanel.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Notifications/SErrorText.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
+class UEdGraphSchema;
+struct FGeometry;
+struct FPointerEvent;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "SGraphNodeAnimState"
 

@@ -13,6 +13,9 @@
 
 #include "ClassViewerProjectSettings.generated.h"
 
+struct FDirectoryPath;
+struct FSoftClassPath;
+
 
 /**
  * Implements the settings for the Class Viewer Project Settings

@@ -1,17 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HierarchicalLODOutlinerModule.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "UnrealClient.h"
+
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/IndirectArray.h"
+#include "Delegates/Delegate.h"
+#include "Editor/EditorEngine.h"
 #include "Editor/UnrealEdEngine.h"
-#include "EngineGlobals.h"
+#include "Engine/Engine.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/MeshMerging.h"
+#include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
-#include "UnrealEdGlobals.h"
 #include "HLODOutliner.h"
-#include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
+#include "IHierarchicalLODUtilities.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Modules/ModuleManager.h"
+#include "UnrealEdGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 void FHierarchicalLODOutlinerModule::StartupModule()
 {

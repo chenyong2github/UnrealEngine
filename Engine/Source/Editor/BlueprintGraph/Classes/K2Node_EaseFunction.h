@@ -2,15 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Textures/SlateIcon.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_EaseFunction.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
 class UEdGraph;
+class UObject;
+struct FLinearColor;
 
 /////////////////////////////////////////////////////
 // UK2Node_EaseFunction

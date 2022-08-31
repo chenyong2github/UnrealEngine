@@ -6,12 +6,21 @@
 
 #pragma once
 
+#include "Components/InputComponent.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Math/Transform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 #include "UObject/ScriptMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorUtilityActor.generated.h"
 
 class UInputComponent;
+class UObject;
+struct FFrame;
+struct FPropertyChangedEvent;
 
 UCLASS(Abstract, Blueprintable, meta = (ShowWorldContextPin))
 class BLUTILITY_API AEditorUtilityActor : public AActor

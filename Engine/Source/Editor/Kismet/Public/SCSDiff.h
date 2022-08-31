@@ -1,15 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
 #include "DiffUtils.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/SWidget.h"
 
 class FSCSEditorTreeNode;
 class FSubobjectEditorTreeNode;
 class SKismetInspector;
 class SSCSEditor;
 class SSubobjectBlueprintEditor;
+class SWidget;
+class UBlueprint;
 
 /** Struct to support diffing the component tree for a blueprint */
 class KISMET_API FSCSDiff

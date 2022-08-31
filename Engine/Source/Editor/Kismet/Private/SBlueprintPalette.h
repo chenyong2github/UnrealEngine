@@ -3,17 +3,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
-#include "SGraphPalette.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "SGraphPalette.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class FBlueprintEditor;
+class FDragDropEvent;
 class SSplitter;
 class SToolTip;
+class SWidget;
 class UBlueprint;
+struct FCreateWidgetForActionData;
+struct FGeometry;
 
 /*******************************************************************************
 * SBlueprintPaletteItem

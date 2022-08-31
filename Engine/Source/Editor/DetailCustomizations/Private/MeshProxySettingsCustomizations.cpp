@@ -1,14 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshProxySettingsCustomizations.h"
-#include "Modules/ModuleManager.h"
-#include "GameFramework/WorldSettings.h"
+
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDetailChildrenBuilder.h"
-#include "DetailWidgetRow.h"
 #include "IDetailGroup.h"
 #include "IDetailPropertyRow.h"
-#include "MeshUtilities.h"
+#include "IMeshReductionInterfaces.h"
 #include "IMeshReductionManagerModule.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyHandle.h"
+#include "Templates/ChooseClass.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "MeshProxySettingsCustomizations"
 

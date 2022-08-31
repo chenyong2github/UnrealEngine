@@ -2,16 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
+#include "Delegates/IDelegateInstance.h"
 #include "IDetailCustomization.h"
-#include "PropertyRestriction.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class IPropertyHandle;
+class FPropertyRestriction;
 class IDetailLayoutBuilder;
-class SObjectPropertyEntryBox;
-struct FAssetData;
 class UMaterialExpressionTextureBase;
+class UObject;
 struct FPropertyChangedEvent;
 
 class FMaterialExpressionTextureBaseDetails : public IDetailCustomization

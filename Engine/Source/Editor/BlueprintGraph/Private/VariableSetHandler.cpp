@@ -27,6 +27,7 @@
 #include "PushModelHelpers.h"
 #include "Templates/Casts.h"
 #include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 

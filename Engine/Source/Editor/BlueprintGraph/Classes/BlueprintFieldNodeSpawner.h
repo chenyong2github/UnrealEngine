@@ -2,16 +2,30 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
+#include "BlueprintNodeBinder.h"
 #include "BlueprintNodeSignature.h"
-#include "K2Node.h"
 #include "BlueprintNodeSpawner.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "K2Node.h"
+#include "Math/Vector2D.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/FieldPath.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintFieldNodeSpawner.generated.h"
 
+class FProperty;
+class UClass;
 class UEdGraph;
+class UEdGraphNode;
+class UField;
+class UK2Node;
+class UObject;
 
 /**
  * Takes care of spawning various field related nodes (nodes associated with 

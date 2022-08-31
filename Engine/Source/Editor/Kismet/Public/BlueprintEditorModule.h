@@ -2,27 +2,50 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Commands/UICommandList.h"
+#include "K2Node_EditablePinBase.h"
+#include "Math/Vector2D.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "Templates/UniquePtr.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/NameTypes.h"
+#include "UObject/SoftObjectPath.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 
-class FSCSEditorTreeNode;
-class UUserDefinedEnum;
-class UUserDefinedStruct;
-struct Rect;
-
-class IBlueprintEditor;
 class FBlueprintEditor;
+class FExtender;
+class FFieldClass;
+class FKismetCompilerContext;
+class FLayoutExtender;
+class FSCSEditorTreeNode;
+class FSubobjectEditorTreeNode;
+class FUICommandList;
+class FWorkflowAllowedTabSet;
+class IBlueprintEditor;
+class IDetailCustomization;
+class IToolkitHost;
+class SWidget;
+class UEdGraphNode;
+class UEdGraphPin;
+class UEdGraphSchema;
+class UK2Node_EditablePinBase;
+class UObject;
+class UUserDefinedEnum;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
-class IDetailCustomization;
-class FKismetCompilerContext;
+class UUserDefinedStruct;
 struct FBlueprintDebugger;
-class FSubobjectEditorTreeNode;
-class UK2Node_EditablePinBase;
+struct Rect;
 
 /** Delegate used to customize variable display */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetVariableCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);

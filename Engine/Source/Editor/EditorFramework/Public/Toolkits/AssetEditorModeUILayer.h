@@ -3,24 +3,39 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "Textures/SlateIcon.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Delegates/Delegate.h"
 #include "Editor.h"
-#include "ILevelEditor.h"
-#include "Misc/NotifyHook.h"
-#include "StatusBarSubsystem.h"
+#include "EditorSubsystem.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
+#include "ILevelEditor.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/NotifyHook.h"
+#include "StatusBarSubsystem.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "Toolkits/IToolkitHost.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+
 #include "AssetEditorModeUILayer.generated.h"
 
 class FExtender;
-class SBorder;
-class IToolkit;
-class SDockTab;
+class FLayoutExtender;
+class FWorkspaceItem;
 class ILevelEditor;
+class IToolkit;
+class SBorder;
+class SDockTab;
+class UObject;
+struct FSlateIcon;
 
 UCLASS()
 class EDITORFRAMEWORK_API UAssetEditorUISubsystem : public UEditorSubsystem

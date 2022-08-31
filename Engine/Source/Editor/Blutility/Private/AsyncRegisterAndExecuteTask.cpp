@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AsyncRegisterAndExecuteTask.h"
-#include "EditorUtilitySubsystem.h"
+
+#include "Delegates/Delegate.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorUtilitySubsystem.h"
 
 //----------------------------------------------------------------------//
 // UAsyncRegisterAndExecuteTask

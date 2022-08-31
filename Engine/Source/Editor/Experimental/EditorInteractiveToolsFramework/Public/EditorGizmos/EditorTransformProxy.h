@@ -2,10 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "CoreMinimal.h"
+#include "Math/Axis.h"
+#include "Math/MathFwd.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorTransformProxy.generated.h"
+
+class UObject;
 
 /**
  * UEditorTransformProxy is a derivation of UTransformProxy that

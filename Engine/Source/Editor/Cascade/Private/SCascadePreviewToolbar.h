@@ -7,12 +7,12 @@
    SCascadePreviewViewportToolBar
 -----------------------------------------------------------------------------*/
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Editor/UnrealEd/Public/SViewportToolBar.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FCascade;
+class SWidget;
 
 class SCascadePreviewViewportToolBar : public SViewportToolBar
 {

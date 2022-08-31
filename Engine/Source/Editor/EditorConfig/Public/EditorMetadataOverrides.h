@@ -2,11 +2,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/SparseArray.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "EditorConfig.h"
 #include "EditorSubsystem.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EditorMetadataOverrides.generated.h"
+
+class FEditorConfig;
+class FField;
+class FSubsystemCollectionBase;
+class UClass;
+class UObject;
+class UStruct;
 
 USTRUCT()
 struct FMetadataSet

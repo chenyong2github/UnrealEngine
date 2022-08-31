@@ -1,14 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimTrailNodeDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
+#include "AnimGraphNode_Trail.h"
+#include "BoneControllers/AnimNode_Trail.h"
+#include "Curves/CurveFloat.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
-
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "PropertyHandle.h"
 #include "SCurveEditor.h"
-#include "AnimGraphNode_Trail.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "FAnimTrailNodeDetails"
 

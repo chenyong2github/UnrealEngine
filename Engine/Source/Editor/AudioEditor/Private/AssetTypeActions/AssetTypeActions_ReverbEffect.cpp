@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_ReverbEffect.h"
+
 #include "Sound/ReverbEffect.h"
+
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

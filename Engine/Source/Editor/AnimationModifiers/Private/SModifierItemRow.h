@@ -2,7 +2,17 @@
 
 #pragma once
 
+#include "Containers/BitArray.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
 #include "SModifierListview.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/STableRow.h"
+
+class STableViewBase;
+struct FGeometry;
+struct FPointerEvent;
 
 /** Listview row widget representing a single modifier instance */
 class SModifierItemRow : public STableRow<ModifierListviewItem>

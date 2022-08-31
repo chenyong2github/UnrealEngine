@@ -2,26 +2,41 @@
 
 #include "ClothPaintingModule.h"
 
-#include "SClothPaintTab.h"
-
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h" 
-#include "WorkflowOrientedApp/WorkflowTabFactory.h"
-#include "WorkflowOrientedApp/ApplicationMode.h"
-
-#include "EditorModeRegistry.h"
-#include "ClothingPaintEditMode.h"
-
-#include "PropertyEditorModule.h"
-#include "ClothPaintSettingsCustomization.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "ClothPaintToolCommands.h"
-#include "ISkeletalMeshEditorModule.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ToolMenus.h"
-#include "SkeletalMeshToolMenuContext.h"
 #include "ClothPainterCommands.h"
+#include "ClothingPaintEditMode.h"
+#include "Delegates/Delegate.h"
+#include "EditorModeRegistry.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISkeletalMeshEditor.h"
+#include "ISkeletalMeshEditorModule.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "SClothPaintTab.h"
+#include "SkeletalMeshToolMenuContext.h"
+#include "Styling/AppStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenu.h"
+#include "ToolMenuDelegates.h"
+#include "ToolMenuEntry.h"
+#include "ToolMenuOwner.h"
+#include "ToolMenuSection.h"
+#include "ToolMenus.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "WorkflowOrientedApp/ApplicationMode.h"
+#include "WorkflowOrientedApp/WorkflowTabFactory.h"
+
+class FAssetEditorToolkit;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "ClothPaintingModule"
 

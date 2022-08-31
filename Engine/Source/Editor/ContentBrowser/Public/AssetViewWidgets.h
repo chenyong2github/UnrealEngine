@@ -2,36 +2,63 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Misc/Attribute.h"
-#include "Layout/Geometry.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
-#include "Fonts/SlateFontInfo.h"
-#include "ContentBrowserDelegates.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Types/SlateStructs.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Views/STableRow.h"
 #include "AssetViewSortManager.h"
-#include "Widgets/Text/STextBlock.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "ContentBrowserDelegates.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Reply.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "SlateFwd.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STileView.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
 #include "Textures/SlateIcon.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STileView.h"
 
-class SLayeredImage;
+class FAssetViewItem;
+class FDragDropEvent;
+class FSlateRect;
+class FString;
+class IToolTip;
 class SAssetListItem;
 class SAssetTileItem;
-class FAssetViewItem;
-
+class SInlineEditableTextBlock;
+class SLayeredImage;
+class SVerticalBox;
+struct FKeyEvent;
+struct FPointerEvent;
+struct FSlateBrush;
 template <typename ItemType> class SListView;
 
 DECLARE_DELEGATE_ThreeParams( FOnRenameBegin, const TSharedPtr<FAssetViewItem>& /*AssetItem*/, const FString& /*OriginalName*/, const FSlateRect& /*MessageAnchor*/)

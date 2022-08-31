@@ -2,14 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
 #include "EdGraph/EdGraph.h"
-#include "Widgets/SWidget.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
-#include "GraphEditor.h"
-#include "BehaviorTreeEditor.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
+
+class SDockTab;
+class SGraphEditor;
+class SWidget;
+struct FSlateBrush;
 
 struct FBlackboardSummoner : public FWorkflowTabFactory
 {

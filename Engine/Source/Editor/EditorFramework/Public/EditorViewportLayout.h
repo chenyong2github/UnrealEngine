@@ -2,8 +2,14 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/SWidget.h"
+
+class SWidget;
 
 
 class IEditorViewportLayoutEntity : public TSharedFromThis<IEditorViewportLayoutEntity>

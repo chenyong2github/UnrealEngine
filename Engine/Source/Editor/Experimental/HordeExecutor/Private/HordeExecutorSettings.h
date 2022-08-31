@@ -2,9 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "HordeExecutorSettings"
 #include "UObject/Object.h"
-#include "HordeExecutorSettings.generated.h"
+#include "UObject/UObjectGlobals.h"
 
 UCLASS(config = EditorSettings)
 class UHordeExecutorSettings : public UObject

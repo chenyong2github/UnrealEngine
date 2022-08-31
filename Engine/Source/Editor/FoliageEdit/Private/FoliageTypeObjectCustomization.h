@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
-struct FAssetData;
 class IPropertyHandle;
+struct FAssetData;
 
 class FFoliageTypeObjectCustomization : public IPropertyTypeCustomization
 {

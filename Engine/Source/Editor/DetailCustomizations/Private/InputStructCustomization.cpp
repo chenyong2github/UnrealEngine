@@ -1,11 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InputStructCustomization.h"
-#include "Widgets/Layout/SBox.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "DetailWidgetRow.h"
 #include "GameFramework/PlayerInput.h"
+#include "HAL/Platform.h"
 #include "IDetailChildrenBuilder.h"
-#include "PropertyCustomizationHelpers.h"
 #include "InputSettingsDetails.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "InputStructCustomization"
 

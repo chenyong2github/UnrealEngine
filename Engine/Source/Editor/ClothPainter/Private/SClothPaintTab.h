@@ -2,15 +2,20 @@
 
 #pragma once
 
-#include "Toolkits/AssetEditorToolkit.h"
+#include "HAL/Platform.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
-class UClothingAssetCommon;
-class SClothPaintWidget;
-class SClothAssetSelector;
 class IDetailsView;
-class ISkeletalMeshEditor;
 class IPersonaToolkit;
+class ISkeletalMeshEditor;
+class SClothAssetSelector;
+class SClothPaintWidget;
 class SScrollBox;
+class UClothingAssetCommon;
+struct FGeometry;
 
 class CLOTHPAINTER_API SClothPaintTab : public SCompoundWidget
 {

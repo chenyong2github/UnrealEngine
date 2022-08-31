@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 // Integrate Blutility actions associated with existing engine types (e.g., Texture2D) into the content browser
 class FBlutilityContentBrowserExtensions
 {

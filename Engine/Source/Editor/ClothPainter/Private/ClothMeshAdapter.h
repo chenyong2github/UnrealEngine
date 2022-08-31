@@ -2,18 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "MeshPaintModule.h"
 #include "BaseMeshPaintGeometryAdapter.h"
+#include "Containers/Array.h"
 #include "IMeshPaintGeometryAdapterFactory.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
-struct FPointWeightMap;
 class FReferenceCollector;
-class UMeshComponent;
+class IMeshPaintGeometryAdapter;
 class UClothingAssetBase;
 class UClothingAssetCommon;
-class USkeletalMeshComponent;
+class UMeshComponent;
 class USkeletalMesh;
+class USkeletalMeshComponent;
+class UTexture;
+struct FColor;
+struct FGuid;
+struct FPointWeightMap;
 
 /** Adapter used to paint simulation specific properties to cloth assets inside of a Skeletal mesh */
 class FClothMeshPaintAdapter : public FBaseMeshPaintGeometryAdapter

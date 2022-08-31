@@ -2,13 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node_AddPinInterface.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_PromotableOperator.generated.h"
 
+class FKismetCompilerContext;
+class FString;
+class UEdGraph;
 class UEdGraphPin;
+class UFunction;
+class UGraphNodeContextMenuContext;
+class UObject;
 class UToolMenu;
+struct FEdGraphPinType;
 
 /** The promotable operator node allows for pin types to be promoted to others, i.e. float to double */
 UCLASS(MinimalAPI)

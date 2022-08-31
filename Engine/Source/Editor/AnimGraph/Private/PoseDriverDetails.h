@@ -2,21 +2,45 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Curves/CurveOwnerInterface.h"
+#include "Curves/RichCurve.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Axis.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
-#include "Curves/CurveOwnerInterface.h"
 
-class IDetailLayoutBuilder;
-class UAnimGraphNode_PoseDriver;
-class IPropertyHandle;
 class FPoseDriverDetails;
-class SExpandableArea;
-class SCurveEditor;
+class FString;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
+class ITableRow;
 class SComboButton;
-class SSearchableComboBox;
+class SCurveEditor;
+class SExpandableArea;
+class STableViewBase;
+class SWidget;
+class UAnimGraphNode_PoseDriver;
+class UObject;
 struct FPoseDriverTarget;
 
 /** Entry in backing list for target list widget */

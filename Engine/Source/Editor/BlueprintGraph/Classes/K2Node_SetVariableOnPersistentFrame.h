@@ -4,9 +4,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_SetVariableOnPersistentFrame.generated.h"
+
+class UObject;
 
 /*
  *	FOR INTERNAL USAGE ONLY!

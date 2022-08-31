@@ -2,10 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
-#include "Sound/SoundClass.h"
+#include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FMenuBuilder;
+class IToolkitHost;
+class UClass;
+class UObject;
+class USoundClass;
 
 class FAssetTypeActions_SoundClass : public FAssetTypeActions_Base
 {

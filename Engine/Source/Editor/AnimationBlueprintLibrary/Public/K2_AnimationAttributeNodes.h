@@ -3,10 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "K2_AnimationAttributeNodes.generated.h"
 
+class FBlueprintActionDatabaseRegistrar;
+class FString;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
 
 /** Base node implementation to reduce duplicated behaviour for different BlueprintLibrary functions */
 UCLASS(abstract)

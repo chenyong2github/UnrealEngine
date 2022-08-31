@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 class SMyBlueprint;
 
 // Property type customization for FMemberReference

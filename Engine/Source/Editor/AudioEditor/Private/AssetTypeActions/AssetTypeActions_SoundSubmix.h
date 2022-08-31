@@ -3,7 +3,19 @@
 #pragma once
 
 #include "AssetTypeActions_Base.h"
+#include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "IAssetTypeActions.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "SoundSubmixDefaultColorPalette.h"
+#include "Templates/SharedPointer.h"
+
+class IToolkitHost;
+class UClass;
+class UObject;
 
 /** Submix Types: */
 

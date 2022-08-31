@@ -1,17 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationStateNodes/SGraphNodeAnimStateAlias.h"
-#include "AnimationStateNodes/SGraphNodeAnimTransition.h"
+
 #include "AnimStateAliasNode.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/SToolTip.h"
-#include "Animation/AnimInstance.h"
+#include "AnimStateNodeBase.h"
 #include "Animation/AnimBlueprint.h"
-#include "Kismet2/BlueprintEditorUtils.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimInstance.h"
 #include "AnimationStateMachineGraph.h"
-#include "AnimGraphNode_StateMachineBase.h"
-#include "SGraphPanel.h"
+#include "AnimationStateNodes/SGraphNodeAnimState.h"
+#include "AnimationStateNodes/SGraphNodeAnimTransition.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Math/UnrealMathSSE.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class SToolTip;
+struct FGraphInformationPopupInfo;
+struct FNodeInfoContext;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "SGraphNodeAnimStateAlias"
 

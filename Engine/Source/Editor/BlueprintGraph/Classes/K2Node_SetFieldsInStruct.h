@@ -3,11 +3,26 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node_MakeStruct.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_SetFieldsInStruct.generated.h"
+
+class FBlueprintActionDatabaseRegistrar;
+class FProperty;
+class FString;
+class UBlueprint;
+class UEdGraphPin;
+class UObject;
+struct FLinearColor;
+struct FOptionalPinFromProperty;
+template <typename FuncType> class TFunctionRef;
 
 // Pure kismet node that creates a struct with specified values for each member
 UCLASS(MinimalAPI)

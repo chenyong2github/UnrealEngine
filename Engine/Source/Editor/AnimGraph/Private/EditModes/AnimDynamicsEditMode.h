@@ -2,9 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealWidgetFwd.h"
 #include "AnimNodeEditMode.h"
+#include "Containers/Array.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "UObject/NameTypes.h"
+#include "UnrealWidgetFwd.h"
+
+class FEditorViewportClient;
+class FPrimitiveDrawInterface;
+class FSceneView;
+class FViewport;
+class HHitProxy;
+struct FViewportClick;
 
 enum class FAnimDynamicsViewportObjectType { PlaneLimit, SphericalLimit, SphericalColisionVolume, BoxExtents };
 

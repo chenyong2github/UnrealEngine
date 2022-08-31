@@ -2,17 +2,27 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "Widgets/SWidget.h"
-#include "Particles/ParticleModule.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "EditorViewportClient.h"
+#include "Math/Color.h"
+#include "Math/IntPoint.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector2D.h"
+#include "Particles/ParticleModule.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
 class FCanvas;
 class FCascade;
 class FMenuBuilder;
+class FTexture;
+class FViewport;
 class SCascadeEmitterCanvas;
+class SWidget;
 class UParticleEmitter;
+class UTexture2D;
+struct FInputKeyEventArgs;
 
 /*-----------------------------------------------------------------------------
    FCascadeCanvasClient

@@ -1,15 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintBoundEventNodeSpawner.h"
+
+#include "BlueprintNodeSpawner.h"
+#include "BlueprintNodeSpawnerUtils.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Editor/EditorEngine.h"
+#include "EditorCategoryUtils.h"
 #include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node_ActorBoundEvent.h"
 #include "K2Node_ComponentBoundEvent.h"
-#include "Settings/EditorStyleSettings.h"
-#include "Editor/EditorEngine.h"
-#include "ObjectEditorUtils.h"
+#include "K2Node_Event.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "EditorCategoryUtils.h"
-#include "BlueprintNodeSpawnerUtils.h"
+#include "Misc/AssertionMacros.h"
+#include "ObjectEditorUtils.h"
+#include "Settings/EditorStyleSettings.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealType.h"
+
+class UBlueprint;
 
 #define LOCTEXT_NAMESPACE "BlueprintBoundEventNodeSpawner"
 

@@ -7,12 +7,19 @@
  */
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
 #include "Factories/Factory.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorUtilityBlueprintFactory.generated.h"
 
+class FFeedbackContext;
 class SWindow;
+class UClass;
+class UObject;
 
 UCLASS()
 class BLUTILITY_API UEditorUtilityBlueprintFactory : public UFactory

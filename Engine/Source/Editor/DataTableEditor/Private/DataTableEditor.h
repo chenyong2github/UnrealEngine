@@ -2,22 +2,44 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
-#include "Types/SlateStructs.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SBoxPanel.h"
-#include "Toolkits/IToolkitHost.h"
-#include "IDataTableEditor.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "EditorUndoClient.h"
-#include "Kismet2/StructureEditorUtils.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
 #include "DataTableEditorUtils.h"
-#include "SRowEditor.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Delegates/Delegate.h"
+#include "EditorUndoClient.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDataTableEditor.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Kismet2/StructureEditorUtils.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Toolkits/IToolkit.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
 
+class FExtender;
 class FJsonObject;
+class FSpawnTabArgs;
+class FToolBarBuilder;
+class ITableRow;
+class SDockTab;
+class SRowEditor;
+class SSearchBox;
+class STableViewBase;
+class SVerticalBox;
+class SWidget;
+class UDataTable;
 
 DECLARE_DELEGATE_OneParam(FOnRowHighlighted, FName /*Row name*/);
 

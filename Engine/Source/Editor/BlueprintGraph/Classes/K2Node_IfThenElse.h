@@ -4,13 +4,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_IfThenElse.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI, meta=(Keywords = "if bool branch"))
 class UK2Node_IfThenElse : public UK2Node

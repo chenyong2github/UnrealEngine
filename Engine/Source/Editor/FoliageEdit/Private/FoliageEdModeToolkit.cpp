@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageEdModeToolkit.h"
+
+#include "Editor.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
 #include "SFoliageEdit.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-#include "FoliageEditActions.h"
-#include "FoliagePaletteCommands.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "FoliageEditMode"
 

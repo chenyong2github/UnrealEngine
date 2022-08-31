@@ -2,20 +2,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "IDetailCustomization.h"
-#include "PropertyHandle.h"
-#include "UnrealClient.h"
-#include "AssetThumbnail.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomNodeBuilder.h"
-#include "IDetailChildrenBuilder.h"
+#include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class FAssetThumbnailPool;
 class FDetailWidgetRow;
 class FGameModeInfoCustomizer;
 class IDetailCategoryBuilder;
+class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class SWidget;
+class ULevel;
+class UObject;
+struct FGeometry;
+struct FPointerEvent;
 
 /**
  * Implements details panel customizations for AWorldSettings fields.

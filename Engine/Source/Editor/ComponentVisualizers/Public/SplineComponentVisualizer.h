@@ -2,26 +2,50 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "HitProxies.h"
 #include "ComponentVisualizer.h"
 #include "Components/SplineComponent.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "GenericPlatform/ICursor.h"
+#include "HitProxies.h"
+#include "InputCoreTypes.h"
+#include "Math/Axis.h"
+#include "Math/Box.h"
+#include "Math/InterpCurvePoint.h"
+#include "Math/Matrix.h"
+#include "Math/Quat.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SplineComponentVisualizer.generated.h"
 
 class AActor;
+class FCanvas;
 class FEditorViewportClient;
 class FMenuBuilder;
 class FPrimitiveDrawInterface;
-class FCanvas;
+class FProperty;
 class FSceneView;
 class FUICommandList;
 class FViewport;
-class SWidget;
-class USplineComponent;
 class SSplineGeneratorPanel;
-struct FViewportClick;
+class SWidget;
+class SWindow;
+class UActorComponent;
+class USplineComponent;
+class USplineMetadata;
 struct FConvexVolume;
+struct FViewportClick;
 
 /** Tangent handle selection modes. */
 UENUM()

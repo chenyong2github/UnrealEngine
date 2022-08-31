@@ -3,13 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphPin.h"
-#include "K2Node_CallFunction.h"
+#include "HAL/Platform.h"
 #include "K2Node_AddPinInterface.h"
+#include "K2Node_CallFunction.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CommutativeAssociativeBinaryOperator.generated.h"
 
 class UEdGraph;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_CommutativeAssociativeBinaryOperator : public UK2Node_CallFunction, public IK2Node_AddPinInterface

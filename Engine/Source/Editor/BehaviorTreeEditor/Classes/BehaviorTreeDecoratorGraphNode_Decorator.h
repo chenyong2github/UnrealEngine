@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "BehaviorTreeDecoratorGraphNode.h"
 #include "AIGraphTypes.h"
+#include "BehaviorTree/BTCompositeNode.h"
+#include "BehaviorTreeDecoratorGraphNode.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BehaviorTreeDecoratorGraphNode_Decorator.generated.h"
 
+class UObject;
 struct FGraphNodeClassData;
 
 UCLASS()

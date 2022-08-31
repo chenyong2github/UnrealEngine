@@ -3,13 +3,21 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node_Switch.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_SwitchString.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_SwitchString : public UK2Node_Switch

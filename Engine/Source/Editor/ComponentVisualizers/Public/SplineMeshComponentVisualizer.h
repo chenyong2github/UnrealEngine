@@ -2,10 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "HitProxies.h"
 #include "ComponentVisualizer.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "HitProxies.h"
+#include "InputCoreTypes.h"
+#include "Math/InterpCurve.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
 
 class AActor;
 class FEditorViewportClient;
@@ -13,6 +19,7 @@ class FPrimitiveDrawInterface;
 class FSceneView;
 class FViewport;
 class SWidget;
+class UActorComponent;
 class USplineMeshComponent;
 struct FViewportClick;
 

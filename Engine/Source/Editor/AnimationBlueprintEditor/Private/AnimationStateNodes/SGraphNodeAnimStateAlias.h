@@ -2,9 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "SGraphNodeAnimState.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class SToolTip;
 class UAnimStateAliasNode;
+class UEdGraphNode;
+struct FGraphInformationPopupInfo;
+struct FNodeInfoContext;
+struct FSlateBrush;
 
 class SGraphNodeAnimStateAlias : public SGraphNodeAnimState
 {

@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AIGraphTypes.h"
-#include "Modules/ModuleInterface.h"
-#include "Toolkits/IToolkitHost.h"
-#include "Toolkits/AssetEditorToolkit.h"
 #include "AssetTypeActions_Base.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
+#include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+#include "Toolkits/IToolkitHost.h"
 
+class FName;
 class IBehaviorTreeEditor;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBehaviorTreeEditor, Log, All);

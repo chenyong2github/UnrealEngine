@@ -2,10 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "WorkflowOrientedApp/WorkflowTabManager.h"
 #include "BlueprintEditor.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "CoreMinimal.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
+#include "WorkflowOrientedApp/WorkflowTabManager.h"
+
+class AActor;
+class FBlueprintEditor;
+class FTabManager;
+class UActorComponent;
 
 struct KISMET_API FBlueprintEditorApplicationModes
 {

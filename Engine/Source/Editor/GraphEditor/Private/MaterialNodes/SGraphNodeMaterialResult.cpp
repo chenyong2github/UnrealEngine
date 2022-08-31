@@ -1,13 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialNodes/SGraphNodeMaterialResult.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "GenericPlatform/ICursor.h"
+#include "GraphEditor.h"
+#include "HAL/Platform.h"
+#include "IDocumentation.h"
+#include "Internationalization/Text.h"
 #include "MaterialGraph/MaterialGraph.h"
+#include "MaterialGraph/MaterialGraphNode_Base.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
+#include "Materials/Material.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "SGraphPanel.h"
+#include "SGraphPin.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
 #include "TutorialMetaData.h"
-#include "Widgets/SToolTip.h"
-#include "IDocumentation.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+
+class SToolTip;
 
 /////////////////////////////////////////////////////
 // SGraphNodeMaterialResult

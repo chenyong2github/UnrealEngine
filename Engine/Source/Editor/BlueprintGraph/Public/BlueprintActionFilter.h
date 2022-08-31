@@ -2,28 +2,48 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/UnrealType.h"
-#include "EdGraph/EdGraphNode.h"
-#include "BlueprintNodeBinder.h"
 #include "BlueprintGraphModule.h"
+#include "BlueprintNodeBinder.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class FBlueprintActionFilter;
+class FProperty;
+class UClass;
+class UEdGraphNode;
+class UFunction;
+class UObject;
 
 #define ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && 0)
 
 
 
+class FActionFilterCacheNode;
+class IAssetReferenceFilter;
+class IBlueprintEditor;
 class UBlueprint;
 class UBlueprintNodeSpawner;
 class UEdGraph;
 class UEdGraphPin;
-class IAssetReferenceFilter;
-class IBlueprintEditor;
-
-class FActionFilterCacheNode;
 template<typename TKeyType>
 class TActionFilterCacheKeyNode;
 template<typename TKeyType>

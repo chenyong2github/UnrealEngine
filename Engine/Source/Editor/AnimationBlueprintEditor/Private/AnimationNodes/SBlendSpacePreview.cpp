@@ -1,13 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationNodes/SBlendSpacePreview.h"
-#include "Animation/AnimBlueprintGeneratedClass.h"
-#include "Kismet2/KismetDebugUtilities.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "PersonaModule.h"
-#include "Widgets/Layout/SBox.h"
-#include "Modules/ModuleManager.h"
+
 #include "AnimGraphNode_Base.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/BlendSpace.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Delegates/Delegate.h"
+#include "Engine/Blueprint.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetDebugUtilities.h"
+#include "Layout/Children.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "PersonaModule.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "Types/SlateStructs.h"
+#include "Types/WidgetActiveTimerDelegate.h"
+#include "UObject/Object.h"
+#include "Widgets/Layout/SBox.h"
+
+class FProperty;
 
 void SBlendSpacePreview::Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 {

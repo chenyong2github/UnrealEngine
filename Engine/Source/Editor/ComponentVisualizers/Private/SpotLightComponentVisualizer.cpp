@@ -1,8 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpotLightComponentVisualizer.h"
-#include "SceneManagement.h"
+
+#include "Components/ActorComponent.h"
 #include "Components/SpotLightComponent.h"
+#include "Engine/EngineTypes.h"
+#include "Engine/TextureLightProfile.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "SceneManagement.h"
+#include "SceneView.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
 
 
 

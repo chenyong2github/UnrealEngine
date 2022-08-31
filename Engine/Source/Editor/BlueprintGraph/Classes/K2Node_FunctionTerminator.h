@@ -3,12 +3,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Engine/MemberReference.h"
-#include "Templates/SubclassOf.h"
 #include "K2Node_EditablePinBase.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_FunctionTerminator.generated.h"
+
+class FArchive;
+class FText;
+class UFunction;
+class UObject;
+struct FEdGraphPinType;
 
 UCLASS(abstract, MinimalAPI)
 class UK2Node_FunctionTerminator : public UK2Node_EditablePinBase

@@ -1,11 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
-#include "ICurveEditorModule.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "CoreGlobals.h"
 #include "CurveEditorCommands.h"
-#include "CurveEditor.h"
+#include "CurveEditorTypes.h"
 #include "CurveEditorViewRegistry.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformCrt.h"
+#include "ICurveEditorModule.h"
+#include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/UnrealTemplate.h"
 #include "ToolMenus.h"
 
 class FCurveEditorModule : public ICurveEditorModule

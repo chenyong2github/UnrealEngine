@@ -2,19 +2,36 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
-#include "Styling/SlateColor.h"
-#include "SNodePanel.h"
-#include "KismetNodes/SGraphNodeK2Base.h"
 #include "Engine/PoseWatch.h"
+#include "HAL/Platform.h"
+#include "Input/Reply.h"
+#include "KismetNodes/SGraphNodeK2Base.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "SNodePanel.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-class UAnimGraphNode_Base;
 class IDetailTreeNode;
 class IPropertyRowGenerator;
-class UAnimBlueprint;
+class SGraphNode;
+class SGraphPin;
+class SNodeTitle;
 class SPoseWatchOverlay;
+class SVerticalBox;
+class SWidget;
+class UAnimBlueprint;
+class UAnimGraphNode_Base;
+class UEdGraphNode;
+class UEdGraphPin;
+struct FGeometry;
+struct FGraphInformationPopupInfo;
+struct FNodeInfoContext;
+struct FOverlayWidgetInfo;
+template <typename FuncType> class TFunctionRef;
 
 class ANIMATIONBLUEPRINTEDITOR_API SAnimationGraphNode : public SGraphNodeK2Base
 {

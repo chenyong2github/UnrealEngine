@@ -5,9 +5,15 @@
 =============================================================================*/
 
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
-#include "ToolMenus.h"
+
 #include "GraphEditorSettings.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
 #include "SoundCueGraphEditorCommands.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "SoundCueGraphNode_Root"
 

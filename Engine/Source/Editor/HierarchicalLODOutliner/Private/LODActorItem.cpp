@@ -1,13 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LODActorItem.h"
-#include "Textures/SlateIcon.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "Engine/Level.h"
 #include "Framework/Commands/UIAction.h"
-#include "ToolMenus.h"
-#include "Modules/ModuleManager.h"
+#include "GameFramework/Actor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "HLODOutliner.h"
-#include "IHierarchicalLODUtilities.h"
+#include "HierarchicalLODType.h"
 #include "HierarchicalLODUtilitiesModule.h"
+#include "IHierarchicalLODUtilities.h"
+#include "ITreeItem.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Color.h"
+#include "Misc/Optional.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/Casts.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenu.h"
+#include "ToolMenuSection.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "LODActorItem"
 

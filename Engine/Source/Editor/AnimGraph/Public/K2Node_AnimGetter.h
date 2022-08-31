@@ -2,16 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "K2Node_CallFunction.h"
 #include "BlueprintActionFilter.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "K2Node_CallFunction.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_AnimGetter.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
 class UAnimBlueprint;
 class UAnimGraphNode_Base;
 class UAnimStateNodeBase;
+class UClass;
+class UEdGraphSchema;
+class UField;
+class UFunction;
+class UObject;
 
 USTRUCT()
 struct FNodeSpawnData

@@ -1,15 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayerOutlinerIsLoadedInEditorColumn.h"
+
+#include "Containers/Array.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "DataLayerTreeItem.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Views/STreeView.h"
+#include "Engine/World.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Editor.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Views/STreeView.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

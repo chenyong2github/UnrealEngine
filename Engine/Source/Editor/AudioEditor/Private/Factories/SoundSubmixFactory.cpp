@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundSubmixFactory.h"
-#include "Sound/SoundSubmix.h"
+
 #include "AudioDeviceManager.h"
 #include "Engine/Engine.h"
-#include "Sound/AudioSettings.h"
+#include "Sound/SoundSubmix.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 USoundSubmixFactory::USoundSubmixFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

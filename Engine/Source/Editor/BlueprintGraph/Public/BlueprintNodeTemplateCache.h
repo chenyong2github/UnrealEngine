@@ -2,12 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "BlueprintNodeSpawner.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "UObject/GCObject.h"
 
+class FReferenceCollector;
 class UBlueprint;
+class UBlueprintNodeSpawner;
 class UEdGraph;
+class UEdGraphNode;
 
 /**
  * Serves as a centralized data-store for all UBlueprintNodeSpawner node-

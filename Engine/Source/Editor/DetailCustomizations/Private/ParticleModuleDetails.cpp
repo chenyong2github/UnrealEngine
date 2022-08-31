@@ -1,11 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParticleModuleDetails.h"
+
+#include "Containers/UnrealString.h"
+#include "DetailLayoutBuilder.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/ParticleModule.h"
 #include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
 #include "PropertyRestriction.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+
+class UObject;
 
 DECLARE_LOG_CATEGORY_CLASS(LogParticleModuleDetails, Log, All);
 

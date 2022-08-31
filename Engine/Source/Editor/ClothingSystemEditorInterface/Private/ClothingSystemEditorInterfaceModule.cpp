@@ -6,7 +6,6 @@
 #include "Containers/Array.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/Platform.h"
-#include "HAL/PlatformCrt.h"
 #include "Modules/ModuleManager.h"
 #include "SimulationEditorExtender.h"
 #include "UObject/Class.h"

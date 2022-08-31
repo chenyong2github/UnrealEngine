@@ -14,6 +14,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Field.h"
 #include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 
 class FCompilerResultsLog;
 class FKismetCompilerContext;

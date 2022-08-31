@@ -2,25 +2,47 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Misc/Guid.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Styling/SlateColor.h"
+#include "GenericPlatform/ICursor.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Layout/SBorder.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
+#include "Misc/Guid.h"
+#include "Misc/Optional.h"
 #include "SGraphNode.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SWidget.h"
 
+class FDragDropEvent;
+class FDragDropOperation;
+class FPinValueInspectorTooltip;
+class IToolTip;
+class SGraphNode;
 class SGraphPanel;
 class SGraphPin;
 class SHorizontalBox;
 class SImage;
+class SWidget;
 class SWrapBox;
-class FPinValueInspectorTooltip;
+struct FGeometry;
+struct FPointerEvent;
+struct FSlateBrush;
 
 #define NAME_DefaultPinLabelStyle TEXT("Graph.Node.PinName")
 

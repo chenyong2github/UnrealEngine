@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "WorkflowOrientedApp/WorkflowCentricApplication.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 #include "WorkflowOrientedApp/ApplicationMode.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
+
+class FTabManager;
 
 class FAnimationEditorMode : public FApplicationMode
 {

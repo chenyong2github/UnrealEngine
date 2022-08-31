@@ -1,16 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ParticleSysParamStructCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Particles/ParticleSystemComponent.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "DetailWidgetRow.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
+#include "Serialization/Archive.h"
+#include "Templates/UnrealTemplate.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 
 #define LOCTEXT_NAMESPACE "ParticleSysParamStructCustomization"

@@ -2,18 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
+#include "Containers/BitArray.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "SFoliagePalette.h"
 
-class FAssetThumbnailPool;
+class FEdModeFoliage;
+class SFoliagePalette;
+class STableViewBase;
+class SWidget;
 class UFoliageType;
+struct FFoliageMeshUIInfo;
 
 typedef TSharedPtr<FFoliageMeshUIInfo> FFoliageMeshUIInfoPtr; //should match typedef in FoliageEdMode.h
 

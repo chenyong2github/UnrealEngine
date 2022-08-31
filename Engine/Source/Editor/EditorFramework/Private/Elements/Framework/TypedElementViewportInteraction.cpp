@@ -2,11 +2,30 @@
 
 #include "Elements/Framework/TypedElementViewportInteraction.h"
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "EditorModeManager.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementId.h"
+#include "Elements/Framework/TypedElementLimits.h"
+#include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/TypedElementRegistry.h"
-#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementUtil.h"
+#include "Math/Box.h"
+#include "Math/BoxSphereBounds.h"
+#include "Math/Matrix.h"
+#include "Math/Quat.h"
+#include "Math/RotationMatrix.h"
+#include "Math/Rotator.h"
+#include "Math/ScaleMatrix.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/Tuple.h"
 #include "Toolkits/IToolkitHost.h"
+
+struct FInputDeviceState;
 
 bool FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {

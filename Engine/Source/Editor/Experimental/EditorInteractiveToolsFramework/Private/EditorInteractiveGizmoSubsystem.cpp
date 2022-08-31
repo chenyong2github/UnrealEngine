@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorInteractiveGizmoSubsystem.h"
-#include "Engine/Engine.h"
+
 #include "EditorGizmos/EditorTransformGizmoBuilder.h"
+#include "Engine/Engine.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreDelegates.h"
+
+class UInteractiveGizmoBuilder;
+struct FToolBuilderState;
 
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoSubsystem"
 

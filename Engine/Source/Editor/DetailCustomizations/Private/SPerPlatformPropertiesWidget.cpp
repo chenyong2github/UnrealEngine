@@ -1,19 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPerPlatformPropertiesWidget.h"
+
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
 #include "Layout/Margin.h"
-#include "Fonts/SlateFontInfo.h"
-#include "Styling/CoreStyle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboButton.h"
-#include "PlatformInfo.h"
-#include "Widgets/Layout/SWrapBox.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Widgets/Layout/SBox.h"
-#include "DetailLayoutBuilder.h"
+#include "Styling/SlateColor.h"
+#include "Types/SlateStructs.h"
+#include "UObject/UnrealNames.h"
 #include "Widgets/Images/SImage.h"
-#include "PerQualityLevelProperties.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
 
 void SPerPlatformPropertiesRow::Construct(const FArguments& InArgs, FName PlatformName)
 {

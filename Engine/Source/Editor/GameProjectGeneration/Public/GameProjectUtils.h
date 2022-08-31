@@ -2,15 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
 #include "AddToProjectConfig.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
 #include "GameProjectGenerationModule.h"
+#include "HAL/Platform.h"
 #include "HardwareTargetingSettings.h"
+#include "Misc/Optional.h"
+#include "SlateFwd.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
-class UTemplateProjectDefs;
+class FText;
+class SNotificationItem;
+class UClass;
 class UTemplateCategories;
+class UTemplateProjectDefs;
+struct FAddToProjectConfig;
+struct FGuid;
+struct FModuleContextInfo;
+struct FNewClassInfo;
 struct FProjectDescriptor;
+
 enum class EClassDomain : uint8;
 struct FTemplateConfigValue;
 

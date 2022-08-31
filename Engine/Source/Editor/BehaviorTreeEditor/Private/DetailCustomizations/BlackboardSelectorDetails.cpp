@@ -23,7 +23,6 @@
 #include "PropertyHandle.h"
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
-#include "Templates/TypeHash.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"

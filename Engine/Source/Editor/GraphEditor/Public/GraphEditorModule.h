@@ -2,14 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
+#include "HAL/Platform.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 
 class FExtender;
+class FUICommandList;
+class SWidget;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+struct FDiffSingleResult;
 
 /**
  * Graph editor public interface

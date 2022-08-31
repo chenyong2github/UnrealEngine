@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "Widgets/Input/NumericTypeInterface.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
 
-class IDetailLayoutBuilder;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 
 /**
  *  Customize the FTimecode.

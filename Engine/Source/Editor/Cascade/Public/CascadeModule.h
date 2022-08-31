@@ -4,10 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 #include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/NameTypes.h"
 
 class FCascade;
 class ICascade;
+class IToolkitHost;
 class UParticleSystem;
 
 extern const FName CascadeAppIdentifier;

@@ -2,18 +2,37 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "IDetailCustomization.h"
 #include "Chaos/ChaosEngineInterface.h"
-#include "Customizations/MathStructProxyCustomizations.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Customizations/MathStructCustomizations.h"
+#include "IDetailCustomization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Rotator.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateColor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class IDetailLayoutBuilder;
+class FDetailWidgetRow;
 class IDetailCategoryBuilder;
+class IDetailLayoutBuilder;
 class IPropertyHandle;
+class IPropertyTypeCustomization;
+class SWidget;
+class UObject;
 class UPhysicsAsset;
 class UPhysicsConstraintComponent;
 class UPhysicsConstraintTemplate;
+struct FConstraintInstance;
+template <typename ObjectType, typename PropertyType> class TProxyProperty;
+template <typename ObjectType> class TProxyValue;
+
 enum class ECheckBoxState : uint8;
 enum class EConstraintTransformComponentFlags : uint8;
 

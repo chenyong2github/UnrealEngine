@@ -1,11 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialGraphConnectionDrawingPolicy.h"
+
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "GraphEditorSettings.h"
+#include "Layout/ArrangedWidget.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
-#include "MaterialGraphConnectionDrawingPolicy.h"
 #include "MaterialGraphNode_Knot.h"
-#include "MaterialCachedHLSLTree.h"
+#include "Math/Color.h"
+#include "SGraphPin.h"
+#include "Shader/ShaderTypes.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+
+class FSlateRect;
 
 /////////////////////////////////////////////////////
 // FMaterialGraphConnectionDrawingPolicy

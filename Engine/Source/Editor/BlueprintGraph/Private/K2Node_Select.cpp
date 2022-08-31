@@ -32,6 +32,7 @@
 #include "Templates/Casts.h"
 #include "Templates/Function.h"
 #include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/WeakObjectPtr.h"

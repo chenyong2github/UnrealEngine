@@ -1,17 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
 #include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #include "ClassTemplateEditorSubsystem.generated.h"
 
-
 // Forward Declarations
 class FSubsystemCollectionBase;
 class FText;
+class UClass;
 
 
 UCLASS(Abstract)

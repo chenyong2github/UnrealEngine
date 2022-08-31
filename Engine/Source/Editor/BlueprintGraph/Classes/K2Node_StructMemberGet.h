@@ -2,12 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
 #include "K2Node_StructOperation.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_StructMemberGet.generated.h"
+
+class FProperty;
+class UObject;
+struct FOptionalPinFromProperty;
 
 // Pure kismet node that gets one or more member variables of a struct
 UCLASS(MinimalAPI)

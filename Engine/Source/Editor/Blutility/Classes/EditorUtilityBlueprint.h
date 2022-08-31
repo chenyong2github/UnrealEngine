@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Engine/Blueprint.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "EditorUtilityBlueprint.generated.h"

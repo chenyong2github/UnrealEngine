@@ -1,11 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditModes/AnimDynamicsEditMode.h"
+
 #include "AnimGraphNode_AnimDynamics.h"
-#include "IPersonaPreviewScene.h"
+#include "AnimGraphNode_Base.h"
+#include "Animation/AnimPhysicsSolver.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "BoneContainer.h"
+#include "BoneControllers/AnimNode_AnimDynamics.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "EdMode.h"
 #include "EditorViewportClient.h"
+#include "Engine/Engine.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/PlatformCrt.h"
+#include "HitProxies.h"
+#include "IPersonaPreviewScene.h"
+#include "InputCoreTypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/IntVector.h"
+#include "Math/Quat.h"
+#include "Math/RotationMatrix.h"
+#include "Math/ScaleMatrix.h"
+#include "Math/TransformVectorized.h"
+#include "Math/Vector.h"
+#include "Math/Vector2D.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+#include "UnrealClient.h"
+
+class FSceneView;
 
 // AnimDynamicsEditMode hit proxy
 //

@@ -3,13 +3,28 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Text.h"
 #include "K2Node_CallFunction.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_AddComponent.generated.h"
 
+class FArchive;
 class UActorComponent;
+class UClass;
+class UEdGraph;
+class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_AddComponent : public UK2Node_CallFunction

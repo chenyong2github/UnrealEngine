@@ -8,8 +8,8 @@
 #include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
-#include "UObject/NameTypes.h"
 
+class FName;
 class FString;
 class IDetailLayoutBuilder;
 class UEnum;

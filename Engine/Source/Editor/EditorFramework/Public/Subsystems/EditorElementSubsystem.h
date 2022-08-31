@@ -5,9 +5,16 @@
 #include "EditorSubsystem.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementListFwd.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Math/Transform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EditorElementSubsystem.generated.h"
+
+class UObject;
+struct FTypedElementHandle;
 
 UCLASS(Transient)
 class EDITORFRAMEWORK_API UEditorElementSubsystem : public UEditorSubsystem

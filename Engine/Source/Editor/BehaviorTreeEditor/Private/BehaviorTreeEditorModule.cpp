@@ -1,26 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeEditorModule.h"
-#include "SGraphNode.h"
-#include "BehaviorTree/BTNode.h"
-#include "BehaviorTreeDecoratorGraphNode_Decorator.h"
-#include "BehaviorTreeGraphNode.h"
-#include "PropertyEditorModule.h"
+
+#include "AIGraphTypes.h"
+#include "AssetToolsModule.h"
 #include "AssetTypeActions_BehaviorTree.h"
 #include "AssetTypeActions_Blackboard.h"
-#include "IBehaviorTreeEditor.h"
+#include "BehaviorTree/BTNode.h"
+#include "BehaviorTree/Decorators/BTDecorator_BlueprintBase.h"
+#include "BehaviorTree/Services/BTService_BlueprintBase.h"
+#include "BehaviorTree/Tasks/BTTask_BlueprintBase.h"
+#include "BehaviorTreeDecoratorGraphNode_Decorator.h"
 #include "BehaviorTreeEditor.h"
+#include "BehaviorTreeGraphNode.h"
+#include "Delegates/Delegate.h"
 #include "DetailCustomizations/BehaviorDecoratorDetails.h"
 #include "DetailCustomizations/BlackboardDecoratorDetails.h"
 #include "DetailCustomizations/BlackboardSelectorDetails.h"
-
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraphUtilities.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IAssetTools.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
 #include "SGraphNode_BehaviorTree.h"
 #include "SGraphNode_Decorator.h"
-#include "EdGraphUtilities.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UObjectBase.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
-#include "BehaviorTree/Tasks/BTTask_BlueprintBase.h"
-#include "BehaviorTree/Decorators/BTDecorator_BlueprintBase.h"
-#include "BehaviorTree/Services/BTService_BlueprintBase.h"
+class IToolkitHost;
+class UObject;
 
 
 IMPLEMENT_MODULE( FBehaviorTreeEditorModule, BehaviorTreeEditor );

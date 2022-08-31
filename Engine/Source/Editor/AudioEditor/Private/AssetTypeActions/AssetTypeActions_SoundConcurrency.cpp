@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_SoundConcurrency.h"
+
 #include "AudioEditorSettings.h"
 #include "Sound/SoundConcurrency.h"
+#include "UObject/UObjectGlobals.h"
+
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

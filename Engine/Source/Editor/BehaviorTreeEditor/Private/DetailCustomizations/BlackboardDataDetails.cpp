@@ -19,6 +19,7 @@
 #include "SBehaviorTreeBlackboardEditor.h"
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
+#include "Templates/UnrealTemplate.h"
 #include "Trace/Detail/Channel.h"
 #include "UObject/NameTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

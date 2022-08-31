@@ -2,16 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SceneOutlinerFwd.h"
-#include "ISceneOutlinerHierarchy.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "DataLayer/DataLayerAction.h"
+#include "ISceneOutlinerHierarchy.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "SceneOutlinerFwd.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
+class AActor;
 class FDataLayerMode;
-class UDataLayerInstance;
-class UWorld;
 class FWorldPartitionActorDesc;
+class UDataLayerInstance;
+class ULevel;
+class UWorld;
 class UWorldPartition;
+struct FSceneOutlinerTreeItemID;
 
 class FDataLayerHierarchy : public ISceneOutlinerHierarchy
 {

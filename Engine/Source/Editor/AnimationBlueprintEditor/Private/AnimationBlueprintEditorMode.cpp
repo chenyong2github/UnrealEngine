@@ -1,20 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationBlueprintEditorMode.h"
+
+#include "Animation/AnimBlueprint.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "Animation/AnimInstance.h"
-
-
-
-#include "IPersonaToolkit.h"
+#include "AnimationBlueprintEditor.h"
+#include "BlueprintEditor.h"
 #include "BlueprintEditorTabs.h"
-#include "ISkeletonEditorModule.h"
-#include "PersonaModule.h"
-#include "SBlueprintEditorToolbar.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Docking/LayoutExtender.h"
+#include "Framework/Docking/TabManager.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "HAL/PlatformMath.h"
 #include "IPersonaPreviewScene.h"
+#include "IPersonaToolkit.h"
+#include "ISkeletonEditorModule.h"
+#include "ISkeletonTree.h"
+#include "Modules/ModuleManager.h"
+#include "PersonaDelegates.h"
+#include "PersonaModule.h"
 #include "PersonaUtils.h"
+#include "SBlueprintEditorToolbar.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
 
-#include "ToolMenus.h"
+class UToolMenu;
 
 /////////////////////////////////////////////////////
 // FAnimationBlueprintEditorMode

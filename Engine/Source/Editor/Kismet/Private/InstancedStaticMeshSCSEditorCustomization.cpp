@@ -1,7 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstancedStaticMeshSCSEditorCustomization.h"
+
+#include "BlueprintEditorModule.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SceneComponent.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "EditorViewportClient.h"
+#include "HitProxies.h"
+#include "Math/Quat.h"
+#include "Math/RotationMatrix.h"
+#include "Math/ScaleMatrix.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/Object.h"
+#include "UnrealClient.h"
 
 TSharedRef<ISCSEditorCustomization> FInstancedStaticMeshSCSEditorCustomization::MakeInstance(TSharedRef< IBlueprintEditor > InBlueprintEditor)
 {

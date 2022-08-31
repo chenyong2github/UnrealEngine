@@ -3,11 +3,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Math/Color.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
 #include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_Timeline.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
@@ -15,6 +26,8 @@ class FKismetCompilerContext;
 class INameValidatorInterface;
 class UEdGraph;
 class UEdGraphPin;
+class UObject;
+template <typename KeyType, typename ValueType> struct TKeyValuePair;
 
 UCLASS(MinimalAPI)
 class UK2Node_Timeline : public UK2Node

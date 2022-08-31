@@ -6,11 +6,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EditorReimportHandler.h"
 #include "Factories/SoundFactory.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ReimportSoundFactory.generated.h"
+
+class FString;
+class UObject;
 
 UCLASS(hidecategories=Object, collapsecategories)
 class UReimportSoundFactory : public USoundFactory, public FReimportHandler

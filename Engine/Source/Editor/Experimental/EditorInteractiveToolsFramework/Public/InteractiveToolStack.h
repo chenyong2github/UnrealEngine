@@ -15,6 +15,7 @@
 #include "InteractiveToolActionSet.h"
 #include "Templates/SharedPointer.h"
 #include "ToolContextInterfaces.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "InteractiveToolStack.generated.h"

@@ -16,6 +16,7 @@
 #include "ConfigPropertyHelper.generated.h"
 
 class FProperty;
+template <typename T> struct TObjectPtr;
 
 UENUM()
 enum EConfigFileSourceControlStatus

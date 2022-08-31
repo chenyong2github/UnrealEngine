@@ -1,10 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShowFlagMenuCommands.h"
+
+#include "Containers/BitArray.h"
+#include "Containers/StringConv.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "EditorShowFlags.h"
+#include "EditorViewportClient.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/AssertionMacros.h"
 #include "Styling/AppStyle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ToolMenus.h"
+#include "Styling/ISlateStyle.h"
+#include "Templates/Function.h"
+#include "ToolMenu.h"
+#include "ToolMenuDelegates.h"
+#include "ToolMenuSection.h"
+#include "UObject/UnrealNames.h"
 
 #define LOCTEXT_NAMESPACE "ShowFlagMenuCommands"
 

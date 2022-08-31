@@ -2,11 +2,22 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
-#include "SNodePanel.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector2D.h"
 #include "SGraphNode.h"
+#include "SNodePanel.h"
+#include "Templates/SharedPointer.h"
 
 class SToolTip;
+class UObject;
+struct FGraphInformationPopupInfo;
+struct FLinearColor;
+struct FNodeInfoContext;
+struct FOverlayBrushInfo;
+struct FSlateBrush;
 
 class GRAPHEDITOR_API SGraphNodeK2Base : public SGraphNode
 {

@@ -2,11 +2,29 @@
 
 #pragma once
 
-#include "AnimationBlueprintLibrary.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "Animation/AnimationPoseData.h"
+#include "AnimationBlueprintLibrary.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Math/Transform.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "AnimPose.generated.h"
+
+class UAnimBlueprint;
+class UAnimSequenceBase;
+class UObject;
+class USkeletalMesh;
+class USkeletalMeshComponent;
+class USkeleton;
+struct FBoneContainer;
+struct FCompactPose;
+struct FFrame;
 
 UENUM(BlueprintType)
 enum class EAnimPoseSpaces : uint8

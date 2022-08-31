@@ -2,13 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Attribute.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SWindow;
+struct FGeometry;
+struct FKeyEvent;
 
 class SVerbChoiceDialog : public SCompoundWidget
 {

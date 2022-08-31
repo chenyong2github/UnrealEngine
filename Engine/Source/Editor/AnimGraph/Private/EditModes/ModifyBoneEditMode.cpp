@@ -1,9 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditModes/ModifyBoneEditMode.h"
+
+#include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_ModifyBone.h"
-#include "IPersonaPreviewScene.h"
+#include "Animation/AnimTypes.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "BoneContainer.h"
+#include "BoneIndices.h"
+#include "BonePose.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Containers/EnumAsByte.h"
+#include "Engine/SkeletalMesh.h"
+#include "IPersonaPreviewScene.h"
+#include "Math/Quat.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
+#include "Math/VectorRegister.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+
+class USkeleton;
 
 FModifyBoneEditMode::FModifyBoneEditMode()
 {

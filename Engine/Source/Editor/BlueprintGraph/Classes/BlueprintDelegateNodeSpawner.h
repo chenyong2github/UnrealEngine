@@ -2,13 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/UnrealType.h"
-#include "K2Node_BaseMCDelegate.h"
 #include "BlueprintFieldNodeSpawner.h"
+#include "CoreMinimal.h"
+#include "K2Node_BaseMCDelegate.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
 #include "BlueprintDelegateNodeSpawner.generated.h"
+
+class FMulticastDelegateProperty;
+class UK2Node_BaseMCDelegate;
+class UObject;
 
 /**
  * Takes care of spawning various nodes associated with delegates. Serves as the 

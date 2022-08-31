@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "EdGraphUtilities.h"
+#include "Templates/SharedPointer.h"
 
 class FMotionControllerPinFactory : public FGraphPanelPinFactory
 {

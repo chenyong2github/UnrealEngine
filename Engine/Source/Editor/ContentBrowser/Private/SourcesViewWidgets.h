@@ -2,22 +2,34 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Layout/Geometry.h"
+#include "AssetTagItemTypes.h"
+#include "Delegates/Delegate.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/Platform.h"
 #include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Layout/Geometry.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Misc/Attribute.h"
 #include "Styling/SlateColor.h"
-#include "Widgets/SCompoundWidget.h"
-#include "AssetRegistry/AssetData.h"
-#include "CollectionViewTypes.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Editor/ContentBrowser/Private/SPathView.h"
-#include "SAssetTagItem.h"
+#include "Widgets/SCompoundWidget.h"
 
-class SEditableTextBox;
+class FDragDropEvent;
+class FSlateRect;
+class FString;
 class FTreeItem;
+class SEditableTextBox;
+class SInlineEditableTextBlock;
+class SWidget;
+struct FCollectionItem;
+struct FSlateBrush;
+struct FSlateFontInfo;
 
 /** A single item in the asset tree. Represents a folder. */
 class SAssetTreeItem : public SCompoundWidget

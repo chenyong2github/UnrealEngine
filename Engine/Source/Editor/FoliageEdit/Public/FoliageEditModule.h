@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "UObject/NameTypes.h"
 
 extern const FName FoliageEditAppIdentifier;
 

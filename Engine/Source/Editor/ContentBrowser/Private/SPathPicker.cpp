@@ -2,14 +2,29 @@
 
 
 #include "SPathPicker.h"
-#include "Framework/Commands/UIAction.h"
-#include "Textures/SlateIcon.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "ContentBrowserUtils.h"
-#include "SPathView.h"
-#include "IContentBrowserDataModule.h"
+
+#include "ContentBrowserDataFilter.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserItem.h"
+#include "ContentBrowserItemData.h"
+#include "ContentBrowserPluginFilters.h"
+#include "Delegates/Delegate.h"
+#include "Framework/Commands/UIAction.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Views/ITypedTableView.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IContentBrowserDataModule.h"
+#include "Internationalization/Text.h"
+#include "Layout/Children.h"
+#include "Misc/Paths.h"
+#include "SPathView.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+
+class FExtender;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

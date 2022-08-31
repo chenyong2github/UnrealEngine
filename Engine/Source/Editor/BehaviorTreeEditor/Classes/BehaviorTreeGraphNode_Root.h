@@ -2,10 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "BehaviorTreeGraphNode.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BehaviorTreeGraphNode_Root.generated.h"
+
+class UObject;
 
 /** Root node of this behavior tree, holds Blackboard data */
 UCLASS()

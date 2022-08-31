@@ -3,9 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
 #include "SoundCueGraph/SoundCueGraphNode_Base.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundCueGraphNode_Root.generated.h"
+
+class UObject;
 
 UCLASS(MinimalAPI)
 class USoundCueGraphNode_Root : public USoundCueGraphNode_Base

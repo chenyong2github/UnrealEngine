@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "WorkflowOrientedApp/WorkflowTabManager.h"
-#include "AnimationBlueprintEditor.h"
-#include "Animation/AnimBlueprint.h"
 #include "BlueprintEditorModes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "WorkflowOrientedApp/WorkflowTabManager.h"
 
-class IPersonaPreviewScene;
+class FAnimationBlueprintEditor;
+class FTabManager;
 
 class FAnimationBlueprintInterfaceEditorMode : public FBlueprintInterfaceApplicationMode
 {

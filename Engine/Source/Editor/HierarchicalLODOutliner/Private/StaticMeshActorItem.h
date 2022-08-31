@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Engine/Level.h"
-#include "Widgets/SWidget.h"
-#include "TreeItemID.h"
+#include "Containers/UnrealString.h"
+#include "GameFramework/Actor.h"
+#include "HLODOutlinerDragDrop.h"
 #include "ITreeItem.h"
+#include "Templates/SharedPointer.h"
+#include "TreeItemID.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class AActor;
+class SWidget;
 class UToolMenu;
 
 namespace HLODOutliner

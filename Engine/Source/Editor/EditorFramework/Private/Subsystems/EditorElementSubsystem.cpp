@@ -2,10 +2,11 @@
 
 #include "Subsystems/EditorElementSubsystem.h"
 
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
-
 #include "Engine/World.h"
 
 bool UEditorElementSubsystem::SetElementTransform(FTypedElementHandle InElementHandle, const FTransform& InWorldTransform)

@@ -2,9 +2,16 @@
 
 #include "AnimationEditMode.h"
 
+#include "ContextObjectStore.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
-#include "ContextObjectStore.h"
+#include "Misc/AssertionMacros.h"
+#include "Tools/Modes.h"
+#include "Tools/UEdMode.h"
+#include "UObject/ObjectHandle.h"
+
+class FText;
+class IPersonaPreviewScene;
 
 bool UAnimationEditModeContext::GetCameraTarget(FSphere& OutTarget) const
 {

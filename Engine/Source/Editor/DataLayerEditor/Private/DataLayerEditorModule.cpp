@@ -1,19 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataLayerEditorModule.h"
-#include "PropertyEditorModule.h"
-#include "EditorWidgetsModule.h"
-#include "ObjectNameEditSinkRegistry.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Editor.h"
-#include "Modules/ModuleManager.h"
-#include "DataLayer/DataLayerPropertyTypeCustomization.h"
-#include "DataLayer/DataLayerInstanceCustomization.h"
-#include "DataLayer/SDataLayerBrowser.h"
-#include "DataLayer/DataLayerNameEditSink.h"
+
 #include "DataLayer/DataLayerEditorSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "DataLayer/DataLayerInstanceCustomization.h"
+#include "DataLayer/DataLayerNameEditSink.h"
+#include "DataLayer/DataLayerPropertyTypeCustomization.h"
+#include "DataLayer/SDataLayerBrowser.h"
+#include "EditorWidgetsModule.h"
+#include "HAL/Platform.h"
+#include "Modules/ModuleManager.h"
+#include "ObjectNameEditSinkRegistry.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
+
+class AActor;
 
 IMPLEMENT_MODULE(FDataLayerEditorModule, DataLayerEditor );
 

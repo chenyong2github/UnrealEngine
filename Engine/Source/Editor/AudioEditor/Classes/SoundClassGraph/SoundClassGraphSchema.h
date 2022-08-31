@@ -2,12 +2,27 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "SoundClassGraphSchema.generated.h"
 
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+class UObject;
+struct FEdGraphPinType;
 
 /** Action to add a node to the graph */
 USTRUCT()

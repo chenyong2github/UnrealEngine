@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Input/Reply.h"
 #include "AnimationNodes/SAnimationGraphNode.h"
+#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SVerticalBox;
 class UAnimGraphNode_LayeredBoneBlend;

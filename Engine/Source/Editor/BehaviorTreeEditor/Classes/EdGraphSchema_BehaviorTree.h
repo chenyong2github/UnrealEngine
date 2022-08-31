@@ -2,15 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "AIGraphTypes.h"
 #include "AIGraphSchema.h"
+#include "AIGraphTypes.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EdGraphSchema_BehaviorTree.generated.h"
 
 class FSlateRect;
+class UClass;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+class UObject;
+struct FEdGraphPinType;
+struct FGraphNodeClassData;
 
 /** Action to auto arrange the graph */
 USTRUCT()

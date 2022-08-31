@@ -27,7 +27,6 @@
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
-#include "Templates/TypeHash.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"

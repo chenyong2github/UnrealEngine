@@ -19,6 +19,7 @@
 
 class UInteractiveGizmoBuilder;
 struct FToolBuilderState;
+template <typename T> struct TObjectPtr;
 
 /** Gizmo category used for registering Editor gizmo selection-based builders */
 UENUM()

@@ -6,10 +6,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Engine/EngineBaseTypes.h"
 #include "GameFramework/Actor.h"
+#include "Math/MathFwd.h"
+#include "Math/Rotator.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "PlacedEditorUtilityBase.generated.h"
+
+class UObject;
+struct FFrame;
 
 UCLASS(Abstract, hideCategories=(Object, Actor), Deprecated)
 class BLUTILITY_API ADEPRECATED_PlacedEditorUtilityBase : public AActor

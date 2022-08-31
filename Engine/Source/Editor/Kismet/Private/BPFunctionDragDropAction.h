@@ -2,16 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Class.h"
+#include "BlueprintEditor.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Engine/MemberReference.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
-#include "Engine/MemberReference.h"
-#include "BlueprintEditor.h"
-#include "Editor/GraphEditor/Public/GraphEditorDragDropAction.h"
+#include "Math/Vector2D.h"
 #include "MyBlueprintItemDragDropAction.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FText;
+class UBlueprint;
+class UClass;
 class UEdGraph;
+class UFunction;
+struct FEdGraphSchemaAction;
 
 /*******************************************************************************
 * FKismetDragDropAction

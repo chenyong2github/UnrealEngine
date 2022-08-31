@@ -2,22 +2,46 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "EditorSubsystem.h"
+#include "CoreTypes.h"
 #include "DataLayerAction.h"
+#include "Delegates/Delegate.h"
+#include "EditorSubsystem.h"
+#include "Engine/World.h"
+#include "IActorEditorContextClient.h"
+#include "Stats/Stats2.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
+#include "Tickable.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
-#include "IActorEditorContextClient.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+
 #include "DataLayerEditorSubsystem.generated.h"
 
 class AActor;
+class AWorldDataLayers;
 class FDataLayersBroadcast;
 class FLevelEditorViewportClient;
+class FSubsystemCollectionBase;
+class SWidget;
+class UDEPRECATED_DataLayer;
+class UDataLayerAsset;
 class UEditorEngine;
 class ULevel;
+class UObject;
 class UWorld;
 class UWorldPartition;
+struct FFrame;
 template<typename TItemType> class IFilter;
 
 USTRUCT(BlueprintType)

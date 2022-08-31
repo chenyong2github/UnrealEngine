@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
 
-class IDetailLayoutBuilder;
 class ALandscapeProxy;
+class IDetailLayoutBuilder;
 
 class FLandscapeProxyUIDetails : public IDetailCustomization
 {

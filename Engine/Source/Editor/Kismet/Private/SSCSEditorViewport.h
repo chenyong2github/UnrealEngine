@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SCSEditorViewportClient.h"
 #include "SEditorViewport.h"
-#include "BlueprintEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class FDragDropEvent;
+class SDockTab;
+struct FGeometry;
 
 /**
  * Implements the viewport widget that's hosted in the SCS editor tab.

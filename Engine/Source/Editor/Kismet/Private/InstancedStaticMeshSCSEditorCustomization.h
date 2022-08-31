@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "InputCoreTypes.h"
-#include "EditorViewportClient.h"
-#include "BlueprintEditorModule.h"
+#include "Engine/EngineBaseTypes.h"
 #include "ISCSEditorCustomization.h"
+#include "InputCoreTypes.h"
+#include "Math/Matrix.h"
+#include "Math/Rotator.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/SharedPointer.h"
 
+class FEditorViewportClient;
 class USceneComponent;
 
 class FInstancedStaticMeshSCSEditorCustomization : public ISCSEditorCustomization

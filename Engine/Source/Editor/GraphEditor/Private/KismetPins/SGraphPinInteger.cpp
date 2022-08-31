@@ -23,7 +23,6 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Templates/Casts.h"
-#include "Templates/TypeHash.h"
 #include "Textures/SlateIcon.h"
 #include "Types/SlateEnums.h"
 #include "Types/SlateStructs.h"

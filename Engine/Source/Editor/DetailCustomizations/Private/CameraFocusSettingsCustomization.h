@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
+#include "Math/MathFwd.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
 class IPropertyHandle;

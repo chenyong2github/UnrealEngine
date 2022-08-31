@@ -3,20 +3,39 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/StringFwd.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserDelegates.h"
+#include "ContentBrowserItemPath.h"
+#include "HAL/Platform.h"
 #include "IContentBrowserSingleton.h"
+#include "Internationalization/Text.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+
 #include "ContentBrowserSingleton.generated.h"
 
 class FCollectionAssetRegistryBridge;
+class FMenuBuilder;
+class FPathPermissionList;
 class FSpawnTabArgs;
 class FTabManager;
 class FViewport;
-class SContentBrowser;
-class SWidget;
-class UFactory;
-class UToolMenu;
 class FWorkspaceItem;
+class SContentBrowser;
+class SDockTab;
+class SWidget;
+class UClass;
+class UFactory;
+class UObject;
+class UToolMenu;
+struct FAssetData;
+struct FContentBrowserItem;
 struct FTabSpawnerEntry;
 
 #define MAX_CONTENT_BROWSERS 4

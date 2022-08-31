@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteExecutionModule.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "Features/IModularFeatures.h"
-#include "ISettingsModule.h"
-#include "RemoteExecutionSettings.h"
+#include "HAL/Platform.h"
+#include "IRemoteExecutor.h"
+#include "Misc/AssertionMacros.h"
 #include "Modules/ModuleManager.h"
+#include "RemoteExecutionSettings.h"
+#include "UObject/UObjectGlobals.h"
+
+class IModularFeature;
 
 IMPLEMENT_MODULE(UE::RemoteExecution::FRemoteExecutionModule, RemoteExecution);
 

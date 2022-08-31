@@ -3,16 +3,38 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/EnumAsByte.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
+#include "EdGraph/EdGraphNode.h"
 #include "Engine/Blueprint.h"
-#include "K2Node.h"
 #include "Engine/MemberReference.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "Math/Color.h"
+#include "Templates/SubclassOf.h"
 #include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
+
 #include "K2Node_Variable.generated.h"
 
+class FArchive;
+class FProperty;
+class UActorComponent;
+class UBlueprint;
+class UClass;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+class UStruct;
+struct FBPVariableDescription;
+struct FEdGraphPinType;
+template <typename KeyType, typename ValueType> struct TKeyValuePair;
 
 UENUM()
 namespace ESelfContextInfo

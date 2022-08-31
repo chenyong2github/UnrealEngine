@@ -2,13 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/ArrangedWidget.h"
-#include "Widgets/SWidget.h"
 #include "ConnectionDrawingPolicy.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
+class FArrangedChildren;
+class FArrangedWidget;
+class FSlateRect;
 class FSlateWindowElementList;
+class SWidget;
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
+struct FGeometry;
 
 /////////////////////////////////////////////////////
 // FStateMachineConnectionDrawingPolicy

@@ -1,7 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationAttributeBlueprintLibrary.h"
+
 #include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/AnimData/AttributeIdentifier.h"
+#include "Animation/AnimData/IAnimationDataController.h"
+#include "Animation/AttributeCurve.h"
+#include "Containers/ArrayView.h"
+#include "Curves/KeyHandle.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/Script.h"
+#include "UObject/ScriptMacros.h"
+#include "UObject/Stack.h"
+#include "UObject/UnrealType.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "AnimationAttributeBlueprintLibrary"
 

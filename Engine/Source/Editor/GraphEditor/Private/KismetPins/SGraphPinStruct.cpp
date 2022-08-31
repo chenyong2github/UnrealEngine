@@ -2,15 +2,35 @@
 
 
 #include "KismetPins/SGraphPinStruct.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Layout/SBox.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Editor.h"
-#include "Engine/Selection.h"
+#include "Editor/EditorEngine.h"
 #include "Engine/UserDefinedStruct.h"
-#include "StructViewerModule.h"
-#include "StructViewerFilter.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
+#include "SGraphPin.h"
 #include "ScopedTransaction.h"
+#include "Selection.h"
+#include "SlotBase.h"
+#include "StructViewerFilter.h"
+#include "StructViewerModule.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateStructs.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "SGraphPinStruct"
 

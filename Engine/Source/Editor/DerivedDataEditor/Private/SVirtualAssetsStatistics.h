@@ -2,13 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
+#include "IO/IoHash.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Virtualization/VirtualizationSystem.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "VirtualizationManager.h"
+#include "Widgets/SCompoundWidget.h"
+
+class SNotificationItem;
+class SWidget;
 
 class SVirtualAssetsStatisticsDialog : public SCompoundWidget
 {

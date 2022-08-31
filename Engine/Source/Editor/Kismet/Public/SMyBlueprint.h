@@ -2,29 +2,55 @@
 
 #pragma once
 
+#include "BlueprintEditor.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "EdGraphSchema_K2_Actions.h"
+#include "Framework/Commands/Commands.h"
 #include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
 #include "SGraphActionMenu.h"
 #include "Styling/AppStyle.h"
-#include "EdGraph/EdGraph.h"
-#include "EdGraphSchema_K2_Actions.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SWidget.h"
 #include "WorkflowOrientedApp/WorkflowTabManager.h"
-#include "BlueprintEditor.h"
-#include "Framework/Commands/Commands.h"
 
+class FBlueprintEditor;
 class FMenuBuilder;
+class FUICommandInfo;
+class FUICommandList;
 class SComboButton;
 class SKismetInspector;
+class SSearchBox;
+class SWidget;
+class UBlueprint;
+class UEdGraph;
+class UFunction;
+class UObject;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
+struct FComponentEventConstructionData;
+struct FEdGraphSchemaAction;
 struct FEdGraphSchemaAction_K2Struct;
+struct FGeometry;
+struct FGraphActionListBuilderBase;
 struct FGraphActionNode;
 struct FGraphActionSort;
+struct FKeyEvent;
+struct FPointerEvent;
+struct FPropertyChangedEvent;
 struct FReplaceNodeReferencesHelper;
 
 class FMyBlueprintCommands : public TCommands<FMyBlueprintCommands>

@@ -2,27 +2,36 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "EditorViewportClient.h"
+#include "HAL/Platform.h"
+#include "IDetailCustomization.h"
+#include "ITransportControl.h"
 #include "Input/Reply.h"
+#include "Math/Color.h"
+#include "Misc/Attribute.h"
+#include "Misc/Optional.h"
+#include "PreviewScene.h"
+#include "SScrubWidget.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/ObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "PreviewScene.h"
-#include "IDetailCustomization.h"
-#include "EditorViewportClient.h"
-#include "Editor/KismetWidgets/Public/SScrubControlPanel.h"
 
-struct FAssetData;
-class FSceneViewport;
+class FSceneInterface;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SEditorViewport;
 class STextBlock;
 class SViewport;
-class UAnimationAsset;
 class UAnimSequenceBase;
-class USkeleton;
+class UAnimationAsset;
+class USceneComponent;
 struct FAnimSegment;
+struct FAssetData;
+struct FGeometry;
 
 class FAnimMontageSegmentDetails : public IDetailCustomization
 {

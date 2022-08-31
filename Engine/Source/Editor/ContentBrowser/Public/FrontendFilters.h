@@ -2,13 +2,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CollectionManagerTypes.h"
-#include "ISourceControlProvider.h"
-#include "IAssetTools.h"
-#include "Misc/TextFilterExpressionEvaluator.h"
-#include "FrontendFilterBase.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "Containers/Ticker.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/IDelegateInstance.h"
+#include "FrontendFilterBase.h"
+#include "HAL/Platform.h"
+#include "IAssetTools.h"
+#include "IContentBrowserSingleton.h"
+#include "ISourceControlOperation.h"
+#include "ISourceControlProvider.h"
+#include "Internationalization/Text.h"
+#include "Misc/TextFilterExpressionEvaluator.h"
+#include "Misc/TextFilterUtils.h"
+#include "SourceControlOperations.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+
+class UPackage;
+struct FAssetRenameData;
+struct FCollectionNameType;
+struct FContentBrowserDataFilter;
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

@@ -1,11 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialExpressionTextureBaseDetails.h"
-#include "PropertyCustomizationHelpers.h"
+
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 #include "DetailLayoutBuilder.h"
-#include "Materials/MaterialExpressionTextureBase.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/Texture.h"
-#include "Engine/Texture2D.h"
+#include "Internationalization/Internationalization.h"
+#include "Materials/MaterialExpressionTextureBase.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyHandle.h"
+#include "PropertyRestriction.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/ReflectedTypeAccessors.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
+
+class UObject;
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionTextureBaseDetails"
 

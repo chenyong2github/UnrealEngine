@@ -12,7 +12,6 @@
 #include "Math/Vector2D.h"
 #include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
-#include "Templates/UnrealTemplate.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 

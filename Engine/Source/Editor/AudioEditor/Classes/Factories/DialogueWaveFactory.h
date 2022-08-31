@@ -6,12 +6,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "DialogueWaveFactory.generated.h"
 
+class FFeedbackContext;
+class UClass;
 class UDialogueVoice;
+class UObject;
 
 UCLASS(hidecategories=Object, MinimalAPI)
 class UDialogueWaveFactory : public UFactory

@@ -2,15 +2,29 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "CoreMinimal.h"
 #include "EditorInteractiveGizmoRegistry.h"
 #include "InteractiveGizmoManager.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorInteractiveGizmoManager.generated.h"
 
+class FCanvas;
 class FEditorModeTools;
-class UEdModeInteractiveToolsContext;
-class UInteractiveGizmo;
+class IToolsContextQueriesAPI;
 class IToolsContextRenderAPI;
+class IToolsContextTransactionsAPI;
+class UEdModeInteractiveToolsContext;
+class UInputRouter;
+class UInteractiveGizmo;
+class UInteractiveGizmoBuilder;
+class UObject;
+class UTypedElementSelectionSet;
+struct FToolBuilderState;
 
 USTRUCT()
 struct FActiveEditorGizmo

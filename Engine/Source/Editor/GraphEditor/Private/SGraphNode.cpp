@@ -52,6 +52,7 @@
 #include "TutorialMetaData.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"

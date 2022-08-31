@@ -2,11 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "K2Node.h"
 #include "AnimGraphNode_Base.h"
+#include "BlueprintActionFilter.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "K2Node_AnimNodeReference.generated.h"
+
+class FBlueprintActionDatabaseRegistrar;
+class UEdGraph;
+class UObject;
+struct FSearchTagDataPair;
 
 UCLASS()
 class ANIMGRAPH_API UK2Node_AnimNodeReference : public UK2Node

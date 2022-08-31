@@ -2,15 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
+#include "Containers/Array.h"
+#include "Engine/EngineTypes.h"
 #include "IDetailCustomization.h"
-#include "PropertyHandle.h"
-#include "BodyInstanceCustomization.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class FComponentMaterialCategory;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class UObject;
 
 class FPrimitiveComponentDetails : public IDetailCustomization
 {

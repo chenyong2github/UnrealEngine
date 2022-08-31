@@ -10,7 +10,6 @@
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "Types/SlateStructs.h"
 #include "Widgets/Images/SImage.h"

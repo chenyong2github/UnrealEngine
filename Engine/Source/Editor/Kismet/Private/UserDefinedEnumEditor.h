@@ -2,25 +2,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Toolkits/IToolkitHost.h"
 #include "BlueprintEditorModule.h"
-#include "IDetailCustomization.h"
-#include "IDetailCustomNodeBuilder.h"
-#include "IDetailsView.h"
-#include "EditorUndoClient.h"
-
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "Editor/UnrealEd/Public/Kismet2/EnumEditorUtils.h"
+#include "EditorUndoClient.h"
+#include "Engine/UserDefinedEnum.h"
+#include "HAL/Platform.h"
+#include "IDetailCustomNodeBuilder.h"
+#include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FDetailWidgetRow;
-class FUserDefinedEnumIndexLayout;
-class FUserDefinedEnumLayout;
-class IDetailChildrenBuilder;
-class IDetailLayoutBuilder;
-class SEditableTextBox;
 class FEditableTextUserDefinedEnum;
 class FEditableTextUserDefinedEnumTooltip;
+class FSpawnTabArgs;
+class FToolBarBuilder;
+class IDetailChildrenBuilder;
+class IDetailLayoutBuilder;
+class SDockTab;
 
 class KISMET_API FUserDefinedEnumEditor : public IUserDefinedEnumEditor
 {

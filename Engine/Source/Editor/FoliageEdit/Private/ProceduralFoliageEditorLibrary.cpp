@@ -1,15 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProceduralFoliageEditorLibrary.h"
-#include "ProceduralFoliageVolume.h"
-#include "ProceduralFoliageComponent.h"
-#include "FoliageEdMode.h"
+
 #include "Algo/Transform.h"
+#include "FoliageEdMode.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
 #include "Misc/ScopedSlowTask.h"
+#include "ProceduralFoliageComponent.h"
+#include "ProceduralFoliageVolume.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
+struct FDesiredFoliageInstance;
+template <typename T> struct TObjectPtr;
 
 #define LOCTEXT_NAMESPACE "ProceduralFoliageEditorLibrary"
 

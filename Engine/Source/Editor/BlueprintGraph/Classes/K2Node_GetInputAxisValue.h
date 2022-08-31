@@ -2,16 +2,25 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "EdGraph/EdGraph.h"
 #include "BlueprintNodeSignature.h"
+#include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node_CallFunction.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GetInputAxisValue.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UClass;
 class UDynamicBlueprintBinding;
+class UEdGraph;
+class UObject;
 
 UCLASS(MinimalAPI, meta=(Keywords = "Get"))
 class UK2Node_GetInputAxisValue : public UK2Node_CallFunction

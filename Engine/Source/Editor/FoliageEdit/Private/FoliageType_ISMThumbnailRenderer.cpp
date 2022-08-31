@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageType_ISMThumbnailRenderer.h"
-#include "Misc/App.h"
-#include "ShowFlags.h"
-#include "SceneView.h"
-#include "ThumbnailHelpers.h"
 
+#include "Containers/Array.h"
 #include "FoliageType_InstancedStaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "SceneInterface.h"
+#include "SceneView.h"
+#include "ShowFlags.h"
+#include "Templates/Casts.h"
+#include "ThumbnailHelpers.h"
+#include "ThumbnailRendering/ThumbnailRenderer.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
 
 bool UFoliageType_ISMThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {

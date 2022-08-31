@@ -1,14 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ClothingAssetExporter.h"
-#include "ClothingAsset.h"
-#include "Misc/FileHelper.h"
-#include "FileHelpers.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "IContentBrowserSingleton.h"
+#include "ClothingAssetBase.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserModule.h"
 #include "Features/IModularFeatures.h"
+#include "FileHelpers.h"
+#include "HAL/PlatformMisc.h"
+#include "IContentBrowserSingleton.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/Function.h"
+#include "UObject/Class.h"
+#include "UObject/Package.h"
+#include "UObject/TopLevelAssetPath.h"
 
 #define LOCTEXT_NAMESPACE "ClothingAssetExporter"
 

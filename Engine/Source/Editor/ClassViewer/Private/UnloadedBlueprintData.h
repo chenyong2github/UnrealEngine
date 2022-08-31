@@ -7,6 +7,7 @@
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/TopLevelAssetPath.h"
 
 class FClassViewerNode;

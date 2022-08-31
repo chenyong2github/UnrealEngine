@@ -1,16 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundCueEditorUtilities.h"
-#include "SoundCueGraph/SoundCueGraph.h"
-#include "SoundCueGraph/SoundCueGraphNode.h"
-#include "Sound/DialogueWave.h"
+
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
 #include "ISoundCueEditor.h"
-#include "Toolkits/ToolkitManager.h"
-#include "Sound/SoundNodeWavePlayer.h"
+#include "Misc/AssertionMacros.h"
+#include "Sound/DialogueTypes.h"
+#include "Sound/DialogueWave.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNodeDialoguePlayer.h"
-#include "AudioEditorModule.h"
-#include "GraphEditor.h"
+#include "Sound/SoundNodeWavePlayer.h"
+#include "SoundCueGraph/SoundCueGraph.h"
+#include "SoundCueGraph/SoundCueGraphNode.h"
+#include "Templates/Casts.h"
+#include "Toolkits/ToolkitManager.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+
+class IToolkit;
 
 bool FSoundCueEditorUtilities::CanPasteNodes(const class UEdGraph* Graph)
 {

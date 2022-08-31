@@ -2,10 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "AIGraph.h"
+#include "Containers/Set.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BehaviorTreeGraph.generated.h"
+
+class UEdGraphNode;
+class UObject;
 
 UCLASS()
 class UBehaviorTreeGraph : public UAIGraph

@@ -4,11 +4,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_Self.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UObject;
 
 UCLASS(MinimalAPI)
 class UK2Node_Self : public UK2Node

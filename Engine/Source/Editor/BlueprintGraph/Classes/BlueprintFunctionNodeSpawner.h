@@ -2,18 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "Templates/SubclassOf.h"
 #include "BlueprintActionFilter.h"
-#include "BlueprintNodeSpawner.h"
 #include "BlueprintFieldNodeSpawner.h"
+#include "BlueprintNodeBinder.h"
+#include "BlueprintNodeSpawner.h"
+#include "CoreMinimal.h"
+#include "Math/Vector2D.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlueprintFunctionNodeSpawner.generated.h"
 
 class UEdGraph;
+class UEdGraphNode;
+class UFunction;
 class UK2Node_CallFunction;
+class UObject;
+struct FBlueprintActionContext;
 
 /**
  * Takes care of spawning various UK2Node_CallFunction nodes. Acts as the 

@@ -12,6 +12,7 @@
 #include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
 

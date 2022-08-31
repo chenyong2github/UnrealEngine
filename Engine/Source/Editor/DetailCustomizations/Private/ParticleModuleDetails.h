@@ -2,10 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailCustomization.h"
+#include "Templates/SharedPointer.h"
 
 class FPropertyRestriction;
+class FString;
 class IDetailLayoutBuilder;
 
 typedef TArray<TSharedRef<const class FPropertyRestriction>> TRestrictionList;

@@ -1,14 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HLODTreeWidgetItem.h"
-#include "SlateOptMacros.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STreeView.h"
-#include "Styling/AppStyle.h"
-#include "HierarchicalLODType.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
-#include "LODActorItem.h"
+#include "HAL/Platform.h"
+#include "HLODOutlinerDragDrop.h"
+#include "HierarchicalLODType.h"
 #include "IHierarchicalLODUtilities.h"
+#include "ITreeItem.h"
+#include "Input/DragAndDrop.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "LODActorItem.h"
+#include "Layout/Margin.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SExpanderArrow.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STreeView.h"
+
+class SWidget;
+struct FGeometry;
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "HLODTreeWidgetItem"
 

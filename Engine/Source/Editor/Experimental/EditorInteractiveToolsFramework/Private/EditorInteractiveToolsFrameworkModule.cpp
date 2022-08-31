@@ -4,6 +4,7 @@
 
 #include "ComponentSourceInterfaces.h"
 #include "Modules/ModuleManager.h"
+#include "Templates/UniquePtr.h"
 #include "Tools/EditorComponentSourceFactory.h"
 
 #define LOCTEXT_NAMESPACE "FEditorInteractiveToolsFrameworkModule"

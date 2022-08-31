@@ -1,26 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationModifiersModule.h"
-#include "IAssetTools.h"
 
 #include "Animation/AnimSequence.h"
 #include "AnimationModifier.h"
-
-#include "SAnimationModifiersTab.h"
 #include "AnimationModifierDetailCustomization.h"
 #include "AnimationModifierHelpers.h"
-#include "AnimationModifiersTabSummoner.h"
-
-#include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h" 
-#include "SAnimationModifierContentBrowserWindow.h"
-#include "ScopedTransaction.h" 
-#include "Framework/Application/SlateApplication.h"
-#include "Interfaces/IMainFrameModule.h"
-
 #include "AnimationModifierSettings.h"
-
 #include "AnimationModifiersAssetUserData.h"
+#include "AnimationModifiersTabSummoner.h"
+#include "Delegates/Delegate.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Framework/Application/SlateApplication.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "Interfaces/Interface_AssetUserData.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Vector2D.h"
+#include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorDelegates.h"
+#include "PropertyEditorModule.h"
+#include "SAnimationModifierContentBrowserWindow.h"
+#include "ScopedTransaction.h"
+#include "Subsystems/ImportSubsystem.h"
+#include "Templates/Casts.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/Object.h"
+#include "UObject/UObjectGlobals.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWindow.h"
+#include "WorkflowOrientedApp/ApplicationMode.h"
+
+class UFactory;
 
 #define LOCTEXT_NAMESPACE "AnimationModifiersModule"
 

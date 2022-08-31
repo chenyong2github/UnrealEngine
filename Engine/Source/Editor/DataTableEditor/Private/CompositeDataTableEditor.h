@@ -3,6 +3,15 @@
 #pragma once
 
 #include "DataTableEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+
+class FName;
+class FSpawnTabArgs;
+class SDockTab;
+class SRowEditor;
+class SWidget;
+class UDataTable;
 
 /** Viewer/editor for a CompositeDataTable */
 class FCompositeDataTableEditor : public FDataTableEditor

@@ -1,9 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundClassFactory.h"
+
 #include "AudioDeviceManager.h"
-#include "Sound/SoundClass.h"
 #include "Engine/Engine.h"
+#include "Sound/SoundClass.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 USoundClassFactory::USoundClassFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

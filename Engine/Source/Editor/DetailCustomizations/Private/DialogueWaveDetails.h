@@ -2,10 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "IDetailCustomization.h"
+#include "Delegates/Delegate.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;

@@ -3,17 +3,29 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
-#include "K2Node.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Internationalization/Text.h"
+#include "K2Node.h"
+#include "KismetCompilerMisc.h"
 #include "NodeDependingOnEnumInterface.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/Class.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CastByteToEnum.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class FKismetCompilerContext;
 class FNodeHandlingFunctor;
+class FString;
 class UEdGraph;
+class UEdGraphPin;
+class UObject;
+struct FLinearColor;
 
 UCLASS(MinimalAPI)
 class UK2Node_CastByteToEnum : public UK2Node, public INodeDependingOnEnumInterface

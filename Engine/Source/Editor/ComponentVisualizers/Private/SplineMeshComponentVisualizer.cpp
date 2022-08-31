@@ -1,10 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SplineMeshComponentVisualizer.h"
-#include "Widgets/SNullWidget.h"
-#include "Editor.h"
-#include "EditorViewportClient.h"
+
+#include "Components/ActorComponent.h"
 #include "Components/SplineMeshComponent.h"
+#include "Containers/Array.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorViewportClient.h"
+#include "Engine/EngineTypes.h"
+#include "GameFramework/Actor.h"
+#include "HAL/PlatformCrt.h"
+#include "Math/Color.h"
+#include "Math/InterpCurvePoint.h"
+#include "Math/QuatRotationTranslationMatrix.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UnrealWidgetFwd.h"
+#include "Widgets/SNullWidget.h"
 
 IMPLEMENT_HIT_PROXY(HSplineMeshVisProxy, HComponentVisProxy);
 IMPLEMENT_HIT_PROXY(HSplineMeshKeyProxy, HSplineMeshVisProxy);

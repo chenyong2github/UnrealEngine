@@ -7,6 +7,7 @@
 #include "Input/Events.h"
 #include "Layout/Geometry.h"
 #include "Rendering/DrawElements.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "WidgetToolsContext.generated.h"

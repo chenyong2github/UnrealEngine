@@ -3,18 +3,26 @@
 #include "DataLayerOutlinerHasErrorColumn.h"
 
 #include "Algo/Transform.h"
-#include "DataLayer/DataLayerEditorSubsystem.h"
+#include "Containers/Array.h"
 #include "DataLayerTreeItem.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Views/STreeView.h"
-#include "ScopedTransaction.h"
-#include "Editor.h"
-#include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "ISceneOutlinerTreeItem.h"
+#include "Internationalization/Text.h"
+#include "Logging/TokenizedMessage.h"
+#include "Misc/Attribute.h"
+#include "SlotBase.h"
 #include "Styling/AppStyle.h"
-
+#include "Styling/SlateColor.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationTokenizedMessageErrorHandler.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "DataLayer"
 

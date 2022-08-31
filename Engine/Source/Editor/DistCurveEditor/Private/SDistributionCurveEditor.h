@@ -2,20 +2,30 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Layout/Visibility.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Containers/Array.h"
+#include "HAL/PlatformMath.h"
 #include "IDistCurveEditor.h"
-#include "Widgets/SBoxPanel.h"
+#include "Layout/Visibility.h"
+#include "Logging/LogMacros.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
+class FCurveEdInterface;
 class FCurveEditorSharedData;
+class FString;
+class FText;
 class FUICommandList;
 class IMenu;
 class SCurveEditorViewport;
+class SHorizontalBox;
+class STextComboBox;
+class SWidget;
 class UInterpCurveEdSetup;
+class UObject;
+struct FColor;
 struct FCurveEdEntry;
+template <typename FuncType> class TFunctionRef;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogCurveEd, Log, All);
 

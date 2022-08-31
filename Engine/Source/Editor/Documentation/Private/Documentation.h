@@ -1,14 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "IDocumentationPage.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "IDocumentation.h"
+#include "Internationalization/CulturePointer.h"
+#include "Templates/SharedPointer.h"
+
+class FText;
+class IDocumentationPage;
+class SVerticalBox;
+class SWidget;
+template< typename ObjectType > class TAttribute;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDocumentation, Log, All);
-
-template< typename ObjectType > class TAttribute;
 
 class FDocumentation : public IDocumentation
 {

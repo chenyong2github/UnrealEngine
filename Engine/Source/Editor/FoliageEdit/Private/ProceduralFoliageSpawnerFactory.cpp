@@ -1,9 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProceduralFoliageSpawnerFactory.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "AssetTypeCategories.h"
+
 #include "ProceduralFoliageSpawner.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "Templates/SubclassOf.h"
+
+class FFeedbackContext;
+class UClass;
+class UObject;
 
 UProceduralFoliageSpawnerFactory::UProceduralFoliageSpawnerFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

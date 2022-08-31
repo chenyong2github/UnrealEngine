@@ -5,7 +5,6 @@
 #include "CurveEditor.h"
 #include "Delegates/Delegate.h"
 #include "Framework/Application/SlateApplication.h"
-#include "HAL/PlatformCrt.h"
 #include "Input/Events.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"

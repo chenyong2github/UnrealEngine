@@ -69,7 +69,6 @@
 #include "Templates/ChooseClass.h"
 #include "Templates/Tuple.h"
 #include "Templates/TypeHash.h"
-#include "Templates/UnrealTemplate.h"
 #include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"

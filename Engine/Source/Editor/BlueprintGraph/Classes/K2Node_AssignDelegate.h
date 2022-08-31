@@ -2,12 +2,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "Internationalization/Text.h"
 #include "K2Node_AddDelegate.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_AssignDelegate.generated.h"
 
 class UEdGraph;
+class UObject;
 
 /**
  * Modeled after FEdGraphSchemaAction_K2AssignDelegate for the newer Blueprint

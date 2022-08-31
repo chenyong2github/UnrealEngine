@@ -3,17 +3,33 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Textures/SlateIcon.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "K2Node_EditablePinBase.h"
 #include "K2Node_Event.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_CustomEvent.generated.h"
 
+class FArchive;
 class FBlueprintActionDatabaseRegistrar;
 class INameValidatorInterface;
 class UEdGraph;
+class UEdGraphPin;
+class UFunction;
+class UObject;
+struct FEdGraphPinType;
 struct FKismetUserDeclaredFunctionMetadata;
+struct FLinearColor;
 
 UCLASS(MinimalAPI)
 class UK2Node_CustomEvent : public UK2Node_Event

@@ -2,15 +2,19 @@
 
 #pragma once
 
+#include "BlueprintEditor.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
+#include "Engine/Blueprint.h"
+#include "GraphEditorDragDropAction.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Reply.h"
-#include "Engine/Blueprint.h"
-#include "BlueprintEditor.h"
-#include "GraphEditorDragDropAction.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/UnrealType.h"
 
+class FText;
+class UBlueprint;
 class UEdGraph;
 struct FEdGraphSchemaAction;
 

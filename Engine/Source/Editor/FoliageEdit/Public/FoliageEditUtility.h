@@ -6,13 +6,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
-class UFoliageType;
-struct FFoliageMeshUIInfo;
-class ULevel;
 class AActor;
+class UFoliageType;
+class ULevel;
+class UWorld;
+struct FFoliageMeshUIInfo;
 
 class FFoliageEditUtility
 {

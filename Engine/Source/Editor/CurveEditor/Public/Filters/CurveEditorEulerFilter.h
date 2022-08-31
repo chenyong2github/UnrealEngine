@@ -6,6 +6,7 @@
 #include "CurveEditorTypes.h"
 #include "Filters/CurveEditorFilterBase.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "CurveEditorEulerFilter.generated.h"

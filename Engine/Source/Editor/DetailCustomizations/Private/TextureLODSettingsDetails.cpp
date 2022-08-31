@@ -10,6 +10,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "Engine/TextureDefines.h"
 #include "Engine/TextureLODSettings.h"
 #include "Fonts/SlateFontInfo.h"
 #include "HAL/PlatformCrt.h"

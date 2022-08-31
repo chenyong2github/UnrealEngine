@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Engine/MeshMerging.h"
-#include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Layout/Visibility.h"
 #include "OverrideResetToDefault.h"
+#include "Templates/SharedPointer.h"
 
 class FDetailWidgetRow;
+class IPropertyHandle;
 
 class FMeshProxySettingsCustomizations : public IPropertyTypeCustomization, public TOverrideResetToDefaultWithStaticUStruct<FMeshProxySettings>
 {

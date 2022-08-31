@@ -2,12 +2,24 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphNodeUtils.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
 #include "K2Node_StructOperation.h"
+#include "KismetCompilerMisc.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_StructMemberSet.generated.h"
+
+class FName;
+class FProperty;
+class UEdGraphPin;
+class UObject;
 
 // Imperative kismet node that sets one or more member variables of a struct
 UCLASS(MinimalAPI)

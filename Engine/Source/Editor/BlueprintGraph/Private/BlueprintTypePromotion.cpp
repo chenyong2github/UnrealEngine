@@ -14,6 +14,7 @@
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "UObject/Class.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/Script.h"
 #include "UObject/UObjectGlobals.h"		// For FCoreUObjectDelegates::ReloadCompleteDelegate
 #include "UObject/UObjectHash.h"

@@ -1,16 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialAttributePropertyDetails.h"
-#include "Widgets/Text/STextBlock.h"
-#include "MaterialShared.h"
+
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "HAL/PlatformCrt.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
-#include "PropertyCustomizationHelpers.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Internationalization/Text.h"
+#include "MaterialShared.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Guid.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "Templates/Tuple.h"
+
+class SToolTip;
 
 TSharedRef<IDetailCustomization> FMaterialAttributePropertyDetails::MakeInstance()
 {

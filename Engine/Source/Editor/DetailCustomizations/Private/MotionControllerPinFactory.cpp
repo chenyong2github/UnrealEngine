@@ -1,13 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MotionControllerPinFactory.h"
-#include "MotionControllerComponent.h"
 
-#include "SGraphPin.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node_VariableSet.h"
+#include "Misc/AssertionMacros.h"
 #include "MotionControllerComponent.h"
 #include "MotionControllerSourceCustomization.h"
+#include "SGraphPin.h"
 #include "ScopedTransaction.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class SWidget;
 
 class SMotionControllerSourceGraphPin : public SGraphPin
 {

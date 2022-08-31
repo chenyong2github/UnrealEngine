@@ -1,17 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageType_InstancedStaticMeshPaintingCustomization.h"
-#include "Layout/Visibility.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/StaticMesh.h"
-#include "DetailWidgetRow.h"
-#include "PropertyHandle.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
+
+#include "AssetRegistry/AssetData.h"
+#include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
-#include "FoliageType_InstancedStaticMesh.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Engine/StaticMesh.h"
 #include "FoliageEdMode.h"
+#include "FoliageType.h"
+#include "FoliageType_InstancedStaticMesh.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailPropertyRow.h"
+#include "Layout/Visibility.h"
+#include "Misc/AssertionMacros.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class IPropertyHandle;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "FoliageEd_Mode"
 

@@ -2,13 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Guid.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
-#include "PropertyHandle.h"
+#include "Templates/SharedPointer.h"
 
+class FString;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+struct FGuid;
 
 /**
 *	Customization for material attribute get/set nodes to handle GUID-Name conversions.

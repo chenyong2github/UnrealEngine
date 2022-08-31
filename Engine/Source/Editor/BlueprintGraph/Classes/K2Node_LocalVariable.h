@@ -2,13 +2,23 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node_TemporaryVariable.h"
 #include "Kismet2/Kismet2NameValidators.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_LocalVariable.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class UEdGraph;
+class UObject;
+struct FEdGraphPinType;
 
 UCLASS(MinimalAPI, deprecated)
 class UDEPRECATED_K2Node_LocalVariable : public UK2Node_TemporaryVariable

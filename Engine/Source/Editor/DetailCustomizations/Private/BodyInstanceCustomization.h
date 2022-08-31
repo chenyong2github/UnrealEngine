@@ -2,19 +2,41 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "Engine/EngineTypes.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
 #include "IPropertyTypeCustomization.h"
-#include "PropertyHandle.h"
+#include "Internationalization/Text.h"
+#include "Layout/Visibility.h"
+#include "Misc/Optional.h"
 #include "PhysicsEngine/BodyInstance.h"
+#include "Serialization/Archive.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Templates/UnrealTemplate.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/Input/SComboBox.h"
 
+class FDetailWidgetRow;
 class IDetailCategoryBuilder;
+class IDetailChildrenBuilder;
 class IDetailGroup;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class SWidget;
 class UCollisionProfile;
+class UObject;
 class UPrimitiveComponent;
 class UStaticMeshComponent;
 

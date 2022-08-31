@@ -2,27 +2,49 @@
 
 #pragma once
 
-#include "InteractiveTool.h"
-#include "InteractiveToolsContext.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
-#include "InputCoreTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/World.h"
+#include "HAL/Platform.h"
+#include "InputCoreTypes.h"
+#include "InputState.h"
+#include "InteractiveTool.h"
+#include "InteractiveToolManager.h"
+#include "InteractiveToolsContext.h"
+#include "Math/Ray.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Optional.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "EdModeInteractiveToolsContext.generated.h"
 
+class FCanvas;
 class FEdMode;
 class FEditorModeTools;
 class FEditorViewportClient;
-class UGizmoViewContext;
+class FPrimitiveDrawInterface;
 class FSceneView;
 class FViewport;
-class UMaterialInterface;
-class FPrimitiveDrawInterface;
 class FViewportClient;
 class ILevelEditor;
+class IToolsContextQueriesAPI;
+class IToolsContextRenderAPI;
+class IToolsContextTransactionsAPI;
+class UEdModeInteractiveToolsContext;
+class UGizmoViewContext;
+class UInputRouter;
+class UInteractiveToolBuilder;
+class UMaterialInterface;
+class UObject;
 class USelection;
 class UTypedElementSelectionSet;
-class UEdModeInteractiveToolsContext;
+struct FToolBuilderState;
 
 /**
  * UEditorInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext designed 

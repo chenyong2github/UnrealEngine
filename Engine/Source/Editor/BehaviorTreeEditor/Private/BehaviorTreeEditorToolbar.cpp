@@ -1,21 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTreeEditorToolbar.h"
-#include "Misc/Attribute.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Textures/SlateIcon.h"
+
+#include "BehaviorTreeEditor.h"
+#include "BehaviorTreeEditorCommands.h"
+#include "Delegates/Delegate.h"
 #include "Framework/Commands/UIAction.h"
-#include "Widgets/SWidget.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Framework/SlateDelegates.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Math/Vector2D.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Styling/AppStyle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "BehaviorTreeEditor.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
-#include "BehaviorTreeEditorCommands.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditorToolbar"
 

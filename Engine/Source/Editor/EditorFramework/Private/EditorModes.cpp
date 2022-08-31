@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorModes.h"
-#include "EdMode.h"
+
+#include "Editor.h"
+#include "HAL/Platform.h"
+#include "UObject/UnrealNames.h"
 
 
 DEFINE_LOG_CATEGORY(LogEditorModes);

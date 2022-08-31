@@ -2,12 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Toolkits/IToolkitHost.h"
 #include "BlueprintEditorModule.h"
-#include "IDetailsView.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class FStructureDefaultValueView;
+class FSpawnTabArgs;
+class FToolBarBuilder;
+class SDockTab;
+class UUserDefinedStruct;
+struct FSlateBrush;
 
 class FUserDefinedStructureEditor : public IUserDefinedStructureEditor
 {

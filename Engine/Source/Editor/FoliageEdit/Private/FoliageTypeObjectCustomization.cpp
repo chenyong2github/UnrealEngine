@@ -1,13 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageTypeObjectCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+
 #include "AssetRegistry/AssetData.h"
-#include "FoliageType_InstancedStaticMesh.h"
+#include "Blueprint/BlueprintSupport.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "DetailWidgetRow.h"
 #include "FoliageType_Actor.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
+#include "FoliageType_InstancedStaticMesh.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Misc/Optional.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class IDetailChildrenBuilder;
+class UClass;
 
 void FFoliageTypeObjectCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {

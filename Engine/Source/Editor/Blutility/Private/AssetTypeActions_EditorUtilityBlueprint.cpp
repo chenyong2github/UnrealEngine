@@ -1,17 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions_EditorUtilityBlueprint.h"
-#include "ToolMenus.h"
-#include "Misc/PackageName.h"
-#include "Misc/MessageDialog.h"
-#include "EditorUtilityBlueprintFactory.h"
-#include "GlobalEditorUtilityBase.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "BlueprintEditorModule.h"
-#include "IContentBrowserSingleton.h"
+
+#include "Containers/UnrealString.h"
 #include "ContentBrowserModule.h"
-#include "IBlutilityModule.h"
+#include "Delegates/Delegate.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorUtilityBlueprint.h"
+#include "EditorUtilityBlueprintFactory.h"
 #include "EditorUtilitySubsystem.h"
+#include "Engine/Blueprint.h"
+#include "Framework/Commands/UIAction.h"
+#include "HAL/PlatformMisc.h"
+#include "IBlutilityModule.h"
+#include "IContentBrowserSingleton.h"
+#include "Internationalization/Internationalization.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "Misc/MessageDialog.h"
+#include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SubclassOf.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenuSection.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
+
+#include <utility>
+
+class UClass;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

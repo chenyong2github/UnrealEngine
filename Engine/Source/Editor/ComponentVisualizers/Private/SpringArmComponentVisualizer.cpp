@@ -1,8 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpringArmComponentVisualizer.h"
-#include "SceneManagement.h"
+
+#include "Components/ActorComponent.h"
+#include "Components/SceneComponent.h"
+#include "Engine/EngineTypes.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "HAL/Platform.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
 
 static const FColor	ArmColor(255,0,0);
 

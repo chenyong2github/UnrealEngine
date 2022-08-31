@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-#include "Types/SlateEnums.h"
-#include "Layout/Visibility.h"
+#include "Templates/SharedPointer.h"
 
-class IDetailLayoutBuilder;
+class FDetailWidgetRow;
+class IDetailChildrenBuilder;
 class IPropertyHandle;
 class UMaterialExpressionLandscapeGrassOutput;
 

@@ -1,12 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoftObjectPathCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Engine/GameViewportClient.h"
-#include "AssetRegistry/AssetData.h"
+
+#include "Containers/UnrealString.h"
+#include "DetailWidgetRow.h"
 #include "EditorClassUtils.h"
-#include "PropertyHandle.h"
+#include "HAL/PlatformCrt.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "UObject/Object.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+
+class IDetailChildrenBuilder;
+class UClass;
 
 void FSoftObjectPathCustomization::CustomizeHeader( TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
 {

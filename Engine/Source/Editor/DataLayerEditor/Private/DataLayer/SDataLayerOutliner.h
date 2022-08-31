@@ -2,8 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Input/Reply.h"
 #include "SSceneOutliner.h"
+#include "Templates/SharedPointer.h"
+
+struct FSceneOutlinerInitializationOptions;
 
 class SDataLayerOutliner : public SSceneOutliner
 {

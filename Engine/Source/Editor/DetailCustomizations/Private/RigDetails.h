@@ -2,17 +2,32 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/BitArray.h"
 #include "Containers/IndirectArray.h"
-#include "Input/Reply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Misc/Optional.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeHash.h"
+#include "Types/SlateEnums.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Input/SComboBox.h"
 
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SEditableTextBox;
+class SWidget;
+class UObject;
 
 class FRigDetails : public IDetailCustomization
 {

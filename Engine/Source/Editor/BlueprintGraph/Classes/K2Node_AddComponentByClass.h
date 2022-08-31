@@ -2,9 +2,20 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
+#include "Internationalization/Text.h"
 #include "K2Node_ConstructObjectFromClass.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_AddComponentByClass.generated.h"
+
+class FKismetCompilerContext;
+class UClass;
+class UEdGraph;
+class UEdGraphPin;
+class UObject;
 
 /**
  * Implementation of K2Node for creating a component based on a selected or passed in class

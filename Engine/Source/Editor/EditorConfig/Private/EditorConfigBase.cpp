@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorConfigBase.h"
-#include "EditorConfigSubsystem.h"
+
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "EditorConfigSubsystem.h"
 
 bool UEditorConfigBase::LoadEditorConfig()
 {

@@ -1,19 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProceduralFoliageComponentDetails.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SButton.h"
-#include "PropertyHandle.h"
+
+#include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "DetailCategoryBuilder.h"
-#include "InstancedFoliage.h"
-#include "ProceduralFoliageSpawner.h"
+#include "FoliageTypeObject.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/PlatformCrt.h"
+#include "Internationalization/Internationalization.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
 #include "ProceduralFoliageComponent.h"
 #include "ProceduralFoliageEditorLibrary.h"
+#include "ProceduralFoliageSpawner.h"
 #include "ScopedTransaction.h"
-#include "WorldPartition/WorldPartition.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
+class IPropertyHandle;
 
 #define LOCTEXT_NAMESPACE "ProceduralFoliageComponentDetails"
 

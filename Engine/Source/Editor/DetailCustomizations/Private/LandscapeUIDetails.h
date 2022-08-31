@@ -2,14 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Types/SlateEnums.h"
 #include "IDetailCustomization.h"
-#include "Input/Reply.h"
+#include "Templates/SharedPointer.h"
 
-class IDetailLayoutBuilder;
 class ALandscape;
+class IDetailLayoutBuilder;
 
 class FLandscapeUIDetails : public IDetailCustomization
 {

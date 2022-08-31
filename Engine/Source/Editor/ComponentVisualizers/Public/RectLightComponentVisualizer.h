@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ComponentVisualizer.h"
+#include "CoreMinimal.h"
 
 class FPrimitiveDrawInterface;
 class FSceneView;
+class UActorComponent;
 
 class COMPONENTVISUALIZERS_API FRectLightComponentVisualizer : public FComponentVisualizer
 {

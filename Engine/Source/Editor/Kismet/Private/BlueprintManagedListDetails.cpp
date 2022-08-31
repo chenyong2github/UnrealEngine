@@ -1,18 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintManagedListDetails.h"
+
+#include "Algo/Sort.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Fonts/SlateFontInfo.h"
+#include "Framework/SlateDelegates.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SlateOptMacros.h"
+#include "SlotBase.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
-#include "Algo/Sort.h"
 
 void FBlueprintManagedListDetails::GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow)
 {

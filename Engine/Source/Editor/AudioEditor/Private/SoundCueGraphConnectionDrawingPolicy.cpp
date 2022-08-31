@@ -1,17 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundCueGraphConnectionDrawingPolicy.h"
+
+#include "ActiveSound.h"
+#include "Audio.h"
+#include "AudioDevice.h"
+#include "Components/AudioComponent.h"
+#include "Containers/Array.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "GraphEditorSettings.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMath.h"
+#include "Math/Vector2D.h"
 #include "Misc/App.h"
+#include "Misc/AssertionMacros.h"
+#include "Sound/SoundBase.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundNode.h"
 #include "SoundCueGraph/SoundCueGraph.h"
-#include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
-#include "Components/AudioComponent.h"
-#include "Editor.h"
-#include "AudioDevice.h"
-#include "ActiveSound.h"
-#include "Sound/SoundNode.h"
-#include "Sound/SoundCue.h"
+#include "Templates/Casts.h"
+#include "UObject/ObjectPtr.h"
+
+class FArrangedChildren;
+class FArrangedWidget;
+class FSlateRect;
+class SWidget;
+class UEdGraphNode;
 
 FConnectionDrawingPolicy* FSoundCueGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(const class UEdGraphSchema* Schema, int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const class FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const
 {
@@ -25,8 +45,6 @@ FConnectionDrawingPolicy* FSoundCueGraphConnectionDrawingPolicyFactory::CreateCo
 
 /////////////////////////////////////////////////////
 // FSoundCueGraphConnectionDrawingPolicy
-
-class UGraphEditorSettings;
 
 FSoundCueGraphConnectionDrawingPolicy::FSoundCueGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
 	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements)

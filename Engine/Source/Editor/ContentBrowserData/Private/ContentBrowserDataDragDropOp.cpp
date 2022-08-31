@@ -1,11 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserDataDragDropOp.h"
-#include "ContentBrowserDataSubsystem.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "ContentBrowserDataFilter.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "HAL/PlatformCrt.h"
+#include "Templates/UnrealTemplate.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "UObject/NameTypes.h"
+
+class UActorFactory;
 
 TSharedRef<FContentBrowserDataDragDropOp> FContentBrowserDataDragDropOp::New(TArrayView<const FContentBrowserItem> InDraggedItems)
 {

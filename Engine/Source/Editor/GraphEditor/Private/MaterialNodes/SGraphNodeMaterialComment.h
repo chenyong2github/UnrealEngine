@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Math/Vector2D.h"
 #include "SGraphNodeComment.h"
+#include "SNodePanel.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class UMaterialGraphNode_Comment;
 

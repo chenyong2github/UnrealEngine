@@ -1,17 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MyBlueprintItemDragDropAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Layout/WidgetPath.h"
-#include "Framework/Application/MenuStack.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
-#include "EdGraphSchema_K2.h"
-#include "EdGraphSchema_K2_Actions.h"
 
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "ScopedTransaction.h"
-#include "MyBlueprintItemDragDropAction.h"
+#include "CoreTypes.h"
+#include "EdGraph/EdGraphSchema.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Styling/AppStyle.h"
+#include "UObject/NameTypes.h"
+
+struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "FMyBlueprintItemDragDropAction"
 

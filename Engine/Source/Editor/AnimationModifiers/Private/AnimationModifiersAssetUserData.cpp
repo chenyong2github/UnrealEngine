@@ -5,6 +5,7 @@
 #include "HAL/PlatformCrt.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
+#include "UObject/ObjectPtr.h"
 
 void UAnimationModifiersAssetUserData::AddAnimationModifier(UAnimationModifier* Instance)
 {

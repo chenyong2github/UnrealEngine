@@ -3,9 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Internationalization/Text.h"
 #include "K2Node_BaseAsyncTask.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_PlayMontage.generated.h"
+
+class FString;
+class UEdGraphPin;
+class UObject;
 
 UCLASS()
 class UK2Node_PlayMontage : public UK2Node_BaseAsyncTask

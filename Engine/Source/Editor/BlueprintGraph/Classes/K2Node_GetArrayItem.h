@@ -3,14 +3,30 @@
 
 #pragma once
 
+#include "BlueprintActionFilter.h"
+#include "BlueprintNodeSignature.h"
+#include "Containers/Array.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "EdGraph/EdGraphNode.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 #include "K2Node.h"
+#include "KismetCompilerMisc.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "K2Node_GetArrayItem.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FString;
+class SWidget;
+class UEdGraph;
 class UEdGraphPin;
+class UObject;
 struct FEdGraphPinType;
+struct FLinearColor;
 
 UCLASS(MinimalAPI, Category = "Utilities|Array", meta=(Keywords = "array"))
 class UK2Node_GetArrayItem : public UK2Node

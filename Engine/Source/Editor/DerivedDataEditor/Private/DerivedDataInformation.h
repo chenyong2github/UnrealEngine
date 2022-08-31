@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Framework/Commands/Commands.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
 
 enum class ERemoteCacheState : uint8
 {

@@ -1,11 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPoseWatchOverlay.h"
-#include "Widgets/SBoxPanel.h"
-#include "Engine/PoseWatch.h"
-#include "Widgets/Images/SImage.h"
+
 #include "AnimationEditorUtils.h"
-#include "SNodePanel.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "Engine/PoseWatch.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Children.h"
+#include "Math/Color.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "SPoseWatchOverlay"
 

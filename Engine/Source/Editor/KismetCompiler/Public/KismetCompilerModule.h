@@ -2,19 +2,25 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Modules/ModuleInterface.h"
 
 class FBlueprintCompileReinstancer;
 class FCompilerResultsLog;
 class UBlueprint;
 class UBlueprintGeneratedClass;
+class UClass;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct FKismetCompilerOptions;
+
 // @todo: BP2CPP_remove
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FCompilerNativizationOptions;
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #define KISMET_COMPILER_MODULENAME "KismetCompiler"

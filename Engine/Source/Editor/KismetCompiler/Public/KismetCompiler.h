@@ -2,24 +2,55 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Containers/IndirectArray.h"
-#include "Templates/SubclassOf.h"
-#include "EdGraph/EdGraphNode.h"
-#include "EdGraph/EdGraphSchema.h"
-#include "Engine/Blueprint.h"
-#include "K2Node_Event.h"
 #include "BPTerminal.h"
-#include "KismetCompilerMisc.h"
+#include "Containers/Array.h"
+#include "Containers/IndirectArray.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphCompilerUtilities.h"
+#include "EdGraphSchema_K2.h"
+#include "Engine/Blueprint.h"
+#include "HAL/PlatformMath.h"
+#include "K2Node_Event.h"
+#include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiledFunctionContext.h"
+#include "KismetCompilerMisc.h"
+#include "Logging/LogMacros.h"
+#include "Math/Color.h"
+#include "Misc/EnumClassFlags.h"
+#include "Templates/Casts.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UnrealNames.h"
 
+class FField;
+class FKismetCompilerContext;
+class FKismetCompilerVMBackend;
+class FLinkerLoad;
+class FProperty;
 class UBlueprintGeneratedClass;
+class UClass;
+class UEdGraph;
+class UFunction;
+class UK2Node_Event;
 class UK2Node_FunctionEntry;
 class UK2Node_TemporaryVariable;
 class UK2Node_Timeline;
 class UK2Node_Tunnel;
-class FKismetCompilerVMBackend;
+class UScriptStruct;
+class UStruct;
+struct FBPTerminal;
+struct FKismetFunctionContext;
 struct FUserPinInfo;
 
 KISMETCOMPILER_API DECLARE_LOG_CATEGORY_EXTERN(LogK2Compiler, Log, All);

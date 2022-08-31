@@ -1,11 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateMachineConnectionDrawingPolicy.h"
-#include "Rendering/DrawElements.h"
+
+#include "AnimStateEntryNode.h"
 #include "AnimStateNodeBase.h"
 #include "AnimStateTransitionNode.h"
 #include "AnimationStateNodes/SGraphNodeAnimTransition.h"
-#include "AnimStateEntryNode.h"
+#include "Containers/Set.h"
+#include "EdGraph/EdGraphPin.h"
+#include "Layout/ArrangedChildren.h"
+#include "Layout/ArrangedWidget.h"
+#include "Layout/PaintGeometry.h"
+#include "Math/Color.h"
+#include "Math/UnrealMathSSE.h"
+#include "Misc/Optional.h"
+#include "Rendering/DrawElements.h"
+#include "Rendering/RenderingCommon.h"
+#include "SGraphNode.h"
+#include "SGraphPin.h"
+#include "Styling/SlateBrush.h"
+#include "Templates/Casts.h"
+
+class FSlateRect;
+class SWidget;
+struct FGeometry;
 
 /////////////////////////////////////////////////////
 // FStateMachineConnectionDrawingPolicy

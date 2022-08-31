@@ -2,12 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "SceneOutlinerFwd.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
 #include "ISceneOutlinerTreeItem.h"
+#include "SceneOutlinerFwd.h"
+#include "SceneOutlinerStandaloneTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectKey.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
-class AWorldDataLayers;
+class ISceneOutliner;
+class SWidget;
+template <typename ItemType> class STableRow;
 
 struct FWorldDataLayersTreeItem : ISceneOutlinerTreeItem
 {

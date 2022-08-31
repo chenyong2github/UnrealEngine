@@ -2,10 +2,16 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Math/Vector2D.h"
+#include "Templates/SharedPointer.h"
 
 class ISoundCueEditor;
 class UEdGraph;
+class UObject;
 class USoundCue;
 struct Rect;
 

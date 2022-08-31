@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
+#include "IContentBrowserDataModule.h"
+#include "Modules/ModuleManager.h"
 
 class FContentBrowserDataModule : public IContentBrowserDataModule
 {

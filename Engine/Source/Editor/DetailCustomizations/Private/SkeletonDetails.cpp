@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonDetails.h"
-#include "DetailLayoutBuilder.h"
+
 #include "Animation/Skeleton.h"
+#include "DetailLayoutBuilder.h"
+#include "Misc/AssertionMacros.h"
 
 TSharedRef<IDetailCustomization> FSkeletonDetails::MakeInstance()
 {

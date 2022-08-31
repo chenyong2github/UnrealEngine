@@ -2,8 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
+#include "AssetTypeCategories.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+
+class UClass;
 
 class FAssetTypeActions_SoundAttenuation : public FAssetTypeActions_Base
 {

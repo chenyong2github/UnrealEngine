@@ -24,6 +24,7 @@
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #define LOCTEXT_NAMESPACE "DynamicCastHandler"

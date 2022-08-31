@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
-
-class IPropertyHandle;
+#include "Templates/SharedPointer.h"
 
 class FCompositeRerouteCustomization : public IPropertyTypeCustomization
 {

@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "PropertyEditorDelegates.h"
+#include "UObject/NameTypes.h"
 
 class FDetailCustomizationsModule : public IModuleInterface
 {

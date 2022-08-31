@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UnrealWidgetFwd.h"
 #include "AnimNodeEditMode.h"
+#include "Math/MathFwd.h"
+#include "UObject/NameTypes.h"
+#include "UnrealWidgetFwd.h"
 
 class FObserveBoneEditMode : public FAnimNodeEditMode
 {

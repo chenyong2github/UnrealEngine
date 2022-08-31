@@ -2,10 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/DragAndDrop.h"
-#include "DragAndDrop/AssetDragDropOp.h"
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Containers/UnrealString.h"
 #include "ContentBrowserItem.h"
+#include "CoreMinimal.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "HAL/Platform.h"
+#include "Input/DragAndDrop.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+
+class UActorFactory;
+struct FAssetData;
 
 class CONTENTBROWSERDATA_API FContentBrowserDataDragDropOp : public FAssetDragDropOp
 {

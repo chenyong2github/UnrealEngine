@@ -6,15 +6,21 @@
  * Factory for utility widget blueprints
  */
 
+#include "Containers/EnumAsByte.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Templates/SubclassOf.h"
-#include "Factories/Factory.h"
 #include "Engine/Blueprint.h"
+#include "Factories/Factory.h"
+#include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "EditorUtilityWidgetBlueprintFactory.generated.h"
 
-
+class FFeedbackContext;
 class SWindow;
+class UClass;
+class UObject;
 
 UCLASS(HideCategories = Object, MinimalAPI)
 class UEditorUtilityWidgetBlueprintFactory : public UFactory

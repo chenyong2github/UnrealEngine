@@ -2,12 +2,19 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraph.h"
+#include "HAL/Platform.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "SoundClassGraph.generated.h"
 
 class UEdGraphPin;
+class UObject;
 
 UCLASS(MinimalAPI)
 class USoundClassGraph : public UEdGraph

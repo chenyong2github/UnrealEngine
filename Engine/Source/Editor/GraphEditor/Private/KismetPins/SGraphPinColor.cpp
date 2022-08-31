@@ -2,12 +2,31 @@
 
 
 #include "KismetPins/SGraphPinColor.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Colors/SColorBlock.h"
+
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "Engine/Engine.h"
-#include "EngineGlobals.h"
-#include "Widgets/Colors/SColorPicker.h"
+#include "Framework/SlateDelegates.h"
+#include "HAL/PlatformCrt.h"
+#include "Input/Events.h"
+#include "InputCoreTypes.h"
+#include "Internationalization/Internationalization.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "SGraphNode.h"
 #include "ScopedTransaction.h"
+#include "SlotBase.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Colors/SColorPicker.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+struct FGeometry;
 
 
 void SGraphPinColor::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)

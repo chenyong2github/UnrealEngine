@@ -2,20 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetTypeActions_Base.h"
-#include "Sound/SoundEffectPreset.h"
-#include "Widgets/SWidget.h"
+#include "Containers/Array.h"
 #include "Developer/AssetTools/Public/AssetTypeCategories.h"
-#include "Developer/AssetTools/Public/IAssetTypeActions.h"
-#include "Sound/SoundEffectSubmix.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundEffectSource.h"
+#include "Sound/SoundEffectSubmix.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/StrongObjectPtr.h"
-
 
 // Forward Declarations
 class IToolkitHost;
-class USoundEffectPreset;
+class UClass;
+class UObject;
 
 
 class FAssetTypeActions_SoundEffectSubmixPreset : public FAssetTypeActions_Base

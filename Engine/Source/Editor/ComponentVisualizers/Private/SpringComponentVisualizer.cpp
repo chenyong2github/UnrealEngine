@@ -1,9 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SpringComponentVisualizer.h"
-#include "SceneManagement.h"
 
+#include "Components/ActorComponent.h"
+#include "Engine/EngineTypes.h"
+#include "Math/Axis.h"
+#include "Math/Color.h"
+#include "Math/Transform.h"
+#include "Math/UnrealMathSSE.h"
+#include "Math/Vector.h"
 #include "PhysicsEngine/PhysicsSpringComponent.h"
+#include "SceneManagement.h"
+#include "Templates/Casts.h"
 
 static const FColor	DisabledColor(128, 128, 128);
 static const FColor	CompressedColor(255, 0, 0);

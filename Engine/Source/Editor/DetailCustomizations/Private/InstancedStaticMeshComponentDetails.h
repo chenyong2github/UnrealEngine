@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "IDetailCustomization.h"
+#include "Internationalization/Text.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-class FReply; 
-class IDetailLayoutBuilder;
-class IPropertyHandle;
+class FReply;
 class IDetailLayoutBuilder;
 class UInstancedStaticMeshComponent;
 

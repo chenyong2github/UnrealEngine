@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Math/Vector2D.h"
 
 
 class AUDIOEDITOR_API FSoundClassEditorUtilities

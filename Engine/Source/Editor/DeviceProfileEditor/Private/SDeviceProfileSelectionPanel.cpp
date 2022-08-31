@@ -22,7 +22,6 @@
 #include "Misc/Optional.h"
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
-#include "Templates/TypeHash.h"
 #include "Templates/UnrealTemplate.h"
 #include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"

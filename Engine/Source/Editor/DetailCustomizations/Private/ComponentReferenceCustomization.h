@@ -2,16 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Components/ActorComponent.h"
-#include "Engine/EngineTypes.h"
-#include "GameFramework/Actor.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "IPropertyTypeCustomization.h"
+#include "Internationalization/Text.h"
 #include "PropertyEditorModule.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+class AActor;
+class IPropertyHandle;
 class SComboButton;
 class SWidget;
+class UActorComponent;
+class UClass;
+class UObject;
+struct FComponentReference;
 struct FSlateBrush;
 
 class FComponentReferenceCustomization : public IPropertyTypeCustomization

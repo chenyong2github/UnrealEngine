@@ -2,13 +2,29 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
 #include "UObject/Interface.h"
+#include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/TopLevelAssetPath.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "BlutilityMenuExtensions.generated.h"
 
-struct FAssetData;
+class AActor;
 class FMenuBuilder;
+class FProperty;
+class FString;
+class FText;
+class IEditorUtilityExtension;
+class UFunction;
+class UObject;
+struct FAssetData;
 
 // Blutility Menu extension helpers
 class FBlutilityMenuExtensions

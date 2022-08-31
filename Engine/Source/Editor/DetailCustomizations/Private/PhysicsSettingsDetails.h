@@ -2,16 +2,23 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
 #include "IDetailCustomization.h"
-#include "PhysicsEngine/PhysicsSettings.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 class IDetailLayoutBuilder;
+class ITableRow;
 class SEditableTextBox;
+class STableViewBase;
+class UEnum;
+class UPhysicsSettings;
+struct FPhysicalSurfaceName;
 template <typename ItemType> class SListView;
 
 DECLARE_DELEGATE(FOnCommitChange)

@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ComponentVisualizer.h"
+#include "Containers/Array.h"
+#include "CoreMinimal.h"
+#include "Math/Transform.h"
 
 class FPrimitiveDrawInterface;
 class FSceneView;
+class UActorComponent;
 class UTextureLightProfile;
 
 class FTextureLightProfileVisualizer

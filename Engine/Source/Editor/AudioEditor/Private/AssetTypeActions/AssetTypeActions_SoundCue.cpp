@@ -1,15 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_SoundCue.h"
-#include "AudioEditorSettings.h"
-#include "Sound/SoundAttenuation.h"
-#include "Misc/PackageName.h"
-#include "Sound/SoundCue.h"
-#include "ToolMenus.h"
-#include "Factories/SoundAttenuationFactory.h"
-#include "ContentBrowserModule.h"
-#include "IContentBrowserSingleton.h"
+
+#include "AssetToolsModule.h"
 #include "AudioEditorModule.h"
+#include "AudioEditorSettings.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "ContentBrowserModule.h"
+#include "Delegates/Delegate.h"
+#include "Factories/SoundAttenuationFactory.h"
+#include "Framework/Commands/UIAction.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IAssetTools.h"
+#include "IContentBrowserSingleton.h"
+#include "Misc/PackageName.h"
+#include "Modules/ModuleManager.h"
+#include "Sound/SoundAttenuation.h"
+#include "Sound/SoundCue.h"
+#include "Templates/Casts.h"
+#include "Templates/ChooseClass.h"
+#include "Textures/SlateIcon.h"
+#include "ToolMenuSection.h"
+#include "Toolkits/IToolkit.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UObjectGlobals.h"
+
+#include <utility>
+
+class IToolkitHost;
+class UClass;
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

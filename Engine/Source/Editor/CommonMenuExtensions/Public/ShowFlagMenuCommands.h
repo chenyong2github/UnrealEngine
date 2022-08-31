@@ -2,14 +2,23 @@
 
 #pragma once
 
-#include "Framework/Commands/Commands.h"
 #include "Containers/Array.h"
-#include "Templates/SharedPointer.h"
-#include "Framework/Commands/UICommandInfo.h"
-#include "ShowFlagFilter.h"
-#include "Templates/Function.h"
 #include "EditorViewportClient.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandInfo.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "ShowFlagFilter.h"
+#include "ShowFlags.h"
+#include "Templates/Function.h"
+#include "Templates/SharedPointer.h"
+#include "Textures/SlateIcon.h"
+#include "UObject/NameTypes.h"
 
+class FEditorViewportClient;
+class FShowFlagData;
+class FUICommandInfo;
+class FUICommandList;
 class UToolMenu;
 struct FToolMenuSection;
 

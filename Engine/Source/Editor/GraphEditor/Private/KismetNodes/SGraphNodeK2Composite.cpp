@@ -30,7 +30,6 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateColor.h"
 #include "Templates/Casts.h"
-#include "Templates/TypeHash.h"
 #include "Types/SlateEnums.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UObjectGlobals.h"

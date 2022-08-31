@@ -1,12 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/SlateFontInfoCustomization.h"
-#include "Engine/Font.h"
-#include "PropertyHandle.h"
-#include "IDetailChildrenBuilder.h"
+
 #include "AssetRegistry/AssetData.h"
-#include "PropertyCustomizationHelpers.h"
+#include "Containers/UnrealString.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Engine/Font.h"
+#include "Fonts/CompositeFont.h"
+#include "Fonts/SlateFontInfo.h"
+#include "HAL/Platform.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailPropertyRow.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "SlateGlobals.h"
+#include "Styling/AppStyle.h"
+#include "Templates/Casts.h"
+#include "Trace/Detail/Channel.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealNames.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Text/STextBlock.h"
+
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "SlateFontInfo"
 

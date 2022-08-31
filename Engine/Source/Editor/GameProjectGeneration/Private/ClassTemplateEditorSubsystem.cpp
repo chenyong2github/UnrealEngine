@@ -1,14 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ClassTemplateEditorSubsystem.h"
 
+#include "Delegates/Delegate.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "HAL/Platform.h"
 #include "Interfaces/IPluginManager.h"
+#include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
-#include "Subsystems/SubsystemCollection.h"
-#include "UObject/UObjectGlobals.h"
-#include "Editor.h"
+#include "Misc/Paths.h"
+#include "Templates/Casts.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/Class.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/WeakObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "ClassTemplateSubsystem"
 

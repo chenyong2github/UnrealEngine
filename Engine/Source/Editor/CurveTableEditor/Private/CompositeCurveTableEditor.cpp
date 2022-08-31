@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositeCurveTableEditor.h"
-#include "PropertyEditorModule.h"
+
+#include "Delegates/Delegate.h"
+#include "DetailsViewArgs.h"
+#include "IDetailsView.h"
+#include "Internationalization/Internationalization.h"
+#include "Math/Color.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
-#include "EditorReimportHandler.h"
-#include "CurveTableEditorModule.h"
+#include "PropertyEditorModule.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Types/SlateEnums.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
+
+class UCurveTable;
 
 #define LOCTEXT_NAMESPACE "CompositeCurveTableEditor"
 

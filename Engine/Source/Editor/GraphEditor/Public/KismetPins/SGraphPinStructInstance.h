@@ -9,6 +9,7 @@
 #include "Internationalization/Text.h"
 #include "SGraphPin.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 

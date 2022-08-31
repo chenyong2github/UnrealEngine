@@ -3,15 +3,34 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "ConnectionDrawingPolicy.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "EdGraphUtilities.h"
+#include "HAL/Platform.h"
+#include "Internationalization/Text.h"
+#include "Math/Color.h"
+#include "Math/Vector2D.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealNames.h"
 
 #include "SoundSubmixGraphSchema.generated.h"
 
-
+class FMenuBuilder;
+class FSlateRect;
+class FSlateWindowElementList;
 // Forward Declarations
 class UEdGraph;
+class UEdGraphNode;
+class UEdGraphPin;
 class UEdGraphSchema;
-class FMenuBuilder;
+class UObject;
+struct FAssetData;
+struct FEdGraphPinType;
 
 struct FSoundSubmixGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
 {

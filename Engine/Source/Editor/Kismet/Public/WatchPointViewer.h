@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Misc/CoreMiscDefines.h"
+#include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
-struct FAssetData;
-class UBlueprint;
 class FTabManager;
+class UBlueprint;
+struct FAssetData;
 
 #define WATCH_VIEWER_DEPRECATED
 

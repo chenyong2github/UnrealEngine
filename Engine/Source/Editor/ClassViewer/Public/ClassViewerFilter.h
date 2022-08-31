@@ -1,16 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Set.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Engine/EngineTypes.h"
-#include "Settings/ClassViewerSettings.h"
+#include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
+#include "Settings/ClassViewerSettings.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
+#include "UObject/SoftObjectPath.h"
+#include "UObject/TopLevelAssetPath.h"
 
-class FClassViewerNode;
+class FClassViewerFilterFuncs;
 class FClassViewerInitializationOptions;
+class FClassViewerNode;
+class FString;
 class FTextFilterExpressionEvaluator;
 class IAssetReferenceFilter;
 class IAssetRegistry;
+class UClass;
+class UObject;
 
 /** Delegate used to respond to a filter option change. The argument will indicate whether the option was enabled or disabled. */
 DECLARE_DELEGATE_OneParam(FOnClassViewerFilterOptionChanged, bool);

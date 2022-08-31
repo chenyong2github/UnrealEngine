@@ -32,6 +32,7 @@
 #include "UObject/Class.h"
 #include "UObject/Field.h"
 #include "UObject/Interface.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/Script.h"
 #include "UObject/UObjectBaseUtility.h"

@@ -14,6 +14,7 @@
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
 #include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtr.h"
 
 class FCurveEditor;

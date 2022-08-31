@@ -1,11 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "KismetNodes/SGraphNodeK2Timeline.h"
-#include "Editor/EditorEngine.h"
+
 #include "Components/TimelineComponent.h"
+#include "Containers/UnrealString.h"
+#include "Editor/EditorEngine.h"
+#include "HAL/PlatformMath.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "K2Node_Timeline.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "KismetNodes/KismetNodeInfoContext.h"
+#include "KismetNodes/SGraphNodeK2Base.h"
+#include "SNodePanel.h"
+#include "Templates/Casts.h"
+#include "UObject/Class.h"
+#include "UObject/Field.h"
+#include "UObject/Object.h"
+#include "UObject/UnrealType.h"
 
 #define LOCTEXT_NAMESPACE "SGraphNodeK2Base"
 

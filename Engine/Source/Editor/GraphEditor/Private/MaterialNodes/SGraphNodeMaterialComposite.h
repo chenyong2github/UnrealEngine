@@ -2,12 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
+#include "Internationalization/Text.h"
 #include "MaterialNodes/SGraphNodeMaterialBase.h"
+#include "Math/Vector2D.h"
+#include "SNodePanel.h"
+#include "Templates/SharedPointer.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class SToolTip;
+class SWidget;
 class UEdGraph;
 class UMaterialGraphNode_Composite;
 

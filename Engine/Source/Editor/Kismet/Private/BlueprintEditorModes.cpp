@@ -1,25 +1,33 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintEditorModes.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "ToolMenus.h"
 
-// Core kismet tabs
-#include "SSCSEditorViewport.h"
+#include "BlueprintEditor.h"
+#include "BlueprintEditorModule.h"
+#include "Components/ActorComponent.h"
+#include "Framework/Docking/TabManager.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "Modules/ModuleManager.h"
 #include "SKismetInspector.h"
 #include "SMyBlueprint.h"
+// Core kismet tabs
+#include "SSCSEditorViewport.h"
+#include "Types/SlateEnums.h"
 // End of core kismet tabs
 
 // Debugging
 // End of debugging
 
+#include "BlueprintEditorSharedTabFactories.h"
+#include "BlueprintEditorTabFactories.h"
+#include "BlueprintEditorTabs.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "SBlueprintEditorToolbar.h"
-#include "BlueprintEditorTabs.h"
-#include "BlueprintEditorTabFactories.h"
-#include "BlueprintEditorSharedTabFactories.h"
-#include "BlueprintEditorSettings.h"
 #include "SSubobjectEditor.h"
+
+class FSCSEditorTreeNode;
+class UToolMenu;
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 

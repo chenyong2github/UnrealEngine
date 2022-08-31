@@ -6,12 +6,18 @@
 
 #pragma once
 
-#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Containers/Array.h"
 #include "Engine/EngineTypes.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
+
 #include "ProceduralFoliageEditorLibrary.generated.h"
 
 class AProceduralFoliageVolume;
+class UObject;
 class UProceduralFoliageComponent;
+struct FFrame;
 
 UCLASS()
 class UProceduralFoliageEditorLibrary : public UBlueprintFunctionLibrary

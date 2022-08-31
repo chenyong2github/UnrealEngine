@@ -1,23 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorUtilityBlueprintFactory.h"
-#include "Misc/MessageDialog.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/SWindow.h"
-#include "Engine/Blueprint.h"
-#include "Settings/EditorExperimentalSettings.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "EditorUtilityBlueprint.h"
-#include "GlobalEditorUtilityBase.h"
-#include "PlacedEditorUtilityBase.h"
-#include "ClassViewerModule.h"
+
+#include "AssetActionUtility.h"
 #include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
+#include "Containers/Array.h"
+#include "Containers/Set.h"
+#include "EditorUtilityActor.h"
+#include "EditorUtilityBlueprint.h"
+#include "EditorUtilityObject.h"
+#include "EditorUtilityWidget.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMisc.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/SClassPickerDialog.h"
-#include "EditorUtilityWidget.h"
-#include "EditorUtilityActor.h"
-#include "EditorUtilityObject.h"
-#include "AssetActionUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/MessageDialog.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/ChooseClass.h"
+#include "UObject/Class.h"
+#include "Widgets/SWindow.h"
+
+class FFeedbackContext;
+class UObject;
 
 class FBlutilityBlueprintFactoryFilter : public IClassViewerFilter
 {

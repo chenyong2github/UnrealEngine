@@ -1,23 +1,40 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Documentation.h"
-#include "Misc/Paths.h"
-#include "Styling/CoreStyle.h"
-#include "Widgets/SToolTip.h"
-#include "Misc/MessageDialog.h"
-#include "HAL/FileManager.h"
-#include "Misc/CommandLine.h"
+
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
 #include "Dialogs/Dialogs.h"
-#include "SDocumentationAnchor.h"
-#include "UDNParser.h"
-#include "DocumentationPage.h"
 #include "DocumentationLink.h"
+#include "DocumentationPage.h"
 #include "DocumentationSettings.h"
-#include "SDocumentationToolTip.h"
-#include "Interfaces/IAnalyticsProvider.h"
-#include "Interfaces/IMainFrameModule.h"
 #include "EngineAnalytics.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformProcess.h"
+#include "IAnalyticsProviderET.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "Interfaces/IPluginManager.h"
+#include "Internationalization/Internationalization.h"
+#include "Internationalization/Text.h"
+#include "Layout/Margin.h"
+#include "Misc/Attribute.h"
+#include "Misc/CommandLine.h"
+#include "Misc/PackageName.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "Modules/ModuleManager.h"
+#include "SDocumentationAnchor.h"
+#include "SDocumentationToolTip.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/ISlateStyle.h"
+#include "UDNParser.h"
+#include "UnrealEdMisc.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SToolTip.h"
+
+class IDocumentationPage;
+class SVerticalBox;
+class SWidget;
 
 #define LOCTEXT_NAMESPACE "DocumentationActor"
 

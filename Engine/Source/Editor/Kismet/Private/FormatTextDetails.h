@@ -2,18 +2,24 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "IDetailCustomization.h"
+#include "Containers/Array.h"
+#include "Delegates/Delegate.h"
+#include "HAL/PlatformMath.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "IDetailCustomization.h"
+#include "Input/Reply.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 class FDetailWidgetRow;
-class FFormatTextArgumentLayout;
-class FFormatTextLayout;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class SEditableTextBox;
 class UK2Node_FormatText;
+class UPackage;
 
 /** Details customization for the "Format Text" node */
 class FFormatTextDetails : public IDetailCustomization

@@ -1,18 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialExpressionLandscapeGrassCustomization.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "UObject/UnrealType.h"
-#include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
-#include "IDetailPropertyRow.h"
-#include "DetailCategoryBuilder.h"
-#include "IDetailChildrenBuilder.h"
-#include "ContentBrowserDelegates.h"
+
 #include "AssetRegistry/AssetData.h"
-#include "PropertyCustomizationHelpers.h"
+#include "Containers/Array.h"
+#include "DetailWidgetRow.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformCrt.h"
+#include "IDetailChildrenBuilder.h"
+#include "IDetailPropertyRow.h"
 #include "LandscapeGrassType.h"
 #include "Materials/MaterialExpressionLandscapeGrassOutput.h"
+#include "Misc/AssertionMacros.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyHandle.h"
+#include "SlotBase.h"
+#include "Templates/Casts.h"
+#include "Types/SlateEnums.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
+#include "UObject/UnrealType.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SBoxPanel.h"
+
+class SWidget;
+class UObject;
 
 #define LOCTEXT_NAMESPACE "MaterialExpressionLandscapeGrassCustomization"
 

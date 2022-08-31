@@ -35,6 +35,7 @@
 #include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/Field.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/UnrealNames.h"

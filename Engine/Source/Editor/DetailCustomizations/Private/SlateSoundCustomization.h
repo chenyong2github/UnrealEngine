@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "IPropertyTypeCustomization.h"
+#include "Templates/SharedPointer.h"
 
 struct FAssetData;
+struct FSlateSound;
 
 /** Customize the appearance of an FSlateSound */
 class FSlateSoundStructCustomization : public IPropertyTypeCustomization

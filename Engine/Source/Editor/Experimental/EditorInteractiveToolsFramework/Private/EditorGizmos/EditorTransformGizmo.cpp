@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorGizmos/EditorTransformGizmo.h"
+
+#include "Containers/EnumAsByte.h"
 #include "EditorGizmos/EditorTransformProxy.h"
+#include "Logging/LogMacros.h"
+#include "Math/Transform.h"
+#include "Math/Vector.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/Casts.h"
 
 #define LOCTEXT_NAMESPACE "UEditorTransformGizmo"
 
