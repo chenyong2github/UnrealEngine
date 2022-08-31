@@ -9,6 +9,7 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "UObject/NoExportTypes.h"
+#include "InteractiveToolQueryInterfaces.h"
 
 #include "AddPrimitiveTool.generated.h"
 
@@ -431,7 +432,7 @@ public:
  * Base tool to create primitives
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UAddPrimitiveTool : public USingleClickTool, public IHoverBehaviorTarget
+class MESHMODELINGTOOLS_API UAddPrimitiveTool : public USingleClickTool, public IHoverBehaviorTarget, public IInteractiveToolCameraFocusAPI
 {
 	GENERATED_BODY()
 
@@ -460,6 +461,12 @@ public:
 	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 	virtual void OnEndHover() override;
+
+	// IInteractiveToolCameraFocusAPI implementation
+	virtual bool SupportsWorldSpaceFocusBox() override;
+	virtual FBox GetWorldSpaceFocusBox() override;
+	virtual bool SupportsWorldSpaceFocusPoint() override;
+	virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
 
 
 protected:

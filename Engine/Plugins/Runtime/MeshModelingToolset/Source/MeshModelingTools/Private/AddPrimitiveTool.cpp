@@ -362,6 +362,45 @@ void UAddPrimitiveTool::UpdatePreviewMesh() const
 	checkSlow(CalculateTangentsSuccessful);
 }
 
+
+bool UAddPrimitiveTool::SupportsWorldSpaceFocusBox()
+{
+	return !PreviewMesh.IsNull();
+}
+
+FBox UAddPrimitiveTool::GetWorldSpaceFocusBox()
+{
+	if (PreviewMesh)
+	{
+		if (UPrimitiveComponent* Component = PreviewMesh->GetRootComponent())
+		{
+			return Component->Bounds.GetBox();
+		}
+	}
+	return FBox();
+}
+
+bool UAddPrimitiveTool::SupportsWorldSpaceFocusPoint()
+{
+	return !PreviewMesh.IsNull();
+
+}
+
+bool UAddPrimitiveTool::GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut)
+{
+	if (PreviewMesh)
+	{
+		FHitResult HitResult;
+		if (PreviewMesh->FindRayIntersection(WorldRay, HitResult))
+		{
+			PointOut = HitResult.ImpactPoint;
+			return true;
+		}
+	}
+	return false;
+}
+
+
 FInputRayHit UAddPrimitiveTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	FInputRayHit Result(0);
