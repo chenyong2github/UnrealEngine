@@ -2702,7 +2702,7 @@ void FControlRigParameterTrackEditor::HandleConstraintRemoved(IMovieSceneConstra
 	if (const UControlRig* ControlRig = Section->GetControlRig())
 	{
 		FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
-		if (!Controller.OnConstraintRemoved().IsBound())
+		if (!InSection->OnConstraintRemovedHandle.IsValid())
 		{
 			InSection->OnConstraintRemovedHandle =
 			Controller.OnConstraintRemoved().AddLambda([InSection, Section, this](FName InConstraintName)

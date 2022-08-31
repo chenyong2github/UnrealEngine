@@ -167,6 +167,12 @@ TSharedRef<ISequencerSection> F3DTransformTrackEditor::MakeSectionInterface(UMov
 	{
 		Section->ConstraintChannelAdded().AddRaw(this, &F3DTransformTrackEditor::HandleOnConstraintAdded);
 	}
+	//if there are channels already we need to act like they were added
+	TArray<FConstraintAndActiveChannel>& Channels = Section->GetConstraintsChannels();
+	for (FConstraintAndActiveChannel& Channel : Channels)
+	{
+		HandleOnConstraintAdded(Section, &Channel.ActiveChannel);
+	}
 	return MakeShared<FTransformSection>(SectionObject, GetSequencer());
 }
 
@@ -1559,7 +1565,7 @@ void F3DTransformTrackEditor::HandleConstraintRemoved(IMovieSceneConstrainedSect
 	UMovieSceneSection* Section = Cast<UMovieSceneSection>(InSection);
 
 	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-	if (!Controller.OnConstraintRemoved().IsBound())
+	if (!InSection->OnConstraintRemovedHandle.IsValid())
 	{
 		InSection->OnConstraintRemovedHandle =
 			Controller.OnConstraintRemoved().AddLambda([InSection,Section, this](FName InConstraintName)
