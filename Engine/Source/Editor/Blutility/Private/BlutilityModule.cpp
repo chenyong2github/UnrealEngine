@@ -305,6 +305,10 @@ protected:
 	void HandleAssetRemoved(const FAssetData& InAssetData)
 	{
 		bool bDeletingLoadedUI = false;
+		if (!GEditor || !GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>())
+		{
+			return;
+		}
 		for (const FSoftObjectPath& LoadedUIPath : GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>()->LoadedUIs)
 		{
 			if (LoadedUIPath.GetAssetPathName() == InAssetData.ObjectPath)
