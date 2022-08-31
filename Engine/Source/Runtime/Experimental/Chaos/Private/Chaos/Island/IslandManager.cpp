@@ -613,6 +613,24 @@ inline bool SolverIslandSortPredicate(const TUniquePtr<FPBDIsland>& SolverIsland
 	return SolverIslandL->GetNumConstraints() < SolverIslandR->GetNumConstraints();
 }
 	
+void FPBDIslandManager::GraphIslandAdded(const int32 IslandIndex)
+{
+	FGraphIsland& GraphIsland = IslandGraph->GraphIslands[IslandIndex];
+	check(GraphIsland.IslandItem == nullptr);
+
+	// An graph island was created, so we should assign an island manager island to it
+	Islands.Reserve(IslandGraph->MaxNumIslands());
+	if (!Islands.IsValidIndex(IslandIndex))
+	{
+		Islands.EmplaceAt(IslandIndex, MakeUnique<FPBDIsland>(MaxNumConstraintContainers));
+	}
+
+	// NOTE: The index may be reused and we may already have an island so we need to reset the island
+	Islands[IslandIndex]->Reuse();
+	GraphIsland.IslandItem = Islands[IslandIndex].Get();
+
+}
+
 void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles)
 {
 	Islands.Reserve(IslandGraph->MaxNumIslands());
@@ -630,12 +648,8 @@ void FPBDIslandManager::SyncIslands(FPBDRigidsSOAs& Particles)
 
 			// If the island item is not set on the graph we check if the solver island
 			// at the right index is already there. If not we create a new solver island.
-			if(!Islands.IsValidIndex(IslandIndex))
-			{
-				Islands.EmplaceAt(IslandIndex, MakeUnique<FPBDIsland>(MaxNumConstraintContainers));
-			}
-			FPBDIsland*& Island = IslandGraph->GraphIslands[IslandIndex].IslandItem;
-			Island = Islands[IslandIndex].Get();
+			check(Islands.IsValidIndex(IslandIndex));
+			FPBDIsland* Island = Islands[IslandIndex].Get();
 			
 			// We then transfer the persistent flag and the graph dense index to the solver island
 			Island->SetIsPersistent(IslandGraph->GraphIslands[IslandIndex].bIsPersistent);

@@ -304,7 +304,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::AttachIslands(cons
 			else if (!bFirstValidIsland && !bSecondValidIsland)
 			{
 				FGraphIsland GraphIsland = { 1, 2 };
-				GraphEdge.IslandIndex = GraphIslands.Emplace(GraphIsland);
+				GraphEdge.IslandIndex = AddIsland(MoveTemp(GraphIsland));
 
 				// We set both island indices to be the equal to the edge one
 				if (FirstNode.bValidNode)
@@ -332,7 +332,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::AttachIslands(cons
 			if(!GraphIslands.IsValidIndex(GraphNodes[GraphEdge.FirstNode].IslandIndex))
 			{
 				FGraphIsland GraphIsland = { 1, 1 };
-				GraphNodes[GraphEdge.FirstNode].IslandIndex =  GraphIslands.Emplace(GraphIsland);
+				GraphNodes[GraphEdge.FirstNode].IslandIndex = AddIsland(MoveTemp(GraphIsland));
 			}
 			GraphEdge.IslandIndex =  GraphNodes[GraphEdge.FirstNode].IslandIndex;
 		}
@@ -343,7 +343,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::AttachIslands(cons
 			if(!GraphIslands.IsValidIndex(GraphNodes[GraphEdge.SecondNode].IslandIndex))
 			{
 				FGraphIsland GraphIsland = { 1, 1 };
-				GraphNodes[GraphEdge.SecondNode].IslandIndex =  GraphIslands.Emplace(GraphIsland);
+				GraphNodes[GraphEdge.SecondNode].IslandIndex = AddIsland(MoveTemp(GraphIsland));
 			}
 			GraphEdge.IslandIndex =  GraphNodes[GraphEdge.SecondNode].IslandIndex;
 		}
@@ -779,7 +779,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::SplitIslands()
 						if(GraphIslands[CurrentIsland].IslandCounter == GraphCounter)
 						{
 							FGraphIsland GraphIsland = { 0, 1, 0, false, false };
-							CurrentIsland = GraphIslands.Emplace(GraphIsland);
+							CurrentIsland = AddIsland(MoveTemp(GraphIsland));
 						}
 						
 						GraphIslands[CurrentIsland].IslandCounter = GraphCounter;
@@ -876,7 +876,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType, OwnerType>::UpdateGraph()
 			if (GraphNode.bValidNode && !GraphIslands.IsValidIndex(GraphNode.IslandIndex))
 			{
 				FGraphIsland GraphIsland = { 0, 1 }; // {NumEdges, NumNodes}
-				GraphNode.IslandIndex = GraphIslands.Emplace(GraphIsland);
+				GraphNode.IslandIndex = AddIsland(MoveTemp(GraphIsland));
 
 #if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
 				// Should never have any NodeIslands if we get here

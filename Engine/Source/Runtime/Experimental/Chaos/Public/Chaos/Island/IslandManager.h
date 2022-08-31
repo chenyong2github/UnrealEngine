@@ -290,6 +290,7 @@ public:
 	const TMap<FGeometryParticleHandle*, int32>& GetParticleNodes() const { return IslandGraph->ItemNodes; }
 
 	// Graph Owner API Implementation. Allows us to store edge/node indices on constraints and particles
+	void GraphIslandAdded(const int32 IslandIndex);
 	void GraphNodeAdded(FGeometryParticleHandle* NodeItem, const int32 NodeIndex);
 	void GraphNodeRemoved(FGeometryParticleHandle* NodeItem);
 	void GraphEdgeAdded(const FConstraintHandleHolder& EdgeItem, const int32 EdgeIndex);

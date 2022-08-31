@@ -357,6 +357,16 @@ public:
 		return false;
 	}
 
+	int32 AddIsland(FGraphIsland&& Island)
+	{
+		const int32 IslandIndex = GraphIslands.Emplace(MoveTemp(Island));
+		if (Owner != nullptr)
+		{
+			Owner->GraphIslandAdded(IslandIndex);
+		}
+		return IslandIndex;
+	}
+
 	FGraphOwner* Owner = nullptr;
 
 	/** List of graph nodes */
@@ -385,6 +395,8 @@ public:
 template<typename NodeType, typename EdgeType>
 struct TNullIslandGraphOwner
 {
+	void GraphIslandAdded(const int32 IslandIndex) {}
+
 	void GraphNodeAdded(const NodeType& NodeItem, const int32 NodeIndex) {}
 	void GraphNodeRemoved(const NodeType& NodeItem) {}
 

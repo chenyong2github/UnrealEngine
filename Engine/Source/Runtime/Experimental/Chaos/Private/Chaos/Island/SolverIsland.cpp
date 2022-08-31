@@ -19,6 +19,15 @@ namespace Chaos
 	IslandConstraintsByType.SetNum(MaxConstraintContainers);
 }
 
+void FPBDIsland::Reuse()
+{
+	check(GetNumParticles() == 0);
+	check(GetNumConstraints() == 0);
+
+	SetSleepCounter(0);
+	ResetSleepingChanged();
+}
+
 void FPBDIsland::UpdateParticles()
 {
 	for (FPBDIslandParticle& IslandParticle : IslandParticles)

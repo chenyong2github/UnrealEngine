@@ -74,6 +74,12 @@ namespace Chaos
 		FPBDIsland(const int32 MaxConstraintContainers);
 
 		/**
+		 * This island is about to be reused as a new island. It should be empty, but we need to reset
+		 * sleep state and other persistent state.
+		 */
+		void Reuse();
+
+		/**
 		 * The island index as seen by the systems external to the IslandManager.
 		 * The IslandManager uses this to index into the IslandIndexing array to get the
 		 * internal island index.
