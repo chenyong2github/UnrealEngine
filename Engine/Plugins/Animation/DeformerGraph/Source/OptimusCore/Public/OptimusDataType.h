@@ -164,4 +164,14 @@ struct OPTIMUSCORE_API FOptimusDataTypeRef
 	UPROPERTY(EditAnywhere, Category=Type)
 	TWeakObjectPtr<UObject> TypeObject;
 	
+	void PostSerialize(const FArchive& Ar);
+};
+
+template<>
+struct TStructOpsTypeTraits<FOptimusDataTypeRef> : public TStructOpsTypeTraitsBase2<FOptimusDataTypeRef>
+{
+	enum 
+	{
+		WithPostSerialize = true,
+	};
 };

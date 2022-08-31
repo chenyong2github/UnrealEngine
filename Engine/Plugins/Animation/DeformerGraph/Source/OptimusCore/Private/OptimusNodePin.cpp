@@ -518,14 +518,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			DataDomain = FOptimusDataDomain();
 		}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-		// Fix up data types so that the type points to the type object.
-		const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
-		FOptimusDataTypeHandle TypeHandle = Registry.FindType(DataType.TypeName);
-		if (TypeHandle.IsValid())
-		{
-			DataType.TypeObject = TypeHandle->TypeObject;
-		}
 	}
 }
 

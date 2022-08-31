@@ -111,3 +111,4 @@ struct TStructOpsTypeTraits<FOptimusDataDomain> : public TStructOpsTypeTraitsBas
 		WithPostSerialize = true,
 	};
 };
+

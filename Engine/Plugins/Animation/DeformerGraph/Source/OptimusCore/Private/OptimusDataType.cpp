@@ -55,6 +55,21 @@ FOptimusDataTypeHandle FOptimusDataTypeRef::Resolve() const
 	return TypeHandle;
 }
 
+
+void FOptimusDataTypeRef::PostSerialize(const FArchive& Ar)
+{
+	// Fix up data types so that the type points to the type object.
+	if (Ar.IsLoading())
+	{
+		const FOptimusDataTypeHandle TypeHandle = FOptimusDataTypeRegistry::Get().FindType(TypeName);
+		if (TypeHandle.IsValid())
+		{
+			TypeObject = TypeHandle->TypeObject;
+		}
+	}
+}
+
+
 FProperty* FOptimusDataType::CreateProperty(
 	UStruct* InScope, 
 	FName InName
