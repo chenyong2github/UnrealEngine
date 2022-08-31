@@ -1429,7 +1429,7 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 	}
 }
 
-void FVulkanTextureView::Create(FVulkanDevice& Device, VkImage InImage, VkImageViewType ViewType, VkImageAspectFlags AspectFlags, EPixelFormat UEFormat, VkFormat Format, uint32 FirstMip, uint32 NumMips, uint32 ArraySliceIndex, uint32 NumArraySlices, bool bUseIdentitySwizzle /*= false*/)
+void FVulkanTextureView::Create(FVulkanDevice& Device, VkImage InImage, VkImageViewType ViewType, VkImageAspectFlags AspectFlags, EPixelFormat UEFormat, VkFormat Format, uint32 FirstMip, uint32 NumMips, uint32 ArraySliceIndex, uint32 NumArraySlices, bool bUseIdentitySwizzle /*= false*/, VkImageUsageFlags ImageUsageFlags /*= 0*/)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	View = VK_NULL_HANDLE;
@@ -1521,6 +1521,17 @@ void FVulkanTextureView::Create(FVulkanDevice& Device, VkImage InImage, VkImageV
 	{
 		ensure((ViewInfo.format == (VkFormat)GPixelFormats[PF_DepthStencil].PlatformFormat) && (ViewInfo.format != VK_FORMAT_UNDEFINED));
 		ViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+	}
+
+	// Inform the driver the view will only be used with a subset of usage flags (to help performance and/or compatibility)
+	VkImageViewUsageCreateInfo ImageViewUsageCreateInfo;
+	if ((ImageUsageFlags != 0) && Device.GetOptionalExtensions().HasKHRMaintenance2)
+	{
+		ZeroVulkanStruct(ImageViewUsageCreateInfo, VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO);
+		ImageViewUsageCreateInfo.usage = ImageUsageFlags;
+
+		ImageViewUsageCreateInfo.pNext = (void*)ViewInfo.pNext;
+		ViewInfo.pNext = &ImageViewUsageCreateInfo;
 	}
 
 	INC_DWORD_STAT(STAT_VulkanNumImageViews);

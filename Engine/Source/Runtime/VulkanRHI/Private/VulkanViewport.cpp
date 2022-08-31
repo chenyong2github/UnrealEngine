@@ -354,7 +354,7 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		}
 		else if (Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_3D)
 		{
-			RTView.Create(*Texture->Device, Texture->Image, VK_IMAGE_VIEW_TYPE_2D_ARRAY, Texture->GetFullAspectMask(), Desc.Format, Texture->ViewFormat, MipIndex, 1, 0, Desc.Depth, true);
+			RTView.Create(*Texture->Device, Texture->Image, VK_IMAGE_VIEW_TYPE_2D_ARRAY, Texture->GetFullAspectMask(), Desc.Format, Texture->ViewFormat, MipIndex, 1, 0, Desc.Depth, true, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 		}
 		else
 		{
