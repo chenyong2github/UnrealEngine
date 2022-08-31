@@ -998,7 +998,7 @@ void RefreshSamplerStatesCallback()
 		}
 
 		// The shared sampler states don't have an associated texture so must be manually refreshed
-		if (Wrap_WorldGroupSettings || Clamp_WorldGroupSettings)
+		if (GDynamicRHI && (Wrap_WorldGroupSettings || Clamp_WorldGroupSettings))
 		{
 			FSharedSamplerState* WrapState = Wrap_WorldGroupSettings;
 			FSharedSamplerState* ClampState = Clamp_WorldGroupSettings;
