@@ -40,6 +40,16 @@ public:
 	FLobbyBucketIdEOS& operator=(const FLobbyBucketIdEOS&) = default;
 	FLobbyBucketIdEOS& operator=(FLobbyBucketIdEOS&&) = default;
 
+	bool operator==(const FLobbyBucketIdEOS& Other) const
+	{
+		return ProductName == Other.ProductName && ProductVersion == Other.ProductVersion;
+	}
+
+	bool operator!=(const FLobbyBucketIdEOS& Other) const
+	{
+		return !(*this == Other);
+	}
+
 	FLobbyBucketIdEOS(FString ProductName, int32 ProductVersion);
 
 	const FString& GetProductName() const { return ProductName; }
@@ -50,6 +60,8 @@ private:
 	FString ProductName;
 	int32 ProductVersion;
 };
+
+FString ToLogString(const FLobbyBucketIdEOS& BucketId);
 
 //--------------------------------------------------------------------------------------------------
 // Translators
@@ -214,7 +226,11 @@ public:
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromLobbyId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 		FAccountId LocalAccountId,
-		EOS_LobbyId LobbyId);
+		EOS_LobbyId LobbyIdEOS);
+	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromLobbyId(
+		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
+		FAccountId LocalAccountId,
+		const FString& LobbyId);
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> CreateFromInviteId(
 		const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites,
 		FAccountId LocalAccountId,
@@ -236,6 +252,11 @@ public:
 	const TSharedRef<FLobbyDetailsInfoEOS>& GetInfo() const { return LobbyDetailsInfo; }
 	ELobbyDetailsSource GetDetailsSource() const { return LobbyDetailsSource; }
 	FAccountId GetAssociatedUser() const { return AssociatedLocalUser; }
+
+	/**
+	 * Check whether this lobbies bucket is compatible with the currently running application.
+	 */
+	bool IsBucketCompatible() const;
 
 	/**
 	 * Retrieve a lobby data snapshot from the EOS lobby details object.
@@ -288,12 +309,10 @@ public:
 
 	static TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsInfoEOS>> Create(EOS_HLobbyDetails LobbyDetailsHandle);
 
-	EOS_LobbyId GetLobbyId() const { return LobbyDetailsInfo->LobbyId; }
+	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->LobbyId; }
 	int32 GetMaxMembers() const { return LobbyDetailsInfo->MaxMembers; }
 	EOS_ELobbyPermissionLevel GetPermissionLevel() const { return LobbyDetailsInfo->PermissionLevel; }
-
-	const FString& GetProductName() const { return BucketId.GetProductName(); }
-	int32 GetProductVersion() const { return BucketId.GetProductVersion(); }
+	const FLobbyBucketIdEOS& GetBucketId() const { return BucketId; }
 
 private:
 	struct FEOSLobbyDetailsInfoDeleter
@@ -331,8 +350,8 @@ public:
 
 	FLobbyId GetLobbyIdHandle() const { return ClientLobbyData->GetPublicData().LobbyId; }
 	const TSharedRef<FClientLobbyData>& GetClientLobbyData() const { return ClientLobbyData; }
-	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyId(); }
-	const FString& GetLobbyId() const { return LobbyId; }
+	EOS_LobbyId GetLobbyIdEOS() const { return LobbyDetailsInfo->GetLobbyIdEOS(); }
+	const FString& GetLobbyIdString() const { return LobbyIdString; }
 
 	void AddUserLobbyDetails(FAccountId LocalAccountId, const TSharedPtr<FLobbyDetailsEOS>& LobbyDetails);
 	TSharedPtr<FLobbyDetailsEOS> GetUserLobbyDetails(FAccountId LocalAccountId) const;
@@ -355,7 +374,7 @@ private:
 	TSharedRef<FClientLobbyData> ClientLobbyData;
 	TSharedRef<FLobbyDetailsInfoEOS> LobbyDetailsInfo;
 	FUnregisterFn UnregisterFn;
-	FString LobbyId;
+	FString LobbyIdString;
 	TMap<FAccountId, TSharedPtr<FLobbyDetailsEOS>> UserLobbyDetails;
 };
 
@@ -365,7 +384,7 @@ class FLobbyDataRegistryEOS : public TSharedFromThis<FLobbyDataRegistryEOS>
 public:
 	FLobbyDataRegistryEOS(const TSharedRef<FLobbyPrerequisitesEOS>& Prerequisites);
 
-	TSharedPtr<FLobbyDataEOS> Find(EOS_LobbyId EOSLobbyId) const;
+	TSharedPtr<FLobbyDataEOS> Find(EOS_LobbyId LobbyIdEOS) const;
 	TSharedPtr<FLobbyDataEOS> Find(FLobbyId LobbyId) const;
 	TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> FindOrCreateFromLobbyDetails(FAccountId LocalAccountId, const TSharedRef<FLobbyDetailsEOS>& LobbyDetails);
 

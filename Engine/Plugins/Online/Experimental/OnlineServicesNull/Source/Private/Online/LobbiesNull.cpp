@@ -154,19 +154,14 @@ TSharedRef<FLobbyNull> FLobbiesNull::CreateNamedLobby(const FCreateLobby::Params
 	Lobby->Data->Attributes = Params.Attributes;
 	Lobby->Data->MaxMembers = 100; // temp
 
-	// construct the members
-	for (const FJoinLobbyLocalUserData& Data : Params.LocalUsers)
-	{
-		TSharedRef<FLobbyMember> NewMember = MakeShared<FLobbyMember>();
+	// construct the member data.
+	TSharedRef<FLobbyMember> NewMember = MakeShared<FLobbyMember>();
+	NewMember->AccountId = Params.LocalAccountId;
+	NewMember->PlatformAccountId = Params.LocalAccountId;
+	NewMember->PlatformDisplayName = TEXT("TEMP");
+	NewMember->Attributes = Params.UserAttributes;
 
-		NewMember->AccountId = Data.LocalAccountId;
-		NewMember->PlatformAccountId = Data.LocalAccountId;
-		NewMember->PlatformDisplayName = TEXT("TEMP");
-		NewMember->Attributes = Data.Attributes;
-
-		Lobby->Data->Members.Add(Data.LocalAccountId, NewMember);
-
-	}
+	Lobby->Data->Members.Add(Params.LocalAccountId, NewMember);
 
 	AllLobbies.Add(Lobby->Data->LobbyId, Lobby);
 	return Lobby;

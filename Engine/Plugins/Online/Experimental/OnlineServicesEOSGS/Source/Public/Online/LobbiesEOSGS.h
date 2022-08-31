@@ -22,51 +22,6 @@ class FLobbySearchEOS;
 struct FClientLobbyDataChanges;
 struct FClientLobbyMemberDataChanges;
 
-struct FLobbiesJoinLobbyImpl
-{
-	static constexpr TCHAR Name[] = TEXT("JoinLobbyImpl");
-
-	struct Params
-	{
-		// The lobby handle data.
-		TSharedPtr<FLobbyDataEOS> LobbyData;
-
-		// The local user agent which will perform the action.
-		FAccountId LocalAccountId;
-
-		// The local name for the lobby.
-		FName LocalName;
-
-		// Local users who will be joining the lobby.
-		TArray<FJoinLobbyLocalUserData> LocalUsers;
-	};
-
-	struct Result
-	{
-	};
-};
-
-struct FLobbiesJoinLobbyMemberImpl
-{
-	static constexpr TCHAR Name[] = TEXT("JoinLobbyMemberImpl");
-
-	struct Params
-	{
-		// The lobby handle data.
-		TSharedPtr<FLobbyDataEOS> LobbyData;
-
-		// The local user agent which will perform the action.
-		FAccountId LocalAccountId;
-
-		// Initial attributes.
-		TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
-	};
-
-	struct Result
-	{
-	};
-};
-
 struct FLobbiesLeaveLobbyImpl
 {
 	static constexpr TCHAR Name[] = TEXT("LeaveLobbyImpl");
@@ -91,8 +46,8 @@ struct FLobbiesDestroyLobbyImpl
 
 	struct Params
 	{
-		// The lobby handle data.
-		TSharedPtr<FLobbyDataEOS> LobbyData;
+		// The name of the lobby to be destroyed.
+		FString LobbyIdString;
 
 		// The local user agent which will perform the action.
 		FAccountId LocalAccountId;
@@ -302,9 +257,6 @@ protected:
 	TSharedPtr<FLobbyInviteDataEOS> GetActiveInvite(FAccountId TargetUser, FLobbyId TargetLobbyId);
 
 	// LobbyData will be fetched from the operation data if not set in Params.
-	TFuture<TDefaultErrorResult<FLobbiesJoinLobbyImpl>> JoinLobbyImpl(FLobbiesJoinLobbyImpl::Params&& Params);
-	TOnlineAsyncOpHandle<FLobbiesJoinLobbyMemberImpl> JoinLobbyMemberImplOp(FLobbiesJoinLobbyMemberImpl::Params&& Params);
-	TFuture<TDefaultErrorResult<FLobbiesJoinLobbyMemberImpl>> JoinLobbyMemberImpl(FLobbiesJoinLobbyMemberImpl::Params&& Params);
 	TFuture<TDefaultErrorResult<FLobbiesLeaveLobbyImpl>> LeaveLobbyImpl(FLobbiesLeaveLobbyImpl::Params&& Params);
 	TFuture<TDefaultErrorResult<FLobbiesDestroyLobbyImpl>> DestroyLobbyImpl(FLobbiesDestroyLobbyImpl::Params&& Params);
 	TFuture<TDefaultErrorResult<FLobbiesInviteLobbyMemberImpl>> InviteLobbyMemberImpl(FLobbiesInviteLobbyMemberImpl::Params&& Params);
@@ -332,25 +284,6 @@ protected:
 
 namespace Meta {
 
-BEGIN_ONLINE_STRUCT_META(FLobbiesJoinLobbyImpl::Params)
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalName),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyImpl::Params, LocalUsers)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FLobbiesJoinLobbyImpl::Result)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FLobbiesJoinLobbyMemberImpl::Params)
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, LobbyData),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FLobbiesJoinLobbyMemberImpl::Params, Attributes)
-END_ONLINE_STRUCT_META()
-
-BEGIN_ONLINE_STRUCT_META(FLobbiesJoinLobbyMemberImpl::Result)
-END_ONLINE_STRUCT_META()
-
 BEGIN_ONLINE_STRUCT_META(FLobbiesLeaveLobbyImpl::Params)
 	ONLINE_STRUCT_FIELD(FLobbiesLeaveLobbyImpl::Params, LobbyData),
 	ONLINE_STRUCT_FIELD(FLobbiesLeaveLobbyImpl::Params, LocalAccountId)
@@ -360,7 +293,7 @@ BEGIN_ONLINE_STRUCT_META(FLobbiesLeaveLobbyImpl::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLobbiesDestroyLobbyImpl::Params)
-	ONLINE_STRUCT_FIELD(FLobbiesDestroyLobbyImpl::Params, LobbyData),
+	ONLINE_STRUCT_FIELD(FLobbiesDestroyLobbyImpl::Params, LobbyIdString),
 	ONLINE_STRUCT_FIELD(FLobbiesDestroyLobbyImpl::Params, LocalAccountId)
 END_ONLINE_STRUCT_META()
 

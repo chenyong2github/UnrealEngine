@@ -74,15 +74,6 @@ struct FLobby
 	TMap<FAccountId, TSharedRef<const FLobbyMember>> Members;
 };
 
-struct FJoinLobbyLocalUserData
-{
-	/** Local users who will be joining the lobby. */
-	FAccountId LocalAccountId;
-
-	/** Initial attributes. */
-	TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
-};
-
 struct FFindLobbySearchFilter
 {
 	/** The name of the attribute to be compared. */
@@ -122,8 +113,8 @@ struct FCreateLobby
 		/** Initial attributes. */
 		TMap<FLobbyAttributeId, FLobbyVariant> Attributes;
 
-		/** Local users who will be joining the lobby. */
-		TArray<FJoinLobbyLocalUserData> LocalUsers;
+		/** Initial user attributes. */
+		TMap<FLobbyAttributeId, FLobbyVariant> UserAttributes;
 	};
 
 	/** Output struct for Lobbies::CreateLobby */
@@ -198,8 +189,8 @@ struct FJoinLobby
 		/** The id of the lobby to be joined. */
 		FLobbyId LobbyId;
 
-		/** Local users who will be joining the lobby. */
-		TArray<FJoinLobbyLocalUserData> LocalUsers;
+		/** Initial user attributes. */
+		TMap<FLobbyAttributeId, FLobbyVariant> UserAttributes;
 	};
 
 	/** Output struct for Lobbies::JoinLobby */
@@ -808,11 +799,6 @@ BEGIN_ONLINE_STRUCT_META(FLobby)
 	ONLINE_STRUCT_FIELD(FLobby, JoinPolicy)
 END_ONLINE_STRUCT_META()
 
-BEGIN_ONLINE_STRUCT_META(FJoinLobbyLocalUserData)
-	ONLINE_STRUCT_FIELD(FJoinLobbyLocalUserData, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FJoinLobbyLocalUserData, Attributes)
-END_ONLINE_STRUCT_META()
-
 BEGIN_ONLINE_STRUCT_META(FCreateLobby::Params)
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalName),
@@ -820,7 +806,7 @@ BEGIN_ONLINE_STRUCT_META(FCreateLobby::Params)
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, MaxMembers),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, JoinPolicy),
 	ONLINE_STRUCT_FIELD(FCreateLobby::Params, Attributes),
-	ONLINE_STRUCT_FIELD(FCreateLobby::Params, LocalUsers)
+	ONLINE_STRUCT_FIELD(FCreateLobby::Params, UserAttributes)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FCreateLobby::Result)
