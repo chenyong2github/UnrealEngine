@@ -200,8 +200,7 @@ protected:
 private:
 	FOptimusDataTypeRegistry();
 
-	// Callbacks to update registry when user defined structs are loaded/removed/renamed
-	void OnFilesLoaded();
+	// Callbacks to update registry when user defined structs are removed/renamed
 	void OnAssetRemoved(const FAssetData& InAssetData);
 	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldName);
 	

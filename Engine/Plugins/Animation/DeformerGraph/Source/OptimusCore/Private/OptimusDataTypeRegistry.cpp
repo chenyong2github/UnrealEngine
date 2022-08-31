@@ -1295,7 +1295,6 @@ void FOptimusDataTypeRegistry::RegisterAssetRegistryCallbacks()
 {
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 	{
-		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnFilesLoaded);
 		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAssetRemoved);
 		AssetRegistryModule->Get().OnAssetRenamed().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAssetRenamed);
 	}
@@ -1305,7 +1304,6 @@ void FOptimusDataTypeRegistry::UnregisterAssetRegistryCallbacks()
 {
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
 	{
-		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(&Get());
 		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&Get());
 		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(&Get());
 	}
@@ -1328,56 +1326,6 @@ FOptimusDataTypeRegistry::PropertyCreateFuncT FOptimusDataTypeRegistry::FindProp
 
 FOptimusDataTypeRegistry::FOptimusDataTypeRegistry()
 {
-}
-
-void FOptimusDataTypeRegistry::OnFilesLoaded()
-{
-	TArray<FAssetData> StructAssets;
-	StructAssets.Reset();
-		
-	// Get the loaded ones
-	for (TObjectIterator<UScriptStruct> It; It; ++It)
-	{
-		UScriptStruct* Struct = *It;
-		StructAssets.Add(FAssetData(Struct));
-	}
-
-	// Now get unloaded ones
-	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	TArray<FAssetData> AssetData;
-	AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), AssetData);
-
-	for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
-	{
-		const FAssetData& Asset = AssetData[AssetIndex];
-		if (Asset.IsValid() && !Asset.IsAssetLoaded())
-		{
-			StructAssets.Add(Asset);
-		}
-	}
-
-	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
-
-	for (const FAssetData& StructAsset : StructAssets)
-	{
-		UObject* Struct = StructAsset.GetAsset();
-		if (UObjectRedirector* RedirectedStruct = Cast<UObjectRedirector>(Struct))
-		{
-			Struct = RedirectedStruct->DestinationObject;
-		}
-		
-		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
-		
-		if (ensure(ScriptStruct))
-		{
-			FOptimusDataTypeHandle DataType = FindType(Optimus::GetTypeName(ScriptStruct));
-
-			if (!DataType.IsValid())
-			{
-				RegisterStructType(ScriptStruct);
-			}
-		}
-	}
 }
 
 void FOptimusDataTypeRegistry::OnAssetRemoved(const FAssetData& InAssetData)
