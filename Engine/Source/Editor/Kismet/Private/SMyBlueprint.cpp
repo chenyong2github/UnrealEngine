@@ -5,6 +5,7 @@
 
 #include "Animation/AnimClassInterface.h"
 #include "AnimationGraph.h"
+#include "AnimationStateMachineGraph.h"
 #include "AnimGraphNode_StateMachineBase.h"
 #include "BPDelegateDragDropAction.h"
 #include "BPFunctionDragDropAction.h"
