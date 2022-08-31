@@ -69,9 +69,6 @@ protected:
 	/** Properly set up the default input pin for an output pin.*/
 	UEdGraphPin* CreateDefaultPin(UEdGraphPin* OutputPin);
 
-	/** Returns the metadata for the given variable or nullptr if no metadata is available */
-	UNiagaraScriptVariable* GetScriptVariable(FName VariableName) const;
-
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TMap<FGuid, FGuid> PinOutputToPinDefaultPersistentId;
 };

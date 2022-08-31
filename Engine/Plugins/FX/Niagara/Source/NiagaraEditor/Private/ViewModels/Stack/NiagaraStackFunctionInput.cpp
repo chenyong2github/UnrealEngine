@@ -2351,7 +2351,7 @@ TArray<UNiagaraScript*> UNiagaraStackFunctionInput::GetPossibleConversionScripts
     	{
     		// checking via metadata is not really correct, but it's super fast and good enough for the prefiltered list of scripts
     		TArray<FNiagaraVariable> AvailableVars;
-    		NodeGraph->GetAllMetaData().GetKeys(AvailableVars);
+		NodeGraph->GetAllVariables(AvailableVars);
     		int MatchingVars = 0;
     		for (const FNiagaraVariable& Var : AvailableVars)
     		{
@@ -2915,19 +2915,27 @@ void UNiagaraStackFunctionInput::GetDefaultLinkedHandleOrLinkedFunctionFromDefau
 void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& InInputValues) const
 {
 	// Get the script variable first since it's used to determine static switch and bound input values.
-	UNiagaraScriptVariable* InputScriptVariable = nullptr;
+	TOptional<ENiagaraDefaultMode> DefaultMode;
+	TOptional<int32> StaticSwitchDefaultValue;
+	FNiagaraScriptVariableBinding DefaultBinding;
+
+	FNiagaraVariable InputVariable(InputType, InputParameterHandle.GetParameterHandleString());
+
 	if (OwningFunctionCallNode->FunctionScript != nullptr)
 	{
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->GetFunctionScriptSource())->NodeGraph;
-		InputScriptVariable = FunctionGraph->GetScriptVariable(InputParameterHandle.GetParameterHandleString());
+		if (UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraScriptSource>(OwningFunctionCallNode->GetFunctionScriptSource())->NodeGraph)
+		{
+			DefaultMode = FunctionGraph->GetDefaultMode(InputVariable, &DefaultBinding);
+			StaticSwitchDefaultValue = FunctionGraph->GetStaticSwitchDefaultValue(InputVariable);
+		}
 	}
 
 	if (IsStaticParameter())
 	{
 		// Static switch parameters are always locally set values.
-		if (InputScriptVariable != nullptr)
+		if (StaticSwitchDefaultValue.IsSet())
 		{
-			TSharedPtr<FStructOnScope> StaticSwitchLocalStruct = FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(InputScriptVariable->GetStaticSwitchDefaultValue(), InputType);
+			TSharedPtr<FStructOnScope> StaticSwitchLocalStruct = FNiagaraEditorUtilities::StaticSwitchDefaultIntToStructOnScope(*StaticSwitchDefaultValue, InputType);
 			if(ensureMsgf(StaticSwitchLocalStruct.IsValid(), TEXT("Unsupported static struct default value.")))
 			{ 
 				InInputValues.Mode = EValueMode::Local;
@@ -2937,11 +2945,11 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 	}
 	else
 	{
-		if (InputScriptVariable != nullptr && InputScriptVariable->DefaultMode == ENiagaraDefaultMode::Binding && InputScriptVariable->DefaultBinding.IsValid())
+		if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::Binding && DefaultBinding.IsValid())
 		{
 			// The next highest precedence value is a linked value from a variable binding so check that.
 			InInputValues.Mode = EValueMode::Linked;
-			InInputValues.LinkedHandle = InputScriptVariable->DefaultBinding.GetName();
+			InInputValues.LinkedHandle = DefaultBinding.GetName();
 		}
 		else if (SourceScript.IsValid())
 		{

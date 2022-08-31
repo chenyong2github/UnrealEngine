@@ -1660,10 +1660,11 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 			// Add the default binding as well to the parameter history, if used.
 			if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(InPin->GetOwningNode()->GetGraph()))
 			{
-				UNiagaraScriptVariable* Variable = Graph->GetScriptVariable(AliasedVar);
-				if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
+				FNiagaraScriptVariableBinding VariableBinding;
+				TOptional<ENiagaraDefaultMode> DefaultMode = Graph->GetDefaultMode(AliasedVar, &VariableBinding);
+				if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::Binding && VariableBinding.IsValid())
 				{
-					FNiagaraVariable TempVar = FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName());
+					FNiagaraVariable TempVar = FNiagaraVariable(Var.GetType(), VariableBinding.GetName());
 					if (FNiagaraConstants::GetOldPositionTypeVariables().Contains(TempVar))
 					{
 						// Old assets often have vector inputs that default bind to what is now a position type. If we detect that, we change the type to prevent a compiler error.

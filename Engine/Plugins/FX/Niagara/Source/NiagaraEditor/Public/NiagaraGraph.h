@@ -11,6 +11,7 @@
 class UNiagaraParameterDefinitions;
 class UNiagaraScriptVariable;
 struct FSynchronizeWithParameterDefinitionsArgs;
+struct FNiagaraScriptVariableData;
 
 
 /** This is the type of action that occurred on a given Niagara graph. Note that this should follow from EEdGraphActionType, leaving some slop for growth. */
@@ -275,13 +276,17 @@ class UNiagaraGraph : public UEdGraph
 	/** Sets the meta-data associated with this variable. Creates a new UNiagaraScriptVariable if the target variable cannot be found. Illegal to call on FNiagaraVariables that are Niagara Constants. */
 	void SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& MetaData);
 
+	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
+
+	// These functions are not supported for compilation copies
 	NIAGARAEDITOR_API const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GetAllMetaData() const;
 	NIAGARAEDITOR_API TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& GetAllMetaData();
 
-	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
+	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter, bool bUpdateIfPending = false);
+	NIAGARAEDITOR_API UNiagaraScriptVariable* GetScriptVariable(FName ParameterName, bool bUpdateIfPending = false);
 
-	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter, bool bUpdateIfPending = false) const;
-	NIAGARAEDITOR_API UNiagaraScriptVariable* GetScriptVariable(FName ParameterName, bool bUpdateIfPending = false) const;
+	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter) const;
+	NIAGARAEDITOR_API UNiagaraScriptVariable* GetScriptVariable(FName ParameterName) const;
 
 	/** Adds parameter to the VariableToScriptVariable map.*/
 	UNiagaraScriptVariable* AddParameter(const FNiagaraVariable& Parameter, bool bIsStaticSwitch = false);
@@ -393,6 +398,18 @@ class UNiagaraGraph : public UEdGraph
 
 	/** Helper to get a map of variables to all input/output pins with the same name. */
 	const TMap<FNiagaraVariable, FInputPinsAndOutputPins> NIAGARAEDITOR_API CollectVarsToInOutPinsMap() const;
+
+	void GetAllScriptVariableGuids(TArray<FGuid>& VariableGuids) const;
+	void GetAllVariables(TArray<FNiagaraVariable>& Variables) const;
+	TOptional<bool> IsStaticSwitch(const FNiagaraVariable& Variable) const;
+	TOptional<int32> GetStaticSwitchDefaultValue(const FNiagaraVariable& Variable) const;
+	TOptional<ENiagaraDefaultMode> GetDefaultMode(const FNiagaraVariable& Variable, FNiagaraScriptVariableBinding* Binding = nullptr) const;
+	TOptional<FGuid> GetScriptVariableGuid(const FNiagaraVariable& Variable) const;
+	TOptional<FNiagaraVariable> GetVariable(const FNiagaraVariable& Variable) const;
+	bool HasVariable(const FNiagaraVariable& Variable) const;
+
+	void SetIsStaticSwitch(const FNiagaraVariable& Variable, bool InValue);
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;
@@ -420,6 +437,9 @@ private:
 
 	void StandardizeParameterNames();
 
+	static bool VariableLess(const FNiagaraVariable& Lhs, const FNiagaraVariable& Rhs);
+	TOptional<FNiagaraScriptVariableData> GetScriptVariableData(const FNiagaraVariable& Variable) const;
+
 private:
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()
@@ -442,10 +462,13 @@ private:
 	/** Storage of variables defined for use with this graph.*/
 	UPROPERTY()
 	mutable TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>> VariableToScriptVariable;
-	
+
 	/** A map of parameters in the graph to their referencers. */
 	UPROPERTY(Transient)
 	mutable TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ParameterToReferencesMap;
+
+	UPROPERTY(Transient)
+	mutable TArray<FNiagaraScriptVariableData> CompilationScriptVariables;
 
 	FOnDataInterfaceChanged OnDataInterfaceChangedDelegate;
 	FOnSubObjectSelectionChanged OnSelectedSubObjectChanged;

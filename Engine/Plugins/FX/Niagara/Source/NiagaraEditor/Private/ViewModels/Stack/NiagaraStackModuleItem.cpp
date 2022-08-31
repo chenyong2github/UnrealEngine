@@ -153,9 +153,6 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 		// Determine if meta-data requires that we add our own refresh button here.
 		if (FunctionCallNode->HasValidScriptAndGraph())
 		{
-			UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
-			const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& MetaDataMap = Graph->GetAllMetaData();
-			auto Iter = MetaDataMap.CreateConstIterator();
 			bCanRefresh = true;
 		}
 

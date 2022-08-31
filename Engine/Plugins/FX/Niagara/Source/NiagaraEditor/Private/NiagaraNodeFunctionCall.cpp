@@ -226,13 +226,13 @@ UEdGraphPin* UNiagaraNodeFunctionCall::AddStaticSwitchInputPin(FNiagaraVariable 
 	NewPin->SetSavePinIfOrphaned(true);
 
 	FGuid PinPersistentGuid;
-	UNiagaraScriptVariable* ScriptVar = Graph->GetScriptVariable(Input);
-	if (ScriptVar)
+	TOptional<int32> SwitchDefaultValue = Graph->GetStaticSwitchDefaultValue(Input);
+	TOptional<FGuid> ScriptVariableGuid = Graph->GetScriptVariableGuid(Input);
+	if (SwitchDefaultValue.IsSet() && ScriptVariableGuid.IsSet())
 	{
-		int32 DefaultValue = ScriptVar->GetStaticSwitchDefaultValue();
 		Input.AllocateData();
-		Input.SetValue<FNiagaraInt32>({ DefaultValue });
-		PinPersistentGuid = ScriptVar->Metadata.GetVariableGuid();
+		Input.SetValue<FNiagaraInt32>( {*SwitchDefaultValue} );
+		PinPersistentGuid = *ScriptVariableGuid;
 	}
 	else
 	{
@@ -945,10 +945,10 @@ void UNiagaraNodeFunctionCall::UpdateStaticSwitchPinsWithPersistentGuids()
 			FNiagaraVariable InputVariable = GetDefault<UEdGraphSchema_Niagara>()->PinToNiagaraVariable(InputPin);
 			if (StaticSwitchVariables.Contains(InputVariable))
 			{
-				UNiagaraScriptVariable* InputScriptVariable = CalledGraph->GetScriptVariable(InputPin->PinName);
-				if (InputScriptVariable != nullptr)
+				TOptional<FGuid> VariableGuid = CalledGraph->GetScriptVariableGuid(InputVariable);
+				if (VariableGuid.IsSet())
 				{
-					InputPin->PersistentGuid = InputScriptVariable->Metadata.GetVariableGuid();
+					InputPin->PersistentGuid = *VariableGuid;
 				}
 			}
 		}

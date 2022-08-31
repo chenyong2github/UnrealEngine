@@ -3102,7 +3102,7 @@ void FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(UNiagaraNodeP
 	}
 
 	// First check that the new variable exists on the UNiagaraGraph. If not, add the new variable as a parameter.
-	if (Graph->GetScriptVariable(NewVariable.GetName()) == nullptr)
+	if (!Graph->HasVariable(NewVariable))
 	{
 		Graph->Modify();
 		Graph->AddParameter(NewVariable);
@@ -3126,7 +3126,7 @@ void FNiagaraStackGraphUtilities::AddNewVariableToParameterMapNode(UNiagaraNodeP
 	}
 
 	// First check that the new variable exists on the UNiagaraGraph. If not, add the new variable as a parameter.
-	if (Graph->GetScriptVariable(NewVariable.GetName()) == nullptr)
+	if (!Graph->HasVariable(NewVariable))
 	{
 		Graph->Modify();
 		Graph->AddParameter(NewScriptVar);

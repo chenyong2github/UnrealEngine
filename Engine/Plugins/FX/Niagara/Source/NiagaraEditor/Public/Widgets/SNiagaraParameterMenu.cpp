@@ -377,11 +377,9 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 		// If culling parameter actions that match existing parameters in the graph, collect all IDs for parameters visited in the graph.
 		if(bCullParameterActionsAlreadyInGraph)
 		{ 
-			const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& VariableToScriptVariableMap = Graph->GetAllMetaData();
-			for (auto It = VariableToScriptVariableMap.CreateConstIterator(); It; ++It)
-			{
-				ExistingGraphParameterIds.Add(It.Value()->Metadata.GetVariableGuid());
-			}
+			TArray<FGuid> VariableGuids;
+			Graph->GetAllScriptVariableGuids(VariableGuids);
+			ExistingGraphParameterIds.Append(VariableGuids);
 		}
 	}
 
@@ -440,10 +438,11 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 				const FNiagaraVariable& Parameter = ParameterEntry.Key;
 
 				// Check if the graph owns the parameter (has a script variable for the parameter.)
-				if (const UNiagaraScriptVariable* ScriptVar = Graph->GetScriptVariable(Parameter))
+				if (Graph->HasVariable(Parameter))
 				{
 					// The graph owns the parameter. Skip if it is a static switch.
-					if (ScriptVar->GetIsStaticSwitch())
+					TOptional<bool> IsStaticSwitch = Graph->IsStaticSwitch(Parameter);
+					if (IsStaticSwitch.IsSet() && *IsStaticSwitch)
 					{
 						continue;
 					}

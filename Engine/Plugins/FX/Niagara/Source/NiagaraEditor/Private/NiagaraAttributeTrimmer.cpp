@@ -377,27 +377,27 @@ namespace NiagaraAttributeTrimming
 	{
 		if (const UNiagaraGraph* OwnerGraph = Cast<const UNiagaraGraph>(ReadPin.Pin->GetOwningNode()->GetGraph()))
 		{
-			FString ParamName = ParamMap.Variables[VariableIndex].GetName().ToString();
+			FNiagaraVariable ParamVariable = ParamMap.Variables[VariableIndex];
+			FString ParamName = ParamVariable.GetName().ToString();
 
 			// now we need to replace the module name with 'module'
 			ParamName.ReplaceInline(*ReadPin.ModuleName.ToString(), *FNiagaraConstants::ModuleNamespace.ToString());
 
-			const FName VariableName = *ParamName;
+			ParamVariable.SetName(*ParamName);
 
-			if (const UNiagaraScriptVariable* ScriptVariable = OwnerGraph->GetScriptVariable(VariableName))
+			FNiagaraScriptVariableBinding DefaultBinding;
+			TOptional<ENiagaraDefaultMode> DefaultMode = OwnerGraph->GetDefaultMode(ParamVariable, &DefaultBinding);
+			if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::Binding && DefaultBinding.IsValid())
 			{
-				if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Binding && ScriptVariable->DefaultBinding.IsValid())
-				{
-					int32 BoundVariableIndex = ParamMap.FindVariableByName(ScriptVariable->DefaultBinding.GetName());
+				int32 BoundVariableIndex = ParamMap.FindVariableByName(DefaultBinding.GetName());
 
-					if (BoundVariableIndex != INDEX_NONE)
+				if (BoundVariableIndex != INDEX_NONE)
+				{
+					for (const FNiagaraParameterMapHistory::FReadHistory& ReadHistoryEntry : ParamMap.PerVariableReadHistory[BoundVariableIndex])
 					{
-						for (const FNiagaraParameterMapHistory::FReadHistory& ReadHistoryEntry : ParamMap.PerVariableReadHistory[BoundVariableIndex])
-						{
-							// for now adding the first pin to the dependencies works, but this needs to be revisited
-							ResolvedDependencies.Pins.Add(ReadHistoryEntry.ReadPin);
-							break;
-						}
+						// for now adding the first pin to the dependencies works, but this needs to be revisited
+						ResolvedDependencies.Pins.Add(ReadHistoryEntry.ReadPin);
+						break;
 					}
 				}
 			}

@@ -728,12 +728,23 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 	// Make sure that we are added to the static switch list.
 	if (GetInputType().IsValid() && InputParameterName.IsValid())
 	{
-		UNiagaraScriptVariable* Var = GetNiagaraGraph()->GetScriptVariable(InputParameterName);
-		if (Var != nullptr && Var->Variable.GetType() == GetInputType() && Var->GetIsStaticSwitch() == false)
+		if (InputParameterName.ToString() == TEXT("Enable Flattened Endcaps"))
 		{
-			UE_LOG(LogNiagaraEditor, Log, TEXT("Static switch constant \"%s\" in \"%s\" didn't have static switch meta-data conversion set properly. Fixing now."), *InputParameterName.ToString(), *GetPathName())
-			Var->SetIsStaticSwitch(true);
-			MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
+			int asdf = 0;
+			++asdf;
+		}
+
+		if (UNiagaraGraph* NiagaraGraph = GetNiagaraGraph())
+		{
+			const FNiagaraVariable Variable(GetInputType(), InputParameterName);
+			TOptional<bool> IsStaticSwitch = NiagaraGraph->IsStaticSwitch(Variable);
+
+			if (IsStaticSwitch.IsSet() && *IsStaticSwitch == false)
+			{
+				UE_LOG(LogNiagaraEditor, Log, TEXT("Static switch constant \"%s\" in \"%s\" didn't have static switch meta-data conversion set properly. Fixing now."), *InputParameterName.ToString(), *GetPathName())
+				NiagaraGraph->SetIsStaticSwitch(Variable, true);
+				MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
+			}
 		}
 	}
 

@@ -132,8 +132,8 @@ void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 			constexpr bool bNeedsValue = false;
 			FNiagaraVariable PinVariable = Schema->PinToNiagaraVariable(NewPin, bNeedsValue);
 			constexpr bool bIsStaticSwitch = false;
-			UNiagaraScriptVariable* ScriptVar = GetNiagaraGraph()->AddParameter(PinVariable, bIsStaticSwitch);
-			NewPin->PinName = ScriptVar->Variable.GetName();
+			GetNiagaraGraph()->AddParameter(PinVariable, bIsStaticSwitch);
+			NewPin->PinName = PinVariable.GetName();
 		}
 	}
 
