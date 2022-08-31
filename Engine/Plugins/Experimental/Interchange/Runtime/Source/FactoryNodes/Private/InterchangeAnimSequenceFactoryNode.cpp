@@ -336,6 +336,46 @@ bool UInterchangeAnimSequenceFactoryNode::SetCustomDeleteExistingNonCurveCustomA
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(DeleteExistingNonCurveCustomAttributes, bool);
 }
 
+void UInterchangeAnimSequenceFactoryNode::GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const
+{
+	OutSceneNodeAnimationPayloads = SceneNodeAnimationPayloadKeyMap.ToMap();
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const
+{
+	return SceneNodeAnimationPayloadKeyMap.GetValue(SceneNodeUid, OutPayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey)
+{
+	return SceneNodeAnimationPayloadKeyMap.SetKeyValue(SceneNodeUid, PayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid)
+{
+	return SceneNodeAnimationPayloadKeyMap.RemoveKey(SceneNodeUid);
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetAnimationPayloads) const
+{
+	OutMorphTargetAnimationPayloads = MorphTargetNodePayloadKeyMap.ToMap();
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const
+{
+	return MorphTargetNodePayloadKeyMap.GetValue(MorphTargetNodeUid, OutPayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey)
+{
+	return MorphTargetNodePayloadKeyMap.SetKeyValue(MorphTargetNodeUid, PayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid)
+{
+	return MorphTargetNodePayloadKeyMap.RemoveKey(MorphTargetNodeUid);
+}
+
 /************************************************************************/
 /* Automation tests                                                     */
 /************************************************************************/
@@ -406,46 +446,6 @@ bool FInterchangeAnimSequenceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 119.88 to FFrameRate"), FrameRate.Denominator, 25);
 
 	return true;
-}
-
-void UInterchangeAnimSequenceFactoryNode::GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const
-{
-	OutSceneNodeAnimationPayloads = SceneNodeAnimationPayloadKeyMap.ToMap();
-}
-
-bool UInterchangeAnimSequenceFactoryNode::GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const
-{
-	return SceneNodeAnimationPayloadKeyMap.GetValue(SceneNodeUid, OutPayloadKey);
-}
-
-bool UInterchangeAnimSequenceFactoryNode::SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey)
-{
-	return SceneNodeAnimationPayloadKeyMap.SetKeyValue(SceneNodeUid, PayloadKey);
-}
-
-bool UInterchangeAnimSequenceFactoryNode::RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid)
-{
-	return SceneNodeAnimationPayloadKeyMap.RemoveKey(SceneNodeUid);
-}
-
-void UInterchangeAnimSequenceFactoryNode::GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetAnimationPayloads) const
-{
-	OutMorphTargetAnimationPayloads = MorphTargetNodePayloadKeyMap.ToMap();
-}
-
-bool UInterchangeAnimSequenceFactoryNode::GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const
-{
-	return MorphTargetNodePayloadKeyMap.GetValue(MorphTargetNodeUid, OutPayloadKey);
-}
-
-bool UInterchangeAnimSequenceFactoryNode::SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey)
-{
-	return MorphTargetNodePayloadKeyMap.SetKeyValue(MorphTargetNodeUid, PayloadKey);
-}
-
-bool UInterchangeAnimSequenceFactoryNode::RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid)
-{
-	return MorphTargetNodePayloadKeyMap.RemoveKey(MorphTargetNodeUid);
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS
