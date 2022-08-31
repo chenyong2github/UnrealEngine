@@ -578,6 +578,7 @@ bool UInterchangeManager::CanReimport(const UObject* Object, TArray<FString>& Ou
 
 void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeManager::StartQueuedTasks")
 	if (!ensure(IsInGameThread()))
 	{
 		//Do not crash but we will not start any queued tasks if we are not in the game thread
@@ -608,7 +609,11 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 		}
 	};
 
-	while (!QueuedTasks.IsEmpty() && (ImportTasks.Num() < FTaskGraphInterface::Get().GetNumWorkerThreads() || bCancelAllTasks))
+	//We need to leave some free task in the pool to avoid deadlock.
+	//Each import can use 2 tasks in same time if the build of the asset ddc use the same task pool (i.e. staticmesh, skeletalmesh, texture...)
+	const int32 PoolWorkerThreadCount = FTaskGraphInterface::Get().GetNumWorkerThreads()/2;
+	const int32 MaxNumWorker = FMath::Max(PoolWorkerThreadCount, 1);
+	while (!QueuedTasks.IsEmpty() && (ImportTasks.Num() < MaxNumWorker || bCancelAllTasks))
 	{
 		FQueuedTaskData QueuedTaskData;
 		if (QueuedTasks.Dequeue(QueuedTaskData))
@@ -700,6 +705,7 @@ UInterchangeManager::ImportSceneAsync(const FString& ContentPath, const UInterch
 TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>
 UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters, const UE::Interchange::EImportType ImportType)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeManager::ImportInternal")
 	if (!ensure(IsInGameThread()))
 	{
 		//Import process can be started only in the game thread

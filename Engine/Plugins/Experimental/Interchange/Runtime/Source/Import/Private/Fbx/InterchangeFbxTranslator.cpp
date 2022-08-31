@@ -195,6 +195,7 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTrans
 	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetStaticMeshPayloadData::Dispatcher->AddTaskDone")
 		UE::Interchange::ETaskState TaskState;
 		FString JsonResult;
 		TArray<FString> JsonMessages;
@@ -277,6 +278,7 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbx
 	const FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData::Dispatcher->AddTaskDone")
 		UE::Interchange::ETaskState TaskState;
 		FString JsonResult;
 		TArray<FString> JsonMessages;
@@ -355,6 +357,7 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterc
 	const FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetSkeletalMeshMorphTargetPayloadData::Dispatcher->AddTaskDone")
 		UE::Interchange::ETaskState TaskState;
 		FString JsonResult;
 		TArray<FString> JsonMessages;
@@ -424,6 +427,7 @@ TFuture<TOptional<UE::Interchange::FAnimationCurvePayloadData>> UInterchangeFbxT
 	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetAnimationCurvePayloadData::Dispatcher->AddTaskDone")
 			UE::Interchange::ETaskState TaskState;
 			FString JsonResult;
 			TArray<FString> JsonMessages;
@@ -503,6 +507,7 @@ TFuture<TOptional<UE::Interchange::FAnimationStepCurvePayloadData>> UInterchange
 	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetAnimationStepCurvePayloadData::Dispatcher->AddTaskDone")
 			UE::Interchange::ETaskState TaskState;
 			FString JsonResult;
 			TArray<FString> JsonMessages;
@@ -576,6 +581,7 @@ TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterch
 	FString JsonCommand = CreateFetchAnimationBakeTransformPayloadFbxCommand(PayLoadKey, BakeFrequency, RangeStartSecond, RangeStopSecond);
 	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeFbxTranslator::GetAnimationBakeTransformPayloadData::Dispatcher->AddTaskDone")
 			UE::Interchange::ETaskState TaskState;
 			FString JsonResult;
 			TArray<FString> JsonMessages;

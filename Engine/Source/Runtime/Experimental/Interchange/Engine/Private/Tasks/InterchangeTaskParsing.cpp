@@ -35,6 +35,7 @@ struct FNodeDependencyCache
 {
 	const TSet<FString>& GetAccumulatedDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("FNodeDependencyCache::GetAccumulatedDependencies")
 		TSet<FString> NodeStack;
 		return GetAccumulatedDependencies(NodeContainer, NodeID, NodeStack);
 	}
@@ -88,6 +89,7 @@ private:
 
 void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FTaskParsing::DoTask")
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(ParsingGraph)
 #endif

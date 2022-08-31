@@ -27,6 +27,7 @@ namespace UE
 		{
 			void InternalGetPackageName(const UE::Interchange::FImportAsyncHelper& AsyncHelper, const int32 SourceIndex, const FString& PackageBasePath, const UInterchangeFactoryBaseNode* FactoryNode, FString& OutPackageName, FString& OutAssetName)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::Private::InternalGetPackageName")
 				const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
 				check(SourceData);
 				FString NodeDisplayName = FactoryNode->GetAssetName();
@@ -49,6 +50,7 @@ namespace UE
 
 			UObject* GetExistingObjectFromAssetImportData(TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper, UInterchangeFactoryBaseNode* FactoryNode)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::Private::GetExistingObjectFromAssetImportData")
 				UInterchangeAssetImportData* OriginalAssetImportData = nullptr;
 				TArray<UObject*> SubObjects;
 				GetObjectsWithOuter(AsyncHelper->TaskData.ReimportObject, SubObjects);
@@ -94,6 +96,7 @@ namespace UE
 
 void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FTaskCreatePackage::DoTask")
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(CreatePackage)
 #endif

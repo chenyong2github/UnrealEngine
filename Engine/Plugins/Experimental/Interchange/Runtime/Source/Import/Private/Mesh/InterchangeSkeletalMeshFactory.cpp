@@ -65,6 +65,7 @@ namespace UE
 																 , const UInterchangeBaseNodeContainer* NodeContainer
 																 , FString AssetName)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("FillMorphTargetMeshDescriptionsPerMorphTargetName")
 				TArray<FString> MorphTargetUids;
 				MeshNodeContext.MeshNode->GetMorphTargetDependencies(MorphTargetUids);
 				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>> TempMorphTargetMeshDescriptionsPerMorphTargetName;
@@ -130,6 +131,7 @@ namespace UE
 
 			void CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>>& LodMorphTargetMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("CopyMorphTargetsMeshDescriptionToSkeletalMeshImportData")
 				const int32 OriginalMorphTargetCount = LodMorphTargetMeshDescriptions.Num();
 				TArray<FString> Keys;
 				int32 MorphTargetCount = 0;
@@ -247,6 +249,7 @@ namespace UE
 
 			const UInterchangeSceneNode* RecursiveFindJointByName(const UInterchangeBaseNodeContainer* NodeContainer, const FString& ParentJointNodeId, const FString& JointName)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("RecursiveFindJointByName")
 				if (const UInterchangeSceneNode* JointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(ParentJointNodeId)))
 				{
 					if (JointNode->GetDisplayLabel().Equals(JointName))
@@ -271,6 +274,7 @@ namespace UE
 				, const FString& RootJointNodeId
 				, const FTransform& MeshGlobalTransform)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("SkinVertexPositionToTimeZero")
 				FMeshDescription& MeshDescription = LodMeshPayload.LodMeshDescription;
 				const int32 VertexCount = MeshDescription.Vertices().Num();
 				const TArray<FString>& JointNames = LodMeshPayload.JointNames;
@@ -402,6 +406,7 @@ namespace UE
 																  , const UInterchangeBaseNodeContainer* NodeContainer
 																  , const FString& RootJointNodeId)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("RetrieveAllSkeletalMeshPayloadsAndFillImportData")
 				if (!SkeletalMeshTranslatorPayloadInterface)
 				{
 					return;
@@ -436,6 +441,7 @@ namespace UE
 				//Fill the lod mesh description using all combined mesh part
 				for (const FMeshNodeContext& MeshNodeContext : MeshReferences)
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE("RetrieveAllSkeletalMeshPayloadsAndFillImportData::GetPayload")
 					TOptional<UE::Interchange::FSkeletalMeshLodPayloadData> LodMeshPayload = LodMeshPayloadPerTranslatorPayloadKey.FindChecked(MeshNodeContext.TranslatorPayloadKey).Get();
 					if (!LodMeshPayload.IsSet())
 					{
@@ -446,8 +452,11 @@ namespace UE
 
 					FSkeletalMeshOperations::FSkeletalMeshAppendSettings SkeletalMeshAppendSettings;
 					SkeletalMeshAppendSettings.SourceVertexIDOffset = VertexOffset;
-					FElementIDRemappings ElementIDRemappings;
-					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
+					{
+						TRACE_CPUPROFILER_EVENT_SCOPE("RetrieveAllSkeletalMeshPayloadsAndFillImportData::CompactPayload")
+						FElementIDRemappings ElementIDRemappings;
+						LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
+					}
 
 					const bool bIsRigidMesh = LodMeshPayload->JointNames.Num() <= 0 && MeshNodeContext.SceneNode;
 					if (bSkinControlPointToTimeZero && !bIsRigidMesh)
@@ -550,7 +559,7 @@ namespace UE
 
 			void ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
 			{
-
+				TRACE_CPUPROFILER_EVENT_SCOPE("ProcessImportMeshInfluences")
 				// Sort influences by vertex index.
 				struct FCompareVertexIndex
 				{
@@ -747,6 +756,7 @@ namespace UE
 
 			void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, FSkeletalMeshImportData* SkelMeshImportData)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE("RemapSkeletalMeshVertexColorToImportData")
 				//Make sure we have all the source data we need to do the remap
 				if (!SkeletalMesh->GetImportedModel() || !SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex) || !SkeletalMesh->GetHasVertexColors())
 				{
@@ -859,6 +869,7 @@ UClass* UInterchangeSkeletalMeshFactory::GetFactoryClass() const
 
 UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::CreateEmptyAsset")
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
@@ -907,13 +918,14 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 
 UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::CreateAsset")
+
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;
 
 #else
-
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
@@ -1064,6 +1076,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::CreateAsset_LOD")
 		ESkeletalMeshGeoImportVersions GeoImportVersion = ESkeletalMeshGeoImportVersions::LatestVersion;
 		ESkeletalMeshSkinningImportVersions SkinningImportVersion = ESkeletalMeshSkinningImportVersions::LatestVersion;
 		if (bIsReImport && SkeletalMesh->GetImportedModel() && SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(CurrentLodIndex))
@@ -1527,6 +1540,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
 void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback")
 	check(IsInGameThread());
 	Super::PreImportPreCompletedCallback(Arguments);
 
@@ -1604,6 +1618,7 @@ void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImpor
 
 bool UInterchangeSkeletalMeshFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::GetSourceFilenames")
 #if WITH_EDITORONLY_DATA
 	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
 	{
@@ -1616,6 +1631,7 @@ bool UInterchangeSkeletalMeshFactory::GetSourceFilenames(const UObject* Object, 
 
 bool UInterchangeSkeletalMeshFactory::SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::SetSourceFilename")
 #if WITH_EDITORONLY_DATA
 	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
 	{
@@ -1629,6 +1645,7 @@ bool UInterchangeSkeletalMeshFactory::SetSourceFilename(const UObject* Object, c
 
 bool UInterchangeSkeletalMeshFactory::SetReimportSourceIndex(const UObject* Object, int32 SourceIndex) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::SetReimportSourceIndex")
 #if WITH_EDITORONLY_DATA
 	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
 	{

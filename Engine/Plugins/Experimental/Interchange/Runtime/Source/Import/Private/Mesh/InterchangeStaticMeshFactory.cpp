@@ -466,7 +466,7 @@ void UInterchangeStaticMeshFactory::SetupSourceModelsSettings(UStaticMesh& Stati
 		if (!bIsAReimport && LodMeshDescriptions.IsValidIndex(LodIndex))
 		{
 			FStaticMeshConstAttributes StaticMeshAttributes(LodMeshDescriptions[LodIndex]);
-			const int32 NumUVChannels = StaticMeshAttributes.GetVertexInstanceUVs().GetNumChannels();
+			const int32 NumUVChannels = StaticMeshAttributes.GetVertexInstanceUVs().IsValid() ? StaticMeshAttributes.GetVertexInstanceUVs().GetNumChannels() : 1;
 			const int32 FirstOpenUVChannel = NumUVChannels >= MAX_MESH_TEXTURE_COORDS_MD ? 1 : NumUVChannels;
 
 			SrcModel.BuildSettings.DstLightmapIndex = FirstOpenUVChannel;
