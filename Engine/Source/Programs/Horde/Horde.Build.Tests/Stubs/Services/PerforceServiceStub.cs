@@ -113,11 +113,6 @@ namespace Horde.Build.Tests.Stubs.Services
 			throw new NotImplementedException();
 		}
 
-		public Task<PerforceUserInfo?> GetUserInfoAsync(string clusterName, string userName)
-		{
-			return Task.FromResult<PerforceUserInfo?>(new PerforceUserInfo { Login = userName, FullName = userName, Email = $"{userName}@epicgames.com" });
-		}
-
 		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string clusterName, string streamName, IReadOnlyList<int> changeNumbers, string? impersonateUser)
 		{
 			List<ChangeDetails> results = new List<ChangeDetails>();
@@ -188,11 +183,6 @@ namespace Horde.Build.Tests.Stubs.Services
 		public Task UpdateChangelistDescription(string clusterName, int change, string description)
 		{
 			return Task.CompletedTask;
-		}
-
-		public Task<IStreamView> GetStreamViewAsync(string clusterName, string streamName)
-		{
-			throw new NotImplementedException();
 		}
 
 		public Task<List<ChangeSummary>> GetChangesAsync(string clusterName, int? minChange, int? maxChange, int maxResults)

@@ -13,27 +13,6 @@ using Horde.Build.Users;
 namespace Horde.Build.Perforce
 {
 	/// <summary>
-	/// Information about a Perforce user
-	/// </summary>
-	public class PerforceUserInfo
-	{
-		/// <summary>
-		/// Login for the user
-		/// </summary>
-		public string? Login { get; set; }
-
-		/// <summary>
-		/// Full name of the user
-		/// </summary>
-		public string? FullName { get; set; }
-
-		/// <summary>
-		/// User's email address
-		/// </summary>
-		public string? Email { get; set; }
-	}
-
-	/// <summary>
 	/// Result from checking a shelved change status
 	/// </summary>
 	public enum CheckShelfResult
@@ -65,20 +44,6 @@ namespace Horde.Build.Perforce
 	}
 
 	/// <summary>
-	/// Interface for a Perforce stream view
-	/// </summary>
-	public interface IStreamView : IDisposable
-	{
-		/// <summary>
-		/// Maps a depot path into the stream
-		/// </summary>
-		/// <param name="depotPath">The depot path</param>
-		/// <param name="streamPath">The resulting stream path</param>
-		/// <returns></returns>
-		bool TryGetStreamPath(string depotPath, [NotNullWhen(true)] out string? streamPath);
-	}
-
-	/// <summary>
 	/// Wrapper around Perforce functionality. Can use a local p4.exe client for development purposes, or a separate HordePerforceBridge instance over REST for deployments.
 	/// </summary>
 	public interface IPerforceService
@@ -99,14 +64,6 @@ namespace Horde.Build.Perforce
 		public Task<IPerforceConnection?> GetServiceUserConnection(string? clusterName);
 
 		/// <summary>
-		/// Gets the definition of a stream
-		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="streamName">The stream name</param>
-		/// <returns></returns>
-		public Task<IStreamView> GetStreamViewAsync(string clusterName, string streamName);
-
-		/// <summary>
 		/// Create a new changelist by submitting the given file
 		/// </summary>
 		/// <param name="clusterName">Name of the Perforce cluster</param>
@@ -124,14 +81,6 @@ namespace Horde.Build.Perforce
 		/// <param name="change">The changelist number to query</param>
 		/// <returns>Code change for the latest change</returns>
 		public Task<int> GetCodeChangeAsync(string clusterName, string streamName, int change);
-
-		/// <summary>
-		/// Gets information about the given user
-		/// </summary>
-		/// <param name="clusterName">Name of the Perforce cluster</param>
-		/// <param name="userName">The user name</param>
-		/// <returns>User information</returns>
-		public Task<PerforceUserInfo?> GetUserInfoAsync(string clusterName, string userName);
 
 		/// <summary>
 		/// Finds changes submitted to a depot Gets the latest change for a particular stream

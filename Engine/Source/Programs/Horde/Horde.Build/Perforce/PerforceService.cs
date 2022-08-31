@@ -136,8 +136,8 @@ namespace Horde.Build.Perforce
 				user = await _userCollection.FindUserByLoginAsync(userName);
 				if (user == null)
 				{
-					PerforceUserInfo? userInfo = await GetUserInfoAsync(clusterName, userName);
-					user = await _userCollection.FindOrAddUserByLoginAsync(userName, userInfo?.FullName, userInfo?.Email);
+					P4.User? userInfo = await GetUserInfoAsync(clusterName, userName);
+					user = await _userCollection.FindOrAddUserByLoginAsync(userName, userInfo?.FullName, userInfo?.EmailAddress);
 				}
 
 				using (ICacheEntry entry = _userCache.CreateEntry((clusterName, userName)))
@@ -696,74 +696,6 @@ namespace Horde.Build.Perforce
 			string category = String.Format(CultureInfo.CurrentCulture, "P4Bridge({0}:{1})", fileName, line);
 
 			P4.LogFile.LogMessage(logLevel, category, message);
-		}
-
-		class StreamView : IStreamView
-		{
-			readonly P4.P4MapApi _mapApi;
-
-			public StreamView(P4.P4MapApi mapApi)
-			{
-				_mapApi = mapApi;
-			}
-
-			public void Dispose()
-			{
-				_mapApi.Dispose();
-			}
-
-			public bool TryGetStreamPath(string depotPath, out string streamPath)
-			{
-				streamPath = _mapApi.Translate(depotPath, P4.P4MapApi.Direction.LeftRight);
-				return streamPath != null;
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task<IStreamView> GetStreamViewAsync(string clusterName, string streamName)
-		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetStreamViewAsync").StartActive();
-			scope.Span.SetTag("ClusterName", clusterName);
-			scope.Span.SetTag("StreamName", streamName);
-			
-			PerforceCluster cluster = await GetClusterAsync(clusterName);
-			using (P4.Repository repository = await GetConnection(cluster, noClient: true))
-			{
-				P4.Stream stream = repository.GetStream(streamName, new P4.StreamCmdOptions(P4.StreamCmdFlags.View, null, null));
-
-				P4.P4MapApi? mapApi = null;
-				try
-				{
-					mapApi = new P4.P4MapApi(repository.Server.Metadata.UnicodeEnabled);
-					foreach (P4.MapEntry entry in stream.View)
-					{
-						P4.P4MapApi.Type mapType;
-						switch (entry.Type)
-						{
-							case P4.MapType.Include:
-								mapType = P4.P4MapApi.Type.Include;
-								break;
-							case P4.MapType.Exclude:
-								mapType = P4.P4MapApi.Type.Exclude;
-								break;
-							case P4.MapType.Overlay:
-								mapType = P4.P4MapApi.Type.Overlay;
-								break;
-							default:
-								throw new Exception($"Invalid map type: {entry.Type}");
-						}
-						mapApi.Insert(entry.Left.ToString(), entry.Right.ToString(), mapType);
-					}
-
-					StreamView view = new StreamView(mapApi);
-					mapApi = null;
-					return view;
-				}
-				finally
-				{
-					mapApi?.Dispose();
-				}
-			}
 		}
 
 		static int GetSyncRevision(string path, P4.FileAction headAction, int headRev)
@@ -1533,7 +1465,7 @@ namespace Horde.Build.Perforce
 		}
 
 		/// <inheritdoc/>		
-		public async Task<PerforceUserInfo?> GetUserInfoAsync(string clusterName, string userName)
+		async Task<P4.User?> GetUserInfoAsync(string clusterName, string userName)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("PerforceService.GetUserInfoAsync").StartActive();
 			scope.Span.SetTag("ClusterName", clusterName);
@@ -1543,13 +1475,7 @@ namespace Horde.Build.Perforce
 			using (P4.Repository repository = await GetConnection(cluster, noClient: true))
 			{
 				P4.User user = repository.GetUser(userName, new P4.UserCmdOptions(P4.UserCmdFlags.Output));
-
-				if (user == null)
-				{
-					return null;
-				}
-
-				return new PerforceUserInfo { Login = userName, FullName = user.FullName, Email = user.EmailAddress };
+				return user;
 			}
 		}
 
