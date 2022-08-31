@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/TextureDefines.h"
+#include "RenderCommandFence.h"
 #include "SceneComponent.h"
 #include "RuntimeVirtualTextureComponent.generated.h"
 
@@ -83,6 +84,9 @@ protected:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FGetHidePrimitivesDelegate, bool&, bool&);
 	FGetHidePrimitivesDelegate HidePrimitivesDelegate;
 
+	/** A fence to track render thread has finished with StreamingTexture data before destroy. */
+	FRenderCommandFence DestroyFence;
+
 public:
 	/**
 	 * This function marks an area of the runtime virtual texture as dirty.
@@ -147,6 +151,8 @@ public:
 
 protected:
 	//~ Begin UObject Interface
+	virtual void BeginDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif

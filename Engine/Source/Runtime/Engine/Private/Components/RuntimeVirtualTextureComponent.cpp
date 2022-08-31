@@ -23,6 +23,22 @@ URuntimeVirtualTextureComponent::URuntimeVirtualTextureComponent(const FObjectIn
 	Mobility = EComponentMobility::Stationary;
 }
 
+void URuntimeVirtualTextureComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+	
+	// Queuing up a render fence means that we will have cleaned up the scene proxy/virtual texture producer before finishing the destroy.
+	// This means that any transcode tasks will have finished *before* we garbage collect our StreamingTexture.
+	// That's important because the transcode tasks reference the FVirtualTextureBuiltData from the StreamingTexture.
+	DestroyFence.BeginFence();
+}
+
+bool URuntimeVirtualTextureComponent::IsReadyForFinishDestroy()
+{
+	bool bResult = Super::IsReadyForFinishDestroy() && DestroyFence.IsFenceComplete();
+	return bResult;
+}
+
 #if WITH_EDITOR
 
 void URuntimeVirtualTextureComponent::OnRegister()
