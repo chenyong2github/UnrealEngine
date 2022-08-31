@@ -108,15 +108,6 @@ private:
 	int32 NumStrands;
 };
 
-struct FHairDescriptionVersion
-{
-	FCustomVersionContainer CustomVersions;
-	FPackageFileVersion UEVersion;
-	int32 LicenseeVersion;
-	bool bIsValid = false;
-	bool IsValid() const { return bIsValid; }
-};
-
 /**
  * Bulk data storage for FHairDescription
  */
@@ -132,10 +123,10 @@ public:
 	void Serialize(FArchive& Ar, UObject* Owner);
 
 	/** Stores a new hair description in the bulk data */
-	void SaveHairDescription(FHairDescription& HairDescription, const FHairDescriptionVersion& Version);
+	void SaveHairDescription(FHairDescription& HairDescription);
 
 	/** Loads the hair description from the bulk data */
-	void LoadHairDescription(FHairDescription& HairDescription, const FHairDescriptionVersion& Version);
+	void LoadHairDescription(FHairDescription& HairDescription);
 
 	/** Empties the bulk data */
 	void Empty();
@@ -158,9 +149,8 @@ private:
 	/** GUID associated with the stored bulk data */
 	FGuid Guid;
 
-	/** UE/Custom/Licensee version to propagate to archive when serializing the bulk data */
-	FHairDescriptionVersion Version;
-
+	/** Custom version to propagate to archive when serializing the bulk data */
+	FCustomVersionContainer CustomVersions;
 
 	/** Whether the bulk data has been written via SaveHairDescription */
 	bool bBulkDataUpdated = false;

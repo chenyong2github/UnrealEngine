@@ -87,7 +87,7 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	if (Ar.IsTransacting())
 	{
 		// If transacting, keep these members alive the other side of an undo, otherwise their values will get lost
-		Version.CustomVersions.Serialize(Ar);
+		CustomVersions.Serialize(Ar);
 		Ar << bBulkDataUpdated;
 	}
 	else
@@ -99,8 +99,8 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 			if (!bBulkDataUpdated)
 			{
 				FHairDescription HairDescription;
-				LoadHairDescription(HairDescription, Version);
-				SaveHairDescription(HairDescription, Version);
+				LoadHairDescription(HairDescription);
+				SaveHairDescription(HairDescription);
 			}
 		}
 	}
@@ -113,25 +113,21 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	{
 		// If loading, take the package custom version so it can be applied to the bulk data archive
 		// when unpacking HairDescription from it
-		Version.CustomVersions = BulkData.GetCustomVersions(Ar);
+		CustomVersions = BulkData.GetCustomVersions(Ar);
 	}
 }
 
-void FHairDescriptionBulkData::SaveHairDescription(FHairDescription& HairDescription, const FHairDescriptionVersion& InVersion)
+void FHairDescriptionBulkData::SaveHairDescription(FHairDescription& HairDescription)
 {
 	BulkData.RemoveBulkData();
 
 	if (HairDescription.IsValid())
 	{
 		FBulkDataWriter Ar(BulkData, /*bIsPersistent*/ true);
-		Ar.SetCustomVersions(InVersion.CustomVersions);
-		Ar.SetUEVer(InVersion.UEVersion);
-		Ar.SetLicenseeUEVer(InVersion.LicenseeVersion);
 		HairDescription.Serialize(Ar);
 
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
-		Version = InVersion;
-		Version.CustomVersions = Ar.GetCustomVersions();
+		CustomVersions = Ar.GetCustomVersions();
 	}
 
 	// Use bulk data hash instead of guid to identify content to improve DDC cache hit
@@ -142,7 +138,8 @@ void FHairDescriptionBulkData::SaveHairDescription(FHairDescription& HairDescrip
 	bBulkDataUpdated = true;
 }
 
-void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescription, const FHairDescriptionVersion& InVersion)
+
+void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescription)
 {
 	HairDescription.Reset();
 
@@ -152,12 +149,9 @@ void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescrip
 
 		// Propagate the custom version information from the package to the bulk data, so that the HairDescription
 		// is serialized with the same versioning
-		Ar.SetCustomVersions(InVersion.CustomVersions);
-		Ar.SetUEVer(InVersion.UEVersion);
-		Ar.SetLicenseeUEVer(InVersion.LicenseeVersion);
+		Ar.SetCustomVersions(CustomVersions);
 
 		HairDescription.Serialize(Ar);
-		Version.CustomVersions = Ar.GetCustomVersions();
 	}
 }
 
