@@ -20,6 +20,11 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"TargetConfigurationDenyList": [ "Shipping" ]
+		},
+		{
+			"Name": "InputDebuggingEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }
