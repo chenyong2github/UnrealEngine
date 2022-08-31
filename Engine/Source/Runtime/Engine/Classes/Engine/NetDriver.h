@@ -1087,6 +1087,16 @@ public:
 	 */
 	TMap<FNetworkGUID, TUniquePtr<FActorDestructionInfo>>	DestroyedStartupOrDormantActors;
 
+private:
+	/** Tracks the network guids in DestroyedStartupOrDormantActors above, but keyed on the streaming level name. */
+	TMap<FName, TSet<FNetworkGUID>> DestroyedStartupOrDormantActorsByLevel;
+
+public:
+	const TSet<FNetworkGUID>& GetDestroyedStartupOrDormantActors(const FName& LevelName)
+	{
+		return DestroyedStartupOrDormantActorsByLevel.FindOrAdd(LevelName);
+	}
+
 	/** The server adds an entry into this map for every startup actor that has been renamed, and will
 	 *  always map from current name to original name
 	 */
@@ -1921,9 +1931,9 @@ private:
 	FDelegateHandle PostGarbageCollectHandle;
 	void PostGarbageCollect();
 
-	FActorDestructionInfo* CreateDestructionInfo(UNetDriver* NetDriver, AActor* ThisActor, FActorDestructionInfo *DestructionInfo);
+	FActorDestructionInfo* CreateDestructionInfo(AActor* ThisActor, FActorDestructionInfo *DestructionInfo);
 
-	void CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info);
+	void CreateReplicatedStaticActorDestructionInfo(ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info);
 
 	void FlushActorDormancyInternal(AActor *Actor);
 

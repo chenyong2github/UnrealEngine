@@ -125,6 +125,8 @@ namespace UE_NetConnectionPrivate
 
 	const FValidateLevelVisibilityResult ValidateLevelVisibility(UWorld* World, const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_Net_ValidateLevelVisibility);
+
 		// Verify that we were passed a valid level name
 		// If we have a linker we know it has been loaded off disk successfully
 		// If we have a file it is fine too
@@ -136,9 +138,8 @@ namespace UE_NetConnectionPrivate
 		Result.Linker = FLinkerLoad::FindExistingLinkerForPackage(Result.Package);
 
 		Result.StreamingLevel = FLevelUtils::FindStreamingLevel(World, LevelVisibility.PackageName);
-		Result.bLevelExists = Result.Linker ||
-			(!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString())) ||
-			Result.StreamingLevel != nullptr;
+		Result.bLevelExists = Result.Linker || Result.StreamingLevel != nullptr ||
+			(!FPackageName::IsMemoryPackage(PackageNameStr) && FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString()));
 
 		return Result;
 	}
@@ -1451,6 +1452,8 @@ void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo
 
 void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_UpdateLevelVisibilityInternal)
+
 	using namespace UE_NetConnectionPrivate;
 
 	GNumClientUpdateLevelVisibility++;
@@ -1483,17 +1486,20 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 
 			UpdateCachedLevelVisibility(LevelVisibility.PackageName);
 
-			QUICK_USE_CYCLE_STAT(NetUpdateLevelVisibility_UpdateDormantActors, STATGROUP_Net);
-
-			// Any destroyed actors that were destroyed prior to the streaming level being unloaded for the client will not be in the connections
-			// destroyed actors list when the level is reloaded, so seek them out and add in
-			for (const auto& DestroyedPair : Driver->DestroyedStartupOrDormantActors)
 			{
-				if (DestroyedPair.Value->StreamingLevelName == LevelVisibility.PackageName)
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_NetUpdateLevelVisibility_DestructionInfos);
+
+				// Any destroyed actors that were destroyed prior to the streaming level being unloaded for the client will not be in the connections
+				// destroyed actors list when the level is reloaded, so seek them out and add in
+				const TSet<FNetworkGUID>& DestructionInfoGuids = Driver->GetDestroyedStartupOrDormantActors(LevelVisibility.PackageName);
+				
+				for (const FNetworkGUID& DestroyedGuid : DestructionInfoGuids)
 				{
-					AddDestructionInfo(DestroyedPair.Value.Get());
+					AddDestructionInfo(Driver->DestroyedStartupOrDormantActors[DestroyedGuid].Get());
 				}
 			}
+
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NetUpdateLevelVisibility_UpdateDormantActors);
 
 			// Any dormant actor that has changes flushed or made before going dormant needs to be updated on the client 
 			// when the streaming level is loaded, so mark them active for this connection
@@ -1591,6 +1597,8 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 			}
 		}
 #endif // UE_WITH_IRIS
+
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_NetUpdateLevelVisibility_LevelUnloadChannelClose);
 
 		// Close any channels now that have actors that were apart of the level the client just unloaded
 		for (auto It = ActorChannels.CreateIterator(); It; ++It)

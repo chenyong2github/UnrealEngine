@@ -2475,6 +2475,15 @@ void UNetDriver::Serialize( FArchive& Ar )
 			}
 		);
 
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DestroyedStartupOrDormantActorsByLevel", 
+			DestroyedStartupOrDormantActorsByLevel.CountBytes(Ar);
+
+			for (const auto& DestroyedPair : DestroyedStartupOrDormantActorsByLevel)
+			{
+				DestroyedPair.Value.CountBytes(Ar);
+			}
+		);
+
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RenamedStartupActors", RenamedStartupActors.CountBytes(Ar));
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3136,21 +3145,21 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 }
 
-FActorDestructionInfo* UNetDriver::CreateDestructionInfo( UNetDriver* NetDriver, AActor* ThisActor, FActorDestructionInfo *DestructionInfo )
+FActorDestructionInfo* UNetDriver::CreateDestructionInfo(AActor* ThisActor, FActorDestructionInfo *DestructionInfo )
 {
 	if (DestructionInfo)
 	{
 		return DestructionInfo;
 	}
 
-	FNetworkGUID NetGUID = NetDriver->GuidCache->GetOrAssignNetGUID( ThisActor );
+	FNetworkGUID NetGUID = GuidCache->GetOrAssignNetGUID( ThisActor );
 	if (NetGUID.IsDefault())
 	{
 		UE_LOG(LogNet, Error, TEXT("CreateDestructionInfo got an invalid NetGUID for %s"), *ThisActor->GetName());
 		return nullptr;
 	}
 
-	TUniquePtr<FActorDestructionInfo>& NewInfoPtr = NetDriver->DestroyedStartupOrDormantActors.FindOrAdd( NetGUID );
+	TUniquePtr<FActorDestructionInfo>& NewInfoPtr = DestroyedStartupOrDormantActors.FindOrAdd(NetGUID);
 	if (NewInfoPtr.IsValid() == false)
 	{
 		NewInfoPtr = MakeUnique<FActorDestructionInfo>();
@@ -3164,7 +3173,7 @@ FActorDestructionInfo* UNetDriver::CreateDestructionInfo( UNetDriver* NetDriver,
 	NewInfo.PathName = ThisActor->GetName();
 
 	// Look for renamed actor now so we can clear it after the destroy is queued
-	FName RenamedPath = NetDriver->RenamedStartupActors.FindRef(ThisActor->GetFName());
+	FName RenamedPath = RenamedStartupActors.FindRef(ThisActor->GetFName());
 	if (RenamedPath != NAME_None)
 	{
 		NewInfo.PathName = RenamedPath.ToString();
@@ -3178,6 +3187,9 @@ FActorDestructionInfo* UNetDriver::CreateDestructionInfo( UNetDriver* NetDriver,
 	{
 		NewInfo.StreamingLevelName = NAME_None;
 	}
+
+	TSet<FNetworkGUID>& DestroyedGuidsForLevel = DestroyedStartupOrDormantActorsByLevel.FindOrAdd(NewInfo.StreamingLevelName);
+	DestroyedGuidsForLevel.Add(NetGUID);
 
 	NewInfo.Reason = EChannelCloseReason::Destroyed;
 
@@ -3208,7 +3220,7 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 		if (bShouldCreateDestructionInfo)
 		{
 			UE_LOG(LogNet, VeryVerbose, TEXT("NotifyActorDestroyed %s - StartupActor"), *ThisActor->GetPathName() );
-			DestructionInfo = CreateDestructionInfo( this, ThisActor, DestructionInfo);
+			DestructionInfo = CreateDestructionInfo(ThisActor, DestructionInfo);
 		}
 
 		const FNetworkObjectInfo* NetworkObjectInfo = GetNetworkObjectList().Find( ThisActor ).Get();
@@ -3233,7 +3245,7 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 				{
 					// Make a new destruction info if necessary. It is necessary if the actor is dormant or recently dormant because
 					// even though the client knew about the actor at some point, it doesn't have a channel to handle destruction.
-					DestructionInfo = CreateDestructionInfo(this, ThisActor, DestructionInfo);
+					DestructionInfo = CreateDestructionInfo(ThisActor, DestructionInfo);
 					if (DestructionInfo)
 					{
 						Connection->AddDestructionInfo(DestructionInfo);
@@ -5524,14 +5536,14 @@ void UNetDriver::UpdateCrashContext()
 	}
 }
 
-void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info)
+void UNetDriver::CreateReplicatedStaticActorDestructionInfo(ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info)
 {
-	check(NetDriver && Level);
+	check(Level);
 
 #if UE_WITH_IRIS
-	if (NetDriver->ReplicationSystem)
+	if (ReplicationSystem)
 	{
-		if (UActorReplicationBridge* Bridge = NetDriver->ReplicationSystem->GetReplicationBridgeAs<UActorReplicationBridge>())
+		if (UActorReplicationBridge* Bridge = ReplicationSystem->GetReplicationBridgeAs<UActorReplicationBridge>())
 		{			
 			// Add explicit destruction info for this object
 			UReplicationBridge::FEndReplicationParameters Params;
@@ -5545,16 +5557,16 @@ void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDrive
 	}
 #endif // UE_WITH_IRIS
 
-	FNetworkGUID NetGUID = NetDriver->GuidCache->AssignNewNetGUIDFromPath_Server( Info.PathName.ToString(), Info.ObjOuter.Get(), Info.ObjClass );
+	FNetworkGUID NetGUID = GuidCache->AssignNewNetGUIDFromPath_Server(Info.PathName.ToString(), Info.ObjOuter.Get(), Info.ObjClass);
 	if (NetGUID.IsDefault())
 	{
 		UE_LOG(LogNet, Error, TEXT("CreateReplicatedStaticActorDestructionInfo got an invalid NetGUID for %s"), *Info.PathName.ToString());
 		return;
 	}
 
-	UE_LOG(LogNet, VeryVerbose, TEXT("CreateReplicatedStaticActorDestructionInfo %s %s %s %s"), *NetDriver->GetName(), *Level->GetName(), *Info.PathName.ToString(), *NetGUID.ToString());
+	UE_LOG(LogNet, VeryVerbose, TEXT("CreateReplicatedStaticActorDestructionInfo %s %s %s %s"), *GetName(), *Level->GetName(), *Info.PathName.ToString(), *NetGUID.ToString());
 	
-	TUniquePtr<FActorDestructionInfo>& NewInfoPtr = NetDriver->DestroyedStartupOrDormantActors.FindOrAdd( NetGUID );
+	TUniquePtr<FActorDestructionInfo>& NewInfoPtr = DestroyedStartupOrDormantActors.FindOrAdd(NetGUID);
 	if (NewInfoPtr.IsValid() == false)
 	{
 		NewInfoPtr = MakeUnique<FActorDestructionInfo>();
@@ -5568,7 +5580,7 @@ void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDrive
 	NewInfo.PathName = Info.PathName.ToString();
 
 	// Look for renamed actor now so we can clear it after the destroy is queued
-	FName RenamedPath = NetDriver->RenamedStartupActors.FindRef(Info.PathName);
+	FName RenamedPath = RenamedStartupActors.FindRef(Info.PathName);
 	if (RenamedPath != NAME_None)
 	{
 		NewInfo.PathName = RenamedPath.ToString();
@@ -5582,6 +5594,9 @@ void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDrive
 	{
 		NewInfo.StreamingLevelName = NAME_None;
 	}
+
+	TSet<FNetworkGUID>& DestroyedGuidsForLevel = DestroyedStartupOrDormantActorsByLevel.FindOrAdd(NewInfo.StreamingLevelName);
+	DestroyedGuidsForLevel.Add(NetGUID);
 
 	NewInfo.Reason = EChannelCloseReason::Destroyed;
 }
@@ -5601,7 +5616,7 @@ void UNetDriver::InitDestroyedStartupActors()
 				const TArray<FReplicatedStaticActorDestructionInfo>& DestroyedReplicatedStaticActors = Level->GetDestroyedReplicatedStaticActors();
 				for(const FReplicatedStaticActorDestructionInfo& Info : DestroyedReplicatedStaticActors)
 				{
-					CreateReplicatedStaticActorDestructionInfo(this, Level, Info);
+					CreateReplicatedStaticActorDestructionInfo(Level, Info);
 				}
 			}
 		}
@@ -5754,6 +5769,7 @@ void UNetDriver::SetWorld(class UWorld* InWorld)
 void UNetDriver::ResetGameWorldState()
 {
 	DestroyedStartupOrDormantActors.Empty();
+	DestroyedStartupOrDormantActorsByLevel.Empty();
 	RenamedStartupActors.Empty();
 
 	if ( NetCache.IsValid() )

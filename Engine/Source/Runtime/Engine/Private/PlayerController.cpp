@@ -366,6 +366,8 @@ void APlayerController::ClientFlushLevelStreaming_Implementation()
 
 void APlayerController::ServerUpdateLevelVisibility_Implementation(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_ServerUpdateLevelVisibility);
+
 	UNetConnection* Connection = Cast<UNetConnection>(Player);
 	if (Connection != NULL)
 	{
@@ -386,6 +388,8 @@ void APlayerController::ServerUpdateLevelVisibility_Implementation(const FUpdate
 
 bool APlayerController::ServerUpdateLevelVisibility_Validate(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_ServerUpdateLevelVisibility_Validate);
+
 	RPC_VALIDATE(LevelVisibility.PackageName.IsValid());
 
 	FText Reason;
