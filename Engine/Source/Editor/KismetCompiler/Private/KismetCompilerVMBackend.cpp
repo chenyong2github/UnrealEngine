@@ -800,11 +800,11 @@ public:
 				if (EnumPtr)
 				{
 					//Get value from enum string
-					Value = IntCastChecked<uint8, int64>(EnumPtr->GetValueByName(*(Term->Name)));
+					Value = EnumPtr->GetValueByName(*(Term->Name));
 				}
 				else
 				{
-					Value = IntCastChecked<uint8, int32>(FCString::Atoi(*(Term->Name)));
+					Value = FCString::Atoi(*(Term->Name));
 				}
 
 				Writer << EX_ByteConst;
