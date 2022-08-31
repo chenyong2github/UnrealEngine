@@ -143,7 +143,7 @@ public:
 	static TArray<AActor*> GetSelectionSet();
 
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	static void GetSelectionBounds(FVector& Origin, FVector& BoxExtent, double& SphereRadius);
+	static void GetSelectionBounds(FVector& Origin, FVector& BoxExtent, float& SphereRadius);
 
 	// Gets the set of currently selected assets
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")

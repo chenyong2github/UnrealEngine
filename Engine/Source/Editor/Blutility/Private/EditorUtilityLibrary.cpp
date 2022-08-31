@@ -210,7 +210,7 @@ TArray<AActor*> UEditorUtilityLibrary::GetSelectionSet()
 	return Result;
 }
 
-void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, double& SphereRadius)
+void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, float& SphereRadius)
 {
 	bool bFirstItem = true;
 
@@ -234,7 +234,7 @@ void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExte
 
 	Origin = Extents.Origin;
 	BoxExtent = Extents.BoxExtent;
-	SphereRadius = Extents.SphereRadius;
+	SphereRadius = (float)Extents.SphereRadius; // TODO: LWC: should be double, but need to deprecate function and replace for old C++ references to continue working.
 }
 
 TArray<UObject*> UEditorUtilityLibrary::GetSelectedAssets()
