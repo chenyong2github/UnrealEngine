@@ -244,10 +244,10 @@ public:
 		}
 
 		// Adjust strength based on brush size and drawscale, so strength 1 = one hemisphere
-		const float AdjustedStrength = ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->BrushRadius);
+		const float AdjustedStrength = ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->GetCurrentToolBrushRadius());
 		FWeightmapToolTarget::CacheClass::DataType DestValue = FWeightmapToolTarget::CacheClass::ClampValue(255.0f * UISettings->WeightTargetValue);
 
-		float PaintStrength = UISettings->ToolStrength * Pressure * AdjustedStrength;
+		float PaintStrength = UISettings->GetCurrentToolStrength() * Pressure * AdjustedStrength;
 
 		// TODO: make paint tool framerate independent like the sculpt tool
 		// const float DeltaTime = FMath::Min<float>(FApp::GetDeltaTime(), 0.1f); // Under 10 fps slow down paint speed
@@ -387,7 +387,7 @@ public:
 
 				if (BrushValue > 0.0f)
 				{
-					float Strength = FMath::Clamp<float>(BrushValue * UISettings->ToolStrength * Pressure, 0.0f, 1.0f);
+					float Strength = FMath::Clamp<float>(BrushValue * UISettings->GetCurrentToolStrength() * Pressure, 0.0f, 1.0f);
 
 					int32 Delta = DataScanline[X] - FlattenHeight;
 					if (Delta > 0)
@@ -461,9 +461,9 @@ public:
 		FMatrix FromWorld = ToolTarget::FromWorldMatrix(this->LandscapeInfo);
 
 		// Adjust strength based on brush size and drawscale, so strength 1 = one hemisphere
-		const float AdjustedStrength = ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->BrushRadius);
+		const float AdjustedStrength = ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->GetCurrentToolBrushRadius());
 
-		float SculptStrength = UISettings->ToolStrength * Pressure * AdjustedStrength;
+		float SculptStrength = UISettings->GetCurrentToolStrength() * Pressure * AdjustedStrength;
 		const float DeltaTime = FMath::Min<float>(FApp::GetDeltaTime(), 0.1f); // Under 10 fps slow down paint speed
 		SculptStrength *= DeltaTime * 3.0f; // * 3.0f to partially compensate for impact of DeltaTime on slowing the tools down compared to the old framerate-dependent version
 
@@ -696,7 +696,7 @@ public:
 		TArray<typename ToolTarget::CacheClass::DataType> Data;
 		LayerDataCache.Initialize(this->LandscapeInfo, bCombinedLayerOperation);
 		LayerDataCache.Read(X1, Y1, X2, Y2, Data);
-		const float ToolStrength = FMath::Clamp<float>(UISettings->ToolStrength * Pressure, 0.0f, 1.0f);
+		const float ToolStrength = FMath::Clamp<float>(UISettings->GetCurrentToolStrength() * Pressure, 0.0f, 1.0f);
 
 		// Apply the brush
 		if (UISettings->bDetailSmooth)
@@ -925,7 +925,7 @@ public:
 
 				if (BrushValue > 0.0f)
 				{
-					float Strength = FMath::Clamp<float>(BrushValue * UISettings->ToolStrength * Pressure, 0.0f, 1.0f);
+					float Strength = FMath::Clamp<float>(BrushValue * UISettings->GetCurrentToolStrength() * Pressure, 0.0f, 1.0f);
 
 					if (!(bUseSlopeFlatten && bTargetIsHeightmap))
 					{
@@ -1237,9 +1237,9 @@ public:
 
 		float BrushSizeAdjust = 1.0f;
 		CA_SUPPRESS(6326);
-		if (ToolTarget::TargetType != ELandscapeToolTargetType::Weightmap && UISettings->BrushRadius < UISettings->MaximumValueRadius)
+		if (ToolTarget::TargetType != ELandscapeToolTargetType::Weightmap && UISettings->GetCurrentToolBrushRadius() < UISettings->MaximumValueRadius)
 		{
-			BrushSizeAdjust = UISettings->BrushRadius / UISettings->MaximumValueRadius;
+			BrushSizeAdjust = UISettings->GetCurrentToolBrushRadius() / UISettings->MaximumValueRadius;
 		}
 
 		CA_SUPPRESS(6326);
@@ -1278,11 +1278,11 @@ public:
 							}
 							break;
 						}
-						DataScanline[X] = ToolTarget::CacheClass::ClampValue(FMath::RoundToInt(FMath::Lerp(OriginalValue, DestValue, BrushValue * UISettings->ToolStrength * Pressure)));
+						DataScanline[X] = ToolTarget::CacheClass::ClampValue(FMath::RoundToInt(FMath::Lerp(OriginalValue, DestValue, BrushValue * UISettings->GetCurrentToolStrength() * Pressure)));
 					}
 					else
 					{
-						float TotalStrength = BrushValue * UISettings->ToolStrength * Pressure * ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->BrushRadius);
+						float TotalStrength = BrushValue * UISettings->GetCurrentToolStrength() * Pressure * ToolTarget::StrengthMultiplier(this->LandscapeInfo, UISettings->GetCurrentToolBrushRadius());
 						FNoiseParameter NoiseParam(0, UISettings->NoiseScale, TotalStrength * BrushSizeAdjust);
 						float PaintAmount = NoiseModeConversion(UISettings->NoiseMode, NoiseParam.NoiseAmount, NoiseParam.Sample(X, Y));
 						DataScanline[X] = ToolTarget::CacheClass::ClampValue(OriginalValue + PaintAmount);

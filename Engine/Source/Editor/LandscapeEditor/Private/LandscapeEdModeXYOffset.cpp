@@ -520,7 +520,7 @@ public:
 		// Same as Gizmo fall off...
 		float W = X2 - X1 + 1;
 		float H = Y2 - Y1 + 1;
-		float FalloffRadius = W * 0.5f * UISettings->BrushFalloff;
+		float FalloffRadius = W * 0.5f * UISettings->GetCurrentToolBrushFalloff();
 		float SquareRadius = W * 0.5f - FalloffRadius;
 		for (int32 Y = 0; Y <= Y2 - Y1; ++Y)
 		{

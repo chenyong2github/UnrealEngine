@@ -1168,13 +1168,13 @@ bool FEdModeLandscape::LandscapeTrace(const FVector& InRayOrigin, const FVector&
 	// If there is no landscape directly under the mouse search for a landscape collision
 	// under the shape of the brush.
 	FCollisionShape SphereShape;
-	SphereShape.SetSphere(UISettings->BrushRadius);
+	SphereShape.SetSphere(UISettings->GetCurrentToolBrushRadius());
 	if ( World->SweepMultiByObjectType(Results, Start, End, FQuat::Identity, FCollisionObjectQueryParams(ECollisionChannel::ECC_Visibility), SphereShape, FCollisionQueryParams(SCENE_QUERY_STAT(LandscapeTrace), true)))
 	{
 		if (FProcessLandscapeTraceHitsResult SweepProcessResult; ProcessLandscapeTraceHits(Results, SweepProcessResult))
 		{
-			UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  SweepProcessResult.HitLocation, UISettings->BrushRadius,  FColor(255,100,100), TEXT("landscape:sweep-hit-location"));
-			FSphere HitSphere(SweepProcessResult.HitLocation, UISettings->BrushRadius);
+			UE_VLOG_LOCATION(World, LogLandscapeEdMode, VeryVerbose,  SweepProcessResult.HitLocation, UISettings->GetCurrentToolBrushRadius(),  FColor(255,100,100), TEXT("landscape:sweep-hit-location"));
+			FSphere HitSphere(SweepProcessResult.HitLocation, UISettings->GetCurrentToolBrushRadius());
 
 			float MeanHeight = 0.0f;
 			int32 Count = 0;
@@ -1633,7 +1633,7 @@ void FEdModeLandscape::ChangeBrushSize(bool bIncrease)
 	}
 	else
 	{
-		float Radius = UISettings->BrushRadius;
+		float Radius = UISettings->GetCurrentToolBrushRadius();
 		const float SliderMin = 10.0f;
 		const float SliderMax = 8192.0f;
 		float Diff = 0.05f; //6.0f / SliderMax;
@@ -1662,7 +1662,7 @@ void FEdModeLandscape::ChangeBrushSize(bool bIncrease)
 void FEdModeLandscape::ChangeBrushFalloff(bool bIncrease)
 {
 	UISettings->Modify();
-	float Falloff = UISettings->BrushFalloff;
+	float Falloff = UISettings->GetCurrentToolBrushFalloff();
 	const float SliderMin = 0.0f;
 	const float SliderMax = 1.0f;
 	float Diff = 0.05f; 
@@ -1690,7 +1690,7 @@ void FEdModeLandscape::ChangeBrushFalloff(bool bIncrease)
 void FEdModeLandscape::ChangeBrushStrength(bool bIncrease)
 {
 	UISettings->Modify();
-	float Strength = UISettings->ToolStrength;
+	float Strength = UISettings->GetCurrentToolStrength();
 	const float SliderMin = 0.01f;
 	const float SliderMax = 10.0f;
 	float Diff = 0.05f; //6.0f / SliderMax;
@@ -1711,7 +1711,7 @@ void FEdModeLandscape::ChangeBrushStrength(bool bIncrease)
 	}
 
 	NewValue = FMath::Clamp(NewValue, SliderMin, SliderMax);
-	UISettings->ToolStrength = NewValue;
+	UISettings->SetCurrentToolStrength(NewValue);
 }
 
 void FEdModeLandscape::ChangeAlphaBrushRotation(bool bIncrease)

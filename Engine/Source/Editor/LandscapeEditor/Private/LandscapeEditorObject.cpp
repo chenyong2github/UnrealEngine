@@ -22,6 +22,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 
 	// Tool Settings:
 	, ToolStrength(0.3f)
+    , PaintToolStrength(0.3f)
 	, bUseWeightTargetValue(false)
 	, WeightTargetValue(1.0f)
 	, MaximumValueRadius(10000.0f)
@@ -90,7 +91,9 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 
 	// Brush Settings:
 	, BrushRadius(2048.0f)
+    , PaintBrushRadius(2048.0f) 
 	, BrushFalloff(0.5f)
+	, PaintBrushFalloff(0.5f)
 	, bUseClayBrush(false)
 
 	, AlphaBrushScale(0.5f)
@@ -191,14 +194,17 @@ void ULandscapeEditorObject::PostEditChangeProperty(FPropertyChangedEvent& Prope
 void ULandscapeEditorObject::Load()
 {
 	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("ToolStrength"), ToolStrength, GEditorPerProjectIni);
+	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("PaintToolStrength"), PaintToolStrength, GEditorPerProjectIni);
 	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("WeightTargetValue"), WeightTargetValue, GEditorPerProjectIni);
 	bool InbUseWeightTargetValue = bUseWeightTargetValue;
 	GConfig->GetBool(TEXT("LandscapeEdit"), TEXT("bUseWeightTargetValue"), InbUseWeightTargetValue, GEditorPerProjectIni);
 	bUseWeightTargetValue = InbUseWeightTargetValue;
 
 	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("BrushRadius"), BrushRadius, GEditorPerProjectIni);
+	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("PaintBrushRadius"), PaintBrushRadius, GEditorPerProjectIni);
 	GConfig->GetInt(TEXT("LandscapeEdit"), TEXT("BrushComponentSize"), BrushComponentSize, GEditorPerProjectIni);
 	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("BrushFalloff"), BrushFalloff, GEditorPerProjectIni);
+	GConfig->GetFloat(TEXT("LandscapeEdit"), TEXT("PaintBrushFalloff"), PaintBrushFalloff, GEditorPerProjectIni);
 	bool InbUseClayBrush = bUseClayBrush;
 	GConfig->GetBool(TEXT("LandscapeEdit"), TEXT("bUseClayBrush"), InbUseClayBrush, GEditorPerProjectIni);
 	bUseClayBrush = InbUseClayBrush;
@@ -359,12 +365,15 @@ void ULandscapeEditorObject::Load()
 void ULandscapeEditorObject::Save()
 {
 	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("ToolStrength"), ToolStrength, GEditorPerProjectIni);
+	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("PaintToolStrength"), PaintToolStrength, GEditorPerProjectIni);
 	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("WeightTargetValue"), WeightTargetValue, GEditorPerProjectIni);
 	GConfig->SetBool(TEXT("LandscapeEdit"), TEXT("bUseWeightTargetValue"), bUseWeightTargetValue, GEditorPerProjectIni);
 
 	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("BrushRadius"), BrushRadius, GEditorPerProjectIni);
+	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("PaintBrushRadius"), PaintBrushRadius, GEditorPerProjectIni);
 	GConfig->SetInt(TEXT("LandscapeEdit"), TEXT("BrushComponentSize"), BrushComponentSize, GEditorPerProjectIni);
 	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("BrushFalloff"), BrushFalloff, GEditorPerProjectIni);
+	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("PaintBrushFalloff"), PaintBrushFalloff, GEditorPerProjectIni);
 	GConfig->SetBool(TEXT("LandscapeEdit"), TEXT("bUseClayBrush"), bUseClayBrush, GEditorPerProjectIni);
 	GConfig->SetFloat(TEXT("LandscapeEdit"), TEXT("AlphaBrushScale"), AlphaBrushScale, GEditorPerProjectIni);
 	GConfig->SetBool(TEXT("LandscapeEdit"), TEXT("AlphaBrushAutoRotate"), bAlphaBrushAutoRotate, GEditorPerProjectIni);
@@ -939,3 +948,69 @@ void ULandscapeEditorObject::UpdateShowUnusedLayers()
 	}
 }
 
+float ULandscapeEditorObject::GetCurrentToolStrength() const
+{
+	if (IsWeightmapTarget())
+	{
+		return PaintToolStrength;
+	}
+	return ToolStrength;
+}
+
+void ULandscapeEditorObject::SetCurrentToolStrength(float NewToolStrength)
+{
+	if (IsWeightmapTarget())
+	{
+		PaintToolStrength = NewToolStrength;		
+	}
+	else
+	{
+		ToolStrength = NewToolStrength;
+	}
+}
+
+float ULandscapeEditorObject::GetCurrentToolBrushRadius() const
+{
+	if (IsWeightmapTarget())
+	{
+		return PaintBrushRadius;
+	}
+	return BrushRadius;
+	
+	
+}
+
+void ULandscapeEditorObject::SetCurrentToolBrushRadius(float NewBrushStrength)
+{
+	if (IsWeightmapTarget())
+	{
+		PaintBrushRadius = NewBrushStrength;
+	}
+	else
+	{
+		BrushRadius = NewBrushStrength;
+	}
+}
+
+float ULandscapeEditorObject::GetCurrentToolBrushFalloff() const
+{
+	if (IsWeightmapTarget())
+	{
+		return PaintBrushFalloff;
+		
+	}
+	return BrushFalloff;
+	
+}
+
+void ULandscapeEditorObject::SetCurrentToolBrushFalloff(float NewBrushFalloff)
+{
+	if (IsWeightmapTarget())
+	{
+		PaintBrushFalloff = NewBrushFalloff;
+	}
+	else
+	{
+		BrushFalloff = NewBrushFalloff;
+	}
+}

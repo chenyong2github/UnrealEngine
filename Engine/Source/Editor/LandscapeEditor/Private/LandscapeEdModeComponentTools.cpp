@@ -209,7 +209,7 @@ public:
 
 					if (BrushValue > 0.0f && LandscapeInfo->IsValidPosition(X, Y))
 					{
-						float PaintValue = BrushValue * UISettings->ToolStrength * Pressure;
+						float PaintValue = BrushValue * UISettings->GetCurrentToolStrength() * Pressure;
 						float Value = DataScanline[X] / 255.0f;
 						checkSlow(FMath::IsNearlyEqual(Value, LandscapeInfo->SelectedRegion.FindRef(Key), 1 / 255.0f));
 						if (bInvert)
@@ -1495,7 +1495,7 @@ public:
 
 						// Value before we apply our painting
 						int32 index = (X - X1) + (Y - Y1)*(1 + X2 - X1);
-						float PaintAmount = (Brush->GetBrushType() == ELandscapeBrushType::Gizmo) ? BrushValue : BrushValue * EdMode->UISettings->ToolStrength * Pressure;
+						float PaintAmount = (Brush->GetBrushType() == ELandscapeBrushType::Gizmo) ? BrushValue : BrushValue * EdMode->UISettings->GetCurrentToolStrength() * Pressure;
 
 						FVector GizmoLocal = LandscapeToGizmoLocal.TransformPosition(FVector(X, Y, 0));
 						GizmoLocal.X *= ScaleX * SignX;
