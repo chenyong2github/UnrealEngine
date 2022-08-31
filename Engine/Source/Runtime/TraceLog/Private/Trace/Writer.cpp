@@ -41,7 +41,6 @@ void			Writer_SendData(uint32, uint8* __restrict, uint32);
 void			Writer_InitializeTail(int32);
 void			Writer_ShutdownTail();
 void			Writer_TailOnConnect();
-void			Writer_TailPause(bool);	
 void			Writer_InitializeSharedBuffers();
 void			Writer_ShutdownSharedBuffers();
 void			Writer_UpdateSharedBuffers();
@@ -58,7 +57,6 @@ uint32			Writer_GetControlPort();
 void			Writer_UpdateControl();
 void			Writer_InitializeControl();
 void			Writer_ShutdownControl();
-bool			Writer_IsTracing();
 bool			Writer_IsTailing();
 static bool		Writer_SessionPrologue();
 void			Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);
@@ -551,17 +549,18 @@ void Writer_CallbackOnConnect()
 	{
 		return;
 	}
-	
-	Writer_TailPause(true);
+
+	// Prior to letting callbacks trace events we need to flush any pending
+	// trace data to that tail. We do not want that data to be sent over the
+	// wire as that would cause data to be sent out-of-order.
+	UPTRINT DataHandle = GDataHandle;
+	GDataHandle = 0;
+	Writer_DrainLocalBuffers();
+	GDataHandle = DataHandle;
 
 	// Issue callback. We assume any events emitted here are not marked as
 	// important and emitted on this thread.
 	GOnConnection();
-
-	// Drain only the events for this thread passing tail as you go.
-	Writer_DrainLocalBuffers();
-
-	Writer_TailPause(false);
 }
 
 
