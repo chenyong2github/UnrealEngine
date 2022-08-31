@@ -860,7 +860,7 @@ UInterchangeOBJTranslator::~UInterchangeOBJTranslator()
 
 TArray<FString> UInterchangeOBJTranslator::GetSupportedFormats() const
 {
-	if (GInterchangeEnableOBJImport)
+	if (GInterchangeEnableOBJImport || GIsAutomationTesting)
 	{
 		TArray<FString> Formats{ TEXT("obj;OBJ File Format") };
 		return Formats;

@@ -202,7 +202,7 @@ TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 {
 	// Call to UInterchangeMaterialXTranslator::GetSupportedFormats is not supported out of game thread
 	// A more global solution must be found for translators which require some initialization
-	if(!IsInGameThread() || !GInterchangeEnableMaterialXImport)
+	if(!IsInGameThread() || (!GInterchangeEnableMaterialXImport && !GIsAutomationTesting))
 	{
 		return TArray<FString>{};
 	}

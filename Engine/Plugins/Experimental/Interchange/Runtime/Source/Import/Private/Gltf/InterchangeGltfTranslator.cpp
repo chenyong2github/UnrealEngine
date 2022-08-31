@@ -799,7 +799,7 @@ TArray<FString> UInterchangeGltfTranslator::GetSupportedFormats() const
 {
 	TArray<FString> GltfExtensions;
 
-	if ( GInterchangeEnableGLTFImport )
+	if ( GInterchangeEnableGLTFImport || GIsAutomationTesting )
 	{
 		GltfExtensions.Reserve(2);
 		GltfExtensions.Add(TEXT("gltf;GL Transmission Format"));

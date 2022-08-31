@@ -20,7 +20,7 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableIESImport(
 
 TArray<FString> UInterchangeIESTranslator::GetSupportedFormats() const
 {
-	if (GInterchangeEnableIESImport)
+	if (GInterchangeEnableIESImport || GIsAutomationTesting)
 	{
 		TArray<FString> Formats{ TEXT("ies;IES light profile") };
 		return Formats;

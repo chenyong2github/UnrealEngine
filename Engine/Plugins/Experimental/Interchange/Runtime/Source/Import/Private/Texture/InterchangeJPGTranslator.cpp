@@ -28,7 +28,7 @@ TArray<FString> UInterchangeJPGTranslator::GetSupportedFormats() const
 {
 	TArray<FString> Formats;
 
-	if (GInterchangeEnableJPGImport)
+	if (GInterchangeEnableJPGImport || GIsAutomationTesting)
 	{
 		Formats.Reserve(2);
 

@@ -79,35 +79,35 @@ TArray<FString> UInterchangeImageWrapperTranslator::GetSupportedFormats() const
 	TArray<FString> Formats;
 	Formats.Reserve(7);
 
-	if (GInterchangeEnablePNGImport)
+	if (GInterchangeEnablePNGImport || GIsAutomationTesting)
 	{
 		Formats.Emplace(TEXT("png;Portable Network Graphic"));
 	}
 
-	if (GInterchangeEnableBMPImport)
+	if (GInterchangeEnableBMPImport || GIsAutomationTesting)
 	{
 		Formats.Emplace(TEXT("bmp;Bitmap image"));
 	}
 
-	if (GInterchangeEnableEXRImport)
+	if (GInterchangeEnableEXRImport || GIsAutomationTesting)
 	{
 		Formats.Emplace(TEXT("exr;OpenEXR image"));
 	}
 
-	if (GInterchangeEnableHDRImport)
+	if (GInterchangeEnableHDRImport || GIsAutomationTesting)
 	{
 		Formats.Emplace(TEXT("hdr;High Dynamic Range image"));
 	}
 
 #if WITH_LIBTIFF
-	if (GInterchangeEnableTIFFImport)
+	if (GInterchangeEnableTIFFImport || GIsAutomationTesting)
 	{
 		Formats.Emplace(TEXT("tif;Tag Image File Format"));
 		Formats.Emplace(TEXT("tiff;Tag Image File Format"));
 	}
 #endif
 
-	if (GInterchangeEnableTGAImport)
+	if (GInterchangeEnableTGAImport || GIsAutomationTesting)
 	{
 		Formats.Emplace(TEXT("tga;Targa image"));
 	}

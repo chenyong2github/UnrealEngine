@@ -75,7 +75,7 @@ namespace UE
 
 TArray<FString> UInterchangePCXTranslator::GetSupportedFormats() const
 {
-	if (GInterchangeEnablePCXImport)
+	if (GInterchangeEnablePCXImport || GIsAutomationTesting)
 	{
 		TArray<FString> Formats{ TEXT("pcx;Picture Exchange") };
 		return Formats;

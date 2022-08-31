@@ -48,7 +48,7 @@ EInterchangeTranslatorAssetType UInterchangeFbxTranslator::GetSupportedAssetType
 
 TArray<FString> UInterchangeFbxTranslator::GetSupportedFormats() const
 {
-	if (GInterchangeEnableFBXImport)
+	if (GInterchangeEnableFBXImport || GIsAutomationTesting)
 	{
 		TArray<FString> Formats{ TEXT("fbx;Filmbox") };
 		return Formats;

@@ -376,7 +376,7 @@ namespace UE
 
 TArray<FString> UInterchangePSDTranslator::GetSupportedFormats() const
 {
-	if (GInterchangeEnablePSDImport)
+	if (GInterchangeEnablePSDImport || GIsAutomationTesting)
 	{
 		TArray<FString> Formats{ TEXT("psd;Photoshop Document") };
 		return Formats;

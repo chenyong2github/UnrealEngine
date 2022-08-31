@@ -58,7 +58,7 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 
 TArray<FString> UInterchangeDDSTranslator::GetSupportedFormats() const
 {
-	if (GInterchangeEnableDDSImport)
+	if (GInterchangeEnableDDSImport || GIsAutomationTesting)
 	{
 		TArray<FString> Formats{ TEXT("dds;DirectDraw Surface") };
 		return Formats;
