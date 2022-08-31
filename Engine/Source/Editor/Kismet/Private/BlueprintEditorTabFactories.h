@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BlueprintEditor.h"
 #include "Delegates/Delegate.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphSchema.h"

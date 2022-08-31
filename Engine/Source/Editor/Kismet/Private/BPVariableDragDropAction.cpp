@@ -2,6 +2,7 @@
 
 #include "BPVariableDragDropAction.h"
 
+#include "BlueprintEditor.h"
 #include "Containers/EnumAsByte.h"
 #include "Delegates/Delegate.h"
 #include "EdGraph/EdGraph.h"

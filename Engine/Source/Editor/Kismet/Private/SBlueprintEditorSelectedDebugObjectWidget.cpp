@@ -41,6 +41,7 @@
 #include "UnrealEdGlobals.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
 

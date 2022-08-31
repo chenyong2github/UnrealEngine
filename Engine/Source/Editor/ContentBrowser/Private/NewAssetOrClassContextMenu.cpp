@@ -11,7 +11,6 @@
 #include "Misc/AssertionMacros.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Styling/AppStyle.h"
-#include "Templates/Casts.h"
 #include "Textures/SlateIcon.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"

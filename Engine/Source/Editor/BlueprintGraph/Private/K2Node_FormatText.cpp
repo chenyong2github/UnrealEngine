@@ -14,7 +14,6 @@
 #include "EditorCategoryUtils.h"
 #include "Engine/Blueprint.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_MakeArray.h"

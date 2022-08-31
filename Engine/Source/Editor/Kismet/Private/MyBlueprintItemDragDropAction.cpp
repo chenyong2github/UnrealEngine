@@ -2,6 +2,7 @@
 
 #include "MyBlueprintItemDragDropAction.h"
 
+#include "BlueprintEditor.h"
 #include "CoreTypes.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Internationalization/Internationalization.h"

@@ -22,7 +22,6 @@
 #include "EdGraphSchema_K2.h"
 #include "Engine/Blueprint.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "IDocumentation.h"
 #include "Internationalization/Internationalization.h"
 #include "Kismet2/BlueprintEditorUtils.h"

@@ -2,6 +2,7 @@
 
 #include "BlueprintMemberReferenceCustomization.h"
 
+#include "BlueprintEditor.h"
 #include "BlueprintEditorModule.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"

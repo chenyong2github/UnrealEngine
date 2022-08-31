@@ -9,6 +9,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetSelection.h"
 #include "BPVariableDragDropAction.h"
+#include "BlueprintEditor.h"
 #include "BlueprintEditorModule.h"
 #include "BlueprintEditorSettings.h"
 #include "ClassIconFinder.h"

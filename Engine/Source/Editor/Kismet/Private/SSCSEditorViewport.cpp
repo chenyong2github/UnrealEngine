@@ -22,7 +22,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GenericPlatform/ICursor.h"
 #include "HAL/PlatformCrt.h"
-#include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
 #include "Layout/Children.h"
 #include "Layout/Margin.h"

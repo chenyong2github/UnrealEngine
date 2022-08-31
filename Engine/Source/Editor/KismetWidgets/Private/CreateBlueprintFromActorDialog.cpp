@@ -22,7 +22,6 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameFramework/Actor.h"
-#include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMisc.h"
 #include "IAssetTools.h"

@@ -22,7 +22,6 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_CallArrayFunction.h"
 #include "K2Node_CallFunction.h"

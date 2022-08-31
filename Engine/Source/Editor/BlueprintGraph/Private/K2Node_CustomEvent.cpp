@@ -16,7 +16,6 @@
 #include "Engine/MemberReference.h"
 #include "FindInBlueprintManager.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node.h"
 #include "K2Node_BaseMCDelegate.h"

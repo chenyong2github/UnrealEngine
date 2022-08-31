@@ -13,7 +13,6 @@
 #include "EdGraphUtilities.h"
 #include "Engine/MemberReference.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_Event.h"
 #include "Kismet2/CompilerResultsLog.h"

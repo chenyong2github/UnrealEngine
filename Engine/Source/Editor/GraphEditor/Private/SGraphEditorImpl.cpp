@@ -19,7 +19,6 @@
 #include "GraphEditorActions.h"
 #include "GraphEditorModule.h"
 #include "GraphEditorSettings.h"
-#include "HAL/PlatformMath.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"
 #include "Internationalization/Internationalization.h"

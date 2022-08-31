@@ -21,7 +21,6 @@
 #include "Editor/Transactor.h"
 #include "EditorUndoClient.h"
 #include "Framework/Commands/UICommandList.h"
-#include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "IMessageLogListing.h"
 #include "ISettingsModule.h"

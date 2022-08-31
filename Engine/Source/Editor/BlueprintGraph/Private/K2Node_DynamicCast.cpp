@@ -17,7 +17,6 @@
 #include "Engine/Blueprint.h"
 #include "Framework/Commands/UIAction.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Kismet2/KismetEditorUtilities.h"

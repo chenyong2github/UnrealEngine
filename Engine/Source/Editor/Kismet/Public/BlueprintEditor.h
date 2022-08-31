@@ -31,6 +31,7 @@
 #include "Misc/Optional.h"
 #include "PreviewScene.h"
 #include "SKismetInspector.h"
+#include "SourceControlOperations.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"
 #include "Styling/SlateBrush.h"

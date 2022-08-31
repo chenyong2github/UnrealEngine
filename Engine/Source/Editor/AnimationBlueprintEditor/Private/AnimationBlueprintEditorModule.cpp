@@ -6,6 +6,7 @@
 #include "AnimationBlueprintEditor.h"
 #include "AnimationBlueprintEditorSettings.h"
 #include "AnimationGraphFactory.h"
+#include "BlueprintEditor.h"
 #include "Delegates/Delegate.h"
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 #include "EdGraph/EdGraph.h"

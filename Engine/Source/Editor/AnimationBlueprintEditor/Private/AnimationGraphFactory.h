@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ConnectionDrawingPolicy.h"
 #include "EdGraphUtilities.h"
 #include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"

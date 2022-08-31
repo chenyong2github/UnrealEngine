@@ -14,7 +14,6 @@
 #include "Editor/EditorEngine.h"
 #include "GraphEditorSettings.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Math/Vector2D.h"
 #include "Misc/App.h"
 #include "Misc/AssertionMacros.h"

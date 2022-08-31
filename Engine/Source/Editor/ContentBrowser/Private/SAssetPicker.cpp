@@ -34,6 +34,7 @@
 #include "SContentBrowser.h"
 #include "SFilterList.h"
 #include "SlotBase.h"
+#include "SourceControlOperations.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateColor.h"

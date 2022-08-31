@@ -20,6 +20,7 @@
 #include "Styling/WidgetStyle.h"
 #include "Types/WidgetActiveTimerDelegate.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"

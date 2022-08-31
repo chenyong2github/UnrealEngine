@@ -14,7 +14,6 @@
 #include "EdGraphSchema_K2.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Engine/Blueprint.h"
-#include "HAL/Platform.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"

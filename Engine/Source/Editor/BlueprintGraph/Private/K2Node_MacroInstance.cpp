@@ -13,7 +13,6 @@
 #include "Engine/Blueprint.h"
 #include "Framework/Commands/UIAction.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_EditablePinBase.h"
 #include "Kismet2/BlueprintEditorUtils.h"

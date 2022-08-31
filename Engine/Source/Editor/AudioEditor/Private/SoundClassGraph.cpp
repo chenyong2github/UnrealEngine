@@ -9,7 +9,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "GraphEditor.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
 #include "Sound/SoundClass.h"
 #include "SoundClassGraph/SoundClassGraphNode.h"

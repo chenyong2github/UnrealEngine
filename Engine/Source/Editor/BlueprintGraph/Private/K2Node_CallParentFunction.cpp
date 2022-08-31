@@ -13,6 +13,7 @@
 #include "K2Node.h"
 #include "Misc/Guid.h"
 #include "Settings/EditorStyleSettings.h"
+#include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Script.h"

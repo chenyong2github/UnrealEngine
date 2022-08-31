@@ -15,7 +15,6 @@
 #include "Engine/MemberReference.h"
 #include "EngineLogs.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_AddDelegate.h"
 #include "K2Node_AssignmentStatement.h"

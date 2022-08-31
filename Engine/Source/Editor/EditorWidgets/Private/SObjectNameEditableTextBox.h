@@ -11,7 +11,6 @@
 #include "Layout/Visibility.h"
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
-#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 

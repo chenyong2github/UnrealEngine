@@ -11,7 +11,6 @@
 #include "EditorCategoryUtils.h"
 #include "Engine/Blueprint.h"
 #include "FindInBlueprintManager.h"
-#include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "Kismet2/BlueprintEditorUtils.h"

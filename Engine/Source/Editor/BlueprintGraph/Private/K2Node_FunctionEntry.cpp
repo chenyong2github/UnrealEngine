@@ -19,7 +19,6 @@
 #include "Engine/Blueprint.h"
 #include "Engine/MemberReference.h"
 #include "EngineLogs.h"
-#include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_CallFunction.h"

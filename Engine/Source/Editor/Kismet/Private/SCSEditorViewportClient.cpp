@@ -34,7 +34,6 @@
 #include "GameFramework/Actor.h"
 #include "HitProxies.h"
 #include "ISCSEditorCustomization.h"
-#include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Logging/LogMacros.h"

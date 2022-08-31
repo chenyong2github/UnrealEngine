@@ -7,6 +7,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "Input/Reply.h"
 #include "Internationalization/Text.h"
+#include "SChordEditor.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SEditableText.h"

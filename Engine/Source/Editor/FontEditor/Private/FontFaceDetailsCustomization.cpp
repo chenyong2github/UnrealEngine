@@ -32,6 +32,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Types/SlateEnums.h"
 #include "UObject/Object.h"
+#include "UObject/WeakObjectPtr.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"

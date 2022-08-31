@@ -47,7 +47,6 @@
 #include "GraphEditorDragDropAction.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Events.h"
 #include "InputCoreTypes.h"

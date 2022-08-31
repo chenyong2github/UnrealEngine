@@ -28,6 +28,7 @@
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
+#include "Templates/TypeHash.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"

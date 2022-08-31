@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BlueprintActionFilter.h"
 #include "BlueprintNodeSignature.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"

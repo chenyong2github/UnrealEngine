@@ -14,7 +14,6 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphPin.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Templates/Casts.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"

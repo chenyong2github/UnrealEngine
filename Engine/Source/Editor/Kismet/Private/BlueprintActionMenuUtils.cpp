@@ -7,6 +7,7 @@
 #include "BlueprintActionMenuBuilder.h"
 #include "BlueprintActionMenuItem.h"
 #include "BlueprintDragDropMenuItem.h"
+#include "BlueprintEditor.h"
 #include "BlueprintEditorSettings.h"
 #include "BlueprintNodeBinder.h"
 #include "BlueprintNodeSpawner.h"

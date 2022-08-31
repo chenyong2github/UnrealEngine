@@ -10,7 +10,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_BehaviorTreeDecorator.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Templates/Casts.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectPtr.h"

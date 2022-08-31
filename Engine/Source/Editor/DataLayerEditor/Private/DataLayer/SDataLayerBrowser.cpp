@@ -52,6 +52,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 
+class ISceneOutliner;
 class UObject;
 
 #define LOCTEXT_NAMESPACE "DataLayer"

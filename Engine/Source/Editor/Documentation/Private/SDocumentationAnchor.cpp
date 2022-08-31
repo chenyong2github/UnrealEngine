@@ -14,6 +14,7 @@
 #include "SSimpleButton.h"
 #include "Styling/AppStyle.h"
 #include "Styling/ISlateStyle.h"
+#include "Widgets/SToolTip.h"
 
 void SDocumentationAnchor::Construct(const FArguments& InArgs )
 {

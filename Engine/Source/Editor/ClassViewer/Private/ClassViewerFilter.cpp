@@ -14,7 +14,6 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Brush.h"
 #include "GameFramework/Actor.h"
-#include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Logging/LogCategory.h"

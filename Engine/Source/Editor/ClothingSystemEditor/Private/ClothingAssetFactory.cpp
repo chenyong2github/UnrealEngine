@@ -26,6 +26,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Guid.h"
 #include "ObjectTools.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "PointWeightMap.h"
 #include "ReferenceSkeleton.h"
 #include "Rendering/SkeletalMeshLODModel.h"

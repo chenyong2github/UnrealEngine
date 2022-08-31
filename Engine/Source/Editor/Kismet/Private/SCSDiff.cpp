@@ -22,6 +22,7 @@
 #include "SlotBase.h"
 #include "SubobjectData.h"
 #include "SubobjectDataHandle.h"
+#include "Templates/Casts.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/SubclassOf.h"
 #include "Types/SlateEnums.h"

@@ -31,6 +31,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "HardwareTargeting"
 

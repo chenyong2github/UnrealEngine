@@ -2,6 +2,7 @@
 
 #include "AssetTypeActions_EditorUtilityWidgetBlueprint.h"
 
+#include "BlueprintEditor.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
 #include "Editor.h"

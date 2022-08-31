@@ -2,6 +2,7 @@
 
 #include "BlueprintDetailsCustomization.h"
 
+#include "BlueprintEditor.h"
 #include "BlueprintEditorModule.h"
 #include "BlueprintEditorSettings.h"
 #include "BlueprintNamespaceRegistry.h"

@@ -6,7 +6,6 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
 #include "IDetailChildrenBuilder.h"
 #include "Internationalization/Internationalization.h"

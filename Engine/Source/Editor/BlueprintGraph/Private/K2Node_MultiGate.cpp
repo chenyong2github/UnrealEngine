@@ -14,7 +14,6 @@
 #include "EdGraphSchema_K2.h"
 #include "EdGraphUtilities.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_AssignmentStatement.h"
 #include "K2Node_TemporaryVariable.h"

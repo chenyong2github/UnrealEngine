@@ -7,7 +7,6 @@
 #include "Delegates/IDelegateInstance.h"
 #include "IDetailCustomization.h"
 #include "Templates/SharedPointer.h"
-#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;

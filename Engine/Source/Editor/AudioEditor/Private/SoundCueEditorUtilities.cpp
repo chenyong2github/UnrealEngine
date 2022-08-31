@@ -5,7 +5,6 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "ISoundCueEditor.h"
 #include "Misc/AssertionMacros.h"
 #include "Sound/DialogueTypes.h"

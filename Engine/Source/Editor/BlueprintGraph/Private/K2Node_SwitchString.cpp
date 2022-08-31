@@ -8,7 +8,6 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraphSchema_K2.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "Kismet/KismetStringLibrary.h"
 #include "Kismet2/CompilerResultsLog.h"

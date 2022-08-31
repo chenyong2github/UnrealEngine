@@ -2,6 +2,7 @@
 
 #include "BPFunctionDragDropAction.h"
 
+#include "BlueprintEditor.h"
 #include "BlueprintFunctionNodeSpawner.h"
 #include "BlueprintNodeBinder.h"
 #include "EdGraph/EdGraph.h"

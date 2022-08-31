@@ -11,7 +11,6 @@
 #include "ICurveEditorModule.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
-#include "Templates/UnrealTemplate.h"
 #include "ToolMenus.h"
 
 class FCurveEditorModule : public ICurveEditorModule

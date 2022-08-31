@@ -27,6 +27,7 @@
 #include "TutorialMetaData.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectPtr.h"
+#include "Widgets/SToolTip.h"
 
 class SToolTip;
 

@@ -23,7 +23,6 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "KismetCompiler.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/UnrealNames.h"

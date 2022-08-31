@@ -16,7 +16,6 @@
 #include "GameFramework/Actor.h"
 #include "GraphEditorSettings.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Internationalization/Internationalization.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_CreateDelegate.h"

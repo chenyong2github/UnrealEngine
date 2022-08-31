@@ -21,6 +21,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/WorldSettings.h"
+#include "HLODOutlinerDragDrop.h"
 #include "HLODTreeWidgetItem.h"
 #include "HierarchicalLOD.h"
 #include "HierarchicalLODUtilitiesModule.h"

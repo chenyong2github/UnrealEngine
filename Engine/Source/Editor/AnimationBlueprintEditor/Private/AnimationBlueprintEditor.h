@@ -13,7 +13,6 @@
 #include "GraphEditor.h"
 #include "HAL/Platform.h"
 #include "IAnimationBlueprintEditor.h"
-#include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
 #include "Math/Color.h"
 #include "Misc/AssertionMacros.h"

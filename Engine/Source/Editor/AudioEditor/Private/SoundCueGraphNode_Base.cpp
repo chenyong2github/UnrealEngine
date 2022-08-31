@@ -10,7 +10,6 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "HAL/PlatformCrt.h"
-#include "HAL/PlatformMath.h"
 #include "Misc/AssertionMacros.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
 #include "Templates/Casts.h"

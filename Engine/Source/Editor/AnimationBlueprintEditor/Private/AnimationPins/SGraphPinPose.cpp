@@ -29,7 +29,6 @@
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
-#include "Templates/UnrealTemplate.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Widgets/Images/SImage.h"
