@@ -35,6 +35,10 @@
 #define CLOUD_SAMPLE_LOCAL_LIGHTS 0
 #endif
 
+#ifndef CLOUD_CONSERVATIVE_DENSITY_DEBUG
+#define CLOUD_CONSERVATIVE_DENSITY_DEBUG 0
+#endif
+
 #if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
@@ -569,12 +573,9 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		const float MsPhaseFactor = 1.0f;
 #endif
 
-		uint DebugPrimaryMaterialSampleCount = 0;
-		uint DebugShadowSampleCount = 0;
-		uint DebugShadowMaterialSampleCount = 0;
-		uint DebugGroundShadowSampleCount = 0;
-		uint DebugGroundShadowMaterialSampleCount = 0;
+#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
 		uint DebugZeroConservativeDensitySampleCount = 0;
+#endif
 
 		const float3 wi0 = Light0Direction;
 		const float3 wi1 = Light1Direction;
@@ -635,7 +636,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 			{
-#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
 				++DebugZeroConservativeDensitySampleCount;
 				t += StepT;
 #else
@@ -650,7 +651,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			//////////////////////////////
 			// Sample the participating media material at the sample position.
 			//////////////////////////////
-			DebugPrimaryMaterialSampleCount++;
 			CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 			const MATVEC ExtinctionCoefficients = SampleExtinctionCoefficients(PixelMaterialInputs);
 			const MATVEC EmissiveLuminance = USES_EMISSIVE_COLOR ? SampleEmissive(PixelMaterialInputs) : 0.0f;
@@ -721,7 +721,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 #if MATERIAL_VOLUMETRIC_ADVANCED_GROUND_CONTRIBUTION
 				if (MaxTransmittanceToView > 0.01f)
 				{
-					DebugGroundShadowSampleCount++;
 					// Cheap approximation assuming a single transmittance using only current sample extinction value. If we are withint the AO texture bounds, we lerp towards its more accurate result.
 					//DistantLightLuminance += TransmittedScatteredLightLuminance;
 
@@ -735,7 +734,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					float PreviousNormT = 0.0f;
 					for (float ShadowT = InvShadowStepCount; ShadowT <= 1.00001f; ShadowT += InvShadowStepCount)
 					{
-						DebugGroundShadowMaterialSampleCount++;
 						float CurrentNormT = ShadowT * ShadowT; // CurrentNormT is the end of the considered segment to integrate, PreviousNormT is its beginning.
 						const float DetlaNormT = CurrentNormT - PreviousNormT;
 						const float ShadowSampleDistance = ShadowLengthTest * (CurrentNormT - 0.5 * DetlaNormT);
@@ -817,8 +815,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					PMC.TransmittanceToLight0[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
 				}
 #else 
-	// Use raymarched shadows
-				DebugShadowSampleCount++;
+				// Use raymarched shadows
 				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
 				{
@@ -860,7 +857,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 						break; // Ignore remaining samples since we have just traveld out of the cloud layer.
 					}
 
-					DebugShadowMaterialSampleCount++;
 					CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 					MATVEC ShadowExtinctionCoefficients = SampleExtinctionCoefficients(PixelMaterialInputs);
 
@@ -895,7 +891,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 						PMC.TransmittanceToLight1[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
 					}
 #else // Use cloud shadowmap
-					DebugShadowSampleCount++;
 					UNROLL
 					for (ms = 0; ms < MSCOUNT; ++ms)
 					{
@@ -926,7 +921,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 							break; // Ignore remaining samples since we have just traveld out of the cloud layer.
 						}
 
-						DebugShadowMaterialSampleCount++;
 						CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 						MATVEC ShadowExtinctionCoefficients = SampleExtinctionCoefficients(PixelMaterialInputs);
 
@@ -1165,8 +1159,8 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			}
 
 			// This is helpful for performance. Can result in less light pucnhing through clouds. Should be a setting.
-			if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold)
-				&& (!CLOUD_SAMPLE_COUNT_DEBUG_MODE || RenderVolumetricCloudParameters.SampleCountDebugMode < 6))
+			if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold) 
+				&& !CLOUD_CONSERVATIVE_DENSITY_DEBUG)
 			{
 				break;
 			}
@@ -1174,38 +1168,8 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			t += StepT;
 			}
 
-#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
-		if (RenderVolumetricCloudParameters.SampleCountDebugMode == 6)
-		{
-			OutColor0.r = 1.0 - saturate(DebugZeroConservativeDensitySampleCount / float(IStepCount));
-		}
-		else if (RenderVolumetricCloudParameters.SampleCountDebugMode > 0)
-		{
-			uint CountToDebug = 0;
-			switch (RenderVolumetricCloudParameters.SampleCountDebugMode)
-			{
-			case 1:
-				CountToDebug = DebugPrimaryMaterialSampleCount;
-				break;
-			case 2:
-				CountToDebug = DebugShadowSampleCount;
-				break;
-			case 3:
-				CountToDebug = DebugShadowMaterialSampleCount;
-				break;
-			case 4:
-				CountToDebug = DebugGroundShadowSampleCount;
-				break;
-			case 5:
-				CountToDebug = DebugGroundShadowMaterialSampleCount;
-				break;
-			}
-
-			const bool bMediumHit = CountToDebug > 0;
-			OutColor0 = float4(bMediumHit ? GetHSVDebugColor(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f);
-			OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
-			return;
-		}
+#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
+		OutColor0.r = 1.0 - saturate(DebugZeroConservativeDensitySampleCount / float(IStepCount));
 #endif
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1281,7 +1245,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	//
 
 	float GrayScaleTransmittance = MeanTransmittance < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold ? 0.0f : MeanTransmittance;
-#if CLOUD_SAMPLE_COUNT_DEBUG_MODE
+#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
 	OutColor0 = float4(OutColor0.r * OutputPreExposure, Luminance.gb * OutputPreExposure, GrayScaleTransmittance);
 #else
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
