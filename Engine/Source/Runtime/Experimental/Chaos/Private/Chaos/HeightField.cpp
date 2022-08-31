@@ -449,6 +449,8 @@ namespace Chaos
 		THeightfieldSweepVisitorCCD(const typename FHeightField::FDataType* InData, const GeomQueryType& InQueryGeom, const FRigidTransform3& InStartTM, const FVec3& InDir, const FReal Length, const FReal InIgnorePenetration, const FReal InTargetPenetration)
 			: OutDistance(TNumericLimits<FReal>::Max())
 			, OutPhi(TNumericLimits<FReal>::Max())
+			, OutPosition(0)
+			, OutNormal(0)
 			, OutFaceIndex(INDEX_NONE)
 			, HfData(InData)
 			, StartTM(InStartTM)
@@ -2127,14 +2129,14 @@ namespace Chaos
 		FReal TOI = (Length > 0) ? SQVisitor.OutDistance / Length : FReal(0);
 		FReal Phi = SQVisitor.OutPhi;
 
-		// @todo(chaos): Legacy path to be removed when fully tested. See ComputeSweptContactTOIAndPhiAtTargetPenetration
-		if (!CVars::bCCDNewTargetDepthMode)
-		{
-			LegacyComputeSweptContactTOIAndPhiAtTargetPenetration(FVec3::DotProduct(Dir, SQVisitor.OutNormal), Length, InIgnorePenetration, InTargetPenetration, TOI, Phi);
-		}
-
 		if (TOI <= 1)
 		{
+			// @todo(chaos): Legacy path to be removed when fully tested. See ComputeSweptContactTOIAndPhiAtTargetPenetration
+			if (!CVars::bCCDNewTargetDepthMode)
+			{
+				LegacyComputeSweptContactTOIAndPhiAtTargetPenetration(FVec3::DotProduct(Dir, SQVisitor.OutNormal), Length, InIgnorePenetration, InTargetPenetration, TOI, Phi);
+			}
+
 			OutTOI = TOI;
 			OutPhi = Phi;
 			OutPosition = SQVisitor.OutPosition;

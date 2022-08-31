@@ -155,6 +155,11 @@ public:
 		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 		CHAOS_ENSURE(Length > 0);
 		OutFaceIndex = INDEX_NONE;
+		OutTime = 0;
+
+		// This is mainly to fix static analysis warnings
+		OutPosition = FVec3(0);
+		OutNormal = FVec3(0);
 
 		const FReal SignedDist = FVec3::DotProduct(StartPoint - (FVec3)MX, (FVec3)MNormal);
 		if (FMath::Abs(SignedDist) < Thickness)
@@ -163,7 +168,7 @@ public:
 			//const FReal DirDotNormal = FVec3::DotProduct(Dir, (FVec3)MNormal);
 			//OutPosition = StartPoint;
 			//OutNormal = DirDotNormal < 0 ? MNormal : -MNormal;
-			OutTime = 0;
+			//OutTime = 0;
 			return true;
 		}
 
