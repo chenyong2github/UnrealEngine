@@ -85,6 +85,10 @@ public:
 
 	virtual void* StartTask(std::function<void()> func)
 	{
+		// Capturing a std::function and passing it to Async.
+		// This works today but if Async() or TFuture start to assume they can trivially relocate
+		// callbacks (e.g. by storing them in a TArray) then this capture will need revising.
+		// Unlike TFunction, std::function is not guaranteed to be trivially relocatable.
 		return new TFuture<void>(Async(EAsyncExecution::ThreadPool, [func](){func();}));
 	}
 
