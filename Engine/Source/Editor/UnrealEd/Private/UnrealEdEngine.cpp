@@ -79,6 +79,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ObjectTools.h"
 #include "Cooker/ExternalCookOnTheFlyServer.h"
+#include "ISettingsSection.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 
@@ -172,8 +173,6 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 	if (FPaths::IsProjectFilePathSet() && GIsEditor && !FApp::IsUnattended())
 	{
-
-		UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing AutoRepimportManager"));
 		AutoReimportManager = NewObject<UAutoReimportManager>();
 		AutoReimportManager->Initialize();
 	}
@@ -198,11 +197,13 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 		if (SettingsModule != nullptr)
 		{
-			SettingsModule->RegisterSettings("Editor", "General", "Appearance",
+			ISettingsSectionPtr StyleSettingsPtr = SettingsModule->RegisterSettings("Editor", "General", "Appearance",
 				NSLOCTEXT("UnrealEd", "Appearance_UserSettingsName", "Appearance"),
 				NSLOCTEXT("UnrealEd", "Appearance_UserSettingsDescription", "Customize the look of the editor."),
 				Settings
 			);
+			
+			StyleSettingsPtr->OnExport().BindUObject(Settings, &UEditorStyleSettings::OnExportBegin);
 		}
 
 

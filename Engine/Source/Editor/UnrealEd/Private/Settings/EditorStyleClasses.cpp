@@ -12,6 +12,7 @@
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
 #include "Styling/StyleColors.h"
+#include "HAL/FileManager.h"
 
 class FObjectInitializer;
 
@@ -90,5 +91,27 @@ void UEditorStyleSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 	}
 
 	SettingChangedEvent.Broadcast(PropertyName);
+}
+
+
+bool UEditorStyleSettings::OnExportBegin(const FString& ExportToPath)
+{
+	SaveConfig(CPF_Config, *ExportToPath);
+
+	const FStyleTheme& CurrentTheme = USlateThemeManager::Get().GetCurrentTheme();
+
+	FString PathPart;
+	FString Extension;
+	FString FilenameWithoutExtension;
+	FPaths::Split(ExportToPath, PathPart, FilenameWithoutExtension, Extension);
+
+	const FString DestinationPath = PathPart / CurrentTheme.DisplayName.ToString() + TEXT(".json");
+
+	// copy the theme file to the same destination
+	if (IPlatformFile::GetPlatformPhysical().CopyFile(*DestinationPath, *CurrentTheme.Filename))
+	{
+		return true; 
+	}
+	return false; 
 }
 
