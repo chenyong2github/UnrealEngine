@@ -190,6 +190,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// The version required to support Visual Studio
+		/// </summary>
+		public virtual Version GetVersionRequiredForVisualStudio(VCProjectFileFormat Format)
+		{
+			return new Version();
+		}
+
+		/// <summary>
 		/// Gets all the registered platforms
 		/// </summary>
 		/// <returns>Sequence of registered platforms</returns>
