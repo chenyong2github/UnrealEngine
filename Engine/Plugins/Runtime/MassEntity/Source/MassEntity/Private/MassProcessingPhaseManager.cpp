@@ -3,7 +3,6 @@
 #include "MassProcessingPhaseManager.h"
 #include "MassProcessingTypes.h"
 #include "MassDebugger.h"
-#include "MassEntitySettings.h"
 #include "MassProcessor.h"
 #include "MassExecutor.h"
 #include "MassEntityManager.h"
@@ -118,75 +117,61 @@ void FMassProcessingPhase::OnParallelExecutionDone(const float DeltaTime)
 
 FString FMassProcessingPhase::DiagnosticMessage()
 {
-	return (PhaseManager ? PhaseManager->GetFullName() : TEXT("NULL-MassProcessingPhaseManager")) + TEXT("[ProcessorTick]");
+	return (PhaseManager ? PhaseManager->GetName() : TEXT("NULL-MassProcessingPhaseManager")) + TEXT("[ProcessingPhaseTick]");
 }
 
 FName FMassProcessingPhase::DiagnosticContext(bool bDetailed)
 {
-	return PhaseManager ? PhaseManager->GetClass()->GetFName() : TEXT("NULL-MassProcessingPhaseManager");
+	return TEXT("MassProcessingPhase");
+}
+
+void FMassProcessingPhase::Initialize(FMassProcessingPhaseManager& InPhaseManager, const EMassProcessingPhase InPhase, const ETickingGroup InTickGroup, UMassCompositeProcessor& InPhaseProcessor)
+{
+	PhaseManager = &InPhaseManager;
+	Phase = InPhase;
+	TickGroup = InTickGroup;
+	PhaseProcessor = &InPhaseProcessor;
 }
 
 //----------------------------------------------------------------------//
-// UMassProcessingPhaseManager  
+// FMassProcessingPhaseManager
 //----------------------------------------------------------------------//
-void UMassProcessingPhaseManager::PostInitProperties()
+void FMassProcessingPhaseManager::Initialize(UObject& InOwner, TConstArrayView<FMassProcessingPhaseConfig> ProcessingPhasesConfig, const FString& DependencyGraphFileName)
 {
-	Super::PostInitProperties();
-	if (HasAnyFlags(RF_ClassDefaultObject) == false)
-	{
-#if WITH_EDITOR
-		UWorld* World = GetWorld();
-		if (World && World->IsGameWorld() == false)
-		{
-			UMassEntitySettings* Settings = GetMutableDefault<UMassEntitySettings>();
-			check(Settings);
-			MassEntitySettingsChangeHandle = Settings->GetOnSettingsChange().AddUObject(this, &UMassProcessingPhaseManager::OnMassEntitySettingsChange);
-		}
-#endif // WITH_EDITOR
-	}
-	CreatePhases();
-}
-
-void UMassProcessingPhaseManager::BeginDestroy()
-{
-	Stop();
-	Super::BeginDestroy();
-
-#if WITH_EDITOR
-	if (UMassEntitySettings* Settings = GetMutableDefault<UMassEntitySettings>())
-	{
-		Settings->GetOnSettingsChange().Remove(MassEntitySettingsChangeHandle);
-	}
-#endif // WITH_EDITOR
-}
-
-void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
-{
-	const FMassProcessingPhaseConfig* ProcessingPhasesConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhasesConfig());
-
-	FString DependencyGraphFileName;
-
-#if WITH_EDITOR
-	const UWorld* World = InProcessorOwner.GetWorld();
-	const UMassEntitySettings* Settings = GetMutableDefault<UMassEntitySettings>();
-	if (World != nullptr && Settings != nullptr && !Settings->DumpDependencyGraphFileName.IsEmpty())
-	{
-		DependencyGraphFileName = FString::Printf(TEXT("%s_%s"), *Settings->DumpDependencyGraphFileName,*ToString(World->GetNetMode()));
-	}
-#endif // WITH_EDITOR
+	Owner = &InOwner;
 
 	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
-	{
+	{		
+		const EMassProcessingPhase Phase = EMassProcessingPhase(i);
+
+		UMassCompositeProcessor* PhaseProcessor = NewObject<UMassCompositeProcessor>(&InOwner, UMassCompositeProcessor::StaticClass()
+			, *FString::Printf(TEXT("ProcessingPhase_%s"), *UEnum::GetDisplayValueAsText(Phase).ToString()));
+	
+		check(PhaseProcessor);
+		ProcessingPhases[i].Initialize(*this, Phase, UE::Mass::Private::PhaseToTickingGroup[i], *PhaseProcessor);
+
+		REDIRECT_OBJECT_TO_VLOG(PhaseProcessor, &InOwner);
+		PhaseProcessor->SetProcessingPhase(Phase);
+		PhaseProcessor->SetGroupName(FName(FString::Printf(TEXT("%s Group"), *UEnum::GetDisplayValueAsText(Phase).ToString())));
+
+		check(&InOwner);
+		PhaseProcessor->Initialize(InOwner);
+
+#if WITH_MASSENTITY_DEBUG
+		FStringOutputDevice Ar;
+		PhaseProcessor->DebugOutputDescription(Ar);
+		UE_VLOG(&InOwner, LogMass, Log, TEXT("Setting new group processor for phase %s:\n%s"), *UEnum::GetValueAsString(Phase), *Ar);
+#endif // WITH_MASSENTITY_DEBUG
+
 		const FMassProcessingPhaseConfig& PhaseConfig = ProcessingPhasesConfig[i];
-		UMassCompositeProcessor* PhaseProcessor = ProcessingPhases[i].PhaseProcessor;
 		FString FileName = !DependencyGraphFileName.IsEmpty() ? FString::Printf(TEXT("%s_%s"), *DependencyGraphFileName, *PhaseConfig.PhaseName.ToString()) : FString();
 		PhaseProcessor->CopyAndSort(PhaseConfig, FileName);
-		PhaseProcessor->Initialize(InProcessorOwner);
+		PhaseProcessor->Initialize(InOwner);
 	}
 
 #if WITH_MASSENTITY_DEBUG
 	// print it all out to vislog
-	UE_VLOG_UELOG(this, LogMass, Verbose, TEXT("Phases initialization done. Current composition:"));
+	UE_VLOG_UELOG(&InOwner, LogMass, Verbose, TEXT("Phases initialization done. Current composition:"));
 
 	FStringOutputDevice OutDescription;
 	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
@@ -194,14 +179,22 @@ void UMassProcessingPhaseManager::InitializePhases(UObject& InProcessorOwner)
 		if (ProcessingPhases[i].PhaseProcessor)
 		{
 			ProcessingPhases[i].PhaseProcessor->DebugOutputDescription(OutDescription);
-			UE_VLOG_UELOG(this, LogMass, Verbose, TEXT("--- %s"), *OutDescription);
+			UE_VLOG_UELOG(&InOwner, LogMass, Verbose, TEXT("--- %s"), *OutDescription);
 			OutDescription.Reset();
 		}
 	}	
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-void UMassProcessingPhaseManager::Start(UWorld& World)
+void FMassProcessingPhaseManager::Deinitialize()
+{
+	for (FMassProcessingPhase& Phase : ProcessingPhases)
+	{
+		Phase.PhaseProcessor = nullptr;
+	}
+}
+
+void FMassProcessingPhaseManager::Start(UWorld& World)
 {
 	UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(&World);
 
@@ -212,11 +205,11 @@ void UMassProcessingPhaseManager::Start(UWorld& World)
 	}
 	else
 	{
-		UE_VLOG_UELOG(this, LogMass, Error, TEXT("Called %s while missing the EntitySubsystem"), ANSI_TO_TCHAR(__FUNCTION__));
+		UE_VLOG_UELOG(Owner.Get(), LogMass, Error, TEXT("Called %s while missing the EntitySubsystem"), ANSI_TO_TCHAR(__FUNCTION__));
 	}
 }
 
-void UMassProcessingPhaseManager::Start(const TSharedPtr<FMassEntityManager>& InEntityManager)
+void FMassProcessingPhaseManager::Start(const TSharedPtr<FMassEntityManager>& InEntityManager)
 {
 	UWorld* World = InEntityManager->GetWorld();
 	check(World);
@@ -224,7 +217,18 @@ void UMassProcessingPhaseManager::Start(const TSharedPtr<FMassEntityManager>& In
 	EnableTickFunctions(*World);
 }
 
-void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
+void FMassProcessingPhaseManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (FMassProcessingPhase& Phase : ProcessingPhases)
+	{
+		if (Phase.PhaseProcessor)
+		{
+			Collector.AddReferencedObject(Phase.PhaseProcessor);
+		}
+	}
+}
+
+void FMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 {
 	check(EntityManager);
 
@@ -232,7 +236,6 @@ void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 
 	for (FMassProcessingPhase& Phase : ProcessingPhases)
 	{
-		Phase.PhaseManager = this;
 		Phase.RegisterTickFunction(World.PersistentLevel);
 		Phase.SetTickFunctionEnable(true);
 #if WITH_MASSENTITY_DEBUG
@@ -241,21 +244,21 @@ void UMassProcessingPhaseManager::EnableTickFunctions(const UWorld& World)
 			// not logging this in the editor mode since it messes up the game-recorded vislog display (with its progressively larger timestamp)
 			FStringOutputDevice Ar;
 			Phase.PhaseProcessor->DebugOutputDescription(Ar);
-			UE_VLOG_UELOG(this, LogMass, Log, TEXT("Enabling phase %s tick:\n%s")
+			UE_VLOG_UELOG(Owner.Get(), LogMass, Log, TEXT("Enabling phase %s tick:\n%s")
 				, *UEnum::GetValueAsString(Phase.Phase), *Ar);
 		}
-#endif // WITH_MASSENTITY_DEBUG		
+#endif // WITH_MASSENTITY_DEBUG
 	}
 
 	if (bIsGameWorld)
 	{
 		// not logging this in the editor mode since it messes up the game-recorded vislog display (with its progressively larger timestamp)
-		UE_VLOG_UELOG(this, LogMass, Log, TEXT("MassProcessingPhaseManager %s.%s has been started")
-			, *GetNameSafe(GetOuter()), *GetName());
+		UE_VLOG_UELOG(Owner.Get(), LogMass, Log, TEXT("MassProcessingPhaseManager %s.%s has been started")
+			, *GetNameSafe(Owner.Get()), *GetName());
 	}
 }
 
-void UMassProcessingPhaseManager::Stop()
+void FMassProcessingPhaseManager::Stop()
 {
 	EntityManager.Reset();
 	
@@ -264,68 +267,25 @@ void UMassProcessingPhaseManager::Stop()
 		Phase.SetTickFunctionEnable(false);
 	}
 
-	UWorld* World = GetWorld();
-	if (World && World->IsGameWorld())
+	if (UObject* LocalOwner = Owner.Get())
 	{
-		// not logging this in editor mode since it messes up the game-recorded vislog display (with its progressively larger timestamp) 
-		UE_VLOG_UELOG(this, LogMass, Log, TEXT("MassProcessingPhaseManager %s.%s has been stopped")
-			, *GetNameSafe(GetOuter()), *GetName());
+		UWorld* World = LocalOwner->GetWorld();
+		if (World && World->IsGameWorld())
+		{
+			// not logging this in editor mode since it messes up the game-recorded vislog display (with its progressively larger timestamp) 
+			UE_VLOG_UELOG(LocalOwner, LogMass, Log, TEXT("MassProcessingPhaseManager %s.%s has been stopped")
+				, *GetNameSafe(LocalOwner), *GetName());
+		}
 	}
 }
 
-void UMassProcessingPhaseManager::SetPhaseProcessor(const EMassProcessingPhase Phase, UMassCompositeProcessor* PhaseProcessor)
-{
-	if (Phase == EMassProcessingPhase::MAX)
-	{
-		UE_VLOG_UELOG(this, LogMass, Error, TEXT("MassProcessingPhaseManager::OverridePhaseProcessor called with Phase == MAX"));
-		return;
-	}
-	
-	// note that it's ok to use PhaseProcessor == nullptr
-	ProcessingPhases[int32(Phase)].PhaseProcessor = PhaseProcessor;
-	
-	if (PhaseProcessor)
-	{
-		REDIRECT_OBJECT_TO_VLOG(PhaseProcessor, this);
-		PhaseProcessor->SetProcessingPhase(Phase);
-		PhaseProcessor->SetGroupName(FName(FString::Printf(TEXT("%s Group"), *UEnum::GetDisplayValueAsText(Phase).ToString())));
-		
-		check(GetOuter());
-		PhaseProcessor->Initialize(*GetOuter());
-
-#if WITH_MASSENTITY_DEBUG
-		FStringOutputDevice Ar;
-		PhaseProcessor->DebugOutputDescription(Ar);
-		UE_VLOG(this, LogMass, Log, TEXT("Setting new group processor for phase %s:\n%s")
-			, *UEnum::GetValueAsString(Phase), *Ar);
-#endif // WITH_MASSENTITY_DEBUG
-	}
-	else
-	{
-		UE_VLOG_UELOG(this, LogMass, Log, TEXT("Nulling-out phase processor for phase %s"), *UEnum::GetValueAsString(Phase));
-	}
-}
-
-void UMassProcessingPhaseManager::CreatePhases() 
-{
-	// @todo copy from settings instead of blindly creating from scratch
-	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
-	{
-		ProcessingPhases[i].Phase = EMassProcessingPhase(i);
-		ProcessingPhases[i].TickGroup = UE::Mass::Private::PhaseToTickingGroup[i];
-		UMassCompositeProcessor* PhaseProcessor = NewObject<UMassCompositeProcessor>(this, UMassCompositeProcessor::StaticClass()
-			, *FString::Printf(TEXT("ProcessingPhase_%s"), *UEnum::GetDisplayValueAsText(EMassProcessingPhase(i)).ToString()));
-		SetPhaseProcessor(EMassProcessingPhase(i), PhaseProcessor);
-	}
-}
-
-void UMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase)
+void FMassProcessingPhaseManager::OnPhaseStart(const FMassProcessingPhase& Phase)
 {
 	ensure(CurrentPhase == EMassProcessingPhase::MAX);
 	CurrentPhase = Phase.Phase;
 }
 
-void UMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
+void FMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 {
 	ensure(CurrentPhase == Phase.Phase);
 	CurrentPhase = EMassProcessingPhase::MAX;
@@ -344,12 +304,9 @@ void UMassProcessingPhaseManager::OnPhaseEnd(FMassProcessingPhase& Phase)
 	}
 }
 
-#if WITH_EDITOR
-void UMassProcessingPhaseManager::OnMassEntitySettingsChange(const FPropertyChangedEvent& PropertyChangedEvent)
+FString FMassProcessingPhaseManager::GetName() const
 {
-	check(GetOuter());
-	InitializePhases(*GetOuter());
+	return GetNameSafe(Owner.Get()) + TEXT("_MassProcessingPhaseManager");
 }
-#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

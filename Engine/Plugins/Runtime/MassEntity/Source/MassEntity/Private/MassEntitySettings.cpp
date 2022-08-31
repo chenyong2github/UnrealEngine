@@ -125,10 +125,10 @@ void UMassEntitySettings::AddToActiveProcessorsList(TSubclassOf<UMassProcessor> 
 	}
 }
 
-const FMassProcessingPhaseConfig* UMassEntitySettings::GetProcessingPhasesConfig()
+TConstArrayView<FMassProcessingPhaseConfig> UMassEntitySettings::GetProcessingPhasesConfig()
 {
 	BuildProcessorListAndPhases();
-	return ProcessingPhasesConfig;
+	return MakeArrayView(ProcessingPhasesConfig, int32(EMassProcessingPhase::MAX));
 }
 
 #if WITH_EDITOR

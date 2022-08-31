@@ -11,35 +11,8 @@
 
 #define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassEntitySettings>()->a)
 
-class UMassProcessingPhaseManager;
-struct FMassProcessingPhaseConfig;
 struct FPropertyChangedEvent;
 
-
-USTRUCT()
-struct FMassProcessingPhaseConfig
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = Mass, config)
-	FName PhaseName;
-
-	UPROPERTY(EditAnywhere, Category = Mass, config, NoClear)
-	TSubclassOf<UMassCompositeProcessor> PhaseGroupClass = UMassCompositeProcessor::StaticClass();
-
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UMassProcessor>> ProcessorCDOs;
-
-#if WITH_EDITORONLY_DATA
-	// this processor is available only in editor since it's used to present the user the order in which processors
-	// will be executed when given processing phase gets triggered
-	UPROPERTY(Transient)
-	TObjectPtr<UMassCompositeProcessor> PhaseProcessor = nullptr;
-
-	UPROPERTY(VisibleAnywhere, Category = Mass, Transient)
-	FText Description;
-#endif //WITH_EDITORONLY_DATA
-};
 
 /**
  * Implements the settings for MassEntity plugin
@@ -58,7 +31,7 @@ public:
 	void BuildProcessorListAndPhases();
 	void AddToActiveProcessorsList(TSubclassOf<UMassProcessor> ProcessorClass);
 
-	const FMassProcessingPhaseConfig* GetProcessingPhasesConfig();
+	TConstArrayView<FMassProcessingPhaseConfig> GetProcessingPhasesConfig();
 	const FMassProcessingPhaseConfig& GetProcessingPhaseConfig(const EMassProcessingPhase ProcessingPhase) const { check(ProcessingPhase != EMassProcessingPhase::MAX); return ProcessingPhasesConfig[int(ProcessingPhase)]; }
 
 #if WITH_EDITOR

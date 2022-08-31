@@ -87,7 +87,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	/** Sets bAutoRegisterWithProcessingPhases. Setting it to true will result in this processor class being always 
-	 * instantiated to be automatically evaluated every frame. @see UMassProcessingPhaseManager
+	 * instantiated to be automatically evaluated every frame. @see FMassProcessingPhaseManager
 	 * Note that calling this function is only valid on CDOs. Calling it on a regular instance will fail an ensure and 
 	 * have no other effect, i.e. CDO's value won't change */
 	void SetShouldAutoRegisterWithGlobalList(const bool bAutoRegister);
