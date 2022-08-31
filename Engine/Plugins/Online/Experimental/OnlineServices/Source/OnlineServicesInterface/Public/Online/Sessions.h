@@ -36,6 +36,15 @@ struct FCustomSessionSetting
 
 using FCustomSessionSettingsMap = TMap<FSchemaAttributeId, FCustomSessionSetting>;
 
+struct FCustomSessionSettingUpdate
+{
+	FCustomSessionSetting OldValue;
+
+	FCustomSessionSetting NewValue;
+};
+
+using FCustomSessionSettingUpdateMap = TMap<FName, FCustomSessionSettingUpdate>;
+
 /** A member is a player that is part of the session, and it stops being a member when they leave it */
 struct FSessionMember
 {
@@ -63,32 +72,17 @@ enum class ESessionJoinPolicy : uint8
 ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionJoinPolicy Value);
 ONLINESERVICESINTERFACE_API void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr);
 
+/** Contains new values for an FSessions modifiable settings. Taken as a parameter by FUpdateSessions method */
 struct FSessionSettingsUpdate
 {
 	/** Set with an updated value if the SchemaName field will be changed in the update operation */
 	TOptional<FSchemaId> SchemaName;
-	/** Set with an updated value if the NumMaxPublicConnections field will be changed in the update operation */
-	TOptional<uint32> NumMaxPublicConnections;
-	/** Set with an updated value if the NumOpenPublicConnections field will be changed in the update operation */
-	TOptional<uint32> NumOpenPublicConnections;
-	/** Set with an updated value if the NumMaxPrivateConnections field will be changed in the update operation */
-	TOptional<uint32> NumMaxPrivateConnections;
-	/** Set with an updated value if the NumOpenPrivateConnections field will be changed in the update operation */
-	TOptional<uint32> NumOpenPrivateConnections;
+	/** Set with an updated value if the NumMaxConnections field will be changed in the update operation */
+	TOptional<uint32> NumMaxConnections;
 	/** Set with an updated value if the JoinPolicy field will be changed in the update operation */
 	TOptional<ESessionJoinPolicy> JoinPolicy;
-	/** Set with an updated value if the SessionIdOverride field will be changed in the update operation */
-	TOptional<FString> SessionIdOverride;
-	/** Set with an updated value if the bIsDedicatedServerSession field will be changed in the update operation */
-	TOptional<bool> bIsDedicatedServerSession;
 	/** Set with an updated value if the bAllowNewMembers field will be changed in the update operation */
 	TOptional<bool> bAllowNewMembers;
-	/** Set with an updated value if the bAllowSanctionedPlayers field will be changed in the update operation */
-	TOptional<bool> bAllowSanctionedPlayers;
-	/** Set with an updated value if the bAntiCheatProtected field will be changed in the update operation */
-	TOptional<bool> bAntiCheatProtected;
-	/** Set with an updated value if the bPresenceEnabled field will be changed in the update operation */
-	TOptional<bool> bPresenceEnabled;
 
 	/** Updated values for custom settings to change in the update operation*/
 	FCustomSessionSettingsMap UpdatedCustomSettings;
@@ -103,25 +97,67 @@ struct FSessionSettingsUpdate
 	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
 };
 
+/** Contains updated data for any modifiable members of FSessionSettings. Member of FSessionUpdated event */
+struct FSessionSettingsChanges
+{
+	/* If set, the FSessionSettings's SchemaName member will be updated to this value */
+	TOptional<FName> SchemaName;
+	/** If set, the FSessionSettings's NumMaxConnections member will be updated to this value */
+	TOptional<uint32> NumMaxConnections;
+	/** If set, the FSessionSettings's JoinPolicy member will be updated to this value */
+	TOptional<ESessionJoinPolicy> JoinPolicy;
+	/** If set, the FSessionSettings's bAllowNewMembers member will be updated to this value */
+	TOptional<bool> bAllowNewMembers;
+
+	/** New custom settings, with their values */
+	FCustomSessionSettingsMap AddedCustomSettings;
+
+	/** Existing custom settings that changed value, including new and old values */
+	FCustomSessionSettingUpdateMap ChangedCustomSettings;
+
+	/** Keys for removed custom settings */
+	TArray<FName> RemovedCustomSettings;
+};
+
+/** Contains updated data for any modifiable members of FSessionMember. Member of FSessionUpdated event */
+struct FSessionMemberChanges
+{
+	/** New custom settings, with their values */
+	FCustomSessionSettingsMap AddedMemberSettings;
+
+	/** Existing custom settings that changed value, including new and old values */
+	FCustomSessionSettingUpdateMap ChangedMemberSettings;
+
+	/** Keys for removed custom settings */
+	TArray<FName> RemovedMemberSettings;
+};
+
+/** Set of all of an FSession's defining properties that can be updated by the session owner during its lifetime */
 struct ONLINESERVICESINTERFACE_API FSessionSettings
 {
 	/* The schema which will be applied to the session */
-	FSchemaId SchemaName;
+	FName SchemaName;
 
-	/* Maximum number of public slots for session members */
-	uint32 NumMaxPublicConnections = 0;
+	/* Maximum number of slots for session members */
+	uint32 NumMaxConnections = 0;
 
-	/* Number of available public slots for session members */
-	uint32 NumOpenPublicConnections = 0;
+	/* Enum value describing the level of restriction to join the session. Public by default */
+	ESessionJoinPolicy JoinPolicy = ESessionJoinPolicy::Public;;
 
-	/* Maximum number of private slots for session members */
-	uint32 NumMaxPrivateConnections = 0;
+	/* Override value to restrict the session from accepting new members, regardless of other factors. True by default */
+	bool bAllowNewMembers = true;
 
-	/* Number of available private slots for session members */
-	uint32 NumOpenPrivateConnections = 0;
+	/* Map of user-defined settings to be passed to the platform APIs as additional information for various purposes */
+	FCustomSessionSettingsMap CustomSettings;
 
-	/* Enum value describing the level of restriction to join the session */
-	ESessionJoinPolicy JoinPolicy = ESessionJoinPolicy::Public;
+	FSessionSettings& operator+=(const FSessionSettingsChanges& UpdatedValue);
+};
+
+/** Information about an FSession that will be set at creation time and remain constant during its lifetime */
+struct FSessionInfo
+{
+	/** The id for the session, platform dependent */
+	FOnlineSessionId SessionId;
 
 	/* In platforms that support this feature, it will set the session id to this value. Might be subject to minimum and maximum length */
 	FString SessionIdOverride;
@@ -132,25 +168,11 @@ struct ONLINESERVICESINTERFACE_API FSessionSettings
 	/* Whether the session is configured to run as a dedicated server. Only available in some platforms. False by default */
 	bool bIsDedicatedServerSession = false;
 
-	/* Whether players are accepted as new members in the session. Can vary depending on various factors, like the number of free slots available, or Join-In-Progress preferences when the session has started. True by default */
-	bool bAllowNewMembers = true;
-
 	/* Whether this session will allow sanctioned players to join it. True by default */
 	bool bAllowSanctionedPlayers = true;
 
-	/*Whether this is a secure session protected by anti-cheat services. False by default */
+	/* Whether this is a secure session protected by anti-cheat services. False by default */
 	bool bAntiCheatProtected = false;
-
-	/* Whether this session will show its information in presence updates. Can only be set in one session at a time. False by default */
-	bool bPresenceEnabled = false;
-  
- 	/* Map of user-defined settings to be passed to the platform APIs as additional information for various purposes */
- 	FCustomSessionSettingsMap CustomSettings;
- 
- 	/* Map of session member ids to their corresponding user-defined settings */
- 	FSessionMembersMap SessionMembers;
-
-	FSessionSettings& operator+=(const FSessionSettingsUpdate& UpdatedValue);
 };
 
 class ISession
@@ -158,7 +180,14 @@ class ISession
 public:
 	virtual const FAccountId GetOwnerAccountId() const = 0;
 	virtual const FOnlineSessionId GetSessionId() const = 0;
+	virtual const uint32 GetNumOpenConnections() const = 0;
+	virtual const FSessionInfo& GetSessionInfo() const = 0;
 	virtual const FSessionSettings GetSessionSettings() const = 0;
+	virtual const FSessionMembersMap& GetSessionMembers() const = 0;
+
+	/** Evaluates a series of factors to determine if a session is accepting new members */
+	virtual bool IsJoinable() const = 0;
+
 	virtual FString ToLogString() const = 0;
 };
 ONLINESERVICESINTERFACE_API const FString ToLogString(const ISession& Session);
@@ -246,6 +275,23 @@ struct FGetPresenceSession
 	};
 };
 
+struct FIsPresenceSession
+{
+	static constexpr TCHAR Name[] = TEXT("IsPresenceSession");
+
+	struct Params
+	{
+		FAccountId LocalAccountId;
+
+		FOnlineSessionId SessionId;
+	};
+
+	struct Result
+	{
+		bool bIsPresenceSession;
+	};
+};
+
 struct FSetPresenceSession
 {
 	static constexpr TCHAR Name[] = TEXT("SetPresenceSession");
@@ -290,6 +336,24 @@ struct FCreateSession
 
 		/** Information for the local user who will join the session after creation */
 		FSessionMember SessionMemberData;
+
+		/* In platforms that support this feature, it will set the session id to this value. Might be subject to minimum and maximum length */
+		FString SessionIdOverride;
+
+		/** Whether this session should be set as the user's new presence session. False by default */
+		bool bPresenceEnabled = false;
+
+		/* Whether the session is only available in the local network and not via internet connection. Only available in some platforms. False by default */
+		bool bIsLANSession = false;
+
+		/* Whether the session is configured to run as a dedicated server. Only available in some platforms. False by default */
+		bool bIsDedicatedServerSession = false;
+
+		/* Whether this session will allow sanctioned players to join it. True by default */
+		bool bAllowSanctionedPlayers = true;
+
+		/* Whether this is a secure session protected by anti-cheat services. False by default */
+		bool bAntiCheatProtected = false;
 
 		/** Settings object to define session properties during creation */
 		FSessionSettings SessionSettings;
@@ -382,20 +446,11 @@ struct FStartMatchmaking
 
 	struct Params
 	{
-		/** The local user agent which will perform the action. */
-		FAccountId LocalAccountId;
-
-		/* Local name for the session */
-		FName SessionName;
-
-		/* Information for the local user who will create or join the session */
-		FSessionMember SessionMemberData;
-
-		/* Preferred settings to be used during session creation */
-		FSessionSettings SessionSettings;
+		/* Session creation parameters */
+		FCreateSession::Params SessionCreationParameters;
 
 		/* Filters to apply when searching for sessions */
-		TArray<FFindSessionsSearchFilter> SearchFilters;
+		TArray<FFindSessionsSearchFilter> SessionSearchFilters;
 	};
 
 	struct Result
@@ -421,6 +476,9 @@ struct FJoinSession
 
 		/* Information for the local user who will join the session */
 		FSessionMember SessionMemberData;
+
+		/* Whether this session should be set as the user's new presence session. False by default */
+		bool bPresenceEnabled = false;
 	};
 
 	struct Result
@@ -544,13 +602,36 @@ struct FSessionLeft
 	FAccountId LocalAccountId;
 };
 
+using FSessionMemberChangesMap = TMap<FAccountId, FSessionMemberChanges>;
+
+/** Contains updated data for any modifiable members of ISession */
+struct ONLINESERVICESINTERFACE_API FSessionUpdate
+{
+	/** If set, the OwnerUserId member will have updated to this value */
+	TOptional<FAccountId> OwnerAccountId;
+
+	/** If set, the SessionSettings member will have updated using the struct information */
+	TOptional<FSessionSettingsChanges> SessionSettingsChanges;
+
+	/** Session member information for members that just joined the session */
+	FSessionMembersMap AddedSessionMembers;
+
+	/** Updated values for session member information */
+	FSessionMemberChangesMap SessionMembersChanges;
+
+	/** Id handles for members that just left the session */
+	TArray<FAccountId> RemovedSessionMembers;
+
+	FSessionUpdate& operator+=(const FSessionUpdate& SessionUpdate);
+};
+
 struct FSessionUpdated
 {
-	/* Local name for the updated session object */
+	/* Name for the session updated */
 	FName SessionName;
 
 	/* Updated session settings */
-	FSessionSettingsUpdate UpdatedSettings;
+	FSessionUpdate SessionUpdate;
 };
 
 struct FSessionInviteReceived
@@ -623,6 +704,14 @@ public:
 	 * return
 	 */
 	virtual TOnlineResult<FGetPresenceSession> GetPresenceSession(FGetPresenceSession::Params&& Params) const = 0;
+
+	/**
+	 * Returns whether the session with the given id is set as the presence session for the user.
+	 *
+	 * @params Parameters for the IsPresenceSession call
+	 * return
+	 */
+	virtual TOnlineResult<FIsPresenceSession> IsPresenceSession(FIsPresenceSession::Params&& Params) const = 0;
 
 	/**
 	 * Sets the session with the given id as the presence session for the user.
@@ -789,6 +878,11 @@ BEGIN_ONLINE_STRUCT_META(FCustomSessionSetting)
 	ONLINE_STRUCT_FIELD(FCustomSessionSetting, ID)
 END_ONLINE_STRUCT_META()
 
+BEGIN_ONLINE_STRUCT_META(FCustomSessionSettingUpdate)
+	ONLINE_STRUCT_FIELD(FCustomSessionSettingUpdate, OldValue),
+	ONLINE_STRUCT_FIELD(FCustomSessionSettingUpdate, NewValue)
+END_ONLINE_STRUCT_META()
+
 BEGIN_ONLINE_STRUCT_META(FSessionMember)
 	ONLINE_STRUCT_FIELD(FSessionMember, MemberSettings)
 END_ONLINE_STRUCT_META()
@@ -800,35 +894,26 @@ END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionSettings)
 	ONLINE_STRUCT_FIELD(FSessionSettings, SchemaName),
-	ONLINE_STRUCT_FIELD(FSessionSettings, NumMaxPublicConnections),
-	ONLINE_STRUCT_FIELD(FSessionSettings, NumOpenPublicConnections),
-	ONLINE_STRUCT_FIELD(FSessionSettings, NumMaxPrivateConnections),
-	ONLINE_STRUCT_FIELD(FSessionSettings, NumOpenPrivateConnections),
+	ONLINE_STRUCT_FIELD(FSessionSettings, NumMaxConnections),
 	ONLINE_STRUCT_FIELD(FSessionSettings, JoinPolicy),
-	ONLINE_STRUCT_FIELD(FSessionSettings, SessionIdOverride),
-	ONLINE_STRUCT_FIELD(FSessionSettings, bIsLANSession),
-	ONLINE_STRUCT_FIELD(FSessionSettings, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowNewMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettings, bAllowSanctionedPlayers),
-	ONLINE_STRUCT_FIELD(FSessionSettings, bAntiCheatProtected),
-	ONLINE_STRUCT_FIELD(FSessionSettings, bPresenceEnabled),
-	ONLINE_STRUCT_FIELD(FSessionSettings, CustomSettings),
-	ONLINE_STRUCT_FIELD(FSessionSettings, SessionMembers)
+	ONLINE_STRUCT_FIELD(FSessionSettings, CustomSettings)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSessionInfo)
+	ONLINE_STRUCT_FIELD(FSessionInfo, SessionId),
+	ONLINE_STRUCT_FIELD(FSessionInfo, SessionIdOverride),
+	ONLINE_STRUCT_FIELD(FSessionInfo, bIsLANSession),
+	ONLINE_STRUCT_FIELD(FSessionInfo, bIsDedicatedServerSession),
+	ONLINE_STRUCT_FIELD(FSessionInfo, bAllowSanctionedPlayers),
+	ONLINE_STRUCT_FIELD(FSessionInfo, bAntiCheatProtected)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FSessionSettingsUpdate)
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, SchemaName),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, NumMaxPublicConnections),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, NumOpenPublicConnections),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, NumMaxPrivateConnections),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, NumOpenPrivateConnections),
+	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, NumMaxConnections),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, JoinPolicy),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, SessionIdOverride),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bIsDedicatedServerSession),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowNewMembers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAllowSanctionedPlayers),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bAntiCheatProtected),
-	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, bPresenceEnabled),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedCustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, RemovedCustomSettings),
 	ONLINE_STRUCT_FIELD(FSessionSettingsUpdate, UpdatedSessionMembers),
@@ -875,6 +960,15 @@ BEGIN_ONLINE_STRUCT_META(FGetPresenceSession::Result)
 	ONLINE_STRUCT_FIELD(FGetPresenceSession::Result, Session)
 END_ONLINE_STRUCT_META()
 
+BEGIN_ONLINE_STRUCT_META(FIsPresenceSession::Params)
+ONLINE_STRUCT_FIELD(FIsPresenceSession::Params, LocalAccountId),
+ONLINE_STRUCT_FIELD(FIsPresenceSession::Params, SessionId)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FIsPresenceSession::Result)
+	ONLINE_STRUCT_FIELD(FIsPresenceSession::Result, bIsPresenceSession)
+END_ONLINE_STRUCT_META()
+
 BEGIN_ONLINE_STRUCT_META(FSetPresenceSession::Params)
 	ONLINE_STRUCT_FIELD(FSetPresenceSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FSetPresenceSession::Params, SessionId)
@@ -894,6 +988,12 @@ BEGIN_ONLINE_STRUCT_META(FCreateSession::Params)
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionMemberData),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionIdOverride),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, bPresenceEnabled),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, bIsLANSession),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, bIsDedicatedServerSession),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, bAllowSanctionedPlayers),
+	ONLINE_STRUCT_FIELD(FCreateSession::Params, bAntiCheatProtected),
 	ONLINE_STRUCT_FIELD(FCreateSession::Params, SessionSettings)
 END_ONLINE_STRUCT_META()
 
@@ -932,11 +1032,8 @@ BEGIN_ONLINE_STRUCT_META(FFindSessions::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Params)
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalAccountId),
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionMemberData),
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionSettings),
-	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SearchFilters)
+	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionCreationParameters),
+	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionSearchFilters)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Result)
@@ -946,7 +1043,8 @@ BEGIN_ONLINE_STRUCT_META(FJoinSession::Params)
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, LocalAccountId),
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionId),
-	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionMemberData)
+	ONLINE_STRUCT_FIELD(FJoinSession::Params, SessionMemberData),
+	ONLINE_STRUCT_FIELD(FJoinSession::Params, bPresenceEnabled)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FJoinSession::Result)
@@ -992,6 +1090,29 @@ BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Params)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FRejectSessionInvite::Result)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSessionSettingsChanges)
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, SchemaName),
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, NumMaxConnections),
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, JoinPolicy),
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, bAllowNewMembers),
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, AddedCustomSettings),
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, ChangedCustomSettings),
+	ONLINE_STRUCT_FIELD(FSessionSettingsChanges, RemovedCustomSettings)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSessionMemberChanges)
+	ONLINE_STRUCT_FIELD(FSessionMemberChanges, AddedMemberSettings),
+	ONLINE_STRUCT_FIELD(FSessionMemberChanges, ChangedMemberSettings),
+	ONLINE_STRUCT_FIELD(FSessionMemberChanges, RemovedMemberSettings)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FSessionUpdate)
+	ONLINE_STRUCT_FIELD(FSessionUpdate, OwnerAccountId),
+	ONLINE_STRUCT_FIELD(FSessionUpdate, SessionSettingsChanges),
+	ONLINE_STRUCT_FIELD(FSessionUpdate, SessionMembersChanges),
+	ONLINE_STRUCT_FIELD(FSessionUpdate, RemovedSessionMembers)
 END_ONLINE_STRUCT_META()
 
 /* Meta*/ }

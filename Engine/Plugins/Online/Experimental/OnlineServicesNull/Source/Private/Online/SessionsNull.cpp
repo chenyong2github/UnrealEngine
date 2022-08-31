@@ -37,8 +37,8 @@ void FSessionsNull::AppendSessionToPacket(FNboSerializeToBuffer& Packet, const F
 
 	SerializeToBuffer(Packet, Session);
 	SerializeToBuffer(Packet, Session.OwnerAccountId);
-	SerializeToBuffer(Packet, Session.SessionId);
-	SerializeToBuffer(Packet, Session.SessionSettings.SessionMembers);
+	SerializeToBuffer(Packet, Session.SessionInfo.SessionId);
+	SerializeToBuffer(Packet, Session.SessionMembers);
 }
 
 void FSessionsNull::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSessionLAN& Session)
@@ -48,8 +48,8 @@ void FSessionsNull::ReadSessionFromPacket(FNboSerializeFromBuffer& Packet, FSess
 
 	SerializeFromBuffer(Packet, Session);
 	SerializeFromBuffer(Packet, Session.OwnerAccountId);
-	SerializeFromBuffer(Packet, Session.SessionId);
-	SerializeFromBuffer(Packet, Session.SessionSettings.SessionMembers);
+	SerializeFromBuffer(Packet, Session.SessionInfo.SessionId);
+	SerializeFromBuffer(Packet, Session.SessionMembers);
 }
 
 /* UE::Online */ }

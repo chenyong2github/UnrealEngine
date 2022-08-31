@@ -237,10 +237,24 @@ TSharedRef<FOnlineSessionSearch> BuildV1SessionSearch(const FFindSessions::Param
 
 /** FSessionOSSAdapter */
 
-FSessionOSSAdapter::FSessionOSSAdapter(const FOnlineSession& InSession)
+void WriteV2SessionInfoFromV1Session(const FOnlineSession& InSession, FSessionInfo& OutInfo)
+{
+	OutInfo.SessionIdOverride = InSession.SessionSettings.SessionIdOverride;
+
+	InSession.SessionSettings.Settings.FindChecked(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS).Data.GetValue(OutInfo.bAllowSanctionedPlayers);
+
+	OutInfo.bAntiCheatProtected = InSession.SessionSettings.bAntiCheatProtected;
+
+	OutInfo.bIsDedicatedServerSession = InSession.SessionSettings.bIsDedicated;
+
+	OutInfo.bIsLANSession = InSession.SessionSettings.bIsLANMatch;
+}
+
+FSessionOSSAdapter::FSessionOSSAdapter(const FOnlineSession& InSession, const FOnlineSessionId& InSessionId)
 	: V1Session(InSession)
 {
-
+	WriteV2SessionInfoFromV1Session(InSession, SessionInfo);
+	SessionInfo.SessionId = InSessionId;
 }
 
 const FSessionOSSAdapter& FSessionOSSAdapter::Cast(const ISession& InSession)
@@ -284,7 +298,7 @@ void FSessionsOSSAdapter::Initialize()
 		SessionInvite->SenderId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(FromId.AsShared());
 		SessionInvite->RecipientId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(UserId.AsShared());
 		SessionInvite->InviteId = GetSessionInviteIdRegistry().BasicRegistry.FindOrAddHandle(AppId);
-		SessionInvite->SessionId = Session->SessionId;
+		SessionInvite->SessionId = Session->GetSessionId();
 
 		AddSessionInvite(SessionInvite, Session, SessionInvite->RecipientId);
 
@@ -315,20 +329,24 @@ void FSessionsOSSAdapter::Initialize()
 
 	SessionsInterface->AddOnSessionParticipantRemovedDelegate_Handle(FOnSessionParticipantRemovedDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId)
 	{
-			const FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
-			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
-			const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
+		// TODO: Method to update the interface session with the latest OSS Adapter session data
 
-			FSessionSettingsUpdate SettingsUpdate;
-			SettingsUpdate.RemovedSessionMembers.Add(TargetAccountId);
+		const FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
+		const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
+		const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
-		const FSessionUpdated Event { SessionName , SettingsUpdate };
+		FSessionUpdate SessionUpdate;
+		SessionUpdate.RemovedSessionMembers.Add(TargetAccountId);
 
-			SessionEvents.OnSessionUpdated.Broadcast(Event);
+		const FSessionUpdated Event { SessionName , SessionUpdate };
+
+		SessionEvents.OnSessionUpdated.Broadcast(Event);
 	}));
 
 	SessionsInterface->AddOnSessionParticipantsChangeDelegate_Handle(FOnSessionParticipantsChangeDelegate::CreateLambda([this](FName SessionName, const FUniqueNetId& TargetUniqueNetId, bool bJoined)
 	{
+		// TODO: Method to update the interface session with the latest OSS Adapter session data
+
 		// We won't transmit events for a session or member that doesn't exist
 		const TOnlineResult<FGetSessionByName> GetSessionByNameResult = GetSessionByName({ SessionName });
 		if (GetSessionByNameResult.IsOk())
@@ -339,23 +357,20 @@ void FSessionsOSSAdapter::Initialize()
 			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
 			const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
-			FSessionSettingsUpdate SettingsUpdate;
+			FSessionUpdate SessionUpdate;
 			if (bJoined)
 			{
-				if (const FSessionMember* SessionMember = FoundSession->GetSessionSettings().SessionMembers.Find(TargetAccountId))
+				if (const FSessionMember* SessionMember = FoundSession->GetSessionMembers().Find(TargetAccountId))
 				{
-					FSessionMemberUpdate SessionMemberUpdate;
-					SessionMemberUpdate.UpdatedMemberSettings.Append(SessionMember->MemberSettings);
-
-					SettingsUpdate.UpdatedSessionMembers.Emplace(TargetAccountId, SessionMemberUpdate);
+					SessionUpdate.AddedSessionMembers.Emplace(TargetAccountId, *SessionMember);
 				}
 			}
 			else
 			{
-				SettingsUpdate.RemovedSessionMembers.Add(TargetAccountId);
+				SessionUpdate.RemovedSessionMembers.Add(TargetAccountId);
 			}
 
-			const FSessionUpdated Event { SessionName , SettingsUpdate };
+			const FSessionUpdated Event { SessionName , SessionUpdate };
 
 			SessionEvents.OnSessionUpdated.Broadcast(Event);
 		}
@@ -373,30 +388,50 @@ void FSessionsOSSAdapter::Initialize()
 			const FUniqueNetIdRef TargetUniqueNetIdRef = TargetUniqueNetId.AsShared();
 			const FAccountId TargetAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(TargetUniqueNetIdRef);
 
-			FSessionSettingsUpdate SettingsUpdate;
-			if (const FSessionMember* SessionMember = FoundSession->GetSessionSettings().SessionMembers.Find(TargetAccountId))
+			FSessionUpdate SessionUpdate;
+			if (const FSessionMember* SessionMember = FoundSession->GetSessionMembers().Find(TargetAccountId))
 			{
 				const ::FSessionSettings* MemberSettings = UpdatedSettings.MemberSettings.Find(TargetUniqueNetIdRef);
 				const FCustomSessionSettingsMap UpdatedMemberSettings = GetV2SessionSettings(*MemberSettings);
 
-				FSessionMemberUpdate SessionMemberUpdate;
+				FSessionMemberChanges SessionMemberChanges;
 				for (const TPair<FName, FCustomSessionSetting>& Entry : UpdatedMemberSettings)
 				{
 					if (const FCustomSessionSetting* Setting = SessionMember->MemberSettings.Find(Entry.Key))
 					{
 						if (Setting->Data != Entry.Value.Data || Setting->Visibility != Entry.Value.Visibility || Setting->ID != Entry.Value.ID)
 						{
-							SessionMemberUpdate.UpdatedMemberSettings.Add(Entry);
+							FCustomSessionSettingUpdate SettingUpdate;
+							SettingUpdate.OldValue = *Setting;
+							SettingUpdate.NewValue = Entry.Value;
+
+							SessionMemberChanges.ChangedMemberSettings.Emplace(Entry.Key, SettingUpdate);
 						}
+					}
+					else
+					{
+						SessionMemberChanges.AddedMemberSettings.Emplace(Entry.Key, Entry.Value);
 					}
 				}
 
-				SettingsUpdate.UpdatedSessionMembers.Emplace(TargetAccountId, SessionMemberUpdate);
+				for (const TPair<FName, FCustomSessionSetting>& Entry : SessionMember->MemberSettings)
+				{
+					if (!UpdatedMemberSettings.Contains(Entry.Key))
+					{
+						SessionMemberChanges.RemovedMemberSettings.AddUnique(Entry.Key);
+					}
+				}
+
+				SessionUpdate.SessionMembersChanges.Emplace(TargetAccountId, SessionMemberChanges);
 			}
 
-			const FSessionUpdated Event{ SessionName , SettingsUpdate };
+			// TODO: Method to update the interface session with the latest OSS Adapter session data
+			// Done after the update to read the value differences
+
+			const FSessionUpdated Event{ SessionName , SessionUpdate };
 
 			SessionEvents.OnSessionUpdated.Broadcast(Event);
+
 		}
 	}));
 }
@@ -455,13 +490,13 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsOSSAdapter::CreateSession(FCreateS
 
 				TSharedRef<FSessionCommon> V2Session = BuildV2Session(V1Session);
 
-				AddSessionWithReferences(V2Session, OpParams.SessionName, OpParams.LocalAccountId, V2Session->SessionSettings.bPresenceEnabled);
+				AddSessionWithReferences(V2Session, OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
 
 				Op->SetResult({ });
 			}
 		});
 
-		SessionsInterface->CreateSession(*LocalAccountId, OpParams.SessionName, BuildV1Settings(OpParams.SessionSettings));
+		SessionsInterface->CreateSession(*LocalAccountId, OpParams.SessionName, BuildV1SettingsForCreate(OpParams));
 
 		// TODO: Pending support for multiple local users
 	})
@@ -505,13 +540,15 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsOSSAdapter::UpdateSession(FUpdateS
 					const TSharedRef<FSessionCommon>& FoundSession = GetMutableSessionByNameResult.GetOkValue().Session;
 
 					FSessionSettings& UpdatedV2Settings = FoundSession->SessionSettings;
-					UpdatedV2Settings += OpParams.Mutations;
+					//UpdatedV2Settings += OpParams.Mutations;
 
 					Op->SetResult({ });
 
-					FSessionUpdated Event { SessionName, OpParams.Mutations };
+					//FSessionUpdated Event { SessionName, OpParams.Mutations };
 
-					SessionEvents.OnSessionUpdated.Broadcast(Event);
+					//SessionEvents.OnSessionUpdated.Broadcast(Event);
+
+					// TODO: Will be refactored as part of the UpdateSession split
 				}
 				else
 				{
@@ -527,9 +564,11 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsOSSAdapter::UpdateSession(FUpdateS
 
 		// We will update a copy here, and wait until the operation has completed successfully to update our local data
 		FSessionSettings UpdatedV2Settings = FoundSession->SessionSettings;
-		UpdatedV2Settings += OpParams.Mutations;
+		//UpdatedV2Settings += OpParams.Mutations;
 		
-		FOnlineSessionSettings UpdatedV1Settings = BuildV1Settings(UpdatedV2Settings);
+		// TODO: Will be refactored as part of the UpdateSession split
+
+		FOnlineSessionSettings UpdatedV1Settings = BuildV1SettingsForUpdate(OpParams.LocalAccountId, FoundSession);
 
 		SessionsInterface->UpdateSession(OpParams.SessionName, UpdatedV1Settings);
 	})
@@ -573,7 +612,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsOSSAdapter::LeaveSession(FLeaveSess
 				{
 					TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-					ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
+					ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId);
 				}
 
 				Op->SetResult({ });
@@ -798,7 +837,7 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 			return;
 		}
 
-		if (PendingV1SessionSearchesPerUser.Contains(OpParams.LocalAccountId))
+		if (PendingV1SessionSearchesPerUser.Contains(OpParams.SessionCreationParameters.LocalAccountId))
 		{
 			Op.SetError(Errors::AlreadyPending());
 			return;
@@ -808,9 +847,9 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 
 		TArray<FSessionMatchmakingUser> MatchMakingUsers;
 
-		FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(OpParams.LocalAccountId).ToSharedRef() };
+		FSessionMatchmakingUser NewMatchMakingUser { ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(OpParams.SessionCreationParameters.LocalAccountId).ToSharedRef() };
 
-		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : OpParams.SessionMemberData.MemberSettings)
+		for (const TPair<FSchemaAttributeId, FCustomSessionSetting>& Entry : OpParams.SessionCreationParameters.SessionMemberData.MemberSettings)
 		{
 			switch (Entry.Value.Data.VariantType)
 			{
@@ -831,20 +870,20 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 
 		MatchMakingUsers.Add(NewMatchMakingUser);
 
-		FOnlineSessionSettings NewSessionSettings = BuildV1Settings(OpParams.SessionSettings);
+		FOnlineSessionSettings NewSessionSettings = BuildV1SettingsForCreate(OpParams.SessionCreationParameters);
 
 		/** We build a mock params struct for FindSessions and convert it to a V1 session search */
 		FFindSessions::Params FindSessionsParams;
 		FindSessionsParams.bFindLANSessions = false;
-		FindSessionsParams.Filters = OpParams.SearchFilters;
-		FindSessionsParams.LocalAccountId = OpParams.LocalAccountId;
+		FindSessionsParams.Filters = OpParams.SessionSearchFilters;
+		FindSessionsParams.LocalAccountId = OpParams.SessionCreationParameters.LocalAccountId;
 		FindSessionsParams.MaxResults = 1;
 
-		TSharedRef<FOnlineSessionSearch>& SessionSearch = PendingV1SessionSearchesPerUser.Emplace(OpParams.LocalAccountId, BuildV1SessionSearch(FindSessionsParams));
+		TSharedRef<FOnlineSessionSearch>& SessionSearch = PendingV1SessionSearchesPerUser.Emplace(OpParams.SessionCreationParameters.LocalAccountId, BuildV1SessionSearch(FindSessionsParams));
 
 		// QUESTION: StartMatchmaking causes both OnMatchmakingComplete and OnStartMatchmakingComplete to trigger.
 		// The first triggers the second so I used the latter, but the interface header did not specify if one should be used. Is this the correct one?
-		SessionsInterface->StartMatchmaking(MatchMakingUsers, OpParams.SessionName, NewSessionSettings, SessionSearch, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](FName SessionName, const ::FOnlineError& ErrorDetails, const FSessionMatchmakingResults& Results) mutable
+		SessionsInterface->StartMatchmaking(MatchMakingUsers, OpParams.SessionCreationParameters.SessionName, NewSessionSettings, SessionSearch, *MakeDelegateAdapter(this, [this, WeakOp = Op.AsWeak()](FName SessionName, const ::FOnlineError& ErrorDetails, const FSessionMatchmakingResults& Results) mutable
 		{
 			if (TOnlineAsyncOpPtr<FStartMatchmaking> Op = WeakOp.Pin())
 			{
@@ -858,11 +897,11 @@ TOnlineAsyncOpHandle<FStartMatchmaking> FSessionsOSSAdapter::StartMatchmaking(FS
 
 				TSharedRef<FSessionCommon> V2Session = BuildV2Session(SessionsInterface->GetNamedSession(SessionName));
 
-				AddSessionWithReferences(V2Session, OpParams.SessionName, OpParams.LocalAccountId, V2Session->SessionSettings.bPresenceEnabled);
+				AddSessionWithReferences(V2Session, OpParams.SessionCreationParameters.SessionName, OpParams.SessionCreationParameters.LocalAccountId, OpParams.SessionCreationParameters.bPresenceEnabled);
 
 				Op->SetResult({ });
 
-				FSessionJoined Event{ { Op->GetParams().LocalAccountId }, V2Session->SessionId };
+				FSessionJoined Event{ { Op->GetParams().SessionCreationParameters.LocalAccountId }, V2Session->GetSessionId()};
 
 				SessionEvents.OnSessionJoined.Broadcast(Event);
 
@@ -933,7 +972,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsOSSAdapter::JoinSession(FJoinSession
 
 				TSharedRef<const ISession> FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
-				AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
+				AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
 
 				// After successfully joining a session, we'll remove all related invites if any are found
 				ClearSessionInvitesForSession(OpParams.LocalAccountId, FoundSession->GetSessionId());
@@ -1150,74 +1189,119 @@ TOnlineResult<FGetResolvedConnectString> FSessionsOSSAdapter::GetResolvedConnect
 	}
 }
 
-FOnlineSessionSettings FSessionsOSSAdapter::BuildV1Settings(const FSessionSettings& InSessionSettings) const
+FOnlineSessionSettings FSessionsOSSAdapter::BuildV1SettingsForCreate(const FCreateSession::Params& Params) const
 {
 	FOnlineSessionSettings Result;
 
-	Result.bAllowInvites = InSessionSettings.bAllowNewMembers;
-	Result.bAllowJoinInProgress = InSessionSettings.bAllowNewMembers;
-	Result.bAllowJoinViaPresence = InSessionSettings.bAllowNewMembers;
-	Result.bAllowJoinViaPresenceFriendsOnly = InSessionSettings.bAllowNewMembers;
-	Result.Settings.Add(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS, InSessionSettings.bAllowSanctionedPlayers);
-	Result.bAntiCheatProtected = InSessionSettings.bAntiCheatProtected;
-	Result.bIsDedicated = InSessionSettings.bIsDedicatedServerSession;
-	Result.bIsLANMatch = InSessionSettings.bIsLANSession;
-	Result.bShouldAdvertise = InSessionSettings.bAllowNewMembers;
-	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID))
+	Result.bAllowInvites = Params.SessionSettings.bAllowNewMembers;
+	Result.bAllowJoinInProgress = Params.SessionSettings.bAllowNewMembers;
+	Result.bAllowJoinViaPresence = Params.SessionSettings.bAllowNewMembers;
+	Result.bAllowJoinViaPresenceFriendsOnly = Params.SessionSettings.bAllowNewMembers;
+	Result.Settings.Add(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS, Params.bAllowSanctionedPlayers);
+	Result.bAntiCheatProtected = Params.bAntiCheatProtected;
+	Result.bIsDedicated = Params.bIsDedicatedServerSession;
+	Result.bIsLANMatch = Params.bIsLANSession;
+	Result.bShouldAdvertise = Params.SessionSettings.bAllowNewMembers;
+	if (const FCustomSessionSetting* BuildUniqueId = Params.SessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID))
 	{
 		Result.BuildUniqueId = BuildUniqueId->Data.GetInt64();
 	}
-	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_IF_AVAILABLE))
+	if (const FCustomSessionSetting* BuildUniqueId = Params.SessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_IF_AVAILABLE))
 	{
 		Result.bUseLobbiesIfAvailable = BuildUniqueId->Data.GetBoolean();
 	}
-	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_VOICE_CHAT_IF_AVAILABLE))
+	if (const FCustomSessionSetting* BuildUniqueId = Params.SessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_VOICE_CHAT_IF_AVAILABLE))
 	{
 		Result.bUseLobbiesVoiceChatIfAvailable = BuildUniqueId->Data.GetBoolean();
 	}
-	Result.bUsesPresence = InSessionSettings.bPresenceEnabled;
-	if (const FCustomSessionSetting* BuildUniqueId = InSessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USES_STATS))
+
+	Result.bUsesPresence = Params.bPresenceEnabled;
+
+	if (const FCustomSessionSetting* BuildUniqueId = Params.SessionSettings.CustomSettings.Find(OSS_ADAPTER_SESSIONS_USES_STATS))
 	{
 		Result.bUsesStats = BuildUniqueId->Data.GetBoolean();
 	}
-	Result.NumPrivateConnections = InSessionSettings.NumMaxPrivateConnections;
-	Result.NumPublicConnections = InSessionSettings.NumMaxPublicConnections;
-	Result.Settings.Add(OSS_ADAPTER_SESSIONS_SCHEMA_NAME, InSessionSettings.SchemaName.ToString());
-	Result.SessionIdOverride = InSessionSettings.SessionIdOverride;
+	Result.NumPrivateConnections = Params.SessionSettings.NumMaxConnections;
+	Result.NumPublicConnections = Params.SessionSettings.NumMaxConnections;
+	Result.Settings.Add(OSS_ADAPTER_SESSIONS_SCHEMA_NAME, Params.SessionSettings.SchemaName.ToString());
+	Result.SessionIdOverride = Params.SessionIdOverride;
 
-	Result.Settings = GetV1SessionSettings(InSessionSettings.CustomSettings);
+	Result.Settings = GetV1SessionSettings(Params.SessionSettings.CustomSettings);
+
+	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
+
+	Result.MemberSettings.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Params.LocalAccountId).ToSharedRef(), GetV1SessionSettings(Params.SessionMemberData.MemberSettings)); // TODO: Pending SchemaVariant work
+
+	return Result;
+}
+
+FOnlineSessionSettings FSessionsOSSAdapter::BuildV1SettingsForUpdate(const FAccountId& LocalAccountId, const TSharedRef<ISession>& Session) const
+{
+	FOnlineSessionSettings Result;
+
+	Result.bAllowInvites = Session->GetSessionSettings().bAllowNewMembers;
+	Result.bAllowJoinInProgress = Session->GetSessionSettings().bAllowNewMembers;
+	Result.bAllowJoinViaPresence = Session->GetSessionSettings().bAllowNewMembers;
+	Result.bAllowJoinViaPresenceFriendsOnly = Session->GetSessionSettings().bAllowNewMembers;
+	Result.Settings.Add(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS, Session->GetSessionInfo().bAllowSanctionedPlayers);
+	Result.bAntiCheatProtected = Session->GetSessionInfo().bAntiCheatProtected;
+	Result.bIsDedicated = Session->GetSessionInfo().bIsDedicatedServerSession;
+	Result.bIsLANMatch = Session->GetSessionInfo().bIsLANSession;
+	Result.bShouldAdvertise = Session->GetSessionSettings().bAllowNewMembers;
+	if (const FCustomSessionSetting* BuildUniqueId = Session->GetSessionSettings().CustomSettings.Find(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID))
+	{
+		Result.BuildUniqueId = BuildUniqueId->Data.GetInt64();
+	}
+	if (const FCustomSessionSetting* BuildUniqueId = Session->GetSessionSettings().CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_IF_AVAILABLE))
+	{
+		Result.bUseLobbiesIfAvailable = BuildUniqueId->Data.GetBoolean();
+	}
+	if (const FCustomSessionSetting* BuildUniqueId = Session->GetSessionSettings().CustomSettings.Find(OSS_ADAPTER_SESSIONS_USE_LOBBIES_VOICE_CHAT_IF_AVAILABLE))
+	{
+		Result.bUseLobbiesVoiceChatIfAvailable = BuildUniqueId->Data.GetBoolean();
+	}
+
+	Result.bUsesPresence = false;
+	TOnlineResult<FIsPresenceSession> IsPresenceSessionResult = IsPresenceSession({ LocalAccountId, Session->GetSessionId() });
+	if (IsPresenceSessionResult.IsOk())
+	{
+		Result.bUsesPresence = IsPresenceSessionResult.GetOkValue().bIsPresenceSession;
+	}
+
+	if (const FCustomSessionSetting* BuildUniqueId = Session->GetSessionSettings().CustomSettings.Find(OSS_ADAPTER_SESSIONS_USES_STATS))
+	{
+		Result.bUsesStats = BuildUniqueId->Data.GetBoolean();
+	}
+	Result.NumPrivateConnections = Session->GetSessionSettings().NumMaxConnections;
+	Result.NumPublicConnections = Session->GetSessionSettings().NumMaxConnections;
+	Result.Settings.Add(OSS_ADAPTER_SESSIONS_SCHEMA_NAME, Session->GetSessionSettings().SchemaName.ToString());
+	Result.SessionIdOverride = Session->GetSessionInfo().SessionIdOverride;
+
+	Result.Settings = GetV1SessionSettings(Session->GetSessionSettings().CustomSettings);
 	
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
-	for (const TPair<FAccountId, FSessionMember>& Entry : InSessionSettings.SessionMembers)
+	for (const TPair<FAccountId, FSessionMember>& Entry : Session->GetSessionMembers())
 	{
-		Result.MemberSettings.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Entry.Key).ToSharedRef(), ::FSessionSettings()); // TODO: Pending SchemaVariant work
+		Result.MemberSettings.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().GetIdValue(Entry.Key).ToSharedRef(), GetV1SessionSettings(Entry.Value.MemberSettings)); // TODO: Pending SchemaVariant work
 	}
 
 	return Result;
 }
 
-void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSession* InSession, FSessionSettings& OutSettings) const
+void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSession* InSession, TSharedRef<FSessionOSSAdapter>& OutSession) const
 {
-	InSession->SessionSettings.Settings.FindChecked(OSS_ADAPTER_SESSIONS_ALLOW_SANCTIONED_PLAYERS).Data.GetValue(OutSettings.bAllowSanctionedPlayers);
-	OutSettings.bAntiCheatProtected = InSession->SessionSettings.bAntiCheatProtected;
-	OutSettings.bPresenceEnabled = InSession->SessionSettings.bUsesPresence;
-	OutSettings.bIsDedicatedServerSession = InSession->SessionSettings.bIsDedicated;
-	OutSettings.bIsLANSession = InSession->SessionSettings.bIsLANMatch;
-	OutSettings.NumMaxPrivateConnections = InSession->SessionSettings.NumPrivateConnections;
-	OutSettings.NumMaxPublicConnections = InSession->SessionSettings.NumPublicConnections;
-	OutSettings.NumOpenPrivateConnections = InSession->NumOpenPrivateConnections;
-	OutSettings.NumOpenPublicConnections = InSession->NumOpenPublicConnections;
+	OutSession->SessionSettings.NumMaxConnections = FMath::Max(InSession->SessionSettings.NumPrivateConnections, InSession->SessionSettings.NumPublicConnections);
+
 	FString SchemaNameStr;
 	InSession->SessionSettings.Settings.FindChecked(OSS_ADAPTER_SESSIONS_SCHEMA_NAME).Data.GetValue(SchemaNameStr);
-	OutSettings.SchemaName = FSchemaId(SchemaNameStr);
-	OutSettings.SessionIdOverride = InSession->SessionSettings.SessionIdOverride;
+	OutSession->SessionSettings.SchemaName = FSchemaId(SchemaNameStr);
 
-	OutSettings.CustomSettings = GetV2SessionSettings(InSession->SessionSettings.Settings);
+	OutSession->SessionSettings.CustomSettings = GetV2SessionSettings(InSession->SessionSettings.Settings);
 
 	FCustomSessionSetting BuildUniqueId;
 	BuildUniqueId.Data.Set((int64)InSession->SessionSettings.BuildUniqueId);
-	OutSettings.CustomSettings.Add(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID, BuildUniqueId);
+	OutSession->SessionSettings.CustomSettings.Add(OSS_ADAPTER_SESSIONS_BUILD_UNIQUE_ID, BuildUniqueId);
 
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
@@ -1228,24 +1312,24 @@ void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1Session(const FOnlineSessi
 		FSessionMember SessionMember;
 		SessionMember.MemberSettings = GetV2SessionSettings(Entry.Value);
 
-		OutSettings.SessionMembers.Emplace(SessionMemberId, SessionMember);
+		OutSession->SessionMembers.Emplace(SessionMemberId, SessionMember);
 	}
 }
 
-void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1NamedSession(const FNamedOnlineSession* InSession, FSessionSettings& OutSettings) const
+void FSessionsOSSAdapter::WriteV2SessionSettingsFromV1NamedSession(const FNamedOnlineSession* InSession, TSharedRef<FSessionOSSAdapter>& OutSession) const
 {
 	bool bPublicJoinable, bFriendJoinable, bInviteOnly, bAllowInvites;
 	InSession->GetJoinability(bPublicJoinable, bFriendJoinable, bInviteOnly, bAllowInvites);
 
-	OutSettings.bAllowNewMembers = bPublicJoinable || bFriendJoinable || bInviteOnly;
-	OutSettings.JoinPolicy = bInviteOnly ? ESessionJoinPolicy::InviteOnly : bFriendJoinable ? ESessionJoinPolicy::FriendsOnly : ESessionJoinPolicy::Public; // We use Public as the default as closed sessions will have bAllowNewMembers as false
+	OutSession->SessionSettings.bAllowNewMembers = bPublicJoinable || bFriendJoinable || bInviteOnly;
+	OutSession->SessionSettings.JoinPolicy = bInviteOnly ? ESessionJoinPolicy::InviteOnly : bFriendJoinable ? ESessionJoinPolicy::FriendsOnly : ESessionJoinPolicy::Public; // We use Public as the default as closed sessions will have bAllowNewMembers as false
 
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
 
 	// We'll add all the Registered users as SessionMembers with empty data for now
 	for (const FUniqueNetIdRef& RegisteredPlayer : InSession->RegisteredPlayers)
 	{
-		OutSettings.SessionMembers.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(RegisteredPlayer));
+		OutSession->SessionMembers.Emplace(ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(RegisteredPlayer));
 	}
 }
 
@@ -1256,18 +1340,17 @@ FOnlineSession FSessionsOSSAdapter::BuildV1Session(const TSharedRef<const ISessi
 
 TSharedRef<FSessionCommon> FSessionsOSSAdapter::BuildV2Session(const FOnlineSession* InSession) const
 {
-	TSharedRef<FSessionOSSAdapter> Session = MakeShared<FSessionOSSAdapter>(*InSession);
-
 	FOnlineServicesOSSAdapter& ServicesOSSAdapter = static_cast<FOnlineServicesOSSAdapter&>(Services);
+
+	TSharedRef<FSessionOSSAdapter> Session = MakeShared<FSessionOSSAdapter>(*InSession, GetSessionIdRegistry().FindOrAddHandle(InSession->SessionInfo->GetSessionId().AsShared()));
 
 	if (const FNamedOnlineSession* NamedInSession = static_cast<const FNamedOnlineSession*>(InSession))
 	{
 		Session->OwnerAccountId = ServicesOSSAdapter.GetAccountIdRegistry().FindOrAddHandle(NamedInSession->LocalOwnerId->AsShared());
-		WriteV2SessionSettingsFromV1NamedSession(NamedInSession, Session->SessionSettings);
+		WriteV2SessionSettingsFromV1NamedSession(NamedInSession, Session);
 	}
 
-	Session->SessionId = GetSessionIdRegistry().FindOrAddHandle(InSession->SessionInfo->GetSessionId().AsShared());
-	WriteV2SessionSettingsFromV1Session(InSession, Session->SessionSettings);
+	WriteV2SessionSettingsFromV1Session(InSession, Session);
 
 	return Session;
 }

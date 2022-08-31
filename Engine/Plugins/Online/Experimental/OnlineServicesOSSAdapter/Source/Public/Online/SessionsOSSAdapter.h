@@ -38,7 +38,7 @@ class FSessionOSSAdapter : public FSessionCommon
 public:
 	FSessionOSSAdapter() = default;
 	FSessionOSSAdapter(const FSessionOSSAdapter& InSession) = default;
-	FSessionOSSAdapter(const FOnlineSession& InSession);
+	FSessionOSSAdapter(const FOnlineSession& InSession, const FOnlineSessionId& InSessionId);
 
 	static const FSessionOSSAdapter& Cast(const ISession& InSession);
 
@@ -76,12 +76,14 @@ public:
 	TOnlineResult<FGetResolvedConnectString> GetResolvedConnectString(const FGetResolvedConnectString::Params& Params);
 
 private:
-	/** Builds a V1 Session Settings data type from a V2 equivalent */
-	FOnlineSessionSettings BuildV1Settings(const FSessionSettings& InSessionSettings) const;
+	/** Builds a V1 Session Settings data type from V2 session creation parameters */
+	FOnlineSessionSettings BuildV1SettingsForCreate(const FCreateSession::Params& Params) const;
+	/** Builds a V1 Session Settings data type from V2 session data */
+	FOnlineSessionSettings BuildV1SettingsForUpdate(const FAccountId& LocalAccountId, const TSharedRef<ISession>& Session) const;
 	/** Writes V1 Session Settings information into the passed V2 equivalent */
-	void WriteV2SessionSettingsFromV1Session(const FOnlineSession* InSession, FSessionSettings& OutSettings) const;
+	void WriteV2SessionSettingsFromV1Session(const FOnlineSession* InSession, TSharedRef<FSessionOSSAdapter>& OutSession) const;
 	/** Writes V1 Session Settings information contained in Named session type into the passed V2 equivalent */
-	void WriteV2SessionSettingsFromV1NamedSession(const FNamedOnlineSession* InSession, FSessionSettings& OutSettings) const;
+	void WriteV2SessionSettingsFromV1NamedSession(const FNamedOnlineSession* InSession, TSharedRef<FSessionOSSAdapter>& OutSession) const;
 	/** Builds a V1 Session data type from a V2 equivalent */
 	FOnlineSession BuildV1Session(const TSharedRef<const ISession> InSession) const;
 	/** Builds a V2 Session data type from a V1 equivalent */

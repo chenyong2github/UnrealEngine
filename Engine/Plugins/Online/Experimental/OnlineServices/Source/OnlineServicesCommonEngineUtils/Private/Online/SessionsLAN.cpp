@@ -153,14 +153,14 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsLAN::CreateSession(FCreateSession:
 
 		TSharedRef<FSessionLAN> NewSessionLANRef = MakeShared<FSessionLAN>();
 		NewSessionLANRef->OwnerAccountId = OpParams.LocalAccountId;
-		NewSessionLANRef->SessionId = FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).GetNextSessionId();
+		NewSessionLANRef->SessionInfo.SessionId = FOnlineSessionIdRegistryLAN::GetChecked(Services.GetServicesProvider()).GetNextSessionId();
 		NewSessionLANRef->SessionSettings = OpParams.SessionSettings;
 
 		// For LAN sessions, we'll add the Session member manually instead of calling JoinSession since there is no API calls involved
-		NewSessionLANRef->SessionSettings.SessionMembers.Emplace(OpParams.LocalAccountId, OpParams.SessionMemberData);
+		NewSessionLANRef->SessionMembers.Emplace(OpParams.LocalAccountId, OpParams.SessionMemberData);
 
 		// We save the local object for the session, and set up the appropriate references
-		AddSessionWithReferences(NewSessionLANRef, OpParams.SessionName, OpParams.LocalAccountId, NewSessionLANRef->SessionSettings.bPresenceEnabled);
+		AddSessionWithReferences(NewSessionLANRef, OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
 
 		Op.SetResult({ });
 	})
@@ -211,13 +211,15 @@ TOnlineAsyncOpHandle<FUpdateSession> FSessionsLAN::UpdateSession(FUpdateSession:
 			}
 		}
 
-		SessionSettings += UpdatedSettings;
+		//SessionSettings += UpdatedSettings;
 
 		// We set the result and fire the event
 		Op.SetResult({ });
 
-		FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, UpdatedSettings };
-		SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
+		//FSessionUpdated SessionUpdatedEvent{ OpParams.SessionName, UpdatedSettings };
+		//SessionEvents.OnSessionUpdated.Broadcast(SessionUpdatedEvent);
+
+		// TODO: Will be refactored as part of the UpdateSettings split
 	})
 	.Enqueue(GetSerialQueue());
 
@@ -296,7 +298,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsLAN::JoinSession(FJoinSession::Param
 		const TSharedRef<const ISession>& FoundSession = GetSessionByIdResult.GetOkValue().Session;
 
 		// We set up the appropriate references for the session
-		AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
+		AddSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, OpParams.bPresenceEnabled);
 
 		Op.SetResult(FJoinSession::Result{ });
 
@@ -334,7 +336,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsLAN::LeaveSession(FLeaveSession::Pa
 				StopLANSession();
 			}
 
-			ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId, FoundSession->GetSessionSettings().bPresenceEnabled);
+			ClearSessionReferences(FoundSession->GetSessionId(), OpParams.SessionName, OpParams.LocalAccountId);
 		}
 
 		Op.SetResult(FLeaveSession::Result{ });

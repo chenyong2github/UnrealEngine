@@ -37,50 +37,30 @@ void LexFromString(ESessionJoinPolicy& Value, const TCHAR* InStr)
 }
 
 #define COPY_TOPTIONAL_VALUE_IF_SET(Value) \
-	if (UpdatedSettings.Value.IsSet()) \
+	if (SettingsChanges.Value.IsSet()) \
 	{ \
-		Value = UpdatedSettings.Value.GetValue(); \
+		Value = SettingsChanges.Value.GetValue(); \
 	} \
 
-FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsUpdate& UpdatedSettings)
+FSessionSettings& FSessionSettings::operator+=(const FSessionSettingsChanges& SettingsChanges)
 {
 	COPY_TOPTIONAL_VALUE_IF_SET(SchemaName) // TODO: We may need some additional logic for schema changes
-	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxPublicConnections)
-	COPY_TOPTIONAL_VALUE_IF_SET(NumOpenPublicConnections)
-	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxPrivateConnections)
-	COPY_TOPTIONAL_VALUE_IF_SET(NumOpenPrivateConnections)
+	COPY_TOPTIONAL_VALUE_IF_SET(NumMaxConnections)
 	COPY_TOPTIONAL_VALUE_IF_SET(JoinPolicy)
-	COPY_TOPTIONAL_VALUE_IF_SET(SessionIdOverride)
-	COPY_TOPTIONAL_VALUE_IF_SET(bIsDedicatedServerSession)
 	COPY_TOPTIONAL_VALUE_IF_SET(bAllowNewMembers)
-	COPY_TOPTIONAL_VALUE_IF_SET(bAllowSanctionedPlayers)
-	COPY_TOPTIONAL_VALUE_IF_SET(bAntiCheatProtected)
-	COPY_TOPTIONAL_VALUE_IF_SET(bPresenceEnabled)
 		
-	for (const FName& Key : UpdatedSettings.RemovedCustomSettings)
+	for (const FName& Key : SettingsChanges.RemovedCustomSettings)
 	{
 		CustomSettings.Remove(Key);
 	}
 
-	CustomSettings.Append(UpdatedSettings.UpdatedCustomSettings);
+	CustomSettings.Append(SettingsChanges.AddedCustomSettings);
 
-	for (const FAccountId& Key : UpdatedSettings.RemovedSessionMembers)
+	for (const TPair<FName, FCustomSessionSettingUpdate>& SettingEntry : SettingsChanges.ChangedCustomSettings)
 	{
-		SessionMembers.Remove(Key);
-	}
-
-	for (const TPair<FAccountId, FSessionMemberUpdate>& Entry : UpdatedSettings.UpdatedSessionMembers)
-	{
-		if (FSessionMember* SessionMember = SessionMembers.Find(Entry.Key))
+		if (FCustomSessionSetting* CustomSetting = CustomSettings.Find(SettingEntry.Key))
 		{
-			const FSessionMemberUpdate& SessionMemberUpdate = Entry.Value;
-
-			for (const FName& Key : SessionMemberUpdate.RemovedMemberSettings)
-			{
-				SessionMember->MemberSettings.Remove(Key);
-			}
-
-			SessionMember->MemberSettings.Append(SessionMemberUpdate.UpdatedMemberSettings);
+			(*CustomSetting) = SettingEntry.Value.NewValue;
 		}
 	}
 
@@ -117,17 +97,9 @@ FSessionMemberUpdate& FSessionMemberUpdate::operator+=(FSessionMemberUpdate&& Up
 FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdate&& UpdatedValue)
 {
 	MOVE_TOPTIONAL_IF_SET(SchemaName)
-	MOVE_TOPTIONAL_IF_SET(NumMaxPublicConnections)
-	MOVE_TOPTIONAL_IF_SET(NumOpenPublicConnections)
-	MOVE_TOPTIONAL_IF_SET(NumMaxPrivateConnections)
-	MOVE_TOPTIONAL_IF_SET(NumOpenPrivateConnections)
+	MOVE_TOPTIONAL_IF_SET(NumMaxConnections)
 	MOVE_TOPTIONAL_IF_SET(JoinPolicy)
-	MOVE_TOPTIONAL_IF_SET(SessionIdOverride)
-	MOVE_TOPTIONAL_IF_SET(bIsDedicatedServerSession)
 	MOVE_TOPTIONAL_IF_SET(bAllowNewMembers)
-	MOVE_TOPTIONAL_IF_SET(bAllowSanctionedPlayers)
-	MOVE_TOPTIONAL_IF_SET(bAntiCheatProtected)
-	MOVE_TOPTIONAL_IF_SET(bPresenceEnabled)
 
 	for (const TPair<FName, FCustomSessionSetting>& UpdatedCustomSetting : UpdatedValue.UpdatedCustomSettings)
 	{

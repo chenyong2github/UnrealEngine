@@ -63,32 +63,31 @@ void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionMember& Sess
 	SerializeToBuffer(Packet, SessionMember.MemberSettings);
 }
 
+void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionInfo& SessionInfo)
+{
+	Packet << SessionInfo.bAllowSanctionedPlayers;
+	Packet << SessionInfo.bAntiCheatProtected;
+	Packet << SessionInfo.bIsDedicatedServerSession;
+	Packet << SessionInfo.bIsLANSession;
+	Packet << SessionInfo.SessionIdOverride;
+	// SessionInfo.SessionId will be serialized in implementations as user id types will vary
+}
+
 void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionSettings& SessionSettings)
 {
 	Packet << SessionSettings.bAllowNewMembers;
-	Packet << SessionSettings.bAllowSanctionedPlayers;
-	Packet << SessionSettings.bAntiCheatProtected;
-	Packet << SessionSettings.bIsDedicatedServerSession;
-	Packet << SessionSettings.bIsLANSession;
-	Packet << SessionSettings.bPresenceEnabled;
 	SerializeToBuffer(Packet, SessionSettings.CustomSettings);
 	Packet << (uint8)SessionSettings.JoinPolicy;
-	Packet << SessionSettings.NumMaxPrivateConnections;;
-	Packet << SessionSettings.NumMaxPublicConnections;
-	Packet << SessionSettings.NumOpenPrivateConnections;
-	Packet << SessionSettings.NumOpenPublicConnections;
-	// SessionSettings.RegisteredPlayers will be serialized in implementations as user id types will vary
+	Packet << SessionSettings.NumMaxConnections;
 	Packet << SessionSettings.SchemaName;
-	Packet << SessionSettings.SessionIdOverride;
-	// SessionSettings.SessionMembers will be serialized in implementations as user id types will vary
 }
 
 void SerializeToBuffer(FNboSerializeToBuffer& Packet, const FSessionCommon& Session)
 {
 	// Session.OwnerUserId will be serialized in implementations as user id types will vary
-	// Session.SessionId will be serialized in implementations as user id types will vary
-	// Session.CurrentState won't be serialized as it should always be Valid
+	SerializeToBuffer(Packet, Session.SessionInfo);
 	SerializeToBuffer(Packet, Session.SessionSettings);
+	// Session.SessionMembers will be serialized in implementations as user id types will vary
 }
 
 /** SerializeFromBuffer methods */
@@ -163,6 +162,25 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionMember& Sessio
 	SerializeFromBuffer(Packet, SessionMember.MemberSettings);
 }
 
+void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionInfo& SessionInfo)
+{
+	uint8 Read = 0;
+
+	// Read all the booleans as bytes
+	Packet >> Read;
+	SessionInfo.bAllowSanctionedPlayers = !!Read;
+	Packet >> Read;
+	SessionInfo.bAntiCheatProtected = !!Read;
+	Packet >> Read;
+	SessionInfo.bIsDedicatedServerSession = !!Read;
+	Packet >> Read;
+	SessionInfo.bIsLANSession = !!Read;
+
+	Packet >> SessionInfo.SessionIdOverride;
+
+	// SessionInfo.SessionId will be deserialized in implementations as user id types will vary
+}
+
 void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionSettings& SessionSettings)
 {
 	uint8 Read = 0;
@@ -170,37 +188,22 @@ void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionSettings& Sess
 	// Read all the booleans as bytes
 	Packet >> Read;
 	SessionSettings.bAllowNewMembers = !!Read;
-	Packet >> Read;
-	SessionSettings.bAllowSanctionedPlayers = !!Read;
-	Packet >> Read;
-	SessionSettings.bAntiCheatProtected = !!Read;
-	Packet >> Read;
-	SessionSettings.bIsDedicatedServerSession = !!Read;
-	Packet >> Read;
-	SessionSettings.bIsLANSession = !!Read;
-	Packet >> Read;
-	SessionSettings.bPresenceEnabled = !!Read;
 
 	SerializeFromBuffer(Packet, SessionSettings.CustomSettings);
 
 	Packet >> Read;
 	SessionSettings.JoinPolicy = (ESessionJoinPolicy)Read;
 
-	Packet >> SessionSettings.NumMaxPrivateConnections;;
-	Packet >> SessionSettings.NumMaxPublicConnections;
-	Packet >> SessionSettings.NumOpenPrivateConnections;
-	Packet >> SessionSettings.NumOpenPublicConnections;
-	// SessionSettings.RegisteredPlayers will be deserialized in implementations as user id types will vary
+	Packet >> SessionSettings.NumMaxConnections;
 	Packet >> SessionSettings.SchemaName;
-	Packet >> SessionSettings.SessionIdOverride;
-	// SessionSettings.SessionMembers will be deserialized in implementations as user id types will vary
 }
 
 void SerializeFromBuffer(FNboSerializeFromBuffer& Packet, FSessionCommon& Session)
 {
 	// Session.OwnerUserId will be deserialized in implementations as user id types will vary
-	// Session.SessionId will be deserialized in implementations as user id types will vary
+	SerializeFromBuffer(Packet, Session.SessionInfo);
 	SerializeFromBuffer(Packet, Session.SessionSettings);
+	// Session.SessionMembers will be deserialized in implementations as user id types will vary
 }
 
 /* NboSerializerCommonSvc */ }

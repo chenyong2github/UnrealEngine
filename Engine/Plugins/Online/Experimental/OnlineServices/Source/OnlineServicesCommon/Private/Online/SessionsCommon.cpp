@@ -6,6 +6,53 @@
 #include "Online/OnlineServicesCommon.h"
 
 namespace UE::Online {
+	/** FSessionCommon */
+	FSessionCommon& FSessionCommon::operator+=(const FSessionUpdate& SessionUpdate)
+	{
+		if (SessionUpdate.OwnerAccountId.IsSet())
+		{
+			OwnerAccountId = SessionUpdate.OwnerAccountId.GetValue();
+		}
+
+		if (SessionUpdate.SessionSettingsChanges.IsSet())
+		{
+			SessionSettings += SessionUpdate.SessionSettingsChanges.GetValue();
+		}
+
+		// Session Members
+
+		for (const FAccountId& Key : SessionUpdate.RemovedSessionMembers)
+		{
+			SessionMembers.Remove(Key);
+		}
+
+		SessionMembers.Append(SessionUpdate.AddedSessionMembers);
+
+		for (const TPair<FAccountId, FSessionMemberChanges>& MemberEntry : SessionUpdate.SessionMembersChanges)
+		{
+			if (FSessionMember* SessionMember = SessionMembers.Find(MemberEntry.Key))
+			{
+				const FSessionMemberChanges& SessionMemberChanges = MemberEntry.Value;
+
+				for (const FName& Key : SessionMemberChanges.RemovedMemberSettings)
+				{
+					SessionMember->MemberSettings.Remove(Key);
+				}
+
+				SessionMember->MemberSettings.Append(SessionMemberChanges.AddedMemberSettings);
+
+				for (const TPair<FName, FCustomSessionSettingUpdate>& SettingEntry : SessionMemberChanges.ChangedMemberSettings)
+				{
+					if (FCustomSessionSetting* CustomSetting = SessionMember->MemberSettings.Find(SettingEntry.Key))
+					{
+						(*CustomSetting) = SettingEntry.Value.NewValue;
+					}
+				}
+			}
+		}
+
+		return *this;
+	}
 
 	/** FSessionsCommon */
 	FSessionsCommon::FSessionsCommon(FOnlineServicesCommon& InServices)
@@ -91,7 +138,19 @@ namespace UE::Online {
 		}
 		else
 		{
-			return  TOnlineResult<FGetPresenceSession>({ Errors::InvalidState() });
+			return TOnlineResult<FGetPresenceSession>({ Errors::InvalidState() });
+		}
+	}
+
+	TOnlineResult<FIsPresenceSession> FSessionsCommon::IsPresenceSession(FIsPresenceSession::Params&& Params) const
+	{
+		if (const FOnlineSessionId* PresenceSessionId = PresenceSessionsUserMap.Find(Params.LocalAccountId))
+		{
+			return TOnlineResult<FIsPresenceSession>(FIsPresenceSession::Result{ Params.SessionId == (*PresenceSessionId) });
+		}
+		else
+		{
+			return TOnlineResult<FIsPresenceSession>({ Errors::InvalidState() });
 		}
 	}
 
@@ -298,7 +357,7 @@ namespace UE::Online {
 
 	void FSessionsCommon::AddSessionInvite(const TSharedRef<FSessionInvite> SessionInvite, const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId)
 	{
-		AllSessionsById.Emplace(Session->SessionId, Session);
+		AllSessionsById.Emplace(Session->GetSessionId(), Session);
 
 		TMap<FSessionInviteId, TSharedRef<FSessionInvite>>& SessionInvitesMap = SessionInvitesUserMap.FindOrAdd(LocalAccountId);
 		SessionInvitesMap.Emplace(SessionInvite->InviteId, SessionInvite);
@@ -306,17 +365,17 @@ namespace UE::Online {
 
 	void FSessionsCommon::AddSearchResult(const TSharedRef<FSessionCommon> Session, const FAccountId& LocalAccountId)
 	{
-		AllSessionsById.Emplace(Session->SessionId, Session);
+		AllSessionsById.Emplace(Session->GetSessionId(), Session);
 
 		TArray<FOnlineSessionId>& SearchResults = SearchResultsUserMap.FindOrAdd(LocalAccountId);
-		SearchResults.Add(Session->SessionId);
+		SearchResults.Add(Session->GetSessionId());
 	}
 
 	void FSessionsCommon::AddSessionWithReferences(const TSharedRef<FSessionCommon> Session, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
 	{
-		AllSessionsById.Emplace(Session->SessionId, Session);
+		AllSessionsById.Emplace(Session->GetSessionId(), Session);
 
-		AddSessionReferences(Session->SessionId, SessionName, LocalAccountId, bIsPresenceSession);
+		AddSessionReferences(Session->GetSessionId(), SessionName, LocalAccountId, bIsPresenceSession);
 	}
 
 	void FSessionsCommon::AddSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
@@ -351,13 +410,18 @@ namespace UE::Online {
 		}
 	}
 
-	void FSessionsCommon::ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession)
+	void FSessionsCommon::ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId)
 	{
 		NamedSessionUserMap.FindChecked(LocalAccountId).Remove(SessionName);
 
-		if (bIsPresenceSession)
+
+		TOnlineResult<FIsPresenceSession> IsPresenceSessionResult = IsPresenceSession({ LocalAccountId, SessionId });
+		if (IsPresenceSessionResult.IsOk())
 		{
-			ClearPresenceSession({ LocalAccountId });
+			if (IsPresenceSessionResult.GetOkValue().bIsPresenceSession)
+			{
+				ClearPresenceSession({ LocalAccountId });
+			}
 		}
 
 		ClearSessionByName(SessionName);
@@ -423,16 +487,12 @@ namespace UE::Online {
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 
-		if (SessionSettings.NumOpenPublicConnections > 0)
-		{
-			SessionSettings.NumOpenPublicConnections--;
-		}
-		else
+		if (FoundSession->GetNumOpenConnections() <= 0)
 		{
 			return TOnlineResult<FAddSessionMember>(Errors::InvalidState());
 		}
 
-		SessionSettings.SessionMembers.Emplace(Params.LocalAccountId, Params.NewSessionMember);
+		FoundSession->SessionMembers.Emplace(Params.LocalAccountId, Params.NewSessionMember);
 
 		return TOnlineResult<FAddSessionMember>();
 	}
@@ -448,16 +508,12 @@ namespace UE::Online {
 
 		FSessionSettings& SessionSettings = FoundSession->SessionSettings;
 		
-		if (SessionSettings.NumOpenPublicConnections < SessionSettings.NumMaxPublicConnections)
-		{
-			SessionSettings.NumOpenPublicConnections++;
-		}
-		else
+		if (FoundSession->GetNumOpenConnections() == SessionSettings.NumMaxConnections)
 		{
 			return TOnlineResult<FRemoveSessionMember>(Errors::InvalidState());
 		}
 
-		SessionSettings.SessionMembers.Remove(Params.LocalAccountId);
+		FoundSession->SessionMembers.Remove(Params.LocalAccountId);
 
 		return TOnlineResult<FRemoveSessionMember>();
 	}
@@ -478,9 +534,9 @@ namespace UE::Online {
 			return Errors::InvalidParams();
 		}
 
-		if (Params.SessionSettings.NumMaxPrivateConnections == 0 && Params.SessionSettings.NumMaxPublicConnections == 0)
+		if (Params.SessionSettings.NumMaxConnections == 0)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with name [%s] with no valid NumMaxPrivateConnections [%d] or NumMaxPublicConnections [%d]"), *Params.SessionName.ToString(), Params.SessionSettings.NumMaxPrivateConnections, Params.SessionSettings.NumMaxPublicConnections);
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionParams] Could not create session with name [%s] with no valid NumMaxConnections [%d]"), *Params.SessionName.ToString(), Params.SessionSettings.NumMaxConnections);
 
 			return Errors::InvalidParams();
 		}
@@ -498,21 +554,18 @@ namespace UE::Online {
 			return Errors::InvalidState();
 		}
 
-		if (Params.SessionSettings.bPresenceEnabled)
+		if (Params.bPresenceEnabled)
 		{
 			for (const TPair<FName, FOnlineSessionId>& Entry : LocalSessionsByName)
 			{
-				TOnlineResult<FGetSessionById> GetSessionByIdResult = GetSessionById({ Params.LocalAccountId, Entry.Value });
-				if (GetSessionByIdResult.IsOk())
-				{
-					if (GetSessionByIdResult.GetOkValue().Session->GetSessionSettings().bPresenceEnabled)
+				TOnlineResult<FGetPresenceSession> GetPresenceSessionResult = GetPresenceSession({ Params.LocalAccountId });
+				if (GetPresenceSessionResult.IsOk())
 				{
 					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckCreateSessionState] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), *Entry.Key.ToString());
 
 					return Errors::InvalidState();
 				}
 			}
-		}
 		}
 
 		// User login check for all local users
@@ -534,7 +587,7 @@ namespace UE::Online {
 		{
 			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			if (!FoundSession->GetSessionSettings().bIsDedicatedServerSession)
+			if (!FoundSession->GetSessionInfo().bIsDedicatedServerSession)
 			{
 				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalAccountId))
 				{
@@ -589,7 +642,7 @@ namespace UE::Online {
 
 	FOnlineError FSessionsCommon::CheckStartMatchmakingParams(const FStartMatchmaking::Params& Params)
 	{
-		if (Params.SessionSettings.NumMaxPrivateConnections == 0 && Params.SessionSettings.NumMaxPublicConnections == 0)
+		if (Params.SessionCreationParameters.SessionSettings.NumMaxConnections == 0)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingParams] Could not create session with invalid NumMaxPrivateConnections and NumMaxPublicConnections"));
 
@@ -602,19 +655,19 @@ namespace UE::Online {
 	FOnlineError FSessionsCommon::CheckStartMatchmakingState(const FStartMatchmaking::Params& Params)
 	{
 		// Check if a session with that name already exists
-		TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.LocalAccountId, Params.SessionName);
+		TOptional<FOnlineError> Result = CheckSessionExistsByName(Params.SessionCreationParameters.LocalAccountId, Params.SessionCreationParameters.SessionName);
 		if (!Result.IsSet()) // If CheckSessionExistsByName did not return an error, a session with that name already exists
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with name [%s]. A session with that name already exists"), *Params.SessionName.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with name [%s]. A session with that name already exists"), *Params.SessionCreationParameters.SessionName.ToString());
 
 			return Errors::InvalidState(); // TODO: New error: Session with name %s already exists
 		}
 
 		// User login check for all local users
 		IAuthPtr Auth = Services.GetAuthInterface();
-		if (!Auth->IsLoggedIn(Params.LocalAccountId))
+		if (!Auth->IsLoggedIn(Params.SessionCreationParameters.LocalAccountId))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with user [%s] not logged in"), *ToLogString(Params.LocalAccountId));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckStartMatchmakingState] Could not join session with user [%s] not logged in"), *ToLogString(Params.SessionCreationParameters.LocalAccountId));
 
 			return Errors::InvalidUser();
 		}
@@ -683,32 +736,32 @@ namespace UE::Online {
 
 		const FSessionSettings& SessionSettings = FoundSession->GetSessionSettings();
 
-		if (SessionSettings.SessionMembers.Contains(Params.LocalAccountId))
+		if (FoundSession->GetSessionMembers().Contains(Params.LocalAccountId))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. User [%s] already in session"), *ToLogString(Params.LocalAccountId));
 
 			return Errors::AccessDenied();
 		}
 
-		if (!SessionSettings.bAllowNewMembers)
+		if (!FoundSession->IsJoinable())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. bAllowNewMembers is set to false"));
+			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. Session not joinable "));
 
 			return Errors::AccessDenied();
 		}
 
-		if (SessionSettings.NumMaxPublicConnections > 0 && SessionSettings.NumOpenPublicConnections > 0)
+		if (Params.bPresenceEnabled)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. No open public connections"));
+			for (const TPair<FName, FOnlineSessionId>& Entry : LocalSessionsByName)
+			{
+				TOnlineResult<FGetPresenceSession> GetPresenceSessionResult = GetPresenceSession({ Params.LocalAccountId });
+				if (GetPresenceSessionResult.IsOk())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not create session with bPresenceEnabled set to true when another already exists [%s]."), *Entry.Key.ToString());
 
-			return Errors::AccessDenied();
-		}
-
-		if (SessionSettings.NumMaxPrivateConnections > 0 && SessionSettings.NumOpenPrivateConnections > 0)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[FSessionsCommon::CheckJoinSessionState] Could not join session. No open private connections"));
-
-			return Errors::AccessDenied();
+					return Errors::InvalidState();
+				}
+			}
 		}
 
 		return Errors::Success();
@@ -770,7 +823,7 @@ namespace UE::Online {
 		{
 			TSharedRef<const ISession> FoundSession = GetSessionByNameResult.GetOkValue().Session;
 
-			if (!FoundSession->GetSessionSettings().bIsDedicatedServerSession)
+			if (!FoundSession->GetSessionInfo().bIsDedicatedServerSession)
 			{
 				if (!Services.GetAuthInterface()->IsLoggedIn(Params.LocalAccountId))
 				{

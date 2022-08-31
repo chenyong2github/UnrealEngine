@@ -223,7 +223,7 @@ protected:
 	/**
 	 * Writes all values in the passed SessionSettings to the SessionModificationHandle
 	 */
-	void WriteCreateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FSessionSettings& SessionSettings);
+	void WriteCreateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, const FCreateSession::Params& Params);
 
 	/**
 	 * Writes only the new values for all updated settings to the SessionModificationHandle

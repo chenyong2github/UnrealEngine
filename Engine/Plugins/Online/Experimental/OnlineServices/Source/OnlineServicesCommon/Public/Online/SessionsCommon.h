@@ -136,20 +136,32 @@ public:
 
 	// ISession
 	virtual const FAccountId GetOwnerAccountId() const override				{ return OwnerAccountId; }
-	virtual const FOnlineSessionId GetSessionId() const override		{ return SessionId; }
+	virtual const FOnlineSessionId GetSessionId() const override			{ return GetSessionInfo().SessionId; }
+	virtual const uint32 GetNumOpenConnections() const override				{ return SessionSettings.NumMaxConnections - SessionMembers.Num(); }
+	virtual const FSessionInfo& GetSessionInfo() const override				{ return SessionInfo; }
 	virtual const FSessionSettings GetSessionSettings() const override		{ return SessionSettings; }
+	virtual const FSessionMembersMap& GetSessionMembers() const override	{ return SessionMembers; }
+
+	virtual bool IsJoinable() const override								{ return GetNumOpenConnections() > 0 && SessionSettings.bAllowNewMembers; }
 
 	virtual FString ToLogString() const override							{ return FString(); } // TODO: Implement after completing refactor
 
 public:
+	/** Session information that will remain constant throughout the session's lifetime */
+	FSessionInfo SessionInfo;
+	
+	/** The following members can be updated, and such update will be transmitted via a FSessionUpdated event */
+
 	/** The user who currently owns the session */
 	FAccountId OwnerAccountId;
 
-	/** The id for the session, platform dependent */
-	FOnlineSessionId SessionId;
-
 	/** Set of session properties that can be altered by the session owner */
 	FSessionSettings SessionSettings;
+
+	/* Map of session member ids to their corresponding user-defined properties */
+	FSessionMembersMap SessionMembers;
+
+	FSessionCommon& operator+=(const FSessionUpdate& SessionUpdate);
 };
 
 struct FGetMutableSessionByName
@@ -202,6 +214,7 @@ public:
 	virtual TOnlineResult<FGetSessionByName> GetSessionByName(FGetSessionByName::Params&& Params) const override;
 	virtual TOnlineResult<FGetSessionById> GetSessionById(FGetSessionById::Params&& Params) const override;
 	virtual TOnlineResult<FGetPresenceSession> GetPresenceSession(FGetPresenceSession::Params&& Params) const override;
+	virtual TOnlineResult<FIsPresenceSession> IsPresenceSession(FIsPresenceSession::Params&& Params) const override;
 	virtual TOnlineResult<FSetPresenceSession> SetPresenceSession(FSetPresenceSession::Params&& Params) override;
 	virtual TOnlineResult<FClearPresenceSession> ClearPresenceSession(FClearPresenceSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
@@ -232,7 +245,7 @@ protected:
 	void AddSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
 
 	void ClearSessionInvitesForSession(const FAccountId& LocalAccountId, const FOnlineSessionId SessionId);
-	void ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId, bool bIsPresenceSession);
+	void ClearSessionReferences(const FOnlineSessionId SessionId, const FName& SessionName, const FAccountId& LocalAccountId);
 
 	TOnlineResult<FAddSessionMember> AddSessionMemberImpl(const FAddSessionMember::Params& Params);
 	TOnlineResult<FRemoveSessionMember> RemoveSessionMemberImpl(const FRemoveSessionMember::Params& Params);
