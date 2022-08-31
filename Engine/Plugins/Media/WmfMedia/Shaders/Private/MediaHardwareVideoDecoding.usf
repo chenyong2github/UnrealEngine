@@ -33,6 +33,7 @@ Texture2D TextureY;
 Texture2D TextureUV;
 SamplerState PointClampedSamplerY;
 SamplerState BilinearClampedSamplerUV;
+SamplerState BilinearClampedSamplerUVAlpha;
 float4x4 ColorTransform;
 uint SrgbToLinear;
 
@@ -100,7 +101,7 @@ void YCoCgAlphaConvertPS(in noperspective float2 InUV : TEXCOORD0
 		  , out float4 OutColor : SV_Target0)
 {
 	float4 CoCgSY = TextureY.Sample(BilinearClampedSamplerUV, InUV);
-	float Alpha = TextureUV.Sample(BilinearClampedSamplerUV, InUV).x;
+	float Alpha = TextureUV.Sample(BilinearClampedSamplerUVAlpha, InUV).x;
 
 	CoCgSY += kYCoCgOffsets;
 	

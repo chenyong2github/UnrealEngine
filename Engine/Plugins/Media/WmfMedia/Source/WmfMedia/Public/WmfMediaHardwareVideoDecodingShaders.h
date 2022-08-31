@@ -37,6 +37,7 @@ public:
 
 		PointClampedSamplerY.Bind(Initializer.ParameterMap, TEXT("PointClampedSamplerY"));
 		BilinearClampedSamplerUV.Bind(Initializer.ParameterMap, TEXT("BilinearClampedSamplerUV"));
+		BilinearClampedSamplerUVAlpha.Bind(Initializer.ParameterMap, TEXT("BilinearClampedSamplerUVAlpha"));
 
 		ColorTransform.Bind(Initializer.ParameterMap, TEXT("ColorTransform"));
 		SrgbToLinear.Bind(Initializer.ParameterMap, TEXT("SrgbToLinear"));
@@ -57,6 +58,7 @@ public:
 
 		SetSamplerParameter(RHICmdList, ShaderRHI, PointClampedSamplerY, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		SetSamplerParameter(RHICmdList, ShaderRHI, BilinearClampedSamplerUV, InFilterUV ? TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI() : TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+		SetSamplerParameter(RHICmdList, ShaderRHI, BilinearClampedSamplerUVAlpha, InFilterUV ? TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI() : TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 		SetShaderValue(RHICmdList, ShaderRHI, ColorTransform, (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(MediaShaders::YuvToRgbRec709Scaled, MediaShaders::YUVOffset8bits));
 		SetShaderValue(RHICmdList, ShaderRHI, SrgbToLinear, InIsOutputSrgb ? 1 : 0); // Explicitly specify integer value, as using boolean falls over on XboxOne.
@@ -85,6 +87,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, TextureUV);
 	LAYOUT_FIELD(FShaderResourceParameter, PointClampedSamplerY);
 	LAYOUT_FIELD(FShaderResourceParameter, BilinearClampedSamplerUV);
+	LAYOUT_FIELD(FShaderResourceParameter, BilinearClampedSamplerUVAlpha);
 	LAYOUT_FIELD(FShaderParameter, ColorTransform);
 	LAYOUT_FIELD(FShaderParameter, SrgbToLinear);
 };
