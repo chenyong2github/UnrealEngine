@@ -2982,8 +2982,12 @@ namespace AutomationScripts
 							Dictionary<string, string> IoStoreResponseFile = new Dictionary<string, string>();
 							foreach (var Entry in PakParams.UnrealPakResponseFile)
 							{
-								// Temporary solution to filter non cooked packages from I/O store container file(s)
-								if (SC.OnlyAllowPackagesFromStdCookPathInIoStore && !Entry.Key.ToLower().Contains("\\saved\\cooked\\"))
+								// Solution to filter non cooked packages from I/O store container file(s)
+								if (SC.OnlyAllowPackagesFromStdCookPathInIoStore &&
+									(!string.IsNullOrEmpty(Params.CookOutputDir) ?
+									!Entry.Key.StartsWith(Params.CookOutputDir, StringComparison.InvariantCultureIgnoreCase) :
+									// Temporarily leave the hardcoded path check since CookOutputDir can be empty in some cases 
+									!Entry.Key.ToLower().Contains("\\saved\\cooked\\")))
 								{
 									UnrealPakResponseFile.Add(Entry.Key, Entry.Value);
 									continue;
