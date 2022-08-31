@@ -40,6 +40,8 @@ public class ReplicationSystemTestTarget : TargetRules
 		// Network config
 		bWithPushModel = true;		
 		bUseIris = true;
+
+		GlobalDefinitions.Add("UE_TRACE_ENABLED=1");
 	}
 }
 

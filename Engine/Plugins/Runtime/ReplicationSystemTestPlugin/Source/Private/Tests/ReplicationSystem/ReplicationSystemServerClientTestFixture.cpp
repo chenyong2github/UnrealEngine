@@ -8,6 +8,7 @@
 #include "Iris/ReplicationSystem/ReplicationWriter.h"
 #include "Iris/ReplicationSystem/ReplicationReader.h"
 #include "Iris/PacketControl/PacketNotification.h"
+#include "Net/Core/Trace/NetTrace.h"
 
 namespace UE::Net
 {
@@ -61,7 +62,7 @@ void FDataStreamTestUtil::AddDataStreamDefinition(const TCHAR* StreamName, const
 }
 
 // FReplicationSystemTestNode implementation
-FReplicationSystemTestNode::FReplicationSystemTestNode(bool bIsServer)
+FReplicationSystemTestNode::FReplicationSystemTestNode(bool bIsServer, const TCHAR* Name)
 {
 	ReplicationBridge = NewObject<UReplicatedTestObjectBridge>();
 	CreatedObjects.Add(TStrongObjectPtr<UObject>(ReplicationBridge));
@@ -80,6 +81,13 @@ FReplicationSystemTestNode::FReplicationSystemTestNode(bool bIsServer)
 	}
 	LogIris.SetVerbosity(IrisLogVerbosity);
 	check(ReplicationBridge != nullptr);
+
+	UE_NET_TRACE_UPDATE_INSTANCE(GetNetTraceId(), bIsServer, Name);
+}
+
+uint32 FReplicationSystemTestNode::GetNetTraceId() const
+{ 
+	return ReplicationSystem ? ReplicationSystem->GetId() : ~0U;
 }
 
 UTestReplicatedIrisObject* FReplicationSystemTestNode::CreateObject(uint32 NumComponents, uint32 NumIrisComponents)
@@ -177,6 +185,9 @@ uint32 FReplicationSystemTestNode::AddConnection()
 	Connection.NetTokenDataStream = StaticCast<UNetTokenDataStream*>(Connection.DataStreamManager->GetStream("NetToken"));
 	Connection.DataStreamManager->CreateStream("Replication");
 	Connection.ReplicationDataStream = StaticCast<UReplicationDataStream*>(Connection.DataStreamManager->GetStream("Replication"));
+
+	UE_NET_TRACE_CONNECTION_CREATED(GetNetTraceId(), Connection.ConnectionId);
+	UE_NET_TRACE_CONNECTION_STATE_UPDATED(GetNetTraceId(), Connection.ConnectionId, static_cast<uint8>(3));
 	
 	// Add a connection
 	ReplicationSystem->AddConnection(Connection.ConnectionId);
@@ -213,6 +224,8 @@ bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
 
 	FNetSerializationContext Context(&Writer);
 
+	Context.SetNetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
+
 	FConnectionInfo& Connection = GetConnectionInfo(ConnectionId);
 
 	const FDataStreamRecord* Record = nullptr;
@@ -222,12 +235,17 @@ bool FReplicationSystemTestNode::SendUpdate(uint32 ConnectionId)
 	{
 		Writer.CommitWrites();
 		Packet.BitCount = Writer.GetPosBits();
+		Packet.PacketId = PacketId++;
 
 		Connection.WriteRecords.Enqueue(Record);
 		Connection.WrittenPackets.Enqueue(Packet);
 	}
 
 	Connection.DataStreamManager->EndWrite();
+
+	UE_NET_TRACE_FLUSH_COLLECTOR(Context.GetTraceCollector(), GetNetTraceId(), Connection.ConnectionId, ENetTracePacketType::Outgoing);
+	UE_NET_TRACE_DESTROY_COLLECTOR(Context.GetTraceCollector());
+	UE_NET_TRACE_PACKET_SEND(GetNetTraceId(), Connection.ConnectionId, Packet.PacketId, Packet.BitCount);
 
 	return bResult;
 }
@@ -240,16 +258,26 @@ void FReplicationSystemTestNode::PostSendUpdate()
 void FReplicationSystemTestNode::DeliverTo(FReplicationSystemTestNode& Dest, uint32 LocalConnectionId, uint32 RemoteConnectionId, bool bDeliver)
 {
 	FConnectionInfo& Connection = GetConnectionInfo(LocalConnectionId);
+	const FPacketData& Packet = Connection.WrittenPackets.Peek();
 
 	if (bDeliver)
 	{
-		const FPacketData& Packet = Connection.WrittenPackets.Peek();
-
 		FNetBitStreamReader Reader;
 		Reader.InitBits(Packet.PacketBuffer, Packet.BitCount);
 		FNetSerializationContext Context(&Reader);
 
+		Context.SetNetTraceCollector(UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
+
 		Dest.RecvUpdate(RemoteConnectionId, Context);
+
+		UE_NET_TRACE_FLUSH_COLLECTOR(Context.GetTraceCollector(), Dest.GetNetTraceId(), RemoteConnectionId, ENetTracePacketType::Incoming);
+		UE_NET_TRACE_DESTROY_COLLECTOR(Context.GetTraceCollector());
+		UE_NET_TRACE_PACKET_RECV(Dest.GetNetTraceId(), RemoteConnectionId, Packet.PacketId, Packet.BitCount);
+	}
+	else
+	{
+		UE_NET_TRACE_PACKET_DROPPED(Dest.GetNetTraceId(), RemoteConnectionId, Packet.PacketId, ENetTracePacketType::Incoming);
+		UE_NET_TRACE_PACKET_DROPPED(GetNetTraceId(), RemoteConnectionId, Packet.PacketId, ENetTracePacketType::Outgoing);
 	}
 
 	// If this triggers an assert, ensure that SendTo() actually wrote any packets before.
@@ -270,20 +298,24 @@ void FReplicationSystemTestNode::RecvUpdate(uint32 ConnectionId, FNetSerializati
 
 FReplicationSystemTestNode::~FReplicationSystemTestNode()
 {
+	const uint32 NetTraceId = ReplicationSystem->GetId();
 	FReplicationSystemFactory::DestroyReplicationSystem(ReplicationSystem);
 	CreatedObjects.Empty();
+
+	// End NetTrace session for this instance
+	UE_NET_TRACE_END_SESSION(NetTraceId);
 }
 
 // FReplicationSystemTestClient implementation
-FReplicationSystemTestClient::FReplicationSystemTestClient(uint32 ReplicationSystemId)
-: FReplicationSystemTestNode(false)
+FReplicationSystemTestClient::FReplicationSystemTestClient(uint32 ReplicationSystemId, const TCHAR* Name)
+: FReplicationSystemTestNode(false, Name)
 , ConnectionIdOnServer(~0U)
 {
 }
 
 // FReplicationSystemTestServer implementation
-FReplicationSystemTestServer::FReplicationSystemTestServer()
-: FReplicationSystemTestNode(true)
+FReplicationSystemTestServer::FReplicationSystemTestServer(const TCHAR* Name)
+: FReplicationSystemTestNode(true, Name)
 {
 }
 
@@ -323,12 +355,12 @@ void FReplicationSystemServerClientTestFixture::SetUp()
 	DataStreamUtil.AddDataStreamDefinition(TEXT("Replication"), TEXT("/Script/IrisCore.ReplicationDataStream"));
 	DataStreamUtil.FixupDefinitions();
 
-	Server = new FReplicationSystemTestServer;
+	Server = new FReplicationSystemTestServer(GetName());
 }
 
 FReplicationSystemTestClient* FReplicationSystemServerClientTestFixture::CreateClient()
 {
-	FReplicationSystemTestClient* Client = new FReplicationSystemTestClient(Clients.Num() + 1U);
+	FReplicationSystemTestClient* Client = new FReplicationSystemTestClient(Clients.Num() + 1U, GetName());
 	Clients.Add(Client);
 
 	// The client needs a connection

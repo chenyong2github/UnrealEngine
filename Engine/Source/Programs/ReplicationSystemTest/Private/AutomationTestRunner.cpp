@@ -13,7 +13,7 @@ FAutomationTestRunner::FAutomationTestRunner()
 }
 
 void
-FAutomationTestRunner::RunTests()
+FAutomationTestRunner::RunTests(const TCHAR* TestFilter)
 {
 	constexpr int32 ExpectedTestCount = 2048;
 
@@ -39,6 +39,11 @@ FAutomationTestRunner::RunTests()
 		const FString& TestCommand = TestInfo.GetTestName();
 		if (!TestCommand.StartsWith(TestPrefix) && !TestInfo.GetDisplayName().StartsWith(TestPrefix))
 			continue;
+
+		if (TestFilter && !TestCommand.Contains(TestFilter))
+		{
+			continue;
+		}
 
 		constexpr int32 RoleIndex = 0;
 		TestFramework.StartTestByName(TestCommand, RoleIndex);

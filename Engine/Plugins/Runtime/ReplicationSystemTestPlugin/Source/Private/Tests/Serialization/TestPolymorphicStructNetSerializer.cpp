@@ -363,7 +363,7 @@ void FTestPolymorphicArrayStructNetSerializerFixture::ValidateExpectedState(cons
 	UE_NET_ASSERT_EQ(StructA->SomeInt, AInstance->SomeInt);
 	UE_NET_ASSERT_EQ(StructB->SomeFloat, BInstance->SomeFloat);
 	UE_NET_ASSERT_EQ(StructC->SomeBool, CInstance->SomeBool);
-	UE_NET_ASSERT_EQ(StructC->SomeObjectRef, CInstance->SomeObjectRef);
+	UE_NET_ASSERT_EQ(ToRawPtr(StructC->SomeObjectRef), ToRawPtr(CInstance->SomeObjectRef));
 	UE_NET_ASSERT_EQ(StructD->SomeValue, DInstance->SomeValue);
 }
 

@@ -5,5 +5,5 @@
 class FNullTestRunner
 {
 public:
-	void RunTests() {}
+	void RunTests(const TCHAR* Filter = nullptr) {}
 };

@@ -14,7 +14,7 @@ class FAutomationTestRunner
 public:
 	FAutomationTestRunner();
 	
-	void RunTests();
+	void RunTests(const TCHAR* TestFilter = nullptr);
 };
 
 }
