@@ -8,6 +8,8 @@
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "ActorDescContainer.generated.h"
 
+class FLinkerInstancingContext;
+
 UCLASS()
 class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 {
@@ -54,6 +56,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActorDescContainerInitializeDelegate, UActorDescContainer*);
 	static FActorDescContainerInitializeDelegate OnActorDescContainerInitialized;
+
+	const FLinkerInstancingContext* GetInstancingContext() const;
+	const FTransform& GetInstanceTransform() const;
 #endif
 
 	UPROPERTY(Transient)

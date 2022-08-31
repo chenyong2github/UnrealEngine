@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "UObject/LinkerInstancingContext.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLog.h"
@@ -283,5 +284,27 @@ void UActorDescContainer::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc
 	{
 		WorldPartition->OnActorDescUpdated(ActorDesc);
 	}
+}
+
+const FLinkerInstancingContext* UActorDescContainer::GetInstancingContext() const
+{
+	const FLinkerInstancingContext* InstancingContext = nullptr;
+
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	{
+		WorldPartition->GetInstancingContext(InstancingContext);
+	}
+
+	return InstancingContext;
+}
+
+const FTransform& UActorDescContainer::GetInstanceTransform() const
+{
+	if (UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>())
+	{
+		return WorldPartition->GetInstanceTransform();
+	}
+
+	return FTransform::Identity;
 }
 #endif
