@@ -924,9 +924,9 @@ struct FD3D12TransitionData
 	ERHIPipeline SrcPipelines, DstPipelines;
 	ERHITransitionCreateFlags CreateFlags = ERHITransitionCreateFlags::None;
 
-	TArray<FRHITransitionInfo, TInlineAllocator<4>> TransitionInfos;
-	TArray<FRHITransientAliasingInfo, TInlineAllocator<4>> AliasingInfos;
-	TArray<FRHITransientAliasingOverlap, TInlineAllocator<4>> AliasingOverlaps;
+	TArray<FRHITransitionInfo, TInlineAllocator<4, FConcurrentLinearArrayAllocator>> TransitionInfos;
+	TArray<FRHITransientAliasingInfo, TInlineAllocator<4, FConcurrentLinearArrayAllocator>> AliasingInfos;
+	TArray<FRHITransientAliasingOverlap, TInlineAllocator<4, FConcurrentLinearArrayAllocator>> AliasingOverlaps;
 	TRefCountPtr<FD3D12Fence> Fence;
 
 	bool bCrossPipeline = false;

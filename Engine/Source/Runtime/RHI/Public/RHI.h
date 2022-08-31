@@ -2762,7 +2762,7 @@ inline void FRHITransition::Cleanup() const
 
 	// Explicit destruction of the transition.
 	Transition->~FRHITransition();
-	FMemory::Free(Transition);
+	FConcurrentLinearAllocator::Free(Transition);
 }
 
 #if ENABLE_RHI_VALIDATION
