@@ -23,11 +23,11 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/GCObjectScopeGuard.h"
 
-static bool GInterchangeEnableFBXImport = true;
+static bool GInterchangeEnableFBXImport = false;
 static FAutoConsoleVariableRef CCvarInterchangeEnableFBXImport(
 	TEXT("Interchange.FeatureFlags.Import.FBX"),
 	GInterchangeEnableFBXImport,
-	TEXT("Whether FBX support is enabled."),
+	TEXT("[Experimental] Whether FBX support is enabled."),
 	ECVF_Default);
 
 UInterchangeFbxTranslator::UInterchangeFbxTranslator()
