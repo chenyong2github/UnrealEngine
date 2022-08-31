@@ -1092,6 +1092,11 @@ FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream(const FVector Cen
 	return Stream.RandPointInBox(FBox(BoxMin, BoxMax));
 }
 
+FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream_Box(const FBox Box, const FRandomStream& Stream)
+{
+	return Stream.RandPointInBox(Box);
+}
+
 FRotator UKismetMathLibrary::RandomRotatorFromStream(bool bRoll, const FRandomStream& Stream)
 {
 	FRotator RRot;
@@ -1356,12 +1361,26 @@ bool UKismetMathLibrary::IsPointInBox(FVector Point, FVector BoxOrigin, FVector 
 	return Box.IsInsideOrOn(Point);
 }
 
+bool UKismetMathLibrary::IsPointInBox_Box(FVector Point, FBox Box)
+{
+	return Box.IsInsideOrOn(Point);
+}
+
 bool UKismetMathLibrary::IsPointInBoxWithTransform(FVector Point, const FTransform& BoxWorldTransform, FVector BoxExtent)
 {
 	// Put point in component space
 	const FVector PointInComponentSpace = BoxWorldTransform.InverseTransformPosition(Point);
 	// Now it's just a normal point-in-box test, with a box at the origin.
 	const FBox Box(-BoxExtent, BoxExtent);
+	return Box.IsInsideOrOn(PointInComponentSpace);
+}
+
+bool UKismetMathLibrary::IsPointInBoxWithTransform_Box(FVector Point, const FTransform& BoxWorldTransform, FBox Box)
+{
+	// Put point in component space
+	const FVector PointInComponentSpace = BoxWorldTransform.InverseTransformPosition(Point);
+	// Now it's just a normal point-in-box test, with a box at the origin.
+	Box = Box.MoveTo(PointInComponentSpace);
 	return Box.IsInsideOrOn(PointInComponentSpace);
 }
 

@@ -1812,6 +1812,12 @@ FVector UKismetMathLibrary::RandomPointInBoundingBox(const FVector Center, const
 	return FMath::RandPointInBox(FBox(BoxMin, BoxMax));
 }
 
+KISMET_MATH_INLINE
+FVector UKismetMathLibrary::RandomPointInBoundingBox_Box(const FBox Box)
+{
+	return FMath::RandPointInBox(Box);
+}
+
 KISMET_MATH_FORCEINLINE
 FVector UKismetMathLibrary::RandomUnitVectorInConeInRadians(FVector ConeDir, float ConeHalfAngleInRadians)
 {
@@ -1828,7 +1834,7 @@ FVector UKismetMathLibrary::GetReflectionVector(FVector Direction, FVector Surfa
 KISMET_MATH_FORCEINLINE
 FVector UKismetMathLibrary::MirrorVectorByNormal(FVector InVect, FVector InNormal)
 {
-	// Same as GetReflectionVector() above - though they are bound to different names so keeping both for now
+	// Same as GetReflectionVector() above - though they are bound to cdifferent names so keeping both for now
 	return FMath::GetReflectionVector(InVect, InNormal);
 }
 

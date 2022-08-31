@@ -1980,6 +1980,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "Math|Random", meta=(ScriptMethod = "RandomPointInBoxExtents", NotBlueprintThreadSafe))
 	static FVector RandomPointInBoundingBox(const FVector Center, const FVector HalfSize);
 
+	/** Returns a random point within the specified bounding box. */
+	UFUNCTION(BlueprintPure, Category = "Math|Random", meta=(DisplayName = "Random Point In Bounding Box (Box)", ScriptMethod = "RandomPointInBoxExtents", NotBlueprintThreadSafe))
+	static FVector RandomPointInBoundingBox_Box(const FBox Box);
+
 	/** 
 	 * Returns a random vector with length of 1, within the specified cone, with uniform random distribution.
 	 * @param ConeDir					The base "center" direction of the cone.
@@ -3999,6 +4003,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Random")
 	static FVector RandomPointInBoundingBoxFromStream(const FVector Center, const FVector HalfSize, const FRandomStream& Stream);
 
+	/** Returns a random point within the specified bounding box. */
+	UFUNCTION(BlueprintPure, Category="Math|Random", meta=(DisplayName="Random Point In Bounding Box From Stream (Box)"))
+	static FVector RandomPointInBoundingBoxFromStream_Box(const FBox Box, const FRandomStream& Stream);
+
 	/** Create a random rotation */
 	UFUNCTION(BlueprintPure, Category="Math|Random")
 	static FRotator RandomRotatorFromStream(bool bRoll, const FRandomStream& Stream);
@@ -4129,6 +4137,16 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static bool IsPointInBox(FVector Point, FVector BoxOrigin, FVector BoxExtent);
 
 	/**
+     * Determines whether the given point is in a box. Includes points on the box.
+     *
+     * @param Point			Point to test
+     * @param Box			Box to test against
+     * @return Whether the point is in the box.
+     */
+    UFUNCTION(BlueprintPure, Category = "Math|Geometry", meta=(DisplayName = "Is Point In Box (Box)"))
+    static bool IsPointInBox_Box(FVector Point, FBox Box);
+
+	/**
 	* Determines whether a given point is in a box with a given transform. Includes points on the box.
 	*
 	* @param Point				Point to test
@@ -4138,6 +4156,17 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	*/
 	UFUNCTION(BlueprintPure, Category = "Math|Geometry")
 	static bool IsPointInBoxWithTransform(FVector Point, const FTransform& BoxWorldTransform, FVector BoxExtent);
+
+	/**
+	* Determines whether a given point is in a box with a given transform. Includes points on the box.
+	*
+	* @param Point				Point to test
+	* @param BoxWorldTransform	Component-to-World transform of the box.
+	* @param Box				Box to test agains in component space.
+	* @return Whether the point is in the box.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Math|Geometry", meta=(DisplayName = "Is Point In Box With Transform (Box)"))
+	static bool IsPointInBoxWithTransform_Box(FVector Point, const FTransform& BoxWorldTransform, FBox BoxExtent);
 
 	/**
 	* Returns Slope Pitch and Roll angles in degrees based on the following information: 
