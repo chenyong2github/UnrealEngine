@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Curve/PolygonIntersectionUtils.h"
 
@@ -53,23 +53,26 @@ TBooleanPolygon2Polygon2<OperationType, GeometryType, RealType>::TBooleanPolygon
 }
 
 template <EPolygonBooleanOp OperationType, typename GeometryType, typename RealType>
-constexpr bool TBooleanPolygon2Polygon2<OperationType, GeometryType, RealType>::ComputeResult()
+bool TBooleanPolygon2Polygon2<OperationType, GeometryType, RealType>::ComputeResult()
 {
-	switch (OperationType)
+	if constexpr (OperationType == EPolygonBooleanOp::Union)
 	{
-	case EPolygonBooleanOp::Union:
 		return Private::Clip<RealType>(Clipper2Lib::ClipType::Union, PolygonA, PolygonB, Result);
-
-	case EPolygonBooleanOp::Difference:
+	}
+	else if constexpr (OperationType == EPolygonBooleanOp::Difference)
+	{
 		return Private::Clip<RealType>(Clipper2Lib::ClipType::Difference, PolygonA, PolygonB, Result);
-		
-	case EPolygonBooleanOp::Intersect:
+	}
+	else if constexpr (OperationType == EPolygonBooleanOp::Intersect)
+	{
 		return Private::Clip<RealType>(Clipper2Lib::ClipType::Intersection, PolygonA, PolygonB, Result);
-		
-	case EPolygonBooleanOp::ExclusiveOr:
+	}
+	else if constexpr (OperationType == EPolygonBooleanOp::ExclusiveOr)
+	{
 		return Private::Clip<RealType>(Clipper2Lib::ClipType::Xor, PolygonA, PolygonB, Result);
-
-	default:
+	}
+	else
+	{
 		return false;
 	}	
 }

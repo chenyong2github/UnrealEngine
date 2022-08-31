@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,7 +17,7 @@ namespace UE::Geometry
 
 	/** Produces the boolean'd result of PolygonA and PolygonB depending on the OperationType. Both polygons must be closed. */
 	template <EPolygonBooleanOp OperationType, typename GeometryType, typename RealType>
-	class TBooleanPolygon2Polygon2
+	class GEOMETRYALGORITHMS_API TBooleanPolygon2Polygon2
 	{
 	public:
 		// Input
@@ -31,7 +31,7 @@ namespace UE::Geometry
 			const GeometryType& InPolygonA,
 			const GeometryType& InPolygonB);
 
-		constexpr bool ComputeResult();
+		bool ComputeResult();
 	};
  
 	template <EPolygonBooleanOp OperationType>
