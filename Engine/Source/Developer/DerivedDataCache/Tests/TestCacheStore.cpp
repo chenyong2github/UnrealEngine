@@ -9,6 +9,7 @@
 #include "Containers/Map.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "Serialization/CompactBinary.h"
 #include "Templates/Function.h"
 
 namespace UE::DerivedData
