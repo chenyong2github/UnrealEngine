@@ -24,7 +24,6 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
-#include "WorldPartition/WorldPartitionConverter.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ITransaction.h"
@@ -1950,15 +1949,20 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 	// When editing a Level Instance, push a new empty actor editor context
 	UActorEditorContextSubsystem::Get()->PushContext();
 
+	ResetLoadersForWorldAsset(LevelInstance->GetWorldAsset().GetLongPackageName());
+
+	return true;
+}
+
+void ULevelInstanceSubsystem::ResetLoadersForWorldAsset(const FString& WorldAsset)
+{
 	for (const auto& [LevelInstanceID, LoadedLevelInstance] : LoadedLevelInstances)
 	{
-		if (LoadedLevelInstance.LevelStreaming && LoadedLevelInstance.LevelStreaming->PackageNameToLoad.ToString() == LevelInstance->GetWorldAsset().GetLongPackageName())
+		if (LoadedLevelInstance.LevelStreaming && LoadedLevelInstance.LevelStreaming->PackageNameToLoad.ToString() == WorldAsset)
 		{
 			LoadedLevelInstance.LevelStreaming->ResetLevelInstanceLoaders();
 		}
 	}
-
-	return true;
 }
 
 bool ULevelInstanceSubsystem::CommitLevelInstance(ILevelInstanceInterface* LevelInstance, bool bDiscardEdits, TSet<FName>* DirtyPackages)
@@ -1974,39 +1978,6 @@ bool ULevelInstanceSubsystem::CommitLevelInstance(ILevelInstanceInterface* Level
 	}
 
 	return false;
-}
-
-bool ULevelInstanceSubsystem::AddDataLayerSupport(ILevelInstanceInterface* LevelInstance)
-{
-	check(LevelInstance);
-	
-	bool bSuccess = false;
-	EditLevelInstance(LevelInstance);
-	
-	if (GetEditingLevelInstance())
-	{
-		UWorld* World = Cast<UWorld>(LevelInstance->GetWorldAsset().Get());
-		if (World && !World->IsPartitionedWorld())
-		{
-			FWorldPartitionConverter::FParameters Parameters;
-			Parameters.bConvertSubLevels = false;
-			Parameters.bEnableStreaming = false;
-			Parameters.bUseActorFolders = true;
-			if (FWorldPartitionConverter::Convert(World, Parameters))
-			{
-				UWorldPartition* WorldPartition = World->GetWorldPartition();
-				check(WorldPartition);
-				check(WorldPartition->CanBeUsedByLevelInstance());
-				check(World->PersistentLevel->IsUsingActorFolders());
-				bSuccess = true;
-			}
-		}
-
-		CommitLevelInstance(LevelInstance, !bSuccess);
-	}
-
-	UE_CLOG(!bSuccess, LogLevelInstance, Error, TEXT("Failed to convert level %s for Level Instance Data Layer support."), *LevelInstance->GetWorldAssetPackage());
-	return bSuccess;
 }
 
 bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bDiscardOnFailure, TSet<FName>* DirtyPackages)

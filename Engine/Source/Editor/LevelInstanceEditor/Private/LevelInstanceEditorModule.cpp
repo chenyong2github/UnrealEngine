@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "EditorModeManager.h"
 #include "EditorModeRegistry.h"
+#include "FileHelpers.h"
 #include "LevelInstanceEditorMode.h"
 #include "LevelInstanceEditorModeCommands.h"
 #include "LevelEditorMenuContext.h"
@@ -39,6 +40,7 @@
 #include "SNewLevelInstanceDialog.h"
 #include "MessageLogModule.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "WorldPartition/WorldPartitionConverter.h"
 
 IMPLEMENT_MODULE( FLevelInstanceEditorModule, LevelInstanceEditor );
 
@@ -152,32 +154,6 @@ namespace LevelInstanceMenuUtils
 		}
 	}
 
-	void CreateAddDataLayerSupportMenu(UToolMenu* Menu, AActor* ContextActor)
-	{
-		FText EntryDesc;
-		ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(ContextActor);
-		ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
-		if (!LevelInstance || 
-			!LevelInstanceSubsystem ||
-			!LevelInstance->IsWorldAssetValid() ||
-			!LevelInstance->CanEnterEdit(&EntryDesc) ||
-			!ULevelInstanceSubsystem::CanUsePackage(*LevelInstance->GetWorldAssetPackage()) ||
-			ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(*LevelInstance->GetWorldAssetPackage()))
-		{
-			return;
-		}
-
-		FToolUIAction LevelInstanceEditAction;
-		LevelInstanceEditAction.ExecuteAction.BindLambda([LevelInstanceSubsystem, LevelInstance, ContextActor](const FToolMenuContext&)
-		{
-			LevelInstanceSubsystem->AddDataLayerSupport(LevelInstance);
-		});
-
-		AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
-		EntryDesc = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstanceActor->GetActorLabel()), FText::FromString(LevelInstance->GetWorldAssetPackage()));
-		CreateLevelSection(Menu).AddMenuEntry(NAME_None, LOCTEXT("AddDataLayerSupport", "Add Data Layer Support"), EntryDesc, FSlateIcon(), LevelInstanceEditAction);
-	}
-		
 	void CreateCommitDiscardMenu(UToolMenu* Menu, AActor* ContextActor)
 	{
 		ILevelInstanceInterface* LevelInstanceEdit = nullptr;
@@ -596,6 +572,81 @@ namespace LevelInstanceMenuUtils
 			TAttribute<FSlateIcon>(),
 			UIAction);
 	}
+
+	void AddPartitionedStreamingSupportFromWorld(UWorld* WorldAsset)
+	{
+		bool bSuccess = false;
+
+		UWorld* World = GEditor->GetEditorWorldContext().World();
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			LevelInstanceSubsystem->ResetLoadersForWorldAsset(WorldAsset->GetPackage()->GetName());
+
+			FWorldPartitionConverter::FParameters Parameters;
+			Parameters.bConvertSubLevels = false;
+			Parameters.bEnableStreaming = false;
+			Parameters.bUseActorFolders = true;
+
+			if (FWorldPartitionConverter::Convert(WorldAsset, Parameters))
+			{
+				TArray<UPackage*> PackagesToSave = WorldAsset->PersistentLevel->GetLoadedExternalObjectPackages();
+				TSet<UPackage*> PackagesToSaveSet(PackagesToSave);
+
+				PackagesToSaveSet.Add(WorldAsset->GetPackage());
+
+				const bool bPromptUserToSave = false;
+				const bool bSaveMapPackages = true;
+				const bool bSaveContentPackages = true;
+				const bool bFastSave = false;
+				const bool bNotifyNoPackagesSaved = false;
+				const bool bCanBeDeclined = true;
+
+				if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr, [&PackagesToSaveSet](UPackage* PackageToSave) { return !PackagesToSaveSet.Contains(PackageToSave); }))
+				{
+					bSuccess = true;
+					for (UPackage* PackageToSave : PackagesToSave)
+					{
+						if (PackageToSave->IsDirty())
+						{
+							bSuccess = false;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (!bSuccess)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("AddPartitionedLevelInstanceStreamingSupportError", "An error occured when adding partitioned level instance streaming support, check logs for details.."));
+		}
+	}
+
+	void AddPartitionedStreamingSupportFromMenu(UToolMenu* Menu, UWorld* WorldAsset)
+	{
+		FName WorldAssetName = WorldAsset->GetPackage()->GetFName();
+		if (!ULevel::GetIsLevelPartitionedFromPackage(WorldAssetName) || !ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(WorldAssetName))
+		{
+			FToolMenuSection& Section = CreateLevelSection(Menu);
+			FToolUIAction UIAction;
+			UIAction.ExecuteAction.BindLambda([WorldAsset](const FToolMenuContext& MenuContext)
+			{
+				AddPartitionedStreamingSupportFromWorld(WorldAsset);
+			});
+			UIAction.CanExecuteAction.BindLambda([WorldAsset](const FToolMenuContext&)
+			{
+				return !WorldAsset->GetStreamingLevels().Num() && (WorldAsset->WorldType == EWorldType::Inactive);
+			});
+
+			Section.AddMenuEntry(
+				"AddPartitionedStreamingSupportFromMenu",
+				LOCTEXT("AddPartitionedStreamingSupportFromMenu", "Add Partitioned Streaming Support"),
+				TAttribute<FText>(),
+				TAttribute<FSlateIcon>(),
+				UIAction
+			);
+		}
+	}
 };
 
 void FLevelInstanceEditorModule::StartupModule()
@@ -742,7 +793,6 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 			if (ContextActor)
 			{
 				LevelInstanceMenuUtils::CreateEditMenu(ToolMenu, ContextActor);
-				LevelInstanceMenuUtils::CreateAddDataLayerSupportMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateCommitDiscardMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreatePackedBlueprintMenu(ToolMenu, ContextActor);
 				LevelInstanceMenuUtils::CreateSetCurrentMenu(ToolMenu, ContextActor);
@@ -786,6 +836,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 					if (UWorld* WorldAsset = Cast<UWorld>(AssetMenuContext->SelectedObjects[0].Get()))
 					{
 						LevelInstanceMenuUtils::CreateBlueprintFromMenu(ToolMenu, WorldAsset);
+						LevelInstanceMenuUtils::AddPartitionedStreamingSupportFromMenu(ToolMenu, WorldAsset);
 					}
 				}
 			}
