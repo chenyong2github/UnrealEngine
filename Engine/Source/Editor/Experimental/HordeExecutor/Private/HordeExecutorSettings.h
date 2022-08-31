@@ -4,9 +4,10 @@
 
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "HordeExecutorSettings"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
+
+#include "HordeExecutorSettings.generated.h"
 
 UCLASS(config = EditorSettings)
 class UHordeExecutorSettings : public UObject

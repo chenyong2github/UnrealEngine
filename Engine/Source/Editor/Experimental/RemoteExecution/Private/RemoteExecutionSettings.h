@@ -3,9 +3,10 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-#include "RemoteExecutionSettings"
 #include "UObject/Object.h"
 #include "UObject/UObjectGlobals.h"
+
+#include "RemoteExecutionSettings.generated.h"
 
 UCLASS(config = EditorSettings)
 class URemoteExecutionSettings : public UObject
