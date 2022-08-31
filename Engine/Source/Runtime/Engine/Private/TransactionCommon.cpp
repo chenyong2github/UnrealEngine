@@ -448,36 +448,54 @@ FSerializedTaggedData& FDiffableObjectDataWriter::FCachedTaggedDataEntry::SyncCa
 namespace DiffUtil
 {
 
-FDiffableObject GetDiffableObject(const UObject* Object, const EGetDiffableObjectMode Mode)
+FDiffableObject GetDiffableObject(const UObject* Object, const FGetDiffableObjectOptions& Options)
 {
 	FDiffableObject DiffableObject;
 	DiffableObject.SetObject(Object);
 
-	FDiffableObjectDataWriter DiffWriter(DiffableObject);
-	switch (Mode)
+	if (Options.bSerializeEvenIfPendingKill || !DiffableObject.ObjectInfo.bIsPendingKill)
 	{
-	case EGetDiffableObjectMode::SerializeObject:
-		const_cast<UObject*>(Object)->Serialize(DiffWriter);
-		break;
-	case EGetDiffableObjectMode::SerializeProperties:
-		const_cast<UObject*>(Object)->SerializeScriptProperties(DiffWriter);
-		break;
-	default:
-		checkf(false, TEXT("Unknown EGetDiffableObjectMode!"));
-		break;
+		FDiffableObjectDataWriter DiffWriter(DiffableObject, Options.PropertiesToSerialize);
+		switch (Options.ObjectSerializationMode)
+		{
+		case EGetDiffableObjectMode::SerializeObject:
+			const_cast<UObject*>(Object)->Serialize(DiffWriter);
+			break;
+		case EGetDiffableObjectMode::SerializeProperties:
+			const_cast<UObject*>(Object)->SerializeScriptProperties(DiffWriter);
+			break;
+		case EGetDiffableObjectMode::Custom:
+			check(Options.CustomSerializer);
+			Options.CustomSerializer(DiffWriter);
+			break;
+		default:
+			checkf(false, TEXT("Unknown EGetDiffableObjectMode!"));
+			break;
+		}
 	}
 
 	return DiffableObject;
 }
 
-FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const FGenerateObjectDiffOptions& DiffOptions)
+const FDiffableObject& FDiffableObjectArchetypeCache::GetArchetypeDiffableObject(const UObject* Archetype, const FGetDiffableObjectOptions& Options)
 {
-	FTransactionObjectDeltaChange DeltaChange;
-	GenerateObjectDiff(OldDiffableObject, NewDiffableObject, DeltaChange, DiffOptions);
-	return DeltaChange;
+	if (Archetype)
+	{
+		if (const FDiffableObject* ExistingDiffableObject = ArchetypeDiffableObjects.Find(Archetype))
+		{
+			return *ExistingDiffableObject;
+		}
+		else
+		{
+			return ArchetypeDiffableObjects.Add(Archetype, GetDiffableObject(Archetype, Options));
+		}
+	}
+
+	static const FDiffableObject EmptyDiffableObject;
+	return EmptyDiffableObject;
 }
 
-void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const FGenerateObjectDiffOptions& DiffOptions)
+void GenerateObjectDataDiff_Impl(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const FGenerateObjectDiffOptions& DiffOptions)
 {
 	auto IsTaggedDataBlockIdentical = [&OldDiffableObject, &NewDiffableObject, &OutDeltaChange](const FName TaggedDataKey, const FSerializedTaggedData& OldSerializedTaggedData, const FSerializedTaggedData& NewSerializedTaggedData) -> bool
 	{
@@ -510,14 +528,6 @@ void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffabl
 	{
 		return TaggedDataKey.GetComparisonIndex() == TaggedDataKey_UnknownData.GetComparisonIndex();
 	};
-
-	if (DiffOptions.bFullDiff)
-	{
-		OutDeltaChange.bHasNameChange |= OldDiffableObject.ObjectInfo.ObjectName != NewDiffableObject.ObjectInfo.ObjectName;
-		OutDeltaChange.bHasOuterChange |= OldDiffableObject.ObjectInfo.ObjectOuterPathName != NewDiffableObject.ObjectInfo.ObjectOuterPathName;
-		OutDeltaChange.bHasExternalPackageChange |= OldDiffableObject.ObjectInfo.ObjectExternalPackageName != NewDiffableObject.ObjectInfo.ObjectExternalPackageName;
-		OutDeltaChange.bHasPendingKillChange |= OldDiffableObject.ObjectInfo.bIsPendingKill != NewDiffableObject.ObjectInfo.bIsPendingKill;
-	}
 
 	for (const TPair<FName, FSerializedTaggedData>& NewNamePropertyPair : NewDiffableObject.SerializedTaggedData)
 	{
@@ -567,6 +577,44 @@ void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffabl
 				OutDeltaChange.ChangedProperties.AddUnique(OldNamePropertyPair.Key);
 			}
 		}
+	}
+}
+
+FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const FGenerateObjectDiffOptions& DiffOptions, FDiffableObjectArchetypeCache* ArchetypeCache)
+{
+	FTransactionObjectDeltaChange DeltaChange;
+	GenerateObjectDiff(OldDiffableObject, NewDiffableObject, DeltaChange, DiffOptions, ArchetypeCache);
+	return DeltaChange;
+}
+
+void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const FGenerateObjectDiffOptions& DiffOptions, FDiffableObjectArchetypeCache* ArchetypeCache)
+{
+	if (DiffOptions.bFullDiff)
+	{
+		OutDeltaChange.bHasNameChange |= OldDiffableObject.ObjectInfo.ObjectName != NewDiffableObject.ObjectInfo.ObjectName;
+		OutDeltaChange.bHasOuterChange |= OldDiffableObject.ObjectInfo.ObjectOuterPathName != NewDiffableObject.ObjectInfo.ObjectOuterPathName;
+		OutDeltaChange.bHasExternalPackageChange |= OldDiffableObject.ObjectInfo.ObjectExternalPackageName != NewDiffableObject.ObjectInfo.ObjectExternalPackageName;
+		OutDeltaChange.bHasPendingKillChange |= OldDiffableObject.ObjectInfo.bIsPendingKill != NewDiffableObject.ObjectInfo.bIsPendingKill;
+	}
+
+	if (DiffOptions.bDiffDataEvenIfPendingKill || OldDiffableObject.ObjectInfo.bIsPendingKill == NewDiffableObject.ObjectInfo.bIsPendingKill)
+	{
+		GenerateObjectDataDiff_Impl(OldDiffableObject, NewDiffableObject, OutDeltaChange, DiffOptions);
+	}
+	else
+	{
+		if (!NewDiffableObject.ObjectInfo.bIsPendingKill)
+		{
+			check(OldDiffableObject.ObjectInfo.bIsPendingKill);
+
+			FDiffableObjectArchetypeCache LocalArchetypeCache;
+			FDiffableObjectArchetypeCache& ArchetypeCacheRef = ArchetypeCache ? *ArchetypeCache : LocalArchetypeCache;
+
+			// The object has been restored to life, so use the archetype state when generating the data diff (as there likely isn't any data cached for the old object; see GetDiffableObject)
+			const FDiffableObject& DiffableArchetypeObject = ArchetypeCacheRef.GetArchetypeDiffableObject(NewDiffableObject.ObjectArchetype.Get(), DiffOptions.ArchetypeOptions);
+			GenerateObjectDataDiff_Impl(DiffableArchetypeObject, NewDiffableObject, OutDeltaChange, DiffOptions);
+		}
+		// else, the object has become pending kill, so there's nothing more to diff after calculating the object info change above (as there likely isn't any cached data for the new object; see GetDiffableObject)
 	}
 }
 

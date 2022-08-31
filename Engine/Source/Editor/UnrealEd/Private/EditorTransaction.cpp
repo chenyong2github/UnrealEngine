@@ -70,15 +70,32 @@ FTransaction::FObjectRecord::FObjectRecord(FTransaction* Owner, UObject* InObjec
 
 		if (!Array)
 		{
-			DiffableObject = MakeUnique<UE::Transaction::FDiffableObject>();
-			DiffableObject->SetObject(CurrentObject);
-			UE::Transaction::FDiffableObjectDataWriter Writer(*DiffableObject);
-			SerializeObject(Writer);
+			DiffableObject = MakeUnique<UE::Transaction::FDiffableObject>(GetDiffableObject());
 		}
 	}
 }
 
-void FTransaction::FObjectRecord::SerializeContents( FArchive& Ar, int32 InOper )
+UE::Transaction::FDiffableObject FTransaction::FObjectRecord::GetDiffableObject(TArrayView<const FProperty*> PropertiesToSerialize) const
+{
+	check(!Array);
+
+	if (UObject* CurrentObject = Object.Get())
+	{
+		UE::Transaction::DiffUtil::FGetDiffableObjectOptions ObjectOptions;
+		ObjectOptions.PropertiesToSerialize = PropertiesToSerialize;
+		ObjectOptions.ObjectSerializationMode = UE::Transaction::DiffUtil::EGetDiffableObjectMode::Custom;
+		ObjectOptions.CustomSerializer = [this](UE::Transaction::FDiffableObjectDataWriter& DiffWriter)
+		{
+			SerializeObject(DiffWriter);
+		};
+
+		return UE::Transaction::DiffUtil::GetDiffableObject(CurrentObject, ObjectOptions);
+	}
+
+	return UE::Transaction::FDiffableObject();
+}
+
+void FTransaction::FObjectRecord::SerializeContents( FArchive& Ar, int32 InOper ) const
 {
 	if( Array )
 	{
@@ -145,7 +162,7 @@ void FTransaction::FObjectRecord::SerializeContents( FArchive& Ar, int32 InOper 
 	}
 }
 
-void FTransaction::FObjectRecord::SerializeObject( FArchive& Ar )
+void FTransaction::FObjectRecord::SerializeObject( FArchive& Ar ) const
 {
 	check(!Array);
 
@@ -250,7 +267,7 @@ void FTransaction::FObjectRecord::Load(FTransaction* Owner)
 	}
 }
 
-void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITransactionObjectAnnotation>& OutFinalizedObjectAnnotation )
+void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache& ArchetypeCache, TSharedPtr<ITransactionObjectAnnotation>& OutFinalizedObjectAnnotation )
 {
 	OutFinalizedObjectAnnotation.Reset();
 
@@ -291,15 +308,10 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 				|| SerializedObject.ReferencedObjects != SerializedObjectFlip.ReferencedObjects;
 
 			// Serialize the object so we can diff it
-			UE::Transaction::FDiffableObject CurrentDiffableObject;
-			{
-				CurrentDiffableObject.SetObject(CurrentObject);
-				UE::Transaction::FDiffableObjectDataWriter Writer(CurrentDiffableObject);
-				SerializeObject(Writer);
-			}
+			const UE::Transaction::FDiffableObject CurrentDiffableObject = GetDiffableObject();
 			
 			// Diff against the object state when the transaction started
-			UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObject, CurrentDiffableObject, DeltaChange);
+			UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObject, CurrentDiffableObject, DeltaChange, UE::Transaction::DiffUtil::FGenerateObjectDiffOptions(), &ArchetypeCache);
 
 			// If we have a previous snapshot then we need to consider that part of the diff for the finalized object, as systems may 
 			// have been tracking delta-changes between snapshots and this finalization will need to account for those changes too
@@ -308,7 +320,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 				UE::Transaction::DiffUtil::FGenerateObjectDiffOptions DiffOptions;
 				DiffOptions.bFullDiff = false;
 
-				UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObjectSnapshot, CurrentDiffableObject, DeltaChange, DiffOptions);
+				UE::Transaction::DiffUtil::GenerateObjectDiff(*DiffableObjectSnapshot, CurrentDiffableObject, DeltaChange, DiffOptions, &ArchetypeCache);
 			}
 		}
 
@@ -320,7 +332,7 @@ void FTransaction::FObjectRecord::Finalize( FTransaction* Owner, TSharedPtr<ITra
 	}
 }
 
-void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<const FProperty*> Properties )
+void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache& ArchetypeCache, TArrayView<const FProperty*> Properties )
 {
 	if (Array)
 	{
@@ -363,14 +375,9 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 		}
 
 		// Serialize the object so we can diff it
-		UE::Transaction::FDiffableObject CurrentDiffableObject;
-		{
-			CurrentDiffableObject.SetObject(CurrentObject);
-			UE::Transaction::FDiffableObjectDataWriter Writer(CurrentDiffableObject, AllPropertiesSnapshot);
-			// although it would be preferable to use SerializeScriptProperties, this cause a false diff between the first snapshot and the base object
-			// since they were serialized with different algo and we don't record enough context to make the comparison appropriately
-			SerializeObject(Writer);
-		}
+		// Note: although it would be preferable to use SerializeScriptProperties, this cause a false diff between the first snapshot and the base object
+		// since they were serialized with different algo and we don't record enough context to make the comparison appropriately
+		UE::Transaction::FDiffableObject CurrentDiffableObject = GetDiffableObject(AllPropertiesSnapshot);
 
 		// Diff against the correct serialized data depending on whether we already had a snapshot
 		const UE::Transaction::FDiffableObject& InitialDiffableObject = DiffableObjectSnapshot ? *DiffableObjectSnapshot : *DiffableObject;
@@ -379,7 +386,7 @@ void FTransaction::FObjectRecord::Snapshot( FTransaction* Owner, TArrayView<cons
 			UE::Transaction::DiffUtil::FGenerateObjectDiffOptions DiffOptions;
 			DiffOptions.bFullDiff = false;
 
-			UE::Transaction::DiffUtil::GenerateObjectDiff(InitialDiffableObject, CurrentDiffableObject, SnapshotDeltaChange, DiffOptions);
+			UE::Transaction::DiffUtil::GenerateObjectDiff(InitialDiffableObject, CurrentDiffableObject, SnapshotDeltaChange, DiffOptions, &ArchetypeCache);
 		}
 
 		// Update the snapshot data for next time
@@ -666,12 +673,14 @@ void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const FProperty
 
 	if (const FObjectRecords* ObjectRecords = ObjectRecordsMap.Find(UE::Transaction::FPersistentObjectRef(InObject)))
 	{
+		UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache ArchetypeCache;
+
 		for (FObjectRecord* Record : ObjectRecords->Records)
 		{
 			checkSlow(Record->Object.Get() == InObject);
 			if (!Record->CustomChange)
 			{
-				Record->Snapshot(this, Properties);
+				Record->Snapshot(this, ArchetypeCache, Properties);
 			}
 		}
 	}
@@ -714,6 +723,8 @@ void FTransaction::Apply()
 	const int32 Start = Inc==1 ? 0             : Records.Num()-1;
 	const int32 End   = Inc==1 ? Records.Num() :              -1;
 
+	UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache ArchetypeCache;
+
 	// Init objects.
 	for( int32 i=Start; i!=End; i+=Inc )
 	{
@@ -725,7 +736,7 @@ void FTransaction::Apply()
 		if (!Record.bFinalized)
 		{
 			TSharedPtr<ITransactionObjectAnnotation> FinalizedObjectAnnotation;
-			Record.Finalize(this, FinalizedObjectAnnotation);
+			Record.Finalize(this, ArchetypeCache, FinalizedObjectAnnotation);
 		}
 
 		UObject* Object = Record.Object.Get();
@@ -800,13 +811,32 @@ void FTransaction::Apply()
 		{
 			const FObjectRecord::FSerializedObject& InitialSerializedObject = ChangedObjectRecord.SerializedObject;
 
+			// If this object changed from being dead to alive, then we need to compute a new delta change against its archetype
+			// This is so that anything listening for changes will get a full update for the object, as if it had been newly constructed with its current state
+			FTransactionObjectDeltaChange PrimaryDeltaChange;
+			if (DeltaChange.bHasPendingKillChange && IsValid(ChangedObject))
+			{
+				UE::Transaction::FDiffableObject FakeDiffableComponent;
+				FakeDiffableComponent.SetObject(ChangedObject);
+				static_cast<FTransactionObjectId&>(FakeDiffableComponent.ObjectInfo) = InitialSerializedObject.ObjectId;
+				FakeDiffableComponent.ObjectInfo.bIsPendingKill = true;
+
+				const UE::Transaction::FDiffableObject CurrentDiffableObject = ChangedObjectRecord.GetDiffableObject();
+
+				PrimaryDeltaChange = UE::Transaction::DiffUtil::GenerateObjectDiff(FakeDiffableComponent, CurrentDiffableObject, UE::Transaction::DiffUtil::FGenerateObjectDiffOptions(), &ArchetypeCache);
+			}
+			else
+			{
+				PrimaryDeltaChange = DeltaChange;
+			}
+
 			TMap<UObject*, FTransactionObjectChange> AdditionalObjectChanges;
 			if (ChangedObjectTransactionAnnotation)
 			{
 				ChangedObjectTransactionAnnotation->ComputeAdditionalObjectChanges(InitialSerializedObject.ObjectAnnotation.Get(), AdditionalObjectChanges);
 			}
 
-			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, ETransactionObjectChangeCreatedBy::TransactionRecord, FTransactionObjectChange{ InitialSerializedObject.ObjectId, DeltaChange }, ChangedObjectTransactionAnnotation));
+			ChangedObject->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, ETransactionObjectChangeCreatedBy::TransactionRecord, FTransactionObjectChange{ InitialSerializedObject.ObjectId, MoveTemp(PrimaryDeltaChange) }, ChangedObjectTransactionAnnotation));
 			for (const TTuple<UObject*, FTransactionObjectChange>& AdditionalObjectChangePair : AdditionalObjectChanges)
 			{
 				AdditionalObjectChangePair.Key->PostTransacted(FTransactionObjectEvent(Id, OperationId, ETransactionObjectEventType::UndoRedo, ETransactionObjectChangeCreatedBy::TransactionAnnotation, AdditionalObjectChangePair.Value, nullptr));
@@ -836,13 +866,15 @@ void FTransaction::Apply()
 
 void FTransaction::Finalize()
 {
+	UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache ArchetypeCache;
+
 	for (int32 i = 0; i < Records.Num(); ++i)
 	{
 		FObjectRecord& ObjectRecord = Records[i];
 
 		TSharedPtr<ITransactionObjectAnnotation> FinalizedObjectAnnotation;
 		TSharedPtr<ITransactionObjectAnnotation> SnapshotObjectAnnotation = ObjectRecord.ObjectAnnotationSnapshot;
-		ObjectRecord.Finalize(this, FinalizedObjectAnnotation);
+		ObjectRecord.Finalize(this, ArchetypeCache, FinalizedObjectAnnotation);
 
 		UObject* Object = ObjectRecord.Object.Get();
 		if (Object)

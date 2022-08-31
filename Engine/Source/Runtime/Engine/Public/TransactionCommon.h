@@ -252,11 +252,13 @@ public:
 	void SetObject(const UObject* InObject)
 	{
 		ObjectInfo.SetObject(InObject);
+		ObjectArchetype = FPersistentObjectRef(InObject->GetArchetype());
 	}
 
 	void Reset()
 	{
 		ObjectInfo.Reset();
+		ObjectArchetype = FPersistentObjectRef();
 		SerializedData.Reset();
 		SerializedTaggedData.Reset();
 	}
@@ -264,12 +266,16 @@ public:
 	void Swap(FDiffableObject& Other)
 	{
 		ObjectInfo.Swap(Other.ObjectInfo);
+		Exchange(ObjectArchetype, Other.ObjectArchetype);
 		Exchange(SerializedData, Other.SerializedData);
 		Exchange(SerializedTaggedData, Other.SerializedTaggedData);
 	}
 
 	/** Information about the object when it was serialized */
 	FSerializedObjectInfo ObjectInfo;
+
+	/** The archetype of the object when it was serialized */
+	FPersistentObjectRef ObjectArchetype;
 
 	/** The serialized data for the diffable object */
 	FSerializedObjectData SerializedData;
@@ -403,21 +409,78 @@ private:
 namespace DiffUtil
 {
 
-enum EGetDiffableObjectMode : uint8
+enum class EGetDiffableObjectMode : uint8
 {
+	/** Serialize the entire object state by calling its Serialize function */
 	SerializeObject,
+
+	/** Serialize the property state of the object by calling its SerializeScriptProperties function */
 	SerializeProperties,
+
+	/** Serialize the object via a custom serialize function */
+	Custom,
 };
-ENGINE_API FDiffableObject GetDiffableObject(const UObject* Object, const EGetDiffableObjectMode Mode = EGetDiffableObjectMode::SerializeObject);
+
+struct FGetDiffableObjectOptions
+{
+	/** How should we serialize the object for diffing? */
+	EGetDiffableObjectMode ObjectSerializationMode = EGetDiffableObjectMode::SerializeObject;
+
+	/** Custom serializer for the object (must be set when ObjectSerializationMode == Custom) */
+	TFunction<void(FDiffableObjectDataWriter&)> CustomSerializer;
+
+	/** Optional list of properties to serialize on the object, or an empty array to serialize all properties */
+	TArrayView<const FProperty*> PropertiesToSerialize;
+
+	/** Should we still serialize this object if it's considered pending kill? */
+	bool bSerializeEvenIfPendingKill = false;
+};
+
+/**
+ * Get an object snapshot that can be diffed later.
+ */
+ENGINE_API FDiffableObject GetDiffableObject(const UObject* Object, const FGetDiffableObjectOptions& Options = FGetDiffableObjectOptions());
 
 struct FGenerateObjectDiffOptions
 {
-	bool bFullDiff = true;
+	FGenerateObjectDiffOptions()
+	{
+		ArchetypeOptions.bSerializeEvenIfPendingKill = true;
+	}
+
+	/** Options used when getting the diffable state of archive objects */
+	FGetDiffableObjectOptions ArchetypeOptions;
+
+	/** Optional function used to skip comparing certain properties within the diffable data */
 	TFunction<bool(FName)> ShouldSkipProperty;
+
+	/** Should we perform a "full" diff? (compares object info, and considers any missing properties to have been changed) */
+	bool bFullDiff = true;
+
+	/**
+	 * Should we diff the object state even if it's considered pending kill?
+	 * When false:
+	 *   If the old object was pending kill and the new object isn't, then the diff will be performed against the archetype of the new object.
+	 *   If the old object wasn't pending kill and the new object is, then the data diff will be skipped and only the object info diffed.
+	 */
+	bool bDiffDataEvenIfPendingKill = false;
 };
 
-ENGINE_API FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const FGenerateObjectDiffOptions& DiffOptions = FGenerateObjectDiffOptions());
-ENGINE_API void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const FGenerateObjectDiffOptions& DiffOptions = FGenerateObjectDiffOptions());
+/** Optional cache for requests to get the diffable state for a given archetype object */
+class FDiffableObjectArchetypeCache
+{
+public:
+	const FDiffableObject& GetArchetypeDiffableObject(const UObject* Archetype, const FGetDiffableObjectOptions& Options);
+
+private:
+	TMap<const UObject*, FDiffableObject> ArchetypeDiffableObjects;
+};
+
+/**
+ * Generate a diff between the two object snapshots.
+ */
+ENGINE_API FTransactionObjectDeltaChange GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, const FGenerateObjectDiffOptions& DiffOptions = FGenerateObjectDiffOptions(), FDiffableObjectArchetypeCache* ArchetypeCache = nullptr);
+ENGINE_API void GenerateObjectDiff(const FDiffableObject& OldDiffableObject, const FDiffableObject& NewDiffableObject, FTransactionObjectDeltaChange& OutDeltaChange, const FGenerateObjectDiffOptions& DiffOptions = FGenerateObjectDiffOptions(), FDiffableObjectArchetypeCache* ArchetypeCache = nullptr);
 
 } // namespace DiffUtil
 

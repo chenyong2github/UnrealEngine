@@ -353,7 +353,7 @@ void AActor::DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& 
 
 FActorTransactionAnnotation::FDiffableComponentInfo::FDiffableComponentInfo(const UActorComponent* Component)
 	: ComponentSourceInfo(Component)
-	, DiffableComponent(UE::Transaction::DiffUtil::GetDiffableObject(Component, UE::Transaction::DiffUtil::SerializeProperties))
+	, DiffableComponent(UE::Transaction::DiffUtil::GetDiffableObject(Component, UE::Transaction::DiffUtil::FGetDiffableObjectOptions{ UE::Transaction::DiffUtil::EGetDiffableObjectMode::SerializeProperties }))
 {
 }
 
@@ -512,21 +512,12 @@ void FActorTransactionAnnotation::ComputeAdditionalObjectChanges(const ITransact
 
 	if (DiffableComponentPairs.Num() > 0)
 	{
-		auto FindOrAddAdditionalObjectChange = [&OutAdditionalObjectChanges](UActorComponent* CurrentComponent, const FTransactionObjectId& OldObjectId, FTransactionObjectDeltaChange&& ComponentDeltaChange)
-		{
-			if (FTransactionObjectChange* ExistingComponentChange = OutAdditionalObjectChanges.Find(CurrentComponent))
-			{
-				ExistingComponentChange->DeltaChange.Merge(ComponentDeltaChange);
-			}
-			else
-			{
-				OutAdditionalObjectChanges.Add(CurrentComponent, FTransactionObjectChange{ OldObjectId, MoveTemp(ComponentDeltaChange) });
-			}
-		};
-
-		auto ComputeAdditionalObjectChange = [&FindOrAddAdditionalObjectChange](const UE::Transaction::FDiffableObject& OldDiffableComponent, const UE::Transaction::FDiffableObject& NewDiffableComponent, UActorComponent* CurrentComponent, const bool bForcePendingKillChange = false)
+		UE::Transaction::DiffUtil::FDiffableObjectArchetypeCache ArchetypeCache;
+		
+		auto ComputeAdditionalObjectChange = [&OutAdditionalObjectChanges, &ArchetypeCache](const UE::Transaction::FDiffableObject& OldDiffableComponent, const UE::Transaction::FDiffableObject& NewDiffableComponent, UActorComponent* CurrentComponent)
 		{
 			UE::Transaction::DiffUtil::FGenerateObjectDiffOptions DiffOptions;
+			DiffOptions.ArchetypeOptions.ObjectSerializationMode = UE::Transaction::DiffUtil::EGetDiffableObjectMode::SerializeProperties;
 			{
 				TSet<const FProperty*> PropertiesToSkip;
 
@@ -545,24 +536,38 @@ void FActorTransactionAnnotation::ComputeAdditionalObjectChanges(const ITransact
 					}
 				}
 
+				// Always skip the construction information for managed components, as this is managed by the construction script
+				if (CurrentComponent->CreationMethod != EComponentCreationMethod::Instance)
+				{
+					static const FName NAME_CreationMethod = "CreationMethod";
+					static const FName NAME_UCSSerializationIndex = "UCSSerializationIndex";
+
+					PropertiesToSkip.Add(FindFProperty<FProperty>(UActorComponent::StaticClass(), NAME_CreationMethod));
+					PropertiesToSkip.Add(FindFProperty<FProperty>(UActorComponent::StaticClass(), NAME_UCSSerializationIndex));
+				}
+
 				DiffOptions.ShouldSkipProperty = [CurrentComponent, PropertiesToSkip = MoveTemp(PropertiesToSkip)](FName PropertyName) -> bool
 				{
 					if (const FProperty* Property = FindFProperty<FProperty>(CurrentComponent->GetClass(), PropertyName))
 					{
-						return !Property->HasAnyPropertyFlags(CPF_Edit | CPF_Interp)
-							|| Property->IsA<FMulticastDelegateProperty>()
+						return Property->IsA<FMulticastDelegateProperty>()
 							|| PropertiesToSkip.Contains(Property);
 					}
 					return false;
 				};
 			}
 
-			FTransactionObjectDeltaChange ComponentDeltaChange = UE::Transaction::DiffUtil::GenerateObjectDiff(OldDiffableComponent, NewDiffableComponent, DiffOptions);
-			ComponentDeltaChange.bHasPendingKillChange |= bForcePendingKillChange;
-
+			FTransactionObjectDeltaChange ComponentDeltaChange = UE::Transaction::DiffUtil::GenerateObjectDiff(OldDiffableComponent, NewDiffableComponent, DiffOptions, &ArchetypeCache);
 			if (ComponentDeltaChange.HasChanged())
 			{
-				FindOrAddAdditionalObjectChange(CurrentComponent, OldDiffableComponent.ObjectInfo, MoveTemp(ComponentDeltaChange));
+				if (FTransactionObjectChange* ExistingComponentChange = OutAdditionalObjectChanges.Find(CurrentComponent))
+				{
+					ExistingComponentChange->DeltaChange.Merge(ComponentDeltaChange);
+				}
+				else
+				{
+					OutAdditionalObjectChanges.Add(CurrentComponent, FTransactionObjectChange{ OldDiffableComponent.ObjectInfo, MoveTemp(ComponentDeltaChange) });
+				}
 			}
 		};
 
@@ -578,23 +583,22 @@ void FActorTransactionAnnotation::ComputeAdditionalObjectChanges(const ITransact
 			else if (DiffableComponentPair.OldDiffableComponent && !DiffableComponentPair.NewDiffableComponent)
 			{
 				// Component is deleted; just mark it as pending kill
-				FTransactionObjectDeltaChange ComponentDeltaChange;
-				ComponentDeltaChange.bHasPendingKillChange = true;
+				UE::Transaction::FDiffableObject FakeDiffableComponent;
+				FakeDiffableComponent.SetObject(DiffableComponentPair.CurrentComponent);
+				FakeDiffableComponent.ObjectInfo.bIsPendingKill = true;
 
-				FindOrAddAdditionalObjectChange(DiffableComponentPair.CurrentComponent, DiffableComponentPair.OldDiffableComponent->ObjectInfo, MoveTemp(ComponentDeltaChange));
+				ComputeAdditionalObjectChange(*DiffableComponentPair.OldDiffableComponent, FakeDiffableComponent, DiffableComponentPair.CurrentComponent);
 			}
 			else if (DiffableComponentPair.NewDiffableComponent)
 			{
 				check(!DiffableComponentPair.OldDiffableComponent);
 
 				// Component is newly added; diff against its archetype
-				if (const UObject* ArchetypeObject = DiffableComponentPair.CurrentComponent->GetArchetype(); ArchetypeObject && !DiffableComponentPair.CurrentComponent->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
-				{
-					UE::Transaction::FDiffableObject ArchetypeDiffableObject = UE::Transaction::DiffUtil::GetDiffableObject(ArchetypeObject, UE::Transaction::DiffUtil::SerializeProperties);
-					ArchetypeDiffableObject.SetObject(DiffableComponentPair.CurrentComponent); // Use the real component here, as the archetype info will never be valid for an instance
+				UE::Transaction::FDiffableObject FakeDiffableComponent;
+				FakeDiffableComponent.SetObject(DiffableComponentPair.CurrentComponent);
+				FakeDiffableComponent.ObjectInfo.bIsPendingKill = true;
 
-					ComputeAdditionalObjectChange(ArchetypeDiffableObject, *DiffableComponentPair.NewDiffableComponent, DiffableComponentPair.CurrentComponent, /*bForcePendingKillChange*/true);
-				}
+				ComputeAdditionalObjectChange(FakeDiffableComponent, *DiffableComponentPair.NewDiffableComponent, DiffableComponentPair.CurrentComponent);
 			}
 		}
 	}

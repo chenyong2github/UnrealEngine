@@ -160,7 +160,7 @@ void ResetObjectPropertiesToArchetypeValues(UObject* Object, const bool InInclud
 		}
 	};
 
-	if (const UObject* ObjectArchetype = Object->GetArchetype(); ObjectArchetype && !Object->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	if (const UObject* ObjectArchetype = Object->GetArchetype())
 	{
 		TArray<uint8> ArchetypeData;
 		FArchetypePropertyWriter(ObjectArchetype, ArchetypeData, InIncludeEditorOnlyData);

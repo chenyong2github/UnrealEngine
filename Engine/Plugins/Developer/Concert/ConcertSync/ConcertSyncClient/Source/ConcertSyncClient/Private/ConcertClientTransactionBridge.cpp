@@ -779,6 +779,12 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation = InTransactionEvent.GetAnnotation();
 	const bool bUseSerializedAnnotationData = !bIncludeAnnotationObjectChanges || !TransactionAnnotation || !TransactionAnnotation->SupportsAdditionalObjectChanges();
 
+	if (!InTransactionEvent.HasNonPropertyChanges() && ExportedProperties.Num() == 0)
+	{
+		// This object has no changes to send
+		return;
+	}
+
 	// Track which packages were changed
 	OngoingTransaction.CommonData.ModifiedPackages.AddUnique(ChangedPackage->GetFName());
 
@@ -800,7 +806,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	if (InTransactionEvent.GetEventType() == ETransactionObjectEventType::Snapshot)
 	{
 		// Merge the snapshot property changes into pending snapshot list
-		if (OnLocalTransactionSnapshotDelegate.IsBound() && (InTransactionEvent.HasPropertyChanges() || TransactionAnnotation.IsValid()))
+		if (OnLocalTransactionSnapshotDelegate.IsBound() && (ExportedProperties.Num() > 0 || TransactionAnnotation.IsValid()))
 		{
 			// Find or add an entry for this object
 			FConcertExportedObject* ObjectUpdatePtr = OngoingTransaction.SnapshotData.SnapshotObjectUpdates.FindByPredicate([&ObjectId](FConcertExportedObject& ObjectUpdate)
@@ -842,8 +848,6 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	}
 	else if (OnLocalTransactionFinalizedDelegate.IsBound())
 	{
-		
-
 		const bool bIsNewlyCreated = InTransactionEvent.HasPendingKillChange() && IsValid(InObject);
 
 		FConcertExportedObject& ObjectUpdate = OngoingTransaction.FinalizedData.FinalizedObjectUpdates.AddDefaulted_GetRef();
@@ -863,57 +867,24 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			TransactionAnnotation->Serialize(AnnotationWriter);
 		}
 
-		auto PopulateObjectUpdateData = [this, &OngoingTransaction, &ObjectUpdate, InObject](const bool bHasNonPropertyChanges, const TArray<const FProperty*>* ExportedPropertiesPtr)
+		if (InTransactionEvent.HasNonPropertyChanges(/*SerializationOnly*/true))
 		{
-			if (bHasNonPropertyChanges)
+			// The 'non-property changes' refers to custom data added by a deriver UObject before and/or after the standard serialized data. Since this is a custom
+			// data format, we don't know what changed, call the object to re-serialize this part, but still send the delta for the generic reflected properties (in RootPropertyNames).
+			ConcertSyncClientUtil::SerializeObject(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, &ExportedProperties, bIncludeEditorOnlyProperties, ObjectUpdate.ObjectData.SerializedData);
+
+			// Track which properties changed. Not used to apply the transaction on the receiving side, the object specific serialization function will be used for that, but
+			// to be able to display, in the transaction detail view, which 'properties' changed in the transaction as transaction data is otherwise opaque to UI.
+			for (const FProperty* ExportedProperty : ExportedProperties)
 			{
-				// The 'non-property changes' refers to custom data added by a deriver UObject before and/or after the standard serialized data. Since this is a custom
-				// data format, we don't know what changed, call the object to re-serialize this part, but still send the delta for the generic reflected properties (in RootPropertyNames).
-				ConcertSyncClientUtil::SerializeObject(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, ExportedPropertiesPtr, bIncludeEditorOnlyProperties, ObjectUpdate.ObjectData.SerializedData);
-
-				if (ExportedPropertiesPtr)
-				{
-					// Track which properties changed. Not used to apply the transaction on the receiving side, the object specific serialization function will be used for that, but
-					// to be able to display, in the transaction detail view, which 'properties' changed in the transaction as transaction data is otherwise opaque to UI.
-					for (const FProperty* ExportedProperty : *ExportedPropertiesPtr)
-					{
-						FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
-						PropertyData.PropertyName = ExportedProperty->GetFName();
-					}
-				}
-			}
-			else if (ExportedPropertiesPtr) // Its possible to optimize the transaction payload, only sending a 'delta' update.
-			{
-				// Only send properties that changed. The receiving side will 'patch' the object using the reflection system. The specific object serialization function will NOT be called.
-				ConcertSyncClientUtil::SerializeProperties(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, *ExportedPropertiesPtr, bIncludeEditorOnlyProperties, ObjectUpdate.PropertyDatas);
-			}
-		};
-
-		// If this object changed from being pending kill to not being pending kill then we'll send an update against the archetype state (rather than use 
-		// the current delta-update) and the receiving side will ensure that the target object matches the archetype state prior to applying the update
-		if (bIsNewlyCreated)
-		{
-			UObject* ObjectArchetype = InObject->GetArchetype();
-			if (ObjectArchetype && !InObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
-			{
-				UE::Transaction::FDiffableObject ArchetypeDiffableObject = UE::Transaction::DiffUtil::GetDiffableObject(ObjectArchetype);
-				ArchetypeDiffableObject.SetObject(InObject); // Use the real object here, as the archetype info will never be valid for an instance
-
-				const UE::Transaction::FDiffableObject CurrentDiffableObject = UE::Transaction::DiffUtil::GetDiffableObject(InObject);
-
-				const FTransactionObjectDeltaChange DeltaChangeFromArchetype = UE::Transaction::DiffUtil::GenerateObjectDiff(ArchetypeDiffableObject, CurrentDiffableObject);
-				const TArray<const FProperty*> ChangedPropertiesFromArchetype = ConcertSyncClientUtil::GetExportedProperties(InObject->GetClass(), DeltaChangeFromArchetype.ChangedProperties, bIncludeEditorOnlyProperties);
-
-				PopulateObjectUpdateData(DeltaChangeFromArchetype.bHasNonPropertyChanges, &ChangedPropertiesFromArchetype);
-			}
-			else
-			{
-				PopulateObjectUpdateData(/*bHasNonPropertyChanges*/true, nullptr);
+				FConcertSerializedPropertyData& PropertyData = ObjectUpdate.PropertyDatas.AddDefaulted_GetRef();
+				PropertyData.PropertyName = ExportedProperty->GetFName();
 			}
 		}
-		else
+		else // Its possible to optimize the transaction payload, only sending a 'delta' update.
 		{
-			PopulateObjectUpdateData(InTransactionEvent.HasNonPropertyChanges(/*SerializationOnly*/true), &ExportedProperties);
+			// Only send properties that changed. The receiving side will 'patch' the object using the reflection system. The specific object serialization function will NOT be called.
+			ConcertSyncClientUtil::SerializeProperties(&OngoingTransaction.FinalizedData.FinalizedLocalIdentifierTable, InObject, ExportedProperties, bIncludeEditorOnlyProperties, ObjectUpdate.PropertyDatas);
 		}
 	}
 }
