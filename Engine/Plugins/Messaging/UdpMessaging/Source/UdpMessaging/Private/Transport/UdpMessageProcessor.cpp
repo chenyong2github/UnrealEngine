@@ -556,15 +556,9 @@ bool FUdpMessageProcessor::ConsumeOneOutboundMessage(const FOutboundMessage& Out
 					  [FindNodeWithLog](const FGuid &Id) {return FindNodeWithLog(Id);},
 					  [this](const FGuid &Id) {return KnownNodes.Find(Id);} );
 
-	const bool bCanConsume = Algo::AllOf(Recipients, [](FNodeInfo *Node)
+	const bool bCanConsume = Algo::AllOf(Recipients, [this](FNodeInfo *Node)
 		{
-			const bool bWorkQueueIsNotFull = !Node->WorkQueue.IsFull();
-			if (!bWorkQueueIsNotFull)
-			{
-				UE_LOG(LogUdpMessaging, Warning,
-					   TEXT("Work queue for node %s is full. Send queue is congested. Will retry on next tick."), *Node->Endpoint.ToString());
-			}
-			return bWorkQueueIsNotFull;
+			return Node->CanCommitToWorkQueue(CurrentTime);
 		});
 
 	const bool bIsReliable = EnumHasAnyFlags(OutboundMessage.MessageFlags, EMessageFlags::Reliable);

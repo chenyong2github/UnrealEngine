@@ -151,6 +151,12 @@ class FUdpMessageProcessor
 		/** Holds of queue of MessageIds to send. They are processed in round-robin fashion. */
 		TUdpCircularQueue<int32> WorkQueue;
 
+		/** Last time we issued a warning about work queues. */
+		FDateTime LastWorkQueueFullMessage;
+
+		/** The number of seconds we have been in a send full state. */
+		double SecondsInFullQueueState = 0;
+
 		/** A map from sequence id to information about what was sent. The size of this map is the size of our sending window. */
 		TMap<uint64, FSentData> InflightSegments;
 
@@ -168,6 +174,33 @@ class FUdpMessageProcessor
 
 		/** Default constructor. */
 		FNodeInfo();
+
+		/**
+		 * Check the work queue buffer and note a warning if we are overcommitted.
+		 */
+		bool CanCommitToWorkQueue(const FDateTime& InCurrentTime)
+		{
+			const bool bWorkQueueFull = WorkQueue.IsFull();
+			if (bWorkQueueFull)
+			{
+				const double ReportingIntervalInSeconds = 1;
+				double Seconds = (InCurrentTime - LastWorkQueueFullMessage).GetTotalSeconds();
+				if (Seconds > ReportingIntervalInSeconds)
+				{
+					SecondsInFullQueueState += Seconds;
+					UE_LOG(LogUdpMessaging, Warning,
+						   TEXT("Work queue for node %s is full. Send queue has been congested for %s seconds."),
+						   *Endpoint.ToString(), SecondsInFullQueueState);
+					LastWorkQueueFullMessage = InCurrentTime;
+				}
+			}
+			else
+			{
+				LastWorkQueueFullMessage = InCurrentTime;
+				SecondsInFullQueueState = 0;
+			}
+			return !bWorkQueueFull;
+		}
 
 		/**
 		 * Remap a MessageId and SegmentId pair into a 64 bit number using Szudzik pairing calculation.
