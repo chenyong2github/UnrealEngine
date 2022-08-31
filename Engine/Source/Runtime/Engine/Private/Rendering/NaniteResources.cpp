@@ -685,9 +685,12 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	
 	ClampedMinLOD = FMath::Clamp(EffectiveMinLOD, FirstAvailableLOD, RenderData->LODResources.Num() - 1);
 
+	// Pre-allocate FallbackLODs. Dynamic resize is unsafe as the FFallbackLODInfo constructor queues up a rendering command with a reference to itself.
+	FallbackLODs.SetNumUninitialized(RenderData->LODResources.Num());
+
 	for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
 	{
-		FFallbackLODInfo* NewLODInfo = new (FallbackLODs) FFallbackLODInfo(Component, RenderData->LODVertexFactories, LODIndex, ClampedMinLOD);
+		FFallbackLODInfo* NewLODInfo = new (&FallbackLODs[LODIndex]) FFallbackLODInfo(Component, RenderData->LODVertexFactories, LODIndex, ClampedMinLOD);
 	}
 
 	if (BodySetup)
