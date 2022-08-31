@@ -3059,7 +3059,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		// Ensure the new mesh is not referencing non standalone materials
 		FMeshMergeHelpers::FixupNonStandaloneMaterialReferences(StaticMesh);
 
-		StaticMesh->Build(bSilent);
 
 		if (ImposterBounds.IsValid)
 		{
@@ -3069,8 +3068,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			StaticMesh->SetNegativeBoundsExtension((StaticMeshBox.Min - CombinedBox.Min));
 			StaticMesh->CalculateExtendedBounds();
 		}		
-
-		StaticMesh->PostEditChange();
 
 		if (InSettings.bCreateMergedMaterial && MergedMaterial)
 		{
@@ -3082,8 +3079,9 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				MaterialSlotName = *(MergedMaterial->GetName() + TEXT("_") + FString::FromInt(Counter++));
 			}
 			StaticMesh->GetStaticMaterials().Add(FStaticMaterial(MergedMaterial, MaterialSlotName));
-			StaticMesh->UpdateUVChannelData(false);
 		}
+
+		StaticMesh->PostEditChange();
 
 		OutAssetsToSync.Add(StaticMesh);
 		OutMergedActorLocation = MergedAssetPivot;
