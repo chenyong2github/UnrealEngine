@@ -210,7 +210,7 @@ TArray<AActor*> UEditorUtilityLibrary::GetSelectionSet()
 	return Result;
 }
 
-void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, float& SphereRadius)
+void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExtent, double& SphereRadius)
 {
 	bool bFirstItem = true;
 

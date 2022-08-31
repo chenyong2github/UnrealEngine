@@ -64,7 +64,7 @@ void UDEPRECATED_GlobalEditorUtilityBase::GetSelectionBounds(FVector& Origin, FV
 
 	Origin = Extents.Origin;
 	BoxExtent = Extents.BoxExtent;
-	SphereRadius = Extents.SphereRadius;
+	SphereRadius = (float)Extents.SphereRadius;
 }
 
 void UDEPRECATED_GlobalEditorUtilityBase::ForEachSelectedActor()

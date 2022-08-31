@@ -186,7 +186,7 @@ struct ECollectionShareType
 /** Controls how the collections manager will recurse when performing work against a given collection */
 struct ECollectionRecursionFlags
 {
-	typedef uint8 Flags;
+	typedef uint32 Flags;
 	enum Flag
 	{
 		/** Include the current collection when performing work */
