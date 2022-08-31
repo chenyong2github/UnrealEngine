@@ -277,7 +277,7 @@ namespace GLTF
 				const int32 NodeIndex = Value->AsNumber();
 				Scene.Nodes.Add(NodeIndex);
 
-				BuildParentIndices(-1, NodeIndex);
+				BuildParentIndices(INDEX_NONE, NodeIndex);
 			}
 		}
 
@@ -876,6 +876,7 @@ namespace GLTF
 
 		SetupNodesType();
 		ExtensionsHandler->SetupAssetExtensions(*JsonRoot);
+		BuildRootJoints();
 	}
 
 	template <typename SetupFunc>
@@ -942,6 +943,29 @@ namespace GLTF
 		for (const int32 ChildNodeIndex : Node.Children)
 		{
 			BuildParentIndices(CurrentNodeIndex, ChildNodeIndex);
+		}
+	}
+
+	int32 FFileReader::FindRootJointIndex(int32 CurrentIndex) const
+	{
+		if (!ensure(Asset->Nodes.IsValidIndex(CurrentIndex)))
+		{
+			return INDEX_NONE;
+		}
+		while (Asset->Nodes.IsValidIndex(Asset->Nodes[CurrentIndex].ParentIndex) && Asset->Nodes[Asset->Nodes[CurrentIndex].ParentIndex].Type == GLTF::FNode::EType::Joint)
+		{
+			CurrentIndex = Asset->Nodes[CurrentIndex].ParentIndex;
+		}
+		return CurrentIndex;
+	}
+	void FFileReader::BuildRootJoints() const
+	{
+		for (size_t Index = 0; Index < Asset->Nodes.Num(); Index++)
+		{
+			if (Asset->Nodes[Index].Type == GLTF::FNode::EType::Joint)
+			{
+				Asset->Nodes[Index].RootJointIndex = FindRootJointIndex(Index);
+			}
 		}
 	}
 

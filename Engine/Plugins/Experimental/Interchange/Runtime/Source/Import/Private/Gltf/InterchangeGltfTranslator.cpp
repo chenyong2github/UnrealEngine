@@ -19,8 +19,6 @@
 #include "InterchangeVariantSetNode.h"
 #include "Nodes/InterchangeSourceNode.h"
 
-#include "Nodes/InterchangeAnimationAPI.h"
-
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Texture/InterchangeImageWrapperTranslator.h"
 
@@ -972,10 +970,9 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 	// Animations
 	{
-		TArray<FString> JointsAlreadyUsedInAnAnimation;
 		for (int32 AnimationIndex = 0; AnimationIndex < GltfAsset.Animations.Num(); ++AnimationIndex)
 		{
-			HandleGltfAnimation(NodeContainer, AnimationIndex, JointsAlreadyUsedInAnAnimation);
+			HandleGltfAnimation(NodeContainer, AnimationIndex);
 		}
 	}
 
@@ -1093,25 +1090,47 @@ TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterch
 		});
 }
 
-void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex, TArray<FString>& JointsAlreadyUsedInAnAnimation /*Currently the system only supports 1 animation per skeleton*/) const
+void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContainer& NodeContainer, int32 AnimationIndex) const
 {
 	const GLTF::FAnimation& GltfAnimation = GltfAsset.Animations[AnimationIndex];
 
 	TMap< const GLTF::FNode*, TArray<int32> > NodeChannelsMap;
 
-	TMap<FString, TArray<int32>> JointNodeUidsToChannelsUsed;
+	TMap<int32, UInterchangeSkeletalAnimationTrackNode*> RootJointIndexToTrackNodeMap;
+	TMap<UInterchangeSkeletalAnimationTrackNode*, TMap<FString, TArray<int32>>> TrackNodeToJointUidWithChannelsUsedMap;
 
 	for (int32 ChannelIndex = 0; ChannelIndex < GltfAnimation.Channels.Num(); ++ChannelIndex)
 	{
 		const GLTF::FAnimation::FChannel& Channel = GltfAnimation.Channels[ChannelIndex];
 		const GLTF::FNode* AnimatedNode = &Channel.Target.Node;
 
-		if (AnimatedNode->Type == GLTF::FNode::EType::Joint)
+		if (AnimatedNode->Type == GLTF::FNode::EType::Joint && GltfAsset.Nodes.IsValidIndex(AnimatedNode->RootJointIndex))
 		{
 			const FString* JointNodeUid = NodeUidMap.Find(AnimatedNode);
-			if (ensure(JointNodeUid))
+			if (ensure(JointNodeUid) && GltfAsset.Nodes.IsValidIndex(AnimatedNode->RootJointIndex))
 			{
-				TArray<int32>& ChannelsUsed = JointNodeUidsToChannelsUsed.FindOrAdd(*JointNodeUid);
+				UInterchangeSkeletalAnimationTrackNode* TrackNode = nullptr;
+				if (RootJointIndexToTrackNodeMap.Contains(AnimatedNode->RootJointIndex))
+				{
+					TrackNode = RootJointIndexToTrackNodeMap[AnimatedNode->RootJointIndex];
+				}
+				else
+				{
+					TrackNode = NewObject< UInterchangeSkeletalAnimationTrackNode >(&NodeContainer);
+					FString TrackNodeUid = "\\SkeletalAnimation\\" + LexToString(AnimatedNode->RootJointIndex) + "_" + LexToString(AnimationIndex);
+					// AnimationIndex is already part of the GltfAnimation.Name (due to GenerateNames)
+					FString DisplayString = GltfAnimation.Name + "_" + LexToString(AnimatedNode->RootJointIndex);
+					TrackNode->InitializeNode(TrackNodeUid, DisplayString, EInterchangeNodeContainerType::TranslatedAsset);
+					const GLTF::FNode& RootJointNode = GltfAsset.Nodes[AnimatedNode->RootJointIndex];
+					const FString* SkeletonNodeUid = NodeUidMap.Find(&RootJointNode);
+					TrackNode->SetCustomSkeletonNodeUid(*SkeletonNodeUid);
+
+					NodeContainer.AddNode(TrackNode);
+
+					RootJointIndexToTrackNodeMap.Add(AnimatedNode->RootJointIndex, TrackNode);
+				}
+				TMap<FString, TArray<int32>>& JointUidWithChannelsUsedMap = TrackNodeToJointUidWithChannelsUsedMap.FindOrAdd(TrackNode);
+				TArray<int32>& ChannelsUsed = JointUidWithChannelsUsedMap.FindOrAdd(*JointNodeUid);
 				ChannelsUsed.Add(ChannelIndex);
 			}
 			
@@ -1124,40 +1143,37 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 
 	//setup rigged animations:
 	{
-		for (TTuple<FString,TArray<int32>>& JointNodeUidToChannelsUsed : JointNodeUidsToChannelsUsed)
+		for (const TTuple<UInterchangeSkeletalAnimationTrackNode*, TMap<FString, TArray<int32>>>& TrackNodeAndJointNodeChannels : TrackNodeToJointUidWithChannelsUsedMap)
 		{
-			if (JointsAlreadyUsedInAnAnimation.Contains(JointNodeUidToChannelsUsed.Key))
-			{
-				//this joint (part of skeleton) is already part of an animation
-				//due to the Interchange system only supporting a single animation per skeleton at the moment we skip the setup of this joint and animatino pair
-				continue;
-			}
-			
-			//@ AllAnimationStart = 0;
+			//@ StartTime = 0;
 			//from gltf documentation: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#animations
 			//Implementation Note
 			//	For example, if the earliest sampler input for an animation is t = 10, a client implementation must begin playback of that animation channel at t = 0 with output clamped to the first available output value.
-			double AnimationStart = 0.0;
-			double AnimationStop = 0.0;
+			double StartTime = 0.0;
+			double StopTime = 0.0;
 			double FrameRate = 30.0;
 			double SingleFrameDuration = 1.0 / FrameRate;
-			int32 KeyCount = 0;
-			bool CorruptSamplerFound = false;
+			int32 FrameNumber = 0;
+			bool bHasAnimationPayloadSet = false;
 
-			//check channel length:
+			for (const TTuple<FString, TArray<int32>>& JointNodeUidAndChannelsUsedPair : TrackNodeAndJointNodeChannels.Value)
 			{
-				for (int32 ChannelIndex : JointNodeUidToChannelsUsed.Value)
+				double PreviousStopTime = StopTime;
+				//check channel length and build payload
+				FString Payload = LexToString(AnimationIndex);
+				for (int32 ChannelIndex : JointNodeUidAndChannelsUsedPair.Value)
 				{
 					const GLTF::FAnimation::FChannel& Channel = GltfAnimation.Channels[ChannelIndex];
 					const GLTF::FAnimation::FSampler& Sampler = GltfAnimation.Samplers[Channel.Sampler];
 					TArray<float> Seconds;
-					Sampler.Input.GetFloatArray(Seconds);					
+					Sampler.Input.GetFloatArray(Seconds);
 
 					if (Sampler.Interpolation == GLTF::FAnimation::EInterpolation::CubicSpline)
 					{
 						if (Sampler.Input.Count != 3 * Sampler.Output.Count)
 						{
-							CorruptSamplerFound = true;
+							// if any of the channels are corrupt the joint will not receive any of the  animation data
+							Payload = "";
 							UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Sampler Corrupt. Input and Output not meeting expectations."));
 							break;
 						}
@@ -1166,57 +1182,56 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 					{
 						if (Sampler.Input.Count != Sampler.Output.Count)
 						{
-							CorruptSamplerFound = true;
+							// if any of the channels are corrupt the joint will not receive any of the  animation data
+							Payload = "";
 							UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Sampler Corrupt. Input and Output not meeting expectations."));
 							break;
 						}
 					}
 
-					float CurrentAnimationStop = 0;
-					int CurrentKeyCount = 0;
+					float CurrentStopTime = 0;
+					int32 CurrentFrameNumber = 0;
 
 					if (Seconds.Num() > 0)
 					{
-						//calculate keycount and currentAnimationStop:
-						CurrentAnimationStop = Seconds[Seconds.Num()-1];
+						//calculate FrameNumber and currentStopTime:
+						CurrentStopTime = Seconds[Seconds.Num() - 1];
 
-						float CurrentKeyCountCandidate = CurrentAnimationStop / SingleFrameDuration;
-						CurrentKeyCount = int(CurrentKeyCountCandidate);
-						if (int(CurrentKeyCountCandidate) < CurrentKeyCountCandidate)
+						float CurrentFrameNumberCandidate = CurrentStopTime / SingleFrameDuration;
+						CurrentFrameNumber = int(CurrentFrameNumberCandidate);
+						if (int(CurrentFrameNumberCandidate) < CurrentFrameNumberCandidate)
 						{
-							CurrentKeyCount++;
+							CurrentFrameNumber++;
 						}
-						CurrentAnimationStop = CurrentKeyCount * SingleFrameDuration;
+						CurrentStopTime = CurrentFrameNumber * SingleFrameDuration;
 					}
-					
-					if (KeyCount < CurrentKeyCount)
+
+					if (FrameNumber < CurrentFrameNumber)
 					{
-						KeyCount = CurrentKeyCount;
-						AnimationStop = KeyCount * SingleFrameDuration;
+						FrameNumber = CurrentFrameNumber;
+						StopTime = FrameNumber * SingleFrameDuration;
 					}
-				}
-			}
-
-			if (CorruptSamplerFound)
-			{
-				break;
-			}
-
-			if (UInterchangeSceneNode* AnimatedInterchangeSceneNode = const_cast<UInterchangeSceneNode*>(Cast< UInterchangeSceneNode >(NodeContainer.GetNode(*JointNodeUidToChannelsUsed.Key))))
-			{
-				//add the joint to the of already set up joints to track it for handling single animation only.
-				JointsAlreadyUsedInAnAnimation.Add(JointNodeUidToChannelsUsed.Key);
-
-				FString Payload = LexToString(AnimationIndex);
-				for (int32 ChannelIndex : JointNodeUidToChannelsUsed.Value)
-				{
 					Payload += ":" + LexToString(ChannelIndex);
 				}
 
-				UInterchangeAnimationAPI::SetCustomNodeTransformPayloadKey(AnimatedInterchangeSceneNode, Payload);
-				UInterchangeAnimationAPI::SetCustomIsNodeTransformAnimated(AnimatedInterchangeSceneNode, true);
-				UInterchangeAnimationAPI::SetCustomNodeTransformAnimationStartTime(AnimatedInterchangeSceneNode, AnimationStart);
-				UInterchangeAnimationAPI::SetCustomNodeTransformAnimationEndTime(AnimatedInterchangeSceneNode, AnimationStop);
+				//set payload:
+				if (Payload.Len() > 0)
+				{
+					TrackNodeAndJointNodeChannels.Key->SetAnimationPayloadKeyForSceneNodeUid(JointNodeUidAndChannelsUsedPair.Key, Payload);
+					bHasAnimationPayloadSet = true;
+				}
+				else
+				{
+					StopTime = PreviousStopTime;
+				}
+			}
+
+			//set animation length:
+			if (bHasAnimationPayloadSet)
+			{
+				TrackNodeAndJointNodeChannels.Key->SetCustomAnimationSampleRate(FrameRate);
+				TrackNodeAndJointNodeChannels.Key->SetCustomAnimationStartTime(StartTime);
+				TrackNodeAndJointNodeChannels.Key->SetCustomAnimationStopTime(StopTime);
 			}
 		}
 	}
@@ -1568,23 +1583,9 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshMorphTargetPayloadData>> UInterc
 	return Promise->GetFuture();
 }
 
-int32 UInterchangeGltfTranslator::FindRootJointNodeIndex(int32 CurrentIndex) const
-{
-	if (GltfAsset.Nodes[CurrentIndex].Type != GLTF::FNode::EType::Joint)
-	{
-		return CurrentIndex;
-	}
-
-	while (GltfAsset.Nodes.IsValidIndex(GltfAsset.Nodes[CurrentIndex].ParentIndex) && GltfAsset.Nodes[GltfAsset.Nodes[CurrentIndex].ParentIndex].Type == GLTF::FNode::EType::Joint)
-	{
-		CurrentIndex = GltfAsset.Nodes[CurrentIndex].ParentIndex;
-	}
-	return CurrentIndex;
-}
-
 void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContainer& NodeContainer, const FString& SceneNodeUid, const TArray<int32>& SkinnedMeshNodes) const
 {
-	//if skeletons present set them as a root joint for the join hierarchy as per documentation:
+	//If there are skeletons, set them as a root joint for the joint hierarchy as per documentation:
 	//The skeleton property (if present) points to the node that is the common root of a joints hierarchy or to a direct or indirect parent node of the common root.
 	for (const GLTF::FSkinInfo& Skin : GltfAsset.Skins)
 	{
@@ -1610,7 +1611,18 @@ void UInterchangeGltfTranslator::HandleGltfSkeletons(UInterchangeBaseNodeContain
 		TMap<int32, TArray<int32>>& RootJointGroupedSkinnedMeshNodes = MeshIndexToRootJointGroupedSkinnedMeshNodesMap.FindOrAdd(SkinnedMeshNode.MeshIndex);
 
 		//get the SkinnedMeshNode's skin's first joint as the starting ground and find the top most root joint for it:
-		int32 RootJointIndex = FindRootJointNodeIndex(GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints[0]);
+		if (!GltfAsset.Skins.IsValidIndex(SkinnedMeshNode.Skindex)
+			|| !GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints.IsValidIndex(0)
+			|| !GltfAsset.Nodes.IsValidIndex(GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints[0]))
+		{
+			continue;
+		}
+		
+		int32 RootJointIndex = GltfAsset.Nodes[GltfAsset.Skins[SkinnedMeshNode.Skindex].Joints[0]].RootJointIndex;
+		if (!GltfAsset.Nodes.IsValidIndex(RootJointIndex))
+		{
+			continue;
+		}
 
 		//basedon that root joint group the SkinnedMeshNodes:
 		TArray<int32>& GroupedSkinnedMeshNodes = RootJointGroupedSkinnedMeshNodes.FindOrAdd(RootJointIndex);

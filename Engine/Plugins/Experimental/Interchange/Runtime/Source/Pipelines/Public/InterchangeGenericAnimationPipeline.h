@@ -14,6 +14,7 @@
 
 class UInterchangeAnimationTrackSetNode;
 class UInterchangeMeshNode;
+class UInterchangeSkeletalAnimationTrackNode;
 
 /** Animation length type when importing */
 UENUM(BlueprintType)
@@ -115,6 +116,8 @@ protected:
 private:
 
 	void CreateAnimationTrackSetFactoryNode(UInterchangeAnimationTrackSetNode& Node);
+
+	void CreateAnimSequenceFactoryNode(UInterchangeSkeletalAnimationTrackNode& Node);
 
 	UInterchangeBaseNodeContainer* BaseNodeContainer = nullptr;
 	TArray<const UInterchangeSourceData*> SourceDatas;

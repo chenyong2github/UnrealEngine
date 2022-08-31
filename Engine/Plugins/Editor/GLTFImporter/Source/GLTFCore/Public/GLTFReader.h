@@ -61,6 +61,8 @@ namespace GLTF
 		void SetupNodesType() const;
 
 		void BuildParentIndices(int32 ParentNodeIndex, int32 CurrentNodeIndex) const;
+		int32 FindRootJointIndex(int32 CurrentNodeIndex) const;
+		void BuildRootJoints() const;
 
 	private:
 		uint32 BufferCount;

@@ -152,3 +152,101 @@ bool UInterchangeTransformAnimationTrackNode::GetCustomUsedChannels(int32& Attri
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(UsedChannels, int32);
 }
+
+// UInterchangeSkeletalAnimationTrackNode
+
+UInterchangeSkeletalAnimationTrackNode::UInterchangeSkeletalAnimationTrackNode()
+{
+	SceneNodeAnimationPayloadKeyMap.Initialize(Attributes.ToSharedRef(), TEXT("__SceneNodeAnimationPayloadKeyMap__"));
+	MorphTargetPayloadKeyMap.Initialize(Attributes.ToSharedRef(), TEXT("__MorphTargetPayloadKeyMap__"));
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetCustomSkeletonNodeUid(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletonNodeUid, FString);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetCustomSkeletonNodeUid(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletonNodeUid, FString);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetCustomSkeletalMeshNodeUid(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(SkeletalMeshNodeUid, FString);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetCustomSkeletalMeshNodeUid(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(SkeletalMeshNodeUid, FString);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetCustomAnimationSampleRate(double& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(AnimationSampleRate, double);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetCustomAnimationSampleRate(const double& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimationSampleRate, double);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetCustomAnimationStartTime(double& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(AnimationStartTime, double);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetCustomAnimationStartTime(const double& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimationStartTime, double);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetCustomAnimationStopTime(double& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(AnimationStopTime, double);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetCustomAnimationStopTime(const double& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AnimationStopTime, double);
+}
+
+void UInterchangeSkeletalAnimationTrackNode::GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const
+{
+	OutSceneNodeAnimationPayloads = SceneNodeAnimationPayloadKeyMap.ToMap();
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const
+{
+	return SceneNodeAnimationPayloadKeyMap.GetValue(SceneNodeUid, OutPayloadKey);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey)
+{
+	return SceneNodeAnimationPayloadKeyMap.SetKeyValue(SceneNodeUid, PayloadKey);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid)
+{
+	return SceneNodeAnimationPayloadKeyMap.RemoveKey(SceneNodeUid);
+}
+
+void UInterchangeSkeletalAnimationTrackNode::GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetNodeAnimationPayloads) const
+{
+	OutMorphTargetNodeAnimationPayloads = MorphTargetPayloadKeyMap.ToMap();
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const
+{
+	return MorphTargetPayloadKeyMap.GetValue(MorphTargetNodeUid, OutPayloadKey);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey)
+{
+	return MorphTargetPayloadKeyMap.SetKeyValue(MorphTargetNodeUid, PayloadKey);
+}
+
+bool UInterchangeSkeletalAnimationTrackNode::RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid)
+{
+	return MorphTargetPayloadKeyMap.RemoveKey(MorphTargetNodeUid);
+}

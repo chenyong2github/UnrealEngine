@@ -353,3 +353,131 @@ public:
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomUsedChannelsKey = UE::Interchange::FAttributeKey(TEXT("UsedChannels"));
 };
+
+/*
+* Class to hold onto the relationships between a set of animation tracks and the bones, morph targets of a skeleton.
+*/
+UCLASS(BlueprintType, Experimental)
+class INTERCHANGENODES_API UInterchangeSkeletalAnimationTrackNode : public UInterchangeAnimationTrackBaseNode
+{
+	GENERATED_BODY()
+
+public:
+	UInterchangeSkeletalAnimationTrackNode();
+
+	/**
+	 * Override serialize to restore SlotMaterialDependencies on load.
+	 */
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+
+		if (Ar.IsLoading() && bIsInitialized)
+		{
+			SceneNodeAnimationPayloadKeyMap.RebuildCache();
+			MorphTargetPayloadKeyMap.RebuildCache();
+		}
+	}
+
+	static FStringView StaticAssetTypeName()
+	{
+		return TEXT("SkeletalAnimationTrack");
+	}
+
+	/**
+	* Return the node type name of the class, we use this when reporting errors
+	*/
+	virtual FString GetTypeName() const override
+	{
+		const FString TypeName = TEXT("SkeletalAnimationTrack");
+		return TypeName;
+	}
+
+
+public:
+	/** Get the skeleton factory node unique id. Return false if the attribute is not set. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetCustomSkeletonNodeUid(FString& AttributeValue) const;
+
+	/** Set the skeleton factory node unique id. Return false if the attribute cannot be set. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetCustomSkeletonNodeUid(const FString& AttributeValue);
+
+	/** Get the skeletal mesh node unique id. Return false if the attribute is not set. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetCustomSkeletalMeshNodeUid(FString& AttributeValue) const;
+
+	/** Set the skeletal mesh node unique id. Return false if the attribute cannot be set. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetCustomSkeletalMeshNodeUid(const FString& AttributeValue);
+
+	/**
+	 * Set the animation sample rate. Return false if the attribute cannot be set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetCustomAnimationSampleRate(const double& SampleRate);
+
+	/**
+	 * Get the animation sample rate. Return false if the attribute is not set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetCustomAnimationSampleRate(double& SampleRate) const;
+
+	/**
+	 * Set the animation start time. Return false if the attribute cannot be set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetCustomAnimationStartTime(const double& StartTime);
+
+	/**
+	 * Get the animation start time. Return false if the attribute is not set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetCustomAnimationStartTime(double& StartTime) const;
+	
+	/**
+	 * Set the animation stop time. Return false if the attribute cannot be set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetCustomAnimationStopTime(const double& StopTime);
+
+	/**
+	 * Get the animation stop time. Return false if the attribute is not set.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetCustomAnimationStopTime(double& StopTime) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	void GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloadKeys) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	void GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetNodeAnimationPayloads) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid);
+
+private:
+	const UE::Interchange::FAttributeKey Macro_CustomSkeletonNodeUidKey = UE::Interchange::FAttributeKey(TEXT("SkeletonNodeUid"));
+	const UE::Interchange::FAttributeKey Macro_CustomSkeletalMeshNodeUidKey = UE::Interchange::FAttributeKey(TEXT("SkeletalMeshNodeUid"));
+	const UE::Interchange::FAttributeKey Macro_CustomAnimationSampleRateKey = UE::Interchange::FAttributeKey(TEXT("AnimationSampleRate"));
+	const UE::Interchange::FAttributeKey Macro_CustomAnimationStartTimeKey = UE::Interchange::FAttributeKey(TEXT("AnimationStartTime"));
+	const UE::Interchange::FAttributeKey Macro_CustomAnimationStopTimeKey = UE::Interchange::FAttributeKey(TEXT("AnimationStopTime"));
+	
+	UE::Interchange::TMapAttributeHelper<FString, FString> SceneNodeAnimationPayloadKeyMap;
+	UE::Interchange::TMapAttributeHelper<FString, FString> MorphTargetPayloadKeyMap;
+};

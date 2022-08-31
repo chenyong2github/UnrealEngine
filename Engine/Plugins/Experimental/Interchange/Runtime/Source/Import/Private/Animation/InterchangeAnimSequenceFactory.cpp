@@ -264,7 +264,7 @@ namespace UE::Interchange::Private
 		, const FString& AssetName
 		, TArray<FString> OutCurvesNotFound)
 	{
-		TMap<FString, TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> AnimationPayloads;
+		TMap<const UInterchangeSceneNode*, TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> AnimationPayloads;
 
 		FString SkeletonRootUid;
 		if (!SkeletonFactoryNode->GetCustomRootJointUid(SkeletonRootUid))
@@ -298,14 +298,30 @@ namespace UE::Interchange::Private
 			const double SequenceLength = FMath::Max<double>(RangeEnd - RangeStart, MINIMUM_ANIMATION_LENGTH);
 			int32 BakeKeyCount = (SequenceLength / BakeInterval) + 1;
 
-			for (const FString& NodeUid : SkeletonNodes)
+			TMap<FString, FString> PayloadKeys;
+			AnimSequenceFactoryNode->GetSceneNodeAnimationPayloadKeys(PayloadKeys);
+
+			if (PayloadKeys.Num() == 0)
 			{
-				if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(NodeUid)))
+				for (const FString& NodeUid : SkeletonNodes)
 				{
-					FString PayloadKey;
-					if (UInterchangeAnimationAPI::GetCustomNodeTransformPayloadKey(SkeletonSceneNode, PayloadKey))
+					if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(NodeUid)))
 					{
-						AnimationPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(PayloadKey, SampleRate, RangeStart, RangeEnd));
+						FString PayloadKey;
+						if (UInterchangeAnimationAPI::GetCustomNodeTransformPayloadKey(SkeletonSceneNode, PayloadKey))
+						{
+							AnimationPayloads.Add(SkeletonSceneNode, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(PayloadKey, SampleRate, RangeStart, RangeEnd));
+						}
+					}
+				}
+			}
+			else
+			{
+				for (const TTuple<FString, FString>& SceneNodeUidAndPayloadKey : PayloadKeys)
+				{
+					if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(SceneNodeUidAndPayloadKey.Key)))
+					{
+						AnimationPayloads.Add(SkeletonSceneNode, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(SceneNodeUidAndPayloadKey.Value, SampleRate, RangeStart, RangeEnd));
 					}
 				}
 			}
@@ -324,84 +340,78 @@ namespace UE::Interchange::Private
 				GlobalOffsetTransform = FTransform3f(TempTransform);
 			}
 
-			for (const FString& NodeUid : SkeletonNodes)
+			for (const TTuple< const UInterchangeSceneNode*, TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>>& AnimationPayload : AnimationPayloads)
 			{
-				if (const UInterchangeSceneNode* SkeletonSceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(NodeUid)))
+				const FName BoneName = FName(*(AnimationPayload.Key->GetDisplayLabel()));
+				const int32 BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
+				if (BoneIndex == INDEX_NONE)
 				{
-					const FName BoneName = FName(*(SkeletonSceneNode->GetDisplayLabel()));
-					const int32 BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
-					if (BoneIndex == INDEX_NONE)
-					{
-						//Skip this bone, we did not found it in the skeleton
-						continue;
-					}
-					//If we are getting the root 
-					bool bApplyGlobalOffset = NodeUid.Equals(SkeletonRootUid);
-
-					FString PayloadKey;
-					if (UInterchangeAnimationAPI::GetCustomNodeTransformPayloadKey(SkeletonSceneNode, PayloadKey))
-					{
-						TOptional<UE::Interchange::FAnimationBakeTransformPayloadData> AnimationTransformPayload = AnimationPayloads.FindChecked(PayloadKey).Get();
-						if (!AnimationTransformPayload.IsSet())
-						{
-							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid animation transform payload key [%s] AnimSequence asset %s"), *PayloadKey, *AssetName);
-							continue;
-						}
-
-						if (AnimationTransformPayload->Transforms.Num() == 0)
-						{
-							//We need at least one transform
-							AnimationTransformPayload->Transforms.Add(FTransform::Identity);
-						}
-
-						FRawAnimSequenceTrack RawTrack;
-						RawTrack.PosKeys.Reserve(BakeKeyCount);
-						RawTrack.RotKeys.Reserve(BakeKeyCount);
-						RawTrack.ScaleKeys.Reserve(BakeKeyCount);
-						TArray<float> TimeKeys;
-						TimeKeys.Reserve(BakeKeyCount);
-						
-						//Everything should match Key count, sample rate and range
-						check(AnimationTransformPayload->Transforms.Num() == BakeKeyCount);
-						check(FMath::IsNearlyEqual(AnimationTransformPayload->BakeFrequency, SampleRate, UE_DOUBLE_KINDA_SMALL_NUMBER));
-						check(FMath::IsNearlyEqual(AnimationTransformPayload->RangeStartTime, RangeStart, UE_DOUBLE_KINDA_SMALL_NUMBER));
-						check(FMath::IsNearlyEqual(AnimationTransformPayload->RangeEndTime, RangeEnd, UE_DOUBLE_KINDA_SMALL_NUMBER));
-
-						int32 TransformIndex = 0;
-						for (double CurrentTime = RangeStart; CurrentTime <= RangeEnd + UE_DOUBLE_SMALL_NUMBER; CurrentTime += BakeInterval, ++TransformIndex)
-						{
-							check(AnimationTransformPayload->Transforms.IsValidIndex(TransformIndex));
-							FTransform3f AnimKeyTransform = FTransform3f(AnimationTransformPayload->Transforms[TransformIndex]);
-							if (bApplyGlobalOffset)
-							{
-								AnimKeyTransform = AnimKeyTransform * GlobalOffsetTransform;
-							}
-							//Default value to identity
-							FVector3f Position(0.0f);
-							FQuat4f Quaternion(0.0f);
-							FVector3f Scale(1.0f);
-							
-							Position = AnimKeyTransform.GetLocation();
-							Quaternion = AnimKeyTransform.GetRotation();
-							Scale = AnimKeyTransform.GetScale3D();
-							RawTrack.ScaleKeys.Add(Scale);
-							RawTrack.PosKeys.Add(Position);
-							RawTrack.RotKeys.Add(Quaternion);
-							//Animation are always translated to zero
-							TimeKeys.Add(CurrentTime - RangeStart);
-						}
-
-						//Make sure we create the correct amount of keys
-						check(RawTrack.ScaleKeys.Num() == BakeKeyCount
-							&& RawTrack.PosKeys.Num() == BakeKeyCount
-							&& RawTrack.RotKeys.Num() == BakeKeyCount
-							&& TimeKeys.Num() == BakeKeyCount);
-
-						//add new track
-						Controller.AddBoneTrack(BoneName);
-						Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
-					}
+					//Skip this bone, we did not found it in the skeleton
+					continue;
 				}
+				//If we are getting the root 
+				bool bApplyGlobalOffset = AnimationPayload.Key->GetUniqueID().Equals(SkeletonRootUid);
+				
+				TOptional<UE::Interchange::FAnimationBakeTransformPayloadData> AnimationTransformPayload = AnimationPayload.Value.Get();
+				if (!AnimationTransformPayload.IsSet())
+				{
+					FString PayloadKey = PayloadKeys[AnimationPayload.Key->GetUniqueID()];
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid animation transform payload key [%s] AnimSequence asset %s"), *PayloadKey, *AssetName);
+					continue;
+				}
+
+				if (AnimationTransformPayload->Transforms.Num() == 0)
+				{
+					//We need at least one transform
+					AnimationTransformPayload->Transforms.Add(FTransform::Identity);
+				}
+
+				FRawAnimSequenceTrack RawTrack;
+				RawTrack.PosKeys.Reserve(BakeKeyCount);
+				RawTrack.RotKeys.Reserve(BakeKeyCount);
+				RawTrack.ScaleKeys.Reserve(BakeKeyCount);
+				TArray<float> TimeKeys;
+				TimeKeys.Reserve(BakeKeyCount);
+
+				//Everything should match Key count, sample rate and range
+				check(AnimationTransformPayload->Transforms.Num() == BakeKeyCount);
+				check(FMath::IsNearlyEqual(AnimationTransformPayload->BakeFrequency, SampleRate, UE_DOUBLE_KINDA_SMALL_NUMBER));
+				check(FMath::IsNearlyEqual(AnimationTransformPayload->RangeStartTime, RangeStart, UE_DOUBLE_KINDA_SMALL_NUMBER));
+				check(FMath::IsNearlyEqual(AnimationTransformPayload->RangeEndTime, RangeEnd, UE_DOUBLE_KINDA_SMALL_NUMBER));
+
+				int32 TransformIndex = 0;
+				for (double CurrentTime = RangeStart; CurrentTime <= RangeEnd + UE_DOUBLE_SMALL_NUMBER; CurrentTime += BakeInterval, ++TransformIndex)
+				{
+					check(AnimationTransformPayload->Transforms.IsValidIndex(TransformIndex));
+					FTransform3f AnimKeyTransform = FTransform3f(AnimationTransformPayload->Transforms[TransformIndex]);
+					if (bApplyGlobalOffset)
+					{
+						AnimKeyTransform = AnimKeyTransform * GlobalOffsetTransform;
+					}
+					//Default value to identity
+					FVector3f Position(0.0f);
+					FQuat4f Quaternion(0.0f);
+					FVector3f Scale(1.0f);
+
+					Position = AnimKeyTransform.GetLocation();
+					Quaternion = AnimKeyTransform.GetRotation();
+					Scale = AnimKeyTransform.GetScale3D();
+					RawTrack.ScaleKeys.Add(Scale);
+					RawTrack.PosKeys.Add(Position);
+					RawTrack.RotKeys.Add(Quaternion);
+					//Animation are always translated to zero
+					TimeKeys.Add(CurrentTime - RangeStart);
+				}
+
+				//Make sure we create the correct amount of keys
+				check(RawTrack.ScaleKeys.Num() == BakeKeyCount
+					&& RawTrack.PosKeys.Num() == BakeKeyCount
+					&& RawTrack.RotKeys.Num() == BakeKeyCount
+					&& TimeKeys.Num() == BakeKeyCount);
+
+				//add new track
+				Controller.AddBoneTrack(BoneName);
+				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
 			}
 		}
 

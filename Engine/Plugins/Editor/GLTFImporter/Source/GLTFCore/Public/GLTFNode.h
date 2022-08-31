@@ -38,6 +38,7 @@ namespace GLTF
 		int32 LightIndex;   // index into FAsset::Lights
 
 		int32 ParentIndex;
+		int32 RootJointIndex; //only valid if node is of Joint Type
 
 		FNode()
 		    : Type(EType::None)
@@ -46,6 +47,7 @@ namespace GLTF
 		    , CameraIndex(INDEX_NONE)
 		    , LightIndex(INDEX_NONE)
 			, ParentIndex(INDEX_NONE)
+			, RootJointIndex(INDEX_NONE)
 		{
 		}
 	};

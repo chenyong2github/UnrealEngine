@@ -43,6 +43,18 @@ namespace UE::Interchange
 		static FAttributeKey AttributeKey(TEXT("__AnimatedMaterialCurveSuffixes__"));
 		return AttributeKey;
 	}
+
+	const FAttributeKey& FAnimSequenceNodeStaticData::GetSceneNodeAnimationPayloadKeyMapKey()
+	{
+		static FAttributeKey AttributeKey(TEXT("__SceneNodeAnimationPayloadKeyMap__"));
+		return AttributeKey;
+	}
+
+	const FAttributeKey& FAnimSequenceNodeStaticData::GetMorphTargetNodePayloadKeyMapKey()
+	{
+		static FAttributeKey AttributeKey(TEXT("__MorphTargetNodePayloadKeyMap__"));
+		return AttributeKey;
+	}
 }//ns UE::Interchange
 
 
@@ -52,6 +64,9 @@ UInterchangeAnimSequenceFactoryNode::UInterchangeAnimSequenceFactoryNode()
 	AnimatedAttributeCurveNames.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedAttributeCurveNamesKey().ToString());
 	AnimatedAttributeStepCurveNames.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedAttributeStepCurveNamesKey().ToString());
 	AnimatedMaterialCurveSuffixes.Initialize(Attributes, UE::Interchange::FAnimSequenceNodeStaticData::GetAnimatedMaterialCurveSuffixesKey().ToString());
+
+	SceneNodeAnimationPayloadKeyMap.Initialize(Attributes.ToSharedRef(), UE::Interchange::FAnimSequenceNodeStaticData::GetSceneNodeAnimationPayloadKeyMapKey().ToString());
+	MorphTargetNodePayloadKeyMap.Initialize(Attributes.ToSharedRef(), UE::Interchange::FAnimSequenceNodeStaticData::GetMorphTargetNodePayloadKeyMapKey().ToString());
 }
 
 void UInterchangeAnimSequenceFactoryNode::InitializeAnimSequenceNode(const FString& UniqueID, const FString& DisplayLabel)
@@ -391,6 +406,46 @@ bool FInterchangeAnimSequenceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 119.88 to FFrameRate"), FrameRate.Denominator, 25);
 
 	return true;
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const
+{
+	OutSceneNodeAnimationPayloads = SceneNodeAnimationPayloadKeyMap.ToMap();
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const
+{
+	return SceneNodeAnimationPayloadKeyMap.GetValue(SceneNodeUid, OutPayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey)
+{
+	return SceneNodeAnimationPayloadKeyMap.SetKeyValue(SceneNodeUid, PayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid)
+{
+	return SceneNodeAnimationPayloadKeyMap.RemoveKey(SceneNodeUid);
+}
+
+void UInterchangeAnimSequenceFactoryNode::GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetAnimationPayloads) const
+{
+	OutMorphTargetAnimationPayloads = MorphTargetNodePayloadKeyMap.ToMap();
+}
+
+bool UInterchangeAnimSequenceFactoryNode::GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const
+{
+	return MorphTargetNodePayloadKeyMap.GetValue(MorphTargetNodeUid, OutPayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey)
+{
+	return MorphTargetNodePayloadKeyMap.SetKeyValue(MorphTargetNodeUid, PayloadKey);
+}
+
+bool UInterchangeAnimSequenceFactoryNode::RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid)
+{
+	return MorphTargetNodePayloadKeyMap.RemoveKey(MorphTargetNodeUid);
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS

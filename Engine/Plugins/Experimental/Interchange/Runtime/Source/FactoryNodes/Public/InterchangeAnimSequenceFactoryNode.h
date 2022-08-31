@@ -21,6 +21,8 @@ namespace UE::Interchange
 		static const FAttributeKey& GetAnimatedAttributeCurveNamesKey();
 		static const FAttributeKey& GetAnimatedAttributeStepCurveNamesKey();
 		static const FAttributeKey& GetAnimatedMaterialCurveSuffixesKey();
+		static const FAttributeKey& GetSceneNodeAnimationPayloadKeyMapKey();
+		static const FAttributeKey& GetMorphTargetNodePayloadKeyMapKey();
 	};
 }//ns UE::Interchange
 
@@ -39,6 +41,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
 	void InitializeAnimSequenceNode(const FString& UniqueID, const FString& DisplayLabel);
+
+	/**
+	 * Override serialize to restore SlotMaterialDependencies on load.
+	 */
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+
+		if (Ar.IsLoading() && bIsInitialized)
+		{
+			SceneNodeAnimationPayloadKeyMap.RebuildCache();
+			MorphTargetNodePayloadKeyMap.RebuildCache();
+		}
+	}
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
@@ -357,7 +373,7 @@ public:
 	bool SetCustomDeleteExistingNonCurveCustomAttributes(const bool& AttributeValue);
 
 	/**
-	 * Query the optional existing USkeleton this anim must use. The animsequence factory will use this skeleton instead of the imported one
+	 * Query the optional existing USkeleton this anim must use. The anim sequence factory will use this skeleton instead of the imported one
 	 * (from GetCustomSkeletonFactoryNodeUid) if this attribute is set and the skeleton pointer is valid.
 	 * Pipeline set this attribute in case the user want to specify an existing skeleton.
 	 * Return false if the attribute was not set.
@@ -372,6 +388,30 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | AnimSequence")
 	bool SetCustomSkeletonSoftObjectPath(const FSoftObjectPath& AttributeValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	void GetSceneNodeAnimationPayloadKeys(TMap<FString, FString>& OutSceneNodeAnimationPayloads) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetAnimationPayloadKeyFromSceneNodeUid(const FString& SceneNodeUid, FString& OutPayloadKey) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid, const FString& PayloadKey);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool RemoveAnimationPayloadKeyForSceneNodeUid(const FString& SceneNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	void GetMorphTargetNodeAnimationPayloadKeys(TMap<FString, FString>& OutMorphTargetNodeAnimationPayloads) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool GetAnimationPayloadKeyFromMorphTargetNodeUid(const FString& MorphTargetNodeUid, FString& OutPayloadKey) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool SetAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid, const FString& PayloadKey);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalAnimationTrack")
+	bool RemoveAnimationPayloadKeyForMorphTargetNodeUid(const FString& MorphTargetNodeUid);
 
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomSkeletonFactoryNodeUidKey = UE::Interchange::FAttributeKey(TEXT("SkeletonFactoryNodeUid"));
@@ -396,4 +436,7 @@ private:
 	UE::Interchange::TArrayAttributeHelper<FString> AnimatedAttributeCurveNames;
 	UE::Interchange::TArrayAttributeHelper<FString> AnimatedAttributeStepCurveNames;
 	UE::Interchange::TArrayAttributeHelper<FString> AnimatedMaterialCurveSuffixes;
+
+	UE::Interchange::TMapAttributeHelper<FString, FString> SceneNodeAnimationPayloadKeyMap;
+	UE::Interchange::TMapAttributeHelper<FString, FString> MorphTargetNodePayloadKeyMap;
 };
