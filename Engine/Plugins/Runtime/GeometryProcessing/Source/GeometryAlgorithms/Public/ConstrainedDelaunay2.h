@@ -126,10 +126,10 @@ struct TConstrainedDelaunay2
 		}
 	}
 
-	// Add Polygon with the option to resolve self-intersections. Returns false if resolving self-intersections failed.
-	bool GEOMETRYALGORITHMS_API Add(const TPolygon2<RealType>& GPolygon, bool bResolveSelfIntersections);
-	// Add General Polygon with the option to resolve self-intersections. Returns false if resolving self-intersections failed.
-	bool GEOMETRYALGORITHMS_API Add(const TGeneralPolygon2<RealType>& GPolygon, bool bResolveSelfIntersections);
+	// Add Polygon with self-intersections resolved. Returns false if resolving self-intersections failed.
+	bool GEOMETRYALGORITHMS_API AddWithIntersectionResolution(const TPolygon2<RealType>& Polygon);
+	// Add General Polygon with self-intersections resolved. Returns false if resolving self-intersections failed.
+	bool GEOMETRYALGORITHMS_API AddWithIntersectionResolution(const TGeneralPolygon2<RealType>& GeneralPolygon);
 
 	//
 	// outputs

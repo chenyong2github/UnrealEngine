@@ -279,25 +279,15 @@ namespace ConstrainedDelaunay2Internal
 }
 
 template<class RealType>
-bool TConstrainedDelaunay2<RealType>::Add(const TPolygon2<RealType>& Polygon, bool bResolveSelfIntersections)
+bool TConstrainedDelaunay2<RealType>::AddWithIntersectionResolution(const TPolygon2<RealType>& Polygon)
 {
-	if (!bResolveSelfIntersections)
-	{
-		Add(Polygon);
-		return true;
-	}
 	TGeneralPolygon2<RealType> GPolygon(Polygon);
-	return Add(GPolygon, bResolveSelfIntersections);
+	return AddWithIntersectionResolution(GPolygon);
 }
 
 template<class RealType>
-bool TConstrainedDelaunay2<RealType>::Add(const TGeneralPolygon2<RealType>& GPolygon, bool bResolveSelfIntersections)
+bool TConstrainedDelaunay2<RealType>::AddWithIntersectionResolution(const TGeneralPolygon2<RealType>& GPolygon)
 {
-	if (!bResolveSelfIntersections)
-	{
-		Add(GPolygon);
-		return true;
-	}
 	TGeneralPolygon2<RealType> Empty;
 	TUnionPolygon2Polygon2<TGeneralPolygon2<RealType>, RealType> Union(GPolygon, Empty);
 	bool bResolveSuccess = Union.ComputeResult();
