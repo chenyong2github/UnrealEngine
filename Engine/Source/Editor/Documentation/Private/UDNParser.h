@@ -27,6 +27,7 @@ struct FUDNPageMetadata
 		, Crumbs()
 		, Description()
 		, ExcerptNames()
+		, ExcerptAliases()
 		, BaseUrl()
 	{}
 
@@ -35,6 +36,7 @@ struct FUDNPageMetadata
 	FText Crumbs;
 	FText Description;
 	TSet< FString > ExcerptNames;
+	TMap< FString, FString > ExcerptAliases;
 	FString BaseUrl;
 };
 
@@ -105,7 +107,8 @@ public:
 		Variable,
 		VariableOpen,
 		VariableClose,
-		BoldContent
+		BoldContent,
+		BulletContent
 	};
 	Type ContentType;
 
@@ -161,6 +164,9 @@ private:
 	/** Adds the content text source to the scrollbox */
 	void AddContentToExcerpt(TSharedPtr<SVerticalBox> Box, const FString& ContentSource, FExcerpt& Excerpt);
 	
+	/** Adds the content text sources to the scrollbox in two columns, emulating a list item with hanging indent */
+	void AddListItemToExcerpt(TSharedPtr<SVerticalBox> Box, const FString& LeftContentSource, const FString& RightContentSource, FExcerpt& Excerpt);
+
 	/** Gets the dynamic brush for the given filename */
 	TSharedPtr<FSlateDynamicImageBrush> GetDynamicBrushFromImagePath(FString Filename);
 

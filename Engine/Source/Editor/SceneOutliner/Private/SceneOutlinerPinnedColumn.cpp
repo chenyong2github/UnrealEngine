@@ -3,6 +3,8 @@
 #include "SceneOutlinerPinnedColumn.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Views/STreeView.h"
+#include "IDocumentation.h"
+#include "Widgets/SToolTip.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerPinnedActorColumn"
 
@@ -186,7 +188,7 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerPinnedColumn::ConstructHeaderRowCo
 		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Center)
 		.VAlignCell(VAlign_Center)
-		.DefaultTooltip(LOCTEXT("SceneOutlinerPinnedColumnToolTip", "Pinned - Force loaded in editor"))
+		.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("SceneOutlinerPinnedColumnToolTip", "Pinned: always loaded in editor"), nullptr, "Shared/MenuEntries/SceneOutliner_ActorBrowsingMode", "PinTooltip"))
 		[
 			SNew(SImage)
 			.ColorAndOpacity(FSlateColor::UseForeground())

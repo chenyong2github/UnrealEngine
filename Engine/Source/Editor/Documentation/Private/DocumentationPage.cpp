@@ -16,6 +16,13 @@ FDocumentationPage::~FDocumentationPage()
 
 bool FDocumentationPage::GetExcerptContent( FExcerpt& Excerpt )
 {
+	if (FString* AliasName = StoredMetadata.ExcerptAliases.Find(Excerpt.Name))
+	{
+		if (HasExcerpt(*AliasName))
+		{
+			Excerpt.Name = *AliasName;
+		}
+	}
 	for (int32 Index = 0; Index < StoredExcerpts.Num(); ++Index)
 	{
 		if ( Excerpt.Name == StoredExcerpts[ Index ].Name )

@@ -162,6 +162,10 @@ void FUDNParser::Initialize()
 	LineLibrary.Add(FTokenConfiguration(TokenArray, FUDNLine::HorizontalRule));
 
 	TokenArray.Empty();
+	TokenArray.Add(EUDNToken::Dash);
+	LineLibrary.Add(FTokenConfiguration(TokenArray, FUDNLine::BulletContent, true));
+
+	TokenArray.Empty();
 	TokenArray.Add(EUDNToken::Pound);
 	TokenArray.Add(EUDNToken::Pound);
 	TokenArray.Add(EUDNToken::Pound);
@@ -785,6 +789,49 @@ void FUDNParser::AddContentToExcerpt(TSharedPtr<SVerticalBox> Box, const FString
 	}
 }
 
+void FUDNParser::AddListItemToExcerpt(TSharedPtr<SVerticalBox> Box, const FString& LeftContentSource, const FString& RightContentSource, FExcerpt& Excerpt)
+{
+	if (!LeftContentSource.IsEmpty() && !RightContentSource.IsEmpty())
+	{
+		Box->AddSlot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)
+			[
+				SNew(SBox)
+				.HAlign(HAlign_Left)
+				.WidthOverride(ContentWidth)
+				.Padding(FMargin(0, 0, 0, 8.f))
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SBox)
+						.MinDesiredWidth(40.f)
+						.Padding(FMargin(16.f, 0, 0, 0))
+						.HAlign(HAlign_Left)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(LeftContentSource))
+							.TextStyle(FAppStyle::Get(), Style.ContentStyleName)
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.FillWidth(100)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(RightContentSource))
+						.TextStyle(FAppStyle::Get(), Style.ContentStyleName)
+						.AutoWrapText(true)
+					]
+				]
+			];
+
+		AddLineSeperator(Excerpt);
+		Excerpt.RichText += FString::Printf(TEXT("<TextStyle Style=\"%s\">%s %s</>"), *Style.ContentStyleName.ToString(), *LeftContentSource, *RightContentSource);
+	}
+}
+
 TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink, FExcerpt& Excerpt, const TArray<FString>& ContentLines, int32 StartingLineIndex )
 {
 	FMessageLog UDNParserLog(UDNParseErrorLog);
@@ -920,11 +967,14 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 				break;
 			case FUDNLine::NumberedContent:
 				AddContentToExcerpt(Box, CurrentStringContent, Excerpt);
-				CurrentStringContent = FString::Printf(TEXT("%i. %s"), CurrentNumbering, *Line.AdditionalContent[0]);
+				CurrentStringContent.Empty();
+				AddListItemToExcerpt(Box, FString::Printf(TEXT("%i."), CurrentNumbering), Line.AdditionalContent[0], Excerpt);
+				++CurrentNumbering;
+				break;
+			case FUDNLine::BulletContent:
 				AddContentToExcerpt(Box, CurrentStringContent, Excerpt);
 				CurrentStringContent.Empty();
-
-				++CurrentNumbering;
+				AddListItemToExcerpt(Box, TEXT("•"), Line.AdditionalContent[0], Excerpt);
 				break;
 			case FUDNLine::HorizontalRule:
 				AddContentToExcerpt(Box, CurrentStringContent, Excerpt);
@@ -1129,6 +1179,10 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 				{
 					Variables.Add("BaseUrl", OutMetadata.BaseUrl);
 				}
+				if (Variables.Contains("ExcerptAlias") && !Variables.Find("ExcerptAlias")->IsEmpty())
+				{
+					OutMetadata.ExcerptAliases.Add(ExcerptName, *Variables.Find("ExcerptAlias"));
+				}
 				OutExcerpts.Add(FExcerpt(ExcerptName, NULL, Variables, ExcerptStartingLineNumber, Link));
 				OutMetadata.ExcerptNames.Add( ExcerptName );
 				Variables.Empty();
@@ -1214,6 +1268,7 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 			{
 			case FUDNLine::Content:
 			case FUDNLine::NumberedContent:
+			case FUDNLine::BulletContent:
 			case FUDNLine::Header1:
 			case FUDNLine::Header2:
 			case FUDNLine::Image:

@@ -54,6 +54,18 @@ private:
 		if ( Action.IsValid() )
 		{
 			return Documentation->CreateToolTip( ToolTipText, OverrideContent, FString( TEXT("Shared/") ) + Action->GetBindingContext().ToString(), Action->GetCommandName().ToString() );
+		} 
+		else
+		{
+			if (!ToolTipText.Get().IsEmpty())
+			{
+				TOptional<FString> TooltipNS = FTextInspector::GetNamespace(ToolTipText.Get());
+				TOptional<FString> TooltipKey = FTextInspector::GetKey(ToolTipText.Get());
+				if (TooltipNS.IsSet() && TooltipKey.IsSet())
+				{
+					return Documentation->CreateToolTip(ToolTipText, OverrideContent, FString(TEXT("Shared/MenuEntries/")) + TooltipNS.GetValue(), TooltipKey.GetValue());
+				}
+			}
 		}
 
 		TSharedPtr< SWidget > ToolTipContent;
