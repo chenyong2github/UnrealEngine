@@ -5,68 +5,64 @@
 bool FNiagaraDataSetDebugAccessor::Init(const FNiagaraDataSetCompiledData& CompiledData, FName InVariableName)
 {
 	VariableName = InVariableName;
-	bIsFloat = false;
-	bIsHalf = false;
-	bIsInt = false;
-	NumComponents = 0;
-	ComponentIndex = INDEX_NONE;
+	bIsEnum = false;
+	bIsBool = false;
+	NumComponentsInt32 = 0;
+	NumComponentsFloat = 0;
+	NumComponentsHalf = 0;
+	ComponentIndexInt32 = INDEX_NONE;
+	ComponentIndexFloat = INDEX_NONE;
+	ComponentIndexHalf = INDEX_NONE;
 
 	for (int32 i = 0; i < CompiledData.Variables.Num(); ++i)
 	{
-		if (CompiledData.Variables[i].GetName() != VariableName)
+		const FNiagaraVariable& Variable = CompiledData.Variables[i];
+		if (Variable.GetName() != VariableName)
 		{
 			continue;
 		}
 
-		if (CompiledData.VariableLayouts[i].GetNumFloatComponents() > 0)
-		{
-			bIsFloat = true;
-			ComponentIndex = CompiledData.VariableLayouts[i].FloatComponentStart;
-			NumComponents = CompiledData.VariableLayouts[i].GetNumFloatComponents();
-			NiagaraType = CompiledData.Variables[i].GetType();
-		}
-		else if (CompiledData.VariableLayouts[i].GetNumHalfComponents() > 0)
-		{
-			bIsHalf = true;
-			ComponentIndex = CompiledData.VariableLayouts[i].HalfComponentStart;
-			NumComponents = CompiledData.VariableLayouts[i].GetNumHalfComponents();
-			NiagaraType = CompiledData.Variables[i].GetType();
-		}
-		else if (CompiledData.VariableLayouts[i].GetNumInt32Components() > 0)
-		{
-			bIsInt = true;
-			ComponentIndex = CompiledData.VariableLayouts[i].Int32ComponentStart;
-			NumComponents = CompiledData.VariableLayouts[i].GetNumInt32Components();
-			NiagaraType = CompiledData.Variables[i].GetType();
-		}
-		return NumComponents > 0;
+		const FNiagaraVariableLayoutInfo& VariableLayout = CompiledData.VariableLayouts[i];
+		NumComponentsInt32 = VariableLayout.GetNumInt32Components();
+		NumComponentsFloat = VariableLayout.GetNumFloatComponents();
+		NumComponentsHalf = VariableLayout.GetNumHalfComponents();
+		ComponentIndexInt32 = VariableLayout.Int32ComponentStart; 
+		ComponentIndexFloat = VariableLayout.FloatComponentStart;
+		ComponentIndexHalf = VariableLayout.HalfComponentStart;
+		NiagaraType = Variable.GetType();
+
+		bIsBool = Variable.GetType().IsSameBaseDefinition(FNiagaraTypeDefinition::GetBoolDef());
+		bIsEnum = Variable.GetType().IsEnum();
+		return NumComponentsInt32 + NumComponentsFloat + NumComponentsHalf > 0;
 	}
 	return false;
 }
 
 float FNiagaraDataSetDebugAccessor::ReadFloat(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const
 {
-	if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponents)
+	if (DataBuffer != nullptr && ComponentIndexInt32 != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponentsInt32)
 	{
-		if (bIsFloat)
-		{
-			const float* FloatData = reinterpret_cast<const float*>(DataBuffer->GetComponentPtrFloat(ComponentIndex + Component));
-			return FloatData[Instance];
-		}
-		else if (bIsHalf)
-		{
-			const FFloat16* HalfData = reinterpret_cast<const FFloat16*>(DataBuffer->GetComponentPtrHalf(ComponentIndex + Component));
-			return HalfData[Instance];
-		}
+		const float* FloatData = reinterpret_cast<const float*>(DataBuffer->GetComponentPtrFloat(ComponentIndexInt32 + Component));
+		return FloatData[Instance];
+	}
+	return 0.0f;
+}
+
+float FNiagaraDataSetDebugAccessor::ReadHalf(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const
+{
+	if (DataBuffer != nullptr && ComponentIndexHalf != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponentsHalf)
+	{
+		const FFloat16* HalfData = reinterpret_cast<const FFloat16*>(DataBuffer->GetComponentPtrHalf(NumComponentsHalf + Component));
+		return HalfData[Instance];
 	}
 	return 0.0f;
 }
 
 int32 FNiagaraDataSetDebugAccessor::ReadInt(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const
 {
-	if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponents)
+	if (DataBuffer != nullptr && ComponentIndexInt32 != INDEX_NONE && Instance < DataBuffer->GetNumInstances() && Component < NumComponentsInt32)
 	{
-		const int32* IntData = reinterpret_cast<const int32*>(DataBuffer->GetComponentPtrInt32(ComponentIndex + Component));
+		const int32* IntData = reinterpret_cast<const int32*>(DataBuffer->GetComponentPtrInt32(ComponentIndexInt32 + Component));
 		return IntData[Instance];
 	}
 	return 0;
