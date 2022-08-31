@@ -3405,7 +3405,7 @@ void FGlobalImportStore::RegistrationComplete()
 			if (!ScriptObjects.Contains(PackageGlobalImportIndex))
 			{
 				ScriptObjects.Add(PackageGlobalImportIndex, Package);
-				ensureMsgf(false, TEXT("Script package %s (0x%016llX) is missing a NotifyRegistrationEvent from the initial load phase."),
+				UE_LOG(LogStreaming, Display, TEXT("Script package %s (0x%016llX) is missing a NotifyRegistrationEvent from the initial load phase."),
 					*Package->GetFullName(),
 					PackageGlobalImportIndex.Value());
 			}
