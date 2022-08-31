@@ -305,26 +305,17 @@ namespace EpicGames.Perforce
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceOutput> CommandAsync(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, bool interceptIo)
+		public IPerforceOutput Command(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, string? promptResponse, bool interceptIo)
 		{
+			if (promptResponse != null)
+			{
+				inputData = Encoding.UTF8.GetBytes(promptResponse);
+			}
 			if (interceptIo)
 			{
 				throw new NotSupportedException($"{nameof(interceptIo)} option is not supported through legacy Perforce client");
 			}
-			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess(command, arguments, fileArguments, inputData, GetGlobalArguments(), Logger));
-		}
-
-		/// <summary>
-		/// Execute the 'login' command
-		/// </summary>
-		/// <param name="password">Password to use to login</param>
-		/// <param name="cancellationToken">Token used to cancel the operation</param>
-		/// <returns>Response from the server</returns>
-		public Task<IPerforceOutput> LoginCommandAsync(string password, CancellationToken cancellationToken = default)
-		{
-			// Some versions of P4.EXE do not support marshalled output for P4 login calls, so we only support this as a basic text query.
-			byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess("login", new List<string>(), null, passwordBytes, GetGlobalArguments(), Logger));
+			return new PerforceChildProcess(command, arguments, fileArguments, inputData, GetGlobalArguments(), Logger);
 		}
 
 		/// <summary>
@@ -424,7 +415,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, Type? statRecordType, CancellationToken cancellationToken = default)
 		{
-			await using (IPerforceOutput response = await perforce.CommandAsync(command, arguments, fileArguments, inputData, false))
+			await using (IPerforceOutput response = perforce.Command(command, arguments, fileArguments, inputData, null, false))
 			{
 				return await response.ReadResponsesAsync(statRecordType, cancellationToken);
 			}
@@ -444,7 +435,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async IAsyncEnumerable<PerforceResponse> StreamCommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, Type? statRecordType, bool interceptIo, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
-			await using (IPerforceOutput output = await perforce.CommandAsync(command, arguments, fileArguments, inputData, interceptIo))
+			await using (IPerforceOutput output = perforce.Command(command, arguments, fileArguments, inputData, null, interceptIo))
 			{
 				await foreach (PerforceResponse response in output.ReadStreamingResponsesAsync(statRecordType, cancellationToken))
 				{
@@ -465,7 +456,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async IAsyncEnumerable<PerforceResponse<T>> StreamCommandAsync<T>(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments = null, byte[]? inputData = null, [EnumeratorCancellation] CancellationToken cancellationToken = default) where T : class
 		{
-			await using (IPerforceOutput output = await perforce.CommandAsync(command, arguments, fileArguments, inputData, false))
+			await using (IPerforceOutput output = perforce.Command(command, arguments, fileArguments, inputData, null, false))
 			{
 				Type statRecordType = typeof(T);
 				await foreach (PerforceResponse response in output.ReadStreamingResponsesAsync(statRecordType, cancellationToken))
@@ -487,7 +478,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async Task RecordCommandAsync(this IPerforceConnection perforce, string command, IReadOnlyList<string> arguments, byte[]? inputData, Action<PerforceRecord> handleRecord, CancellationToken cancellationToken = default)
 		{
-			await using (IPerforceOutput response = await perforce.CommandAsync(command, arguments, null, inputData, false))
+			await using (IPerforceOutput response = perforce.Command(command, arguments, null, inputData, null, false))
 			{
 				await response.ReadRecordsAsync(handleRecord, cancellationToken);
 			}
@@ -2321,7 +2312,7 @@ namespace EpicGames.Perforce
 		public static async Task<PerforceResponse<LoginRecord>> TryLoginAsync(this IPerforceConnection connection, string password, CancellationToken cancellationToken = default)
 		{
 			List<PerforceResponse> parsedResponses;
-			await using (IPerforceOutput response = await connection.LoginCommandAsync(password, cancellationToken))
+			await using (IPerforceOutput response = connection.Command("login", Array.Empty<string>(), null, null, password, false))
 			{
 				for (; ; )
 				{

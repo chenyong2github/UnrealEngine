@@ -71,10 +71,7 @@ namespace EpicGames.Perforce
 		static extern IntPtr Client_Create(NativeSettings? settings, NativeWriteBuffer writeBuffer, IntPtr onBufferReadyFnPtr);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-		static extern void Client_Login(IntPtr client, [MarshalAs(UnmanagedType.LPStr)] string password);
-
-		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
-		static extern void Client_Command(IntPtr client, [MarshalAs(UnmanagedType.LPStr)] string command, int numArgs, IntPtr[] args, byte[]? inputData, int inputLength, bool interceptIo);
+		static extern void Client_Command(IntPtr client, [MarshalAs(UnmanagedType.LPStr)] string command, int numArgs, IntPtr[] args, byte[]? inputData, int inputLength, byte[]? promptResponse, bool interceptIo);
 
 		[DllImport(NativeDll, CallingConvention = CallingConvention.Cdecl)]
 		static extern void Client_Destroy(IntPtr client);
@@ -509,7 +506,7 @@ namespace EpicGames.Perforce
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceOutput> CommandAsync(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, bool interceptIo)
+		public IPerforceOutput Command(string command, IReadOnlyList<string> arguments, IReadOnlyList<string>? fileArguments, byte[]? inputData, string? promptResponse, bool interceptIo)
 		{
 			byte[]? specData = null;
 			if (inputData != null)
@@ -524,11 +521,11 @@ namespace EpicGames.Perforce
 			}
 
 			Response response = new Response(this);
-			_requests.Add((() => ExecCommand(command, allArguments, specData, interceptIo), response));
-			return Task.FromResult<IPerforceOutput>(response);
+			_requests.Add((() => ExecCommand(command, allArguments, specData, promptResponse, interceptIo), response));
+			return response;
 		}
 
-		private void ExecCommand(string command, List<string> args, byte[]? specData, bool interceptIo)
+		private void ExecCommand(string command, List<string> args, byte[]? inputData, string? promptResponse, bool interceptIo)
 		{
 			List<IntPtr> nativeArgs = new List<IntPtr>();
 			try
@@ -542,7 +539,14 @@ namespace EpicGames.Perforce
 					nativeArgs.Add(nativeArg);
 				}
 
-				Client_Command(_client, command, nativeArgs.Count, nativeArgs.ToArray(), specData, specData?.Length ?? 0, interceptIo);
+				byte[]? promptResponseBytes = null;
+				if (promptResponse != null)
+				{
+					promptResponseBytes = new byte[Encoding.UTF8.GetByteCount(promptResponse) + 1];
+					Encoding.UTF8.GetBytes(promptResponse, promptResponseBytes);
+				}
+
+				Client_Command(_client, command, nativeArgs.Count, nativeArgs.ToArray(), inputData, inputData?.Length ?? 0, promptResponseBytes, interceptIo);
 			}
 			finally
 			{
@@ -551,14 +555,6 @@ namespace EpicGames.Perforce
 					Marshal.FreeHGlobal(nativeArgs[idx]);
 				}
 			}
-		}
-
-		/// <inheritdoc/>
-		public Task<IPerforceOutput> LoginCommandAsync(string password, CancellationToken cancellationToken = default)
-		{
-			Response response = new Response(this);
-			_requests.Add((() => Client_Login(_client, password), response), cancellationToken);
-			return Task.FromResult<IPerforceOutput>(response);
 		}
 
 		/// <summary>
