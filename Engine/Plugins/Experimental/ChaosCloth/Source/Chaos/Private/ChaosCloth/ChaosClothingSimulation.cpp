@@ -671,8 +671,7 @@ void FClothingSimulation::GetSimulationData(
 		const int32 LODIndex = Cloth->GetMesh()->GetLODIndex();
 		if (LODIndex != Cloth->GetLODIndex(Solver.Get()))
 		{
-			Cloth->PreUpdate(Solver.Get());  // Currently doing colliders' update, not really required here, but this could later change (technically PreUpdates are for any non parallel cloth updates)
-			Cloth->Update(Solver.Get());  // LOD switching
+			Solver->Update(FSolverReal(0.));  // Update for LOD switching, but do not simulate
 		}
 
 		if (Cloth->GetOffset(Solver.Get()) == INDEX_NONE || Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE)
