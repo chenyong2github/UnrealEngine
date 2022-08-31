@@ -53,6 +53,11 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 		: FUniqueNetIdWrapper(InUniqueNetId)
 	{
 	}
+	
+	FUniqueNetIdRepl(const FUniqueNetId& InUniqueNetId)
+		: FUniqueNetIdWrapper(InUniqueNetId)
+	{
+	}
 
 	virtual ~FUniqueNetIdRepl() {}
 
