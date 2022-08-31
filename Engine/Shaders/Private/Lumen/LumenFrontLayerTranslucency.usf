@@ -9,7 +9,6 @@
 
 // Material pass reroutes
 #define SceneTexturesStruct LumenFrontLayerTranslucencyGBufferPass.SceneTextures
-#define StrataStruct LumenFrontLayerTranslucencyGBufferPass.Strata
 
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
