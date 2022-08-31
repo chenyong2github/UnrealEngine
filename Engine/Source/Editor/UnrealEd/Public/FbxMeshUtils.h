@@ -48,7 +48,7 @@ namespace FbxMeshUtils
 	 * @param LODLevel			The level of the lod to import
 	 * @return					Whether or not the import succeeded
 	 */
-	UNREALED_API bool ImportMeshLODDialog( UObject* Mesh, int32 LODLevel, bool bNotifyCB = true );
+	UNREALED_API bool ImportMeshLODDialog( UObject* Mesh, int32 LODLevel, bool bNotifyCB = true, bool bReimportWithNewFile = false);
 
 	/**
 	 * Imports a mesh as the high res source model of the given mesh
@@ -58,6 +58,14 @@ namespace FbxMeshUtils
 	 * @return					Whether or not the import succeeded
 	 */
 	UNREALED_API bool ImportStaticMeshHiResSourceModelDialog( UStaticMesh* StaticMesh );
+
+	/**
+	 * Remove the nanite data for the specified staticmesh
+	 *
+	 * @param Mesh				The mesh to import the high res mesh to
+	 * @return					Whether or not the import succeeded
+	 */
+	UNREALED_API bool RemoveStaticMeshHiRes(UStaticMesh* StaticMesh);
 
 	/**
 	 * Sets import option before importing

@@ -730,6 +730,17 @@ private:
 	float GetFallbackRelativeError() const;
 	void OnFallbackRelativeErrorChanged(float NewValue);
 
+	FString GetHiResSourceFilename() const;
+	void SetHiResSourceFilename(const FString& NewSourceFile);
+
+	bool DoesHiResDataExists() const;
+	bool IsHiResDataEmpty() const;
+	
+	FReply OnImportHiRes();
+	FReply OnRemoveHiRes();
+	FReply OnReimportHiRes();
+	FReply OnReimportHiResWithNewFile();
+
 private:
 	/** The Static Mesh Editor this tool is associated with. */
 	FStaticMeshEditor& StaticMeshEditor;

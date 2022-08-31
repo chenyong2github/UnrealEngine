@@ -655,6 +655,32 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 		}
 	}
 
+	
+	/******************************************
+	 * Nanite Begin
+	 */
+
+	//Nanite Save the settings
+	ExistingMeshDataPtr->ExistingNaniteSettings = ExistingMesh->NaniteSettings;
+
+	//Nanite Save the source model
+	const FStaticMeshSourceModel& HiResSourceModel = ExistingMesh->GetHiResSourceModel();
+	ExistingMeshDataPtr->HiResSourceData.ExistingBuildSettings = HiResSourceModel.BuildSettings;
+	ExistingMeshDataPtr->HiResSourceData.ExistingReductionSettings = HiResSourceModel.ReductionSettings;
+	ExistingMeshDataPtr->HiResSourceData.ExistingScreenSize = HiResSourceModel.ScreenSize;
+	ExistingMeshDataPtr->HiResSourceData.ExistingSourceImportFilename = HiResSourceModel.SourceImportFilename;
+		
+	//Nanite Save the hi res mesh description
+	if(const FMeshDescription* HiResMeshDescription = ExistingMesh->GetHiResMeshDescription())
+	{
+		ExistingMeshDataPtr->HiResSourceData.ExistingMeshDescription = MakeUnique<FMeshDescription>(*HiResMeshDescription);
+	}
+
+	/*
+	 * Nanite End
+	 ******************************************/
+
+
 	int32 TotalMaterialIndex = ExistingMeshDataPtr->ExistingMaterials.Num();
 	for (int32 SourceModelIndex = 0; SourceModelIndex < ExistingMesh->GetNumSourceModels(); SourceModelIndex++)
 	{
@@ -707,7 +733,7 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 			ExistingLODData.ExistingReductionSettings.PercentVertices = 1.0f;
 			ExistingLODData.ExistingReductionSettings.MaxDeviation = 0.0f;
 		}
-		ExistingLODData.ExistingScreenSize = SourceModel.ScreenSize.Default;
+		ExistingLODData.ExistingScreenSize = SourceModel.ScreenSize;
 		ExistingLODData.ExistingSourceImportFilename = SourceModel.SourceImportFilename;
 
 		const FMeshDescription* MeshDescription = ExistingMesh->GetMeshDescription(SourceModelIndex);
@@ -749,8 +775,6 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 	ExistingMeshDataPtr->ExistingForceMiplevelsToBeResident = ExistingMesh->bGlobalForceMipLevelsToBeResident;
 	ExistingMeshDataPtr->ExistingNeverStream = ExistingMesh->NeverStream;
 	ExistingMeshDataPtr->ExistingNumCinematicMipLevels = ExistingMesh->NumCinematicMipLevels;
-
-	ExistingMeshDataPtr->ExistingNaniteSettings = ExistingMesh->NaniteSettings;
 
 	UFbxStaticMeshImportData* ImportData = Cast<UFbxStaticMeshImportData>(ExistingMesh->AssetImportData);
 	if (ImportData && ExistingMeshDataPtr->UseMaterialNameSlotWorkflow)
@@ -1289,7 +1313,37 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 	NewMesh->NeverStream = ExistingMeshDataPtr->ExistingNeverStream;
 	NewMesh->NumCinematicMipLevels = ExistingMeshDataPtr->ExistingNumCinematicMipLevels;
 
+	/******************************************
+	 * Nanite Begin
+	 */
+
+	 //Nanite Restore the settings
 	NewMesh->NaniteSettings = ExistingMeshDataPtr->ExistingNaniteSettings;
+
+	//Nanite Save the source model
+	FStaticMeshSourceModel& HiResSourceModel = NewMesh->GetHiResSourceModel();
+	HiResSourceModel.BuildSettings = ExistingMeshDataPtr->HiResSourceData.ExistingBuildSettings;
+	HiResSourceModel.ReductionSettings = ExistingMeshDataPtr->HiResSourceData.ExistingReductionSettings;
+	HiResSourceModel.ScreenSize = ExistingMeshDataPtr->HiResSourceData.ExistingScreenSize;
+	HiResSourceModel.SourceImportFilename = ExistingMeshDataPtr->HiResSourceData.ExistingSourceImportFilename;
+
+	//Nanite Restore the hires mesh description
+	if (ExistingMeshDataPtr->HiResSourceData.ExistingMeshDescription.IsValid())
+	{
+		FMeshDescription* HiResMeshDescription = NewMesh->GetHiResMeshDescription();
+		if (HiResMeshDescription == nullptr)
+		{
+			HiResMeshDescription = NewMesh->CreateHiResMeshDescription();
+		}
+		check(HiResMeshDescription);
+		NewMesh->ModifyHiResMeshDescription();
+		*HiResMeshDescription = MoveTemp(*ExistingMeshDataPtr->HiResSourceData.ExistingMeshDescription);
+		NewMesh->CommitHiResMeshDescription();
+	}
+
+	/*
+	 * Nanite End
+	 ******************************************/	
 }
 
 #undef LOCTEXT_NAMESPACE

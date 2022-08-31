@@ -40,6 +40,8 @@ struct FExistingStaticMeshData
 {
 	TArray<FStaticMaterial> 	ExistingMaterials;
 
+	FExistingLODMeshData		HiResSourceData;
+
 	FMeshSectionInfoMap			ExistingSectionInfoMap;
 	TArray<FExistingLODMeshData>	ExistingLODData;
 

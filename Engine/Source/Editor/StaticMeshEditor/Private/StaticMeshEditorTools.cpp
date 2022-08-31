@@ -5066,10 +5066,57 @@ void FNaniteSettingsLayout::UpdateSettings(const FMeshNaniteSettings& InSettings
 void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilder)
 {
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	TWeakObjectPtr<UStaticMesh> WeakStaticMesh = StaticMesh;
+
+	const FText NaniteCategoryName = LOCTEXT("NaniteSettingsCategory", "Nanite Settings");
+
+	auto NaniteCategoryContentLambda = [WeakStaticMesh]()
+	{
+		UStaticMesh* StaticMesh = WeakStaticMesh.Get();
+		if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
+		{
+			if (!StaticMesh->GetHiResSourceModel().SourceImportFilename.IsEmpty())
+			{
+				return LOCTEXT("NaniteSettingsCategory_Imported", "[Imported]");
+			}
+		}
+		return FText::GetEmpty();
+	};
+
+	auto NaniteCategoryContentTooltipLambda = [WeakStaticMesh]()
+	{
+		UStaticMesh* StaticMesh = WeakStaticMesh.Get();
+		if (StaticMesh && StaticMesh->NaniteSettings.bEnabled)
+		{
+			if (!StaticMesh->GetHiResSourceModel().SourceImportFilename.IsEmpty())
+			{
+				return FText::Format(LOCTEXT("NaniteSettingsCategory_ImportedTooltip", "The nanite high resolution data is imported from file {0}"), FText::FromString(StaticMesh->GetHiResSourceModel().SourceImportFilename));
+			}
+		}
+		return FText::GetEmpty();
+	};
 
 	IDetailCategoryBuilder& NaniteSettingsCategory =
-		DetailBuilder.EditCategory("NaniteSettings", LOCTEXT("NaniteSettingsCategory", "Nanite Settings"));
+		DetailBuilder.EditCategory("NaniteSettings", NaniteCategoryName);
 	NaniteSettingsCategory.SetSortOrder(10);
+	
+	NaniteSettingsCategory.HeaderContent
+	(
+		SNew( SHorizontalBox )
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.Padding(FMargin(5.0f, 0.0f))
+			[
+				SNew(STextBlock)
+				.Text_Lambda(NaniteCategoryContentLambda)
+				.ToolTipText_Lambda(NaniteCategoryContentTooltipLambda)
+				.Font(IDetailLayoutBuilder::GetDetailFontItalic())
+					
+			]
+		]
+	);
 
 	TSharedPtr<SCheckBox> NaniteEnabledCheck;
 	{
@@ -5221,22 +5268,108 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 		];
 	}
 
-	NaniteSettingsCategory.AddCustomRow(LOCTEXT("ApplyChanges", "Apply Changes"))
-	.ValueContent()
-	.HAlign(HAlign_Left)
-	.VAlign(VAlign_Center)
-	[
-		SNew(SButton)
-		.OnClicked(this, &FNaniteSettingsLayout::OnApply)
-		.IsEnabled(this, &FNaniteSettingsLayout::IsApplyNeeded)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Center)
+	//Source import filename
+	{
+		FString FileFilterText = TEXT("Filmbox (*.fbx)|*.fbx|All files (*.*)|*.*");
+		NaniteSettingsCategory.AddCustomRow( LOCTEXT("NANITE_SourceImportFilename", "Source Import Filename") )
+
+		.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([NaniteEnabledCheck]() -> bool {return NaniteEnabledCheck->IsChecked(); } )))
+		.NameContent()
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("ApplyChanges", "Apply Changes"))
-			.Font(DetailBuilder.GetDetailFont())
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("NANITE_SourceImportFilename", "Source Import Filename"))
+			.ToolTipText(LOCTEXT("NANITE_SourceImportFilenameTooltip", "The file path that was used to import this hi res nanite mesh."))
 		]
-	];
+		.ValueContent()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SFilePathPicker)
+			.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
+			.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+			.BrowseButtonToolTip(LOCTEXT("NaniteSourceImportFilenamePathLabel_Tooltip", "Choose a nanite hi res source import file"))
+			.BrowseDirectory(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_OPEN))
+			.BrowseTitle(LOCTEXT("NaniteSourceImportFilenameBrowseTitle", "Nanite hi res source import file picker..."))
+			.FilePath(this, &FNaniteSettingsLayout::GetHiResSourceFilename)
+			.FileTypeFilter(FileFilterText)
+			.OnPathPicked(this, &FNaniteSettingsLayout::SetHiResSourceFilename)
+		];
+	}
+
+	//Nanite import button
+	{
+		NaniteSettingsCategory.AddCustomRow(LOCTEXT("NaniteHiResButtons", "Nanite Hi Res buttons"))
+		.ValueContent()
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SUniformWrapPanel)
+			+ SUniformWrapPanel::Slot() // Nanite apply changes
+			[
+				SNew(SButton)
+				.OnClicked(this, &FNaniteSettingsLayout::OnApply)
+				.IsEnabled(this, &FNaniteSettingsLayout::IsApplyNeeded)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ApplyChanges", "Apply Changes"))
+					.Font(DetailBuilder.GetDetailFont())
+				]
+			]
+			+ SUniformWrapPanel::Slot() //Nanite import button
+			[
+				SNew(SButton)
+				.OnClicked(this, &FNaniteSettingsLayout::OnImportHiRes)
+				.IsEnabled(this, &FNaniteSettingsLayout::IsHiResDataEmpty)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NaniteImportHiRes", "Import"))
+					.Font(DetailBuilder.GetDetailFont())
+				]
+			]
+			+ SUniformWrapPanel::Slot() //Nanite remove button
+			[
+				SNew(SButton)
+				.OnClicked(this, &FNaniteSettingsLayout::OnRemoveHiRes)
+				.IsEnabled(this, &FNaniteSettingsLayout::DoesHiResDataExists)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NaniteRemoveHiRes", "Remove"))
+					.Font(DetailBuilder.GetDetailFont())
+				]
+			]
+			+ SUniformWrapPanel::Slot() //Nanite reimport button
+			[
+				SNew(SButton)
+				.OnClicked(this, &FNaniteSettingsLayout::OnReimportHiRes)
+				.IsEnabled(this, &FNaniteSettingsLayout::DoesHiResDataExists)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NaniteReimportHiRes", "Reimport"))
+					.Font(DetailBuilder.GetDetailFont())
+				]
+			]
+			+ SUniformWrapPanel::Slot() //Nanite reimport with new file button
+			[
+				SNew(SButton)
+				.OnClicked(this, &FNaniteSettingsLayout::OnReimportHiResWithNewFile)
+				.IsEnabled(this, &FNaniteSettingsLayout::DoesHiResDataExists)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("NaniteReimportHiResWithNewFile", "Reimport New File"))
+					.Font(DetailBuilder.GetDetailFont())
+				]
+			]
+		];
+	}
 }
 
 bool FNaniteSettingsLayout::IsApplyNeeded() const
@@ -5455,6 +5588,102 @@ float FNaniteSettingsLayout::GetFallbackRelativeError() const
 void FNaniteSettingsLayout::OnFallbackRelativeErrorChanged(float NewValue)
 {
 	NaniteSettings.FallbackRelativeError = NewValue;
+}
+
+FString FNaniteSettingsLayout::GetHiResSourceFilename() const
+{
+	if (UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh())
+	{
+		return StaticMesh->GetHiResSourceModel().SourceImportFilename;
+	}
+	return FString();
+}
+
+void FNaniteSettingsLayout::SetHiResSourceFilename(const FString& NewSourceFile)
+{
+	//Reimport with new file
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	if(!StaticMesh)
+	{
+		return;
+	}
+	
+	if (StaticMesh->GetHiResSourceModel().SourceImportFilename.Equals(NewSourceFile))
+	{
+		return;
+	}
+
+	StaticMesh->GetHiResSourceModel().SourceImportFilename = NewSourceFile;
+	//Trig a reimport with new file
+	FbxMeshUtils::ImportStaticMeshHiResSourceModelDialog(StaticMesh);
+	StaticMeshEditor.RefreshTool();
+}
+
+
+bool FNaniteSettingsLayout::DoesHiResDataExists() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	if (!StaticMesh)
+	{
+		return false;
+	}
+
+	return (StaticMesh->GetHiResMeshDescription() != nullptr);
+}
+
+bool FNaniteSettingsLayout::IsHiResDataEmpty() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	if (!StaticMesh)
+	{
+		return true;
+	}
+
+	return (StaticMesh->GetHiResMeshDescription() == nullptr);
+}
+
+FReply FNaniteSettingsLayout::OnImportHiRes()
+{
+	
+	if (UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh())
+	{
+		StaticMesh->GetHiResSourceModel().SourceImportFilename = FString();
+		FbxMeshUtils::ImportStaticMeshHiResSourceModelDialog(StaticMesh);
+		StaticMeshEditor.RefreshTool();
+	}
+	return FReply::Handled();
+}
+
+FReply FNaniteSettingsLayout::OnRemoveHiRes()
+{
+	if (UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh())
+	{
+		StaticMesh->GetHiResSourceModel().SourceImportFilename = FString();
+		FbxMeshUtils::RemoveStaticMeshHiRes(StaticMesh);
+		StaticMeshEditor.RefreshTool();
+	}
+	return FReply::Handled();
+}
+
+FReply FNaniteSettingsLayout::OnReimportHiRes()
+{
+	if (UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh())
+	{
+		FbxMeshUtils::ImportStaticMeshHiResSourceModelDialog(StaticMesh);
+		StaticMeshEditor.RefreshTool();
+	}
+	return FReply::Handled();
+}
+
+FReply FNaniteSettingsLayout::OnReimportHiResWithNewFile()
+{
+	if (UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh())
+	{
+		StaticMesh->GetHiResSourceModel().SourceImportFilename = FString();
+		FbxMeshUtils::ImportStaticMeshHiResSourceModelDialog(StaticMesh);
+		StaticMeshEditor.RefreshTool();
+	}
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

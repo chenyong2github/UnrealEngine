@@ -191,13 +191,15 @@ void FAssetTypeActions_StaticMesh::GetNaniteMenu(class FMenuBuilder& MenuBuilder
 	);
 }
 
-void FAssetTypeActions_StaticMesh::GetImportLODMenu(class FMenuBuilder& MenuBuilder,TArray<TWeakObjectPtr<UStaticMesh>> Objects)
+void FAssetTypeActions_StaticMesh::GetImportLODMenu(class FMenuBuilder& MenuBuilder,TArray<TWeakObjectPtr<UStaticMesh>> Objects, bool bReimportWithNewFile)
 {
 	check(Objects.Num() > 0);
 	TWeakObjectPtr<UStaticMesh> First = Objects[0];
 	UStaticMesh* StaticMesh = First.Get();
+	//Add 1 so we can Add LOD when we are not in "Reimport With New File" submenu
+	const int32 LodCount = First->GetNumLODs() + (bReimportWithNewFile ? 0 : 1);
 
-	for(int32 LOD = 1; LOD <= First->GetNumLODs(); ++LOD)
+	for(int32 LOD = 1; LOD < LodCount; ++LOD)
 	{
 		FText LODText = FText::AsNumber( LOD );
 		FText Description = FText::Format( NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport LOD (number)", "Reimport LOD {0}"), LODText );
@@ -209,17 +211,24 @@ void FAssetTypeActions_StaticMesh::GetImportLODMenu(class FMenuBuilder& MenuBuil
 		}
 
 		MenuBuilder.AddMenuEntry( Description, ToolTip, FSlateIcon(),
-			FUIAction(FExecuteAction::CreateStatic( &FAssetTypeActions_StaticMesh::ExecuteImportMeshLOD, static_cast<UObject*>(StaticMesh), LOD) ));
+			FUIAction(FExecuteAction::CreateStatic( &FAssetTypeActions_StaticMesh::ExecuteImportMeshLOD, static_cast<UObject*>(StaticMesh), LOD, bReimportWithNewFile) ));
 	}
 }
 
 void FAssetTypeActions_StaticMesh::GetLODMenu(class FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<UStaticMesh>> Meshes)
 {
+	constexpr bool bReimportWithNewFile = true;
 	MenuBuilder.AddSubMenu(
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_ImportLOD", "Import LOD"),
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_ImportLODtooltip", "Imports meshes into the LODs"),
-		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetImportLODMenu, Meshes)
+		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetImportLODMenu, Meshes, !bReimportWithNewFile)
 		);
+
+	MenuBuilder.AddSubMenu(
+		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_ImportLODWithNewFile", "Reimport LOD With New File"),
+		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_ImportLODWithNewFiletooltip", "Reimports meshes LODs with new file."),
+		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetImportLODMenu, Meshes, bReimportWithNewFile)
+	);
 
 	MenuBuilder.AddMenuSeparator();
 
@@ -258,9 +267,9 @@ void FAssetTypeActions_StaticMesh::GetLODMenu(class FMenuBuilder& MenuBuilder, T
 	);
 }
 
-void FAssetTypeActions_StaticMesh::ExecuteImportMeshLOD(UObject* Mesh, int32 LOD)
+void FAssetTypeActions_StaticMesh::ExecuteImportMeshLOD(UObject* Mesh, int32 LOD, bool bReimportWithNewFile)
 {
-	FbxMeshUtils::ImportMeshLODDialog(Mesh, LOD);
+	FbxMeshUtils::ImportMeshLODDialog(Mesh, LOD, true, bReimportWithNewFile);
 }
 
 void FAssetTypeActions_StaticMesh::ExecuteImportHiResMesh(UStaticMesh* StaticMesh)
@@ -272,20 +281,23 @@ void FAssetTypeActions_StaticMesh::ExecuteImportHiResMesh(UStaticMesh* StaticMes
 	}
 }
 
+void FAssetTypeActions_StaticMesh::ExecuteReimportHiResMeshWithNewFile(UStaticMesh* StaticMesh)
+{
+	if (StaticMesh)
+	{
+		StaticMesh->GetHiResSourceModel().SourceImportFilename = FString();
+		if (FbxMeshUtils::ImportStaticMeshHiResSourceModelDialog(StaticMesh))
+		{
+			FEditorDelegates::RefreshEditor.Broadcast();
+			FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+		}
+	}
+}
+
 void FAssetTypeActions_StaticMesh::ExecuteRemoveHiResMesh(UStaticMesh* StaticMesh)
 {
-	if (StaticMesh && StaticMesh->IsHiResMeshDescriptionValid())
+	if (FbxMeshUtils::RemoveStaticMeshHiRes(StaticMesh))
 	{
-		StaticMesh->Modify();
-
-		StaticMesh->ModifyHiResMeshDescription();
-		StaticMesh->ClearHiResMeshDescription();
-		StaticMesh->CommitHiResMeshDescription();
-
-		StaticMesh->GetHiResSourceModel().SourceImportFilename.Empty();
-
-		StaticMesh->PostEditChange();
-
 		FEditorDelegates::RefreshEditor.Broadcast();
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 	}
@@ -304,16 +316,25 @@ void FAssetTypeActions_StaticMesh::GetImportHiResMenu(class FMenuBuilder& MenuBu
 
 	// Import / Reimport
 	{
-		FText Description = NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport_HighRes", "Reimport High Res");
-		FText ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport_HighRes_Tip", "Reimport over existing the existing high res mesh.");
 		if (!StaticMesh->IsHiResMeshDescriptionValid())
 		{
-			Description = NSLOCTEXT("AssetTypeActions_StaticMesh", "Import_HighRes", "Import High Res...");
-			ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "Import_HighResTip", "Adds a high resolution version of the mesh. Used instead of LOD0 by systems that can benefit from more detailed geometry (Nanite, modeling, etc.).");
+			FText Description = NSLOCTEXT("AssetTypeActions_StaticMesh", "Import_HighRes", "Import High Res...");
+			FText ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "Import_HighResTip", "Adds a high resolution version of the mesh. Used instead of LOD0 by systems that can benefit from more detailed geometry (Nanite, modeling, etc.).");
+			MenuBuilder.AddMenuEntry(Description, ToolTip, FSlateIcon(),
+				FUIAction(FExecuteAction::CreateStatic(&FAssetTypeActions_StaticMesh::ExecuteImportHiResMesh, StaticMesh)));
 		}
+		else
+		{
+			FText Description = NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport_HighRes", "Reimport High Res");
+			FText ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport_HighRes_Tip", "Reimport over existing the existing high res mesh.");
+			MenuBuilder.AddMenuEntry(Description, ToolTip, FSlateIcon(),
+				FUIAction(FExecuteAction::CreateStatic(&FAssetTypeActions_StaticMesh::ExecuteImportHiResMesh, StaticMesh)));
 
-		MenuBuilder.AddMenuEntry(Description, ToolTip, FSlateIcon(),
-			FUIAction(FExecuteAction::CreateStatic(&FAssetTypeActions_StaticMesh::ExecuteImportHiResMesh, StaticMesh)));
+			Description = NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport_HighRes_WithNewFile", "Reimport High Res with new file...");
+			ToolTip = NSLOCTEXT("AssetTypeActions_StaticMesh", "Reimport_HighRes_WithNewFileTip", "Reimport the high resolution version of the mesh with a new file.");
+			MenuBuilder.AddMenuEntry(Description, ToolTip, FSlateIcon(),
+				FUIAction(FExecuteAction::CreateStatic(&FAssetTypeActions_StaticMesh::ExecuteReimportHiResMeshWithNewFile, StaticMesh)));
+		}
 	}
 
 	// Remove

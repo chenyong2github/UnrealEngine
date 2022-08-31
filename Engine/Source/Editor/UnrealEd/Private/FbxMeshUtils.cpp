@@ -815,7 +815,7 @@ namespace FbxMeshUtils
 		return ChosenFilname;
 	}
 
-	bool ImportMeshLODDialog(class UObject* SelectedMesh, int32 LODLevel, bool bNotifyCB /*= true*/)
+	bool ImportMeshLODDialog(class UObject* SelectedMesh, int32 LODLevel, bool bNotifyCB /*= true*/, bool bReimportWithNewFile /*= false*/)
 	{
 		if(!SelectedMesh)
 		{
@@ -829,7 +829,7 @@ namespace FbxMeshUtils
 		UInterchangeAssetImportData* SelectedInterchangeAssetImportData = nullptr;
 		if (SkeletalMesh)
 		{
-			if (SkeletalMesh->IsValidLODIndex(LODLevel))
+			if (!bReimportWithNewFile && SkeletalMesh->IsValidLODIndex(LODLevel))
 			{
 				FilenameToImport = SkeletalMesh->GetLODInfo(LODLevel)->SourceImportFilename.IsEmpty() ?
 					SkeletalMesh->GetLODInfo(LODLevel)->SourceImportFilename :
@@ -839,7 +839,7 @@ namespace FbxMeshUtils
 		}
 		else if (StaticMesh)
 		{
-			if (StaticMesh->IsSourceModelValid(LODLevel))
+			if (!bReimportWithNewFile && StaticMesh->IsSourceModelValid(LODLevel))
 			{
 				const FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODLevel);
 				FilenameToImport = SourceModel.SourceImportFilename.IsEmpty() ?
@@ -1031,6 +1031,25 @@ namespace FbxMeshUtils
 		}
 
 		return bImportSuccess;
+	}
+
+	bool RemoveStaticMeshHiRes(UStaticMesh* StaticMesh)
+	{
+		if (!StaticMesh || !StaticMesh->IsHiResMeshDescriptionValid())
+		{
+			return false;
+		}
+
+		StaticMesh->Modify();
+
+		StaticMesh->ModifyHiResMeshDescription();
+		StaticMesh->ClearHiResMeshDescription();
+		StaticMesh->CommitHiResMeshDescription();
+
+		StaticMesh->GetHiResSourceModel().SourceImportFilename.Empty();
+
+		StaticMesh->PostEditChange();
+		return true;
 	}
 
 	void SetImportOption(UFbxImportUI* ImportUI)
