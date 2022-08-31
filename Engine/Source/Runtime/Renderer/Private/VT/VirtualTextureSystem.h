@@ -31,6 +31,33 @@ struct FPageUpdateBuffer;
 
 extern uint32 GetTypeHash(const FAllocatedVTDescription& Description);
 
+struct FVirtualTextureUpdateSettings
+{
+	FVirtualTextureUpdateSettings();
+
+	/** Force settings so that throttling page uploads is effectively disabled. */
+	FVirtualTextureUpdateSettings& DisableThrottling(bool bDisable)
+	{
+		if (bDisable)
+		{
+			MaxPageUploads = 99999;
+			MaxPagesProduced = 99999;
+		}
+		return *this;
+	}
+
+	bool bEnableFeedback;
+	bool bEnablePlayback;
+	bool bForceContinuousUpdate;
+	bool bParallelFeedbackTasks;
+	int32 NumFeedbackTasks;
+	int32 NumGatherTasks;
+	int32 MaxGatherPagesBeforeFlush;
+	int32 MaxPageUploads;
+	int32 MaxPagesProduced;
+	int32 MaxContinuousUpdates;
+};
+
 class FVirtualTextureSystem
 {
 public:
@@ -43,7 +70,7 @@ public:
 	void AllocateResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
 	void FinalizeResources(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
 	void CallPendingCallbacks();
-	void Update( FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene);
+	void Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, FVirtualTextureUpdateSettings const& Settings);
 	void ReleasePendingResources();
 
 	IAllocatedVirtualTexture* AllocateVirtualTexture(const FAllocatedVTDescription& Desc);
@@ -107,9 +134,9 @@ private:
 
 	void SubmitPreMappedRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel);
 
-	void SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FUniqueRequestList* RequestList, bool bAsync);
+	void SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings, FUniqueRequestList* RequestList, bool bAsync);
 
-	void GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator);
+	void GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings);
 
 	void AddPageUpdate(FPageUpdateBuffer* Buffers, uint32 FlushCount, uint32 PhysicalSpaceID, uint16 pAddress);
 
@@ -117,7 +144,7 @@ private:
 	void AddRequestedTilesTask(const FAddRequestedTilesParameters& Parameters);
 	void GatherRequestsTask(const FGatherRequestsParameters& Parameters);
 
-	void GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce);
+	void GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce, int32 MaxContinuousUpdates);
 
 	void UpdateResidencyTracking() const;
 

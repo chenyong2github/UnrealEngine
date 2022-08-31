@@ -226,7 +226,10 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 			RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
 			FVirtualTextureSystem::Get().AllocateResources(GraphBuilder, FeatureLevel);
 			FVirtualTextureSystem::Get().CallPendingCallbacks();
-			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+
+			FVirtualTextureUpdateSettings Settings;
+			Settings.DisableThrottling(true);
+			FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene, Settings);
 
 			VirtualTextureFeedbackBegin(GraphBuilder, TArrayView<const FViewInfo>(&View, 1), RenderContext.GetViewportRect().Size());
 		}

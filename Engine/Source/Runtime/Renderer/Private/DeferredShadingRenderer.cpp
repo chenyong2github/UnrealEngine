@@ -2351,7 +2351,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bUseVirtualTexturing)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+		FVirtualTextureUpdateSettings Settings;
+		Settings.DisableThrottling(ViewFamily.bOverrideVirtualTextureThrottle);
+		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene, Settings);
 	}
 
 #if RHI_RAYTRACING

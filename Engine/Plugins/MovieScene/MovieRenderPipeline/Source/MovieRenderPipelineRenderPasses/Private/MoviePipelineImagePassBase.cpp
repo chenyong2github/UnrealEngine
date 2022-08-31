@@ -85,6 +85,8 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	OutViewFamily->SceneCaptureSource = InOutSampleState.SceneCaptureSource;
 	OutViewFamily->bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	OutViewFamily->ViewMode = ViewModeIndex;
+	OutViewFamily->bOverrideVirtualTextureThrottle = true;
+	// OutViewFamily->VirtualTextureFeedbackFactor = 1;
 
 	const bool bIsPerspective = true;
 	ApplyViewMode(OutViewFamily->ViewMode, bIsPerspective, OutViewFamily->EngineShowFlags);

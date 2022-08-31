@@ -159,6 +159,21 @@ static TAutoConsoleVariable<int32> CVarVTCsvStats(
 );
 
 
+FVirtualTextureUpdateSettings::FVirtualTextureUpdateSettings()
+{
+	bEnableFeedback = CVarVTEnableFeedback.GetValueOnRenderThread() != 0;
+	bEnablePlayback = CVarVTEnablePlayback.GetValueOnRenderThread() != 0;
+	bForceContinuousUpdate = CVarVTForceContinuousUpdate.GetValueOnRenderThread() != 0;
+	bParallelFeedbackTasks = CVarVTParallelFeedbackTasks.GetValueOnRenderThread() != 0;
+	NumFeedbackTasks = CVarVTNumFeedbackTasks.GetValueOnRenderThread();
+	NumGatherTasks = CVarVTNumGatherTasks.GetValueOnRenderThread();
+	MaxGatherPagesBeforeFlush = CVarVTPageUpdateFlushCount.GetValueOnRenderThread();
+	MaxPageUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
+	MaxPagesProduced = VirtualTextureScalability::GetMaxPagesProducedPerFrame();
+	MaxContinuousUpdates = VirtualTextureScalability::GetMaxContinuousUpdatesPerFrame();
+}
+
+
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
 {
 	const uint32 vLevelPlus1 = vLevel + 1u;
@@ -256,6 +271,7 @@ struct FGatherRequestsParameters
 	uint32 PageStartIndex = 0u;
 	uint32 NumPages = 0u;
 	uint32 FrameRequested;
+	bool bForceContinuousUpdate = false;
 };
 
 class FGatherRequestsTask
@@ -1202,6 +1218,7 @@ void FVirtualTextureSystem::LoadPendingTiles(FRDGBuilder& GraphBuilder, ERHIFeat
 
 	if (PackedTiles.Num() > 0)
 	{
+		FVirtualTextureUpdateSettings Settings;
 		FConcurrentLinearBulkObjectAllocator Allocator;
 
 		FUniquePageList* UniquePageList = Allocator.Create<FUniquePageList>();
@@ -1213,10 +1230,10 @@ void FVirtualTextureSystem::LoadPendingTiles(FRDGBuilder& GraphBuilder, ERHIFeat
 
 		FUniqueRequestList* RequestList = Allocator.Create<FUniqueRequestList>(Allocator);
 		RequestList->Initialize();
-		GatherRequests(RequestList, UniquePageList, Frame, Allocator);
+		GatherRequests(RequestList, UniquePageList, Frame, Allocator, Settings);
 		// No need to sort requests, since we're submitting all of them here (no throttling)
 		AllocateResources(GraphBuilder, FeatureLevel);
-		SubmitRequests(GraphBuilder, FeatureLevel, Allocator, RequestList, false);
+		SubmitRequests(GraphBuilder, FeatureLevel, Allocator, Settings, RequestList, false);
 	}
 }
 
@@ -1323,7 +1340,7 @@ void FVirtualTextureSystem::FeedbackAnalysisTask(const FFeedbackAnalysisParamete
 	}
 }
 
-void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene)
+void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FScene* Scene, FVirtualTextureUpdateSettings const& Settings)
 {
 	check(IsInRenderingThread());
 
@@ -1393,7 +1410,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	FUniquePageList* MergedUniquePageList = Allocator.Create<FUniquePageList>();
 	MergedUniquePageList->Initialize();
 	
-	if (CVarVTEnableFeedback.GetValueOnRenderThread())
+	if (Settings.bEnableFeedback)
 	{
 		// Fetch feedback for analysis
 		FVirtualTextureFeedback::FMapResult FeedbackResult;
@@ -1407,7 +1424,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		// Give each task a section of the feedback buffer to analyze
 		FFeedbackAnalysisParameters FeedbackAnalysisParameters[MaxNumTasks];
 
-		const uint32 MaxNumFeedbackTasks = FMath::Clamp((uint32)CVarVTNumFeedbackTasks.GetValueOnRenderThread(), 1u, MaxNumTasks);
+		const uint32 MaxNumFeedbackTasks = FMath::Clamp((uint32)Settings.NumFeedbackTasks, 1u, MaxNumTasks);
 		const uint32 FeedbackSizePerTask = FMath::DivideAndRoundUp(FeedbackResult.Size, MaxNumFeedbackTasks);
 
 		uint32 NumFeedbackTasks = 0;
@@ -1433,8 +1450,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		}
 
 		// Kick the tasks
-		const bool bParallelTasks = CVarVTParallelFeedbackTasks.GetValueOnRenderThread() != 0;
-		const int32 LocalFeedbackTaskCount = bParallelTasks ? 1 : NumFeedbackTasks;
+		const int32 LocalFeedbackTaskCount = Settings.bParallelFeedbackTasks ? 1 : NumFeedbackTasks;
 		const int32 WorkerFeedbackTaskCount = NumFeedbackTasks - LocalFeedbackTaskCount;
 
 		FGraphEventArray Tasks;
@@ -1487,7 +1503,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	// Add any page requests from recording playback.
 	if (PageRequestPlaybackBuffer.Num() > 0)
 	{
-		if (CVarVTEnablePlayback.GetValueOnRenderThread())
+		if (Settings.bEnablePlayback)
 		{
 			// todo: We can split this into concurrent tasks. 
 			FAddRequestedTilesParameters Parameters;
@@ -1567,14 +1583,14 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		{
 			RequestedPageList->Add(Tile, 0xffff);
 		}
-		GatherRequests(MergedRequestList, RequestedPageList, Frame, Allocator);
+		GatherRequests(MergedRequestList, RequestedPageList, Frame, Allocator, Settings);
 	}
 
 	// Pages from feedback buffer were generated several frames ago, so they may no longer be valid for newly allocated VTs
 	static uint32 PendingFrameDelay = 3u;
 	if (Frame >= PendingFrameDelay)
 	{
-		GatherRequests(MergedRequestList, MergedUniquePageList, Frame - PendingFrameDelay, Allocator);
+		GatherRequests(MergedRequestList, MergedUniquePageList, Frame - PendingFrameDelay, Allocator, Settings);
 	}
 
 	if (MergedRequestList->GetNumAdaptiveAllocationRequests() > 0)
@@ -1588,7 +1604,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 
 		// Limit the number of uploads (account for MappedTilesToProduce this frame)
 		// Are all pages equal? Should there be different limits on different types of pages?
-		const int32 MaxNumUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
+		const int32 MaxNumUploads = Settings.MaxPageUploads;
 		const int32 MaxRequestUploads = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num(), 1);
 
 		if (MaxRequestUploads < (int32)MergedRequestList->GetNumLoadRequests())
@@ -1605,16 +1621,17 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 
 	{
 		// After sorting and clamping the load requests, if we still have unused upload bandwidth then use it to add some continous updates
-		const int32 MaxNumUploads = VirtualTextureScalability::GetMaxUploadsPerFrame();
+		const int32 MaxNumUploads = Settings.MaxPageUploads;
 		const int32 MaxTilesToProduce = FMath::Max(MaxNumUploads - MappedTilesToProduce.Num() - (int32)MergedRequestList->GetNumLoadRequests(), 0);
+		const int32 MaxContinuousUpdates = Settings.MaxContinuousUpdates;
 
-		GetContinuousUpdatesToProduce(MergedRequestList, MaxTilesToProduce);
+		GetContinuousUpdatesToProduce(MergedRequestList, MaxTilesToProduce, MaxContinuousUpdates);
 	}
 
 	// Submit the requests to produce pages that are already mapped
 	SubmitPreMappedRequests(GraphBuilder, FeatureLevel);
 	// Submit the merged requests
-	SubmitRequests(GraphBuilder, FeatureLevel, Allocator, MergedRequestList, true);
+	SubmitRequests(GraphBuilder, FeatureLevel, Allocator, Settings, MergedRequestList, true);
 
 	Producers.NotifyRequestsCompleted();
 
@@ -1627,10 +1644,10 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	ReleasePendingSpaces();
 }
 
-void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator)
+void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings)
 {
-	const uint32 MaxNumGatherTasks = FMath::Clamp((uint32)CVarVTNumGatherTasks.GetValueOnRenderThread(), 1u, MaxNumTasks);
-	const uint32 PageUpdateFlushCount = FMath::Min<uint32>(CVarVTPageUpdateFlushCount.GetValueOnRenderThread(), FPageUpdateBuffer::PageCapacity);
+	const uint32 MaxNumGatherTasks = FMath::Clamp((uint32)Settings.NumGatherTasks, 1u, MaxNumTasks);
+	const uint32 PageUpdateFlushCount = FMath::Min<uint32>(Settings.MaxGatherPagesBeforeFlush, FPageUpdateBuffer::PageCapacity);
 
 	FGatherRequestsParameters GatherRequestsParameters[MaxNumTasks];
 	uint32 NumGatherTasks = 0u;
@@ -1648,6 +1665,7 @@ void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList
 				FGatherRequestsParameters& Params = GatherRequestsParameters[TaskIndex];
 				Params.System = this;
 				Params.FrameRequested = FrameRequested;
+				Params.bForceContinuousUpdate = Settings.bForceContinuousUpdate;
 				Params.UniquePageList = UniquePageList;
 				Params.PageUpdateFlushCount = PageUpdateFlushCount;
 				Params.PageUpdateBuffers = Allocator.CreateArray<FPageUpdateBuffer>(PhysicalSpaces.Num());
@@ -1763,13 +1781,12 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	FUniqueRequestList* RESTRICT RequestList = Parameters.RequestList;
 	const uint32 PageUpdateFlushCount = Parameters.PageUpdateFlushCount;
 	const uint32 PageEndIndex = Parameters.PageStartIndex + Parameters.NumPages;
+	const bool bForceContinuousUpdate = Parameters.bForceContinuousUpdate;
 
 	uint32 NumRequestsPages = 0u;
 	uint32 NumResidentPages = 0u;
 	uint32 NumNonResidentPages = 0u;
 	uint32 NumPrefetchPages = 0u;
-
-	const bool bForceContinuousUpdate = CVarVTForceContinuousUpdate.GetValueOnRenderThread() != 0;
 
 	for (uint32 i = Parameters.PageStartIndex; i < PageEndIndex; ++i)
 	{
@@ -2145,13 +2162,12 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 	INC_DWORD_STAT_BY(STAT_NumPagePrefetch, NumPrefetchPages);
 }
 
-void FVirtualTextureSystem::GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce)
+void FVirtualTextureSystem::GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce, int32 MaxContinuousUpdates)
 {
 	const int32 NumContinuousUpdateRequests = (int32)RequestList->GetNumContinuousUpdateRequests();
-	const int32 MaxContinuousUpdatesPerFrame = VirtualTextureScalability::GetMaxContinuousUpdatesPerFrame();
 	
 	// Negative maximum continous updates allows for uncapped requests
-	if (MaxContinuousUpdatesPerFrame < 0)
+	if (MaxContinuousUpdates < 0)
 	{
 		for (int32 i = 0; i < NumContinuousUpdateRequests; ++i)
 		{
@@ -2160,7 +2176,7 @@ void FVirtualTextureSystem::GetContinuousUpdatesToProduce(FUniqueRequestList con
 	}
 	else
 	{
-		const int32 MaxContinousUpdates = FMath::Min(MaxContinuousUpdatesPerFrame, NumContinuousUpdateRequests);
+		const int32 MaxContinousUpdates = FMath::Min(MaxContinuousUpdates, NumContinuousUpdateRequests);
 
 		int32 NumContinuousUpdates = 0;
 		while (NumContinuousUpdates < MaxContinousUpdates && ContinuousUpdateTilesToProduce.Num() < MaxTilesToProduce)
@@ -2281,7 +2297,7 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRDGBuilder& GraphBuilder, E
 	}
 }
 
-void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FUniqueRequestList* RequestList, bool bAsync)
+void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FVirtualTextureUpdateSettings const& Settings, FUniqueRequestList* RequestList, bool bAsync)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::SubmitRequests);
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
@@ -2320,7 +2336,7 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 
 		bool bWaitForProducers = false;
 
-		const uint32 MaxPagesProduced = VirtualTextureScalability::GetMaxPagesProducedPerFrame();
+		const uint32 MaxPagesProduced = Settings.MaxPagesProduced;
 		const uint32 PageFreeThreshold = VirtualTextureScalability::GetPageFreeThreshold();
 		uint32 NumStacksProduced = 0u;
 		uint32 NumPagesProduced = 0u;

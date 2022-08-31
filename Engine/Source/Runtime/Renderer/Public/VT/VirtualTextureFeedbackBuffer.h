@@ -13,15 +13,16 @@
 #include "Templates/RefCounting.h"
 
 class FRDGBuilder;
+class FSceneViewFamily;
 
 /** Returns the scale used to divide the scene texture resolution to get the virtual texture feedback resolution. */
-extern int32 GetVirtualTextureFeedbackScale();
+extern int32 GetVirtualTextureFeedbackScale(FSceneViewFamily const* InViewFamily);
 
 /** Get size for a virtual texture feedback buffer. This is calculated internally by applying GetVirtualTextureFeedbackScale() to the SceneTextureExtent. */
-extern FIntPoint GetVirtualTextureFeedbackBufferSize(FIntPoint InSceneTextureExtent);
+extern FIntPoint GetVirtualTextureFeedbackBufferSize(FSceneViewFamily const* InViewFamily, FIntPoint InSceneTextureExtent);
 
 /** Returns a value from the sampling sequence used to traverse each feedback tile. */
-extern uint32 SampleVirtualTextureFeedbackSequence(uint32 InFrameIndex);
+extern uint32 SampleVirtualTextureFeedbackSequence(FSceneViewFamily const* InViewFamily, uint32 InFrameIndex);
 
 /** 
  * Description of how to interpret an RHIBuffer that is being fed to the virtual texture feedback system.

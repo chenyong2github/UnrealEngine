@@ -842,7 +842,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bUseVirtualTexturing)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTextureUpdate);
-		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene);
+		FVirtualTextureUpdateSettings Settings;
+		Settings.DisableThrottling(ViewFamily.bOverrideVirtualTextureThrottle);
+		FVirtualTextureSystem::Get().Update(GraphBuilder, FeatureLevel, Scene, Settings);
 	}
 
 	FSortedLightSetSceneInfo& SortedLightSet = *GraphBuilder.AllocObject<FSortedLightSetSceneInfo>();

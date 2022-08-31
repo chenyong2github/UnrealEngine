@@ -1827,6 +1827,12 @@ public:
 	/** Whether the scene is currently being edited, which can be used to speed up lighting propagation. */
 	bool bCurrentlyBeingEdited;
 
+	/** Whether to disable virtual texture update throttling. */
+	bool bOverrideVirtualTextureThrottle;
+
+	/** Size in pixels of a virtual texture feedback tile. */
+	int32 VirtualTextureFeedbackFactor;
+
 #if WITH_EDITOR
 	/** Indicates whether, or not, the base attachment volume should be drawn. */
 	bool bDrawBaseInfo;

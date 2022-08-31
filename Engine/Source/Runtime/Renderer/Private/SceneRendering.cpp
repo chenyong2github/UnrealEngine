@@ -1809,13 +1809,13 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.GlobalVirtualTextureMipBias = FVirtualTextureSystem::Get().GetGlobalMipBias();
 
-	const uint32 VirtualTextureFeedbackScale = GetVirtualTextureFeedbackScale();
+	const uint32 VirtualTextureFeedbackScale = GetVirtualTextureFeedbackScale(Family);
 	check(VirtualTextureFeedbackScale == 1 << FMath::FloorLog2(VirtualTextureFeedbackScale));
 	ViewUniformShaderParameters.VirtualTextureFeedbackShift = FMath::FloorLog2(VirtualTextureFeedbackScale);
 	ViewUniformShaderParameters.VirtualTextureFeedbackMask = VirtualTextureFeedbackScale - 1;
-	ViewUniformShaderParameters.VirtualTextureFeedbackStride = GetVirtualTextureFeedbackBufferSize(EffectiveBufferSize).X;
+	ViewUniformShaderParameters.VirtualTextureFeedbackStride = GetVirtualTextureFeedbackBufferSize(Family, EffectiveBufferSize).X;
 	// Use some low(ish) discrepancy sequence to run over every pixel in the virtual texture feedback tile.
-	ViewUniformShaderParameters.VirtualTextureFeedbackJitterOffset = SampleVirtualTextureFeedbackSequence(FrameIndex);
+	ViewUniformShaderParameters.VirtualTextureFeedbackJitterOffset = SampleVirtualTextureFeedbackSequence(Family, FrameIndex);
 	// Offset the selected sample index for each frame and add an additional offset each time we iterate over a full virtual texture feedback tile to ensure we get full coverage of sample indices over time.
 	const uint32 NumPixelsInTile = FMath::Square(VirtualTextureFeedbackScale);
 	ViewUniformShaderParameters.VirtualTextureFeedbackSampleOffset = (FrameIndex % NumPixelsInTile) + (FrameIndex / NumPixelsInTile);
@@ -5484,7 +5484,7 @@ void VirtualTextureFeedbackBegin(FRDGBuilder& GraphBuilder, TArrayView<const FVi
 	}
 
 	FVirtualTextureFeedbackBufferDesc Desc;
-	Desc.Init2D(SceneTextureExtent, ViewRects, GetVirtualTextureFeedbackScale());
+	Desc.Init2D(SceneTextureExtent, ViewRects, GetVirtualTextureFeedbackScale(Views.Num() > 0 ? Views[0].Family : nullptr));
 	GVirtualTextureFeedbackBuffer.Begin(GraphBuilder, Desc);
 }
 

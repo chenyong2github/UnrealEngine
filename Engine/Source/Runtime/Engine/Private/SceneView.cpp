@@ -322,6 +322,14 @@ static TAutoConsoleVariable<int32> CVarEnableTemporalUpsample(
 	TEXT(" 1: TemporalAA performs spatial and temporal upscale as screen percentage method (default)."),
 	ECVF_Default);
 
+int32 GVirtualTextureFeedbackFactor = 16;
+static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
+	TEXT("r.vt.FeedbackFactor"),
+	GVirtualTextureFeedbackFactor,
+	TEXT("The size of the VT feedback buffer is calculated by dividing the render resolution by this factor.")
+	TEXT("The value set here is rounded up to the nearest power of two before use."),
+	ECVF_RenderThreadSafe);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 static TAutoConsoleVariable<float> CVarOverrideTimeMaterialExpressions(
@@ -2832,6 +2840,9 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 #endif
 
 	bCurrentlyBeingEdited = false;
+
+	bOverrideVirtualTextureThrottle = false;
+	VirtualTextureFeedbackFactor = GVirtualTextureFeedbackFactor;
 
 #if !WITH_EDITOR
 	check(!EngineShowFlags.StationaryLightOverlap);
