@@ -22,7 +22,6 @@ struct FEOSPlatformConfig
 	FString ClientId;
 	FString ClientSecret;
 	FString EncryptionKey;
-	bool bUseGameDev;
 };
 
 FEOSPlatformConfig LoadEOSPlatformConfig()
@@ -35,7 +34,6 @@ FEOSPlatformConfig LoadEOSPlatformConfig()
 	GConfig->GetString(*ConfigSection, TEXT("ClientId"), PlatformConfig.ClientId, GEngineIni);
 	GConfig->GetString(*ConfigSection, TEXT("ClientSecret"), PlatformConfig.ClientSecret, GEngineIni);
 	GConfig->GetString(*ConfigSection, TEXT("EncryptionKey"), PlatformConfig.EncryptionKey, GEngineIni);
-	GConfig->GetBool(*ConfigSection, TEXT("bUseGameDev"), PlatformConfig.bUseGameDev, GEngineIni);
 	return PlatformConfig;
 }
 
@@ -98,15 +96,9 @@ IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::CreatePlatform()
 	const FTCHARToUTF8 EncryptionKey(EOSPlatformConfig.EncryptionKey.IsEmpty() ? nullptr : *EOSPlatformConfig.EncryptionKey);
 	const FTCHARToUTF8 CacheDirectory(*(SDKManager->GetCacheDirBase() / TEXT("OnlineServicesEOS")));
 
-	static struct FReservedOptions
-	{
-		int32_t ApiVersion;
-		const char* BackendEnvironment;
-	} ReservedOptions = { 1, "GameDev" };
-
 	EOS_Platform_Options PlatformOptions = {};
 	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
-	PlatformOptions.Reserved = EOSPlatformConfig.bUseGameDev ? &ReservedOptions : nullptr;
+	PlatformOptions.Reserved = nullptr;
 	PlatformOptions.bIsServer = EOS_FALSE;
 	PlatformOptions.OverrideCountryCode = nullptr;
 	PlatformOptions.OverrideLocaleCode = nullptr;
