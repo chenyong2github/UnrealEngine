@@ -3853,6 +3853,8 @@ void UAnimInstance::HandleObjectsReinstanced(const TMap<UObject*, UObject*>& Old
 		
 		if(bThisObjectWasReinstanced)
 		{
+			TRACE_OBJECT_LIFETIME_BEGIN(this);
+
 			RecalcRequiredBones();
 			
 			// Reinit proxy
