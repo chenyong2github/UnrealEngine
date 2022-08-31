@@ -214,8 +214,18 @@ class ASpatialHashRuntimeGridInfo : public AInfo
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category=Settings)
+	UPROPERTY()
 	FSpatialHashRuntimeGrid	GridSettings;
+};
+
+UCLASS()
+class URuntimeSpatialHashExternalStreamingObject : public URuntimeHashExternalStreamingObjectBase
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY();
+	TArray<FSpatialHashStreamingGrid> StreamingGrids;
 };
 
 UCLASS()
@@ -238,6 +248,8 @@ public:
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) override;
 	virtual void DrawPreview() const override;
 
+	virtual URuntimeHashExternalStreamingObjectBase* StoreToExternalStreamingObject(UObject* StreamingObjectOuter, FName StreamingObjectName) override;
+
 	FName GetCellName(FName InGridName, const FGridCellCoord& InCellGlobalCoord, const FDataLayersID& InDataLayerID) const;
 	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, const FGridCellCoord& InCellGlobalCoord, const FDataLayersID& InDataLayerID);
 
@@ -249,10 +261,18 @@ public:
 	virtual int32 GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells, bool bAllDataLayers = false, bool bDataLayersOnly = false, const TSet<FName>& InDataLayers = TSet<FName>()) const override;
 	virtual bool GetStreamingCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const override;
 	virtual bool GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const override;
+
+	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) override;
+	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) override;
+
+	uint32 GetNumGrids() const;
 		
 	static FString GetCellCoordString(const FGridCellCoord& InCellGlobalCoord);
 
 protected:
+	void ForEachStreamingGrid(TFunctionRef<void(FSpatialHashStreamingGrid&)> Func);
+	void ForEachStreamingGrid(TFunctionRef<void(const FSpatialHashStreamingGrid&)> Func) const;
+
 	bool ShouldConsiderClientOnlyVisibleCells() const;
 	virtual EWorldPartitionStreamingPerformance GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const override;
 
@@ -288,8 +308,11 @@ private:
 	 */
 	UPROPERTY(NonPIEDuplicateTransient)
 	TArray<FSpatialHashStreamingGrid> StreamingGrids;
-
 	mutable TMap<FName, const FSpatialHashStreamingGrid*> NameToGridMapping;
+	mutable bool bIsNameToGridMappingDirty;
+
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>> ExternalStreamingObjects;
 	
 	virtual FVector2D GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const override;
 	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, const FVector2D& Offset) const override;

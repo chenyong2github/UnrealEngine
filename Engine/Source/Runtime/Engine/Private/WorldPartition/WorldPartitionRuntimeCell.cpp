@@ -57,6 +57,12 @@ void UWorldPartitionRuntimeCell::SetDebugInfo(int64 InCoordX, int64 InCoordY, in
 	UpdateDebugName();
 }
 
+void UWorldPartitionRuntimeCell::SetGridName(FName InGridName)
+{
+	DebugInfo.GridName = InGridName;
+	UpdateDebugName();
+}
+
 void UWorldPartitionRuntimeCell::UpdateDebugName()
 {
 	TStringBuilder<512> Builder;

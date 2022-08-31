@@ -33,6 +33,7 @@
 #include "RenderUtils.h"
 #include "Algo/Transform.h"
 #include "Algo/Copy.h"
+#include "Algo/Accumulate.h"
 #include "Math/Range.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Components/LineBatchComponent.h"
@@ -51,6 +52,8 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
+
+#include "UObject/UObjectGlobals.h"
 
 extern UNREALED_API class UEditorEngine* GEditor;
 #endif //WITH_EDITOR
@@ -735,6 +738,7 @@ UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObje
 #if WITH_EDITORONLY_DATA
 	, bPreviewGrids(false)
 #endif
+	, bIsNameToGridMappingDirty(true)
 {}
 
 void UWorldPartitionRuntimeSpatialHash::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -765,6 +769,35 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellCoordString(const FGridCellCoo
 void UWorldPartitionRuntimeSpatialHash::DrawPreview() const
 {
 	GridPreviewer.Draw(GetWorld(), Grids, bPreviewGrids);
+}
+
+URuntimeHashExternalStreamingObjectBase* UWorldPartitionRuntimeSpatialHash::StoreToExternalStreamingObject(UObject* StreamingObjectOuter, FName StreamingObjectName)
+{
+	check(!GetWorld()->IsGameWorld());
+
+	FName StreamingObjectUniqueName = MakeUniqueObjectName(StreamingObjectOuter, URuntimeSpatialHashExternalStreamingObject::StaticClass(), StreamingObjectName);
+	URuntimeSpatialHashExternalStreamingObject* StreamingObject = NewObject<URuntimeSpatialHashExternalStreamingObject>(StreamingObjectOuter, StreamingObjectUniqueName);
+	StreamingObject->StreamingGrids = MoveTemp(StreamingGrids);
+
+	// Rename grids so the name of external streaming objects do not clashes with the main streaming grids.
+	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingObject->StreamingGrids)
+	{
+		FString ExternalGridName = StreamingGrid.GridName.ToString() + TEXT("(") + StreamingObjectName.ToString() + TEXT(")");
+		StreamingGrid.GridName = FName(*ExternalGridName);
+
+		for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+		{
+			for (FSpatialHashStreamingGridLayerCell& GridLayerCell : GridLevel.LayerCells)
+			{
+				for (UWorldPartitionRuntimeSpatialHashCell* Cell : GridLayerCell.GridCells)
+				{
+					Cell->SetGridName(StreamingGrid.GridName);
+				}
+			}
+		}
+	}
+
+	return StreamingObject;
 }
 
 void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
@@ -849,7 +882,7 @@ void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar
 {
 	Super::DumpStateLog(Ar);
 
-	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	ForEachStreamingGrid([&Ar, this](FSpatialHashStreamingGrid& StreamingGrid)
 	{
 		Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
 		Ar.Printf(TEXT("%s - Runtime Spatial Hash - Streaming Grid - %s"), *GetWorld()->GetName(), *StreamingGrid.GridName.ToString());
@@ -923,7 +956,7 @@ void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar
 			}
 		}
 		Ar.Printf(TEXT(""));
-	}	
+	});
 }
 
 FName UWorldPartitionRuntimeSpatialHash::GetCellName(UWorldPartition* WorldPartition, FName InGridName, const FGridCellCoord& InCellGlobalCoord, const FDataLayersID& InDataLayerID)
@@ -1183,6 +1216,7 @@ TArray<UWorldPartitionRuntimeCell*> UWorldPartitionRuntimeSpatialHash::GetAlways
 bool UWorldPartitionRuntimeSpatialHash::PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages)
 {
 	check(IsRunningCookCommandlet());
+	check(ExternalStreamingObjects.IsEmpty()); // Make sure we don't have external streaming objects grids so we won't gather their cells
 
 	OutModifiedPackages.Reset();
 	for (UWorldPartitionRuntimeCell* Cell : GetAlwaysLoadedCells())
@@ -1263,7 +1297,7 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 {
 	const bool bShouldConsiderClientOnlyVisible = ShouldConsiderClientOnlyVisibleCells();
 
-	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	ForEachStreamingGrid([&](const FSpatialHashStreamingGrid& StreamingGrid)
 	{
 		if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
 		{
@@ -1285,7 +1319,7 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 				}
 			}
 		}
-	}
+	});
 
 	return Cells.Num();
 }
@@ -1315,37 +1349,145 @@ bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPar
 	if (Sources.Num() == 0)
 	{
 		// Get always loaded cells
-		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		ForEachStreamingGrid([&](const FSpatialHashStreamingGrid& StreamingGrid)
 		{
 			if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
 			{
 				StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells.GetCells(), OutLoadCells.GetCells());
 			}
-		}
+		});
 	}
 	else
 	{
 		// Get cells based on streaming sources
-		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		ForEachStreamingGrid([&](const FSpatialHashStreamingGrid& StreamingGrid)
 		{
 			if (!StreamingGrid.bClientOnlyVisible || bShouldConsiderClientOnlyVisible)
 			{
 				StreamingGrid.GetCells(Sources, DataLayerSubsystem, OutActivateCells, OutLoadCells, GetEffectiveEnableZCulling(bEnableZCulling));
 			}
-		}
+		});
 	}
 
 	return !!(OutActivateCells.Num() + OutLoadCells.Num());
 }
 
+bool UWorldPartitionRuntimeSpatialHash::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+{
+	check(GetWorld()->IsGameWorld());
+
+	if (!ExternalStreamingObjects.Contains(ExternalStreamingObject))
+	{
+		if (URuntimeSpatialHashExternalStreamingObject* SpatialHashStreamingObject = Cast<URuntimeSpatialHashExternalStreamingObject>(ExternalStreamingObject))
+		{
+			ExternalStreamingObjects.Add(SpatialHashStreamingObject);
+			bIsNameToGridMappingDirty = true;
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogWorldPartition, Error, TEXT("Incompatible external streaming object to inject. Hash Type: %s. Streaming Object Type: %s."), 
+				*UWorldPartitionRuntimeSpatialHash::StaticClass()->GetName(), *SpatialHashStreamingObject->GetClass()->GetName());
+		}
+	}
+	return false;
+}
+
+bool UWorldPartitionRuntimeSpatialHash::RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+{
+	check(GetWorld()->IsGameWorld());
+
+	if (URuntimeSpatialHashExternalStreamingObject* SpatialHashStreamingObject = Cast<URuntimeSpatialHashExternalStreamingObject>(ExternalStreamingObject))
+	{
+		if (ExternalStreamingObjects.Remove(SpatialHashStreamingObject) > 0)
+		{
+			bIsNameToGridMappingDirty = true;
+			return true;
+		}
+	}
+	else
+	{
+		UE_LOG(LogWorldPartition, Error, TEXT("Incompatible external streaming object to remove. Hash Type: %s. Streaming Object Type: %s."),
+			*UWorldPartitionRuntimeSpatialHash::StaticClass()->GetName(), *SpatialHashStreamingObject->GetClass()->GetName());
+	}
+	
+	return false;
+}
+
+uint32 UWorldPartitionRuntimeSpatialHash::GetNumGrids() const
+{
+	uint32 NumGrids = Algo::Accumulate(ExternalStreamingObjects, StreamingGrids.Num(),
+		[](uint32 AccumulatedNumGrids, const TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>& StreamingObject)
+	{
+		if (StreamingObject.IsValid())
+		{
+			AccumulatedNumGrids += StreamingObject->StreamingGrids.Num();
+		}
+
+		return AccumulatedNumGrids;
+
+	});
+
+	return NumGrids;
+}
+
+void UWorldPartitionRuntimeSpatialHash::ForEachStreamingGrid(TFunctionRef<void(FSpatialHashStreamingGrid&)> Func)
+{
+	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	{
+		Func(StreamingGrid);
+	}
+
+	for (TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>& StreamingObject : ExternalStreamingObjects)
+	{
+		if (StreamingObject.IsValid())
+		{
+			for (FSpatialHashStreamingGrid& StreamingGrid : StreamingObject->StreamingGrids)
+			{
+				Func(StreamingGrid);
+			}
+		}
+	}
+}
+
+void UWorldPartitionRuntimeSpatialHash::ForEachStreamingGrid(TFunctionRef<void(const FSpatialHashStreamingGrid&)> Func) const
+{
+	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	{
+		Func(StreamingGrid);
+	}
+
+	for (const TWeakObjectPtr<URuntimeSpatialHashExternalStreamingObject>& StreamingObject : ExternalStreamingObjects)
+	{
+		if (StreamingObject.IsValid())
+		{
+			for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingObject->StreamingGrids)
+			{
+				Func(StreamingGrid);
+			}
+		}
+	}
+}
+
 const TMap<FName, const FSpatialHashStreamingGrid*>& UWorldPartitionRuntimeSpatialHash::GetNameToGridMapping() const
 {
-	if (NameToGridMapping.IsEmpty())
+	if (bIsNameToGridMappingDirty)
 	{
-		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		ForEachStreamingGrid([&](const FSpatialHashStreamingGrid& StreamingGrid)
 		{
-			NameToGridMapping.Add(StreamingGrid.GridName, &StreamingGrid);
-		}
+			// Only keep the first one if names are clashing. ForEachStreamingGrids start iterating with the main grids then iterates on external Objects.
+			// Prioritize the main grid in the mapping.
+			if (!NameToGridMapping.Contains(StreamingGrid.GridName))
+			{
+				NameToGridMapping.Add(StreamingGrid.GridName, &StreamingGrid);
+			}
+			else
+			{
+				UE_LOG(LogWorldPartition, Error, TEXT("2 Streaming grids share the name: \"%s\". Some features will not work properly."), *StreamingGrid.GridName.ToString());
+			}
+		});
+
+		bIsNameToGridMappingDirty = false;
 	}
 
 	return NameToGridMapping;
@@ -1501,11 +1643,19 @@ bool UWorldPartitionRuntimeSpatialHash::ContainsRuntimeHash(const FString& Name)
 
 TArray<const FSpatialHashStreamingGrid*> UWorldPartitionRuntimeSpatialHash::GetFilteredStreamingGrids() const
 {
+	URuntimeSpatialHashExternalStreamingObject* ExternalStreamingObject = NewObject<URuntimeSpatialHashExternalStreamingObject>(const_cast<UWorldPartitionRuntimeSpatialHash*>(this), TEXT("test"));
+	const_cast<UWorldPartitionRuntimeSpatialHash*>(this)->InjectExternalStreamingObject(ExternalStreamingObject);
+
 	TArray<const FSpatialHashStreamingGrid*> FilteredStreamingGrids;
-	FilteredStreamingGrids.Reserve(StreamingGrids.Num());
-	Algo::TransformIf(StreamingGrids, FilteredStreamingGrids,
-		[](const FSpatialHashStreamingGrid& StreamingGrid) { return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(StreamingGrid.GridName); },
-		[](const FSpatialHashStreamingGrid& StreamingGrid) { return &StreamingGrid; });
+	FilteredStreamingGrids.Reserve(GetNumGrids());
+	ForEachStreamingGrid([&FilteredStreamingGrids](const FSpatialHashStreamingGrid& StreamingGrid)
+	{
+		if (FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(StreamingGrid.GridName))
+		{
+			FilteredStreamingGrids.Add(&StreamingGrid);
+		}
+	});
+
 	return FilteredStreamingGrids;
 }
 

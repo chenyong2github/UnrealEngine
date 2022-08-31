@@ -29,6 +29,15 @@ enum class EWorldPartitionStreamingPerformance : uint8
 	Critical
 };
 
+UCLASS(Abstract)
+class ENGINE_API URuntimeHashExternalStreamingObjectBase : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+};
+
 UCLASS(Abstract, Config=Engine, AutoExpandCategories=(WorldPartition), Within = WorldPartition)
 class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 {
@@ -42,6 +51,8 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual void FlushStreaming() {}
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, const IStreamingGenerationContext* StreamingGenerationContext, bool bCreateActorsOnly) { return false; }
 	virtual void DrawPreview() const {}
+
+	virtual URuntimeHashExternalStreamingObjectBase* StoreToExternalStreamingObject(UObject* StreamingObjectOuter, FName StreamingObjectName) { return nullptr; }
 
 	virtual void DumpStateLog(FHierarchicalLogArchive& Ar);
 
@@ -68,6 +79,9 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const { return false; };
 	virtual void SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const;
 	EWorldPartitionStreamingPerformance GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellToActivate) const;
+
+	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
+	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
 
 	/* Returns desired footprint that Draw2D should take relative to given Canvas size (the value can exceed the given size).
 	 * UWorldPartitionSubSystem will re-adapt the size relative to all others UWorldPartitionRuntimeHash and provide the correct size to Draw2D.
