@@ -215,7 +215,10 @@ public:
 	{
 		checkf(InView.Size <= Size, TEXT("Failed to copy from a view of %" UINT64_FMT " bytes "
 			"to a view of %" UINT64_FMT " bytes."), InView.Size, Size);
-		FMemory::Memcpy(Data, InView.Data, InView.Size);
+		if (InView.Size)
+		{
+			FMemory::Memcpy(Data, InView.Data, InView.Size);
+		}
 		return RightChop(InView.Size);
 	}
 
