@@ -89,7 +89,7 @@ FString FMeshApproximationTool::GetDefaultPackageName() const
 		if (Actor)
 		{
 			TInlineComponentArray<UStaticMeshComponent*> SMComponets;
-			Actor->GetComponents<UStaticMeshComponent>(SMComponets);
+			Actor->GetComponents(SMComponets);
 			for (UStaticMeshComponent* Component : SMComponets)
 			{
 				if (Component->GetStaticMesh())

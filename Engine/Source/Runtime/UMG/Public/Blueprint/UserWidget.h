@@ -1476,16 +1476,16 @@ namespace CreateWidgetHelpers
 
 DECLARE_CYCLE_STAT(TEXT("UserWidget Create"), STAT_CreateWidget, STATGROUP_Slate);
 
-template <typename WidgetT = UUserWidget, typename OwnerT = UObject>
-WidgetT* CreateWidget(OwnerT* OwningObject, TSubclassOf<UUserWidget> UserWidgetClass = WidgetT::StaticClass(), FName WidgetName = NAME_None)
+template <typename WidgetT = UUserWidget, typename OwnerType = UObject>
+WidgetT* CreateWidget(OwnerType OwningObject, TSubclassOf<UUserWidget> UserWidgetClass = WidgetT::StaticClass(), FName WidgetName = NAME_None)
 {
 	static_assert(TIsDerivedFrom<WidgetT, UUserWidget>::IsDerived, "CreateWidget can only be used to create UserWidget instances. If creating a UWidget, use WidgetTree::ConstructWidget.");
 	
-	static_assert(TIsDerivedFrom<OwnerT, UWidget>::IsDerived
-		|| TIsDerivedFrom<OwnerT, UWidgetTree>::IsDerived
-		|| TIsDerivedFrom<OwnerT, APlayerController>::IsDerived
-		|| TIsDerivedFrom<OwnerT, UGameInstance>::IsDerived
-		|| TIsDerivedFrom<OwnerT, UWorld>::IsDerived, "The given OwningObject is not of a supported type for use with CreateWidget.");
+	static_assert(TIsDerivedFrom<TPointedToType<OwnerType>, UWidget>::IsDerived
+		|| TIsDerivedFrom<TPointedToType<OwnerType>, UWidgetTree>::IsDerived
+		|| TIsDerivedFrom<TPointedToType<OwnerType>, APlayerController>::IsDerived
+		|| TIsDerivedFrom<TPointedToType<OwnerType>, UGameInstance>::IsDerived
+		|| TIsDerivedFrom<TPointedToType<OwnerType>, UWorld>::IsDerived, "The given OwningObject is not of a supported type for use with CreateWidget.");
 
 	SCOPE_CYCLE_COUNTER(STAT_CreateWidget);
 	FScopeCycleCounterUObject WidgetObjectCycleCounter(UserWidgetClass, GET_STATID(STAT_CreateWidget));

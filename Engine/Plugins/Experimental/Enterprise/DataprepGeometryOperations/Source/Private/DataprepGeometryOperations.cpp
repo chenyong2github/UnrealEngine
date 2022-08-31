@@ -553,7 +553,7 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 		if (AActor* Owner = CutoffComponent->GetOwner())
 		{
 			TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-			Owner->GetComponents<UStaticMeshComponent>(ComponentArray, true);
+			Owner->GetComponents(ComponentArray, true);
 
 			bool bMeshActorIsValid = false;
 

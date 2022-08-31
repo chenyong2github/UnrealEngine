@@ -358,7 +358,7 @@ void UAnimationSharingManager::RegisterActor(AActor* InActor, FUpdateActorHandle
 	if (InActor)
 	{
 		TArray<USkeletalMeshComponent*, TInlineAllocator<1>> OwnedComponents;
-		InActor->GetComponents<USkeletalMeshComponent>(OwnedComponents);
+		InActor->GetComponents(OwnedComponents);
 		checkf(OwnedComponents.Num(), TEXT("No SkeletalMeshComponents found in actor!"));
 
 		const USkeleton* UsedSkeleton = [&OwnedComponents]()
@@ -408,7 +408,7 @@ void UAnimationSharingManager::RegisterActorWithSkeleton(AActor* InActor, const 
 	if (Handle != INDEX_NONE)
 	{
 		TArray<USkeletalMeshComponent*, TInlineAllocator<1>> OwnedComponents;
-		InActor->GetComponents<USkeletalMeshComponent>(OwnedComponents);
+		InActor->GetComponents(OwnedComponents);
 		checkf(OwnedComponents.Num(), TEXT("No SkeletalMeshComponents found in actor!"));
 
 		UAnimSharingInstance* Data = PerSkeletonData[Handle];

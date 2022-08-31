@@ -409,7 +409,7 @@ USceneComponent* MovieSceneHelpers::SceneComponentFromRuntimeObject(UObject* Obj
 UCameraComponent* MovieSceneHelpers::CameraComponentFromActor(const AActor* InActor)
 {
 	TArray<UCameraComponent*> CameraComponents;
-	InActor->GetComponents<UCameraComponent>(CameraComponents);
+	InActor->GetComponents(CameraComponents);
 
 	// If there's a camera component that's active, return that one
 	for (UCameraComponent* CameraComponent : CameraComponents)

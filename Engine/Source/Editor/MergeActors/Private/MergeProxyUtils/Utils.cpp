@@ -45,7 +45,7 @@ void BuildMergeComponentDataFromSelection(TArray<TSharedPtr<FMergeComponentData>
 		check(Actor != nullptr);
 
 		TArray<UPrimitiveComponent*> PrimComponents;
-		Actor->GetComponents<UPrimitiveComponent>(PrimComponents);
+		Actor->GetComponents(PrimComponents);
 		for (UPrimitiveComponent* PrimComponent : PrimComponents)
 		{
 			bool bInclude = false; // Should put into UI list

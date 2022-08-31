@@ -1007,8 +1007,8 @@ void SDataprepEditorViewport::SelectActors(const TArray< AActor* >& SelectedActo
 
 	for(const AActor* SelectedActor : SelectedActors)
 	{
-		TArray< UStaticMeshComponent* > Components;
-		SelectedActor->GetComponents< UStaticMeshComponent >( Components );
+		TArray<UStaticMeshComponent*> Components;
+		SelectedActor->GetComponents( Components );
 		for( UStaticMeshComponent* SelectedComponent : Components )
 		{
 			// If a mesh is displayable, it should have at least one material
@@ -1038,8 +1038,8 @@ void SDataprepEditorViewport::SelectActors(const TArray< AActor* >& SelectedActo
 
 void SDataprepEditorViewport::SetActorVisibility(AActor* SceneActor, bool bInVisibility)
 {
-	TArray< UStaticMeshComponent* > SceneComponents;
-	SceneActor->GetComponents< UStaticMeshComponent >(SceneComponents);
+	TArray<UStaticMeshComponent*> SceneComponents;
+	SceneActor->GetComponents(SceneComponents);
 	for (UStaticMeshComponent* SceneComponent : SceneComponents)
 	{
 		UStaticMeshComponent** PreviewComponent = MeshComponentsMapping.Find(SceneComponent);
@@ -1776,7 +1776,7 @@ namespace DataprepEditor3DPreviewUtils
 		}
 
 		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		InActor->GetComponents<UStaticMeshComponent>( StaticMeshComponents );
+		InActor->GetComponents( StaticMeshComponents );
 		for(UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 		{
 			MeshComponents.Add( StaticMeshComponent );

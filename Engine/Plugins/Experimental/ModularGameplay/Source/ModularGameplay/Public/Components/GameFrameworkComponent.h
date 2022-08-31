@@ -58,7 +58,7 @@ public:
 	{
 		if (IsValid(OwnerActor))
 		{
-			OwnerActor->GetComponents<T>(AllComponents);
+			OwnerActor->GetComponents(AllComponents);
 		}
 
 		Advance();
@@ -136,7 +136,7 @@ public:
 	{
 		if (IsValid(OwnerActor))
 		{
-			OwnerActor->GetComponents<const T>(AllComponents);
+			OwnerActor->GetComponents(AllComponents);
 		}
 
 		Advance();

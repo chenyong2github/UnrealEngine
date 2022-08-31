@@ -156,7 +156,7 @@ void ANiagaraPreviewGrid::ActivatePreviews(bool bReset)
 			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
 
 			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
-			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			PreviewActor->GetComponents(NiagaraComponents);
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
 				PreviewAxisX->ApplyToPreview(Component, X, true, XLabel);
@@ -183,7 +183,7 @@ void ANiagaraPreviewGrid::DeactivatePreviews()
 			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
 
 			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
-			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			PreviewActor->GetComponents(NiagaraComponents);
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
 				Component->Deactivate();
@@ -207,7 +207,7 @@ void ANiagaraPreviewGrid::SetPaused(bool bPaused)
 			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
 
 			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
-			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			PreviewActor->GetComponents(NiagaraComponents);
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
 				Component->SetPaused(bPaused);
@@ -233,7 +233,7 @@ void ANiagaraPreviewGrid::GetPreviews(TArray<UNiagaraComponent*>& OutPreviews)
 			ANiagaraPreviewBase* PreviewActor = CastChecked<ANiagaraPreviewBase>(PreviewComp->GetChildActor());
 
 			TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
-			PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+			PreviewActor->GetComponents(NiagaraComponents);
 			for (UNiagaraComponent* Component : NiagaraComponents)
 			{
 				OutPreviews.Add(Component);
@@ -308,7 +308,7 @@ void ANiagaraPreviewGrid::GeneratePreviews()
 					PreviewActor->SetSystem(System);
 
 					TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
-					PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+					PreviewActor->GetComponents(NiagaraComponents);
 					for (UNiagaraComponent* Component : NiagaraComponents)
 					{
 						Component->Activate(true);
@@ -348,7 +348,7 @@ void ANiagaraPreviewGrid::TickPreviews()
 				FString YLabel = FString::Format(TEXT("{1} | Y = {0}"), Args);
 
 				TArray<UNiagaraComponent*, TInlineAllocator<4>> NiagaraComponents;
-				PreviewActor->GetComponents<UNiagaraComponent>(NiagaraComponents);
+				PreviewActor->GetComponents(NiagaraComponents);
 				for (UNiagaraComponent* Component : NiagaraComponents)
 				{
 					//Ensure we're active. Will re-trigger one shot effects.

@@ -508,7 +508,7 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 	// Hide visualization and hidden components from RootActor
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
-		GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+		GetComponents(PrimitiveComponents);
 
 		for (UPrimitiveComponent* CompIt : PrimitiveComponents)
 		{
@@ -533,7 +533,7 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 				const bool bActorHideInGame = Actor->IsHidden();
 
 				TArray<UPrimitiveComponent*> PrimitiveComponents;
-				Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+				Actor->GetComponents(PrimitiveComponents);
 
 				for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
 				{
@@ -640,7 +640,7 @@ void ADisplayClusterRootActor::UpdateLightCardPositions()
 	USceneComponent* ViewOriginComponent = GetRootComponent();
 
 	TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
-	GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
+	GetComponents(ViewOriginComponents);
 
 	if (ViewOriginComponents.Num())
 	{

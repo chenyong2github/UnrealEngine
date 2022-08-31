@@ -101,7 +101,7 @@ void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 	UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 	if (FixturePatch)
 	{
-		GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+		GetComponents(StaticMeshComponents);
 
 		// Create dynamic materials
 		DynamicMaterialLens = UMaterialInstanceDynamic::Create(LensMaterialInstance, nullptr);
@@ -378,7 +378,7 @@ void ADMXFixtureActorMatrix::SetDefaultMatrixFixtureState()
 		FixturePatch->GetAllMatrixCells(Cells);
 
 		TArray<UDMXFixtureComponent*> DMXComponents;
-		GetComponents<UDMXFixtureComponent>(DMXComponents);
+		GetComponents(DMXComponents);
 
 		for (int CurrentCellIndex = 0; CurrentCellIndex < Cells.Num(); CurrentCellIndex++)
 		{

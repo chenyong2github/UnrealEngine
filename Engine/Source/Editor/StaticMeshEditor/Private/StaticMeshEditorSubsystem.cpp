@@ -292,7 +292,7 @@ namespace InternalEditorMeshLibrary
 				PivotLocation += MeshActor->GetActorLocation();
 
 				TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-				MeshActor->GetComponents<UStaticMeshComponent>(ComponentArray);
+				MeshActor->GetComponents(ComponentArray);
 
 				bool bActorIsValid = false;
 				for (UStaticMeshComponent* MeshCmp : ComponentArray)

@@ -1524,7 +1524,7 @@ void FControlRigParameterTrackEditor::AddControlRigFromComponent(FGuid InGuid)
 	if (AActor* BoundActor = Cast<AActor>(BoundObject))
 	{
 		TArray<UControlRigComponent*> ControlRigComponents;
-		BoundActor->GetComponents<UControlRigComponent>(ControlRigComponents);
+		BoundActor->GetComponents(ControlRigComponents);
 		for (UControlRigComponent* ControlRigComponent : ControlRigComponents)
 		{
 			if (UControlRig* CR = ControlRigComponent->GetControlRig())

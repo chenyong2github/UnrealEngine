@@ -4675,7 +4675,7 @@ void AInstancedFoliageActor::PostLoad()
 		if (bHasISMFoliage)
 		{
 			TArray<UFoliageInstancedStaticMeshComponent*> FoliageComponents;
-			GetComponents<UFoliageInstancedStaticMeshComponent>(FoliageComponents);
+			GetComponents(FoliageComponents);
 			for (UFoliageInstancedStaticMeshComponent* FoliageComponent : FoliageComponents)
 			{
 				if (FoliageComponent && FoliageComponent->bEnableDiscardOnLoad)

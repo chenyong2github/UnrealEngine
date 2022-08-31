@@ -34,7 +34,7 @@ bool IsGeometryCollectionSelected()
 		{
 			AActor* Actor = Cast<AActor>(*Iter);
 			TArray<UGeometryCollectionComponent*, TInlineAllocator<1>> GeometryComponents;
-			Actor->GetComponents<UGeometryCollectionComponent>(GeometryComponents);
+			Actor->GetComponents(GeometryComponents);
 			if (GeometryComponents.Num() > 0)
 			{
 				return true;

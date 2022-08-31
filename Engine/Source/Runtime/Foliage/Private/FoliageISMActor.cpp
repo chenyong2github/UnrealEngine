@@ -119,7 +119,7 @@ void FFoliageISMActor::Initialize(const UFoliageType* FoliageType)
 	AActor* SpawnedActor = IFA->GetWorld()->SpawnActor<AActor>(ActorClass, SpawnParams);
 	FTransform ActorTransform = SpawnedActor->GetActorTransform();
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	SpawnedActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+	SpawnedActor->GetComponents(StaticMeshComponents);
 
 	ClientHandle = IFA->RegisterClient(Guid);
 	IFA->RegisterClientInstanceManager(ClientHandle, this);

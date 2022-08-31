@@ -1468,7 +1468,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<AActor*>& InActors, const
 	for (AActor* Actor : InActors)
 	{
 		TInlineComponentArray<UStaticMeshComponent*> Components;
-		Actor->GetComponents<UStaticMeshComponent>(Components);
+		Actor->GetComponents(Components);
 		ComponentsToMerge.Append(Components);
 	}
 

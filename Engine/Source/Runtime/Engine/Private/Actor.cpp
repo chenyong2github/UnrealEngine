@@ -3063,7 +3063,7 @@ void AActor::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
 	{
 		// Look for the first active camera component and use that for the view
 		TInlineComponentArray<UCameraComponent*> Cameras;
-		GetComponents<UCameraComponent>(/*out*/ Cameras);
+		GetComponents(/*out*/ Cameras);
 
 		for (UCameraComponent* CameraComponent : Cameras)
 		{

@@ -606,7 +606,7 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 		const FVector ActorOffset(Actor->GetActorLocation() - FirstActor->GetActorLocation());
 
 		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+		Actor->GetComponents(StaticMeshComponents, true);
 		for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
 		{
 			// We're partial to static mesh components, here
@@ -633,7 +633,7 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 		}
 
 		TArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
-		Actor->GetComponents<UGeometryCollectionComponent>(GeometryCollectionComponents, true);
+		Actor->GetComponents(GeometryCollectionComponents, true);
 		for (int32 ii = 0, ni = GeometryCollectionComponents.Num(); ii < ni; ++ii)
 		{
 			UGeometryCollectionComponent* GeometryCollectionComponent = GeometryCollectionComponents[ii];

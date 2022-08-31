@@ -234,7 +234,7 @@ namespace Nanite
 	void FCoarseMeshStreamingManager::ProcessNotifiedActor(const AActor* Actor, ENotifyMode NotifyMode)
 	{
 		TInlineComponentArray<UPrimitiveComponent*> Primitives;
-		Actor->GetComponents<UPrimitiveComponent>(Primitives);
+		Actor->GetComponents(Primitives);
 		for (const UPrimitiveComponent* Primitive : Primitives)
 		{
 			check(Primitive);

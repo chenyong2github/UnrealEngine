@@ -162,7 +162,7 @@ TArray<AStaticMeshActor *> FMaterialUtils::ApplyMaterialToSelection(const FStrin
     {
         AActor *Actor = Cast<AActor>(*Iter);
         TArray<UStaticMeshComponent *> Components;
-        Actor->GetComponents<UStaticMeshComponent>(Components);
+        Actor->GetComponents(Components);
 
         if (Components.Num() > 0)
         {

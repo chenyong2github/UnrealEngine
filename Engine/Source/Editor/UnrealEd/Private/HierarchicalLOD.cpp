@@ -721,7 +721,7 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 	}
 
 	TArray<UStaticMeshComponent*> Components;
-	Actor->GetComponents<UStaticMeshComponent>(Components);
+	Actor->GetComponents(Components);
 
 	bool bHasValidComponent = false;
 	for (UStaticMeshComponent* Component : Components)
@@ -1335,7 +1335,7 @@ ALODActor* FHierarchicalLODBuilder::CreateLODActor(const FLODCluster& InCluster,
 			}
 			else
 			{
-				Actor->GetComponents<UStaticMeshComponent>(Components);
+				Actor->GetComponents(Components);
 			}
 
 			AllComponents.Append(Components);

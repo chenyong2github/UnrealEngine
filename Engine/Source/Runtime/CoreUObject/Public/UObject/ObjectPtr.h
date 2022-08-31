@@ -534,6 +534,12 @@ TPrivateObjectPtr<T> MakeObjectPtrUnsafe(const UObject* Obj)
 }
 
 template <typename T>
+TObjectPtr<T> ToObjectPtr(T* Obj)
+{
+	return TObjectPtr<T>{Obj};
+}
+
+template <typename T>
 FORCEINLINE T* ToRawPtr(const TObjectPtr<T>& Ptr)
 {
 	// NOTE: This is specifically not getting a reference to the internal pointer.
@@ -732,3 +738,79 @@ inline void Exchange(TArray<T*>& A, TArray<TObjectPtr<T>>& B)
 {
 	Swap(A, ToRawPtrTArrayUnsafe(B));
 }
+
+/**
+ * Returns a pointer to a valid object if the Test object passes IsValid() tests, otherwise null
+ */
+template <typename T>
+T* GetValid(const TObjectPtr<T>& Test)
+{
+	T* TestPtr = ToRawPtr(Test);
+	return IsValid(TestPtr) ? TestPtr : nullptr;
+}
+
+//------------------------------------------------------------------------------
+// Suppose you want to have a function that outputs an array of either T*'s or TObjectPtr<T>'s
+// this template will make that possible to encode,
+//  
+// template<typename InstanceClass>
+// void GetItemInstances(TArray<InstanceClass>& OutInstances) const
+// {
+//     static_assert(TIsPointerOrObjectPtrToBaseOf<InstanceClass, UBaseClass>::Value, "Output array must contain pointers or TObjectPtrs to a base of UBaseClass");
+// }
+//------------------------------------------------------------------------------
+
+template <typename T, typename DerivedType>
+struct TIsPointerOrObjectPtrToBaseOfImpl
+{
+	enum { Value = false };
+};
+
+template <typename T, typename DerivedType>
+struct TIsPointerOrObjectPtrToBaseOfImpl<T*, DerivedType>
+{
+	enum { Value = std::is_base_of_v<DerivedType, T> };
+};
+
+template <typename T, typename DerivedType>
+struct TIsPointerOrObjectPtrToBaseOfImpl<TObjectPtr<T>, DerivedType>
+{
+	enum { Value = std::is_base_of_v<DerivedType, T> };
+};
+
+template <typename T, typename DerivedType>
+struct TIsPointerOrObjectPtrToBaseOf
+{
+	enum { Value = TIsPointerOrObjectPtrToBaseOfImpl<std::remove_cv_t<T>, DerivedType>::Value };
+};
+
+//------------------------------------------------------------------------------
+// Suppose now that you have a templated function that takes in an array of either
+// UBaseClass*'s or TObjectPtr<UBaseClass>'s, and you need to use that inner UBaseClass type
+// for coding,
+// 
+// This is how you can refer to that inner class.  Where InstanceClass is the template
+// argument for where TIsPointerOrObjectPtrToBaseOf is used,
+// 
+// TPointedToType<InstanceClass>* Thing = new TPointedToType<InstanceClass>();
+//------------------------------------------------------------------------------
+
+template <typename T>
+struct TPointedToTypeImpl;
+
+template <typename T>
+struct TPointedToTypeImpl<T*>
+{
+	using Type = T;
+};
+
+template <typename T>
+struct TPointedToTypeImpl<TObjectPtr<T>>
+{
+	using Type = T;
+};
+
+template <typename T>
+using TPointedToType = typename TPointedToTypeImpl<T>::Type;
+
+//------------------------------------------------------------------------------

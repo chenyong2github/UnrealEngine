@@ -654,7 +654,7 @@ void UExporter::ExportObjectInner(const FExportObjectInnerContext* Context, UObj
 			// Export anything extra for the components. Used for instanced foliage.
 			// This is done after the actor properties so these are set when regenerating the extra data objects.
 			TArray<UActorComponent*> Components;
-			Actor->GetComponents<UActorComponent, FDefaultAllocator>(Components);
+			Actor->GetComponents(Components);
 			ExportComponentExtra(Context, Components, Ar, PortFlags);
 		}
 	}

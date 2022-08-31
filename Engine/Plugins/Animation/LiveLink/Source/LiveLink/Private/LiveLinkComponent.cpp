@@ -31,7 +31,7 @@ void ULiveLinkComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	if (bIsDirty)
 	{
 		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
-		GetOwner()->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+		GetOwner()->GetComponents(SkeletalMeshComponents);
 		for (USkeletalMeshComponent* SkeletalMeshComponent : SkeletalMeshComponents)
 		{
 			SkeletalMeshComponent->SetUpdateAnimationInEditor(true);

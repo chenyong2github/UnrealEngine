@@ -140,7 +140,7 @@ void FLevelRenderAssetManager::IncrementalBuild(FDynamicRenderAssetInstanceManag
 			const bool bIsStaticActor = Actor->IsRootComponentStatic();
 
 			TInlineComponentArray<UPrimitiveComponent*> Primitives;
-			Actor->GetComponents<UPrimitiveComponent>(Primitives);
+			Actor->GetComponents(Primitives);
 			for (const UPrimitiveComponent* Primitive : Primitives)
 			{
 				check(Primitive);

@@ -100,7 +100,7 @@ bool UFractureActionTool::IsGeometryCollectionSelected()
 		if (Actor)
 		{
 			TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
-			Actor->GetComponents<UGeometryCollectionComponent>(GeometryCollectionComponents, true);
+			Actor->GetComponents(GeometryCollectionComponents, true);
 
 			if (GeometryCollectionComponents.Num() > 0)
 			{
@@ -120,7 +120,7 @@ bool UFractureActionTool::IsStaticMeshSelected()
 		if (Actor)
 		{
 			TInlineComponentArray<UStaticMeshComponent*> StaticMeshComponents;
-			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+			Actor->GetComponents(StaticMeshComponents, true);
 
 			if (StaticMeshComponents.Num() > 0)
 			{

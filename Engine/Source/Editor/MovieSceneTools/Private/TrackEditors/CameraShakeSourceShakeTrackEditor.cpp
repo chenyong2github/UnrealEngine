@@ -683,7 +683,7 @@ UCameraShakeSourceComponent* FCameraShakeSourceShakeTrackEditor::AcquireCameraSh
 			if (AActor* Actor = Cast<AActor>(Obj))
 			{
 				TArray<UCameraShakeSourceComponent*> CurShakeSourceComponents;
-				Actor->GetComponents<UCameraShakeSourceComponent>(CurShakeSourceComponents);
+				Actor->GetComponents(CurShakeSourceComponents);
 				ShakeSourceComponents.Append(CurShakeSourceComponents);
 			}
 			else if (UCameraShakeSourceComponent* ShakeSourceComponent = Cast<UCameraShakeSourceComponent>(Obj))

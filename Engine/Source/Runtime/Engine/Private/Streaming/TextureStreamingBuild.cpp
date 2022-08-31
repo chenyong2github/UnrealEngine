@@ -54,7 +54,7 @@ static uint32 ComputeHashTextureStreamingDataForActor(AActor* InActor)
 	}
 	
 	TInlineComponentArray<UPrimitiveComponent*> Primitives;
-	InActor->GetComponents<UPrimitiveComponent>(Primitives);
+	InActor->GetComponents(Primitives);
 
 	TArray<uint32> PrimitiveHashes;
 	for (UPrimitiveComponent* Primitive : Primitives)
@@ -90,7 +90,7 @@ void BuildActorTextureStreamingData(AActor* InActor, EMaterialQualityLevel::Type
 	BuiltDataComponent->InitializeTextureStreamingContainer(GetPackedTextureStreamingQualityLevelFeatureLevel(InQualityLevel, InFeatureLevel));
 
 	TInlineComponentArray<UPrimitiveComponent*> Primitives;
-	InActor->GetComponents<UPrimitiveComponent>(Primitives);
+	InActor->GetComponents(Primitives);
 	for (UPrimitiveComponent* Primitive : Primitives)
 	{
 		if (Primitive)
@@ -141,7 +141,7 @@ bool BuildLevelTextureStreamingComponentDataFromActors(ULevel* InLevel)
 		}
 
 		TInlineComponentArray<UPrimitiveComponent*> Primitives;
-		Actor->GetComponents<UPrimitiveComponent>(Primitives);
+		Actor->GetComponents(Primitives);
 		for (UPrimitiveComponent* Primitive : Primitives)
 		{
 			if (Primitive && Primitive->bIsActorTextureStreamingBuiltData)
@@ -283,7 +283,7 @@ ENGINE_API bool BuildTextureStreamingComponentData(UWorld* InWorld, EMaterialQua
 			}
 
 			TInlineComponentArray<UPrimitiveComponent*> Primitives;
-			Actor->GetComponents<UPrimitiveComponent>(Primitives);
+			Actor->GetComponents(Primitives);
 
 			for (UPrimitiveComponent* Primitive : Primitives)
 			{
@@ -757,7 +757,7 @@ void CheckTextureStreamingBuildValidity(UWorld* InWorld)
 					}
 
 					TInlineComponentArray<UPrimitiveComponent*> Primitives;
-					Actor->GetComponents<UPrimitiveComponent>(Primitives);
+					Actor->GetComponents(Primitives);
 
 					for (UPrimitiveComponent* Primitive : Primitives)
 					{

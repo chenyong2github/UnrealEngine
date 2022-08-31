@@ -1287,7 +1287,7 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::DisplayViewportInformat
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(BlueprintEditorPtr.Pin()->GetPreviewActor()))
 	{
 		TArray<UDisplayClusterPreviewComponent*> PreviewComponents;
-		RootActor->GetComponents<UDisplayClusterPreviewComponent>(PreviewComponents);
+		RootActor->GetComponents(PreviewComponents);
 
 		for (UDisplayClusterPreviewComponent* PreviewComp : PreviewComponents)
 		{

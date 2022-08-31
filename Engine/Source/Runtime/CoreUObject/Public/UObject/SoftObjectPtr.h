@@ -140,6 +140,13 @@ public:
 	{
 	}
 
+	/** Construct from a TObjectPtr<U> which may or may not be in memory. */
+	template <typename U>
+	FORCEINLINE TSoftObjectPtr(const TObjectPtr<U> Object)
+		: SoftObjectPtr(Object.Get())
+	{
+	}
+
 	/** Construct from a nullptr */
 	FORCEINLINE TSoftObjectPtr(TYPE_OF_NULLPTR)
 		: SoftObjectPtr(nullptr)
@@ -169,6 +176,14 @@ public:
 	FORCEINLINE TSoftObjectPtr& operator=(const U* Object)
 	{
 		SoftObjectPtr = Object;
+		return *this;
+	}
+
+	/** Copy from a TObjectPtr<U> which may or may not be in memory. */
+	template <typename U>
+	FORCEINLINE TSoftObjectPtr& operator=(const TObjectPtr<U> Object)
+	{
+		SoftObjectPtr = Object.Get();
 		return *this;
 	}
 

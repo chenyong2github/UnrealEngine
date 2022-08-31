@@ -12,7 +12,7 @@ void UActorFactoryRectLight::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
 	// Make all spawned actors use the candela units.
 	TArray<URectLightComponent*> RectLightComponents;
-	NewActor->GetComponents<URectLightComponent>(RectLightComponents);
+	NewActor->GetComponents(RectLightComponents);
 	for (URectLightComponent* Component : RectLightComponents)
 	{
 		if (Component && Component->CreationMethod == EComponentCreationMethod::Native)

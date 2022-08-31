@@ -53,7 +53,7 @@ void MeshPaintHelpers::RemoveInstanceVertexColors(UObject* Obj)
 	if (Actor != nullptr)
 	{
 		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+		Actor->GetComponents(StaticMeshComponents);
 		for (const auto& StaticMeshComponent : StaticMeshComponents)
 		{
 			if (StaticMeshComponent != nullptr)

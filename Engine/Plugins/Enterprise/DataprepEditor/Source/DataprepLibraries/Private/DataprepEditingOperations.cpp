@@ -1008,7 +1008,7 @@ namespace DatasmithEditingOperationsUtils
 					}
 
 					TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-					Actor->GetComponents<UStaticMeshComponent>(ComponentArray);
+					Actor->GetComponents(ComponentArray);
 
 					for(UStaticMeshComponent* MeshComponent : ComponentArray)
 					{

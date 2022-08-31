@@ -77,7 +77,7 @@ void URadialForceComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 			if(ComponentOwner)
 			{
 				TInlineComponentArray<UMovementComponent*> MovementComponents;
-				ComponentOwner->GetComponents<UMovementComponent>(MovementComponents);
+				ComponentOwner->GetComponents(MovementComponents);
 				for(const auto& MovementComponent : MovementComponents)
 				{
 					if(MovementComponent->UpdatedComponent == PrimitiveComponent)
@@ -155,7 +155,7 @@ void URadialForceComponent::FireImpulse()
 			TInlineComponentArray<UMovementComponent*> MovementComponents;
 			if(AActor* OwningActor = PrimitiveComponent->GetOwner())
 			{
-				OwningActor->GetComponents<UMovementComponent>(MovementComponents);
+				OwningActor->GetComponents(MovementComponents);
 				for(const auto& MovementComponent : MovementComponents)
 				{
 					if(MovementComponent->UpdatedComponent == PrimitiveComponent)

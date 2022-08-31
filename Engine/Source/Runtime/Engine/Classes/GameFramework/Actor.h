@@ -3523,7 +3523,29 @@ public:
 	}
 
 	/**
-	 * Get all components derived from class 'T' and fill in the OutComponents array with the result.
+	 * Get all components derived from class 'ComponentType' and fill in the OutComponents array with the result.
+	 * It's recommended to use TArrays with a TInlineAllocator to potentially avoid memory allocation costs.
+	 * TInlineComponentArray is defined to make this easier, for example:
+	 * {
+	 * 	   TInlineComponentArray<UPrimitiveComponent*> PrimComponents(Actor);
+	 * }
+	 *
+	 * @param bIncludeFromChildActors	If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
+	 */
+	template<class ComponentType, class AllocatorType>
+	void GetComponents(TArray<ComponentType, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
+	{
+		typedef TPointedToType<ComponentType> T;
+
+		OutComponents.Reset();
+		ForEachComponent_Internal<T>(T::StaticClass(), bIncludeFromChildActors, [&](T* InComp)
+		{
+			OutComponents.Add(InComp);
+		});
+	}
+
+	/**
+	 * Get all components derived from class 'ComponentType' and fill in the OutComponents array with the result.
 	 * It's recommended to use TArrays with a TInlineAllocator to potentially avoid memory allocation costs.
 	 * TInlineComponentArray is defined to make this easier, for example:
 	 * {
@@ -3535,6 +3557,10 @@ public:
 	template<class T, class AllocatorType>
 	void GetComponents(TArray<T*, AllocatorType>& OutComponents, bool bIncludeFromChildActors = false) const
 	{
+		// We should consider removing this function.  It's not really hurting anything by existing but the one above it was added so that
+		// we weren't assuming T*, preventing TObjectPtrs from working for this function.  The only downside is all the people who force the
+		// template argument with GetComponents's code suddenly not compiling with no clear error message.
+
 		OutComponents.Reset();
 		ForEachComponent_Internal<T>(T::StaticClass(), bIncludeFromChildActors, [&](T* InComp)
 		{

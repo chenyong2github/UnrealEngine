@@ -81,7 +81,7 @@ namespace CameraCalibrationStepsController
 		}
 
 		TArray<ULiveLinkComponentController*> LLComponentControllers;
-		InCamera->GetComponents<ULiveLinkComponentController>(LLComponentControllers);
+		InCamera->GetComponents(LLComponentControllers);
 
 		for (const ULiveLinkComponentController* LLComponentController : LLComponentControllers)
 		{
@@ -422,7 +422,7 @@ void FCameraCalibrationStepsController::CreateComp()
 	// Disable fog on scene capture component of CGLayer
 	{
 		TArray<USceneCaptureComponent2D*> CaptureComponents;
-		CGLayer->GetComponents<USceneCaptureComponent2D>(CaptureComponents);
+		CGLayer->GetComponents(CaptureComponents);
 
 		for (USceneCaptureComponent2D* CaptureComponent : CaptureComponents)
 		{
@@ -909,7 +909,7 @@ ULiveLinkCameraController* FCameraCalibrationStepsController::FindLiveLinkCamera
 	FAssetData LensFileAssetData(InLensFile);
 
 	TArray<ULiveLinkComponentController*> LiveLinkComponents;
-	InCamera->GetComponents<ULiveLinkComponentController>(LiveLinkComponents);
+	InCamera->GetComponents(LiveLinkComponents);
 
 	for (const ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents)
 	{

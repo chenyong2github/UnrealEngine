@@ -1029,7 +1029,7 @@ namespace FDatasmithImporterUtilsHelper
 				{
 					ActorElement = FDatasmithSceneFactory::CreateActor( *ActorName );
 					TArray<UStaticMeshComponent*> MeshComponents;
-					Actor->GetComponents<UStaticMeshComponent>( MeshComponents );
+					Actor->GetComponents( MeshComponents );
 					for(UStaticMeshComponent* MeshComponent : MeshComponents)
 					{
 						TSharedPtr< IDatasmithMeshActorElement > MeshActorElement = CreateMeshActorElement( ActorName, MeshComponent );

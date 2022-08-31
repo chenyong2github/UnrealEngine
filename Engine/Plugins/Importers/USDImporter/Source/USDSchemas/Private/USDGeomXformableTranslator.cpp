@@ -101,7 +101,7 @@ namespace UE::UsdXformableTranslatorImpl::Private
 			else
 			{
 				TArray<ULiveLinkComponentController*> LiveLinkComponents;
-				Parent->GetComponents< ULiveLinkComponentController >( LiveLinkComponents );
+				Parent->GetComponents( LiveLinkComponents );
 
 				for ( ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents )
 				{
@@ -182,7 +182,7 @@ namespace UE::UsdXformableTranslatorImpl::Private
 		}
 
 		TArray<ULiveLinkComponentController*> LiveLinkComponents;
-		Parent->GetComponents< ULiveLinkComponentController >( LiveLinkComponents );
+		Parent->GetComponents( LiveLinkComponents );
 
 		for ( ULiveLinkComponentController* LiveLinkComponent : LiveLinkComponents )
 		{

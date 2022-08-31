@@ -4264,7 +4264,7 @@ static void GetSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovieSc
 					while (Parent)
 					{
 						TArray<USkeletalMeshComponent*> MeshComps;
-						ActorSelection.Actor->GetComponents<USkeletalMeshComponent>(MeshComps, true);
+						ActorSelection.Actor->GetComponents(MeshComps, true);
 
 						for (USkeletalMeshComponent* MeshComp : MeshComps)
 						{

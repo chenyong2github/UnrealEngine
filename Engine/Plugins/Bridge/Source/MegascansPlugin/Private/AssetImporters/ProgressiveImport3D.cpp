@@ -325,7 +325,7 @@ void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
 	for (AActor* StaticMeshActor : FoundActors)
 	{
 		TArray<UStaticMeshComponent*> MeshComponents;
-		StaticMeshActor->GetComponents<UStaticMeshComponent>(MeshComponents);
+		StaticMeshActor->GetComponents(MeshComponents);
 		UStaticMesh* InstanceMesh = MeshComponents[0]->GetStaticMesh();
 
 		if (InstanceMesh->GetPathName() == PreviewDetails[AssetID]->PreviewMeshPath)

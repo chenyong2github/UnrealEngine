@@ -3335,7 +3335,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds /*= false*/) const
 {
 	TInlineComponentArray<ULandscapeComponent*> RegisteredLandscapeComponents;
-	GetComponents<ULandscapeComponent>(RegisteredLandscapeComponents);
+	GetComponents(RegisteredLandscapeComponents);
 	return ExportToRawMesh(
 		MakeArrayView(RegisteredLandscapeComponents.GetData(), RegisteredLandscapeComponents.Num()),
 		InExportLOD,

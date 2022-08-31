@@ -252,7 +252,7 @@ void ADisplayClusterRootActor::UpdateInnerFrustumPriority()
 	}
 	
 	TArray<UDisplayClusterICVFXCameraComponent*> Components;
-	GetComponents<UDisplayClusterICVFXCameraComponent>(Components);
+	GetComponents(Components);
 
 	TArray<FString> ValidCameras;
 	for (UDisplayClusterICVFXCameraComponent* Camera : Components)
@@ -283,7 +283,7 @@ void ADisplayClusterRootActor::UpdateInnerFrustumPriority()
 void ADisplayClusterRootActor::ResetInnerFrustumPriority()
 {
 	TArray<UDisplayClusterICVFXCameraComponent*> Components;
-	GetComponents<UDisplayClusterICVFXCameraComponent>(Components);
+	GetComponents(Components);
 
 	InnerFrustumPriority.Reset(Components.Num());
 	for (UDisplayClusterICVFXCameraComponent* Camera : Components)
@@ -803,7 +803,7 @@ void ADisplayClusterRootActor::HandleAssetReload(const EPackageReloadPhase InPac
 void ADisplayClusterRootActor::ResetPreviewComponents_Editor(bool bInRestoreSceneMaterial)
 {
 	TArray<UDisplayClusterPreviewComponent*> AllPreviewComponents;
-	GetComponents<UDisplayClusterPreviewComponent>(AllPreviewComponents);
+	GetComponents(AllPreviewComponents);
 
 	for (UDisplayClusterPreviewComponent* ExistingComp : AllPreviewComponents)
 	{
@@ -861,7 +861,7 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 
 	// Cleanup unused components.
 	TArray<UDisplayClusterPreviewComponent*> AllPreviewComponents;
-	GetComponents<UDisplayClusterPreviewComponent>(AllPreviewComponents);
+	GetComponents(AllPreviewComponents);
 	
 	for (UDisplayClusterPreviewComponent* ExistingComp : AllPreviewComponents)
 	{

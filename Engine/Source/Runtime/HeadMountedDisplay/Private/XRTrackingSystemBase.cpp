@@ -235,7 +235,7 @@ FTransform FXRTrackingSystemBase::ComputeTrackingToWorldTransform(FWorldContext&
 				if (bUsesImplicitHMDPositioning)
 				{
 					TArray<UCameraComponent*> CameraComponents;
-					PlayerViewTarget->GetComponents<UCameraComponent>(CameraComponents);
+					PlayerViewTarget->GetComponents(CameraComponents);
 
 					UCameraComponent* PlayerCamera = nullptr;
 					for (UCameraComponent* Cam : CameraComponents)

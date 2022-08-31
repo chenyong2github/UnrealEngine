@@ -2056,7 +2056,7 @@ bool FLevelEditorActionCallbacks::ScaleGridSnap_IsChecked()
 	return GetDefault<ULevelEditorViewportSettings>()->SnapScaleEnabled;
 }
 
-bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor * EditorActor, AActor * SimActor, TArray<class USkeletalMeshComponent*> & OutEditorComponents)
+bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor * EditorActor, AActor * SimActor, TArray<USkeletalMeshComponent*> & OutEditorComponents)
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 
@@ -2067,8 +2067,8 @@ bool FLevelEditorActionCallbacks::SaveAnimationFromSkeletalMeshComponent(AActor 
 	}
 
 	// find all skel components
-	TInlineComponentArray<class USkeletalMeshComponent *> SimSkelComponents;
-	SimActor->GetComponents<USkeletalMeshComponent>(SimSkelComponents);
+	TInlineComponentArray<USkeletalMeshComponent*> SimSkelComponents;
+	SimActor->GetComponents(SimSkelComponents);
 
 	if(SimSkelComponents.Num() > 0)
 	{

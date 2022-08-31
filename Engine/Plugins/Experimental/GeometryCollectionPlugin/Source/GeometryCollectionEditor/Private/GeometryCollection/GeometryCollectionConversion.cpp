@@ -119,8 +119,8 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 	{
 		if (AActor* Actor = Cast<AActor>(*Iter))
 		{
-			TArray<UStaticMeshComponent *> StaticMeshComponents;
-			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+			TArray<UStaticMeshComponent*> StaticMeshComponents;
+			Actor->GetComponents(StaticMeshComponents);
 			if (StaticMeshComponents.Num() > 0)
 			{
 				for (int Index = 0; Index < StaticMeshComponents.Num(); Index++)
@@ -140,8 +140,8 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 				}
 			}
 
-			TArray < USkeletalMeshComponent * > SkeletalMeshComponents;
-			Actor->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+			TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+			Actor->GetComponents(SkeletalMeshComponents);
 			if (SkeletalMeshComponents.Num() > 0)
 			{
 				for (int Index = 0; Index < SkeletalMeshComponents.Num(); Index++)

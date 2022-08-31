@@ -942,7 +942,7 @@ EClusterGenerationError FHierarchicalLODUtilities::ShouldGenerateCluster(AActor*
 
 	// for now only consider staticmesh - I don't think skel mesh would work with simplygon merge right now @fixme
 	TArray<UStaticMeshComponent*> Components;
-	Actor->GetComponents<UStaticMeshComponent>(Components);
+	Actor->GetComponents(Components);
 
 	int32 ValidComponentCount = 0;
 	// now make sure you check parent primitive, so that we don't build for the actor that already has built. 
@@ -985,7 +985,7 @@ ALODActor* FHierarchicalLODUtilities::GetParentLODActor(const AActor* InActor)
 	if (InActor)
 	{
 		TArray<UStaticMeshComponent*> ComponentArray;
-		InActor->GetComponents<UStaticMeshComponent>(ComponentArray);
+		InActor->GetComponents(ComponentArray);
 		for (auto Component : ComponentArray)
 		{
 			UPrimitiveComponent* ParentComponent = Component->GetLODParentPrimitive();

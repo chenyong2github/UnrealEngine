@@ -66,7 +66,7 @@ bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>&
 	{
 		if (GeneratedActor.IsValid())
 		{
-			GeneratedActor.Get()->GetComponents<UPCGComponent>(ComponentsToCleanup);
+			GeneratedActor.Get()->GetComponents(ComponentsToCleanup);
 
 			for (UPCGComponent* Component : ComponentsToCleanup)
 			{

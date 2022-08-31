@@ -163,6 +163,18 @@ public:
 	}
 
 	/**
+	 * Assignment from an object type that implements the InterfaceType native interface class
+	 */
+	template <typename ObjectType>
+	TScriptInterface(TObjectPtr<ObjectType> SourceObject)
+	{
+		SetObject(SourceObject);
+
+		InterfaceType* SourceInterface = Cast<InterfaceType>(ToRawPtr(SourceObject));
+		SetInterface(SourceInterface);
+	}
+
+	/**
 	 * Copyable
 	 */
 	TScriptInterface(const TScriptInterface&) = default;
@@ -191,13 +203,25 @@ public:
 	}
 
 	/**
+	 * Assignment from an object type that implements the InterfaceType native interface class
+	 */
+	template <typename ObjectType>
+	TScriptInterface& operator=(TObjectPtr<ObjectType> SourceObject)
+	{
+		*this = TScriptInterface(SourceObject);
+		return *this;
+	}
+
+	/**
 	 * Comparison operator, taking a pointer to InterfaceType
 	 */
-	FORCEINLINE bool operator==( const InterfaceType* Other ) const
+	template <typename OtherInterface, typename = decltype(ImplicitConv<InterfaceType*>((OtherInterface*)nullptr))>
+	FORCEINLINE bool operator==( const OtherInterface* Other ) const
 	{
 		return GetInterface() == Other;
 	}
-	FORCEINLINE bool operator!=( const InterfaceType* Other ) const
+	template <typename OtherInterface, typename = decltype(ImplicitConv<InterfaceType*>((OtherInterface*)nullptr))>
+	FORCEINLINE bool operator!=( const OtherInterface* Other ) const
 	{
 		return GetInterface() != Other;
 	}

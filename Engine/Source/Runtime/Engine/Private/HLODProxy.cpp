@@ -290,7 +290,7 @@ void UHLODProxy::ExtractStaticMeshComponentsFromLODActor(const ALODActor* LODAct
 			}
 			else
 			{
-				ChildActor->GetComponents<UStaticMeshComponent>(ChildComponents);
+				ChildActor->GetComponents(ChildComponents);
 			}
 
 			InOutComponents.Append(ChildComponents);
@@ -314,7 +314,7 @@ void UHLODProxy::ExtractComponents(const ALODActor* LODActor, TArray<UPrimitiveC
 			}
 			else
 			{
-				Actor->GetComponents<UStaticMeshComponent>(Components);
+				Actor->GetComponents(Components);
 			}
 
 			Components.RemoveAll([&](UStaticMeshComponent* Val)

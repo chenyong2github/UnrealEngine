@@ -217,7 +217,7 @@ void UDisplayClusterBlueprint::PrepareConfigForExport()
 	
 	// Extract CDO cameras (no screens in the CDO)
 	// Get list of cameras
-	CDO->GetComponents<UDisplayClusterCameraComponent>(CameraComponents);
+	CDO->GetComponents(CameraComponents);
 
 	// Extract BP components
 

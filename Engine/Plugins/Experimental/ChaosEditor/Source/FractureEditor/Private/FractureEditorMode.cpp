@@ -306,7 +306,7 @@ bool UFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 bool UFractureEditorMode::UpdateSelectionInFrustum(const FConvexVolume& InFrustum, AActor* Actor, bool bStrictDragSelection, bool bAppend, bool bRemove)
 {
 	TArray<UGeometryCollectionComponent*, TInlineAllocator<1>> GeometryComponents;
-	Actor->GetComponents<UGeometryCollectionComponent>(GeometryComponents);
+	Actor->GetComponents(GeometryComponents);
 	if (GeometryComponents.Num() == 0)
 	{
 		return false;

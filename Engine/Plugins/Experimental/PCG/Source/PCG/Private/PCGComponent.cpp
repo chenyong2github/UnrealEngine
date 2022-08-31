@@ -726,7 +726,7 @@ void UPCGComponent::PostLoad()
 	if (bGenerated && GeneratedResources.Num() == 0)
 	{
 		TArray<UInstancedStaticMeshComponent*> ISMCs;
-		GetOwner()->GetComponents<UInstancedStaticMeshComponent>(ISMCs);
+		GetOwner()->GetComponents(ISMCs);
 
 		for (UInstancedStaticMeshComponent* ISMC : ISMCs)
 		{
@@ -1663,19 +1663,19 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 	else if (bParseActor)// Prepare data on a component basis
 	{
 		TInlineComponentArray<ULandscapeSplinesComponent*, 1> LandscapeSplines;
-		Actor->GetComponents<ULandscapeSplinesComponent>(LandscapeSplines);
+		Actor->GetComponents(LandscapeSplines);
 
 		TInlineComponentArray<USplineComponent*, 1> Splines;
-		Actor->GetComponents<USplineComponent>(Splines);
+		Actor->GetComponents(Splines);
 
 		TInlineComponentArray<UShapeComponent*, 1> Shapes;
-		Actor->GetComponents<UShapeComponent>(Shapes);
+		Actor->GetComponents(Shapes);
 
 		// Don't get generic primitives unless it's the only thing we can find.
 		TInlineComponentArray<UPrimitiveComponent*, 1> OtherPrimitives;
 		if (LandscapeSplines.Num() == 0 && Splines.Num() == 0 && Shapes.Num() == 0)
 		{
-			Actor->GetComponents<UPrimitiveComponent>(OtherPrimitives);
+			Actor->GetComponents(OtherPrimitives);
 		}
 
 		UPCGUnionData* Union = nullptr;

@@ -97,7 +97,7 @@ void ADMXFixtureActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 
 void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam)
 {
-	GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+	GetComponents(StaticMeshComponents);
 
 	// Create dynamic materials if needed
 	if (!DynamicMaterialLens || !DynamicMaterialBeam || !DynamicMaterialSpotLight || !DynamicMaterialPointLight)

@@ -562,7 +562,7 @@ void UCameraLensDistortionAlgoPoints::SetCalibrator(AActor* InCalibrator)
 	}
 
 	TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPoints;
-	Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPoints);
+	Calibrator->GetComponents(CalibrationPoints);
 
 	for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
 	{
@@ -618,7 +618,7 @@ bool UCameraLensDistortionAlgoPoints::GetCalibratorPointCacheFromName(const FStr
 	}
 
 	TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
-	Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<4>>(CalibrationPoints);
+	Calibrator->GetComponents(CalibrationPoints);
 
 	for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
 	{
@@ -783,7 +783,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoPoints::BuildCalibrationDevicePicke
 			}
 
 			TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPoints;
-			Actor->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPoints);
+			Actor->GetComponents(CalibrationPoints);
 
 			return (CalibrationPoints.Num() > 0);
 		})

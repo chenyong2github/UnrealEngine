@@ -13,7 +13,7 @@ TArray<UFXSystemComponent*> ICameraLensEffectInterface::GetParticleComponents() 
 	const AActor* const ConstActorThis = Cast<AActor>(this);
 	AActor* const ActorThis = const_cast<AActor*>(ConstActorThis);
 	TArray<UFXSystemComponent*> ParticleComps;
-	ActorThis->GetComponents<UFXSystemComponent>(ParticleComps, true);
+	ActorThis->GetComponents(ParticleComps, true);
 	return ParticleComps;
 }
 

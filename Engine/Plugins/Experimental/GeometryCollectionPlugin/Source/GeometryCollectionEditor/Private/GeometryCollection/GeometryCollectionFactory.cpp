@@ -44,8 +44,8 @@ void AppendActorComponentsRecursive(
 {
 	FTransform ActorTransform = Actor->GetTransform();
 
-	TArray<UStaticMeshComponent *> StaticMeshComponents;
-	Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+	TArray<UStaticMeshComponent*> StaticMeshComponents;
+	Actor->GetComponents(StaticMeshComponents);
 	if (StaticMeshComponents.Num() > 0)
 	{
 		for (int Index = 0; Index < StaticMeshComponents.Num(); Index++)
@@ -60,8 +60,8 @@ void AppendActorComponentsRecursive(
 		}
 	}
 
-	TArray < USkeletalMeshComponent * > SkeletalMeshComponents;
-	Actor->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+	TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+	Actor->GetComponents(SkeletalMeshComponents);
 	if (SkeletalMeshComponents.Num() > 0)
 	{
 		for (int Index = 0; Index < SkeletalMeshComponents.Num(); Index++)
@@ -76,8 +76,8 @@ void AppendActorComponentsRecursive(
 		}
 	}
 
-	TArray<UGeometryCollectionComponent *> GeometryCollectionComponents;
-	Actor->GetComponents<UGeometryCollectionComponent>(GeometryCollectionComponents);
+	TArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+	Actor->GetComponents(GeometryCollectionComponents);
 	if (GeometryCollectionComponents.Num() > 0)
 	{
 		for (int Index = 0; Index < GeometryCollectionComponents.Num(); Index++)
@@ -93,7 +93,7 @@ void AppendActorComponentsRecursive(
 	}
 
 	TArray<UChildActorComponent*> ChildActorComponents;
-	Actor->GetComponents<UChildActorComponent>(ChildActorComponents);
+	Actor->GetComponents(ChildActorComponents);
 	for (UChildActorComponent* ChildComponent : ChildActorComponents)
 	{
 		AActor* ChildActor = ChildComponent->GetChildActor();

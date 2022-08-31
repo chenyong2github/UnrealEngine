@@ -28,7 +28,7 @@ void UUVGenerationFlattenMappingOperation::OnExecution_Implementation(const FDat
 			}
 
 			TInlineComponentArray<UStaticMeshComponent*> ComponentArray;
-			Actor->GetComponents<UStaticMeshComponent>(ComponentArray);
+			Actor->GetComponents(ComponentArray);
 			for (UStaticMeshComponent* MeshComponent : ComponentArray)
 			{
 				if (UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh())

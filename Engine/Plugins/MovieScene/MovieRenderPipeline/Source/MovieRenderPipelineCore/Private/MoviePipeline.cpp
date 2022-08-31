@@ -1656,7 +1656,7 @@ void UMoviePipeline::SetSkeletalMeshClothSubSteps(const int32 InSubdivisionCount
 		if (FoundActor)
 		{
 			TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
-			FoundActor->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+			FoundActor->GetComponents(SkeletalMeshComponents);
 
 			for (USkeletalMeshComponent* Component : SkeletalMeshComponents)
 			{

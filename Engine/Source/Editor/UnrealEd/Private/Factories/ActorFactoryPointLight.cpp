@@ -13,7 +13,7 @@ void UActorFactoryPointLight::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
 	// Make all spawned actors use the candela units.
 	TArray<UPointLightComponent*> PointLightComponents;
-	NewActor->GetComponents<UPointLightComponent>(PointLightComponents);
+	NewActor->GetComponents(PointLightComponents);
 	for (UPointLightComponent* Component : PointLightComponents)
 	{
 		if (Component && Component->CreationMethod == EComponentCreationMethod::Native)

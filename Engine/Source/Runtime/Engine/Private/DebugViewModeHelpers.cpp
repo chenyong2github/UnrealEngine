@@ -250,7 +250,7 @@ bool GetUsedMaterialsInWorld(UWorld* InWorld, OUT TSet<UMaterialInterface*>& Out
 			}
 
 			TInlineComponentArray<UPrimitiveComponent*> Primitives;
-			Actor->GetComponents<UPrimitiveComponent>(Primitives);
+			Actor->GetComponents(Primitives);
 
 			for (UPrimitiveComponent* Primitive : Primitives)
 			{

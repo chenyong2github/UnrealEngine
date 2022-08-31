@@ -194,7 +194,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 						// If the actor spawned has a PCG component, either generate it or mark it as generated if we pass through its inputs
 						TArray<UPCGComponent*> PCGComponents;
-						GeneratedActor->GetComponents<UPCGComponent>(PCGComponents);
+						GeneratedActor->GetComponents(PCGComponents);
 
 						for (UPCGComponent* PCGComponent : PCGComponents)
 						{

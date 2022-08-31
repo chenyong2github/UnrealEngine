@@ -843,7 +843,7 @@ void ALODActor::AddSubActors(const TArray<AActor*>& InActors)
 		if (!LODActor)
 		{
 			StaticMeshComponents.Reset();
-			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+			Actor->GetComponents(StaticMeshComponents);
 
 			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
@@ -877,7 +877,7 @@ const bool ALODActor::RemoveSubActor(AActor* InActor)
 		if (!InActor->IsA<ALODActor>())
 		{
 			TArray<UStaticMeshComponent*> StaticMeshComponents;
-			InActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+			InActor->GetComponents(StaticMeshComponents);
 			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
 				const UStaticMesh* StaticMesh = (Component) ? ToRawPtr(Component->GetStaticMesh()) : nullptr;
@@ -1209,7 +1209,7 @@ static FHLODInstancingKey GetInstancingKey(const AActor* InActor, int32 InLODLev
 	FHLODInstancingKey InstancingKey;
 
 	TArray<UStaticMeshComponent*> Components;
-	InActor->GetComponents<UStaticMeshComponent>(Components);
+	InActor->GetComponents(Components);
 	Components.RemoveAll([&](UStaticMeshComponent* Val)
 	{
 		return Val->GetStaticMesh() == nullptr || !Val->ShouldGenerateAutoLOD(InLODLevel - 1);

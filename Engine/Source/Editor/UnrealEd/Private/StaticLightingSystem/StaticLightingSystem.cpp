@@ -1112,7 +1112,7 @@ void FStaticLightingSystem::GatherStaticLightingInfo(bool bRebuildDirtyGeometryF
 						}
 
 						TArray<UStaticMeshComponent*> SubStaticMeshComponents;
-						SubActor->GetComponents<UStaticMeshComponent>(SubStaticMeshComponents);
+						SubActor->GetComponents(SubStaticMeshComponents);
 						for (auto SMC : SubStaticMeshComponents)
 						{
 							PrimitiveSubStaticMeshMap.Add(LODActor->GetStaticMeshComponent(), SMC);

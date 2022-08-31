@@ -66,7 +66,7 @@ void UEditorInstancedPlacementSettings::RegisterISMDescriptors(AInstancedPlaceme
 
 		FTransform ActorTransform = PreviewActor->GetActorTransform();
 		TArray<UStaticMeshComponent*> StaticMeshComponents;
-		PreviewActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+		PreviewActor->GetComponents(StaticMeshComponents);
 
 		for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 		{

@@ -24,7 +24,7 @@ FPackedLevelActorBuilderID FPackedLevelActorISMBuilder::GetID() const
 void FPackedLevelActorISMBuilder::GetPackClusters(FPackedLevelActorBuilderContext& InContext, AActor* InActor) const
 {
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	InActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+	InActor->GetComponents(StaticMeshComponents);
 
 	for(UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 	{

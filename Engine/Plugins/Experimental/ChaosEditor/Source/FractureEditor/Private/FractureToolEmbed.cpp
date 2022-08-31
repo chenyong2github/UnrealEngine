@@ -127,7 +127,7 @@ TArray<UStaticMeshComponent*> UFractureToolAddEmbeddedGeometry::GetSelectedStati
 			}
 
 			TArray<UStaticMeshComponent*> StaticMeshComponents;
-			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+			Actor->GetComponents(StaticMeshComponents, true);
 			SelectedStaticMeshComponents.Append(StaticMeshComponents);
 		}
 	}
@@ -303,7 +303,7 @@ TArray<UStaticMeshComponent*> UFractureToolAutoEmbedGeometry::GetSelectedStaticM
 			}
 
 			TArray<UStaticMeshComponent*> StaticMeshComponents;
-			Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents, true);
+			Actor->GetComponents(StaticMeshComponents, true);
 			SelectedStaticMeshComponents.Append(StaticMeshComponents);
 		}
 	}

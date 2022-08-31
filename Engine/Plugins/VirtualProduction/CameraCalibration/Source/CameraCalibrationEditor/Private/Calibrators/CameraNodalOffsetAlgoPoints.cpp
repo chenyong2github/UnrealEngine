@@ -1391,7 +1391,7 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWi
 			}
 
 			TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPoints;
-			Actor->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPoints);
+			Actor->GetComponents(CalibrationPoints);
 
 			return (CalibrationPoints.Num() > 0);
 		})
@@ -1408,7 +1408,7 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationComponentMenu(
 	MenuBuilder.BeginSection("CalibrationComponents", LOCTEXT("CalibrationComponents", "Calibration Point Components"));
 	{
 		TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPointComponents;
-		Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPointComponents);
+		Calibrator->GetComponents(CalibrationPointComponents);
 
 		for (UCalibrationPointComponent* CalibratorComponent : CalibrationPointComponents)
 		{
@@ -2371,7 +2371,7 @@ void UCameraNodalOffsetAlgoPoints::SetCalibrator(AActor* InCalibrator)
 	}
 
 	TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPoints;
-	Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPoints);
+	Calibrator->GetComponents(CalibrationPoints);
 
 	ActiveCalibratorComponents.Empty();
 

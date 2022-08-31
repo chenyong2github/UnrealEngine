@@ -108,7 +108,7 @@ void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateHideList_ICVF
 
 		// Also hide chromakeys for all cameras
 		TArray<UDisplayClusterICVFXCameraComponent*> ICVFXCamerasComps;
-		InRootActor.GetComponents<UDisplayClusterICVFXCameraComponent>(ICVFXCamerasComps);
+		InRootActor.GetComponents(ICVFXCamerasComps);
 
 		for (const UDisplayClusterICVFXCameraComponent* ICVFXCameraIt : ICVFXCamerasComps)
 		{

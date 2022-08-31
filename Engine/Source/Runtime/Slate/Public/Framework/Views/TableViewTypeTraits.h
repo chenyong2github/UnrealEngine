@@ -80,6 +80,14 @@ struct TIsValidListItem<const T*, typename TEnableIf<TPointerIsConvertibleFromTo
 	};
 };
 template <typename T>
+struct TIsValidListItem<TObjectPtr<T>>
+{
+	enum
+	{
+		Value = true
+	};
+};
+template <typename T>
 struct TIsValidListItem<TWeakObjectPtr<T>>
 {
 	enum
@@ -439,6 +447,67 @@ public:
 	}
 
 	class SerializerType{};
+};
+
+
+/**
+ * Pointer-related functionality for TObjectPtr<T>.
+ */
+template <typename T> struct TListTypeTraits< TObjectPtr<T> >
+{
+public:
+	typedef TObjectPtr<T> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TObjectPtr<T>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TObjectPtr<T>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs< TObjectPtr<T> >;
+
+	template<typename U>
+	static void AddReferencedObjects(FReferenceCollector& Collector,
+		TArray<TObjectPtr<T>>& ItemsWithGeneratedWidgets,
+		TSet<TObjectPtr<T>>& SelectedItems,
+		TMap< const U*, TObjectPtr<T> >& WidgetToItemMap)
+	{
+		// Serialize generated items
+		Collector.AddReferencedObjects(ItemsWithGeneratedWidgets);
+
+		// Serialize the map Value. We only do it for the WidgetToItemMap because we know that both maps are updated at the same time and contains the same objects
+		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
+		for (auto& It : WidgetToItemMap)
+		{
+			Collector.AddReferencedObject(It.Value);
+		}
+
+		// Serialize the selected items
+		Collector.AddReferencedObjects(SelectedItems);
+	}
+
+	static bool IsPtrValid( const TObjectPtr<T>& InPtr )
+	{
+		return InPtr.IsNull();
+	}
+
+	static void ResetPtr(TObjectPtr<T>& InPtr )
+	{
+		InPtr = nullptr;
+	}
+
+	static TObjectPtr<T> MakeNullPtr()
+	{
+		return nullptr;
+	}
+
+	static TObjectPtr<T> NullableItemTypeConvertToItemType( const TObjectPtr<T>& InPtr )
+	{
+		return InPtr;
+	}
+
+	static FString DebugDump(TObjectPtr<T> InPtr)
+	{
+		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
+	typedef FGCObject SerializerType;
 };
 
 
