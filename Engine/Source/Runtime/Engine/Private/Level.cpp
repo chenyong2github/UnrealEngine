@@ -3336,6 +3336,11 @@ bool ULevel::HasAnyActorsOfType(UClass *SearchType)
 #if WITH_EDITOR
 FString ULevel::GetActorPackageName(UPackage* InLevelPackage, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath)
 {
+	return GetActorPackageName(GetExternalActorsPath(InLevelPackage), ActorPackagingScheme, InActorPath);
+}
+
+FString ULevel::GetActorPackageName(const FString& InBaseDir, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath)
+{
 	// Convert the actor path to lowercase to make sure we get the same hash for case insensitive file systems
 	FString ActorPath = InActorPath.ToLower();
 
@@ -3353,12 +3358,10 @@ FString ULevel::GetActorPackageName(UPackage* InLevelPackage, EActorPackagingSch
 	FString GuidBase36 = PackageGuid.ToString(EGuidFormats::Base36Encoded);
 	check(GuidBase36.Len());
 
-	FString BaseDir = GetExternalActorsPath(InLevelPackage);
-
 	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorPackageName;
 
 	uint32 FilenameOffset = 0;
-	ActorPackageName.Append(BaseDir);
+	ActorPackageName.Append(InBaseDir);
 	ActorPackageName.Append(TEXT("/"));
 
 	switch (ActorPackagingScheme)

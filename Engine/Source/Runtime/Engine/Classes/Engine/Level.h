@@ -1159,6 +1159,13 @@ public:
 	static ENGINE_API FString GetActorPackageName(UPackage* InLevelPackage, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath);
 
 	/**
+	 * Get the package name for this actor
+	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
+	 * @return the package name
+	 */
+	static ENGINE_API FString GetActorPackageName(const FString& InBaseDir, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath);
+
+	/**
 	 * Get the folder containing the external actors for this level path
 	 * @param InLevelPackageName The package name to get the external actors path of
 	 * @param InPackageShortName Optional short name to use instead of the package short name
