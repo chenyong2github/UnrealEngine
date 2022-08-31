@@ -222,6 +222,7 @@ class FScreenProbeCompactTracesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+		SHADER_PARAMETER(uint32, CullByDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionTracingEndDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCompactedTraceTexelAllocator)
@@ -495,6 +496,7 @@ FCompactedTraceParameters CompactTraces(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FScreenProbeParameters& ScreenProbeParameters,
+	bool bCullByDistanceFromCamera,
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance,
 	bool bRenderDirectLighting)
@@ -517,6 +519,7 @@ FCompactedTraceParameters CompactTraces(
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = CompactedTraceTexelAllocatorUAV;
 		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedTraceTexelData, PF_R32G32_UINT);
+		PassParameters->CullByDistanceFromCamera = bCullByDistanceFromCamera ? 1 : 0;
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
 
@@ -539,6 +542,7 @@ FCompactedTraceParameters CompactTraces(
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = CompactedTraceTexelAllocatorUAV;
 		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedLightSampleTraceTexelData, PF_R32G32_UINT);
+		PassParameters->CullByDistanceFromCamera = bCullByDistanceFromCamera ? 1 : 0;
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
 
@@ -708,7 +712,8 @@ void TraceScreenProbes(
 			GraphBuilder,
 			View,
 			ScreenProbeParameters,
-			Lumen::MaxTracingEndDistanceFromCamera,
+			false,
+			0.0f,
 			IndirectTracingParameters.MaxTraceDistance,
 			bRenderDirectLighting);
 
@@ -742,6 +747,7 @@ void TraceScreenProbes(
 				GraphBuilder,
 				View,
 				ScreenProbeParameters,
+				true,
 				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 				IndirectTracingParameters.MaxMeshSDFTraceDistance,
 				bRenderDirectLighting);
@@ -804,7 +810,8 @@ void TraceScreenProbes(
 		GraphBuilder,
 		View,
 		ScreenProbeParameters,
-		Lumen::MaxTracingEndDistanceFromCamera,
+		false,
+		0.0f,
 		// Make sure the shader runs on all misses to apply radiance cache + skylight
 		IndirectTracingParameters.MaxTraceDistance * 2,
 		bRenderDirectLighting);

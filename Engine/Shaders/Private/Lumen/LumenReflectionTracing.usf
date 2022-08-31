@@ -210,6 +210,7 @@ void SetupCompactionIndirectArgsCS(uint GroupThreadId : SV_GroupThreadID)
 
 RWBuffer<uint2> RWCompactedTraceTexelData;
 
+uint CullByDistanceFromCamera;
 float CompactionTracingEndDistanceFromCamera;
 float CompactionMaxTraceDistance;
 float RayTracingCullingRadius;
@@ -284,7 +285,7 @@ void ReflectionCompactTracesCS(
 
 			if (SceneDepth > 0 
 				&& !bHit
-				&& SceneDepth < CompactionTracingEndDistanceFromCamera 
+				&& (CullByDistanceFromCamera == 0 || SceneDepth < CompactionTracingEndDistanceFromCamera)
 				&& TraceHitDistance < CompactionMaxTraceDistance)
 			{
 #if ORDERED_COMPACTION

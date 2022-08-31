@@ -28,7 +28,6 @@ namespace Lumen
 	constexpr uint32 NumResLevels = MaxResLevel - MinResLevel + 1;
 	constexpr uint32 CardTileSize = 8;
 
-	constexpr float MaxTracingEndDistanceFromCamera = 0.5f * UE_OLD_WORLD_MAX;
 	constexpr float MaxTraceDistance = 0.5f * UE_OLD_WORLD_MAX;
 
 	enum class ETracingPermutation

@@ -343,6 +343,7 @@ void ScreenProbeTraceScreenTexturesCS(
 RWStructuredBuffer<uint> RWCompactedTraceTexelAllocator;
 RWStructuredBuffer<uint2> RWCompactedTraceTexelData;
 
+uint CullByDistanceFromCamera;
 float CompactionTracingEndDistanceFromCamera;
 float CompactionMaxTraceDistance;
 
@@ -379,7 +380,7 @@ void ScreenProbeCompactTracesCS(
 
 		if (ShouldTraceScreenProbeTexel(TraceBufferCoord, SceneDepth)
 			&& !bHit
-			&& SceneDepth < CompactionTracingEndDistanceFromCamera 
+			&& (CullByDistanceFromCamera == 0 || SceneDepth < CompactionTracingEndDistanceFromCamera)
 			&& TraceHitDistance < CompactionMaxTraceDistance)
 		{
 			uint SharedTexelOffset;

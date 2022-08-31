@@ -196,6 +196,7 @@ class FReflectionCompactTracesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER(uint32, CullByDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionTracingEndDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
 		SHADER_PARAMETER(float, RayTracingCullingRadius)
@@ -388,6 +389,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenCardTracingInputs& TracingInputs,
+	bool bCullByDistanceFromCamera,
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance)
 {
@@ -428,6 +430,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->RWCompactedTraceTexelAllocator = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT);
 		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedTraceTexelData, PF_R32G32_UINT);
 		PassParameters->ReflectionTracingTileIndirectArgs = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionTileParameters.TracingIndirectArgs, PF_R32_UINT));
+		PassParameters->CullByDistanceFromCamera = bCullByDistanceFromCamera ? 1 : 0;
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
 		PassParameters->RayTracingCullingRadius = GetRayTracingCullingRadius();
@@ -681,7 +684,8 @@ void TraceReflections(
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
 			TracingInputs,
-			Lumen::MaxTracingEndDistanceFromCamera,
+			false,
+			0.0f,
 			IndirectTracingParameters.MaxTraceDistance);
 
 		RenderLumenHardwareRayTracingReflections(
@@ -726,6 +730,7 @@ void TraceReflections(
 					ReflectionTracingParameters,
 					ReflectionTileParameters,
 					TracingInputs,
+					true,
 					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 					IndirectTracingParameters.MaxMeshSDFTraceDistance);
 
@@ -771,7 +776,8 @@ void TraceReflections(
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
 			TracingInputs,
-			Lumen::MaxTracingEndDistanceFromCamera,
+			false,
+			0.0f,
 			IndirectTracingParameters.MaxTraceDistance);
 
 		{
