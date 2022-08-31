@@ -15,7 +15,7 @@ type HordeTime = {
     server: string;
 }
 
-export const msecToElapsed = (millisec: number, includeMinutes: boolean = true): string => {
+export const msecToElapsed = (millisec: number, includeMinutes: boolean = true, includeSeconds: boolean = true): string => {
 
     let duration = "";
     const d = moment.duration(millisec);
@@ -34,7 +34,7 @@ export const msecToElapsed = (millisec: number, includeMinutes: boolean = true):
             duration += `${d.minutes()}m `;
         }
 
-        if (d.seconds()) {
+        if (d.seconds() && (!duration || includeSeconds)) {
             duration += `${d.seconds()}s `;
         }
     }

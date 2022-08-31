@@ -4169,3 +4169,118 @@ export type GetNoticeResponse = {
 	createdByUser?: GetThinUserInfoResponse;
 
 }
+
+// Device telemetry
+
+export type DevicePoolTelemetryQuery = {
+	minCreateTime?: string;
+	maxCreateTime?: string;
+	index?: number;
+	count?: number;
+};
+
+export type DeviceTelemetryQuery = {
+	deviceIds?: string[];
+	poolId?: string;
+	platformId?: string;
+	minCreateTime?: string;
+	maxCreateTime?: string;
+	index?: number;
+	count?: number;
+};
+
+export type GetDevicePoolReservationTelemetryResponse = {
+	
+	/** Device id for reservation */
+	deviceId: string;
+
+	/** Job id associated with reservation */
+	jobId?: string; 
+
+	/** The step id of reservation */
+	stepId?: string; 
+
+	/** The name of the job holding reservation */
+	jobName?: string; 
+
+	/** The name of the step holding reservation */
+	stepName?: string;
+
+}
+
+/** Device pool telemetry respponse */
+export type GetDevicePlatformTelemetryResponse = {
+
+	/** The corresponding platform id */
+	platformId: string;
+
+	/** Available device ids of this platform */
+	available?: string[];
+
+	/** Device ids in maintenance state */
+	maintenance?: string[];
+
+	/** Device ids in problem state */
+	problem?: string[];
+
+	/** Device ids in disabled state */
+	disabled?: string[];
+
+	/** Stream id => reserved devices of this platform */
+	reserved?: Record<string, GetDevicePoolReservationTelemetryResponse[]>;
+}
+
+
+/** Device telemetry respponse */
+export type GetDevicePoolTelemetryResponse = {
+
+	/** The UTC time the telemetry data was created */
+	createTimeUtc: Date | string;
+
+
+	/** Individual pool id -> telemetry data points */
+	telemetry: Record<string, GetDevicePlatformTelemetryResponse[]>;
+}
+
+/// Device telemetry respponse
+export type GetTelemetryInfoResponse = {
+
+	/// The UTC time the telemetry data was created	
+	createTimeUtc: Date | string;
+	
+	/// The stream id which utilized device	
+	streamId?: string;
+	
+	/// The job id which utilized device	
+	jobId?: string;
+	
+	/// The job's step id	
+	stepId?: string;
+
+	/// The job name which utilized device	
+	jobName?: string;
+	
+	/// The job's step name
+	stepName?: string;
+
+	/// If this telemetry has a reservation, the start time of the reservation	
+	reservationStartUtc?: Date | string;
+
+	/// If this telemetry has a reservation, the finish time of the reservation
+	reservationFinishUtc?: Date | string;
+	
+	/// If this telemetry marks a detected device issue, the time of the issue	
+	problemTimeUtc?: Date | string;
+}
+
+
+/// Device telemetry respponse
+export type GetDeviceTelemetryResponse = {
+
+	/// The device id for the telemetry data
+	deviceId: string;
+
+	/// Individual telemetry data points	
+	telemetry: GetTelemetryInfoResponse[];
+
+}
