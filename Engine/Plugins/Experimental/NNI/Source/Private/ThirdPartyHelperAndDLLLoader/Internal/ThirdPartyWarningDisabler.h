@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "CoreMinimal.h"
 
 /*
 Many third party headers require some care when importing. NNI third party includes should be wrapped like this:

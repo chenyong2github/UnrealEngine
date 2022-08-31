@@ -35,6 +35,8 @@ limitations under the License.
 #include <unistd.h>
 #endif
 
+#include "CoreMinimal.h" // WITH_UE
+
 namespace Eigen {
 class ThreadPoolInterface;
 }
